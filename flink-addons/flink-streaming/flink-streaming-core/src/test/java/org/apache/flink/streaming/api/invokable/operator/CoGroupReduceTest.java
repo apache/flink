@@ -104,7 +104,7 @@ public class CoGroupReduceTest {
 
 		@SuppressWarnings({ "unused", "unchecked" })
 		DataStream<String> ds4 = env1.fromElements(word1, word2, word3).connect(ds2).groupBy(0, 0)
-				.reduce(new MyCoReduceFunction(), 0, 0).addSink(new EmptySink());
+				.reduce(new MyCoReduceFunction()).addSink(new EmptySink());
 
 		env1.executeTest(32);
 
@@ -142,7 +142,7 @@ public class CoGroupReduceTest {
 
 		@SuppressWarnings({ "unused", "unchecked" })
 		DataStream<String> ds4 = env2.fromElements(word1, word2, word3).connect(ds2).groupBy(2, 0)
-				.reduce(new MyCoReduceFunction(), 2, 0).addSink(new EmptySink());
+				.reduce(new MyCoReduceFunction()).addSink(new EmptySink());
 
 		env2.executeTest(32);
 

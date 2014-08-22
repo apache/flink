@@ -20,13 +20,13 @@ package org.apache.flink.streaming.api.streamcomponent;
 import java.util.ArrayList;
 
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.runtime.io.network.api.MutableReader;
 import org.apache.flink.runtime.io.network.api.MutableRecordReader;
-import org.apache.flink.runtime.io.network.api.MutableUnionRecordReader;
+import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.streaming.api.invokable.operator.co.CoInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
+import org.apache.flink.streaming.io.CoReaderIterator;
+import org.apache.flink.streaming.io.CoRecordReader;
 import org.apache.flink.types.TypeInformation;
 import org.apache.flink.util.MutableObjectIterator;
 
@@ -34,14 +34,15 @@ public class CoStreamTask<IN1 extends Tuple, IN2 extends Tuple, OUT extends Tupl
 		AbstractStreamComponent {
 
 	private OutputHandler<OUT> outputHandler;
-	
+
 	protected StreamRecordSerializer<IN1> inputDeserializer1 = null;
 	protected StreamRecordSerializer<IN2> inputDeserializer2 = null;
 
-	private MutableReader<IOReadableWritable> inputs1;
-	private MutableReader<IOReadableWritable> inputs2;
 	MutableObjectIterator<StreamRecord<IN1>> inputIter1;
 	MutableObjectIterator<StreamRecord<IN2>> inputIter2;
+
+	CoRecordReader<DeserializationDelegate<StreamRecord<IN1>>, DeserializationDelegate<StreamRecord<IN2>>> coReader;
+	CoReaderIterator<StreamRecord<IN1>, StreamRecord<IN2>> coIter;
 
 	private CoInvokable<IN1, IN2, OUT> userInvokable;
 	private static int numTasks;
@@ -52,30 +53,29 @@ public class CoStreamTask<IN1 extends Tuple, IN2 extends Tuple, OUT extends Tupl
 		instanceID = numTasks;
 	}
 
-	@SuppressWarnings({ "unchecked", "rawtypes" })
 	private void setDeserializers() {
 		TypeInformation<IN1> inputTypeInfo1 = configuration.getTypeInfoIn1();
 		inputDeserializer1 = new StreamRecordSerializer<IN1>(inputTypeInfo1);
 
 		TypeInformation<IN2> inputTypeInfo2 = configuration.getTypeInfoIn2();
-		inputDeserializer2 = new StreamRecordSerializer(inputTypeInfo2);
+		inputDeserializer2 = new StreamRecordSerializer<IN2>(inputTypeInfo2);
 	}
 
 	@Override
 	public void setInputsOutputs() {
 		outputHandler = new OutputHandler<OUT>(this);
-		
+
 		setConfigInputs();
 
-		inputIter1 = InputHandler.staticCreateInputIterator(inputs1, inputDeserializer1);
-		inputIter2 = InputHandler.staticCreateInputIterator(inputs2, inputDeserializer2);
+		coIter = new CoReaderIterator<StreamRecord<IN1>, StreamRecord<IN2>>(coReader,
+				inputDeserializer1, inputDeserializer2);
 	}
 
 	@Override
 	protected void setInvokable() {
 		userInvokable = configuration.getUserInvokable();
-		userInvokable.initialize(outputHandler.getCollector(), inputIter1, inputDeserializer1,
-				inputIter2, inputDeserializer2, isMutable);
+		userInvokable.initialize(outputHandler.getCollector(), coIter, inputDeserializer1,
+				inputDeserializer2, isMutable);
 	}
 
 	protected void setConfigInputs() throws StreamComponentException {
@@ -83,39 +83,27 @@ public class CoStreamTask<IN1 extends Tuple, IN2 extends Tuple, OUT extends Tupl
 
 		int numberOfInputs = configuration.getNumberOfInputs();
 
-		ArrayList<MutableRecordReader<IOReadableWritable>> inputList1 = new ArrayList<MutableRecordReader<IOReadableWritable>>();
-		ArrayList<MutableRecordReader<IOReadableWritable>> inputList2 = new ArrayList<MutableRecordReader<IOReadableWritable>>();
+		ArrayList<MutableRecordReader<DeserializationDelegate<StreamRecord<IN1>>>> inputList1 = new ArrayList<MutableRecordReader<DeserializationDelegate<StreamRecord<IN1>>>>();
+		ArrayList<MutableRecordReader<DeserializationDelegate<StreamRecord<IN2>>>> inputList2 = new ArrayList<MutableRecordReader<DeserializationDelegate<StreamRecord<IN2>>>>();
 
 		for (int i = 0; i < numberOfInputs; i++) {
 			int inputType = configuration.getInputType(i);
 			switch (inputType) {
 			case 1:
-				inputList1.add(new MutableRecordReader<IOReadableWritable>(this));
+				inputList1.add(new MutableRecordReader<DeserializationDelegate<StreamRecord<IN1>>>(
+						this));
 				break;
 			case 2:
-				inputList2.add(new MutableRecordReader<IOReadableWritable>(this));
+				inputList2.add(new MutableRecordReader<DeserializationDelegate<StreamRecord<IN2>>>(
+						this));
 				break;
 			default:
 				throw new RuntimeException("Invalid input type number: " + inputType);
 			}
 		}
 
-		inputs1 = getInputs(inputList1);
-		inputs2 = getInputs(inputList2);
-	}
-
-	@SuppressWarnings("unchecked")
-	private MutableReader<IOReadableWritable> getInputs(
-			ArrayList<MutableRecordReader<IOReadableWritable>> inputList) {
-		if (inputList.size() == 1) {
-			return inputList.get(0);
-		} else if (inputList.size() > 1) {
-			MutableRecordReader<IOReadableWritable>[] inputArray = inputList
-					.toArray(new MutableRecordReader[inputList.size()]);
-
-			return new MutableUnionRecordReader<IOReadableWritable>(inputArray);
-		}
-		return null;
+		coReader = new CoRecordReader<DeserializationDelegate<StreamRecord<IN1>>, DeserializationDelegate<StreamRecord<IN2>>>(
+				inputList1, inputList2);
 	}
 
 	@Override

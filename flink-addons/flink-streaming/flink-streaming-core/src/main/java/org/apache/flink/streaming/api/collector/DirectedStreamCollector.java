@@ -17,9 +17,9 @@
 
 package org.apache.flink.streaming.api.collector;
 
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -39,7 +39,7 @@ public class DirectedStreamCollector<OUT> extends StreamCollector<OUT> {
 
 	OutputSelector<OUT> outputSelector;
 	private static final Log LOG = LogFactory.getLog(DirectedStreamCollector.class);
-	private List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> emitted;
+	private Set<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> emitted;
 
 	/**
 	 * Creates a new DirectedStreamCollector
@@ -56,7 +56,7 @@ public class DirectedStreamCollector<OUT> extends StreamCollector<OUT> {
 			OutputSelector<OUT> outputSelector) {
 		super(channelID, serializationDelegate);
 		this.outputSelector = outputSelector;
-		this.emitted = new ArrayList<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>>();
+		this.emitted = new HashSet<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>>();
 
 	}
 

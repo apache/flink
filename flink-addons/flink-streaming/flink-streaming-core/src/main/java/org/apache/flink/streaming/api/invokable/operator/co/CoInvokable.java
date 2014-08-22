@@ -21,8 +21,8 @@ import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.streaming.api.invokable.StreamComponentInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
+import org.apache.flink.streaming.io.CoReaderIterator;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.MutableObjectIterator;
 
 public abstract class CoInvokable<IN1, IN2, OUT> extends StreamComponentInvokable<OUT> {
 
@@ -32,8 +32,7 @@ public abstract class CoInvokable<IN1, IN2, OUT> extends StreamComponentInvokabl
 
 	private static final long serialVersionUID = 1L;
 
-	protected MutableObjectIterator<StreamRecord<IN1>> recordIterator1;
-	protected MutableObjectIterator<StreamRecord<IN2>> recordIterator2;
+	protected CoReaderIterator<StreamRecord<IN1>, StreamRecord<IN2>> recordIterator;
 	protected StreamRecord<IN1> reuse1;
 	protected StreamRecord<IN2> reuse2;
 	protected StreamRecordSerializer<IN1> serializer1;
@@ -41,16 +40,13 @@ public abstract class CoInvokable<IN1, IN2, OUT> extends StreamComponentInvokabl
 	protected boolean isMutable;
 
 	public void initialize(Collector<OUT> collector,
-			MutableObjectIterator<StreamRecord<IN1>> recordIterator1,
-			StreamRecordSerializer<IN1> serializer1,
-			MutableObjectIterator<StreamRecord<IN2>> recordIterator2,
-			StreamRecordSerializer<IN2> serializer2, boolean isMutable) {
+			CoReaderIterator<StreamRecord<IN1>, StreamRecord<IN2>> recordIterator,
+			StreamRecordSerializer<IN1> serializer1, StreamRecordSerializer<IN2> serializer2,
+			boolean isMutable) {
 		this.collector = collector;
 
-		this.recordIterator1 = recordIterator1;
+		this.recordIterator = recordIterator;
 		this.reuse1 = serializer1.createInstance();
-
-		this.recordIterator2 = recordIterator2;
 		this.reuse2 = serializer2.createInstance();
 
 		this.serializer1 = serializer1;
@@ -58,30 +54,32 @@ public abstract class CoInvokable<IN1, IN2, OUT> extends StreamComponentInvokabl
 		this.isMutable = isMutable;
 	}
 
-	public void resetReuse() {
+	protected void resetReuseAll() {
 		this.reuse1 = serializer1.createInstance();
 		this.reuse2 = serializer2.createInstance();
 	}
 
+	protected void resetReuse1() {
+		this.reuse1 = serializer1.createInstance();
+	}
+
+	protected void resetReuse2() {
+		this.reuse2 = serializer2.createInstance();
+	}
+
 	public void invoke() throws Exception {
-		boolean noMoreRecordOnInput1 = false;
-		boolean noMoreRecordOnInput2 = false;
-
-		do {
-			noMoreRecordOnInput1 = ((reuse1 = recordIterator1.next(reuse1)) == null);
-			if (!noMoreRecordOnInput1) {
+		while (true) {
+			int next = recordIterator.next(reuse1, reuse2);
+			if (next == 0) {
+				break;
+			} else if (next == 1) {
 				handleStream1();
-			}
-
-			noMoreRecordOnInput2 = ((reuse2 = recordIterator2.next(reuse2)) == null);
-			if (!noMoreRecordOnInput2) {
+				resetReuse1();
+			} else {
 				handleStream2();
+				resetReuse2();
 			}
-
-			if (!this.isMutable) {
-				resetReuse();
-			}
-		} while (!noMoreRecordOnInput1 || !noMoreRecordOnInput2);
+		}
 	}
 
 	public abstract void handleStream1() throws Exception;

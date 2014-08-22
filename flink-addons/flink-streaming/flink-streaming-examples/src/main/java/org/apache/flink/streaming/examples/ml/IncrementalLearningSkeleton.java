@@ -39,6 +39,7 @@ public class IncrementalLearningSkeleton {
 
 		// Method for pulling new data for prediction
 		private Integer getNewData() throws InterruptedException {
+			Thread.sleep(1000);
 			return 1;
 		}
 	}
@@ -58,6 +59,7 @@ public class IncrementalLearningSkeleton {
 
 		// Method for pulling new training data
 		private Integer getTrainingData() throws InterruptedException {
+			Thread.sleep(1000);
 			return 1;
 
 		}
@@ -97,7 +99,7 @@ public class IncrementalLearningSkeleton {
 			// Update model
 			partialModel = value;
 			batchModel = getBatchModel();
-			return 0;
+			return 1;
 		}
 
 		// Pulls model built with batch-job on the old training data
@@ -122,7 +124,7 @@ public class IncrementalLearningSkeleton {
 
 		// Build new model on every second of new data
 		DataStream<Double[]> model = env.addSource(new TrainingDataSource(), SOURCE_PARALLELISM)
-				.windowReduce(new PartialModelBuilder(), 1000);
+				.windowReduce(new PartialModelBuilder(), 5000);
 
 		// Use partial model for prediction
 		DataStream<Integer> prediction = env.addSource(new NewDataSource(), SOURCE_PARALLELISM)
