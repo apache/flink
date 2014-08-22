@@ -264,7 +264,7 @@ public final class RecordComparator extends TypeComparator<Record> {
 	}
 	
 	@Override
-	public int compare(DataInputView source1, DataInputView source2) throws IOException {
+	public int compareSerialized(DataInputView source1, DataInputView source2) throws IOException {
 		this.temp1.read(source1);
 		this.temp2.read(source2);
 		
@@ -388,6 +388,18 @@ public final class RecordComparator extends TypeComparator<Record> {
 			// this should never happen, because the classes have been instantiated before. Report for debugging.
 			throw new RuntimeException("Could not instantiate key classes when duplicating RecordComparator.", ex);
 		}
+	}
+
+	@Override
+	public Object[] extractKeys(Record record) {
+		throw new UnsupportedOperationException("Record does not support extactKeys and " +
+				"getComparators. This cannot be used with the GenericPairComparator.");
+	}
+
+	@Override
+	public TypeComparator[] getComparators() {
+		throw new UnsupportedOperationException("Record does not support extactKeys and " +
+				"getComparators. This cannot be used with the GenericPairComparator.");
 	}
 
 	@Override

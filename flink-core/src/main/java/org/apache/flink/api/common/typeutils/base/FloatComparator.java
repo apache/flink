@@ -35,7 +35,7 @@ public final class FloatComparator extends BasicTypeComparator<Float> {
 	}
 
 	@Override
-	public int compare(DataInputView firstSource, DataInputView secondSource) throws IOException {
+	public int compareSerialized(DataInputView firstSource, DataInputView secondSource) throws IOException {
 		float l1 = firstSource.readFloat();
 		float l2 = secondSource.readFloat();
 		int comp = (l1 < l2 ? -1 : (l1 > l2 ? 1 : 0)); 
