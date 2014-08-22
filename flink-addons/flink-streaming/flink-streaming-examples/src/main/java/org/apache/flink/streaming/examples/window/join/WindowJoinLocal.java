@@ -32,6 +32,7 @@ public class WindowJoinLocal {
 	// This example will join two streams with a sliding window. One which emits
 	// people's grades and one which emits people's salaries.
 
+	//TODO update and reconsider
 	public static void main(String[] args) {
 
 		LogUtils.initializeDefaultConsoleLogger(Level.DEBUG, Level.INFO);

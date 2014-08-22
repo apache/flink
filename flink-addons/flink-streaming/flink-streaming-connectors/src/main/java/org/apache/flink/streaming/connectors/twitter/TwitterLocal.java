@@ -25,7 +25,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
 import org.apache.flink.streaming.examples.function.JSONParseFlatMap;
-import org.apache.flink.streaming.examples.wordcount.WordCountCounter;
+import org.apache.flink.streaming.examples.wordcount.WordCountLocal.WordCountCounter;
 import org.apache.flink.util.Collector;
 
 /**
