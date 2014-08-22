@@ -18,14 +18,17 @@
 
 package org.apache.flink.api.java.operators;
 
+import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.java.aggregation.Aggregations;
-
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.functions.SelectByMaxFunction;
+import org.apache.flink.api.java.functions.SelectByMinFunction;
 import org.apache.flink.api.java.functions.UnsupportedLambdaExpressionException;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 
 public class UnsortedGrouping<T> extends Grouping<T> {
 
@@ -133,7 +136,47 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 		return new GroupReduceOperator<T, R>(this, reducer);
 	}
 
-
+	/**
+	 * Applies a special case of a reduce transformation (minBy) on a grouped {@link DataSet}.<br/>
+	 * The transformation consecutively calls a {@link ReduceFunction} 
+	 * until only a single element remains which is the result of the transformation.
+	 * A ReduceFunction combines two elements into one new element of the same type.
+	 *  
+	 * @param fields Keys taken into account for finding the minimum.
+	 * @return A {@link ReduceOperator} representing the minimum.
+	 */
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	public ReduceOperator<T> minBy(int... fields)  {
+		
+		// Check for using a tuple
+		if(!this.dataSet.getType().isTupleType()) {
+			throw new InvalidProgramException("Method minBy(int) only works on tuples.");
+		}
+			
+		return new ReduceOperator<T>(this, new SelectByMinFunction(
+				(TupleTypeInfo) this.dataSet.getType(), fields));
+	}
+	
+	/**
+	 * Applies a special case of a reduce transformation (maxBy) on a grouped {@link DataSet}.<br/>
+	 * The transformation consecutively calls a {@link ReduceFunction} 
+	 * until only a single element remains which is the result of the transformation.
+	 * A ReduceFunction combines two elements into one new element of the same type.
+	 *  
+	 * @param fields Keys taken into account for finding the minimum.
+	 * @return A {@link ReduceOperator} representing the minimum.
+	 */
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	public ReduceOperator<T> maxBy(int... fields)  {
+		
+		// Check for using a tuple
+		if(!this.dataSet.getType().isTupleType()) {
+			throw new InvalidProgramException("Method maxBy(int) only works on tuples.");
+		}
+			
+		return new ReduceOperator<T>(this, new SelectByMaxFunction(
+				(TupleTypeInfo) this.dataSet.getType(), fields));
+	}
 	// --------------------------------------------------------------------------------------------
 	//  Group Operations
 	// --------------------------------------------------------------------------------------------
