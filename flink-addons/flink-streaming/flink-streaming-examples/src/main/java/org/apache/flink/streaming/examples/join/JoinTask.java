@@ -20,55 +20,65 @@ package org.apache.flink.streaming.examples.join;
 import java.util.ArrayList;
 import java.util.HashMap;
 
-import org.apache.flink.api.java.functions.RichFlatMapFunction;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.streaming.api.function.co.RichCoFlatMapFunction;
 import org.apache.flink.util.Collector;
 
+//Joins the input value with the already known values. If it is a grade
+// then with the salaries, if it is a salary then with the grades. Also
+// stores the new element.
 public class JoinTask extends
-		RichFlatMapFunction<Tuple3<String, String, Integer>, Tuple3<String, Integer, Integer>> {
-	private static final long serialVersionUID = 749913336259789039L;
+		RichCoFlatMapFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple3<String, Integer, Integer>> {
+	private static final long serialVersionUID = 1L;
 
 	private HashMap<String, ArrayList<Integer>> gradeHashmap;
 	private HashMap<String, ArrayList<Integer>> salaryHashmap;
+	private String name;
 
 	public JoinTask() {
 		gradeHashmap = new HashMap<String, ArrayList<Integer>>();
 		salaryHashmap = new HashMap<String, ArrayList<Integer>>();
+		name = new String();
 	}
 
-	@Override
-	public void flatMap(Tuple3<String, String, Integer> value,
-			Collector<Tuple3<String, Integer, Integer>> out) throws Exception {
-		String streamId = value.f0;
-		String name = value.f1;
+	Tuple3<String, Integer, Integer> outputTuple = new Tuple3<String, Integer, Integer>();
 
-		// Joins the input value with the already known values. If it is a grade
-		// then with the salaries, if it is a salary then with the grades. Also
-		// stores the new element.
-		if (streamId.equals("grade")) {
-			if (salaryHashmap.containsKey(name)) {
-				for (Integer salary : salaryHashmap.get(name)) {
-					Tuple3<String, Integer, Integer> outputTuple = new Tuple3<String, Integer, Integer>(
-							name, value.f2, salary);
-					out.collect(outputTuple);
-				}
+	// GRADES
+	@Override
+	public void flatMap1(Tuple2<String, Integer> value,
+			Collector<Tuple3<String, Integer, Integer>> out) {
+		name = value.f0;
+		outputTuple.f0 = name;
+		outputTuple.f1 = value.f1;
+		if (salaryHashmap.containsKey(name)) {
+			for (Integer salary : salaryHashmap.get(name)) {
+				outputTuple.f2 = salary;
+				out.collect(outputTuple);
 			}
-			if (!gradeHashmap.containsKey(name)) {
-				gradeHashmap.put(name, new ArrayList<Integer>());
-			}
-			gradeHashmap.get(name).add(value.f2);
-		} else {
-			if (gradeHashmap.containsKey(name)) {
-				for (Integer grade : gradeHashmap.get(name)) {
-					Tuple3<String, Integer, Integer> outputTuple = new Tuple3<String, Integer, Integer>(
-							name, grade, value.f2);
-					out.collect(outputTuple);
-				}
-			}
-			if (!salaryHashmap.containsKey(name)) {
-				salaryHashmap.put(name, new ArrayList<Integer>());
-			}
-			salaryHashmap.get(name).add(value.f2);
 		}
+		if (!gradeHashmap.containsKey(name)) {
+			gradeHashmap.put(name, new ArrayList<Integer>());
+		}
+		gradeHashmap.get(name).add(value.f1);
+	}
+
+	// SALARIES
+	@Override
+	public void flatMap2(Tuple2<String, Integer> value,
+			Collector<Tuple3<String, Integer, Integer>> out) {
+		name = value.f0;
+		outputTuple.f0 = name;
+		outputTuple.f2 = value.f1;
+		if (gradeHashmap.containsKey(name)) {
+			for (Integer grade : gradeHashmap.get(name)) {
+				outputTuple.f1 = grade;
+				out.collect(outputTuple);
+			}
+		}
+		if (!salaryHashmap.containsKey(name)) {
+			salaryHashmap.put(name, new ArrayList<Integer>());
+		}
+		salaryHashmap.get(name).add(value.f1);
 	}
 }

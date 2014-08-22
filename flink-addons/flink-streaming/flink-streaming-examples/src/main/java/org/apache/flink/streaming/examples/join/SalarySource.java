@@ -15,21 +15,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.examples.wordcount;
+package org.apache.flink.streaming.examples.join;
 
-import org.apache.flink.api.common.functions.FlatMapFunction;
+import java.util.Random;
+
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.streaming.api.function.source.SourceFunction;
 import org.apache.flink.util.Collector;
 
-public class WordCountSplitter implements FlatMapFunction<String, Tuple2<String, Integer>> {
+public class SalarySource implements SourceFunction<Tuple2<String, Integer>> {
+
 	private static final long serialVersionUID = 1L;
 
-	// Splits the lines according on spaces
-	@Override
-	public void flatMap(String inTuple, Collector<Tuple2<String, Integer>> out) throws Exception {
+	private String[] names = { "tom", "jerry", "alice", "bob", "john", "grace", "sasa", "lawrance",
+			"andrew", "jean", "richard", "smith", "gorge", "black", "peter" };
+	private Random rand = new Random();
+	private Tuple2<String, Integer> outTuple = new Tuple2<String, Integer>();
 
-		for (String word : inTuple.split(" ")) {
-			out.collect(new Tuple2<String, Integer>(word, 1));
+	@Override
+	public void invoke(Collector<Tuple2<String, Integer>> out) throws Exception {
+		// Continuously emit tuples with random names and integers (salaries).
+		while (true) {
+
+			outTuple.f0 = names[rand.nextInt(names.length)];
+			outTuple.f1 = rand.nextInt(10000);
+			out.collect(outTuple);
 		}
 	}
 }

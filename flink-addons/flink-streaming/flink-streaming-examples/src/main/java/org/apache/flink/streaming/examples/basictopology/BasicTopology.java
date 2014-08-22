@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.examples.basictopology;
 
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.source.SourceFunction;
@@ -26,26 +25,25 @@ import org.apache.flink.util.Collector;
 
 public class BasicTopology {
 
-	public static class BasicSource implements SourceFunction<Tuple1<String>> {
+	public static class BasicSource implements SourceFunction<String> {
 
 		private static final long serialVersionUID = 1L;
-		Tuple1<String> tuple = new Tuple1<String>("streaming");
+		String str = new String("streaming");
 
 		@Override
-		public void invoke(Collector<Tuple1<String>> out) throws Exception {
-			// continuously emit a tuple
+		public void invoke(Collector<String> out) throws Exception {
+			// continuous emit
 			while (true) {
-				out.collect(tuple);
+				out.collect(str);
 			}
 		}
 	}
 
-	public static class BasicMap implements MapFunction<Tuple1<String>, Tuple1<String>> {
+	public static class IdentityMap implements MapFunction<String, String> {
 		private static final long serialVersionUID = 1L;
-
-		// map to the same tuple
+		// map to the same value
 		@Override
-		public Tuple1<String> map(Tuple1<String> value) throws Exception {
+		public String map(String value) throws Exception {
 			return value;
 		}
 
@@ -58,8 +56,8 @@ public class BasicTopology {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment
 				.createLocalEnvironment(PARALLELISM);
 
-		DataStream<Tuple1<String>> stream = env.addSource(new BasicSource(), SOURCE_PARALLELISM)
-				.map(new BasicMap());
+		DataStream<String> stream = env.addSource(new BasicSource(), SOURCE_PARALLELISM)
+				.map(new IdentityMap());
 
 		stream.print();
 
