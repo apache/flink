@@ -128,6 +128,8 @@ public class WebInfoServer {
 		servletContext.addServlet(new ServletHolder(new LogfileInfoServlet(logDirFiles)), "/logInfo");
 		servletContext.addServlet(new ServletHolder(new SetupInfoServlet(jobmanager)), "/setupInfo");
 		servletContext.addServlet(new ServletHolder(new MenuServlet()), "/menu");
+		// TODO: Add servlet only if profiling is enabled.
+		servletContext.addServlet(new ServletHolder(new ResourceUsageServlet(jobmanager)), "/resourceUsage");
 
 
 		// ----- the handler serving all the static files -----
