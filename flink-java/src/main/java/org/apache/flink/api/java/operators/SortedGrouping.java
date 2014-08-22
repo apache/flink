@@ -27,6 +27,9 @@ import org.apache.flink.api.common.operators.Order;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.functions.UnsupportedLambdaExpressionException;
+import org.apache.flink.types.TypeInformation;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
+
 
 /**
  * SortedGrouping is an intermediate step for a transformation on a grouped and sorted DataSet.<br/>
@@ -85,7 +88,8 @@ public class SortedGrouping<T> extends Grouping<T> {
 		if (FunctionUtils.isLambdaFunction(reducer)) {
 			throw new UnsupportedLambdaExpressionException();
 		}
-		return new GroupReduceOperator<T, R>(this, reducer);
+		TypeInformation<R> resultType = TypeExtractor.getGroupReduceReturnTypes(reducer, this.getDataSet().getType());
+		return new GroupReduceOperator<T, R>(this, resultType, reducer);
 	}
 
 	

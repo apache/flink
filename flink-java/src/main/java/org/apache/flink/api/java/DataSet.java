@@ -66,6 +66,8 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.types.TypeInformation;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
+
 
 
 /**
@@ -145,7 +147,10 @@ public abstract class DataSet<T> {
 		if (FunctionUtils.isLambdaFunction(mapper)) {
 			throw new UnsupportedLambdaExpressionException();
 		}
-		return new MapOperator<T, R>(this, mapper);
+
+		TypeInformation<R> resultType = TypeExtractor.getMapReturnTypes(mapper, this.getType());
+
+		return new MapOperator<T, R>(this, resultType, mapper);
 	}
 
 
@@ -172,7 +177,8 @@ public abstract class DataSet<T> {
 		if (mapPartition == null) {
 			throw new NullPointerException("MapPartition function must not be null.");
 		}
-		return new MapPartitionOperator<T, R>(this, mapPartition);
+		TypeInformation<R> resultType = TypeExtractor.getMapPartitionReturnTypes(mapPartition, this.getType());
+		return new MapPartitionOperator<T, R>(this, resultType, mapPartition);
 	}
 	
 	/**
@@ -194,7 +200,8 @@ public abstract class DataSet<T> {
 		if (FunctionUtils.isLambdaFunction(flatMapper)) {
 			throw new UnsupportedLambdaExpressionException();
 		}
-		return new FlatMapOperator<T, R>(this, flatMapper);
+		TypeInformation<R> resultType = TypeExtractor.getFlatMapReturnTypes(flatMapper, this.getType());
+		return new FlatMapOperator<T, R>(this, resultType, flatMapper);
 	}
 	
 	/**
@@ -340,7 +347,8 @@ public abstract class DataSet<T> {
 		if (FunctionUtils.isLambdaFunction(reducer)) {
 			throw new UnsupportedLambdaExpressionException();
 		}
-		return new GroupReduceOperator<T, R>(this, reducer);
+		TypeInformation<R> resultType = TypeExtractor.getGroupReduceReturnTypes(reducer, this.getType());
+		return new GroupReduceOperator<T, R>(this, resultType, reducer);
 	}
 
 /**
@@ -400,7 +408,8 @@ public abstract class DataSet<T> {
 	 * @return A DistinctOperator that represents the distinct DataSet.
 	 */
 	public <K> DistinctOperator<T> distinct(KeySelector<T, K> keyExtractor) {
-		return new DistinctOperator<T>(this, new Keys.SelectorFunctionKeys<T, K>(keyExtractor, getType()));
+		TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keyExtractor, type);
+		return new DistinctOperator<T>(this, new Keys.SelectorFunctionKeys<T, K>(keyExtractor, getType(), keyType));
 	}
 	
 	/**
@@ -456,9 +465,9 @@ public abstract class DataSet<T> {
 	 * @see org.apache.flink.api.java.operators.GroupReduceOperator
 	 * @see DataSet
 	 */
-
 	public <K> UnsortedGrouping<T> groupBy(KeySelector<T, K> keyExtractor) {
-		return new UnsortedGrouping<T>(this, new Keys.SelectorFunctionKeys<T, K>(keyExtractor, getType()));
+		TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keyExtractor, type);
+		return new UnsortedGrouping<T>(this, new Keys.SelectorFunctionKeys<T, K>(keyExtractor, getType(), keyType));
 	}
 	
 	/**

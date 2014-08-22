@@ -126,19 +126,18 @@ public abstract class Keys<T> {
 
 		private final KeySelector<T, K> keyExtractor;
 		private final TypeInformation<K> keyType;
-		
-		public SelectorFunctionKeys(KeySelector<T, K> keyExtractor, TypeInformation<T> type) {
+
+		public SelectorFunctionKeys(KeySelector<T, K> keyExtractor, TypeInformation<T> inputType, TypeInformation<K> keyType) {
 			if (keyExtractor == null) {
 				throw new NullPointerException("Key extractor must not be null.");
 			}
-			
+
 			this.keyExtractor = keyExtractor;
-			this.keyType = TypeExtractor.getKeySelectorTypes(keyExtractor, type);
-			
+			this.keyType = keyType;
+
 			if (!this.keyType.isKeyType()) {
 				throw new IllegalArgumentException("Invalid type of KeySelector keys");
 			}
-			
 		}
 
 		public TypeInformation<K> getKeyType() {
