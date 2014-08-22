@@ -17,83 +17,79 @@
 
 package org.apache.flink.streaming.connectors.twitter;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
 import org.apache.flink.streaming.examples.function.JSONParseFlatMap;
 import org.apache.flink.util.Collector;
+import org.apache.sling.commons.json.JSONException;
 
 public class TwitterStreaming {
 
 	private static final int PARALLELISM = 1;
 	private static final int SOURCE_PARALLELISM = 1;
+	private static final int NUMBEROFTWEETS = 100;
 
-	public static class TwitterSink implements
-			SinkFunction<Tuple5<Long, Long, String, String, String>> {
+	private static final Log LOG = LogFactory.getLog(TwitterStreaming.class);
+
+	public static class TwitterSink implements SinkFunction<Tuple5<Long, Integer, String, String, String>> {
 
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void invoke(Tuple5<Long, Long, String, String, String> tuple) {
-			System.out.println(tuple.f0 + " " + tuple.f1 + " " + tuple.f4);
-			System.out.println("NAME: " + tuple.f2);
-			System.out.println(tuple.f3);
-			System.out.println(" ");
+		public void invoke(Tuple5<Long, Integer, String, String, String> tuple) {
+			System.out.println("ID: " + tuple.f0 + " int: " + tuple.f1 + " LANGUAGE: " + tuple.f2);
+			System.out.println("NAME: " + tuple.f4);
+			System.out.println("TEXT: " + tuple.f3);
+			System.out.println("");
 		}
 
 	}
 
 	public static class SelectDataFlatMap extends
-			JSONParseFlatMap<String, Tuple5<Long, Long, String, String, String>> {
+			JSONParseFlatMap<String, Tuple5<Long, Integer, String, String, String>> {
 
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void flatMap(String value, Collector<Tuple5<Long, Long, String, String, String>> out)
+		public void flatMap(String value, Collector<Tuple5<Long, Integer, String, String, String>> out)
 				throws Exception {
-
-			out.collect(new Tuple5<Long, Long, String, String, String>(
-					convertDateString2Long(getField(value, "id")),
-					convertDateString2LongDate(getField(value, "created_at")),
-					colationOfNull(getField(value, "user.name")), colationOfNull(getField(value,
-							"text")), getField(value, "lang")));
-		}
-
-		protected String colationOfNull(String in) {
-			if (in == null) {
-				return " ";
-			}
-			return in;
-		}
-
-		protected Long convertDateString2LongDate(String dateString) {
-			if (dateString != (null)) {
-				String[] dateArray = dateString.split(" ");
-				return Long.parseLong(dateArray[2]) * 100000 + Long.parseLong(dateArray[5]);
-			}
-			return 0L;
-		}
-
-		protected Long convertDateString2Long(String dateString) {
-			if (dateString != null) {
-				return Long.parseLong(dateString);
-			}
-			return 0L;
+			try {
+				out.collect(new Tuple5<Long, Integer, String, String, String>(
+						getLong(value, "id"),
+						getInt(value, "entities.hashtags[0].indices[1]"),
+						getString(value, "lang"),
+						getString(value, "text"),
+						getString(value, "user.name")));
+			} catch (JSONException e) {
+				if (LOG.isErrorEnabled()) {
+					LOG.error("Field not found");
+				}
+			} 
 		}
 	}
 
 	public static void main(String[] args) {
 
-		String path = "/home/eszes/git/auth.properties";
+		String path = new String();
+
+		if (args != null && args.length == 1) {
+			path = args[0];
+		} else {
+			System.err.println("USAGE:\nTwitterStreaming <pathToPropertiesFile>");
+			return;
+		}
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment
 				.createLocalEnvironment(PARALLELISM);
 
-		DataStream<String> streamSource = env.addSource(new TwitterSource(path, 100),
+		DataStream<String> streamSource = env.addSource(new TwitterSource(path, NUMBEROFTWEETS),
 				SOURCE_PARALLELISM);
 
-		DataStream<Tuple5<Long, Long, String, String, String>> selectedDataStream = streamSource
+		DataStream<Tuple5<Long, Integer, String, String, String>> selectedDataStream = streamSource
 				.flatMap(new SelectDataFlatMap());
 
 		selectedDataStream.addSink(new TwitterSink());

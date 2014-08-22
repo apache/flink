@@ -17,81 +17,128 @@
 
 package org.apache.flink.streaming.examples.function;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.java.functions.RichFlatMapFunction;
 import org.apache.sling.commons.json.JSONException;
-import org.apache.sling.commons.json.JSONObject;
 
 /**
- * Abstract class derived from {@link FlatMapFunction} to handle JSON files.
+ * Abstract class derived from {@link RichFlatMapFunction} to handle JSON files.
+ * 
  * @param <IN>
- * Type of the input elements.
+ *            Type of the input elements.
  * @param <OUT>
- * Type of the returned elements.
+ *            Type of the returned elements.
  */
-public abstract class JSONParseFlatMap<IN, OUT> extends
-		RichFlatMapFunction<IN, OUT> {
+public abstract class JSONParseFlatMap<IN, OUT> extends RichFlatMapFunction<IN, OUT> {
 
 	private static final long serialVersionUID = 1L;
-	private static final Log LOG = LogFactory.getLog(JSONParseFlatMap.class);
+
+	// private static final Log LOG = LogFactory.getLog(JSONParseFlatMap.class);
 
 	/**
-	 * Get the value of a field in a JSON text.
+	 * Get the value object associated with a key form a JSON code. It can find
+	 * embedded fields, too.
+	 * 
 	 * @param jsonText
-	 * The JSON text in which the field is searched. 
+	 *            JSON String in which the field is searched.
 	 * @param field
-	 * The field which is searched in the JSON text.
-	 * In case of embedded records fields have to be referred separated by dots.
-	 * @return
-	 * The value of the given field if it exists. Otherwise function returns with null.
+	 *            The key whose value is searched for.
+	 * @return The object associated with the field.
+	 * @throws JSONException
+	 *             If the field is not found.
 	 */
-	public String getField(String jsonText, String field) {
-		JSONObject jo = null;
-		try {
-			jo = new JSONObject(jsonText);
-		} catch (JSONException e) {
-			if (LOG.isErrorEnabled()) {
-				LOG.error("Input string is not proper", e);
-			}
-			return null;
-		}
+	public Object get(String jsonText, String field) throws JSONException {
+		JSONParser parser = new JSONParser(jsonText);
 
-		try {
-			String[] fieldArray = field.split("[.]");
-			int length = fieldArray.length;
-
-			return findInnerField(jo, fieldArray, length).getString(
-					fieldArray[length - 1]);
-
-		} catch (JSONException e) {
-			if (LOG.isErrorEnabled()) {
-				LOG.error("Field " + field + " not found");
-			}
-		}
-		return null;
+		return parser.parse(field).get("retValue");
 	}
 
 	/**
-	 * Find an embedded JSON code associated with the given key (fieldArray).
-	 * @param jo
-	 * JSONObject in which we search.
-	 * @param fieldArray
-	 * String array identifying the field.
-	 * @param length
-	 * Length of the array.
-	 * @return
-	 * the searched embedded JSONObject if it exists. 
+	 * Get the boolean value associated with a key form a JSON code. It can find
+	 * embedded fields, too.
+	 * 
+	 * @param jsonText
+	 *            JSON String in which the field is searched.
+	 * @param field
+	 *            The key whose value is searched for.
+	 * @return The object associated with the field.
 	 * @throws JSONException
-	 * if the key is not found.
+	 *             If the field is not found.
 	 */
-	private JSONObject findInnerField(JSONObject jo, String[] fieldArray,
-			int length) throws JSONException {
+	public boolean getBoolean(String jsonText, String field) throws JSONException {
+		JSONParser parser = new JSONParser(jsonText);
 
-		for (int i = 0; i <= length - 2; i++) {
-			jo = jo.getJSONObject(fieldArray[i]);
-		}
-		return jo;
+		return parser.parse(field).getBoolean("retValue");
+	}
+
+	/**
+	 * Get the double value associated with a key form a JSON code. It can find
+	 * embedded fields, too.
+	 * 
+	 * @param jsonText
+	 *            JSON String in which the field is searched.
+	 * @param field
+	 *            The key whose value is searched for.
+	 * @return The object associated with the field.
+	 * @throws JSONException
+	 *             If the field is not found.
+	 */
+	public double getDouble(String jsonText, String field) throws JSONException {
+		JSONParser parser = new JSONParser(jsonText);
+
+		return parser.parse(field).getDouble("retValue");
+	}
+
+	/**
+	 * Get the int value associated with a key form a JSON code. It can find
+	 * embedded fields, too.
+	 * 
+	 * @param jsonText
+	 *            JSON String in which the field is searched.
+	 * @param field
+	 *            The key whose value is searched for.
+	 * @return The object associated with the field.
+	 * @throws JSONException
+	 *             If the field is not found.
+	 */
+	public int getInt(String jsonText, String field) throws JSONException {
+		JSONParser parser = new JSONParser(jsonText);
+
+		return parser.parse(field).getInt("retValue");
+	}
+
+	/**
+	 * Get the long value associated with a key form a JSON code. It can find
+	 * embedded fields, too.
+	 * 
+	 * @param jsonText
+	 *            JSON String in which the field is searched.
+	 * @param field
+	 *            The key whose value is searched for.
+	 * @return The object associated with the field.
+	 * @throws JSONException
+	 *             If the field is not found.
+	 */
+	public long getLong(String jsonText, String field) throws JSONException {
+		JSONParser parser = new JSONParser(jsonText);
+
+		return parser.parse(field).getLong("retValue");
+	}
+	
+	/**
+	 * Get the String value associated with a key form a JSON code. It can find
+	 * embedded fields, too.
+	 * 
+	 * @param jsonText
+	 *            JSON String in which the field is searched.
+	 * @param field
+	 *            The key whose value is searched for.
+	 * @return The object associated with the field.
+	 * @throws JSONException
+	 *             If the field is not found.
+	 */
+	public String getString(String jsonText, String field) throws JSONException {
+		JSONParser parser = new JSONParser(jsonText);
+		
+		return parser.parse(field).getString("retValue");
 	}
 }

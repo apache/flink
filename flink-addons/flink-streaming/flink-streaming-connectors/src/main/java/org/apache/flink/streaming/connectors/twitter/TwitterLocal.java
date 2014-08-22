@@ -17,31 +17,30 @@
 
 package org.apache.flink.streaming.connectors.twitter;
 
-import java.io.Serializable;
-
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.function.sink.SinkFunction;
 import org.apache.flink.streaming.examples.function.JSONParseFlatMap;
 import org.apache.flink.streaming.examples.wordcount.WordCountLocal.WordCountCounter;
 import org.apache.flink.util.Collector;
+import org.apache.sling.commons.json.JSONException;
 
 /**
- * This program demonstrate the use of TwitterSource. Its aim is to count the
- * frequency of the languages of tweets
+ * This program demonstrate the use of TwitterSource. 
+ * Its aim is to count the frequency of the languages of tweets
  */
-public class TwitterLocal implements Serializable {
+public class TwitterLocal {
 
-	private static final long serialVersionUID = 1L;
 	private static final int PARALLELISM = 1;
 	private static final int SOURCE_PARALLELISM = 1;
-
+	private static final int NUMBEROFTWEETS = 100;
+	
 	/**
-	 * FlatMapFunction to determine the language of tweets if possible
+	 * FlatMapFunction to determine the language of tweets if possible 
 	 */
-	public static class SelectLanguageFlatMap extends JSONParseFlatMap<String, String> {
+	public static class SelectLanguageFlatMap extends
+			JSONParseFlatMap<String, String> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -50,23 +49,14 @@ public class TwitterLocal implements Serializable {
 		 */
 		@Override
 		public void flatMap(String value, Collector<String> out) throws Exception {
-
-			out.collect(colationOfNull(getField(value, "lang")));
-		}
-
-		/**
-		 * Change the null String to space character. Useful when null is
-		 * undesirable.
-		 * 
-		 * @param in
-		 * @return
-		 */
-		protected String colationOfNull(String in) {
-			if (in == null) {
-				return " ";
+			try{
+				out.collect(getString(value, "lang"));
 			}
-			return in;
+			catch (JSONException e){
+				out.collect("");
+			}
 		}
+
 	}
 
 	public static void main(String[] args) {
@@ -83,32 +73,26 @@ public class TwitterLocal implements Serializable {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment
 				.createLocalEnvironment(PARALLELISM);
 
-		DataStream<String> streamSource = env.addSource(new TwitterSource(path, 100),
+		DataStream<String> streamSource = env.addSource(new TwitterSource(path, NUMBEROFTWEETS),
 				SOURCE_PARALLELISM);
 
+
 		DataStream<Tuple2<String, Integer>> dataStream = streamSource
-				.flatMap(new SelectLanguageFlatMap()).partitionBy(0)
+				.flatMap(new SelectLanguageFlatMap())
+				.partitionBy(0)
 				.map(new MapFunction<String, Tuple2<String, Integer>>() {
 
 					private static final long serialVersionUID = 1L;
-
+					
 					@Override
 					public Tuple2<String, Integer> map(String value) throws Exception {
-
 						return new Tuple2<String, Integer>(value, 1);
 					}
-				}).groupBy(0).reduce(new WordCountCounter());
+				})
+				.groupBy(0)
+				.reduce(new WordCountCounter());
 
-		dataStream.addSink(new SinkFunction<Tuple2<String, Integer>>() {
-
-			private static final long serialVersionUID = 1L;
-
-			@Override
-			public void invoke(Tuple2<String, Integer> tuple) {
-				System.out.println(tuple);
-
-			}
-		});
+		dataStream.print();
 
 		env.execute();
 	}
