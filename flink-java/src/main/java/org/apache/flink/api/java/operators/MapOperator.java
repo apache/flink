@@ -22,9 +22,9 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.MapOperatorBase;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
 
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.types.TypeInformation;
 
 /**
  * This operator represents the application of a "map" function on a data set, and the
@@ -40,9 +40,9 @@ public class MapOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT, MapOpe
 	protected final MapFunction<IN, OUT> function;
 	
 	
-	public MapOperator(DataSet<IN> input, MapFunction<IN, OUT> function) {
+	public MapOperator(DataSet<IN> input, TypeInformation<OUT> resultType, MapFunction<IN, OUT> function) {
 
-		super(input, TypeExtractor.getMapReturnTypes(function, input.getType()));
+		super(input, resultType);
 		
 		this.function = function;
 		extractSemanticAnnotationsFromUdf(function.getClass());
