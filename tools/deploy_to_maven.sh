@@ -25,7 +25,7 @@
 # 2. Nothing
 # 3. Deploy to s3 (old hadoop)
 # 4. deploy to sonatype (yarn hadoop) (this build will also generate specific poms for yarn hadoop)
-# 5. Deploy Javadocs.
+# 5. Nothing (formerly: Deploy Javadocs.)
 # 6. deploy to s3 (yarn hadoop)
 
 # Changes (since travis changed the id assignment)
@@ -42,9 +42,9 @@ function getVersion() {
 	here="`dirname \"$0\"`"              # relative
 	here="`( cd \"$here\" && pwd )`"  # absolutized and normalized
 	if [ -z "$here" ] ; then
-	  # error; for some reason, the path is not accessible
-	  # to the script (e.g. permissions re-evaled after suid)
-	  exit 1  # fail
+		# error; for some reason, the path is not accessible
+		# to the script (e.g. permissions re-evaled after suid)
+		exit 1  # fail
 	fi
 	flink_home="`dirname \"$here\"`"
 	cd $flink_home
@@ -85,24 +85,25 @@ if [[ $TRAVIS_PULL_REQUEST == "false" ]] ; then
 		mvn -B -f pom.hadoop2.xml -DskipTests -Pdocs-and-source -Drat.ignoreErrors=true deploy --settings deploysettings.xml; 
 	fi
 
-	if [[ $TRAVIS_JOB_NUMBER == *5 ]] && [[ $TRAVIS_PULL_REQUEST == "false" ]] && [[ $CURRENT_FLINK_VERSION == *SNAPSHOT* ]] ; then 
-		cd flink-java
-		mvn javadoc:javadoc
-		cd target
-		cd apidocs
-		git init
-		git config --global user.email "metzgerr@web.de"
-		git config --global user.name "Travis-CI"
-		git add *
-		git commit -am "Javadocs from '$(date)'"
-		git config credential.helper "store --file=.git/credentials"
-		echo "https://$JAVADOCS_DEPLOY:@github.com" > .git/credentials
-		git push -f https://github.com/stratosphere-javadocs/stratosphere-javadocs.github.io.git master:master
-		rm .git/credentials
-		cd ..
-		cd ..
-		cd ..
-	fi
+	# The block below took care of deploying javadoc to github.io. We now host the javadocs on the website.
+	# if [[ $TRAVIS_JOB_NUMBER == *5 ]] && [[ $TRAVIS_PULL_REQUEST == "false" ]] && [[ $CURRENT_FLINK_VERSION == *SNAPSHOT* ]] ; then 
+	# 	cd flink-java
+	# 	mvn javadoc:javadoc
+	# 	cd target
+	# 	cd apidocs
+	# 	git init
+	# 	git config --global user.email "metzgerr@web.de"
+	# 	git config --global user.name "Travis-CI"
+	# 	git add *
+	# 	git commit -am "Javadocs from '$(date)'"
+	# 	git config credential.helper "store --file=.git/credentials"
+	# 	echo "https://$JAVADOCS_DEPLOY:@github.com" > .git/credentials
+	# 	git push -f https://github.com/stratosphere-javadocs/stratosphere-javadocs.github.io.git master:master
+	# 	rm .git/credentials
+	# 	cd ..
+	# 	cd ..
+	# 	cd ..
+	# fi
 
 	#
 	# Deploy binaries to S3
@@ -116,20 +117,22 @@ if [[ $TRAVIS_PULL_REQUEST == "false" ]] ; then
 
 	if [[ $TRAVIS_JOB_NUMBER == *3 ]] || [[ $TRAVIS_JOB_NUMBER == *6 ]] ; then
 		echo "Uploading build to amazon s3. Job Number: $TRAVIS_JOB_NUMBER"
+		HD="hadoop1"
 		# job nr 6 is YARN
 		if [[ $TRAVIS_JOB_NUMBER == *6 ]] ; then
 			# move to current dir
-			CURRENT_FLINK_VERSION=$CURRENT_FLINK_VERSION_YARN
-			mkdir flink-$CURRENT_FLINK_VERSION-bin-yarn
-                	cp -r flink-dist/target/flink-*-bin/flink-yarn*/* flink-$CURRENT_FLINK_VERSION-bin-yarn/
-                	tar -czf flink-$CURRENT_FLINK_VERSION-bin-yarn.tgz flink-$CURRENT_FLINK_VERSION-bin-yarn
-			travis-artifacts upload --path flink-$CURRENT_FLINK_VERSION-bin-yarn.tgz --target-path / 
+			mkdir flink-$CURRENT_FLINK_VERSION
+			cp -r flink-dist/target/flink-*-bin/flink-yarn*/* flink-$CURRENT_FLINK_VERSION/
+			tar -czf flink-$CURRENT_FLINK_VERSION-bin-hadoop2-yarn.tgz flink-$CURRENT_FLINK_VERSION
+			travis-artifacts upload --path flink-$CURRENT_FLINK_VERSION-bin-hadoop2-yarn.tgz --target-path / 
+			HD="hadoop2"
+			rm -r flink-$CURRENT_FLINK_VERSION
 		fi
 
-		mkdir flink-$CURRENT_FLINK_VERSION-bin
-                cp -r flink-dist/target/flink-*-bin/flink-$CURRENT_FLINK_VERSION*/* flink-$CURRENT_FLINK_VERSION-bin/
-                tar -czf flink-$CURRENT_FLINK_VERSION-bin.tgz flink-$CURRENT_FLINK_VERSION-bin
-		travis-artifacts upload --path flink-$CURRENT_FLINK_VERSION-bin.tgz   --target-path / 
+		mkdir flink-$CURRENT_FLINK_VERSION
+		cp -r flink-dist/target/flink-*-bin/flink-$CURRENT_FLINK_VERSION*/* flink-$CURRENT_FLINK_VERSION/
+		tar -czf flink-$CURRENT_FLINK_VERSION-bin-$HD.tgz flink-$CURRENT_FLINK_VERSION
+		travis-artifacts upload --path flink-$CURRENT_FLINK_VERSION-bin-$HD.tgz   --target-path / 
 		echo "doing a ls -lisah:"
 		ls -lisah
 	fi
