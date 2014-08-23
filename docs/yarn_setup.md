@@ -8,7 +8,7 @@ Start YARN session with 4 Task Managers (each with 4 GB of Heapspace):
 
 ```bash
 wget {{ site.FLINK_DOWNLOAD_URL_YARN_STABLE }}
-tar xvzf flink-dist-{{ site.FLINK_VERSION_STABLE }}-yarn.tar.gz
+tar xvzf flink-{{ site.FLINK_VERSION_STABLE }}-bin-hadoop2-yarn.tgz
 cd flink-yarn-{{ site.FLINK_VERSION_STABLE }}/
 ./bin/yarn-session.sh -n 4 -jm 1024 -tm 4096
 ```

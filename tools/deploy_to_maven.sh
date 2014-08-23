@@ -119,6 +119,7 @@ if [[ $TRAVIS_PULL_REQUEST == "false" ]] ; then
 		# job nr 6 is YARN
 		if [[ $TRAVIS_JOB_NUMBER == *6 ]] ; then
 			# move to current dir
+			CURRENT_FLINK_VERSION=$CURRENT_FLINK_VERSION_YARN
 			mkdir flink-$CURRENT_FLINK_VERSION-bin-yarn
                 	cp -r flink-dist/target/flink-*-bin/flink-yarn*/* flink-$CURRENT_FLINK_VERSION-bin-yarn/
                 	tar -czf flink-$CURRENT_FLINK_VERSION-bin-yarn.tgz flink-$CURRENT_FLINK_VERSION-bin-yarn
@@ -129,6 +130,8 @@ if [[ $TRAVIS_PULL_REQUEST == "false" ]] ; then
                 cp -r flink-dist/target/flink-*-bin/flink-$CURRENT_FLINK_VERSION*/* flink-$CURRENT_FLINK_VERSION-bin/
                 tar -czf flink-$CURRENT_FLINK_VERSION-bin.tgz flink-$CURRENT_FLINK_VERSION-bin
 		travis-artifacts upload --path flink-$CURRENT_FLINK_VERSION-bin.tgz   --target-path / 
+		echo "doing a ls -lisah:"
+		ls -lisah
 	fi
 
 fi # pull request check
