@@ -225,14 +225,14 @@ public class JobClient {
 		synchronized (this.jobSubmitClient) {
 
 			// Get port of BLOB server
-			final Integer port = this.jobSubmitClient.getBlobServerPort();
-			if (port.intValue() == -1) {
+			final IntegerRecord port = this.jobSubmitClient.getBlobServerPort();
+			if (port.getValue() == -1) {
 				throw new IOException("Unable to upload user jars: BLOB server not running");
 			}
 
 			// We submit the required files with the BLOB manager before the submission of the actual job graph
 			final InetSocketAddress blobManagerAddress = new InetSocketAddress(this.jobManagerAddress.getAddress(),
-				port);
+				port.getValue());
 
 			this.jobGraph.uploadRequiredJarFiles(blobManagerAddress);
 

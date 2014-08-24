@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.protocols;
 
 import org.apache.flink.core.protocols.VersionedProtocol;
+import org.apache.flink.runtime.types.IntegerRecord;
 
 /**
  * The service discovery protocols enables different components of the Flink distributed runtime to query and discover
@@ -32,5 +33,5 @@ public interface ServiceDiscoveryProtocol extends VersionedProtocol {
 	 * @return the port of the job manager's BLOB server or <code>-1</code> if the job manager does not run a BLOB
 	 *         server
 	 */
-	Integer getBlobServerPort();
+	IntegerRecord getBlobServerPort();
 }

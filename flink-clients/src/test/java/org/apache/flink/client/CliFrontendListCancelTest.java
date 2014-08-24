@@ -216,5 +216,10 @@ public class CliFrontendListCancelTest {
 		public int getAvailableSlots() {
 			return 1;
 		}
+
+		@Override
+		public IntegerRecord getBlobServerPort() {
+			throw new UnsupportedOperationException();
+		}
 	}
 }

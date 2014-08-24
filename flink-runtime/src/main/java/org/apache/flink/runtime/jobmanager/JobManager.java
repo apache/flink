@@ -1201,12 +1201,12 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	}
 
 	@Override
-	public Integer getBlobServerPort() {
+	public IntegerRecord getBlobServerPort() {
 
 		if (this.blobServer == null) {
-			return Integer.valueOf(-1);
+			return new IntegerRecord(-1);
 		}
 
-		return Integer.valueOf(this.blobServer.getServerPort());
+		return new IntegerRecord(this.blobServer.getServerPort());
 	}
 }
