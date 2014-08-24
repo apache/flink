@@ -26,6 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.flink.runtime.blob.BlobCache;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.jobgraph.JobID;
 
@@ -160,25 +161,7 @@ public final class LibraryCacheManager {
 			}
 
 			// Check if all the required jar files exist in the cache
-			URL[] urls = null;
-			if (requiredJarFiles != null) {
-
-				urls = new URL[requiredJarFiles.size()];
-
-				for (int i = 0; i < requiredJarFiles.size(); i++) {
-					// TODO: Implement me
-					throw new RuntimeException("Implement me");
-					/*
-					 * final URL url = BlobService.getURL(requiredJarFiles[i]);
-					 * if (url == null) {
-					 * throw new IOException(requiredJarFiles[i] + " does not exist in the library cache");
-					 * }
-					 * // Add file to the URL array
-					 * urls[i] = url;
-					 */
-				}
-			}
-
+			final URL[] urls = BlobCache.getURLs(null, requiredJarFiles);
 			final ClassLoader classLoader = new URLClassLoader(urls);
 			this.classLoaders.put(id, classLoader);
 
