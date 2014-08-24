@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.blob;
 
 import java.io.File;
@@ -32,6 +31,13 @@ import java.util.Iterator;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+/**
+ * The BLOB cache implements a local cache for content-addressable BLOBs. When requesting BLOBs through the
+ * {@link BlobCache#getURLs} methods, the BLOB cache will first attempt serve the file from its local cache. Only if the
+ * local cache does not contain the desired BLOB, the BLOB cache will try to download it from the BLOB server.
+ * <p>
+ * This class is thread-safe.
+ */
 public final class BlobCache {
 
 	/**
@@ -45,28 +51,41 @@ public final class BlobCache {
 	private BlobCache() {
 	}
 
-	public static URL[] getURLs(final InetSocketAddress serverAddress, final Collection<BlobKey> requiredJarFiles)
+	/**
+	 * Returns the URLs for the content-addressable BLOBs with the given keys. The method will first attempt to serve
+	 * the BLOBs from its local cache. If one or more BLOBs are not in the cache, the method will try to download them
+	 * from the BLOB server with the given address.
+	 * 
+	 * @param serverAddress
+	 *        the address of the BLOB server.
+	 * @param requiredJarFiles
+	 *        the keys of the desired content-addressable BLOB
+	 * @return an array of URLs referring to the local storage locations of the BLOBs
+	 * @throws IOException
+	 *         thrown if an I/O error occurs while downloading the BLOBs from the BLOB server
+	 */
+	public static URL[] getURLs(final InetSocketAddress serverAddress, final Collection<BlobKey> requiredBlobs)
 			throws IOException {
 
-		if (requiredJarFiles == null || requiredJarFiles.isEmpty()) {
+		if (requiredBlobs == null || requiredBlobs.isEmpty()) {
 			return new URL[0];
 		}
 
-		final URL[] urls = new URL[requiredJarFiles.size()];
+		final URL[] urls = new URL[requiredBlobs.size()];
 		int count = 0;
 		BlobClient bc = null;
 		byte[] buf = null;
 
 		try {
-			for (final Iterator<BlobKey> it = requiredJarFiles.iterator(); it.hasNext();) {
+			for (final Iterator<BlobKey> it = requiredBlobs.iterator(); it.hasNext();) {
 
-				final BlobKey jarFileKey = it.next();
-				final File localJarFile = BlobServer.getStorageLocation(jarFileKey);
+				final BlobKey blobKey = it.next();
+				final File localJarFile = BlobServer.getStorageLocation(blobKey);
 
 				if (!localJarFile.exists()) {
 
 					if (LOG.isDebugEnabled()) {
-						LOG.debug("Trying to download " + jarFileKey + " from " + serverAddress);
+						LOG.debug("Trying to download " + blobKey + " from " + serverAddress);
 					}
 
 					if (bc == null) {
@@ -83,7 +102,7 @@ public final class BlobCache {
 					InputStream is = null;
 					OutputStream os = null;
 					try {
-						is = bc.get(jarFileKey);
+						is = bc.get(blobKey);
 						os = new FileOutputStream(localJarFile);
 
 						while (true) {
