@@ -49,6 +49,11 @@ public final class BlobServer extends Thread {
 
 	private final ServerSocket serverSocket;
 
+	/**
+	 * Indicates whether a shutdown of server component has been requested.
+	 */
+	private volatile boolean shutdownRequested = false;
+
 	public BlobServer() throws IOException {
 
 		this.serverSocket = new ServerSocket(0);
@@ -164,12 +169,12 @@ public final class BlobServer extends Thread {
 
 		try {
 
-			while (true) {
+			while (!this.shutdownRequested) {
 				new BlobConnection(this.serverSocket.accept()).start();
 			}
 
 		} catch (IOException ioe) {
-			if (LOG.isErrorEnabled()) {
+			if (!this.shutdownRequested && LOG.isErrorEnabled()) {
 				LOG.error(ioe);
 			}
 		}
@@ -250,6 +255,22 @@ public final class BlobServer extends Thread {
 
 	public void shutDown() {
 
-		// TODO: Implement me
+		this.shutdownRequested = true;
+		try {
+			this.serverSocket.close();
+		} catch (IOException ioe) {
+			if (LOG.isDebugEnabled()) {
+				LOG.debug(ioe);
+			}
+		}
+		try {
+			join();
+		} catch (InterruptedException ie) {
+			if (LOG.isDebugEnabled()) {
+				LOG.debug(ie);
+			}
+		}
+
+		// TODO: Clean up the storage directories
 	}
 }
