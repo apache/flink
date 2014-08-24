@@ -6,6 +6,9 @@ jdk:
   - oraclejdk7
   - openjdk6
 
+git:
+  depth: 10
+
 notifications:
   webhooks:
     urls:
@@ -29,13 +32,15 @@ env:
         - PROFILE="-Dhadoop.profile=2"
 
 before_script:
-   - "gem install --version 0.8.9 faraday"
-   - "gem install travis-artifacts & "
+   - "gem install --no-document --version 0.8.9 faraday "
+   - "gem install --no-document travis-artifacts & "
 
 
 install: true
 
-script: "mvn -B $PROFILE clean verify"
+# we have to manually set the forkCount because maven thinks that the travis
+# machine has 32 cores
+script: "mvn -Dflink.forkCount=4 -B $PROFILE clean verify"
 
 # deploy if the first job is successful; should be replaced by an after_all_success if travis finally supports it
 after_success: 

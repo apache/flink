@@ -48,10 +48,15 @@ RENAME "%outname%" "%outname%.0"  2> nul
 DEL "%logname%.6"  2> nul
 DEL "%outname%.6"  2> nul
 
+for %%X in (java.exe) do (set FOUND=%%~$PATH:X)
+if not defined FOUND (
+    echo java.exe was not found in PATH variable
+    goto :eof
+)
 
 echo Starting Flink job manager. Webinterface by default on http://localhost:8081/.
 echo Don't close this batch window. Stop job manager by pressing Ctrl+C.
 
-java %JVM_ARGS% %log_setting% -cp %NEPHELE_JM_CLASSPATH% org.apache.flink.nephele.jobmanager.JobManager -executionMode local -configDir %NEPHELE_CONF_DIR%  > "%out%"  2>&1
+java %JVM_ARGS% %log_setting% -cp %NEPHELE_JM_CLASSPATH% org.apache.flink.runtime.jobmanager.JobManager -executionMode local -configDir %NEPHELE_CONF_DIR%  > "%out%"  2>&1
 
 endlocal

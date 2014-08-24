@@ -5,7 +5,7 @@ title:  "Scala API Examples"
 The following example programs showcase different applications of Flink from simple word counting to graph algorithms.
 The code samples illustrate the use of [Flink's Scala API](scala_api_guide.html). 
 
-The full source code of the following and more examples can be found in the [flink-scala-examples](https://github.com/apache/incubator-flink/tree/ca2b287a7a78328ebf43766b9fdf39b56fb5fd4f/flink-examples/flink-scala-examples) module.
+The full source code of the following and more examples can be found in the [flink-scala-examples](https://github.com/apache/incubator-flink/tree/master/flink-examples/flink-scala-examples) module.
 
 # Word Count
 

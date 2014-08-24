@@ -135,6 +135,7 @@ public class DefaultInstanceManager implements InstanceManager {
 						}
 
 						hostsToRemove.add(entry);
+						LOG.info("Removing TaskManager "+entry.getValue().toString()+" due to inactivity for more than "+(cleanUpInterval / 1000 )+" seconds");
 					}
 				}
 
@@ -381,7 +382,7 @@ public class DefaultInstanceManager implements InstanceManager {
 	}
 
 	@Override
-	public int getNumberOfTaskTrackers() {
+	public int getNumberOfTaskManagers() {
 		return this.registeredHosts.size();
 	}
 

@@ -30,7 +30,7 @@ under the License.
 
 	<groupId>org.apache.flink</groupId>
 	<artifactId>flink-parent</artifactId>
-	<version>0.6-incubating-SNAPSHOT</version>
+	<version>0.7-incubating-SNAPSHOT</version>
 
 	<name>flink</name>
 	<packaging>pom</packaging>
@@ -71,9 +71,20 @@ under the License.
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<hadoop-one.version>1.2.1</hadoop-one.version>
 		<hadoop-two.version>2.2.0</hadoop-two.version>
+		<!-- Need to use a user property here because the surefire/failsafe
+			 forkCount is not exposed as a property. With this we can set
+			 it on the "mvn" commandline in travis. -->
+		<flink.forkCount>1.5C</flink.forkCount>
+		<flink.reuseForks>true</flink.reuseForks>
 	</properties>
 
 	<dependencies>
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-lang3</artifactId>
+			<version>3.1</version>
+		</dependency>
+		
 		<dependency>
 			<groupId>commons-logging</groupId>
 			<artifactId>commons-logging</artifactId>
@@ -234,6 +245,43 @@ under the License.
 		</profile>
 
 		<profile>
+			<!-- used for SNAPSHOT and regular releases -->
+			<id>docs-and-source</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-source-plugin</artifactId>
+						<version>2.2.1</version><!--$NO-MVN-MAN-VER$-->
+						<executions>
+							<execution>
+								<id>attach-sources</id>
+								<goals>
+									<goal>jar</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-javadoc-plugin</artifactId>
+						<version>2.9.1</version><!--$NO-MVN-MAN-VER$-->
+						<configuration>
+							<quiet>true</quiet>
+						</configuration>
+						<executions>
+							<execution>
+								<id>attach-javadocs</id>
+								<goals>
+									<goal>jar</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+		<profile>
 			<id>release</id>
 				<build>
 				<plugins>
@@ -274,15 +322,15 @@ under the License.
 					<activeByDefault>false</activeByDefault>
 					<jdk>1.8</jdk>
 				</activation>
-                <modules>
-                    <module>flink-java8-tests</module>
-                </modules>
+				<modules>
+					<module>flink-java8-tests</module>
+				</modules>
 				<build>
 					<plugins>
 						<plugin>
 							<groupId>org.apache.maven.plugins</groupId>
 							<artifactId>maven-javadoc-plugin</artifactId>
-							<version>2.9.1</version>
+							<version>2.9.1</version><!--$NO-MVN-MAN-VER$-->
 							<configuration>
 								<quiet>true</quiet>
 							</configuration>
@@ -337,12 +385,12 @@ under the License.
 			<dependency>
 				<groupId>org.slf4j</groupId>
 				<artifactId>slf4j-api</artifactId>
-				<version>1.4.3</version>
+				<version>1.6.6</version>
 			</dependency>
 			<dependency>
 				<groupId>org.slf4j</groupId>
 				<artifactId>slf4j-log4j12</artifactId>
-				<version>1.4.3</version>
+				<version>1.6.6</version>
 			</dependency>
 			<dependency>
 				<groupId>org.javassist</groupId>
@@ -358,10 +406,7 @@ under the License.
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-report-plugin</artifactId>
-				<version>2.7</version>
-				<configuration>
-					<argLine>-Xmx1024m</argLine>
-				</configuration>
+				<version>2.17</version>
 			</plugin>
 
 			<!-- test coverage reports -->
@@ -409,7 +454,7 @@ under the License.
 					<excludeSubProjects>false</excludeSubProjects>
 					<numUnapprovedLicenses>0</numUnapprovedLicenses>
 					<licenses>
-						<!-- Enforce this license: 
+						<!-- Enforce this license:
 							Licensed to the Apache Software Foundation (ASF) under one
 							or more contributor license agreements.  See the NOTICE file
 							distributed with this work for additional information
@@ -451,10 +496,16 @@ under the License.
 						<exclude>**/flink-bin/conf/slaves</exclude>
 						<!-- Administrative files in the main trunk. -->
 						<exclude>**/README.md</exclude>
+						<exclude>tools/checkstyle.xml</exclude>
 						<exclude>CHANGELOG</exclude>
 						<exclude>**/*.creole</exclude>
 						<exclude>CONTRIBUTORS</exclude>
+						<exclude>DEPENDENCIES</exclude>
 						<!-- Build fiels -->
+						<exclude>tools/maven/checkstyle.xml</exclude>
+						<exclude>tools/maven/suppressions.xml</exclude>
+						<exclude>**/pom.xml</exclude>
+						<exclude>**/pom.hadoop2.xml</exclude>
 						<exclude>**/*.iml</exclude>
 						<!-- Generated content -->
 						<exclude>**/target/**</exclude>
@@ -496,24 +547,8 @@ under the License.
 				</configuration>
 			</plugin>
 			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-javadoc-plugin</artifactId>
-				<version>2.9.1</version><!--$NO-MVN-MAN-VER$-->
-				<configuration>
-					<quiet>true</quiet>
-				</configuration>
-				<executions>
-					<execution>
-						<id>attach-javadocs</id>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
 				<artifactId>maven-failsafe-plugin</artifactId>
-				<version>2.7</version><!--$NO-MVN-MAN-VER$-->
+				<version>2.17</version><!--$NO-MVN-MAN-VER$-->
 				<executions>
 					<execution>
 						<goals>
@@ -523,15 +558,27 @@ under the License.
 					</execution>
 				</executions>
 				<configuration>
-					<argLine>-Xmx1024m</argLine>
+					<forkCount>${flink.forkCount}</forkCount>
+					<reuseForks>${flink.reuseForks}</reuseForks>
+					<systemPropertyVariables>
+						<!-- we need the "0" in front here because for some reason
+						  the property is null when we have just the variable-->
+						<forkNumber>0${surefire.forkNumber}</forkNumber>
+					</systemPropertyVariables>
+					<argLine>-Xmx800m</argLine>
 				</configuration>
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
-				<version>2.16</version><!--$NO-MVN-MAN-VER$-->
+				<version>2.17</version><!--$NO-MVN-MAN-VER$-->
 				<configuration>
-					<argLine>-Xmx1024m</argLine>
+					<forkCount>${flink.forkCount}</forkCount>
+					<reuseForks>${flink.reuseForks}</reuseForks>
+					<systemPropertyVariables>
+						<forkNumber>0${surefire.forkNumber}</forkNumber>
+					</systemPropertyVariables>
+					<argLine>-Xmx800m</argLine>
 				</configuration>
 			</plugin>
 			<plugin>
@@ -566,19 +613,6 @@ under the License.
 								</requireMavenVersion>
 							</rules>
 						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-source-plugin</artifactId>
-				<version>2.2.1</version><!--$NO-MVN-MAN-VER$-->
-				<executions>
-					<execution>
-						<id>attach-sources</id>
-						<goals>
-							<goal>jar</goal>
-						</goals>
 					</execution>
 				</executions>
 			</plugin>

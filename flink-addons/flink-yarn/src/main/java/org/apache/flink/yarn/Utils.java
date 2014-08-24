@@ -106,7 +106,7 @@ public class Utils {
 	 * 
 	 */
 	public static int calculateHeapSize(int memory) {
-		int heapLimit = (int)((float)memory*0.85);
+		int heapLimit = (int)((float)memory*0.80);
 		if( (memory - heapLimit) > HEAP_LIMIT_CAP) {
 			heapLimit = memory-HEAP_LIMIT_CAP;
 		}

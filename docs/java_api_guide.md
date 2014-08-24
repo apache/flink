@@ -64,7 +64,7 @@ Linking with Flink
 
 To write programs with Flink, you need to include Flink’s Java API library in your project.
 
-The simplest way to do this is to use the [quickstart scripts]({{site.baseurl}}/java_api_quickstart.html). They create a blank project from a template (a Maven Archetype), which sets up everything for you. To manually create the project, you can use the archetype and create a project by calling:
+The simplest way to do this is to use the [quickstart scripts](java_api_quickstart.html). They create a blank project from a template (a Maven Archetype), which sets up everything for you. To manually create the project, you can use the archetype and create a project by calling:
 
 ```bash
 mvn archetype:generate /
@@ -94,7 +94,7 @@ Please refer to the [downloads page]({{site.baseurl}}/downloads.html) for a list
 In order to link against the latest SNAPSHOT versions of the code, please follow [this guide]({{site.baseurl}}/downloads.html#nightly).
 
 The *flink-clients* dependency is only necessary to invoke the Flink program locally (for example to run it standalone for testing and debugging). 
-If you intend to only export the program as a JAR file and [run it on a cluster]({{site.baseurl}}/cluster_execution.html), you can skip that dependency.
+If you intend to only export the program as a JAR file and [run it on a cluster](cluster_execution.html), you can skip that dependency.
 
 [Back to top](#top)
 
@@ -131,8 +131,8 @@ Typically, you only need to use `getExecutionEnvironment()`, since this
 will do the right thing depending on the context: if you are executing
 your program inside an IDE or as a regular Java program it will create
 a local environment that will execute your program on your local machine. If
-you created a JAR file from you program, and invoke it through the [command line]({{site.baseurl}}/cli.html)
-or the [web interface]({{site.baseurl}}/web_client.html),
+you created a JAR file from you program, and invoke it through the [command line](cli.html)
+or the [web interface](web_client.html),
 the Flink cluster manager will
 execute your main method and `getExecutionEnvironment()` will return
 an execution environment for executing your program on a cluster.
@@ -219,7 +219,7 @@ Transformations
 Data transformations transform one or more DataSets into a new DataSet. Programs can combine multiple transformations into
 sophisticated assemblies.
 
-This section gives a brief overview of the available transformations. The [transformations documentation]({{site.baseurl}}/java_api_transformations.html)
+This section gives a brief overview of the available transformations. The [transformations documentation](java_api_transformations.html)
 has full description of all transformations with examples.
 
 <table class="table table-bordered">
@@ -246,13 +246,33 @@ data.map(new MapFunction<String, Integer>() {
     <tr>
       <td><strong>FlatMap</strong></td>
       <td>
-        <p>Takes one element and produces zero, one, or more elements.</p>
+        <p>Takes one element and produces zero, one, or more elements. </p>
 {% highlight java %}
 data.flatMap(new FlatMapFunction<String, String>() {
   public void flatMap(String value, Collector<String> out) {
     for (String s : value.split(" ")) {
       out.collect(s);
     }
+  }
+});
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td><strong>MapPartition</strong></td>
+      <td>
+        <p>Transforms a parallel partition in a single function call. The function get the partition as an `Iterable` stream and
+           can produce an arbitrary number of result values. The number of elements in each partition depends on the degree-of-parallelism
+           and previous operations.</p>
+{% highlight java %}
+data.mapPartition(new MapPartitionFunction<String, Long>() {
+  public void mapPartition(Iterable<String> values, Collector<Long> out) {
+    long c = 0;
+    for (String s : values) {
+      c++;
+    }
+    out.collect(c);
   }
 });
 {% endhighlight %}
@@ -321,7 +341,7 @@ DataSet<Tuple3<Integer, String, Double>> output = input.sum(0).andMin(2);
     </tr>
       <td><strong>Join</strong></td>
       <td>
-        Joins two data sets by creating all pairs of elements that are equal on their keys. Optionally uses a JoinFunction to turn the pair of elements into a single element, or a FlatJoinFunction to turn the pair of elements into arbitararily many (including none) elements. See [keys](#keys) on how to define join keys.
+        Joins two data sets by creating all pairs of elements that are equal on their keys. Optionally uses a JoinFunction to turn the pair of elements into a single element, or a FlatJoinFunction to turn the pair of elements into arbitararily many (including none) elements. See <a href="#keys">keys</a> on how to define join keys.
 {% highlight java %}
 result = input1.join(input2)
                .where(0)       // key of the first input (tuple field 0)
@@ -333,7 +353,7 @@ result = input1.join(input2)
     <tr>
       <td><strong>CoGroup</strong></td>
       <td>
-        <p>The two-dimensional variant of the reduce operation. Groups each input on one or more fields and then joins the groups. The transformation function is called per pair of groups. See [keys](#keys) on how to define coGroup keys.</p>
+        <p>The two-dimensional variant of the reduce operation. Groups each input on one or more fields and then joins the groups. The transformation function is called per pair of groups. See <a href="#keys">keys</a> on how to define coGroup keys.</p>
 {% highlight java %}
 data1.coGroup(data2)
      .where(0)
@@ -403,7 +423,7 @@ DataSet<Tuple2<String, Integer>> out = in.project(2,0).types(String.class, Integ
 Defining Keys
 -------------
 
-One transformation (join, coGroup) require that a key is defined on
+Some transformations (join, coGroup) require that a key is defined on
 its argument DataSets, and other transformations (Reduce, GroupReduce,
 Aggregate) allow that the DataSet is grouped on a key before they are
 applied.
@@ -570,7 +590,7 @@ on iterations (see [Iterations](#iterations)).
 In particular for the `reduceGroup` transformation, using a rich
 function is the only way to define an optional `combine` function. See
 the
-[transformations documentation]({{site.baseurl}}/java_api_transformations.html)
+[transformations documentation](java_api_transformations.html)
 for a complete example.
 
 [Back to top](#top)
@@ -782,7 +802,8 @@ Data Sinks
 Data sinks consume DataSets and are used to store or return them. Data sink operations are described using an {% gh_link /flink-core/src/main/java/org/apache/flink/api/common/io/OutputFormat.java "OutputFormat" %}. Flink comes with a variety of built-in output formats that
 are encapsulated behind operations on the DataSet type:
 
-- `writeAsText()` / `TextOuputFormat` - Writes for each element as a String in a line. The String are obtained by calling the *toString()* method.
+- `writeAsText()` / `TextOuputFormat` - Writes elements line-wise as Strings. The Strings are obtained by calling the *toString()* method of each element.
+- `writeAsFormattedText()` / `TextOutputFormat` - Write elements line-wise as Strings. The Strings are obtained by calling a user-defined *format()* method for each element.
 - `writeAsCsv` / `CsvOutputFormat` - Writes tuples as comma-separated value files. Row and field delimiters are configurable. The value for each field comes from the *toString()* method of the objects.
 - `print()` / `printToErr()` - Prints the *toString()* value of each element on the standard out / strandard error stream.
 - `write()` / `FileOutputFormat` - Method and base class for custom file outputs. Supports custom object-to-bytes conversion.
@@ -812,7 +833,13 @@ DataSet<Tuple3<String, Integer, Double>> values = // [...]
 values.writeAsCsv("file:///path/to/the/result/file", "\n", "|");
 
 // this writes tuples in the text formatting "(a, b, c)", rather than as CSV lines
-value.writeAsText("file:///path/to/the/result/file");
+values.writeAsText("file:///path/to/the/result/file");
+
+// this wites values as strings using a user-defined TextFormatter object
+values.writeAsFormattedText("file:///path/to/the/result/file", new TextFormatter<Tuple2<Integer, Integer>>() {
+    public String format (Tuple2<Integer, Integer> value) {
+        return value.f1 + " - " + value.f0;
+    }});
 ```
 
 Using a custom output format:
@@ -1170,7 +1197,9 @@ To visualize the execution plan, do the following:
 
 After these steps, a detailed execution plan will be visualized.
 
-<img alt="A flink job execution graph." src="{{site.baseurl}}/img/blog/plan_visualizer2.png" width="80%">
+<img alt="A flink job execution graph." src="img/plan_visualizer2.png" width="80%">
+
+
 __Web Interface__
 
 Flink offers a web interface for submitting and executing jobs. If you choose to use this interface to submit your packaged program, you have the option to also see the plan visualization.

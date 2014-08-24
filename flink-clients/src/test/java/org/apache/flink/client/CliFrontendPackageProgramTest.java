@@ -258,7 +258,7 @@ public class CliFrontendPackageProgramTest {
 
 			Configuration c = new Configuration();
 			c.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "devil");
-			Client cli = new Client(c);
+			Client cli = new Client(c, getClass().getClassLoader());
 			
 			cli.getOptimizedPlanAsJson(prog, 666);
 		} catch(ProgramInvocationException pie) {

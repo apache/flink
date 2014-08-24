@@ -32,6 +32,7 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
@@ -145,7 +146,7 @@ public abstract class AbstractTestBase {
 	
 	public File createAndRegisterTempFile(String fileName) throws IOException {
 		File baseDir = new File(System.getProperty("java.io.tmpdir"));
-		File f = new File(baseDir, fileName);
+		File f = new File(baseDir, this.getClass().getName() + "-" + fileName);
 		
 		if (f.exists()) {
 			deleteRecursively(f);
@@ -290,6 +291,17 @@ public abstract class AbstractTestBase {
 			double resultPayLoad = Double.parseDouble(resultFields[1]);
 			
 			Assert.assertTrue("Values differ by more than the permissible delta", Math.abs(expectedPayLoad - resultPayLoad) < maxDelta);
+		}
+	}
+	
+	public static <X> void compareResultCollections(List<X> expected, List<X> actual, Comparator<X> comparator) {
+		Assert.assertEquals(expected.size(), actual.size());
+		
+		Collections.sort(expected, comparator);
+		Collections.sort(actual, comparator);
+		
+		for (int i = 0; i < expected.size(); i++) {
+			Assert.assertEquals(expected.get(i), actual.get(i));
 		}
 	}
 	

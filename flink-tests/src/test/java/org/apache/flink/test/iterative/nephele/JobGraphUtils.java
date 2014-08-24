@@ -51,7 +51,7 @@ public class JobGraphUtils {
 	}
 
 	public static void submit(JobGraph graph, Configuration nepheleConfig) throws IOException, JobExecutionException {
-		JobClient client = new JobClient(graph, nepheleConfig);
+		JobClient client = new JobClient(graph, nepheleConfig, JobGraphUtils.class.getClassLoader());
 		client.submitJobAndWait();
 	}
 	

@@ -74,7 +74,7 @@ void setInput(DataSet<IN> inputData);
 DataSet<OUT> createResult();
 ```
 
-The {% gh_link /flink-addons/spargel/src/main/java/org/apache/flink/spargel/java/VertexCentricIteration.java "VertexCentricIteration" %} operator is implemented that way. Below is an example how to implement the *count()* operator that way.
+The {% gh_link /flink-addons/flink-spargel/src/main/java/org/apache/flink/spargel/java/VertexCentricIteration.java "VertexCentricIteration" %} operator is implemented that way. Below is an example how to implement the *count()* operator that way.
 
 ``` java
 public class Counter<T> implements CustomUnaryOperation<T, Long> {

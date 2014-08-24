@@ -28,7 +28,6 @@ import java.io.PipedOutputStream;
 import junit.framework.TestCase;
 
 import org.junit.Assert;
-import org.apache.commons.lang.NotImplementedException;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.typeutils.runtime.record.RecordComparatorFactory;
@@ -389,56 +388,56 @@ public class OutputEmitterTest extends TestCase {
 		}
 
 		@Override
-		public void setReference(Integer toCompare) { throw new NotImplementedException(); }
+		public void setReference(Integer toCompare) { throw new UnsupportedOperationException(); }
 
 		@Override
-		public boolean equalToReference(Integer candidate) { throw new NotImplementedException(); }
+		public boolean equalToReference(Integer candidate) { throw new UnsupportedOperationException(); }
 
 		@Override
 		public int compareToReference( TypeComparator<Integer> referencedComparator) {
-			throw new NotImplementedException();
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
-		public int compare(Integer first, Integer second) { throw new NotImplementedException(); }
+		public int compare(Integer first, Integer second) { throw new UnsupportedOperationException(); }
 
 		@Override
 		public int compare(DataInputView firstSource, DataInputView secondSource) {
-			throw new NotImplementedException();
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
-		public boolean supportsNormalizedKey() { throw new NotImplementedException(); }
+		public boolean supportsNormalizedKey() { throw new UnsupportedOperationException(); }
 
 		@Override
-		public boolean supportsSerializationWithKeyNormalization() { throw new NotImplementedException(); }
+		public boolean supportsSerializationWithKeyNormalization() { throw new UnsupportedOperationException(); }
 
 		@Override
-		public int getNormalizeKeyLen() { throw new NotImplementedException(); }
+		public int getNormalizeKeyLen() { throw new UnsupportedOperationException(); }
 
 		@Override
-		public boolean isNormalizedKeyPrefixOnly(int keyBytes) { throw new NotImplementedException(); }
+		public boolean isNormalizedKeyPrefixOnly(int keyBytes) { throw new UnsupportedOperationException(); }
 
 		@Override
 		public void putNormalizedKey(Integer record, MemorySegment target, int offset, int numBytes) {
-			throw new NotImplementedException();
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public void writeWithKeyNormalization(Integer record, DataOutputView target) throws IOException {
-			throw new NotImplementedException();
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public Integer readWithKeyDenormalization(Integer reuse, DataInputView source) throws IOException {
-			throw new NotImplementedException();
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
-		public boolean invertNormalizedKey() { throw new NotImplementedException(); }
+		public boolean invertNormalizedKey() { throw new UnsupportedOperationException(); }
 
 		@Override
-		public TypeComparator<Integer> duplicate() { throw new NotImplementedException(); }
+		public TypeComparator<Integer> duplicate() { throw new UnsupportedOperationException(); }
 		
 	}
 	

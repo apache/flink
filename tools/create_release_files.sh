@@ -39,37 +39,53 @@ GIT_PASSWORD=${GIT_PASSWORD:-XXX}
 GPG_PASSPHRASE=${GPG_PASSPHRASE:-XXX}
 GPG_KEY=${GPG_KEY:-XXX}
 GIT_BRANCH=${GIT_BRANCH:-branch-1.0}
+OLD_VERSION=${OLD_VERSION:-0.6-incubating-SNAPSHOT}
 RELEASE_VERSION=${NEW_VERSION}
+RELEASE_CANDIDATE=${RELEASE_CANDIDATE:-rc4}
+NEW_VERSION_HADOOP2=${NEW_VERSION_HADOOP2:-"$RELEASE_VERSION-hadoop2"} # this is wrong! 
 USER_NAME=${USER_NAME:-pwendell}
 MVN=${MVN:-mvn}
+sonatype_user=${sonatype_user:-rmetzger}
+sonatype_pw=${sonatype_pw:-XXX}
 
-set -e
+echo $NEW_VERSION_HADOOP2
+sleep 5
+#set -e
 
 # create source package
 
-git clone https://github.com/rmetzger/incubator-flink.git flink
+git clone https://github.com/apache/incubator-flink.git flink
 cd flink
 git checkout -b release-0.6 origin/release-0.6
 rm .gitignore
 rm .travis.yml
 rm deploysettings.xml
 rm CHANGELOG
-rm -rf .git
+#rm -rf .git
+
+#find . -name 'pom.xml' -type f -exec sed -i 's#<version>$OLD_VERSION</version>#<version>$NEW_VERSION</version>#' {} \;
+find . -name 'pom.xml' -type f -exec sed -i 's#<version>'$OLD_VERSION'</version>#<version>'$NEW_VERSION'</version>#' {} \;
+git commit --author="Robert Metzger <rmetzger@apache.org>" -am "Commit for release $RELEASE_VERSION"
+# sry for hardcoding my name, but this makes releasing even faster
+git remote add asf_push https://rmetzger@git-wip-us.apache.org/repos/asf/incubator-flink.git
+RELEASE_HASH=`git rev-parse HEAD`
+echo "Echo created release hash $RELEASE_HASH"
+
 cd ..
 
 
+echo "Creating source package"
 cp -r flink flink-$RELEASE_VERSION
-tar cvzf flink-$RELEASE_VERSION.tgz flink-$RELEASE_VERSION
-echo $GPG_PASSPHRASE | gpg --batch --default-key $GPG_KEY --passphrase-fd 0 --armour --output flink-$RELEASE_VERSION.tgz.asc \
-  --detach-sig flink-$RELEASE_VERSION.tgz
-echo $GPG_PASSPHRASE | gpg --batch --default-key $GPG_KEY --passphrase-fd 0 --print-md MD5 flink-$RELEASE_VERSION.tgz > \
-  flink-$RELEASE_VERSION.tgz.md5
-echo $GPG_PASSPHRASE | gpg --batch --default-key $GPG_KEY --passphrase-fd 0 --print-md SHA512 flink-$RELEASE_VERSION.tgz > \
-  flink-$RELEASE_VERSION.tgz.sha
+tar cvzf flink-${RELEASE_VERSION}-src.tgz --exclude .git flink-$RELEASE_VERSION
+echo $GPG_PASSPHRASE | gpg --batch --default-key $GPG_KEY --passphrase-fd 0 --armour --output flink-$RELEASE_VERSION-src.tgz.asc \
+  --detach-sig flink-$RELEASE_VERSION-src.tgz
+md5sum flink-$RELEASE_VERSION-src.tgz > flink-$RELEASE_VERSION-src.tgz.md5
+sha512sum flink-$RELEASE_VERSION-src.tgz > flink-$RELEASE_VERSION-src.tgz.sha
 rm -rf flink-$RELEASE_VERSION
 
 
 make_binary_release() {
+  echo "Creating binary release name: $NAME, flags: $FLAGS"
   NAME=$1
   FLAGS=$2
   cp -r flink flink-$RELEASE_VERSION-bin-$NAME
@@ -91,28 +107,16 @@ make_binary_release() {
     --passphrase-fd 0 --armour \
     --output flink-$RELEASE_VERSION-bin-$NAME.tgz.asc \
     --detach-sig flink-$RELEASE_VERSION-bin-$NAME.tgz
-  echo $GPG_PASSPHRASE | gpg --batch --default-key $GPG_KEY \
-    --passphrase-fd 0 --print-md \
-    MD5 flink-$RELEASE_VERSION-bin-$NAME.tgz > \
-    flink-$RELEASE_VERSION-bin-$NAME.tgz.md5
-  echo $GPG_PASSPHRASE | gpg --batch --default-key $GPG_KEY \
-    --passphrase-fd 0 --print-md \
-    SHA512 flink-$RELEASE_VERSION-bin-$NAME.tgz > \
-    flink-$RELEASE_VERSION-bin-$NAME.tgz.sha
+  md5sum flink-$RELEASE_VERSION-bin-$NAME.tgz > flink-$RELEASE_VERSION-bin-$NAME.tgz.md5
+  sha512sum flink-$RELEASE_VERSION-bin-$NAME.tgz > flink-$RELEASE_VERSION-bin-$NAME.tgz.sha
 
   if [ -f "flink-$RELEASE_VERSION-bin-$NAME-yarn.tgz" ] ; then
     echo $GPG_PASSPHRASE | gpg --batch --default-key $GPG_KEY \
     --passphrase-fd 0 --armour \
     --output flink-$RELEASE_VERSION-bin-$NAME-yarn.tgz.asc \
     --detach-sig flink-$RELEASE_VERSION-bin-$NAME-yarn.tgz
-    echo $GPG_PASSPHRASE | gpg --batch --default-key $GPG_KEY \
-      --passphrase-fd 0 --print-md \
-      MD5 flink-$RELEASE_VERSION-bin-$NAME-yarn.tgz > \
-      flink-$RELEASE_VERSION-bin-$NAME-yarn.tgz.md5
-    echo $GPG_PASSPHRASE | gpg --batch --default-key $GPG_KEY \
-      --passphrase-fd 0 --print-md \
-      SHA512 flink-$RELEASE_VERSION-bin-$NAME-yarn.tgz > \
-      flink-$RELEASE_VERSION-bin-$NAME-yarn.tgz.sha
+    md5sum flink-$RELEASE_VERSION-bin-$NAME-yarn.tgz > flink-$RELEASE_VERSION-bin-$NAME-yarn.tgz.md5
+    sha512sum flink-$RELEASE_VERSION-bin-$NAME-yarn.tgz > flink-$RELEASE_VERSION-bin-$NAME-yarn.tgz.sha
   fi
 }
 
@@ -126,9 +130,19 @@ make_binary_release "hadoop2" "-Dhadoop.profile=2"
 
 # Copy data
 echo "Copying release tarballs"
-folder=flink-$RELEASE_VERSION
-ssh $USER_NAME@people.apache.org \
-  mkdir /home/$USER_NAME/public_html/$folder
-scp flink-* \
-  $USER_NAME@people.apache.org:/home/$USER_NAME/public_html/$folder/
+folder=flink-$RELEASE_VERSION-$RELEASE_CANDIDATE
+sshpass -p "$sonatype_pw" ssh $USER_NAME@people.apache.org mkdir /home/$USER_NAME/public_html/$folder
+sshpass -p "$sonatype_pw" scp flink-* $USER_NAME@people.apache.org:/home/$USER_NAME/public_html/$folder/
+echo "copy done"
 
+echo "Deploying to repository.apache.org"
+
+cd flink
+cp ../../deploysettings.xml . 
+echo "For your reference, the command:\n\t $MVN clean deploy -Prelease --settings deploysettings.xml -DskipTests -Dgpg.keyname=$GPG_KEY -Dgpg.passphrase=$GPG_PASSPHRASE ./tools/generate_specific_pom.sh $NEW_VERSION $NEW_VERSION_HADOOP2 pom.xml"
+$MVN clean deploy -Prelease,docs-and-source --settings deploysettings.xml -DskipTests -Dgpg.keyname=$GPG_KEY -Dgpg.passphrase=$GPG_PASSPHRASE -DretryFailedDeploymentCount=10
+./tools/generate_specific_pom.sh $NEW_VERSION $NEW_VERSION_HADOOP2 pom.xml
+sleep 4
+$MVN clean deploy -Prelease,docs-and-source --settings deploysettings.xml -DskipTests -Dgpg.keyname=$GPG_KEY -Dgpg.passphrase=$GPG_PASSPHRASE -DretryFailedDeploymentCount=10
+
+echo "Done. Don't forget to commit the release version"

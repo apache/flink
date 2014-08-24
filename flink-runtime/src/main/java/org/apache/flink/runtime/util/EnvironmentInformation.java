@@ -85,14 +85,21 @@ public class EnvironmentInformation {
 	public static String getUserRunning() {
 		try {
 			return UserGroupInformation.getCurrentUser().getShortUserName();
-		} catch (Throwable t) {
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Cannot determine user/group information for the current user.", t);
-			} else {
-				LOG.info("Cannot determine user/group information for the current user.");
-			}
-			return UNKNOWN;
 		}
+		catch (Throwable t) {
+			if (LOG.isDebugEnabled() && !(t instanceof ClassNotFoundException)) {
+				LOG.debug("Cannot determine user/group information using Hadoop utils.", t);
+			}
+		}
+		
+		String user = System.getProperty("user.name");
+		if (user == null) {
+			user = UNKNOWN;
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Cannot determine user/group information for the current user.");
+			}
+		}
+		return user;
 	}
 
 	public static long getMaxJvmMemory() {

@@ -23,7 +23,7 @@ import org.apache.flink.util.Collector;
 import java.io.Serializable;
 
 /**
- * interface flatMap functions. FlatMap functions take elements and transform them,
+ * Base interface for flatMap functions. FlatMap functions take elements and transform them,
  * into zero, one, or more elements. Typical applications can be splitting elements, or unnesting lists
  * and arrays. Operations that produce multiple strictly one result element per input element can also
  * use the {@link MapFunction}.

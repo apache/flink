@@ -46,9 +46,9 @@ public interface InstanceManager {
 
 	Instance getInstanceByName(String name);
 
-	int getNumberOfTaskTrackers();
+	int getNumberOfTaskManagers();
 
 	int getNumberOfSlots();
-	
+
 	Map<InstanceConnectionInfo, Instance> getInstances();
 }

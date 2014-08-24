@@ -16,10 +16,14 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.accumulators;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -27,9 +31,10 @@ import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
+import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
+import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
 import org.apache.flink.runtime.jobgraph.JobID;
-import org.apache.flink.util.StringUtils;
+import org.apache.flink.util.InstantiationUtil;
 
 /**
  * This class encapsulates a map of accumulators for a single job. It is used
@@ -39,86 +44,123 @@ import org.apache.flink.util.StringUtils;
 public class AccumulatorEvent implements IOReadableWritable {
 
 	private JobID jobID;
+	
+	private Map<String, Accumulator<?, ?>> accumulators;
+	
+	// staging deserialized data until the classloader is available
+	private String[] accNames;
+	private String[] classNames;
+	private byte[][] serializedData;
 
-	private Map<String, Accumulator<?, ?>> accumulators = new HashMap<String, Accumulator<?, ?>>();
-
-	private boolean useUserClassLoader = false;
 
 	// Removing this causes an EOFException in the RPC service. The RPC should
 	// be improved in this regard (error message is very unspecific).
 	public AccumulatorEvent() {
+		this.accumulators = Collections.emptyMap();
 	}
 
-	public AccumulatorEvent(JobID jobID,
-			Map<String, Accumulator<?, ?>> accumulators,
-			boolean useUserClassLoader) {
+	public AccumulatorEvent(JobID jobID, Map<String, Accumulator<?, ?>> accumulators) {
 		this.accumulators = accumulators;
 		this.jobID = jobID;
-		this.useUserClassLoader = useUserClassLoader;
 	}
 
 	public JobID getJobID() {
 		return this.jobID;
 	}
 
-	public Map<String, Accumulator<?, ?>> getAccumulators() {
+	public Map<String, Accumulator<?, ?>> getAccumulators(ClassLoader loader) {
+		if (loader == null) {
+			throw new NullPointerException();
+		}
+		
+		if (this.accumulators == null) {
+			// deserialize
+			// we have read the binary data, but not yet turned into the objects
+			final int num = accNames.length;
+			this.accumulators = new HashMap<String, Accumulator<?,?>>(num);
+			for (int i = 0; i < num; i++) {
+				Accumulator<?, ?> acc;
+				try {
+					@SuppressWarnings("unchecked")
+					Class<? extends Accumulator<?, ?>> valClass = (Class<? extends Accumulator<?, ?>>) Class.forName(classNames[i], true, loader);
+					acc = InstantiationUtil.instantiate(valClass, Accumulator.class);
+				}
+				catch (ClassNotFoundException e) {
+					throw new RuntimeException("Could not load user-defined class '" + classNames[i] + "'.", e);
+				}
+				catch (ClassCastException e) {
+					throw new RuntimeException("User-defined accumulator class is not an Accumulator sublass.");
+				}
+				
+				DataInputStream in = new DataInputStream(new ByteArrayInputStream(serializedData[i]));
+				try {
+					acc.read(new InputViewDataInputStreamWrapper(in));
+					in.close();
+				} catch (IOException e) {
+					throw new RuntimeException("Error while deserializing the user-defined aggregate class.", e);
+				}
+				
+				accumulators.put(accNames[i], acc);
+			}
+			
+			// reset the serialized data
+			this.accNames = null;
+			this.classNames = null;
+			this.serializedData = null;
+		}
+		
 		return this.accumulators;
 	}
 
 	@Override
 	public void write(DataOutputView out) throws IOException {
-		out.writeBoolean(this.useUserClassLoader);
 		jobID.write(out);
 		out.writeInt(accumulators.size());
-		for (Map.Entry<String, Accumulator<?, ?>> entry : this.accumulators
-				.entrySet()) {
-			out.writeUTF(entry.getKey());
-			out.writeUTF(entry.getValue().getClass().getName());
-			entry.getValue().write(out);
+		
+		if (accumulators.size() > 0) {
+			ByteArrayOutputStream boas = new ByteArrayOutputStream();
+			DataOutputStream bufferStream = new DataOutputStream(boas);
+			
+			for (Map.Entry<String, Accumulator<?, ?>> entry : this.accumulators.entrySet()) {
+				
+				// write accumulator name
+				out.writeUTF(entry.getKey());
+				
+				// write type class
+				out.writeUTF(entry.getValue().getClass().getName());
+				
+				entry.getValue().write(new OutputViewDataOutputStreamWrapper(bufferStream));
+				bufferStream.flush();
+				byte[] bytes = boas.toByteArray();
+				out.writeInt(bytes.length);
+				out.write(bytes);
+				boas.reset();
+			}
+			bufferStream.close();
+			boas.close();
 		}
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
 	public void read(DataInputView in) throws IOException {
-		this.useUserClassLoader = in.readBoolean();
+		this.accumulators = null; // this makes sure we deserialize
+		
 		jobID = new JobID();
 		jobID.read(in);
+		
 		int numberOfMapEntries = in.readInt();
-		this.accumulators = new HashMap<String, Accumulator<?, ?>>(
-				numberOfMapEntries);
-
-		// Get user class loader. This is required at the JobManager, but not at
-		// the
-		// client.
-		ClassLoader classLoader = null;
-		if (this.useUserClassLoader) {
-			classLoader = LibraryCacheManager.getClassLoader(jobID);
-		} else {
-			classLoader = this.getClass().getClassLoader();
-		}
+		this.accNames = new String[numberOfMapEntries];
+		this.classNames = new String[numberOfMapEntries];
+		this.serializedData = new byte[numberOfMapEntries][];
 
 		for (int i = 0; i < numberOfMapEntries; i++) {
-			String key = in.readUTF();
-
-			final String valueType = in.readUTF();
-			Class<Accumulator<?, ?>> valueClass = null;
-			try {
-				valueClass = (Class<Accumulator<?, ?>>) Class.forName(
-						valueType, true, classLoader);
-			} catch (ClassNotFoundException e) {
-				throw new IOException(StringUtils.stringifyException(e));
-			}
-
-			Accumulator<?, ?> value = null;
-			try {
-				value = valueClass.newInstance();
-			} catch (Exception e) {
-				throw new IOException(StringUtils.stringifyException(e));
-			}
-			value.read(in);
-
-			this.accumulators.put(key, value);
+			this.accNames[i] = in.readUTF();
+			this.classNames[i] = in.readUTF();
+			
+			int len = in.readInt();
+			byte[] data = new byte[len];
+			this.serializedData[i] = data;
+			in.readFully(data);
 		}
 	}
 }

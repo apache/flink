@@ -56,11 +56,16 @@ INFO ... - Starting web info server for JobManager on port 8081
 
 The JobManager will also start a web frontend on port 8081, which you can check with your browser at `http://localhost:8081`.
 
+<section id="windows">
 # Flink on Windows
 
 If you want to run Flink on Windows you need to download, unpack and configure the Flink archive as mentioned above. After that you can either use the **Windows Batch** file (`.bat`) or use **Cygwin**  to run the Flink Jobmanager.
 
+### Starting with Windows Batch Files
+
 To start Flink in local mode from the *Windows Batch*, open the command window, navigate to the `bin/` directory of Flink and run `start-local.bat`.
+
+Note: The ``bin`` folder of your Java Runtime Environment must be included in Window's ``%PATH%`` variable. Follow this [guide](http://www.java.com/en/download/help/path.xml) to add Java to the ``%PATH%`` variable.
 
 ```bash
 $ cd flink
@@ -72,6 +77,8 @@ Do not close this batch window. Stop job manager by pressing Ctrl+C.
 
 After that, you need to open a second terminal to run jobs using `flink.bat`.
 
+### Starting with Cygwin and Unix Scripts
+
 With *Cygwin* you need to start the Cygwin Terminal, navigate to your Flink directory and run the `start-local.sh` script:
 
 ```bash
@@ -79,6 +86,8 @@ $ cd flink
 $ bin/start-local.sh
 Starting Nephele job manager
 ```
+
+### Installing Flink from Git
 
 If you are installing Flink from the git repository and you are using the Windows git shell, Cygwin can produce a failure similiar to this one:
 

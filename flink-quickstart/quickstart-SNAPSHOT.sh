@@ -24,7 +24,7 @@ PACKAGE=quickstart
 mvn archetype:generate								\
   -DarchetypeGroupId=org.apache.flink				\
   -DarchetypeArtifactId=flink-quickstart-java		\
-  -DarchetypeVersion=0.6-incubating-SNAPSHOT		\
+  -DarchetypeVersion=0.7-incubating-SNAPSHOT		\
   -DgroupId=org.apache.flink 						\
   -DartifactId=$PACKAGE								\
   -Dversion=0.1										\
@@ -45,12 +45,3 @@ echo -e "\\t\\t mvn clean package"
 echo -e "\\tYou will find the runnable jar in $PACKAGE/target"
 echo -e "\\n\\n"
 
-
-# Use this command if you want to specify the coordinates of your generated artifact
-# in an interactive menu:
-#
-#mvn archetype:generate								\
-#  -DarchetypeGroupId=org.apache.flink				\
-#  -DarchetypeArtifactId=flink-quickstart-java				\
-#  -DarchetypeVersion=0.6-SNAPSHOT					\
-#  -DarchetypeCatalog=https://oss.sonatype.org/content/repositories/snapshots/

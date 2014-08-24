@@ -20,7 +20,9 @@
 package org.apache.flink.client;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -30,6 +32,7 @@ import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -40,9 +43,9 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.PosixParser;
 import org.apache.commons.cli.UnrecognizedOptionException;
-import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.program.Client;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
@@ -109,7 +112,15 @@ public class CliFrontend {
 	private static final String CONFIG_DIRECTORY_FALLBACK_1 = "../conf";
 	private static final String CONFIG_DIRECTORY_FALLBACK_2 = "conf";
 	
-	public static final String JOBMANAGER_ADDRESS_FILE = ".yarn-jobmanager";
+	/**
+	 * YARN-session related constants
+	 */
+	public static final String YARN_PROPERTIES_FILE = ".yarn-properties";
+	public static final String YARN_PROPERTIES_JOBMANAGER_KEY = "jobManager";
+	public static final String YARN_PROPERTIES_DOP = "degreeOfParallelism";
+	public static final String YARN_PROPERTIES_DYNAMIC_PROPERTIES_STRING = "dynamicPropertiesString";
+	// this has to be a regex for String.split()
+	public static final String YARN_DYNAMIC_PROPERTIES_SEPARATOR = "@@";
 	
 
 	private CommandLineParser parser;
@@ -118,6 +129,10 @@ public class CliFrontend {
 	private boolean printHelp;
 	
 	private boolean globalConfigurationLoaded;
+	
+	private boolean yarnPropertiesLoaded = false;
+	
+	private Properties yarnProperties;
 
 	/**
 	 * Initializes the class
@@ -292,7 +307,7 @@ public class CliFrontend {
 				return 1;
 			}
 			
-			Client client = getClient(line);
+			Client client = getClient(line, program.getUserCodeClassLoader());
 			if (client == null) {
 				printHelpForRun();
 				return 1;
@@ -440,7 +455,7 @@ public class CliFrontend {
 			
 			// check for json plan request
 			if (plan) {
-				Client client = getClient(line);
+				Client client = getClient(line, program.getUserCodeClassLoader());
 				String jsonPlan = client.getOptimizedPlanAsJson(program, parallelism);
 				
 				if (jsonPlan != null) {
@@ -723,24 +738,19 @@ public class CliFrontend {
 			}
 		}
 		else {
-			// second, search for a .yarn-jobmanager file
-			String loc = getConfigurationDirectory();
-			File jmAddressFile = new File(loc + '/' + JOBMANAGER_ADDRESS_FILE);
-			
-			if (jmAddressFile.exists()) {
+			Properties yarnProps = getYarnProperties();
+			if(yarnProps != null) {
 				try {
-					String address = FileUtils.readFileToString(jmAddressFile).trim();
-					System.out.println("Found a " + JOBMANAGER_ADDRESS_FILE + " file, using \""+address+"\" to connect to the JobManager");
-					
+					String address = yarnProps.getProperty(YARN_PROPERTIES_JOBMANAGER_KEY);
+					System.out.println("Found a yarn properties file (" + YARN_PROPERTIES_FILE + ") file, "
+							+ "using \""+address+"\" to connect to the JobManager");
 					return RemoteExecutor.getInetFromHostport(address);
-				}
-				catch (Exception e) {
-					System.out.println("Found a " + JOBMANAGER_ADDRESS_FILE + " file, but could not read the JobManager address from the file. " 
+				} catch (Exception e) {
+					System.out.println("Found a yarn properties " + YARN_PROPERTIES_FILE + " file, but could not read the JobManager address from the file. " 
 								+ e.getMessage());
 					return null;
 				}
-			}
-			else {
+			} else {
 				// regular config file gives the address
 				String jobManagerAddress = configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
 				
@@ -809,13 +819,74 @@ public class CliFrontend {
 		if (!globalConfigurationLoaded) {
 			String location = getConfigurationDirectory();
 			GlobalConfiguration.loadConfiguration(location);
+			// set default parallelization degree
+			Properties yarnProps;
+			try {
+				yarnProps = getYarnProperties();
+				if(yarnProps != null) {
+					String propDegree = yarnProps.getProperty(YARN_PROPERTIES_DOP);
+					int paraDegree = -1;
+					if(propDegree != null) { // maybe the property is not set
+						paraDegree = Integer.valueOf(propDegree);
+					}
+					Configuration c = GlobalConfiguration.getConfiguration();
+					if(paraDegree != -1) {
+						c.setInteger(ConfigConstants.DEFAULT_PARALLELIZATION_DEGREE_KEY, paraDegree);
+					}
+					// handle the YARN client's dynamic properties
+					String dynamicPropertiesEncoded = yarnProps.getProperty(YARN_PROPERTIES_DYNAMIC_PROPERTIES_STRING);
+					List<Tuple2<String, String>> dynamicProperties = getDynamicProperties(dynamicPropertiesEncoded);
+					for(Tuple2<String, String> dynamicProperty : dynamicProperties) {
+						c.setString(dynamicProperty.f0, dynamicProperty.f1);
+					}
+					GlobalConfiguration.includeConfiguration(c); // update config
+				}
+			} catch (IOException e) {
+				System.err.println("Error while loading YARN properties: "+e.getMessage());
+				e.printStackTrace();
+			}
+			
 			globalConfigurationLoaded = true;
 		}
 		return GlobalConfiguration.getConfiguration();
 	}
 	
-	protected Client getClient(CommandLine line) throws IOException {
-		return new Client(getJobManagerAddress(line), getGlobalConfiguration());
+	public static List<Tuple2<String, String>> getDynamicProperties(String dynamicPropertiesEncoded) {
+		List<Tuple2<String, String>> ret = new ArrayList<Tuple2<String, String>>();
+		if(dynamicPropertiesEncoded != null && dynamicPropertiesEncoded.length() > 0) {
+			String[] propertyLines = dynamicPropertiesEncoded.split(CliFrontend.YARN_DYNAMIC_PROPERTIES_SEPARATOR);
+			for(String propLine : propertyLines) {
+				if(propLine == null) {
+					continue;
+				}
+				String[] kv = propLine.split("=");
+				if(kv != null && kv[0] != null && kv[1] != null && kv[0].length() > 0) {
+					ret.add(new Tuple2<String, String>(kv[0], kv[1]));
+				}
+			}
+		}
+		return ret;
+	}
+	
+	protected Properties getYarnProperties() throws IOException {
+		if(!yarnPropertiesLoaded) {
+			String loc = getConfigurationDirectory();
+			File propertiesFile = new File(loc + '/' + YARN_PROPERTIES_FILE);
+			if (propertiesFile.exists()) {
+				Properties props = new Properties();
+				InputStream is = new FileInputStream( propertiesFile );
+				props.load(is);
+				yarnProperties = props;
+				is.close();
+			} else {
+				yarnProperties = null;
+			}
+		}
+		return yarnProperties;
+	}
+	
+	protected Client getClient(CommandLine line, ClassLoader classLoader) throws IOException {
+		return new Client(getJobManagerAddress(line), getGlobalConfiguration(), classLoader);
 	}
 
 	/**

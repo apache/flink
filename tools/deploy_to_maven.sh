@@ -54,7 +54,7 @@ function getVersion() {
 # this will take a while
 CURRENT_FLINK_VERSION=`getVersion`
 if [[ "$CURRENT_FLINK_VERSION" == *-SNAPSHOT ]]; then
-	CURRENT_FLINK_VERSION_YARN=${CURRENT_FLINK_VERSION/-SNAPSHOT/-hadoop2-SNAPSHOT}
+	CURRENT_FLINK_VERSION_YARN=${CURRENT_FLINK_VERSION/-incubating-SNAPSHOT/-hadoop2-incubating-SNAPSHOT}
 else
 	CURRENT_FLINK_VERSION_YARN="$CURRENT_FLINK_VERSION-hadoop2"
 fi
@@ -72,7 +72,7 @@ if [[ $TRAVIS_PULL_REQUEST == "false" ]] ; then
 
 	if [[ $TRAVIS_JOB_NUMBER == *1 ]] && [[ $TRAVIS_PULL_REQUEST == "false" ]] && [[ $CURRENT_FLINK_VERSION == *SNAPSHOT* ]] ; then 
 		# Deploy regular hadoop v1 to maven
-		mvn -DskipTests -Drat.ignoreErrors=true deploy --settings deploysettings.xml; 
+		mvn -Pdocs-and-source -DskipTests -Drat.ignoreErrors=true deploy --settings deploysettings.xml; 
 	fi
 
 	if [[ $TRAVIS_JOB_NUMBER == *4 ]] && [[ $TRAVIS_PULL_REQUEST == "false" ]] && [[ $CURRENT_FLINK_VERSION == *SNAPSHOT* ]] ; then 
@@ -82,8 +82,7 @@ if [[ $TRAVIS_PULL_REQUEST == "false" ]] ; then
 		# all these tweaks assume a yarn build.
 		# performance tweaks here: no "clean deploy" so that actually nothing is being rebuild (could cause wrong poms inside the jars?)
 		# skip tests (they were running already)
-		# skip javadocs generation (already generated)
-		mvn -B -f pom.hadoop2.xml -DskipTests -Drat.ignoreErrors=true -Dmaven.javadoc.skip=true deploy --settings deploysettings.xml; 
+		mvn -B -f pom.hadoop2.xml -DskipTests -Pdocs-and-source -Drat.ignoreErrors=true deploy --settings deploysettings.xml; 
 	fi
 
 	if [[ $TRAVIS_JOB_NUMBER == *5 ]] && [[ $TRAVIS_PULL_REQUEST == "false" ]] && [[ $CURRENT_FLINK_VERSION == *SNAPSHOT* ]] ; then 
@@ -106,7 +105,7 @@ if [[ $TRAVIS_PULL_REQUEST == "false" ]] ; then
 	fi
 
 	#
-	# Deploy binaries to DOPA
+	# Deploy binaries to S3
 	# The TRAVIS_JOB_NUMBER here is kinda hacked. 
 	# Currently, there are Builds 1-6. Build 1 is deploying to maven sonatype
 	# Build 2 has no special meaning, it is the openjdk7, hadoop 1.2.1 build
@@ -114,31 +113,25 @@ if [[ $TRAVIS_PULL_REQUEST == "false" ]] ; then
 	# Please be sure not to use Build 1 as it will always be the yarn build.
 	#
 
-	YARN_ARCHIVE=""
-	if [[ $TRAVIS_JOB_NUMBER == *6 ]] ; then 
-		#generate yarn poms & build for yarn.
-		# it is not required to generate poms for this build.
-		#./tools/generate_specific_pom.sh $CURRENT_FLINK_VERSION $CURRENT_FLINK_VERSION_YARN pom.xml
-		#mvn -B -DskipTests clean install
-		CURRENT_FLINK_VERSION=$CURRENT_FLINK_VERSION_YARN
-		YARN_ARCHIVE="flink-dist/target/*yarn.tar.gz"
-	fi
-	if [[ $TRAVIS_JOB_NUMBER == *3 ]] || [[ $TRAVIS_JOB_NUMBER == *6 ]] ; then 
-	#	cd flink-dist
-	#	mvn -B -DskipTests -Pdebian-package package
-	#	cd ..
+
+	if [[ $TRAVIS_JOB_NUMBER == *3 ]] || [[ $TRAVIS_JOB_NUMBER == *6 ]] ; then
 		echo "Uploading build to amazon s3. Job Number: $TRAVIS_JOB_NUMBER"
-		mkdir flink
-		cp -r flink-dist/target/flink-dist-*-bin/flink*/* flink/
-		tar -czf flink-$CURRENT_FLINK_VERSION.tgz flink
-		
-		# upload the two in parallel
+		# job nr 6 is YARN
 		if [[ $TRAVIS_JOB_NUMBER == *6 ]] ; then
 			# move to current dir
-			mv $YARN_ARCHIVE .
-			travis-artifacts upload --path *yarn.tar.gz --target-path / 
+			CURRENT_FLINK_VERSION=$CURRENT_FLINK_VERSION_YARN
+			mkdir flink-$CURRENT_FLINK_VERSION-bin-yarn
+                	cp -r flink-dist/target/flink-*-bin/flink-yarn*/* flink-$CURRENT_FLINK_VERSION-bin-yarn/
+                	tar -czf flink-$CURRENT_FLINK_VERSION-bin-yarn.tgz flink-$CURRENT_FLINK_VERSION-bin-yarn
+			travis-artifacts upload --path flink-$CURRENT_FLINK_VERSION-bin-yarn.tgz --target-path / 
 		fi
-		travis-artifacts upload --path flink-$CURRENT_FLINK_VERSION.tgz   --target-path / 
+
+		mkdir flink-$CURRENT_FLINK_VERSION-bin
+                cp -r flink-dist/target/flink-*-bin/flink-$CURRENT_FLINK_VERSION*/* flink-$CURRENT_FLINK_VERSION-bin/
+                tar -czf flink-$CURRENT_FLINK_VERSION-bin.tgz flink-$CURRENT_FLINK_VERSION-bin
+		travis-artifacts upload --path flink-$CURRENT_FLINK_VERSION-bin.tgz   --target-path / 
+		echo "doing a ls -lisah:"
+		ls -lisah
 	fi
 
 fi # pull request check

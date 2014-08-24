@@ -2,15 +2,6 @@
 title: "Quick Start: Run K-Means Example"
 ---
 
-<div class="panel panel-warning">
-  <div class="panel-heading">
-    Note
-  </div>
-  <div class="panel-body">
-  	This page is using both names "Flink" and "Stratosphere" to refer to the system. We recently changed the name to Apache Flink, but there is no stable release available for it yet, therefore the example here refers to the latest stable Stratosphere release (0.5.2).
-  </div>
-</div>
-
 
 This guide will demonstrate Flink's features by example. You will see how you can leverage Flink's Iteration-feature to find clusters in a dataset using [K-Means clustering](http://en.wikipedia.org/wiki/K-means_clustering). 
 On the way, you will see the compiler, the status interface and the result of the algorithm.
@@ -18,8 +9,6 @@ On the way, you will see the compiler, the status interface and the result of th
 
 #  Generate Input Data
 Flink contains a data generator for K-Means.
-<!--
-	REACTIVATE WHEN WE HAVE A FIRST APACHE FLINK RELEASE
 
 	# Download Flink
 	wget {{ site.FLINK_DOWNLOAD_URL_HADOOP_1_STABLE }}
@@ -31,17 +20,7 @@ Flink contains a data generator for K-Means.
 	java -cp  ../examples/flink-java-examples-{{ site.FLINK_VERSION_STABLE }}-KMeans.jar org.apache.flink.example.java.clustering.util.KMeansDataGenerator 500 10 0.08
 	cp /tmp/points .
 	cp /tmp/centers .
--->
-	# Download Flink (still called Stratosphere in the 0.5.2 release)
-	wget https://github.com/stratosphere/stratosphere/releases/download/release-0.5.2/stratosphere-0.5.2-bin.tgz
-	tar xzf stratosphere-*.tgz 
-	cd stratosphere
-	mkdir kmeans
-	cd kmeans
-	# Run data generator
-	java -cp  ../examples/stratosphere-java-examples-0.5.2-KMeans.jar eu.stratosphere.example.java.clustering.util.KMeansDataGenerator 500 10 0.08
-	cp /tmp/points .
-	cp /tmp/centers .
+
 
 The generator has the following arguments:
 
@@ -74,10 +53,10 @@ The following overview presents the impact of the different standard deviations 
 We are using the generated input data to run the clustering using a Flink job.
 
 	# go to the Flink-root directory
-	cd stratosphere
-	# start Stratosphere/Flink (use ./bin/start-cluster.sh if you're on a cluster)
+	cd flink
+	# start Flink (use ./bin/start-cluster.sh if you're on a cluster)
 	./bin/start-local.sh
-	# Start Stratosphere/Flink web client
+	# Start Flink web client
 	./bin/start-webclient.sh
 
 # Review Flink Compiler
@@ -91,7 +70,7 @@ The Flink webclient allows to submit Flink programs using a graphical user inter
 		1. <a href="http://localhost:8080/launch.html">Open webclient on localhost:8080</a> <br>
 		2. Upload the file. 
 			{% highlight bash %}
-			examples/stratosphere-java-examples-0.5-SNAPSHOT-KMeans.jar
+			examples/flink-java-examples-0.6-incubating-KMeans.jar
 			{% endhighlight %} </br>
 		3. Select it in the left box to see how the operators in the plan are connected to each other. <br>
 		4. Enter the arguments in the lower left box:
@@ -133,7 +112,7 @@ The Flink webclient allows to submit Flink programs using a graphical user inter
 Use the [Python Script](quickstart/plotPoints.py) again to visualize the result
 
 ```bash
-python2.7 plotPoints.py result result result-pdf
+python plotPoints.py result result result-pdf
 ```
 
 The following three pictures show the results for the sample input above. Play around with the parameters (number of iterations, number of clusters) to see how they affect the result.

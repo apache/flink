@@ -24,7 +24,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-examples</artifactId>
-		<version>0.6-incubating-SNAPSHOT</version>
+		<version>0.7-incubating-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -144,6 +144,7 @@ under the License.
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>
 				<executions>
+					<!-- These examples are currently not self-contained
 
 					<execution>
 						<id>KMeans</id>
@@ -165,28 +166,6 @@ under the License.
 							</includes>
 						</configuration>
 					</execution>
-
-					<!--  Uncomment to rebuild the KMeansForTest jar
-					<execution>
-						<id>KMeansForTest</id>
-						<phase>package</phase>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-				
-						<configuration>
-							<classifier>KMeansForTest</classifier>
-							<archive>
-								<manifestEntries>
-									<program-class>org.apache.flink.examples.scala.testing.KMeansForTest</program-class>
-								</manifestEntries>
-							</archive>
-				
-							<includes>
-								<include>**/testing/KMeansForTest*.class</include>
-							</includes>
-						</configuration>
-					</execution> -->
 		
 					<execution>
 						<id>ComputeEdgeDegrees</id>
@@ -295,43 +274,7 @@ under the License.
 						</configuration>
 					</execution>
 					
-					<!--  These examples need not yet supported features
-					<execution>
-						<id>TransitiveClosureNaive</id>
-						<phase>package</phase>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-						<configuration>
-							<classifier>TransitiveClosureNaive</classifier>
-							<archive>
-								<manifestEntries>
-									<program-class>org.apache.flink.examples.scala.graph.TransitiveClosureNaiveDescriptor</program-class>
-								</manifestEntries>
-							</archive>
-							<includes>
-								<include>**/graph/TransitiveClosureNaive*.class</include>
-							</includes>
-						</configuration>
-					</execution>
-					<execution>
-						<id>TransitiveClosureRD</id>
-						<phase>package</phase>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-						<configuration>
-							<classifier>TransitiveClosureRD</classifier>
-							<archive>
-								<manifestEntries>
-									<program-class>org.apache.flink.examples.scala.graph.TransitiveClosureRDDescriptor</program-class>
-								</manifestEntries>
-							</archive>
-							<includes>
-								<include>**/graph/TransitiveClosureRD*.class</include>
-							</includes>
-						</configuration>
-					</execution> -->
+					-->
 		
 				</executions>
 			</plugin>

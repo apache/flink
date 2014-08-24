@@ -40,33 +40,34 @@ import org.eclipse.jetty.server.handler.ResourceHandler;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 
+
 /**
  * This class sets up a web-server that contains a web frontend to display information about running jobs.
  * It instantiates and configures an embedded jetty server.
  */
 public class WebInfoServer {
-	
+
 	/**
 	 * The log for this class.
 	 */
 	private static final Log LOG = LogFactory.getLog(WebInfoServer.class);
-	
+
 	/**
 	 * The jetty server serving all requests.
 	 */
 	private final Server server;
-	
+
 	/**
 	 * Port for info server
 	 */
 	private int port;
-	
+
 	/**
 	 * Creates a new web info server. The server runs the servlets that implement the logic
-	 * to list all present information concerning the job manager 
-	 * 
+	 * to list all present information concerning the job manager
+	 *
 	 * @param nepheleConfig
-	 *        The configuration for the nephele job manager. 
+	 *        The configuration for the nephele job manager.
 	 * @param port
 	 *        The port to launch the server on.
 	 * @throws IOException
@@ -74,18 +75,24 @@ public class WebInfoServer {
 	 */
 	public WebInfoServer(Configuration nepheleConfig, int port, JobManager jobmanager) throws IOException {
 		this.port = port;
-		
+
 		// if no explicit configuration is given, use the global configuration
 		if (nepheleConfig == null) {
 			nepheleConfig = GlobalConfiguration.getConfiguration();
 		}
-		
+
 		// get base path of Flink installation
-		String basePath = nepheleConfig.getString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY, "");
-		String webDirPath = nepheleConfig.getString(ConfigConstants.JOB_MANAGER_WEB_ROOT_PATH_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_WEB_ROOT_PATH);
-		String logDirPath = nepheleConfig.getString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, 
-				basePath+"/log");
-		
+		final String basePath = nepheleConfig.getString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY, "");
+		final String webDirPath = nepheleConfig.getString(ConfigConstants.JOB_MANAGER_WEB_ROOT_PATH_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_WEB_ROOT_PATH);
+		final String[] logDirPaths = nepheleConfig.getString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY,
+				basePath+"/log").split(","); // YARN allows to specify multiple log directories
+
+		final File[] logDirFiles = new File[logDirPaths.length];
+		int i = 0;
+		for(String path : logDirPaths) {
+			logDirFiles[i++] = new File(path);
+		}
+
 		File webDir;
 		if(webDirPath.startsWith("/")) {
 			// absolute path
@@ -94,12 +101,12 @@ public class WebInfoServer {
 			// path relative to base dir
 			webDir = new File(basePath+"/"+webDirPath);
 		}
-		
-		
+
+
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Setting up web info server, using web-root directory '" + webDir.getAbsolutePath() + "'.");
 			//LOG.info("Web info server will store temporary files in '" + tmpDir.getAbsolutePath());
-	
+
 			LOG.info("Web info server will display information about nephele job-manager on "
 				+ nepheleConfig.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null) + ", port "
 				+ port
@@ -108,17 +115,17 @@ public class WebInfoServer {
 
 		// ensure that the directory with the web documents exists
 		if (!webDir.exists()) {
-			throw new FileNotFoundException("Cannot start jobmanager web info server. The directory containing the web documents does not exist: " 
+			throw new FileNotFoundException("Cannot start jobmanager web info server. The directory containing the web documents does not exist: "
 				+ webDir.getAbsolutePath());
 		}
-		
+
 		server = new Server(port);
 
 		// ----- the handlers for the servlets -----
 		ServletContextHandler servletContext = new ServletContextHandler(ServletContextHandler.SESSIONS);
 		servletContext.setContextPath("/");
 		servletContext.addServlet(new ServletHolder(new JobmanagerInfoServlet(jobmanager)), "/jobsInfo");
-		servletContext.addServlet(new ServletHolder(new LogfileInfoServlet(new File(logDirPath))), "/logInfo");
+		servletContext.addServlet(new ServletHolder(new LogfileInfoServlet(logDirFiles)), "/logInfo");
 		servletContext.addServlet(new ServletHolder(new SetupInfoServlet(jobmanager)), "/setupInfo");
 		servletContext.addServlet(new ServletHolder(new MenuServlet()), "/menu");
 
@@ -172,16 +179,23 @@ public class WebInfoServer {
 			server.setHandler(handlers);
 		}
 	}
-	
+
 	/**
 	 * Starts the web frontend server.
-	 * 
+	 *
 	 * @throws Exception
 	 *         Thrown, if the start fails.
 	 */
 	public void start() throws Exception {
 		LOG.info("Starting web info server for JobManager on port " + this.port);
 		server.start();
+	}
+
+	/**
+	 * Stop the webserver
+	 */
+	public void stop() throws Exception {
+		server.stop();
 	}
 
 }

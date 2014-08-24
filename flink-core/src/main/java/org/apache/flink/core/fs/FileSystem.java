@@ -45,8 +45,10 @@ public abstract class FileSystem {
 
 	private static final String LOCAL_FILESYSTEM_CLASS = "org.apache.flink.core.fs.local.LocalFileSystem";
 	
-	private static final String DISTRIBUTED_FILESYSTEM_CLASS = "org.apache.flink.runtime.fs.hdfs.DistributedFileSystem";
+	private static final String HADOOP_DISTRIBUTED_FILESYSTEM_CLASS = "org.apache.flink.runtime.fs.hdfs.DistributedFileSystem";
 
+	private static final String MAPR_FILESYSTEM_CLASS = "org.apache.flink.runtime.fs.maprfs.MapRFileSystem";
+	
 	private static final String S3_FILESYSTEM_CLASS = "org.apache.flink.runtime.fs.s3.S3FileSystem";
 
 	
@@ -156,7 +158,8 @@ public abstract class FileSystem {
 	private static final Map<String, String> FSDIRECTORY = new HashMap<String, String>();
 
 	static {
-		FSDIRECTORY.put("hdfs", DISTRIBUTED_FILESYSTEM_CLASS);
+		FSDIRECTORY.put("hdfs", HADOOP_DISTRIBUTED_FILESYSTEM_CLASS);
+		FSDIRECTORY.put("maprfs", MAPR_FILESYSTEM_CLASS);
 		FSDIRECTORY.put("file", LOCAL_FILESYSTEM_CLASS);
 		FSDIRECTORY.put("s3", S3_FILESYSTEM_CLASS);
 	}

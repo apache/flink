@@ -249,3 +249,13 @@ sample that the compiler takes for delimited inputs. If the length of a single
 sample exceeds this value (possible because of misconfiguration of the parser),
 the sampling aborts. This value can be overridden for a specific input with the
 input format's parameters (DEFAULT: 2097152 (= 2 MiBytes)).
+
+# YARN
+
+Please note that all ports used by Flink in a YARN session are offsetted by the YARN application ID
+to avoid duplicate port allocations when running multiple YARN sessions in parallel. 
+
+So if `yarn.am.rpc.port` is configured to `10245` and the session's application ID is `application_1406629969999_0002`, then the actual port being used is 10245 + 2 = 10247
+
+- `yarn.am.rpc.port`: The port that is being opened by the Application Master (AM) to 
+let the YARN client connect for an RPC serice. (DEFAULT: Port 10245)

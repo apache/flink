@@ -88,6 +88,16 @@ public class JoinOperator extends JoinOperatorBase<Record, Record, Record, JoinF
 		if (builder.inputs2 != null && !builder.inputs2.isEmpty()) {
 			setSecondInput(Operator.createUnionCascade(builder.inputs2));
 		}
+
+		// sanity check solution set key mismatches
+		if (input1 instanceof DeltaIteration.SolutionSetPlaceHolder) {
+			int[] positions = getKeyColumns(0);
+			((DeltaIteration.SolutionSetPlaceHolder) input1).checkJoinKeyFields(positions);
+		}
+		if (input2 instanceof DeltaIteration.SolutionSetPlaceHolder) {
+			int[] positions = getKeyColumns(1);
+			((DeltaIteration.SolutionSetPlaceHolder) input2).checkJoinKeyFields(positions);
+		}
 		
 		setBroadcastVariables(builder.broadcastInputs);
 		setSemanticProperties(FunctionAnnotation.readDualConstantAnnotations(builder.udf));

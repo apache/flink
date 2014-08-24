@@ -23,21 +23,23 @@ import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.MapPartitionFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.java.aggregation.Aggregations;
+import org.apache.flink.api.java.functions.FormattingMapper;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.functions.UnsupportedLambdaExpressionException;
 import org.apache.flink.api.java.io.CsvOutputFormat;
 import org.apache.flink.api.java.io.PrintingOutputFormat;
 import org.apache.flink.api.java.io.TextOutputFormat;
+import org.apache.flink.api.java.io.TextOutputFormat.TextFormatter;
 import org.apache.flink.api.java.operators.AggregateOperator;
 import org.apache.flink.api.java.operators.CoGroupOperator;
 import org.apache.flink.api.java.operators.CoGroupOperator.CoGroupOperatorSets;
 import org.apache.flink.api.java.operators.CrossOperator;
-import org.apache.flink.api.java.operators.CrossOperator.DefaultCross;
 import org.apache.flink.api.java.operators.CustomUnaryOperation;
 import org.apache.flink.api.java.operators.DataSink;
 import org.apache.flink.api.java.operators.DistinctOperator;
@@ -47,6 +49,7 @@ import org.apache.flink.api.java.operators.JoinOperator.JoinHint;
 import org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets;
 import org.apache.flink.api.java.operators.Keys;
 import org.apache.flink.api.java.operators.MapOperator;
+import org.apache.flink.api.java.operators.MapPartitionOperator;
 import org.apache.flink.api.java.operators.ProjectOperator.Projection;
 import org.apache.flink.api.java.operators.GroupReduceOperator;
 import org.apache.flink.api.java.operators.ReduceOperator;
@@ -139,6 +142,33 @@ public abstract class DataSet<T> {
 			throw new UnsupportedLambdaExpressionException();
 		}
 		return new MapOperator<T, R>(this, mapper);
+	}
+
+
+
+    /**
+     * Applies a Map-style operation to the entire partition of the data.
+	 * The function is called once per parallel partition of the data,
+	 * and the entire partition is available through the given Iterator.
+	 * The number of elements that each instance of the MapPartition function
+	 * sees is non deterministic and depends on the degree of parallelism of the operation.
+	 *
+	 * This function is intended for operations that cannot transform individual elements,
+	 * requires no grouping of elements. To transform individual elements,
+	 * the use of {@code map()} and {@code flatMap()} is preferable.
+	 *
+	 * @param mapPartition The MapPartitionFunction that is called for the full DataSet.
+     * @return A MapPartitionOperator that represents the transformed DataSet.
+     *
+     * @see MapPartitionFunction
+     * @see MapPartitionOperator
+     * @see DataSet
+     */
+	public <R> MapPartitionOperator<T, R> mapPartition(MapPartitionFunction<T, R> mapPartition ){
+		if (mapPartition == null) {
+			throw new NullPointerException("MapPartition function must not be null.");
+		}
+		return new MapPartitionOperator<T, R>(this, mapPartition);
 	}
 	
 	/**
@@ -556,19 +586,19 @@ public abstract class DataSet<T> {
 	 *   both DataSets, i.e., it builds a Cartesian product.
 	 * 
 	 * <p>
-	 * The resulting {@link DefaultCross} wraps each pair of crossed elements into a {@link Tuple2}, with 
+	 * The resulting {@link org.apache.flink.api.java.operators.CrossOperator.DefaultCross} wraps each pair of crossed elements into a {@link Tuple2}, with 
 	 * the element of the first input being the first field of the tuple and the element of the 
 	 * second input being the second field of the tuple.
 	 * 
 	 * <p>
-	 * Call {@link org.apache.flink.api.java.operators.CrossOperator.DefaultCross#with(CrossFunction)} to define a {@link CrossFunction} which is called for
+	 * Call {@link org.apache.flink.api.java.operators.CrossOperator.DefaultCross#with(org.apache.flink.api.common.functions.CrossFunction)} to define a {@link CrossFunction} which is called for
 	 * each pair of crossed elements. The CrossFunction returns a exactly one element for each pair of input elements.</br>
 	 * 
 	 * @param other The other DataSet with which this DataSet is crossed. 
 	 * @return A DefaultCross that returns a Tuple2 for each pair of crossed elements.
 	 * 
-	 * @see DefaultCross
-	 * @see CrossFunction
+	 * @see org.apache.flink.api.java.operators.CrossOperator.DefaultCross
+	 * @see org.apache.flink.api.common.functions.CrossFunction
 	 * @see DataSet
 	 * @see Tuple2
 	 */
@@ -585,19 +615,19 @@ public abstract class DataSet<T> {
 	 *   smaller than the first one.
 	 *   
 	 * <p>
-	 * The resulting {@link DefaultCross} wraps each pair of crossed elements into a {@link Tuple2}, with 
+	 * The resulting {@link org.apache.flink.api.java.operators.CrossOperator.DefaultCross} wraps each pair of crossed elements into a {@link Tuple2}, with 
 	 * the element of the first input being the first field of the tuple and the element of the 
 	 * second input being the second field of the tuple.
 	 *   
 	 * <p>
-	 * Call {@link DefaultCross#with(org.apache.flink.api.common.functions.CrossFunction)} to define a
+	 * Call {@link org.apache.flink.api.java.operators.CrossOperator.DefaultCross#with(org.apache.flink.api.common.functions.CrossFunction)} to define a
 	 * {@link org.apache.flink.api.common.functions.CrossFunction} which is called for
 	 * each pair of crossed elements. The CrossFunction returns a exactly one element for each pair of input elements.</br>
 	 * 
 	 * @param other The other DataSet with which this DataSet is crossed. 
 	 * @return A DefaultCross that returns a Tuple2 for each pair of crossed elements.
 	 * 
-	 * @see DefaultCross
+	 * @see org.apache.flink.api.java.operators.CrossOperator.DefaultCross
 	 * @see org.apache.flink.api.common.functions.CrossFunction
 	 * @see DataSet
 	 * @see Tuple2
@@ -615,19 +645,19 @@ public abstract class DataSet<T> {
 	 *   larger than the first one.
 	 *   
 	 * <p>
-	 * The resulting {@link DefaultCross} wraps each pair of crossed elements into a {@link Tuple2}, with 
+	 * The resulting {@link org.apache.flink.api.java.operators.CrossOperator.DefaultCross} wraps each pair of crossed elements into a {@link Tuple2}, with 
 	 * the element of the first input being the first field of the tuple and the element of the 
 	 * second input being the second field of the tuple.
 	 *   
 	 * <p>
-	 * Call {@link DefaultCross#with(org.apache.flink.api.common.functions.CrossFunction)} to define a
+	 * Call {@link org.apache.flink.api.java.operators.CrossOperator.DefaultCross#with(org.apache.flink.api.common.functions.CrossFunction)} to define a
 	 * {@link org.apache.flink.api.common.functions.CrossFunction} which is called for
 	 * each pair of crossed elements. The CrossFunction returns a exactly one element for each pair of input elements.</br>
 	 * 
 	 * @param other The other DataSet with which this DataSet is crossed. 
 	 * @return A DefaultCross that returns a Tuple2 for each pair of crossed elements.
 	 * 
-	 * @see DefaultCross
+	 * @see org.apache.flink.api.java.operators.CrossOperator.DefaultCross
 	 * @see org.apache.flink.api.common.functions.CrossFunction
 	 * @see DataSet
 	 * @see Tuple2
@@ -792,6 +822,35 @@ public abstract class DataSet<T> {
 		TextOutputFormat<T> tof = new TextOutputFormat<T>(new Path(filePath));
 		tof.setWriteMode(writeMode);
 		return output(tof);
+	}
+	
+/**
+	 * Writes a DataSet as a text file to the specified location.<br/>
+	 * For each element of the DataSet the result of {@link TextFormatter#format(Object)} is written.
+	 *
+	 * @param filePath The path pointing to the location the text file is written to.
+	 * @param formatter formatter that is applied on every element of the DataSet.
+	 * @return The DataSink that writes the DataSet.
+	 *
+	 * @see TextOutputFormat
+	 */
+	public DataSink<String> writeAsFormattedText(String filePath, TextFormatter<T> formatter) {
+		return this.map(new FormattingMapper<T>(formatter)).writeAsText(filePath);
+	}
+
+	/**
+	 * Writes a DataSet as a text file to the specified location.<br/>
+	 * For each element of the DataSet the result of {@link TextFormatter#format(Object)} is written.
+	 *
+	 * @param filePath The path pointing to the location the text file is written to.
+	 * @param writeMode Control the behavior for existing files. Options are NO_OVERWRITE and OVERWRITE.
+	 * @param formatter formatter that is applied on every element of the DataSet.
+	 * @return The DataSink that writes the DataSet.
+	 *
+	 * @see TextOutputFormat
+	 */
+	public DataSink<String> writeAsFormattedText(String filePath, WriteMode writeMode, final TextFormatter<T> formatter) {
+		return this.map(new FormattingMapper<T>(formatter)).writeAsText(filePath, writeMode);
 	}
 	
 	/**

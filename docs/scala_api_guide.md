@@ -105,7 +105,7 @@ following lines to your POM.
 ```
 
 To quickly get started you can use the Flink Scala quickstart available
-[here]({{site.baseurl}}/quickstart/scala.html). This will give you a
+[here](scala_api_quickstart.html). This will give you a
 completeMaven project with some working example code that you can use to explore
 the system or as basis for your own projects.
 
@@ -379,7 +379,7 @@ reading the array and returns the element read from the binary data.
 Operations on DataSet
 ---------------------
 
-As explained in [Programming Model](pmodel.html#operators),
+As explained in [Java API](java_api_guide.html#transformations),
 a Flink job is a graph of operators that process data coming from
 sources that is finally written to sinks. When you use the Scala front end
 these operators as well as the graph is created behind the scenes. For example,

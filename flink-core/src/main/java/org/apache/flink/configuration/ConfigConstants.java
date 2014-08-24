@@ -272,6 +272,10 @@ public final class ConfigConstants {
 	 */
 	public static final String WEB_ACCESS_FILE_KEY = "webclient.access";
 	
+	// ----------------------------- YARN Client ----------------------------
+	
+	public static final String YARN_AM_PRC_PORT = "yarn.am.rpc.port";
+	
 	// ----------------------------- Miscellaneous ----------------------------
 	
 	/**
@@ -394,7 +398,7 @@ public final class ConfigConstants {
 	public static final int DEFAULT_FS_STREAM_OPENING_TIMEOUT = 0;
 	
 	
-	// ------------------------ File System Bahavior ------------------------
+	// ------------------------ File System Behavior ------------------------
 
 	/**
 	 * The default behavior with respect to overwriting existing files (= not overwrite)
@@ -480,6 +484,11 @@ public final class ConfigConstants {
 	 * The default path to the file containing the list of access privileged users and passwords.
 	 */
 	public static final String DEFAULT_WEB_ACCESS_FILE_PATH = null;
+	
+	// ----------------------------- YARN ----------------------------
+	
+	public static final int DEFAULT_YARN_AM_RPC_PORT = 10245;
+	
 
 	// ----------------------------- LocalExecution ----------------------------
 

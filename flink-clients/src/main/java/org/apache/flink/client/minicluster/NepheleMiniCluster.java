@@ -174,10 +174,28 @@ public class NepheleMiniCluster {
 		Configuration configuration = jobGraph.getJobConfiguration();
 		configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");
 		configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerRpcPort);
-		return new JobClient(jobGraph, configuration);
+		return new JobClient(jobGraph, configuration, getClass().getClassLoader());
 	}
 
 	public void start() throws Exception {
+
+		String forkNumberString = System.getProperty("forkNumber");
+		int forkNumber = -1;
+		try {
+			forkNumber = Integer.parseInt(forkNumberString);
+		} catch (NumberFormatException e) {
+			// running inside and IDE, so the forkNumber property is not properly set
+			// just ignore
+		}
+		if (forkNumber != -1) {
+			// we are running inside a surefire/failsafe test, determine forkNumber and set
+			// ports accordingly so that we can have multiple parallel instances
+
+			jobManagerRpcPort = 1024 + forkNumber * 300;
+			taskManagerRpcPort = 1024 + forkNumber * 300 + 100;
+			taskManagerDataPort = 1024 + forkNumber * 300 + 200;
+		}
+
 		synchronized (startStopLock) {
 			// set up the global configuration
 			if (this.configDir != null) {
@@ -227,7 +245,7 @@ public class NepheleMiniCluster {
 	// ------------------------------------------------------------------------
 	
 	private void waitForJobManagerToBecomeReady(int numTaskManagers) throws InterruptedException {
-		while (jobManager.getNumberOfTaskTrackers() < numTaskManagers) {
+		while (jobManager.getNumberOfTaskManagers() < numTaskManagers) {
 			Thread.sleep(50);
 		}
 	}

@@ -420,9 +420,7 @@ public class RPC {
 				method.setAccessible(true);
 
 				final Object value = method.invoke((Object) instance, (Object[]) call.getParameters());
-
 				return (IOReadableWritable) value;
-
 			} catch (InvocationTargetException e) {
 				
 				final Throwable target = e.getTargetException();

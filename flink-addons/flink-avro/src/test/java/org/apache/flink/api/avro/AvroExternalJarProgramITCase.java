@@ -32,8 +32,6 @@ import org.junit.Test;
 
 public class AvroExternalJarProgramITCase {
 
-	private static final int TEST_JM_PORT = 43191;
-	
 	private static final String JAR_FILE = "target/maven-test-jar.jar";
 	
 	private static final String TEST_DATA_FILE = "/testdata.avro";
@@ -49,7 +47,6 @@ public class AvroExternalJarProgramITCase {
 		
 		try {
 			testMiniCluster = new NepheleMiniCluster();
-			testMiniCluster.setJobManagerRpcPort(TEST_JM_PORT);
 			testMiniCluster.setTaskManagerNumSlots(4);
 			testMiniCluster.start();
 			
@@ -58,7 +55,7 @@ public class AvroExternalJarProgramITCase {
 			
 			PackagedProgram program = new PackagedProgram(new File(jarFile), new String[] { testData });
 						
-			Client c = new Client(new InetSocketAddress("localhost", TEST_JM_PORT), new Configuration());
+			Client c = new Client(new InetSocketAddress("localhost", testMiniCluster.getJobManagerRpcPort()), new Configuration(), program.getUserCodeClassLoader());
 			c.run(program, 4, true);
 		}
 		catch (Throwable t) {

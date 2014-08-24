@@ -1,3 +1,21 @@
+/*!
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 var maxColumnWidth = 200;
 var minColumnWidth = 100;
 
@@ -9,7 +27,6 @@ var pactPlanRequested = 0;
  */
 function toggleShowPlanBox(box)
 {
-  console.log("toggleShowPlanBox");
   var child = $('#suspendJobDuringPlanCheck');
   
   if (box.is(':checked')) {
@@ -25,7 +42,6 @@ function toggleShowPlanBox(box)
  */
 function showUploadError(message)
 {
-	  console.log("showUploadError");
   $('#upload_error_text').fadeOut("fast", function () { $('#upload_error_text')[0].innerHTML = "" + message;
                                                            $('#upload_error_text').fadeIn("slow"); } );
 }
@@ -35,7 +51,6 @@ function showUploadError(message)
  */
 function processUpload()
 {
-	  console.log("processUpload");
 
   var filename = $('#upload_file_input').val();
   var len = filename.length;
@@ -57,7 +72,6 @@ function processUpload()
  */
 function toggleCheckboxes(box)
 {
-	  console.log("toggleCheckboxes");
 
   if (box.is(':checked')) {
     $('.jobItemCheckbox').attr('checked', false);
@@ -86,7 +100,6 @@ function toggleCheckboxes(box)
  */
 function showPreviewPlan(data)
 {
-	console.log("showPreviewPlan");
 	//TODO check again the stuff below
 //  // check whether this one is still selected
 //  var active = $('.jobItemCheckbox:checked');
@@ -106,6 +119,9 @@ function showPreviewPlan(data)
     $("#mainCanvas").append(svgElement);
     drawGraph(data.plan, "#svg-main");
     pactPlanRequested = 0;
+    
+    //activate zoom buttons
+    activateZoomButtons();
 //  }
 }
 
@@ -114,7 +130,6 @@ function showPreviewPlan(data)
  */
 function loadJobList()
 {
-	console.log("loadJobList");
   $.get("jobs", { action: "list" }, createJobList);
 }
 
@@ -123,7 +138,6 @@ function loadJobList()
  */
 function deleteJob(id)
 {
-	console.log("deleteJob");
   var name = id.substr(4);
   $.get("jobs", { action: "delete", filename: name }, loadJobList);
 }
@@ -133,7 +147,6 @@ function deleteJob(id)
  */
 function createJobList(data)
 {
-	console.log("createJobList ");
   var markup = "";
   
   var lines = data.split("\n");
@@ -186,7 +199,6 @@ function createJobList(data)
  */
 function runJob ()
 {
-	console.log("runJob");
    var job = $('.jobItemCheckbox:checked');
    if (job.length == 0) {
      $('#run_error_text').fadeOut("fast", function () { $('#run_error_text')[0].innerHTML = "Select a job to run.";
@@ -209,7 +221,6 @@ function runJob ()
  */
 $(document).ready(function ()
 {
-	console.log("Document ready");
   // hide the error text sections
   $('#upload_error_text').fadeOut("fast");
   $('#run_error_text').fadeOut("fast");

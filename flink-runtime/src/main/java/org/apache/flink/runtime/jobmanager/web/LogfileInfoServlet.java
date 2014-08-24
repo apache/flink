@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.jobmanager.web;
 
 import java.io.File;
@@ -31,73 +30,71 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+
 import org.apache.flink.util.StringUtils;
 
+import com.google.common.base.Preconditions;
+
 public class LogfileInfoServlet extends HttpServlet {
-	
+
 	private static final long serialVersionUID = 1L;
 
 	/**
 	 * The log for this class.
 	 */
 	private static final Log LOG = LogFactory.getLog(LogfileInfoServlet.class);
-	
-	private File logDir;
-	
-	public LogfileInfoServlet(File logDir) {
-		this.logDir = logDir;
+
+	private File[] logDirs;
+
+
+	public LogfileInfoServlet(File[] logDirs) {
+		Preconditions.checkNotNull(logDirs, "The given log files are null.");
+		this.logDirs = logDirs;
 	}
-	
+
 	@Override
 	protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
 
 		try {
 			if("stdout".equals(req.getParameter("get"))) {
-				// Find current stdtout file
-				for(File f : logDir.listFiles()) {
-					// contains "jobmanager" ".log" and no number in the end ->needs improvement
-					if( f.getName().equals("jobmanager-stdout.log") ||
-							(f.getName().indexOf("jobmanager") != -1 && f.getName().indexOf(".out") != -1 && ! Character.isDigit(f.getName().charAt(f.getName().length() - 1) ))
-							) {
-						
-						resp.setStatus(HttpServletResponse.SC_OK);
-						resp.setContentType("text/plain ");
-						writeFile(resp.getOutputStream(), f);
-						break;
-					}
-				}
+				// Find current stdout file
+				sendFile("jobmanager-stdout.log", resp);
 			}
 			else {
 				// Find current logfile
-				for(File f : logDir.listFiles()) {
-					// contains "jobmanager" ".log" and no number in the end ->needs improvement
-					if( f.getName().equals("jobmanager-stderr.log") ||
-							(f.getName().indexOf("jobmanager") != -1 && f.getName().indexOf(".log") != -1 && ! Character.isDigit(f.getName().charAt(f.getName().length() - 1) ))) {
-						
-						resp.setStatus(HttpServletResponse.SC_OK);
-						resp.setContentType("text/plain ");
-						writeFile(resp.getOutputStream(), f);
-						break;
-					}
-					
-				}
+				sendFile("jobmanager-log4j.log", resp);
 			}
 		} catch (Throwable t) {
 			resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-			resp.getWriter().print(t.getMessage());
+			resp.getWriter().print("Error opening log files':"+t.getMessage());
 			if (LOG.isWarnEnabled()) {
 				LOG.warn(StringUtils.stringifyException(t));
 			}
 		}
 	}
-	
+
+	private void sendFile(String fileName, HttpServletResponse resp) throws IOException {
+		for(File logDir: logDirs) {
+			for(File f : logDir.listFiles()) {
+				// contains "jobmanager" ".log" and no number in the end ->needs improvement
+				if( f.getName().equals(fileName) /*||
+						(f.getName().indexOf("jobmanager") != -1 && f.getName().indexOf(".log") != -1 && ! Character.isDigit(f.getName().charAt(f.getName().length() - 1) )) */
+						) {
+
+					resp.setStatus(HttpServletResponse.SC_OK);
+					resp.setContentType("text/plain");
+					writeFile(resp.getOutputStream(), f);
+				}
+			}
+		}
+	}
 	private static void writeFile(OutputStream out, File file) throws IOException {
 		byte[] buf = new byte[4 * 1024]; // 4K buffer
-		
+
 		FileInputStream  is = null;
 		try {
 			is = new FileInputStream(file);
-			
+			out.write(("==== FILE: "+file.toString()+" ====\n").getBytes());
 			int bytesRead;
 			while ((bytesRead = is.read(buf)) != -1) {
 				out.write(buf, 0, bytesRead);
@@ -108,5 +105,5 @@ public class LogfileInfoServlet extends HttpServlet {
 			}
 		}
 	}
-	
+
 }
