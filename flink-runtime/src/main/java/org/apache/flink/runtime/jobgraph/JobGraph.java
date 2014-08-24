@@ -810,6 +810,10 @@ public class JobGraph implements IOReadableWritable {
 	 */
 	public void uploadRequiredJarFiles(final InetSocketAddress serverAddress) throws IOException {
 
+		if (this.userJars.isEmpty()) {
+			return;
+		}
+
 		BlobClient bc = null;
 		try {
 
