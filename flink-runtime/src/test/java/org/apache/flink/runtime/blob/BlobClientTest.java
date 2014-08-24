@@ -315,9 +315,12 @@ public class BlobClientTest {
 				final InputStream is = client.get(jobID, key);
 				validateGet(is, testBuffer);
 
-				// Check reaction to invalid keys
+				// Delete the data
+				client.delete(jobID, key);
+				
+				// Check if the BLOB is still available
 				try {
-					client.get(jobID, "testkey2");
+					client.get(jobID, key);
 				} catch (FileNotFoundException fnfe) {
 					return;
 				}

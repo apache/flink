@@ -16,11 +16,11 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.blob;
 
 import java.io.EOFException;
 import java.io.File;
+import java.io.FileFilter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -36,12 +36,36 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.jobgraph.JobID;
 
+import com.google.common.io.BaseEncoding;
+
 public final class BlobServer extends Thread {
 
 	/**
 	 * The log object used for debugging.
 	 */
 	private static final Log LOG = LogFactory.getLog(BlobServer.class);
+
+	private static final String BLOB_FILE_PREFIX = "blob_";
+
+	private static final String JOB_DIR_PREFIX = "job_";
+
+	private static final FileFilter BLOB_FILE_FILTER = new FileFilter() {
+
+		@Override
+		public boolean accept(final File pathname) {
+
+			return (pathname.isFile() && pathname.getName().startsWith(BLOB_FILE_PREFIX));
+		}
+	};
+
+	private static final FileFilter JOB_DIR_FILTER = new FileFilter() {
+
+		@Override
+		public boolean accept(final File pathname) {
+
+			return (pathname.isDirectory() && pathname.getName().startsWith(JOB_DIR_PREFIX));
+		}
+	};
 
 	static final int BUFFER_SIZE = 4096;
 
@@ -52,6 +76,8 @@ public final class BlobServer extends Thread {
 	static final byte PUT_OPERATION = 0;
 
 	static final byte GET_OPERATION = 1;
+
+	static final byte DELETE_OPERATION = 2;
 
 	/**
 	 * Algorithm to be used for calculating the BLOB keys.
@@ -161,26 +187,29 @@ public final class BlobServer extends Thread {
 		return CACHE_DIRECTORY;
 	}
 
-	private static File getJobDirectory(final JobID jobID) {
+	private static File getJobDirectory(final JobID jobID, final boolean create) {
 
-		final File jobDirectory = new File(getStorageDirectory(), "job_" + jobID.toString());
+		final File jobDirectory = new File(getStorageDirectory(), JOB_DIR_PREFIX + jobID.toString());
 		jobDirectory.mkdirs();
 
 		return jobDirectory;
 	}
 
-	public static File getStorageLocation(final BlobKey key) {
+	static File getStorageLocation(final BlobKey key) {
 
 		final File storageDirectory = getCacheDirectory();
 
-		return new File(storageDirectory, key.toString());
+		return new File(storageDirectory, BLOB_FILE_PREFIX + key.toString());
 	}
 
-	public static File getStorageLocation(final JobID jobID, final String key) {
+	static File getStorageLocation(final JobID jobID, final String key) {
 
-		// TODO: Reencode key
+		return new File(getJobDirectory(jobID, true), BLOB_FILE_PREFIX + reencodeKey(key));
+	}
 
-		return new File(getJobDirectory(jobID), key);
+	private static String reencodeKey(final String key) {
+
+		return BaseEncoding.base64().encode(key.getBytes(DEFAULT_CHARSET));
 	}
 
 	@Override
@@ -290,6 +319,44 @@ public final class BlobServer extends Thread {
 			}
 		}
 
-		// TODO: Clean up the storage directories
+		// Clean up the storage directory
+		deleteAllJobDirectories();
+
+		// TODO: Find/implement strategy to handle content-addressable BLOBs
+	}
+
+	private void deleteAllJobDirectories() {
+
+		if (STORAGE_DIRECTORY == null) {
+			return;
+		}
+
+		final File storageDirectory = getStorageDirectory();
+
+		for (final File jobDirectory : storageDirectory.listFiles(JOB_DIR_FILTER)) {
+			deleteJobDirectory(jobDirectory);
+		}
+	}
+
+	static void deleteJobDirectory(final JobID jobId) {
+
+		final File jobDirectory = getJobDirectory(jobId, false);
+
+		if (!jobDirectory.exists()) {
+			return;
+		}
+
+		deleteJobDirectory(jobDirectory);
+	}
+
+	private static void deleteJobDirectory(final File jobDirectory) {
+
+		final File[] blobFiles = jobDirectory.listFiles(BLOB_FILE_FILTER);
+
+		for (final File blobFile : blobFiles) {
+			blobFile.delete();
+		}
+
+		jobDirectory.delete();
 	}
 }

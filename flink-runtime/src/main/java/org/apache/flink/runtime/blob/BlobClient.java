@@ -94,6 +94,52 @@ public final class BlobClient implements Closeable {
 		return putInputStream(null, null, inputStream);
 	}
 
+	public void delete(final JobID jobId, final String key) throws IOException {
+
+		if (jobId == null) {
+			throw new IllegalArgumentException("Argument jobID must not be null");
+		}
+
+		if (key == null) {
+			throw new IllegalArgumentException("Argument key must not be null");
+		}
+
+		deleteInternal(jobId, key);
+	}
+
+	public void deleteAll(final JobID jobId) throws IOException {
+
+		if (jobId == null) {
+			throw new IllegalArgumentException("Argument jobID must not be null");
+		}
+
+		deleteInternal(jobId, null);
+	}
+
+	private void deleteInternal(final JobID jobId, final String key) throws IOException {
+
+		final OutputStream os = this.socket.getOutputStream();
+		final byte[] buf = new byte[AbstractID.SIZE];
+
+		// Signal type of operation
+		os.write(BlobServer.DELETE_OPERATION);
+
+		// Send job ID
+		final ByteBuffer bb = ByteBuffer.wrap(buf);
+		jobId.write(bb);
+		os.write(buf);
+
+		if (key == null) {
+			os.write(0);
+		} else {
+			os.write(1);
+			// Send the key
+			byte[] keyBytes = key.getBytes(BlobServer.DEFAULT_CHARSET);
+			BlobServer.writeLength(keyBytes.length, buf, os);
+			os.write(keyBytes);
+		}
+	}
+
 	private BlobKey putBuffer(final JobID jobId, final String key, final byte[] value, final int offset, final int len)
 			throws IOException {
 

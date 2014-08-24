@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.blob;
 
 import java.io.Closeable;
@@ -74,6 +73,9 @@ class BlobConnection extends Thread {
 				case BlobServer.GET_OPERATION:
 					get(inputStream, outputStream, buffer);
 					break;
+				case BlobServer.DELETE_OPERATION:
+					delete(inputStream, buffer);
+					break;
 				default:
 					throw new IOException("Unknown operation " + operation);
 				}
@@ -107,10 +109,8 @@ class BlobConnection extends Thread {
 			final String key = readKey(buf, inputStream);
 			blob = BlobServer.getStorageLocation(jobID, key);
 		} else {
-			System.out.println("Content addressable");
 			final BlobKey key = BlobKey.readFromInputStream(inputStream);
 			blob = BlobServer.getStorageLocation(key);
-			System.out.println(blob.getAbsolutePath());
 		}
 
 		// Check if BLOB exists
@@ -211,6 +211,32 @@ class BlobConnection extends Thread {
 			if (incomingFile != null) {
 				incomingFile.delete();
 			}
+		}
+	}
+
+	private static void delete(final InputStream inputStream, final byte[] buf) throws IOException {
+
+		// Receive the job ID
+		BlobServer.readFully(inputStream, buf, 0, JobID.SIZE);
+		final ByteBuffer bb = ByteBuffer.wrap(buf);
+		final JobID jobID = JobID.fromByteBuffer(bb);
+		String key = null;
+
+		final int r = inputStream.read();
+		if (r < 0) {
+			throw new EOFException();
+		}
+		if (r > 0) {
+			// Delete individual BLOB
+			// Receive the key
+			key = readKey(buf, inputStream);
+
+			final File blob = BlobServer.getStorageLocation(jobID, key);
+			blob.delete();
+
+		} else {
+			// Delete all BLOBs for this job
+			BlobServer.deleteJobDirectory(jobID);
 		}
 	}
 
