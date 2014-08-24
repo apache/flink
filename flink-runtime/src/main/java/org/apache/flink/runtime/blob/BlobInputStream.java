@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.blob;
 
 import java.io.EOFException;
@@ -25,31 +24,68 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.security.MessageDigest;
 
+/**
+ * The BLOB input stream is a special implementation of an {@link InputStream} to read the results of a GET operation
+ * from the BLOB server.
+ */
 final class BlobInputStream extends InputStream {
 
+	/**
+	 * The wrapped input stream from the underlying TCP connection.
+	 */
 	private final InputStream wrappedInputStream;
 
+	/**
+	 * The BLOB key if the GET operation has been performed on a content-addressable BLOB, otherwise <code>null<code>.
+	 */
 	private final BlobKey blobKey;
 
+	/**
+	 * The number of bytes to read from the underlying input stream before indicating an end-of-stream.
+	 */
 	private final int bytesToReceive;
 
+	/**
+	 * The message digest to verify the integrity of the retrieved content-addressable BLOB. If the BLOB is
+	 * non-content-addressable, this is <code>null</code>.
+	 */
 	private final MessageDigest md;
 
+	/**
+	 * The number of bytes already read from the underlying input stream.
+	 */
 	private int bytesReceived;
 
+	/**
+	 * Constructs a new BLOB input stream.
+	 * 
+	 * @param wrappedInputStream
+	 *        the underlying input stream to read from
+	 * @param blobKey
+	 *        the expected BLOB key for content-addressable BLOBs, <code>null</code> for non-content-addressable BLOBs.
+	 * @param buf
+	 *        auxiliary buffer to read the meta data from the BLOB server
+	 * @throws IOException
+	 *         throws if an I/O error occurs while reading the BLOB data from the BLOB server
+	 */
 	BlobInputStream(final InputStream wrappedInputStream, final BlobKey blobKey, final byte[] buf) throws IOException {
 
 		this.wrappedInputStream = wrappedInputStream;
 		this.blobKey = blobKey;
 		this.bytesToReceive = BlobServer.readLength(buf, wrappedInputStream);
-		if (this.bytesToReceive < 1) {
-			// TODO: Improve this
+		if (this.bytesToReceive < 0) {
 			throw new FileNotFoundException();
 		}
 
 		this.md = (blobKey != null) ? BlobServer.createMessageDigest() : null;
 	}
 
+	/**
+	 * Convenience method to throw an {@link EOFException}.
+	 * 
+	 * @throws EOFException
+	 *         thrown to indicate the underlying input stream did not provide as much data as expected
+	 */
 	private void throwEOFException() throws EOFException {
 		throw new EOFException(String.format("Expected to read %d more bytes from stream", this.bytesToReceive
 			- this.bytesReceived));
@@ -83,12 +119,12 @@ final class BlobInputStream extends InputStream {
 	}
 
 	@Override
-	public int read(byte b[]) throws IOException {
+	public int read(byte[] b) throws IOException {
 		return read(b, 0, b.length);
 	}
 
 	@Override
-	public int read(byte b[], int off, int len) throws IOException {
+	public int read(byte[] b, int off, int len) throws IOException {
 
 		final int bytesMissing = this.bytesToReceive - this.bytesReceived;
 
