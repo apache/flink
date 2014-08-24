@@ -63,12 +63,6 @@ public final class BlobClient implements Closeable {
 		}
 	}
 
-	private void sendPutFooter(final OutputStream outputStream) throws IOException {
-
-		// Indicate there in no more data following
-		outputStream.write(-1);
-	}
-
 	public BlobKey put(final byte[] value) throws IOException {
 
 		return put(value, 0, value.length);
@@ -171,9 +165,6 @@ public final class BlobClient implements Closeable {
 				}
 			}
 		}
-
-		// Send the PUT footer
-		sendPutFooter(os);
 
 		if (md == null) {
 			return null;
