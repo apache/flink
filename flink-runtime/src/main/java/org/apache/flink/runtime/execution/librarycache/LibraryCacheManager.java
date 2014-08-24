@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.execution.librarycache;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.Collection;
@@ -64,6 +65,11 @@ public final class LibraryCacheManager {
 	 * Map to guarantee atomicity of of register/unregister operations.
 	 */
 	private final ConcurrentMap<JobID, Object> lockMap = new ConcurrentHashMap<JobID, Object>();
+
+	/**
+	 * Stores the socket address of the BLOB server to download required libraries.
+	 */
+	private volatile InetSocketAddress blobServerAddress = null;
 
 	/**
 	 * Increments the reference counter for the library manager entry with the given job ID.
@@ -161,7 +167,7 @@ public final class LibraryCacheManager {
 			}
 
 			// Check if all the required jar files exist in the cache
-			final URL[] urls = BlobCache.getURLs(null, requiredJarFiles);
+			final URL[] urls = BlobCache.getURLs(this.blobServerAddress, requiredJarFiles);
 			final ClassLoader classLoader = new URLClassLoader(urls);
 			this.classLoaders.put(id, classLoader);
 
@@ -234,5 +240,29 @@ public final class LibraryCacheManager {
 	private ClassLoader getClassLoaderInternal(final JobID id) {
 
 		return this.classLoaders.get(id);
+	}
+
+	/**
+	 * Sets the socket address of the BLOB server. The library cache manager will use the BLOB server to download
+	 * additional libraries if necessary.
+	 * 
+	 * @param blobSocketAddress
+	 *        the socket address of the BLOB server
+	 */
+	public static void setBlobServerAddress(final InetSocketAddress blobSocketAddress) {
+
+		LIBRARY_MANAGER.setBlobServerAddressInternal(blobSocketAddress);
+	}
+
+	/**
+	 * Sets the socket address of the BLOB server. The library cache manager will use the BLOB server to download
+	 * additional libraries if necessary.
+	 * 
+	 * @param blobSocketAddress
+	 *        the socket address of the BLOB server
+	 */
+	private void setBlobServerAddressInternal(final InetSocketAddress blobSocketAddress) {
+
+		this.blobServerAddress = blobSocketAddress;
 	}
 }

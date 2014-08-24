@@ -383,6 +383,19 @@ public class TaskManager implements TaskOperationProtocol {
 				throw new Exception("Unable to initialize memory manager.", t);
 			}
 		}
+		
+		// Determine the port of the BLOB server and register it with the library cache manager
+		{
+			final IntegerRecord blobPort = this.jobManager.getBlobServerPort();
+			if (blobPort.getValue() == -1) {
+				LOG.warn("Unable to determine BLOB server address: User library download will not be available");
+			} else {
+				final InetSocketAddress blobServerAddress = new InetSocketAddress(
+					jobManagerAddress.getAddress(), blobPort.getValue());
+				LOG.info("Determined BLOB server address to be " + blobServerAddress);
+				LibraryCacheManager.setBlobServerAddress(blobServerAddress);
+			}
+		}
 
 		this.ioManager = new IOManager(tmpDirPaths);
 		
