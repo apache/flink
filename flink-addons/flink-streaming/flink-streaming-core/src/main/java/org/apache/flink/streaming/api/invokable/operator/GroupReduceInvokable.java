@@ -18,43 +18,23 @@
 package org.apache.flink.streaming.api.invokable.operator;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.streaming.api.invokable.UserTaskInvokable;
 import org.apache.flink.streaming.state.MutableTableState;
 
-public class GroupReduceInvokable<IN> extends UserTaskInvokable<IN, IN> {
+public class GroupReduceInvokable<IN> extends StreamReduceInvokable<IN> {
 	private static final long serialVersionUID = 1L;
 
-	private ReduceFunction<IN> reducer;
 	private int keyPosition;
 	private MutableTableState<Object, IN> values;
+	private IN reduced;
 
 	public GroupReduceInvokable(ReduceFunction<IN> reducer, int keyPosition) {
 		super(reducer);
-		this.reducer = reducer;
 		this.keyPosition = keyPosition;
 		values = new MutableTableState<Object, IN>();
 	}
 
 	@Override
-	protected void immutableInvoke() throws Exception {
-		while ((reuse = recordIterator.next(reuse)) != null) {
-			reduce();
-			resetReuse();
-		}
-	}
-
-	@Override
-	protected void mutableInvoke() throws Exception {
-		while ((reuse = recordIterator.next(reuse)) != null) {
-			reduce();
-		}
-	}
-
-	private IN reduced;
-	private IN nextValue;
-	private IN currentValue;
-	
-	private void reduce() throws Exception {
+	protected void reduce() throws Exception {
 		Object key = reuse.getField(keyPosition);
 		currentValue = values.get(key);
 		nextValue = reuse.getObject();

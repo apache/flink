@@ -17,88 +17,51 @@
 
 package org.apache.flink.streaming.api.invokable.operator;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Iterator;
-
-import org.apache.flink.api.common.functions.Function;
-import org.apache.flink.api.common.functions.GroupReduceFunction;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.streaming.api.invokable.UserTaskInvokable;
-import org.apache.flink.streaming.api.streamrecord.StreamRecord;
-import org.apache.flink.streaming.state.SlidingWindowState;
 
-public abstract class StreamReduceInvokable<IN, OUT> extends UserTaskInvokable<IN, OUT> {
-
-	public StreamReduceInvokable(Function userFunction) {
-		super(userFunction);
-	}
-
+public class StreamReduceInvokable<IN> extends UserTaskInvokable<IN, IN> {
 	private static final long serialVersionUID = 1L;
-	protected GroupReduceFunction<IN, OUT> reducer;
-	protected BatchIterator<IN> userIterator;
-	protected BatchIterable userIterable;
-	protected long slideSize;
-	protected long granularity;
-	protected int listSize;
-	protected transient SlidingWindowState<IN> state;
 
-	@Override
-	public void open(Configuration parameters) throws Exception {
-		userIterable = new BatchIterable();
-		super.open(parameters);
+	protected ReduceFunction<IN> reducer;
+	protected IN currentValue;
+	protected IN nextValue;
+
+	public StreamReduceInvokable(ReduceFunction<IN> reducer) {
+		super(reducer);
+		this.reducer = reducer;
+		currentValue = null;
 	}
 
 	@Override
 	protected void immutableInvoke() throws Exception {
-		if ((reuse = recordIterator.next(reuse)) == null) {
-			throw new RuntimeException("DataStream must not be empty");
+		while ((reuse = recordIterator.next(reuse)) != null) {
+			reduce();
+			resetReuse();
 		}
+	}
 
-		while (reuse != null && !state.isFull()) {
-			collectOneUnit();
-		}
-		reduce();
-
-		while (reuse != null) {
-			for (int i = 0; i < slideSize / granularity; i++) {
-				if (reuse != null) {
-					collectOneUnit();
-				}
-			}
+	@Override
+	protected void mutableInvoke() throws Exception {
+		while ((reuse = recordIterator.next(reuse)) != null) {
 			reduce();
 		}
 	}
 
-	protected void reduce() {
-		userIterator = state.getIterator();
+	protected void reduce() throws Exception {
+		nextValue = reuse.getObject();
 		callUserFunctionAndLogException();
+
 	}
-	
+
 	@Override
 	protected void callUserFunction() throws Exception {
-		reducer.reduce(userIterable, collector);
-	}
-	
-	private void collectOneUnit() throws IOException {
-		ArrayList<StreamRecord<IN>> list;
-		list = new ArrayList<StreamRecord<IN>>(listSize);
-
-		do {
-			list.add(reuse);
-			resetReuse();
-		} while ((reuse = recordIterator.next(reuse)) != null && batchNotFull());
-		state.pushBack(list);
-	}
-
-	protected abstract boolean batchNotFull();
-
-	protected class BatchIterable implements Iterable<IN> {
-
-		@Override
-		public Iterator<IN> iterator() {
-			return userIterator;
+		if (currentValue != null) {
+			currentValue = reducer.reduce(currentValue, nextValue);
+		} else {
+			currentValue = nextValue;
 		}
+		collector.collect(currentValue);
 
 	}
 }

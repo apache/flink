@@ -17,58 +17,54 @@
 
 package org.apache.flink.streaming.api.invokable.operator;
 
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 
-import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.state.MutableTableState;
 
-public class WindowGroupReduceInvokable<IN> extends WindowReduceInvokable<IN, IN> {
+public class WindowGroupReduceInvokable<IN, OUT> extends WindowReduceInvokable<IN, OUT> {
 
 	int keyPosition;
-	protected ReduceFunction<IN> reducer;
+	protected GroupReduceFunction<IN, OUT> reducer;
 	private Iterator<StreamRecord<IN>> iterator;
-	private MutableTableState<Object, IN> values;
+	private MutableTableState<Object, List<IN>> values;
 
-	public WindowGroupReduceInvokable(ReduceFunction<IN> reduceFunction, long windowSize,
+	public WindowGroupReduceInvokable(GroupReduceFunction<IN, OUT> reduceFunction, long windowSize,
 			long slideInterval, int keyPosition) {
 		super(reduceFunction, windowSize, slideInterval);
 		this.keyPosition = keyPosition;
 		this.reducer = reduceFunction;
-		values = new MutableTableState<Object, IN>();
+		values = new MutableTableState<Object, List<IN>>();
 	}
 
-	private IN reduced;
 	private IN nextValue;
-	private IN currentValue;
-	
+
 	@Override
 	protected void reduce() {
 		iterator = state.getStreamRecordIterator();
 		while (iterator.hasNext()) {
 			StreamRecord<IN> nextRecord = iterator.next();
-
-			nextValue = nextRecord.getObject();
 			Object key = nextRecord.getField(keyPosition);
+			nextValue = nextRecord.getObject();
 
-			currentValue = values.get(key);
-			if (currentValue != null) {
-				callUserFunctionAndLogException();
-				values.put(key, reduced);
-				collector.collect(reduced);
+			List<IN> group = values.get(key);
+			if (group != null) {
+				group.add(nextValue);
 			} else {
-				values.put(key, nextValue);
-				collector.collect(nextValue);
+				group = new ArrayList<IN>();
+				group.add(nextValue);
+				values.put(key, group);
 			}
+		}
+		for (List<IN> group : values.values()) {
+			userIterable = group;
+			callUserFunctionAndLogException();
 		}
 		values.clear();
 	}
-
-	@Override
-	protected void callUserFunction() throws Exception {
-		reduced = reducer.reduce(currentValue, nextValue);
-	}
-	
 	private static final long serialVersionUID = 1L;
 
 }
