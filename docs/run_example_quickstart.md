@@ -11,14 +11,14 @@ On the way, you will see the compiler, the status interface and the result of th
 Flink contains a data generator for K-Means.
 
 ```bash
-# pick a mirror from: {{ site.FLINK_DOWNLOAD_URL_HADOOP_1_STABLE }}
-# for example
+ # pick a mirror from: {{ site.FLINK_DOWNLOAD_URL_HADOOP_1_STABLE }}
+ # for example
 wget http://mirror.lwnetwork.org.uk/APACHE/incubator/flink/flink-0.6-incubating-bin-hadoop1.tgz
 tar xzf flink-*.tgz 
 cd flink-*
 mkdir kmeans
 cd kmeans
-# Run data generator
+ # Run data generator
 java -cp  ../examples/flink-java-examples-{{ site.FLINK_VERSION_STABLE }}-KMeans.jar org.apache.flink.example.java.clustering.util.KMeansDataGenerator 500 10 0.08
 cp /tmp/points .
 cp /tmp/centers .
@@ -54,11 +54,11 @@ The following overview presents the impact of the different standard deviations 
 # Run Clustering
 We are using the generated input data to run the clustering using a Flink job.
 ```bash
-# go to the Flink-root directory
+ # go to the Flink-root directory
 cd flink
-# start Flink (use ./bin/start-cluster.sh if you're on a cluster)
+ # start Flink (use ./bin/start-cluster.sh if you're on a cluster)
 ./bin/start-local.sh
-# Start Flink web client
+ # Start Flink web client
 ./bin/start-webclient.sh
 ```
 

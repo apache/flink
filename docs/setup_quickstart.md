@@ -89,8 +89,8 @@ The following __example__ illustrates the setup with three nodes (with IP addres
   <p class="lead text-center">
     /path/to/<strong>flink/<br>conf/slaves</strong>
   <pre>
-    10.0.0.2
-    10.0.0.3</pre>
+10.0.0.2
+10.0.0.3</pre>
   </p>
 </div>
 </div>
