@@ -18,11 +18,14 @@
 package org.apache.flink.streaming.connectors.flume;
 
 import org.apache.commons.lang.SerializationUtils;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.function.sink.SinkFunction;
 
 public class FlumeTopology {
-
+	private static final Log LOG = LogFactory.getLog(FlumeTopology.class);
 	public static class MyFlumeSink extends FlumeSink<String> {
 		private static final long serialVersionUID = 1L;
 
@@ -45,6 +48,17 @@ public class FlumeTopology {
 
 	}
 
+	public static final class MyFlumePrintSink implements SinkFunction<String> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public void invoke(String value) {
+			LOG.info("String: <" + value + "> arrived from Flume");
+			
+		}
+		
+	}
+	
 	public static class MyFlumeSource extends FlumeSource<String> {
 		private static final long serialVersionUID = 1L;
 
@@ -70,7 +84,7 @@ public class FlumeTopology {
 		@SuppressWarnings("unused")
 		DataStream<String> dataStream1 = env
 			.addSource(new MyFlumeSource("localhost", 41414))
-			.print();
+			.addSink(new MyFlumePrintSink());
 
 		@SuppressWarnings("unused")
 		DataStream<String> dataStream2 = env
