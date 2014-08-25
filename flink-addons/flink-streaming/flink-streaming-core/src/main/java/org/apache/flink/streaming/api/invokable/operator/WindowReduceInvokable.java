@@ -17,35 +17,16 @@
 
 package org.apache.flink.streaming.api.invokable.operator;
 
-import org.apache.commons.math.util.MathUtils;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
-import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.state.SlidingWindowState;
 
-public class WindowReduceInvokable<IN, OUT> extends StreamReduceInvokable<IN, OUT> {
+public class WindowReduceInvokable<IN, OUT> extends BatchReduceInvokable<IN, OUT> {
 	private static final long serialVersionUID = 1L;
-	private long windowSize;
-	volatile boolean isRunning;
 	private long startTime;
 
 	public WindowReduceInvokable(GroupReduceFunction<IN, OUT> reduceFunction, long windowSize,
 			long slideInterval) {
-		super(reduceFunction);
-		this.reducer = reduceFunction;
-		this.windowSize = windowSize;
-		this.slideSize = slideInterval;
-		this.granularity = MathUtils.gcd(windowSize, slideSize);
-		this.listSize = (int) granularity;
-	}
-	
-	public WindowReduceInvokable(ReduceFunction<IN> reduceFunction, long windowSize,
-			long slideInterval) {
-		super(reduceFunction);
-		this.windowSize = windowSize;
-		this.slideSize = slideInterval;
-		this.granularity = MathUtils.gcd(windowSize, slideSize);
-		this.listSize = (int) granularity;
+		super(reduceFunction, windowSize,slideInterval);
 	}
 
 	@Override
@@ -63,7 +44,6 @@ public class WindowReduceInvokable<IN, OUT> extends StreamReduceInvokable<IN, OU
 	public void open(Configuration parameters) throws Exception {
 		super.open(parameters);
 		startTime = System.currentTimeMillis();
-		this.state = new SlidingWindowState<IN>(windowSize, slideSize, granularity);
 	}
 
 	protected void mutableInvoke() throws Exception {

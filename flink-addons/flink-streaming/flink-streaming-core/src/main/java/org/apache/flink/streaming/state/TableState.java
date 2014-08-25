@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.state;
 
 import java.io.Serializable;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -27,7 +28,7 @@ import java.util.Map;
 @SuppressWarnings("serial")
 public class TableState<K, V> implements Serializable {
 
-	protected Map<K, V> state=new LinkedHashMap<K, V>();
+	protected Map<K, V> state = new LinkedHashMap<K, V>();
 
 	public void put(K key, V value) {
 		state.put(key, value);
@@ -48,8 +49,12 @@ public class TableState<K, V> implements Serializable {
 	public TableStateIterator<K, V> getIterator() {
 		return new TableStateIterator<K, V>(state.entrySet().iterator());
 	}
-	
-	public void clear(){
+
+	public Collection<V> values() {
+		return state.values();
+	}
+
+	public void clear() {
 		state.clear();
 	}
 }

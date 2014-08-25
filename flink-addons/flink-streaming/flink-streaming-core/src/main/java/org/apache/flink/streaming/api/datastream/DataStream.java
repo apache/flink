@@ -28,10 +28,12 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.functions.RichFilterFunction;
 import org.apache.flink.api.java.functions.RichFlatMapFunction;
 import org.apache.flink.api.java.functions.RichGroupReduceFunction;
 import org.apache.flink.api.java.functions.RichMapFunction;
+import org.apache.flink.api.java.functions.RichReduceFunction;
 import org.apache.flink.streaming.api.JobGraphBuilder;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.sink.PrintSinkFunction;
@@ -46,6 +48,7 @@ import org.apache.flink.streaming.api.invokable.operator.BatchReduceInvokable;
 import org.apache.flink.streaming.api.invokable.operator.FilterInvokable;
 import org.apache.flink.streaming.api.invokable.operator.FlatMapInvokable;
 import org.apache.flink.streaming.api.invokable.operator.MapInvokable;
+import org.apache.flink.streaming.api.invokable.operator.StreamReduceInvokable;
 import org.apache.flink.streaming.api.invokable.operator.WindowReduceInvokable;
 import org.apache.flink.streaming.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.partitioner.DistributePartitioner;
@@ -288,6 +291,20 @@ public abstract class DataStream<OUT> {
 
 		return addFunction("flatMap", flatMapper, inTypeWrapper,
 				outTypeWrapper, new FlatMapInvokable<OUT, R>(flatMapper));
+	}
+	
+	/**
+	 * Applies a reduce transformation on the data stream. The user can also extend the {@link RichReduceFunction} to gain access to other features provided by
+	 * the {@link RichFuntion} interface.
+	 * 
+	 * @param reducer
+	 *            The {@link ReduceFunction} that will be called for every
+	 *            element of the input values.
+	 * @return The transformed DataStream.
+	 */
+	public SingleOutputStreamOperator<OUT, ?> reduce(ReduceFunction<OUT> reducer) {
+		return addFunction("reduce", reducer, new FunctionTypeWrapper<OUT>(reducer, ReduceFunction.class, 0),
+				new FunctionTypeWrapper<OUT>(reducer, ReduceFunction.class, 0), new StreamReduceInvokable<OUT>(reducer));
 	}
 
 	public GroupedDataStream<OUT> groupBy(int keyPosition) {
