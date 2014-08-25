@@ -49,21 +49,21 @@ public class MenuServlet extends HttpServlet {
 	 * Array of possible menu entries on the left
 	 */
 	private static final String[] entries =  {
-		"index", "history", "configuration", "taskmanagers"
+		"index", "history", "configuration", "taskmanagers", "resourceUsage"
 	};
 	
 	/**
 	 * The names of the menu entries shown in the browser
 	 */
 	private static final String[] names = {
-		"Dashboard", "History", "Configuration", "Task Managers"
+		"Dashboard", "History", "Configuration", "Task Managers", "Resource Usage"
 	};
 	
 	/**
 	 * The classes of the icons shown next to the names in the browser
 	 */
 	private static final String[] classes = {
-		"fa fa-dashboard", "fa fa-bar-chart-o", "fa fa-keyboard-o", "fa fa-building-o"
+		"fa fa-dashboard", "fa fa-archive", "fa fa-wrench", "fa fa-building-o", "fa fa-bar-chart-o"
 	};
 	
 	public MenuServlet() {
@@ -79,16 +79,19 @@ public class MenuServlet extends HttpServlet {
 		resp.setStatus(HttpServletResponse.SC_OK);
 		resp.setContentType("application/json");
 		
-		if ("index".equals(req.getParameter("get"))) {
+		String getParameter = req.getParameter("get");
+		if ("index".equals(getParameter)) {
 			writeMenu("index", resp);
-		} else if ("analyze".equals(req.getParameter("get"))) {
+		} else if ("analyze".equals(getParameter)) {
 			writeMenu("analyze", resp);
-		} else if ("history".equals(req.getParameter("get"))) {
+		} else if ("history".equals(getParameter)) {
 			writeMenu("history", resp);
-		} else if ("configuration".equals(req.getParameter("get"))) {
+		} else if ("configuration".equals(getParameter)) {
 			writeMenu("configuration", resp);
-		} else if ("taskmanagers".equals(req.getParameter("get"))) {
+		} else if ("taskmanagers".equals(getParameter)) {
 			writeMenu("taskmanagers", resp);
+		} else if ("resourceUsage".equals(getParameter)) {
+			writeMenu("resourceUsage", resp);
 		}
 
 	}
