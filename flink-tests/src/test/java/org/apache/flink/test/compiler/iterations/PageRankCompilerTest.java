@@ -43,7 +43,7 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.IterativeDataSet;
+import org.apache.flink.api.java.operators.IterativeDataSet;
 
 public class PageRankCompilerTest extends CompilerTestBase{
 	

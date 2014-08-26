@@ -18,11 +18,7 @@
 
 package org.apache.flink.api.java.operators;
 
-import org.apache.flink.api.java.BulkIterationResultSet;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.DeltaIteration;
-import org.apache.flink.api.java.DeltaIterationResultSet;
-import org.apache.flink.api.java.IterativeDataSet;
 
 import java.util.ArrayList;
 import java.util.HashMap;
