@@ -31,6 +31,7 @@ import org.apache.flink.api.java.operators.translation.KeyExtractingMapper;
 import org.apache.flink.api.java.operators.translation.PlanUnwrappingReduceGroupOperator;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.types.TypeInformation;
 import org.apache.flink.util.Collector;
 
@@ -52,8 +53,8 @@ public class DistinctOperator<T> extends SingleInputOperator<T, T, DistinctOpera
 		// if keys is null distinction is done on all tuple fields
 		if (keys == null) {
 			if (input.getType().isTupleType()) {
-				
-				TupleTypeInfo<?> tupleType = (TupleTypeInfo<?>) input.getType();
+
+				TupleTypeInfoBase<?> tupleType = (TupleTypeInfoBase<?>) input.getType();
 				int[] allFields = new int[tupleType.getArity()];
 				for(int i = 0; i < tupleType.getArity(); i++) {
 					allFields[i] = i;
