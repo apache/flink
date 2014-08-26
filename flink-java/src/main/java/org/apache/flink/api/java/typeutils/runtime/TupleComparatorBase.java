@@ -246,7 +246,7 @@ public abstract class TupleComparatorBase<T> extends TypeComparator<T> implement
 	// --------------------------------------------------------------------------------------------
 	
 	@SuppressWarnings("unchecked")
-	private final void instantiateDeserializationUtils() {
+	protected final void instantiateDeserializationUtils() {
 		if (this.serializers == null) {
 			this.serializers = new TypeSerializer[this.serializerFactories.length];
 			for (int i = 0; i < this.serializers.length; i++) {
@@ -273,7 +273,7 @@ public abstract class TupleComparatorBase<T> extends TypeComparator<T> implement
 	 * @see: http://en.wikipedia.org/wiki/List_of_prime_numbers
 	 * @see: http://oeis.org/A068652
 	 */
-	protected static final int[] HASH_SALT = new int[] {
+	public static final int[] HASH_SALT = new int[] {
 		73   , 79   , 97   , 113  , 131  , 197  , 199  , 311   , 
 		337  , 373  , 719  , 733  , 919  , 971  , 991  , 1193  , 
 		1931 , 3119 , 3779 , 7793 , 7937 , 9311 , 9377 , 11939 , 
