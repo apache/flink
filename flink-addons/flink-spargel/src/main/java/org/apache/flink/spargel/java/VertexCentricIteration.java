@@ -28,7 +28,7 @@ import org.apache.commons.lang3.Validate;
 
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.DeltaIteration;
+import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.functions.RichCoGroupFunction;
 import org.apache.flink.api.java.operators.CoGroupOperator;
 import org.apache.flink.api.java.operators.CustomUnaryOperation;

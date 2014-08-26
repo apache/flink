@@ -45,9 +45,11 @@ import org.apache.flink.api.java.operators.CoGroupOperator.CoGroupOperatorSets;
 import org.apache.flink.api.java.operators.CrossOperator;
 import org.apache.flink.api.java.operators.CustomUnaryOperation;
 import org.apache.flink.api.java.operators.DataSink;
+import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.operators.DistinctOperator;
 import org.apache.flink.api.java.operators.FilterOperator;
 import org.apache.flink.api.java.operators.FlatMapOperator;
+import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.java.operators.JoinOperator.JoinHint;
 import org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets;
 import org.apache.flink.api.java.operators.Keys;
@@ -728,7 +730,7 @@ public abstract class DataSet<T> {
 
 	/**
 	 * Initiates an iterative part of the program that executes multiple times and feeds back data sets.
-	 * The iterative part needs to be closed by calling {@link IterativeDataSet#closeWith(DataSet)}. The data set
+	 * The iterative part needs to be closed by calling {@link org.apache.flink.api.java.operators.IterativeDataSet#closeWith(DataSet)}. The data set
 	 * given to the {@code closeWith(DataSet)} method is the data set that will be fed back and used as the input
 	 * to the next iteration. The return value of the {@code closeWith(DataSet)} method is the resulting
 	 * data set after the iteration has terminated.
@@ -748,13 +750,13 @@ public abstract class DataSet<T> {
 	 * </pre>
 	 * <p>
 	 * The iteration has a maximum number of times that it executes. A dynamic termination can be realized by using a
-	 * termination criterion (see {@link IterativeDataSet#closeWith(DataSet, DataSet)}).
+	 * termination criterion (see {@link org.apache.flink.api.java.operators.IterativeDataSet#closeWith(DataSet, DataSet)}).
 	 * 
 	 * @param maxIterations The maximum number of times that the iteration is executed.
 	 * @return An IterativeDataSet that marks the start of the iterative part and needs to be closed by
-	 *         {@link IterativeDataSet#closeWith(DataSet)}.
+	 *         {@link org.apache.flink.api.java.operators.IterativeDataSet#closeWith(DataSet)}.
 	 * 
-	 * @see IterativeDataSet
+	 * @see org.apache.flink.api.java.operators.IterativeDataSet
 	 */
 	public IterativeDataSet<T> iterate(int maxIterations) {
 		return new IterativeDataSet<T>(getExecutionEnvironment(), getType(), this, maxIterations);
@@ -763,13 +765,13 @@ public abstract class DataSet<T> {
 	/**
 	 * Initiates a delta iteration. A delta iteration is similar to a regular iteration (as started by {@link #iterate(int)},
 	 * but maintains state across the individual iteration steps. The Solution set, which represents the current state
-	 * at the beginning of each iteration can be obtained via {@link DeltaIteration#getSolutionSet()} ()}.
+	 * at the beginning of each iteration can be obtained via {@link org.apache.flink.api.java.operators.DeltaIteration#getSolutionSet()} ()}.
 	 * It can be be accessed by joining (or CoGrouping) with it. The DataSet that represents the workset of an iteration
-	 * can be obtained via {@link DeltaIteration#getWorkset()}.
+	 * can be obtained via {@link org.apache.flink.api.java.operators.DeltaIteration#getWorkset()}.
 	 * The solution set is updated by producing a delta for it, which is merged into the solution set at the end of each
 	 * iteration step.
 	 * <p>
-	 * The delta iteration must be closed by calling {@link DeltaIteration#closeWith(DataSet, DataSet)}. The two
+	 * The delta iteration must be closed by calling {@link org.apache.flink.api.java.operators.DeltaIteration#closeWith(DataSet, DataSet)}. The two
 	 * parameters are the delta for the solution set and the new workset (the data set that will be fed back).
 	 * The return value of the {@code closeWith(DataSet, DataSet)} method is the resulting
 	 * data set after the iteration has terminated. Delta iterations terminate when the feed back data set
@@ -804,7 +806,7 @@ public abstract class DataSet<T> {
 	 * 
 	 * @return The DeltaIteration that marks the start of a delta iteration.
 	 * 
-	 * @see DeltaIteration
+	 * @see org.apache.flink.api.java.operators.DeltaIteration
 	 */
 	public <R> DeltaIteration<T, R> iterateDelta(DataSet<R> workset, int maxIterations, int... keyPositions) {
 		Keys.FieldPositionKeys<T> keys = new Keys.FieldPositionKeys<T>(keyPositions, getType(), false);

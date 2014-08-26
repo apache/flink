@@ -40,9 +40,9 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.DeltaIteration;
+import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.IterativeDataSet;
+import org.apache.flink.api.java.operators.IterativeDataSet;
 
 /**
  * Test the functionality of aggregators in bulk and delta iterative cases.

@@ -27,15 +27,11 @@ import static org.junit.Assert.fail;
 import org.junit.Test;
 import org.apache.flink.api.common.aggregators.LongSumAggregator;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.DeltaIteration;
-import org.apache.flink.api.java.DeltaIterationResultSet;
+import org.apache.flink.api.java.operators.DeltaIteration;
+import org.apache.flink.api.java.operators.DeltaIterationResultSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.operators.TwoInputUdfOperator;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.spargel.java.MessageIterator;
-import org.apache.flink.spargel.java.MessagingFunction;
-import org.apache.flink.spargel.java.VertexCentricIteration;
-import org.apache.flink.spargel.java.VertexUpdateFunction;
 
 @SuppressWarnings("serial")
 public class SpargelTranslationTest {

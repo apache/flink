@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.java;
+package org.apache.flink.api.java.operators;
 
 import java.util.Arrays;
 
@@ -24,7 +24,8 @@ import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.aggregators.AggregatorRegistry;
-import org.apache.flink.api.java.operators.Keys;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.types.TypeInformation;
 
 /**
@@ -55,8 +56,7 @@ public class DeltaIteration<ST, WT> {
 	
 	private int parallelism = -1;
 	
-
-	DeltaIteration(ExecutionEnvironment context, TypeInformation<ST> type, DataSet<ST> solutionSet, DataSet<WT> workset, Keys<ST> keys, int maxIterations) {
+	public DeltaIteration(ExecutionEnvironment context, TypeInformation<ST> type, DataSet<ST> solutionSet, DataSet<WT> workset, Keys<ST> keys, int maxIterations) {
 		initialSolutionSet = solutionSet;
 		initialWorkset = workset;
 		solutionSetPlaceholder = new SolutionSetPlaceHolder<ST>(context, solutionSet.getType(), this);

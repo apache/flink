@@ -16,13 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.java;
+package org.apache.flink.api.java.operators;
 
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.aggregators.AggregatorRegistry;
 import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
 import org.apache.flink.api.common.operators.Operator;
-import org.apache.flink.api.java.operators.SingleInputOperator;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.types.TypeInformation;
 import org.apache.flink.types.Value;
 
@@ -40,7 +41,7 @@ public class IterativeDataSet<T> extends SingleInputOperator<T, T, IterativeData
 	
 	private int maxIterations;
 
-	IterativeDataSet(ExecutionEnvironment context, TypeInformation<T> type, DataSet<T> input, int maxIterations) {
+	public IterativeDataSet(ExecutionEnvironment context, TypeInformation<T> type, DataSet<T> input, int maxIterations) {
 		super(input, type);
 		this.maxIterations = maxIterations;
 	}
