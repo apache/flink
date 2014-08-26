@@ -67,7 +67,16 @@ public abstract class CoInvokable<IN1, IN2, OUT> extends StreamComponentInvokabl
 		this.reuse2 = serializer2.createInstance();
 	}
 
+	
 	public void invoke() throws Exception {
+		if (this.isMutable) {
+			mutableInvoke();
+		} else {
+			immutableInvoke();
+		}
+	}
+	
+	protected void immutableInvoke() throws Exception {
 		while (true) {
 			int next = recordIterator.next(reuse1, reuse2);
 			if (next == 0) {
@@ -81,9 +90,26 @@ public abstract class CoInvokable<IN1, IN2, OUT> extends StreamComponentInvokabl
 			}
 		}
 	}
+	
+	protected void mutableInvoke() throws Exception {
+		while (true) {
+			int next = recordIterator.next(reuse1, reuse2);
+			if (next == 0) {
+				break;
+			} else if (next == 1) {
+				handleStream1();
+			} else {
+				handleStream2();
+			}
+		}
+	}
 
-	public abstract void handleStream1() throws Exception;
+	protected abstract void handleStream1() throws Exception;
 
-	public abstract void handleStream2() throws Exception;
+	protected abstract void handleStream2() throws Exception;
+	
+	protected abstract void coUSerFunction1() throws Exception;
+	
+	protected abstract void coUserFunction2() throws Exception;
 
 }
