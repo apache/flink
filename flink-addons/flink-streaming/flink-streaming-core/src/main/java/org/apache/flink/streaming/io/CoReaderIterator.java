@@ -26,13 +26,13 @@ import org.apache.flink.runtime.plugable.DeserializationDelegate;
  * A CoReaderIterator wraps a {@link CoRecordReader} producing records of two
  * input types.
  */
-public final class CoReaderIterator<T1, T2> {
+public class CoReaderIterator<T1, T2> {
 
 	private final CoRecordReader<DeserializationDelegate<T1>, DeserializationDelegate<T2>> reader; // the
 																									// source
 
-	private final DeserializationDelegate<T1> delegate1;
-	private final DeserializationDelegate<T2> delegate2;
+	protected final DeserializationDelegate<T1> delegate1;
+	protected final DeserializationDelegate<T2> delegate2;
 
 	public CoReaderIterator(
 			CoRecordReader<DeserializationDelegate<T1>, DeserializationDelegate<T2>> reader,
