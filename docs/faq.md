@@ -271,7 +271,7 @@ where it stores the Flink jar and configuration file.
 
 ## What kind of fault-tolerance does Flink provide?
 
-Stratospere can restart failed jobs. Mid-query fault tolerance will go into the
+Flink can restart failed jobs. Mid-query fault tolerance will go into the
 open source project in the next versions.
 
 ## Are Hadoop-like utilities, such as Counters and the DistributedCache supported?
