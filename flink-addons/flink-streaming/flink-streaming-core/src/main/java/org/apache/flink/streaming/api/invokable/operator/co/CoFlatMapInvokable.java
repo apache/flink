@@ -55,4 +55,16 @@ public class CoFlatMapInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2, OUT
 		}
 	}
 
+	@Override
+	protected void coUSerFunction1() throws Exception {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	protected void coUserFunction2() throws Exception {
+		// TODO Auto-generated method stub
+		
+	}
+
 }
