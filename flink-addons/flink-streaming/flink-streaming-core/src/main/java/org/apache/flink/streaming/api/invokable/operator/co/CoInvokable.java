@@ -34,7 +34,7 @@ public abstract class CoInvokable<IN1, IN2, OUT> extends StreamInvokable<OUT> {
 	}
 
 	private static final long serialVersionUID = 1L;
-	private static final Log LOG = LogFactory.getLog(StreamInvokable.class);
+	private static final Log LOG = LogFactory.getLog(CoInvokable.class);
 
 	protected CoReaderIterator<StreamRecord<IN1>, StreamRecord<IN2>> recordIterator;
 	protected StreamRecord<IN1> reuse1;

@@ -23,11 +23,14 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.flink.client.minicluster.NepheleMiniCluster;
 import org.apache.flink.client.program.Client;
+import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 
 public class ClusterUtil {
+
 	private static final Log LOG = LogFactory.getLog(ClusterUtil.class);
+	public static final String CANNOT_EXECUTE_EMPTY_JOB = "Cannot execute empty job";
 
 	/**
 	 * Executes the given JobGraph locally, on a NepheleMiniCluster
@@ -49,19 +52,27 @@ public class ClusterUtil {
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Running on mini cluster");
 		}
-		
+
 		try {
 			exec.start();
 
-			Client client = new Client(new InetSocketAddress("localhost", exec.getJobManagerRpcPort()), configuration, ClusterUtil.class.getClassLoader());
+			Client client = new Client(new InetSocketAddress("localhost",
+					exec.getJobManagerRpcPort()), configuration, ClusterUtil.class.getClassLoader());
 			client.run(jobGraph, true);
 
+		} catch (ProgramInvocationException e) {
+			if (e.getMessage().contains("GraphConversionException")) {
+				throw new RuntimeException(CANNOT_EXECUTE_EMPTY_JOB, e);
+			} else {
+				throw new RuntimeException(e.getMessage(), e);
+			}
 		} catch (Exception e) {
-			throw new RuntimeException(e);
+			throw new RuntimeException(e.getMessage(), e);
 		} finally {
 			try {
 				exec.stop();
-			} catch (Throwable t) {}
+			} catch (Throwable t) {
+			}
 		}
 	}
 
