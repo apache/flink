@@ -223,6 +223,7 @@ under the Apache License (v 2.0):
  - Apache Commons CLI (http://commons.apache.org/cli/)
  - Apache Commons FileUpload (http://commons.apache.org/fileupload/)
  - Apache Commons IO (http://commons.apache.org/io/)
+ - Apache Commons Math (http://commons.apache.org/proper/commons-math/)
  - Apache Log4J (http://logging.apache.org/log4j/1.2/)
  - Apache Avro (http://avro.apache.org)
  - Apache Hadoop (http://hadoop.apache.org)
