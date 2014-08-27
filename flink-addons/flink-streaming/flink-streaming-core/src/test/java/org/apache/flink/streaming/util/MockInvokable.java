@@ -94,6 +94,7 @@ public class MockInvokable<IN, OUT> {
 		try {
 			invokable.open(null);
 			invokable.invoke();
+			invokable.close();
 		} catch (Exception e) {
 			throw new RuntimeException("Cannot invoke invokable.", e);
 		}
