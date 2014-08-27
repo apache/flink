@@ -3,7 +3,7 @@ title:  "Build Flink"
 ---
 
 
-In order to build Flink, you need the source code. Either download the source of a release or clone the git repository. In addition to that, you need Maven 3 and a JDK (Java Development Kit). Note that you can not build Flink with Oracle JDK 6 due to a unresolved bug in the Java compiler. It works well with OpenJDK 6 and all Java 7 and 8 compilers.
+In order to build Flink, you need the source code. Either download the source of a release or clone the git repository. In addition to that, you need Maven 3 and a JDK (Java Development Kit). Note that you can not build Flink with Oracle JDK 6 due to a unresolved bug in the Oracle Java compiler. It works well with OpenJDK 6 and all Java 7 and 8 compilers.
 
 To clone from git, enter:
 ```
@@ -36,7 +36,7 @@ ERROR: The job was not successfully submitted to the nephele job manager:
 
 There are two main versions of Hadoop that we need to differentiate:
 - Hadoop 1, with all versions starting with zero or one, like 0.20, 0.23 or 1.2.1.
-- Hadoop 2 with all versions including or higher than 2.2.0.
+- Hadoop 2, with all versions starting with 2, like 2.2.0.
 The main differentiation between Hadoop 1 and Hadoop 2 is the availability of Hadoop YARN (Hadoops cluster resource manager).
 
 **To build Flink for Hadoop 2**, issue the following command:
@@ -55,10 +55,20 @@ mvn clean package -DskipTests -Dhadoop.profile=2 -Dhadoop.version=2.4.1
 
 **To build Flink against a vendor specific Hadoop version**, issue the following command:
 ```
-mvn clean package -DskipTests -Pvendor-repos -Dhadoop.version=2.2.0-cdh5.0.0-beta-2
+mvn clean package -DskipTests -Pvendor-repos -Dhadoop.profile=2 -Dhadoop.version=2.2.0-cdh5.0.0-beta-2
 ```
 
 The `-Pvendor-repos` activates a Maven [build profile](http://maven.apache.org/guides/introduction/introduction-to-profiles.html) that includes the repositories of popular Hadoop vendors such as Cloudera, Hortonworks, or MapR.
+
+**Build Flink for `hadoop2` versions before 2.2.0**
+
+Maven will automatically build Flink with its YARN client if the `-Dhadoop.profile=2` is set. But there were some changes in Hadoop versions before the 2.2.0 Hadoop release that are not supported by Flink's YARN client. Therefore, you can disable building the YARN client with the following string: `-P\!include-yarn`. 
+
+So if you are building Flink for Hadoop `2.0.0-alpha`, use the following command:
+
+```bash
+-P\!include-yarn -Dhadoop.profile=2 -Dhadoop.version=2.0.0-alpha
+```
 
 ### Background
 
@@ -69,26 +79,3 @@ Depending on the profile, there are two Hadoop versions, set via properties. For
 
 You can change these versions with the `hadoop-two.version` (or `hadoop-one.version`) property. For example `-Dhadoop-two.version=2.4.0`.
 
-
-### Example for Cloudera Hadoop 5 Beta 2
-
-
-```
-mvn -Dhadoop.profile=2 -Pvendor-repos -Dhadoop.version=2.2.0-cdh5.0.0-beta-2 -DskipTests package
-```
-
-The commands in detail:
-
-*  `-Dhadoop.profile=2` activates the Hadoop YARN profile of Flink. This will enable all components of Flink that are compatible with Hadoop 2.2
-*  `-Pvendor-repos` is adding the Maven repositories of MapR, Cloudera and Hortonworks into your Maven build.
-* `-Dhadoop.version=2.2.0-cdh5.0.0-beta-2` sets a special version of the Hadoop dependencies. Make sure that the specified Hadoop version is compatible with the profile you activated.
-
-If you want to build HDFS for Hadoop 2 without YARN, use the following parameter:
-
-```
--P!include-yarn
-```
-
-Some Cloudera versions (such as `2.0.0-cdh4.2.0`) require this, since they have a new HDFS version with the old YARN API.
-
-Please post to the _Flink mailinglist_(dev@flink.incubator.apache.org) or create an issue on [Jira]({{site.FLINK_ISSUES_URL}}), if you have issues with your YARN setup and Flink.
