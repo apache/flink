@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.environment;
 
+import java.io.File;
 import java.io.Serializable;
 import java.util.Collection;
 
@@ -117,6 +118,10 @@ public abstract class StreamExecutionEnvironment {
 	 *            The maximum time between two output flushes.
 	 */
 	public StreamExecutionEnvironment setBufferTimeout(long timeoutMillis) {
+		if (timeoutMillis < 0) {
+			throw new IllegalArgumentException("Timeout of buffer must be non-negative");
+		}
+
 		this.buffertimeout = timeoutMillis;
 		return this;
 	}
@@ -155,10 +160,12 @@ public abstract class StreamExecutionEnvironment {
 	 * @return The DataStream representing the text file.
 	 */
 	public DataStreamSource<String> readTextFile(String filePath) {
+		checkIfFileExists(filePath);
 		return addSource(new FileSourceFunction(filePath), 1);
 	}
 
 	public DataStreamSource<String> readTextFile(String filePath, int parallelism) {
+		checkIfFileExists(filePath);
 		return addSource(new FileSourceFunction(filePath), parallelism);
 	}
 
@@ -173,13 +180,31 @@ public abstract class StreamExecutionEnvironment {
 	 * @return The DataStream representing the text file.
 	 */
 	public DataStreamSource<String> readTextStream(String filePath) {
+		checkIfFileExists(filePath);
 		return addSource(new FileStreamFunction(filePath), 1);
 	}
 
 	public DataStreamSource<String> readTextStream(String filePath, int parallelism) {
+		checkIfFileExists(filePath);
 		return addSource(new FileStreamFunction(filePath), parallelism);
 	}
 
+
+	private static void checkIfFileExists(String filePath) {
+		File file = new File(filePath);
+		if (!file.exists()) {
+			throw new IllegalArgumentException("File not found: " + filePath);
+		}
+
+		if (!file.canRead()) {
+			throw new IllegalArgumentException("Cannot read file: " + filePath);
+		}
+		
+		if (file.isDirectory()) {
+			throw new IllegalArgumentException("Given path is a directory: " + filePath);
+		}
+	}
+	
 	/**
 	 * Creates a new DataStream that contains the given elements. The elements
 	 * must all be of the same type, for example, all of the String or Integer.
@@ -195,6 +220,11 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	public <OUT extends Serializable> DataStreamSource<OUT> fromElements(OUT... data) {
 		DataStreamSource<OUT> returnStream = new DataStreamSource<OUT>(this, "elements");
+
+		if (data.length == 0) {
+			throw new IllegalArgumentException(
+					"fromElements needs at least one element as argument");
+		}
 
 		try {
 			SourceFunction<OUT> function = new FromElementsFunction<OUT>(data);
@@ -222,8 +252,12 @@ public abstract class StreamExecutionEnvironment {
 	public <OUT extends Serializable> DataStreamSource<OUT> fromCollection(Collection<OUT> data) {
 		DataStreamSource<OUT> returnStream = new DataStreamSource<OUT>(this, "elements");
 
+		if (data == null) {
+			throw new NullPointerException("Collection must not be null");
+		}
+
 		if (data.isEmpty()) {
-			throw new RuntimeException("Collection must not be empty");
+			throw new IllegalArgumentException("Collection must not be empty");
 		}
 
 		try {
@@ -249,6 +283,9 @@ public abstract class StreamExecutionEnvironment {
 	 * @return A DataStrean, containing all number in the [from, to] interval.
 	 */
 	public DataStreamSource<Long> generateSequence(long from, long to) {
+		if (from > to) {
+			throw new IllegalArgumentException("Start of sequence must not be greater than the end");
+		}
 		return addSource(new GenSequenceFunction(from, to), 1);
 	}
 
