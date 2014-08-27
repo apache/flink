@@ -82,7 +82,7 @@ public class DirectedStreamCollector<OUT> extends StreamCollector<OUT> {
 	 */
 	private void emit(StreamRecord<OUT> streamRecord) {
 		Collection<String> outputNames = outputSelector.getOutputs(streamRecord.getObject());
-		streamRecord.setId(channelID);
+		streamRecord.newId(channelID);
 		serializationDelegate.setInstance(streamRecord);
 		emitted.clear();
 		for (String outputName : outputNames) {

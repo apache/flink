@@ -117,7 +117,7 @@ public class StreamCollector<OUT> implements Collector<OUT> {
 	 *            StreamRecord to emit.
 	 */
 	private void emit(StreamRecord<OUT> streamRecord) {
-		streamRecord.setId(channelID);
+		streamRecord.newId(channelID);
 		serializationDelegate.setInstance(streamRecord);
 		for (RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output : outputs) {
 			try {

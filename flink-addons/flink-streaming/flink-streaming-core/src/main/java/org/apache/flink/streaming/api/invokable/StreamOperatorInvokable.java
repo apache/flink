@@ -26,20 +26,42 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 import org.apache.flink.util.StringUtils;
 
-public abstract class StreamRecordInvokable<IN, OUT> extends StreamComponentInvokable<OUT> {
+/**
+ * The StreamOperatorInvokable represents the base class for all operators in
+ * the streaming topology.
+ *
+ * @param <IN>
+ *            Input type of the operator
+ * @param <OUT>
+ *            Output type of the operator
+ */
+public abstract class StreamOperatorInvokable<IN, OUT> extends StreamInvokable<OUT> {
 
-	public StreamRecordInvokable(Function userFunction) {
+	public StreamOperatorInvokable(Function userFunction) {
 		super(userFunction);
 	}
 
 	private static final long serialVersionUID = 1L;
-	private static final Log LOG = LogFactory.getLog(StreamComponentInvokable.class);
+	private static final Log LOG = LogFactory.getLog(StreamInvokable.class);
 
 	protected MutableObjectIterator<StreamRecord<IN>> recordIterator;
-	StreamRecordSerializer<IN> serializer;
+	protected StreamRecordSerializer<IN> serializer;
 	protected StreamRecord<IN> reuse;
 	protected boolean isMutable;
 
+	/**
+	 * Initializes the {@link StreamOperatorInvokable} for input and output
+	 * handling
+	 * 
+	 * @param collector
+	 *            Collector object for collecting the outputs for the operator
+	 * @param recordIterator
+	 *            Iterator for reading in the input records
+	 * @param serializer
+	 *            Serializer used to deserialize inputs
+	 * @param isMutable
+	 *            Mutability setting for the operator
+	 */
 	public void initialize(Collector<OUT> collector,
 			MutableObjectIterator<StreamRecord<IN>> recordIterator,
 			StreamRecordSerializer<IN> serializer, boolean isMutable) {
@@ -50,16 +72,31 @@ public abstract class StreamRecordInvokable<IN, OUT> extends StreamComponentInvo
 		this.isMutable = isMutable;
 	}
 
+	/**
+	 * Re-initializes the object in which the next input record will be read in
+	 */
 	protected void resetReuse() {
 		this.reuse = serializer.createInstance();
 	}
 
+	/**
+	 * Method that will be called if the mutability setting is set to immutable
+	 */
 	protected abstract void immutableInvoke() throws Exception;
 
+	/**
+	 * Method that will be called if the mutability setting is set to mutable
+	 */
 	protected abstract void mutableInvoke() throws Exception;
 
+	/**
+	 * The call of the user implemented function should be implemented here
+	 */
 	protected abstract void callUserFunction() throws Exception;
 
+	/**
+	 * Method for logging exceptions thrown during the user function call
+	 */
 	protected void callUserFunctionAndLogException() {
 		try {
 			callUserFunction();

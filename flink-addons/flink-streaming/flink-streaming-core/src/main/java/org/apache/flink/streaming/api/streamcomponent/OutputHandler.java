@@ -29,7 +29,7 @@ import org.apache.flink.streaming.api.StreamConfig;
 import org.apache.flink.streaming.api.collector.DirectedStreamCollector;
 import org.apache.flink.streaming.api.collector.OutputSelector;
 import org.apache.flink.streaming.api.collector.StreamCollector;
-import org.apache.flink.streaming.api.invokable.StreamComponentInvokable;
+import org.apache.flink.streaming.api.invokable.StreamInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.io.StreamRecordWriter;
@@ -153,7 +153,7 @@ public class OutputHandler<OUT> {
 	long startTime;
 
 	public void invokeUserFunction(String componentTypeName,
-			StreamComponentInvokable<OUT> userInvokable) throws IOException, InterruptedException {
+			StreamInvokable<OUT> userInvokable) throws IOException, InterruptedException {
 		if (LOG.isDebugEnabled()) {
 			LOG.debug(componentTypeName + " " + streamComponent.getName()
 					+ " invoked with instance id " + streamComponent.getInstanceID());

@@ -19,25 +19,26 @@ package org.apache.flink.streaming.api.invokable;
 
 import java.io.Serializable;
 
-import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
 
-public abstract class StreamComponentInvokable<OUT> extends AbstractRichFunction implements
-		Serializable {
+/**
+ * The StreamInvokable represents the base class for all invokables in
+ * the streaming topology.
+ *
+ * @param <OUT>
+ *            The output type of the invokable
+ */
+public abstract class StreamInvokable<OUT> implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
-	@SuppressWarnings("unused")
-	private String componentName;
-	@SuppressWarnings("unused")
-	private int channelID;
 	protected Collector<OUT> collector;
 	protected Function userFunction;
 
-	public StreamComponentInvokable(Function userFunction) {
+	public StreamInvokable(Function userFunction) {
 		this.userFunction = userFunction;
 	}
 
@@ -45,24 +46,34 @@ public abstract class StreamComponentInvokable<OUT> extends AbstractRichFunction
 		this.collector = collector;
 	}
 
-	public void setAttributes(String componentName, int channelID) {
-		this.componentName = componentName;
-		this.channelID = channelID;
-	}
-
-	@Override
+	/**
+	 * Open method to be used if the user defined function extends the
+	 * RichFunction class
+	 * 
+	 * @param parameters
+	 *            The configuration parameters for the operator
+	 */
 	public void open(Configuration parameters) throws Exception {
 		if (userFunction instanceof RichFunction) {
 			((RichFunction) userFunction).open(parameters);
 		}
 	}
 
-	@Override
+	/**
+	 * Close method to be used if the user defined function extends the
+	 * RichFunction class
+	 * 
+	 */
 	public void close() throws Exception {
 		if (userFunction instanceof RichFunction) {
 			((RichFunction) userFunction).close();
 		}
 	}
-	
+
+	/**
+	 * The method that will be called once when the operator is created, the
+	 * working mechanics of the operator should be implemented here
+	 * 
+	 */
 	public abstract void invoke() throws Exception;
 }

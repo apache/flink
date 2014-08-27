@@ -19,7 +19,7 @@ package org.apache.flink.streaming.api.streamcomponent;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.flink.streaming.api.invokable.StreamRecordInvokable;
+import org.apache.flink.streaming.api.invokable.StreamOperatorInvokable;
 
 public class StreamSink<IN> extends AbstractStreamComponent {
 
@@ -27,7 +27,7 @@ public class StreamSink<IN> extends AbstractStreamComponent {
 
 	private InputHandler<IN> inputHandler;
 	
-	private StreamRecordInvokable<IN, IN> userInvokable;
+	private StreamOperatorInvokable<IN, IN> userInvokable;
 
 	public StreamSink() {
 		userInvokable = null;

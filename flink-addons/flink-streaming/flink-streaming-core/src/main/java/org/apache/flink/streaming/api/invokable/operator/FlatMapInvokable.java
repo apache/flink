@@ -18,9 +18,9 @@
 package org.apache.flink.streaming.api.invokable.operator;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.streaming.api.invokable.UserTaskInvokable;
+import org.apache.flink.streaming.api.invokable.StreamOperatorInvokable;
 
-public class FlatMapInvokable<IN, OUT> extends UserTaskInvokable<IN, OUT> {
+public class FlatMapInvokable<IN, OUT> extends StreamOperatorInvokable<IN, OUT> {
 	private static final long serialVersionUID = 1L;
 
 	private FlatMapFunction<IN, OUT> flatMapper;

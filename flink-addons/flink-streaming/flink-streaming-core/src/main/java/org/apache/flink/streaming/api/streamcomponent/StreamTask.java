@@ -18,14 +18,14 @@
 package org.apache.flink.streaming.api.streamcomponent;
 
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.streaming.api.invokable.StreamRecordInvokable;
+import org.apache.flink.streaming.api.invokable.StreamOperatorInvokable;
 
 public class StreamTask<IN extends Tuple, OUT extends Tuple> extends AbstractStreamComponent {
 
 	private InputHandler<IN> inputHandler;
 	private OutputHandler<OUT> outputHandler;
 
-	private StreamRecordInvokable<IN, OUT> userInvokable;
+	private StreamOperatorInvokable<IN, OUT> userInvokable;
 	
 	private static int numTasks;
 
