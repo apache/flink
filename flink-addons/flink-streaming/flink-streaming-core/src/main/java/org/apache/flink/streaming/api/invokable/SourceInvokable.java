@@ -21,7 +21,7 @@ import java.io.Serializable;
 
 import org.apache.flink.streaming.api.function.source.SourceFunction;
 
-public class SourceInvokable<OUT> extends StreamComponentInvokable<OUT> implements Serializable {
+public class SourceInvokable<OUT> extends StreamInvokable<OUT> implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 

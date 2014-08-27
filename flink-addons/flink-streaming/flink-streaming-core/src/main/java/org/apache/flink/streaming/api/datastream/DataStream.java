@@ -43,7 +43,7 @@ import org.apache.flink.streaming.api.function.sink.WriteFormatAsText;
 import org.apache.flink.streaming.api.function.sink.WriteSinkFunctionByBatches;
 import org.apache.flink.streaming.api.function.sink.WriteSinkFunctionByMillis;
 import org.apache.flink.streaming.api.invokable.SinkInvokable;
-import org.apache.flink.streaming.api.invokable.UserTaskInvokable;
+import org.apache.flink.streaming.api.invokable.StreamOperatorInvokable;
 import org.apache.flink.streaming.api.invokable.operator.BatchReduceInvokable;
 import org.apache.flink.streaming.api.invokable.operator.FilterInvokable;
 import org.apache.flink.streaming.api.invokable.operator.FlatMapInvokable;
@@ -836,7 +836,7 @@ public abstract class DataStream<OUT> {
 			String functionName, final Function function,
 			TypeSerializerWrapper<OUT> inTypeWrapper,
 			TypeSerializerWrapper<R> outTypeWrapper,
-			UserTaskInvokable<OUT, R> functionInvokable) {
+			StreamOperatorInvokable<OUT, R> functionInvokable) {
 
 		DataStream<OUT> inputStream = this.copy();
 		@SuppressWarnings({ "unchecked", "rawtypes" })

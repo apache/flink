@@ -33,7 +33,7 @@ public class StreamRecord<T> implements Serializable {
 	public boolean isTuple;
 
 	/**
-	 * Creates an empty StreamRecord and initializes an empty ID
+	 * Creates an empty StreamRecord
 	 */
 	public StreamRecord() {
 		uid = new UID();
@@ -53,9 +53,19 @@ public class StreamRecord<T> implements Serializable {
 	 *            ID of the emitting task
 	 * @return The StreamRecord object
 	 */
-	public StreamRecord<T> setId(int channelID) {
+	public StreamRecord<T> newId(int channelID) {
 		uid = new UID(channelID);
 		return this;
+	}
+
+	/**
+	 * Sets the ID of the StreamRecord
+	 * 
+	 * @param id
+	 *            id to set
+	 */
+	public void setId(UID id) {
+		this.uid = id;
 	}
 
 	/**

@@ -50,8 +50,7 @@ public final class StreamRecordSerializer<T> extends TypeSerializer<StreamRecord
 	@Override
 	public StreamRecord<T> createInstance() {
 		try {
-			@SuppressWarnings("unchecked")
-			StreamRecord<T> t = StreamRecord.class.newInstance();
+			StreamRecord<T> t = new StreamRecord<T>();
 			t.isTuple = isTuple;
 			t.setObject(typeSerializer.createInstance());
 			return t;
@@ -62,15 +61,10 @@ public final class StreamRecordSerializer<T> extends TypeSerializer<StreamRecord
 
 	@Override
 	public StreamRecord<T> copy(StreamRecord<T> from, StreamRecord<T> reuse) {
-
-		return null;
-		// for (int i = 0; i < arity; i++) {
-		// Object copy = fieldSerializers[i].copy(from.getField(i),
-		// reuse.getField(i));
-		// reuse.setField(copy, i);
-		// }
-		//
-		// return reuse;
+		reuse.isTuple = from.isTuple;
+		reuse.setId(from.getId().copy());
+		reuse.setObject(typeSerializer.copy(from.getObject(), reuse.getObject()));
+		return reuse;
 	}
 
 	@Override
@@ -94,27 +88,7 @@ public final class StreamRecordSerializer<T> extends TypeSerializer<StreamRecord
 
 	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
-
+		//Needs to be implemented
 	}
 
-	// @Override
-	// public int hashCode() {
-	// int hashCode = arity * 47;
-	// for (TypeSerializer<?> ser : this.fieldSerializers) {
-	// hashCode = (hashCode << 7) | (hashCode >>> -7);
-	// hashCode += ser.hashCode();
-	// }
-	// return hashCode;
-	// }
-
-	// @Override
-	// public boolean equals(Object obj) {
-	// if (obj != null && obj instanceof StreamRecordSerializer) {
-	// StreamRecordSerializer otherTS = (StreamRecordSerializer) obj;
-	// return (otherTS.tupleClass == this.tupleClass)
-	// && Arrays.deepEquals(this.fieldSerializers, otherTS.fieldSerializers);
-	// } else {
-	// return false;
-	// }
-	// }
 }

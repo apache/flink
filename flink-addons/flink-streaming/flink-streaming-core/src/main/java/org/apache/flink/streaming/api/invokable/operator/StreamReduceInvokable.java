@@ -18,9 +18,9 @@
 package org.apache.flink.streaming.api.invokable.operator;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.streaming.api.invokable.UserTaskInvokable;
+import org.apache.flink.streaming.api.invokable.StreamOperatorInvokable;
 
-public class StreamReduceInvokable<IN> extends UserTaskInvokable<IN, IN> {
+public class StreamReduceInvokable<IN> extends StreamOperatorInvokable<IN, IN> {
 	private static final long serialVersionUID = 1L;
 
 	protected ReduceFunction<IN> reducer;

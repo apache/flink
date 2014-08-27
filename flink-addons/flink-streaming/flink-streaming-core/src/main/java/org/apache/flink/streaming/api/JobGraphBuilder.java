@@ -36,8 +36,8 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.streaming.api.collector.OutputSelector;
 import org.apache.flink.streaming.api.invokable.SinkInvokable;
 import org.apache.flink.streaming.api.invokable.SourceInvokable;
-import org.apache.flink.streaming.api.invokable.StreamComponentInvokable;
-import org.apache.flink.streaming.api.invokable.UserTaskInvokable;
+import org.apache.flink.streaming.api.invokable.StreamInvokable;
+import org.apache.flink.streaming.api.invokable.StreamOperatorInvokable;
 import org.apache.flink.streaming.api.invokable.operator.co.CoInvokable;
 import org.apache.flink.streaming.api.streamcomponent.CoStreamTask;
 import org.apache.flink.streaming.api.streamcomponent.StreamIterationSink;
@@ -68,7 +68,7 @@ public class JobGraphBuilder {
 	private Map<String, List<String>> inEdgeList;
 	private Map<String, List<StreamPartitioner<?>>> connectionTypes;
 	private Map<String, String> operatorNames;
-	private Map<String, StreamComponentInvokable<?>> invokableObjects;
+	private Map<String, StreamInvokable<?>> invokableObjects;
 	private Map<String, TypeSerializerWrapper<?>> typeWrapperIn1;
 	private Map<String, TypeSerializerWrapper<?>> typeWrapperIn2;
 	private Map<String, TypeSerializerWrapper<?>> typeWrapperOut1;
@@ -110,7 +110,7 @@ public class JobGraphBuilder {
 		inEdgeList = new HashMap<String, List<String>>();
 		connectionTypes = new HashMap<String, List<StreamPartitioner<?>>>();
 		operatorNames = new HashMap<String, String>();
-		invokableObjects = new HashMap<String, StreamComponentInvokable<?>>();
+		invokableObjects = new HashMap<String, StreamInvokable<?>>();
 		typeWrapperIn1 = new HashMap<String, TypeSerializerWrapper<?>>();
 		typeWrapperIn2 = new HashMap<String, TypeSerializerWrapper<?>>();
 		typeWrapperOut1 = new HashMap<String, TypeSerializerWrapper<?>>();
@@ -232,7 +232,7 @@ public class JobGraphBuilder {
 	 *            Number of parallel instances created
 	 */
 	public <IN, OUT> void addTask(String componentName,
-			UserTaskInvokable<IN, OUT> taskInvokableObject,
+			StreamOperatorInvokable<IN, OUT> taskInvokableObject,
 			TypeSerializerWrapper<?> inTypeWrapper,
 			TypeSerializerWrapper<?> outTypeWrapper, String operatorName,
 			byte[] serializedFunction, int parallelism) {
@@ -348,7 +348,7 @@ public class JobGraphBuilder {
 	 */
 	private void addComponent(String componentName,
 			Class<? extends AbstractInvokable> componentClass,
-			StreamComponentInvokable<?> invokableObject, String operatorName,
+			StreamInvokable<?> invokableObject, String operatorName,
 			byte[] serializedFunction, int parallelism) {
 
 		componentClasses.put(componentName, componentClass);
@@ -387,7 +387,7 @@ public class JobGraphBuilder {
 		// Get vertex attributes
 		Class<? extends AbstractInvokable> componentClass = componentClasses
 				.get(componentName);
-		StreamComponentInvokable<?> invokableObject = invokableObjects
+		StreamInvokable<?> invokableObject = invokableObjects
 				.get(componentName);
 		String operatorName = operatorNames.get(componentName);
 		byte[] serializedFunction = serializedFunctions.get(componentName);

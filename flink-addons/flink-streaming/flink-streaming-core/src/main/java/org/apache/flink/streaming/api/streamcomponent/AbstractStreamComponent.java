@@ -19,7 +19,7 @@ package org.apache.flink.streaming.api.streamcomponent;
 
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.streaming.api.StreamConfig;
-import org.apache.flink.streaming.api.invokable.StreamComponentInvokable;
+import org.apache.flink.streaming.api.invokable.StreamInvokable;
 
 public abstract class AbstractStreamComponent extends AbstractInvokable {
 
@@ -51,7 +51,7 @@ public abstract class AbstractStreamComponent extends AbstractInvokable {
 		this.function = configuration.getFunction();
 	}
 
-	protected <T> void invokeUserFunction(StreamComponentInvokable<T> userInvokable) throws Exception {
+	protected <T> void invokeUserFunction(StreamInvokable<T> userInvokable) throws Exception {
 		userInvokable.open(getTaskConfiguration());
 		userInvokable.invoke();
 		userInvokable.close();
