@@ -17,25 +17,80 @@
 
 package org.apache.flink.streaming.api.invokable.operator;
 
+import java.io.IOException;
+import java.util.ArrayList;
+
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.invokable.util.Timestamp;
+import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
 public class WindowReduceInvokable<IN, OUT> extends BatchReduceInvokable<IN, OUT> {
 	private static final long serialVersionUID = 1L;
 	private long startTime;
+	private long nextRecordTime;
+	private Timestamp<IN> timestamp;
 
 	public WindowReduceInvokable(GroupReduceFunction<IN, OUT> reduceFunction, long windowSize,
-			long slideInterval) {
-		super(reduceFunction, windowSize,slideInterval);
+			long slideInterval, Timestamp<IN> timestamp) {
+		super(reduceFunction, windowSize, slideInterval);
+		this.timestamp = timestamp;
+	}
+
+	@Override
+	protected void immutableInvoke() throws Exception {
+		if ((reuse = recordIterator.next(reuse)) == null) {
+			throw new RuntimeException("DataStream must not be empty");
+		}
+
+		nextRecordTime = timestamp.getTimestamp(reuse.getObject()); // **
+		startTime = nextRecordTime - (nextRecordTime % granularity); // **
+
+		while (reuse != null && !state.isFull()) {
+			collectOneUnit();
+		}
+		reduce();
+
+		while (reuse != null) {
+			for (int i = 0; i < slideSize / granularity; i++) {
+				if (reuse != null) {
+					collectOneUnit();
+				}
+			}
+			reduce();
+		}
+	}
+
+	@Override
+	protected void collectOneUnit() throws IOException {
+		ArrayList<StreamRecord<IN>> list;
+		if (nextRecordTime > startTime + granularity - 1) {
+			list = new ArrayList<StreamRecord<IN>>();
+			startTime += granularity;
+		} else {
+			list = new ArrayList<StreamRecord<IN>>(listSize);
+
+			list.add(reuse);
+			resetReuse();
+
+			while ((reuse = recordIterator.next(reuse)) != null && batchNotFull()) {
+				list.add(reuse);
+				resetReuse();
+			}
+		}
+		state.pushBack(list);
+//		System.out.println(list);
+//		System.out.println(startTime + " - " + (startTime + granularity - 1) + " ("
+//				+ nextRecordTime + ")");
 	}
 
 	@Override
 	protected boolean batchNotFull() {
-		long time = System.currentTimeMillis();
-		if (time - startTime < granularity) {
+		nextRecordTime = timestamp.getTimestamp(reuse.getObject());
+		if (nextRecordTime < startTime + granularity) {
 			return true;
 		} else {
-			startTime = time;
+			startTime += granularity;
 			return false;
 		}
 	}
@@ -43,7 +98,6 @@ public class WindowReduceInvokable<IN, OUT> extends BatchReduceInvokable<IN, OUT
 	@Override
 	public void open(Configuration parameters) throws Exception {
 		super.open(parameters);
-		startTime = System.currentTimeMillis();
 	}
 
 	protected void mutableInvoke() throws Exception {

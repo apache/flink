@@ -50,6 +50,8 @@ import org.apache.flink.streaming.api.invokable.operator.FlatMapInvokable;
 import org.apache.flink.streaming.api.invokable.operator.MapInvokable;
 import org.apache.flink.streaming.api.invokable.operator.StreamReduceInvokable;
 import org.apache.flink.streaming.api.invokable.operator.WindowReduceInvokable;
+import org.apache.flink.streaming.api.invokable.util.DefaultTimestamp;
+import org.apache.flink.streaming.api.invokable.util.Timestamp;
 import org.apache.flink.streaming.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.partitioner.DistributePartitioner;
 import org.apache.flink.streaming.partitioner.FieldsPartitioner;
@@ -414,6 +416,35 @@ public abstract class DataStream<OUT> {
 	 */
 	public <R> SingleOutputStreamOperator<R, ?> windowReduce(GroupReduceFunction<OUT, R> reducer,
 			long windowSize, long slideInterval) {
+		return windowReduce(reducer, windowSize, slideInterval, new DefaultTimestamp<OUT>());
+	}
+
+	/**
+	 * Applies a reduce transformation on preset "time" chunks of the
+	 * DataStream. The transformation calls a {@link GroupReduceFunction} on
+	 * records received during the predefined time window. The window is shifted
+	 * after each reduce call. Each GroupReduceFunction call can return any
+	 * number of elements including none. The time is determined by a
+	 * user-defined timestamp. The user can also extend
+	 * {@link RichGroupReduceFunction} to gain access to other features provided
+	 * by the {@link RichFuntion} interface.
+	 * 
+	 * 
+	 * @param reducer
+	 *            The GroupReduceFunction that is called for each time window.
+	 * @param windowSize
+	 *            SingleOutputStreamOperator The time window to run the reducer
+	 *            on, in milliseconds.
+	 * @param slideInterval
+	 *            The time interval, batch is slid by.
+	 * @param timestamp
+	 *            Timestamp function to retrieve a timestamp from an element.
+	 * @param <R>
+	 *            output type
+	 * @return The transformed DataStream.
+	 */
+	public <R> SingleOutputStreamOperator<R, ?> windowReduce(GroupReduceFunction<OUT, R> reducer,
+			long windowSize, long slideInterval, Timestamp<OUT> timestamp) {
 		if (windowSize < 1) {
 			throw new IllegalArgumentException("Window size must be positive");
 		}
@@ -427,7 +458,7 @@ public abstract class DataStream<OUT> {
 				GroupReduceFunction.class, 1);
 
 		return addFunction("batchReduce", reducer, inTypeWrapper, outTypeWrapper,
-				new WindowReduceInvokable<OUT, R>(reducer, windowSize, slideInterval));
+				new WindowReduceInvokable<OUT, R>(reducer, windowSize, slideInterval, timestamp));
 	}
 
 	/**
