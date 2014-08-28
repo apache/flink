@@ -17,12 +17,15 @@
 
 package org.apache.flink.streaming.api.invokable.operator.co;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.io.CoReaderIterator;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.StringUtils;
 
 public abstract class CoInvokable<IN1, IN2, OUT> extends StreamInvokable<OUT> {
 
@@ -31,6 +34,7 @@ public abstract class CoInvokable<IN1, IN2, OUT> extends StreamInvokable<OUT> {
 	}
 
 	private static final long serialVersionUID = 1L;
+	private static final Log LOG = LogFactory.getLog(StreamInvokable.class);
 
 	protected CoReaderIterator<StreamRecord<IN1>, StreamRecord<IN2>> recordIterator;
 	protected StreamRecord<IN1> reuse1;
@@ -67,7 +71,6 @@ public abstract class CoInvokable<IN1, IN2, OUT> extends StreamInvokable<OUT> {
 		this.reuse2 = serializer2.createInstance();
 	}
 
-	
 	public void invoke() throws Exception {
 		if (this.isMutable) {
 			mutableInvoke();
@@ -75,7 +78,7 @@ public abstract class CoInvokable<IN1, IN2, OUT> extends StreamInvokable<OUT> {
 			immutableInvoke();
 		}
 	}
-	
+
 	protected void immutableInvoke() throws Exception {
 		while (true) {
 			int next = recordIterator.next(reuse1, reuse2);
@@ -90,7 +93,7 @@ public abstract class CoInvokable<IN1, IN2, OUT> extends StreamInvokable<OUT> {
 			}
 		}
 	}
-	
+
 	protected void mutableInvoke() throws Exception {
 		while (true) {
 			int next = recordIterator.next(reuse1, reuse2);
@@ -107,9 +110,31 @@ public abstract class CoInvokable<IN1, IN2, OUT> extends StreamInvokable<OUT> {
 	protected abstract void handleStream1() throws Exception;
 
 	protected abstract void handleStream2() throws Exception;
+
+	protected abstract void callUserFunction1() throws Exception;
+
+	protected abstract void callUserFunction2() throws Exception;
 	
-	protected abstract void coUSerFunction1() throws Exception;
-	
-	protected abstract void coUserFunction2() throws Exception;
+	protected void callUserFunctionAndLogException1() {
+		try {
+			callUserFunction1();
+		} catch (Exception e) {
+			if (LOG.isErrorEnabled()) {
+				LOG.error(String.format("Calling user function failed due to: %s",
+						StringUtils.stringifyException(e)));
+			}
+		}
+	}
+
+	protected void callUserFunctionAndLogException2() {
+		try {
+			callUserFunction2();
+		} catch (Exception e) {
+			if (LOG.isErrorEnabled()) {
+				LOG.error(String.format("Calling user function failed due to: %s",
+						StringUtils.stringifyException(e)));
+			}
+		}
+	}
 
 }

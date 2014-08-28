@@ -19,52 +19,52 @@ package org.apache.flink.streaming.api.invokable.operator.co;
 
 import org.apache.flink.streaming.api.function.co.CoReduceFunction;
 
-public class CoReduceInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2, OUT> {
+public abstract class CoStreamReduceInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2, OUT> {
 	private static final long serialVersionUID = 1L;
 
-	private CoReduceFunction<IN1, IN2, OUT> coReducer;
-	private IN1 currentValue1 = null;
-	private IN2 currentValue2 = null;
+	protected CoReduceFunction<IN1, IN2, OUT> coReducer;
+	protected IN1 currentValue1 = null;
+	protected IN2 currentValue2 = null;
+	protected IN1 nextValue1 = null;
+	protected IN2 nextValue2 = null;
 
-	public CoReduceInvokable(CoReduceFunction<IN1, IN2, OUT> coReducer) {
+	public CoStreamReduceInvokable(CoReduceFunction<IN1, IN2, OUT> coReducer) {
 		super(coReducer);
 		this.coReducer = coReducer;
+		currentValue1 = null;
+		currentValue2 = null;
 	}
 
 	@Override
 	public void handleStream1() throws Exception {
-		IN1 nextValue = reuse1.getObject();
-		if (currentValue1 != null) {
-			currentValue1 = coReducer.reduce1(currentValue1, nextValue);
-			collector.collect(coReducer.map1(currentValue1));
-		} else {
-			currentValue1 = nextValue;
-			collector.collect(coReducer.map1(nextValue));
-		}
+		nextValue1 = reuse1.getObject();
+		callUserFunctionAndLogException1();
 	}
 
 	@Override
 	public void handleStream2() throws Exception {
-		IN2 nextValue = reuse2.getObject();
-		if (currentValue2 != null) {
-			currentValue2 = coReducer.reduce2(currentValue2, nextValue);
-			collector.collect(coReducer.map2(currentValue2));
+		nextValue2 = reuse2.getObject();
+		callUserFunctionAndLogException2();
+	}
+
+	@Override
+	protected void callUserFunction1() throws Exception {
+		if (currentValue1 != null) {
+			currentValue1 = coReducer.reduce1(currentValue1, nextValue1);
 		} else {
-			currentValue2 = nextValue;
-			collector.collect(coReducer.map2(nextValue));
+			currentValue1 = nextValue1;
 		}
+		collector.collect(coReducer.map1(currentValue1));
 	}
 
 	@Override
-	protected void coUSerFunction1() throws Exception {
-		// TODO Auto-generated method stub
-		
-	}
-
-	@Override
-	protected void coUserFunction2() throws Exception {
-		// TODO Auto-generated method stub
-		
+	protected void callUserFunction2() throws Exception {
+		if (currentValue2 != null) {
+			currentValue2 = coReducer.reduce2(currentValue2, nextValue2);
+		} else {
+			currentValue2 = nextValue2;
+		}
+		collector.collect(coReducer.map2(nextValue2));
 	}
 
 }

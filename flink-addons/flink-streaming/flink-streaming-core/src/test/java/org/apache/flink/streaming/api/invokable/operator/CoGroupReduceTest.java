@@ -60,7 +60,7 @@ public class CoGroupReduceTest {
 
 	@SuppressWarnings("unchecked")
 	@Test
-	public void coFlatMapTest() {
+	public void coGroupReduceTest() {
 		Tuple3<String, String, String> word1 = new Tuple3<String, String, String>("a", "word1", "b");
 		Tuple3<String, String, String> word2 = new Tuple3<String, String, String>("b", "word2", "a");
 		Tuple3<String, String, String> word3 = new Tuple3<String, String, String>("a", "word3", "a");
