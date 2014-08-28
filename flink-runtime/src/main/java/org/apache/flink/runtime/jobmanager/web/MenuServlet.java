@@ -49,7 +49,7 @@ public class MenuServlet extends HttpServlet {
 	 * Array of possible menu entries on the left
 	 */
 	private static final String[] entries =  {
-		"index", "history", "configuration", "taskmanagers", "resourceUsage"
+		"index", "history", "configuration", "taskmanagers", "resource-usage"
 	};
 	
 	/**

@@ -208,9 +208,17 @@ public class ResourceUsageServlet extends HttpServlet {
 		protected void writeFields(InstanceSummaryProfilingEvent profilingEvent) {
 			super.writeFields(profilingEvent);
 			writeField("userCpu", profilingEvent.getUserCPU());
+			writeField("systemCpu", profilingEvent.getSystemCPU());
+			writeField("ioWaitCpu", profilingEvent.getIOWaitCPU());
+			writeField("softIrqCpu", profilingEvent.getSoftIrqCPU());
+			writeField("hardIrqCpu", profilingEvent.getHardIrqCPU());
 			writeField("totalMemory", profilingEvent.getTotalMemory());
 			writeField("freeMemory", profilingEvent.getFreeMemory());
+			writeField("bufferedMemory", profilingEvent.getBufferedMemory());
+			writeField("cachedMemory", profilingEvent.getCachedMemory());
+			writeField("cachedSwapMemory", profilingEvent.getCachedSwapMemory());
 			writeField("transmittedBytes", profilingEvent.getTransmittedBytes());
+			writeField("receivedBytes", profilingEvent.getReceivedBytes());
 		}
 
 	}
