@@ -28,6 +28,7 @@ package org.apache.flink.util;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Random;
 
 /**
@@ -301,5 +302,22 @@ public final class StringUtils {
 			data[i] = (char) (rnd.nextInt(diff) + minValue);
 		}
 		return new String(data);
+	}
+	
+	/**
+	 * Concatenates all the given objects and places the given separator in between them.
+	 * 
+	 * @param objects is a set of objects or <tt>null</tt> values to concatenate
+	 * @param separator is the separator to place between two objects
+	 * @return the concatenated {@link String} of all objects
+	 */
+	public static String join(Collection<? extends Object> objects, String separator) {
+		StringBuilder sb = new StringBuilder();
+		String actualSeparator = "";
+		for (Object o : objects) {
+			sb.append(actualSeparator).append(String.valueOf(o));
+			actualSeparator = separator;
+		}
+		return sb.toString();
 	}
 }

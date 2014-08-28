@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="">
+<meta name="author" content="">
+
+<title>Dashboard - Flink</title>
+
+<!-- Bootstrap core CSS -->
+<link href="css/bootstrap.css" rel="stylesheet">
+
+<!-- Add custom CSS here -->
+<link href="css/sb-admin.css" rel="stylesheet">
+<link rel="stylesheet" href="font-awesome/css/font-awesome.min.css">
+
+<!-- Page Specific CSS -->
+<link rel="stylesheet" type="text/css" href="css/nephelefrontend.css" />
+
+<!-- Scripts from Bootstrap -->
+<script src="js/jquery-1.10.2.js"></script>
+<script src="js/bootstrap.js"></script>
+
+<!-- Scripts from Flink -->
+<script type="text/javascript" src="js/jquery.flot.min.js"></script>
+<script type="text/javascript" src="js/jquery.flot.time.min.js"></script>
+<script type="text/javascript" src="js/jquery.flot.stack.js"></script>
+<script type="text/javascript" src="js/helpers.js"></script>
+<!-- script type="text/javascript" src="js/jobmanagerFrontend.js"></script -->
+<script type="text/javascript" src="js/res-usage.js"></script>
+<script type="text/javascript" src="js/jcanvas.min.js"></script>
+
+<!-- Load Menu -->
+<script type="text/javascript">
+	$(document).ready(function() {
+		$.ajax({
+			url : "menu?get=resourceUsage",
+			type : "GET",
+			cache : false,
+			success : function(html) {
+				$("#side-menu").empty();
+				$("#side-menu").append(html);
+			},
+			dataType : "html",
+		});
+	});
+</script>
+
+<!-- configure monitor plots -->
+<script type="text/javascript">
+	$(function() {
+
+		function instanceNameToPlotId(type, instance) {
+			return "plot-" + type + "-" + instance.replace(/[^a-zA-Z0-9]/g, "");
+		}
+
+		function createPlaceholder(caption, subcaption, id) {
+			return '<div class="col-lg-4">\
+						<div class="contentbox">\
+							<h3 class="contentbox-header">\
+								<span>'
+					+ caption + '<small>' + subcaption + '</small></span>\
+							</h3>\
+							<div class="contentbox-wrapper">\
+								<div id="' + id
+					+ '" style="width: 100%; height: 150px"></div>\
+							</div>\
+						</div>\
+					</div>'
+		}
+
+		function configureMonitor(instances) {
+			
+			instances.sort();
+
+			var placeholders = $("#placeholders");
+			var pollingInterval = 1000; // 1 sec
+			var windowSize = 60 * 1000; // 1 min
+
+			// CPU profiling
+			var cpuFlotOptions = {
+				xaxis : {
+					mode : "time",
+					timeformat : "%H:%M:%S"
+				},
+				yaxis : {
+					min : 0,
+					tickFormatter : function(val, axis) {
+						return val.toFixed(axis.tickDecimals) + " %";
+					}
+				},
+				series : {
+					lines : {
+						show : true,
+						fill : 0.4
+					},
+					stack : true
+				}
+
+			};
+
+			// Memory profiling
+			var mainMemoryFlotOptions = {
+				xaxis : {
+					mode : "time",
+					timeformat : "%H:%M:%S",
+				},
+				yaxis : {
+					min : 0,
+					// /proc/meminfo delivers kiB
+					tickFormatter : flinkRU.helpers.makeMemorySizeFormatter(1024)
+				},
+				series : {
+					lines : {
+						show : true,
+						fill : 0.4
+					},
+					stack : true
+				}
+			};
+
+			// Network profiling
+			var networkMemoryFlotOptions = {
+				xaxis : {
+					mode : "time",
+					timeformat : "%H:%M:%S",
+				},
+				yaxis : {
+					min : 0,
+					tickFormatter : flinkRU.helpers.makeMemorySizeFormatter(1)
+				},
+				series : {
+					lines : {
+						show : true,
+						fill : 0.4
+					}
+				}
+			};
+
+			for ( var i in instances) {
+				// Create placeholders for all the instance graphs.
+				var instance = instances[i];
+				var cpuPlotId = instanceNameToPlotId('cpu', instance);
+				var memoryPlotId = instanceNameToPlotId('memory', instance);
+				var networkPlotId = instanceNameToPlotId('network', instance);
+				
+				placeholders.append(createPlaceholder("CPU", instance, cpuPlotId));
+				placeholders.append(createPlaceholder("Memory", instance, memoryPlotId));
+				placeholders.append(createPlaceholder("Network", instance, networkPlotId));
+
+				var instanceFilter = flinkRU.helpers.makeInstanceFilter(instance);
+				
+				var cpuGroup = new flinkRU.ProfilingGroup("CPU", cpuFlotOptions, "SingleInstanceProfilingEvent", '#' + cpuPlotId, windowSize, instanceFilter);
+				// add series in reverse stacking order
+				cpuGroup.series.push(new flinkRU.ProfilingSeries("Interrupts", "#4682B4", function(e) {
+					return e.softIrqCpu + e.hardIrqCpu
+				}));
+				cpuGroup.series.push(new flinkRU.ProfilingSeries("I/O Wait", "#FFFF00", flinkRU.helpers.accessProperty("ioWaitCpu")));
+				cpuGroup.series.push(new flinkRU.ProfilingSeries("System CPU", "#8B0000", flinkRU.helpers.accessProperty("systemCpu")));
+				cpuGroup.series.push(new flinkRU.ProfilingSeries("User CPU", "#006400", flinkRU.helpers.accessProperty("userCpu")));
+				flinkRU.profilingGroups.push(cpuGroup);
+
+				var memGroup = new flinkRU.ProfilingGroup("Memory", mainMemoryFlotOptions, "SingleInstanceProfilingEvent", '#' + memoryPlotId,
+						windowSize, instanceFilter);
+				memGroup.series.push(new flinkRU.ProfilingSeries("Used memory", "#FF8C00", function(e) {
+					return e.totalMemory - e.freeMemory;
+				}));
+				memGroup.series.push(new flinkRU.ProfilingSeries("Free memory", "#6495ED", flinkRU.helpers.accessProperty("freeMemory")));
+				flinkRU.profilingGroups.push(memGroup);
+
+				var networkGroup = new flinkRU.ProfilingGroup("Network", networkMemoryFlotOptions, "SingleInstanceProfilingEvent",
+						'#' + networkPlotId, windowSize, instanceFilter);
+				networkGroup.series.push(new flinkRU.ProfilingSeries("Transmitted", "#9370DB", flinkRU.helpers
+						.accessProperty("transmittedBytes")));
+				networkGroup.series
+						.push(new flinkRU.ProfilingSeries("Received", "#BBBB00", flinkRU.helpers.accessProperty("receivedBytes")));
+				flinkRU.profilingGroups.push(networkGroup);
+			}
+
+			flinkRU.startPolling(pollingInterval);
+		}
+
+		$.ajax({
+			url : "jobsInfo?get=instances",
+			cache : false,
+			type : "GET",
+			success : function(serverResponse) {
+				configureMonitor(serverResponse.instances);
+			},
+			dataType : "json"
+		});
+	});
+</script>
+</head>
+
+<body>
+
+	<div id="wrapper">
+
+		<!-- Sidebar -->
+		<nav class='navbar navbar-inverse navbar-fixed-top' role='navigation'>
+			<!-- Brand and toggle get grouped for better mobile display -->
+			<div class="navbar-header">
+				<button type="button" class="navbar-toggle" data-toggle="collapse"
+					data-target=".navbar-ex1-collapse">
+					<span class="sr-only">Toggle navigation</span> <span
+						class="icon-bar"></span> <span class="icon-bar"></span> <span
+						class="icon-bar"></span>
+				</button>
+				<a class="navbar-brand" href="index.html">Flink</a>
+			</div>
+
+			<!-- Collect the nav links, forms, and other content for toggling -->
+			<div class="collapse navbar-collapse navbar-ex1-collapse">
+				<ul id="side-menu" class="nav navbar-nav side-nav">
+					<!-- Filled via script -->
+				</ul>
+				<ul class="nav navbar-nav navbar-right navbar-user">
+					<li class="dropdown user-dropdown"><a href="#"
+						class="dropdown-toggle" data-toggle="dropdown"><i
+							class="fa fa-archive"></i> Log Files<b class="caret"></b></a>
+						<ul class="dropdown-menu">
+							<li><a href="logInfo"><i class="fa fa-keyboard-o"></i>
+									Log Info</a></li>
+							<li><a href="logInfo?get=stdout"><i
+									class="fa fa-keyboard-o"></i> Stdout</a></li>
+						</ul></li>
+				</ul>
+			</div>
+			<!-- /.navbar-collapse -->
+		</nav>
+
+		<div id="page-wrapper">
+
+			<div class="row">
+				<div class="col-lg-12">
+					<h1>
+						Monitor <small>Overview on resource usage</small>
+					</h1>
+					<ol class="breadcrumb">
+						<li><a href="index.html"><i class="icon-dashboard"></i>
+								Dashboard</a></li>
+						<li class="active"><i class="fa fa-bar-chart-o"></i> Monitor</li>
+					</ol>
+				</div>
+				<div class="row"></div>
+				<div id="placeholders"></div>
+				<!-- /.row -->
+			</div>
+			<!-- /.row -->
+
+		</div>
+		<!-- /#page-wrapper -->
+
+	</div>
+	<!-- /#wrapper -->
+
+</body>
+</html>

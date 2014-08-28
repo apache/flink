@@ -49,21 +49,21 @@ public class MenuServlet extends HttpServlet {
 	 * Array of possible menu entries on the left
 	 */
 	private static final String[] entries =  {
-		"index", "history", "configuration", "taskmanagers", "resource-usage"
+		"index", "history", "configuration", "taskmanagers", "resource-usage", "resource-usage-detailed", "resource-usage-detailed2"
 	};
 	
 	/**
 	 * The names of the menu entries shown in the browser
 	 */
 	private static final String[] names = {
-		"Dashboard", "History", "Configuration", "Task Managers", "Resource Usage"
+		"Dashboard", "History", "Configuration", "Task Managers", "Resource Usage", "Detailed Resource Usage", "Detailed Resource Usage II"
 	};
 	
 	/**
 	 * The classes of the icons shown next to the names in the browser
 	 */
 	private static final String[] classes = {
-		"fa fa-dashboard", "fa fa-archive", "fa fa-wrench", "fa fa-building-o", "fa fa-bar-chart-o"
+		"fa fa-dashboard", "fa fa-archive", "fa fa-wrench", "fa fa-building-o", "fa fa-bar-chart-o", "fa fa-bar-chart-o", "fa fa-bar-chart-o"
 	};
 	
 	public MenuServlet() {

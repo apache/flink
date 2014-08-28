@@ -23,7 +23,7 @@ var flinkRU = {};
 
 	/** Container for the different profiling groups. */
 	flinkRU.profilingGroups = [];
-	
+
 	// Helper functions
 	flinkRU.helpers = {
 
@@ -45,6 +45,12 @@ var flinkRU = {};
 				else
 					return val.toFixed(axis.tickDecimals) + " B";
 			}
+		},
+
+		makeInstanceFilter : function(instance) {
+			return function(event) {
+				return event.instanceName == instance;
+			}
 		}
 	}
 
@@ -53,7 +59,7 @@ var flinkRU = {};
 	/**
 	 * Template for profiling data.
 	 */
-	flinkRU.ProfilingSeries = function(label, number, evaluationFunction) {
+	flinkRU.ProfilingSeries = function(label, number, evaluationFunction, additionalFilter) {
 
 		this.lastTimestamp = 0;
 
@@ -67,7 +73,7 @@ var flinkRU = {};
 
 		/** Updates a profiling series with the given profiling event. */
 		this.updateWith = function(profilingEvent, property) {
-			if (profilingEvent.timestamp > this.lastTimestamp) {
+			if (profilingEvent.timestamp > this.lastTimestamp && (additionalFilter == undefined || additionalFilter(profilingEvent))) {
 				this.lastTimestamp = profilingEvent.timestamp;
 				this.flotData.data.push([ profilingEvent.timestamp, this.evaluate(profilingEvent) ]);
 			}
@@ -81,7 +87,7 @@ var flinkRU = {};
 	}
 
 	/** Template for a set of profiling series to be plotted together. */
-	flinkRU.ProfilingGroup = function(name, options, eventType, plotId, windowSize) {
+	flinkRU.ProfilingGroup = function(name, options, eventType, plotId, windowSize, additionalFilter) {
 
 		this.name = name;
 		this.options = options;
@@ -91,7 +97,7 @@ var flinkRU = {};
 		this.windowSize = windowSize;
 
 		this.updateWith = function(event) {
-			if (event.type == this.eventType) {
+			if (event.type == this.eventType && (additionalFilter == undefined || additionalFilter(event))) {
 				var lastTimestamp = -1;
 
 				// Update all contained series with the event.
@@ -121,7 +127,6 @@ var flinkRU = {};
 		};
 	}
 
-
 	// Logic for displaying the profiling groups
 
 	/**
@@ -136,7 +141,7 @@ var flinkRU = {};
 				updateData(serverResponse);
 				plotData();
 			},
-			dataType : "json",
+			dataType : "json"
 		});
 	}
 
@@ -160,7 +165,7 @@ var flinkRU = {};
 		}
 	}
 
-	flinkRU.startPolling = function (interval) {
+	flinkRU.startPolling = function(interval) {
 		pollResourceUsage();
 		setInterval(pollResourceUsage, interval);
 	};
