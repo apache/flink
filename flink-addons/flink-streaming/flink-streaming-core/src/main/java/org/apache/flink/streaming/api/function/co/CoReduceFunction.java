@@ -67,7 +67,7 @@ public interface CoReduceFunction<IN1, IN2, OUT> extends Function, Serializable 
 	 *             This method may throw exceptions. Throwing an exception will
 	 *             cause the operation to fail and may trigger recovery.
 	 */
-	public abstract IN1 reduce1(IN1 value1, IN1 value2);
+	public IN1 reduce1(IN1 value1, IN1 value2);
 
 	/**
 	 * The core method of ReduceFunction, combining two values of the second
@@ -85,7 +85,7 @@ public interface CoReduceFunction<IN1, IN2, OUT> extends Function, Serializable 
 	 *             This method may throw exceptions. Throwing an exception will
 	 *             cause the operation to fail and may trigger recovery.
 	 */
-	public abstract IN2 reduce2(IN2 value1, IN2 value2);
+	public IN2 reduce2(IN2 value1, IN2 value2);
 
 	/**
 	 * Maps the reduced first input to the output type.
@@ -97,7 +97,7 @@ public interface CoReduceFunction<IN1, IN2, OUT> extends Function, Serializable 
 	 * @param <OUT>
 	 *            Output type.
 	 */
-	public abstract OUT map1(IN1 value);
+	public OUT map1(IN1 value);
 
 	/**
 	 * Maps the reduced second input to the output type.
@@ -109,5 +109,5 @@ public interface CoReduceFunction<IN1, IN2, OUT> extends Function, Serializable 
 	 * @param <OUT>
 	 *            Output type.
 	 */
-	public abstract OUT map2(IN2 value);
+	public OUT map2(IN2 value);
 }
