@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobmanager.web;
 
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,8 +36,10 @@ import org.apache.flink.runtime.event.job.AbstractEvent;
 import org.apache.flink.runtime.event.job.RecentJobEvent;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobmanager.JobManager;
+import org.apache.flink.runtime.profiling.types.InstanceProfilingEvent;
 import org.apache.flink.runtime.profiling.types.InstanceSummaryProfilingEvent;
 import org.apache.flink.runtime.profiling.types.ProfilingEvent;
+import org.apache.flink.runtime.profiling.types.SingleInstanceProfilingEvent;
 import org.apache.flink.util.StringUtils;
 
 public class ResourceUsageServlet extends HttpServlet {
@@ -46,8 +49,7 @@ public class ResourceUsageServlet extends HttpServlet {
 	/**
 	 * The log for this class.
 	 */
-	private static final Log LOG = LogFactory
-			.getLog(ResourceUsageServlet.class);
+	private static final Log LOG = LogFactory.getLog(ResourceUsageServlet.class);
 
 	private final Map<Class<? extends ProfilingEvent>, ProfilingEventSerializer<? extends ProfilingEvent>> jsonSerializers = new HashMap<Class<? extends ProfilingEvent>, ResourceUsageServlet.ProfilingEventSerializer<?>>();
 
@@ -56,30 +58,21 @@ public class ResourceUsageServlet extends HttpServlet {
 	public ResourceUsageServlet(JobManager jobManager) {
 		this.jobManager = jobManager;
 
-		this.jsonSerializers.put(InstanceSummaryProfilingEvent.class,
-				new InstanceSummaryProfilingEventSerializer());
+		this.jsonSerializers.put(InstanceSummaryProfilingEvent.class, new InstanceSummaryProfilingEventSerializer());
+		this.jsonSerializers.put(SingleInstanceProfilingEvent.class, new SingleInstanceProfilingEventSerializer());
 	}
 
 	@Override
-	protected void doGet(HttpServletRequest req, HttpServletResponse resp)
-			throws ServletException, IOException {
+	protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
 		try {
 			JobID jobID = getJobID(req);
 
-			if (jobID == null) {
-				resp.setStatus(HttpServletResponse.SC_OK);
-				resp.setContentType("application/json");
-//				resp.getWriter().write("[{type:\"dummy\",timestamp:123456789,jobid:\"abcdef0123456789\"}]");
-//				resp.getWriter().write(this.jobManager.getRecentJobs().toString());
-				resp.getWriter().write("[]");
-				return;
-			}
+			List<AbstractEvent> allJobEvents = jobID == null ? Collections.<AbstractEvent> emptyList() : this.jobManager.getEvents(jobID);
 
 			resp.setStatus(HttpServletResponse.SC_OK);
 			resp.setContentType("application/json");
 			resp.getWriter().write("[");
-			
-			List<AbstractEvent> allJobEvents = this.jobManager.getEvents(jobID);
+
 			String separator = "";
 			for (AbstractEvent jobEvent : allJobEvents) {
 				if (jobEvent instanceof ProfilingEvent) {
@@ -90,6 +83,7 @@ public class ResourceUsageServlet extends HttpServlet {
 						jsonSerializer.write(profilingEvent, resp.getWriter());
 						separator = ",";
 					} else {
+						// This is not necessary and only useful to see what events are actually available in the frontend.
 						resp.getWriter().write(separator);
 						new ProfilingEventSerializer<ProfilingEvent>().write(profilingEvent, resp.getWriter());
 						separator = ",";
@@ -97,24 +91,8 @@ public class ResourceUsageServlet extends HttpServlet {
 				}
 
 			}
-			
-			resp.getWriter().write("]");
 
-//			resp.setStatus(HttpServletResponse.SC_OK);
-//			resp.setContentType("text/html");
-//			PrintWriter writer = resp.getWriter();
-//			writer.write("<p>Profiling events</p>");
-//			writer.write("<ol>");
-//			for (ProfilingEvent profilingEvent : profilingEvents) {
-//				writer.write("<li>");
-//				writer.write(profilingEvent.getJobID().toString());
-//				writer.write(" - ");
-//				writer.write(new Date(profilingEvent.getTimestamp()).toString());
-//				writer.write(" - ");
-//				writer.write(profilingEvent.toString());
-//				writer.write("</li>");
-//			}
-//			writer.write("</ol>");
+			resp.getWriter().write("]");
 
 		} catch (Exception e) {
 			resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
@@ -127,15 +105,14 @@ public class ResourceUsageServlet extends HttpServlet {
 	}
 
 	@SuppressWarnings("unchecked")
-	private  ProfilingEventSerializer<ProfilingEvent> getSerializer(ProfilingEvent profilingEvent) {
+	private ProfilingEventSerializer<ProfilingEvent> getSerializer(ProfilingEvent profilingEvent) {
 		return (ProfilingEventSerializer<ProfilingEvent>) this.jsonSerializers.get(profilingEvent.getClass());
 	}
-	
+
 	/** Loads the job ID from the request or selects the latest submitted job. */
 	private JobID getJobID(HttpServletRequest req) throws IOException {
 		String jobIdParameter = req.getParameter("jobid");
-		JobID jobID = jobIdParameter == null ? loadLatestJobID() : JobID
-				.fromHexString(jobIdParameter);
+		JobID jobID = jobIdParameter == null ? loadLatestJobID() : JobID.fromHexString(jobIdParameter);
 		return jobID;
 	}
 
@@ -148,14 +125,11 @@ public class ResourceUsageServlet extends HttpServlet {
 		List<RecentJobEvent> recentJobEvents = this.jobManager.getRecentJobs();
 		RecentJobEvent mostRecentJobEvent = null;
 		for (RecentJobEvent jobEvent : recentJobEvents) {
-			if (mostRecentJobEvent == null
-					|| mostRecentJobEvent.getSubmissionTimestamp() < jobEvent
-							.getSubmissionTimestamp()) {
+			if (mostRecentJobEvent == null || mostRecentJobEvent.getSubmissionTimestamp() < jobEvent.getSubmissionTimestamp()) {
 				mostRecentJobEvent = jobEvent;
 			}
 		}
-		return mostRecentJobEvent == null ? null : mostRecentJobEvent
-				.getJobID();
+		return mostRecentJobEvent == null ? null : mostRecentJobEvent.getJobID();
 	}
 
 	private static class ProfilingEventSerializer<T extends ProfilingEvent> {
@@ -188,8 +162,7 @@ public class ResourceUsageServlet extends HttpServlet {
 			writeField("timestamp", profilingEvent.getTimestamp());
 		}
 
-		public synchronized void write(T profilingEvent, PrintWriter writer)
-				throws IOException {
+		public synchronized void write(T profilingEvent, PrintWriter writer) throws IOException {
 			this.writer = writer; // cache the writer for convenience -- we are
 									// synchronized here
 			this.writer.write("{");
@@ -201,11 +174,10 @@ public class ResourceUsageServlet extends HttpServlet {
 
 	}
 
-	private static class InstanceSummaryProfilingEventSerializer extends
-			ProfilingEventSerializer<InstanceSummaryProfilingEvent> {
+	private static class InstanceProfilingEventSerializer<T extends InstanceProfilingEvent> extends ProfilingEventSerializer<T> {
 
 		@Override
-		protected void writeFields(InstanceSummaryProfilingEvent profilingEvent) {
+		protected void writeFields(T profilingEvent) {
 			super.writeFields(profilingEvent);
 			writeField("userCpu", profilingEvent.getUserCPU());
 			writeField("systemCpu", profilingEvent.getSystemCPU());
@@ -220,7 +192,18 @@ public class ResourceUsageServlet extends HttpServlet {
 			writeField("transmittedBytes", profilingEvent.getTransmittedBytes());
 			writeField("receivedBytes", profilingEvent.getReceivedBytes());
 		}
+	}
 
+	private static class InstanceSummaryProfilingEventSerializer extends InstanceProfilingEventSerializer<InstanceSummaryProfilingEvent> {
+	}
+
+	private static class SingleInstanceProfilingEventSerializer extends InstanceProfilingEventSerializer<SingleInstanceProfilingEvent> {
+
+		@Override
+		protected void writeFields(SingleInstanceProfilingEvent profilingEvent) {
+			super.writeFields(profilingEvent);
+			writeField("instanceName", profilingEvent.getInstanceName());
+		}
 	}
 
 }

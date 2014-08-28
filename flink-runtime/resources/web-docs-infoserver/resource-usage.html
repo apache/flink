@@ -28,7 +28,7 @@
 <script type="text/javascript" src="js/jquery.flot.stack.js"></script>
 <script type="text/javascript" src="js/helpers.js"></script>
 <!-- script type="text/javascript" src="js/jobmanagerFrontend.js"></script -->
-<script type="text/javascript" src="js/resourceUsageFrontend.js"></script>
+<script type="text/javascript" src="js/res-usage.js"></script>
 <script type="text/javascript" src="js/jcanvas.min.js"></script>
 
 <!-- Load Menu -->
@@ -44,6 +44,97 @@
 			},
 			dataType : "html",
 		});
+	});
+</script>
+
+<!-- configure monitor plots -->
+<script type="text/javascript">
+	$(function() {
+		var pollingInterval = 1000; // 1 sec
+		var windowSize = 60*1000; // 1 min
+		
+		// CPU profiling
+		var cpuFlotOptions = {
+			xaxis : {
+				mode : "time",
+				timeformat : "%H:%M:%S"
+			},
+			yaxis : {
+				min : 0,
+				tickFormatter : function(val, axis) {
+					return val.toFixed(axis.tickDecimals) + " %";
+				}
+			},
+			series : {
+				lines : {
+					show : true,
+					fill : 0.4
+				},
+				stack : true
+			}
+
+		};
+		var cpuGroup = new flinkRU.ProfilingGroup("CPU", cpuFlotOptions, "InstanceSummaryProfilingEvent", "#cpuChart", windowSize);
+		// add series in reverse stacking order
+		cpuGroup.series.push(new flinkRU.ProfilingSeries("Interrupts", "#4682B4", function(e) {
+			return e.softIrqCpu + e.hardIrqCpu
+		}));
+		cpuGroup.series.push(new flinkRU.ProfilingSeries("I/O Wait", "#FFFF00",flinkRU.helpers.accessProperty("ioWaitCpu")));
+		cpuGroup.series.push(new flinkRU.ProfilingSeries("System CPU", "#8B0000",flinkRU.helpers.accessProperty("systemCpu")));
+		cpuGroup.series.push(new flinkRU.ProfilingSeries("User CPU", "#006400",flinkRU.helpers.accessProperty("userCpu")));
+
+		flinkRU.profilingGroups.push(cpuGroup);
+
+		// Memory profiling
+		var mainMemoryFlotOptions = {
+			xaxis : {
+				mode : "time",
+				timeformat : "%H:%M:%S",
+			},
+			yaxis : {
+				min : 0,
+				// /proc/meminfo delivers kiB
+				tickFormatter : flinkRU.helpers.makeMemorySizeFormatter(1024)
+			},
+			series : {
+				lines : {
+					show : true,
+					fill : 0.4
+				},
+				stack : true
+			}
+		};
+		var memGroup = new flinkRU.ProfilingGroup("Memory", mainMemoryFlotOptions, "InstanceSummaryProfilingEvent", "#memoryChart", windowSize);
+		memGroup.series.push(new flinkRU.ProfilingSeries("Used memory", "#FF8C00", function(e) {
+			return e.totalMemory - e.freeMemory;
+		}));
+		memGroup.series.push(new flinkRU.ProfilingSeries("Free memory", "#6495ED",flinkRU.helpers.accessProperty("freeMemory")));
+		flinkRU.profilingGroups.push(memGroup);
+
+		// Network profiling
+		var networkMemoryFlotOptions = {
+			xaxis : {
+				mode : "time",
+				timeformat : "%H:%M:%S",
+			},
+			yaxis : {
+				min : 0,
+				tickFormatter : flinkRU.helpers.makeMemorySizeFormatter(1)
+			},
+			series : {
+				lines : {
+					show : true,
+					fill : 0.4
+				}
+			}
+		};
+
+		var networkGroup = new flinkRU.ProfilingGroup("Network", networkMemoryFlotOptions, "InstanceSummaryProfilingEvent", "#networkChart", windowSize);
+		networkGroup.series.push(new flinkRU.ProfilingSeries("Transmitted", "#9370DB",flinkRU.helpers.accessProperty("transmittedBytes")));
+		networkGroup.series.push(new flinkRU.ProfilingSeries("Received", "#BBBB00",flinkRU.helpers.accessProperty("receivedBytes")));
+		flinkRU.profilingGroups.push(networkGroup);
+		
+		flinkRU.startPolling(pollingInterval);
 	});
 </script>
 </head>
