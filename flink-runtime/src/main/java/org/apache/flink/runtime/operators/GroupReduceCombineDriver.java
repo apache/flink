@@ -23,14 +23,20 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.common.functions.FlatCombineFunction;
 import org.apache.flink.api.common.typeutils.TypeComparator;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
+import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
-import org.apache.flink.runtime.operators.sort.AsynchronousPartialSorter;
-import org.apache.flink.runtime.operators.util.CloseableInputProvider;
-import org.apache.flink.runtime.operators.util.TaskConfig;
+import org.apache.flink.runtime.operators.sort.FixedLengthRecordSorter;
+import org.apache.flink.runtime.operators.sort.InMemorySorter;
+import org.apache.flink.runtime.operators.sort.NormalizedKeySorter;
+import org.apache.flink.runtime.operators.sort.QuickSort;
 import org.apache.flink.runtime.util.KeyGroupedIterator;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
+
+import java.io.IOException;
+import java.util.List;
 
 /**
  * Combine operator, standalone (not chained)
@@ -43,16 +49,26 @@ public class GroupReduceCombineDriver<T> implements PactDriver<FlatCombineFuncti
 	
 	private static final Log LOG = LogFactory.getLog(GroupReduceCombineDriver.class);
 
-	
-	private PactTaskContext<FlatCombineFunction<T>, T> taskContext;
-	
-	private CloseableInputProvider<T> input;
+	/** Fix length records with a length below this threshold will be in-place sorted, if possible. */
+	private static final int THRESHOLD_FOR_IN_PLACE_SORTING = 32;
 
-	private TypeSerializerFactory<T> serializerFactory;
+	private PactTaskContext<FlatCombineFunction<T>, T> taskContext;
+
+	private InMemorySorter<T> sorter;
+
+	private FlatCombineFunction<T> combiner;
+
+	private TypeSerializer<T> serializer;
 
 	private TypeComparator<T> comparator;
-	
-	private volatile boolean running;
+
+	private QuickSort sortAlgo = new QuickSort();
+
+	private MemoryManager memManager;
+
+	private Collector<T> output;
+
+	private volatile boolean running = true;
 
 	// ------------------------------------------------------------------------
 
@@ -81,55 +97,92 @@ public class GroupReduceCombineDriver<T> implements PactDriver<FlatCombineFuncti
 
 	@Override
 	public void prepare() throws Exception {
-		final TaskConfig config = this.taskContext.getTaskConfig();
-		final DriverStrategy ls = config.getDriverStrategy();
+		if(this.taskContext.getTaskConfig().getDriverStrategy() != DriverStrategy.SORTED_GROUP_COMBINE){
+			throw new Exception("Invalid strategy " + this.taskContext.getTaskConfig().getDriverStrategy() + " for " +
+					"group reduce combinder.");
+		}
 
-		final MemoryManager memoryManager = this.taskContext.getMemoryManager();
+		this.memManager = this.taskContext.getMemoryManager();
+		final int numMemoryPages = memManager.computeNumberOfPages(this.taskContext.getTaskConfig().getRelativeMemoryDriver());
 
-		final MutableObjectIterator<T> in = this.taskContext.getInput(0);
-		this.serializerFactory = this.taskContext.getInputSerializer(0);
+		final TypeSerializerFactory<T> serializerFactory = this.taskContext.getInputSerializer(0);
+		this.serializer = serializerFactory.getSerializer();
 		this.comparator = this.taskContext.getInputComparator(0);
+		this.combiner = this.taskContext.getStub();
+		this.output = this.taskContext.getOutputCollector();
 
-		switch (ls) {
-		case SORTED_GROUP_COMBINE:
-			this.input = new AsynchronousPartialSorter<T>(memoryManager, in, this.taskContext.getOwningNepheleTask(),
-						this.serializerFactory, this.comparator.duplicate(), config.getRelativeMemoryDriver());
-			break;
-		// obtain and return a grouped iterator from the combining sort-merger
-		default:
-			throw new RuntimeException("Invalid local strategy provided for CombineTask.");
+		final List<MemorySegment> memory = this.memManager.allocatePages(this.taskContext.getOwningNepheleTask(),
+				numMemoryPages);
+
+		// instantiate a fix-length in-place sorter, if possible, otherwise the out-of-place sorter
+		if (this.comparator.supportsSerializationWithKeyNormalization() &&
+				this.serializer.getLength() > 0 && this.serializer.getLength() <= THRESHOLD_FOR_IN_PLACE_SORTING)
+		{
+			this.sorter = new FixedLengthRecordSorter<T>(this.serializer, this.comparator, memory);
+		} else {
+			this.sorter = new NormalizedKeySorter<T>(this.serializer, this.comparator.duplicate(), memory);
 		}
 	}
 
 	@Override
 	public void run() throws Exception {
 		if (LOG.isDebugEnabled()) {
-			LOG.debug(this.taskContext.formatLogString("Preprocessing done, iterator obtained."));
+			LOG.debug("Combiner starting.");
 		}
 
-		final KeyGroupedIterator<T> iter = new KeyGroupedIterator<T>(this.input.getIterator(),
-				this.serializerFactory.getSerializer(), this.comparator);
+		final MutableObjectIterator<T> in = this.taskContext.getInput(0);
+		final TypeSerializer<T> serializer = this.serializer;
 
-		// cache references on the stack
-		final FlatCombineFunction<T> stub = this.taskContext.getStub();
-		final Collector<T> output = this.taskContext.getOutputCollector();
+		T value = serializer.createInstance();
 
-		// run stub implementation
-		while (this.running && iter.nextKey()) {
-			stub.combine(iter.getValues(), output);
+		while (running && (value = in.next(value)) != null) {
+
+			// try writing to the sorter first
+			if (this.sorter.write(value)) {
+				continue;
+			}
+
+			// do the actual sorting, combining, and data writing
+			sortAndCombine();
+			this.sorter.reset();
+
+			// write the value again
+			if (!this.sorter.write(value)) {
+				throw new IOException("Cannot write record to fresh sort buffer. Record too large.");
+			}
+		}
+
+		// sort, combine, and send the final batch
+		sortAndCombine();
+	}
+
+	private void sortAndCombine() throws Exception {
+		final InMemorySorter<T> sorter = this.sorter;
+
+		if (!sorter.isEmpty()) {
+			this.sortAlgo.sort(sorter);
+
+			final KeyGroupedIterator<T> keyIter = new KeyGroupedIterator<T>(sorter.getIterator(), this.serializer,
+					this.comparator);
+
+			final FlatCombineFunction<T> combiner = this.combiner;
+			final Collector<T> output = this.output;
+
+			// iterate over key groups
+			while (this.running && keyIter.nextKey()) {
+				combiner.combine(keyIter.getValues(), output);
+			}
 		}
 	}
 
 	@Override
 	public void cleanup() throws Exception {
-		if (this.input != null) {
-			this.input.close();
-			this.input = null;
-		}
+		this.memManager.release(this.sorter.dispose());
 	}
 
 	@Override
 	public void cancel() {
 		this.running = false;
+		this.memManager.release(this.sorter.dispose());
 	}
 }
