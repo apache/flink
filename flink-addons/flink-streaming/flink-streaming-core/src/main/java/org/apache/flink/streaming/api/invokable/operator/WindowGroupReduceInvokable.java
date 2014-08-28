@@ -22,6 +22,7 @@ import java.util.Iterator;
 import java.util.List;
 
 import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.streaming.api.invokable.util.Timestamp;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.state.MutableTableState;
 
@@ -33,8 +34,8 @@ public class WindowGroupReduceInvokable<IN, OUT> extends WindowReduceInvokable<I
 	private MutableTableState<Object, List<IN>> values;
 
 	public WindowGroupReduceInvokable(GroupReduceFunction<IN, OUT> reduceFunction, long windowSize,
-			long slideInterval, int keyPosition) {
-		super(reduceFunction, windowSize, slideInterval);
+			long slideInterval, int keyPosition, Timestamp<IN> timestamp) {
+		super(reduceFunction, windowSize, slideInterval, timestamp);
 		this.keyPosition = keyPosition;
 		this.reducer = reduceFunction;
 		values = new MutableTableState<Object, List<IN>>();

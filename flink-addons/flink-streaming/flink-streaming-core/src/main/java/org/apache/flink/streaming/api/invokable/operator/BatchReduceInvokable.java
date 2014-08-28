@@ -78,7 +78,7 @@ public class BatchReduceInvokable<IN, OUT> extends StreamOperatorInvokable<IN, O
 		}
 	}
 
-	private void collectOneUnit() throws IOException {
+	protected void collectOneUnit() throws IOException {
 		ArrayList<StreamRecord<IN>> list;
 		list = new ArrayList<StreamRecord<IN>>(listSize);
 	

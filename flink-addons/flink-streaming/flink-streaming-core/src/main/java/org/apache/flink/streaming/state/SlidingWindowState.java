@@ -80,5 +80,9 @@ public class SlidingWindowState<T> {
 		}
 		return false;
 	}
-
+	
+	@Override
+	public String toString() {
+		return buffer.toString();
+	}
 }

@@ -23,6 +23,8 @@ import org.apache.flink.api.java.functions.RichReduceFunction;
 import org.apache.flink.streaming.api.invokable.operator.BatchGroupReduceInvokable;
 import org.apache.flink.streaming.api.invokable.operator.GroupReduceInvokable;
 import org.apache.flink.streaming.api.invokable.operator.WindowGroupReduceInvokable;
+import org.apache.flink.streaming.api.invokable.util.DefaultTimestamp;
+import org.apache.flink.streaming.api.invokable.util.Timestamp;
 import org.apache.flink.streaming.util.serialization.FunctionTypeWrapper;
 
 /**
@@ -132,7 +134,7 @@ public class GroupedDataStream<OUT> {
 	 */
 	public <R> SingleOutputStreamOperator<R, ?> windowReduce(GroupReduceFunction<OUT, R> reducer,
 			long windowSize) {
-		return windowReduce(reducer, windowSize, windowSize, windowSize);
+		return windowReduce(reducer, windowSize, windowSize);
 	}
 
 	/**
@@ -150,16 +152,43 @@ public class GroupedDataStream<OUT> {
 	 * @param windowSize
 	 *            SingleOutputStreamOperator The time window to run the reducer
 	 *            on, in milliseconds.
-	 * @param slideSize
+	 * @param slideInterval
 	 *            The time interval the batch is slid by.
 	 * @return The transformed DataStream.
 	 */
 	public <R> SingleOutputStreamOperator<R, ?> windowReduce(GroupReduceFunction<OUT, R> reducer,
-			long windowSize, long slideInterval, long timeUnitInMillis) {
+			long windowSize, long slideInterval) {
+		return windowReduce(reducer, windowSize, slideInterval, new DefaultTimestamp<OUT>());
+	}
+	
+	/**
+	 * Applies a group reduce transformation on preset "time" chunks of the
+	 * grouped data stream in a sliding window fashion. The
+	 * {@link GroupReduceFunction} will receive input values based on the key
+	 * value. Only input values with the same key will go to the same reducer.
+	 * When the reducer has ran for all the values in the batch, the window is
+	 * shifted forward. The time is determined by a
+	 * user-defined timestamp. The user can also extend {@link RichGroupReduceFunction}
+	 * to gain access to other features provided by the {@link RichFuntion}
+	 * interface.
+	 *
+	 * @param reducer
+	 *            The GroupReduceFunction that is called for each time window.
+	 * @param windowSize
+	 *            SingleOutputStreamOperator The time window to run the reducer
+	 *            on, in milliseconds.
+	 * @param slideInterval
+	 *            The time interval the batch is slid by.
+	 * @param timestamp
+	 *            Timestamp function to retrieve a timestamp from an element.
+	 * @return The transformed DataStream.
+	 */
+	public <R> SingleOutputStreamOperator<R, ?> windowReduce(GroupReduceFunction<OUT, R> reducer,
+			long windowSize, long slideInterval, Timestamp<OUT> timestamp) {
 		return dataStream.addFunction("batchReduce", reducer, new FunctionTypeWrapper<OUT>(reducer,
 				GroupReduceFunction.class, 0), new FunctionTypeWrapper<R>(reducer,
 				GroupReduceFunction.class, 1), new WindowGroupReduceInvokable<OUT, R>(reducer,
-				windowSize, slideInterval, keyPosition));
+				windowSize, slideInterval, keyPosition, timestamp));
 	}
 
 }
