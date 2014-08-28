@@ -33,13 +33,6 @@ import java.util.Iterator;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
-import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.ExecutionGraphIterator;
-import org.apache.flink.runtime.executiongraph.ExecutionGroupVertex;
-import org.apache.flink.runtime.executiongraph.ExecutionGroupVertexIterator;
-import org.apache.flink.runtime.executiongraph.ExecutionStage;
-import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.executiongraph.GraphConversionException;
 import org.apache.flink.runtime.io.network.channels.ChannelType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -51,9 +44,6 @@ import org.apache.flink.runtime.jobgraph.JobTaskVertex;
 import org.apache.flink.runtime.operators.DataSinkTask;
 import org.apache.flink.runtime.operators.DataSourceTask;
 import org.apache.flink.runtime.testutils.ServerTestUtils;
-import org.apache.flink.util.LogUtils;
-import org.apache.log4j.Level;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.apache.flink.api.java.io.DiscardingOuputFormat;
 import org.apache.flink.api.java.io.TextInputFormat;
@@ -63,12 +53,6 @@ import org.apache.flink.api.java.io.TextInputFormat;
  * 
  */
 public class ExecutionGraphTest {
-	
-	@BeforeClass
-	public static void reduceLogLevel() {
-		LogUtils.initializeDefaultConsoleLogger(Level.WARN);
-	}
-	
 	/*
 	 * input1 -> task1 -> output1
 	 * output1 shares instance with input1

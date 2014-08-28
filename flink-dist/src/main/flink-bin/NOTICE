@@ -33,17 +33,20 @@ with permission from the original authors.
 Original source copyright:
 Copyright (c) 2008 Alexander Beider & Stephen P. Morse.
 
-
 -----------------------------------------------------------------------
-                          Apache Log4J
+                          LOGBack
 -----------------------------------------------------------------------
 
-ResolverUtil.java
-Copyright 2005-2006 Tim Fennell
+Copyright (C) 1999-2012, QOS.ch
 
-Dumbster SMTP test server
-Copyright 2004 Jason Paul Kitchen
+This program and the accompanying materials are dual-licensed under
+either the terms of the Eclipse Public License v1.0 as published by
+the Eclipse Foundation
 
+  or (per the licensee's choosing)
+
+under the terms of the GNU Lesser General Public License version 2.1
+as published by the Free Software Foundation.
 
 -----------------------------------------------------------------------
                        Apache Commmons Lang3

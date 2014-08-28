@@ -25,7 +25,6 @@ import org.apache.flink.client.minicluster.NepheleMiniCluster;
 import org.apache.flink.client.program.Client;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.util.LogUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -36,10 +35,6 @@ public class AvroExternalJarProgramITCase {
 	
 	private static final String TEST_DATA_FILE = "/testdata.avro";
 
-	static {
-		LogUtils.initializeDefaultTestConsoleLogger();
-	}
-	
 	@Test
 	public void testExternalProgram() {
 		

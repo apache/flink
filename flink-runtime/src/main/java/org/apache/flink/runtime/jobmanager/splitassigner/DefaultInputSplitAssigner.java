@@ -25,8 +25,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.executiongraph.ExecutionGroupVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
@@ -45,7 +45,7 @@ public class DefaultInputSplitAssigner implements InputSplitAssigner {
 	/**
 	 * The logging object used to report information and errors.
 	 */
-	private static final Log LOG = LogFactory.getLog(DefaultInputSplitAssigner.class);
+	private static final Logger LOG = LoggerFactory.getLogger(DefaultInputSplitAssigner.class);
 
 	/**
 	 * The split map stores a list of all input splits that still must be consumed by a specific input vertex.

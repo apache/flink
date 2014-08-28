@@ -21,8 +21,8 @@ package org.apache.flink.client.minicluster;
 
 import java.lang.reflect.Method;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.configuration.ConfigConstants;
@@ -37,7 +37,7 @@ import org.apache.flink.runtime.jobmanager.JobManager;
 
 public class NepheleMiniCluster {
 	
-	private static final Log LOG = LogFactory.getLog(NepheleMiniCluster.class);
+	private static final Logger LOG = LoggerFactory.getLogger(NepheleMiniCluster.class);
 	
 	private static final int DEFAULT_JM_RPC_PORT = 6498;
 	

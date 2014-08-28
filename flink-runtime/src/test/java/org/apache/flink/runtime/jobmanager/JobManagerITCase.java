@@ -45,7 +45,6 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphDefinitionException;
 import org.apache.flink.runtime.jobgraph.JobOutputVertex;
 import org.apache.flink.runtime.jobgraph.JobTaskVertex;
-import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.operators.DataSinkTask;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.runtime.taskmanager.Task;
@@ -57,9 +56,6 @@ import org.apache.flink.runtime.testutils.tasks.FileLineWriter;
 import org.apache.flink.runtime.testutils.tasks.JobFileInputVertex;
 import org.apache.flink.runtime.testutils.tasks.JobFileOutputVertex;
 import org.apache.flink.runtime.util.JarFileCreator;
-import org.apache.flink.util.LogUtils;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -69,11 +65,6 @@ import org.junit.Test;
  */
 public class JobManagerITCase {
 
-	static {
-		// no logging, because the tests create expected exception
-		LogUtils.initializeDefaultConsoleLogger(Level.WARN);
-	}
-	
 	/**
 	 * The name of the test directory some tests read their input from.
 	 */
@@ -319,13 +310,6 @@ public class JobManagerITCase {
 			// Create job client and launch job
 			jobClient = new JobClient(jg, configuration, getClass().getClassLoader());
 			
-			// deactivate logging of expected test exceptions
-			Logger taskLogger = Logger.getLogger(Task.class);
-			taskLogger.setLevel(Level.OFF);
-			
-			Logger jmLogger = Logger.getLogger(JobManager.class);
-			jmLogger.setLevel(Level.OFF);
-			
 			try {
 				jobClient.submitJobAndWait();
 			} catch (JobExecutionException e) {
@@ -412,13 +396,6 @@ public class JobManagerITCase {
 
 			// Create job client and launch job
 			jobClient = new JobClient(jg, configuration, getClass().getClassLoader());
-			
-			// deactivate logging of expected test exceptions
-			Logger jcLogger = Logger.getLogger(JobClient.class);
-			jcLogger.setLevel(Level.OFF);
-			Logger tmLogger = Logger.getLogger(TaskManager.class);
-			tmLogger.setLevel(Level.OFF);
-			
 			
 			try {
 				jobClient.submitJobAndWait();
@@ -520,13 +497,6 @@ public class JobManagerITCase {
 			// Create job client and launch job
 			jobClient = new JobClient(jg, configuration, getClass().getClassLoader());
 
-			// deactivate logging of expected test exceptions
-			// deactivate logging of expected test exceptions
-			Logger jcLogger = Logger.getLogger(JobClient.class);
-			jcLogger.setLevel(Level.OFF);
-			Logger tmLogger = Logger.getLogger(TaskManager.class);
-			tmLogger.setLevel(Level.OFF);
-			
 			try {
 				jobClient.submitJobAndWait();
 			} catch (JobExecutionException e) {
@@ -1036,16 +1006,6 @@ public class JobManagerITCase {
 			// Create job client and launch job
 			jobClient = new JobClient(jg, configuration, getClass().getClassLoader());
 			
-			// disable logging for the taskmanager and the client, as they will have many
-			// expected test errors they will log.
-			
-			Logger tmLogger = Logger.getLogger(TaskManager.class);
-			Logger jcLogger = Logger.getLogger(JobClient.class);
-			Level tmLevel = tmLogger.getEffectiveLevel();
-			Level jcLevel = jcLogger.getEffectiveLevel();
-			
-			tmLogger.setLevel(Level.OFF);
-			jcLogger.setLevel(Level.OFF);
 			try {
 				
 				jobClient.submitJobAndWait();
@@ -1055,10 +1015,6 @@ public class JobManagerITCase {
 			} catch (Exception e) {
 				e.printStackTrace();
 				fail(e.getMessage());
-			}
-			finally {
-				tmLogger.setLevel(tmLevel);
-				jcLogger.setLevel(jcLevel);
 			}
 
 			fail("Undetected lack of resources");

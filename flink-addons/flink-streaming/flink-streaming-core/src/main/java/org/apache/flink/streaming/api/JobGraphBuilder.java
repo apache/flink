@@ -22,8 +22,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.runtime.io.network.channels.ChannelType;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -54,7 +54,7 @@ import org.apache.flink.streaming.util.serialization.TypeSerializerWrapper;
  */
 public class JobGraphBuilder {
 
-	private static final Log LOG = LogFactory.getLog(JobGraphBuilder.class);
+	private static final Logger LOG = LoggerFactory.getLogger(JobGraphBuilder.class);
 	private final JobGraph jobGraph;
 
 	// Graph attributes

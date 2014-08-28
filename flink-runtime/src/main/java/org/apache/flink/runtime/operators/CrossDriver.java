@@ -19,8 +19,8 @@
 
 package org.apache.flink.runtime.operators;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.functions.CrossFunction;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
@@ -42,7 +42,7 @@ import org.apache.flink.util.MutableObjectIterator;
  */
 public class CrossDriver<T1, T2, OT> implements PactDriver<CrossFunction<T1, T2, OT>, OT> {
 	
-	private static final Log LOG = LogFactory.getLog(CrossDriver.class);
+	private static final Logger LOG = LoggerFactory.getLogger(CrossDriver.class);
 	
 	
 	private PactTaskContext<CrossFunction<T1, T2, OT>, OT> taskContext;

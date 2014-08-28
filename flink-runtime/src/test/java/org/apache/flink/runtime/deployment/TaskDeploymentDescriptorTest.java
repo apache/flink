@@ -26,8 +26,6 @@ import static org.junit.Assert.fail;
 import java.io.IOException;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.deployment.GateDeploymentDescriptor;
-import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionVertexID;
 import org.apache.flink.runtime.jobgraph.JobID;
@@ -43,7 +41,6 @@ import org.junit.Test;
  * 
  */
 public class TaskDeploymentDescriptorTest {
-
 	/**
 	 * Tests the constructor of the {@link TaskDeploymentDescriptor} class with valid arguments.
 	 */

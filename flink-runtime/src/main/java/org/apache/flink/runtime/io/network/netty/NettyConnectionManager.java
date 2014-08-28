@@ -30,8 +30,8 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.runtime.io.network.ChannelManager;
 import org.apache.flink.runtime.io.network.Envelope;
 import org.apache.flink.runtime.io.network.EnvelopeDispatcher;
@@ -48,7 +48,7 @@ import java.util.concurrent.ConcurrentMap;
 
 public class NettyConnectionManager implements NetworkConnectionManager {
 
-	private static final Log LOG = LogFactory.getLog(NettyConnectionManager.class);
+	private static final Logger LOG = LoggerFactory.getLogger(NettyConnectionManager.class);
 
 	private static final int DEBUG_PRINT_QUEUED_ENVELOPES_EVERY_MS = 10000;
 

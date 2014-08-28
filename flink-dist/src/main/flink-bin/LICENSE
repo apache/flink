@@ -224,7 +224,6 @@ under the Apache License (v 2.0):
  - Apache Commons FileUpload (http://commons.apache.org/fileupload/)
  - Apache Commons IO (http://commons.apache.org/io/)
  - Apache Commons Math (http://commons.apache.org/proper/commons-math/)
- - Apache Log4J (http://logging.apache.org/log4j/1.2/)
  - Apache Avro (http://avro.apache.org)
  - Apache Hadoop (http://hadoop.apache.org)
  - Apache Derby (http://db.apache.org/derby/)
@@ -344,6 +343,19 @@ under the Mozilla Public License (v 1.1)
 You may obtain a copy of the Mozilla Public License (v 1.1) at
 http://www.mozilla.org/MPL/
 
+
+-----------------------------------------------------------------------
+ Eclipse Public License  - v 1.0
+-----------------------------------------------------------------------
+
+The Apache Flink project depends on and/or bundles the following components
+under the Eclipse Public License (v 1.0)
+
+- LOGback (http://logback.qos.ch)
+    Copyright (C) 1999-2012, QOS.ch. All rights reserved.
+
+You may obtain a copy of the Eclipse Public License (v 1.0) at
+https://www.eclipse.org/legal/epl-v10.html
 
 -----------------------------------------------------------------------
  The Open Font License

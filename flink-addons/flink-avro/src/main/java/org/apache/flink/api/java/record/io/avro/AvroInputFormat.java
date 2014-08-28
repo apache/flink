@@ -27,8 +27,8 @@ import org.apache.avro.file.SeekableInput;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.avro.specific.SpecificDatumReader;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.avro.AvroBaseValue;
 import org.apache.flink.api.avro.FSDataInputStreamWrapper;
 import org.apache.flink.api.java.record.io.FileInputFormat;
@@ -42,7 +42,7 @@ public class AvroInputFormat<E> extends FileInputFormat {
 	
 	private static final long serialVersionUID = 1L;
 
-	private static final Log LOG = LogFactory.getLog(AvroInputFormat.class);
+	private static final Logger LOG = LoggerFactory.getLogger(AvroInputFormat.class);
 	
 	
 	private final Class<? extends AvroBaseValue<E>> avroWrapperTypeClass;

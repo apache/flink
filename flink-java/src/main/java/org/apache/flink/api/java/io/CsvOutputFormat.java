@@ -24,8 +24,8 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple;
@@ -43,7 +43,7 @@ public class CsvOutputFormat<T extends Tuple> extends FileOutputFormat<T> implem
 	private static final long serialVersionUID = 1L;
 
 	@SuppressWarnings("unused")
-	private static final Log LOG = LogFactory.getLog(CsvOutputFormat.class);
+	private static final Logger LOG = LoggerFactory.getLogger(CsvOutputFormat.class);
 
 	// --------------------------------------------------------------------------------------------
 

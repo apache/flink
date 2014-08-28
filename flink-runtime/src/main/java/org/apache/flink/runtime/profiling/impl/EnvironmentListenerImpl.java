@@ -19,8 +19,8 @@
 
 package org.apache.flink.runtime.profiling.impl;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.runtime.execution.ExecutionListener;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.RuntimeEnvironment;
@@ -29,7 +29,7 @@ import org.apache.flink.runtime.jobgraph.JobID;
 
 public class EnvironmentListenerImpl implements ExecutionListener {
 
-	private static final Log LOG = LogFactory.getLog(EnvironmentListenerImpl.class);
+	private static final Logger LOG = LoggerFactory.getLogger(EnvironmentListenerImpl.class);
 
 	private final TaskManagerProfilerImpl taskManagerProfiler;
 

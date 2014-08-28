@@ -33,8 +33,8 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.util.StringUtils;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -54,7 +54,7 @@ public final class GlobalConfiguration {
 	/**
 	 * The log object used for debugging.
 	 */
-	private static final Log LOG = LogFactory.getLog(GlobalConfiguration.class);
+	private static final Logger LOG = LoggerFactory.getLogger(GlobalConfiguration.class);
 
 	/**
 	 * The global configuration object accessible through a singleton pattern.
@@ -460,7 +460,6 @@ public final class GlobalConfiguration {
 			}
 
 			if (!"configuration".equals(root.getNodeName())) {
-				LOG.warn("Cannot load configuration: unknown element " + root.getNodeName());
 				return;
 			}
 
@@ -481,14 +480,11 @@ public final class GlobalConfiguration {
 					}
 
 					if (!(propNode instanceof Element)) {
-						LOG.warn("Error while reading configuration: " + propNode.getNodeName()
-							+ " is not of type element");
 						continue;
 					}
 
 					Element property = (Element) propNode;
 					if (!"property".equals(property.getNodeName())) {
-						LOG.warn("Error while reading configuration: unknown element " + property.getNodeName());
 						continue;
 					}
 

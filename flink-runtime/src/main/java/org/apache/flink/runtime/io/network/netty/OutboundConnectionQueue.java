@@ -25,8 +25,8 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.handler.timeout.IdleStateHandler;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.runtime.io.network.Envelope;
 import org.apache.flink.runtime.io.network.NetworkConnectionManager;
 import org.apache.flink.runtime.io.network.RemoteReceiver;
@@ -41,7 +41,7 @@ public class OutboundConnectionQueue extends ChannelInboundHandlerAdapter {
 		TRIGGER_WRITE
 	}
 
-	private static final Log LOG = LogFactory.getLog(OutboundConnectionQueue.class);
+	private static final Logger LOG = LoggerFactory.getLogger(OutboundConnectionQueue.class);
 
 	private final ChannelWriteListener writeListener = new ChannelWriteListener();
 

@@ -25,8 +25,8 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.core.memory.MemorySegment;
 
 /**
@@ -38,7 +38,7 @@ public final class IOManager implements UncaughtExceptionHandler
 	/**
 	 * Logging.
 	 */
-	private static final Log LOG = LogFactory.getLog(IOManager.class);
+	private static final Logger LOG = LoggerFactory.getLogger(IOManager.class);
 
 	/**
 	 * The default temp paths for anonymous Channels.
@@ -199,7 +199,7 @@ public final class IOManager implements UncaughtExceptionHandler
 	@Override
 	public void uncaughtException(Thread t, Throwable e)
 	{
-		LOG.fatal("IO Thread '" + t.getName() + "' terminated due to an exception. Closing I/O Manager.", e);
+		LOG.error("IO Thread '" + t.getName() + "' terminated due to an exception. Closing I/O Manager.", e);
 		shutdown();	
 	}
 

@@ -24,8 +24,8 @@ import java.util.Iterator;
 import java.util.Set;
 import java.util.Stack;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This class provides an implementation of the {@link java.util.Iterator} interface which allows to
@@ -41,7 +41,7 @@ public final class ManagementGraphIterator implements Iterator<ManagementVertex>
 	/**
 	 * The log object used for debugging.
 	 */
-	private static final Log LOG = LogFactory.getLog(ManagementGraphIterator.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ManagementGraphIterator.class);
 
 	/**
 	 * The management graph this iterator traverses.

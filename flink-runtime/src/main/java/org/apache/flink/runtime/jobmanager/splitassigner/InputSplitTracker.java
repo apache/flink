@@ -25,8 +25,8 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraphIterator;
@@ -48,7 +48,7 @@ final class InputSplitTracker {
 	/**
 	 * The logging object which is used to report information and errors.
 	 */
-	private static final Log LOG = LogFactory.getLog(InputSplitTracker.class);
+	private static final Logger LOG = LoggerFactory.getLogger(InputSplitTracker.class);
 
 	/**
 	 * The central split map which stores the logs of the individual input vertices.

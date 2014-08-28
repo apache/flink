@@ -25,8 +25,6 @@ import static org.junit.Assert.fail;
 
 import java.io.IOException;
 
-import org.apache.flink.runtime.event.job.JobEvent;
-import org.apache.flink.runtime.event.job.VertexEvent;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -39,7 +37,6 @@ import org.junit.Test;
  * 
  */
 public class JobEventTest {
-
 	/**
 	 * This test checks the correct serialization/deserialization of a {@link JobEvent}.
 	 */

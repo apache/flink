@@ -32,7 +32,6 @@ import org.junit.Test;
  * 
  */
 public class AbstractIDTest {
-
 	/**
 	 * Tests the setID method of an abstract ID.
 	 */

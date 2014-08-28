@@ -36,9 +36,6 @@ import org.apache.flink.streaming.api.function.sink.SinkFunction;
 import org.apache.flink.streaming.api.function.source.SourceFunction;
 import org.apache.flink.streaming.util.ClusterUtil;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.LogUtils;
-import org.apache.log4j.Level;
-import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -85,11 +82,6 @@ public class StreamComponentTest {
 	private static final int PARALLELISM = 1;
 	private static final int SOURCE_PARALELISM = 1;
 	private static final long MEMORYSIZE = 32;
-
-	@Before
-	public void before() {
-		LogUtils.initializeDefaultConsoleLogger(Level.OFF);
-	}
 
 	@Ignore
 	@Test
@@ -193,9 +185,6 @@ public class StreamComponentTest {
 
 	@Test
 	public void runStream() {
-
-		LogUtils.initializeDefaultTestConsoleLogger();
-
 		LocalStreamEnvironment env = StreamExecutionEnvironment
 				.createLocalEnvironment(SOURCE_PARALELISM);
 

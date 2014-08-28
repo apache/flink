@@ -25,8 +25,8 @@ import java.net.InetSocketAddress;
 import java.util.Iterator;
 import java.util.Map;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.configuration.ConfigConstants;
@@ -53,7 +53,7 @@ public class JobClient {
 	/**
 	 * The logging object used for debugging.
 	 */
-	private static final Log LOG = LogFactory.getLog(JobClient.class);
+	private static final Logger LOG = LoggerFactory.getLogger(JobClient.class);
 
 	/**
 	 * The job management server stub.

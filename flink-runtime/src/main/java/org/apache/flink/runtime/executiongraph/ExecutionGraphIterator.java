@@ -24,8 +24,8 @@ import java.util.Iterator;
 import java.util.Set;
 import java.util.Stack;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This class provides an implementation of the {@link Iterator} interface which allows to
@@ -41,7 +41,7 @@ public class ExecutionGraphIterator implements Iterator<ExecutionVertex> {
 	/**
 	 * The log object used for debugging.
 	 */
-	private static final Log LOG = LogFactory.getLog(ExecutionGraphIterator.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ExecutionGraphIterator.class);
 
 	/**
 	 * The execution this iterator traverses.

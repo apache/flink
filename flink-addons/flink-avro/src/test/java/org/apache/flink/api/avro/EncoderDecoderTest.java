@@ -31,8 +31,6 @@ import java.util.Random;
 
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.avro.reflect.ReflectDatumWriter;
-import org.apache.flink.api.avro.DataInputDecoder;
-import org.apache.flink.api.avro.DataOutputEncoder;
 import org.apache.flink.api.java.record.io.avro.generated.Colors;
 import org.apache.flink.api.java.record.io.avro.generated.User;
 import org.apache.flink.util.StringUtils;
@@ -40,12 +38,10 @@ import org.junit.Test;
 
 import static org.junit.Assert.*;
 
-
 /**
  * Tests the {@link DataOutputEncoder} and {@link DataInputDecoder} classes for Avro serialization.
  */
 public class EncoderDecoderTest {
-	
 	@Test
 	public void testComplexStringsDirecty() {
 		try {

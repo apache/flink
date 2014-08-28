@@ -24,8 +24,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -73,7 +73,7 @@ import org.apache.flink.util.MutableObjectIterator;
  */
 public class CompactingHashTable<T> extends AbstractMutableHashTable<T>{
 
-	private static final Log LOG = LogFactory.getLog(CompactingHashTable.class);
+	private static final Logger LOG = LoggerFactory.getLogger(CompactingHashTable.class);
 	
 	// ------------------------------------------------------------------------
 	//                         Internal Constants

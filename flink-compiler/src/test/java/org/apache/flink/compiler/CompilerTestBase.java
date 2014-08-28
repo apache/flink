@@ -37,11 +37,9 @@ import org.apache.flink.compiler.costs.DefaultCostEstimator;
 import org.apache.flink.compiler.plan.OptimizedPlan;
 import org.apache.flink.compiler.plan.PlanNode;
 import org.apache.flink.compiler.plan.SingleInputPlanNode;
-import org.apache.flink.util.LogUtils;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.Visitor;
 import org.junit.Before;
-import org.junit.BeforeClass;
 
 /**
  *
@@ -71,11 +69,6 @@ public abstract class CompilerTestBase implements java.io.Serializable {
 	private transient int statCounter;
 	
 	// ------------------------------------------------------------------------	
-	
-	@BeforeClass
-	public static void initialize() {
-		LogUtils.initializeDefaultTestConsoleLogger();
-	}
 	
 	@Before
 	public void setup() {

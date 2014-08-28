@@ -28,8 +28,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.operators.Operator;
@@ -321,7 +321,7 @@ public class PactCompiler {
 	/**
 	 * The log handle that is used by the compiler to log messages.
 	 */
-	public static final Log LOG = LogFactory.getLog(PactCompiler.class);
+	public static final Logger LOG = LoggerFactory.getLogger(PactCompiler.class);
 
 	// ------------------------------------------------------------------------
 	// Members

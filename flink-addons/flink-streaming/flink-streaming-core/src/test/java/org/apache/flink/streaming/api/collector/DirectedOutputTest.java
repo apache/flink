@@ -29,8 +29,6 @@ import org.apache.flink.streaming.api.datastream.SplitDataStream;
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
-import org.apache.flink.streaming.util.LogUtils;
-import org.apache.log4j.Level;
 import org.junit.Test;
 
 public class DirectedOutputTest {
@@ -90,7 +88,6 @@ public class DirectedOutputTest {
 	@SuppressWarnings("unused")
 	@Test
 	public void directOutputTest() throws Exception {
-		LogUtils.initializeDefaultConsoleLogger(Level.OFF, Level.OFF);
 
 		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 		SplitDataStream<Long> s = env.generateSequence(1, 6).split(new MySelector(),

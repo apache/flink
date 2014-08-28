@@ -39,7 +39,6 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
 import org.apache.flink.runtime.memorymanager.MemoryAllocationException;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
-import org.apache.flink.runtime.operators.hash.MutableHashTable;
 import org.apache.flink.runtime.operators.hash.MutableHashTable.HashBucketIterator;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.UniformIntPairGenerator;
@@ -57,6 +56,7 @@ import org.apache.flink.util.MutableObjectIterator;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 public class HashTableITCase {
@@ -77,7 +77,7 @@ public class HashTableITCase {
 	private TypeComparator<IntPair> pairBuildSideComparator;
 	private TypeComparator<IntPair> pairProbeSideComparator;
 	private TypePairComparator<IntPair, IntPair> pairComparator;
-	
+
 	@Before
 	public void setup()
 	{

@@ -22,11 +22,6 @@ package org.apache.flink.runtime.event.task;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-import org.apache.flink.runtime.event.task.AbstractTaskEvent;
-import org.apache.flink.runtime.event.task.EventListener;
-import org.apache.flink.runtime.event.task.EventNotificationManager;
-import org.apache.flink.runtime.event.task.IntegerTaskEvent;
-import org.apache.flink.runtime.event.task.StringTaskEvent;
 import org.junit.Test;
 
 /**
@@ -34,7 +29,6 @@ import org.junit.Test;
  * 
  */
 public class EventNotificationManagerTest {
-
 	/**
 	 * A test implementation of an {@link EventListener}.
 	 * 

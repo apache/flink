@@ -22,8 +22,8 @@ package org.apache.flink.runtime.jobmanager.splitassigner;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.LocatableInputSplit;
 import org.apache.flink.runtime.executiongraph.ExecutionGroupVertex;
@@ -44,7 +44,7 @@ public final class LocatableInputSplitAssigner implements InputSplitAssigner {
 	/**
 	 * The logging object which is used to report information and errors.
 	 */
-	private static final Log LOG = LogFactory.getLog(LocatableInputSplitAssigner.class);
+	private static final Logger LOG = LoggerFactory.getLogger(LocatableInputSplitAssigner.class);
 
 	private final ConcurrentMap<ExecutionGroupVertex, LocatableInputSplitList> vertexMap = new ConcurrentHashMap<ExecutionGroupVertex, LocatableInputSplitList>();
 

@@ -27,13 +27,8 @@ import java.io.FileNotFoundException;
 import java.io.PrintWriter;
 import java.lang.reflect.Field;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.testutils.CommonTestUtils;
-import org.apache.flink.util.LogUtils;
-import org.apache.log4j.Level;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 /**
@@ -41,11 +36,6 @@ import org.junit.Test;
  */
 public class GlobalConfigurationTest {
 
-	@BeforeClass
-	public static void initLogging() {
-		LogUtils.initializeDefaultConsoleLogger(Level.OFF);
-	}
-	
 	@Before
 	public void resetSingleton() throws SecurityException, NoSuchFieldException, IllegalArgumentException,
 			IllegalAccessException {

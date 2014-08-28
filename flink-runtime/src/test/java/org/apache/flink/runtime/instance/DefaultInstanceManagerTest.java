@@ -32,7 +32,6 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.jobgraph.JobID;
-import org.apache.flink.util.LogUtils;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -41,13 +40,6 @@ import org.junit.Test;
  * Tests for {@link org.apache.flink.runtime.instance.DefaultInstanceManager}.
  */
 public class DefaultInstanceManagerTest {
-
-	@BeforeClass
-	public static void initLogging() {
-		LogUtils.initializeDefaultTestConsoleLogger();
-	}
-	
-	
 	@Test
 	public void testInstanceRegistering() {
 		try {

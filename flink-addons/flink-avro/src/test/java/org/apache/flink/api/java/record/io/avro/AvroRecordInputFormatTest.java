@@ -29,7 +29,6 @@ import org.junit.Assert;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.specific.SpecificDatumWriter;
-import org.apache.flink.api.java.record.io.avro.AvroRecordInputFormat;
 import org.apache.flink.api.java.record.io.avro.AvroRecordInputFormat.BooleanListValue;
 import org.apache.flink.api.java.record.io.avro.AvroRecordInputFormat.LongMapValue;
 import org.apache.flink.api.java.record.io.avro.AvroRecordInputFormat.StringListValue;
@@ -68,8 +67,7 @@ public class AvroRecordInputFormatTest {
 	final static long TEST_MAP_VALUE1 = 8546456L;
 	final static CharSequence TEST_MAP_KEY2 = "KEY 2";
 	final static long TEST_MAP_VALUE2 = 17554L;
-	
-	
+
 	@Before
 	public void createFiles() throws IOException {
 		testFile = File.createTempFile("AvroInputFormatTest", null);

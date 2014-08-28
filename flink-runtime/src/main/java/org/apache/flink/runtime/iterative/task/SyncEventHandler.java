@@ -30,7 +30,7 @@ import com.google.common.base.Preconditions;
 
 public class SyncEventHandler implements EventListener {
 	
-//	private static final Log log = LogFactory.getLog(SyncEventHandler.class);
+//	private static final Logger log = LoggerFactory.getLogger(SyncEventHandler.class);
 	
 	private final ClassLoader userCodeClassLoader;
 	

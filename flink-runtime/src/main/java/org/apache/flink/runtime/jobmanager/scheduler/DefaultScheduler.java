@@ -31,8 +31,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.Deque;
 import java.util.ArrayDeque;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionEdge;
 import org.apache.flink.runtime.executiongraph.ExecutionGate;
@@ -70,7 +70,7 @@ public class DefaultScheduler implements InstanceListener, JobStatusListener, Ex
 	/**
 	 * The LOG object to report events within the scheduler.
 	 */
-	protected static final Log LOG = LogFactory.getLog(DefaultScheduler.class);
+	protected static final Logger LOG = LoggerFactory.getLogger(DefaultScheduler.class);
 
 	/**
 	 * The instance manager assigned to this scheduler.
@@ -511,7 +511,7 @@ public class DefaultScheduler implements InstanceListener, JobStatusListener, Ex
 					getInstanceManager().releaseAllocatedResource(allocatedResource);
 				}
 			} catch (InstanceException e) {
-				LOG.error(e);
+				LOG.error("InstanceException while releasing allocated ressources.", e);
 			}
 			return;
 		}
@@ -560,7 +560,7 @@ public class DefaultScheduler implements InstanceListener, JobStatusListener, Ex
 							try {
 								getInstanceManager().releaseAllocatedResource(allocatedResource);
 							} catch (InstanceException e) {
-								LOG.error(e);
+								LOG.error("InstanceException while releasing allocated ressources.", e);
 							}
 							return;
 						}

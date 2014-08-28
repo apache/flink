@@ -26,8 +26,8 @@ import java.io.InputStreamReader;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.util.OperatingSystem;
 
 /**
@@ -42,7 +42,7 @@ public class HardwareDescriptionFactory {
 	/**
 	 * The log object used to report errors.
 	 */
-	private static final Log LOG = LogFactory.getLog(HardwareDescriptionFactory.class);
+	private static final Logger LOG = LoggerFactory.getLogger(HardwareDescriptionFactory.class);
 
 	/**
 	 * The path to the interface to extract memory information under Linux.
@@ -214,7 +214,7 @@ public class HardwareDescriptionFactory {
 			}
 
 		} catch (Exception e) {
-			LOG.error(e);
+			LOG.error("Exception while retrieving size of physical of memory on mac.", e);
 			return -1;
 		} finally {
 			if (bi != null) {

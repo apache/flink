@@ -27,8 +27,8 @@ import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.runtime.instance.Instance;
 
@@ -47,7 +47,7 @@ public final class FileInputSplitList {
 	/**
 	 * The logging object which is used to report information and errors.
 	 */
-	private static final Log LOG = LogFactory.getLog(FileInputSplitList.class);
+	private static final Logger LOG = LoggerFactory.getLogger(FileInputSplitList.class);
 
 	/**
 	 * The set containing all the file input splits that still must be consumed.
