@@ -34,8 +34,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.CliFrontend;
 import org.apache.flink.configuration.ConfigConstants;
@@ -78,7 +78,7 @@ import com.google.common.base.Preconditions;
 
 public class ApplicationMaster implements YARNClientMasterProtocol {
 
-	private static final Log LOG = LogFactory.getLog(ApplicationMaster.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ApplicationMaster.class);
 
 	private final String currDir;
 	private final String logDirs;
@@ -132,9 +132,9 @@ public class ApplicationMaster implements YARNClientMasterProtocol {
 	private List<Message> messages = new SerializableArrayList<Message>();
 
 	/**
-	 * Indicates if a log4j config file is being shipped.
+	 * Indicates if a logback config file is being shipped.
 	 */
-	private boolean hasLog4j;
+	private boolean hasLogback;
 	
 	/**
 	 * Heap size of TaskManager containers in MB.
@@ -332,7 +332,7 @@ public class ApplicationMaster implements YARNClientMasterProtocol {
 		LOG.info("Prepared local resource for modified yaml: "+flinkConf);
 
 
-		hasLog4j = new File(currDir+"/log4j.properties").exists();
+		hasLogback = new File(currDir+"/logback.xml").exists();
 		// prepare the files to ship
 		LocalResource[] remoteShipRsc = null;
 		String[] remoteShipPaths = shipListString.split(",");
@@ -416,8 +416,9 @@ public class ApplicationMaster implements YARNClientMasterProtocol {
 				ContainerLaunchContext ctx = Records.newRecord(ContainerLaunchContext.class);
 
 				String tmCommand = "$JAVA_HOME/bin/java -Xmx"+heapLimit+"m " + javaOpts ;
-				if(hasLog4j) {
-					tmCommand += " -Dlog.file=\""+ApplicationConstants.LOG_DIR_EXPANSION_VAR +"/taskmanager-log4j.log\" -Dlog4j.configuration=file:log4j.properties";
+				if(hasLogback) {
+					tmCommand += " -Dlog.file=\""+ApplicationConstants.LOG_DIR_EXPANSION_VAR +"/taskmanager-logback" +
+							".log\" -Dlogback.configurationFile=file:logback.xml";
 				}
 				tmCommand	+= " "+YarnTaskManagerRunner.class.getName()+" -configDir . "
 						+ " 1>"
@@ -585,7 +586,7 @@ public class ApplicationMaster implements YARNClientMasterProtocol {
 					am.setRMClient(rmClient);
 					am.run();
 				} catch (Throwable e) {
-					LOG.fatal("Error while running the application master", e);
+					LOG.error("Error while running the application master", e);
 					// the AM is not available. Report error through the unregister function.
 					if(rmClient != null && am == null) {
 						try {
@@ -593,13 +594,13 @@ public class ApplicationMaster implements YARNClientMasterProtocol {
 									+ " stopped unexpectedly with an exception.\n"
 									+ StringUtils.stringifyException(e), "");
 						} catch (Exception e1) {
-							LOG.fatal("Unable to fail the application master", e1);
+							LOG.error("Unable to fail the application master", e1);
 						}
 						LOG.info("AM unregistered from RM");
 						return null;
 					}
 					if(rmClient == null) {
-						LOG.fatal("Unable to unregister AM since the RM client is not available");
+						LOG.error("Unable to unregister AM since the RM client is not available");
 					}
 					if(am != null) {
 						LOG.info("Writing error into internal message system");

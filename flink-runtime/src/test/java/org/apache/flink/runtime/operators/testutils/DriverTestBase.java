@@ -25,7 +25,6 @@ import java.util.List;
 import org.junit.Assert;
 
 import org.apache.flink.api.common.functions.Function;
-import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
@@ -43,11 +42,8 @@ import org.apache.flink.runtime.operators.sort.UnilateralSortMerger;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.LogUtils;
 import org.apache.flink.util.MutableObjectIterator;
-import org.apache.log4j.Level;
 import org.junit.After;
-import org.junit.BeforeClass;
 
 public class DriverTestBase<S extends Function> implements PactTaskContext<S, Record> {
 	
@@ -84,14 +80,6 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 	private PactDriver<S, Record> driver;
 	
 	private volatile boolean running;
-	
-	
-	@BeforeClass
-	public static void setupLog() {
-		/// suppress log output, as this class produces errors on purpose to test exception handling
-		LogUtils.initializeDefaultConsoleLogger(Level.OFF);
-	}
-	
 	
 	protected DriverTestBase(long memory, int maxNumSorters) {
 		this(memory, maxNumSorters, DEFAULT_PER_SORT_MEM);

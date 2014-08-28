@@ -19,8 +19,8 @@
 
 package org.apache.flink.runtime.execution;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.IOReadableWritable;
@@ -69,7 +69,7 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 	/**
 	 * The log object used for debugging.
 	 */
-	private static final Log LOG = LogFactory.getLog(RuntimeEnvironment.class);
+	private static final Logger LOG = LoggerFactory.getLogger(RuntimeEnvironment.class);
 
 	/**
 	 * The interval to sleep in case a communication channel is not yet entirely set up (in milliseconds).
@@ -247,7 +247,7 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 	@Override
 	public void run() {
 		if (invokable == null) {
-			LOG.fatal("ExecutionEnvironment has no Invokable set");
+			LOG.error("ExecutionEnvironment has no Invokable set");
 		}
 
 		// Now the actual program starts to run

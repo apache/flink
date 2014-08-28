@@ -114,7 +114,7 @@ under the License.
 			<fileMode>0644</fileMode>
 		</file>
 		<file>
-			<source>src/main/flink-bin/conf/log4j.properties</source>
+			<source>src/main/flink-bin/conf/logback.xml</source>
 			<outputDirectory>conf</outputDirectory>
 			<fileMode>0644</fileMode>
 		</file>

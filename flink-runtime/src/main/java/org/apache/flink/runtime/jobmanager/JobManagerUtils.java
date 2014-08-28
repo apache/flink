@@ -22,8 +22,8 @@ package org.apache.flink.runtime.jobmanager;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.runtime.ExecutionMode;
 import org.apache.flink.runtime.instance.InstanceManager;
 import org.apache.flink.runtime.jobmanager.scheduler.DefaultScheduler;
@@ -38,7 +38,7 @@ public class JobManagerUtils {
 	/**
 	 * The logging object used by the utility methods.
 	 */
-	private static final Log LOG = LogFactory.getLog(JobManagerUtils.class);
+	private static final Logger LOG = LoggerFactory.getLogger(JobManagerUtils.class);
 
 	/**
 	 * Private constructor.

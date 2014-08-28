@@ -32,8 +32,8 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.instance.Instance;
@@ -57,7 +57,7 @@ public class SetupInfoServlet extends HttpServlet {
 	/**
 	 * The log for this class.
 	 */
-	private static final Log LOG = LogFactory.getLog(SetupInfoServlet.class);
+	private static final Logger LOG = LoggerFactory.getLogger(SetupInfoServlet.class);
 	
 	private Configuration globalC;
 	private JobManager jobmanager;

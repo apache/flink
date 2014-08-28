@@ -21,8 +21,8 @@ package org.apache.flink.test.runtime;
 
 import java.io.IOException;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
@@ -38,12 +38,11 @@ import org.apache.flink.runtime.jobgraph.JobOutputVertex;
 import org.apache.flink.runtime.jobgraph.JobTaskVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.test.util.RecordAPITestBase;
-import org.apache.flink.util.LogUtils;
 import org.junit.After;
 
 public class NetworkStackThroughput {
 
-	private static final Log LOG = LogFactory.getLog(NetworkStackThroughput.class);
+	private static final Logger LOG = LoggerFactory.getLogger(NetworkStackThroughput.class);
 
 	private static final String DATA_VOLUME_GB_CONFIG_KEY = "data.volume.gb";
 
@@ -89,8 +88,6 @@ public class NetworkStackThroughput {
 
 			setNumTaskTracker(parallelism / numSlots);
 			setTaskManagerNumSlots(numSlots);
-
-			LogUtils.initializeDefaultConsoleLogger();
 		}
 
 		@Override

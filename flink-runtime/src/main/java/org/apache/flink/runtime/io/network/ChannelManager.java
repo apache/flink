@@ -19,8 +19,8 @@
 
 package org.apache.flink.runtime.io.network;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.AbstractID;
 import org.apache.flink.runtime.execution.CancelTaskException;
@@ -56,7 +56,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker {
 
-	private static final Log LOG = LogFactory.getLog(ChannelManager.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ChannelManager.class);
 
 	private final ChannelLookupProtocol channelLookupService;
 

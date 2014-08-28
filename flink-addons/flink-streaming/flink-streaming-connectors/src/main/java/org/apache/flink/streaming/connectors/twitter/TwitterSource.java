@@ -25,10 +25,10 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.function.source.RichSourceFunction;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.streaming.api.function.source.SourceFunction;
 import org.apache.flink.util.Collector;
 
@@ -46,7 +46,7 @@ import com.twitter.hbc.httpclient.auth.OAuth1;
  */
 public class TwitterSource extends RichSourceFunction<String> {
 
-	private static final Log LOG = LogFactory.getLog(TwitterSource.class);
+	private static final Logger LOG = LoggerFactory.getLogger(TwitterSource.class);
 
 	private static final long serialVersionUID = 1L;
 	private String authPath;

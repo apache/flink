@@ -25,16 +25,13 @@ import static org.junit.Assert.fail;
 
 import java.io.IOException;
 
-import org.apache.flink.runtime.client.AbstractJobResult;
-import org.apache.flink.runtime.client.JobCancelResult;
-import org.apache.flink.runtime.client.JobProgressResult;
-import org.apache.flink.runtime.client.JobSubmissionResult;
 import org.apache.flink.runtime.client.AbstractJobResult.ReturnCode;
 import org.apache.flink.runtime.event.job.AbstractEvent;
 import org.apache.flink.runtime.event.job.JobEvent;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.util.SerializableArrayList;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 /**

@@ -26,8 +26,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.api.common.operators.base.GenericDataSourceBase;
 import org.apache.flink.configuration.ConfigConstants;
@@ -53,7 +53,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	
 	// -------------------------------------- Constants -------------------------------------------
 	
-	private static final Log LOG = LogFactory.getLog(FileInputFormat.class);
+	private static final Logger LOG = LoggerFactory.getLogger(FileInputFormat.class);
 	
 	private static final long serialVersionUID = 1L;
 	

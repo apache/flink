@@ -34,8 +34,8 @@ import java.util.Map;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.hadoop.conf.Configuration;
@@ -61,7 +61,7 @@ import org.apache.hadoop.yarn.util.ConverterUtils;
 
 public class Utils {
 	
-	private static final Log LOG = LogFactory.getLog(Utils.class);
+	private static final Logger LOG = LoggerFactory.getLogger(Utils.class);
 	private static final int HEAP_LIMIT_CAP = 500;
 	
 
@@ -163,7 +163,7 @@ public class Utils {
 		try {
 			hadoopHome = Shell.getHadoopHome();
 		} catch (IOException e) {
-			LOG.fatal("Unable to get hadoop home. Please set HADOOP_HOME variable!", e);
+			LOG.error("Unable to get hadoop home. Please set HADOOP_HOME variable!", e);
 			System.exit(1);
 		}
 		File tryConf = new File(hadoopHome+"/etc/hadoop");
@@ -181,10 +181,10 @@ public class Utils {
 	}
 	
 	public static void setupEnv(Configuration conf, Map<String, String> appMasterEnv) {
+		addToEnvironment(appMasterEnv, Environment.CLASSPATH.name(), Environment.PWD.$() + File.separator + "*");
 		for (String c : conf.getStrings(YarnConfiguration.YARN_APPLICATION_CLASSPATH,YarnConfiguration.DEFAULT_YARN_APPLICATION_CLASSPATH)) {
 			addToEnvironment(appMasterEnv, Environment.CLASSPATH.name(), c.trim());
 		}
-		addToEnvironment(appMasterEnv, Environment.CLASSPATH.name(), Environment.PWD.$() + File.separator + "*");
 	}
 	
 	
@@ -236,7 +236,7 @@ public class Utils {
 		amContainer.setTokens(securityTokens);
 	}
 	
-	public static void logFilesInCurrentDirectory(final Log logger) {
+	public static void logFilesInCurrentDirectory(final Logger logger) {
 		new File(".").list(new FilenameFilter() {
 			
 			@Override

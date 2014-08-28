@@ -33,8 +33,8 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.runtime.event.job.AbstractEvent;
 import org.apache.flink.runtime.event.job.ExecutionStateChangeEvent;
@@ -61,7 +61,7 @@ public class JobmanagerInfoServlet extends HttpServlet {
 	/**
 	 * The log for this class.
 	 */
-	private static final Log LOG = LogFactory.getLog(JobmanagerInfoServlet.class);
+	private static final Logger LOG = LoggerFactory.getLogger(JobmanagerInfoServlet.class);
 	
 	/**
 	 * Underlying JobManager

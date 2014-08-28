@@ -22,13 +22,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.flink.runtime.io.network.api.RecordWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Collector for tuples in Apache Flink stream processing. The collected values
@@ -40,7 +40,7 @@ import org.apache.flink.util.StringUtils;
  */
 public class StreamCollector<OUT> implements Collector<OUT> {
 
-	private static final Log LOG = LogFactory.getLog(StreamCollector.class);
+	private static final Logger LOG = LoggerFactory.getLogger(StreamCollector.class);
 
 	protected StreamRecord<OUT> streamRecord;
 	protected int channelID;

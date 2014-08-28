@@ -22,8 +22,8 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
@@ -50,7 +50,7 @@ public class MergeMatchIterator<T1, T2, O> implements JoinTaskIterator<T1, T2, O
 	/**
 	 * The log used by this iterator to log messages.
 	 */
-	private static final Log LOG = LogFactory.getLog(MergeMatchIterator.class);
+	private static final Logger LOG = LoggerFactory.getLogger(MergeMatchIterator.class);
 	
 	// --------------------------------------------------------------------------------------------
 	

@@ -40,9 +40,7 @@ import java.util.List;
 import org.apache.commons.io.FileUtils;
 import org.apache.flink.client.minicluster.NepheleMiniCluster;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.util.LogUtils;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.log4j.Level;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -73,8 +71,6 @@ public abstract class AbstractTestBase {
 		verifyJvmOptions();
 		this.config = config;
 		this.tempFiles = new ArrayList<File>();
-
-		LogUtils.initializeDefaultConsoleLogger(Level.WARN);
 	}
 
 	private void verifyJvmOptions() {

@@ -19,8 +19,8 @@
 
 package org.apache.flink.runtime.iterative.task;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.aggregators.LongSumAggregator;
 import org.apache.flink.api.common.functions.Function;
@@ -57,7 +57,7 @@ import java.io.IOException;
 public abstract class AbstractIterativePactTask<S extends Function, OT> extends RegularPactTask<S, OT>
 		implements Terminable
 {
-	private static final Log log = LogFactory.getLog(AbstractIterativePactTask.class);
+	private static final Logger log = LoggerFactory.getLogger(AbstractIterativePactTask.class);
 	
 	protected LongSumAggregator worksetAggregator;
 

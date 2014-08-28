@@ -35,8 +35,6 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.flink.client.program.Client;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
@@ -45,6 +43,8 @@ import org.apache.flink.compiler.plan.OptimizedPlan;
 import org.apache.flink.compiler.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 public class JobSubmissionServlet extends HttpServlet {
@@ -74,7 +74,7 @@ public class JobSubmissionServlet extends HttpServlet {
 
 	private static final String SUSPEND_PARAM_NAME = "suspend";
 
-	private static final Log LOG = LogFactory.getLog(JobSubmissionServlet.class);
+	private static final Logger LOG = LoggerFactory.getLogger(JobSubmissionServlet.class);
 
 	// ------------------------------------------------------------------------
 

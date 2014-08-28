@@ -58,8 +58,8 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.io.StringRecord;
 import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
@@ -76,7 +76,7 @@ import org.apache.flink.util.ClassUtils;
  */
 public abstract class Server {
 
-	public static final Log LOG = LogFactory.getLog(Server.class);
+	public static final Logger LOG = LoggerFactory.getLogger(Server.class);
 
 	private static final Class<?>[] EMPTY_ARRAY = new Class[] {};
 
@@ -889,7 +889,7 @@ public abstract class Server {
 					protocol = getProtocolClass(header.getProtocol());
 				}
 			} catch (ClassNotFoundException cnfe) {
-				LOG.error(cnfe);
+				LOG.error("Could not find class " + header.getProtocol() + ".", cnfe);
 				throw new IOException("Unknown protocol: " + header.getProtocol());
 			}
 

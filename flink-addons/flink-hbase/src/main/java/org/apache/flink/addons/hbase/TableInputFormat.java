@@ -23,8 +23,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.addons.hbase.common.HBaseKey;
 import org.apache.flink.addons.hbase.common.HBaseResult;
 import org.apache.flink.addons.hbase.common.HBaseUtil;
@@ -51,7 +51,7 @@ public class TableInputFormat implements InputFormat<Record, TableInputSplit> {
 
 	private static final long serialVersionUID = 1L;
 
-	private static final Log LOG = LogFactory.getLog(TableInputFormat.class);
+	private static final Logger LOG = LoggerFactory.getLogger(TableInputFormat.class);
 
 	/** A handle on an HBase table */
 	private HTable table;

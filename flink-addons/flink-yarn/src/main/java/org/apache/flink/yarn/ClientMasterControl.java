@@ -23,8 +23,8 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.runtime.ipc.RPC;
 import org.apache.flink.runtime.net.NetUtils;
 import org.apache.flink.yarn.rpc.ApplicationMasterStatus;
@@ -33,7 +33,7 @@ import org.apache.flink.yarn.rpc.YARNClientMasterProtocol.Message;
 
 
 public class ClientMasterControl extends Thread {
-	private static final Log LOG = LogFactory.getLog(ClientMasterControl.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ClientMasterControl.class);
 
 	private InetSocketAddress applicationMasterAddress;
 

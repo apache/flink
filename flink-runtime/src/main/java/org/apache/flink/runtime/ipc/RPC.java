@@ -38,8 +38,8 @@ import java.util.Map;
 
 import javax.net.SocketFactory;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.io.StringRecord;
 import org.apache.flink.core.memory.DataInputView;
@@ -64,7 +64,7 @@ import org.apache.flink.util.ClassUtils;
  */
 public class RPC {
 
-	private static final Log LOG = LogFactory.getLog(RPC.class);
+	private static final Logger LOG = LoggerFactory.getLogger(RPC.class);
 
 	private RPC() {
 	} // no public ctor

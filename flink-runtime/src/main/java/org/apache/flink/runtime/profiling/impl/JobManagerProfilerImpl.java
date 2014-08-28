@@ -28,8 +28,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.ipc.RPC;
@@ -54,7 +54,7 @@ import org.apache.flink.util.StringUtils;
 
 public class JobManagerProfilerImpl implements JobManagerProfiler, ProfilerImplProtocol {
 
-	private static final Log LOG = LogFactory.getLog(JobManagerProfilerImpl.class);
+	private static final Logger LOG = LoggerFactory.getLogger(JobManagerProfilerImpl.class);
 
 	private static final String RPC_NUM_HANDLER_KEY = "jobmanager.profiling.rpc.numhandler";
 

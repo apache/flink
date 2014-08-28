@@ -24,8 +24,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.aggregators.AggregatorWithName;
 import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
@@ -51,7 +51,7 @@ import com.google.common.base.Preconditions;
  */
 public class IterationSynchronizationSinkTask extends AbstractInvokable implements Terminable {
 
-	private static final Log log = LogFactory.getLog(IterationSynchronizationSinkTask.class);
+	private static final Logger log = LoggerFactory.getLogger(IterationSynchronizationSinkTask.class);
 
 	private MutableRecordReader<IntegerRecord> headEventReader;
 	

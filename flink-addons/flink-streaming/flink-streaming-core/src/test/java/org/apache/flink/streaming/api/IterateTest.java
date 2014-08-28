@@ -26,7 +26,6 @@ import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.LogUtils;
 import org.junit.Test;
 
 public class IterateTest {
@@ -74,8 +73,6 @@ public class IterateTest {
 
 	@Test
 	public void test() throws Exception {
-		LogUtils.initializeDefaultTestConsoleLogger();
-
 		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 
 		env.setBufferTimeout(10);

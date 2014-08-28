@@ -24,8 +24,8 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.java.record.operators.FileDataSink;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.types.Record;
@@ -70,7 +70,7 @@ public class CsvOutputFormat extends FileOutputFormat {
 	public static final String LENIENT_PARSING = "output.record.lenient";
 
 	@SuppressWarnings("unused")
-	private static final Log LOG = LogFactory.getLog(CsvOutputFormat.class);
+	private static final Logger LOG = LoggerFactory.getLogger(CsvOutputFormat.class);
 
 	// --------------------------------------------------------------------------------------------
 

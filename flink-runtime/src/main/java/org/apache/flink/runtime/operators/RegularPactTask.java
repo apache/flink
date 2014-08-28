@@ -19,8 +19,8 @@
 
 package org.apache.flink.runtime.operators;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.distributions.DataDistribution;
@@ -80,7 +80,7 @@ import java.util.Map;
  */
 public class RegularPactTask<S extends Function, OT> extends AbstractInvokable implements PactTaskContext<S, OT> {
 
-	protected static final Log LOG = LogFactory.getLog(RegularPactTask.class);
+	protected static final Logger LOG = LoggerFactory.getLogger(RegularPactTask.class);
 
 	// --------------------------------------------------------------------------------------------
 

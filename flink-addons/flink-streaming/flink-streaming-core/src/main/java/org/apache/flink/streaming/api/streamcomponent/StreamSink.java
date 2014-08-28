@@ -17,13 +17,13 @@
 
 package org.apache.flink.streaming.api.streamcomponent;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.flink.streaming.api.invokable.StreamOperatorInvokable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class StreamSink<IN> extends AbstractStreamComponent {
 
-	private static final Log LOG = LogFactory.getLog(StreamSink.class);
+	private static final Logger LOG = LoggerFactory.getLogger(StreamSink.class);
 
 	private InputHandler<IN> inputHandler;
 	

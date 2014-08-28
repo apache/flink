@@ -24,8 +24,8 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.io.GenericInputSplit;
@@ -52,7 +52,7 @@ public final class InputSplitManager {
 	/**
 	 * The logging object which is used to report information and errors.
 	 */
-	private static final Log LOG = LogFactory.getLog(InputSplitManager.class);
+	private static final Logger LOG = LoggerFactory.getLogger(InputSplitManager.class);
 
 	/**
 	 * The prefix of the configuration key which is used to retrieve the class names of the individual
