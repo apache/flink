@@ -1,5 +1,4 @@
 /**
- *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -14,12 +13,12 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package org.apache.flink.streaming.state;
 
 import java.io.Serializable;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -29,7 +28,7 @@ import java.util.Map;
 @SuppressWarnings("serial")
 public class TableState<K, V> implements Serializable {
 
-	protected Map<K, V> state=new LinkedHashMap<K, V>();
+	protected Map<K, V> state = new LinkedHashMap<K, V>();
 
 	public void put(K key, V value) {
 		state.put(key, value);
@@ -50,8 +49,12 @@ public class TableState<K, V> implements Serializable {
 	public TableStateIterator<K, V> getIterator() {
 		return new TableStateIterator<K, V>(state.entrySet().iterator());
 	}
-	
-	public void clear(){
+
+	public Collection<V> values() {
+		return state.values();
+	}
+
+	public void clear() {
 		state.clear();
 	}
 }

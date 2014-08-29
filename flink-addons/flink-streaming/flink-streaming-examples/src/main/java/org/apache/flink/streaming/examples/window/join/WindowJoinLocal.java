@@ -1,5 +1,4 @@
 /**
- *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -14,17 +13,13 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package org.apache.flink.streaming.examples.window.join;
 
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.util.LogUtils;
-import org.apache.log4j.Level;
 
 public class WindowJoinLocal {
 
@@ -36,20 +31,20 @@ public class WindowJoinLocal {
 
 	public static void main(String[] args) {
 
-		LogUtils.initializeDefaultConsoleLogger(Level.DEBUG, Level.INFO);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(
+				PARALLELISM).setBufferTimeout(100);
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment
-				.createLocalEnvironment(PARALLELISM);
+		DataStream<Tuple3<String, Integer, Long>> grades = env.addSource(new GradeSource(),
+				SOURCE_PARALLELISM);
 
-		DataStream<Tuple4<String, String, Integer, Long>> dataStream1 = env.addSource(
-				new WindowJoinSourceOne(), SOURCE_PARALLELISM);
+		DataStream<Tuple3<String, Integer, Long>> salaries = env.addSource(new SalarySource(),
+				SOURCE_PARALLELISM);
 
-		@SuppressWarnings("unchecked")
-		DataStream<Tuple3<String, Integer, Integer>> dataStream2 = env
-				.addSource(new WindowJoinSourceTwo(), SOURCE_PARALLELISM).merge(dataStream1)
-				.partitionBy(1).flatMap(new WindowJoinTask());
+		DataStream<Tuple3<String, Integer, Integer>> joinedStream = grades.connect(salaries)
+				.flatMap(new WindowJoinTask());
 
-		dataStream2.print();
+		System.out.println("(NAME, GRADE, SALARY)");
+		joinedStream.print();
 
 		env.execute();
 

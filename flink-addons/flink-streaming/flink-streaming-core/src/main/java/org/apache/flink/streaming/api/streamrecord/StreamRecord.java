@@ -1,5 +1,4 @@
 /**
- *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -14,7 +13,6 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package org.apache.flink.streaming.api.streamrecord;
@@ -35,7 +33,7 @@ public class StreamRecord<T> implements Serializable {
 	public boolean isTuple;
 
 	/**
-	 * Creates an empty StreamRecord and initializes an empty ID
+	 * Creates an empty StreamRecord
 	 */
 	public StreamRecord() {
 		uid = new UID();
@@ -55,9 +53,19 @@ public class StreamRecord<T> implements Serializable {
 	 *            ID of the emitting task
 	 * @return The StreamRecord object
 	 */
-	public StreamRecord<T> setId(int channelID) {
+	public StreamRecord<T> newId(int channelID) {
 		uid = new UID(channelID);
 		return this;
+	}
+
+	/**
+	 * Sets the ID of the StreamRecord
+	 * 
+	 * @param id
+	 *            id to set
+	 */
+	public void setId(UID id) {
+		this.uid = id;
 	}
 
 	/**

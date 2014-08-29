@@ -1,5 +1,4 @@
 /**
- *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -14,14 +13,13 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package org.apache.flink.streaming.api.collector;
 
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -41,7 +39,7 @@ public class DirectedStreamCollector<OUT> extends StreamCollector<OUT> {
 
 	OutputSelector<OUT> outputSelector;
 	private static final Log LOG = LogFactory.getLog(DirectedStreamCollector.class);
-	private List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> emitted;
+	private Set<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> emitted;
 
 	/**
 	 * Creates a new DirectedStreamCollector
@@ -58,7 +56,7 @@ public class DirectedStreamCollector<OUT> extends StreamCollector<OUT> {
 			OutputSelector<OUT> outputSelector) {
 		super(channelID, serializationDelegate);
 		this.outputSelector = outputSelector;
-		this.emitted = new ArrayList<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>>();
+		this.emitted = new HashSet<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>>();
 
 	}
 
@@ -84,7 +82,7 @@ public class DirectedStreamCollector<OUT> extends StreamCollector<OUT> {
 	 */
 	private void emit(StreamRecord<OUT> streamRecord) {
 		Collection<String> outputNames = outputSelector.getOutputs(streamRecord.getObject());
-		streamRecord.setId(channelID);
+		streamRecord.newId(channelID);
 		serializationDelegate.setInstance(streamRecord);
 		emitted.clear();
 		for (String outputName : outputNames) {

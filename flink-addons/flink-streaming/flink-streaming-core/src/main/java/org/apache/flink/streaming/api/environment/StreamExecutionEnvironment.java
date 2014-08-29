@@ -1,5 +1,4 @@
 /**
- *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -14,18 +13,17 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package org.apache.flink.streaming.api.environment;
 
+import java.io.File;
 import java.io.Serializable;
 import java.util.Collection;
 
 import org.apache.commons.lang3.SerializationException;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.api.JobGraphBuilder;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
@@ -104,11 +102,12 @@ public abstract class StreamExecutionEnvironment {
 	 * @param degreeOfParallelism
 	 *            The degree of parallelism
 	 */
-	protected void setDegreeOfParallelism(int degreeOfParallelism) {
+	protected StreamExecutionEnvironment setDegreeOfParallelism(int degreeOfParallelism) {
 		if (degreeOfParallelism < 1) {
 			throw new IllegalArgumentException("Degree of parallelism must be at least one.");
 		}
 		this.degreeOfParallelism = degreeOfParallelism;
+		return this;
 	}
 
 	/**
@@ -118,8 +117,13 @@ public abstract class StreamExecutionEnvironment {
 	 * @param timeoutMillis
 	 *            The maximum time between two output flushes.
 	 */
-	public void setBufferTimeout(long timeoutMillis) {
+	public StreamExecutionEnvironment setBufferTimeout(long timeoutMillis) {
+		if (timeoutMillis < 0) {
+			throw new IllegalArgumentException("Timeout of buffer must be non-negative");
+		}
+
 		this.buffertimeout = timeoutMillis;
+		return this;
 	}
 
 	public long getBufferTimeout() {
@@ -156,10 +160,12 @@ public abstract class StreamExecutionEnvironment {
 	 * @return The DataStream representing the text file.
 	 */
 	public DataStreamSource<String> readTextFile(String filePath) {
+		checkIfFileExists(filePath);
 		return addSource(new FileSourceFunction(filePath), 1);
 	}
 
 	public DataStreamSource<String> readTextFile(String filePath, int parallelism) {
+		checkIfFileExists(filePath);
 		return addSource(new FileSourceFunction(filePath), parallelism);
 	}
 
@@ -174,13 +180,31 @@ public abstract class StreamExecutionEnvironment {
 	 * @return The DataStream representing the text file.
 	 */
 	public DataStreamSource<String> readTextStream(String filePath) {
+		checkIfFileExists(filePath);
 		return addSource(new FileStreamFunction(filePath), 1);
 	}
 
 	public DataStreamSource<String> readTextStream(String filePath, int parallelism) {
+		checkIfFileExists(filePath);
 		return addSource(new FileStreamFunction(filePath), parallelism);
 	}
 
+
+	private static void checkIfFileExists(String filePath) {
+		File file = new File(filePath);
+		if (!file.exists()) {
+			throw new IllegalArgumentException("File not found: " + filePath);
+		}
+
+		if (!file.canRead()) {
+			throw new IllegalArgumentException("Cannot read file: " + filePath);
+		}
+		
+		if (file.isDirectory()) {
+			throw new IllegalArgumentException("Given path is a directory: " + filePath);
+		}
+	}
+	
 	/**
 	 * Creates a new DataStream that contains the given elements. The elements
 	 * must all be of the same type, for example, all of the String or Integer.
@@ -197,10 +221,15 @@ public abstract class StreamExecutionEnvironment {
 	public <OUT extends Serializable> DataStreamSource<OUT> fromElements(OUT... data) {
 		DataStreamSource<OUT> returnStream = new DataStreamSource<OUT>(this, "elements");
 
+		if (data.length == 0) {
+			throw new IllegalArgumentException(
+					"fromElements needs at least one element as argument");
+		}
+
 		try {
 			SourceFunction<OUT> function = new FromElementsFunction<OUT>(data);
 			jobGraphBuilder.addSource(returnStream.getId(), new SourceInvokable<OUT>(function),
-					new ObjectTypeWrapper<OUT, Tuple, OUT>(data[0], null, data[0]), "source",
+					new ObjectTypeWrapper<OUT>(data[0]), "source",
 					SerializationUtils.serialize(function), 1);
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize elements");
@@ -223,17 +252,20 @@ public abstract class StreamExecutionEnvironment {
 	public <OUT extends Serializable> DataStreamSource<OUT> fromCollection(Collection<OUT> data) {
 		DataStreamSource<OUT> returnStream = new DataStreamSource<OUT>(this, "elements");
 
+		if (data == null) {
+			throw new NullPointerException("Collection must not be null");
+		}
+
 		if (data.isEmpty()) {
-			throw new RuntimeException("Collection must not be empty");
+			throw new IllegalArgumentException("Collection must not be empty");
 		}
 
 		try {
 			SourceFunction<OUT> function = new FromElementsFunction<OUT>(data);
 
 			jobGraphBuilder.addSource(returnStream.getId(), new SourceInvokable<OUT>(
-					new FromElementsFunction<OUT>(data)), new ObjectTypeWrapper<OUT, Tuple, OUT>(
-					data.iterator().next(), null, data.iterator().next()), "source",
-					SerializationUtils.serialize(function), 1);
+					new FromElementsFunction<OUT>(data)), new ObjectTypeWrapper<OUT>(data
+					.iterator().next()), "source", SerializationUtils.serialize(function), 1);
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize collection");
 		}
@@ -251,6 +283,9 @@ public abstract class StreamExecutionEnvironment {
 	 * @return A DataStrean, containing all number in the [from, to] interval.
 	 */
 	public DataStreamSource<Long> generateSequence(long from, long to) {
+		if (from > to) {
+			throw new IllegalArgumentException("Start of sequence must not be greater than the end");
+		}
 		return addSource(new GenSequenceFunction(from, to), 1);
 	}
 
@@ -270,8 +305,8 @@ public abstract class StreamExecutionEnvironment {
 
 		try {
 			jobGraphBuilder.addSource(returnStream.getId(), new SourceInvokable<OUT>(function),
-					new FunctionTypeWrapper<OUT, Tuple, OUT>(function, SourceFunction.class, 0, -1,
-							0), "source", SerializationUtils.serialize(function), parallelism);
+					new FunctionTypeWrapper<OUT>(function, SourceFunction.class, 0), "source",
+					SerializationUtils.serialize(function), parallelism);
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize SourceFunction");
 		}

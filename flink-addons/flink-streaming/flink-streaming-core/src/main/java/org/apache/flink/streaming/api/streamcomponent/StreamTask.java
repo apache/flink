@@ -1,5 +1,4 @@
 /**
- *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -14,22 +13,23 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package org.apache.flink.streaming.api.streamcomponent;
 
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.streaming.api.invokable.StreamRecordInvokable;
+import org.apache.flink.streaming.api.invokable.StreamOperatorInvokable;
 
-public class StreamTask<IN extends Tuple, OUT extends Tuple> extends
-		SingleInputAbstractStreamComponent<IN, OUT> {
+public class StreamTask<IN extends Tuple, OUT extends Tuple> extends AbstractStreamComponent {
 
-	private StreamRecordInvokable<IN, OUT> userInvokable;
+	private InputHandler<IN> inputHandler;
+	private OutputHandler<OUT> outputHandler;
+
+	private StreamOperatorInvokable<IN, OUT> userInvokable;
+	
 	private static int numTasks;
 
 	public StreamTask() {
-		outputHandler = new OutputHandler();
 		userInvokable = null;
 		numTasks = newComponent();
 		instanceID = numTasks;
@@ -37,17 +37,15 @@ public class StreamTask<IN extends Tuple, OUT extends Tuple> extends
 
 	@Override
 	public void setInputsOutputs() {
-		setConfigInputs();
-		outputHandler.setConfigOutputs();
-
-		inputIter = createInputIterator(inputs, inputSerializer);
+		inputHandler = new InputHandler<IN>(this);
+		outputHandler = new OutputHandler<OUT>(this);
 	}
 
 	@Override
 	protected void setInvokable() {
-		userInvokable = getInvokable();
-		userInvokable.initialize(collector, inputIter, inputSerializer,
-				isMutable);
+		userInvokable = configuration.getUserInvokable();
+		userInvokable.initialize(outputHandler.getCollector(), inputHandler.getInputIter(),
+				inputHandler.getInputSerializer(), isMutable);
 	}
 
 	@Override

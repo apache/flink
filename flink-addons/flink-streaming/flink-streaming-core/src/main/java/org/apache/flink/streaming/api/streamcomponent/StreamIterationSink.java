@@ -1,5 +1,4 @@
 /**
- *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -14,7 +13,6 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package org.apache.flink.streaming.api.streamcomponent;
@@ -26,13 +24,16 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
+import org.apache.flink.streaming.io.BlockingQueueBroker;
 import org.apache.flink.util.StringUtils;
 
 public class StreamIterationSink<IN extends Tuple> extends
-		SingleInputAbstractStreamComponent<IN, IN> {
+		AbstractStreamComponent {
 
 	private static final Log LOG = LogFactory.getLog(StreamIterationSink.class);
 
+	private InputHandler<IN> inputHandler;
+	
 	private String iterationId;
 	@SuppressWarnings("rawtypes")
 	private BlockingQueue<StreamRecord> dataChannel;
@@ -45,16 +46,12 @@ public class StreamIterationSink<IN extends Tuple> extends
 	@Override
 	public void setInputsOutputs() {
 		try {
-			setConfigInputs();
-			setSinkSerializer();
-
-			inputIter = createInputIterator(inputs, inputSerializer);
+			inputHandler = new InputHandler<IN>(this);
 
 			iterationId = configuration.getIterationId();
 			iterationWaitTime = configuration.getIterationWaitTime();
 			shouldWait = iterationWaitTime > 0;
 			dataChannel = BlockingQueueBroker.instance().get(iterationId);
-
 		} catch (Exception e) {
 			throw new StreamComponentException(String.format(
 					"Cannot register inputs of StreamIterationSink %s", iterationId), e);
@@ -64,24 +61,24 @@ public class StreamIterationSink<IN extends Tuple> extends
 	@Override
 	public void invoke() throws Exception {
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("SINK " + name + " invoked");
+			LOG.debug("SINK " + getName() + " invoked");
 		}
 
 		forwardRecords();
 
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("SINK " + name + " invoke finished");
+			LOG.debug("SINK " + getName() + " invoke finished");
 		}
 	}
 
 	protected void forwardRecords() throws Exception {
-		StreamRecord<IN> reuse = inputSerializer.createInstance();
-		while ((reuse = inputIter.next(reuse)) != null) {
+		StreamRecord<IN> reuse = inputHandler.getInputSerializer().createInstance();
+		while ((reuse = inputHandler.getInputIter().next(reuse)) != null) {
 			if (!pushToQueue(reuse)) {
 				break;
 			}
 			// TODO: Fix object reuse for iteration
-			reuse = inputSerializer.createInstance();
+			reuse = inputHandler.getInputSerializer().createInstance();
 		}
 	}
 

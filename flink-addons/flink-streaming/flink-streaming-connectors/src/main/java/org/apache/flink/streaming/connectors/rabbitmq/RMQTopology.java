@@ -1,5 +1,4 @@
 /**
- *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -14,17 +13,21 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package org.apache.flink.streaming.connectors.rabbitmq;
 
 import org.apache.commons.lang.SerializationUtils;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.function.sink.SinkFunction;
+import org.apache.flink.streaming.connectors.kafka.KafkaTopology;
 
 public class RMQTopology {
-
+	private static final Log LOG = LogFactory.getLog(KafkaTopology.class);
+	
 	public static final class MyRMQSink extends RMQSink<String> {
 		public MyRMQSink(String HOST_NAME, String QUEUE_NAME) {
 			super(HOST_NAME, QUEUE_NAME);
@@ -42,6 +45,17 @@ public class RMQTopology {
 
 	}
 
+	public static final class MyRMQPrintSink implements SinkFunction<String> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public void invoke(String value) {
+			LOG.info("String: <" + value + "> arrived from RMQ");
+			
+		}
+		
+	}
+	
 	public static final class MyRMQSource extends RMQSource<String> {
 
 		public MyRMQSource(String HOST_NAME, String QUEUE_NAME) {
@@ -68,7 +82,7 @@ public class RMQTopology {
 		@SuppressWarnings("unused")
 		DataStream<String> dataStream1 = env
 			.addSource(new MyRMQSource("localhost", "hello"))
-			.print();
+			.addSink(new MyRMQPrintSink());
 
 		@SuppressWarnings("unused")
 		DataStream<String> dataStream2 = env

@@ -1,5 +1,4 @@
 /**
- *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -14,7 +13,6 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package org.apache.flink.streaming.util.serialization;
@@ -23,18 +21,14 @@ import java.io.IOException;
 
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 
-public class ObjectTypeWrapper<IN1, IN2, OUT> extends
-		TypeSerializerWrapper<IN1, IN2, OUT> {
+public class ObjectTypeWrapper<T> extends
+		TypeSerializerWrapper<T> {
 	private static final long serialVersionUID = 1L;
 
-	private IN1 inInstance1;
-	private IN2 inInstance2;
-	private OUT outInstance;
+	private T instance;
 
-	public ObjectTypeWrapper(IN1 inInstance1, IN2 inInstance2, OUT outInstance) {
-		this.inInstance1 = inInstance1;
-		this.inInstance2 = inInstance2;
-		this.outInstance = outInstance;
+	public ObjectTypeWrapper(T instance) {
+		this.instance = instance;
 		setTypeInfo();
 	}
 
@@ -46,14 +40,8 @@ public class ObjectTypeWrapper<IN1, IN2, OUT> extends
 
 	@Override
 	protected void setTypeInfo() {
-		if (inInstance1 != null) {
-			inTypeInfo1 = TypeExtractor.getForObject(inInstance1);
-		}
-		if (inInstance2 != null) {
-			inTypeInfo2 = TypeExtractor.getForObject(inInstance2);
-		}
-		if (outInstance != null) {
-			outTypeInfo = TypeExtractor.getForObject(outInstance);
+		if (instance != null) {
+			typeInfo = TypeExtractor.getForObject(instance);
 		}
 	}
 }

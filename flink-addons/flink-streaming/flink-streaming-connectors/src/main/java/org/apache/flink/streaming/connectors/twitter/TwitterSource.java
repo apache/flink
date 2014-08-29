@@ -1,5 +1,4 @@
 /**
- *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -14,7 +13,6 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package org.apache.flink.streaming.connectors.twitter;
@@ -29,6 +27,8 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.function.source.RichSourceFunction;
 import org.apache.flink.streaming.api.function.source.SourceFunction;
 import org.apache.flink.util.Collector;
 
@@ -44,7 +44,7 @@ import com.twitter.hbc.httpclient.auth.OAuth1;
  * Implementation of {@link SourceFunction} specialized to emit tweets from Twitter.
  * It can connect to Twitter Streaming API, collect tweets and 
  */
-public class TwitterSource implements SourceFunction<String> {
+public class TwitterSource extends RichSourceFunction<String> {
 
 	private static final Log LOG = LogFactory.getLog(TwitterSource.class);
 
@@ -82,21 +82,23 @@ public class TwitterSource implements SourceFunction<String> {
 		this.numberOfTweets = numberOfTweets;
 	}
 
-	/**
-	 * 
-	 */
+	@Override
+	public void open(Configuration parameters) throws Exception {
+		initializeConnection();
+	}
+	
 	@Override
 	public void invoke(Collector<String> collector) throws Exception {
-
-		initializeConnection();
-
 		
 		if (streaming) {
 			collectMessages(collector);
 		} else {
-			collectMessages(collector, numberOfTweets);
+			collectFiniteMessages(collector);
 		}
-
+	}
+	
+	@Override
+	public void close() throws Exception {
 		closeConnection();
 	}
 
@@ -145,7 +147,7 @@ public class TwitterSource implements SourceFunction<String> {
 			properties.load(input);
 			input.close();
 		} catch (IOException ioe) {
-			throw new RuntimeException("Cannot open .properties file: " + authPath,
+			new RuntimeException("Cannot open .properties file: " + authPath,
 					ioe);
 		}
 		return properties;
@@ -165,15 +167,15 @@ public class TwitterSource implements SourceFunction<String> {
 	/**
 	 * Put tweets into collector
 	 * @param collector
-	 * @param piece
+	 * Collector in which the tweets are collected.
 	 */
-	protected void collectMessages(Collector<String> collector, int piece) {
+	protected void collectFiniteMessages(Collector<String> collector) {
 
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Collecting tweets");
 		}
 
-		for (int i = 0; i < piece; i++) {
+		for (int i = 0; i < numberOfTweets; i++) {
 			collectOneMessage(collector);
 		}
 
@@ -185,7 +187,7 @@ public class TwitterSource implements SourceFunction<String> {
 	/**
 	 * Put tweets into collector
 	 * @param collector
-	 * 
+	 * Collector in which the tweets are collected.
 	 */
 	protected void collectMessages(Collector<String> collector) {
 
@@ -201,6 +203,7 @@ public class TwitterSource implements SourceFunction<String> {
 	/**
 	 * Put one tweet into the collector.
 	 * @param collector
+	 * Collector in which the tweets are collected.
 	 */
 	protected void collectOneMessage(Collector<String> collector) {
 		if (client.isDone()) {
@@ -221,7 +224,7 @@ public class TwitterSource implements SourceFunction<String> {
 				}
 			}
 		} catch (InterruptedException e) {
-			throw new RuntimeException("'Waiting for tweet' thread is interrupted", e);
+			new RuntimeException("'Waiting for tweet' thread is interrupted", e);
 		}
 
 	}
@@ -237,5 +240,40 @@ public class TwitterSource implements SourceFunction<String> {
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Connection closed successfully");
 		}
+	}
+
+	/**
+	 * Get the size of the queue in which the tweets are contained temporarily. 
+	 * @return
+	 */
+	public int getQueueSize() {
+		return queueSize;
+	}
+
+	/**
+	 * Set the size of the queue in which the tweets are contained temporarily. 
+	 * @param queueSize
+	 * The desired value.
+	 */
+	public void setQueueSize(int queueSize) {
+		this.queueSize = queueSize;
+	}
+	
+	/**
+	 * This function tells how long TwitterSource waits for the tweets.
+	 * @return
+	 * Number of second.
+	 */
+	public int getWaitSec() {
+		return waitSec;
+	}
+
+	/**
+	 * This function sets how long TwitterSource should wait for the tweets.
+	 * @param waitSec
+	 * The desired value.
+	 */
+	public void setWaitSec(int waitSec) {
+		this.waitSec = waitSec;
 	}
 }
