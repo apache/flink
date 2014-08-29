@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.operators.udf;
 
-import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.FutureTask;
 
@@ -34,7 +34,7 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.core.fs.Path;
 
 /**
- *
+ * Implementation of the {@link RuntimeContext}, created by runtime UDF operators.
  */
 public class RuntimeUDFContext implements RuntimeContext {
 
@@ -48,7 +48,7 @@ public class RuntimeUDFContext implements RuntimeContext {
 
 	private HashMap<String, Accumulator<?, ?>> accumulators = new HashMap<String, Accumulator<?, ?>>();
 
-	private HashMap<String, Collection<?>> broadcastVars = new HashMap<String, Collection<?>>();
+	private HashMap<String, List<?>> broadcastVars = new HashMap<String, List<?>>();
 
 	public RuntimeUDFContext(String name, int numParallelSubtasks, int subtaskIndex) {
 		this.name = name;
@@ -139,19 +139,19 @@ public class RuntimeUDFContext implements RuntimeContext {
 		return this.accumulators;
 	}
 
-	public void setBroadcastVariable(String name, Collection<?> value) {
+	public void setBroadcastVariable(String name, List<?> value) {
 		this.broadcastVars.put(name, value);
 	}
 
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public <RT> Collection<RT> getBroadcastVariable(String name) {
+	public <RT> List<RT> getBroadcastVariable(String name) {
 		if (!this.broadcastVars.containsKey(name)) {
 			throw new IllegalArgumentException("Trying to access an unbound broadcast variable '" 
 					+ name + "'.");
 		}
-		return (Collection<RT>) this.broadcastVars.get(name);
+		return (List<RT>) this.broadcastVars.get(name);
 	}
 
 	@Override

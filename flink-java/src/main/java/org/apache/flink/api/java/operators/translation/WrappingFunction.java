@@ -19,8 +19,8 @@
 package org.apache.flink.api.java.operators.translation;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.DoubleCounter;
@@ -137,15 +137,9 @@ public abstract class WrappingFunction<T extends Function> extends AbstractRichF
 		}
 
 		@Override
-		public <RT> Collection<RT> getBroadcastVariable(String name) {
-			Collection<RT> refColl = context.getBroadcastVariable(name);
-			
-			ArrayList<RT> list = new ArrayList<RT>(refColl.size());
-			for (RT e : refColl) {
-				list.add(e);
-			}
-			
-			return list;
+		public <RT> List<RT> getBroadcastVariable(String name) {
+			List<RT> refColl = context.getBroadcastVariable(name);
+			return new ArrayList<RT>(refColl);
 		}
 
 		@Override
