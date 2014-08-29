@@ -80,7 +80,18 @@ public class WindowReduceInvokableTest {
 		windowSize = 10;
 		slideSize = 5;
 		timestamps = Arrays.asList(101L, 103L, 121L, 122L, 123L, 124L, 180L, 181L, 185L, 190L);
-		expectedResults.add(Arrays.asList("1", "2", EOW, EOW, EOW, EOW, "3", "4", "5", "6", EOW, EOW, EOW, EOW, EOW, EOW, EOW, EOW, EOW, EOW, EOW, EOW, "7", "8", "9", EOW, "9", "10", EOW));
+		expectedResults.add(Arrays.asList("1", "2", EOW, EOW, EOW, "3", "4", "5", "6", EOW, "3",
+				"4", "5", "6", EOW, EOW, EOW, EOW, EOW, EOW, EOW, EOW, EOW, EOW, EOW, "7", "8",
+				EOW, "7", "8", "9", EOW, "9", "10", EOW));
+		invokables.add(new WindowReduceInvokable<Integer, String>(new MySlidingWindowReduce(),
+				windowSize, slideSize, new MyTimestamp(timestamps)));
+
+		windowSize = 10;
+		slideSize = 4;
+		timestamps = Arrays.asList(101L, 103L, 110L, 112L, 113L, 114L, 120L, 121L, 125L, 130L);
+		expectedResults.add(Arrays.asList("1", "2", EOW, "3", "4", "5", EOW, "3", "4", "5", "6",
+				EOW, "4", "5", "6", "7", "8", EOW, "7", "8", "9", EOW, "7", "8", "9", EOW, "9",
+				"10", EOW));
 		invokables.add(new WindowReduceInvokable<Integer, String>(new MySlidingWindowReduce(),
 				windowSize, slideSize, new MyTimestamp(timestamps)));
 	}
@@ -88,13 +99,18 @@ public class WindowReduceInvokableTest {
 	@Test
 	public void slidingBatchReduceTest() {
 		List<List<String>> actualResults = new ArrayList<List<String>>();
-		
+
 		for (WindowReduceInvokable<Integer, String> invokable : invokables) {
-			actualResults.add(MockInvokable.createAndExecute(invokable,
-					Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)));
+			List<String> result = MockInvokable.createAndExecute(invokable,
+					Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
+			actualResults.add(result);
 		}
 
-		assertEquals(expectedResults, actualResults);
+		Iterator<List<String>> actualResult = actualResults.iterator();
+
+		for (List<String> expectedResult : expectedResults) {
+			assertEquals(expectedResult, actualResult.next());
+		}
 	}
 
 }

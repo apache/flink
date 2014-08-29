@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.api.invokable.operator;
 
 import java.io.IOException;
-import java.util.ArrayList;
 
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.configuration.Configuration;
@@ -38,55 +37,20 @@ public class WindowReduceInvokable<IN, OUT> extends BatchReduceInvokable<IN, OUT
 	}
 
 	@Override
-	protected void immutableInvoke() throws Exception {
-		if ((reuse = recordIterator.next(reuse)) == null) {
-			throw new RuntimeException("DataStream must not be empty");
-		}
-
-		nextRecordTime = timestamp.getTimestamp(reuse.getObject()); // **
-		startTime = nextRecordTime - (nextRecordTime % granularity); // **
-
-		while (reuse != null && !state.isFull()) {
-			collectOneUnit();
-		}
-		reduce();
-
-		while (reuse != null) {
-			for (int i = 0; i < slideSize / granularity; i++) {
-				if (reuse != null) {
-					collectOneUnit();
-				}
-			}
-			reduce();
-		}
+	protected void initializeAtFirstRecord() {
+		startTime = nextRecordTime - (nextRecordTime % granularity);
 	}
 
-	@Override
-	protected void collectOneUnit() throws IOException {
-		ArrayList<StreamRecord<IN>> list;
-		if (nextRecordTime > startTime + granularity - 1) {
-			list = new ArrayList<StreamRecord<IN>>();
-			startTime += granularity;
-		} else {
-			list = new ArrayList<StreamRecord<IN>>(listSize);
-
-			list.add(reuse);
-			resetReuse();
-
-			while ((reuse = recordIterator.next(reuse)) != null && batchNotFull()) {
-				list.add(reuse);
-				resetReuse();
-			}
+	protected StreamRecord<IN> getNextRecord() throws IOException {
+		reuse = recordIterator.next(reuse);
+		if (reuse != null) {
+			nextRecordTime = timestamp.getTimestamp(reuse.getObject());
 		}
-		state.pushBack(list);
-//		System.out.println(list);
-//		System.out.println(startTime + " - " + (startTime + granularity - 1) + " ("
-//				+ nextRecordTime + ")");
+		return reuse;
 	}
-
+	
 	@Override
 	protected boolean batchNotFull() {
-		nextRecordTime = timestamp.getTimestamp(reuse.getObject());
 		if (nextRecordTime < startTime + granularity) {
 			return true;
 		} else {

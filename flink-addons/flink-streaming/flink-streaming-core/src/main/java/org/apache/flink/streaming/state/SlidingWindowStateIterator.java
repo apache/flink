@@ -19,6 +19,7 @@ package org.apache.flink.streaming.state;
 
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 
 import org.apache.commons.collections.buffer.CircularFifoBuffer;
 import org.apache.flink.streaming.api.invokable.operator.BatchIterator;
@@ -27,6 +28,8 @@ import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 public class SlidingWindowStateIterator<T> implements BatchIterator<T> {
 
 	private CircularFifoBuffer buffer;
+	// private StreamRecord<T> nextElement;
+
 	private Iterator<Collection<StreamRecord<T>>> iterator;
 	private Iterator<StreamRecord<T>> subIterator;
 	private Iterator<StreamRecord<T>> streamRecordIterator;
@@ -37,16 +40,29 @@ public class SlidingWindowStateIterator<T> implements BatchIterator<T> {
 	}
 
 	public boolean hasNext() {
+		while (iterator.hasNext() && !subIterator.hasNext()) {
+			subIterator = iterator.next().iterator();
+		}
+
 		return subIterator.hasNext();
 	}
 
 	public T next() {
-		T nextElement = subIterator.next().getObject();
-		if (!subIterator.hasNext()) {
-			if (iterator.hasNext()) {
-				subIterator = iterator.next().iterator();
+		T nextElement;
+
+		if (hasNext()) {
+			nextElement = subIterator.next().getObject();
+
+			if (!subIterator.hasNext()) {
+				if (iterator.hasNext()) {
+					subIterator = iterator.next().iterator();
+				}
 			}
+		} else {
+			throw new NoSuchElementException("There is no more element in the current batch");
 		}
+
+
 		return nextElement;
 	}
 

@@ -38,7 +38,7 @@ public class BatchReduceInvokable<IN, OUT> extends StreamOperatorInvokable<IN, O
 	protected long granularity;
 	protected int listSize;
 	protected transient SlidingWindowState<IN> state;
-	
+
 	private long batchSize;
 	private int counter = 0;
 
@@ -59,15 +59,17 @@ public class BatchReduceInvokable<IN, OUT> extends StreamOperatorInvokable<IN, O
 
 	@Override
 	protected void immutableInvoke() throws Exception {
-		if ((reuse = recordIterator.next(reuse)) == null) {
+		if (getNextRecord() == null) {
 			throw new RuntimeException("DataStream must not be empty");
 		}
-	
+
+		initializeAtFirstRecord();
+
 		while (reuse != null && !state.isFull()) {
 			collectOneUnit();
 		}
 		reduce();
-	
+
 		while (reuse != null) {
 			for (int i = 0; i < slideSize / granularity; i++) {
 				if (reuse != null) {
@@ -78,20 +80,35 @@ public class BatchReduceInvokable<IN, OUT> extends StreamOperatorInvokable<IN, O
 		}
 	}
 
+	protected void initializeAtFirstRecord() {
+		counter = 0;
+	}
+
 	protected void collectOneUnit() throws IOException {
 		ArrayList<StreamRecord<IN>> list;
-		list = new ArrayList<StreamRecord<IN>>(listSize);
-	
-		do {
-			list.add(reuse);
-			resetReuse();
-		} while ((reuse = recordIterator.next(reuse)) != null && batchNotFull());
+
+		if (!batchNotFull()) {
+			list = new ArrayList<StreamRecord<IN>>();
+		} else {
+			list = new ArrayList<StreamRecord<IN>>(listSize);
+
+			do {
+				list.add(reuse);
+				resetReuse();
+			} while (getNextRecord() != null && batchNotFull());
+		}
 		state.pushBack(list);
 	}
 
-	
+	protected StreamRecord<IN> getNextRecord() throws IOException {
+		reuse = recordIterator.next(reuse);
+		if (reuse != null) {
+			counter++;
+		}
+		return reuse;
+	}
+
 	protected boolean batchNotFull() {
-		counter++;
 		if (counter < granularity) {
 			return true;
 		} else {
@@ -104,12 +121,12 @@ public class BatchReduceInvokable<IN, OUT> extends StreamOperatorInvokable<IN, O
 		userIterator = state.getIterator();
 		callUserFunctionAndLogException();
 	}
-	
+
 	@Override
 	protected void callUserFunction() throws Exception {
 		reducer.reduce(userIterable, collector);
 	}
-	
+
 	@Override
 	public void open(Configuration parameters) throws Exception {
 		super.open(parameters);
@@ -125,6 +142,5 @@ public class BatchReduceInvokable<IN, OUT> extends StreamOperatorInvokable<IN, O
 		}
 
 	}
-
 
 }
