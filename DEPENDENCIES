@@ -96,8 +96,9 @@ under BSD-style licenses
 (BSD-style License)
  - Hamcrest (https://code.google.com/p/hamcrest/) - Copyright (c) 2000-2006, www.hamcrest.org
  
-(New BSD License)
+(3-clause BSD license)
  - Kryo (https://github.com/EsotericSoftware/kryo) - Copyright (c) 2008, Nathan Sweet
+ - D3 (http://d3js.org/) - Copyright (c) 2010-2014, Michael Bostock
  - LevelDB JNI (https://github.com/fusesource/leveldbjni/) - Copyright (c) 2011, FuseSource Corp.
  - Memcached (https://github.com/memcached/memcached) - Copyright (c) 2003, Danga Interactive, Inc.
  - Redis (http://redis.io/) - Copyright (c) 2009, Salvatore Sanfilippo and Pieter Noordhuis
@@ -107,9 +108,6 @@ under BSD-style licenses
  - Scala Compiler (BSD-like) - (http://www.scala-lang.org/) - Copyright (c) 2002-2014 EPFL, Copyright (c) 2011-2014 Typesafe, Inc.
  - Scala Compiler Reflect (BSD-like) - (http://www.scala-lang.org/) - Copyright (c) 2002-2014 EPFL, Copyright (c) 2011-2014 Typesafe, Inc.
  - ASM (BSD-like) - (http://asm.ow2.org/) - Copyright (c) 2000-2011 INRIA, France Telecom
-
-(3-clause BSD license)
- - D3 (http://d3js.org/) - Copyright (c) 2010-2014, Michael Bostock
 
 
 (Below is the 3-clause BSD license)
@@ -569,6 +567,33 @@ can be obtained at:
     * http://logging.apache.org/log4j/
 
 
+
+-----------------------------------------------------------------------
+                              Redis
+-----------------------------------------------------------------------
+
+Redis uses source code from third parties. All this code contians a BSD or
+BSD-compatible license. The following is a list of third party files and
+information about their copyright.
+
+  * Redis uses the LHF compression library. LibLZF is copyright
+    Marc Alexander Lehmann and is released under the terms of the
+    two clause BSD license.
+  * Redis uses the sha1.c file that is copyright by Steve Reid and released
+    under the public domain. This file is extremely popular and used among
+    open source and proprietary code.
+  * When compiled on Linux Redis uses the Jemalloc allocator, that is
+    copyright by Jason Evans, Mozilla Foundation and Facebook, Inc and is
+    released under the two clause BSD license.
+  * Inside Jemalloc the file pprof is copyright Google Inc and released under
+    the three clause BSD license.
+  * Inside Jemalloc the files inttypes.h, stdbool.h, stdint.h, strings.h under
+    the msvc_compat directory are copyright Alexander Chemeris and released under
+    the three clause BSD license.
+  * The libraries hiredis and linenoise also included inside the Redis
+    distribution are copyright Salvatore Sanfilippo and Pieter Noordhuis and
+    released under the terms respectively of the three clause BSD license and
+    two clause BSD license.
 
 -----------------------------------------------------------------------
                             Apache Derby
