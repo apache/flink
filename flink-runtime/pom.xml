@@ -220,30 +220,5 @@ under the License.
 				</dependency>
 			</dependencies>
 		</profile>
-
-		<profile>
-			<id>cdh4</id>
-			<!-- 
-
-			It seems http://www.cloudera.com/content/cloudera-content/cloudera-docs/CDH4/4.2.0/CDH4-Installation-Guide/cdh4ig_topic_31.html
-			that this particular CDH4 version has already separate packages for hdfs and common.
-
-			To activate the cdh4 profile, use the -Pcdh4 flag. (You probably want -Pcdh4,vendor-repos)
-			You also HAVE TO set the -Dhadoop.cdh4.hadoop.version property (for example to: 2.0.0-cdh4.2.0)
-
-			-->
-			<dependencies>
-				<dependency>
-					<groupId>org.apache.hadoop</groupId>
-					<artifactId>hadoop-hdfs</artifactId>
-					<version>${hadoop.cdh4.hadoop.version}</version>
-				</dependency>
-				<dependency>
-					<groupId>org.apache.hadoop</groupId>
-					<artifactId>hadoop-common</artifactId>
-					<version>${hadoop.cdh4.hadoop.version}</version>
-				</dependency>
-			</dependencies>
-		</profile>
 	</profiles>
 </project>

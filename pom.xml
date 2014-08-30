@@ -84,7 +84,7 @@ under the License.
 			<artifactId>commons-lang3</artifactId>
 			<version>3.1</version>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>commons-logging</groupId>
 			<artifactId>commons-logging</artifactId>
@@ -196,6 +196,11 @@ under the License.
 					<dependency>
 						<groupId>org.apache.hadoop</groupId>
 						<artifactId>hadoop-hdfs</artifactId>
+						<version>${hadoop.version}</version>
+					</dependency>
+					<dependency>
+						<groupId>org.apache.hadoop</groupId>
+						<artifactId>hadoop-client</artifactId>
 						<version>${hadoop.version}</version>
 					</dependency>
 				</dependencies>

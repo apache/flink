@@ -1,5 +1,4 @@
 /**
- *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -14,7 +13,6 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package org.apache.flink.streaming.api.datastream;
@@ -30,11 +28,12 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.functions.RichFilterFunction;
 import org.apache.flink.api.java.functions.RichFlatMapFunction;
 import org.apache.flink.api.java.functions.RichGroupReduceFunction;
 import org.apache.flink.api.java.functions.RichMapFunction;
-import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.functions.RichReduceFunction;
 import org.apache.flink.streaming.api.JobGraphBuilder;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.sink.PrintSinkFunction;
@@ -44,12 +43,15 @@ import org.apache.flink.streaming.api.function.sink.WriteFormatAsText;
 import org.apache.flink.streaming.api.function.sink.WriteSinkFunctionByBatches;
 import org.apache.flink.streaming.api.function.sink.WriteSinkFunctionByMillis;
 import org.apache.flink.streaming.api.invokable.SinkInvokable;
-import org.apache.flink.streaming.api.invokable.UserTaskInvokable;
+import org.apache.flink.streaming.api.invokable.StreamOperatorInvokable;
 import org.apache.flink.streaming.api.invokable.operator.BatchReduceInvokable;
 import org.apache.flink.streaming.api.invokable.operator.FilterInvokable;
 import org.apache.flink.streaming.api.invokable.operator.FlatMapInvokable;
 import org.apache.flink.streaming.api.invokable.operator.MapInvokable;
+import org.apache.flink.streaming.api.invokable.operator.StreamReduceInvokable;
 import org.apache.flink.streaming.api.invokable.operator.WindowReduceInvokable;
+import org.apache.flink.streaming.api.invokable.util.DefaultTimestamp;
+import org.apache.flink.streaming.api.invokable.util.Timestamp;
 import org.apache.flink.streaming.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.partitioner.DistributePartitioner;
 import org.apache.flink.streaming.partitioner.FieldsPartitioner;
@@ -98,7 +100,6 @@ public abstract class DataStream<OUT> {
 			throw new NullPointerException("context is null");
 		}
 
-		// TODO add name based on component number an preferable sequential id
 		counter++;
 		this.id = operatorType + "-" + counter.toString();
 		this.environment = environment;
@@ -253,8 +254,13 @@ public abstract class DataStream<OUT> {
 	 * @return The transformed {@link DataStream}.
 	 */
 	public <R> SingleOutputStreamOperator<R, ?> map(MapFunction<OUT, R> mapper) {
-		return addFunction("map", mapper, new FunctionTypeWrapper<OUT, Tuple, R>(mapper,
-				MapFunction.class, 0, -1, 1), new MapInvokable<OUT, R>(mapper));
+		FunctionTypeWrapper<OUT> inTypeWrapper = new FunctionTypeWrapper<OUT>(mapper,
+				MapFunction.class, 0);
+		FunctionTypeWrapper<R> outTypeWrapper = new FunctionTypeWrapper<R>(mapper,
+				MapFunction.class, 1);
+
+		return addFunction("map", mapper, inTypeWrapper, outTypeWrapper, new MapInvokable<OUT, R>(
+				mapper));
 	}
 
 	/**
@@ -274,13 +280,33 @@ public abstract class DataStream<OUT> {
 	 * @return The transformed {@link DataStream}.
 	 */
 	public <R> SingleOutputStreamOperator<R, ?> flatMap(FlatMapFunction<OUT, R> flatMapper) {
-		return addFunction("flatMap", flatMapper, new FunctionTypeWrapper<OUT, Tuple, R>(
-				flatMapper, FlatMapFunction.class, 0, -1, 1), new FlatMapInvokable<OUT, R>(
-				flatMapper));
+		FunctionTypeWrapper<OUT> inTypeWrapper = new FunctionTypeWrapper<OUT>(flatMapper,
+				FlatMapFunction.class, 0);
+		FunctionTypeWrapper<R> outTypeWrapper = new FunctionTypeWrapper<R>(flatMapper,
+				FlatMapFunction.class, 1);
+
+		return addFunction("flatMap", flatMapper, inTypeWrapper, outTypeWrapper,
+				new FlatMapInvokable<OUT, R>(flatMapper));
+	}
+
+	/**
+	 * Applies a reduce transformation on the data stream. The user can also
+	 * extend the {@link RichReduceFunction} to gain access to other features
+	 * provided by the {@link RichFuntion} interface.
+	 * 
+	 * @param reducer
+	 *            The {@link ReduceFunction} that will be called for every
+	 *            element of the input values.
+	 * @return The transformed DataStream.
+	 */
+	public SingleOutputStreamOperator<OUT, ?> reduce(ReduceFunction<OUT> reducer) {
+		return addFunction("reduce", reducer, new FunctionTypeWrapper<OUT>(reducer,
+				ReduceFunction.class, 0), new FunctionTypeWrapper<OUT>(reducer,
+				ReduceFunction.class, 0), new StreamReduceInvokable<OUT>(reducer));
 	}
 
 	public GroupedDataStream<OUT> groupBy(int keyPosition) {
-		return new GroupedDataStream<OUT>(this.partitionBy(keyPosition), keyPosition);
+		return new GroupedDataStream<OUT>(this, keyPosition);
 	}
 
 	/**
@@ -327,9 +353,20 @@ public abstract class DataStream<OUT> {
 	 */
 	public <R> SingleOutputStreamOperator<R, ?> batchReduce(GroupReduceFunction<OUT, R> reducer,
 			long batchSize, long slideSize) {
-		return addFunction("batchReduce", reducer, new FunctionTypeWrapper<OUT, Tuple, R>(reducer,
-				GroupReduceFunction.class, 0, -1, 1), new BatchReduceInvokable<OUT, R>(reducer,
-				batchSize, slideSize));
+		if (batchSize < 1) {
+			throw new IllegalArgumentException("Batch size must be positive");
+		}
+		if (slideSize < 1) {
+			throw new IllegalArgumentException("Slide size must be positive");
+		}
+
+		FunctionTypeWrapper<OUT> inTypeWrapper = new FunctionTypeWrapper<OUT>(reducer,
+				GroupReduceFunction.class, 0);
+		FunctionTypeWrapper<R> outTypeWrapper = new FunctionTypeWrapper<R>(reducer,
+				GroupReduceFunction.class, 1);
+
+		return addFunction("batchReduce", reducer, inTypeWrapper, outTypeWrapper,
+				new BatchReduceInvokable<OUT, R>(reducer, batchSize, slideSize));
 	}
 
 	/**
@@ -379,9 +416,49 @@ public abstract class DataStream<OUT> {
 	 */
 	public <R> SingleOutputStreamOperator<R, ?> windowReduce(GroupReduceFunction<OUT, R> reducer,
 			long windowSize, long slideInterval) {
-		return addFunction("batchReduce", reducer, new FunctionTypeWrapper<OUT, Tuple, R>(reducer,
-				GroupReduceFunction.class, 0, -1, 1), new WindowReduceInvokable<OUT, R>(reducer,
-				windowSize, slideInterval));
+		return windowReduce(reducer, windowSize, slideInterval, new DefaultTimestamp<OUT>());
+	}
+
+	/**
+	 * Applies a reduce transformation on preset "time" chunks of the
+	 * DataStream. The transformation calls a {@link GroupReduceFunction} on
+	 * records received during the predefined time window. The window is shifted
+	 * after each reduce call. Each GroupReduceFunction call can return any
+	 * number of elements including none. The time is determined by a
+	 * user-defined timestamp. The user can also extend
+	 * {@link RichGroupReduceFunction} to gain access to other features provided
+	 * by the {@link RichFuntion} interface.
+	 * 
+	 * 
+	 * @param reducer
+	 *            The GroupReduceFunction that is called for each time window.
+	 * @param windowSize
+	 *            SingleOutputStreamOperator The time window to run the reducer
+	 *            on, in milliseconds.
+	 * @param slideInterval
+	 *            The time interval, batch is slid by.
+	 * @param timestamp
+	 *            Timestamp function to retrieve a timestamp from an element.
+	 * @param <R>
+	 *            output type
+	 * @return The transformed DataStream.
+	 */
+	public <R> SingleOutputStreamOperator<R, ?> windowReduce(GroupReduceFunction<OUT, R> reducer,
+			long windowSize, long slideInterval, Timestamp<OUT> timestamp) {
+		if (windowSize < 1) {
+			throw new IllegalArgumentException("Window size must be positive");
+		}
+		if (slideInterval < 1) {
+			throw new IllegalArgumentException("Slide interval must be positive");
+		}
+
+		FunctionTypeWrapper<OUT> inTypeWrapper = new FunctionTypeWrapper<OUT>(reducer,
+				GroupReduceFunction.class, 0);
+		FunctionTypeWrapper<R> outTypeWrapper = new FunctionTypeWrapper<R>(reducer,
+				GroupReduceFunction.class, 1);
+
+		return addFunction("batchReduce", reducer, inTypeWrapper, outTypeWrapper,
+				new WindowReduceInvokable<OUT, R>(reducer, windowSize, slideInterval, timestamp));
 	}
 
 	/**
@@ -398,8 +475,11 @@ public abstract class DataStream<OUT> {
 	 * @return The filtered DataStream.
 	 */
 	public SingleOutputStreamOperator<OUT, ?> filter(FilterFunction<OUT> filter) {
-		return addFunction("filter", filter, new FunctionTypeWrapper<OUT, Tuple, OUT>(filter,
-				FilterFunction.class, 0, -1, 0), new FilterInvokable<OUT>(filter));
+		FunctionTypeWrapper<OUT> typeWrapper = new FunctionTypeWrapper<OUT>(filter,
+				FilterFunction.class, 0);
+
+		return addFunction("filter", filter, typeWrapper, typeWrapper, new FilterInvokable<OUT>(
+				filter));
 	}
 
 	/**
@@ -770,19 +850,20 @@ public abstract class DataStream<OUT> {
 	 *            type of the return stream
 	 * @return the data stream constructed
 	 */
-	protected <R> SingleOutputStreamOperator<R, ?> addFunction(String functionName,
-			final Function function, TypeSerializerWrapper<OUT, Tuple, R> typeWrapper,
-			UserTaskInvokable<OUT, R> functionInvokable) {
-
+	protected <R> SingleOutputStreamOperator<R, ?> addFunction(
+			String functionName, final Function function,
+			TypeSerializerWrapper<OUT> inTypeWrapper,
+			TypeSerializerWrapper<R> outTypeWrapper,
+			StreamOperatorInvokable<OUT, R> functionInvokable) {
 		DataStream<OUT> inputStream = this.copy();
 		@SuppressWarnings({ "unchecked", "rawtypes" })
 		SingleOutputStreamOperator<R, ?> returnStream = new SingleOutputStreamOperator(environment,
 				functionName);
 
 		try {
-			jobGraphBuilder.addTask(returnStream.getId(), functionInvokable, typeWrapper,
-					functionName, SerializationUtils.serialize((Serializable) function),
-					degreeOfParallelism);
+			jobGraphBuilder.addTask(returnStream.getId(), functionInvokable, inTypeWrapper,
+					outTypeWrapper, functionName,
+					SerializationUtils.serialize((Serializable) function), degreeOfParallelism);
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize user defined function");
 		}
@@ -853,12 +934,12 @@ public abstract class DataStream<OUT> {
 	}
 
 	private DataStreamSink<OUT> addSink(DataStream<OUT> inputStream, SinkFunction<OUT> sinkFunction) {
-		return addSink(inputStream, sinkFunction, new FunctionTypeWrapper<OUT, Tuple, OUT>(
-				sinkFunction, SinkFunction.class, 0, -1, 0));
+		return addSink(inputStream, sinkFunction, new FunctionTypeWrapper<OUT>(sinkFunction,
+				SinkFunction.class, 0));
 	}
 
 	private DataStreamSink<OUT> addSink(DataStream<OUT> inputStream,
-			SinkFunction<OUT> sinkFunction, TypeSerializerWrapper<OUT, Tuple, OUT> typeWrapper) {
+			SinkFunction<OUT> sinkFunction, TypeSerializerWrapper<OUT> typeWrapper) {
 		DataStreamSink<OUT> returnStream = new DataStreamSink<OUT>(environment, "sink");
 
 		try {

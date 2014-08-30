@@ -17,78 +17,41 @@
 
 package org.apache.flink.streaming.api.invokable.operator;
 
+import static org.junit.Assert.assertEquals;
+
 import java.io.Serializable;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.Arrays;
+import java.util.List;
 
-import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.co.CoMapFunction;
-import org.apache.flink.streaming.api.function.sink.SinkFunction;
-import org.apache.flink.util.LogUtils;
-
-import org.junit.Assert;
+import org.apache.flink.streaming.api.invokable.operator.co.CoMapInvokable;
+import org.apache.flink.streaming.util.MockCoInvokable;
 import org.junit.Test;
 
 public class CoMapTest implements Serializable {
 	private static final long serialVersionUID = 1L;
 
-	private static Set<String> result;
-	private static Set<String> expected = new HashSet<String>();
-
-	private final static class EmptySink implements SinkFunction<Boolean> {
+	private final static class MyCoMap implements CoMapFunction<Double, Integer, String> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void invoke(Boolean tuple) {
-		}
-	}
-
-	private final static class MyCoMap implements CoMapFunction<String, Integer, Boolean> {
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public Boolean map1(String value) {
-			result.add(value);
-			return true;
+		public String map1(Double value) {
+			return value.toString();
 		}
 
 		@Override
-		public Boolean map2(Integer value) {
-			result.add(value.toString());
-			return false;
+		public String map2(Integer value) {
+			return value.toString();
 		}
 	}
 
 	@Test
-	public void multipleInputTest() {
+	public void coMapTest() {
+		CoMapInvokable<Double, Integer, String> invokable = new CoMapInvokable<Double, Integer, String>(new MyCoMap());
+
+		List<String> expectedList = Arrays.asList("1.1", "1", "1.2", "2", "1.3", "3", "1.4", "1.5");
+		List<String> actualList = MockCoInvokable.createAndExecute(invokable, Arrays.asList(1.1, 1.2, 1.3, 1.4, 1.5), Arrays.asList(1, 2, 3));
 		
-		LogUtils.initializeDefaultTestConsoleLogger();
-		
-		expected.add("a");
-		expected.add("b");
-		expected.add("c");
-		expected.add("1");
-		expected.add("2");
-		expected.add("3");
-		expected.add("4");
-
-		result = new HashSet<String>();
-
-		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
-
-		DataStream<Integer> ds1 = env.fromElements(1, 3);
-		@SuppressWarnings("unchecked")
-		DataStream<Integer> ds2 = env.fromElements(2, 4).merge(ds1);
-
-		DataStream<String> ds3 = env.fromElements("a", "b");
-
-		@SuppressWarnings({ "unused", "unchecked" })
-		DataStream<Boolean> ds4 = env.fromElements("c").merge(ds3).connect(ds2).map(new MyCoMap())
-				.addSink(new EmptySink());
-
-		env.executeTest(32);
-		Assert.assertEquals(expected, result);
+		assertEquals(expectedList, actualList);
 	}
 }

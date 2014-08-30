@@ -69,11 +69,14 @@ import com.microsoft.hadoop.azure.WritableEntity;
 import com.microsoft.windowsazure.storage.table.EntityProperty;
 
 public class AzureTableExample {
+
   public static void main(String[] args) throws Exception {
     // set up the execution environment
     final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+    
     // create a  AzureTableInputFormat, using a Hadoop input format wrapper
     HadoopInputFormat<Text, WritableEntity> hdIf = new HadoopInputFormat<Text, WritableEntity>(new AzureTableInputFormat(), Text.class, WritableEntity.class, new Job());
+
     // set the Account URI, something like: https://apacheflink.table.core.windows.net
     hdIf.getConfiguration().set(AzureTableConfiguration.Keys.ACCOUNT_URI.getKey(), "TODO"); 
     // set the secret storage key here
@@ -88,14 +91,18 @@ public class AzureTableExample {
       public String map(Tuple2<Text, WritableEntity> arg0) throws Exception {
         System.err.println("--------------------------------\nKey = "+arg0.f0);
         WritableEntity we = arg0.f1;
+
         for(Map.Entry<String, EntityProperty> prop : we.getProperties().entrySet()) {
           System.err.println("key="+prop.getKey() + " ; value (asString)="+prop.getValue().getValueAsString());
         }
+
         return arg0.f0.toString();
       }
     });
+
     // emit result (this works only locally)
     fin.print();
+
     // execute program
     env.execute("Azure Example");
   }

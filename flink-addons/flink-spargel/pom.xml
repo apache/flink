@@ -57,26 +57,4 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
-
-	<profiles>
-
-		<profile>
-			<!-- Needed for the tests -->
-			<id>cdh4</id>
-			<dependencies>
-				<dependency>
-					<groupId>org.apache.hadoop</groupId>
-					<artifactId>hadoop-hdfs</artifactId>
-					<version>${hadoop.cdh4.hadoop.version}</version>
-					<scope>test</scope>
-				</dependency>
-				<dependency>
-					<groupId>org.apache.hadoop</groupId>
-					<artifactId>hadoop-common</artifactId>
-					<version>${hadoop.cdh4.hadoop.version}</version>
-					<scope>test</scope>
-				</dependency>
-			</dependencies>
-		</profile>
-	</profiles>
 </project>

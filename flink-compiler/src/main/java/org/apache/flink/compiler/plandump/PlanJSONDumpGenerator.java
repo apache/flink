@@ -407,8 +407,15 @@ public class PlanJSONDumpGenerator {
 				
 			case COLLECTOR_MAP:
 			case MAP:
-			case FLAT_MAP:
 				locString = "Map";
+				break;
+				
+			case FLAT_MAP:
+				locString = "FlatMap";
+				break;
+				
+			case MAP_PARTITION:
+				locString = "Map Partition";
 				break;
 			
 			case ALL_REDUCE:
@@ -472,8 +479,8 @@ public class PlanJSONDumpGenerator {
 				break;
 
 			default:
-				throw new CompilerException("Unknown local strategy '" + p.getDriverStrategy().name()
-					+ "' in JSON generator.");
+				locString = p.getDriverStrategy().name();
+				break;
 			}
 
 			if (locString != null) {

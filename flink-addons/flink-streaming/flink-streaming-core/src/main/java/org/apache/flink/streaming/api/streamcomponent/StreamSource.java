@@ -1,5 +1,4 @@
 /**
- *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -14,7 +13,6 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package org.apache.flink.streaming.api.streamcomponent;
@@ -22,37 +20,33 @@ package org.apache.flink.streaming.api.streamcomponent;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.api.invokable.SourceInvokable;
 
-public class StreamSource<OUT extends Tuple> extends SingleInputAbstractStreamComponent<Tuple, OUT> {
+public class StreamSource<OUT extends Tuple> extends AbstractStreamComponent {
 
-	private SourceInvokable<OUT> userInvokable;
+	protected OutputHandler<OUT> outputHandler;
+
+	private SourceInvokable<OUT> sourceInvokable;
+	
 	private static int numSources;
 
 	public StreamSource() {
-		outputHandler = new OutputHandler();
-		userInvokable = null;
+		sourceInvokable = null;
 		numSources = newComponent();
 		instanceID = numSources;
 	}
 
 	@Override
 	public void setInputsOutputs() {
-		try {
-			outputHandler.setConfigOutputs();
-		} catch (StreamComponentException e) {
-			throw new StreamComponentException("Cannot register outputs for "
-					+ getClass().getSimpleName(), e);
-		}
+		outputHandler = new OutputHandler<OUT>(this);
 	}
 
 	@Override
 	protected void setInvokable() {
-		userInvokable = getInvokable();
-		userInvokable.setCollector(collector);
+		sourceInvokable = configuration.getUserInvokable();
+		sourceInvokable.setCollector(outputHandler.getCollector());
 	}
 
 	@Override
 	public void invoke() throws Exception {
-		outputHandler.invokeUserFunction("SOURCE", userInvokable);
+		outputHandler.invokeUserFunction("SOURCE", sourceInvokable);
 	}
-
 }

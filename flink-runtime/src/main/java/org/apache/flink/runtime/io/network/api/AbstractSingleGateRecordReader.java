@@ -69,7 +69,7 @@ public abstract class AbstractSingleGateRecordReader<T extends IOReadableWritabl
 		this.inputGate.publishEvent(event);
 	}
 
-	InputGate<T> getInputGate() {
+	public InputGate<T> getInputGate() {
 		return this.inputGate;
 	}
 }

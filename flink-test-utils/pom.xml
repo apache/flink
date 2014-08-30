@@ -66,21 +66,4 @@ under the License.
 			<version>4.11</version>
 		</dependency>
 	</dependencies>
-	<profiles>
-		<profile>
-			<id>cdh4</id>
-			<dependencies>
-				<dependency>
-					<groupId>org.apache.hadoop</groupId>
-					<artifactId>hadoop-common</artifactId>
-					<version>${hadoop.cdh4.hadoop.version}</version>
-				</dependency>
-				<dependency>
-					<groupId>org.apache.hadoop</groupId>
-					<artifactId>hadoop-hdfs</artifactId>
-					<version>${hadoop.cdh4.hadoop.version}</version>
-				</dependency>
-			</dependencies>
-		</profile>
-	</profiles>
 </project>

@@ -121,11 +121,9 @@ make_binary_release() {
 }
 
 make_binary_release "hadoop1" ""
-make_binary_release "cdh4" "-Pvendor-repos,cdh4 -Dhadoop.version=2.0.0-mr1-cdh4.2.0 -Dhadoop.cdh4.hadoop.version=2.0.0-cdh4.2.0"
-# make_binary_release "cdh5" "-Dhadoop.profile=2 -Pvendor-repos -Dhadoop.version=2.3.0+cdh5.1.0+795"
+make_binary_release "hadoop200alpha" "-P\!include-yarn -Dhadoop.profile=2 -Dhadoop.version=2.0.0-alpha"
 make_binary_release "hadoop2" "-Dhadoop.profile=2"
 # make_binary_release "mapr4" "-Dhadoop.profile=2 -Pvendor-repos -Dhadoop.version=2.3.0-mapr-4.0.0-FCS"
-# make_binary_release "hdp21" "-Dhadoop.profile=2 -Pvendor-repos -Dhadoop.version=2.4.0.2.1.3.0-563"
 
 
 # Copy data
