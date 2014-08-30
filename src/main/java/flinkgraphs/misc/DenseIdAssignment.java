@@ -27,7 +27,6 @@ import java.util.List;
 import java.util.Random;
 
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.LocalEnvironment;
@@ -74,9 +73,7 @@ public class DenseIdAssignment implements java.io.Serializable {
 				
 		result.print();
 		
-//		env.execute();
-		
-		System.out.println(env.getExecutionPlan());
+		env.execute();
 	}
 	
 	/**
@@ -87,7 +84,7 @@ public class DenseIdAssignment implements java.io.Serializable {
 		@Override
 		public void mapPartition(Iterable<String> values, Collector<Tuple2<Integer, Long>> out) {
 			long count = 0;
-			for (String str : values) {
+			for (@SuppressWarnings("unused") String str : values) {
 				count++;
 			}
 			
@@ -134,7 +131,7 @@ public class DenseIdAssignment implements java.io.Serializable {
 //		writeRandomStrings(TEST_DATA_PATH, 100000000);
 //	}
 	
-	private static void writeRandomStrings(String path, int num) throws IOException {
+	protected static void writeRandomStrings(String path, int num) throws IOException {
 		File f = new File(path);
 		Random rnd = new Random();
 		
