@@ -29,6 +29,7 @@ import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.NonParallelInput;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.api.common.operators.Operator;
+import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.operators.base.GenericDataSourceBase;
 import org.apache.flink.compiler.DataStatistics;
 import org.apache.flink.compiler.PactCompiler;
@@ -194,8 +195,8 @@ public class DataSourceNode extends OptimizerNode {
 	}
 
 	@Override
-	public boolean isFieldConstant(int input, int fieldNumber) {
-		return false;
+	public SemanticProperties getSemanticProperties() {
+		return null;
 	}
 	
 	@Override
