@@ -21,9 +21,10 @@ package org.apache.flink.compiler.dataproperties;
 import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.operators.Ordering;
+import org.apache.flink.api.common.operators.SemanticProperties;
+import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.compiler.CompilerException;
-import org.apache.flink.compiler.dag.OptimizerNode;
 import org.apache.flink.compiler.plan.Channel;
 import org.apache.flink.compiler.util.Utils;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
@@ -188,30 +189,63 @@ public final class RequestedGlobalProperties implements Cloneable {
 		this.customPartitioner = null;
 	}
 
+	public void setPartitioningFields(FieldSet partitioned) {
+		this.partitioningFields = partitioned;
+	}
+
+	public void setPartitioningFields(FieldSet fields, PartitioningProperty partitioning) {
+		this.partitioningFields = fields;
+		this.partitioning = partitioning;
+	}
+
+	public void setOrdering(Ordering newOrdering) {
+		this.ordering = newOrdering;
+	}
+
 	/**
 	 * Filters these properties by what can be preserved by the given node when propagated down
 	 * to the given input.
-	 * 
-	 * @param node The node representing the contract.
+	 *
+	 * @param props The node representing the contract.
 	 * @param input The index of the input.
-	 * @return True, if any non-default value is preserved, false otherwise.
+	 * @return The filtered RequestedGlobalProperties
 	 */
-	public RequestedGlobalProperties filterByNodesConstantSet(OptimizerNode node, int input) {
+	public RequestedGlobalProperties filterBySemanticProperties(SemanticProperties props, int input) {
+		FieldList sourceList;
+		RequestedGlobalProperties returnProps = null;
+
+		if (props == null) {
+			return null;
+		}
+
 		// check if partitioning survives
 		if (this.ordering != null) {
-			for (int col : this.ordering.getInvolvedIndexes()) {
-				if (!node.isFieldConstant(input, col)) {
+			Ordering no = new Ordering();
+			returnProps = new RequestedGlobalProperties();
+			returnProps.setPartitioningFields(new FieldSet(), this.partitioning);
+
+			for (int index = 0; index < this.ordering.getInvolvedIndexes().size(); index++) {
+				int value = this.ordering.getInvolvedIndexes().get(index);
+				sourceList = props.getSourceField(input, value) == null ? null : props.getSourceField(input, value).toFieldList();
+				if (sourceList != null) {
+					no.appendOrdering(sourceList.get(0), this.ordering.getType(index), this.ordering.getOrder(index));
+				} else {
 					return null;
 				}
 			}
+			returnProps.setOrdering(no);
 		} else if (this.partitioningFields != null) {
-			for (int colIndex : this.partitioningFields) {
-				if (!node.isFieldConstant(input, colIndex)) {
+			returnProps = new RequestedGlobalProperties();
+			returnProps.setPartitioningFields(new FieldSet(), this.partitioning);
+			for (Integer index : this.partitioningFields) {
+				sourceList = props.getSourceField(input, index) == null ? null : props.getSourceField(input, index).toFieldList();
+				if (sourceList != null) {
+					returnProps.setPartitioningFields(returnProps.getPartitionedFields().addFields(sourceList), this.partitioning);
+				} else {
 					return null;
 				}
 			}
 		}
-		
 		// make sure that certain properties are not pushed down
 		final PartitioningProperty partitioning = this.partitioning;
 		if (partitioning == PartitioningProperty.FULL_REPLICATION ||
@@ -220,8 +254,8 @@ public final class RequestedGlobalProperties implements Cloneable {
 		{
 			return null;
 		}
-		
-		return this;
+
+		return returnProps;
 	}
 
 	/**

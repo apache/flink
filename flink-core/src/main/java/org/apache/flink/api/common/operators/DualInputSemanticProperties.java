@@ -58,7 +58,40 @@ public class DualInputSemanticProperties extends SemanticProperties {
 	public DualInputSemanticProperties() {
 		init();
 	}
-	
+
+	/**
+	 * Finds the source field where the given field was forwarded from.
+	 * @param dest The destination field in the output data.
+	 * @return FieldSet containing the source input fields.
+	 */
+	public FieldSet forwardedFrom1(int dest) {
+		FieldSet fs = null;
+		for (Map.Entry<Integer, FieldSet> entry : forwardedFields1.entrySet()) {
+			if (entry.getValue().contains(dest)) {
+				if (fs == null) {
+					fs = new FieldSet();
+				}
+
+				fs = fs.addField(entry.getKey());
+			}
+		}
+		return fs;
+	}
+
+	public FieldSet forwardedFrom2(int dest) {
+		FieldSet fs = null;
+		for (Map.Entry<Integer, FieldSet> entry : forwardedFields2.entrySet()) {
+			if (entry.getValue().contains(dest)) {
+				if (fs == null) {
+					fs = new FieldSet();
+				}
+
+				fs = fs.addField(entry.getKey());
+			}
+		}
+		return fs;
+	}
+
 	/**
 	 * Adds, to the existing information, a field that is forwarded directly
 	 * from the source record(s) in the first input to the destination
@@ -115,6 +148,10 @@ public class DualInputSemanticProperties extends SemanticProperties {
 	 * @return the destination fields, or null if they do not exist
 	 */
 	public FieldSet getForwardedField1(int sourceField) {
+		if (isAllFieldsConstant()) {
+			return new FieldSet(sourceField);
+		}
+
 		return this.forwardedFields1.get(sourceField);
 	}
 	
@@ -174,9 +211,43 @@ public class DualInputSemanticProperties extends SemanticProperties {
 	 * @return the destination fields, or null if they do not exist
 	 */
 	public FieldSet getForwardedField2(int sourceField) {
+		if (isAllFieldsConstant()) {
+			return new FieldSet(sourceField);
+		}
+
 		return this.forwardedFields2.get(sourceField);
 	}
-	
+
+	@Override
+	public FieldSet getSourceField(int input, int field) {
+		if (isAllFieldsConstant()) {
+			return new FieldSet(field);
+		}
+
+		switch(input) {
+			case 0:
+				return this.forwardedFrom1(field);
+			case 1:
+				return this.forwardedFrom2(field);
+			default:
+				throw new IndexOutOfBoundsException();
+		}
+	}
+
+	@Override
+	public FieldSet getForwardFields(int input, int field) {
+		if (isAllFieldsConstant()) {
+			return new FieldSet(field);
+		}
+
+		if (input == 0) {
+			return this.getForwardedField1(field);
+		} else if (input == 1) {
+			return this.getForwardedField2(field);
+		}
+		return null;
+	}
+
 	/**
 	 * Adds, to the existing information, field(s) that are read in
 	 * the source record(s) from the first input.
@@ -253,7 +324,7 @@ public class DualInputSemanticProperties extends SemanticProperties {
 		super.clearProperties();
 		init();
 	}
-	
+
 	@Override
 	public boolean isEmpty() {
 		return super.isEmpty() &&
@@ -263,7 +334,11 @@ public class DualInputSemanticProperties extends SemanticProperties {
 				(readFields2 == null || readFields2.size() == 0);
 	}
 	
-	
+	@Override
+	public String toString() {
+		return "DISP(" + this.forwardedFields1 + "; " + this.forwardedFields2 + ")";
+	}
+
 	private void init() {
 		this.forwardedFields1 = new HashMap<Integer,FieldSet>();
 		this.forwardedFields2 = new HashMap<Integer,FieldSet>();

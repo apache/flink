@@ -24,6 +24,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.operators.base.DeltaIterationBase;
 import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.api.common.typeinfo.NothingTypeInfo;
@@ -218,12 +219,12 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 	public String getName() {
 		return "Workset Iteration";
 	}
-	
+
 	@Override
-	public boolean isFieldConstant(int input, int fieldNumber) {
-		return false;
+	public SemanticProperties getSemanticProperties() {
+		return null;
 	}
-	
+
 	protected void readStubAnnotations() {}
 	
 	@Override

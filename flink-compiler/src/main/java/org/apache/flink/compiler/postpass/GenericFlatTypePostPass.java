@@ -21,6 +21,7 @@ package org.apache.flink.compiler.postpass;
 
 import java.util.Map;
 
+import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypePairComparatorFactory;
@@ -522,7 +523,9 @@ public abstract class GenericFlatTypePostPass<X, T extends AbstractSchema<X>> im
 		try {
 			for (Map.Entry<Integer, X> entry : sourceSchema) {
 				Integer pos = entry.getKey();
-				if (optNode.isFieldConstant(input, pos)) {
+				SemanticProperties sprops = optNode.getSemanticProperties();
+
+				if (sprops != null && sprops.getForwardFields(input, pos) != null && sprops.getForwardFields(input,pos).contains(pos)) {
 					targetSchema.addType(pos, entry.getValue());
 				}
 			}

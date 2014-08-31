@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.flink.api.common.operators.Operator;
+import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.compiler.DataStatistics;
 import org.apache.flink.compiler.costs.CostEstimator;
 import org.apache.flink.compiler.plan.PlanNode;
@@ -86,8 +87,8 @@ public abstract class AbstractPartialSolutionNode extends OptimizerNode {
 	}
 
 	@Override
-	public boolean isFieldConstant(int input, int fieldNumber) {
-		return false;
+	public SemanticProperties getSemanticProperties() {
+		return null;
 	}
 	
 	@Override

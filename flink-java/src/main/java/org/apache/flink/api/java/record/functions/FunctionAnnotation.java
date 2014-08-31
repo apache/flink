@@ -341,19 +341,19 @@ public class FunctionAnnotation {
 		
 		return semanticProperties;
 	}
-	
-	
+
+
 	private static final class ImplicitlyForwardingSingleInputSemanticProperties extends SingleInputSemanticProperties {
 		private static final long serialVersionUID = 1L;
-		
+
 		private FieldSet nonForwardedFields;
-		
+
 		private ImplicitlyForwardingSingleInputSemanticProperties(FieldSet nonForwardedFields) {
 			this.nonForwardedFields = nonForwardedFields;
 			addWrittenFields(nonForwardedFields);
 		}
-		
-		
+
+
 		/**
 		 * Returns the logical position where the given field is written to.
 		 * In this variant of the semantic properties, all fields are assumed implicitly forwarded,
@@ -362,52 +362,81 @@ public class FunctionAnnotation {
 		 */
 		@Override
 		public FieldSet getForwardedField(int sourceField) {
+			if (isAllFieldsConstant()) {
+				return new FieldSet(sourceField);
+			}
+
 			if (this.nonForwardedFields.contains(sourceField)) {
 				return null;
 			} else {
 				return new FieldSet(sourceField);
 			}
 		}
-		
+
+		@Override
+		public FieldSet getSourceField(int input, int field) {
+			if (input != 0) {
+				throw new IndexOutOfBoundsException();
+			}
+
+			if (isAllFieldsConstant()) {
+				return new FieldSet(field);
+			}
+
+			if (this.nonForwardedFields == null) {
+				return super.getSourceField(input, field);
+			}
+
+			if (this.nonForwardedFields.contains(field)) {
+				return null;
+			} else {
+				return new FieldSet(field);
+			}
+		}
+
 		@Override
 		public void addForwardedField(int sourceField, int destinationField) {
 			throw new UnsupportedOperationException("When defining fields as implicitly constant " +
 					"(such as through the ConstantFieldsExcept annotation), you cannot manually add forwarded fields.");
 		}
-		
+
 		@Override
 		public void addForwardedField(int sourceField, FieldSet destinationFields) {
 			throw new UnsupportedOperationException("When defining fields as implicitly constant " +
 					"(such as through the ConstantFieldsExcept annotation), you cannot manually add forwarded fields.");
 		}
-		
+
 		@Override
 		public void setForwardedField(int sourceField, FieldSet destinationFields) {
 			throw new UnsupportedOperationException("When defining fields as implicitly constant " +
 					"(such as through the ConstantFieldsExcept annotation), you cannot manually add forwarded fields.");
 		}
 	}
-	
+
 	private static final class ImplicitlyForwardingTwoInputSemanticProperties extends DualInputSemanticProperties {
 		private static final long serialVersionUID = 1L;
-		
+
 		private FieldSet nonForwardedFields1;
 		private FieldSet nonForwardedFields2;
-		
+
 		private ImplicitlyForwardingTwoInputSemanticProperties() {}
-		
-		
+
+
 		public void setImplicitlyForwardingFirstExcept(FieldSet nonForwardedFields) {
 			this.nonForwardedFields1 = nonForwardedFields;
 		}
-		
+
 		public void setImplicitlyForwardingSecondExcept(FieldSet nonForwardedFields) {
 			this.nonForwardedFields2 = nonForwardedFields;
 		}
-		
+
 
 		@Override
 		public FieldSet getForwardedField1(int sourceField) {
+			if (isAllFieldsConstant()) {
+				return new FieldSet(sourceField);
+			}
+
 			if (this.nonForwardedFields1 == null) {
 				return super.getForwardedField1(sourceField);
 			}
@@ -419,9 +448,13 @@ public class FunctionAnnotation {
 				}
 			}
 		}
-		
+
 		@Override
 		public FieldSet getForwardedField2(int sourceField) {
+			if (isAllFieldsConstant()) {
+				return new FieldSet(sourceField);
+			}
+
 			if (this.nonForwardedFields2 == null) {
 				return super.getForwardedField2(sourceField);
 			}
@@ -433,7 +466,36 @@ public class FunctionAnnotation {
 				}
 			}
 		}
-		
+
+		@Override
+		public FieldSet getSourceField(int input, int field) {
+			if (input != 0 && input != 1) {
+				throw new IndexOutOfBoundsException();
+			}
+
+			if (isAllFieldsConstant()) {
+				return new FieldSet(field);
+			}
+
+			if (this.nonForwardedFields1 == null && this.nonForwardedFields2 == null) {
+				return super.getSourceField(input, field);
+			}
+
+			if (input == 0 && this.nonForwardedFields1 != null && this.nonForwardedFields1.contains(field)) {
+				return null;
+			} else if (input == 0) {
+				return new FieldSet(field);
+			}
+
+			if (input == 1 && this.nonForwardedFields2 != null && this.nonForwardedFields2.contains(field)) {
+				return null;
+			} else if (input == 1) {
+				return new FieldSet(field);
+			}
+
+			return null;
+		}
+
 		@Override
 		public void addForwardedField1(int sourceField, int destinationField) {
 			if (this.nonForwardedFields1 == null) {
@@ -444,7 +506,7 @@ public class FunctionAnnotation {
 						"(such as through the ConstantFieldsFirstExcept annotation), you cannot manually add forwarded fields.");
 			}
 		}
-		
+
 		@Override
 		public void addForwardedField1(int sourceField, FieldSet destinationFields) {
 			if (this.nonForwardedFields1 == null) {
@@ -455,7 +517,7 @@ public class FunctionAnnotation {
 						"(such as through the ConstantFieldsFirstExcept annotation), you cannot manually add forwarded fields.");
 			}
 		}
-		
+
 		@Override
 		public void setForwardedField1(int sourceField, FieldSet destinationFields) {
 			if (this.nonForwardedFields1 == null) {
@@ -466,7 +528,7 @@ public class FunctionAnnotation {
 						"(such as through the ConstantFieldsFirstExcept annotation), you cannot manually add forwarded fields.");
 			}
 		}
-		
+
 		@Override
 		public void addForwardedField2(int sourceField, int destinationField) {
 			if (this.nonForwardedFields2 == null) {
@@ -477,7 +539,7 @@ public class FunctionAnnotation {
 						"(such as through the ConstantFieldsSecondExcept annotation), you cannot manually add forwarded fields.");
 			}
 		}
-		
+
 		@Override
 		public void addForwardedField2(int sourceField, FieldSet destinationFields) {
 			if (this.nonForwardedFields2 == null) {
@@ -488,7 +550,7 @@ public class FunctionAnnotation {
 						"(such as through the ConstantFieldsSecondExcept annotation), you cannot manually add forwarded fields.");
 			}
 		}
-		
+
 		@Override
 		public void setForwardedField2(int sourceField, FieldSet destinationFields) {
 			if (this.nonForwardedFields2 == null) {

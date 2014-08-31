@@ -23,7 +23,10 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 
+import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.compiler.dag.OptimizerNode;
+import org.apache.flink.compiler.dag.SingleInputNode;
+import org.apache.flink.compiler.dag.TwoInputNode;
 
 /**
  * The interesting properties that a node in the optimizer plan hands to its predecessors. It has the
@@ -87,19 +90,25 @@ public class InterestingProperties implements Cloneable
 	public Set<RequestedGlobalProperties> getGlobalProperties() {
 		return this.globalProps;
 	}
-	
+
 	public InterestingProperties filterByCodeAnnotations(OptimizerNode node, int input)
 	{
 		InterestingProperties iProps = new InterestingProperties();
-		
+		SemanticProperties props = null;
+		if (node instanceof SingleInputNode) {
+			props = node.getSemanticProperties();
+		} else if (node instanceof TwoInputNode) {
+			props = node.getSemanticProperties();
+		}
+
 		for (RequestedGlobalProperties rgp : this.globalProps) {
-			RequestedGlobalProperties filtered = rgp.filterByNodesConstantSet(node, input);
+			RequestedGlobalProperties filtered = rgp.filterBySemanticProperties(props, input);
 			if (filtered != null && !filtered.isTrivial()) {
 				iProps.addGlobalProperties(filtered);
 			}
 		}
 		for (RequestedLocalProperties rlp : this.localProps) {
-			RequestedLocalProperties filtered = rlp.filterByNodesConstantSet(node, input);
+			RequestedLocalProperties filtered = rlp.filterBySemanticProperties(props, input);
 			if (filtered != null && !filtered.isTrivial()) {
 				iProps.addLocalProperties(filtered);
 			}

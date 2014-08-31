@@ -24,6 +24,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.operators.base.BulkIterationBase;
 import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.compiler.CompilerException;
@@ -182,10 +183,10 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 	public String getName() {
 		return "Bulk Iteration";
 	}
-	
+
 	@Override
-	public boolean isFieldConstant(int input, int fieldNumber) {
-		return false;
+	public SemanticProperties getSemanticProperties() {
+		return null;
 	}
 	
 	protected void readStubAnnotations() {}

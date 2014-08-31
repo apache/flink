@@ -20,12 +20,13 @@
 package org.apache.flink.compiler.dataproperties;
 
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Set;
 
 import org.apache.flink.api.common.operators.Ordering;
+import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.api.common.operators.util.FieldSet;
-import org.apache.flink.compiler.dag.OptimizerNode;
 
 /**
  * This class represents local properties of the data. A local property is a property that exists
@@ -126,57 +127,91 @@ public class LocalProperties implements Cloneable {
 
 	/**
 	 * Filters these properties by what can be preserved through a user function's constant fields set.
-	 * 
-	 * @param node The optimizer node that potentially modifies the properties.
+	 *
+	 * @param props The optimizer node that potentially modifies the properties.
 	 * @param input The input of the node which is relevant.
-	 * 
-	 * @return True, if the resulting properties are non trivial.
+	 *
+	 * @return The filtered LocalProperties
 	 */
-	public LocalProperties filterByNodesConstantSet(OptimizerNode node, int input) {
+	public LocalProperties filterBySemanticProperties(SemanticProperties props, int input) {
 		// check, whether the local order is preserved
 		Ordering no = this.ordering;
 		FieldList ngf = this.groupedFields;
 		Set<FieldSet> nuf = this.uniqueFields;
-		
+		FieldList forwardList = null;
+
+		if (props == null) {
+			return new LocalProperties();
+		}
+
 		if (this.ordering != null) {
+			no = new Ordering();
 			final FieldList involvedIndexes = this.ordering.getInvolvedIndexes();
 			for (int i = 0; i < involvedIndexes.size(); i++) {
-				if (!node.isFieldConstant(input, involvedIndexes.get(i))) {
-					if (i == 0) {
+				forwardList = props.getForwardFields(input, involvedIndexes.get(i)) == null ? null : props.getForwardFields(input, involvedIndexes.get(i)).toFieldList();
+
+				if (forwardList == null) {
+					no = null;
+					ngf = null;
+					/*if (i == 0) {
 						no = null;
 						ngf = null;
 					} else {
 						no = this.ordering.createNewOrderingUpToIndex(i);
 						ngf = no.getInvolvedIndexes();
-					}
+					}*/
 					break;
+				} else {
+					no.appendOrdering(forwardList.get(0), this.ordering.getType(i), this.ordering.getOrder(i));
+					ngf = no.getInvolvedIndexes();
 				}
 			}
 		}
 		else if (this.groupedFields != null) {
 			// check, whether the local key grouping is preserved
 			for (Integer index : this.groupedFields) {
-				if (!node.isFieldConstant(input, index)) {
+				forwardList = props.getForwardFields(input, index) == null ? null : props.getForwardFields(input, index).toFieldList();
+				if (forwardList == null) {
 					ngf = null;
+					break;
+				} else if (!forwardList.contains(index)) {
+					FieldList grouped = new FieldList();
+					for (Integer value : ngf.toFieldList()) {
+						if (value.intValue() == index) {
+							grouped = grouped.addFields(forwardList);
+						} else {
+							grouped = grouped.addField(value);
+						}
+					}
+					ngf = grouped;
 				}
 			}
 		}
-		
-		if (this.uniqueFields != null && this.uniqueFields.size() > 0) {
-			Set<FieldSet> s = new HashSet<FieldSet>(this.uniqueFields);
-			for (FieldSet fields : this.uniqueFields) {
-				for (Integer index : fields) {
-					if (!node.isFieldConstant(input, index)) {
-						s.remove(fields);
+
+		if (this.uniqueFields != null) {
+			HashSet<FieldSet> newSet = new HashSet<FieldSet>();
+			newSet.addAll(this.uniqueFields);
+			for (Iterator<FieldSet> combos = this.uniqueFields.iterator(); combos.hasNext(); ){
+				FieldSet current = combos.next();
+				FieldSet nfs = new FieldSet();
+				for (Integer field : current) {
+					if (props.getForwardFields(input, field) == null) {
+						newSet.remove(current);
+						nfs = null;
 						break;
+					} else {
+						nfs = nfs.addFields(props.getForwardFields(input, field));
 					}
 				}
+				if (nfs != null) {
+					newSet.remove(current);
+					newSet.add(nfs);
+				}
 			}
-			if (s.size() != this.uniqueFields.size()) {
-				nuf = s;
-			}
+
+			nuf = newSet.isEmpty() ? null : newSet;
 		}
-		
+
 		if (no == this.ordering && ngf == this.groupedFields && nuf == this.uniqueFields) {
 			return this;
 		} else {
@@ -187,7 +222,6 @@ public class LocalProperties implements Cloneable {
 			return lp;
 		}
 	}
-
 	// --------------------------------------------------------------------------------------------
 
 	@Override

@@ -21,6 +21,8 @@ package org.apache.flink.compiler.dag;
 import java.util.Collections;
 import java.util.List;
 
+import org.apache.flink.api.common.operators.SemanticProperties;
+import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.base.FilterOperatorBase;
 import org.apache.flink.compiler.DataStatistics;
 import org.apache.flink.compiler.operators.FilterDescriptor;
@@ -47,10 +49,14 @@ public class FilterNode extends SingleInputNode {
 	public String getName() {
 		return "Filter";
 	}
-	
+
 	@Override
-	public boolean isFieldConstant(int input, int fieldNumber) {
-		return true;
+	public SemanticProperties getSemanticProperties() {
+
+		SingleInputSemanticProperties sprops = new SingleInputSemanticProperties();
+		sprops.setAllFieldsConstant(true);
+
+		return sprops;
 	}
 
 	@Override

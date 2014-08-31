@@ -31,10 +31,9 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.flink.api.common.operators.DualInputOperator;
-import org.apache.flink.api.common.operators.DualInputSemanticProperties;
 import org.apache.flink.api.common.operators.Operator;
+import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.operators.util.FieldList;
-import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.compiler.CompilerException;
 import org.apache.flink.compiler.PactCompiler;
 import org.apache.flink.compiler.costs.CostEstimator;
@@ -554,13 +553,14 @@ public abstract class TwoInputNode extends OptimizerNode {
 			
 			DualInputPlanNode node = operator.instantiate(in1, in2, this);
 			node.setBroadcastInputs(broadcastChannelsCombination);
-			
-			GlobalProperties gp1 = in1.getGlobalProperties().clone().filterByNodesConstantSet(this, 0);
-			GlobalProperties gp2 = in2.getGlobalProperties().clone().filterByNodesConstantSet(this, 1);
+
+			SemanticProperties props = this.getSemanticProperties();
+			GlobalProperties gp1 = in1.getGlobalProperties().clone().filterBySemanticProperties(props, 0);
+			GlobalProperties gp2 = in2.getGlobalProperties().clone().filterBySemanticProperties(props, 1);
 			GlobalProperties combined = operator.computeGlobalProperties(gp1, gp2);
 
-			LocalProperties lp1 = in1.getLocalProperties().clone().filterByNodesConstantSet(this, 0);
-			LocalProperties lp2 = in2.getLocalProperties().clone().filterByNodesConstantSet(this, 1);
+			LocalProperties lp1 = in1.getLocalProperties().clone().filterBySemanticProperties(props, 0);
+			LocalProperties lp2 = in2.getLocalProperties().clone().filterBySemanticProperties(props, 1);
 			LocalProperties locals = operator.computeLocalProperties(lp1, lp2);
 			
 			node.initProperties(combined, locals);
@@ -690,36 +690,10 @@ public abstract class TwoInputNode extends OptimizerNode {
 		}
 	}
 
-	
 	@Override
-	public boolean isFieldConstant(int input, int fieldNumber) {
-		DualInputOperator<?, ?, ?, ?> c = getPactContract();
-		DualInputSemanticProperties semanticProperties = c.getSemanticProperties();
-		
-		switch(input) {
-		case 0:
-			if (semanticProperties != null) {
-				FieldSet fs;
-				if ((fs = semanticProperties.getForwardedField1(fieldNumber)) != null) {
-					return fs.contains(fieldNumber);
-				}
-			}
-			break;
-		case 1:
-			if(semanticProperties != null) {
-				FieldSet fs;
-				if ((fs = semanticProperties.getForwardedField2(fieldNumber)) != null) {
-					return fs.contains(fieldNumber);
-				}
-			}
-			break;
-		default:
-			throw new IndexOutOfBoundsException();
-		}
-		
-		return false;
+	public SemanticProperties getSemanticProperties() {
+		return ((DualInputOperator<?, ?, ?, ?>) getPactContract()).getSemanticProperties();
 	}
-	
 	
 	// --------------------------------------------------------------------------------------------
 	//                                     Miscellaneous

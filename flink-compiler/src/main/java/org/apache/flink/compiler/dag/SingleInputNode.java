@@ -31,8 +31,8 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.flink.api.common.operators.Operator;
+import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.operators.SingleInputOperator;
-import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.compiler.CompilerException;
 import org.apache.flink.compiler.PactCompiler;
@@ -144,22 +144,8 @@ public abstract class SingleInputNode extends OptimizerNode {
 	
 
 	@Override
-	public boolean isFieldConstant(int input, int fieldNumber) {
-		if (input != 0) {
-			throw new IndexOutOfBoundsException();
-		}
-		
-		SingleInputOperator<?, ?, ?> c = getPactContract();
-		SingleInputSemanticProperties semanticProperties = c.getSemanticProperties();
-		
-		if (semanticProperties != null) {
-			FieldSet fs;
-			if ((fs = semanticProperties.getForwardedField(fieldNumber)) != null) {
-				return fs.contains(fieldNumber);
-			}
-		}
-		
-		return false;
+	public SemanticProperties getSemanticProperties() {
+		return ((SingleInputOperator<?,?,?>) getPactContract()).getSemanticProperties();
 	}
 	
 
@@ -444,10 +430,11 @@ public abstract class SingleInputNode extends OptimizerNode {
 			LocalProperties lProps = in.getLocalProperties().clone();
 			gProps = dps.computeGlobalProperties(gProps);
 			lProps = dps.computeLocalProperties(lProps);
-			
+
+			SemanticProperties props = this.getSemanticProperties();
 			// filter by the user code field copies
-			gProps = gProps.filterByNodesConstantSet(this, 0);
-			lProps = lProps.filterByNodesConstantSet(this, 0);
+			gProps = gProps.filterBySemanticProperties(props, 0);
+			lProps = lProps.filterBySemanticProperties(props, 0);
 			
 			// apply
 			node.initProperties(gProps, lProps);

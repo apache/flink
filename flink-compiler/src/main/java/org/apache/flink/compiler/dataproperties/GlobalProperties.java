@@ -25,10 +25,10 @@ import java.util.Set;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.operators.Ordering;
+import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.compiler.CompilerException;
-import org.apache.flink.compiler.dag.OptimizerNode;
 import org.apache.flink.compiler.plan.Channel;
 import org.apache.flink.compiler.util.Utils;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
@@ -212,7 +212,19 @@ public class GlobalProperties implements Cloneable {
 			return false;
 		}
 	}
-	
+
+	public Ordering getOrdering() {
+		return this.ordering;
+	}
+
+	public void setOrdering(Ordering ordering) {
+		this.ordering = ordering;
+	}
+
+	public void setPartitioningFields(FieldList partitioningFields) {
+		this.partitioningFields = partitioningFields;
+	}
+
 	public boolean isFullyReplicated() {
 		return this.partitioning == PartitioningProperty.FULL_REPLICATION;
 	}
@@ -234,56 +246,86 @@ public class GlobalProperties implements Cloneable {
 	}
 
 	/**
-	 * Filters these properties by what can be preserved through the given output contract.
-	 * 
-	 * @param node The optimizer node.
-	 * @param input The input of the node to filter against.
-	 * @return The adjusted global properties.
+	 * Filters these GlobalProperties by the fields that are constant or forwarded to another output field.
+	 *
+	 * @param props The node representing the contract.
+	 * @param input The index of the input.
+	 * @return The filtered GlobalProperties
 	 */
-	public GlobalProperties filterByNodesConstantSet(OptimizerNode node, int input) {
+	public GlobalProperties filterBySemanticProperties(SemanticProperties props, int input) {
 		// check if partitioning survives
+		FieldList forwardFields = null;
+		GlobalProperties returnProps = this;
+
+		if (props == null) {
+			return new GlobalProperties();
+		}
+
 		if (this.ordering != null) {
-			for (int col : this.ordering.getInvolvedIndexes()) {
-				if (!node.isFieldConstant(input, col)) {
-					return new GlobalProperties();
+			Ordering no = new Ordering();
+			for (int index : this.ordering.getInvolvedIndexes()) {
+				forwardFields = props.getForwardFields(input, index) == null ? null: props.getForwardFields(input, index).toFieldList();
+				if (forwardFields == null) {
+					returnProps = new GlobalProperties();
+					no = null;
+					break;
+				} else {
+					returnProps = returnProps == this ? this.clone() : returnProps;
+					for (int i = 0; i < forwardFields.size(); i++) {
+						no.appendOrdering(forwardFields.get(i), this.ordering.getType(index), this.ordering.getOrder(index));
+					}
 				}
+				returnProps.setOrdering(no);
 			}
 		}
 		if (this.partitioningFields != null) {
-			for (int colIndex : this.partitioningFields) {
-				if (!node.isFieldConstant(input, colIndex)) {
-					return new GlobalProperties();
+			returnProps = returnProps == this ? this.clone() : returnProps;
+			returnProps.setPartitioningFields(new FieldList());
+
+			for (int index : this.partitioningFields) {
+				forwardFields = props.getForwardFields(input, index) == null ? null: props.getForwardFields(input, index).toFieldList();
+				if (forwardFields == null) {
+					returnProps = new GlobalProperties();
+					break;
+				} else  {
+					returnProps.setPartitioningFields(returnProps.getPartitioningFields().addFields(forwardFields));
 				}
 			}
 		}
 		if (this.uniqueFieldCombinations != null) {
 			HashSet<FieldSet> newSet = new HashSet<FieldSet>();
 			newSet.addAll(this.uniqueFieldCombinations);
-			
-			for (Iterator<FieldSet> combos = newSet.iterator(); combos.hasNext(); ){
+			for (Iterator<FieldSet> combos = this.uniqueFieldCombinations.iterator(); combos.hasNext(); ){
 				FieldSet current = combos.next();
+				FieldSet nfs = new FieldSet();
 				for (Integer field : current) {
-					if (!node.isFieldConstant(input, field)) {
-						combos.remove();
+					if (props.getForwardFields(input, field) == null) {
+						newSet.remove(current);
+						nfs = null;
 						break;
+					} else {
+						nfs = nfs.addFields(props.getForwardFields(input, field));
 					}
 				}
+				if (nfs != null) {
+					newSet.remove(current);
+					newSet.add(nfs);
+				}
 			}
-			
-			if (newSet.size() != this.uniqueFieldCombinations.size()) {
-				GlobalProperties gp = clone();
-				gp.uniqueFieldCombinations = newSet.isEmpty() ? null : newSet;
-				return gp;
-			}
+
+			GlobalProperties gp = returnProps.clone();
+			gp.uniqueFieldCombinations = newSet.isEmpty() ? null : newSet;
+			return gp;
 		}
-		
+
 		if (this.partitioning == PartitioningProperty.FULL_REPLICATION) {
 			return new GlobalProperties();
 		}
-		
-		return this;
+
+		return returnProps;
 	}
-	
+
+
 	public void parameterizeChannel(Channel channel, boolean globalDopChange) {
 		switch (this.partitioning) {
 			case RANDOM:

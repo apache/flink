@@ -28,6 +28,7 @@ import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.operators.GenericDataSinkBase;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.Ordering;
+import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.compiler.CompilerException;
 import org.apache.flink.compiler.DataStatistics;
 import org.apache.flink.compiler.costs.CostEstimator;
@@ -230,9 +231,10 @@ public class DataSinkNode extends OptimizerNode {
 	// --------------------------------------------------------------------------------------------
 	//                                   Function Annotation Handling
 	// --------------------------------------------------------------------------------------------
-	
-	public boolean isFieldConstant(int input, int fieldNumber) {
-		return false;
+
+	@Override
+	public SemanticProperties getSemanticProperties() {
+		return null;
 	}
 		
 	// --------------------------------------------------------------------------------------------

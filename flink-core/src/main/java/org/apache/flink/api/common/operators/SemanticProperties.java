@@ -27,7 +27,8 @@ import org.apache.flink.api.common.operators.util.FieldSet;
  * Container for the semantic properties associated to an operator.
  */
 public abstract class SemanticProperties implements Serializable {
-	
+	private boolean allFieldsConstant;
+
 	private static final long serialVersionUID = 1L;
 
 	/** Set of fields that are written in the destination record(s).*/
@@ -47,7 +48,19 @@ public abstract class SemanticProperties implements Serializable {
 			this.writtenFields = this.writtenFields.addFields(writtenFields);
 		}
 	}
-	
+
+	public void setAllFieldsConstant(boolean constant) {
+		this.allFieldsConstant = constant;
+	}
+
+	public boolean isAllFieldsConstant() {
+		return this.allFieldsConstant;
+	}
+
+	public abstract FieldSet getForwardFields(int input, int field);
+
+	public abstract FieldSet getSourceField(int input, int field);
+
 	/**
 	 * Sets the field(s) that are written in the destination record(s).
 	 * 

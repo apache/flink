@@ -155,8 +155,8 @@ public class ConnectedComponents implements ProgramDescription {
 	 * a vertex is associated with, with a (Source-Vertex-ID, Target-VertexID) edge. The function
 	 * produces a (Target-vertex-ID, Component-ID) pair.
 	 */
-	@ConstantFieldsFirst("1 -> 0")
-	@ConstantFieldsSecond("1 -> 1")
+	@ConstantFieldsFirst("1 -> 1")
+	@ConstantFieldsSecond("1 -> 0")
 	public static final class NeighborWithComponentIDJoin implements JoinFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
 
 		@Override
@@ -177,8 +177,6 @@ public class ConnectedComponents implements ProgramDescription {
 			}
 		}
 	}
-
-
 
 	@Override
 	public String getDescription() {

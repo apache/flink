@@ -257,8 +257,11 @@ public class DOPChangeTest extends CompilerTestBase {
 		// mapper respectively reducer
 		SinkPlanNode sinkNode = oPlan.getDataSinks().iterator().next();
 		SingleInputPlanNode red2Node = (SingleInputPlanNode) sinkNode.getPredecessor();
-		
-		Assert.assertEquals("The Reduce 2 Node has an invalid local strategy.", LocalStrategy.SORT, red2Node.getInput().getLocalStrategy());
+
+		SingleInputPlanNode map2Node = (SingleInputPlanNode) red2Node.getPredecessor();
+
+		Assert.assertEquals("The Reduce 2 Node has an invalid local strategy.", LocalStrategy.NONE, red2Node.getInput().getLocalStrategy());
+		Assert.assertEquals("The Map 2 Node has an invalid local strategy.", LocalStrategy.SORT, map2Node.getInput().getLocalStrategy());
 	}
 
 	/**
