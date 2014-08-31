@@ -164,6 +164,10 @@ public final class BlobClient implements Closeable {
 	public void put(final JobID jobId, final String key, final byte[] value, final int offset, final int len)
 			throws IOException {
 
+		if (key.length() > BlobServer.MAX_KEY_LENGTH) {
+			throw new IllegalArgumentException("Keys must not be longer than " + BlobServer.MAX_KEY_LENGTH);
+		}
+
 		putBuffer(jobId, key, value, offset, len);
 	}
 
@@ -181,6 +185,10 @@ public final class BlobClient implements Closeable {
 	 *         BLOB server
 	 */
 	public void put(final JobID jobId, final String key, final InputStream inputStream) throws IOException {
+
+		if (key.length() > BlobServer.MAX_KEY_LENGTH) {
+			throw new IllegalArgumentException("Keys must not be longer than " + BlobServer.MAX_KEY_LENGTH);
+		}
 
 		putInputStream(jobId, key, inputStream);
 	}
@@ -218,6 +226,10 @@ public final class BlobClient implements Closeable {
 
 		if (key == null) {
 			throw new IllegalArgumentException("Argument key must not be null");
+		}
+
+		if (key.length() > BlobServer.MAX_KEY_LENGTH) {
+			throw new IllegalArgumentException("Keys must not be longer than " + BlobServer.MAX_KEY_LENGTH);
 		}
 
 		deleteInternal(jobId, key);
@@ -412,6 +424,10 @@ public final class BlobClient implements Closeable {
 	 *         thrown if an I/O error occurs during the download
 	 */
 	public InputStream get(final JobID jobID, final String key) throws IOException {
+
+		if (key.length() > BlobServer.MAX_KEY_LENGTH) {
+			throw new IllegalArgumentException("Keys must not be longer than " + BlobServer.MAX_KEY_LENGTH);
+		}
 
 		final OutputStream os = this.socket.getOutputStream();
 		final byte[] buf = new byte[AbstractID.SIZE];
