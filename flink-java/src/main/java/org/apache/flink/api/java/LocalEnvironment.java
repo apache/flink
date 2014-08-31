@@ -95,7 +95,9 @@ public class LocalEnvironment extends ExecutionEnvironment {
 	}
 	
 	private void initLogging() {
-		LogUtils.initializeDefaultConsoleLogger(logging ? Level.INFO : Level.OFF);
+		if(System.getProperty("log4j.properties") == null) {
+			LogUtils.initializeDefaultConsoleLogger(logging ? Level.INFO : Level.OFF);
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------
