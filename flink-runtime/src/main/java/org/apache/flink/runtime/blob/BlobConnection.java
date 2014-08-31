@@ -34,6 +34,11 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.flink.runtime.jobgraph.JobID;
 
+/**
+ * A BLOB connection handles a series of requests from a particular BLOB client.
+ * <p>
+ * This class it thread-safe.
+ */
 class BlobConnection extends Thread {
 
 	/**
@@ -41,8 +46,17 @@ class BlobConnection extends Thread {
 	 */
 	private static final Log LOG = LogFactory.getLog(BlobConnection.class);
 
+	/**
+	 * The socket to communicate with the client.
+	 */
 	private final Socket clientSocket;
 
+	/**
+	 * Creates a new BLOB connection for a client request
+	 * 
+	 * @param clientSocket
+	 *        the socket to read/write data
+	 */
 	BlobConnection(final Socket clientSocket) {
 		super("BLOB connection for " + clientSocket.getRemoteSocketAddress().toString());
 
@@ -90,6 +104,18 @@ class BlobConnection extends Thread {
 		}
 	}
 
+	/**
+	 * Handles an incoming GET request from a BLOB client.
+	 * 
+	 * @param inputStream
+	 *        the input stream to read incoming data from
+	 * @param outputStream
+	 *        the output stream to send data back to the client
+	 * @param buf
+	 *        an auxiliary buffer for data serialization/deserialization
+	 * @throws IOException
+	 *         thrown if an I/O error occurs while reading/writing data from/to the respective streams
+	 */
 	private static void get(final InputStream inputStream, final OutputStream outputStream, final byte[] buf)
 			throws IOException {
 
@@ -140,6 +166,18 @@ class BlobConnection extends Thread {
 		}
 	}
 
+	/**
+	 * Handles an incoming PUT request from a BLOB client.
+	 * 
+	 * @param inputStream
+	 *        the input stream to read incoming data from
+	 * @param outputStream
+	 *        the output stream to send data back to the client
+	 * @param buf
+	 *        an auxiliary buffer for data serialization/deserialization
+	 * @throws IOException
+	 *         thrown if an I/O error occurs while reading/writing data from/to the respective streams
+	 */
 	private static void put(final InputStream inputStream, final OutputStream outputStream, final byte[] buf)
 			throws IOException {
 
@@ -214,6 +252,16 @@ class BlobConnection extends Thread {
 		}
 	}
 
+	/**
+	 * Handles an incoming DELETE request from a BLOB client.
+	 * 
+	 * @param inputStream
+	 *        the input stream to read the request from.
+	 * @param buf
+	 *        an auxiliary buffer for data deserialization
+	 * @throws IOException
+	 *         thrown if an I/O error occurs while reading the request data from the input stream
+	 */
 	private static void delete(final InputStream inputStream, final byte[] buf) throws IOException {
 
 		// Receive the job ID
@@ -240,6 +288,12 @@ class BlobConnection extends Thread {
 		}
 	}
 
+	/**
+	 * Auxiliary method to silently close a {@link Closeable} object.
+	 * 
+	 * @param closeable
+	 *        the object to close
+	 */
 	static void closeSilently(final Closeable closeable) {
 
 		try {
@@ -250,6 +304,17 @@ class BlobConnection extends Thread {
 		}
 	}
 
+	/**
+	 * Reads the key of a BLOB from the given input stream.
+	 * 
+	 * @param buf
+	 *        auxiliary buffer to data deserialization
+	 * @param inputStream
+	 *        the input stream to read the key from
+	 * @return the key of a BLOB
+	 * @throws IOException
+	 *         thrown if an I/O error occurs while reading the key data from the input stream
+	 */
 	private static String readKey(final byte[] buf,
 			final InputStream inputStream) throws IOException {
 
