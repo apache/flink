@@ -56,7 +56,7 @@ public static <T>DataSet<Long> count(DataSet<T> data) {
 
 A more complex example of an operation via specialization is the {% gh_link /flink-java/src/main/java/org/apache/flink/api/java/operators/AggregateOperator.java "Aggregation Operation" %} in the Java API. It is implemented by means of a *GroupReduce* UDF.
 
-The Aggregate Operation comes with its own operator in the *Java API*, but translates itself into a {% gh_link /flink-core/src/main/java/org/apache/flink/api/common/operators/base/GroupReduceOperatorBase.java "GroupReduceOperatorBase" %} in the *Common API*. (see [Program Life Cycle](program_life_cycle.html) for details of how an operation from the *Java API* becomes an operation of the *Common API* and finally a runtime operation.)
+The Aggregate Operation comes with its own operator in the *Java API*, but translates itself into a {% gh_link /flink-core/src/main/java/org/apache/flink/api/common/operators/base/GroupReduceOperatorBase.java "GroupReduceOperatorBase" %} in the *Common API*. (see [Program Life Cycle](internal_program_life_cycle.html) for details of how an operation from the *Java API* becomes an operation of the *Common API* and finally a runtime operation.)
 The Java API aggregation operator is only a builder that takes the types of aggregations and the field positions, and used that information to
 parameterize the GroupReduce UDF that performs the aggregations.
 
@@ -109,7 +109,7 @@ function, but invoked only once per parallel partition.
 
 **Runtime**
 
-Runtime Operators are implemented using the {% gh_link /flink-runtime/src/main/java/org/apache/flink/pact/runtime/task/PactDriver.java "Driver" %} interface. The interface defines the methods that describe the operator towards the runtime. The {% gh_link /flink-runtime/src/main/java/org/apache/flink/pact/runtime/task/MapDriver.java "MapDriver" %} serves as a simple example of how those operators work.
+Runtime Operators are implemented using the {% gh_link /flink-runtime/src/main/java/org/apache/flink/runtime/operators/PactDriver.java "Driver" %} interface. The interface defines the methods that describe the operator towards the runtime. The {% gh_link /flink-runtime/src/main/java/org/apache/flink/runtime/operators/MapDriver.java "MapDriver" %} serves as a simple example of how those operators work.
 
 The runtime works with the `MutableObjectIterator`, which describes data streams with the ability to reuse objects, to reduce pressure on the garbage collector.
 
@@ -132,16 +132,16 @@ To increase efficiency, it is often beneficial to implement a *chained* version 
 operators run in the same thread as their preceding operator, and work with nested function calls.
 This is very efficient, because it saves serialization/deserialization overhead.
 
-To learn how to implement a chained operator, take a look at the {% gh_link /flink-runtime/src/main/java/org/apache/flink/pact/runtime/task/MapDriver.java "MapDriver" %} (regular) and the
-{% gh_link /flink-runtime/src/main/java/org/apache/flink/pact/runtime/task/chaining/ChainedMapDriver.java "ChainedMapDriver" %} (chained variant).
+To learn how to implement a chained operator, take a look at the {% gh_link /flink-runtime/src/main/java/org/apache/flink/runtime/operators/MapDriver.java "MapDriver" %} (regular) and the
+{% gh_link /flink-runtime/src/main/java/org/apache/flink/runtime/operators/chaining/ChainedMapDriver.java "ChainedMapDriver" %} (chained variant).
 
 
 **Optimizer/Compiler**
 
-This section does a minimal discussion of the important steps to add an operator. Please see the [Optimizer](optimizer.html) docs for more detail on how the optimizer works.
+This section does a minimal discussion of the important steps to add an operator. Please see the [Optimizer](internal_optimizer.html) docs for more detail on how the optimizer works.
 To allow the optimizer to include a new operator in its planning, it needs a bit of information about it; in particular, the following information:
 
-- *{% gh_link /flink-runtime/src/main/java/org/apache/flink/pact/runtime/task/DriverStrategy.java "DriverStrategy" %}*: The operation needs to be added to the Enum, to make it available to the optimizer. The parameters to the Enum entry define which class implements the runtime operator, its chained version, whether the operator accumulates records (and needs memory for that), and whether it requires a comparator (works on keys). For our example, we can add the entry
+- *{% gh_link /flink-runtime/src/main/java/org/apache/flink/runtime/operators/DriverStrategy.java "DriverStrategy" %}*: The operation needs to be added to the Enum, to make it available to the optimizer. The parameters to the Enum entry define which class implements the runtime operator, its chained version, whether the operator accumulates records (and needs memory for that), and whether it requires a comparator (works on keys). For our example, we can add the entry
 ``` java
 MAP_PARTITION(MapPartitionDriver.class, null /* or chained variant */, PIPELINED, false)
 ```
