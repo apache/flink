@@ -48,7 +48,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 @RunWith(Parameterized.class)
 public class GroupReduceITCase extends JavaProgramTestBase {
 	
-	private static int NUM_PROGRAMS = 14;
+	private static int NUM_PROGRAMS = 15;
 	
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -385,11 +385,10 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 					// return expected result
 					return "322,testtesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttest\n";
 				}
-				// descending sort not working
 				case 13: {
 				
 				/*
-				 * check correctness of groupReduce on tuples with key field selector and group sorting
+				 * check correctness of groupReduce with descending group sort
 				 */
 
 					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -444,7 +443,31 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 								"5,11,0,P-),1\n" +
 								"5,29,0,P-),2\n" +
 								"5,25,0,P-),3\n";
-					}
+				}
+				case 15: {
+					/*
+					 * check that input of combiner is also sorted for combinable groupReduce with group sorting
+					 */
+
+					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+					env.setDegreeOfParallelism(1);
+
+					DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+					DataSet<Tuple3<Integer, Long, String>> reduceDs = ds.
+							groupBy(1).sortGroup(0, Order.ASCENDING).reduceGroup(new OrderCheckingCombinableReduce());
+
+					reduceDs.writeAsCsv(resultPath);
+					env.execute();
+
+					// return expected result
+					return "1,1,Hi\n" +
+							"2,2,Hello\n" +
+							"4,3,Hello world, how are you?\n" +
+							"7,4,Comment#1\n" +
+							"11,5,Comment#5\n" +
+							"16,6,Comment#10\n";
+					
+				}
 				default: {
 					throw new IllegalArgumentException("Invalid program id");
 				}
@@ -731,6 +754,49 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 			out.collect(o);
 			
 		}
+	}
+	
+	@RichGroupReduceFunction.Combinable
+	public static class OrderCheckingCombinableReduce extends RichGroupReduceFunction<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public void reduce(Iterable<Tuple3<Integer, Long, String>> values, Collector<Tuple3<Integer, Long, String>> out) throws Exception {
+			Iterator<Tuple3<Integer,Long,String>> it = values.iterator();
+			Tuple3<Integer,Long,String> t = it.next();
+			
+			int i = t.f0;
+			out.collect(t);
+			
+			while(it.hasNext()) {
+				t = it.next();
+				if(i > t.f0 || t.f2.equals("INVALID-ORDER!")) {
+					t.f2 = "INVALID-ORDER!";
+					out.collect(t);
+				}
+			}		
+		}
+		
+		@Override
+		public void combine(Iterable<Tuple3<Integer, Long, String>> values, Collector<Tuple3<Integer, Long, String>> out) {	
+			
+			Iterator<Tuple3<Integer,Long,String>> it = values.iterator();
+			Tuple3<Integer,Long,String> t = it.next();
+			
+			int i = t.f0;
+			out.collect(t);
+			
+			while(it.hasNext()) {
+				t = it.next();
+				if(i > t.f0) {
+					t.f2 = "INVALID-ORDER!";
+					out.collect(t);
+				}
+			}
+
+		}
+		
+		
 	}
 	
 	public static final class IdentityMapper<T> extends RichMapFunction<T, T> {
