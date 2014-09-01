@@ -21,7 +21,6 @@ package org.apache.flink.test.operators;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.MapPartitionFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -84,10 +83,10 @@ public class MapPartitionITCase extends JavaProgramTestBase {
 	public static class TestMapPartition implements MapPartitionFunction<Tuple2<String, String>, Tuple2<String, Integer>> {
 
 		@Override
-		public void mapPartition(Iterable<Tuple2<String, String>> records, Collector<Tuple2<String, Integer>> out) {
-			for (Tuple2<String, String> record : records) {
-				String keyString = record.f0;
-				String valueString = record.f1;
+		public void mapPartition(Iterable<Tuple2<String, String>> values, Collector<Tuple2<String, Integer>> out) {
+			for (Tuple2<String, String> value : values) {
+				String keyString = value.f0;
+				String valueString = value.f1;
 				
 				int keyInt = Integer.parseInt(keyString);
 				int valueInt = Integer.parseInt(valueString);
