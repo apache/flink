@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.blob;
 
-import java.io.Closeable;
 import java.io.EOFException;
 import java.io.File;
 import java.io.FileInputStream;
@@ -289,16 +288,16 @@ class BlobConnection extends Thread {
 	}
 
 	/**
-	 * Auxiliary method to silently close a {@link Closeable} object.
+	 * Auxiliary method to silently close a {@link Socket}.
 	 * 
-	 * @param closeable
-	 *        the object to close
+	 * @param socket
+	 *        the socket to close
 	 */
-	static void closeSilently(final Closeable closeable) {
+	static void closeSilently(final Socket socket) {
 
 		try {
-			if (closeable != null) {
-				closeable.close();
+			if (socket != null) {
+				socket.close();
 			}
 		} catch (IOException ioe) {
 		}
