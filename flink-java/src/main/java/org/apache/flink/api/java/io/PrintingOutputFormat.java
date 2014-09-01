@@ -74,7 +74,7 @@ public class PrintingOutputFormat<T> implements OutputFormat<T> {
 		this.stream = this.target == STD_OUT ? System.out : System.err;
 		
 		// set the prefix if we have a >1 DOP
-		this.prefix = (numTasks > 1) ? (taskNumber + "> ") : null;
+		this.prefix = (numTasks > 1) ? ((taskNumber+1) + "> ") : null;
 	}
 
 	@Override
