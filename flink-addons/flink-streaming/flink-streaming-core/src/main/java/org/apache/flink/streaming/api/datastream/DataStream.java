@@ -36,6 +36,10 @@ import org.apache.flink.api.java.functions.RichMapFunction;
 import org.apache.flink.api.java.functions.RichReduceFunction;
 import org.apache.flink.streaming.api.JobGraphBuilder;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.function.aggregation.StreamingMaxAggregationFunction;
+import org.apache.flink.streaming.api.function.aggregation.StreamingMinAggregationFunction;
+import org.apache.flink.streaming.api.function.aggregation.StreamingAggregationFunction;
+import org.apache.flink.streaming.api.function.aggregation.StreamingSumAggregationFunction;
 import org.apache.flink.streaming.api.function.sink.PrintSinkFunction;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
 import org.apache.flink.streaming.api.function.sink.WriteFormatAsCsv;
@@ -60,6 +64,7 @@ import org.apache.flink.streaming.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.util.serialization.FunctionTypeWrapper;
 import org.apache.flink.streaming.util.serialization.TypeSerializerWrapper;
+import org.apache.flink.types.TypeInformation;
 
 /**
  * A DataStream represents a stream of elements of the same type. A DataStream
@@ -465,6 +470,60 @@ public abstract class DataStream<OUT> {
 	}
 
 	/**
+	 * Applies an aggregation that sums the data stream at the given
+	 * position.
+	 * 
+	 * @param positionToSum
+	 *            The position in the data point to sum
+	 * @return The transformed DataStream.
+	 */
+	public SingleOutputStreamOperator<OUT, ?> sum(int positionToSum) {
+		return aggregateAll(new StreamingSumAggregationFunction<OUT>(positionToSum));
+	}
+	
+	/**
+	 * Applies an aggregation that that gives the minimum of the data stream at the given
+	 * position.
+	 * 
+	 * @param positionToMin
+	 *            The position in the data point to minimize
+	 * @return The transformed DataStream.
+	 */
+	public SingleOutputStreamOperator<OUT, ?> min(int positionToMin) {
+		return aggregateAll(new StreamingMinAggregationFunction<OUT>(positionToMin));
+	}
+	
+	/**
+	 * Applies an aggregation that gives the maximum of the data stream at the given
+	 * position.
+	 * 
+	 * @param positionToMax
+	 *            The position in the data point to maximize
+	 * @return The transformed DataStream.
+	 */
+	public SingleOutputStreamOperator<OUT, ?> max(int positionToMax) {
+		return aggregateAll(new StreamingMaxAggregationFunction<OUT>(positionToMax));
+	}
+
+	private SingleOutputStreamOperator<OUT, ?> aggregateAll(StreamingAggregationFunction<OUT> aggregate) {
+		return aggregate(aggregate, new StreamReduceInvokable<OUT>(aggregate), "reduce");
+	}
+	
+	SingleOutputStreamOperator<OUT, ?> aggregate(StreamingAggregationFunction<OUT> aggregate, StreamReduceInvokable<OUT> invokable, String functionName) {
+		DataStream<OUT> inputStream = this.copy();
+		TypeInformation<?> info = this.jobGraphBuilder.getOutTypeInfo(inputStream.getId());
+
+		aggregate.setType(info);
+
+		SingleOutputStreamOperator<OUT, ?> returnStream = inputStream.addFunction(functionName,
+				aggregate, null, null, invokable);
+
+		this.jobGraphBuilder.setTypeWrappersFrom(inputStream.getId(), returnStream.getId());
+
+		return returnStream;
+	}
+
+	/**
 	 * Applies a Filter transformation on a {@link DataStream}. The
 	 * transformation calls a {@link FilterFunction} for each element of the
 	 * DataStream and retains only those element for which the function returns
@@ -497,7 +556,7 @@ public abstract class DataStream<OUT> {
 		PrintSinkFunction<OUT> printFunction = new PrintSinkFunction<OUT>();
 		DataStreamSink<OUT> returnStream = addSink(inputStream, printFunction, null);
 
-		jobGraphBuilder.setBytesFrom(inputStream.getId(), returnStream.getId());
+		jobGraphBuilder.setInToOutTypeWrappersFrom(inputStream.getId(), returnStream.getId());
 
 		return returnStream;
 	}
@@ -853,9 +912,8 @@ public abstract class DataStream<OUT> {
 	 *            type of the return stream
 	 * @return the data stream constructed
 	 */
-	protected <R> SingleOutputStreamOperator<R, ?> addFunction(
-			String functionName, final Function function,
-			TypeSerializerWrapper<OUT> inTypeWrapper,
+	protected <R> SingleOutputStreamOperator<R, ?> addFunction(String functionName,
+			final Function function, TypeSerializerWrapper<OUT> inTypeWrapper,
 			TypeSerializerWrapper<R> outTypeWrapper,
 			StreamOperatorInvokable<OUT, R> functionInvokable) {
 		DataStream<OUT> inputStream = this.copy();
