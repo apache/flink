@@ -1145,10 +1145,10 @@ You have the choice to implement either {% gh_link /flink-core/src/main/java/org
 [Back to top](#top)
 
 <section id="parallelism">
-Parallel Execution
+Parallelism
 ---------
 
-This section describes the usage of `parallelism` in Flink. Parallelism specifies the amount of parallel instances execute the program and all operators executed could be setted to the same amount of parallel instances, or they can be configurated individually. Specifically, a typical program runs as `Data Source -> Map -> Reduce -> Data Sink`. Therefore, you can deicide the number of parallel instances in Data Source, Map, Reduce and Data Sink. Based on different levels, parallelism in Flink can be distinguilished as Operator, Execution Environment and System level. The detail will be described as follows. 
+This section describes the usage of `parallelism` in Flink. Parallelism specifies the amount of parallel instances execute the program and all operators executed could be setted to the same amount of parallel instances, or they can be configurated individually. Specifically, a typical program runs as `Data Source -> Map -> Reduce -> Data Sink`. Therefore, you can deicide the number of parallel instances in Data Source, Map, Reduce and Data Sink. Based on different levels, parallelism in Flink can be distinguilished as Operator, Execution Environment and System level. The detail is as follows. 
 
 ###Execution Environment's Level 
 
