@@ -34,8 +34,13 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 	private final Class<? extends T> typeToInstantiate;
 
 	private transient Kryo kryo;
-	private transient T copyInstance = null;
-	private transient Input in = null;
+	private transient T copyInstance;
+	
+	private transient DataOutputView previousOut;
+	private transient DataInputView previousIn;
+	
+	private transient Input input;
+	private transient Output output;
 
 	public KryoSerializer(Class<T> type){
 		this(type,type);
@@ -84,18 +89,25 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 	@Override
 	public void serialize(T record, DataOutputView target) throws IOException {
 		checkKryoInitialized();
-		DataOutputViewStream outputStream = new DataOutputViewStream(target);
-		Output out = new Output(outputStream);
-		kryo.writeObject(out, record);
-		out.flush();
+		if (target != previousOut) {
+			DataOutputViewStream outputStream = new DataOutputViewStream(target);
+			output = new Output(outputStream);
+			previousOut = target;
+		}
+		
+		kryo.writeObject(output, record);
+		output.flush();
 	}
 
 	@Override
 	public T deserialize(T reuse, DataInputView source) throws IOException {
 		checkKryoInitialized();
-		DataInputViewStream inputStream = new DataInputViewStream(source);
-		Input in = new NoFetchingInput(inputStream);
-		reuse = kryo.readObject(in, typeToInstantiate);
+		if (source != previousIn) {
+			DataInputViewStream inputStream = new DataInputViewStream(source);
+			input = new NoFetchingInput(inputStream);
+			previousIn = source;
+		}
+		reuse = kryo.readObject(input, typeToInstantiate);
 		return reuse;
 	}
 
