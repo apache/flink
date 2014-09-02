@@ -397,7 +397,7 @@ DataSet<Tuple2<String, Integer>> out = in.project(2,0).types(String.class, Integ
   </tbody>
 </table>
 
-You can configure each transformation for its [parallelism](#parallelism) by setParallelism(), and each transformation's name by name(). You can do the same for operators of data sources and data sinks. 
+You can configure each transformation for its [parallelism](#parallelism) by `setParallelism()`, and each transformation's name by `name()`. You can do the same for data sources and data sinks. 
 
 [Back to Top](#top)
 
@@ -1148,11 +1148,11 @@ You have the choice to implement either {% gh_link /flink-core/src/main/java/org
 Parallel Execution
 ---------
 
-This section describes the detail of `parallelism` in Flink. Parallelism specifies the amount of parallel instances execute the program. All operators executed could be setted to the same amount of parallel instances, or they can be configurated individually. There are three levels of parallelism in Flink which are Operator, Execution Environment and System level.
+This section describes the usage of `parallelism` in Flink. Parallelism specifies the amount of parallel instances execute the program and all operators executed could be setted to the same amount of parallel instances, or they can be configurated individually. Specifically, a typical program runs as `Data Source -> Map -> Reduce -> Data Sink`. Therefore, you can deicide the number of parallel instances in Data Source, Map, Reduce and Data Sink. Based on different levels, parallelism in Flink can be distinguilished as Operator, Execution Environment and System level. The detail will be described as follows. 
 
 ###Execution Environment's Level 
 
-Parallelism at Execution Environment level is used as follows. By this all operators are executed by three parallel instances in [WordCount](#example) :
+Parallelism at Execution Environment level is used by `setDefaultLocalParallelism()` as follows. By this all operators are executed by three parallel instances in [WordCount](#example) :
 
 ```java
 int degreeOfParallelism = 3;
@@ -1161,7 +1161,7 @@ final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 ```
 
 ###Operator's Level
-You are able to set parallelism for each operator, in [WordCount](#example) the parallelism for each operator can be configurated as follows :
+You are able to set parallelism for each operator by `setParallelism()`, in [WordCount](#example) the parallelism for each operator can be configurated as follows 
 
 
 ```java
@@ -1176,7 +1176,9 @@ text.flatMap(new Tokenizer())
 counts.print().setParallelism(2); 
 ```
 
-For setting parallelism at system level, see [system level](http://flink.incubator.apache.org/docs/0.6-SNAPSHOT/config.html#common-options)
+###System's Level
+The default parallelism of all the jobs and their execution enviroment and operators are configured by `parallelization.degreee.default`
+The default parallelism for all jobs in a setup can be configured using the `parallelization.degreee.default` parameter in `conf/flink-conf.yaml`. See [system level](http://flink.incubator.apache.org/docs/0.6-incubating/config.html#common-options)
 
 [Back to top](#top)
 
