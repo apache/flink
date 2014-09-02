@@ -35,8 +35,9 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.functions.UnsupportedLambdaExpressionException;
 import org.apache.flink.api.java.operators.Keys.FieldPositionKeys;
 import org.apache.flink.api.java.operators.translation.KeyExtractingMapper;
-import org.apache.flink.api.java.operators.translation.PlanUnwrappingCoGroupOperator;
-import org.apache.flink.api.java.operators.translation.TupleKeyExtractingMapper;
+import org.apache.flink.api.java.operators.translation.PlanBothUnwrappingCoGroupOperator;
+import org.apache.flink.api.java.operators.translation.PlanLeftUnwrappingCoGroupOperator;
+import org.apache.flink.api.java.operators.translation.PlanRightUnwrappingCoGroupOperator;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -60,7 +61,7 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 	private final Keys<I2> keys2;
 
 
-	protected CoGroupOperator(DataSet<I1> input1, DataSet<I2> input2,
+	public CoGroupOperator(DataSet<I1> input1, DataSet<I2> input2,
 							Keys<I1> keys1, Keys<I2> keys2,
 							CoGroupFunction<I1, I2, OUT> function,
 							TypeInformation<OUT> returnType)
@@ -92,16 +93,22 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 		
 		String name = getName() != null ? getName() : function.getClass().getName();
 
+		if (!keys1.areCompatibale(keys2)) {
+			throw new InvalidProgramException("The types of the key fields do not match. Left:" +
+					" " + keys1 + " Right: " + keys2);
+		}
+
 		if (keys1 instanceof Keys.SelectorFunctionKeys
-				&& keys2 instanceof Keys.SelectorFunctionKeys
-				&& keys1.areCompatibale(keys2)) {
+				&& keys2 instanceof Keys.SelectorFunctionKeys) {
 
 			@SuppressWarnings("unchecked")
-			Keys.SelectorFunctionKeys<I1, ?> selectorKeys1 = (Keys.SelectorFunctionKeys<I1, ?>) keys1;
+			Keys.SelectorFunctionKeys<I1, ?> selectorKeys1 =
+					(Keys.SelectorFunctionKeys<I1, ?>) keys1;
 			@SuppressWarnings("unchecked")
-			Keys.SelectorFunctionKeys<I2, ?> selectorKeys2 = (Keys.SelectorFunctionKeys<I2, ?>) keys2;
+			Keys.SelectorFunctionKeys<I2, ?> selectorKeys2 =
+					(Keys.SelectorFunctionKeys<I2, ?>) keys2;
 
-			PlanUnwrappingCoGroupOperator<I1, I2, OUT, ?> po =
+			PlanBothUnwrappingCoGroupOperator<I1, I2, OUT, ?> po =
 					translateSelectorFunctionCoGroup(selectorKeys1, selectorKeys2, function,
 					getInput1Type(), getInput2Type(), getResultType(), name, input1, input2);
 
@@ -110,6 +117,38 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 
 			return po;
 
+		}
+		else if (keys2 instanceof Keys.SelectorFunctionKeys) {
+
+			int[] logicalKeyPositions1 = keys1.computeLogicalKeyPositions();
+
+			@SuppressWarnings("unchecked")
+			Keys.SelectorFunctionKeys<I2, ?> selectorKeys2 = (Keys.SelectorFunctionKeys<I2, ?>) keys2;
+
+			PlanRightUnwrappingCoGroupOperator<I1, I2, OUT, ?> po =
+					translateSelectorFunctionCoGroupRight(logicalKeyPositions1, selectorKeys2, function,
+							getInput1Type(), getInput2Type(), getResultType(), name, input1, input2);
+
+			// set dop
+			po.setDegreeOfParallelism(this.getParallelism());
+
+			return po;
+		}
+		else if (keys1 instanceof Keys.SelectorFunctionKeys) {
+
+			@SuppressWarnings("unchecked")
+			Keys.SelectorFunctionKeys<I1, ?> selectorKeys1 = (Keys.SelectorFunctionKeys<I1, ?>) keys1;
+
+			int[] logicalKeyPositions2 = keys2.computeLogicalKeyPositions();
+
+			PlanLeftUnwrappingCoGroupOperator<I1, I2, OUT, ?> po =
+					translateSelectorFunctionCoGroupLeft(selectorKeys1, logicalKeyPositions2, function,
+							getInput1Type(), getInput2Type(), getResultType(), name, input1, input2);
+
+			// set dop
+			po.setDegreeOfParallelism(this.getParallelism());
+
+			return po;
 		}
 		else if ((keys1 instanceof Keys.FieldPositionKeys
 				&& keys2 instanceof Keys.FieldPositionKeys) ||
@@ -139,51 +178,13 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 			return po;
 
 		}
-		else if (keys1 instanceof Keys.FieldPositionKeys
-				&& keys2 instanceof Keys.SelectorFunctionKeys
-				&& keys1.areCompatibale(keys2)
-			) {
-
-			int[] logicalKeyPositions1 = keys1.computeLogicalKeyPositions();
-
-			@SuppressWarnings("unchecked")
-			Keys.SelectorFunctionKeys<I2, ?> selectorKeys2 = (Keys.SelectorFunctionKeys<I2, ?>) keys2;
-
-			PlanUnwrappingCoGroupOperator<I1, I2, OUT, ?> po =
-					translateSelectorFunctionCoGroupRight(logicalKeyPositions1, selectorKeys2, function,
-					getInput1Type(), getInput2Type(), getResultType(), name, input1, input2);
-
-			// set dop
-			po.setDegreeOfParallelism(this.getParallelism());
-
-			return po;
-		}
-		else if (keys1 instanceof Keys.SelectorFunctionKeys
-				&& keys2 instanceof Keys.FieldPositionKeys
-				&& keys1.areCompatibale(keys2)
-			) {
-
-			@SuppressWarnings("unchecked")
-			Keys.SelectorFunctionKeys<I1, ?> selectorKeys1 = (Keys.SelectorFunctionKeys<I1, ?>) keys1;
-
-			int[] logicalKeyPositions2 = keys2.computeLogicalKeyPositions();
-
-			PlanUnwrappingCoGroupOperator<I1, I2, OUT, ?> po =
-					translateSelectorFunctionCoGroupLeft(selectorKeys1, logicalKeyPositions2, function,
-					getInput1Type(), getInput2Type(), getResultType(), name, input1, input2);
-
-			// set dop
-			po.setDegreeOfParallelism(this.getParallelism());
-
-			return po;
-		}
 		else {
 			throw new UnsupportedOperationException("Unrecognized or incompatible key types.");
 		}
 	}
 
 
-	private static <I1, I2, K, OUT> PlanUnwrappingCoGroupOperator<I1, I2, OUT, K> translateSelectorFunctionCoGroup(
+	private static <I1, I2, K, OUT> PlanBothUnwrappingCoGroupOperator<I1, I2, OUT, K> translateSelectorFunctionCoGroup(
 			Keys.SelectorFunctionKeys<I1, ?> rawKeys1, Keys.SelectorFunctionKeys<I2, ?> rawKeys2,
 			CoGroupFunction<I1, I2, OUT> function,
 			TypeInformation<I1> inputType1, TypeInformation<I2> inputType2, TypeInformation<OUT> outputType, String name,
@@ -204,7 +205,7 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 				new MapOperatorBase<I1, Tuple2<K, I1>, MapFunction<I1, Tuple2<K, I1>>>(extractor1, new UnaryOperatorInformation<I1, Tuple2<K, I1>>(inputType1, typeInfoWithKey1), "Key Extractor 1");
 		final MapOperatorBase<I2, Tuple2<K, I2>, MapFunction<I2, Tuple2<K, I2>>> keyMapper2 =
 				new MapOperatorBase<I2, Tuple2<K, I2>, MapFunction<I2, Tuple2<K, I2>>>(extractor2, new UnaryOperatorInformation<I2, Tuple2<K, I2>>(inputType2, typeInfoWithKey2), "Key Extractor 2");
-		final PlanUnwrappingCoGroupOperator<I1, I2, OUT, K> cogroup = new PlanUnwrappingCoGroupOperator<I1, I2, OUT, K>(function, keys1, keys2, name, outputType, typeInfoWithKey1, typeInfoWithKey2);
+		final PlanBothUnwrappingCoGroupOperator<I1, I2, OUT, K> cogroup = new PlanBothUnwrappingCoGroupOperator<I1, I2, OUT, K>(function, keys1, keys2, name, outputType, typeInfoWithKey1, typeInfoWithKey2);
 
 		cogroup.setFirstInput(keyMapper1);
 		cogroup.setSecondInput(keyMapper2);
@@ -218,7 +219,7 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 		return cogroup;
 	}
 
-	private static <I1, I2, K, OUT> PlanUnwrappingCoGroupOperator<I1, I2, OUT, K> translateSelectorFunctionCoGroupRight(
+	private static <I1, I2, K, OUT> PlanRightUnwrappingCoGroupOperator<I1, I2, OUT, K> translateSelectorFunctionCoGroupRight(
 			int[] logicalKeyPositions1, Keys.SelectorFunctionKeys<I2, ?> rawKeys2,
 			CoGroupFunction<I1, I2, OUT> function,
 			TypeInformation<I1> inputType1, TypeInformation<I2> inputType2, TypeInformation<OUT> outputType, String name,
@@ -231,32 +232,39 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 		@SuppressWarnings("unchecked")
 		final Keys.SelectorFunctionKeys<I2, K> keys2 = (Keys.SelectorFunctionKeys<I2, K>) rawKeys2;
 
-		final TypeInformation<Tuple2<K, I1>> typeInfoWithKey1 = new TupleTypeInfo<Tuple2<K, I1>>(keys2.getKeyType(), inputType1); // assume same key, checked by Key.areCompatibale() before
-		final TypeInformation<Tuple2<K, I2>> typeInfoWithKey2 = new TupleTypeInfo<Tuple2<K, I2>>(keys2.getKeyType(), inputType2);
+		final TypeInformation<Tuple2<K, I2>> typeInfoWithKey2 =
+				new TupleTypeInfo<Tuple2<K, I2>>(keys2.getKeyType(), inputType2);
 
-		final TupleKeyExtractingMapper<I1, K> extractor1 = new TupleKeyExtractingMapper<I1, K>(logicalKeyPositions1[0]);
-		final KeyExtractingMapper<I2, K> extractor2 = new KeyExtractingMapper<I2, K>(keys2.getKeyExtractor());
+		final KeyExtractingMapper<I2, K> extractor2 =
+				new KeyExtractingMapper<I2, K>(keys2.getKeyExtractor());
 
-		final MapOperatorBase<I1, Tuple2<K, I1>, MapFunction<I1, Tuple2<K, I1>>> keyMapper1 =
-				new MapOperatorBase<I1, Tuple2<K, I1>, MapFunction<I1, Tuple2<K, I1>>>(extractor1, new UnaryOperatorInformation<I1, Tuple2<K, I1>>(inputType1, typeInfoWithKey1), "Key Extractor 1");
 		final MapOperatorBase<I2, Tuple2<K, I2>, MapFunction<I2, Tuple2<K, I2>>> keyMapper2 =
-				new MapOperatorBase<I2, Tuple2<K, I2>, MapFunction<I2, Tuple2<K, I2>>>(extractor2, new UnaryOperatorInformation<I2, Tuple2<K, I2>>(inputType2, typeInfoWithKey2), "Key Extractor 2");
+				new MapOperatorBase<I2, Tuple2<K, I2>, MapFunction<I2, Tuple2<K, I2>>>(
+						extractor2,
+						new UnaryOperatorInformation<I2, Tuple2<K, I2>>(inputType2, typeInfoWithKey2),
+						"Key Extractor 2");
 		
-		final PlanUnwrappingCoGroupOperator<I1, I2, OUT, K> cogroup = new PlanUnwrappingCoGroupOperator<I1, I2, OUT, K>(function, logicalKeyPositions1, keys2, name, outputType, typeInfoWithKey1, typeInfoWithKey2);
+		final PlanRightUnwrappingCoGroupOperator<I1, I2, OUT, K> cogroup =
+				new PlanRightUnwrappingCoGroupOperator<I1, I2, OUT, K>(
+						function,
+						logicalKeyPositions1,
+						keys2,
+						name,
+						outputType,
+						inputType1,
+						typeInfoWithKey2);
 
-		cogroup.setFirstInput(keyMapper1);
+		cogroup.setFirstInput(input1);
 		cogroup.setSecondInput(keyMapper2);
 
-		keyMapper1.setInput(input1);
 		keyMapper2.setInput(input2);
 		// set dop
-		keyMapper1.setDegreeOfParallelism(input1.getDegreeOfParallelism());
 		keyMapper2.setDegreeOfParallelism(input2.getDegreeOfParallelism());
 
 		return cogroup;
 	}
 
-	private static <I1, I2, K, OUT> PlanUnwrappingCoGroupOperator<I1, I2, OUT, K> translateSelectorFunctionCoGroupLeft(
+	private static <I1, I2, K, OUT> PlanLeftUnwrappingCoGroupOperator<I1, I2, OUT, K> translateSelectorFunctionCoGroupLeft(
 			Keys.SelectorFunctionKeys<I1, ?> rawKeys1, int[] logicalKeyPositions2,
 			CoGroupFunction<I1, I2, OUT> function,
 			TypeInformation<I1> inputType1, TypeInformation<I2> inputType2, TypeInformation<OUT> outputType, String name,
@@ -269,27 +277,33 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 		@SuppressWarnings("unchecked")
 		final Keys.SelectorFunctionKeys<I1, K> keys1 = (Keys.SelectorFunctionKeys<I1, K>) rawKeys1;
 
-		final TypeInformation<Tuple2<K, I1>> typeInfoWithKey1 = new TupleTypeInfo<Tuple2<K, I1>>(keys1.getKeyType(), inputType1); // assume same key, checked by Key.areCompatibale() before
-		final TypeInformation<Tuple2<K, I2>> typeInfoWithKey2 = new TupleTypeInfo<Tuple2<K, I2>>(keys1.getKeyType(), inputType2);
+		final TypeInformation<Tuple2<K, I1>> typeInfoWithKey1 =
+				new TupleTypeInfo<Tuple2<K, I1>>(keys1.getKeyType(), inputType1);
 
 		final KeyExtractingMapper<I1, K> extractor1 = new KeyExtractingMapper<I1, K>(keys1.getKeyExtractor());
-		final TupleKeyExtractingMapper<I2, K> extractor2 = new TupleKeyExtractingMapper<I2, K>(logicalKeyPositions2[0]);
 
 		final MapOperatorBase<I1, Tuple2<K, I1>, MapFunction<I1, Tuple2<K, I1>>> keyMapper1 =
-				new MapOperatorBase<I1, Tuple2<K, I1>, MapFunction<I1, Tuple2<K, I1>>>(extractor1, new UnaryOperatorInformation<I1, Tuple2<K, I1>>(inputType1, typeInfoWithKey1), "Key Extractor 1");
-		final MapOperatorBase<I2, Tuple2<K, I2>, MapFunction<I2, Tuple2<K, I2>>> keyMapper2 =
-				new MapOperatorBase<I2, Tuple2<K, I2>, MapFunction<I2, Tuple2<K, I2>>>(extractor2, new UnaryOperatorInformation<I2, Tuple2<K, I2>>(inputType2, typeInfoWithKey2), "Key Extractor 2");
-		
-		final PlanUnwrappingCoGroupOperator<I1, I2, OUT, K> cogroup = new PlanUnwrappingCoGroupOperator<I1, I2, OUT, K>(function, keys1, logicalKeyPositions2, name, outputType, typeInfoWithKey1, typeInfoWithKey2);
+				new MapOperatorBase<I1, Tuple2<K, I1>, MapFunction<I1, Tuple2<K, I1>>>(
+						extractor1,
+						new UnaryOperatorInformation<I1, Tuple2<K, I1>>(inputType1, typeInfoWithKey1),
+						"Key Extractor 1");
+
+		final PlanLeftUnwrappingCoGroupOperator<I1, I2, OUT, K> cogroup =
+				new PlanLeftUnwrappingCoGroupOperator<I1, I2, OUT, K>(
+						function,
+						keys1,
+						logicalKeyPositions2,
+						name,
+						outputType,
+						typeInfoWithKey1,
+						inputType2);
 
 		cogroup.setFirstInput(keyMapper1);
-		cogroup.setSecondInput(keyMapper2);
+		cogroup.setSecondInput(input2);
 
 		keyMapper1.setInput(input1);
-		keyMapper2.setInput(input2);
 		// set dop
 		keyMapper1.setDegreeOfParallelism(input1.getDegreeOfParallelism());
-		keyMapper2.setDegreeOfParallelism(input2.getDegreeOfParallelism());
 
 		return cogroup;
 	}

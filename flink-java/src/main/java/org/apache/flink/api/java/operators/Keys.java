@@ -115,7 +115,9 @@ public abstract class Keys<T> {
 
 		@Override
 		public String toString() {
-			return Arrays.toString(fieldPositions);
+			String fieldsString = Arrays.toString(fieldPositions);
+			String typesString = Arrays.toString(types);
+			return "Tuple position key (Fields: " + fieldsString + " Types: " + typesString + ")";
 		}
 	}
 
@@ -182,7 +184,7 @@ public abstract class Keys<T> {
 
 		@Override
 		public String toString() {
-			return keyExtractor + " (" + keyType + ")";
+			return "Key function (Type: " + keyType + ")";
 		}
 	}
 

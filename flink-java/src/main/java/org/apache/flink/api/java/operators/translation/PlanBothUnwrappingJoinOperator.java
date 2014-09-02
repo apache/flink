@@ -26,41 +26,30 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.types.TypeInformation;
 import org.apache.flink.util.Collector;
 
-public class PlanUnwrappingJoinOperator<I1, I2, OUT, K> 
+public class PlanBothUnwrappingJoinOperator<I1, I2, OUT, K>
 	extends JoinOperatorBase<Tuple2<K, I1>, Tuple2<K, I2>, OUT, FlatJoinFunction<Tuple2<K, I1>, Tuple2<K, I2>, OUT>>
 {
 
-	public PlanUnwrappingJoinOperator(FlatJoinFunction<I1, I2, OUT> udf,
-			Keys.SelectorFunctionKeys<I1, K> key1, Keys.SelectorFunctionKeys<I2, K> key2, String name,
-			TypeInformation<OUT> type, TypeInformation<Tuple2<K, I1>> typeInfoWithKey1, TypeInformation<Tuple2<K, I2>> typeInfoWithKey2)
-	{
-		super(new TupleUnwrappingJoiner<I1, I2, OUT, K>(udf),
-				new BinaryOperatorInformation<Tuple2<K, I1>, Tuple2<K, I2>, OUT>(typeInfoWithKey1, typeInfoWithKey2, type),
+	public PlanBothUnwrappingJoinOperator(
+			FlatJoinFunction<I1, I2, OUT> udf,
+			Keys.SelectorFunctionKeys<I1, K> key1,
+			Keys.SelectorFunctionKeys<I2, K> key2, String name,
+			TypeInformation<OUT> resultType,
+			TypeInformation<Tuple2<K, I1>> typeInfoWithKey1,
+			TypeInformation<Tuple2<K, I2>> typeInfoWithKey2) {
+
+		super(
+				new TupleUnwrappingJoiner<I1, I2, OUT, K>(udf),
+				new BinaryOperatorInformation<Tuple2<K, I1>, Tuple2<K, I2>, OUT>(
+						typeInfoWithKey1,
+						typeInfoWithKey2,
+						resultType),
 				key1.computeLogicalKeyPositions(), key2.computeLogicalKeyPositions(), name);
-	}
-	
-	public PlanUnwrappingJoinOperator(FlatJoinFunction<I1, I2, OUT> udf,
-			int[] key1, Keys.SelectorFunctionKeys<I2, K> key2, String name,
-			TypeInformation<OUT> type, TypeInformation<Tuple2<K, I1>> typeInfoWithKey1, TypeInformation<Tuple2<K, I2>> typeInfoWithKey2)
-	{
-		super(new TupleUnwrappingJoiner<I1, I2, OUT, K>(udf),
-				new BinaryOperatorInformation<Tuple2<K, I1>, Tuple2<K, I2>, OUT>(typeInfoWithKey1, typeInfoWithKey2, type),
-				new int[]{0}, key2.computeLogicalKeyPositions(), name);
-	}
-	
-	public PlanUnwrappingJoinOperator(FlatJoinFunction<I1, I2, OUT> udf,
-			Keys.SelectorFunctionKeys<I1, K> key1, int[] key2, String name,
-			TypeInformation<OUT> type, TypeInformation<Tuple2<K, I1>> typeInfoWithKey1, TypeInformation<Tuple2<K, I2>> typeInfoWithKey2)
-	{
-		super(new TupleUnwrappingJoiner<I1, I2, OUT, K>(udf),
-				new BinaryOperatorInformation<Tuple2<K, I1>, Tuple2<K, I2>, OUT>(typeInfoWithKey1, typeInfoWithKey2, type),
-				key1.computeLogicalKeyPositions(), new int[]{0}, name);
 	}
 
 	public static final class TupleUnwrappingJoiner<I1, I2, OUT, K>
 		extends WrappingFunction<FlatJoinFunction<I1, I2, OUT>>
-		implements FlatJoinFunction<Tuple2<K, I1>, Tuple2<K, I2>, OUT>
-	{
+		implements FlatJoinFunction<Tuple2<K, I1>, Tuple2<K, I2>, OUT> {
 
 		private static final long serialVersionUID = 1L;
 		
