@@ -64,6 +64,7 @@ public class JobGraphBuilder {
 	private Map<String, List<String>> outEdgeList;
 	private Map<String, List<Integer>> outEdgeType;
 	private Map<String, List<List<String>>> outEdgeNames;
+	private Map<String, List<Boolean>> outEdgeSelectAll;
 	private Map<String, Boolean> mutability;
 	private Map<String, List<String>> inEdgeList;
 	private Map<String, List<StreamPartitioner<?>>> connectionTypes;
@@ -106,6 +107,7 @@ public class JobGraphBuilder {
 		outEdgeList = new HashMap<String, List<String>>();
 		outEdgeType = new HashMap<String, List<Integer>>();
 		outEdgeNames = new HashMap<String, List<List<String>>>();
+		outEdgeSelectAll = new HashMap<String, List<Boolean>>();
 		mutability = new HashMap<String, Boolean>();
 		inEdgeList = new HashMap<String, List<String>>();
 		connectionTypes = new HashMap<String, List<StreamPartitioner<?>>>();
@@ -203,7 +205,7 @@ public class JobGraphBuilder {
 
 		setEdge(componentName, iterationHead,
 				connectionTypes.get(inEdgeList.get(iterationHead).get(0))
-						.get(0), 0, new ArrayList<String>());
+						.get(0), 0, new ArrayList<String>(), false);
 
 		iterationWaitTime.put(iterationIDtoSourceName.get(iterationID),
 				waitTime);
@@ -360,6 +362,7 @@ public class JobGraphBuilder {
 		outEdgeList.put(componentName, new ArrayList<String>());
 		outEdgeType.put(componentName, new ArrayList<Integer>());
 		outEdgeNames.put(componentName, new ArrayList<List<String>>());
+		outEdgeSelectAll.put(componentName, new ArrayList<Boolean>());
 		inEdgeList.put(componentName, new ArrayList<String>());
 		connectionTypes.put(componentName,
 				new ArrayList<StreamPartitioner<?>>());
@@ -484,12 +487,13 @@ public class JobGraphBuilder {
 	public void setEdge(String upStreamComponentName,
 			String downStreamComponentName,
 			StreamPartitioner<?> partitionerObject, int typeNumber,
-			List<String> outputNames) {
+			List<String> outputNames, boolean selectAll) {
 		outEdgeList.get(upStreamComponentName).add(downStreamComponentName);
 		outEdgeType.get(upStreamComponentName).add(typeNumber);
 		inEdgeList.get(downStreamComponentName).add(upStreamComponentName);
 		connectionTypes.get(upStreamComponentName).add(partitionerObject);
 		outEdgeNames.get(upStreamComponentName).add(outputNames);
+		outEdgeSelectAll.get(upStreamComponentName).add(selectAll);
 	}
 
 	/**
@@ -541,6 +545,7 @@ public class JobGraphBuilder {
 
 		config.setOutputName(outputIndex,
 				outEdgeNames.get(upStreamComponentName).get(outputIndex));
+		config.setSelectAll(outputIndex, outEdgeSelectAll.get(upStreamComponentName).get(outputIndex));
 		config.setPartitioner(outputIndex, partitionerObject);
 		config.setNumberOfOutputChannels(outputIndex,
 				componentParallelism.get(downStreamComponentName));

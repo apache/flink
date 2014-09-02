@@ -17,8 +17,10 @@
 
 package org.apache.flink.streaming.api.collector;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import org.apache.flink.runtime.io.network.api.RecordWriter;
@@ -37,8 +39,10 @@ import org.slf4j.LoggerFactory;
  */
 public class DirectedStreamCollector<OUT> extends StreamCollector<OUT> {
 
-	OutputSelector<OUT> outputSelector;
 	private static final Logger LOG = LoggerFactory.getLogger(DirectedStreamCollector.class);
+	
+	OutputSelector<OUT> outputSelector;
+	private List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> selectAllOutputs;
 	private Set<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> emitted;
 
 	/**
@@ -57,38 +61,48 @@ public class DirectedStreamCollector<OUT> extends StreamCollector<OUT> {
 		super(channelID, serializationDelegate);
 		this.outputSelector = outputSelector;
 		this.emitted = new HashSet<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>>();
-
+		this.selectAllOutputs = new ArrayList<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>>();
 	}
 
-	/**
-	 * Collects and emits a tuple to the outputs by reusing a StreamRecord
-	 * object.
-	 * 
-	 * @param outputObject
-	 *            Object to be collected and emitted.
-	 */
 	@Override
-	public void collect(OUT outputObject) {
-		streamRecord.setObject(outputObject);
-		emit(streamRecord);
+	public void addOutput(RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output,
+			List<String> outputNames, boolean isSelectAllOutput) {
+
+		if (isSelectAllOutput) {
+			selectAllOutputs.add(output);
+		} else {
+			addOneOutput(output, outputNames, isSelectAllOutput);
+		}
 	}
 
 	/**
 	 * Emits a StreamRecord to the outputs selected by the user defined
 	 * OutputSelector
-	 * 
-	 * @param streamRecord
-	 *            Record to emit.
+	 *
 	 */
-	private void emit(StreamRecord<OUT> streamRecord) {
+	protected void emitToOutputs() {
 		Collection<String> outputNames = outputSelector.getOutputs(streamRecord.getObject());
-		streamRecord.newId(channelID);
-		serializationDelegate.setInstance(streamRecord);
 		emitted.clear();
 		for (String outputName : outputNames) {
+			List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> outputList = outputMap
+					.get(outputName);
+			if (outputList == null) {
+				if (LOG.isErrorEnabled()) {
+					LOG.error(String.format(
+							"Cannot emit because no output is selected with the name: %s",
+							outputName));
+				}
+			}
+
 			try {
-				for (RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output : outputMap
-						.get(outputName)) {
+				for (RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output : selectAllOutputs) {
+					if (!emitted.contains(output)) {
+						output.emit(serializationDelegate);
+						emitted.add(output);
+					}
+				}
+
+				for (RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output : outputList) {
 					if (!emitted.contains(output)) {
 						output.emit(serializationDelegate);
 						emitted.add(output);

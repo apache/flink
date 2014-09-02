@@ -32,11 +32,9 @@ import org.apache.flink.streaming.api.collector.OutputSelector;
 public class SplitDataStream<OUT> {
 
 	DataStream<OUT> dataStream;
-	String[] allNames;
 
-	protected SplitDataStream(DataStream<OUT> dataStream, String[] outputNames) {
+	protected SplitDataStream(DataStream<OUT> dataStream) {
 		this.dataStream = dataStream.copy();
-		this.allNames = outputNames;
 	}
 
 	/**
@@ -52,18 +50,14 @@ public class SplitDataStream<OUT> {
 	}
 
 	/**
-	 * Selects all output names from a split data stream. Output names must
-	 * predefined to use selectAll.
+	 * Selects all output names from a split data stream.
 	 * 
 	 * @return Returns the selected DataStream
 	 */
 	public DataStream<OUT> selectAll() {
-		if (allNames != null) {
-			return selectOutput(allNames);
-		} else {
-			throw new RuntimeException(
-					"Output names must be predefined in order to use select all.");
-		}
+		DataStream<OUT> returnStream = dataStream.copy();
+		returnStream.selectAll = true;
+		return returnStream;
 	}
 
 	private DataStream<OUT> selectOutput(String[] outputName) {

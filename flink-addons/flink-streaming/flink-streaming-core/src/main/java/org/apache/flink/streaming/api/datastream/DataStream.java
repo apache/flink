@@ -82,6 +82,7 @@ public abstract class DataStream<OUT> {
 	protected final String id;
 	protected int degreeOfParallelism;
 	protected List<String> userDefinedNames;
+	protected boolean selectAll;
 	protected StreamPartitioner<OUT> partitioner;
 
 	protected final JobGraphBuilder jobGraphBuilder;
@@ -106,6 +107,7 @@ public abstract class DataStream<OUT> {
 		this.degreeOfParallelism = environment.getDegreeOfParallelism();
 		this.jobGraphBuilder = environment.getJobGraphBuilder();
 		this.userDefinedNames = new ArrayList<String>();
+		this.selectAll = false;
 		this.partitioner = new ForwardPartitioner<OUT>();
 
 	}
@@ -121,6 +123,7 @@ public abstract class DataStream<OUT> {
 		this.id = dataStream.id;
 		this.degreeOfParallelism = dataStream.degreeOfParallelism;
 		this.userDefinedNames = new ArrayList<String>(dataStream.userDefinedNames);
+		this.selectAll = dataStream.selectAll;
 		this.partitioner = dataStream.partitioner;
 		this.jobGraphBuilder = dataStream.jobGraphBuilder;
 
@@ -911,11 +914,11 @@ public abstract class DataStream<OUT> {
 		if (inputStream instanceof MergedDataStream) {
 			for (DataStream<X> stream : ((MergedDataStream<X>) inputStream).mergedStreams) {
 				jobGraphBuilder.setEdge(stream.getId(), outputID, stream.partitioner, typeNumber,
-						inputStream.userDefinedNames);
+						inputStream.userDefinedNames, inputStream.selectAll);
 			}
 		} else {
 			jobGraphBuilder.setEdge(inputStream.getId(), outputID, inputStream.partitioner,
-					typeNumber, inputStream.userDefinedNames);
+					typeNumber, inputStream.userDefinedNames, inputStream.selectAll);
 		}
 
 	}

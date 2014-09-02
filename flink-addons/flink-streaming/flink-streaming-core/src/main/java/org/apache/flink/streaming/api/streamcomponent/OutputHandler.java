@@ -127,9 +127,10 @@ public class OutputHandler<OUT> {
 
 		outputs.add(output);
 		List<String> outputName = configuration.getOutputName(outputNumber);
-
+		boolean isSelectAllOutput = configuration.getSelectAll(outputNumber);
+		
 		if (collector != null) {
-			collector.addOutput(output, outputName);
+			collector.addOutput(output, outputName, isSelectAllOutput);
 		}
 
 		if (LOG.isTraceEnabled()) {

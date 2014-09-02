@@ -38,6 +38,7 @@ public class StreamConfig {
 	private static final String NUMBER_OF_OUTPUTS = "numberOfOutputs";
 	private static final String NUMBER_OF_INPUTS = "numberOfInputs";
 	private static final String OUTPUT_NAME = "outputName_";
+	private static final String OUTPUT_SELECT_ALL = "outputSelectAll_";
 	private static final String PARTITIONER_OBJECT = "partitionerObject_";
 	private static final String NUMBER_OF_OUTPUT_CHANNELS = "numOfOutputs_";
 	private static final String ITERATION_ID = "iteration-id";
@@ -149,8 +150,7 @@ public class StreamConfig {
 			config.setClass(USER_FUNCTION, invokableObject.getClass());
 
 			try {
-				config.setBytes(SERIALIZEDUDF,
-						SerializationUtils.serialize(invokableObject));
+				config.setBytes(SERIALIZEDUDF, SerializationUtils.serialize(invokableObject));
 			} catch (SerializationException e) {
 				throw new RuntimeException("Cannot serialize invokable object "
 						+ invokableObject.getClass(), e);
@@ -162,11 +162,10 @@ public class StreamConfig {
 		try {
 			return deserializeObject(config.getBytes(SERIALIZEDUDF, null));
 		} catch (Exception e) {
-			throw new StreamComponentException(
-					"Cannot instantiate user function", e);
+			throw new StreamComponentException("Cannot instantiate user function", e);
 		}
 	}
-	
+
 	public void setComponentName(String componentName) {
 		config.setString(COMPONENT_NAME, componentName);
 	}
@@ -184,8 +183,7 @@ public class StreamConfig {
 
 	public Object getFunction() {
 		try {
-			return SerializationUtils.deserialize(config.getBytes(FUNCTION,
-					null));
+			return SerializationUtils.deserialize(config.getBytes(FUNCTION, null));
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot deserialize invokable object", e);
 		}
@@ -214,8 +212,8 @@ public class StreamConfig {
 		try {
 			return deserializeObject(config.getBytes(OUTPUT_SELECTOR, null));
 		} catch (Exception e) {
-			throw new StreamComponentException(
-					"Cannot deserialize and instantiate OutputSelector", e);
+			throw new StreamComponentException("Cannot deserialize and instantiate OutputSelector",
+					e);
 		}
 	}
 
@@ -235,28 +233,34 @@ public class StreamConfig {
 		return config.getLong(ITERATON_WAIT, 0);
 	}
 
-	public void setNumberOfOutputChannels(int outputIndex,
-			Integer numberOfOutputChannels) {
-		config.setInteger(NUMBER_OF_OUTPUT_CHANNELS + outputIndex,
-				numberOfOutputChannels);
+	public void setNumberOfOutputChannels(int outputIndex, Integer numberOfOutputChannels) {
+		config.setInteger(NUMBER_OF_OUTPUT_CHANNELS + outputIndex, numberOfOutputChannels);
 	}
 
 	public int getNumberOfOutputChannels(int outputIndex) {
 		return config.getInteger(NUMBER_OF_OUTPUT_CHANNELS + outputIndex, 0);
 	}
 
-	public <T> void setPartitioner(int outputIndex,
-			StreamPartitioner<T> partitionerObject) {
+	public <T> void setPartitioner(int outputIndex, StreamPartitioner<T> partitionerObject) {
 
 		config.setBytes(PARTITIONER_OBJECT + outputIndex,
 				SerializationUtils.serialize(partitionerObject));
 	}
 
-	public <T> StreamPartitioner<T> getPartitioner(int outputIndex)
-			throws ClassNotFoundException, IOException {
-		return deserializeObject(config.getBytes(PARTITIONER_OBJECT
-				+ outputIndex,
+	public <T> StreamPartitioner<T> getPartitioner(int outputIndex) throws ClassNotFoundException,
+			IOException {
+		return deserializeObject(config.getBytes(PARTITIONER_OBJECT + outputIndex,
 				SerializationUtils.serialize(new ShufflePartitioner<T>())));
+	}
+
+	public void setSelectAll(int outputIndex, Boolean selectAll) {
+		if (selectAll != null) {
+			config.setBoolean(OUTPUT_SELECT_ALL + outputIndex, selectAll);
+		}
+	}
+
+	public boolean getSelectAll(int outputIndex) {
+		return config.getBoolean(OUTPUT_SELECT_ALL + outputIndex, false);
 	}
 
 	public void setOutputName(int outputIndex, List<String> outputName) {
@@ -268,8 +272,8 @@ public class StreamConfig {
 
 	@SuppressWarnings("unchecked")
 	public List<String> getOutputName(int outputIndex) {
-		return (List<String>) SerializationUtils.deserialize(config.getBytes(
-				OUTPUT_NAME + outputIndex, null));
+		return (List<String>) SerializationUtils.deserialize(config.getBytes(OUTPUT_NAME
+				+ outputIndex, null));
 	}
 
 	public void setNumberOfInputs(int numberOfInputs) {
@@ -296,20 +300,18 @@ public class StreamConfig {
 		return config.getInteger(INPUT_TYPE + inputNumber, 0);
 	}
 
-	public void setFunctionClass(
-			Class<? extends AbstractRichFunction> functionClass) {
+	public void setFunctionClass(Class<? extends AbstractRichFunction> functionClass) {
 		config.setClass("functionClass", functionClass);
 	}
 
 	@SuppressWarnings("unchecked")
 	public Class<? extends AbstractRichFunction> getFunctionClass() {
-		return (Class<? extends AbstractRichFunction>) config.getClass(
-				"functionClass", null);
+		return (Class<? extends AbstractRichFunction>) config.getClass("functionClass", null);
 	}
 
 	@SuppressWarnings("unchecked")
-	protected static <T> T deserializeObject(byte[] serializedObject)
-			throws IOException, ClassNotFoundException {
+	protected static <T> T deserializeObject(byte[] serializedObject) throws IOException,
+			ClassNotFoundException {
 		return (T) SerializationUtils.deserialize(serializedObject);
 	}
 
