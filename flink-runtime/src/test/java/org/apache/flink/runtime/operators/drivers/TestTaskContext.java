@@ -171,7 +171,7 @@ public class TestTaskContext<S, T> implements PactTaskContext<S, T> {
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public <X> TypeComparator<X> getInputComparator(int index) {
+	public <X> TypeComparator<X> getDriverComparator(int index) {
 		switch (index) {
 		case 0:
 			return (TypeComparator<X>) this.comparator1;

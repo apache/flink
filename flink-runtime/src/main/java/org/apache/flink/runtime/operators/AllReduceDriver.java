@@ -70,8 +70,8 @@ public class AllReduceDriver<T> implements PactDriver<ReduceFunction<T>, T> {
 	}
 
 	@Override
-	public boolean requiresComparatorOnInput() {
-		return false;
+	public int getNumberOfDriverComparators() {
+		return 0;
 	}
 
 	// --------------------------------------------------------------------------------------------

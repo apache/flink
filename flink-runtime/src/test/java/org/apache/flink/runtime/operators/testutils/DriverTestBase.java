@@ -118,7 +118,7 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 		this.inputs.add(null);
 	}
 	
-	public void addInputComparator(RecordComparator comparator) {
+	public void addDriverComparator(RecordComparator comparator) {
 		this.comparators.add(comparator);
 	}
 
@@ -283,7 +283,7 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 	}
 
 	@Override
-	public <X> TypeComparator<X> getInputComparator(int index) {
+	public <X> TypeComparator<X> getDriverComparator(int index) {
 		@SuppressWarnings("unchecked")
 		TypeComparator<X> comparator = (TypeComparator<X>) this.comparators.get(index);
 		return comparator;

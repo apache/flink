@@ -61,7 +61,7 @@ public class ReduceTaskTest extends DriverTestBase<RichGroupReduceFunction<Recor
 		final int keyCnt = 100;
 		final int valCnt = 20;
 		
-		addInputComparator(this.comparator);
+		addDriverComparator(this.comparator);
 		setOutput(this.outList);
 		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP_REDUCE);
 		
@@ -91,7 +91,7 @@ public class ReduceTaskTest extends DriverTestBase<RichGroupReduceFunction<Recor
 		final int valCnt = 20;
 		
 		addInput(new UniformRecordGenerator(keyCnt, valCnt, true));
-		addInputComparator(this.comparator);
+		addDriverComparator(this.comparator);
 		setOutput(this.outList);
 		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP_REDUCE);
 		
@@ -118,7 +118,7 @@ public class ReduceTaskTest extends DriverTestBase<RichGroupReduceFunction<Recor
 		final int keyCnt = 100;
 		final int valCnt = 20;
 		
-		addInputComparator(this.comparator);
+		addDriverComparator(this.comparator);
 		setOutput(this.outList);
 		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP_REDUCE);
 		
@@ -163,7 +163,7 @@ public class ReduceTaskTest extends DriverTestBase<RichGroupReduceFunction<Recor
 		final int valCnt = 20;
 		
 		addInput(new UniformRecordGenerator(keyCnt, valCnt, true));
-		addInputComparator(this.comparator);
+		addDriverComparator(this.comparator);
 		setOutput(this.outList);
 		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP_REDUCE);
 		
@@ -185,7 +185,7 @@ public class ReduceTaskTest extends DriverTestBase<RichGroupReduceFunction<Recor
 	@Test
 	public void testCancelReduceTaskWhileSorting()
 	{
-		addInputComparator(this.comparator);
+		addDriverComparator(this.comparator);
 		setOutput(new NirvanaOutputList());
 		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP_REDUCE);
 		
@@ -233,7 +233,7 @@ public class ReduceTaskTest extends DriverTestBase<RichGroupReduceFunction<Recor
 		final int valCnt = 2;
 		
 		addInput(new UniformRecordGenerator(keyCnt, valCnt, true));
-		addInputComparator(this.comparator);
+		addDriverComparator(this.comparator);
 		setOutput(new NirvanaOutputList());
 		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP_REDUCE);
 		

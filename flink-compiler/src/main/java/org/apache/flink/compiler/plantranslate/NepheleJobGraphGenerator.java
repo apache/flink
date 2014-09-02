@@ -770,10 +770,9 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		
 		// set the driver strategy
 		config.setDriverStrategy(ds);
-		if (node.getComparator() != null) {
-			config.setDriverComparator(node.getComparator(), 0);
+		for(int i=0;i<ds.getNumRequiredComparators();i++) {
+			config.setDriverComparator(node.getComparator(i), i);
 		}
-		
 		// assign memory, file-handles, etc.
 		assignDriverResources(node, config);
 		return vertex;

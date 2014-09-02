@@ -161,11 +161,10 @@ public class JavaApiPostPass implements OptimizerPostPass {
 			SingleInputOperator<?, ?, ?> singleInputOperator = (SingleInputOperator<?, ?, ?>) sn.getOptimizerNode().getPactContract();
 			
 			// parameterize the node's driver strategy
-			if (sn.getDriverStrategy().requiresComparator()) {
-				sn.setComparator(createComparator(singleInputOperator.getOperatorInfo().getInputType(), sn.getKeys(),
-					getSortOrders(sn.getKeys(), sn.getSortOrders())));
+			for(int i=0;i<sn.getDriverStrategy().getNumRequiredComparators();i++) {
+				sn.setComparator(createComparator(singleInputOperator.getOperatorInfo().getInputType(), sn.getKeys(i),
+						getSortOrders(sn.getKeys(i), sn.getSortOrders(i))), i);
 			}
-			
 			// done, we can now propagate our info down
 			traverseChannel(sn.getInput());
 			
@@ -184,7 +183,7 @@ public class JavaApiPostPass implements OptimizerPostPass {
 			DualInputOperator<?, ?, ?, ?> dualInputOperator = (DualInputOperator<?, ?, ?, ?>) dn.getOptimizerNode().getPactContract();
 			
 			// parameterize the node's driver strategy
-			if (dn.getDriverStrategy().requiresComparator()) {
+			if (dn.getDriverStrategy().getNumRequiredComparators() > 0) {
 				dn.setComparator1(createComparator(dualInputOperator.getOperatorInfo().getFirstInputType(), dn.getKeysForInput1(),
 					getSortOrders(dn.getKeysForInput1(), dn.getSortOrders())));
 				dn.setComparator2(createComparator(dualInputOperator.getOperatorInfo().getSecondInputType(), dn.getKeysForInput2(),

@@ -68,8 +68,8 @@ public class JoinWithSolutionSetSecondDriver<IT1, IT2, OT> implements Resettable
 	}
 	
 	@Override
-	public boolean requiresComparatorOnInput() {
-		return true;
+	public int getNumberOfDriverComparators() {
+		return 1;
 	}
 	
 	@Override

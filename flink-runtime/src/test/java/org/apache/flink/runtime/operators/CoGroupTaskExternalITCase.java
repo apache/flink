@@ -62,8 +62,8 @@ public class CoGroupTaskExternalITCase extends DriverTestBase<CoGroupFunction<Re
 			(keyCnt1 > keyCnt2 ? (keyCnt1 - keyCnt2) * valCnt1 : (keyCnt2 - keyCnt1) * valCnt2);
 		
 		setOutput(this.output);
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.CO_GROUP);
 		

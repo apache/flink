@@ -68,8 +68,8 @@ public class CoGroupWithSolutionSetSecondDriver<IT1, IT2, OT> implements Resetta
 	}
 	
 	@Override
-	public boolean requiresComparatorOnInput() {
-		return true;
+	public int getNumberOfDriverComparators() {
+		return 1;
 	}
 	
 	@Override
@@ -102,7 +102,7 @@ public class CoGroupWithSolutionSetSecondDriver<IT1, IT2, OT> implements Resetta
 		TypeComparator<IT2> buildSideComparator = hashTable.getBuildSideComparator().duplicate();
 		
 		probeSideSerializer = taskContext.<IT1>getInputSerializer(0).getSerializer();
-		probeSideComparator = taskContext.getInputComparator(0);
+		probeSideComparator = taskContext.getDriverComparator(0);
 		
 		solutionSideRecord = buildSideSerializer.createInstance();
 		

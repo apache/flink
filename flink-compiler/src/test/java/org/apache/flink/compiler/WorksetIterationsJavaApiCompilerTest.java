@@ -83,7 +83,7 @@ public class WorksetIterationsJavaApiCompilerTest extends CompilerTestBase {
 			
 			// verify reducer
 			assertEquals(ShipStrategyType.PARTITION_HASH, worksetReducer.getInput().getShipStrategy());
-			assertEquals(new FieldList(1, 2), worksetReducer.getKeys());
+			assertEquals(new FieldList(1, 2), worksetReducer.getKeys(0));
 			
 			// currently, the system may partition before or after the mapper
 			ShipStrategyType ss1 = deltaMapper.getInput().getShipStrategy();
@@ -129,7 +129,7 @@ public class WorksetIterationsJavaApiCompilerTest extends CompilerTestBase {
 			
 			// verify reducer
 			assertEquals(ShipStrategyType.PARTITION_HASH, worksetReducer.getInput().getShipStrategy());
-			assertEquals(new FieldList(1, 2), worksetReducer.getKeys());
+			assertEquals(new FieldList(1, 2), worksetReducer.getKeys(0));
 			
 			// verify solution delta
 			assertEquals(2, joinWithSolutionSetNode.getOutgoingChannels().size());
@@ -174,7 +174,7 @@ public class WorksetIterationsJavaApiCompilerTest extends CompilerTestBase {
 			
 			// verify reducer
 			assertEquals(ShipStrategyType.FORWARD, worksetReducer.getInput().getShipStrategy());
-			assertEquals(new FieldList(1, 2), worksetReducer.getKeys());
+			assertEquals(new FieldList(1, 2), worksetReducer.getKeys(0));
 			
 			
 			// verify solution delta

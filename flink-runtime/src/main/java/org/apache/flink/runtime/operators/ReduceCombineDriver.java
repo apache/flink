@@ -93,8 +93,8 @@ public class ReduceCombineDriver<T> implements PactDriver<ReduceFunction<T>, T> 
 	}
 
 	@Override
-	public boolean requiresComparatorOnInput() {
-		return true;
+	public int getNumberOfDriverComparators() {
+		return 1;
 	}
 
 	@Override
@@ -109,7 +109,7 @@ public class ReduceCombineDriver<T> implements PactDriver<ReduceFunction<T>, T> 
 		
 		// instantiate the serializer / comparator
 		final TypeSerializerFactory<T> serializerFactory = this.taskContext.getInputSerializer(0);
-		this.comparator = this.taskContext.getInputComparator(0);
+		this.comparator = this.taskContext.getDriverComparator(0);
 		this.serializer = serializerFactory.getSerializer();
 		this.reducer = this.taskContext.getStub();
 		this.output = this.taskContext.getOutputCollector();

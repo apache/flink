@@ -54,7 +54,7 @@ public interface PactTaskContext<S, OT> {
 	
 	<X> TypeSerializerFactory<X> getInputSerializer(int index);
 	
-	<X> TypeComparator<X> getInputComparator(int index);
+	<X> TypeComparator<X> getDriverComparator(int index);
 	
 	S getStub();
 	

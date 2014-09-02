@@ -60,7 +60,7 @@ public class ReduceTaskExternalITCase extends DriverTestBase<RichGroupReduceFunc
 		
 		setNumFileHandlesForSort(2);
 		
-		addInputComparator(this.comparator);
+		addDriverComparator(this.comparator);
 		setOutput(this.outList);
 		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP_REDUCE);
 		
@@ -92,7 +92,7 @@ public class ReduceTaskExternalITCase extends DriverTestBase<RichGroupReduceFunc
 
 		setNumFileHandlesForSort(2);
 		
-		addInputComparator(this.comparator);
+		addDriverComparator(this.comparator);
 		setOutput(this.outList);
 		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP_REDUCE);
 		
@@ -123,7 +123,7 @@ public class ReduceTaskExternalITCase extends DriverTestBase<RichGroupReduceFunc
 		final int keyCnt = 8192;
 		final int valCnt = 8;
 		
-		addInputComparator(this.comparator);
+		addDriverComparator(this.comparator);
 		setOutput(this.outList);
 		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP_REDUCE);
 		
@@ -169,7 +169,7 @@ public class ReduceTaskExternalITCase extends DriverTestBase<RichGroupReduceFunc
 		int keyCnt = 32768;
 		int valCnt = 8;
 		
-		addInputComparator(this.comparator);
+		addDriverComparator(this.comparator);
 		setOutput(this.outList);
 		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP_REDUCE);
 		

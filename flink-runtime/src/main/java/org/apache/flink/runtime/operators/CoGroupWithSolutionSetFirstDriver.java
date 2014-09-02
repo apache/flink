@@ -69,8 +69,8 @@ public class CoGroupWithSolutionSetFirstDriver<IT1, IT2, OT> implements Resettab
 	}
 	
 	@Override
-	public boolean requiresComparatorOnInput() {
-		return true;
+	public int getNumberOfDriverComparators() {
+		return 1;
 	}
 	
 	@Override
@@ -103,7 +103,7 @@ public class CoGroupWithSolutionSetFirstDriver<IT1, IT2, OT> implements Resettab
 		TypeComparator<IT1> buildSideComparator = hashTable.getBuildSideComparator().duplicate();
 		
 		probeSideSerializer = taskContext.<IT2>getInputSerializer(0).getSerializer();
-		probeSideComparator = taskContext.getInputComparator(0);
+		probeSideComparator = taskContext.getDriverComparator(0);
 		
 		solutionSideRecord = buildSideSerializer.createInstance();
 		

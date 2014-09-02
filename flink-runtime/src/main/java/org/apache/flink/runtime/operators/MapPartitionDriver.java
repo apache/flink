@@ -59,8 +59,8 @@ public class MapPartitionDriver<IT, OT> implements PactDriver<MapPartitionFuncti
 	}
 
 	@Override
-	public boolean requiresComparatorOnInput() {
-		return false;
+	public int getNumberOfDriverComparators() {
+		return 0;
 	}
 
 	@Override

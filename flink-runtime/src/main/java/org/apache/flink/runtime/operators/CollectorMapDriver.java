@@ -63,8 +63,8 @@ public class CollectorMapDriver<IT, OT> implements PactDriver<GenericCollectorMa
 	}
 
 	@Override
-	public boolean requiresComparatorOnInput() {
-		return false;
+	public int getNumberOfDriverComparators() {
+		return 0;
 	}
 
 	@Override

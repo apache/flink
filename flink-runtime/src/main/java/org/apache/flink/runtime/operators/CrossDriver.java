@@ -88,8 +88,8 @@ public class CrossDriver<T1, T2, OT> implements PactDriver<CrossFunction<T1, T2,
 	
 
 	@Override
-	public boolean requiresComparatorOnInput() {
-		return false;
+	public int getNumberOfDriverComparators() {
+		return 0;
 	}
 
 

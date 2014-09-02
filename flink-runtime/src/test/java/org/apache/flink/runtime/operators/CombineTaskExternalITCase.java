@@ -59,7 +59,8 @@ public class CombineTaskExternalITCase extends DriverTestBase<RichGroupReduceFun
 		final int valCnt = 8;
 		
 		addInput(new UniformRecordGenerator(keyCnt, valCnt, false));
-		addInputComparator(this.comparator);
+		addDriverComparator(this.comparator);
+		addDriverComparator(this.comparator);
 		setOutput(this.outList);
 		
 		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP_COMBINE);
@@ -112,7 +113,8 @@ public class CombineTaskExternalITCase extends DriverTestBase<RichGroupReduceFun
 		final int valCnt = 8;
 		
 		addInput(new UniformRecordGenerator(keyCnt, valCnt, false));
-		addInputComparator(this.comparator);
+		addDriverComparator(this.comparator);
+		addDriverComparator(this.comparator);
 		setOutput(this.outList);
 		
 		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP_COMBINE);

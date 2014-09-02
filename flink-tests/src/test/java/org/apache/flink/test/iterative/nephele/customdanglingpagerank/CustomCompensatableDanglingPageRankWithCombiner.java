@@ -231,6 +231,7 @@ public class CustomCompensatableDanglingPageRankWithCombiner {
 		combinerConfig.setInputSerializer(vertexWithRankSerializer, 0);
 		combinerConfig.setDriverStrategy(DriverStrategy.SORTED_GROUP_COMBINE);
 		combinerConfig.setDriverComparator(vertexWithRankComparator, 0);
+		combinerConfig.setDriverComparator(vertexWithRankComparator, 1);
 		combinerConfig.setRelativeMemoryDriver((double)coGroupSortMemory/totalMemoryConsumption);
 		combinerConfig.setOutputSerializer(vertexWithRankSerializer);
 		combinerConfig.addOutputShipStrategy(ShipStrategyType.PARTITION_HASH);

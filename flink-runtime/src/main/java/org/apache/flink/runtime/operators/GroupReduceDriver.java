@@ -74,8 +74,8 @@ public class GroupReduceDriver<IT, OT> implements PactDriver<GroupReduceFunction
 	}
 
 	@Override
-	public boolean requiresComparatorOnInput() {
-		return true;
+	public int getNumberOfDriverComparators() {
+		return 1;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -87,7 +87,7 @@ public class GroupReduceDriver<IT, OT> implements PactDriver<GroupReduceFunction
 			throw new Exception("Unrecognized driver strategy for GroupReduce driver: " + config.getDriverStrategy().name());
 		}
 		this.serializer = this.taskContext.<IT>getInputSerializer(0).getSerializer();
-		this.comparator = this.taskContext.getInputComparator(0);
+		this.comparator = this.taskContext.getDriverComparator(0);
 		this.input = this.taskContext.getInput(0);
 	}
 

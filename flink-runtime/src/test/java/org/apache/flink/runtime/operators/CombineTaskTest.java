@@ -61,7 +61,8 @@ public class CombineTaskTest extends DriverTestBase<RichGroupReduceFunction<Reco
 		int valCnt = 20;
 		
 		addInput(new UniformRecordGenerator(keyCnt, valCnt, false));
-		addInputComparator(this.comparator);
+		addDriverComparator(this.comparator);
+		addDriverComparator(this.comparator);
 		setOutput(this.outList);
 		
 		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP_COMBINE);
@@ -97,7 +98,8 @@ public class CombineTaskTest extends DriverTestBase<RichGroupReduceFunction<Reco
 		int valCnt = 20;
 		
 		addInput(new UniformRecordGenerator(keyCnt, valCnt, false));
-		addInputComparator(this.comparator);
+		addDriverComparator(this.comparator);
+		addDriverComparator(this.comparator);
 		setOutput(new DiscardingOutputCollector<Record>());
 		
 		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP_COMBINE);
@@ -121,7 +123,8 @@ public class CombineTaskTest extends DriverTestBase<RichGroupReduceFunction<Reco
 	public void testCancelCombineTaskSorting()
 	{
 		addInput(new DelayingInfinitiveInputIterator(100));
-		addInputComparator(this.comparator);
+		addDriverComparator(this.comparator);
+		addDriverComparator(this.comparator);
 		setOutput(new DiscardingOutputCollector<Record>());
 		
 		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP_COMBINE);

@@ -175,8 +175,8 @@ public class ReduceCompilationTest extends CompilerTestBase implements java.io.S
 			assertEquals(DriverStrategy.SORTED_PARTIAL_REDUCE, combineNode.getDriverStrategy());
 			
 			// check the keys
-			assertEquals(new FieldList(1), reduceNode.getKeys());
-			assertEquals(new FieldList(1), combineNode.getKeys());
+			assertEquals(new FieldList(1), reduceNode.getKeys(0));
+			assertEquals(new FieldList(1), combineNode.getKeys(0));
 			assertEquals(new FieldList(1), reduceNode.getInput().getLocalStrategyKeys());
 			
 			// check DOP
@@ -239,8 +239,8 @@ public class ReduceCompilationTest extends CompilerTestBase implements java.io.S
 			assertEquals(DriverStrategy.SORTED_PARTIAL_REDUCE, combineNode.getDriverStrategy());
 			
 			// check the keys
-			assertEquals(new FieldList(0), reduceNode.getKeys());
-			assertEquals(new FieldList(0), combineNode.getKeys());
+			assertEquals(new FieldList(0), reduceNode.getKeys(0));
+			assertEquals(new FieldList(0), combineNode.getKeys(0));
 			assertEquals(new FieldList(0), reduceNode.getInput().getLocalStrategyKeys());
 			
 			// check DOP

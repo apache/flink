@@ -167,7 +167,7 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
 			assertEquals(DriverStrategy.SORTED_GROUP_REDUCE, reduceNode.getDriverStrategy());
 			
 			// check the keys
-			assertEquals(new FieldList(1), reduceNode.getKeys());
+			assertEquals(new FieldList(1), reduceNode.getKeys(0));
 			assertEquals(new FieldList(1), reduceNode.getInput().getLocalStrategyKeys());
 			
 			// check DOP
@@ -222,8 +222,9 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
 			assertEquals(DriverStrategy.SORTED_GROUP_COMBINE, combineNode.getDriverStrategy());
 			
 			// check the keys
-			assertEquals(new FieldList(1), reduceNode.getKeys());
-			assertEquals(new FieldList(1), combineNode.getKeys());
+			assertEquals(new FieldList(1), reduceNode.getKeys(0));
+			assertEquals(new FieldList(1), combineNode.getKeys(0));
+			assertEquals(new FieldList(1), combineNode.getKeys(1));
 			assertEquals(new FieldList(1), reduceNode.getInput().getLocalStrategyKeys());
 			
 			// check DOP
@@ -279,7 +280,7 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
 			assertEquals(DriverStrategy.SORTED_GROUP_REDUCE, reduceNode.getDriverStrategy());
 			
 			// check the keys
-			assertEquals(new FieldList(0), reduceNode.getKeys());
+			assertEquals(new FieldList(0), reduceNode.getKeys(0));
 			assertEquals(new FieldList(0), reduceNode.getInput().getLocalStrategyKeys());
 			
 			// check DOP
@@ -343,8 +344,9 @@ public class GroupReduceCompilationTest extends CompilerTestBase implements java
 			assertEquals(DriverStrategy.SORTED_GROUP_COMBINE, combineNode.getDriverStrategy());
 			
 			// check the keys
-			assertEquals(new FieldList(0), reduceNode.getKeys());
-			assertEquals(new FieldList(0), combineNode.getKeys());
+			assertEquals(new FieldList(0), reduceNode.getKeys(0));
+			assertEquals(new FieldList(0), combineNode.getKeys(0));
+			assertEquals(new FieldList(0), combineNode.getKeys(1));
 			assertEquals(new FieldList(0), reduceNode.getInput().getLocalStrategyKeys());
 			
 			// check DOP

@@ -62,8 +62,8 @@ public class MapDriver<IT, OT> implements PactDriver<MapFunction<IT, OT>, OT> {
 	}
 
 	@Override
-	public boolean requiresComparatorOnInput() {
-		return false;
+	public int getNumberOfDriverComparators() {
+		return 0;
 	}
 
 	@Override

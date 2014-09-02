@@ -68,8 +68,8 @@ public class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Reco
 			(keyCnt1 > keyCnt2 ? (keyCnt1 - keyCnt2) * valCnt1 : (keyCnt2 - keyCnt1) * valCnt2);
 		
 		setOutput(this.output);
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.CO_GROUP);
 		
@@ -99,8 +99,8 @@ public class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Reco
 			(keyCnt1 > keyCnt2 ? (keyCnt1 - keyCnt2) * valCnt1 : (keyCnt2 - keyCnt1) * valCnt2);
 		
 		setOutput(this.output);
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.CO_GROUP);
 		
@@ -130,8 +130,8 @@ public class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Reco
 			(keyCnt1 > keyCnt2 ? (keyCnt1 - keyCnt2) * valCnt1 : (keyCnt2 - keyCnt1) * valCnt2);
 		
 		setOutput(this.output);
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.CO_GROUP);
 		
@@ -161,8 +161,8 @@ public class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Reco
 			(keyCnt1 > keyCnt2 ? (keyCnt1 - keyCnt2) * valCnt1 : (keyCnt2 - keyCnt1) * valCnt2);
 		
 		setOutput(this.output);
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.CO_GROUP);
 		
@@ -195,8 +195,8 @@ public class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Reco
 		
 		addInput(new UniformRecordGenerator(keyCnt1, valCnt1, true));
 		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, true));
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.CO_GROUP);
@@ -225,8 +225,8 @@ public class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Reco
 		
 		addInput(new UniformRecordGenerator(keyCnt1, valCnt1, true));
 		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, true));
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.CO_GROUP);
@@ -251,8 +251,8 @@ public class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Reco
 		
 		setOutput(this.output);
 		
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.CO_GROUP);
@@ -302,8 +302,8 @@ public class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Reco
 		
 		setOutput(this.output);
 		
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.CO_GROUP);
@@ -354,8 +354,8 @@ public class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Reco
 		
 		setOutput(this.output);
 		
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.CO_GROUP);

@@ -299,9 +299,10 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 			// the local processing includes building the dams / caches
 			try {
 				int numInputs = driver.getNumberOfInputs();
+				int numComparators = driver.getNumberOfDriverComparators();
 				int numBroadcastInputs = this.config.getNumBroadcastInputs();
 				
-				initInputsSerializersAndComparators(numInputs);
+				initInputsSerializersAndComparators(numInputs, numComparators);
 				initBroadcastInputsSerializers(numBroadcastInputs);
 				
 				// set the iterative status for inputs and broadcast inputs
@@ -781,23 +782,27 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	/**
 	 * Creates all the serializers and comparators.
 	 */
-	protected void initInputsSerializersAndComparators(int numInputs) throws Exception {
+	protected void initInputsSerializersAndComparators(int numInputs, int numComparators) throws Exception {
 		this.inputSerializers = new TypeSerializerFactory<?>[numInputs];
-		this.inputComparators = this.driver.requiresComparatorOnInput() ? new TypeComparator[numInputs] : null;
+		this.inputComparators = numComparators > 0 ? new TypeComparator[numComparators] : null;
 		this.inputIterators = new MutableObjectIterator[numInputs];
 		
+		//  ---------------- create the input serializers  ---------------------
 		for (int i = 0; i < numInputs; i++) {
-			//  ---------------- create the serializer first ---------------------
+			
 			final TypeSerializerFactory<?> serializerFactory = this.config.getInputSerializer(i, this.userCodeClassLoader);
 			this.inputSerializers[i] = serializerFactory;
 			
-			//  ---------------- create the driver's comparator ---------------------
+			this.inputIterators[i] = createInputIterator(this.inputReaders[i], this.inputSerializers[i]);
+		}
+		
+		//  ---------------- create the driver's comparators ---------------------
+		for (int i = 0; i < numComparators; i++) {
+			
 			if (this.inputComparators != null) {
 				final TypeComparatorFactory<?> comparatorFactory = this.config.getDriverComparator(i, this.userCodeClassLoader);
 				this.inputComparators[i] = comparatorFactory.createComparator();
 			}
-
-			this.inputIterators[i] = createInputIterator(this.inputReaders[i], this.inputSerializers[i]);
 		}
 	}
 	
@@ -1157,11 +1162,11 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 
 
 	@Override
-	public <X> TypeComparator<X> getInputComparator(int index) {
+	public <X> TypeComparator<X> getDriverComparator(int index) {
 		if (this.inputComparators == null) {
 			throw new IllegalStateException("Comparators have not been created!");
 		}
-		else if (index < 0 || index >= this.driver.getNumberOfInputs()) {
+		else if (index < 0 || index >= this.driver.getNumberOfDriverComparators()) {
 			throw new IndexOutOfBoundsException();
 		}
 

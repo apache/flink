@@ -73,8 +73,8 @@ public class ReduceDriver<T> implements PactDriver<ReduceFunction<T>, T> {
 	}
 
 	@Override
-	public boolean requiresComparatorOnInput() {
-		return true;
+	public int getNumberOfDriverComparators() {
+		return 1;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -86,7 +86,7 @@ public class ReduceDriver<T> implements PactDriver<ReduceFunction<T>, T> {
 			throw new Exception("Unrecognized driver strategy for Reduce driver: " + config.getDriverStrategy().name());
 		}
 		this.serializer = this.taskContext.<T>getInputSerializer(0).getSerializer();
-		this.comparator = this.taskContext.getInputComparator(0);
+		this.comparator = this.taskContext.getDriverComparator(0);
 		this.input = this.taskContext.getInput(0);
 	}
 

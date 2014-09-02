@@ -52,8 +52,8 @@ public class NoOpDriver<T> implements PactDriver<AbstractRichFunction, T> {
 	}
 
 	@Override
-	public boolean requiresComparatorOnInput() {
-		return false;
+	public int getNumberOfDriverComparators() {
+		return 0;
 	}
 
 	@Override

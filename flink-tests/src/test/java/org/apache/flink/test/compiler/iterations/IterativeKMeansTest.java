@@ -143,15 +143,16 @@ public class IterativeKMeansTest extends CompilerTestBase {
 		assertEquals(DriverStrategy.SORTED_GROUP_COMBINE, combiner.getDriverStrategy());
 		assertNull(combiner.getInput().getLocalStrategyKeys());
 		assertNull(combiner.getInput().getLocalStrategySortOrder());
-		assertEquals(set0, combiner.getKeys());
+		assertEquals(set0, combiner.getKeys(0));
+		assertEquals(set0, combiner.getKeys(1));
 		
 		// check the reducer
 		assertEquals(ShipStrategyType.PARTITION_HASH, reducer.getInput().getShipStrategy());
 		assertTrue(reducer.getInput().isOnDynamicPath());
 		assertEquals(LocalStrategy.COMBININGSORT, reducer.getInput().getLocalStrategy());
 		assertEquals(DriverStrategy.SORTED_GROUP_REDUCE, reducer.getDriverStrategy());
-		assertEquals(set0, reducer.getKeys());
+		assertEquals(set0, reducer.getKeys(0));
 		assertEquals(set0, reducer.getInput().getLocalStrategyKeys());
-		assertTrue(Arrays.equals(reducer.getInput().getLocalStrategySortOrder(), reducer.getSortOrders()));
+		assertTrue(Arrays.equals(reducer.getInput().getLocalStrategySortOrder(), reducer.getSortOrders(0)));
 	}
 }

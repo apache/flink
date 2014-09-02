@@ -71,8 +71,8 @@ public class AllGroupReduceDriver<IT, OT> implements PactDriver<GroupReduceFunct
 	}
 
 	@Override
-	public boolean requiresComparatorOnInput() {
-		return false;
+	public int getNumberOfDriverComparators() {
+		return 0;
 	}
 
 	// --------------------------------------------------------------------------------------------
