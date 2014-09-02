@@ -37,16 +37,17 @@ public class GroupedConnectedDataStream<IN1, IN2> extends ConnectedDataStream<IN
 	}
 
 	/**
-	 * Applies a CoReduce transformation on the grouped data stream grouped on
-	 * by the given key position. The {@link CoReduceFunction} will receive
-	 * input values based on the key positions. The transformation calls
-	 * {@link CoReduceFunction#reduce1} and {@link CoReduceFunction#map1} for
-	 * each element of the first input and {@link CoReduceFunction#reduce2} and
-	 * {@link CoReduceFunction#map2} for each element of the second input. For
-	 * each input, only values with the same key will go to the same reducer.
+	 * Applies a CoReduce transformation on a {@link ConnectedDataStream}
+	 * grouped by the given key position and maps the output to a common type.
+	 * The {@link CoReduceFunction} will receive input values based on the key
+	 * positions. The transformation calls {@link CoReduceFunction#reduce1} and
+	 * {@link CoReduceFunction#map1} for each element of the first input and
+	 * {@link CoReduceFunction#reduce2} and {@link CoReduceFunction#map2} for
+	 * each element of the second input. For each input, only values with the
+	 * same key will go to the same reducer.
 	 * 
 	 * @param coReducer
-	 *            The {@link CoReduceFunction} that will be called for every two
+	 *            The {@link CoReduceFunction} that will be called for every
 	 *            element with the same key of each input DataStream.
 	 * @return The transformed DataStream.
 	 */

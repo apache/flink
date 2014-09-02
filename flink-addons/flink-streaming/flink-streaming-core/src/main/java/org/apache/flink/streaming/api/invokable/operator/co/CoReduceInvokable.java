@@ -19,7 +19,7 @@ package org.apache.flink.streaming.api.invokable.operator.co;
 
 import org.apache.flink.streaming.api.function.co.CoReduceFunction;
 
-public abstract class CoStreamReduceInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2, OUT> {
+public class CoReduceInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2, OUT> {
 	private static final long serialVersionUID = 1L;
 
 	protected CoReduceFunction<IN1, IN2, OUT> coReducer;
@@ -28,7 +28,7 @@ public abstract class CoStreamReduceInvokable<IN1, IN2, OUT> extends CoInvokable
 	protected IN1 nextValue1 = null;
 	protected IN2 nextValue2 = null;
 
-	public CoStreamReduceInvokable(CoReduceFunction<IN1, IN2, OUT> coReducer) {
+	public CoReduceInvokable(CoReduceFunction<IN1, IN2, OUT> coReducer) {
 		super(coReducer);
 		this.coReducer = coReducer;
 		currentValue1 = null;
@@ -64,7 +64,7 @@ public abstract class CoStreamReduceInvokable<IN1, IN2, OUT> extends CoInvokable
 		} else {
 			currentValue2 = nextValue2;
 		}
-		collector.collect(coReducer.map2(nextValue2));
+		collector.collect(coReducer.map2(currentValue2));
 	}
 
 }
