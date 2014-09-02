@@ -1,0 +1,567 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   version="1.0"
+   width="184.83mm"
+   height="182.98mm"
+   id="svg2985"
+   inkscape:version="0.48.4 r9939"
+   sodipodi:docname="Picture1.emf">
+  <metadata
+     id="metadata3185">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <sodipodi:namedview
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1"
+     objecttolerance="10"
+     gridtolerance="10"
+     guidetolerance="10"
+     inkscape:pageopacity="0"
+     inkscape:pageshadow="2"
+     inkscape:window-width="640"
+     inkscape:window-height="480"
+     id="namedview3183"
+     showgrid="false"
+     inkscape:zoom="1.5284853"
+     inkscape:cx="327.45474"
+     inkscape:cy="324.17715"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg2985" />
+  <defs
+     id="defs2987" />
+  <g
+     id="g2989">
+    <path
+       style="fill:#ffffff;fill-rule:evenodd;fill-opacity:1;stroke:none;"
+       d="  M 260.48364 21.380326   C 260.48364 18.510862 262.80922 16.185282 265.69744 16.185282   L 378.24423 16.185282   C 381.13245 16.185282 383.45803 18.510862 383.45803 21.380326   L 383.45803 42.216767   C 383.45803 45.086232 381.13245 47.411811 378.24423 47.411811   L 265.69744 47.411811   C 262.80922 47.411811 260.48364 45.086232 260.48364 42.216767   z"
+       id="path2991" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:2.4943714px;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;"
+       d="  M 260.48364 21.380326   C 260.48364 18.510862 262.80922 16.185282 265.69744 16.185282   L 378.24423 16.185282   C 381.13245 16.185282 383.45803 18.510862 383.45803 21.380326   L 383.45803 42.216767   C 383.45803 45.086232 381.13245 47.411811 378.24423 47.411811   L 265.69744 47.411811   C 262.80922 47.411811 260.48364 45.086232 260.48364 42.216767   z"
+       id="path2993" />
+    <text
+       xml:space="preserve"
+       x="275.28831"
+       y="39.668396"
+       style="font-size:19.954971px;fill:#000000;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text2995">flink</text>
+    <text
+       xml:space="preserve"
+       x="316.69863"
+       y="39.668396"
+       style="font-size:19.954971px;fill:#000000;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text2997">-</text>
+    <text
+       xml:space="preserve"
+       x="325.70087"
+       y="39.668396"
+       style="font-size:19.954971px;fill:#000000;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text2999">core</text>
+    <path
+       style="fill:#ffffff;fill-rule:evenodd;fill-opacity:1;stroke:none;"
+       d="  M 130.86073 96.502166   C 130.86073 93.670211 133.1488 91.372763 135.98075 91.372763   L 233.41127 91.372763   C 236.23385 91.372763 238.5313 93.670211 238.5313 96.502166   L 238.5313 116.98227   C 238.5313 119.81422 236.23385 122.10229 233.41127 122.10229   L 135.98075 122.10229   C 133.1488 122.10229 130.86073 119.81422 130.86073 116.98227   z"
+       id="path3001" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:2.5037487px;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;"
+       d="  M 130.86073 96.502166   C 130.86073 93.670211 133.1488 91.372763 135.98075 91.372763   L 233.41127 91.372763   C 236.23385 91.372763 238.5313 93.670211 238.5313 96.502166   L 238.5313 116.98227   C 238.5313 119.81422 236.23385 122.10229 233.41127 122.10229   L 135.98075 122.10229   C 133.1488 122.10229 130.86073 119.81422 130.86073 116.98227   z"
+       id="path3003" />
+    <text
+       xml:space="preserve"
+       x="138.4718"
+       y="114.6131"
+       style="font-size:19.954971px;fill:#000000;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3005">flink</text>
+    <text
+       xml:space="preserve"
+       x="179.88211"
+       y="114.6131"
+       style="font-size:19.954971px;fill:#000000;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3007">-</text>
+    <text
+       xml:space="preserve"
+       x="188.88436"
+       y="114.6131"
+       style="font-size:19.954971px;fill:#000000;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3009">java</text>
+    <path
+       style="fill:#ffffff;fill-rule:evenodd;fill-opacity:1;stroke:none;"
+       d="  M 260.48364 96.567807   C 260.48364 93.754607 262.77171 91.466537 265.58491 91.466537   L 363.05295 91.466537   C 365.86615 91.466537 368.15422 93.754607 368.15422 96.567807   L 368.15422 117.0104   C 368.15422 119.8236 365.86615 122.11167 363.05295 122.11167   L 265.58491 122.11167   C 262.77171 122.11167 260.48364 119.8236 260.48364 117.0104   z"
+       id="path3011" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:2.4943714px;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;"
+       d="  M 260.48364 96.567807   C 260.48364 93.754607 262.77171 91.466537 265.58491 91.466537   L 363.05295 91.466537   C 365.86615 91.466537 368.15422 93.754607 368.15422 96.567807   L 368.15422 117.0104   C 368.15422 119.8236 365.86615 122.11167 363.05295 122.11167   L 265.58491 122.11167   C 262.77171 122.11167 260.48364 119.8236 260.48364 117.0104   z"
+       id="path3013" />
+    <text
+       xml:space="preserve"
+       x="264.04551"
+       y="114.65651"
+       style="font-size:19.954971px;fill:#000000;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3015">flink</text>
+    <text
+       xml:space="preserve"
+       x="305.45583"
+       y="114.65651"
+       style="font-size:19.954971px;fill:#000000;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3017">-</text>
+    <text
+       xml:space="preserve"
+       x="314.45807"
+       y="114.65651"
+       style="font-size:19.954971px;fill:#000000;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3019">scala</text>
+    <text
+       xml:space="preserve"
+       x="20.936318"
+       y="28.495681"
+       style="font-size:15.003737px;fill:#000000;font-style:italic;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3021">c</text>
+    <text
+       xml:space="preserve"
+       x="28.738261"
+       y="28.495681"
+       style="font-size:15.003737px;fill:#000000;font-style:italic;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3023">ore types, common API, utils,</text>
+    <text
+       xml:space="preserve"
+       x="102.25658"
+       y="46.500168"
+       style="font-size:15.003737px;fill:#000000;font-style:italic;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3025">core data structures</text>
+    <text
+       xml:space="preserve"
+       x="277.67823"
+       y="145.73346"
+       style="font-size:15.003737px;fill:#000000;font-style:italic;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3027">Scala API</text>
+    <text
+       xml:space="preserve"
+       x="152.42842"
+       y="145.73346"
+       style="font-size:15.003737px;fill:#000000;font-style:italic;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3029">Java API</text>
+    <text
+       xml:space="preserve"
+       x="127.97233"
+       y="163.73794"
+       style="font-size:15.003737px;fill:#000000;font-style:italic;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3031">Old Record API</text>
+    <path
+       style="fill:#ffffff;fill-rule:evenodd;fill-opacity:1;stroke:none;"
+       d="  M 260.48364 198.25564   C 260.48364 195.0861 263.05303 192.51671 266.20382 192.51671   L 399.26822 192.51671   C 402.419 192.51671 404.98839 195.0861 404.98839 198.25564   L 404.98839 221.13634   C 404.98839 224.30588 402.419 226.87527 399.26822 226.87527   L 266.20382 226.87527   C 263.05303 226.87527 260.48364 224.30588 260.48364 221.13634   z"
+       id="path3033" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:2.4943714px;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;"
+       d="  M 260.48364 198.25564   C 260.48364 195.0861 263.05303 192.51671 266.20382 192.51671   L 399.26822 192.51671   C 402.419 192.51671 404.98839 195.0861 404.98839 198.25564   L 404.98839 221.13634   C 404.98839 224.30588 402.419 226.87527 399.26822 226.87527   L 266.20382 226.87527   C 263.05303 226.87527 260.48364 224.30588 260.48364 221.13634   z"
+       id="path3035" />
+    <text
+       xml:space="preserve"
+       x="268.52797"
+       y="217.56563"
+       style="font-size:19.954971px;fill:#000000;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3037">flink</text>
+    <text
+       xml:space="preserve"
+       x="309.93829"
+       y="217.56563"
+       style="font-size:19.954971px;fill:#000000;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3039">-</text>
+    <text
+       xml:space="preserve"
+       x="318.94053"
+       y="217.56563"
+       style="font-size:19.954971px;fill:#000000;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3041">runtime</text>
+    <path
+       style="fill:#ffffff;fill-rule:evenodd;fill-opacity:1;stroke:none;"
+       d="  M 260.48364 262.94051   C 260.48364 259.77097 263.05303 257.22033 266.20382 257.22033   L 399.26822 257.22033   C 402.419 257.22033 404.98839 259.77097 404.98839 262.94051   L 404.98839 285.83996   C 404.98839 288.99074 402.419 291.56013 399.26822 291.56013   L 266.20382 291.56013   C 263.05303 291.56013 260.48364 288.99074 260.48364 285.83996   z"
+       id="path3043" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:2.4943714px;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;"
+       d="  M 260.48364 262.94051   C 260.48364 259.77097 263.05303 257.22033 266.20382 257.22033   L 399.26822 257.22033   C 402.419 257.22033 404.98839 259.77097 404.98839 262.94051   L 404.98839 285.83996   C 404.98839 288.99074 402.419 291.56013 399.26822 291.56013   L 266.20382 291.56013   C 263.05303 291.56013 260.48364 288.99074 260.48364 285.83996   z"
+       id="path3045" />
+    <text
+       xml:space="preserve"
+       x="264.77703"
+       y="282.25536"
+       style="font-size:19.954971px;fill:#000000;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3047">flink</text>
+    <text
+       xml:space="preserve"
+       x="306.18735"
+       y="282.25536"
+       style="font-size:19.954971px;fill:#000000;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3049">-</text>
+    <text
+       xml:space="preserve"
+       x="315.18959"
+       y="282.25536"
+       style="font-size:19.954971px;fill:#000000;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3051">compiler</text>
+    <path
+       style="fill:#ffffff;fill-rule:evenodd;fill-opacity:1;stroke:none;"
+       d="  M 260.48364 326.7439   C 260.48364 323.57436 263.05303 321.02373 266.20382 321.02373   L 399.26822 321.02373   C 402.419 321.02373 404.98839 323.57436 404.98839 326.7439   L 404.98839 349.64335   C 404.98839 352.79414 402.419 355.36353 399.26822 355.36353   L 266.20382 355.36353   C 263.05303 355.36353 260.48364 352.79414 260.48364 349.64335   z"
+       id="path3053" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:2.4943714px;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;"
+       d="  M 260.48364 326.7439   C 260.48364 323.57436 263.05303 321.02373 266.20382 321.02373   L 399.26822 321.02373   C 402.419 321.02373 404.98839 323.57436 404.98839 326.7439   L 404.98839 349.64335   C 404.98839 352.79414 402.419 355.36353 399.26822 355.36353   L 266.20382 355.36353   C 263.05303 355.36353 260.48364 352.79414 260.48364 349.64335   z"
+       id="path3055" />
+    <text
+       xml:space="preserve"
+       x="275.72976"
+       y="346.05788"
+       style="font-size:19.954971px;fill:#000000;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3057">flink</text>
+    <text
+       xml:space="preserve"
+       x="317.14008"
+       y="346.05788"
+       style="font-size:19.954971px;fill:#000000;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3059">-</text>
+    <text
+       xml:space="preserve"
+       x="326.14232"
+       y="346.05788"
+       style="font-size:19.954971px;fill:#000000;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3061">clients</text>
+    <path
+       style="fill:#000000;fill-rule:nonzero;fill-opacity:1;stroke:#000000;stroke-width:0.018754672px;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;"
+       d="  M 333.49558 397.91788   L 333.94569 363.25925   L 331.45132 363.22174   L 331.00121 397.88037   z  M 338.07172 370.17972   L 332.7454 360.74612   L 327.1565 370.02968   C 326.80016 370.62983 326.98771 371.39877 327.58786 371.75511   C 328.16926 372.11145 328.9382 371.92391 329.29454 371.32376   L 329.29454 371.32376   L 333.7769 363.87815   L 331.62011 363.8594   L 335.89618 371.41753   C 336.23376 372.01768 337.00271 372.22398 337.60286 371.8864   C 338.203 371.54881 338.40931 370.77987 338.07172 370.17972   z"
+       id="path3063" />
+    <text
+       xml:space="preserve"
+       x="90.010614"
+       y="280.17295"
+       style="font-size:15.003737px;fill:#000000;font-style:italic;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3065">compiler </text>
+    <text
+       xml:space="preserve"
+       x="159.62796"
+       y="280.17295"
+       style="font-size:15.003737px;fill:#000000;font-style:italic;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3067">/ </text>
+    <text
+       xml:space="preserve"
+       x="171.78098"
+       y="280.17295"
+       style="font-size:15.003737px;fill:#000000;font-style:italic;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3069">optimizer</text>
+    <text
+       xml:space="preserve"
+       x="48.60059"
+       y="208.5999"
+       style="font-size:15.003737px;fill:#000000;font-style:italic;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3071">l</text>
+    <text
+       xml:space="preserve"
+       x="52.651599"
+       y="208.5999"
+       style="font-size:15.003737px;fill:#000000;font-style:italic;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3073">ocal/distributed execution,</text>
+    <text
+       xml:space="preserve"
+       x="71.706347"
+       y="226.60439"
+       style="font-size:15.003737px;fill:#000000;font-style:italic;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3075">runtime </text>
+    <text
+       xml:space="preserve"
+       x="135.92234"
+       y="226.60439"
+       style="font-size:15.003737px;fill:#000000;font-style:italic;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3077">web monitor</text>
+    <text
+       xml:space="preserve"
+       x="73.125502"
+       y="323.98799"
+       style="font-size:15.003737px;fill:#000000;font-style:italic;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3079">local/remote execution</text>
+    <text
+       xml:space="preserve"
+       x="124.13821"
+       y="341.99247"
+       style="font-size:15.003737px;fill:#000000;font-style:italic;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3081">CLI </text>
+    <text
+       xml:space="preserve"
+       x="154.44576"
+       y="341.99247"
+       style="font-size:15.003737px;fill:#000000;font-style:italic;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3083">client</text>
+    <text
+       xml:space="preserve"
+       x="74.775913"
+       y="359.99696"
+       style="font-size:15.003737px;fill:#000000;font-style:italic;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3085">compiler web frontend</text>
+    <path
+       style="fill:none;stroke:#000000;stroke-width:2.4943714px;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;"
+       d="  M 413.72807 12.678158   C 421.54877 12.678158 427.9066 13.72842 427.9066 15.041247   L 427.9066 68.229498   C 427.9066 69.52357 434.24568 70.592586 442.08513 70.592586   C 434.24568 70.592586 427.9066 71.642848 427.9066 72.955675   L 427.9066 126.14393   C 427.9066 127.45675 421.54877 128.50701 413.72807 128.50701 "
+       id="path3087" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:2.4943714px;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;"
+       d="  M 409.35823 181.56398   C 417.17893 181.56398 423.53676 182.61424 423.53676 183.92707   L 423.53676 273.18056   C 423.53676 274.49338 429.87584 275.54364 437.7153 275.54364   C 429.87584 275.54364 423.53676 276.61266 423.53676 277.90673   L 423.53676 367.17897   C 423.53676 368.47305 417.17893 369.54206 409.35823 369.54206 "
+       id="path3089" />
+    <text
+       xml:space="preserve"
+       x="464.00202"
+       y="69.388546"
+       style="font-size:17.554373px;fill:#000000;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3091">Needed to </text>
+    <text
+       xml:space="preserve"
+       x="486.95774"
+       y="90.393779"
+       style="font-size:17.554373px;fill:#000000;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3093">write </text>
+    <text
+       xml:space="preserve"
+       x="467.00277"
+       y="111.39901"
+       style="font-size:17.554373px;fill:#000000;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3095">programs</text>
+    <text
+       xml:space="preserve"
+       x="440.46593"
+       y="265.59638"
+       style="font-size:17.554373px;fill:#000000;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3097">Needed </text>
+    <text
+       xml:space="preserve"
+       x="512.93399"
+       y="265.59638"
+       style="font-size:17.554373px;fill:#000000;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3099">in addition for </text>
+    <text
+       xml:space="preserve"
+       x="472.87401"
+       y="286.60161"
+       style="font-size:17.554373px;fill:#000000;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3101">embedded </text>
+    <text
+       xml:space="preserve"
+       x="571.14849"
+       y="286.60161"
+       style="font-size:17.554373px;fill:#000000;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3103">and </text>
+    <text
+       xml:space="preserve"
+       x="445.41717"
+       y="307.60684"
+       style="font-size:17.554373px;fill:#000000;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3105">distributed execution</text>
+    <path
+       style="fill:#ffffff;fill-rule:evenodd;fill-opacity:1;stroke:none;"
+       d="  M 126.70657 484.20813   C 126.70657 479.61323 130.43875 475.88105 135.05239 475.88105   L 288.46561 475.88105   C 293.07926 475.88105 296.81144 479.61323 296.81144 484.20813   L 296.81144 517.57269   C 296.81144 522.16759 293.07926 525.91852 288.46561 525.91852   L 135.05239 525.91852   C 130.43875 525.91852 126.70657 522.16759 126.70657 517.57269   z"
+       id="path3107" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:2.4943714px;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;"
+       d="  M 126.70657 484.20813   C 126.70657 479.61323 130.43875 475.88105 135.05239 475.88105   L 288.46561 475.88105   C 293.07926 475.88105 296.81144 479.61323 296.81144 484.20813   L 296.81144 517.57269   C 296.81144 522.16759 293.07926 525.91852 288.46561 525.91852   L 135.05239 525.91852   C 130.43875 525.91852 126.70657 522.16759 126.70657 517.57269   z"
+       id="path3109" />
+    <text
+       xml:space="preserve"
+       x="161.02009"
+       y="496.75874"
+       style="font-size:19.954971px;fill:#000000;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3111">flink</text>
+    <text
+       xml:space="preserve"
+       x="202.4304"
+       y="496.75874"
+       style="font-size:19.954971px;fill:#000000;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3113">-</text>
+    <text
+       xml:space="preserve"
+       x="211.43265"
+       y="496.75874"
+       style="font-size:19.954971px;fill:#000000;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3115">java</text>
+    <text
+       xml:space="preserve"
+       x="253.59315"
+       y="496.75874"
+       style="font-size:19.954971px;fill:#000000;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3117">-</text>
+    <text
+       xml:space="preserve"
+       x="164.17087"
+       y="520.76472"
+       style="font-size:19.954971px;fill:#000000;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3119">examples</text>
+    <path
+       style="fill:#ffffff;fill-rule:evenodd;fill-opacity:1;stroke:none;"
+       d="  M 68.867157 548.64918   C 68.867157 544.12931 72.543072 540.45339 77.062948 540.45339   L 251.57517 540.45339   C 256.09505 540.45339 259.77097 544.12931 259.77097 548.64918   L 259.77097 581.43235   C 259.77097 585.95223 256.09505 589.62814 251.57517 589.62814   L 77.062948 589.62814   C 72.543072 589.62814 68.867157 585.95223 68.867157 581.43235   z"
+       id="path3121" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:2.4943714px;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;"
+       d="  M 68.867157 548.64918   C 68.867157 544.12931 72.543072 540.45339 77.062948 540.45339   L 251.57517 540.45339   C 256.09505 540.45339 259.77097 544.12931 259.77097 548.64918   L 259.77097 581.43235   C 259.77097 585.95223 256.09505 589.62814 251.57517 589.62814   L 77.062948 589.62814   C 72.543072 589.62814 68.867157 585.95223 68.867157 581.43235   z"
+       id="path3123" />
+    <text
+       xml:space="preserve"
+       x="109.65675"
+       y="560.90686"
+       style="font-size:19.954971px;fill:#000000;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3125">flink</text>
+    <text
+       xml:space="preserve"
+       x="151.06706"
+       y="560.90686"
+       style="font-size:19.954971px;fill:#000000;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3127">-</text>
+    <text
+       xml:space="preserve"
+       x="160.06931"
+       y="560.90686"
+       style="font-size:19.954971px;fill:#000000;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3129">scala</text>
+    <text
+       xml:space="preserve"
+       x="210.18179"
+       y="560.90686"
+       style="font-size:19.954971px;fill:#000000;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3131">-</text>
+    <text
+       xml:space="preserve"
+       x="116.85854"
+       y="584.91284"
+       style="font-size:19.954971px;fill:#000000;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3133">examples</text>
+    <path
+       style="fill:#ffffff;fill-rule:evenodd;fill-opacity:1;stroke:none;"
+       d="  M 273.3681 606.75116   C 273.3681 603.22528 276.25632 600.33706 279.7822 600.33706   L 402.92538 600.33706   C 406.48877 600.33706 409.37699 603.22528 409.37699 606.75116   L 409.37699 632.52008   C 409.37699 636.04595 406.48877 638.93417 402.92538 638.93417   L 279.7822 638.93417   C 276.25632 638.93417 273.3681 636.04595 273.3681 632.52008   z"
+       id="path3135" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:2.5131261px;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;"
+       d="  M 273.3681 606.75116   C 273.3681 603.22528 276.25632 600.33706 279.7822 600.33706   L 402.92538 600.33706   C 406.48877 600.33706 409.37699 603.22528 409.37699 606.75116   L 409.37699 632.52008   C 409.37699 636.04595 406.48877 638.93417 402.92538 638.93417   L 279.7822 638.93417   C 276.25632 638.93417 273.3681 636.04595 273.3681 632.52008   z"
+       id="path3137" />
+    <text
+       xml:space="preserve"
+       x="292.11598"
+       y="627.49492"
+       style="font-size:19.954971px;fill:#000000;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3139">flink</text>
+    <text
+       xml:space="preserve"
+       x="333.5263"
+       y="627.49492"
+       style="font-size:19.954971px;fill:#000000;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3141">-</text>
+    <text
+       xml:space="preserve"
+       x="342.52854"
+       y="627.49492"
+       style="font-size:19.954971px;fill:#000000;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3143">tests</text>
+    <path
+       style="fill:#000000;fill-rule:nonzero;fill-opacity:1;stroke:#000000;stroke-width:0.018754672px;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;"
+       d="  M 298.83695 81.395278   L 308.45809 60.108725   L 306.17002 59.077218   L 296.56763 80.382525   z  M 309.47085 68.098215   L 308.34557 57.333033   L 299.51212 63.615848   C 298.94948 64.009696 298.81819 64.797393 299.2308 65.360033   C 299.62464 65.922673 300.41234 66.053956 300.97498 65.641353   L 308.04549 60.615101   L 306.07625 59.733631   L 306.97648 68.36078   C 307.05149 69.054703 307.6704 69.542325 308.34557 69.467306   C 309.03949 69.411042 309.52711 68.792138 309.47085 68.098215   z"
+       id="path3145" />
+    <path
+       style="fill:#000000;fill-rule:nonzero;fill-opacity:1;stroke:#000000;stroke-width:0.0093773361px;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;"
+       d="  M 214.32839 88.962788   L 264.78784 60.765138   L 263.56879 58.589596   L 213.10934 86.777869   z  M 260.83998 67.788763   L 266.34448 58.467691   L 255.52303 58.261389   C 254.82911 58.252012 254.25709 58.805275 254.24771 59.48982   C 254.23834 60.183743 254.78222 60.755761 255.47615 60.765138   L 264.15956 60.924553   L 263.09992 59.039708   L 258.69257 66.522823   C 258.33623 67.113595 258.53316 67.882536 259.13331 68.229498   C 259.72408 68.585836 260.49302 68.388912 260.83998 67.788763   z"
+       id="path3147" />
+    <path
+       style="fill:#000000;fill-rule:nonzero;fill-opacity:1;stroke:#000000;stroke-width:0.018754672px;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;"
+       d="  M 358.60809 184.69601   L 363.55932 174.3997   L 365.97867 169.27967   L 368.34176 164.19716   L 370.64859 159.1709   L 372.86164 154.20092   L 374.96216 149.30595   L 376.95016 144.50475   L 378.78812 139.77857   L 380.47604 135.16492   L 381.97641 130.6638   L 383.30799 126.31272   L 383.87063 124.21219   L 384.39576 122.11167   L 384.88338 120.06741   L 385.27723 118.06066   L 385.63357 116.09142   L 385.93365 114.17844   L 386.13995 112.30298   L 386.30874 110.48377   L 386.38376 108.70208   L 386.40251 106.97665   L 386.365 105.28873   L 386.27123 103.65707   L 386.10244 102.04417   L 385.87738 100.48753   L 385.61482 98.949651   L 385.29599 97.449277   L 384.48954 94.561058   L 383.49554 91.804121   L 382.33275 89.140957   L 381.01992 86.590322   L 379.55706 84.114705   L 377.98166 81.714107   L 376.29374 79.351018   L 374.53081 77.062948   L 372.67409 74.812388   L 370.76112 72.580582   L 368.4918 70.011192   L 370.36727 68.342026   L 372.67409 70.948925   L 374.60582 73.21824   L 376.50005 75.54382   L 378.338 77.906909   L 380.08219 80.326261   L 381.7326 82.839387   L 383.23297 85.446287   L 384.62082 88.14696   L 385.83987 90.96016   L 386.89013 93.885889   L 387.73409 96.942901   L 388.07168 98.518293   L 388.353 100.1312   L 388.59681 101.80036   L 388.7656 103.48828   L 388.87813 105.23247   L 388.91564 107.01416   L 388.89688 108.83336   L 388.78436 110.69008   L 388.63432 112.60305   L 388.39051 114.55354   L 388.09043 116.54153   L 387.73409 118.56704   L 387.30274 120.63005   L 386.83387 122.73058   L 386.28998 124.84985   L 385.68984 127.04415   L 384.35825 131.47025   L 382.82037 136.02764   L 381.11369 140.6788   L 379.25698 145.44248   L 377.26899 150.29994   L 375.14971 155.23242   L 372.9179 160.22117   L 370.61108 165.26617   L 368.22924 170.34869   L 365.80988 175.46871   L 360.8774 185.76503   z  M 369.8984 77.944418   L 367.77912 67.310519   L 378.07544 70.705114   C 378.7131 70.93017 379.06944 71.624093 378.86313 72.280507   C 378.63808 72.93692 377.94416 73.293259 377.28774 73.086958   L 369.03569 70.36753   L 370.64859 68.923421   L 372.33651 77.456796   C 372.48655 78.131965 372.03643 78.788378 371.36127 78.919661   C 370.6861 79.050944 370.02968 78.619586 369.8984 77.944418   z"
+       id="path3149" />
+    <path
+       style="fill:#ffffff;fill-rule:evenodd;fill-opacity:1;stroke:none;"
+       d="  M 259.48965 415.00339   C 259.48965 411.89011 262.02153 409.35823 265.1348 409.35823   L 399.36199 409.35823   C 402.47527 409.35823 404.98839 411.89011 404.98839 415.00339   L 404.98839 437.50899   C 404.98839 440.62227 402.47527 443.1354 399.36199 443.1354   L 265.1348 443.1354   C 262.02153 443.1354 259.48965 440.62227 259.48965 437.50899   z"
+       id="path3151" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:2.4943714px;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;"
+       d="  M 259.48965 415.00339   C 259.48965 411.89011 262.02153 409.35823 265.1348 409.35823   L 399.36199 409.35823   C 402.47527 409.35823 404.98839 411.89011 404.98839 415.00339   L 404.98839 437.50899   C 404.98839 440.62227 402.47527 443.1354 399.36199 443.1354   L 265.1348 443.1354   C 262.02153 443.1354 259.48965 440.62227 259.48965 437.50899   z"
+       id="path3153" />
+    <text
+       xml:space="preserve"
+       x="263.06067"
+       y="434.12154"
+       style="font-size:19.954971px;fill:#000000;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3155">flink</text>
+    <text
+       xml:space="preserve"
+       x="304.47099"
+       y="434.12154"
+       style="font-size:19.954971px;fill:#000000;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3157">-</text>
+    <text
+       xml:space="preserve"
+       x="313.47323"
+       y="434.12154"
+       style="font-size:19.954971px;fill:#000000;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3159">test</text>
+    <text
+       xml:space="preserve"
+       x="350.83254"
+       y="434.12154"
+       style="font-size:19.954971px;fill:#000000;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3161">-</text>
+    <text
+       xml:space="preserve"
+       x="359.83478"
+       y="434.12154"
+       style="font-size:19.954971px;fill:#000000;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3163">utils</text>
+    <path
+       style="fill:#000000;fill-rule:nonzero;fill-opacity:1;stroke:#000000;stroke-width:0.018754672px;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;"
+       d="  M 333.9832 252.40038   L 333.9832 237.32162   L 331.48883 237.32162   L 331.48883 252.40038   z  M 338.18425 244.18583   L 332.7454 234.84601   L 327.28779 244.18583   C 326.93145 244.78598 327.13775 245.55492 327.7379 245.91126   C 328.31929 246.24885 329.08823 246.04255 329.44457 245.46115   L 333.81441 237.95928   L 331.65762 237.95928   L 336.02746 245.46115   L 336.02746 245.46115   C 336.3838 246.04255 337.15274 246.24885 337.73414 245.91126   C 338.33429 245.55492 338.54059 244.78598 338.18425 244.18583   z"
+       id="path3165" />
+    <path
+       style="fill:#000000;fill-rule:nonzero;fill-opacity:1;stroke:#000000;stroke-width:0.018754672px;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;"
+       d="  M 333.9832 314.38457   L 333.9832 299.28706   L 331.48883 299.28706   L 331.48883 314.38457   z  M 338.18425 306.17002   L 332.7454 296.81144   L 327.28779 306.17002   C 326.93145 306.77017 327.13775 307.52036 327.7379 307.8767   C 328.31929 308.23304 329.08823 308.02674 329.44457 307.42659   L 333.81441 299.92472   L 331.65762 299.92472   L 336.02746 307.42659   L 336.02746 307.42659   C 336.3838 308.02674 337.15274 308.23304 337.73414 307.8767   C 338.33429 307.52036 338.54059 306.77017 338.18425 306.17002   z"
+       id="path3167" />
+    <text
+       xml:space="preserve"
+       x="165.18987"
+       y="432.03911"
+       style="font-size:15.003737px;fill:#000000;font-style:italic;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3169">Test </text>
+    <text
+       xml:space="preserve"
+       x="129.63101"
+       y="450.0436"
+       style="font-size:15.003737px;fill:#000000;font-style:italic;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3171">environments</text>
+    <path
+       style="fill:#000000;fill-rule:nonzero;fill-opacity:1;stroke:#000000;stroke-width:0.018754672px;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;"
+       d="  M 334.03947 589.66565   L 331.05747 457.10763   L 333.55185 457.05136   L 336.53384 589.60939   z  M 327.00647 464.08437   L 332.23902 454.61326   L 337.90293 463.84055   C 338.27802 464.42195 338.09048 465.19089 337.49033 465.54723   C 336.90893 465.92232 336.13999 465.73478 335.78365 465.13463   L 335.78365 465.13463   L 331.22627 457.74529   L 333.40181 457.68902   L 329.18201 465.28466   C 328.84442 465.88481 328.09424 466.10987 327.49409 465.77229   C 326.87518 465.4347 326.66888 464.68451 327.00647 464.08437   z"
+       id="path3173" />
+    <path
+       style="fill:#000000;fill-rule:nonzero;fill-opacity:1;stroke:#000000;stroke-width:0.037509345px;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;"
+       d="  M 266.72895 617.7789   L 259.33961 617.55385   L 252.1003 617.29128   L 248.49941 617.10374   L 244.97353 616.91619   L 241.56018 616.69113   L 238.18434 616.42857   L 234.92102 616.09098   L 231.77024 615.7534   L 228.73198 615.30329   L 225.80625 614.81567   L 223.03056 614.25303   L 220.44242 613.61537   L 217.9668 612.90269   L 215.71624 612.07748   L 213.61572 611.17726   L 211.70274 610.127   L 209.97731 609.03923   L 208.40192 607.87644   L 206.97656 606.60112   L 205.66374 605.28829   L 204.53846 603.90045   L 203.48819 602.43758   L 202.58797 600.97472   L 201.76276 599.47434   L 201.01258 597.93646   L 200.33741 596.36107   L 199.13711 593.21028   L 198.87454 592.38508   L 201.23763 591.59738   L 201.5002 592.34757   L 202.62548 595.38583   L 203.26314 596.84869   L 203.97582 598.27405   L 204.68849 599.66189   L 205.55121 601.01223   L 206.45143 602.28754   L 207.46418 603.56286   L 208.62697 604.72565   L 209.90229 605.85093   L 211.29014 606.9387   L 212.86553 607.95146   L 214.62847 608.85168   L 216.54145 609.7144   L 218.67948 610.50209   L 221.00506 611.17726   L 223.55569 611.81492   L 226.21886 612.34005   L 229.06957 612.82767   L 232.03281 613.24027   L 235.14608 613.61537   L 238.37188 613.91544   L 241.71022 614.17801   L 245.12357 614.40306   L 248.61194 614.62812   L 252.17532 614.77816   L 259.41463 615.04072   L 266.80397 615.26578   z  M 197.11161 600.26204   L 199.24964 589.6469   L 207.42668 596.73616   C 207.95181 597.18627 208.02682 597.97397 207.5392 598.4991   C 207.08909 599.02423 206.30139 599.06174 205.77626 598.61163   L 199.21213 592.94772   L 201.27514 592.23504   L 199.54971 600.74966   C 199.43718 601.42483 198.76202 601.87494 198.08685 601.7249   C 197.41168 601.57487 196.96157 600.93721 197.11161 600.26204   z"
+       id="path3175" />
+    <path
+       style="fill:#000000;fill-rule:nonzero;fill-opacity:1;stroke:#000000;stroke-width:0.018754672px;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;"
+       d="  M 310.91496 593.04149   L 306.28255 588.76543   L 301.70641 584.52687   L 297.28031 580.32582   L 295.12352 578.24406   L 293.04175 576.21855   L 291.01625 574.17429   L 289.08452 572.1863   L 287.22781 570.21706   L 285.46487 568.28532   L 283.7957 566.40986   L 282.23906 564.55314   L 280.81371 562.7527   L 279.50088 560.98976   L 278.33809 559.28308   L 277.28783 557.61392   L 276.36885 556.00101   L 275.58115 554.42562   L 274.86848 552.88774   L 274.26833 551.36861   L 273.76195 549.90575   L 273.34935 548.48039   L 272.97425 547.07379   L 272.69293 545.68594   L 272.26158 543.02278   L 271.98026 540.39713   L 271.9615 540.30335   L 274.45587 540.11581   L 274.45587 540.13456   L 274.73719 542.62893   L 275.13104 545.17957   L 275.41236 546.45489   L 275.73119 547.76771   L 276.12504 549.09929   L 276.61266 550.46839   L 277.15655 551.85623   L 277.79421 553.28159   L 278.54439 554.76321   L 279.42586 556.30109   L 280.4011 557.87648   L 281.52639 559.50814   L 282.76419 561.19606   L 284.17079 562.959   L 285.67117 564.75945   L 287.30282 566.61616   L 289.02825 568.51038   L 290.86621 570.44211   L 292.79794 572.41135   L 294.78594 574.4181   L 296.86771 576.46236   L 298.98699 578.52538   L 303.41309 582.70767   L 307.97047 586.92747   L 312.62163 591.20353   z  M 268.34185 547.50515   L 273.01176 537.73396   L 279.21956 546.60492   C 279.61341 547.18632 279.46337 547.95526 278.90073 548.34911   C 278.33809 548.74296 277.55039 548.61167 277.15655 548.04903   L 272.18656 540.92226   L 274.34335 540.75347   L 270.59241 548.57416   C 270.29234 549.21182 269.54215 549.47439 268.92325 549.17431   C 268.30434 548.87424 268.04178 548.12405 268.34185 547.50515   z"
+       id="path3177" />
+    <text
+       xml:space="preserve"
+       x="441.23605"
+       y="616.32234"
+       style="font-size:15.003737px;fill:#000000;font-style:italic;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3179">integration tests</text>
+    <text
+       xml:space="preserve"
+       x="435.68466"
+       y="634.32683"
+       style="font-size:15.003737px;fill:#000000;font-style:italic;font-weight:normal;text-align:start;text-anchor:start;font-family:Verdana;"
+       id="text3181">(entire programs)</text>
+  </g>
+</svg>

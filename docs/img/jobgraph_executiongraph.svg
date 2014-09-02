@@ -1,0 +1,453 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   version="1.0"
+   width="329.56mm"
+   height="259.01999mm"
+   id="svg2"
+   inkscape:version="0.48.4 r9939"
+   sodipodi:docname="jobgraph_executiongraph.emf">
+  <metadata
+     id="metadata154">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <sodipodi:namedview
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1"
+     objecttolerance="10"
+     gridtolerance="10"
+     guidetolerance="10"
+     inkscape:pageopacity="0"
+     inkscape:pageshadow="2"
+     inkscape:window-width="1600"
+     inkscape:window-height="838"
+     id="namedview152"
+     showgrid="false"
+     inkscape:zoom="0.25714017"
+     inkscape:cx="583.86615"
+     inkscape:cy="458.89368"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg2" />
+  <defs
+     id="defs4" />
+  <g
+     id="g6"
+     transform="translate(-50.556086,-241.11363)">
+    <path
+       style="fill:none;stroke:#85888d;stroke-width:2.51312613px;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+       d="m 75.993932,278.1693 c 0,-10.35258 8.364584,-18.75467 18.754672,-18.75467 l 300.862456,0 c 10.35258,0 18.75467,8.40209 18.75467,18.75467 l 0,616.42857 c 0,10.35258 -8.40209,18.75467 -18.75467,18.75467 l -300.862456,0 c -10.390088,0 -18.754672,-8.40209 -18.754672,-18.75467 z"
+       id="path8"
+       inkscape:connector-curvature="0" />
+    <text
+       xml:space="preserve"
+       x="174.01491"
+       y="294.8385"
+       style="font-size:30.0074749px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Verdana"
+       id="text10">JobGraph</text>
+    <path
+       style="fill:none;stroke:#85888d;stroke-width:2.51312613px;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+       d="m 446.54875,546.3236 47.74939,0 0,-42.49808 80.00743,62.49056 -80.00743,62.52808 0,-42.49809 -47.74939,0 z"
+       id="path12"
+       inkscape:connector-curvature="0" />
+    <path
+       style="fill:none;stroke:#85888d;stroke-width:2.51312613px;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+       d="m 597.41133,324.7559 c 0,-36.08398 29.2948,-65.34127 65.37879,-65.34127 l 436.53378,0 c 36.1215,0 65.3788,29.25729 65.3788,65.34127 l 0,523.25536 c 0,36.1215 -29.2573,65.37879 -65.3788,65.37879 l -436.53378,0 c -36.08399,0 -65.37879,-29.25729 -65.37879,-65.37879 z"
+       id="path14"
+       inkscape:connector-curvature="0" />
+    <text
+       xml:space="preserve"
+       x="761.92096"
+       y="308.46613"
+       style="font-size:30.0074749px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Verdana"
+       id="text16">ExecutionGraph</text>
+    <path
+       style="fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:0.03750934px;stroke-linecap:butt;stroke-linejoin:round;stroke-opacity:1;stroke-dasharray:none"
+       d="m 281.73269,760.50196 0,-14.92872 -3.75094,0 0,14.92872 3.75094,0 z m 3.75093,-13.05325 -5.6264,-11.25281 -5.6264,11.25281 11.2528,0 z"
+       id="path18"
+       inkscape:connector-curvature="0" />
+    <path
+       style="fill:none;stroke:#85888d;stroke-width:2.51312613px;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+       d="m 324.04323,778.24388 c 24.41858,24.41858 24.41858,64.02845 0,88.40953 -24.41859,24.41858 -63.99094,24.41858 -88.40953,0 -24.41858,-24.38108 -24.41858,-63.99095 0,-88.40953 24.41859,-24.38107 63.99094,-24.38107 88.40953,0"
+       id="path20"
+       inkscape:connector-curvature="0" />
+    <text
+       xml:space="preserve"
+       x="238.73856"
+       y="818.62347"
+       style="font-size:18.754673px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Verdana"
+       id="text22">JobInput</text>
+    <text
+       xml:space="preserve"
+       x="249.24117"
+       y="841.12909"
+       style="font-size:18.754673px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Verdana"
+       id="text24">Vertex</text>
+    <path
+       style="fill:none;stroke:#85888d;stroke-width:2.51312613px;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+       d="m 324.04323,630.04446 c 24.41858,24.41858 24.41858,63.99094 0,88.40952 -24.41859,24.41859 -63.99094,24.41859 -88.40953,0 -24.41858,-24.41858 -24.41858,-63.99094 0,-88.40952 24.41859,-24.41858 63.99094,-24.41858 88.40953,0"
+       id="path26"
+       inkscape:connector-curvature="0" />
+    <text
+       xml:space="preserve"
+       x="242.19254"
+       y="670.40436"
+       style="font-size:18.754673px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Verdana"
+       id="text28">JobTask</text>
+    <text
+       xml:space="preserve"
+       x="249.24428"
+       y="692.90997"
+       style="font-size:18.754673px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Verdana"
+       id="text30">Vertex</text>
+    <path
+       style="fill:none;stroke:#85888d;stroke-width:2.49437141px;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+       d="m 324.02447,333.58936 c 24.41859,24.41858 24.41859,63.99094 0,88.40952 -24.39983,24.41858 -63.99094,24.41858 -88.39077,0 -24.41858,-24.41858 -24.41858,-63.99094 0,-88.40952 24.39983,-24.41859 63.99094,-24.41859 88.39077,0"
+       id="path32"
+       inkscape:connector-curvature="0" />
+    <text
+       xml:space="preserve"
+       x="231.68677"
+       y="373.96625"
+       style="font-size:18.754673px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Verdana"
+       id="text34">JobOutput</text>
+    <text
+       xml:space="preserve"
+       x="249.24113"
+       y="396.47186"
+       style="font-size:18.754673px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Verdana"
+       id="text36">Vertex</text>
+    <path
+       style="fill:none;stroke:#85888d;stroke-width:2.49437141px;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+       d="m 324.02447,481.80753 c 24.41859,24.41858 24.41859,64.0097 0,88.40953 -24.39983,24.41858 -63.99094,24.41858 -88.39077,0 -24.41858,-24.39983 -24.41858,-63.99095 0,-88.40953 24.39983,-24.39983 63.99094,-24.39983 88.39077,0"
+       id="path38"
+       inkscape:connector-curvature="0" />
+    <text
+       xml:space="preserve"
+       x="242.19254"
+       y="522.18524"
+       style="font-size:18.754673px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Verdana"
+       id="text40">JobTask</text>
+    <text
+       xml:space="preserve"
+       x="249.24428"
+       y="544.69086"
+       style="font-size:18.754673px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Verdana"
+       id="text42">Vertex</text>
+    <path
+       style="fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:0.03750934px;stroke-linecap:butt;stroke-linejoin:round;stroke-opacity:1;stroke-dasharray:none"
+       d="m 281.73269,612.30254 0,-14.92872 -3.75094,0 0,14.92872 3.75094,0 z m 3.75093,-13.05325 -5.6264,-11.25281 -5.6264,11.25281 11.2528,0 z"
+       id="path44"
+       inkscape:connector-curvature="0" />
+    <path
+       style="fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:0.01875467px;stroke-linecap:butt;stroke-linejoin:round;stroke-opacity:1;stroke-dasharray:none"
+       d="m 281.71393,464.06561 0,-14.92872 -3.75093,0 0,14.92872 3.75093,0 z m 3.75094,-13.05325 -5.62641,-11.2528 -5.6264,11.2528 11.25281,0 z"
+       id="path46"
+       inkscape:connector-curvature="0" />
+    <path
+       style="fill:none;stroke:#85888d;stroke-width:2.51312613px;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+       d="m 949.62408,799.5867 c 21.98047,21.94296 21.98047,57.57684 0,79.55732 -21.98048,21.98047 -57.57685,21.98047 -79.55732,0 -21.98048,-21.98048 -21.98048,-57.61436 0,-79.55732 21.98047,-21.98048 57.57684,-21.98048 79.55732,0"
+       id="path48"
+       inkscape:connector-curvature="0" />
+    <text
+       xml:space="preserve"
+       x="864.19208"
+       y="835.50983"
+       style="font-size:18.754673px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Verdana"
+       id="text50">Execution</text>
+    <text
+       xml:space="preserve"
+       x="879.1958"
+       y="858.01538"
+       style="font-size:18.754673px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Verdana"
+       id="text52">Vertex</text>
+    <path
+       style="fill:none;stroke:#85888d;stroke-width:2.51312613px;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+       d="m 802.09982,651.34977 c 21.98048,21.98047 21.98048,57.57684 0,79.55732 -21.98047,21.98047 -57.61435,21.98047 -79.55732,0 -21.98047,-21.98048 -21.98047,-57.57685 0,-79.55732 21.94297,-21.98048 57.57685,-21.98048 79.55732,0"
+       id="path54"
+       inkscape:connector-curvature="0" />
+    <text
+       xml:space="preserve"
+       x="716.66034"
+       y="687.29071"
+       style="font-size:18.754673px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Verdana"
+       id="text56">Execution</text>
+    <text
+       xml:space="preserve"
+       x="731.66406"
+       y="709.79626"
+       style="font-size:18.754673px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Verdana"
+       id="text58">Vertex</text>
+    <path
+       style="fill:none;stroke:#85888d;stroke-width:2.51312613px;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+       d="m 949.62408,651.34977 c 21.98047,21.98047 21.98047,57.57684 0,79.55732 -21.98048,21.98047 -57.57685,21.98047 -79.55732,0 -21.98048,-21.98048 -21.98048,-57.57685 0,-79.55732 21.98047,-21.98048 57.57684,-21.98048 79.55732,0"
+       id="path60"
+       inkscape:connector-curvature="0" />
+    <text
+       xml:space="preserve"
+       x="864.19208"
+       y="687.29071"
+       style="font-size:18.754673px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Verdana"
+       id="text62">Execution</text>
+    <text
+       xml:space="preserve"
+       x="879.1958"
+       y="709.79626"
+       style="font-size:18.754673px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Verdana"
+       id="text64">Vertex</text>
+    <path
+       style="fill:none;stroke:#85888d;stroke-width:2.51312613px;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+       d="m 1097.1483,651.34977 c 21.9805,21.98047 21.9805,57.57684 0,79.55732 -21.9429,21.98047 -57.5768,21.98047 -79.5573,0 -21.98047,-21.98048 -21.98047,-57.57685 0,-79.55732 21.9805,-21.98048 57.6144,-21.98048 79.5573,0"
+       id="path66"
+       inkscape:connector-curvature="0" />
+    <text
+       xml:space="preserve"
+       x="1011.7239"
+       y="687.29071"
+       style="font-size:18.754673px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Verdana"
+       id="text68">Execution</text>
+    <text
+       xml:space="preserve"
+       x="1026.7275"
+       y="709.79626"
+       style="font-size:18.754673px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Verdana"
+       id="text70">Vertex</text>
+    <path
+       style="fill:none;stroke:#85888d;stroke-width:2.51312613px;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+       d="m 865.52812,501.91254 c 21.98048,21.94297 21.98048,57.57684 0,79.55732 -21.98047,21.98047 -57.61435,21.98047 -79.55731,0 -21.98048,-21.98048 -21.98048,-57.61435 0,-79.55732 21.94296,-21.98048 57.57684,-21.98048 79.55731,0"
+       id="path72"
+       inkscape:connector-curvature="0" />
+    <text
+       xml:space="preserve"
+       x="780.09198"
+       y="537.83459"
+       style="font-size:18.754673px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Verdana"
+       id="text74">Execution</text>
+    <text
+       xml:space="preserve"
+       x="795.0957"
+       y="560.34021"
+       style="font-size:18.754673px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Verdana"
+       id="text76">Vertex</text>
+    <path
+       style="fill:none;stroke:#85888d;stroke-width:2.51312613px;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+       d="m 1032.0696,502.85027 c 21.943,21.94297 21.943,57.57685 0,79.55732 -21.9805,21.98048 -57.61434,21.98048 -79.59481,0 -21.94297,-21.98047 -21.94297,-57.61435 0,-79.55732 21.98047,-21.98047 57.61431,-21.98047 79.59481,0"
+       id="path78"
+       inkscape:connector-curvature="0" />
+    <text
+       xml:space="preserve"
+       x="946.62244"
+       y="538.78052"
+       style="font-size:18.754673px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Verdana"
+       id="text80">Execution</text>
+    <text
+       xml:space="preserve"
+       x="961.62616"
+       y="561.28613"
+       style="font-size:18.754673px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Verdana"
+       id="text82">Vertex</text>
+    <path
+       style="fill:none;stroke:#85888d;stroke-width:2.51312613px;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+       d="m 865.52812,352.4378 c 21.98048,21.98048 21.98048,57.57684 0,79.55732 -21.98047,21.98048 -57.61435,21.98048 -79.55731,0 -21.98048,-21.98048 -21.98048,-57.57684 0,-79.55732 21.94296,-21.98047 57.57684,-21.98047 79.55731,0"
+       id="path84"
+       inkscape:connector-curvature="0" />
+    <text
+       xml:space="preserve"
+       x="780.09198"
+       y="388.37848"
+       style="font-size:18.754673px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Verdana"
+       id="text86">Execution</text>
+    <text
+       xml:space="preserve"
+       x="795.0957"
+       y="410.88409"
+       style="font-size:18.754673px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Verdana"
+       id="text88">Vertex</text>
+    <path
+       style="fill:none;stroke:#85888d;stroke-width:2.51312613px;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+       d="m 1032.0696,354.61334 c 21.943,21.98048 21.943,57.61436 0,79.55732 -21.9805,21.98048 -57.61434,21.98048 -79.59481,0 -21.94297,-21.94296 -21.94297,-57.57684 0,-79.55732 21.98047,-21.98047 57.61431,-21.98047 79.59481,0"
+       id="path90"
+       inkscape:connector-curvature="0" />
+    <text
+       xml:space="preserve"
+       x="946.62244"
+       y="390.56143"
+       style="font-size:18.754673px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Verdana"
+       id="text92">Execution</text>
+    <text
+       xml:space="preserve"
+       x="961.62616"
+       y="413.06705"
+       style="font-size:18.754673px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Verdana"
+       id="text94">Vertex</text>
+    <path
+       style="fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:0.03750934px;stroke-linecap:butt;stroke-linejoin:round;stroke-opacity:1;stroke-dasharray:none"
+       d="m 827.60618,483.27039 0,-23.63088 -3.75094,0 0,23.63088 3.75094,0 z m 3.75093,-21.75542 -5.6264,-11.2528 -5.6264,11.2528 11.2528,0 z"
+       id="path96"
+       inkscape:connector-curvature="0" />
+    <path
+       style="fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:0.03750934px;stroke-linecap:butt;stroke-linejoin:round;stroke-opacity:1;stroke-dasharray:none"
+       d="m 994.14767,483.27039 0,-23.63088 -3.75094,0 0,23.63088 3.75094,0 z m 3.75093,-21.75542 -5.6264,-11.2528 -5.6264,11.2528 11.2528,0 z"
+       id="path98"
+       inkscape:connector-curvature="0" />
+    <path
+       style="fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:0.03750934px;stroke-linecap:butt;stroke-linejoin:round;stroke-opacity:1;stroke-dasharray:none"
+       d="m 911.73964,781.84478 0,-23.63089 -3.75094,0 0,23.63089 3.75094,0 z m 3.75093,-21.75542 -5.6264,-11.25281 -5.6264,11.25281 11.2528,0 z"
+       id="path100"
+       inkscape:connector-curvature="0" />
+    <path
+       style="fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:0.03750934px;stroke-linecap:butt;stroke-linejoin:round;stroke-opacity:1;stroke-dasharray:none"
+       d="m 861.70217,806.56344 -86.27149,-49.32479 1.87547,-3.26332 86.23398,49.32479 -1.83796,3.26332 z m -86.49655,-45.16126 -6.97673,-10.4651 12.56563,0.71267 -5.5889,9.75243 z"
+       id="path102"
+       inkscape:connector-curvature="0" />
+    <path
+       style="fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:0.03750934px;stroke-linecap:butt;stroke-linejoin:round;stroke-opacity:1;stroke-dasharray:none"
+       d="m 957.98866,806.56344 86.27154,-49.32479 -1.8755,-3.26332 -86.234,49.32479 1.83796,3.26332 z m 86.49654,-45.16126 6.9767,-10.4651 -12.5656,0.71267 5.5889,9.75243 z"
+       id="path104"
+       inkscape:connector-curvature="0" />
+    <path
+       style="fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:0.03750934px;stroke-linecap:butt;stroke-linejoin:round;stroke-opacity:1;stroke-dasharray:none"
+       d="m 908.51383,636.6086 -40.47258,-39.87244 2.62565,-2.66316 40.5101,39.83492 -2.66317,2.70068 z m -41.78541,-35.85894 -4.08851,-11.92797 12.00299,3.90097 -7.91448,8.027 z"
+       id="path106"
+       inkscape:connector-curvature="0" />
+    <path
+       style="fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:0.03750934px;stroke-linecap:butt;stroke-linejoin:round;stroke-opacity:1;stroke-dasharray:none"
+       d="m 914.17774,636.57109 40.73515,-40.99772 -2.66316,-2.66316 -40.73515,41.03522 2.66316,2.62566 z m 42.08549,-37.02173 3.90097,-11.96548 -11.89046,4.0135 7.98949,7.95198 z"
+       id="path108"
+       inkscape:connector-curvature="0" />
+    <path
+       style="fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:0.03750934px;stroke-linecap:butt;stroke-linejoin:round;stroke-opacity:1;stroke-dasharray:none"
+       d="m 770.89205,636.57109 33.64588,-33.64589 -2.66316,-2.62565 -33.64588,33.64588 2.66316,2.62566 z m 34.95871,-29.63239 3.97599,-11.96548 -11.92797,3.97599 7.95198,7.98949 z"
+       id="path110"
+       inkscape:connector-curvature="0" />
+    <path
+       style="fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:0.03750934px;stroke-linecap:butt;stroke-linejoin:round;stroke-opacity:1;stroke-dasharray:none"
+       d="m 1048.7988,636.57109 -33.6459,-33.64589 2.6632,-2.62565 33.6458,33.64588 -2.6631,2.62566 z m -34.9587,-29.63239 -3.976,-11.96548 11.928,3.97599 -7.952,7.98949 z"
+       id="path112"
+       inkscape:connector-curvature="0" />
+    <path
+       style="fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:0.03750934px;stroke-linecap:butt;stroke-linejoin:round;stroke-opacity:1;stroke-dasharray:none"
+       d="m 770.02933,637.09622 178.43196,-46.51159 -0.93774,-3.63841 -178.43195,46.51159 0.93773,3.63841 z m 177.56924,-42.42307 9.45236,-8.28957 -12.30307,-2.58814 2.85071,10.87771 z"
+       id="path114"
+       inkscape:connector-curvature="0" />
+    <path
+       style="fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:0.03750934px;stroke-linecap:butt;stroke-linejoin:round;stroke-opacity:1;stroke-dasharray:none"
+       d="m 1049.624,636.68361 -159.11465,-45.87392 1.01275,-3.6009 159.1146,45.87393 -1.0127,3.60089 z m -158.36446,-41.7479 -9.26481,-8.55213 12.37808,-2.28807 -3.11327,10.8402 z"
+       id="path116"
+       inkscape:connector-curvature="0" />
+    <path
+       style="fill:none;stroke:#861001;stroke-width:2.51312613px;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+       d="m 620.5546,357.31402 c 0,-17.40434 14.10351,-31.50785 31.50785,-31.50785 l 452.77525,0 c 17.4044,0 31.5079,14.10351 31.5079,31.50785 l 0,69.80489 c 0,17.40433 -14.1035,31.50785 -31.5079,31.50785 l -452.77525,0 c -17.40434,0 -31.50785,-14.10352 -31.50785,-31.50785 z"
+       id="path118"
+       inkscape:connector-curvature="0" />
+    <path
+       style="fill:none;stroke:#861001;stroke-width:2.51312613px;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+       d="m 620.5546,506.75124 c 0,-17.36682 14.10351,-31.50784 31.50785,-31.50784 l 452.77525,0 c 17.4044,0 31.5079,14.14102 31.5079,31.50784 l 0,69.8424 c 0,17.40434 -14.1035,31.50785 -31.5079,31.50785 l -452.77525,0 c -17.40434,0 -31.50785,-14.10351 -31.50785,-31.50785 z"
+       id="path120"
+       inkscape:connector-curvature="0" />
+    <path
+       style="fill:none;stroke:#861001;stroke-width:2.51312613px;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+       d="m 620.5546,655.62583 c 0,-17.40433 14.10351,-31.50785 31.50785,-31.50785 l 452.77525,0 c 17.4044,0 31.5079,14.10352 31.5079,31.50785 l 0,69.80489 c 0,17.40434 -14.1035,31.50785 -31.5079,31.50785 l -452.77525,0 c -17.40434,0 -31.50785,-14.10351 -31.50785,-31.50785 z"
+       id="path122"
+       inkscape:connector-curvature="0" />
+    <path
+       style="fill:none;stroke:#861001;stroke-width:2.51312613px;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+       d="m 620.5546,798.0113 c 0,-17.40433 14.10351,-31.50784 31.50785,-31.50784 l 452.77525,0 c 17.4044,0 31.5079,14.10351 31.5079,31.50784 l 0,69.80489 c 0,17.40434 -14.1035,31.50785 -31.5079,31.50785 l -452.77525,0 c -17.40434,0 -31.50785,-14.10351 -31.50785,-31.50785 z"
+       id="path124"
+       inkscape:connector-curvature="0" />
+    <text
+       xml:space="preserve"
+       x="635.06665"
+       y="361.29044"
+       style="font-size:18.754673px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Verdana"
+       id="text126">ExecutionGroup</text>
+    <text
+       xml:space="preserve"
+       x="678.72754"
+       y="383.79605"
+       style="font-size:18.754673px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Verdana"
+       id="text128">Vertex</text>
+    <text
+       xml:space="preserve"
+       x="635.06665"
+       y="510.74646"
+       style="font-size:18.754673px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Verdana"
+       id="text130">ExecutionGroup</text>
+    <text
+       xml:space="preserve"
+       x="678.72754"
+       y="533.25208"
+       style="font-size:18.754673px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Verdana"
+       id="text132">Vertex</text>
+    <text
+       xml:space="preserve"
+       x="644.67828"
+       y="796.58698"
+       style="font-size:18.754673px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Verdana"
+       id="text134">ExecutionGroup</text>
+    <text
+       xml:space="preserve"
+       x="688.33917"
+       y="819.09259"
+       style="font-size:18.754673px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Verdana"
+       id="text136">Vertex</text>
+    <text
+       xml:space="preserve"
+       x="635.55035"
+       y="659.14868"
+       style="font-size:18.754673px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Verdana"
+       id="text138">Execution</text>
+    <text
+       xml:space="preserve"
+       x="652.50458"
+       y="681.6543"
+       style="font-size:18.754673px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Verdana"
+       id="text140">Group</text>
+    <text
+       xml:space="preserve"
+       x="650.55408"
+       y="704.15991"
+       style="font-size:18.754673px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Verdana"
+       id="text142">Vertex</text>
+    <text
+       xml:space="preserve"
+       x="110.31272"
+       y="834.37744"
+       style="font-size:30.0074749px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Verdana"
+       id="text144">Source</text>
+    <text
+       xml:space="preserve"
+       x="131.27104"
+       y="686.15552"
+       style="font-size:30.0074749px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Verdana"
+       id="text146">Map</text>
+    <text
+       xml:space="preserve"
+       x="107.34327"
+       y="537.93353"
+       style="font-size:30.0074749px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Verdana"
+       id="text148">Reduce</text>
+    <text
+       xml:space="preserve"
+       x="129.4863"
+       y="389.71155"
+       style="font-size:30.0074749px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Verdana"
+       id="text150">Sink</text>
+  </g>
+</svg>

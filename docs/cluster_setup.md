@@ -3,10 +3,10 @@ title:  "Cluster Setup"
 ---
 
 This documentation is intended to provide instructions on how to run
-Stratosphere in a fully distributed fashion on a static (but possibly
+Flink in a fully distributed fashion on a static (but possibly
 heterogeneous) cluster.
 
-This involves two steps. First, installing and configuring Stratosphere and
+This involves two steps. First, installing and configuring Flink and
 second installing and configuring the [Hadoop Distributed
 Filesystem](http://hadoop.apache.org/) (HDFS).
 
@@ -14,13 +14,13 @@ Filesystem](http://hadoop.apache.org/) (HDFS).
 
 ## Software Requirements
 
-Stratosphere runs on all *UNIX-like environments*, e.g. **Linux**, **Mac OS X**,
+Flink runs on all *UNIX-like environments*, e.g. **Linux**, **Mac OS X**,
 and **Cygwin** (for Windows) and expects the cluster to consist of **one master
 node** and **one or more worker nodes**. Before you start to setup the system,
 make sure you have the following software installed **on each node**:
 
 - **Java 1.6.x** or higher,
-- **ssh** (sshd must be running to use the Stratosphere scripts that manage
+- **ssh** (sshd must be running to use the Flink scripts that manage
   remote components)
 
 If your cluster does not fulfill these software requirements you will need to
@@ -67,16 +67,16 @@ root       894  0.0  0.0  49260   320 ?        Ss   Jan09   0:13 /usr/sbin/sshd
 In order to start/stop the remote processes, the master node requires access via
 ssh to the worker nodes. It is most convenient to use ssh's public key
 authentication for this. To setup public key authentication, log on to the
-master as the user who will later execute all the Stratosphere components. **The
+master as the user who will later execute all the Flink components. **The
 same user (i.e. a user with the same user name) must also exist on all worker
 nodes**. For the remainder of this instruction we will refer to this user as
-*stratosphere*. Using the super user *root* is highly discouraged for security
+*flink*. Using the super user *root* is highly discouraged for security
 reasons.
 
 Once you logged in to the master node as the desired user, you must generate a
 new public/private key pair. The following command will create a new
 public/private key pair into the *.ssh* directory inside the home directory of
-the user *stratosphere*. See the ssh-keygen man page for more details. Note that
+the user *flink*. See the ssh-keygen man page for more details. Note that
 the private key is not protected by a passphrase.
 
 ```
@@ -110,11 +110,11 @@ worker node from your master node via ssh without a password.
 
 ## Setting JAVA_HOME on each Node
 
-Stratosphere requires the `JAVA_HOME` environment variable to be set on the
+Flink requires the `JAVA_HOME` environment variable to be set on the
 master and all worker nodes and point to the directory of your Java
 installation.
 
-You can set this variable in `conf/stratosphere-conf.yaml` via the
+You can set this variable in `conf/flink-conf.yaml` via the
 `env.java.home` key.
 
 Alternatively, add the following line to your shell profile. If you use the
@@ -136,7 +136,7 @@ echo "PermitUserEnvironment yes" >> /etc/ssh/sshd_config
 
 # Hadoop Distributed Filesystem (HDFS) Setup
 
-The Stratosphere system currently uses the Hadoop Distributed Filesystem (HDFS)
+The Flink system currently uses the Hadoop Distributed Filesystem (HDFS)
 to read and write data in a distributed fashion.
 
 Make sure to have a running HDFS installation. The following instructions are
@@ -148,7 +148,7 @@ many installation guides available online for more detailed instructions.
 
 ## Downloading, Installing, and Configuring HDFS
 
-Similar to the Stratosphere system HDFS runs in a distributed fashion. HDFS
+Similar to the Flink system HDFS runs in a distributed fashion. HDFS
 consists of a **NameNode** which manages the distributed file system's meta
 data. The actual data is stored by one or more **DataNodes**. For the remainder
 of this instruction we assume the HDFS's NameNode component runs on the master
@@ -195,7 +195,7 @@ Guide](http://hadoop.apache.org/docs/r1.2.1/hdfs_user_guide.html) guide.
 Replace *MASTER* with the IP/host name of your master node which runs the
 *NameNode*. *DATAPATH* must be replaced with path to the directory in which the
 actual HDFS data shall be stored on each worker node. Make sure that the
-*stratosphere* user has sufficient permissions to read and write in that
+*flink* user has sufficient permissions to read and write in that
 directory.
 
 After having saved the HDFS configuration file, open the file *conf/slaves* and
@@ -244,32 +244,32 @@ like to point you to the [Hadoop Quick
 Start](http://wiki.apache.org/hadoop/QuickStart)
 guide.
 
-# Stratosphere Setup
+# Flink Setup
 
-Go to the [downloads page]({{site.baseurl}}/downloads/) and get the ready to run
-package. Make sure to pick the Stratosphere package **matching your Hadoop
+Go to the [downloads page](downloads/) and get the ready to run
+package. Make sure to pick the Flink package **matching your Hadoop
 version**.
 
 After downloading the latest release, copy the archive to your master node and
 extract it:
 
 ```
-tar xzf stratosphere-*.tgz
-cd stratosphere-*
+tar xzf flink-*.tgz
+cd flink-*
 ```
 
 ## Configuring the Cluster
 
-After having extracted the system files, you need to configure Stratosphere for
-the cluster by editing *conf/stratosphere-conf.yaml*.
+After having extracted the system files, you need to configure Flink for
+the cluster by editing *conf/flink-conf.yaml*.
 
 Set the `jobmanager.rpc.address` key to point to your master node. Furthermode
 define the maximum amount of main memory the JVM is allowed to allocate on each
 node by setting the `jobmanager.heap.mb` and `taskmanager.heap.mb` keys.
 
 The value is given in MB. If some worker nodes have more main memory which you
-want to allocate to the Stratosphere system you can overwrite the default value
-by setting an environment variable `STRATOSPHERE_TM_HEAP` on the respective
+want to allocate to the Flink system you can overwrite the default value
+by setting an environment variable `FLINK_TM_HEAP` on the respective
 node.
 
 Finally you must provide a list of all nodes in your cluster which shall be used
@@ -288,9 +288,9 @@ Each entry must be separated by a new line, as in the following example:
 192.168.0.150
 ```
 
-The Stratosphere directory must be available on every worker under the same
+The Flink directory must be available on every worker under the same
 path. Similarly as for HDFS, you can use a shared NSF directory, or copy the
-entire Stratosphere directory to every worker node.
+entire Flink directory to every worker node.
 
 ## Configuring the Network Buffers
 
@@ -328,35 +328,35 @@ parameters:
 
 ## Configuring Temporary I/O Directories
 
-Although Stratosphere aims to process as much data in main memory as possible,
+Although Flink aims to process as much data in main memory as possible,
 it is not uncommon that  more data needs to be processed than memory is
-available. Stratosphere's runtime is designed to  write temporary data to disk
+available. Flink's runtime is designed to  write temporary data to disk
 to handle these situations.
 
 The `taskmanager.tmp.dirs` parameter specifies a list of directories into which
-Stratosphere writes temporary files. The paths of the directories need to be
-separated by ':' (colon character).  Stratosphere will concurrently write (or
+Flink writes temporary files. The paths of the directories need to be
+separated by ':' (colon character).  Flink will concurrently write (or
 read) one temporary file to (from) each configured directory.  This way,
 temporary I/O can be evenly distributed over multiple independent I/O devices
 such as hard disks to improve performance.  To leverage fast I/O devices (e.g.,
 SSD, RAID, NAS), it is possible to specify a directory multiple times.
 
 If the `taskmanager.tmp.dirs` parameter is not explicitly specified,
-Stratosphere writes temporary data to the temporary  directory of the operating
+Flink writes temporary data to the temporary  directory of the operating
 system, such as */tmp* in Linux systems.
 
 Please see the [configuration page](config.html) for details and additional
 configuration options.
 
-## Starting Stratosphere
+## Starting Flink
 
 The following script starts a JobManager on the local node and connects via
 SSH to all worker nodes listed in the *slaves* file to start the
-TaskManager on each node. Now your Stratosphere system is up and
+TaskManager on each node. Now your Flink system is up and
 running. The JobManager running on the local node will now accept jobs
 at the configured RPC port.
 
-Assuming that you are on the master node and inside the Stratosphere directory:
+Assuming that you are on the master node and inside the Flink directory:
 
 ```
 bin/start-cluster.sh
