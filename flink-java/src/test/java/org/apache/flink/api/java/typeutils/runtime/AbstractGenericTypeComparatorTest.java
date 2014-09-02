@@ -21,14 +21,12 @@ package org.apache.flink.api.java.typeutils.runtime;
 import org.apache.flink.api.common.typeutils.ComparatorTestBase;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.typeutils.runtime.AvroSerializer;
-import org.apache.flink.api.java.typeutils.runtime.GenericTypeComparator;
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class GenericTypeComparatorTest {
+abstract public class AbstractGenericTypeComparatorTest {
 
 	@Test
 	public void testString() {
@@ -105,9 +103,7 @@ public class GenericTypeComparatorTest {
 		testBase.testAll();
 	}
 
-	private static final <T> TypeSerializer<T> createSerializer(Class<T> type) {
-		return new AvroSerializer<T>(type);
-	}
+	abstract protected <T> TypeSerializer<T> createSerializer(Class<T> type);
 
 	// ------------------------------------------------------------------------
 	// test instance
@@ -132,12 +128,13 @@ public class GenericTypeComparatorTest {
 		@Override
 		@SuppressWarnings({ "unchecked", "rawtypes" })
 		protected TypeComparator<T> createComparator(boolean ascending) {
-			return new GenericTypeComparator(ascending, GenericTypeComparatorTest.createSerializer(this.type), this.type);
+			return new GenericTypeComparator(ascending, AbstractGenericTypeComparatorTest.this.createSerializer(this
+					.type), this.type);
 		}
 
 		@Override
 		protected TypeSerializer<T> createSerializer() {
-			return GenericTypeComparatorTest.createSerializer(this.type);
+			return AbstractGenericTypeComparatorTest.this.createSerializer(this.type);
 		}
 
 		@Override
