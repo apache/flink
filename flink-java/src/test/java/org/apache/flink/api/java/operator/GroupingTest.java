@@ -18,7 +18,6 @@
 
 package org.apache.flink.api.java.operator;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -30,11 +29,12 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.typeutils.BasicTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.operator.JoinOperatorTest.CustomType;
+
 
 public class GroupingTest {
 
@@ -113,7 +113,6 @@ public class GroupingTest {
 		tupleDs.groupBy(-1);
 	}
 
-	@Ignore
 	@Test
 	public void testGroupByKeyExpressions1() {
 
@@ -125,13 +124,12 @@ public class GroupingTest {
 
 		// should work
 		try {
-//			ds.groupBy("myInt");
+			ds.groupBy("myInt");
 		} catch(Exception e) {
 			Assert.fail();
 		}
 	}
 
-	@Ignore
 	@Test(expected = UnsupportedOperationException.class)
 	public void testGroupByKeyExpressions2() {
 
@@ -139,10 +137,9 @@ public class GroupingTest {
 
 		DataSet<Long> longDs = env.fromCollection(emptyLongData, BasicTypeInfo.LONG_TYPE_INFO);
 		// should not work: groups on basic type
-//		longDs.groupBy("myInt");
+		longDs.groupBy("myInt");
 	}
 
-	@Ignore
 	@Test(expected = InvalidProgramException.class)
 	public void testGroupByKeyExpressions3() {
 
@@ -151,12 +148,11 @@ public class GroupingTest {
 		this.customTypeData.add(new CustomType());
 
 		DataSet<CustomType> customDs = env.fromCollection(customTypeData);
-		// should not work: groups on custom type
+		// should not work: tuple selector on custom type
 		customDs.groupBy(0);
 
 	}
 
-	@Ignore
 	@Test(expected = IllegalArgumentException.class)
 	public void testGroupByKeyExpressions4() {
 
@@ -164,7 +160,34 @@ public class GroupingTest {
 		DataSet<CustomType> ds = env.fromCollection(customTypeData);
 
 		// should not work, key out of tuple bounds
-//		ds.groupBy("myNonExistent");
+		ds.groupBy("myNonExistent");
+	}
+
+	@Test
+	public void testGroupByKeyExpressions1Nested() {
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		this.customTypeData.add(new CustomType());
+
+		DataSet<CustomType> ds = env.fromCollection(customTypeData);
+
+		// should work
+		try {
+			ds.groupBy("nested.myInt");
+		} catch(Exception e) {
+			Assert.fail();
+		}
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testGroupByKeyExpressions2Nested() {
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<CustomType> ds = env.fromCollection(customTypeData);
+
+		// should not work, key out of tuple bounds
+		ds.groupBy("nested.myNonExistent");
 	}
 
 	
@@ -179,7 +202,7 @@ public class GroupingTest {
 			DataSet<CustomType> customDs = env.fromCollection(customTypeData);
 			// should work
 			customDs.groupBy(
-					new KeySelector<GroupingTest.CustomType, Long>() {
+					new KeySelector<CustomType, Long>() {
 	
 						@Override
 						public Long getKey(CustomType value) {
@@ -247,29 +270,6 @@ public class GroupingTest {
 			tupleDs.groupBy(0).sortGroup(0, Order.ASCENDING).sortGroup(2, Order.DESCENDING);
 		} catch(Exception e) {
 			Assert.fail();
-		}
-	}
-	
-
-	public static class CustomType implements Serializable {
-		
-		private static final long serialVersionUID = 1L;
-		
-		public int myInt;
-		public long myLong;
-		public String myString;
-		
-		public CustomType() {};
-		
-		public CustomType(int i, long l, String s) {
-			myInt = i;
-			myLong = l;
-			myString = s;
-		}
-		
-		@Override
-		public String toString() {
-			return myInt+","+myLong+","+myString;
 		}
 	}
 }

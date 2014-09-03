@@ -350,9 +350,9 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 		 * @see Tuple
 		 * @see DataSet
 		 */
-//		public CoGroupOperatorSetsPredicate where(String... fields) {
-//			return new CoGroupOperatorSetsPredicate(new Keys.ExpressionKeys<I1>(fields, input1.getType()));
-//		}
+		public CoGroupOperatorSetsPredicate where(String... fields) {
+			return new CoGroupOperatorSetsPredicate(new Keys.ExpressionKeys<I1>(fields, input1.getType()));
+		}
 
 		/**
 		 * Continues a CoGroup transformation and defines a {@link KeySelector} function for the first co-grouped {@link DataSet}.</br>
@@ -417,9 +417,9 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 			 * @return An incomplete CoGroup transformation.
 			 *           Call {@link org.apache.flink.api.java.operators.CoGroupOperator.CoGroupOperatorSets.CoGroupOperatorSetsPredicate.CoGroupOperatorWithoutFunction#with(org.apache.flink.api.common.functions.CoGroupFunction)} to finalize the CoGroup transformation.
 			 */
-//			public CoGroupOperatorWithoutFunction equalTo(String... fields) {
-//				return createCoGroupOperator(new Keys.ExpressionKeys<I2>(fields, input2.getType()));
-//			}
+			public CoGroupOperatorWithoutFunction equalTo(String... fields) {
+				return createCoGroupOperator(new Keys.ExpressionKeys<I2>(fields, input2.getType()));
+			}
 
 			/**
 			 * Continues a CoGroup transformation and defines a {@link KeySelector} function for the second co-grouped {@link DataSet}.</br>

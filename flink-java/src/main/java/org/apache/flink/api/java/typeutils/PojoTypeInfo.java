@@ -24,10 +24,14 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.LinkedList;
 import java.util.List;
+
+import org.apache.commons.lang3.Validate;
 
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.typeutils.runtime.GenericTypeComparator;
 import org.apache.flink.api.java.typeutils.runtime.PojoComparator;
 import org.apache.flink.api.java.typeutils.runtime.PojoSerializer;
 import org.apache.flink.types.TypeInformation;
@@ -36,11 +40,13 @@ import org.apache.flink.types.TypeInformation;
 /**
  *
  */
-public class PojoTypeInfo<T> extends TypeInformation<T> implements CompositeType<T> {
+public class PojoTypeInfo<T> extends TypeInformation<T> implements CompositeType<T>, AtomicType<T> {
 
 	private final Class<T> typeClass;
 
 	private PojoField[] fields;
+
+	private PojoFieldAccessor[] flattenedFields;
 
 	public PojoTypeInfo(Class<T> typeClass, List<PojoField> fields) {
 		this.typeClass = typeClass;
@@ -52,6 +58,9 @@ public class PojoTypeInfo<T> extends TypeInformation<T> implements CompositeType
 			}
 		});
 		this.fields = tempFields.toArray(new PojoField[tempFields.size()]);
+		List<PojoFieldAccessor> flatFieldsList = getFlattenedFields(new LinkedList<Field>());
+
+		flattenedFields = flatFieldsList.toArray(new PojoFieldAccessor[flatFieldsList.size()]);
 	}
 
 	@Override
@@ -80,6 +89,18 @@ public class PojoTypeInfo<T> extends TypeInformation<T> implements CompositeType
 		return Comparable.class.isAssignableFrom(typeClass);
 	}
 
+	@SuppressWarnings("unchecked")
+	@Override
+	public TypeComparator<T> createComparator(boolean sortOrderAscending) {
+		if (isKeyType()) {
+			@SuppressWarnings("rawtypes")
+			GenericTypeComparator comparator = new GenericTypeComparator(sortOrderAscending, createSerializer(), this.typeClass);
+			return (TypeComparator<T>) comparator;
+		}
+
+		throw new UnsupportedOperationException("Types that do not implement java.lang.Comparable cannot be used as keys.");
+	}
+
 	@Override
 	public TypeSerializer<T> createSerializer() {
 		TypeSerializer<?>[] fieldSerializers = new TypeSerializer<?>[fields.length];
@@ -104,15 +125,56 @@ public class PojoTypeInfo<T> extends TypeInformation<T> implements CompositeType
 				+ ">";
 	}
 
-	public int getLogicalPosition(String fieldExpression) {
-		for (int i = 0; i < fields.length; i++) {
-			if (fields[i].field.getName().equals(fieldExpression)) {
+	// get the field from this pojo of a nested pojo the field expression contains dot(s)
+	private PojoField getField(String fieldExpression) {
+		Validate.notEmpty(fieldExpression, "Field expression must not be empty.");
+
+		// if there is a dot try getting the field from that sub field
+		int firstDot = fieldExpression.indexOf('.');
+		if (firstDot == -1) {
+			// this is the last field (or only field) in the field expression
+			for (int i = 0; i < fields.length; i++) {
+				if (fields[i].field.getName().equals(fieldExpression)) {
+					return fields[i];
+				}
+			}
+		} else {
+			// split and go deeper
+			String firstField = fieldExpression.substring(0, firstDot);
+			String rest = fieldExpression.substring(firstDot + 1);
+			for (int i = 0; i < fields.length; i++) {
+				if (fields[i].field.getName().equals(firstField)) {
+					if (!(fields[i].type instanceof  PojoTypeInfo)) {
+						return null;
+					}
+					PojoTypeInfo pojoField = (PojoTypeInfo) fields[i].type;
+					return pojoField.getField(rest);
+				}
+			}
+		}
+		return null;
+	}
+
+	// The logical position can identify a field since we rely on the list
+	// of flattened fields which is deterministic. We need the logical positions since this
+	// is the only way to pass field positions to a comparator.
+	// We return -1 in case we don't find the field. Keys.ExpressionKeys will handle this.
+	private int getLogicalPosition(String fieldExpression) {
+		PojoField expressionField = getField(fieldExpression);
+		if (expressionField == null) {
+			return -1;
+		}
+
+		for (int i = 0; i < flattenedFields.length; i++) {
+			if (flattenedFields[i].pojoField.equals(expressionField)) {
 				return i;
 			}
 		}
+
 		return -1;
 	}
 
+	@Override
 	public int[] getLogicalPositions(String[] fieldExpression) {
 		int[] result = new int[fieldExpression.length];
 		for (int i = 0; i < fieldExpression.length; i++) {
@@ -121,20 +183,46 @@ public class PojoTypeInfo<T> extends TypeInformation<T> implements CompositeType
 		return result;
 	}
 
-	public TypeInformation<?> getType(String fieldExpression) {
-		for (int i = 0; i < fields.length; i++) {
-			if (fields[i].field.getName().equals(fieldExpression)) {
-				return fields[i].type;
+	private TypeInformation<?> getType(String fieldExpression) {
+		PojoField expressionField = getField(fieldExpression);
+		if (expressionField == null) {
+			return null;
+		}
+
+		for (int i = 0; i < flattenedFields.length; i++) {
+			if (flattenedFields[i].pojoField.equals(expressionField)) {
+				return flattenedFields[i].pojoField.type;
 			}
 		}
 		return null;
 	}
 
+	@Override
 	public TypeInformation<?>[] getTypes(String[] fieldExpression) {
 		TypeInformation<?>[] result = new TypeInformation<?>[fieldExpression.length];
 		for (int i = 0; i < fieldExpression.length; i++) {
 			result[i] = getType(fieldExpression[i]);
 		}
+		return result;
+	}
+
+	// Flatten fields of inner pojo classes into one list with deterministic order so that
+	// we can use it to derive logical key positions/
+	private final List<PojoFieldAccessor> getFlattenedFields(List<Field> accessorChain) {
+		List<PojoFieldAccessor> result = new ArrayList<PojoFieldAccessor>();
+
+		for (PojoField field : fields) {
+			if (field.type instanceof PojoTypeInfo) {
+				PojoTypeInfo<?> pojoField = (PojoTypeInfo<?>)field.type;
+				List<Field> newAccessorChain = new ArrayList<Field>();
+				newAccessorChain.addAll(accessorChain);
+				newAccessorChain.add(field.field);
+				result.addAll(pojoField.getFlattenedFields(newAccessorChain));
+			} else {
+				result.add(new PojoFieldAccessor(accessorChain, field.field, field));
+			}
+		}
+
 		return result;
 	}
 
@@ -147,26 +235,23 @@ public class PojoTypeInfo<T> extends TypeInformation<T> implements CompositeType
 			throw new IllegalArgumentException();
 		}
 
-//		if (logicalKeyFields.length == 1) {
-//			return createSinglefieldComparator(logicalKeyFields[0], orders[0], types[logicalKeyFields[0]]);
-//		}
-
 		// create the comparators for the individual fields
 		TypeComparator<?>[] fieldComparators = new TypeComparator<?>[logicalKeyFields.length];
-		Field[] keyFields = new Field[logicalKeyFields.length];
-
+		List<Field>[] keyFields = new List[logicalKeyFields.length];
 		for (int i = 0; i < logicalKeyFields.length; i++) {
 			int field = logicalKeyFields[i];
 
-			if (field < 0 || field >= fields.length) {
-				throw new IllegalArgumentException("The field position " + field + " is out of range [0," + fields.length + ")");
+			if (field < 0 || field >= flattenedFields.length) {
+				throw new IllegalArgumentException("The field position " + field + " is out of range [0," + flattenedFields.length + ")");
 			}
-			if (fields[field].type.isKeyType() && fields[field].type instanceof AtomicType) {
-				fieldComparators[i] = ((AtomicType<?>) fields[field].type).createComparator(orders[i]);
-				keyFields[i] = fields[field].field;
-				keyFields[i].setAccessible(true);
+			if (flattenedFields[field].pojoField.type.isKeyType() && flattenedFields[field].pojoField.type instanceof AtomicType) {
+				fieldComparators[i] = ((AtomicType<?>) flattenedFields[field].pojoField.type).createComparator(orders[i]);
+				keyFields[i] = flattenedFields[field].accessorChain;
+				for (Field accessedField : keyFields[i]) {
+					accessedField.setAccessible(true);
+				}
 			} else {
-				throw new IllegalArgumentException("The field at position " + field + " (" + fields[field].type + ") is no atomic key type.");
+				throw new IllegalArgumentException("The field at position " + field + " (" + flattenedFields[field].pojoField.type + ") is no atomic key type.");
 			}
 		}
 

@@ -15,34 +15,87 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-//
-//package org.apache.flink.test.exampleJavaPrograms;
-//
-////import org.apache.flink.example.java.wordcount.WordCountPOJO;
-//import org.apache.flink.test.testdata.WordCountData;
-//import org.apache.flink.test.util.JavaProgramTestBase;
-//import org.junit.Ignore;
-//
-//@Ignore
-//public class WordCountPOJOITCase extends JavaProgramTestBase {
-//
-//	protected String textPath;
-//	protected String resultPath;
-//
-//	
-//	@Override
-//	protected void preSubmit() throws Exception {
-//		textPath = createTempFile("text.txt", WordCountData.TEXT);
-//		resultPath = getTempDirPath("result");
-//	}
-//
-//	@Override
-//	protected void postSubmit() throws Exception {
-//		compareResultsByLinesInMemory(WordCountData.COUNTS, resultPath);
-//	}
-//	
-//	@Override
-//	protected void testProgram() throws Exception {
-//		WordCountPOJO.main(new String[]{textPath, resultPath});
-//	}
-//}
+
+package org.apache.flink.test.exampleJavaPrograms;
+
+import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.test.testdata.WordCountData;
+import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.util.Collector;
+
+import java.io.Serializable;
+
+
+public class WordCountPOJOITCase extends JavaProgramTestBase implements Serializable {
+
+	protected String textPath;
+	protected String resultPath;
+
+	
+	@Override
+	protected void preSubmit() throws Exception {
+		textPath = createTempFile("text.txt", WordCountData.TEXT);
+		resultPath = getTempDirPath("result");
+	}
+
+	@Override
+	protected void postSubmit() throws Exception {
+		compareResultsByLinesInMemory(WordCountData.COUNTS, resultPath);
+	}
+	
+	@Override
+	protected void testProgram() throws Exception {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<String> text = env.readTextFile(textPath);
+
+		DataSet<WC> counts = text
+				.flatMap(new Tokenizer())
+				.groupBy("word")
+				.reduce(new ReduceFunction<WC>() {
+					public WC reduce(WC value1, WC value2) {
+						return new WC(value1.word, value1.count + value2.count);
+					}
+				});
+
+		counts.writeAsText(resultPath);
+
+		env.execute("WordCount with custom data types example");
+	}
+
+	public static final class Tokenizer implements FlatMapFunction<String, WC> {
+
+		@Override
+		public void flatMap(String value, Collector<WC> out) {
+			// normalize and split the line
+			String[] tokens = value.toLowerCase().split("\\W+");
+
+			// emit the pairs
+			for (String token : tokens) {
+				if (token.length() > 0) {
+					out.collect(new WC(token, 1));
+				}
+			}
+		}
+	}
+
+	public static class WC {
+		String word;
+		int count;
+
+		public WC() {
+		}
+
+		public WC(String word, int count) {
+			this.count = count;
+			this.word = word;
+		}
+
+		public String toString() {
+			return word + " " + count;
+		}
+	}
+}

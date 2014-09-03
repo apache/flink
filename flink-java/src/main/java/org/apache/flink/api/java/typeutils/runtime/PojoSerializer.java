@@ -152,8 +152,14 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
 	@Override
 	public void serialize(T value, DataOutputView target) throws IOException {
+		// handle null values
+		if (value == null) {
+			target.writeBoolean(true);
+			return;
+		} else {
+			target.writeBoolean(false);
+		}
 		try {
-
 			for (int i = 0; i < numFields; i++) {
 				Object o = fields[i].get(value);
 				fieldSerializers[i].serialize(o, target);
@@ -166,6 +172,11 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
 	@Override
 	public T deserialize(T reuse, DataInputView source) throws IOException {
+		// handle null values
+		boolean isNull = source.readBoolean();
+		if (isNull) {
+			return null;
+		}
 		try {
 			for (int i = 0; i < numFields; i++) {
 				Object field = fieldSerializers[i].deserialize(fields[i].get(reuse), source);
@@ -180,6 +191,8 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
 	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
+		// copy the Non-Null/Null tag
+		target.writeBoolean(source.readBoolean());
 		for (int i = 0; i < numFields; i++) {
 			fieldSerializers[i].copy(source, target);
 		}
