@@ -1,4 +1,4 @@
-/*
+/**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,30 +20,37 @@ package org.apache.flink.test.javaApiOperators.lambdas;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.functions.UnsupportedLambdaExpressionException;
-import org.junit.Assert;
-import org.junit.Test;
+import org.apache.flink.test.util.JavaProgramTestBase;
 
-import java.io.Serializable;
+public class AllGroupReduceITCase extends JavaProgramTestBase {
 
-@SuppressWarnings("serial")
-public class MapITCase implements Serializable{
+	private static final String EXPECTED_RESULT = "aaabacad\n";
 
-	@Test
-	public void TestMapLambda () {
-		try {
-			final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+	private String resultPath;
 
-			DataSet<String> stringDs = env.fromElements("aa", "ab", "ac", "ad");
-			DataSet<String> mappedDs = stringDs.map (s -> s.replace("a", "b"));
-			env.execute();
-		}
-		catch (UnsupportedLambdaExpressionException e) {
-			// Success
-			return;
-		}
-		catch (Exception e) {
-			Assert.fail();
-		}
+	@Override
+	protected void preSubmit() throws Exception {
+		resultPath = getTempDirPath("result");
+	}
+
+	@Override
+	protected void testProgram() throws Exception {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<String> stringDs = env.fromElements("aa", "ab", "ac", "ad");
+		DataSet<String> concatDs = stringDs.reduceGroup((values, out) -> {
+			String conc = "";
+			for (String s : values) {
+				conc = conc.concat(s);
+			}
+			out.collect(conc);
+		});
+		concatDs.writeAsText(resultPath);
+		env.execute();
+	}
+
+	@Override
+	protected void postSubmit() throws Exception {
+		compareResultsByLinesInMemory(EXPECTED_RESULT, resultPath);
 	}
 }

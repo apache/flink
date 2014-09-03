@@ -22,7 +22,6 @@ import java.util.Arrays;
 
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.CrossFunction;
-import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.operators.BinaryOperatorInformation;
 import org.apache.flink.api.common.operators.DualInputSemanticProperties;
 import org.apache.flink.api.common.operators.Operator;
@@ -30,7 +29,6 @@ import org.apache.flink.api.common.operators.base.CrossOperatorBase;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.functions.SemanticPropUtil;
-import org.apache.flink.api.java.functions.UnsupportedLambdaExpressionException;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 
@@ -133,9 +131,6 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		public <R> CrossOperator<I1, I2, R> with(CrossFunction<I1, I2, R> function) {
 			if (function == null) {
 				throw new NullPointerException("Cross function must not be null.");
-			}
-			if (FunctionUtils.isLambdaFunction(function)) {
-				throw new UnsupportedLambdaExpressionException();
 			}
 			TypeInformation<R> returnType = TypeExtractor.getCrossReturnTypes(function, input1.getType(), input2.getType());
 			return new CrossOperator<I1, I2, R>(input1, input2, function, returnType);

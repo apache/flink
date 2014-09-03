@@ -18,25 +18,19 @@
 
 package org.apache.flink.test.javaApiOperators.lambdas;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.LinkedList;
-import java.util.List;
-
-@SuppressWarnings("serial")
 public class FilterITCase extends JavaProgramTestBase {
 
 	private static final String EXPECTED_RESULT = "3,2,Hello world\n" +
-													"4,3,Hello world, how are you?\n";
+			"4,3,Hello world, how are you?\n";
 
 	public static DataSet<Tuple3<Integer, Long, String>> get3TupleDataSet(ExecutionEnvironment env) {
 

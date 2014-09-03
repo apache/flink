@@ -18,16 +18,14 @@
 
 package org.apache.flink.api.java.operators;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.FirstReducer;
 import java.util.Arrays;
 
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
-import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.operators.Order;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.functions.UnsupportedLambdaExpressionException;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 
 
@@ -85,10 +83,8 @@ public class SortedGrouping<T> extends Grouping<T> {
 		if (reducer == null) {
 			throw new NullPointerException("GroupReduce function must not be null.");
 		}
-		if (FunctionUtils.isLambdaFunction(reducer)) {
-			throw new UnsupportedLambdaExpressionException();
-		}
-		TypeInformation<R> resultType = TypeExtractor.getGroupReduceReturnTypes(reducer, this.getDataSet().getType());
+		TypeInformation<R> resultType = TypeExtractor.getGroupReduceReturnTypes(reducer,
+				this.getDataSet().getType());
 		return new GroupReduceOperator<T, R>(this, resultType, reducer);
 	}
 

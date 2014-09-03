@@ -22,7 +22,6 @@ import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.MapPartitionFunction;
-import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.MapOperatorBase;
@@ -30,7 +29,6 @@ import org.apache.flink.api.common.operators.base.PartitionOperatorBase;
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase.PartitionMethod;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.functions.UnsupportedLambdaExpressionException;
 import org.apache.flink.api.java.operators.translation.KeyExtractingMapper;
 import org.apache.flink.api.java.operators.translation.KeyRemovingMapper;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -86,9 +84,6 @@ public class PartitionedDataSet<IN> {
 		if (mapper == null) {
 			throw new NullPointerException("Map function must not be null.");
 		}
-		if (FunctionUtils.isLambdaFunction(mapper)) {
-			throw new UnsupportedLambdaExpressionException();
-		}
 		
 		final TypeInformation<R> resultType = TypeExtractor.getMapReturnTypes(mapper, dataSet.getType());
 		
@@ -138,9 +133,6 @@ public class PartitionedDataSet<IN> {
 	public <R> FlatMapOperator<IN, R> flatMap(FlatMapFunction<IN, R> flatMapper) {
 		if (flatMapper == null) {
 			throw new NullPointerException("FlatMap function must not be null.");
-		}
-		if (FunctionUtils.isLambdaFunction(flatMapper)) {
-			throw new UnsupportedLambdaExpressionException();
 		}
 		
 		TypeInformation<R> resultType = TypeExtractor.getFlatMapReturnTypes(flatMapper, dataSet.getType());
