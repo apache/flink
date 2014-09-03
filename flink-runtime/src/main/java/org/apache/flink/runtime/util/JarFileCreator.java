@@ -58,7 +58,7 @@ public class JarFileCreator {
 	private final File outputFile;
 
 	/**
-	 * The namespace of the dependencies to be introduced.
+	 * The namespace of the dependencies to be packaged.
 	 */
 	private final Set<String> packages = new HashSet<String>();
 
