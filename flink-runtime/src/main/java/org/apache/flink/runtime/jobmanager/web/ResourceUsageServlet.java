@@ -32,6 +32,8 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.event.job.AbstractEvent;
 import org.apache.flink.runtime.event.job.RecentJobEvent;
 import org.apache.flink.runtime.jobgraph.JobID;
@@ -42,9 +44,28 @@ import org.apache.flink.runtime.profiling.types.ProfilingEvent;
 import org.apache.flink.runtime.profiling.types.SingleInstanceProfilingEvent;
 import org.apache.flink.util.StringUtils;
 
+/**
+ * This servlet delivers information on profiling events to the client.
+ * 
+ * Supported requests:
+ * <ol>
+ * <li><tt>get=setttings</tt>: Frontend profiling configuration</li>
+ * <li><tt>get=profilingEvents</tt> or no <tt>get</tt>: Deliver current
+ * profiling events for a/the current job (use <tt>jobid</tt> to specificy job
+ * ID)</li>
+ * </ol>
+ */
 public class ResourceUsageServlet extends HttpServlet {
 
 	private static final long serialVersionUID = 1L;
+
+	public static final String PROFILING_RESULTS_DISPLAY_WINDOW_SIZE_KEY = "jobmanager.web.profiling.windowsize";
+
+	/**
+	 * For debugging purposes: Deliver also unused profiling events to the
+	 * client?
+	 */
+	private static final boolean PRINT_ALL_EVENTS = false;
 
 	/**
 	 * The log for this class.
@@ -64,6 +85,33 @@ public class ResourceUsageServlet extends HttpServlet {
 
 	@Override
 	protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+		String getParameter = req.getParameter("get"); // profilingEvents is
+														// default
+		if (getParameter == null) {
+			respondProfilingEvents(req, resp);
+		} else if (getParameter.equalsIgnoreCase("profilingEvents")) {
+			respondProfilingEvents(req, resp);
+		} else if (getParameter.equalsIgnoreCase("settings")) {
+			respondSettings(req, resp);
+		}
+	}
+
+	/**
+	 * Reports the configuration for the profiling frontend.
+	 */
+	private void respondSettings(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+		Configuration conf = GlobalConfiguration.getConfiguration();
+		long windowSize = conf.getLong(PROFILING_RESULTS_DISPLAY_WINDOW_SIZE_KEY, -1);
+		resp.setStatus(HttpServletResponse.SC_OK);
+		resp.setContentType("application/json");
+		PrintWriter writer = resp.getWriter();
+		writer.format("{\"windowSize\":%d}", windowSize);
+	}
+
+	/**
+	 * Gathers {@link ProfilingEvent} objects from the {@link JobManager} and reports them in JSON format.
+	 */
+	private void respondProfilingEvents(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
 		try {
 			JobID jobID = getJobID(req);
 
@@ -82,8 +130,9 @@ public class ResourceUsageServlet extends HttpServlet {
 						resp.getWriter().write(separator);
 						jsonSerializer.write(profilingEvent, resp.getWriter());
 						separator = ",";
-					} else {
-						// This is not necessary and only useful to see what events are actually available in the frontend.
+					} else if (PRINT_ALL_EVENTS) {
+						// This is not necessary and only useful to see what
+						// events are actually available in the frontend.
 						resp.getWriter().write(separator);
 						new ProfilingEventSerializer<ProfilingEvent>().write(profilingEvent, resp.getWriter());
 						separator = ",";
@@ -104,6 +153,11 @@ public class ResourceUsageServlet extends HttpServlet {
 		}
 	}
 
+	/**
+	 * Find a suitable serializer for the given {@link ProfilingEvent} as registered in {@link #jsonSerializers}.
+	 * @param profilingEvent is the event that shall be serialized
+	 * @return a suitable serializer or <tt>null</tt> if none exists
+	 */
 	@SuppressWarnings("unchecked")
 	private ProfilingEventSerializer<ProfilingEvent> getSerializer(ProfilingEvent profilingEvent) {
 		return (ProfilingEventSerializer<ProfilingEvent>) this.jsonSerializers.get(profilingEvent.getClass());
@@ -132,11 +186,18 @@ public class ResourceUsageServlet extends HttpServlet {
 		return mostRecentJobEvent == null ? null : mostRecentJobEvent.getJobID();
 	}
 
+	/**
+	 * Abstract class with some convenience functionality to serialize
+	 * {@link ProfilingEvent} objects to JSON.
+	 */
 	private static class ProfilingEventSerializer<T extends ProfilingEvent> {
 
 		private PrintWriter writer;
 		private String separator;
 
+		/**
+		 * Write a string parameter to the current {@link #writer}.
+		 */
 		protected void writeField(String name, String value) {
 			this.writer.write(separator);
 			this.writer.write("\"");
@@ -147,6 +208,9 @@ public class ResourceUsageServlet extends HttpServlet {
 			this.separator = ",";
 		}
 
+		/**
+		 * Write a long parameter to the current {@link #writer}.
+		 */
 		protected void writeField(String name, long value) {
 			this.writer.write(separator);
 			this.writer.write("\"");

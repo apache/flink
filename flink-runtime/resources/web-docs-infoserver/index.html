@@ -22,8 +22,12 @@
     
     <!-- Scripts from Flink -->
 	<script type="text/javascript" src="js/jquery.flot.min.js"></script>
+	<script type="text/javascript" src="js/jquery.flot.time.min.js"></script>
+	<script type="text/javascript" src="js/jquery.flot.stack.min.js"></script>
+	
 	<script type="text/javascript" src="js/helpers.js"></script>
 	<script type="text/javascript" src="js/jobmanagerFrontend.js"></script>
+	<script type="text/javascript" src="js/res-usage.js"></script>
 	<script type="text/javascript" src="js/jcanvas.min.js"></script>
 	
 	<!-- Insert Version -->
@@ -51,6 +55,98 @@
 		});
 	});
   	</script>
+  	
+  	<!-- configure resource usage plots -->
+	<script type="text/javascript">
+		$(function() {
+			flinkRU.loadSettings();
+			var pollingInterval = 1000; // 1 sec
+	
+			// CPU profiling
+			var cpuFlotOptions = {
+				xaxis : {
+					mode : "time",
+					timeformat : "%H:%M:%S"
+				},
+				yaxis : {
+					min : 0,
+					tickFormatter : function(val, axis) {
+						return val.toFixed(axis.tickDecimals) + " %";
+					}
+				},
+				series : {
+					lines : {
+						show : true,
+						fill : 0.4
+					},
+					stack : true
+				}
+	
+			};
+			var cpuGroup = new flinkRU.ProfilingGroup("CPU", cpuFlotOptions, "InstanceSummaryProfilingEvent", "#cpuChart");
+			// add series in reverse stacking order
+			cpuGroup.series.push(new flinkRU.ProfilingSeries("Interrupts", "#4682B4", function(e) {
+				return e.softIrqCpu + e.hardIrqCpu
+			}));
+			cpuGroup.series.push(new flinkRU.ProfilingSeries("I/O Wait", "#FFFF00", flinkRU.helpers.accessProperty("ioWaitCpu")));
+			cpuGroup.series.push(new flinkRU.ProfilingSeries("System CPU", "#8B0000", flinkRU.helpers.accessProperty("systemCpu")));
+			cpuGroup.series.push(new flinkRU.ProfilingSeries("User CPU", "#006400", flinkRU.helpers.accessProperty("userCpu")));
+	
+			flinkRU.profilingGroups.push(cpuGroup);
+	
+			// Memory profiling
+			var mainMemoryFlotOptions = {
+				xaxis : {
+					mode : "time",
+					timeformat : "%H:%M:%S",
+				},
+				yaxis : {
+					min : 0,
+					// /proc/meminfo delivers kiB
+					tickFormatter : flinkRU.helpers.makeMemorySizeFormatter(1024)
+				},
+				series : {
+					lines : {
+						show : true,
+						fill : 0.4
+					},
+					stack : true
+				}
+			};
+			var memGroup = new flinkRU.ProfilingGroup("Memory", mainMemoryFlotOptions, "InstanceSummaryProfilingEvent", "#memoryChart");
+			memGroup.series.push(new flinkRU.ProfilingSeries("Used memory", "#FF8C00", function(e) {
+				return e.totalMemory - e.freeMemory;
+			}));
+			memGroup.series.push(new flinkRU.ProfilingSeries("Free memory", "#6495ED", flinkRU.helpers.accessProperty("freeMemory")));
+			flinkRU.profilingGroups.push(memGroup);
+	
+			// Network profiling
+			var networkMemoryFlotOptions = {
+				xaxis : {
+					mode : "time",
+					timeformat : "%H:%M:%S",
+				},
+				yaxis : {
+					min : 0,
+					tickFormatter : flinkRU.helpers.makeMemorySizeFormatter(1)
+				},
+				series : {
+					lines : {
+						show : true,
+						fill : 0.4
+					}
+				}
+			};
+	
+			var networkGroup = new flinkRU.ProfilingGroup("Network", networkMemoryFlotOptions, "InstanceSummaryProfilingEvent",
+					"#networkChart");
+			networkGroup.series.push(new flinkRU.ProfilingSeries("Transmitted", "#9370DB", flinkRU.helpers.accessProperty("transmittedBytes")));
+			networkGroup.series.push(new flinkRU.ProfilingSeries("Received", "#BBBB00", flinkRU.helpers.accessProperty("receivedBytes")));
+			flinkRU.profilingGroups.push(networkGroup);
+	
+			flinkRU.startPolling(pollingInterval);
+		});
+	</script>
   </head>
 
   <body>
@@ -87,113 +183,165 @@
         </div><!-- /.navbar-collapse -->
       </nav>
 
-      <div id="page-wrapper">
+		<div id="page-wrapper">
 
-        <div class="row">
-          <div class="col-lg-12">
-            <h1>Apache Flink Dashboard<small id="version"></small></h1>
-            <ol class="breadcrumb">
-              <li class="active"><i class="fa fa-dashboard"></i> Dashboard</li>
-            </ol>
-          </div>
-        </div><!-- /.row -->
+			<div class="row">
+				<div class="col-lg-12">
+					<h1>
+						Apache Flink Dashboard<small id="version"></small>
+					</h1>
+					<ol class="breadcrumb">
+						<li class="active"><i class="fa fa-dashboard"></i> Dashboard</li>
+					</ol>
+				</div>
+			</div>
+			<!-- /.row -->
 
-        <div class="row">
-          <div class="col-lg-2">
-            <div class="panel panel-info">
-              <div class="panel-heading">
-                <div class="row">
-                  <div class="col-xs-6">
-                    <i class="fa fa-info fa-5x"></i>
-                  </div>
-                  <div class="col-xs-6 text-right">
-                    <p class="announcement-heading"><span id="stat-taskmanagers" class="stats"></span></p>
-                    <p class="announcement-text">Task Manager</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-           <div class="col-lg-2">
-            <div class="panel panel-primary">
-              <div class="panel-heading">
-                <div class="row">
-                  <div class="col-xs-6">
-                    <i class="fa fa-list-ol fa-5x"></i>
-                  </div>
-                  <div class="col-xs-6 text-right">
-                    <p class="announcement-heading"><span id="stat-slots" class="stats"></span></p>
-                    <p class="announcement-text">Processing Slots</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="col-lg-2">
-            <div class="panel panel-success">
-              <div class="panel-heading">
-                <div class="row">
-                  <div class="col-xs-6">
-                    <i class="fa fa-check fa-5x"></i>
-                  </div>
-                  <div class="col-xs-6 text-right">
-                    <p class="announcement-heading"><span id="jobs-finished" class="stats"></span></p>
-                    <p class="announcement-text">Jobs Finished</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="col-lg-2">
-            <div class="panel panel-warning">
-              <div class="panel-heading">
-                <div class="row">
-                  <div class="col-xs-6">
-                    <i class="fa fa-eraser fa-5x"></i>
-                  </div>
-                  <div class="col-xs-6 text-right">
-                    <p class="announcement-heading"><span id="jobs-canceled" class="stats"></span></p>
-                    <p class="announcement-text">Jobs Canceled</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="col-lg-2">
-            <div class="panel panel-danger">
-              <div class="panel-heading">
-                <div class="row">
-                  <div class="col-xs-6">
-                    <i class="fa fa-flash fa-5x"></i>
-                  </div>
-                  <div class="col-xs-6 text-right">
-                    <p class="announcement-heading"><span id="jobs-failed" class="stats"></span></p>
-                    <p class="announcement-text">Jobs Failed</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="col-lg-2">
-            <!-- empty -->
-          </div>
-        </div><!-- /.row -->
+			<div class="row">
+				<div class="col-lg-2">
+					<div class="panel panel-info">
+						<div class="panel-heading">
+							<div class="row">
+								<div class="col-xs-6">
+									<i class="fa fa-info fa-5x"></i>
+								</div>
+								<div class="col-xs-6 text-right">
+									<p class="announcement-heading">
+										<span id="stat-taskmanagers" class="stats"></span>
+									</p>
+									<p class="announcement-text">Task Manager</p>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="col-lg-2">
+					<div class="panel panel-primary">
+						<div class="panel-heading">
+							<div class="row">
+								<div class="col-xs-6">
+									<i class="fa fa-list-ol fa-5x"></i>
+								</div>
+								<div class="col-xs-6 text-right">
+									<p class="announcement-heading">
+										<span id="stat-slots" class="stats"></span>
+									</p>
+									<p class="announcement-text">Processing Slots</p>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="col-lg-2">
+					<div class="panel panel-success">
+						<div class="panel-heading">
+							<div class="row">
+								<div class="col-xs-6">
+									<i class="fa fa-check fa-5x"></i>
+								</div>
+								<div class="col-xs-6 text-right">
+									<p class="announcement-heading">
+										<span id="jobs-finished" class="stats"></span>
+									</p>
+									<p class="announcement-text">Jobs Finished</p>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="col-lg-2">
+					<div class="panel panel-warning">
+						<div class="panel-heading">
+							<div class="row">
+								<div class="col-xs-6">
+									<i class="fa fa-eraser fa-5x"></i>
+								</div>
+								<div class="col-xs-6 text-right">
+									<p class="announcement-heading">
+										<span id="jobs-canceled" class="stats"></span>
+									</p>
+									<p class="announcement-text">Jobs Canceled</p>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="col-lg-2">
+					<div class="panel panel-danger">
+						<div class="panel-heading">
+							<div class="row">
+								<div class="col-xs-6">
+									<i class="fa fa-flash fa-5x"></i>
+								</div>
+								<div class="col-xs-6 text-right">
+									<p class="announcement-heading">
+										<span id="jobs-failed" class="stats"></span>
+									</p>
+									<p class="announcement-text">Jobs Failed</p>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="col-lg-2">
+					<!-- empty -->
+				</div>
+			</div>
+			<!-- /.row -->
 
-        <div class="row">
-          <div class="col-lg-12">
-            <div class="panel panel-primary">
-              <div class="panel-heading">
-                <h3 class="panel-title"><i class="fa fa-play"></i> Running Jobs</h3>
-              </div>
-              <div class="panel-body">
-                <p id="rJpH">There are currently no running jobs, but you can analyze your old jobs in the history.<p>
-                <div id="jobs" class="contentbox-wrapper"></div>
-              </div>
-            </div>
-          </div>
-        </div><!-- /.row -->
+			<div class="row">
+				<div class="col-lg-12">
+					<div class="panel panel-primary">
+						<div class="panel-heading">
+							<h3 class="panel-title">
+								<i class="fa fa-play"></i> Running Jobs
+							</h3>
+						</div>
+						<div class="panel-body">
+							<p id="rJpH">There are currently no running jobs, but you can
+								analyze your old jobs in the history.
+							<p>
+							<div id="jobs" class="contentbox-wrapper"></div>
+						</div>
+					</div>
+				</div>
+			</div>
+			<!-- /.row -->
 
-      </div><!-- /#page-wrapper -->
+			<div class="row">
+				<div class="col-lg-4">
+					<div class="panel panel-info">
+						<div class="panel-heading">
+							<h3 class="panel-title">CPU</h3>
+						</div>
+						<div class="panel-body">
+							<div id="cpuChart" style="width: 100%; height: 300px"></div>
+						</div>
+					</div>
+				</div>
+
+				<div class="col-lg-4">
+					<div class="panel panel-info">
+						<div class="panel-heading">
+							<h3 class="panel-title">Memory</h3>
+						</div>
+						<div class="panel-body">
+							<div id="memoryChart" style="width: 100%; height: 300px"></div>
+						</div>
+					</div>
+				</div>
+				<div class="col-lg-4">
+					<div class="panel panel-info">
+						<div class="panel-heading">
+							<h3 class="panel-title">Network</h3>
+						</div>
+						<div class="panel-body">
+							<div id="networkChart" style="width: 100%; height: 300px"></div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div><!-- /#page-wrapper -->
 
     </div><!-- /#wrapper -->
   </body>

@@ -71,7 +71,7 @@
 			}
 		};
 
-		var cpuGroup = new flinkRU.ProfilingGroup("CPU", cpuFlotOptions, "SingleInstanceProfilingEvent", "#cpuChart", windowSize);
+		var cpuGroup = new flinkRU.ProfilingGroup("CPU", cpuFlotOptions, "SingleInstanceProfilingEvent", "#cpuChart");
 		flinkRU.profilingGroups.push(cpuGroup);
 
 		// Memory profiling
@@ -89,8 +89,7 @@
 				show : false
 			}
 		};
-		var memGroup = new flinkRU.ProfilingGroup("Memory", mainMemoryFlotOptions, "SingleInstanceProfilingEvent", "#memoryChart",
-				windowSize);
+		var memGroup = new flinkRU.ProfilingGroup("Memory", mainMemoryFlotOptions, "SingleInstanceProfilingEvent", "#memoryChart");
 		flinkRU.profilingGroups.push(memGroup);
 
 		// Network profiling
@@ -108,8 +107,7 @@
 			}
 		};
 
-		var networkGroup = new flinkRU.ProfilingGroup("Network", networkMemoryFlotOptions, "SingleInstanceProfilingEvent", "#networkChart",
-				windowSize);
+		var networkGroup = new flinkRU.ProfilingGroup("Network", networkMemoryFlotOptions, "SingleInstanceProfilingEvent", "#networkChart");
 		flinkRU.profilingGroups.push(networkGroup);
 
 		var instanceNameRegex = /\w+/

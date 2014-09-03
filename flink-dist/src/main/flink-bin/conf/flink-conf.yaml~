@@ -27,7 +27,7 @@ jobmanager.rpc.port: 6123
 
 jobmanager.heap.mb: 256
 
-jobmanager.profiling.enable: true
+jobmanager.profling.enable: true
 
 taskmanager.heap.mb: 512
 

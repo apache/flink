@@ -24,6 +24,23 @@ var flinkRU = {};
 	/** Container for the different profiling groups. */
 	flinkRU.profilingGroups = [];
 
+	flinkRU.settings = {
+		windowSize : -1
+	};
+	
+	// Load server settings.
+	flinkRU.loadSettings = function() {
+			$.ajax({
+			url : "resourceUsage?get=settings",
+			cache : false,
+			type : "GET",
+			success : function(settings) {
+				flinkRU.settings = settings;
+			},
+			dataType : "json"
+		});
+	}
+
 	// Helper functions
 	flinkRU.helpers = {
 
@@ -87,14 +104,13 @@ var flinkRU = {};
 	}
 
 	/** Template for a set of profiling series to be plotted together. */
-	flinkRU.ProfilingGroup = function(name, options, eventType, plotId, windowSize, additionalFilter) {
+	flinkRU.ProfilingGroup = function(name, options, eventType, plotId, additionalFilter) {
 
 		this.name = name;
 		this.options = options;
 		this.eventType = eventType;
 		this.plotId = plotId;
 		this.series = [];
-		this.windowSize = windowSize;
 
 		this.updateWith = function(event) {
 			if (event.type == this.eventType && (additionalFilter == undefined || additionalFilter(event))) {
@@ -110,8 +126,8 @@ var flinkRU = {};
 				}
 
 				// Cut off too old data.
-				if (lastTimestamp != -1 && this.windowSize >= 0) {
-					var minTimestamp = lastTimestamp - this.windowSize;
+				if (lastTimestamp != -1 && flinkRU.settings.windowSize >= 0) {
+					var minTimestamp = lastTimestamp - flinkRU.settings.windowSize;
 					for ( var i in this.series) {
 						var ser = this.series[i];
 						ser.cutOffBefore(minTimestamp);
