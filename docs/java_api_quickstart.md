@@ -2,7 +2,7 @@
 title: "Quickstart: Java API"
 ---
 
-Start working on your Stratosphere Java program in a few simple steps.
+Start working on your Flink Java program in a few simple steps.
 
 
 # Requirements
@@ -18,15 +18,15 @@ Use one of the following commands to __create a project__:
 <div class="tab-content">
     <div class="tab-pane active" id="quickstart-script">
     {% highlight bash %}
-    $ curl https://raw.githubusercontent.com/stratosphere/stratosphere-quickstart/master/quickstart.sh | bash
+    $ curl https://raw.githubusercontent.com/apache/incubator-flink/master/flink-quickstart/quickstart.sh | bash
     {% endhighlight %}
     </div>
     <div class="tab-pane" id="maven-archetype">
     {% highlight bash %}
     $ mvn archetype:generate                             \
-      -DarchetypeGroupId=eu.stratosphere               \
-      -DarchetypeArtifactId=quickstart-java            \
-      -DarchetypeVersion={{site.current_stable}}
+      -DarchetypeGroupId=org.apache.flink              \
+      -DarchetypeArtifactId=flink-quickstart-java            \
+      -DarchetypeVersion={{site.FLINK_VERSION_STABLE}}
     {% endhighlight %}
         This allows you to <strong>name your newly created project</strong>. It will interactively ask you for the groupId, artifactId, and package name.
     </div>
@@ -35,15 +35,15 @@ Use one of the following commands to __create a project__:
 # Inspect Project
 There will be a new directory in your working directory. If you've used the _curl_ approach, the directory is called `quickstart`. Otherwise, it has the name of your artifactId.
 
-The sample project is a __Maven project__, which contains two classes. _Job_ is a basic skeleton program and _WordCountJob_ a working example. Please note that the _main_ method of both classes allow you to start Stratosphere in a development/testing mode.
+The sample project is a __Maven project__, which contains two classes. _Job_ is a basic skeleton program and _WordCountJob_ a working example. Please note that the _main_ method of both classes allow you to start Flink in a development/testing mode.
 
 We recommend to __import this project into your IDE__ to develop and test it. If you use Eclipse, the [m2e plugin](http://www.eclipse.org/m2e/) allows to [import Maven projects](http://books.sonatype.com/m2eclipse-book/reference/creating-sect-importing-projects.html#fig-creating-import). Some Eclipse bundles include that plugin by default, other require you to install it manually. The IntelliJ IDE also supports Maven projects out of the box.
 
 
-A note to Mac OS X users: The default JVM heapsize for Java is too small for Stratosphere. You have to manually increase it. Choose "Run Configurations" -> Arguments and write into the "VM Arguments" box: "-Xmx800m" in Eclipse.
+A note to Mac OS X users: The default JVM heapsize for Java is too small for Flink. You have to manually increase it. Choose "Run Configurations" -> Arguments and write into the "VM Arguments" box: "-Xmx800m" in Eclipse.
 
 # Build Project
-If you want to __build your project__, go to your project directory and issue the `mvn clean package` command. You will __find a jar__ that runs on every Stratosphere cluster in `target/stratosphere-project-0.1-SNAPSHOT.jar`.
+If you want to __build your project__, go to your project directory and issue the `mvn clean package` command. You will __find a jar__ that runs on every Flink cluster in `target/flink-project-0.1-SNAPSHOT.jar`.
 
 # Next Steps
 Write your application!
@@ -114,6 +114,6 @@ public class LineSplitter extends FlatMapFunction<String, Tuple2<String, Integer
   }
 }
 ```
-[Check GitHub](https://github.com/apache/incubator-flink/blob/master/stratosphere-examples/stratosphere-java-examples/src/main/java/eu/stratosphere/example/java/wordcount/WordCount.java) for the full example code.
+{% gh_link /flink-examples/flink-java-examples/src/main/java/org/apache/flink/example/java/wordcount/WordCount.java "Check GitHub" %} for the full example code.
 
 For a complete overview over our Java API, have a look at the [API Documentation](java_api_guide.html) and [further example programs](java_api_examples.html). If you have any trouble, ask on our [Mailing List](http://mail-archives.apache.org/mod_mbox/incubator-flink-dev/). We are happy to provide help.

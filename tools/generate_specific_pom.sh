@@ -1,16 +1,22 @@
 #!/usr/bin/env bash
-########################################################################################################################
-# Copyright (C) 2010-2013 by the Stratosphere project (http://stratosphere.eu)
+################################################################################
+#  Licensed to the Apache Software Foundation (ASF) under one
+#  or more contributor license agreements.  See the NOTICE file
+#  distributed with this work for additional information
+#  regarding copyright ownership.  The ASF licenses this file
+#  to you under the Apache License, Version 2.0 (the
+#  "License"); you may not use this file except in compliance
+#  with the License.  You may obtain a copy of the License at
 #
-# Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
-# the License. You may obtain a copy of the License at
+#      http://www.apache.org/licenses/LICENSE-2.0
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
-# an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
-# specific language governing permissions and limitations under the License.
-########################################################################################################################
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+# limitations under the License.
+################################################################################
+
 
 #
 # See https://github.com/stratosphere/stratosphere/issues/95
@@ -31,7 +37,7 @@ old_version="$1"
 new_version="$2"
 new_pom_name="$3"
 
-# Get hadoop version from the new stratosphere version
+# Get hadoop version from the new Flink version
 hadoop_version=`echo "$new_version" | sed -n 's/.*\(hadoop[12]\).*/\1/p'`
 if [[ -z $hadoop_version ]]; then usage ; fi
 
@@ -45,7 +51,7 @@ if [ -z "$here" ] ; then
   # to the script (e.g. permissions re-evaled after suid)
   exit 1  # fail
 fi
-stratosphere_home="`dirname \"$here\"`"
+flink_home="`dirname \"$here\"`"
 
 
 hadoop1=
@@ -72,7 +78,7 @@ if [[ -z "$new_pom_name" ]]; then
 fi
 echo "Using $nupom as name for the generated pom file."
 
-poms=`find $stratosphere_home -name pom.xml`
+poms=`find $flink_home -name pom.xml`
 for p in $poms; do
   # write into tmp file because in-place replacement is not possible (if nupom="pom.xml")
   tmp_nuname="`dirname $p`/__generate_specific_pom_tmp"

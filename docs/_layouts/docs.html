@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Apache Flink {{ site.FLINK_VERSION }} Documentation: {{ page.title }}</title>
+    <title>Apache Flink {{ site.FLINK_VERSION_STABLE }} Documentation: {{ page.title }}</title>
 
     <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css">
     <link rel="stylesheet" href="css/syntax.css">
@@ -19,7 +19,7 @@
   <body>
     <div class="container">
         <div class="row">
-            <h1>Apache Flink {{ site.FLINK_VERSION }} Documentation</h1>
+            <h1>Apache Flink {{ site.FLINK_VERSION_STABLE }} Documentation</h1>
         </div>
         <div class="row">
             <div class="col-md-3">
@@ -36,6 +36,7 @@
 
                     <li>Setup &amp; Configuration
                         <ul>
+                            <li><a href="building.html">Build Instructions</a></li>
                             <li><a href="local_setup.html">Local Setup</a></li>
                             <li><a href="cluster_setup.html">Cluster Setup</a></li>
                             <li><a href="yarn_setup.html">YARN Setup</a></li>
@@ -46,6 +47,7 @@
                     <li>Programming Guides
                         <ul>
                             <li><a href="java_api_guide.html">Java API</a></li>
+                            <li><a href="java_api_transformations.html">Java API Transformations</a></li>
                             <li><a href="scala_api_guide.html">Scala API</a></li>
                             <li><a href="hadoop_compatability.html">Hadoop Compatability</a></li>
                             <li><a href="iterations.html">Iterations</a></li>
@@ -57,6 +59,7 @@
                         <ul>
                             <li><a href="java_api_examples.html">Java API</a></li>
                             <li><a href="scala_api_examples.html">Scala API</a></li>
+                            <li><a href="example_connectors.html">Connecting to other systems</a></li>
                         </ul>
                     </li>
 
@@ -71,7 +74,9 @@
 
                     <li>Internals
                         <ul>
-                            <li>To be written</li>
+                            <li><a href="internal_overview.html">Overview</a></li>
+                            <li><a href="internal_general_arch.html">General Architecture</a></li>
+                            <li><a href="internal_add_operator.html">How-to: Adding a new Operator</a></li>
                         </ul>
                     </li>
                 </ul>

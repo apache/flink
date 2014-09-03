@@ -1,5 +1,0 @@
----
-title:  "Program Life Cycle"
----
-
-
