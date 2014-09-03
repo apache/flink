@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.examples.function;
 
-import org.apache.flink.api.java.functions.RichFlatMapFunction;
+import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.sling.commons.json.JSONException;
 
 /**

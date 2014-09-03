@@ -19,7 +19,7 @@
 
 package org.apache.flink.compiler.testfunctions;
 
-import org.apache.flink.api.java.functions.RichFlatJoinFunction;
+import org.apache.flink.api.common.functions.RichFlatJoinFunction;
 import org.apache.flink.util.Collector;
 
 public class DummyFlatJoinFunction<T> extends RichFlatJoinFunction<T, T, T> {

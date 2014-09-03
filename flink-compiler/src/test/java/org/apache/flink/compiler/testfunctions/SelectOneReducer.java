@@ -18,7 +18,7 @@
 
 package org.apache.flink.compiler.testfunctions;
 
-import org.apache.flink.api.java.functions.RichReduceFunction;
+import org.apache.flink.api.common.functions.RichReduceFunction;
 
 public class SelectOneReducer<T> extends RichReduceFunction<T> {
 

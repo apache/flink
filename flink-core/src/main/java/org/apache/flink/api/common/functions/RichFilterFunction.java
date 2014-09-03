@@ -16,26 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.java.functions;
-
+package org.apache.flink.api.common.functions;
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
-import org.apache.flink.api.common.functions.FlatCombineFunction;
+import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.RichFunction;
-import org.apache.flink.util.Collector;
 
 /**
- * Rich variant of the {@link FlatCombineFunction}. As a {@link RichFunction}, it gives access to the
+ * Rich variant of the {@link FilterFunction}. As a {@link RichFunction}, it gives access to the
  * {@link org.apache.flink.api.common.functions.RuntimeContext} and provides setup and teardown methods:
  * {@link RichFunction#open(org.apache.flink.configuration.Configuration)} and
  * {@link RichFunction#close()}.
- *
- * @param <T> The data type of the elements to be combined.
+ * 
+ * @param <T> The type of the filtered elements.
  */
-public abstract class RichFlatCombineFunction<T> extends AbstractRichFunction implements FlatCombineFunction<T> {
-
+public abstract class RichFilterFunction<T> extends AbstractRichFunction implements FilterFunction<T> {
+	
 	private static final long serialVersionUID = 1L;
-
+	
 	@Override
-	public abstract void combine(Iterable<T> values, Collector<T> out) throws Exception;
+	public abstract boolean filter(T value) throws Exception;
 }
