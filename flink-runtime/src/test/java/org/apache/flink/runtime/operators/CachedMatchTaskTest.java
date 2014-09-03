@@ -23,12 +23,9 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.flink.api.common.functions.FlatJoinFunction;
-import org.apache.flink.api.java.functions.RichFlatJoinFunction;
+import org.apache.flink.api.common.functions.RichFlatJoinFunction;
 import org.apache.flink.api.java.typeutils.runtime.record.RecordComparator;
 import org.apache.flink.api.java.typeutils.runtime.record.RecordPairComparatorFactory;
-import org.apache.flink.runtime.operators.BuildFirstCachedMatchDriver;
-import org.apache.flink.runtime.operators.BuildSecondCachedMatchDriver;
-import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.testutils.DelayingInfinitiveInputIterator;
 import org.apache.flink.runtime.operators.testutils.DriverTestBase;
 import org.apache.flink.runtime.operators.testutils.ExpectedTestException;

@@ -19,7 +19,7 @@
 
 package org.apache.flink.compiler.testfunctions;
 
-import org.apache.flink.api.java.functions.RichMapFunction;
+import org.apache.flink.api.common.functions.RichMapFunction;
 
 public class IdentityMapper<T> extends RichMapFunction<T, T> {
 

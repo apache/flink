@@ -16,26 +16,27 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.java.functions;
+package org.apache.flink.api.common.functions;
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
-import org.apache.flink.api.common.functions.MapPartitionFunction;
+import org.apache.flink.api.common.functions.CrossFunction;
 import org.apache.flink.api.common.functions.RichFunction;
-import org.apache.flink.util.Collector;
 
 /**
- * Rich variant of the {@link MapPartitionFunction}. As a {@link RichFunction}, it gives access to the
+ * Rich variant of the {@link CrossFunction}. As a {@link RichFunction}, it gives access to the
  * {@link org.apache.flink.api.common.functions.RuntimeContext} and provides setup and teardown methods:
  * {@link RichFunction#open(org.apache.flink.configuration.Configuration)} and
  * {@link RichFunction#close()}.
  * 
- * @param <I> Type of the input elements.
- * @param <O> Type of the returned elements.
+ * @param <IN1> The type of the elements in the first input.
+ * @param <IN2> The type of the elements in the second input.
+ * @param <OUT> The type of the result elements.
  */
-public abstract class RichMapPartitionFunction<I, O> extends AbstractRichFunction implements MapPartitionFunction<I, O> {
-
-	private static final long serialVersionUID = 1L;
+public abstract class RichCrossFunction<IN1, IN2, OUT> extends AbstractRichFunction implements CrossFunction<IN1, IN2, OUT> {
 	
+	private static final long serialVersionUID = 1L;
+
 	@Override
-	public abstract void mapPartition(Iterable<I> values, Collector<O> out) throws Exception;
+	public abstract OUT cross(IN1 first, IN2 second) throws Exception;
+
 }

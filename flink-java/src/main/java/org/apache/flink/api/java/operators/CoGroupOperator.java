@@ -452,7 +452,7 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 
 			/**
 			 * Intermediate step of a CoGroup transformation. <br/>
-			 * To continue the CoGroup transformation, provide a {@link org.apache.flink.api.java.functions.RichCoGroupFunction} by calling
+			 * To continue the CoGroup transformation, provide a {@link org.apache.flink.api.common.functions.RichCoGroupFunction} by calling
 			 * {@link org.apache.flink.api.java.operators.CoGroupOperator.CoGroupOperatorSets.CoGroupOperatorSetsPredicate.CoGroupOperatorWithoutFunction#with(org.apache.flink.api.common.functions.CoGroupFunction)}.
 			 *
 			 */
@@ -506,13 +506,13 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 				}
 
 				/**
-				 * Finalizes a CoGroup transformation by applying a {@link org.apache.flink.api.java.functions.RichCoGroupFunction} to groups of elements with identical keys.<br/>
+				 * Finalizes a CoGroup transformation by applying a {@link org.apache.flink.api.common.functions.RichCoGroupFunction} to groups of elements with identical keys.<br/>
 				 * Each CoGroupFunction call returns an arbitrary number of keys. 
 				 * 
 				 * @param function The CoGroupFunction that is called for all groups of elements with identical keys.
 				 * @return An CoGroupOperator that represents the co-grouped result DataSet.
 				 * 
-				 * @see org.apache.flink.api.java.functions.RichCoGroupFunction
+				 * @see org.apache.flink.api.common.functions.RichCoGroupFunction
 				 * @see DataSet
 				 */
 				public <R> CoGroupOperator<I1, I2, R> with(CoGroupFunction<I1, I2, R> function) {

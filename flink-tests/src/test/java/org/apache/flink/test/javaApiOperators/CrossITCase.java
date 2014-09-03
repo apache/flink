@@ -24,7 +24,7 @@ import java.util.Collection;
 import java.util.LinkedList;
 
 import org.apache.flink.api.common.functions.CrossFunction;
-import org.apache.flink.api.java.functions.RichCrossFunction;
+import org.apache.flink.api.common.functions.RichCrossFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;

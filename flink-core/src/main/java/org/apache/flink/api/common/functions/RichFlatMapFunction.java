@@ -16,14 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.java.functions;
+package org.apache.flink.api.common.functions;
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
-import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.RichFunction;
+import org.apache.flink.util.Collector;
 
 /**
- * Rich variant of the {@link MapFunction}. As a {@link RichFunction}, it gives access to the
+ * Rich variant of the {@link FlatMapFunction}. As a {@link RichFunction}, it gives access to the
  * {@link org.apache.flink.api.common.functions.RuntimeContext} and provides setup and teardown methods:
  * {@link RichFunction#open(org.apache.flink.configuration.Configuration)} and
  * {@link RichFunction#close()}.
@@ -31,10 +32,10 @@ import org.apache.flink.api.common.functions.RichFunction;
  * @param <IN> Type of the input elements.
  * @param <OUT> Type of the returned elements.
  */
-public abstract class RichMapFunction<IN, OUT> extends AbstractRichFunction implements MapFunction<IN, OUT> {
+public abstract class RichFlatMapFunction<IN, OUT> extends AbstractRichFunction implements FlatMapFunction<IN, OUT> {
 
 	private static final long serialVersionUID = 1L;
 
 	@Override
-	public abstract OUT map(IN value) throws Exception;
+	public abstract void flatMap(IN value, Collector<OUT> out) throws Exception;
 }

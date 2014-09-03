@@ -18,8 +18,8 @@
 
 package org.apache.flink.compiler;
 
-import org.apache.flink.api.java.functions.RichCoGroupFunction;
-import org.apache.flink.api.java.functions.RichMapFunction;
+import org.apache.flink.api.common.functions.RichCoGroupFunction;
+import org.apache.flink.api.common.functions.RichMapFunction;
 import org.junit.Assert;
 import org.junit.Test;
 import org.apache.flink.api.common.Plan;
