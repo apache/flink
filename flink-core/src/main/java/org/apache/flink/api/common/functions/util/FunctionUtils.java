@@ -97,6 +97,14 @@ public class FunctionUtils {
 
 					// check if class is a lambda function
 					if (serialVersion.getClass().getName().equals("java.lang.invoke.SerializedLambda")) {
+						
+						// check if SerializedLambda class is present
+						try {
+							Class.forName("java.lang.invoke.SerializedLambda");
+						}
+						catch (Throwable t) {
+							throw new UnsupportedOperationException("User code tries to use lambdas, but framework is running with a Java version < 8");
+						}
 						serializedLambda = serialVersion;
 						break;
 					}
