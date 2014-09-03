@@ -18,12 +18,12 @@
 
 package org.apache.flink.api.common.functions.util;
 
+import java.lang.reflect.Method;
+
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
-
-import java.lang.reflect.Method;
 
 public class FunctionUtils {
 
@@ -83,5 +83,59 @@ public class FunctionUtils {
 		}
 		
 		return false;
+	}
+	
+	public static Method extractLambdaMethod(Function function) {
+		try {
+			// get serialized lambda
+			Object serializedLambda = null;
+			for (Class<?> clazz = function.getClass(); clazz != null; clazz = clazz.getSuperclass()) {
+				try {
+					Method replaceMethod = clazz.getDeclaredMethod("writeReplace");
+					replaceMethod.setAccessible(true);
+					Object serialVersion = replaceMethod.invoke(function);
+
+					// check if class is a lambda function
+					if (serialVersion.getClass().getName().equals("java.lang.invoke.SerializedLambda")) {
+						serializedLambda = serialVersion;
+						break;
+					}
+				}
+				catch (NoSuchMethodException e) {
+					// thrown if the method is not there. fall through the loop
+				}
+			}
+			
+			// find lambda method
+			Method implClassMethod = serializedLambda.getClass().getDeclaredMethod("getImplClass");
+			Method implMethodNameMethod = serializedLambda.getClass().getDeclaredMethod("getImplMethodName");
+			
+			String className = (String) implClassMethod.invoke(serializedLambda);
+			String methodName = (String) implMethodNameMethod.invoke(serializedLambda);
+			
+			Class<?> implClass = Class.forName(className.replace('/', '.'));
+			
+			Method[] methods = implClass.getDeclaredMethods();
+			Method parameterizedMethod = null;
+			for(Method method : methods) {
+				if(method.getName().equals(methodName)) {
+					if(parameterizedMethod != null) {
+						// It is very unlikely that a class contains multiple e.g. "lambda$2()" but its possible
+						// Actually, the signature need to be checked, but this is very complex
+						throw new Exception("Lambda method name is not unique.");
+					}
+					else {
+						parameterizedMethod = method;
+					}
+				}
+			}
+			if(parameterizedMethod == null) {
+				throw new Exception("No lambda method found.");
+			}
+			return parameterizedMethod;
+		}
+		catch(Throwable t) {
+			throw new RuntimeException("Could not extract lambda method out of function.", t);
+		}
 	}
 }

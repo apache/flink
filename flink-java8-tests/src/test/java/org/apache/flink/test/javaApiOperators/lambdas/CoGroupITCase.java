@@ -20,49 +20,52 @@ package org.apache.flink.test.javaApiOperators.lambdas;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.functions.UnsupportedLambdaExpressionException;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.junit.Assert;
-import org.junit.Test;
+import org.apache.flink.test.util.JavaProgramTestBase;
 
-import java.io.Serializable;
+public class CoGroupITCase extends JavaProgramTestBase {
 
-@SuppressWarnings("serial")
-public class CoGroupITCase implements Serializable {
+	private static final String EXPECTED_RESULT = "6\n3\n";
 
-	@Test
-	public void testCoGroupLambda() {
-		try {
-			final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+	private String resultPath;
 
-			DataSet<Tuple2<Integer, String>> left = env.fromElements(
-					new Tuple2<Integer, String>(1, "hello"),
-					new Tuple2<Integer, String>(2, "what's"),
-					new Tuple2<Integer, String>(2, "up")
-			);
-			DataSet<Tuple2<Integer, String>> right = env.fromElements(
-					new Tuple2<Integer, String>(1, "not"),
-					new Tuple2<Integer, String>(1, "much"),
-					new Tuple2<Integer, String>(2, "really")
-			);
-			DataSet<Tuple2<Integer,String>> joined = left.coGroup(right).where(0).equalTo(0)
-					.with((values1, values2, out) -> {
-						int sum = 0;
-						for (Tuple2<Integer, String> next : values1) {
-							sum += next.f0;
-						}
-						for (Tuple2<Integer, String> next : values2) {
-							sum += next.f0;
-						}
-					});
-			env.execute();
+	@Override
+	protected void preSubmit() throws Exception {
+		resultPath = getTempDirPath("result");
+	}
 
+	@SuppressWarnings("unchecked")
+	@Override
+	protected void testProgram() throws Exception {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		} catch (UnsupportedLambdaExpressionException e) {
-			// Success
-			return;
-		} catch (Exception e) {
-			Assert.fail();
-		}
+		DataSet<Tuple2<Integer, String>> left = env.fromElements(
+				new Tuple2<Integer, String>(1, "hello"),
+				new Tuple2<Integer, String>(2, "what's"),
+				new Tuple2<Integer, String>(2, "up")
+				);
+		DataSet<Tuple2<Integer, String>> right = env.fromElements(
+				new Tuple2<Integer, String>(1, "not"),
+				new Tuple2<Integer, String>(1, "much"),
+				new Tuple2<Integer, String>(2, "really")
+				);
+		DataSet<Integer> joined = left.coGroup(right).where(0).equalTo(0)
+				.with((values1, values2, out) -> {
+					int sum = 0;
+					for (Tuple2<Integer, String> next : values1) {
+						sum += next.f0;
+					}
+					for (Tuple2<Integer, String> next : values2) {
+						sum += next.f0;
+					}
+					out.collect(sum);
+				});
+		joined.writeAsText(resultPath);
+		env.execute();
+	}
+
+	@Override
+	protected void postSubmit() throws Exception {
+		compareResultsByLinesInMemory(EXPECTED_RESULT, resultPath);
 	}
 }
