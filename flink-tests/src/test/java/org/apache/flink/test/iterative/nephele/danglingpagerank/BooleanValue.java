@@ -17,7 +17,9 @@
  */
 
 
-package org.apache.flink.test.iterative.nephele.danglingpagerank;
+import akka.actor.{ExtendedActorSystem, ActorSystem}
+import com.typesafe.config.ConfigFactory
+import org.apache.flink.configuration.{ConfigConstants, Configuration}
 
 import java.io.IOException;
 
@@ -34,24 +36,54 @@ public class BooleanValue implements Value {
     this.value = value;
   }
 
-  public BooleanValue() {
-  }
+  def getConfigString(host: String, port: Int, configuration: Configuration): String = {
+    val transportHeartbeatInterval = configuration.getString(ConfigConstants.AKKA_TRANSPORT_HEARTBEAT_INTERVAL,
+      ConfigConstants.DEFAULT_AKKA_TRANSPORT_HEARTBEAT_INTERVAL)
+    val transportHeartbeatPause = configuration.getString(ConfigConstants.AKKA_TRANSPORT_HEARTBEAT_PAUSE,
+      ConfigConstants.DEFAULT_AKKA_TRANSPORT_HEARTBEAT_PAUSE)
+    val transportThreshold = configuration.getDouble(ConfigConstants.AKKA_TRANSPORT_THRESHOLD,
+      ConfigConstants.DEFAULT_AKKA_TRANSPORT_THRESHOLD)
+    val watchHeartbeatInterval = configuration.getString(ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL,
+      ConfigConstants.DEFAULT_AKKA_WATCH_HEARTBEAT_INTERVAL)
+    val watchHeartbeatPause = configuration.getString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE,
+      ConfigConstants.DEFAULT_AKKA_WATCH_HEARTBEAT_PAUSE)
+    val watchThreshold = configuration.getDouble(ConfigConstants.AKKA_WATCH_THRESHOLD,
+      ConfigConstants.DEFAULT_AKKA_WATCH_THRESHOLD)
+    val akkaTCPTimeout = configuration.getString(ConfigConstants.AKKA_TCP_TIMEOUT,
+      ConfigConstants.DEFAULT_AKKA_TCP_TIMEOUT)
+    val akkaFramesize = configuration.getString(ConfigConstants.AKKA_FRAMESIZE, ConfigConstants.DEFAULT_AKKA_FRAMESIZE)
+    val akkaThroughput = configuration.getInteger(ConfigConstants.AKKA_THROUGHPUT,
+      ConfigConstants.DEFAULT_AKKA_THROUGHPUT)
+    val lifecycleEvents = configuration.getBoolean(ConfigConstants.AKKA_LOG_LIFECYCLE_EVENTS,
+      ConfigConstants.DEFAULT_AKKA_LOG_LIFECYCLE_EVENTS)
 
-  public boolean get() {
-    return value;
-  }
+    val logLifecycleEvents = if(lifecycleEvents) "on" else "off"
 
-  public void set(boolean value) {
-    this.value = value;
-  }
 
-  @Override
-  public void write(DataOutputView out) throws IOException {
-    out.writeBoolean(value);
-  }
-
-  @Override
-  public void read(DataInputView in) throws IOException {
-    value = in.readBoolean();
+    s"""akka.daemonic = on
+       |akka.loggers = ["akka.event.slf4j.Slf4jLogger"]
+       |akka.loglevel = "DEBUG"
+       |akka.logging-filter = "akka.event.slf4j.Slf4jLoggingFilter"
+       |akka.stdout-logleve = "DEBUG"
+       |akka.jvm-exit-on-fatal-error = off
+       |akka.remote.transport-failure-detector.heartbeat-interval = $transportHeartbeatInterval
+       |akka.remote.transport-failure-detector.acceptable-heartbeat-pause = $transportHeartbeatPause
+       |akka.remote.transport-failure-detector.threshold = $transportThreshold
+       |akka.remote.watch-failure-detector.heartbeat-interval = $watchHeartbeatInterval
+       |akka.remote.watch-failure-detector.acceptable-heartbeat-pause = $watchHeartbeatPause
+       |akka.remote.wathc-failure-detector.threshold = $watchThreshold
+       |akka.actor.provider = "akka.remote.RemoteActorRefProvider"
+       |akka.remote.netty.tcp.transport-class = "akka.remote.transport.netty.NettyTransport"
+       |akka.remote.netty.tcp.hostname = $host
+       |akka.remote.netty.tcp.port = $port
+       |akka.remote.netty.tcp.tcp-nodelay = on
+       |akka.remote.netty.tcp.connection-timeout = $akkaTCPTimeout
+       |akka.remote.netty.tcp.maximum-frame-size = $akkaFramesize
+       |akka.actor.default-dispatcher.throughput = $akkaThroughput
+       |akka.log-config-on-start = on
+       |akka.remote.log-remote-lifecycle-events = $logLifecycleEvents
+       |akka.log-dead-letters = $logLifecycleEvents
+       |akka.log-dead-letters-during-shutdown = $logLifecycleEvents
+     """.stripMargin
   }
 }

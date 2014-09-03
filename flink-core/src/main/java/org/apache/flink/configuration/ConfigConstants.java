@@ -297,6 +297,58 @@ public final class ConfigConstants {
 	// ----------------------------- YARN Client ----------------------------
 	
 	public static final String YARN_AM_PRC_PORT = "yarn.am.rpc.port";
+
+	// ------------------------------ AKKA ------------------------------------
+
+	/**
+	 * Hearbeat interval of the transport failure detector
+	 */
+	public static final String AKKA_TRANSPORT_HEARTBEAT_INTERVAL = "akka.transport.heartbeat.interval";
+
+	/**
+	 * Allowed heartbeat pause for the transport failure detector
+	 */
+	public static final String AKKA_TRANSPORT_HEARTBEAT_PAUSE = "akka.transport.heartbeat.pause";
+
+	/**
+	 * Detection threshold of transport failure detector
+	 */
+	public static final String AKKA_TRANSPORT_THRESHOLD = "akka.transport.threshold";
+
+	/**
+	 * Heartbeat interval of watch failure detector
+	 */
+	public static final String AKKA_WATCH_HEARTBEAT_INTERVAL = "akka.watch.heartbeat.interval";
+
+	/**
+	 * Allowed heartbeat pause for the watch failure detector
+	 */
+	public static final String AKKA_WATCH_HEARTBEAT_PAUSE = "akka.watch.heartbeat.pause";
+
+	/**
+	 * Detection threshold for the phi accrual watch failure detector
+	 */
+	public static final String AKKA_WATCH_THRESHOLD = "akka.watch.threshold";
+
+	/**
+	 * Akka TCP timeout
+	 */
+	public static final String AKKA_TCP_TIMEOUT = "akka.tcp.timeout";
+
+	/**
+	 * Maximum framesize of akka messages
+	 */
+	public static final String AKKA_FRAMESIZE = "akka.framesize";
+
+	/**
+	 * Maximum number of messages until another actor is executed by the same thread
+	 */
+	public static final String AKKA_THROUGHPUT = "akka.throughput";
+
+	/**
+	 * Log lifecycle events
+	 */
+	public static final String AKKA_LOG_LIFECYCLE_EVENTS = "akka.log.lifecycle.events";
 	
 	// ----------------------------- Miscellaneous ----------------------------
 	
@@ -535,6 +587,8 @@ public final class ConfigConstants {
 	// ----------------------------- YARN ----------------------------
 	
 	public static final int DEFAULT_YARN_AM_RPC_PORT = 10245;
+
+	// ----------------------------- AKKA --------------------------------------
 	
 
 	// ----------------------------- LocalExecution ----------------------------
