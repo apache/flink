@@ -46,9 +46,7 @@ under the License.
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
 
-  <!--  These two requirements are the minimum to use and develop Flink.
-        You can add others like <artifactId>flink-scala</artifactId> for Scala!
-  -->
+  <!--  These two requirements are the minimum to use and develop Flink. -->
   <dependencies>
     <dependency>
       <groupId>org.apache.flink</groupId>

@@ -53,6 +53,22 @@ public final class TupleSerializer<T extends Tuple> extends TupleSerializerBase<
 	}
 
 	@Override
+	public T createInstance(Object[] fields) {
+		try {
+			T t = tupleClass.newInstance();
+
+			for (int i = 0; i < arity; i++) {
+				t.setField(fields[i], i);
+			}
+
+			return t;
+		}
+		catch (Exception e) {
+			throw new RuntimeException("Cannot instantiate tuple.", e);
+		}
+	}
+
+	@Override
 	public T copy(T from, T reuse) {
 		for (int i = 0; i < arity; i++) {
 			Object copy = fieldSerializers[i].copy(from.getField(i), reuse.getField(i));
