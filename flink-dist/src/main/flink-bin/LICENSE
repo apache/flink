@@ -351,7 +351,7 @@ http://www.mozilla.org/MPL/
 The Apache Flink project depends on and/or bundles the following components
 under the Eclipse Public License (v 1.0)
 
-- logback (http://logback.qos.ch)
+- LOGback (http://logback.qos.ch)
     Copyright (C) 1999-2012, QOS.ch. All rights reserved.
 
 You may obtain a copy of the Eclipse Public License (v 1.0) at
