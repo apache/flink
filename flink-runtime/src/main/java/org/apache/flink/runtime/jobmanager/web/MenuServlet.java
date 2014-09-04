@@ -28,6 +28,8 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.runtime.profiling.ProfilingUtils;
 
 /**
  * A Servlet that displays the Configruation in the webinterface.
@@ -66,6 +68,15 @@ public class MenuServlet extends HttpServlet {
 		"fa fa-dashboard", "fa fa-archive", "fa fa-wrench", "fa fa-building-o", "fa fa-bar-chart-o"
 	};
 	
+	/**
+	 * Functions that check if a menu entry shall be displayed.
+	 */
+	private static final ActivityChecker[] activityCheckers = { 
+		AlwaysTrueActivityChecker.INSTANCE, AlwaysTrueActivityChecker.INSTANCE,
+		AlwaysTrueActivityChecker.INSTANCE, AlwaysTrueActivityChecker.INSTANCE,
+		new ConfigurationPropertyActivityChecker(ProfilingUtils.ENABLE_PROFILING_KEY) 
+	};
+	
 	public MenuServlet() {
 		if (names.length != entries.length || names.length != classes.length) {
 			LOG.error("The Arrays 'entries', 'classes' and 'names' differ in thier length. This is not allowed!");
@@ -101,6 +112,10 @@ public class MenuServlet extends HttpServlet {
 		String r = "";
 		
 		for (int i = 0; i < entries.length; i++) {
+			if (!activityCheckers[i].isActive()) {
+				continue;
+			}
+			
 			if (entries[i].equals(me)) {
 				r += writeLine(3, "<li class='active'><a href='"+ entries[i] +".html'><i class='"+ classes[i] +"'></i> "+ names[i] +"</a></li>");
 			} else {
@@ -118,6 +133,37 @@ public class MenuServlet extends HttpServlet {
 		}
 		s+= " " + line + " \n";
 		return s;
+	}
+	
+	private static interface ActivityChecker {
+		boolean isActive();
+	}
+	
+	private static class AlwaysTrueActivityChecker implements ActivityChecker {
+		
+		private static final AlwaysTrueActivityChecker INSTANCE = new AlwaysTrueActivityChecker();
+		
+		@Override
+		public boolean isActive() {
+			return true;
+		}
+	}
+	
+	private static class ConfigurationPropertyActivityChecker implements ActivityChecker {
+		
+		private final String property;
+
+		public ConfigurationPropertyActivityChecker(String property) {
+			this.property = property;
+		}
+
+		@Override
+		public boolean isActive() {
+			boolean isPropertyTrue = GlobalConfiguration.getBoolean(this.property, false);
+			return isPropertyTrue;
+		}
+		
+		
 	}
 	
 }

@@ -59,8 +59,13 @@
   	<!-- configure resource usage plots -->
 	<script type="text/javascript">
 		$(function() {
-			flinkRU.loadSettings();
 			var pollingInterval = 1000; // 1 sec
+			flinkRU.loadSettings(function () {
+				if (flinkRU.settings.enable) {
+					$("#profilingPanels").show();
+					flinkRU.startPolling(pollingInterval);
+				}
+			});
 	
 			// CPU profiling
 			var cpuFlotOptions = {
@@ -143,8 +148,6 @@
 			networkGroup.series.push(new flinkRU.ProfilingSeries("Transmitted", "#9370DB", flinkRU.helpers.accessProperty("transmittedBytes")));
 			networkGroup.series.push(new flinkRU.ProfilingSeries("Received", "#BBBB00", flinkRU.helpers.accessProperty("receivedBytes")));
 			flinkRU.profilingGroups.push(networkGroup);
-	
-			flinkRU.startPolling(pollingInterval);
 		});
 	</script>
   </head>
@@ -308,7 +311,7 @@
 			</div>
 			<!-- /.row -->
 
-			<div class="row">
+			<div class="row" id="profilingPanels" style="display: none">
 				<div class="col-lg-4">
 					<div class="panel panel-info">
 						<div class="panel-heading">

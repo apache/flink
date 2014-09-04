@@ -32,12 +32,12 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.event.job.AbstractEvent;
 import org.apache.flink.runtime.event.job.RecentJobEvent;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobmanager.JobManager;
+import org.apache.flink.runtime.profiling.ProfilingUtils;
 import org.apache.flink.runtime.profiling.types.InstanceProfilingEvent;
 import org.apache.flink.runtime.profiling.types.InstanceSummaryProfilingEvent;
 import org.apache.flink.runtime.profiling.types.ProfilingEvent;
@@ -100,12 +100,12 @@ public class ResourceUsageServlet extends HttpServlet {
 	 * Reports the configuration for the profiling frontend.
 	 */
 	private void respondSettings(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-		Configuration conf = GlobalConfiguration.getConfiguration();
-		long windowSize = conf.getLong(PROFILING_RESULTS_DISPLAY_WINDOW_SIZE_KEY, -1);
+		long windowSize = GlobalConfiguration.getLong(PROFILING_RESULTS_DISPLAY_WINDOW_SIZE_KEY, -1);
+		boolean isProfilingEnabled = GlobalConfiguration.getBoolean(ProfilingUtils.ENABLE_PROFILING_KEY, false);
 		resp.setStatus(HttpServletResponse.SC_OK);
 		resp.setContentType("application/json");
 		PrintWriter writer = resp.getWriter();
-		writer.format("{\"windowSize\":%d}", windowSize);
+		writer.format("{\"windowSize\":%d,\"enable\":%b}", windowSize, isProfilingEnabled);
 	}
 
 	/**

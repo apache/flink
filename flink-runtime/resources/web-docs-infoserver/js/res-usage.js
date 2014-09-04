@@ -29,13 +29,16 @@ var flinkRU = {};
 	};
 	
 	// Load server settings.
-	flinkRU.loadSettings = function() {
+	flinkRU.loadSettings = function(callback) {
 			$.ajax({
 			url : "resourceUsage?get=settings",
 			cache : false,
 			type : "GET",
 			success : function(settings) {
 				flinkRU.settings = settings;
+				if (callback != undefined) {
+					callback();
+				}
 			},
 			dataType : "json"
 		});
