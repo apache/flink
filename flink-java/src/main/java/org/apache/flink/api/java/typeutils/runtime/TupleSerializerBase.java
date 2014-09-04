@@ -69,6 +69,14 @@ public abstract class TupleSerializerBase<T> extends TypeSerializer<T> {
 		return -1;
 	}
 
+	public int getArity() {
+		return arity;
+	}
+
+	// We use this in the Aggregate and Distinct Operators to create instances
+	// of immutable Typles (i.e. Scala Tuples)
+	public abstract T createInstance(Object[] fields);
+
 	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
 		for (int i = 0; i < arity; i++) {

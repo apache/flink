@@ -36,7 +36,7 @@ import org.apache.flink.api.java.aggregation.Aggregations;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction.Combinable;
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
 
@@ -67,7 +67,7 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 			throw new InvalidProgramException("Aggregating on field positions is only possible on tuple data types.");
 		}
 		
-		TupleTypeInfo<?> inType = (TupleTypeInfo<?>) input.getType();
+		TupleTypeInfoBase<?> inType = (TupleTypeInfoBase<?>) input.getType();
 		
 		if (field < 0 || field >= inType.getArity()) {
 			throw new IllegalArgumentException("Aggregation field position is out of range.");
@@ -99,7 +99,7 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 			throw new InvalidProgramException("Aggregating on field positions is only possible on tuple data types.");
 		}
 		
-		TupleTypeInfo<?> inType = (TupleTypeInfo<?>) input.getDataSet().getType();
+		TupleTypeInfoBase<?> inType = (TupleTypeInfoBase<?>) input.getDataSet().getType();
 		
 		if (field < 0 || field >= inType.getArity()) {
 			throw new IllegalArgumentException("Aggregation field position is out of range.");
@@ -118,7 +118,7 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 	public AggregateOperator<IN> and(Aggregations function, int field) {
 		Validate.notNull(function);
 		
-		TupleTypeInfo<?> inType = (TupleTypeInfo<?>) getType();
+		TupleTypeInfoBase<?> inType = (TupleTypeInfoBase<?>) getType();
 		
 		if (field < 0 || field >= inType.getArity()) {
 			throw new IllegalArgumentException("Aggregation field position is out of range.");

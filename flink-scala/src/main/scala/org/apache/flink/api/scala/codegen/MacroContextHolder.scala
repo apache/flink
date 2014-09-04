@@ -16,22 +16,16 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.scala.codegen
 
 import scala.reflect.macros.Context
 
-class MacroContextHolder[C <: Context](val c: C)
+private[flink] class MacroContextHolder[C <: Context](val c: C)
 
-object MacroContextHolder {
+private[flink] object MacroContextHolder {
   def newMacroHelper[C <: Context](c: C) = new MacroContextHolder[c.type](c)
-    	with Loggers[c.type]
-    	with UDTDescriptors[c.type]
-    	with UDTAnalyzer[c.type]
+    	with TypeDescriptors[c.type]
+    	with TypeAnalyzer[c.type]
     	with TreeGen[c.type]
-    	with SerializerGen[c.type]
-    	with SerializeMethodGen[c.type]
-    	with DeserializeMethodGen[c.type]
-    	with UDTGen[c.type]
-    	with SelectionExtractor[c.type]
+      with TypeInformationGen[c.type]
 }

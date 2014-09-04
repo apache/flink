@@ -55,7 +55,8 @@ public abstract class Keys<T> {
 
 		public FieldPositionKeys(int[] groupingFields, TypeInformation<T> type, boolean allowEmpty) {
 			if (!type.isTupleType()) {
-				throw new InvalidProgramException("Specifying keys via field positions is only valid for tuple data types");
+				throw new InvalidProgramException("Specifying keys via field positions is only valid" +
+						"for tuple data types. Type: " + type);
 			}
 
 			if (!allowEmpty && (groupingFields == null || groupingFields.length == 0)) {

@@ -341,7 +341,7 @@ public abstract class SerializerTestBase<T> {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	private TypeSerializer<T> getSerializer() {
+	protected TypeSerializer<T> getSerializer() {
 		TypeSerializer<T> serializer = createSerializer();
 		if (serializer == null) {
 			throw new RuntimeException("Test case corrupt. Returns null as serializer.");

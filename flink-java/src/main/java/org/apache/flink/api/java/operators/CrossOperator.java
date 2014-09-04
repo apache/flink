@@ -51,7 +51,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 
 	private final CrossFunction<I1, I2, OUT> function;
 
-	protected CrossOperator(DataSet<I1> input1, DataSet<I2> input2,
+	public CrossOperator(DataSet<I1> input1, DataSet<I2> input2,
 							CrossFunction<I1, I2, OUT> function,
 							TypeInformation<OUT> returnType)
 	{
