@@ -21,19 +21,12 @@ import akka.actor.{ExtendedActorSystem, ActorSystem}
 import com.typesafe.config.ConfigFactory
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 
-import java.io.IOException;
+object AkkaUtils {
+  def createActorSystem(name: String, host: String, port: Int, configuration: Configuration): ActorSystem = {
+    val akkaConfig = ConfigFactory.parseString(AkkaUtils.getConfigString(host, port, configuration))
+    val actorSystem = ActorSystem.create(name, akkaConfig)
 
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.types.Value;
-
-public class BooleanValue implements Value {
-  private static final long serialVersionUID = 1L;
-
-  private boolean value;
-
-  public BooleanValue(boolean value) {
-    this.value = value;
+    actorSystem
   }
 
   def getConfigString(host: String, port: Int, configuration: Configuration): String = {
@@ -52,8 +45,8 @@ public class BooleanValue implements Value {
     val akkaTCPTimeout = configuration.getString(ConfigConstants.AKKA_TCP_TIMEOUT,
       ConfigConstants.DEFAULT_AKKA_TCP_TIMEOUT)
     val akkaFramesize = configuration.getString(ConfigConstants.AKKA_FRAMESIZE, ConfigConstants.DEFAULT_AKKA_FRAMESIZE)
-    val akkaThroughput = configuration.getInteger(ConfigConstants.AKKA_THROUGHPUT,
-      ConfigConstants.DEFAULT_AKKA_THROUGHPUT)
+    val akkaThroughput = configuration.getInteger(ConfigConstants.AKKA_DISPATCHER_THROUGHPUT,
+      ConfigConstants.DEFAULT_AKKA_DISPATCHER_THROUGHPUT)
     val lifecycleEvents = configuration.getBoolean(ConfigConstants.AKKA_LOG_LIFECYCLE_EVENTS,
       ConfigConstants.DEFAULT_AKKA_LOG_LIFECYCLE_EVENTS)
 

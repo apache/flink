@@ -18,8 +18,8 @@
 
 package org.apache.flink.client.minicluster;
 
-import java.lang.reflect.Method;
-
+import akka.actor.ActorSelection;
+import akka.actor.ActorSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.io.FileInputFormat;
@@ -27,14 +27,21 @@ import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.runtime.ExecutionMode;
 import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.instance.InstanceManager;
 import org.apache.flink.runtime.instance.LocalInstanceManager;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.JobManager;
+import org.apache.flink.runtime.messages.JobmanagerMessages;
 import org.apache.flink.runtime.taskmanager.TaskManager;
-import org.apache.flink.runtime.util.EnvironmentInformation;
+
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+
+import scala.concurrent.Await;
+import scala.concurrent.Future;
 
 
 public class NepheleMiniCluster {
@@ -54,6 +61,8 @@ public class NepheleMiniCluster {
 	private static final boolean DEFAULT_LAZY_MEMORY_ALLOCATION = true;
 
 	private static final int DEFAULT_TASK_MANAGER_NUM_SLOTS = 1;
+
+	private static final String HOSTNAME = "localhost";
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -174,7 +183,7 @@ public class NepheleMiniCluster {
 	
 	public JobClient getJobClient(JobGraph jobGraph) throws Exception {
 		Configuration configuration = jobGraph.getJobConfiguration();
-		configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");
+		configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, HOSTNAME);
 		configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerRpcPort);
 		return new JobClient(jobGraph, configuration, getClass().getClassLoader());
 	}
@@ -212,18 +221,25 @@ public class NepheleMiniCluster {
 			// force the input/output format classes to load the default values from the configuration.
 			// we need to do this here, because the format classes may have been initialized before the mini cluster was started
 			initializeIOFormatClasses();
+
+			Configuration configuration = GlobalConfiguration.getConfiguration();
 			
-			// before we start the JobManager, we need to make sure that there are no lingering IPC threads from before
-			// check that all threads are done before we return
-			Thread[] allThreads = new Thread[Thread.activeCount()];
-			int numThreads = Thread.enumerate(allThreads);
-			
-			for (int i = 0; i < numThreads; i++) {
-				Thread t = allThreads[i];
-				String name = t.getName();
-				if (name.startsWith("IPC")) {
-					t.join();
-				}
+			// start the job manager
+			jobManager = JobManager.startActorSystemAndActor("flink", HOSTNAME, jobManagerRpcPort, "jobmanager",
+					configuration);
+
+			int tmRPCPort = GlobalConfiguration.getInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY,
+					ConfigConstants.DEFAULT_TASK_MANAGER_IPC_PORT);
+			int tmDataPort = GlobalConfiguration.getInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY,
+					ConfigConstants.DEFAULT_TASK_MANAGER_DATA_PORT);
+
+			for(int i = 0; i < numTaskTracker; i++){
+				Configuration tmConfiguration = GlobalConfiguration.getConfiguration();
+				tmConfiguration.setInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, tmRPCPort + i);
+				tmConfiguration.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, tmDataPort + i);
+				ActorSystem taskManager = TaskManager.startActorSystemAndActor("flink", HOSTNAME, tmRPCPort+i,
+						"taskmanager" + (i+1), configuration);
+				taskManagers.add(taskManager);
 			}
 
 			// start the job manager
@@ -258,14 +274,20 @@ public class NepheleMiniCluster {
 	// Network utility methods
 	// ------------------------------------------------------------------------
 	
-	private void waitForJobManagerToBecomeReady(int numSlots) throws InterruptedException {
-		if (numSlots < 0) {
-			// may happen due to miss-configuration. wait at least till the first slot.
-			numSlots = 1;
-		}
-		
-		while (jobManager.getNumberOfSlotsAvailableToScheduler() < numSlots) {
-			Thread.sleep(50);
+	private void waitForJobManagerToBecomeReady(int numTaskManagers) throws Exception {
+		boolean notReady = true;
+
+		ActorSelection jobmanagerSelection = jobManager.actorSelection("jobmanager");
+		Timeout timeout = new Timeout(1L, TimeUnit.MINUTES);
+
+		while(notReady){
+			Future<Object> futureNumTaskManagers = Patterns.ask(jobmanagerSelection,
+					JobmanagerMessages.RequestNumberRegisteredTaskManager$.MODULE$, timeout);
+
+			int numRegisteredTaskManagers = (Integer)Await.result(futureNumTaskManagers, timeout.duration());
+
+			if(numRegisteredTaskManagers < numTaskManagers){
+				Thread.sleep(50);
 		}
 		
 		// make sure that not just the jobmanager has the slots, but also the taskmanager

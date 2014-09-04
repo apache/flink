@@ -343,7 +343,7 @@ public final class ConfigConstants {
 	/**
 	 * Maximum number of messages until another actor is executed by the same thread
 	 */
-	public static final String AKKA_THROUGHPUT = "akka.throughput";
+	public static final String AKKA_DISPATCHER_THROUGHPUT = "akka.throughput";
 
 	/**
 	 * Log lifecycle events
@@ -588,7 +588,27 @@ public final class ConfigConstants {
 	
 	public static final int DEFAULT_YARN_AM_RPC_PORT = 10245;
 
-	// ----------------------------- AKKA --------------------------------------
+	// ------------------------------ Akka Values ------------------------------
+
+	public static String DEFAULT_AKKA_TRANSPORT_HEARTBEAT_INTERVAL = "1000 ms";
+
+	public static String DEFAULT_AKKA_TRANSPORT_HEARTBEAT_PAUSE = "10 s";
+
+	public static double DEFAULT_AKKA_TRANSPORT_THRESHOLD = 300.0;
+
+	public static String DEFAULT_AKKA_WATCH_HEARTBEAT_INTERVAL = "1000 ms";
+
+	public static String DEFAULT_AKKA_WATCH_HEARTBEAT_PAUSE = "10 s";
+
+	public static double DEFAULT_AKKA_WATCH_THRESHOLD = 10.0;
+
+	public static String DEFAULT_AKKA_TCP_TIMEOUT = "15 s";
+
+	public static int DEFAULT_AKKA_DISPATCHER_THROUGHPUT = 10;
+
+	public static boolean DEFAULT_AKKA_LOG_LIFECYCLE_EVENTS = true;
+
+	public static String DEFAULT_AKKA_FRAMESIZE = "10485760b";
 	
 
 	// ----------------------------- LocalExecution ----------------------------

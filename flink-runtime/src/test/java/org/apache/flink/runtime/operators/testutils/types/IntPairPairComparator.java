@@ -17,28 +17,34 @@
  */
 
 
-package org.apache.flink.runtime.operators.testutils.types;
+import akka.actor._
+import org.apache.flink.configuration.Configuration
+import org.apache.flink.runtime.akka.AkkaUtils
+import org.apache.flink.runtime.messages.RegistrationMessages.{AcknowledgeRegistration, RegisteredTaskManager}
 
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 
+  override def receive: Receive = {
+    case AcknowledgeRegistration =>
+      println("Got registered at " + sender().toString())
+      Thread.sleep(1000)
+      self ! PoisonPill
+  }
+}
 
 public class IntPairPairComparator extends TypePairComparator<IntPair, IntPair> {
 	
 	private int key;
 	
 
-	@Override
-	public void setReference(IntPair reference) {
-		this.key = reference.getKey();
-	}
+  def startActorSystemAndActor(systemName: String, hostname: String, port: Int, actorName: String,
+                               configuration: Configuration) = {
+    val actorSystem = AkkaUtils.createActorSystem(systemName, hostname, port, configuration)
+    startActor(actorSystem, actorName)
+    actorSystem
+  }
 
-	@Override
-	public boolean equalToReference(IntPair candidate) {
-		return this.key == candidate.getKey();
-	}
-
-	@Override
-	public int compareToReference(IntPair candidate) {
-		return candidate.getKey() - this.key;
-	}
+  def startActor(actorSystem: ActorSystem, actorName: String): ActorRef = {
+    actorSystem.actorOf(Props(classOf[TaskManager]), actorName);
+  }
 }

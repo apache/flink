@@ -17,38 +17,39 @@
  */
 
 
-package org.apache.flink.api.common.operators;
+import akka.actor._
+import org.apache.flink.configuration.Configuration
+import org.apache.flink.runtime.akka.AkkaUtils
+import org.apache.flink.runtime.messages.JobmanagerMessages.RequestNumberRegisteredTaskManager
+import org.apache.flink.runtime.messages.RegistrationMessages._
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
+import scala.collection.mutable
 
-/**
- *  A class for holding information about an operator, such as input/output TypeInformation.
- *
- * @param <OUT> Output type of the records output by the operator described by this information
-*/
-public class OperatorInformation<OUT> {
-	/**
-	 * Output type of the operator
-	 */
-	protected final TypeInformation<OUT> outputType;
+class JobManager extends Actor with ActorLogging {
 
-	/**
-	 * @param outputType The output type of the operator
-	 */
-	public OperatorInformation(TypeInformation<OUT> outputType) {
-		this.outputType = outputType;
-	}
+  val taskManagers = new mutable.HashSet[ActorRef]()
 
-	/**
-	 * Gets the return type of the user code function.
-	 */
-	public TypeInformation<OUT> getOutputType() {
-		return outputType;
-	}
+  override def receive: Receive = {
+    case RegisterTaskManager(hardwareInformation) =>
+      val taskManager = sender()
+      taskManagers += taskManager
+      context.watch(taskManager);
+      taskManager ! AcknowledgeRegistration
 
+    case RequestNumberRegisteredTaskManager =>
+      sender() ! taskManagers.size
+  }
+}
 
-	@Override
-	public String toString() {
-		return "Operator Info; Output type: " + outputType;
-	}
+object JobManager{
+  def startActorSystemAndActor(systemName: String, hostname: String,  port: Int, actorName: String,
+                               configuration: Configuration): ActorSystem = {
+    val actorSystem = AkkaUtils.createActorSystem(systemName, hostname,  port, configuration)
+    startActor(actorSystem, actorName)
+    actorSystem
+  }
+
+  def startActor(actorSystem: ActorSystem, actorName: String): ActorRef = {
+    actorSystem.actorOf(Props(classOf[JobManager]), actorName)
+  }
 }

@@ -57,7 +57,7 @@ public class SetupInfoServlet extends HttpServlet {
 	
 	
 	private Configuration globalC;
-	private JobManager jobmanager;
+	private JobManager2 jobmanager;
 	
 	
 	public SetupInfoServlet(JobManager jm) {
