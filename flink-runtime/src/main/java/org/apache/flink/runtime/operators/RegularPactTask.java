@@ -256,8 +256,8 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 			initInputReaders();
 			initBroadcastInputReaders();
 		} catch (Exception e) {
-			throw new RuntimeException("Initializing the input streams failed" +
-				e.getMessage() == null ? "." : ": " + e.getMessage(), e);
+			throw new RuntimeException("Initializing the input streams failed in Task " + getEnvironment().getTaskName() +
+					(e.getMessage() == null ? "." : ": " + e.getMessage()), e);
 		}
 
 		// initialize the writers. this is necessary for nephele to create the output gates.
