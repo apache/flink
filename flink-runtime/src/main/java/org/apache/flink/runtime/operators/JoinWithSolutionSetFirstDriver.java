@@ -137,11 +137,8 @@ public class JoinWithSolutionSetFirstDriver<IT1, IT2, OT> implements ResettableP
 			
 		final CompactingHashTable<IT1>.HashTableProber<IT2> prober = join.getProber(probeSideComparator, pairComparator);
 		while (this.running && ((probeSideRecord = probeSideInput.next(probeSideRecord)) != null)) {
-			if (prober.getMatchFor(probeSideRecord, buildSideRecord)) {
-				joinFunction.join(buildSideRecord, probeSideRecord, collector);
-			} else {
-				joinFunction.join(null, probeSideRecord, collector);
-			}
+			buildSideRecord = prober.getMatchFor(probeSideRecord, buildSideRecord);
+			joinFunction.join(buildSideRecord, probeSideRecord, collector);
 		}
 	}
 
