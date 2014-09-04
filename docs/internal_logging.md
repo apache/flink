@@ -58,3 +58,4 @@ Placeholders can also be used in conjunction with exceptions which shall be logg
 catch(Exception exception){
 	LOG.error("An {} occurred.", "error", exception);
 }
+```
