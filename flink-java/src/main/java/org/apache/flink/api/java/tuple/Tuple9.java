@@ -194,14 +194,14 @@ public class Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8> extends Tuple {
 	@Override
 	public String toString() {
 		return "(" + StringUtils.arrayAwareToString(this.f0)
-			+ ", " + StringUtils.arrayAwareToString(this.f1)
-			+ ", " + StringUtils.arrayAwareToString(this.f2)
-			+ ", " + StringUtils.arrayAwareToString(this.f3)
-			+ ", " + StringUtils.arrayAwareToString(this.f4)
-			+ ", " + StringUtils.arrayAwareToString(this.f5)
-			+ ", " + StringUtils.arrayAwareToString(this.f6)
-			+ ", " + StringUtils.arrayAwareToString(this.f7)
-			+ ", " + StringUtils.arrayAwareToString(this.f8)
+			+ "," + StringUtils.arrayAwareToString(this.f1)
+			+ "," + StringUtils.arrayAwareToString(this.f2)
+			+ "," + StringUtils.arrayAwareToString(this.f3)
+			+ "," + StringUtils.arrayAwareToString(this.f4)
+			+ "," + StringUtils.arrayAwareToString(this.f5)
+			+ "," + StringUtils.arrayAwareToString(this.f6)
+			+ "," + StringUtils.arrayAwareToString(this.f7)
+			+ "," + StringUtils.arrayAwareToString(this.f8)
 			+ ")";
 	}
 

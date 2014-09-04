@@ -128,8 +128,8 @@ public class Tuple3<T0, T1, T2> extends Tuple {
 	@Override
 	public String toString() {
 		return "(" + StringUtils.arrayAwareToString(this.f0)
-			+ ", " + StringUtils.arrayAwareToString(this.f1)
-			+ ", " + StringUtils.arrayAwareToString(this.f2)
+			+ "," + StringUtils.arrayAwareToString(this.f1)
+			+ "," + StringUtils.arrayAwareToString(this.f2)
 			+ ")";
 	}
 

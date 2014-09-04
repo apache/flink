@@ -139,9 +139,9 @@ public class Tuple4<T0, T1, T2, T3> extends Tuple {
 	@Override
 	public String toString() {
 		return "(" + StringUtils.arrayAwareToString(this.f0)
-			+ ", " + StringUtils.arrayAwareToString(this.f1)
-			+ ", " + StringUtils.arrayAwareToString(this.f2)
-			+ ", " + StringUtils.arrayAwareToString(this.f3)
+			+ "," + StringUtils.arrayAwareToString(this.f1)
+			+ "," + StringUtils.arrayAwareToString(this.f2)
+			+ "," + StringUtils.arrayAwareToString(this.f3)
 			+ ")";
 	}
 
