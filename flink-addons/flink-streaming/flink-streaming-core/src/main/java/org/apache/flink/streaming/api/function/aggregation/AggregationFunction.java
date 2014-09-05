@@ -17,16 +17,18 @@
 
 package org.apache.flink.streaming.api.function.aggregation;
 
-public class StreamingMinAggregationFunction<T> extends ComparableAggregationFunction<T> {
+import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.java.tuple.Tuple;
 
+public abstract class AggregationFunction<T> implements ReduceFunction<T> {
 	private static final long serialVersionUID = 1L;
+	
+	public int position;
+	protected Tuple returnTuple;
 
-	public StreamingMinAggregationFunction(int pos) {
-		super(pos);
+	public AggregationFunction(int pos) {
+		this.position = pos;
 	}
 
-	@Override
-	public <R> boolean isExtremal(Comparable<R> o1, R o2) {
-		return o1.compareTo(o2) < 0;
-	}
+
 }

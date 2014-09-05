@@ -18,15 +18,16 @@
 package org.apache.flink.streaming.api;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.streaming.api.function.aggregation.StreamingMaxAggregationFunction;
-import org.apache.flink.streaming.api.function.aggregation.StreamingMinAggregationFunction;
-import org.apache.flink.streaming.api.function.aggregation.StreamingSumAggregationFunction;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.function.aggregation.MaxAggregationFunction;
+import org.apache.flink.streaming.api.function.aggregation.MinAggregationFunction;
+import org.apache.flink.streaming.api.function.aggregation.SumAggregationFunction;
 import org.apache.flink.streaming.api.invokable.operator.GroupReduceInvokable;
 import org.apache.flink.streaming.api.invokable.operator.StreamReduceInvokable;
 import org.apache.flink.streaming.util.MockInvokable;
@@ -36,25 +37,32 @@ public class AggregationFunctionTest {
 
 	@Test
 	public void groupSumIntegerTest() {
-		ArrayList<Tuple2<Integer, Integer>> inputList = new ArrayList<Tuple2<Integer, Integer>>();
 
 		List<Tuple2<Integer, Integer>> expectedSumList = new ArrayList<Tuple2<Integer, Integer>>();
 		List<Tuple2<Integer, Integer>> expectedMinList = new ArrayList<Tuple2<Integer, Integer>>();
 		List<Tuple2<Integer, Integer>> expectedMaxList = new ArrayList<Tuple2<Integer, Integer>>();
+		List<Integer> expectedSumList0 = new ArrayList<Integer>();
+		List<Integer> expectedMinList0 = new ArrayList<Integer>();
+		List<Integer> expectedMaxList0 = new ArrayList<Integer>();
 		List<Tuple2<Integer, Integer>> expectedGroupSumList = new ArrayList<Tuple2<Integer, Integer>>();
 		List<Tuple2<Integer, Integer>> expectedGroupMinList = new ArrayList<Tuple2<Integer, Integer>>();
 		List<Tuple2<Integer, Integer>> expectedGroupMaxList = new ArrayList<Tuple2<Integer, Integer>>();
 
+		List<Integer> simpleInput = new ArrayList<Integer>();
+		
 		int groupedSum0 = 0;
 		int groupedSum1 = 0;
 		int groupedSum2 = 0;
 
 		for (int i = 0; i < 9; i++) {
-			inputList.add(new Tuple2<Integer, Integer>(i % 3, i));
-
+			simpleInput.add(i);
 			expectedSumList.add(new Tuple2<Integer, Integer>(i % 3, (i + 1) * i / 2));
 			expectedMinList.add(new Tuple2<Integer, Integer>(i % 3, 0));
 			expectedMaxList.add(new Tuple2<Integer, Integer>(i % 3, i));
+
+			expectedSumList0.add((i + 1) * i / 2);
+			expectedMaxList0.add(i);
+			expectedMinList0.add(0);
 
 			int groupedSum;
 			switch (i % 3) {
@@ -74,30 +82,38 @@ public class AggregationFunctionTest {
 			expectedGroupMaxList.add(new Tuple2<Integer, Integer>(i % 3, i));
 		}
 
-		StreamingSumAggregationFunction<Tuple2<Integer, Integer>> sumFunction = new StreamingSumAggregationFunction<Tuple2<Integer, Integer>>(
+		@SuppressWarnings("unchecked")
+		SumAggregationFunction<Tuple2<Integer, Integer>> sumFunction = SumAggregationFunction
+				.getSumFunction(1, Integer.class);
+		@SuppressWarnings("unchecked")
+		SumAggregationFunction<Integer> sumFunction0 = SumAggregationFunction
+				.getSumFunction(0, Integer.class);
+		MinAggregationFunction<Tuple2<Integer, Integer>> minFunction = new MinAggregationFunction<Tuple2<Integer, Integer>>(
 				1);
-		StreamingMinAggregationFunction<Tuple2<Integer, Integer>> minFunction = new StreamingMinAggregationFunction<Tuple2<Integer, Integer>>(
+		MinAggregationFunction<Integer> minFunction0 = new MinAggregationFunction<Integer>(
+				0);
+		MaxAggregationFunction<Tuple2<Integer, Integer>> maxFunction = new MaxAggregationFunction<Tuple2<Integer, Integer>>(
 				1);
-		StreamingMaxAggregationFunction<Tuple2<Integer, Integer>> maxFunction = new StreamingMaxAggregationFunction<Tuple2<Integer, Integer>>(
-				1);
-
-		sumFunction.setType(TypeExtractor.getForObject(new Tuple2<Integer, Integer>(0, 0)));
-		minFunction.setType(TypeExtractor.getForObject(new Tuple2<Integer, Integer>(0, 0)));
-		maxFunction.setType(TypeExtractor.getForObject(new Tuple2<Integer, Integer>(0, 0)));
+		MaxAggregationFunction<Integer> maxFunction0 = new MaxAggregationFunction<Integer>(
+				0);
 
 		List<Tuple2<Integer, Integer>> sumList = MockInvokable.createAndExecute(
-				new StreamReduceInvokable<Tuple2<Integer, Integer>>(sumFunction), inputList);
+				new StreamReduceInvokable<Tuple2<Integer, Integer>>(sumFunction), getInputList());
+
 		List<Tuple2<Integer, Integer>> minList = MockInvokable.createAndExecute(
-				new StreamReduceInvokable<Tuple2<Integer, Integer>>(minFunction), inputList);
+				new StreamReduceInvokable<Tuple2<Integer, Integer>>(minFunction), getInputList());
+
 		List<Tuple2<Integer, Integer>> maxList = MockInvokable.createAndExecute(
-				new StreamReduceInvokable<Tuple2<Integer, Integer>>(maxFunction), inputList);
+				new StreamReduceInvokable<Tuple2<Integer, Integer>>(maxFunction), getInputList());
 
 		List<Tuple2<Integer, Integer>> groupedSumList = MockInvokable.createAndExecute(
-				new GroupReduceInvokable<Tuple2<Integer, Integer>>(sumFunction, 0), inputList);
+				new GroupReduceInvokable<Tuple2<Integer, Integer>>(sumFunction, 0), getInputList());
+
 		List<Tuple2<Integer, Integer>> groupedMinList = MockInvokable.createAndExecute(
-				new GroupReduceInvokable<Tuple2<Integer, Integer>>(minFunction, 0), inputList);
+				new GroupReduceInvokable<Tuple2<Integer, Integer>>(minFunction, 0), getInputList());
+
 		List<Tuple2<Integer, Integer>> groupedMaxList = MockInvokable.createAndExecute(
-				new GroupReduceInvokable<Tuple2<Integer, Integer>>(maxFunction, 0), inputList);
+				new GroupReduceInvokable<Tuple2<Integer, Integer>>(maxFunction, 0), getInputList());
 
 		assertEquals(expectedSumList, sumList);
 		assertEquals(expectedMinList, minList);
@@ -105,5 +121,39 @@ public class AggregationFunctionTest {
 		assertEquals(expectedGroupSumList, groupedSumList);
 		assertEquals(expectedGroupMinList, groupedMinList);
 		assertEquals(expectedGroupMaxList, groupedMaxList);
+		assertEquals(expectedSumList0, MockInvokable.createAndExecute(new StreamReduceInvokable<Integer>(sumFunction0),simpleInput ));
+		assertEquals(expectedMinList0, MockInvokable.createAndExecute(new StreamReduceInvokable<Integer>(minFunction0),simpleInput ));
+		assertEquals(expectedMaxList0, MockInvokable.createAndExecute(new StreamReduceInvokable<Integer>(maxFunction0),simpleInput ));
+
+
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
+		try {
+			env.generateSequence(1, 100).min(1);
+			fail();
+		} catch (Exception e) {
+			//Nothing to do here
+		}
+		try {
+			env.generateSequence(1, 100).min(2);
+			fail();
+		} catch (Exception e) {
+			//Nothing to do here
+		}
+		try {
+			env.generateSequence(1, 100).min(3);
+			fail();
+		} catch (Exception e) {
+			//Nothing to do here
+		}
+
+	}
+
+	private List<Tuple2<Integer, Integer>> getInputList() {
+		ArrayList<Tuple2<Integer, Integer>> inputList = new ArrayList<Tuple2<Integer, Integer>>();
+		for (int i = 0; i < 9; i++) {
+			inputList.add(new Tuple2<Integer, Integer>(i % 3, i));
+		}
+		return inputList;
+
 	}
 }

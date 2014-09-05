@@ -30,7 +30,6 @@ public class BatchGroupReduceInvokable<IN, OUT> extends BatchReduceInvokable<IN,
 	private static final long serialVersionUID = 1L;
 
 	int keyPosition;
-	protected GroupReduceFunction<IN, OUT> reducer;
 	private Iterator<StreamRecord<IN>> iterator;
 	private MutableTableState<Object, List<IN>> values;
 

@@ -34,12 +34,13 @@ import org.apache.flink.api.java.functions.RichFlatMapFunction;
 import org.apache.flink.api.java.functions.RichGroupReduceFunction;
 import org.apache.flink.api.java.functions.RichMapFunction;
 import org.apache.flink.api.java.functions.RichReduceFunction;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.streaming.api.JobGraphBuilder;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.function.aggregation.StreamingMaxAggregationFunction;
-import org.apache.flink.streaming.api.function.aggregation.StreamingMinAggregationFunction;
-import org.apache.flink.streaming.api.function.aggregation.StreamingAggregationFunction;
-import org.apache.flink.streaming.api.function.aggregation.StreamingSumAggregationFunction;
+import org.apache.flink.streaming.api.function.aggregation.AggregationFunction;
+import org.apache.flink.streaming.api.function.aggregation.MaxAggregationFunction;
+import org.apache.flink.streaming.api.function.aggregation.MinAggregationFunction;
+import org.apache.flink.streaming.api.function.aggregation.SumAggregationFunction;
 import org.apache.flink.streaming.api.function.sink.PrintSinkFunction;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
 import org.apache.flink.streaming.api.function.sink.WriteFormatAsCsv;
@@ -171,7 +172,43 @@ public abstract class DataStream<OUT> {
 	public TypeInformation<OUT> getOutputType() {
 		return this.outTypeWrapper.getTypeInfo();
 	}
-	
+
+	/**
+	 * Gets the class of the field at the given position
+	 * 
+	 * @param pos
+	 *            Position of the field
+	 * @return The class of the field
+	 */
+	@SuppressWarnings("rawtypes")
+	protected Class<?> getClassAtPos(int pos) {
+		Class<?> type;
+		TypeInformation<OUT> outTypeInfo = outTypeWrapper.getTypeInfo();
+		if (outTypeInfo.isTupleType()) {
+			type = ((TupleTypeInfo) outTypeInfo).getTypeAt(pos).getTypeClass();
+		} else if (pos == 0) {
+			type = outTypeInfo.getTypeClass();
+		} else {
+			throw new IndexOutOfBoundsException("Position is out of range");
+		}
+		return type;
+	}
+
+	/**
+	 * Checks if the given field position is allowed for the output type
+	 * 
+	 * @param pos
+	 *            Position to check
+	 */
+	protected void checkFieldRange(int pos) {
+		try {
+			getClassAtPos(pos);
+		} catch (IndexOutOfBoundsException e) {
+			throw new RuntimeException("Selected field is out of range");
+
+		}
+	}
+
 	/**
 	 * Creates a new {@link MergedDataStream} by merging {@link DataStream}
 	 * outputs of the same type with each other. The DataStreams merged using
@@ -483,50 +520,82 @@ public abstract class DataStream<OUT> {
 	}
 
 	/**
-	 * Applies an aggregation that sums the data stream at the given
-	 * position.
+	 * Applies an aggregation that sums the data stream at the given position.
 	 * 
 	 * @param positionToSum
 	 *            The position in the data point to sum
 	 * @return The transformed DataStream.
 	 */
+	@SuppressWarnings("unchecked")
 	public SingleOutputStreamOperator<OUT, ?> sum(int positionToSum) {
-		return aggregateAll(new StreamingSumAggregationFunction<OUT>(positionToSum));
+		checkFieldRange(positionToSum);
+		return aggregateAll((AggregationFunction<OUT>) SumAggregationFunction
+				.getSumFunction(positionToSum, getClassAtPos(positionToSum)));
 	}
-	
+
 	/**
-	 * Applies an aggregation that that gives the minimum of the data stream at the given
-	 * position.
+	 * Applies an aggregation that sums the data stream at the first position .
+	 * 
+	 * @return The transformed DataStream.
+	 */
+	public SingleOutputStreamOperator<OUT, ?> sum() {
+		return sum(0);
+	}
+
+	/**
+	 * Applies an aggregation that that gives the minimum of the data stream at
+	 * the given position.
 	 * 
 	 * @param positionToMin
 	 *            The position in the data point to minimize
 	 * @return The transformed DataStream.
 	 */
 	public SingleOutputStreamOperator<OUT, ?> min(int positionToMin) {
-		return aggregateAll(new StreamingMinAggregationFunction<OUT>(positionToMin));
+		checkFieldRange(positionToMin);
+		return aggregateAll(new MinAggregationFunction<OUT>(positionToMin));
 	}
-	
+
 	/**
-	 * Applies an aggregation that gives the maximum of the data stream at the given
-	 * position.
+	 * Applies an aggregation that that gives the minimum of the data stream at
+	 * the first position.
+	 * 
+	 * @return The transformed DataStream.
+	 */
+	public SingleOutputStreamOperator<OUT, ?> min() {
+		return min(0);
+	}
+
+	/**
+	 * Applies an aggregation that gives the maximum of the data stream at the
+	 * given position.
 	 * 
 	 * @param positionToMax
 	 *            The position in the data point to maximize
 	 * @return The transformed DataStream.
 	 */
 	public SingleOutputStreamOperator<OUT, ?> max(int positionToMax) {
-		return aggregateAll(new StreamingMaxAggregationFunction<OUT>(positionToMax));
+		checkFieldRange(positionToMax);
+		return aggregateAll(new MaxAggregationFunction<OUT>(positionToMax));
 	}
 
-	private SingleOutputStreamOperator<OUT, ?> aggregateAll(StreamingAggregationFunction<OUT> aggregate) {
+	/**
+	 * Applies an aggregation that gives the maximum of the data stream at the
+	 * first position.
+	 * 
+	 * @return The transformed DataStream.
+	 */
+	public SingleOutputStreamOperator<OUT, ?> max() {
+		return max(0);
+	}
+
+	private SingleOutputStreamOperator<OUT, ?> aggregateAll(
+			AggregationFunction<OUT> aggregate) {
 		return aggregate(aggregate, new StreamReduceInvokable<OUT>(aggregate), "reduce");
 	}
-	
-	SingleOutputStreamOperator<OUT, ?> aggregate(StreamingAggregationFunction<OUT> aggregate, StreamReduceInvokable<OUT> invokable, String functionName) {
-		DataStream<OUT> inputStream = this.copy();
-		TypeInformation<?> info = this.jobGraphBuilder.getOutTypeInfo(inputStream.getId());
 
-		aggregate.setType(info);
+	SingleOutputStreamOperator<OUT, ?> aggregate(AggregationFunction<OUT> aggregate,
+			StreamReduceInvokable<OUT> invokable, String functionName) {
+		DataStream<OUT> inputStream = this.copy();
 
 		SingleOutputStreamOperator<OUT, ?> returnStream = inputStream.addFunction(functionName,
 				aggregate, null, null, invokable);
@@ -1014,7 +1083,8 @@ public abstract class DataStream<OUT> {
 
 	private DataStreamSink<OUT> addSink(DataStream<OUT> inputStream,
 			SinkFunction<OUT> sinkFunction, TypeSerializerWrapper<OUT> typeWrapper) {
-		DataStreamSink<OUT> returnStream = new DataStreamSink<OUT>(environment, "sink", outTypeWrapper);
+		DataStreamSink<OUT> returnStream = new DataStreamSink<OUT>(environment, "sink",
+				outTypeWrapper);
 
 		try {
 			jobGraphBuilder.addSink(returnStream.getId(), new SinkInvokable<OUT>(sinkFunction),

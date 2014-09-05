@@ -19,7 +19,7 @@ package org.apache.flink.streaming.api.function.aggregation;
 
 import org.apache.flink.api.java.tuple.Tuple;
 
-public abstract class ComparableAggregationFunction<T> extends StreamingAggregationFunction<T> {
+public abstract class ComparableAggregationFunction<T> extends AggregationFunction<T> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -39,25 +39,25 @@ public abstract class ComparableAggregationFunction<T> extends StreamingAggregat
 			return (T) returnTuple;
 		} else if (value1 instanceof Comparable) {
 			if (isExtremal((Comparable<Object>) value1, value2)) {
-				value2 = value1;
+				return value1;
+			}else{
+				return value2;
 			}
 		} else {
 			throw new RuntimeException("The values " + value1 +  " and "+ value2 + " cannot be compared.");
 		}
-
-		return null;
 	}
 
 	public <R> void compare(Tuple tuple1, Tuple tuple2) throws InstantiationException,
 			IllegalAccessException {
-		copyTuple(tuple2);
 
 		Comparable<R> o1 = tuple1.getField(position);
 		R o2 = tuple2.getField(position);
 
 		if (isExtremal(o1, o2)) {
-			returnTuple.setField(o1, position);
+			tuple2.setField(o1, position);
 		}
+		returnTuple = tuple2;
 	}
 
 	public abstract <R> boolean isExtremal(Comparable<R> o1, R o2);

@@ -17,29 +17,16 @@
 
 package org.apache.flink.streaming.api.function.aggregation;
 
-import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.types.TypeInformation;
+public class MaxAggregationFunction<T> extends ComparableAggregationFunction<T> {
 
-public abstract class StreamingAggregationFunction<T> implements ReduceFunction<T> {
 	private static final long serialVersionUID = 1L;
-	
-	protected int position;
-	private TypeSerializer<Tuple> typeSerializer;
-	protected Tuple returnTuple;
 
-	public StreamingAggregationFunction(int pos) {
-		this.position = pos;
+	public MaxAggregationFunction(int pos) {
+		super(pos);
 	}
 
-	@SuppressWarnings("unchecked")
-	public void setType(TypeInformation<?> type) {
-		this.typeSerializer = (TypeSerializer<Tuple>) type.createSerializer();
-	}
-
-	protected void copyTuple(Tuple tuple) throws InstantiationException, IllegalAccessException {
-		returnTuple = (Tuple) typeSerializer.createInstance();
-		typeSerializer.copy(tuple, returnTuple);
+	@Override
+	public <R> boolean isExtremal(Comparable<R> o1, R o2) {
+		return o1.compareTo(o2) > 0;
 	}
 }

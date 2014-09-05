@@ -21,10 +21,10 @@ import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.functions.RichGroupReduceFunction;
 import org.apache.flink.api.java.functions.RichReduceFunction;
-import org.apache.flink.streaming.api.function.aggregation.StreamingAggregationFunction;
-import org.apache.flink.streaming.api.function.aggregation.StreamingMaxAggregationFunction;
-import org.apache.flink.streaming.api.function.aggregation.StreamingMinAggregationFunction;
-import org.apache.flink.streaming.api.function.aggregation.StreamingSumAggregationFunction;
+import org.apache.flink.streaming.api.function.aggregation.AggregationFunction;
+import org.apache.flink.streaming.api.function.aggregation.MaxAggregationFunction;
+import org.apache.flink.streaming.api.function.aggregation.MinAggregationFunction;
+import org.apache.flink.streaming.api.function.aggregation.SumAggregationFunction;
 import org.apache.flink.streaming.api.invokable.operator.BatchGroupReduceInvokable;
 import org.apache.flink.streaming.api.invokable.operator.GroupReduceInvokable;
 import org.apache.flink.streaming.api.invokable.operator.WindowGroupReduceInvokable;
@@ -52,14 +52,19 @@ public class GroupedDataStream<OUT> {
 	}
 
 	/**
-	 * Gets the output type.
+	 * Applies a reduce transformation on the grouped data stream grouped by the
+	 * given key position. The {@link ReduceFunction} will receive input values
+	 * based on the key value. Only input values with the same key will go to
+	 * the same reducer.The user can also extend {@link RichReduceFunction} to
+	 * gain access to other features provided by the {@link RichFuntion}
+	 * interface. Gets the output type.
 	 * 
 	 * @return The output type.
 	 */
 	public TypeInformation<OUT> getOutputType() {
 		return dataStream.getOutputType();
 	}
-	
+
 	/**
 	 * Applies a reduce transformation on the grouped data stream grouped on by
 	 * the given key position. The {@link ReduceFunction} will receive input
@@ -78,7 +83,7 @@ public class GroupedDataStream<OUT> {
 				ReduceFunction.class, 0), new FunctionTypeWrapper<OUT>(reducer,
 				ReduceFunction.class, 0), new GroupReduceInvokable<OUT>(reducer, keyPosition));
 	}
-	
+
 	/**
 	 * Applies a group reduce transformation on preset chunks of the grouped
 	 * data stream. The {@link GroupReduceFunction} will receive input values
@@ -214,8 +219,22 @@ public class GroupedDataStream<OUT> {
 	 *            The position in the data point to sum
 	 * @return The transformed DataStream.
 	 */
+	@SuppressWarnings("unchecked")
 	public SingleOutputStreamOperator<OUT, ?> sum(final int positionToSum) {
-		return aggregateGroup(new StreamingSumAggregationFunction<OUT>(positionToSum));
+		dataStream.checkFieldRange(positionToSum);
+		return aggregateGroup((AggregationFunction<OUT>) SumAggregationFunction
+				.getSumFunction(positionToSum, dataStream.getClassAtPos(positionToSum)));
+	}
+
+	/**
+	 * Applies an aggregation that sums the grouped data stream at the first
+	 * position, grouped by the given key position. Input values with the same
+	 * key will be summed.
+	 * 
+	 * @return The transformed DataStream.
+	 */
+	public SingleOutputStreamOperator<OUT, ?> sum() {
+		return sum(0);
 	}
 
 	/**
@@ -228,7 +247,21 @@ public class GroupedDataStream<OUT> {
 	 * @return The transformed DataStream.
 	 */
 	public SingleOutputStreamOperator<OUT, ?> min(final int positionToMin) {
-		return aggregateGroup(new StreamingMinAggregationFunction<OUT>(positionToMin));
+		dataStream.checkFieldRange(positionToMin);
+		return aggregateGroup(new MinAggregationFunction<OUT>(positionToMin));
+	}
+
+	/**
+	 * Applies an aggregation that gives the minimum of the grouped data stream
+	 * at the first position, grouped by the given key position. Input values
+	 * with the same key will be minimized.
+	 * 
+	 * @param positionToMin
+	 *            The position in the data point to minimize
+	 * @return The transformed DataStream.
+	 */
+	public SingleOutputStreamOperator<OUT, ?> min() {
+		return min(0);
 	}
 
 	/**
@@ -241,10 +274,24 @@ public class GroupedDataStream<OUT> {
 	 * @return The transformed DataStream.
 	 */
 	public SingleOutputStreamOperator<OUT, ?> max(final int positionToMax) {
-		return aggregateGroup(new StreamingMaxAggregationFunction<OUT>(positionToMax));
+		dataStream.checkFieldRange(positionToMax);
+		return aggregateGroup(new MaxAggregationFunction<OUT>(positionToMax));
 	}
 
-	private SingleOutputStreamOperator<OUT, ?> aggregateGroup(StreamingAggregationFunction<OUT> aggregate) {
-		return this.dataStream.aggregate(aggregate, new GroupReduceInvokable<OUT>(aggregate, keyPosition), "groupReduce");
+	/**
+	 * Applies an aggregation that gives the maximum of the grouped data stream
+	 * at the first position, grouped by the given key position. Input values
+	 * with the same key will be maximized.
+	 * 
+	 * @return The transformed DataStream.
+	 */
+	public SingleOutputStreamOperator<OUT, ?> max() {
+		return max(0);
+	}
+
+	private SingleOutputStreamOperator<OUT, ?> aggregateGroup(
+			AggregationFunction<OUT> aggregate) {
+		return this.dataStream.aggregate(aggregate, new GroupReduceInvokable<OUT>(aggregate,
+				keyPosition), "groupReduce");
 	}
 }

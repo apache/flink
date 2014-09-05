@@ -29,7 +29,6 @@ import org.apache.flink.streaming.state.MutableTableState;
 public class WindowGroupReduceInvokable<IN, OUT> extends WindowReduceInvokable<IN, OUT> {
 
 	int keyPosition;
-	protected GroupReduceFunction<IN, OUT> reducer;
 	private Iterator<StreamRecord<IN>> iterator;
 	private MutableTableState<Object, List<IN>> values;
 

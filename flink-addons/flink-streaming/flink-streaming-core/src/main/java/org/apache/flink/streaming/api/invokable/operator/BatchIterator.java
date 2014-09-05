@@ -17,8 +17,9 @@
 
 package org.apache.flink.streaming.api.invokable.operator;
 
+import java.io.Serializable;
 import java.util.Iterator;
 
-public interface BatchIterator<IN> extends Iterator<IN> {
+public interface BatchIterator<IN> extends Iterator<IN>, Serializable {
 	public void reset();
 }

@@ -80,11 +80,5 @@ public class CoFlatMapTest implements Serializable {
 			// expected
 		}
 		
-		try {
-			env.fromElements(10, 11).connect(ds2);
-			fail();
-		} catch (RuntimeException e) {
-			// expected
-		}
 	}
 }
