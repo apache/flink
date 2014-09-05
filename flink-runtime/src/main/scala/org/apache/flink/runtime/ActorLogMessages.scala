@@ -16,14 +16,29 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.messages
+package org.apache.flink.runtime
 
-import org.apache.flink.runtime.jobgraph.{JobID, JobGraph}
+import _root_.akka.actor.Actor
+import _root_.akka.event.LoggingAdapter
 
-object JobManagerMessages {
-  case class SubmitJob(jobGraph: JobGraph)
-  case class CancelJob(jobID: JobID)
+trait ActorLogMessages {
+  self: Actor =>
 
-  case object RequestInstances
-  case object RequestNumberRegisteredTaskManager
+  override def receive: Receive = new Actor.Receive {
+    private val _receiveWithLogMessages = receiveWithLogMessages
+
+    override def isDefinedAt(x: Any): Boolean = _receiveWithLogMessages.isDefinedAt(x)
+
+    override def apply(x: Any):Unit = {
+      log.debug(s"Received message $x from ${self.sender}.")
+      val start = System.nanoTime()
+      _receiveWithLogMessages(x)
+      val duration = (System.nanoTime() - start) / 1000000
+      log.debug(s"Handled message $x in $duration ms from ${self.sender}.")
+    }
+  }
+
+  def receiveWithLogMessages: Receive
+
+  protected def log: LoggingAdapter
 }

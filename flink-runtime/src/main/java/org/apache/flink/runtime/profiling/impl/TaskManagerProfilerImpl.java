@@ -36,6 +36,7 @@ import org.apache.flink.runtime.profiling.impl.types.InternalInstanceProfilingDa
 import org.apache.flink.runtime.profiling.impl.types.ProfilingDataContainer;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.util.StringUtils;
+import akka.actor.ActorRef;
 
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
@@ -66,7 +67,7 @@ public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerPro
 
 	private final Map<Environment, EnvironmentThreadSet> monitoredThreads = new HashMap<Environment, EnvironmentThreadSet>();
 
-	public TaskManagerProfilerImpl(InetAddress jobManagerAddress, InstanceConnectionInfo instanceConnectionInfo)
+	public TaskManagerProfilerImpl(InetAddress jobManagerAddress, String instancePath)
 			throws ProfilingException {
 
 		// Create RPC stub for communication with job manager's profiling component.
@@ -90,7 +91,7 @@ public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerPro
 		}
 
 		// Create instance profiler
-		this.instanceProfiler = new InstanceProfiler(instanceConnectionInfo);
+		this.instanceProfiler = new InstanceProfiler(instancePath);
 
 		// Set and trigger timer
 		this.timerInterval = (long) (GlobalConfiguration.getInteger(ProfilingUtils.TASKMANAGER_REPORTINTERVAL_KEY,

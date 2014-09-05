@@ -73,8 +73,101 @@ public class ExecutionVertex {
 	
 	// --------------------------------------------------------------------------------------------
 
-	public ExecutionVertex(ExecutionJobVertex jobVertex, int subTaskIndex, IntermediateResult[] producedDataSets) {
-		this(jobVertex, subTaskIndex, producedDataSets, System.currentTimeMillis());
+	/**
+	 * The ID of the vertex.
+	 */
+	private final ExecutionVertexID vertexID;
+
+	/**
+	 * The group vertex this vertex belongs to.
+	 */
+	private final ExecutionGroupVertex groupVertex;
+
+	/**
+	 * The execution graph is vertex belongs to.
+	 */
+	private final ExecutionGraph executionGraph;
+
+	/**
+	 * The allocated resources assigned to this vertex.
+	 */
+	private final AtomicReference<AllocatedResource> allocatedResource = new AtomicReference<AllocatedResource>(null);
+
+	/**
+	 * The allocation ID identifying the allocated resources used by this vertex
+	 * within the instance.
+	 */
+	private volatile AllocationID allocationID = null;
+
+	/**
+	 * A list of {@link VertexAssignmentListener} objects to be notified about changes in the instance assignment.
+	 */
+	private final CopyOnWriteArrayList<VertexAssignmentListener> vertexAssignmentListeners = new CopyOnWriteArrayList<VertexAssignmentListener>();
+
+	private final CopyOnWriteArrayList<ActorRef> vertexAssignmentListenerActors = new
+			CopyOnWriteArrayList<ActorRef>();
+
+	/**
+	 * A map of {@link ExecutionListener} objects to be notified about the state changes of a vertex.
+	 */
+	private final ConcurrentMap<Integer, ExecutionListener> executionListeners = new ConcurrentSkipListMap<Integer, ExecutionListener>();
+
+	private final CopyOnWriteArrayList<ActorRef> executionListenerActors = new CopyOnWriteArrayList<ActorRef>();
+
+	/**
+	 * The current execution state of the task represented by this vertex
+	 */
+	private final AtomicEnum<ExecutionState> executionState = new AtomicEnum<ExecutionState>(ExecutionState.CREATED);
+
+	/**
+	 * The output gates attached to this vertex.
+	 */
+	private final ExecutionGate[] outputGates;
+
+	/**
+	 * The input gates attached to his vertex.
+	 */
+	private final ExecutionGate[] inputGates;
+
+	/**
+	 * The index of this vertex in the vertex group.
+	 */
+	private volatile int indexInVertexGroup = 0;
+
+	/**
+	 * Stores the number of times the vertex may be still be started before the corresponding task is considered to be
+	 * failed.
+	 */
+	private final AtomicInteger retriesLeft;
+
+
+	/**
+	 * The execution pipeline this vertex is part of.
+	 */
+	private final AtomicReference<ExecutionPipeline> executionPipeline = new AtomicReference<ExecutionPipeline>(null);
+
+	/**
+	 * Flag to indicate whether the vertex has been requested to cancel while in state STARTING
+	 */
+	private final AtomicBoolean cancelRequested = new AtomicBoolean(false);
+
+	/**
+	 * Create a new execution vertex and instantiates its environment.
+	 * 
+	 * @param executionGraph
+	 *        the execution graph the new vertex belongs to
+	 * @param groupVertex
+	 *        the group vertex the new vertex belongs to
+	 * @param numberOfOutputGates
+	 *        the number of output gates attached to this vertex
+	 * @param numberOfInputGates
+	 *        the number of input gates attached to this vertex
+	 */
+	public ExecutionVertex(final ExecutionGraph executionGraph, final ExecutionGroupVertex groupVertex,
+			final int numberOfOutputGates, final int numberOfInputGates) {
+		this(new ExecutionVertexID(), executionGraph, groupVertex, numberOfOutputGates, numberOfInputGates);
+
+		this.groupVertex.addInitialSubtask(this);
 	}
 	
 	public ExecutionVertex(ExecutionJobVertex jobVertex, int subTaskIndex, IntermediateResult[] producedDataSets, long createTimestamp) {
@@ -122,22 +215,19 @@ public class ExecutionVertex {
 	public String getTaskName() {
 		return this.jobVertex.getJobVertex().getName();
 	}
-	
-	public int getTotalNumberOfParallelSubtasks() {
-		return this.jobVertex.getParallelism();
-	}
-	
-	public int getParallelSubtaskIndex() {
-		return this.subTaskIndex;
-	}
-	
-	public int getNumberOfInputs() {
-		return this.inputEdges.length;
-	}
-	
-	public ExecutionEdge[] getInputEdges(int input) {
-		if (input < 0 || input >= this.inputEdges.length) {
-			throw new IllegalArgumentException(String.format("Input %d is out of range [0..%d)", input, this.inputEdges.length));
+
+	/**
+	 * Inserts the input gate at the given position.
+	 * 
+	 * @param pos
+	 *        the position to insert the input gate
+	 * @param inputGate
+	 *        the input gate to be inserted
+	 */
+	void insertInputGate(final int pos, final ExecutionGate inputGate) {
+
+		if (this.inputGates[pos] != null) {
+			throw new IllegalStateException("Input gate at position " + pos + " is not null");
 		}
 		return inputEdges[input];
 	}
@@ -165,9 +255,62 @@ public class ExecutionVertex {
 	public AllocatedSlot getCurrentAssignedResource() {
 		return currentExecution.getAssignedResource();
 	}
-	
-	public ExecutionGraph getExecutionGraph() {
-		return this.jobVertex.getGraph();
+
+	/**
+	 * Updates the vertex's current execution state.
+	 * 
+	 * @param newExecutionState
+	 *        the new execution state
+	 * @param optionalMessage
+	 *        an optional message related to the state change
+	 */
+	public ExecutionState updateExecutionState(ExecutionState newExecutionState, final String optionalMessage) {
+
+		if (newExecutionState == null) {
+			throw new IllegalArgumentException("Argument newExecutionState must not be null");
+		}
+
+		final ExecutionState currentExecutionState = this.executionState.get();
+		if (currentExecutionState == ExecutionState.CANCELING) {
+
+			// If we are in CANCELING, ignore state changes to FINISHING
+			if (newExecutionState == ExecutionState.FINISHING) {
+				return currentExecutionState;
+			}
+
+			// Rewrite FINISHED to CANCELED if the task has been marked to be canceled
+			if (newExecutionState == ExecutionState.FINISHED) {
+				LOG.info("Received transition from CANCELING to FINISHED for vertex " + toString()
+					+ ", converting it to CANCELED");
+				newExecutionState = ExecutionState.CANCELED;
+			}
+		}
+
+		// Check and save the new execution state
+		final ExecutionState previousState = this.executionState.getAndSet(newExecutionState);
+		if (previousState == newExecutionState) {
+			return previousState;
+		}
+
+		// Check the transition
+		ExecutionStateTransition.checkTransition(true, toString(), previousState, newExecutionState);
+
+		// Notify the listener objects
+		final Iterator<ExecutionListener> it = this.executionListeners.values().iterator();
+		while (it.hasNext()) {
+			it.next().executionStateChanged(this.executionGraph.getJobID(), this.vertexID, newExecutionState,
+				optionalMessage);
+		}
+
+		for(ActorRef actor: executionListenerActors){
+			actor.tell(new ExecutionGraphMessages.ExecutionStateChanged(this.executionGraph.getJobID(),
+					this.vertexID, newExecutionState, optionalMessage), ActorRef.noSender());
+		}
+
+		// The vertex was requested to be canceled by another thread
+		checkCancelRequestedFlag();
+
+		return previousState;
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -206,6 +349,26 @@ public class ExecutionVertex {
 			ee.getSource().addConsumer(ee, consumerNumber);
 			graph.registerExecutionEdge(ee);
 		}
+
+		// Check the transition
+		ExecutionStateTransition.checkTransition(true, toString(), expected, update);
+
+		// Notify the listener objects
+		final Iterator<ExecutionListener> it = this.executionListeners.values().iterator();
+		while (it.hasNext()) {
+			it.next().executionStateChanged(this.executionGraph.getJobID(), this.vertexID, update,
+				null);
+		}
+
+		for(ActorRef actor: executionListenerActors){
+			actor.tell(new ExecutionGraphMessages.ExecutionStateChanged(this.executionGraph.getJobID(),
+							this.vertexID, update, null), ActorRef.noSender());
+		}
+
+		// Check if the vertex was requested to be canceled by another thread
+		checkCancelRequestedFlag();
+
+		return true;
 	}
 	
 	private ExecutionEdge[] connectAllToAll(IntermediateResultPartition[] sourcePartitions, int inputNumber) {
@@ -218,14 +381,17 @@ public class ExecutionVertex {
 		
 		return edges;
 	}
-	
-	private ExecutionEdge[] connectPointwise(IntermediateResultPartition[] sourcePartitions, int inputNumber) {
-		final int numSources = sourcePartitions.length;
-		final int parallelism = getTotalNumberOfParallelSubtasks();
-		
-		// simple case same number of sources as targets
-		if (numSources == parallelism) {
-			return new ExecutionEdge[] { new ExecutionEdge(sourcePartitions[subTaskIndex], this, inputNumber) };
+
+	/**
+	 * Assigns the execution vertex with an {@link org.apache.flink.runtime.instance.AllocatedResource}.
+	 * 
+	 * @param allocatedResource
+	 *        the resources which are supposed to be allocated to this vertex
+	 */
+	public void setAllocatedResource(final AllocatedResource allocatedResource) {
+
+		if (allocatedResource == null) {
+			throw new IllegalArgumentException("Argument allocatedResource must not be null");
 		}
 		else if (numSources < parallelism) {
 			
@@ -273,6 +439,11 @@ public class ExecutionVertex {
 				
 				return edges;
 			}
+		}
+
+		for(ActorRef actor: vertexAssignmentListenerActors){
+			actor.tell(new ExecutionGraphMessages.VertexAssignmentChanged(this.getExecutionGraph().getJobID(),vertexID,
+					allocatedResource), ActorRef.noSender());
 		}
 	}
 
@@ -384,12 +555,50 @@ public class ExecutionVertex {
 	void notifyStateTransition(ExecutionAttemptID executionId, ExecutionState newState, Throwable error) {
 		getExecutionGraph().notifyExecutionChange(getJobvertexId(), subTaskIndex, executionId, newState, error);
 	}
-	
-	TaskDeploymentDescriptor createDeploymentDescriptor(ExecutionAttemptID executionId, AllocatedSlot slot) {
-		//  create the input gate deployment descriptors
-		List<GateDeploymentDescriptor> inputGates = new ArrayList<GateDeploymentDescriptor>(inputEdges.length);
-		for (ExecutionEdge[] channels : inputEdges) {
-			inputGates.add(GateDeploymentDescriptor.fromEdges(channels));
+
+	/**
+	 * Registers the {@link VertexAssignmentListener} object for this vertex. This object
+	 * will be notified about reassignments of this vertex to another instance.
+	 * 
+	 * @param vertexAssignmentListener
+	 *        the object to be notified about reassignments of this vertex to another instance
+	 */
+	public void registerVertexAssignmentListener(final VertexAssignmentListener vertexAssignmentListener) {
+
+		this.vertexAssignmentListeners.addIfAbsent(vertexAssignmentListener);
+	}
+
+	public void registerVertexAssignmentListener(final ActorRef vertexAssignmentListener){
+		this.vertexAssignmentListenerActors.addIfAbsent(vertexAssignmentListener);
+	}
+
+	/**
+	 * Unregisters the {@link VertexAssignmentListener} object for this vertex. This object
+	 * will no longer be notified about reassignments of this vertex to another instance.
+	 * 
+	 * @param vertexAssignmentListener
+	 *        the listener to be unregistered
+	 */
+	public void unregisterVertexAssignmentListener(final VertexAssignmentListener vertexAssignmentListener) {
+
+		this.vertexAssignmentListeners.remove(vertexAssignmentListener);
+	}
+
+
+	/**
+	 * Registers the {@link ExecutionListener} object for this vertex. This object
+	 * will be notified about particular events during the vertex's lifetime.
+	 * 
+	 * @param executionListener
+	 *        the object to be notified about particular events during the vertex's lifetime
+	 */
+	public void registerExecutionListener(final ExecutionListener executionListener) {
+
+		final Integer priority = Integer.valueOf(executionListener.getPriority());
+
+		if (priority.intValue() < 0) {
+			LOG.error("Priority for execution listener " + executionListener.getClass() + " must be non-negative.");
+			return;
 		}
 		
 		// create the output gate deployment descriptors
@@ -407,14 +616,21 @@ public class ExecutionVertex {
 				getExecutionGraph().getJobConfiguration(), jobVertex.getJobVertex().getConfiguration(),
 				jobVertex.getJobVertex().getInvokableClassName(), outputGates, inputGates, jarFiles, slot.getSlotNumber());
 	}
-	
-	
-	// --------------------------------------------------------------------------------------------
-	//  Utilities
-	// --------------------------------------------------------------------------------------------
-	
-	public void execute(Runnable action) {
-		this.jobVertex.execute(action);
+
+	public void registerExecutionListener(final ActorRef executionListener){
+		this.executionListenerActors.addIfAbsent(executionListener);
+	}
+
+	/**
+	 * Unregisters the {@link ExecutionListener} object for this vertex. This object
+	 * will no longer be notified about particular events during the vertex's lifetime.
+	 * 
+	 * @param executionListener
+	 *        the object to be unregistered
+	 */
+	public void unregisterExecutionListener(final ExecutionListener executionListener) {
+
+		this.executionListeners.remove(Integer.valueOf(executionListener.getPriority()));
 	}
 	
 	/**

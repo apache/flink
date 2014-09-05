@@ -18,12 +18,19 @@
 
 package org.apache.flink.runtime.messages
 
-import org.apache.flink.runtime.jobgraph.{JobID, JobGraph}
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor
+import org.apache.flink.runtime.execution.librarycache.LibraryCacheProfileRequest
+import org.apache.flink.runtime.instance.InstanceID
+import org.apache.flink.runtime.jobgraph.JobVertexID
 
-object JobManagerMessages {
-  case class SubmitJob(jobGraph: JobGraph)
-  case class CancelJob(jobID: JobID)
+object TaskManagerMessages {
+  case class RequestLibraryCacheProfile(request: LibraryCacheProfileRequest)
+  case class CancelTask(jobVertexID: JobVertexID, subtaskIndex: Int)
+  case class SubmitTask(tasks: TaskDeploymentDescriptor)
 
-  case object RequestInstances
-  case object RequestNumberRegisteredTaskManager
+  case class Heartbeat(instanceID: InstanceID)
+
+  case object RegisterAtMaster
+  case object SendHeartbeat
+  case object AcknowledgeLibraryCacheUpdate
 }

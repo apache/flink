@@ -82,8 +82,8 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.accumulators.AccumulatorManager;
 import org.apache.flink.runtime.jobmanager.archive.ArchiveListener;
-import org.apache.flink.runtime.jobmanager.archive.MemoryArchivist;
-import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
+import org.apache.flink.runtime.jobmanager.archive.MemoryArchivist2;
+import org.apache.flink.runtime.jobmanager.scheduler.DefaultScheduler;
 import org.apache.flink.runtime.jobmanager.web.WebInfoServer;
 import org.apache.flink.runtime.protocols.AccumulatorProtocol;
 import org.apache.flink.runtime.protocols.ChannelLookupProtocol;
@@ -187,7 +187,7 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 				ConfigConstants.DEFAULT_JOB_MANAGER_DEAD_TASKMANAGER_TIMEOUT);
 		
 		// Load the job progress collector
-		this.eventCollector = new EventCollector(this.recommendedClientPollingInterval);
+		this.eventCollector2 = new EventCollector2(this.recommendedClientPollingInterval);
 
 		this.libraryCacheManager = new BlobLibraryCacheManager(new BlobServer(),
 				GlobalConfiguration.getConfiguration());
@@ -196,8 +196,8 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 		int archived_items = GlobalConfiguration.getInteger(
 				ConfigConstants.JOB_MANAGER_WEB_ARCHIVE_COUNT, ConfigConstants.DEFAULT_JOB_MANAGER_WEB_ARCHIVE_COUNT);
 		if (archived_items > 0) {
-			this.archive = new MemoryArchivist(archived_items);
-			this.eventCollector.registerArchivist(archive);
+			this.archive = new MemoryArchivist2(archived_items);
+			this.eventCollector2.registerArchivist(archive);
 		}
 		else {
 			this.archive = null;
@@ -286,8 +286,8 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 		}
 
 		// Stop and clean up the job progress collector
-		if (this.eventCollector != null) {
-			this.eventCollector.shutdown();
+		if (this.eventCollector2 != null) {
+			this.eventCollector2.shutdown();
 		}
 
 		// Finally, shut down the scheduler
@@ -541,7 +541,7 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 		}
 
 		final SerializableArrayList<AbstractEvent> eventList = new SerializableArrayList<AbstractEvent>();
-		this.eventCollector.getEventsForJob(jobID, eventList, false);
+		this.eventCollector2.getEventsForJob(jobID, eventList, false);
 
 		return new JobProgressResult(ReturnCode.SUCCESS, null, eventList);
 	}
@@ -586,11 +586,11 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 
 		final List<RecentJobEvent> eventList = new SerializableArrayList<RecentJobEvent>();
 
-		if (this.eventCollector == null) {
+		if (this.eventCollector2 == null) {
 			throw new IOException("No instance of the event collector found");
 		}
 
-		this.eventCollector.getRecentJobs(eventList);
+		this.eventCollector2.getRecentJobs(eventList);
 
 		return eventList;
 	}
@@ -601,11 +601,11 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 
 		final List<AbstractEvent> eventList = new SerializableArrayList<AbstractEvent>();
 
-		if (this.eventCollector == null) {
+		if (this.eventCollector2 == null) {
 			throw new IOException("No instance of the event collector found");
 		}
 
-		this.eventCollector.getEventsForJob(jobID, eventList, true);
+		this.eventCollector2.getEventsForJob(jobID, eventList, true);
 
 		return eventList;
 	}

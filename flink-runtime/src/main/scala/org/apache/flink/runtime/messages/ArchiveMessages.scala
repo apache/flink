@@ -18,12 +18,16 @@
 
 package org.apache.flink.runtime.messages
 
-import org.apache.flink.runtime.jobgraph.{JobID, JobGraph}
+import org.apache.flink.runtime.event.job.{RecentJobEvent, AbstractEvent}
+import org.apache.flink.runtime.executiongraph.ExecutionGraph
+import org.apache.flink.runtime.jobgraph.JobID
 
-object JobManagerMessages {
-  case class SubmitJob(jobGraph: JobGraph)
-  case class CancelJob(jobID: JobID)
-
-  case object RequestInstances
-  case object RequestNumberRegisteredTaskManager
+object ArchiveMessages {
+  case class ArchiveEvent(jobID: JobID, event: AbstractEvent)
+  case class ArchiveJobEvent(jobID: JobID, event: RecentJobEvent)
+  case class ArchiveExecutionGraph(jobID: JobID, graph: ExecutionGraph)
+  case class GetJob(jobID: JobID)
+  case class GetExecutionGraph(jobID: JobID)
+  case class GetEvents(jobID: JobID)
+  case object GetJobs
 }

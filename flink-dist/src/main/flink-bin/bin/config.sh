@@ -191,7 +191,7 @@ JVM_ARGS=""
 CLASSPATH=`manglePathList $( echo $FLINK_LIB_DIR/*.jar . | sed 's/ /:/g' )`
 
 # Auxilliary function which extracts the name of host from a line which
-# also potentialy includes topology information and the instance type
+# also potentialy includes topology information and the taskManager type
 extractHostName() {
     # extract first part of string (before any whitespace characters)
     SLAVE=$1

@@ -18,12 +18,13 @@
 
 package org.apache.flink.runtime.messages
 
-import org.apache.flink.runtime.jobgraph.{JobID, JobGraph}
+import org.apache.flink.runtime.execution.{ExecutionState2}
+import org.apache.flink.runtime.executiongraph.{ExecutionAttemptID, ExecutionGraph}
+import org.apache.flink.runtime.jobgraph.{JobStatus, JobVertexID, JobID}
 
-object JobManagerMessages {
-  case class SubmitJob(jobGraph: JobGraph)
-  case class CancelJob(jobID: JobID)
+object ExecutionGraphMessages {
+  case class ExecutionStateChanged(jobID: JobID, vertexID: JobVertexID, subtask: Int, executionID: ExecutionAttemptID,
+                                   newExecutionState: ExecutionState2, optionalMessage: String)
 
-  case object RequestInstances
-  case object RequestNumberRegisteredTaskManager
+  case class JobStatusChanged(executionGraph: ExecutionGraph, newJobStatus: JobStatus, optionalMessage: String)
 }

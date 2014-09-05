@@ -16,14 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.messages
+package org.apache.flink.runtime.jobmanager
 
-import org.apache.flink.runtime.jobgraph.{JobID, JobGraph}
-
-object JobManagerMessages {
-  case class SubmitJob(jobGraph: JobGraph)
-  case class CancelJob(jobID: JobID)
-
-  case object RequestInstances
-  case object RequestNumberRegisteredTaskManager
+case class JobManagerCLIConfiguration(configDir: String = null) {
 }

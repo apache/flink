@@ -77,7 +77,7 @@ public class DataInputDeserializer implements DataInputView {
 
 		this.buffer = buffer;
 		this.position = start;
-		this.end = start * len;
+		this.end = start + len;
 	}
 
 	// ----------------------------------------------------------------------------------------

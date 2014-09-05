@@ -18,16 +18,12 @@
 
 package org.apache.flink.runtime.instance;
 
-import java.io.IOException;
-
-import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
+import java.io.Serializable;
 
 /**
  * A hardware description describes the resources available to a task manager.
  */
-public final class HardwareDescription implements IOReadableWritable, java.io.Serializable {
+public final class HardwareDescription implements Serializable {
 
 	private static final long serialVersionUID = 3380016608300325361L;
 
@@ -98,26 +94,6 @@ public final class HardwareDescription implements IOReadableWritable, java.io.Se
 	 */
 	public long getSizeOfManagedMemory() {
 		return this.sizeOfManagedMemory;
-	}
-	
-	// --------------------------------------------------------------------------------------------
-	// Serialization
-	// --------------------------------------------------------------------------------------------
-	
-	@Override
-	public void write(DataOutputView out) throws IOException {
-		out.writeInt(this.numberOfCPUCores);
-		out.writeLong(this.sizeOfPhysicalMemory);
-		out.writeLong(this.sizeOfJvmHeap);
-		out.writeLong(this.sizeOfManagedMemory);
-	}
-
-	@Override
-	public void read(DataInputView in) throws IOException {
-		this.numberOfCPUCores = in.readInt();
-		this.sizeOfPhysicalMemory = in.readLong();
-		this.sizeOfJvmHeap = in.readLong();
-		this.sizeOfManagedMemory = in.readLong();
 	}
 	
 	// --------------------------------------------------------------------------------------------

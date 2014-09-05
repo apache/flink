@@ -28,8 +28,10 @@ package org.apache.flink.runtime.net;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.NetworkInterface;
 import java.net.Socket;
 import java.net.SocketAddress;
 import java.net.URI;
@@ -38,6 +40,7 @@ import java.net.UnknownHostException;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -327,5 +330,129 @@ public class NetUtils {
 			hostNames.add(normalizeHostName(name));
 		}
 		return hostNames;
+	}
+
+	/**
+	 * The states of address detection mechanism.
+	 * There is only a state transition if the current state failed to determine the address.
+	 */
+	private enum AddressDetectionState {
+		ADDRESS(50), 		//detect own IP based on the JobManagers IP address. Look for common prefix
+		FAST_CONNECT(50),	//try to connect to the JobManager on all Interfaces and all their addresses.
+		//this state uses a low timeout (say 50 ms) for fast detection.
+		SLOW_CONNECT(1000),	//same as FAST_CONNECT, but with a timeout of 1000 ms (1s).
+		HEURISTIC(0);
+
+
+		private int timeout;
+		AddressDetectionState(int timeout) {
+			this.timeout = timeout;
+		}
+		public int getTimeout() {
+			return timeout;
+		}
+	}
+
+	/**
+	 * Find out the TaskManager's own IP address.
+	 */
+	public static InetAddress resolveAddress(InetSocketAddress jobManagerAddress) throws IOException {
+		AddressDetectionState strategy = jobManagerAddress != null ? AddressDetectionState.ADDRESS: AddressDetectionState.HEURISTIC;
+
+		while (true) {
+			Enumeration<NetworkInterface> e = NetworkInterface.getNetworkInterfaces();
+			while (e.hasMoreElements()) {
+				NetworkInterface n = e.nextElement();
+				Enumeration<InetAddress> ee = n.getInetAddresses();
+				while (ee.hasMoreElements()) {
+					InetAddress i = ee.nextElement();
+					switch (strategy) {
+						case ADDRESS:
+							if (hasCommonPrefix(jobManagerAddress.getAddress().getAddress(), i.getAddress())) {
+								if (tryToConnect(i, jobManagerAddress, strategy.getTimeout())) {
+									LOG.info("Determined " + i + " as the TaskTracker's own IP address");
+									return i;
+								}
+							}
+							break;
+						case FAST_CONNECT:
+						case SLOW_CONNECT:
+							boolean correct = tryToConnect(i, jobManagerAddress, strategy.getTimeout());
+							if (correct) {
+								LOG.info("Determined " + i + " as the TaskTracker's own IP address");
+								return i;
+							}
+							break;
+						case HEURISTIC:
+							if(!i.isLinkLocalAddress() && !i.isLoopbackAddress() && i instanceof Inet4Address){
+								LOG.warn("Hostname " + InetAddress.getLocalHost().getHostName() + " resolves to " +
+										"loopback address. Using instead " + i.getHostAddress() + " on network " +
+										"interface " + n.getName() + ".");
+								return i;
+							}
+							break;
+						default:
+							throw new RuntimeException("Unkown address detection strategy: " + strategy);
+					}
+				}
+			}
+			// state control
+			switch (strategy) {
+				case ADDRESS:
+					strategy = AddressDetectionState.FAST_CONNECT;
+					break;
+				case FAST_CONNECT:
+					strategy = AddressDetectionState.SLOW_CONNECT;
+					break;
+				case SLOW_CONNECT:
+					if(!InetAddress.getLocalHost().isLoopbackAddress()){
+						return InetAddress.getLocalHost();
+					}else {
+						strategy = AddressDetectionState.HEURISTIC;
+						break;
+					}
+				case HEURISTIC:
+					throw new RuntimeException("The TaskManager is unable to connect to the JobManager (Address: '"+jobManagerAddress+"').");
+			}
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Defaulting to detection strategy " + strategy);
+			}
+		}
+	}
+
+	/**
+	 * Checks if two addresses have a common prefix (first 2 bytes).
+	 * Example: 192.168.???.???
+	 * Works also with ipv6, but accepts probably too many addresses
+	 */
+	private static boolean hasCommonPrefix(byte[] address, byte[] address2) {
+		return address[0] == address2[0] && address[1] == address2[1];
+	}
+
+	public static boolean tryToConnect(InetAddress fromAddress, SocketAddress toSocket, int timeout) throws IOException {
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Trying to connect to JobManager (" + toSocket + ") from local address " + fromAddress
+					+ " with timeout " + timeout);
+		}
+		boolean connectable = true;
+		Socket socket = null;
+		try {
+			socket = new Socket();
+			SocketAddress bindP = new InetSocketAddress(fromAddress, 0); // 0 = let the OS choose the port on this
+			// machine
+			socket.bind(bindP);
+			socket.connect(toSocket, timeout);
+		} catch (Exception ex) {
+			LOG.info("Failed to connect to JobManager from address '" + fromAddress + "': " + ex.getMessage());
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Failed with exception", ex);
+			}
+			connectable = false;
+		} finally {
+			if (socket != null) {
+				socket.close();
+			}
+		}
+		return connectable;
 	}
 }

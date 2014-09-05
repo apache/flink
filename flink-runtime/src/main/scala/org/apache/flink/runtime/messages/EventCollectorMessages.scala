@@ -18,12 +18,17 @@
 
 package org.apache.flink.runtime.messages
 
-import org.apache.flink.runtime.jobgraph.{JobID, JobGraph}
+import akka.actor.ActorRef
+import org.apache.flink.runtime.executiongraph.ExecutionGraph
+import org.apache.flink.runtime.jobgraph.JobID
+import org.apache.flink.runtime.profiling.types.ProfilingEvent
 
-object JobManagerMessages {
-  case class SubmitJob(jobGraph: JobGraph)
-  case class CancelJob(jobID: JobID)
+object EventCollectorMessages {
+  case class ProcessProfilingEvent(profilingEvent: ProfilingEvent)
+  case class RegisterArchiveListener(listener: ActorRef)
+  case class RequestJobEvents(jobID: JobID, includeManagementEvents: Boolean)
+  case class RegisterJob(executionGraph: ExecutionGraph, profilingAvailable: Boolean, submissionTimestamp: Long)
 
-  case object RequestInstances
-  case object RequestNumberRegisteredTaskManager
+  case object ArchiveExpiredEvents
+  case object RequestRecentJobs
 }

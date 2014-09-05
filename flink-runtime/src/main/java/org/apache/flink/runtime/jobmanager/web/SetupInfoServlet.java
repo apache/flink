@@ -32,14 +32,19 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import akka.actor.ActorRef;
+import akka.pattern.Patterns;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.jobmanager.JobManager;
 
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
+import scala.concurrent.Await;
+import scala.concurrent.Future;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,10 +62,10 @@ public class SetupInfoServlet extends HttpServlet {
 	
 	
 	private Configuration globalC;
-	private JobManager2 jobmanager;
+	private ActorRef jobmanager;
 	
 	
-	public SetupInfoServlet(JobManager jm) {
+	public SetupInfoServlet(ActorRef jm) {
 		globalC = GlobalConfiguration.getConfiguration();
 		this.jobmanager = jm;
 	}
@@ -100,51 +105,53 @@ public class SetupInfoServlet extends HttpServlet {
 	
 	private void writeTaskmanagers(HttpServletResponse resp) throws IOException {
 		
-		List<Instance> instances = new ArrayList<Instance>(jobmanager.getInstanceManager().getAllRegisteredInstances().values());
-		
-		Collections.sort(instances, INSTANCE_SORTER);
-				
-		JSONObject obj = new JSONObject();
-		JSONArray array = new JSONArray();
-		for (Instance instance : instances) {
-			JSONObject objInner = new JSONObject();
-				
-			long time = new Date().getTime() - instance.getLastHeartBeat();
-	
-			try {
-				objInner.put("inetAdress", instance.getInstanceConnectionInfo().getInetAdress());
-				objInner.put("ipcPort", instance.getInstanceConnectionInfo().ipcPort());
-				objInner.put("dataPort", instance.getInstanceConnectionInfo().dataPort());
-				objInner.put("timeSinceLastHeartbeat", time / 1000);
-				objInner.put("slotsNumber", instance.getTotalNumberOfSlots());
-				objInner.put("freeSlots", instance.getNumberOfAvailableSlots());
-				objInner.put("cpuCores", instance.getResources().getNumberOfCPUCores());
-				objInner.put("physicalMemory", instance.getResources().getSizeOfPhysicalMemory() >>> 20);
-				objInner.put("freeMemory", instance.getResources().getSizeOfJvmHeap() >>> 20);
-				objInner.put("managedMemory", instance.getResources().getSizeOfManagedMemory() >>> 20);
-				array.put(objInner);
-			}
-			catch (JSONException e) {
-				LOG.warn("Json object creation failed", e);
-			}
-			
-		}
-		try {
-			obj.put("taskmanagers", array);
-		} catch (JSONException e) {
-			LOG.warn("Json object creation failed", e);
-		}
-		
-		PrintWriter w = resp.getWriter();
-		w.write(obj.toString());
+//		List<Instance> instances = new ArrayList<Instance>(jobmanager.getInstanceManager().getAllRegisteredInstances().values());
+//
+//		Collections.sort(instances, INSTANCE_SORTER);
+//
+//		JSONObject obj = new JSONObject();
+//		JSONArray array = new JSONArray();
+//		for (Instance instance : instances) {
+//			JSONObject objInner = new JSONObject();
+//
+//			long time = new Date().getTime() - instance.getLastHeartBeat();
+//
+//			try {
+//				objInner.put("inetAdress", instance.getInstanceConnectionInfo().getInetAdress());
+//				objInner.put("ipcPort", instance.getInstanceConnectionInfo().ipcPort());
+//				objInner.put("dataPort", instance.getInstanceConnectionInfo().dataPort());
+//				objInner.put("timeSinceLastHeartbeat", time / 1000);
+//				objInner.put("slotsNumber", instance.getTotalNumberOfSlots());
+//				objInner.put("freeSlots", instance.getNumberOfAvailableSlots());
+//				objInner.put("cpuCores", instance.getResources().getNumberOfCPUCores());
+//				objInner.put("physicalMemory", instance.getResources().getSizeOfPhysicalMemory() >>> 20);
+//				objInner.put("freeMemory", instance.getResources().getSizeOfJvmHeap() >>> 20);
+//				objInner.put("managedMemory", instance.getResources().getSizeOfManagedMemory() >>> 20);
+//				array.put(objInner);
+//			}
+//			catch (JSONException e) {
+//				LOG.warn("Json object creation failed", e);
+//			}
+//			obj.put("taskmanagers", array);
+//
+//			PrintWriter w = resp.getWriter();
+//			w.write(obj.toString());
+//		}catch (JSONException e) {
+//			LOG.warn("Aggregated JSON object creation failed", e);
+//		}catch(IOException ioe){
+//			throw ioe;
+//		}catch(Exception e){
+//			throw new RuntimeException("Caught exception while requesting instances from jobmanager.", e);
+//		}
+
 	}
 	
 	// --------------------------------------------------------------------------------------------
 	
-	private static final Comparator<Instance> INSTANCE_SORTER = new Comparator<Instance>() {
-		@Override
-		public int compare(Instance o1, Instance o2) {
-			return o1.getInstanceConnectionInfo().compareTo(o2.getInstanceConnectionInfo());
-		}
-	};
+//	private static final Comparator<Instance> INSTANCE_SORTER = new Comparator<Instance>() {
+//		@Override
+//		public int compare(Instance o1, Instance o2) {
+//			return o1.getInstanceConnectionInfo().compareTo(o2.getInstanceConnectionInfo());
+//		}
+//	};
 }

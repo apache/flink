@@ -162,8 +162,8 @@ public class JobManagerProfilerImpl implements JobManagerProfiler, ProfilerImplP
 					profilingData.getSoftIrqCPU(), profilingData.getTotalMemory(), profilingData.getFreeMemory(),
 					profilingData.getBufferedMemory(), profilingData.getCachedMemory(), profilingData
 						.getCachedSwapMemory(), profilingData.getReceivedBytes(), profilingData.getTransmittedBytes(),
-					jobID, timestamp, timestamp - jobProfilingData.getProfilingStart(), profilingData
-						.getInstanceConnectionInfo().toString());
+					jobID, timestamp, timestamp - jobProfilingData.getProfilingStart(),
+						profilingData.getInstancePath());
 
 				synchronized (this.registeredListeners) {
 

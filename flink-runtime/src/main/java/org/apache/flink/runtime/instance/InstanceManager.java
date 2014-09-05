@@ -28,6 +28,7 @@ import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 
+import akka.actor.ActorRef;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.slf4j.Logger;
@@ -51,10 +52,10 @@ public class InstanceManager {
 	private final Map<InstanceID, Instance> registeredHostsById;
 
 	/** Set of hosts known to run a task manager that are thus able to execute tasks (by connection). */
-	private final Map<InstanceConnectionInfo, Instance> registeredHostsByConnection;
+	private final Map<ActorRef, Instance> registeredHostsByConnection;
 	
 	/** Set of hosts that were present once and have died */
-	private final Set<InstanceConnectionInfo> deadHosts;
+	private final Set<ActorRef> deadHosts;
 	
 	/** Listeners that want to be notified about availability and disappearance of instances */
 	private final List<InstanceListener> instanceListeners = new ArrayList<InstanceListener>();
@@ -92,8 +93,8 @@ public class InstanceManager {
 		}
 		
 		this.registeredHostsById = new HashMap<InstanceID, Instance>();
-		this.registeredHostsByConnection = new HashMap<InstanceConnectionInfo, Instance>();
-		this.deadHosts = new HashSet<InstanceConnectionInfo>();
+		this.registeredHostsByConnection = new HashMap<ActorRef, Instance>();
+		this.deadHosts = new HashSet<ActorRef>();
 		this.heartbeatTimeout = heartbeatTimeout;
 
 		new Timer(true).schedule(cleanupStaleMachines, cleanupInterval, cleanupInterval);
@@ -159,22 +160,23 @@ public class InstanceManager {
 		}
 	}
 
-	public InstanceID registerTaskManager(InstanceConnectionInfo instanceConnectionInfo, HardwareDescription resources, int numberOfSlots){
+	public InstanceID registerTaskManager(ActorRef taskManager, HardwareDescription resources,
+										  int numberOfSlots){
 		synchronized(this.lock){
 			if (this.shutdown) {
 				throw new IllegalStateException("InstanceManager is shut down.");
 			}
 			
-			Instance prior = registeredHostsByConnection.get(instanceConnectionInfo);
+			Instance prior = registeredHostsByConnection.get(taskManager);
 			if (prior != null) {
-				LOG.error("Registration attempt from TaskManager with connection info " + instanceConnectionInfo + 
+				LOG.error("Registration attempt from TaskManager at " + taskManager.path() +
 						". This connection is already registered under ID " + prior.getId());
 				return null;
 			}
 			
-			boolean wasDead = this.deadHosts.remove(instanceConnectionInfo);
+			boolean wasDead = this.deadHosts.remove(taskManager);
 			if (wasDead) {
-				LOG.info("Registering TaskManager with connection info " + instanceConnectionInfo + 
+				LOG.info("Registering TaskManager at " + taskManager.path() +
 						" which was marked as dead earlier because of a heart-beat timeout.");
 			}
 
@@ -184,16 +186,16 @@ public class InstanceManager {
 			} while (registeredHostsById.containsKey(id));
 			
 			
-			Instance host = new Instance(instanceConnectionInfo, id, resources, numberOfSlots);
+			Instance host = new Instance(taskManager, id, resources, numberOfSlots);
 			
 			registeredHostsById.put(id, host);
-			registeredHostsByConnection.put(instanceConnectionInfo, host);
+			registeredHostsByConnection.put(taskManager, host);
 			
 			totalNumberOfAliveTaskSlots += numberOfSlots;
 			
 			if (LOG.isInfoEnabled()) {
 				LOG.info(String.format("Registered TaskManager at %s as %s. Current number of registered hosts is %d.",
-						instanceConnectionInfo, id, registeredHostsById.size()));
+						taskManager.path(), id, registeredHostsById.size()));
 			}
 
 			host.reportHeartBeat();
@@ -284,17 +286,17 @@ public class InstanceManager {
 					
 					// remove from the living
 					entries.remove();
-					registeredHostsByConnection.remove(host.getInstanceConnectionInfo());
+					registeredHostsByConnection.remove(host.getTaskManager());
 					
 					// add to the dead
-					deadHosts.add(host.getInstanceConnectionInfo());
+					deadHosts.add(host.getTaskManager());
 					
 					host.markDead();
 					
 					totalNumberOfAliveTaskSlots -= host.getTotalNumberOfSlots();
 					
 					LOG.info(String.format("TaskManager %s at %s did not report a heartbeat for %d msecs - marking as dead. Current number of registered hosts is %d.",
-							host.getId(), host.getInstanceConnectionInfo(), heartbeatTimeout, registeredHostsById.size()));
+							host.getId(), host.getPath(), heartbeatTimeout, registeredHostsById.size()));
 					
 					// report to all listeners
 					notifyDeadInstance(host);

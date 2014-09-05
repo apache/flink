@@ -17,14 +17,21 @@
  */
 
 
-import akka.actor.{ExtendedActorSystem, ActorSystem}
+import akka.actor.ActorSystem
+import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
+import org.apache.flink.core.io.IOReadableWritable
+import org.apache.flink.runtime.akka.serialization.IOReadableWritableSerializer
+import scala.concurrent.duration._
 
 object AkkaUtils {
-  def createActorSystem(name: String, host: String, port: Int, configuration: Configuration): ActorSystem = {
+  implicit val FUTURE_TIMEOUT: Timeout = 1 minute
+  implicit val AWAIT_DURATION: Duration = 1 minute
+
+  def createActorSystem(host: String, port: Int, configuration: Configuration): ActorSystem = {
     val akkaConfig = ConfigFactory.parseString(AkkaUtils.getConfigString(host, port, configuration))
-    val actorSystem = ActorSystem.create(name, akkaConfig)
+    val actorSystem = ActorSystem.create("flink", akkaConfig)
 
     actorSystem
   }
@@ -52,6 +59,8 @@ object AkkaUtils {
 
     val logLifecycleEvents = if(lifecycleEvents) "on" else "off"
 
+    val ioRWSerializerClass = classOf[IOReadableWritableSerializer].getCanonicalName
+    val ioRWClass = classOf[IOReadableWritable].getCanonicalName
 
     s"""akka.daemonic = on
        |akka.loggers = ["akka.event.slf4j.Slf4jLogger"]
@@ -77,6 +86,12 @@ object AkkaUtils {
        |akka.remote.log-remote-lifecycle-events = $logLifecycleEvents
        |akka.log-dead-letters = $logLifecycleEvents
        |akka.log-dead-letters-during-shutdown = $logLifecycleEvents
+       |akka.actor.serializers {
+       |  IOReadableWritable = "$ioRWSerializerClass"
+       |}
+       |akka.actor.serialization-bindings {
+       |  "$ioRWClass" = IOReadableWritable
+       |}
      """.stripMargin
   }
 }

@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.runtime.jobmanager.JobManager2;
+import org.apache.flink.runtime.jobmanager.JobManager;
 import org.eclipse.jetty.http.security.Constraint;
 import org.eclipse.jetty.security.ConstraintMapping;
 import org.eclipse.jetty.security.ConstraintSecurityHandler;
@@ -73,7 +73,7 @@ public class WebInfoServer {
 	 * @throws IOException
 	 *         Thrown, if the server setup failed for an I/O related reason.
 	 */
-	public WebInfoServer(Configuration nepheleConfig, int port, JobManager2 jobmanager) throws IOException {
+	public WebInfoServer(Configuration nepheleConfig, int port, ActorRef jobmanager) throws IOException {
 		this.port = port;
 
 		// if no explicit configuration is given, use the global configuration

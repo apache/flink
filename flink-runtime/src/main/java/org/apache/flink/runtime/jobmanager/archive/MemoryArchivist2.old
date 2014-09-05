@@ -35,7 +35,7 @@ import org.apache.flink.runtime.jobgraph.JobID;
  * This class must be thread safe, because it is accessed by the JobManager events and by the
  * web server concurrently.
  */
-public class MemoryArchivist implements ArchiveListener {
+public class MemoryArchivist2 implements ArchiveListener {
 	
 	/** The global lock */
 	private final Object lock = new Object();

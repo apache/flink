@@ -22,11 +22,10 @@ import java.io.IOException;
 
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 
 public class InternalInstanceProfilingData implements InternalProfilingData {
 
-	private InstanceConnectionInfo instanceConnectionInfo;
+	private String instancePath;
 
 	private int profilingInterval;
 
@@ -60,7 +59,7 @@ public class InternalInstanceProfilingData implements InternalProfilingData {
 		this.freeMemory = -1;
 		this.ioWaitCPU = -1;
 		this.idleCPU = -1;
-		this.instanceConnectionInfo = new InstanceConnectionInfo();
+		this.instancePath = "";
 		this.profilingInterval = -1;
 		this.systemCPU = -1;
 		this.totalMemory = -1;
@@ -72,9 +71,9 @@ public class InternalInstanceProfilingData implements InternalProfilingData {
 		this.transmittedBytes = -1;
 	}
 
-	public InternalInstanceProfilingData(InstanceConnectionInfo instanceConnectionInfo, int profilingInterval) {
+	public InternalInstanceProfilingData(String instancePath, int profilingInterval) {
 
-		this.instanceConnectionInfo = instanceConnectionInfo;
+		this.instancePath = instancePath;
 		this.profilingInterval = profilingInterval;
 		this.freeMemory = -1;
 		this.ioWaitCPU = -1;
@@ -109,8 +108,8 @@ public class InternalInstanceProfilingData implements InternalProfilingData {
 		return this.softIrqCPU;
 	}
 
-	public InstanceConnectionInfo getInstanceConnectionInfo() {
-		return this.instanceConnectionInfo;
+	public String getInstancePath() {
+		return this.instancePath;
 	}
 
 	public int getProfilingInterval() {
@@ -155,7 +154,7 @@ public class InternalInstanceProfilingData implements InternalProfilingData {
 		this.freeMemory = in.readLong();
 		this.ioWaitCPU = in.readInt();
 		this.idleCPU = in.readInt();
-		this.instanceConnectionInfo.read(in);
+		this.instancePath = in.readUTF();
 		this.profilingInterval = in.readInt();
 		this.systemCPU = in.readInt();
 		this.totalMemory = in.readLong();
@@ -176,7 +175,7 @@ public class InternalInstanceProfilingData implements InternalProfilingData {
 		out.writeLong(this.freeMemory);
 		out.writeInt(this.ioWaitCPU);
 		out.writeInt(this.idleCPU);
-		this.instanceConnectionInfo.write(out);
+		out.writeUTF(instancePath);
 		out.writeInt(this.profilingInterval);
 		out.writeInt(this.systemCPU);
 		out.writeLong(this.totalMemory);

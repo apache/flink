@@ -32,7 +32,7 @@ import org.apache.flink.runtime.instance.InstanceManager;
 import org.apache.flink.runtime.instance.LocalInstanceManager;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.JobManager;
-import org.apache.flink.runtime.messages.JobmanagerMessages;
+import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 
 import java.lang.reflect.Method;
@@ -40,6 +40,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.flink.runtime.util.EnvironmentInformation;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 
@@ -225,8 +226,7 @@ public class NepheleMiniCluster {
 			Configuration configuration = GlobalConfiguration.getConfiguration();
 			
 			// start the job manager
-			jobManager = JobManager.startActorSystemAndActor("flink", HOSTNAME, jobManagerRpcPort, "jobmanager",
-					configuration);
+			jobManager = JobManager.startActorSystemAndActor(HOSTNAME, jobManagerRpcPort, configuration);
 
 			int tmRPCPort = GlobalConfiguration.getInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY,
 					ConfigConstants.DEFAULT_TASK_MANAGER_IPC_PORT);
@@ -237,8 +237,7 @@ public class NepheleMiniCluster {
 				Configuration tmConfiguration = GlobalConfiguration.getConfiguration();
 				tmConfiguration.setInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, tmRPCPort + i);
 				tmConfiguration.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, tmDataPort + i);
-				ActorSystem taskManager = TaskManager.startActorSystemAndActor("flink", HOSTNAME, tmRPCPort+i,
-						"taskmanager" + (i+1), configuration);
+				ActorSystem taskManager = TaskManager.startActorSystemAndActor(HOSTNAME, tmRPCPort+i, configuration);
 				taskManagers.add(taskManager);
 			}
 
@@ -275,19 +274,22 @@ public class NepheleMiniCluster {
 	// ------------------------------------------------------------------------
 	
 	private void waitForJobManagerToBecomeReady(int numTaskManagers) throws Exception {
+		LOG.debug("Wait until " + numTaskManagers + " task managers are ready.");
 		boolean notReady = true;
 
-		ActorSelection jobmanagerSelection = jobManager.actorSelection("jobmanager");
 		Timeout timeout = new Timeout(1L, TimeUnit.MINUTES);
+		ActorSelection jobManagerSelection = jobManager.actorSelection("/user/jobmanager");
 
 		while(notReady){
-			Future<Object> futureNumTaskManagers = Patterns.ask(jobmanagerSelection,
-					JobmanagerMessages.RequestNumberRegisteredTaskManager$.MODULE$, timeout);
+			Future<Object> futureNumTaskManagers = Patterns.ask(jobManagerSelection,
+					JobManagerMessages.RequestNumberRegisteredTaskManager$.MODULE$, timeout);
 
 			int numRegisteredTaskManagers = (Integer)Await.result(futureNumTaskManagers, timeout.duration());
 
+			LOG.debug("Number of registered task manager: " + numRegisteredTaskManagers);
+
 			if(numRegisteredTaskManagers < numTaskManagers){
-				Thread.sleep(50);
+				Thread.sleep(500);
 		}
 		
 		// make sure that not just the jobmanager has the slots, but also the taskmanager

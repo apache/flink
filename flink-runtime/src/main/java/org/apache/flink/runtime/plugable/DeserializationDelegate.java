@@ -37,6 +37,7 @@ public class DeserializationDelegate<T> implements IOReadableWritable {
 	public DeserializationDelegate(TypeSerializer<T> serializer) {
 		this.serializer = serializer;
 	}
+
 	
 	public void setInstance(T instance) {
 		this.instance = instance;

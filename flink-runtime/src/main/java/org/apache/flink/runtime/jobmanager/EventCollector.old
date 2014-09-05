@@ -52,7 +52,7 @@ import org.slf4j.LoggerFactory;
  * for being fetched by a client. The collected events have an expiration time. In a configurable interval
  * the event collector removes all intervals which are older than the interval.
  */
-public final class EventCollector extends TimerTask implements ProfilingListener {
+public final class EventCollector2 extends TimerTask implements ProfilingListener {
 
 	private static final Logger LOG = LoggerFactory.getLogger(EventCollector.class);
 
@@ -91,7 +91,7 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 			final VertexEvent vertexEvent = new VertexEvent(timestamp, vertexId, taskName, totalNumberOfSubtasks,
 					subtask, executionId, newExecutionState, optionalMessage);
 
-			this.eventCollector.addEvent(jobID, vertexEvent);
+			this.eventCollector2.addEvent(jobID, vertexEvent);
 
 			final ExecutionStateChangeEvent executionStateChangeEvent = new ExecutionStateChangeEvent(timestamp, vertexId, subtask,
 					executionId, newExecutionState);
@@ -126,7 +126,7 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 		/**
 		 * Constructs a new job status listener wrapper.
 		 * 
-		 * @param eventCollector
+		 * @param eventCollector2
 		 *        the event collector to forward the events to
 		 * @param jobName
 		 *        the name of the job
@@ -194,7 +194,7 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 	 * @param clientQueryInterval
 	 *        the interval with which clients query for events
 	 */
-	public EventCollector(final int clientQueryInterval) {
+	public EventCollector2(final int clientQueryInterval) {
 
 		this.timerTaskInterval = clientQueryInterval * 1000L * 2L; // Double the interval, clients will take care of
 		// duplicate notifications
