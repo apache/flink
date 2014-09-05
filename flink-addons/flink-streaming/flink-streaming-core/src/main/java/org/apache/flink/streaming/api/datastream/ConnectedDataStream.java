@@ -35,6 +35,7 @@ import org.apache.flink.streaming.api.invokable.operator.co.CoMapInvokable;
 import org.apache.flink.streaming.api.invokable.operator.co.CoReduceInvokable;
 import org.apache.flink.streaming.util.serialization.FunctionTypeWrapper;
 import org.apache.flink.streaming.util.serialization.TypeSerializerWrapper;
+import org.apache.flink.types.TypeInformation;
 
 /**
  * The ConnectedDataStream represents a stream for two different data types. It
@@ -58,7 +59,7 @@ public class ConnectedDataStream<IN1, IN2> {
 		this.jobGraphBuilder = jobGraphBuilder;
 		this.environment = environment;
 		this.input1 = input1.copy();
-		this.input2 = input2.copy();
+		this.input2 = input2.copy();		
 	}
 
 	/**
@@ -79,6 +80,22 @@ public class ConnectedDataStream<IN1, IN2> {
 		return input2.copy();
 	}
 
+	/**
+	 * Gets the type of the first input
+	 * @return The type of the first input
+	 */
+	public TypeInformation<IN1> getInputType1() {
+		return input1.getOutputType();
+	}
+	
+	/**
+	 * Gets the type of the second input
+	 * @return The type of the second input
+	 */
+	public TypeInformation<IN2> getInputType2() {
+		return input2.getOutputType();
+	}
+	
 	/**
 	 * GroupBy operation for connected data stream. Groups the elements of
 	 * input1 and input2 according to keyPosition1 and keyPosition2. Used for
@@ -189,7 +206,7 @@ public class ConnectedDataStream<IN1, IN2> {
 
 		@SuppressWarnings({ "unchecked", "rawtypes" })
 		SingleOutputStreamOperator<OUT, ?> returnStream = new SingleOutputStreamOperator(
-				environment, functionName);
+				environment, functionName, outTypeWrapper);
 
 		try {
 			input1.jobGraphBuilder.addCoTask(returnStream.getId(), functionInvokable,

@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.datastream;
 import java.util.Arrays;
 
 import org.apache.flink.streaming.api.collector.OutputSelector;
+import org.apache.flink.types.TypeInformation;
 
 /**
  * The SplitDataStream represents an operator that has been split using an
@@ -37,6 +38,15 @@ public class SplitDataStream<OUT> {
 		this.dataStream = dataStream.copy();
 	}
 
+	/**
+	 * Gets the output type.
+	 * 
+	 * @return The output type.
+	 */
+	public TypeInformation<OUT> getOutputType() {
+		return dataStream.getOutputType();
+	}
+	
 	/**
 	 * Sets the output names for which the next operator will receive values.
 	 * 

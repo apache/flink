@@ -22,6 +22,7 @@ import java.util.List;
 
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.partitioner.StreamPartitioner;
+import org.apache.flink.streaming.util.serialization.TypeSerializerWrapper;
 
 /**
  * The MergedDataStream represents a DataStream which consists of merged outputs
@@ -35,8 +36,9 @@ public class MergedDataStream<OUT> extends DataStream<OUT> {
 
 	protected List<DataStream<OUT>> mergedStreams;
 
-	protected MergedDataStream(StreamExecutionEnvironment environment, String operatorType) {
-		super(environment, operatorType);
+	protected MergedDataStream(StreamExecutionEnvironment environment, String operatorType,
+			TypeSerializerWrapper<OUT> outTypeWrapper) {
+		super(environment, operatorType, outTypeWrapper);
 		this.mergedStreams = new ArrayList<DataStream<OUT>>();
 		this.mergedStreams.add(this);
 	}

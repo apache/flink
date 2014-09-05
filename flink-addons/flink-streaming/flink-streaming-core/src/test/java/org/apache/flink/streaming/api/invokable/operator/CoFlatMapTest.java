@@ -72,12 +72,19 @@ public class CoFlatMapTest implements Serializable {
 
 		DataStream<Integer> ds1 = env.fromElements(1, 3, 5);
 		DataStream<Integer> ds2 = env.fromElements(2, 4).merge(ds1);
-
+		
 		try {
 			ds1.forward().merge(ds2);
 			fail();
 		} catch (RuntimeException e) {
-			// good
+			// expected
+		}
+		
+		try {
+			env.fromElements(10, 11).connect(ds2);
+			fail();
+		} catch (RuntimeException e) {
+			// expected
 		}
 	}
 }

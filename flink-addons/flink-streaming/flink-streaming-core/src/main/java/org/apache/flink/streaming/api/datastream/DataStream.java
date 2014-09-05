@@ -89,6 +89,7 @@ public abstract class DataStream<OUT> {
 	protected List<String> userDefinedNames;
 	protected boolean selectAll;
 	protected StreamPartitioner<OUT> partitioner;
+	protected TypeSerializerWrapper<OUT> outTypeWrapper;
 
 	protected final JobGraphBuilder jobGraphBuilder;
 
@@ -100,8 +101,11 @@ public abstract class DataStream<OUT> {
 	 *            StreamExecutionEnvironment
 	 * @param operatorType
 	 *            The type of the operator in the component
+	 * @param outTypeWrapper
+	 *            Type of the output
 	 */
-	public DataStream(StreamExecutionEnvironment environment, String operatorType) {
+	public DataStream(StreamExecutionEnvironment environment, String operatorType,
+			TypeSerializerWrapper<OUT> outTypeWrapper) {
 		if (environment == null) {
 			throw new NullPointerException("context is null");
 		}
@@ -114,7 +118,7 @@ public abstract class DataStream<OUT> {
 		this.userDefinedNames = new ArrayList<String>();
 		this.selectAll = false;
 		this.partitioner = new ForwardPartitioner<OUT>();
-
+		this.outTypeWrapper = outTypeWrapper;
 	}
 
 	/**
@@ -131,7 +135,7 @@ public abstract class DataStream<OUT> {
 		this.selectAll = dataStream.selectAll;
 		this.partitioner = dataStream.partitioner;
 		this.jobGraphBuilder = dataStream.jobGraphBuilder;
-
+		this.outTypeWrapper = dataStream.outTypeWrapper;
 	}
 
 	/**
@@ -159,6 +163,15 @@ public abstract class DataStream<OUT> {
 		return this.degreeOfParallelism;
 	}
 
+	/**
+	 * Gets the output type.
+	 * 
+	 * @return The output type.
+	 */
+	public TypeInformation<OUT> getOutputType() {
+		return this.outTypeWrapper.getTypeInfo();
+	}
+	
 	/**
 	 * Creates a new {@link MergedDataStream} by merging {@link DataStream}
 	 * outputs of the same type with each other. The DataStreams merged using
@@ -890,7 +903,7 @@ public abstract class DataStream<OUT> {
 
 	protected <R> DataStream<OUT> addIterationSource(String iterationID, long waitTime) {
 
-		DataStream<R> returnStream = new DataStreamSource<R>(environment, "iterationSource");
+		DataStream<R> returnStream = new DataStreamSource<R>(environment, "iterationSource", null);
 
 		jobGraphBuilder.addIterationSource(returnStream.getId(), this.getId(), iterationID,
 				degreeOfParallelism, waitTime);
@@ -919,7 +932,7 @@ public abstract class DataStream<OUT> {
 		DataStream<OUT> inputStream = this.copy();
 		@SuppressWarnings({ "unchecked", "rawtypes" })
 		SingleOutputStreamOperator<R, ?> returnStream = new SingleOutputStreamOperator(environment,
-				functionName);
+				functionName, outTypeWrapper);
 
 		try {
 			jobGraphBuilder.addTask(returnStream.getId(), functionInvokable, inTypeWrapper,
@@ -1001,7 +1014,7 @@ public abstract class DataStream<OUT> {
 
 	private DataStreamSink<OUT> addSink(DataStream<OUT> inputStream,
 			SinkFunction<OUT> sinkFunction, TypeSerializerWrapper<OUT> typeWrapper) {
-		DataStreamSink<OUT> returnStream = new DataStreamSink<OUT>(environment, "sink");
+		DataStreamSink<OUT> returnStream = new DataStreamSink<OUT>(environment, "sink", outTypeWrapper);
 
 		try {
 			jobGraphBuilder.addSink(returnStream.getId(), new SinkInvokable<OUT>(sinkFunction),

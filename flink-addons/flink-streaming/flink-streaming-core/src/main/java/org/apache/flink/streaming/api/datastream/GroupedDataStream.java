@@ -31,8 +31,7 @@ import org.apache.flink.streaming.api.invokable.operator.WindowGroupReduceInvoka
 import org.apache.flink.streaming.api.invokable.util.DefaultTimestamp;
 import org.apache.flink.streaming.api.invokable.util.Timestamp;
 import org.apache.flink.streaming.util.serialization.FunctionTypeWrapper;
-
-//import org.apache.jasper.compiler.Node.ParamsAction;
+import org.apache.flink.types.TypeInformation;
 
 /**
  * A GroupedDataStream represents a data stream which has been partitioned by
@@ -53,12 +52,21 @@ public class GroupedDataStream<OUT> {
 	}
 
 	/**
-	 * Applies a reduce transformation on the grouped data stream grouped by the
-	 * given key position. The {@link ReduceFunction} will receive input values
-	 * based on the key value. Only input values with the same key will go to
-	 * the same reducer.The user can also extend {@link RichReduceFunction} to
-	 * gain access to other features provided by the {@link RichFuntion}
-	 * interface.
+	 * Gets the output type.
+	 * 
+	 * @return The output type.
+	 */
+	public TypeInformation<OUT> getOutputType() {
+		return dataStream.getOutputType();
+	}
+	
+	/**
+	 * Applies a reduce transformation on the grouped data stream grouped on by
+	 * the given key position. The {@link ReduceFunction} will receive input
+	 * values based on the key value. Only input values with the same key will
+	 * go to the same reducer.The user can also extend
+	 * {@link RichReduceFunction} to gain access to other features provided by
+	 * the {@link RichFuntion} interface.
 	 * 
 	 * @param reducer
 	 *            The {@link ReduceFunction} that will be called for every
@@ -70,7 +78,7 @@ public class GroupedDataStream<OUT> {
 				ReduceFunction.class, 0), new FunctionTypeWrapper<OUT>(reducer,
 				ReduceFunction.class, 0), new GroupReduceInvokable<OUT>(reducer, keyPosition));
 	}
-
+	
 	/**
 	 * Applies a group reduce transformation on preset chunks of the grouped
 	 * data stream. The {@link GroupReduceFunction} will receive input values

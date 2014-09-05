@@ -80,7 +80,7 @@ public class IterativeDataStream<IN> extends
 	 * 
 	 */
 	public <R> DataStream<IN> closeWith(DataStream<IN> iterationTail, String iterationName) {
-		DataStream<R> returnStream = new DataStreamSink<R>(environment, "iterationSink");
+		DataStream<R> returnStream = new DataStreamSink<R>(environment, "iterationSink", null);
 
 		jobGraphBuilder.addIterationSink(returnStream.getId(), iterationTail.getId(),
 				iterationID.toString(), iterationTail.getParallelism(), waitTime);
