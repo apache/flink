@@ -1177,7 +1177,7 @@ counts.print().setParallelism(2);
 ```
 
 ###System's Level
-The default parallelism of all the jobs and their execution enviroment and operators are configured by `parallelization.degreee.default` in `conf/flink-conf.yaml`. See [system level](http://flink.incubator.apache.org/docs/{{site.FLINK_VERSION_STABLE }}/config.html)
+The default parallelism of all the jobs and their execution enviroment and operators are configured by `parallelization.degreee.default` in `conf/flink-conf.yaml`. See [system level](http://flink.incubator.apache.org/docs/{{site.FLINK_VERSION_STABLE}}/config.html)
 
 [Back to top](#top)
 
