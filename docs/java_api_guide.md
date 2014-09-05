@@ -416,8 +416,10 @@ DataSet<Tuple2<String, Integer>> out = in.project(2,0).types(String.class, Integ
     </tr>
   </tbody>
 </table>
-[Back to top](#top)
 
+You can configure each transformation for its [parallelism](#parallelism) by `setParallelism()`, and each transformation's name by `name()`. You can do the same for data sources and data sinks. 
+
+[Back to Top](#top)
 
 <section id="keys">
 Defining Keys
@@ -1169,6 +1171,42 @@ You have the choice to implement either {% gh_link /flink-core/src/main/java/org
 
 [Back to top](#top)
 
+<section id="parallelism">
+Parallelism
+---------
+
+This section describes the usage of `parallelism` in Flink. Parallelism specifies the amount of parallel instances execute the program. All operators executed could be setted to the same amount of parallel instances, or they can be configurated individually. A typical program runs as `Data Source -> Map -> Reduce -> Data Sink` and you can deicide the number of parallel instances in Data Source, Map, Reduce and Data Sink. Based on different levels, parallelism in Flink can be distinguilished as Operator, Execution Environment and System level. The detail is as follows. 
+
+###Execution Environment's Level 
+
+Parallelism at Execution Environment level is used by `setDefaultLocalParallelism()` as follows. By this all operators are executed by three parallel instances in [WordCount](#example) :
+
+```java
+int degreeOfParallelism = 3;
+ExecutionEnvironment.setDefaultLocalParallelism(degreeOfParallelism);
+final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+```
+
+###Operator's Level
+You are able to set parallelism for each operator by `setParallelism()`, in [WordCount](#example) the parallelism for each operator can be configurated as follows :
+
+
+```java
+DataSet<Tuple2<String, Integer>> counts = 
+// split up the lines in pairs (2-tuples) containing: (word,1)
+text.flatMap(new Tokenizer())
+// group by the tuple field "0" and sum up tuple field "1" 
+//set this operator's parralleism to "5"
+.groupBy(0).sum(1).setParallelism(5);
+
+// set this operator's parrallelism to 2
+counts.print().setParallelism(2); 
+```
+
+###System's Level
+The default parallelism of all the jobs and their execution enviroment and operators are configured by `parallelization.degreee.default` in `conf/flink-conf.yaml`. See [system level]({{site.baseurl}}/config.html)
+
+[Back to top](#top)
 
 <section id="execution_plan">
 Execution Plans
