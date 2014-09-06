@@ -89,16 +89,10 @@ public class IterativeDataStream<IN> extends
 
 		List<String> name = Arrays.asList(new String[] { iterationName });
 
-		if (iterationTail instanceof MergedDataStream) {
-			for (DataStream<IN> stream : ((MergedDataStream<IN>) iterationTail).mergedStreams) {
-				String inputID = stream.getId();
-				jobGraphBuilder.setEdge(inputID, returnStream.getId(),
-						new ForwardPartitioner<IN>(), 0, name, false);
-			}
-		} else {
-
-			jobGraphBuilder.setEdge(iterationTail.getId(), returnStream.getId(),
-					new ForwardPartitioner<IN>(), 0, name, false);
+		for (DataStream<IN> stream : iterationTail.mergedStreams) {
+			String inputID = stream.getId();
+			jobGraphBuilder.setEdge(inputID, returnStream.getId(), new ForwardPartitioner<IN>(), 0,
+					name, false);
 		}
 
 		return iterationTail;

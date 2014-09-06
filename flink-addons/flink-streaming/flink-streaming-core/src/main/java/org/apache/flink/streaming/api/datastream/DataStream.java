@@ -81,7 +81,7 @@ import org.apache.flink.types.TypeInformation;
  *            The type of the DataStream, i.e., the type of the elements of the
  *            DataStream.
  */
-public abstract class DataStream<OUT> {
+public class DataStream<OUT> {
 
 	protected static Integer counter = 0;
 	protected final StreamExecutionEnvironment environment;
@@ -91,6 +91,7 @@ public abstract class DataStream<OUT> {
 	protected boolean selectAll;
 	protected StreamPartitioner<OUT> partitioner;
 	protected TypeSerializerWrapper<OUT> outTypeWrapper;
+	protected List<DataStream<OUT>> mergedStreams;
 
 	protected final JobGraphBuilder jobGraphBuilder;
 
@@ -120,6 +121,8 @@ public abstract class DataStream<OUT> {
 		this.selectAll = false;
 		this.partitioner = new ForwardPartitioner<OUT>();
 		this.outTypeWrapper = outTypeWrapper;
+		this.mergedStreams = new ArrayList<DataStream<OUT>>();
+		this.mergedStreams.add(this);
 	}
 
 	/**
@@ -137,6 +140,14 @@ public abstract class DataStream<OUT> {
 		this.partitioner = dataStream.partitioner;
 		this.jobGraphBuilder = dataStream.jobGraphBuilder;
 		this.outTypeWrapper = dataStream.outTypeWrapper;
+		this.mergedStreams = new ArrayList<DataStream<OUT>>();
+		this.mergedStreams.add(this);
+		if (dataStream.mergedStreams.size() > 1) {
+			for (int i = 1; i < dataStream.mergedStreams.size(); i++) {
+				this.mergedStreams.add(new DataStream<OUT>(dataStream.mergedStreams.get(i)));
+			}
+		}
+
 	}
 
 	/**
@@ -218,13 +229,24 @@ public abstract class DataStream<OUT> {
 	 *            The DataStreams to merge output with.
 	 * @return The {@link MergedDataStream}.
 	 */
-	public MergedDataStream<OUT> merge(DataStream<OUT>... streams) {
-		MergedDataStream<OUT> returnStream = new MergedDataStream<OUT>(this);
+	public DataStream<OUT> merge(DataStream<OUT>... streams) {
+		DataStream<OUT> returnStream = this.copy();
 
 		for (DataStream<OUT> stream : streams) {
-			returnStream.addConnection(stream);
+			for (DataStream<OUT> ds : stream.mergedStreams) {
+				validateMerge(ds.getId());
+				returnStream.mergedStreams.add(ds.copy());
+			}
 		}
 		return returnStream;
+	}
+
+	private void validateMerge(String id) {
+		for (DataStream<OUT> ds : this.mergedStreams) {
+			if (ds.getId().equals(id)) {
+				throw new RuntimeException("A DataStream cannot be merged with itself");
+			}
+		}
 	}
 
 	/**
@@ -529,12 +551,12 @@ public abstract class DataStream<OUT> {
 	@SuppressWarnings("unchecked")
 	public SingleOutputStreamOperator<OUT, ?> sum(int positionToSum) {
 		checkFieldRange(positionToSum);
-		return aggregateAll((AggregationFunction<OUT>) SumAggregationFunction
-				.getSumFunction(positionToSum, getClassAtPos(positionToSum)));
+		return aggregate((AggregationFunction<OUT>) SumAggregationFunction.getSumFunction(
+				positionToSum, getClassAtPos(positionToSum)));
 	}
 
 	/**
-	 * Applies an aggregation that sums the data stream at the first position .
+	 * Syntactic sugar for sum(0)
 	 * 
 	 * @return The transformed DataStream.
 	 */
@@ -552,12 +574,11 @@ public abstract class DataStream<OUT> {
 	 */
 	public SingleOutputStreamOperator<OUT, ?> min(int positionToMin) {
 		checkFieldRange(positionToMin);
-		return aggregateAll(new MinAggregationFunction<OUT>(positionToMin));
+		return aggregate(new MinAggregationFunction<OUT>(positionToMin));
 	}
 
 	/**
-	 * Applies an aggregation that that gives the minimum of the data stream at
-	 * the first position.
+	 * Syntactic sugar for min(0)
 	 * 
 	 * @return The transformed DataStream.
 	 */
@@ -575,12 +596,11 @@ public abstract class DataStream<OUT> {
 	 */
 	public SingleOutputStreamOperator<OUT, ?> max(int positionToMax) {
 		checkFieldRange(positionToMax);
-		return aggregateAll(new MaxAggregationFunction<OUT>(positionToMax));
+		return aggregate(new MaxAggregationFunction<OUT>(positionToMax));
 	}
 
 	/**
-	 * Applies an aggregation that gives the maximum of the data stream at the
-	 * first position.
+	 * Syntactic sugar for max(0)
 	 * 
 	 * @return The transformed DataStream.
 	 */
@@ -588,20 +608,14 @@ public abstract class DataStream<OUT> {
 		return max(0);
 	}
 
-	private SingleOutputStreamOperator<OUT, ?> aggregateAll(
-			AggregationFunction<OUT> aggregate) {
-		return aggregate(aggregate, new StreamReduceInvokable<OUT>(aggregate), "reduce");
-	}
+	protected SingleOutputStreamOperator<OUT, ?> aggregate(AggregationFunction<OUT> aggregate) {
 
-	SingleOutputStreamOperator<OUT, ?> aggregate(AggregationFunction<OUT> aggregate,
-			StreamReduceInvokable<OUT> invokable, String functionName) {
-		DataStream<OUT> inputStream = this.copy();
+		StreamReduceInvokable<OUT> invokable = new StreamReduceInvokable<OUT>(aggregate);
 
-		SingleOutputStreamOperator<OUT, ?> returnStream = inputStream.addFunction(functionName,
-				aggregate, null, null, invokable);
+		SingleOutputStreamOperator<OUT, ?> returnStream = addFunction("reduce", aggregate, null,
+				null, invokable);
 
-		this.jobGraphBuilder.setTypeWrappersFrom(inputStream.getId(), returnStream.getId());
-
+		this.jobGraphBuilder.setTypeWrappersFrom(getId(), returnStream.getId());
 		return returnStream;
 	}
 
@@ -1032,7 +1046,9 @@ public abstract class DataStream<OUT> {
 	protected DataStream<OUT> setConnectionType(StreamPartitioner<OUT> partitioner) {
 		DataStream<OUT> returnStream = this.copy();
 
-		returnStream.partitioner = partitioner;
+		for (DataStream<OUT> stream : returnStream.mergedStreams) {
+			stream.partitioner = partitioner;
+		}
 
 		return returnStream;
 	}
@@ -1051,14 +1067,9 @@ public abstract class DataStream<OUT> {
 	 *            Number of the type (used at co-functions)
 	 */
 	protected <X> void connectGraph(DataStream<X> inputStream, String outputID, int typeNumber) {
-		if (inputStream instanceof MergedDataStream) {
-			for (DataStream<X> stream : ((MergedDataStream<X>) inputStream).mergedStreams) {
-				jobGraphBuilder.setEdge(stream.getId(), outputID, stream.partitioner, typeNumber,
-						inputStream.userDefinedNames, inputStream.selectAll);
-			}
-		} else {
-			jobGraphBuilder.setEdge(inputStream.getId(), outputID, inputStream.partitioner,
-					typeNumber, inputStream.userDefinedNames, inputStream.selectAll);
+		for (DataStream<X> stream : inputStream.mergedStreams) {
+			jobGraphBuilder.setEdge(stream.getId(), outputID, stream.partitioner, typeNumber,
+					inputStream.userDefinedNames, inputStream.selectAll);
 		}
 
 	}
@@ -1104,5 +1115,8 @@ public abstract class DataStream<OUT> {
 	 * 
 	 * @return The copy
 	 */
-	protected abstract DataStream<OUT> copy();
+	protected DataStream<OUT> copy(){
+		return new DataStream<OUT>(this);
+	}
+
 }

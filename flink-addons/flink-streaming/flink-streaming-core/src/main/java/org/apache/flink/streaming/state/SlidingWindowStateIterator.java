@@ -27,6 +27,8 @@ import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
 public class SlidingWindowStateIterator<T> implements BatchIterator<T> {
 
+	private static final long serialVersionUID = 1L;
+
 	private CircularFifoBuffer buffer;
 	// private StreamRecord<T> nextElement;
 
