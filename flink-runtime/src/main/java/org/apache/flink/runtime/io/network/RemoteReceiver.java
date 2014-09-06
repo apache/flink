@@ -31,7 +31,7 @@ import org.apache.flink.core.memory.DataOutputView;
  * Objects of this class uniquely identify a connection to a remote {@link TaskManager}.
  * 
  */
-public class RemoteReceiver implements IOReadableWritable {
+public final class RemoteReceiver implements IOReadableWritable {
 
 	/**
 	 * The address of the connection to the remote {@link TaskManager}.
