@@ -18,30 +18,34 @@
 package org.apache.flink.streaming.api.invokable.operator;
 
 import java.io.IOException;
-import java.util.Iterator;
+import java.util.Map;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.streaming.api.invokable.util.Timestamp;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
+import org.apache.flink.streaming.state.SlidingWindowState;
 
-public class WindowReduceInvokable<OUT> extends BatchReduceInvokable<OUT> {
+public class GroupedWindowReduceInvokable<OUT> extends GroupedBatchReduceInvokable<OUT> {
+
 	private static final long serialVersionUID = 1L;
+	protected transient SlidingWindowState<Map<Object, OUT>> state;
+
+	private Timestamp<OUT> timestamp;
 	private long startTime;
 	private long nextRecordTime;
-	private Timestamp<OUT> timestamp;
-	private String nullElement = "nullElement";
 
-	public WindowReduceInvokable(ReduceFunction<OUT> reduceFunction, long windowSize,
-			long slideInterval, Timestamp<OUT> timestamp) {
-		super(reduceFunction, windowSize, slideInterval);
+	public GroupedWindowReduceInvokable(ReduceFunction<OUT> reduceFunction, long windowSize,
+			long slideInterval, Timestamp<OUT> timestamp, int keyPosition) {
+		super(reduceFunction, windowSize, slideInterval, keyPosition);
 		this.timestamp = timestamp;
 	}
-
+	
 	@Override
 	protected void initializeAtFirstRecord() {
 		startTime = nextRecordTime - (nextRecordTime % granularity);
 	}
-
+	
+	@Override
 	protected StreamRecord<OUT> getNextRecord() throws IOException {
 		reuse = recordIterator.next(reuse);
 		if (reuse != null) {
@@ -49,7 +53,7 @@ public class WindowReduceInvokable<OUT> extends BatchReduceInvokable<OUT> {
 		}
 		return reuse;
 	}
-
+	
 	@Override
 	protected boolean batchNotFull() {
 		if (nextRecordTime < startTime + granularity) {
@@ -57,51 +61,6 @@ public class WindowReduceInvokable<OUT> extends BatchReduceInvokable<OUT> {
 		} else {
 			startTime += granularity;
 			return false;
-		}
-	}
-	
-	@Override
-	protected void collectOneUnit() throws Exception {
-		OUT reduced = null;
-		if (batchNotFull()) {
-			reduced = reuse.getObject();
-			resetReuse();
-			while (getNextRecord() != null && batchNotFull()) {
-				reduced = reducer.reduce(reduced, reuse.getObject());
-				resetReuse();
-			}
-		}
-		if(reduced!=null){
-			state.pushBack(reduced);
-		}else{
-			state.pushBack(nullElement);
-		}
-	}
-
-	@Override
-	protected void callUserFunction() throws Exception {
-		Iterator<OUT> reducedIterator = state.getBufferIterator();
-		OUT reduced = null;
-		do {
-			OUT next = reducedIterator.next();
-			if (next != nullElement) {
-				reduced = next;
-			}
-		} while (reducedIterator.hasNext() && reduced == null);
-
-		while (reducedIterator.hasNext()) {
-			OUT next = reducedIterator.next();
-			if (next != null) {
-				try {
-					next = typeSerializer.copy(next, reduceReuse);
-					reduced = reducer.reduce(reduced, next);
-				} catch (ClassCastException e) {
-					// nullElement in buffer
-				}
-			}
-		}
-		if (reduced != null) {
-			collector.collect(reduced);
 		}
 	}
 

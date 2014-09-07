@@ -22,9 +22,9 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.functions.RichGroupReduceFunction;
 import org.apache.flink.api.java.functions.RichReduceFunction;
 import org.apache.flink.streaming.api.function.aggregation.AggregationFunction;
-import org.apache.flink.streaming.api.invokable.operator.BatchGroupReduceInvokable;
+import org.apache.flink.streaming.api.invokable.operator.GroupedBatchGroupReduceInvokable;
 import org.apache.flink.streaming.api.invokable.operator.GroupReduceInvokable;
-import org.apache.flink.streaming.api.invokable.operator.WindowGroupReduceInvokable;
+import org.apache.flink.streaming.api.invokable.operator.GroupedWindowGroupReduceInvokable;
 import org.apache.flink.streaming.api.invokable.util.DefaultTimestamp;
 import org.apache.flink.streaming.api.invokable.util.Timestamp;
 import org.apache.flink.streaming.partitioner.StreamPartitioner;
@@ -119,7 +119,7 @@ public class GroupedDataStream<OUT> extends DataStream<OUT> {
 
 		return addFunction("batchReduce", reducer, new FunctionTypeWrapper<OUT>(reducer,
 				GroupReduceFunction.class, 0), new FunctionTypeWrapper<R>(reducer,
-				GroupReduceFunction.class, 1), new BatchGroupReduceInvokable<OUT, R>(reducer,
+				GroupReduceFunction.class, 1), new GroupedBatchGroupReduceInvokable<OUT, R>(reducer,
 				batchSize, slideSize, keyPosition));
 	}
 
@@ -194,7 +194,7 @@ public class GroupedDataStream<OUT> extends DataStream<OUT> {
 			long windowSize, long slideInterval, Timestamp<OUT> timestamp) {
 		return addFunction("batchReduce", reducer, new FunctionTypeWrapper<OUT>(reducer,
 				GroupReduceFunction.class, 0), new FunctionTypeWrapper<R>(reducer,
-				GroupReduceFunction.class, 1), new WindowGroupReduceInvokable<OUT, R>(reducer,
+				GroupReduceFunction.class, 1), new GroupedWindowGroupReduceInvokable<OUT, R>(reducer,
 				windowSize, slideInterval, keyPosition, timestamp));
 	}
 

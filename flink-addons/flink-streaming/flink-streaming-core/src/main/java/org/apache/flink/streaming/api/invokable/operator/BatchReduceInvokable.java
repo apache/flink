@@ -17,130 +17,64 @@
 
 package org.apache.flink.streaming.api.invokable.operator;
 
-import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Iterator;
 
-import org.apache.commons.math.util.MathUtils;
-import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.invokable.StreamOperatorInvokable;
-import org.apache.flink.streaming.api.streamrecord.StreamRecord;
-import org.apache.flink.streaming.state.SlidingWindowState;
 
-public class BatchReduceInvokable<IN, OUT> extends StreamOperatorInvokable<IN, OUT> {
+public class BatchReduceInvokable<OUT> extends BatchGroupReduceInvokable<OUT, OUT> {
 
 	private static final long serialVersionUID = 1L;
-	protected GroupReduceFunction<IN, OUT> reducer;
-	protected BatchIterator<IN> userIterator;
-	protected Iterable<IN> userIterable;
-	protected long slideSize;
-	protected long granularity;
-	protected int listSize;
-	protected transient SlidingWindowState<IN> state;
+	protected ReduceFunction<OUT> reducer;
+	protected TypeSerializer<OUT> typeSerializer;
+	protected OUT reduceReuse;
 
-	private long batchSize;
-	private int counter = 0;
-
-	public BatchReduceInvokable(GroupReduceFunction<IN, OUT> reduceFunction, long batchSize,
-			long slideSize) {
-		super(reduceFunction);
+	public BatchReduceInvokable(ReduceFunction<OUT> reduceFunction, long batchSize, long slideSize) {
+		super(null, batchSize, slideSize);
 		this.reducer = reduceFunction;
-		this.batchSize = batchSize;
-		this.slideSize = slideSize;
-		this.granularity = MathUtils.gcd(batchSize, slideSize);
-		this.listSize = (int) granularity;
 	}
 
-	@Override
-	protected void mutableInvoke() throws Exception {
-		throw new RuntimeException("Reducing mutable sliding batch is not supported.");
-	}
-
-	@Override
-	protected void immutableInvoke() throws Exception {
-		if (getNextRecord() == null) {
-			throw new RuntimeException("DataStream must not be empty");
-		}
-
-		initializeAtFirstRecord();
-
-		while (reuse != null && !state.isFull()) {
-			collectOneUnit();
-		}
-		reduce();
-
-		while (reuse != null) {
-			for (int i = 0; i < slideSize / granularity; i++) {
-				if (reuse != null) {
-					collectOneUnit();
-				}
-			}
-			reduce();
-		}
-	}
-
-	protected void initializeAtFirstRecord() {
-		counter = 0;
-	}
-
-	protected void collectOneUnit() throws IOException {
-		ArrayList<StreamRecord<IN>> list;
-
-		if (!batchNotFull()) {
-			list = new ArrayList<StreamRecord<IN>>();
-		} else {
-			list = new ArrayList<StreamRecord<IN>>(listSize);
-
-			do {
-				list.add(reuse);
+	protected void collectOneUnit() throws Exception {
+		OUT reduced = null;
+		if (batchNotFull()) {
+			reduced = reuse.getObject();
+			resetReuse();
+			while (getNextRecord() != null && batchNotFull()) {
+				reduced = reducer.reduce(reduced, reuse.getObject());
 				resetReuse();
-			} while (getNextRecord() != null && batchNotFull());
+			}
 		}
-		state.pushBack(list);
+		state.pushBack(reduced);
 	}
 
-	protected StreamRecord<IN> getNextRecord() throws IOException {
-		reuse = recordIterator.next(reuse);
-		if (reuse != null) {
-			counter++;
-		}
-		return reuse;
-	}
-
-	protected boolean batchNotFull() {
-		if (counter < granularity) {
-			return true;
-		} else {
-			counter = 0;
-			return false;
-		}
-	}
-
+	@Override
 	protected void reduce() {
-		userIterator = state.getIterator();
 		callUserFunctionAndLogException();
 	}
 
 	@Override
 	protected void callUserFunction() throws Exception {
-		reducer.reduce(userIterable, collector);
+		Iterator<OUT> reducedIterator = state.getBufferIterator();
+		OUT reduced;
+		do {
+			reduced = reducedIterator.next();
+		} while (reducedIterator.hasNext() && reduced == null);
+
+		while (reducedIterator.hasNext()) {
+			OUT next = reducedIterator.next();
+			if (next != null) {
+				next = typeSerializer.copy(next, reduceReuse);
+				reduced = reducer.reduce(reduced, next);
+			}
+		}
+		collector.collect(reduced);
 	}
 
 	@Override
-	public void open(Configuration parameters) throws Exception {
-		super.open(parameters);
-		this.state = new SlidingWindowState<IN>(batchSize, slideSize, granularity);
-		userIterable = new BatchIterable();
+	public void open(Configuration config) throws Exception {
+		super.open(config);
+		this.typeSerializer = serializer.getObjectSerializer();
+		this.reduceReuse = typeSerializer.createInstance();
 	}
-
-	protected class BatchIterable implements Iterable<IN> {
-
-		@Override
-		public Iterator<IN> iterator() {
-			return userIterator;
-		}
-
-	}
-
 }

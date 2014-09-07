@@ -37,6 +37,10 @@ public final class StreamRecordSerializer<T> extends TypeSerializer<StreamRecord
 		this.isTuple = typeInfo.isTupleType();
 	}
 
+	public TypeSerializer<T> getObjectSerializer() {
+		return typeSerializer;
+	}
+
 	@Override
 	public boolean isImmutableType() {
 		return false;
@@ -88,7 +92,7 @@ public final class StreamRecordSerializer<T> extends TypeSerializer<StreamRecord
 
 	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		//Needs to be implemented
+		// Needs to be implemented
 	}
 
 }

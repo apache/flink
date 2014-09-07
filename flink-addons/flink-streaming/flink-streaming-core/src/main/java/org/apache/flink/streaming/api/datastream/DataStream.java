@@ -49,12 +49,12 @@ import org.apache.flink.streaming.api.function.sink.WriteSinkFunctionByBatches;
 import org.apache.flink.streaming.api.function.sink.WriteSinkFunctionByMillis;
 import org.apache.flink.streaming.api.invokable.SinkInvokable;
 import org.apache.flink.streaming.api.invokable.StreamOperatorInvokable;
-import org.apache.flink.streaming.api.invokable.operator.BatchReduceInvokable;
+import org.apache.flink.streaming.api.invokable.operator.BatchGroupReduceInvokable;
 import org.apache.flink.streaming.api.invokable.operator.FilterInvokable;
 import org.apache.flink.streaming.api.invokable.operator.FlatMapInvokable;
 import org.apache.flink.streaming.api.invokable.operator.MapInvokable;
 import org.apache.flink.streaming.api.invokable.operator.StreamReduceInvokable;
-import org.apache.flink.streaming.api.invokable.operator.WindowReduceInvokable;
+import org.apache.flink.streaming.api.invokable.operator.WindowGroupReduceInvokable;
 import org.apache.flink.streaming.api.invokable.util.DefaultTimestamp;
 import org.apache.flink.streaming.api.invokable.util.Timestamp;
 import org.apache.flink.streaming.partitioner.BroadcastPartitioner;
@@ -446,7 +446,7 @@ public class DataStream<OUT> {
 				GroupReduceFunction.class, 1);
 
 		return addFunction("batchReduce", reducer, inTypeWrapper, outTypeWrapper,
-				new BatchReduceInvokable<OUT, R>(reducer, batchSize, slideSize));
+				new BatchGroupReduceInvokable<OUT, R>(reducer, batchSize, slideSize));
 	}
 
 	/**
@@ -538,7 +538,7 @@ public class DataStream<OUT> {
 				GroupReduceFunction.class, 1);
 
 		return addFunction("batchReduce", reducer, inTypeWrapper, outTypeWrapper,
-				new WindowReduceInvokable<OUT, R>(reducer, windowSize, slideInterval, timestamp));
+				new WindowGroupReduceInvokable<OUT, R>(reducer, windowSize, slideInterval, timestamp));
 	}
 
 	/**
