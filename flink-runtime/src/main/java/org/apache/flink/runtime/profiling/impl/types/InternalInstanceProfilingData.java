@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.profiling.impl.types;
 
 import java.io.IOException;
@@ -243,5 +242,4 @@ public class InternalInstanceProfilingData implements InternalProfilingData {
 	public void setTransmittedBytes(long transmittedBytes) {
 		this.transmittedBytes = transmittedBytes;
 	}
-
 }

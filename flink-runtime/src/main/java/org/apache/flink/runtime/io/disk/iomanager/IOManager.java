@@ -188,13 +188,10 @@ public class IOManager implements UncaughtExceptionHandler {
 		return this.isClosed && writersShutDown && readersShutDown;
 	}
 
-	/* (non-Javadoc)
-	 * @see java.lang.Thread.UncaughtExceptionHandler#uncaughtException(java.lang.Thread, java.lang.Throwable)
-	 */
+
 	@Override
-	public void uncaughtException(Thread t, Throwable e)
-	{
-		LOG.fatal("IO Thread '" + t.getName() + "' terminated due to an exception. Closing I/O Manager.", e);
+	public void uncaughtException(Thread t, Throwable e) {
+		LOG.error("IO Thread '" + t.getName() + "' terminated due to an exception. Closing I/O Manager.", e);
 		shutdown();	
 	}
 

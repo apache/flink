@@ -18,11 +18,11 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.commons.logging.Log;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.core.io.InputSplitSource;
@@ -35,11 +35,13 @@ import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 
+import org.slf4j.Logger;
+
 
 public class ExecutionJobVertex {
 	
 	/** Use the same log for all ExecutionGraph classes */
-	private static final Log LOG = ExecutionGraph.LOG;
+	private static final Logger LOG = ExecutionGraph.LOG;
 	
 	
 	private final ExecutionGraph graph;
@@ -49,6 +51,8 @@ public class ExecutionJobVertex {
 	private final ExecutionVertex2[] taskVertices;
 
 	private final IntermediateResult[] producedDataSets;
+	
+	private final List<IntermediateResult> inputs;
 	
 	private final InputSplitAssigner splitAssigner;
 	
@@ -79,6 +83,8 @@ public class ExecutionJobVertex {
 		this.parallelism = numTaskVertices;
 		this.taskVertices = new ExecutionVertex2[numTaskVertices];
 		
+		this.inputs = new ArrayList<IntermediateResult>(jobVertex.getInputs().size());
+		
 		// create the intermediate results
 		this.producedDataSets = new IntermediateResult[jobVertex.getNumberOfProducedIntermediateDataSets()];
 		for (int i = 0; i < jobVertex.getProducedDataSets().size(); i++) {
@@ -90,6 +96,13 @@ public class ExecutionJobVertex {
 		for (int i = 0; i < numTaskVertices; i++) {
 			ExecutionVertex2 vertex = new ExecutionVertex2(this, i, this.producedDataSets);
 			this.taskVertices[i] = vertex;
+		}
+		
+		// sanity check for the double referencing between intermediate result partitions and execution vertices
+		for (IntermediateResult ir : this.producedDataSets) {
+			if (ir.getNumberOfAssignedPartitions() != parallelism) {
+				throw new RuntimeException("The intermediate result's partitions were not correctly assiged.");
+			}
 		}
 		
 		// take the sharing group
@@ -151,6 +164,10 @@ public class ExecutionJobVertex {
 		return slotSharingGroup;
 	}
 	
+	public List<IntermediateResult> getInputs() {
+		return inputs;
+	}
+	
 	//---------------------------------------------------------------------------------------------
 	
 	public void connectToPredecessors(Map<IntermediateDataSetID, IntermediateResult> intermediateDataSets) throws JobException {
@@ -182,14 +199,14 @@ public class ExecutionJobVertex {
 						+ edge.getSourceId());
 			}
 			
+			this.inputs.add(ires);
+			
 			int consumerIndex = ires.registerConsumer();
 			
 			for (int i = 0; i < parallelism; i++) {
 				ExecutionVertex2 ev = taskVertices[i];
 				ev.connectSource(num, ires, edge, consumerIndex);
 			}
-			
-			
 		}
 	}
 	

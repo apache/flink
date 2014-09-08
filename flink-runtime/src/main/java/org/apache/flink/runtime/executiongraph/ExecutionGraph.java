@@ -21,9 +21,11 @@ package org.apache.flink.runtime.executiongraph;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.ConcurrentModificationException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
@@ -50,6 +52,8 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.DefaultScheduler;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 
+import com.google.common.base.Preconditions;
+
 
 public class ExecutionGraph {
 
@@ -73,6 +77,8 @@ public class ExecutionGraph {
 	/** All job vertices that are part of this graph */
 	private final ConcurrentHashMap<JobVertexID, ExecutionJobVertex> tasks;
 	
+	private final List<ExecutionJobVertex> verticesInCreationOrder;
+	
 	/** All intermediate results that are part of this graph */
 	private final ConcurrentHashMap<IntermediateDataSetID, IntermediateResult> intermediateResults;
 	
@@ -94,6 +100,8 @@ public class ExecutionGraph {
 	
 	private volatile JobStatus state = JobStatus.CREATED;
 	
+	private final long[] stateTimestamps;
+	
 	
 	
 	public ExecutionGraph(JobID jobId, String jobName, Configuration jobConfig) {
@@ -112,10 +120,13 @@ public class ExecutionGraph {
 		
 		this.tasks = new ConcurrentHashMap<JobVertexID, ExecutionJobVertex>();
 		this.intermediateResults = new ConcurrentHashMap<IntermediateDataSetID, IntermediateResult>();
+		this.verticesInCreationOrder = new ArrayList<ExecutionJobVertex>();
 		
 		this.userCodeJarFiles = new ArrayList<String>();
 		this.jobStatusListeners = new CopyOnWriteArrayList<JobStatusListener>();
 		this.executionListeners = new CopyOnWriteArrayList<ExecutionListener>();
+		
+		this.stateTimestamps = new long[JobStatus.values().length];
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -145,6 +156,8 @@ public class ExecutionGraph {
 							res.getId(), res, previousDataSet));
 				}
 			}
+			
+			this.verticesInCreationOrder.add(ejv);
 		}
 	}
 	
@@ -182,6 +195,40 @@ public class ExecutionGraph {
 		return Collections.unmodifiableMap(this.tasks);
 	}
 	
+	public Iterable<ExecutionJobVertex> getVerticesTopologically() {
+		// we return a specific iterator that does not fail with concurrent modifications
+		// the list is append only, so it is safe for that
+		final int numElements = this.verticesInCreationOrder.size();
+		
+		return new Iterable<ExecutionJobVertex>() {
+			@Override
+			public Iterator<ExecutionJobVertex> iterator() {
+				return new Iterator<ExecutionJobVertex>() {
+					private int pos = 0;
+
+					@Override
+					public boolean hasNext() {
+						return pos < numElements;
+					}
+
+					@Override
+					public ExecutionJobVertex next() {
+						if (hasNext()) {
+							return verticesInCreationOrder.get(pos++);
+						} else {
+							throw new NoSuchElementException();
+						}
+					}
+
+					@Override
+					public void remove() {
+						throw new UnsupportedOperationException();
+					}
+				};
+			}
+		};
+	}
+	
 	public Map<IntermediateDataSetID, IntermediateResult> getAllIntermediateResults() {
 		return Collections.unmodifiableMap(this.intermediateResults);
 	}
@@ -190,9 +237,13 @@ public class ExecutionGraph {
 		return new Iterable<ExecutionVertex2>() {
 			@Override
 			public Iterator<ExecutionVertex2> iterator() {
-				return new AllVerticesIterator(tasks.values().iterator());
+				return new AllVerticesIterator(getVerticesTopologically().iterator());
 			}
 		};
+	}
+	
+	public long getStatusTimestamp(JobStatus status) {
+		return this.stateTimestamps[status.ordinal()];
 	}
 	
 	public boolean isQueuedSchedulingAllowed() {

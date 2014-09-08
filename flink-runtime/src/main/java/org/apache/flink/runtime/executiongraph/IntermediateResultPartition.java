@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.executiongraph;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 public class IntermediateResultPartition {

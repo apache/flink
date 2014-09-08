@@ -40,8 +40,7 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.OptionBuilder;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -82,7 +81,6 @@ import org.apache.flink.runtime.jobmanager.archive.ArchiveListener;
 import org.apache.flink.runtime.jobmanager.archive.MemoryArchivist;
 import org.apache.flink.runtime.jobmanager.scheduler.DefaultScheduler;
 import org.apache.flink.runtime.jobmanager.web.WebInfoServer;
-import org.apache.flink.runtime.managementgraph.ManagementGraph;
 import org.apache.flink.runtime.protocols.AccumulatorProtocol;
 import org.apache.flink.runtime.protocols.ChannelLookupProtocol;
 import org.apache.flink.runtime.protocols.ExtendedManagementProtocol;
@@ -94,10 +92,9 @@ import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.util.SerializableArrayList;
 import org.apache.flink.util.StringUtils;
-import org.apache.log4j.ConsoleAppender;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
-import org.apache.log4j.PatternLayout;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
 
@@ -109,7 +106,7 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 		JobManagerProtocol, ChannelLookupProtocol, JobStatusListener, AccumulatorProtocol
 {
 
-	private static final Log LOG = LogFactory.getLog(JobManager.class);
+	private static final Logger LOG = LoggerFactory.getLogger(JobManager.class);
 
 	private final static int FAILURE_RETURN_CODE = 1;
 	
@@ -251,7 +248,7 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 			try {
 				this.executorService.awaitTermination(5000L, TimeUnit.MILLISECONDS);
 			} catch (InterruptedException e) {
-				LOG.debug(e);
+				LOG.debug("Shutdown of executor thread pool interrupted", e);
 			}
 		}
 
@@ -523,28 +520,6 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 	public InstanceManager getInstanceManager() {
 		return this.instanceManager;
 	}
-	
-	/**
-	 * Returns current ManagementGraph from eventCollector and, if not current, from archive
-	 * 
-	 * {@inheritDoc}
-	 */
-	@Override
-	public ManagementGraph getManagementGraph(final JobID jobID) throws IOException {
-
-		ManagementGraph mg = this.eventCollector.getManagementGraph(jobID);
-		if (mg == null) {
-			if(this.archive != null) {
-				mg = this.archive.getManagementGraph(jobID);
-			}
-			
-			if (mg == null) {
-				throw new IOException("Cannot find job with ID " + jobID);
-			}
-		}
-
-		return mg;
-	}
 
 	@Override
 	public IntegerRecord getRecommendedPollingInterval() throws IOException {
@@ -641,6 +616,21 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 	public Map<JobID, ExecutionGraph> getCurrentJobs() {
 		return Collections.unmodifiableMap(currentJobs);
 	}
+	
+	public ExecutionGraph getRecentExecutionGraph(JobID jobID) throws IOException {
+		ExecutionGraph eg = currentJobs.get(jobID);
+		if (eg == null) {
+			eg = this.eventCollector.getManagementGraph(jobID);
+			if (eg == null && this.archive != null) {
+				eg = this.archive.getExecutionGraph(jobID);
+			}
+		}
+		
+		if (eg == null) {
+			throw new IOException("Cannot find execution graph for job with ID " + jobID);
+		}
+		return eg;
+	}
 
 	// --------------------------------------------------------------------------------------------
 	//  TaskManager to JobManager communication
@@ -669,15 +659,6 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 	 */
 	
 	public static void main(String[] args) {
-		// determine if a valid log4j config exists and initialize a default logger if not
-		if (System.getProperty("log4j.configuration") == null) {
-			Logger root = Logger.getRootLogger();
-			root.removeAllAppenders();
-			PatternLayout layout = new PatternLayout("%d{HH:mm:ss,SSS} %-5p %-60c %x - %m%n");
-			ConsoleAppender appender = new ConsoleAppender(layout, "System.err");
-			root.addAppender(appender);
-			root.setLevel(Level.INFO);
-		}
 		
 		JobManager jobManager;
 		try {
@@ -686,7 +667,7 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 			jobManager.startInfoServer();
 		}
 		catch (Exception e) {
-			LOG.fatal(e.getMessage(), e);
+			LOG.error(e.getMessage(), e);
 			System.exit(FAILURE_RETURN_CODE);
 		}
 		

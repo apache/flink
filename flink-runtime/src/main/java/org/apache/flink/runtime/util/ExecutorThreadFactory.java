@@ -21,12 +21,12 @@ package org.apache.flink.runtime.util;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ExecutorThreadFactory implements ThreadFactory {
 	
-	private static final Log LOG = LogFactory.getLog(ExecutorThreadFactory.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ExecutorThreadFactory.class);
 	
 	
 	private static final String THREAD_NAME_PREFIX = "Flink Executor Thread - ";

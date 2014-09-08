@@ -24,7 +24,6 @@ import java.util.List;
 import org.apache.flink.runtime.event.job.AbstractEvent;
 import org.apache.flink.runtime.event.job.RecentJobEvent;
 import org.apache.flink.runtime.jobgraph.JobID;
-import org.apache.flink.runtime.managementgraph.ManagementGraph;
 
 /**
  * This protocol provides extended management capabilities beyond the
@@ -33,18 +32,6 @@ import org.apache.flink.runtime.managementgraph.ManagementGraph;
  * information about thread or instance utilization.
  */
 public interface ExtendedManagementProtocol extends JobManagementProtocol {
-
-	/**
-	 * Retrieves the management graph for the job
-	 * with the given ID.
-	 * 
-	 * @param jobID
-	 *        the ID identifying the job
-	 * @return the management graph for the job
-	 * @throws IOException
-	 *         thrown if an error occurs while retrieving the management graph
-	 */
-	ManagementGraph getManagementGraph(JobID jobID) throws IOException;
 
 	/**
 	 * Retrieves a list of jobs which have either running or have been started recently.

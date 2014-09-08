@@ -21,12 +21,12 @@ package org.apache.flink.runtime.instance;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.commons.logging.LogFactory;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.ExecutionMode;
 import org.apache.flink.runtime.taskmanager.TaskManager;
+import org.slf4j.LoggerFactory;
 
 /**
  * A variant of the {@link InstanceManager} that internally spawn task managers as instances, rather than waiting for external
@@ -73,7 +73,7 @@ public class LocalInstanceManager extends InstanceManager {
 					// log and continue in any case
 					// we initialize the log lazily, because this is the only place we log
 					// and most likely we never log.
-					LogFactory.getLog(LocalInstanceManager.class).error("Error shutting down local embedded TaskManager.", t);
+					LoggerFactory.getLogger(LocalInstanceManager.class).error("Error shutting down local embedded TaskManager.", t);
 				}
 			}
 		} finally {

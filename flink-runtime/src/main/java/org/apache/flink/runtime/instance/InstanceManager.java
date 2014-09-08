@@ -28,17 +28,17 @@ import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Simple manager that keeps track of which TaskManager are available and alive.
  */
 public class InstanceManager {
 
-	private static final Log LOG = LogFactory.getLog(InstanceManager.class);
+	private static final Logger LOG = LoggerFactory.getLogger(InstanceManager.class);
 
 	// ------------------------------------------------------------------------
 	// Fields
@@ -201,6 +201,8 @@ public class InstanceManager {
 	
 	public Map<InstanceID, Instance> getAllRegisteredInstances() {
 		synchronized (this.lock) {
+			// return a copy (rather than a Collections.unmodifiable(...) wrapper), such that
+			// concurrent modifications do not interfere with the traversals or lookups
 			return new HashMap<InstanceID, Instance>(this.registeredHostsById);
 		}
 	}

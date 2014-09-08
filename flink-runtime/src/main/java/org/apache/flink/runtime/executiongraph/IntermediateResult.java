@@ -64,8 +64,16 @@ public class IntermediateResult {
 		return id;
 	}
 	
+	public ExecutionJobVertex getProducer() {
+		return producer;
+	}
+	
 	public IntermediateResultPartition[] getPartitions() {
 		return partitions;
+	}
+	
+	public int getNumberOfAssignedPartitions() {
+		return partitionsAssigned;
 	}
 	
 	public int registerConsumer() {

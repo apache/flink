@@ -26,6 +26,7 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.ipc.RPC;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.net.NetUtils;
 import org.apache.flink.runtime.profiling.ProfilingException;
 import org.apache.flink.runtime.profiling.ProfilingUtils;
@@ -172,7 +173,7 @@ public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerPro
 		}
 	}
 
-	public void registerMainThreadForCPUProfiling(Environment environment, Thread thread, ExecutionAttemptID executionID) {
+	public void registerMainThreadForCPUProfiling(Environment environment, Thread thread, JobVertexID vertexId, int subtask, ExecutionAttemptID executionID) {
 
 		synchronized (this.monitoredThreads) {
 			LOG.debug("Registering thread " + thread.getName() + " for CPU monitoring");
@@ -181,7 +182,7 @@ public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerPro
 					+ environment.getTaskName());
 			}
 
-			this.monitoredThreads.put(environment, new EnvironmentThreadSet(this.tmx, thread, executionID));
+			this.monitoredThreads.put(environment, new EnvironmentThreadSet(this.tmx, thread, vertexId, subtask, executionID));
 		}
 	}
 

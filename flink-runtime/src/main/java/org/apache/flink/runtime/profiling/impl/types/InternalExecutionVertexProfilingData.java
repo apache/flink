@@ -24,41 +24,67 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 
 public abstract class InternalExecutionVertexProfilingData implements InternalProfilingData {
 
-	private final ExecutionAttemptID executionId;
-
 	private final JobID jobId;
+	
+	private final JobVertexID vertexId;
+	
+	private int subtask;
+	
+	private final ExecutionAttemptID executionId;
 
 	
 	public InternalExecutionVertexProfilingData() {
 		this.jobId = new JobID();
+		this.vertexId = new JobVertexID();
 		this.executionId = new ExecutionAttemptID();
+		this.subtask = -1;
 	}
 
-	public InternalExecutionVertexProfilingData(JobID jobID, ExecutionAttemptID executionId) {
-		this.jobId = jobID;
+	
+	public InternalExecutionVertexProfilingData(JobID jobId, JobVertexID vertexId, int subtask, ExecutionAttemptID executionId) {
+		this.jobId = jobId;
+		this.vertexId = vertexId;
+		this.subtask = subtask;
 		this.executionId = executionId;
 	}
 
-	public ExecutionAttemptID getExecutionAttemptId() {
-		return this.executionId;
-	}
-
+	// --------------------------------------------------------------------------------------------
+	
 	public JobID getJobID() {
 		return this.jobId;
 	}
-
+	
+	public JobVertexID getVertexId() {
+		return vertexId;
+	}
+	
+	public int getSubtask() {
+		return subtask;
+	}
+	
+	public ExecutionAttemptID getExecutionAttemptId() {
+		return this.executionId;
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
 	@Override
 	public void read(DataInputView in) throws IOException {
 		this.jobId.read(in);
+		this.vertexId.read(in);
 		this.executionId.read(in);
+		this.subtask = in.readInt();
 	}
 
 	@Override
 	public void write(DataOutputView out) throws IOException {
 		this.jobId.write(out);
+		this.vertexId.write(out);
 		this.executionId.write(out);
+		out.writeInt(this.subtask);
 	}
 }

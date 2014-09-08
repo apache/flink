@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.util;
 
 import java.io.InputStream;
@@ -33,6 +32,12 @@ public class EnvironmentInformation {
 	private static final Logger LOG = LoggerFactory.getLogger(EnvironmentInformation.class);
 
 	private static final String UNKNOWN = "<unknown>";
+	
+	private static final String[] IGNORED_STARTUP_OPTIONS = {
+													"-Dlog.file",
+													"-Dlogback.configurationFile",
+													"-Dlog4j.configuration"
+												};
 
 	/**
 	 * Returns the version of the code as String. If version == null, then the JobManager does not run from a
@@ -156,6 +161,22 @@ public class EnvironmentInformation {
 		try {
 			final RuntimeMXBean bean = ManagementFactory.getRuntimeMXBean();
 			final StringBuilder bld = new StringBuilder();
+			
+			for (String s : bean.getInputArguments()) {
+				
+				boolean append = true;
+				for (String ignored : IGNORED_STARTUP_OPTIONS) {
+					if (s.startsWith(ignored)) {
+						append = false;
+						break;
+					}
+				}
+				
+				if (append) {
+					bld.append(s).append(' ');
+				}
+			}
+
 			return bld.toString();
 		}
 		catch (Throwable t) {

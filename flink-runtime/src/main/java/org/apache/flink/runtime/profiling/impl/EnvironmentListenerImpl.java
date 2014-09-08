@@ -35,6 +35,7 @@ public class EnvironmentListenerImpl implements ExecutionListener {
 
 	private final RuntimeEnvironment environment;
 
+	
 	public EnvironmentListenerImpl(TaskManagerProfilerImpl taskManagerProfiler, RuntimeEnvironment environment) {
 		this.taskManagerProfiler = taskManagerProfiler;
 		this.environment = environment;
@@ -46,7 +47,7 @@ public class EnvironmentListenerImpl implements ExecutionListener {
 
 		switch (newExecutionState) {
 		case RUNNING:
-			this.taskManagerProfiler.registerMainThreadForCPUProfiling(this.environment, this.environment.getExecutingThread(), executionId);
+			this.taskManagerProfiler.registerMainThreadForCPUProfiling(this.environment, this.environment.getExecutingThread(), vertexId, subtaskIndex, executionId);
 			break;
 			
 		case FINISHED:

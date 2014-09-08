@@ -16,14 +16,12 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.jobmanager.web;
 
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -35,21 +33,22 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.runtime.event.job.AbstractEvent;
 import org.apache.flink.runtime.event.job.ExecutionStateChangeEvent;
 import org.apache.flink.runtime.event.job.JobEvent;
 import org.apache.flink.runtime.event.job.RecentJobEvent;
-import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.execution.ExecutionState2;
+import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.ExecutionVertex2;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.JobManager;
-import org.apache.flink.runtime.managementgraph.ManagementGraph;
-import org.apache.flink.runtime.managementgraph.ManagementGraphIterator;
-import org.apache.flink.runtime.managementgraph.ManagementGroupVertex;
-import org.apache.flink.runtime.managementgraph.ManagementGroupVertexID;
-import org.apache.flink.runtime.managementgraph.ManagementVertex;
 import org.apache.flink.runtime.util.EnvironmentInformation;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.StringUtils;
 import org.eclipse.jetty.io.EofException;
 
@@ -58,19 +57,16 @@ public class JobmanagerInfoServlet extends HttpServlet {
 	
 	private static final long serialVersionUID = 1L;
 	
-	/**
-	 * The log for this class.
-	 */
 	private static final Logger LOG = LoggerFactory.getLogger(JobmanagerInfoServlet.class);
 	
-	/**
-	 * Underlying JobManager
-	 */
+	/** Underlying JobManager */
 	private final JobManager jobmanager;
+	
 	
 	public JobmanagerInfoServlet(JobManager jobmanager) {
 		this.jobmanager = jobmanager;
 	}
+	
 	
 	@Override
 	protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
@@ -89,7 +85,7 @@ public class JobmanagerInfoServlet extends HttpServlet {
 			else if("groupvertex".equals(req.getParameter("get"))) {
 				String jobId = req.getParameter("job");
 				String groupvertexId = req.getParameter("groupvertex");
-				writeJsonForArchivedJobGroupvertex(resp.getWriter(), jobmanager.getArchive().getJob(JobID.fromHexString(jobId)), ManagementGroupVertexID.fromHexString(groupvertexId));
+				writeJsonForArchivedJobGroupvertex(resp.getWriter(), jobmanager.getArchive().getJob(JobID.fromHexString(jobId)), JobVertexID.fromHexString(groupvertexId));
 			}
 			else if("taskmanagers".equals(req.getParameter("get"))) {
 				resp.getWriter().write("{\"taskmanagers\": " + jobmanager.getNumberOfTaskManagers() +"}");
@@ -152,7 +148,7 @@ public class JobmanagerInfoServlet extends HttpServlet {
 	
 	private void writeJsonForJob(PrintWriter wrt, RecentJobEvent jobEvent) throws IOException {
 		
-		ManagementGraph jobManagementGraph = jobmanager.getManagementGraph(jobEvent.getJobID());
+		ExecutionGraph graph = jobmanager.getRecentExecutionGraph(jobEvent.getJobID());
 		
 		//Serialize job to json
 		wrt.write("{");
@@ -164,14 +160,15 @@ public class JobmanagerInfoServlet extends HttpServlet {
 		// Serialize ManagementGraph to json
 		wrt.write("\"groupvertices\": [");
 		boolean first = true;
-		for(ManagementGroupVertex groupVertex : jobManagementGraph.getGroupVerticesInTopologicalOrder()) {
+		
+		for (ExecutionJobVertex groupVertex : graph.getVerticesTopologically()) {
 			//Write seperator between json objects
 			if(first) {
 				first = false;
 			} else {
 				wrt.write(","); }
 			
-			wrt.write(groupVertex.toJson());
+			wrt.write(JsonFactory.toJson(groupVertex));
 		}
 		wrt.write("]");
 		wrt.write("}");
@@ -235,39 +232,33 @@ public class JobmanagerInfoServlet extends HttpServlet {
 		
 			wrt.write("[");
 		
-			ManagementGraph jobManagementGraph = jobmanager.getManagementGraph(jobEvent.getJobID());
+			ExecutionGraph graph = jobmanager.getRecentExecutionGraph(jobEvent.getJobID());
 			
 			//Serialize job to json
 			wrt.write("{");
 			wrt.write("\"jobid\": \"" + jobEvent.getJobID() + "\",");
 			wrt.write("\"jobname\": \"" + jobEvent.getJobName()+"\",");
 			wrt.write("\"status\": \""+ jobEvent.getJobStatus() + "\",");
-			wrt.write("\"SCHEDULED\": "+ jobmanager.getArchive().getJobTime(jobEvent.getJobID(), JobStatus.SCHEDULED) + ",");
-			wrt.write("\"RUNNING\": "+ jobmanager.getArchive().getJobTime(jobEvent.getJobID(), JobStatus.RUNNING) + ",");
-			wrt.write("\"FINISHED\": "+ jobmanager.getArchive().getJobTime(jobEvent.getJobID(), JobStatus.FINISHED) + ",");
-			wrt.write("\"FAILED\": "+ jobmanager.getArchive().getJobTime(jobEvent.getJobID(), JobStatus.FAILED) + ",");
-			wrt.write("\"CANCELED\": "+ jobmanager.getArchive().getJobTime(jobEvent.getJobID(), JobStatus.CANCELED) + ",");
-			wrt.write("\"CREATED\": " + jobmanager.getArchive().getJobTime(jobEvent.getJobID(), JobStatus.CREATED)+",");
+			wrt.write("\"SCHEDULED\": "+ graph.getStatusTimestamp(JobStatus.CREATED) + ",");
+			wrt.write("\"RUNNING\": "+ graph.getStatusTimestamp(JobStatus.RUNNING) + ",");
+			wrt.write("\"FINISHED\": "+ graph.getStatusTimestamp(JobStatus.FINISHED) + ",");
+			wrt.write("\"FAILED\": "+ graph.getStatusTimestamp(JobStatus.FAILED) + ",");
+			wrt.write("\"CANCELED\": "+ graph.getStatusTimestamp(JobStatus.CANCELED) + ",");
 
 			if (jobEvent.getJobStatus() == JobStatus.FAILED) {
-			ManagementGraphIterator managementGraphIterator =  new ManagementGraphIterator(jobManagementGraph,true);
-			wrt.write("\"failednodes\": [");
-			HashSet<String> map = new HashSet<String>();
-			boolean first = true;
-			while (managementGraphIterator.hasNext()) {
-				ManagementVertex managementVertex = managementGraphIterator.next();
-				String instanceName = managementVertex.getInstanceName();
-				if (managementVertex.getExecutionState() == ExecutionState.FAILED && !map.contains(instanceName)) {
+				wrt.write("\"failednodes\": [");
+				boolean first = true;
+				for (ExecutionVertex2 vertex : graph.getAllExecutionVertices()) {
+					if (vertex.getExecutionState() == ExecutionState2.FAILED) {
 					if (first) {
 						first = false;
 					} else {
 						wrt.write(",");
 					}
 					wrt.write("{");
-					wrt.write("\"node\": \"" + instanceName + "\",");
-					wrt.write("\"message\": \"" + StringUtils.escapeHtml(managementVertex.getOptMessage()) + "\"");
+					wrt.write("\"node\": \"" + vertex.getAssignedResource().getInstance().getInstanceConnectionInfo().hostname() + "\",");
+					wrt.write("\"message\": \"" + StringUtils.escapeHtml(ExceptionUtils.stringifyException(vertex.getFailureCause())) + "\"");
 					wrt.write("}");
-					map.add(instanceName);
 				}
 			}
 			wrt.write("],");
@@ -276,14 +267,14 @@ public class JobmanagerInfoServlet extends HttpServlet {
 			// Serialize ManagementGraph to json
 			wrt.write("\"groupvertices\": [");
 			boolean first = true;
-			for(ManagementGroupVertex groupVertex : jobManagementGraph.getGroupVerticesInTopologicalOrder()) {
+			for (ExecutionJobVertex groupVertex : graph.getVerticesTopologically()) {
 				//Write seperator between json objects
 				if(first) {
 					first = false;
 				} else {
 					wrt.write(","); }
 				
-				wrt.write(groupVertex.toJson());
+				wrt.write(JsonFactory.toJson(groupVertex));
 				
 			}
 			wrt.write("],");
@@ -304,7 +295,7 @@ public class JobmanagerInfoServlet extends HttpServlet {
 			
 			wrt.write("\"groupverticetimes\": {");
 			first = true;
-			for(ManagementGroupVertex groupVertex : jobManagementGraph.getGroupVerticesInTopologicalOrder()) {
+			for (ExecutionJobVertex groupVertex : graph.getVerticesTopologically()) {
 				
 				if(first) {
 					first = false;
@@ -316,17 +307,16 @@ public class JobmanagerInfoServlet extends HttpServlet {
 				long ended = 0;
 				
 				// Take earliest running state and latest endstate of groupmembers
-				for(int j = 0; j < groupVertex.getNumberOfGroupMembers(); j++) {
-					ManagementVertex vertex = groupVertex.getGroupMember(j);
+				for (ExecutionVertex2 vertex : groupVertex.getTaskVertices()) {
 					
-					long running = jobmanager.getArchive().getVertexTime(jobEvent.getJobID(), vertex.getID(), ExecutionState.RUNNING);
-					if(running != 0 && running < started) {
+					long running = vertex.getStateTimestamp(ExecutionState2.RUNNING);
+					if (running != 0 && running < started) {
 						started = running;
 					}
 					
-					long finished = jobmanager.getArchive().getVertexTime(jobEvent.getJobID(), vertex.getID(), ExecutionState.FINISHED);
-					long canceled = jobmanager.getArchive().getVertexTime(jobEvent.getJobID(), vertex.getID(), ExecutionState.CANCELED);
-					long failed = jobmanager.getArchive().getVertexTime(jobEvent.getJobID(), vertex.getID(), ExecutionState.FAILED);
+					long finished = vertex.getStateTimestamp(ExecutionState2.FINISHED);
+					long canceled = vertex.getStateTimestamp(ExecutionState2.CANCELED);
+					long failed = vertex.getStateTimestamp(ExecutionState2.FAILED);
 					
 					if(finished != 0 && finished > ended) {
 						ended = finished;
@@ -342,8 +332,8 @@ public class JobmanagerInfoServlet extends HttpServlet {
 
 				}
 				
-				wrt.write("\""+groupVertex.getID()+"\": {");
-				wrt.write("\"groupvertexid\": \"" + groupVertex.getID() + "\",");
+				wrt.write("\""+groupVertex.getJobVertexId()+"\": {");
+				wrt.write("\"groupvertexid\": \"" + groupVertex.getJobVertexId() + "\",");
 				wrt.write("\"groupvertexname\": \"" + groupVertex + "\",");
 				wrt.write("\"STARTED\": "+ started + ",");
 				wrt.write("\"ENDED\": "+ ended);
@@ -400,9 +390,9 @@ public class JobmanagerInfoServlet extends HttpServlet {
 			wrt.write("\"vertexevents\": [");
 		
 			first = true;
-			for(AbstractEvent event: events) {
+			for (AbstractEvent event: events) {
 				
-				if(event instanceof ExecutionStateChangeEvent) {
+				if (event instanceof ExecutionStateChangeEvent) {
 					
 					if(first) {
 						first = false;
@@ -411,7 +401,7 @@ public class JobmanagerInfoServlet extends HttpServlet {
 					
 					ExecutionStateChangeEvent vertexevent = (ExecutionStateChangeEvent) event;
 					wrt.write("{");
-					wrt.write("\"vertexid\": \"" + vertexevent.getVertexID() + "\",");
+					wrt.write("\"vertexid\": \"" + vertexevent.getExecutionAttemptID() + "\",");
 					wrt.write("\"newstate\": \"" + vertexevent.getNewExecutionState() + "\",");
 					wrt.write("\"timestamp\": \"" + vertexevent.getTimestamp() + "\"");
 					wrt.write("}");
@@ -454,62 +444,59 @@ public class JobmanagerInfoServlet extends HttpServlet {
 	}
 	
 	/**
-	 * Writes infos about one particular archived groupvertex in a job, including all groupmembers, their times and status
-	 * 
-	 * @param wrt
-	 * @param jobEvent
-	 * @param groupvertexId
+	 * Writes info about one particular archived JobVertex in a job, including all member execution vertices, their times and statuses.
 	 */
-	private void writeJsonForArchivedJobGroupvertex(PrintWriter wrt, RecentJobEvent jobEvent, ManagementGroupVertexID groupvertexId) {
-		
-		
+	private void writeJsonForArchivedJobGroupvertex(PrintWriter wrt, RecentJobEvent jobEvent, JobVertexID vertexId) {
 		try {
-		
-		ManagementGraph jobManagementGraph = jobmanager.getManagementGraph(jobEvent.getJobID());
-		
-		ManagementGroupVertex groupvertex = jobManagementGraph.getGroupVertexByID(groupvertexId);
-		
-		// Serialize ManagementGraph to json
-		wrt.write("{\"groupvertex\": "+groupvertex.toJson()+",");
-		
-		wrt.write("\"verticetimes\": {");
-		boolean first = true;
-		for(ManagementGroupVertex groupVertex : jobManagementGraph.getGroupVerticesInTopologicalOrder()) {
+			ExecutionGraph graph = jobmanager.getRecentExecutionGraph(jobEvent.getJobID());
 			
-			for(int j = 0; j < groupVertex.getNumberOfGroupMembers(); j++) {
-				ManagementVertex vertex = groupVertex.getGroupMember(j);
+			ExecutionJobVertex jobVertex = graph.getJobVertex(vertexId);
+			
+			// Serialize ManagementGraph to json
+			wrt.write("{\"groupvertex\": " + JsonFactory.toJson(jobVertex) + ",");
+			
+			wrt.write("\"verticetimes\": {");
+			boolean first = true;
+			for (ExecutionJobVertex groupVertex : graph.getAllVertices().values()) {
 				
-				if(first) {
-					first = false;
-				} else {
-					wrt.write(","); }
+				int num = 0;
+				for (ExecutionVertex2 vertex : groupVertex.getTaskVertices()) {
+					
+					if(first) {
+						first = false;
+					} else {
+						wrt.write(","); }
+					
+					wrt.write("\""+jobVertex.getJobVertex()+"-"+num +"\": {");
+					wrt.write("\"vertexid\": \"" + vertex.getJobvertexId() + "\",");
+					wrt.write("\"vertexname\": \"" + vertex + "\",");
+					wrt.write("\"CREATED\": "+ vertex.getStateTimestamp(ExecutionState2.CREATED) + ",");
+					wrt.write("\"SCHEDULED\": "+ vertex.getStateTimestamp(ExecutionState2.SCHEDULED) + ",");
+					wrt.write("\"STARTING\": "+ vertex.getStateTimestamp(ExecutionState2.DEPLOYING) + ",");
+					wrt.write("\"RUNNING\": "+ vertex.getStateTimestamp(ExecutionState2.RUNNING) + ",");
+					wrt.write("\"FINISHED\": "+ vertex.getStateTimestamp(ExecutionState2.FINISHED) + ",");
+					wrt.write("\"CANCELING\": "+ vertex.getStateTimestamp(ExecutionState2.CANCELING) + ",");
+					wrt.write("\"CANCELED\": "+ vertex.getStateTimestamp(ExecutionState2.CANCELED) + ",");
+					wrt.write("\"FAILED\": "+ vertex.getStateTimestamp(ExecutionState2.FAILED) + "");
+					wrt.write("}");
+					
+					num++;
+				}
 				
-				wrt.write("\""+vertex.getID()+"\": {");
-				wrt.write("\"vertexid\": \"" + vertex.getID() + "\",");
-				wrt.write("\"vertexname\": \"" + vertex + "\",");
-				wrt.write("\"CREATED\": "+ jobmanager.getArchive().getVertexTime(jobEvent.getJobID(), vertex.getID(), ExecutionState.CREATED) + ",");
-				wrt.write("\"SCHEDULED\": "+ jobmanager.getArchive().getVertexTime(jobEvent.getJobID(), vertex.getID(), ExecutionState.SCHEDULED) + ",");
-				wrt.write("\"ASSIGNED\": "+ jobmanager.getArchive().getVertexTime(jobEvent.getJobID(), vertex.getID(), ExecutionState.ASSIGNED) + ",");
-				wrt.write("\"READY\": "+ jobmanager.getArchive().getVertexTime(jobEvent.getJobID(), vertex.getID(), ExecutionState.READY) + ",");
-				wrt.write("\"STARTING\": "+ jobmanager.getArchive().getVertexTime(jobEvent.getJobID(), vertex.getID(), ExecutionState.STARTING) + ",");
-				wrt.write("\"RUNNING\": "+ jobmanager.getArchive().getVertexTime(jobEvent.getJobID(), vertex.getID(), ExecutionState.RUNNING) + ",");
-				wrt.write("\"FINISHING\": "+ jobmanager.getArchive().getVertexTime(jobEvent.getJobID(), vertex.getID(), ExecutionState.FINISHING) + ",");
-				wrt.write("\"FINISHED\": "+ jobmanager.getArchive().getVertexTime(jobEvent.getJobID(), vertex.getID(), ExecutionState.FINISHED) + ",");
-				wrt.write("\"CANCELING\": "+ jobmanager.getArchive().getVertexTime(jobEvent.getJobID(), vertex.getID(), ExecutionState.CANCELING) + ",");
-				wrt.write("\"CANCELED\": "+ jobmanager.getArchive().getVertexTime(jobEvent.getJobID(), vertex.getID(), ExecutionState.CANCELED) + ",");
-				wrt.write("\"FAILED\": "+ jobmanager.getArchive().getVertexTime(jobEvent.getJobID(), vertex.getID(), ExecutionState.FAILED) + "");
-				wrt.write("}");
 			}
+			wrt.write("}}");
 			
 		}
-		wrt.write("}}");
-		
-	} catch (EofException eof) { // Connection closed by client
-		LOG.info("Info server for jobmanager: Connection closed by client, EofException");
-	} catch (IOException ioe) { // Connection closed by client	
-		LOG.info("Info server for jobmanager: Connection closed by client, IOException");
-	} 
-		
+		catch (IOException ioe) { // Connection closed by client
+			String message = "Info server for jobmanager: Connection closed by client - " + ioe.getClass().getSimpleName();
+			
+			if (LOG.isDebugEnabled()) {
+				LOG.debug(message, ioe);
+			}
+			else if (LOG.isInfoEnabled()) {
+				LOG.info(message);
+			}
+		} 
 	}
 	
 	/**

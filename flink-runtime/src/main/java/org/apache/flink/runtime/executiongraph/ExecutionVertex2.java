@@ -40,6 +40,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotAllocationFuture;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotAllocationFutureAction;
 import org.apache.flink.runtime.taskmanager.TaskOperationResult;
 import org.apache.flink.util.StringUtils;
+import org.slf4j.Logger;
 
 import static org.apache.flink.runtime.execution.ExecutionState2.*;
 
@@ -67,7 +68,7 @@ public class ExecutionVertex2 {
 	private static final AtomicReferenceFieldUpdater<ExecutionVertex2, AllocatedSlot> ASSIGNED_SLOT_UPDATER =
 			AtomicReferenceFieldUpdater.newUpdater(ExecutionVertex2.class, AllocatedSlot.class, "assignedSlot");
 
-	private static final Log LOG = ExecutionGraph.LOG;
+	private static final Logger LOG = ExecutionGraph.LOG;
 	
 	private static final int NUM_CANCEL_CALL_TRIES = 3;
 	
@@ -80,6 +81,9 @@ public class ExecutionVertex2 {
 	private final ExecutionEdge2[][] inputEdges;
 	
 	private final int subTaskIndex;
+	
+	
+	private final long[] stateTimestamps;
 	
 	
 	private volatile ExecutionState2 state = CREATED;
@@ -101,6 +105,8 @@ public class ExecutionVertex2 {
 		}
 		
 		this.inputEdges = new ExecutionEdge2[jobVertex.getJobVertex().getInputs().size()][];
+		
+		this.stateTimestamps = new long[ExecutionState2.values().length];
 	}
 	
 	
@@ -150,6 +156,11 @@ public class ExecutionVertex2 {
 	public AllocatedSlot getAssignedResource() {
 		return assignedSlot;
 	}
+	
+	public long getStateTimestamp(ExecutionState2 state) {
+		return this.stateTimestamps[state.ordinal()];
+	}
+	
 	
 	private ExecutionGraph getExecutionGraph() {
 		return this.jobVertex.getGraph();

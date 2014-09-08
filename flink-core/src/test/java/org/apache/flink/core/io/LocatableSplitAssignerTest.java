@@ -27,9 +27,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.flink.api.common.io.LocatableInputSplitAssigner;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.LocatableInputSplit;
-import org.apache.flink.util.LogUtils;
 
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 

@@ -18,48 +18,27 @@
 
 package org.apache.flink.runtime.instance;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 import java.io.IOException;
 import java.net.ServerSocket;
-import java.util.List;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.ExecutionMode;
-import org.apache.flink.runtime.accumulators.AccumulatorEvent;
-import org.apache.flink.runtime.client.JobCancelResult;
-import org.apache.flink.runtime.client.JobProgressResult;
-import org.apache.flink.runtime.client.JobSubmissionResult;
-import org.apache.flink.runtime.event.job.AbstractEvent;
-import org.apache.flink.runtime.event.job.RecentJobEvent;
-import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.executiongraph.JobStatusListener;
-import org.apache.flink.runtime.io.network.ConnectionInfoLookupResponse;
-import org.apache.flink.runtime.io.network.channels.ChannelID;
 import org.apache.flink.runtime.ipc.RPC;
 import org.apache.flink.runtime.ipc.RPC.Server;
-import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobID;
-import org.apache.flink.runtime.jobgraph.JobStatus;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobmanager.DeploymentManager;
-import org.apache.flink.runtime.managementgraph.ManagementGraph;
-import org.apache.flink.runtime.protocols.AccumulatorProtocol;
-import org.apache.flink.runtime.protocols.ChannelLookupProtocol;
-import org.apache.flink.runtime.protocols.ExtendedManagementProtocol;
-import org.apache.flink.runtime.protocols.InputSplitProviderProtocol;
 import org.apache.flink.runtime.protocols.JobManagerProtocol;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManager;
-import org.apache.flink.runtime.types.IntegerRecord;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
-
-import static org.junit.Assert.*;
 
 public class LocalInstanceManagerTest {
 
@@ -71,7 +50,7 @@ public class LocalInstanceManagerTest {
 	public void startJobManagerServer() {
 		try {
 			this.port = getAvailablePort();
-			this.jmServer = RPC.getServer(new EmptyRPCs(), "localhost", this.port, 1);
+			this.jmServer = RPC.getServer(new MockRPC(), "localhost", this.port, 1);
 			this.jmServer.start();
 			
 			Configuration cfg = new Configuration();
@@ -170,71 +149,10 @@ public class LocalInstanceManagerTest {
 		throw new IOException("Could not find a free port.");
 	}
 	
-	private static final class EmptyRPCs implements DeploymentManager, ExtendedManagementProtocol, InputSplitProviderProtocol,
-				JobManagerProtocol, ChannelLookupProtocol, JobStatusListener, AccumulatorProtocol
-	{
-
-		@Override
-		public JobSubmissionResult submitJob(JobGraph job) {
-			return null;
-		}
-
-		@Override
-		public JobProgressResult getJobProgress(JobID jobID) {
-			return null;
-		}
-
-		@Override
-		public JobCancelResult cancelJob(JobID jobID) {
-			return null;
-		}
-
-		@Override
-		public IntegerRecord getRecommendedPollingInterval() {
-			return null;
-		}
-
-		@Override
-		public void reportAccumulatorResult(AccumulatorEvent accumulatorEvent) {}
-
-		@Override
-		public AccumulatorEvent getAccumulatorResults(JobID jobID) {
-			return null;
-		}
-
-		@Override
-		public void jobStatusHasChanged(ExecutionGraph executionGraph, JobStatus newJobStatus, String optionalMessage) {}
-
-		@Override
-		public ConnectionInfoLookupResponse lookupConnectionInfo(InstanceConnectionInfo caller, JobID jobID, ChannelID sourceChannelID) {
-			return null;
-		}
+	private static final class MockRPC implements JobManagerProtocol {
 
 		@Override
 		public void updateTaskExecutionState(TaskExecutionState taskExecutionState) {}
-
-		@Override
-		public ManagementGraph getManagementGraph(JobID jobID) {
-			return null;
-		}
-
-		@Override
-		public List<RecentJobEvent> getRecentJobs() {
-			return null;
-		}
-
-		@Override
-		public List<AbstractEvent> getEvents(JobID jobID) {
-			return null;
-		}
-
-		@Override
-		public int getAvailableSlots() {
-			return 0;
-		}
-
-		@Override
-		public void deploy(JobID jobID, Instance instance, List<ExecutionVertex> verticesToBeDeployed) {}
 
 		@Override
 		public boolean sendHeartbeat(InstanceID taskManagerId) {
@@ -244,11 +162,6 @@ public class LocalInstanceManagerTest {
 		@Override
 		public InstanceID registerTaskManager(InstanceConnectionInfo instanceConnectionInfo, HardwareDescription hardwareDescription, int numberOfSlots) {
 			return new InstanceID();
-		}
-
-		@Override
-		public InputSplit requestNextInputSplit(JobID jobID, JobVertexID vertex) throws IOException {
-			return null;
 		}
 	}
 }

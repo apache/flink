@@ -20,7 +20,6 @@ package org.apache.flink.runtime.ipc;
 
 import static org.junit.Assert.*;
 
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -32,16 +31,9 @@ import org.apache.flink.runtime.net.NetUtils;
 import org.apache.flink.types.DoubleValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.StringValue;
-import org.apache.flink.util.LogUtils;
 
 
 public class RpcTest {
-
-	@BeforeClass
-	public static void initLogger() {
-		LogUtils.initializeDefaultConsoleLogger();
-	}
-	
 	
 	@Test
 	public void testRpc() {

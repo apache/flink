@@ -48,18 +48,13 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.types.IntegerRecord;
-import org.apache.flink.util.LogUtils;
-import org.junit.BeforeClass;
+
 import org.junit.Test;
+
 import org.mockito.Matchers;
 
 
 public class TaskManagerTest {
-
-	@BeforeClass
-	public static void reduceLogLevel() {
-		LogUtils.initializeDefaultTestConsoleLogger();
-	}
 	
 	@Test
 	public void testSetupTaskManager() {

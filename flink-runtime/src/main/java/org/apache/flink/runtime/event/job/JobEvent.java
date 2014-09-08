@@ -20,11 +20,10 @@ package org.apache.flink.runtime.event.job;
 
 import java.io.IOException;
 
-import org.apache.flink.core.io.StringRecord;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.jobgraph.JobStatus;
-import org.apache.flink.runtime.util.EnumUtils;
+import org.apache.flink.util.StringUtils;
 
 /**
  * A job event object is used by the job manager to inform a client about
@@ -32,11 +31,13 @@ import org.apache.flink.runtime.util.EnumUtils;
  */
 public class JobEvent extends AbstractEvent {
 
+	private static final long serialVersionUID = 1846424770472758893L;
+
 	/** The current status of the job. */
 	private JobStatus currentJobStatus;
 
 	/** An optional message attached to the event, possibly <code>null</code>. */
-	private String optionalMessage = null;
+	private String optionalMessage;
 
 	/**
 	 * Constructs a new job event object.
@@ -48,7 +49,7 @@ public class JobEvent extends AbstractEvent {
 	 * @param optionalMessage
 	 *        an optional message that shall be attached to this event, possibly <code>null</code>
 	 */
-	public JobEvent(final long timestamp, final JobStatus currentJobStatus, final String optionalMessage) {
+	public JobEvent(long timestamp, JobStatus currentJobStatus, String optionalMessage) {
 		super(timestamp);
 
 		this.currentJobStatus = currentJobStatus;
@@ -65,30 +66,7 @@ public class JobEvent extends AbstractEvent {
 		this.currentJobStatus = JobStatus.CREATED;
 	}
 
-
-	@Override
-	public void read(final DataInputView in) throws IOException {
-		super.read(in);
-
-		// Read job status
-		this.currentJobStatus = EnumUtils.readEnum(in, JobStatus.class);
-
-		// Read optional message
-		this.optionalMessage = StringRecord.readString(in);
-	}
-
-
-	@Override
-	public void write(final DataOutputView out) throws IOException {
-		super.write(out);
-
-		// Write job status
-		EnumUtils.writeEnum(out, this.currentJobStatus);
-
-		// Write optional message
-		StringRecord.writeString(out, this.optionalMessage);
-	}
-
+	
 	/**
 	 * Returns the current status of the job.
 	 * 
@@ -107,43 +85,50 @@ public class JobEvent extends AbstractEvent {
 		return this.optionalMessage;
 	}
 
+	// --------------------------------------------------------------------------------------------
+	//  Serialization
+	// --------------------------------------------------------------------------------------------
+	
+	@Override
+	public void read(final DataInputView in) throws IOException {
+		super.read(in);
 
-	public String toString() {
-		return timestampToString(getTimestamp()) + ":\tJob execution switched to status " + this.currentJobStatus;
+		this.currentJobStatus = JobStatus.values()[in.readInt()];
+		this.optionalMessage = StringUtils.readNullableString(in);
 	}
-
 
 	@Override
-	public boolean equals(final Object obj) {
-		if (!super.equals(obj)) {
-			return false;
-		}
+	public void write(final DataOutputView out) throws IOException {
+		super.write(out);
 
-		if (!(obj instanceof JobEvent)) {
-			return false;
-		}
-
-		final JobEvent jobEvent = (JobEvent) obj;
-
-		if (!this.currentJobStatus.equals(jobEvent.getCurrentJobStatus())) {
-			return false;
-		}
-
-		if (this.optionalMessage == null) {
-
-			if (jobEvent.getOptionalMessage() == null) {
-				return true;
-			} else {
-				return false;
-			}
-		}
-
-		return this.optionalMessage.equals(jobEvent.getOptionalMessage());
+		out.writeInt(this.currentJobStatus.ordinal());
+		StringUtils.writeNullableString(optionalMessage, out);
 	}
+	
+	// --------------------------------------------------------------------------------------------
+	//  Utilities
+	// --------------------------------------------------------------------------------------------
 
+	@Override
+	public boolean equals(Object obj) {
+		if (obj instanceof JobEvent) {
+			JobEvent other = (JobEvent) obj;
+			
+			return super.equals(other) && this.currentJobStatus == other.currentJobStatus &&
+					this.optionalMessage == null ? other.optionalMessage == null :
+						(other.optionalMessage != null && this.optionalMessage.equals(other.optionalMessage));
+		}
+		else {
+			return false;
+		}
+	}
 
 	@Override
 	public int hashCode() {
 		return super.hashCode();
+	}
+	
+	public String toString() {
+		return timestampToString(getTimestamp()) + ":\tJob execution switched to status " + this.currentJobStatus;
 	}
 }

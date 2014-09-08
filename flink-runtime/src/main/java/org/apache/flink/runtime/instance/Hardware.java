@@ -25,16 +25,16 @@ import java.io.InputStreamReader;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.flink.util.OperatingSystem;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Convenience class to extract hardware specifics of the computer executing this class
  */
 public class Hardware {
 
-	private static final Log LOG = LogFactory.getLog(Hardware.class);
+	private static final Logger LOG = LoggerFactory.getLogger(Hardware.class);
 	
 	private static final String LINUX_MEMORY_INFO_PATH = "/proc/meminfo";
 

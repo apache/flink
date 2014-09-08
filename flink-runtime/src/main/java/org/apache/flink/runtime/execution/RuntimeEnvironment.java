@@ -32,8 +32,6 @@ import java.util.Set;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.IOReadableWritable;
@@ -58,6 +56,8 @@ import org.apache.flink.runtime.memorymanager.MemoryManager;
 import org.apache.flink.runtime.protocols.AccumulatorProtocol;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.util.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
 
@@ -65,7 +65,7 @@ import com.google.common.base.Preconditions;
 public class RuntimeEnvironment implements Environment, BufferProvider, LocalBufferPoolOwner, Runnable {
 
 	/** The log object used for debugging. */
-	private static final Log LOG = LogFactory.getLog(RuntimeEnvironment.class);
+	private static final Logger LOG = LoggerFactory.getLogger(RuntimeEnvironment.class);
 
 	/** The interval to sleep in case a communication channel is not yet entirely set up (in milliseconds). */
 	private static final int SLEEPINTERVAL = 100;

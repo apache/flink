@@ -24,6 +24,7 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 
 public class InternalExecutionVertexThreadProfilingData extends InternalExecutionVertexProfilingData {
 
@@ -37,10 +38,10 @@ public class InternalExecutionVertexThreadProfilingData extends InternalExecutio
 
 	private int waitedTime = 0;
 
-	public InternalExecutionVertexThreadProfilingData(JobID jobID, ExecutionAttemptID executionId,
+	public InternalExecutionVertexThreadProfilingData(JobID jobID, JobVertexID vertexId, int subtask, ExecutionAttemptID executionId,
 			int profilingInterval, int userTime, int systemTime, int blockedTime, int waitedTime)
 	{
-		super(jobID, executionId);
+		super(jobID, vertexId, subtask, executionId);
 
 		this.profilingInterval = profilingInterval;
 		this.userTime = userTime;
