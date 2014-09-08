@@ -51,15 +51,23 @@ class BlobConnection extends Thread {
 	private final Socket clientSocket;
 
 	/**
+	 * The BLOB server.
+	 */
+	private final BlobServer blobServer;
+
+	/**
 	 * Creates a new BLOB connection for a client request
 	 * 
 	 * @param clientSocket
 	 *        the socket to read/write data
+	 * @param blobServer
+	 *        the BLOB server
 	 */
-	BlobConnection(final Socket clientSocket) {
+	BlobConnection(final Socket clientSocket, final BlobServer blobServer) {
 		super("BLOB connection for " + clientSocket.getRemoteSocketAddress().toString());
 
 		this.clientSocket = clientSocket;
+		this.blobServer = blobServer;
 	}
 
 	@Override
@@ -115,7 +123,7 @@ class BlobConnection extends Thread {
 	 * @throws IOException
 	 *         thrown if an I/O error occurs while reading/writing data from/to the respective streams
 	 */
-	private static void get(final InputStream inputStream, final OutputStream outputStream, final byte[] buf)
+	private void get(final InputStream inputStream, final OutputStream outputStream, final byte[] buf)
 			throws IOException {
 
 		File blob = null;
@@ -132,7 +140,7 @@ class BlobConnection extends Thread {
 			final JobID jobID = JobID.fromByteBuffer(bb);
 			// Receive the key
 			final String key = readKey(buf, inputStream);
-			blob = BlobServer.getStorageLocation(jobID, key);
+			blob = this.blobServer.getStorageLocation(jobID, key);
 		} else {
 			final BlobKey key = BlobKey.readFromInputStream(inputStream);
 			blob = BlobServer.getStorageLocation(key);
@@ -177,7 +185,7 @@ class BlobConnection extends Thread {
 	 * @throws IOException
 	 *         thrown if an I/O error occurs while reading/writing data from/to the respective streams
 	 */
-	private static void put(final InputStream inputStream, final OutputStream outputStream, final byte[] buf)
+	private void put(final InputStream inputStream, final OutputStream outputStream, final byte[] buf)
 			throws IOException {
 
 		JobID jobID = null;
@@ -229,7 +237,7 @@ class BlobConnection extends Thread {
 			fos = null;
 
 			if (contentAdressable == 0) {
-				final File storageFile = BlobServer.getStorageLocation(jobID, key);
+				final File storageFile = this.blobServer.getStorageLocation(jobID, key);
 				incomingFile.renameTo(storageFile);
 				incomingFile = null;
 			} else {
@@ -261,7 +269,7 @@ class BlobConnection extends Thread {
 	 * @throws IOException
 	 *         thrown if an I/O error occurs while reading the request data from the input stream
 	 */
-	private static void delete(final InputStream inputStream, final byte[] buf) throws IOException {
+	private void delete(final InputStream inputStream, final byte[] buf) throws IOException {
 
 		// Receive the job ID
 		BlobServer.readFully(inputStream, buf, 0, JobID.SIZE);
@@ -278,12 +286,12 @@ class BlobConnection extends Thread {
 			// Receive the key
 			key = readKey(buf, inputStream);
 
-			final File blob = BlobServer.getStorageLocation(jobID, key);
+			final File blob = this.blobServer.getStorageLocation(jobID, key);
 			blob.delete();
 
 		} else {
 			// Delete all BLOBs for this job
-			BlobServer.deleteJobDirectory(jobID);
+			this.blobServer.deleteJobDirectory(jobID);
 		}
 	}
 

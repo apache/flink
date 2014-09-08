@@ -28,6 +28,10 @@ import java.net.ServerSocket;
 import java.nio.charset.Charset;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.logging.Log;
@@ -71,18 +75,6 @@ public final class BlobServer extends Thread {
 		public boolean accept(final File pathname) {
 
 			return (pathname.isFile() && pathname.getName().startsWith(BLOB_FILE_PREFIX));
-		}
-	};
-
-	/**
-	 * A file filter to list all job-specific directories the BLOB server has created.
-	 */
-	private static final FileFilter JOB_DIR_FILTER = new FileFilter() {
-
-		@Override
-		public boolean accept(final File pathname) {
-
-			return (pathname.isDirectory() && pathname.getName().startsWith(JOB_DIR_PREFIX));
 		}
 	};
 
@@ -145,6 +137,11 @@ public final class BlobServer extends Thread {
 	 * The server socket listening for incoming connections.
 	 */
 	private final ServerSocket serverSocket;
+
+	/**
+	 * Set of job-specific directories created by this BLOB server.
+	 */
+	private final Set<JobID> createdJobDirectories = Collections.newSetFromMap(new ConcurrentHashMap<JobID, Boolean>());
 
 	/**
 	 * Indicates whether a shutdown of server component has been requested.
@@ -280,11 +277,13 @@ public final class BlobServer extends Thread {
 	 *        <code>true</code> to create the directory if it did not exist so far, <code>false</code> otherwise
 	 * @return the storage directory for BLOBs belonging to the job with the given ID
 	 */
-	private static File getJobDirectory(final JobID jobID, final boolean create) {
+	private File getJobDirectory(final JobID jobID, final boolean create) {
 
 		final File jobDirectory = new File(getStorageDirectory(), JOB_DIR_PREFIX + jobID.toString());
 		if (create) {
-			jobDirectory.mkdirs();
+			if (jobDirectory.mkdirs()) {
+				this.createdJobDirectories.add(jobID);
+			}
 		}
 
 		return jobDirectory;
@@ -313,7 +312,7 @@ public final class BlobServer extends Thread {
 	 *        the key of the BLOB
 	 * @return the (designated) physical storage location of the BLOB with the given job ID and key
 	 */
-	static File getStorageLocation(final JobID jobID, final String key) {
+	File getStorageLocation(final JobID jobID, final String key) {
 
 		return new File(getJobDirectory(jobID, true), BLOB_FILE_PREFIX + encodeKey(key));
 	}
@@ -336,7 +335,7 @@ public final class BlobServer extends Thread {
 		try {
 
 			while (!this.shutdownRequested) {
-				new BlobConnection(this.serverSocket.accept()).start();
+				new BlobConnection(this.serverSocket.accept(), this).start();
 			}
 
 		} catch (IOException ioe) {
@@ -471,10 +470,8 @@ public final class BlobServer extends Thread {
 			return;
 		}
 
-		final File storageDirectory = getStorageDirectory();
-
-		for (final File jobDirectory : storageDirectory.listFiles(JOB_DIR_FILTER)) {
-			deleteJobDirectory(jobDirectory);
+		for (final Iterator<JobID> it = this.createdJobDirectories.iterator(); it.hasNext();) {
+			deleteJobDirectory(it.next());
 		}
 	}
 
@@ -484,24 +481,13 @@ public final class BlobServer extends Thread {
 	 * @param jobId
 	 *        the job ID identifying the directory to delete
 	 */
-	static void deleteJobDirectory(final JobID jobId) {
+	void deleteJobDirectory(final JobID jobId) {
 
 		final File jobDirectory = getJobDirectory(jobId, false);
 
 		if (!jobDirectory.exists()) {
 			return;
 		}
-
-		deleteJobDirectory(jobDirectory);
-	}
-
-	/**
-	 * Deletes all BLOB files in the given directory and removes the directory afterwards if it is empty.
-	 * 
-	 * @param jobDirectory
-	 *        the directory to remove
-	 */
-	private static void deleteJobDirectory(final File jobDirectory) {
 
 		final File[] blobFiles = jobDirectory.listFiles(BLOB_FILE_FILTER);
 
@@ -510,5 +496,6 @@ public final class BlobServer extends Thread {
 		}
 
 		jobDirectory.delete();
+		this.createdJobDirectories.remove(jobId);
 	}
 }
