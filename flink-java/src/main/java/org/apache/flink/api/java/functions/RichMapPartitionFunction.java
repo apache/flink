@@ -37,5 +37,5 @@ public abstract class RichMapPartitionFunction<I, O> extends AbstractRichFunctio
 	private static final long serialVersionUID = 1L;
 	
 	@Override
-	public abstract void mapPartition(Iterable<I> records, Collector<O> out) throws Exception;
+	public abstract void mapPartition(Iterable<I> values, Collector<O> out) throws Exception;
 }

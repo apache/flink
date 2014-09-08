@@ -30,13 +30,12 @@ import java.util.Set;
 
 import org.junit.Assert;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.java.record.io.DelimitedOutputFormat;
 import org.apache.flink.api.java.typeutils.runtime.record.RecordComparatorFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.operators.DataSinkTask;
 import org.apache.flink.runtime.operators.testutils.InfiniteInputIterator;
 import org.apache.flink.runtime.operators.testutils.TaskCancelThread;
 import org.apache.flink.runtime.operators.testutils.TaskTestBase;
@@ -50,7 +49,7 @@ import org.junit.Test;
 
 public class DataSinkTaskTest extends TaskTestBase
 {
-	private static final Log LOG = LogFactory.getLog(DataSinkTaskTest.class);
+	private static final Logger LOG = LoggerFactory.getLogger(DataSinkTaskTest.class);
 	
 	private static final int MEMORY_MANAGER_SIZE = 3 * 1024 * 1024;
 
@@ -82,7 +81,7 @@ public class DataSinkTaskTest extends TaskTestBase
 		try {
 			testTask.invoke();
 		} catch (Exception e) {
-			LOG.debug(e);
+			LOG.debug("Exception while invoking the test task.", e);
 			Assert.fail("Invoke method caused exception.");
 		}
 
@@ -151,7 +150,7 @@ public class DataSinkTaskTest extends TaskTestBase
 		try {
 			testTask.invoke();
 		} catch (Exception e) {
-			LOG.debug(e);
+			LOG.debug("Exception while invoking the test task.", e);
 			Assert.fail("Invoke method caused exception.");
 		}
 
@@ -228,7 +227,7 @@ public class DataSinkTaskTest extends TaskTestBase
 		try {
 			testTask.invoke();
 		} catch (Exception e) {
-			LOG.debug(e);
+			LOG.debug("Exception while invoking the test task.", e);
 			Assert.fail("Invoke method caused exception.");
 		}
 		
@@ -298,13 +297,12 @@ public class DataSinkTaskTest extends TaskTestBase
 		super.registerFileOutputTask(testTask, MockFailingOutputFormat.class, new File(tempTestPath).toURI().toString());
 		
 		boolean stubFailed = false;
-		
+
 		try {
 			testTask.invoke();
 		} catch (Exception e) {
 			stubFailed = true;
 		}
-		
 		Assert.assertTrue("Function exception was not forwarded.", stubFailed);
 		
 		// assert that temp file was created
@@ -340,13 +338,12 @@ public class DataSinkTaskTest extends TaskTestBase
 		super.registerFileOutputTask(testTask, MockFailingOutputFormat.class, new File(tempTestPath).toURI().toString());
 		
 		boolean stubFailed = false;
-		
+
 		try {
 			testTask.invoke();
 		} catch (Exception e) {
 			stubFailed = true;
 		}
-		
 		Assert.assertTrue("Function exception was not forwarded.", stubFailed);
 		
 		// assert that temp file was created

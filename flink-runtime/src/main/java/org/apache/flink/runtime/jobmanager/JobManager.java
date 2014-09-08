@@ -41,8 +41,8 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.OptionBuilder;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -111,10 +111,6 @@ import org.apache.flink.runtime.types.IntegerRecord;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.SerializableArrayList;
 import org.apache.flink.util.StringUtils;
-import org.apache.log4j.ConsoleAppender;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
-import org.apache.log4j.PatternLayout;
 
 /**
  * In Flink the job manager is the central component for communication with clients, creating
@@ -126,7 +122,7 @@ import org.apache.log4j.PatternLayout;
 public class JobManager implements DeploymentManager, ExtendedManagementProtocol, InputSplitProviderProtocol,
 		JobManagerProtocol, ChannelLookupProtocol, JobStatusListener, AccumulatorProtocol {
 
-	private static final Log LOG = LogFactory.getLog(JobManager.class);
+	private static final Logger LOG = LoggerFactory.getLogger(JobManager.class);
 
 	private final Server jobManagerServer;
 
@@ -280,7 +276,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			try {
 				this.executorService.awaitTermination(5000L, TimeUnit.MILLISECONDS);
 			} catch (InterruptedException e) {
-				LOG.debug(e);
+				LOG.debug("Got interrupted while waiting for the executor service to shutdown.", e);
 			}
 		}
 
@@ -319,23 +315,14 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	 */
 
 	public static void main(String[] args) {
-		// determine if a valid log4j config exists and initialize a default logger if not
-		if (System.getProperty("log4j.configuration") == null) {
-			Logger root = Logger.getRootLogger();
-			root.removeAllAppenders();
-			PatternLayout layout = new PatternLayout("%d{HH:mm:ss,SSS} %-5p %-60c %x - %m%n");
-			ConsoleAppender appender = new ConsoleAppender(layout, "System.err");
-			root.addAppender(appender);
-			root.setLevel(Level.INFO);
-		}
-
 		JobManager jobManager;
 		try {
 			jobManager = initialize(args);
 			// Start info server for jobmanager
 			jobManager.startInfoServer();
-		} catch (Exception e) {
-			LOG.fatal(e.getMessage(), e);
+		}
+		catch (Exception e) {
+			LOG.error(e.getMessage(), e);
 			System.exit(FAILURE_RETURN_CODE);
 		}
 
@@ -575,7 +562,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			LibraryCacheManager.unregister(executionGraph.getJobID());
 		} catch (IOException ioe) {
 			if (LOG.isWarnEnabled()) {
-				LOG.warn(ioe);
+				LOG.warn("IOException while unregistering the job with id " + executionGraph.getJobID() + ".",ioe);
 			}
 		}
 	}
@@ -941,7 +928,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 				try {
 					instance.killTaskManager();
 				} catch (IOException ioe) {
-					LOG.error(ioe);
+					LOG.error("IOException while killing the task manager on instance " + instanceName + ".", ioe);
 				}
 			}
 		};
@@ -1021,7 +1008,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 						it2.next().logBufferUtilization();
 					}
 				} catch (IOException ioe) {
-					LOG.error(ioe);
+					LOG.error("IOException while logging buffer utilization.", ioe);
 				}
 
 			}

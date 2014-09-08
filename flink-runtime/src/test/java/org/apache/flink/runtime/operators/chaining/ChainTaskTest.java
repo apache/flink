@@ -32,7 +32,6 @@ import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.RegularPactTask;
 import org.apache.flink.runtime.operators.MapTaskTest.MockMapStub;
 import org.apache.flink.runtime.operators.ReduceTaskTest.MockReduceStub;
-import org.apache.flink.runtime.operators.chaining.SynchronousChainedCombineDriver;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.testutils.TaskTestBase;
 import org.apache.flink.runtime.operators.testutils.UniformRecordGenerator;
@@ -40,8 +39,6 @@ import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.LogUtils;
-import org.apache.log4j.Level;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -58,14 +55,6 @@ public class ChainTaskTest extends TaskTestBase {
 	@SuppressWarnings("unchecked")
 	private final RecordComparatorFactory compFact = new RecordComparatorFactory(new int[]{0}, new Class[]{IntValue.class}, new boolean[] {true});
 	private final RecordSerializerFactory serFact = RecordSerializerFactory.get();
-	
-	
-	
-	public ChainTaskTest() {
-		// suppress log output, as this class produces errors on purpose to test exception handling
-		LogUtils.initializeDefaultConsoleLogger(Level.OFF);
-	}
-	
 	
 	@Test
 	public void testMapTask() {

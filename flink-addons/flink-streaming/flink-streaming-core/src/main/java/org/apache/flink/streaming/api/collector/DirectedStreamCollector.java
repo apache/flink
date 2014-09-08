@@ -21,12 +21,12 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.flink.runtime.io.network.api.RecordWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.util.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A StreamCollector that uses user defined output names and a user defined
@@ -38,7 +38,7 @@ import org.apache.flink.util.StringUtils;
 public class DirectedStreamCollector<OUT> extends StreamCollector<OUT> {
 
 	OutputSelector<OUT> outputSelector;
-	private static final Log LOG = LogFactory.getLog(DirectedStreamCollector.class);
+	private static final Logger LOG = LoggerFactory.getLogger(DirectedStreamCollector.class);
 	private Set<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> emitted;
 
 	/**

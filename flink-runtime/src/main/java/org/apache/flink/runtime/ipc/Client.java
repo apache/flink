@@ -25,8 +25,8 @@
 
 package org.apache.flink.runtime.ipc;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.io.StringRecord;
 import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
@@ -65,7 +65,7 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class Client {
 
-	public static final Log LOG = LogFactory.getLog(Client.class);
+	public static final Logger LOG = LoggerFactory.getLogger(Client.class);
 
 	private Hashtable<ConnectionId, Connection> connections = new Hashtable<ConnectionId, Connection>();
 
@@ -512,14 +512,14 @@ public class Client {
 						try {
 							c = ClassUtils.getRecordByName(returnClassName);
 						} catch (ClassNotFoundException e) {
-							LOG.error(e);
+							LOG.error("Could not find class " + returnClassName + ".", e);
 						}
 						try {
 							value = c.newInstance();
 						} catch (InstantiationException e) {
-							LOG.error(e);
+							LOG.error("Could not instantiate object of class " + c.getCanonicalName() + ".", e);
 						} catch (IllegalAccessException e) {
-							LOG.error(e);
+							LOG.error("Error instantiating object of class " + c.getCanonicalName() + ".", e);
 						} 
 						try {
 							value.read(new InputViewDataInputStreamWrapper(in)); // read value

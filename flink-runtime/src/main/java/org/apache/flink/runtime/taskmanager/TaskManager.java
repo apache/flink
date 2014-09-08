@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+
 package org.apache.flink.runtime.taskmanager;
 
 import java.io.File;
@@ -54,8 +55,8 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.OptionBuilder;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
 import org.apache.flink.configuration.ConfigConstants;
@@ -107,7 +108,7 @@ import org.apache.flink.util.StringUtils;
  */
 public class TaskManager implements TaskOperationProtocol {
 
-	private static final Log LOG = LogFactory.getLog(TaskManager.class);
+	private static final Logger LOG = LoggerFactory.getLogger(TaskManager.class);
 
 	private final static int FAILURE_RETURN_CODE = -1;
 	
@@ -193,7 +194,7 @@ public class TaskManager implements TaskOperationProtocol {
 				jobManagerAddress = new InetSocketAddress(tmpAddress, port);
 			}
 			catch (UnknownHostException e) {
-				LOG.fatal("Could not resolve JobManager host name.");
+				LOG.error("Could not resolve JobManager host name.");
 				throw new Exception("Could not resolve JobManager host name: " + e.getMessage(), e);
 			}
 			
@@ -204,7 +205,7 @@ public class TaskManager implements TaskOperationProtocol {
 		try {
 			this.jobManager = RPC.getProxy(JobManagerProtocol.class, jobManagerAddress, NetUtils.getSocketFactory());
 		} catch (IOException e) {
-			LOG.fatal("Could not connect to the JobManager: " + e.getMessage(), e);
+			LOG.error("Could not connect to the JobManager: " + e.getMessage(), e);
 			throw new Exception("Failed to initialize connection to JobManager: " + e.getMessage(), e);
 		}
 		
@@ -235,7 +236,7 @@ public class TaskManager implements TaskOperationProtocol {
 				this.taskManagerServer = RPC.getServer(this, taskManagerAddress.getHostAddress(), ipcPort, IPC_HANDLER_COUNT);
 				this.taskManagerServer.start();
 			} catch (IOException e) {
-				LOG.fatal("Failed to start TaskManager server. " + e.getMessage(), e);
+				LOG.error("Failed to start TaskManager server. " + e.getMessage(), e);
 				throw new Exception("Failed to start taskmanager server. " + e.getMessage(), e);
 			}
 		}
@@ -244,7 +245,7 @@ public class TaskManager implements TaskOperationProtocol {
 		try {
 			this.globalInputSplitProvider = RPC.getProxy(InputSplitProviderProtocol.class, jobManagerAddress, NetUtils.getSocketFactory());
 		} catch (IOException e) {
-			LOG.fatal(e.getMessage(), e);
+			LOG.error(e.getMessage(), e);
 			throw new Exception("Failed to initialize connection to global input split provider: " + e.getMessage(), e);
 		}
 
@@ -252,7 +253,7 @@ public class TaskManager implements TaskOperationProtocol {
 		try {
 			this.lookupService = RPC.getProxy(ChannelLookupProtocol.class, jobManagerAddress, NetUtils.getSocketFactory());
 		} catch (IOException e) {
-			LOG.fatal(e.getMessage(), e);
+			LOG.error(e.getMessage(), e);
 			throw new Exception("Failed to initialize channel lookup protocol. " + e.getMessage(), e);
 		}
 
@@ -260,7 +261,7 @@ public class TaskManager implements TaskOperationProtocol {
 		try {
 			this.accumulatorProtocolProxy = RPC.getProxy(AccumulatorProtocol.class, jobManagerAddress, NetUtils.getSocketFactory());
 		} catch (IOException e) {
-			LOG.fatal("Failed to initialize accumulator protocol: " + e.getMessage(), e);
+			LOG.error("Failed to initialize accumulator protocol: " + e.getMessage(), e);
 			throw new Exception("Failed to initialize accumulator protocol: " + e.getMessage(), e);
 		}
 
@@ -314,13 +315,17 @@ public class TaskManager implements TaskOperationProtocol {
 							ConfigConstants.TASK_MANAGER_NET_NUM_OUT_THREADS_KEY,
 							ConfigConstants.DEFAULT_TASK_MANAGER_NET_NUM_OUT_THREADS);
 
-					int closeAfterIdleForMs = GlobalConfiguration.getInteger(
-							ConfigConstants.TASK_MANAGER_NET_CLOSE_AFTER_IDLE_FOR_MS_KEY,
-							ConfigConstants.DEFAULT_TASK_MANAGER_NET_CLOSE_AFTER_IDLE_FOR_MS);
+					int lowWaterMark = GlobalConfiguration.getInteger(
+							ConfigConstants.TASK_MANAGER_NET_NETTY_LOW_WATER_MARK,
+							ConfigConstants.DEFAULT_TASK_MANAGER_NET_NETTY_LOW_WATER_MARK);
+
+					int highWaterMark = GlobalConfiguration.getInteger(
+							ConfigConstants.TASK_MANAGER_NET_NETTY_HIGH_WATER_MARK,
+							ConfigConstants.DEFAULT_TASK_MANAGER_NET_NETTY_HIGH_WATER_MARK);
 
 					networkConnectionManager = new NettyConnectionManager(
 							localInstanceConnectionInfo.address(), localInstanceConnectionInfo.dataPort(),
-							bufferSize, numInThreads, numOutThreads, closeAfterIdleForMs);
+							bufferSize, numInThreads, numOutThreads, lowWaterMark, highWaterMark);
 					break;
 			}
 
@@ -379,7 +384,7 @@ public class TaskManager implements TaskOperationProtocol {
 				
 				this.memoryManager = new DefaultMemoryManager(memorySize, this.numberOfSlots, pageSize);
 			} catch (Throwable t) {
-				LOG.fatal("Unable to initialize memory manager with " + (memorySize >>> 20) + " megabytes of memory.", t);
+				LOG.error("Unable to initialize memory manager with " + (memorySize >>> 20) + " megabytes of memory.", t);
 				throw new Exception("Unable to initialize memory manager.", t);
 			}
 		}
@@ -523,7 +528,7 @@ public class TaskManager implements TaskOperationProtocol {
 		try {
 			new TaskManager(ExecutionMode.CLUSTER);
 		} catch (Exception e) {
-			LOG.fatal("Taskmanager startup failed: " + e.getMessage(), e);
+			LOG.error("Taskmanager startup failed: " + e.getMessage(), e);
 			System.exit(FAILURE_RETURN_CODE);
 		}
 		
@@ -954,7 +959,7 @@ public class TaskManager implements TaskOperationProtocol {
 				this.jobManager.updateTaskExecutionState(new TaskExecutionState(jobID, id, newExecutionState,
 					optionalDescription));
 			} catch (IOException e) {
-				LOG.error(e);
+				LOG.error("Could not update task execution state.", e);
 			}
 		}
 	}
@@ -1021,7 +1026,7 @@ public class TaskManager implements TaskOperationProtocol {
 				this.executorService.awaitTermination(5000L, TimeUnit.MILLISECONDS);
 			} catch (InterruptedException e) {
 				if (LOG.isDebugEnabled()) {
-					LOG.debug(e);
+					LOG.debug("Got interrupted while awaiting the termination of the executor service.", e);
 				}
 			}
 		}

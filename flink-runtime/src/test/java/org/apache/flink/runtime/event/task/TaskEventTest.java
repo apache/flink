@@ -26,11 +26,8 @@ import static org.junit.Assert.fail;
 import java.io.IOException;
 import java.util.Iterator;
 
-import org.apache.flink.runtime.event.task.AbstractEvent;
-import org.apache.flink.runtime.event.task.EventList;
-import org.apache.flink.runtime.event.task.IntegerTaskEvent;
-import org.apache.flink.runtime.event.task.StringTaskEvent;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 /**
@@ -39,7 +36,6 @@ import org.junit.Test;
  * 
  */
 public class TaskEventTest {
-
 	/**
 	 * This test checks the serialization/deserialization of {@link IntegerTaskEvent} objects.
 	 */

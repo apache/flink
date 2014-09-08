@@ -20,8 +20,8 @@ package org.apache.flink.streaming.api.streamcomponent;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.io.BlockingQueueBroker;
@@ -30,7 +30,7 @@ import org.apache.flink.util.StringUtils;
 public class StreamIterationSink<IN extends Tuple> extends
 		AbstractStreamComponent {
 
-	private static final Log LOG = LogFactory.getLog(StreamIterationSink.class);
+	private static final Logger LOG = LoggerFactory.getLogger(StreamIterationSink.class);
 
 	private InputHandler<IN> inputHandler;
 	

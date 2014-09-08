@@ -54,9 +54,6 @@ import org.apache.flink.test.testdata.KMeansData;
 import org.apache.flink.test.util.RecordAPITestBase;
 import org.apache.flink.types.DoubleValue;
 import org.apache.flink.types.IntValue;
-import org.apache.flink.util.LogUtils;
-import org.apache.log4j.Level;
-
 
 public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 
@@ -74,7 +71,6 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 
 	
 	public KMeansIterativeNepheleITCase() {
-		LogUtils.initializeDefaultConsoleLogger(Level.ERROR);
 		setTaskManagerNumSlots(DOP);
 	}
 	

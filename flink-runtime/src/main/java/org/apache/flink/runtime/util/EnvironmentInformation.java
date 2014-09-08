@@ -24,19 +24,15 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
 import java.util.Properties;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.hadoop.security.UserGroupInformation;
 
 public class EnvironmentInformation {
 
-	private static final Log LOG = LogFactory.getLog(EnvironmentInformation.class);
+	private static final Logger LOG = LoggerFactory.getLogger(EnvironmentInformation.class);
 
 	private static final String UNKNOWN = "<unknown>";
-
-	private static final String LOG_FILE_OPTION = "-Dlog.file";
-
-	private static final String LOG_CONFIGURAION_OPTION = "-Dlog4j.configuration";
 
 	/**
 	 * Returns the version of the code as String. If version == null, then the JobManager does not run from a
@@ -120,11 +116,6 @@ public class EnvironmentInformation {
 		try {
 			final RuntimeMXBean bean = ManagementFactory.getRuntimeMXBean();
 			final StringBuilder bld = new StringBuilder();
-			for (String s : bean.getInputArguments()) {
-				if (!s.startsWith(LOG_FILE_OPTION) && !s.startsWith(LOG_CONFIGURAION_OPTION)) {
-					bld.append(s).append(' ');
-				}
-			}
 			return bld.toString();
 		}
 		catch (Throwable t) {
@@ -132,7 +123,7 @@ public class EnvironmentInformation {
 		}
 	}
 
-	public static void logEnvironmentInfo(Log log, String componentName) {
+	public static void logEnvironmentInfo(Logger log, String componentName) {
 		if (log.isInfoEnabled()) {
 			RevisionInformation rev = getRevisionInformation();
 			String version = getVersion();

@@ -19,8 +19,8 @@
 
 package org.apache.flink.runtime.operators;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -40,7 +40,7 @@ import org.apache.flink.util.MutableObjectIterator;
  */
 public class ReduceDriver<T> implements PactDriver<ReduceFunction<T>, T> {
 	
-	private static final Log LOG = LogFactory.getLog(ReduceDriver.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ReduceDriver.class);
 
 	private PactTaskContext<ReduceFunction<T>, T> taskContext;
 	

@@ -23,8 +23,8 @@ import static org.apache.flink.runtime.execution.ExecutionState.CANCELED;
 import static org.apache.flink.runtime.execution.ExecutionState.CANCELING;
 import static org.apache.flink.runtime.execution.ExecutionState.FAILED;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This class is a utility class to check the consistency of Nephele's execution state model.
@@ -35,7 +35,7 @@ public final class ExecutionStateTransition {
 	/**
 	 * The log object used for debugging.
 	 */
-	private static final Log LOG = LogFactory.getLog(ExecutionStateTransition.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ExecutionStateTransition.class);
 
 	/**
 	 * Private constructor to prevent instantiation of object.

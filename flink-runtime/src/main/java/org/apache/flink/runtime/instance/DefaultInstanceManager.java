@@ -19,8 +19,8 @@
 
 package org.apache.flink.runtime.instance;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.jobgraph.JobID;
@@ -52,7 +52,7 @@ public class DefaultInstanceManager implements InstanceManager {
 	/**
 	 * The log object used to report debugging and error information.
 	 */
-	private static final Log LOG = LogFactory.getLog(DefaultInstanceManager.class);
+	private static final Logger LOG = LoggerFactory.getLogger(DefaultInstanceManager.class);
 
 	/**
 	 * Default duration after which a host is purged in case it did not send

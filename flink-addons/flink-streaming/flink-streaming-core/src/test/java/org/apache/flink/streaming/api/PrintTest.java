@@ -21,7 +21,6 @@ import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.util.LogUtils;
 import org.junit.Test;
 
 public class PrintTest{
@@ -48,8 +47,6 @@ public class PrintTest{
 	
 	@Test
 	public void test() throws Exception {
-		LogUtils.initializeDefaultTestConsoleLogger();
-
 		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 		env.generateSequence(1, 10).map(new IdentityMap()).filter(new FilterAll()).print();
 		env.executeTest(MEMORYSIZE);

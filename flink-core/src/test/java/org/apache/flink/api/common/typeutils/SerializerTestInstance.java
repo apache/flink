@@ -22,7 +22,8 @@ package org.apache.flink.api.common.typeutils;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 
-public class SerializerTestInstance<T> extends SerializerTestBase<T> {
+public class
+		SerializerTestInstance<T> extends SerializerTestBase<T> {
 
 	private final TypeSerializer<T> serializer;
 

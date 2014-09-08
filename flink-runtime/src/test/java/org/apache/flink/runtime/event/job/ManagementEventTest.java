@@ -22,9 +22,6 @@ package org.apache.flink.runtime.event.job;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import org.apache.flink.runtime.event.job.ExecutionStateChangeEvent;
-import org.apache.flink.runtime.event.job.RecentJobEvent;
-import org.apache.flink.runtime.event.job.VertexAssignmentEvent;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
@@ -37,7 +34,6 @@ import org.junit.Test;
  * 
  */
 public class ManagementEventTest {
-
 	/**
 	 * The time stamp used during the tests.
 	 */

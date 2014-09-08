@@ -19,8 +19,8 @@
 
 package org.apache.flink.runtime.profiling.impl;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.execution.Environment;
@@ -50,7 +50,7 @@ import java.util.TimerTask;
 
 public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerProfiler {
 
-	private static final Log LOG = LogFactory.getLog(TaskManagerProfilerImpl.class);
+	private static final Logger LOG = LoggerFactory.getLogger(TaskManagerProfilerImpl.class);
 
 	private final ProfilerImplProtocol jobManagerProfiler;
 
@@ -168,7 +168,7 @@ public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerPro
 					this.jobManagerProfiler.reportProfilingData(this.profilingDataContainer);
 					this.profilingDataContainer.clear();
 				} catch (IOException e) {
-					LOG.error(e);
+					LOG.error("Could not report profiling data.", e);
 				}
 			}
 		}

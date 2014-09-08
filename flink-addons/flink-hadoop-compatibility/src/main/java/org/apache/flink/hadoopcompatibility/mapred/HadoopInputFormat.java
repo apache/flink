@@ -24,8 +24,8 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.FileInputFormat.FileBaseStatistics;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
@@ -51,7 +51,7 @@ public class HadoopInputFormat<K extends Writable, V extends Writable> implement
 	
 	private static final long serialVersionUID = 1L;
 	
-	private static final Log LOG = LogFactory.getLog(HadoopInputFormat.class);
+	private static final Logger LOG = LoggerFactory.getLogger(HadoopInputFormat.class);
 	
 	private org.apache.hadoop.mapred.InputFormat<K, V> mapredInputFormat;
 	private Class<K> keyClass;

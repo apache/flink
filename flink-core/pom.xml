@@ -33,7 +33,7 @@ under the License.
 	<name>flink-core</name>
 
 	<packaging>jar</packaging>
-	
+
 	<build>
 		<plugins>
 			<plugin>

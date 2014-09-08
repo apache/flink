@@ -22,8 +22,8 @@ package org.apache.flink.runtime.operators;
 import java.io.IOException;
 import java.util.List;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -46,7 +46,7 @@ import org.apache.flink.util.MutableObjectIterator;
  */
 public class ReduceCombineDriver<T> implements PactDriver<ReduceFunction<T>, T> {
 	
-	private static final Log LOG = LogFactory.getLog(ReduceCombineDriver.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ReduceCombineDriver.class);
 
 	/** Fix length records with a length below this threshold will be in-place sorted, if possible. */
 	private static final int THRESHOLD_FOR_IN_PLACE_SORTING = 32;
@@ -109,7 +109,6 @@ public class ReduceCombineDriver<T> implements PactDriver<ReduceFunction<T>, T> 
 		
 		// instantiate the serializer / comparator
 		final TypeSerializerFactory<T> serializerFactory = this.taskContext.getInputSerializer(0);
-		this.serializer = serializerFactory.getSerializer();
 		this.comparator = this.taskContext.getInputComparator(0);
 		this.serializer = serializerFactory.getSerializer();
 		this.reducer = this.taskContext.getStub();

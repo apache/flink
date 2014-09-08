@@ -19,8 +19,8 @@
 
 package org.apache.flink.runtime.operators;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparatorFactory;
@@ -43,7 +43,7 @@ import org.apache.flink.util.MutableObjectIterator;
  */
 public class CoGroupDriver<IT1, IT2, OT> implements PactDriver<CoGroupFunction<IT1, IT2, OT>, OT> {
 	
-	private static final Log LOG = LogFactory.getLog(CoGroupDriver.class);
+	private static final Logger LOG = LoggerFactory.getLogger(CoGroupDriver.class);
 	
 	
 	private PactTaskContext<CoGroupFunction<IT1, IT2, OT>, OT> taskContext;

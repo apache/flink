@@ -34,7 +34,7 @@ public abstract class MapPartitionFunction extends AbstractRichFunction implemen
 	 * This method must be implemented to provide a user implementation of a MapPartitionFunction.
 	 * It is called for a full input set.
 	 *
-	 * @param records all input records
+	 * @param values all input records
 	 * @param out A collector that collects all output records.
 	 *
 	 * @throws Exception Implementations may forward exceptions, which are caught by the runtime. When the
@@ -42,5 +42,5 @@ public abstract class MapPartitionFunction extends AbstractRichFunction implemen
 	 *                   decide whether to retry the mapper execution.
 	 */
 	@Override
-	public abstract void mapPartition(Iterable<Record> records, Collector<Record> out) throws Exception;
+	public abstract void mapPartition(Iterable<Record> values, Collector<Record> out) throws Exception;
 }

@@ -42,8 +42,6 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
 import org.apache.flink.runtime.memorymanager.MemoryAllocationException;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
-import org.apache.flink.runtime.operators.hash.BuildFirstReOpenableHashMatchIterator;
-import org.apache.flink.runtime.operators.hash.ReOpenableMutableHashTable;
 import org.apache.flink.runtime.operators.hash.HashMatchIteratorITCase.RecordMatch;
 import org.apache.flink.runtime.operators.hash.HashMatchIteratorITCase.RecordMatchRemovingJoin;
 import org.apache.flink.runtime.operators.hash.HashTableITCase.ConstantsKeyValuePairsIterator;
@@ -100,7 +98,6 @@ public class ReOpenableHashTableITCase {
 	private TypeComparator<Record> recordBuildSideComparator;
 	private TypeComparator<Record> recordProbeSideComparator;
 	private TypePairComparator<Record, Record> pactRecordComparator;
-	
 
 	@SuppressWarnings("unchecked")
 	@Before

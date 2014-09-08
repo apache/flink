@@ -25,7 +25,7 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.net.Socket;
 
-import org.apache.commons.logging.Log;
+import org.slf4j.Logger;
 
 /**
  * An utility class for I/O related functionality.
@@ -170,7 +170,7 @@ public final class IOUtils {
 	 * @param closeables
 	 *        the objects to close
 	 */
-	public static void cleanup(final Log log, final java.io.Closeable... closeables) {
+	public static void cleanup(final Logger log, final java.io.Closeable... closeables) {
 		for (java.io.Closeable c : closeables) {
 			if (c != null) {
 				try {

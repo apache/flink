@@ -47,7 +47,7 @@ public class LineItemFilterTest {
 	RecordWriter<Record> recordWriterMock;
 	
 	private List<RecordWriter<Record>> writerList = new ArrayList<RecordWriter<Record>>();
-	
+
 	@Before
 	public void setUp()
 	{

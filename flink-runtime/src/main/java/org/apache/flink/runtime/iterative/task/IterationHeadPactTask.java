@@ -22,8 +22,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
@@ -78,7 +78,7 @@ import org.apache.flink.util.MutableObjectIterator;
  */
 public class IterationHeadPactTask<X, Y, S extends Function, OT> extends AbstractIterativePactTask<S, OT> {
 
-	private static final Log log = LogFactory.getLog(IterationHeadPactTask.class);
+	private static final Logger log = LoggerFactory.getLogger(IterationHeadPactTask.class);
 
 	private Collector<X> finalOutputCollector;
 

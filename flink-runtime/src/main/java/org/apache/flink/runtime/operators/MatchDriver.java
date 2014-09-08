@@ -19,8 +19,8 @@
 
 package org.apache.flink.runtime.operators;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparatorFactory;
@@ -46,7 +46,7 @@ import org.apache.flink.util.MutableObjectIterator;
  */
 public class MatchDriver<IT1, IT2, OT> implements PactDriver<FlatJoinFunction<IT1, IT2, OT>, OT> {
 	
-	protected static final Log LOG = LogFactory.getLog(MatchDriver.class);
+	protected static final Logger LOG = LoggerFactory.getLogger(MatchDriver.class);
 	
 	protected PactTaskContext<FlatJoinFunction<IT1, IT2, OT>, OT> taskContext;
 	

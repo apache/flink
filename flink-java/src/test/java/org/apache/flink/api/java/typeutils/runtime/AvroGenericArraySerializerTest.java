@@ -16,30 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.util;
+package org.apache.flink.api.java.typeutils.runtime;
 
-import org.apache.log4j.ConsoleAppender;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
-import org.apache.log4j.PatternLayout;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 
-
-public class LogUtils {
-
-	public static void initializeDefaultConsoleLogger() {
-		initializeDefaultConsoleLogger(Level.INFO);
-	}
-	
-	public static void initializeDefaultTestConsoleLogger() {
-		initializeDefaultConsoleLogger(Level.WARN);
-	}
-	
-	public static void initializeDefaultConsoleLogger(Level logLevel) {
-		Logger root = Logger.getRootLogger();
-		root.removeAllAppenders();
-		PatternLayout layout = new PatternLayout("%d{HH:mm:ss,SSS} %-5p %-60c %x - %m%n");
-		ConsoleAppender appender = new ConsoleAppender(layout, "System.err");
-		root.addAppender(appender);
-		root.setLevel(logLevel);
+public class AvroGenericArraySerializerTest extends AbstractGenericArraySerializerTest {
+	@Override
+	protected <T> TypeSerializer<T> createComponentSerializer(Class<T> type) {
+		return new AvroSerializer<T>(type);
 	}
 }

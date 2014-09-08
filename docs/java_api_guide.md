@@ -416,8 +416,10 @@ DataSet<Tuple2<String, Integer>> out = in.project(2,0).types(String.class, Integ
     </tr>
   </tbody>
 </table>
-[Back to top](#top)
 
+The [parallelism](#parallelism) of a transformation can be defined by `setParallelism(int)`. `name(String)` assigns a custom name to a transformation which is helpful for debugging. The same is possible for [Data Sources](#data_sources) and [Data Sinks](#data_sinks). 
+
+[Back to Top](#top)
 
 <section id="keys">
 Defining Keys
@@ -1169,6 +1171,54 @@ You have the choice to implement either {% gh_link /flink-core/src/main/java/org
 
 [Back to top](#top)
 
+<section id="parallelism">
+Parallel Execution
+---------
+
+This section describes how the parallel execution of programs can be configured in Flink. A Flink program consists of multiple tasks (operators, data sources, and sinks). A task is split into several parallel instances for execution and each parallel instance processes a subset of the task's input data. The number of parallel instances of a task is called its *parallelism* or *degree of parallelism (DOP)*.
+
+The degree of parallelism of a task can be specified in Flink on different levels.
+
+### Operator Level
+The parallelism of an individual operator, data source, or data sink can be defined by calling its `setParallelism()` method. 
+For example, the degree of parallelism of the `Sum` operator in the [WordCount](#example) example program can be set to `5` as follows :
+
+
+```java
+final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+DataSet<String> text = [...]
+DataSet<Tuple2<String, Integer>> wordCounts = text
+    .flatMap(new LineSplitter())
+    .groupBy(0)
+    .sum(1).setParallelism(5);
+wordCounts.print();
+
+env.execute("Word Count Example");
+```
+
+### Execution Environment Level
+
+Flink programs are executed in the context of an [execution environmentt](#program-skeleton). An execution environment defines a default parallelism for all operators, data sources, and data sinks it executes. Execution environment parallelism can be overwritten by explicitly configuring the parallelism of an operator.
+
+The default parallelism of an execution environment can be specified by calling the `setDefaultLocalParallelism()` method. To execute all operators, data sources, and data sinks of the [WordCount](#example) example program with a parallelism of `3`, set the default parallelism of the execution environment as follows:
+
+```java
+final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+env.setDegreeOfParallelism(3);
+
+DataSet<String> text = [...]
+DataSet<Tuple2<String, Integer>> wordCounts = [...]
+wordCounts.print();
+
+env.execute("Word Count Example");
+```
+
+### System Level
+
+A system-wide default parallelism for all execution environments can be defined by setting the `parallelization.degree.default` property in `./conf/flink-conf.yaml`. See the [Configuration]({{site.baseurl}}/config.html) documentation for details.
+
+[Back to top](#top)
 
 <section id="execution_plan">
 Execution Plans

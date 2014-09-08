@@ -22,8 +22,8 @@ package org.apache.flink.runtime.jobmanager.splitassigner.file;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.executiongraph.ExecutionGroupVertex;
@@ -45,7 +45,7 @@ public final class FileInputSplitAssigner implements InputSplitAssigner {
 	/**
 	 * The logging object which is used to report information and errors.
 	 */
-	private static final Log LOG = LogFactory.getLog(FileInputSplitAssigner.class);
+	private static final Logger LOG = LoggerFactory.getLogger(FileInputSplitAssigner.class);
 
 	private final ConcurrentMap<ExecutionGroupVertex, FileInputSplitList> vertexMap = new ConcurrentHashMap<ExecutionGroupVertex, FileInputSplitList>();
 

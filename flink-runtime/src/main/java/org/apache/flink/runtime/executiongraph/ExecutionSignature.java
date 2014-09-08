@@ -24,8 +24,8 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 
@@ -42,7 +42,7 @@ public final class ExecutionSignature {
 	/**
 	 * The log object used for debugging.
 	 */
-	private static final Log LOG = LogFactory.getLog(ExecutionSignature.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ExecutionSignature.class);
 
 	/**
 	 * The name of the hashing algorithm to be used.

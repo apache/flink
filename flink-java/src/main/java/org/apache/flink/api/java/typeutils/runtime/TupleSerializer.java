@@ -25,6 +25,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.types.NullFieldException;
 
 
 public final class TupleSerializer<T extends Tuple> extends TypeSerializer<T> {
@@ -105,7 +106,11 @@ public final class TupleSerializer<T extends Tuple> extends TypeSerializer<T> {
 	public void serialize(T value, DataOutputView target) throws IOException {
 		for (int i = 0; i < arity; i++) {
 			Object o = value.getField(i);
-			fieldSerializers[i].serialize(o, target);
+			try {
+				fieldSerializers[i].serialize(o, target);
+			} catch (NullPointerException npex) {
+				throw new NullFieldException(i);
+			}
 		}
 	}
 

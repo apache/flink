@@ -29,10 +29,8 @@ import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.co.CoFlatMapFunction;
 import org.apache.flink.streaming.api.invokable.operator.co.CoFlatMapInvokable;
-import org.apache.flink.streaming.util.LogUtils;
 import org.apache.flink.streaming.util.MockCoInvokable;
 import org.apache.flink.util.Collector;
-import org.apache.log4j.Level;
 import org.junit.Test;
 
 public class CoFlatMapTest implements Serializable {
@@ -70,8 +68,6 @@ public class CoFlatMapTest implements Serializable {
 	@SuppressWarnings("unchecked")
 	@Test
 	public void multipleInputTest() {
-		LogUtils.initializeDefaultConsoleLogger(Level.OFF, Level.OFF);
-
 		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 
 		DataStream<Integer> ds1 = env.fromElements(1, 3, 5);

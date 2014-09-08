@@ -39,3 +39,4 @@ or pull request that updates these documents as well.*
 - [RPC and JobManager Communication](rpc_transfer.html)
 -->
 
+- [How-to: Using logging in Flink](internal_logging.html)

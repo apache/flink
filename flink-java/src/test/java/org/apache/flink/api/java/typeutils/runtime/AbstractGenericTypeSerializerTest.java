@@ -19,6 +19,7 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.api.common.typeutils.SerializerTestInstance;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.runtime.AvroSerializer;
 import org.apache.flink.util.StringUtils;
 import org.junit.Test;
@@ -32,7 +33,7 @@ import java.util.Random;
 /**
  * A test for the {@link AvroSerializer}.
  */
-public class GenericTypeSerializerTest {
+abstract public class AbstractGenericTypeSerializerTest {
 
 	private final Random rnd = new Random(349712539451944123L);
 
@@ -122,14 +123,13 @@ public class GenericTypeSerializerTest {
 		@SuppressWarnings("unchecked")
 		Class<T> clazz = (Class<T>) instances[0].getClass();
 
-		AvroSerializer<T> serializer = createSerializer(clazz);
+		TypeSerializer<T> serializer = createSerializer(clazz);
 		SerializerTestInstance<T> test = new SerializerTestInstance<T>(serializer, clazz, -1, instances);
 		test.testAll();
 	}
 
-	private final <T> AvroSerializer<T> createSerializer(Class<T> type) {
-		return new AvroSerializer<T>(type);
-	}
+	abstract protected <T> TypeSerializer<T> createSerializer(Class<T> type);
+
 
 	// --------------------------------------------------------------------------------------------
 	//  Test Objects

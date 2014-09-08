@@ -21,8 +21,8 @@ package org.apache.flink.runtime.operators;
 
 import java.io.IOException;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -56,7 +56,7 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 	public static final String DEGREE_OF_PARALLELISM_KEY = "sink.dop";
 	
 	// Obtain DataSinkTask Logger
-	private static final Log LOG = LogFactory.getLog(DataSinkTask.class);
+	private static final Logger LOG = LoggerFactory.getLogger(DataSinkTask.class);
 
 	// --------------------------------------------------------------------------------------------
 	

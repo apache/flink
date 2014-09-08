@@ -30,14 +30,14 @@ import java.net.URL;
 
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class TestDataUtil {
 
 	// TODO: Exception handling
 	// TODO: check checksum after download
-	private static final Log LOG = LogFactory.getLog(TestDataUtil.class);
+	private static final Logger LOG = LoggerFactory.getLogger(TestDataUtil.class);
 	public static final String testDataDir = "src/test/resources/testdata/";
 	public static final String testRepoUrl = "http://info.ilab.sztaki.hu/~mbalassi/flink-streaming/testdata/";
 	public static final String testChekSumDir = "src/test/resources/testdata_checksum/";

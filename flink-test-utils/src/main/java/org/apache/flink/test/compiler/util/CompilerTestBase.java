@@ -66,7 +66,7 @@ public abstract class CompilerTestBase {
 	// ------------------------------------------------------------------------	
 	
 	@Before
-	public void setup() {		
+	public void setup() {
 		this.dataStats = new DataStatistics();
 		this.withStatsCompiler = new PactCompiler(this.dataStats, new DefaultCostEstimator());
 		this.withStatsCompiler.setDefaultDegreeOfParallelism(DEFAULT_PARALLELISM);

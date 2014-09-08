@@ -18,8 +18,8 @@
 
 package org.apache.flink.api.common.functions;
 
-import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.DoubleCounter;
@@ -112,7 +112,7 @@ public interface RuntimeContext {
 	 * Returns the result bound to the broadcast variable identified by the 
 	 * given {@code name}.
 	 */
-	<RT> Collection<RT> getBroadcastVariable(String name);
+	<RT> List<RT> getBroadcastVariable(String name);
 
 	/**
 	 * Returns the distributed cache to get the local tmp file.

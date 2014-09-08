@@ -29,6 +29,7 @@ import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 /**
@@ -37,7 +38,6 @@ import org.junit.Test;
  */
 
 public class LineReaderTest {
-
 	/**
 	 * This test tests the LineReader. So far only under usual conditions.
 	 */

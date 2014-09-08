@@ -17,14 +17,14 @@
 
 package org.apache.flink.streaming.api.invokable;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 import org.apache.flink.util.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The StreamOperatorInvokable represents the base class for all operators in
@@ -42,7 +42,7 @@ public abstract class StreamOperatorInvokable<IN, OUT> extends StreamInvokable<O
 	}
 
 	private static final long serialVersionUID = 1L;
-	private static final Log LOG = LogFactory.getLog(StreamInvokable.class);
+	private static final Logger LOG = LoggerFactory.getLogger(StreamOperatorInvokable.class);
 
 	protected MutableObjectIterator<StreamRecord<IN>> recordIterator;
 	protected StreamRecordSerializer<IN> serializer;

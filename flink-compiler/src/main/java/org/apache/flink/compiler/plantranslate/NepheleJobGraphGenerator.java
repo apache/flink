@@ -101,9 +101,9 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 	
 	public static final String MERGE_ITERATION_AUX_TASKS_KEY = "compiler.merge-iteration-aux";
 	
-	private static final boolean mergeIterationAuxTasks = GlobalConfiguration.getBoolean(MERGE_ITERATION_AUX_TASKS_KEY, true);
+	private static final boolean mergeIterationAuxTasks = GlobalConfiguration.getBoolean(MERGE_ITERATION_AUX_TASKS_KEY, false);
 	
-//	private static final Log LOG = LogFactory.getLog(NepheleJobGraphGenerator.class);
+//	private static final Logger LOG = LoggerFactory.getLogger(NepheleJobGraphGenerator.class);
 	
 	private static final TaskInChain ALREADY_VISITED_PLACEHOLDER = new TaskInChain(null, null, null);
 	

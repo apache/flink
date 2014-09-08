@@ -29,6 +29,7 @@ import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.aggregation.AggregationFunction;
 import org.apache.flink.api.java.aggregation.AggregationFunctionFactory;
 import org.apache.flink.api.java.aggregation.Aggregations;
@@ -38,8 +39,6 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
-
-import org.apache.flink.api.java.DataSet;
 
 /**
  * This operator represents the application of a "aggregate" operation on a data set, and the
@@ -283,8 +282,8 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 				current = values.next();
 				
 				for (int i = 0; i < fieldPositions.length; i++) {
-					Object val = current.getField(fieldPositions[i]);
-					aggFunctions[i].aggregate(val);
+						Object val = current.getFieldNotNull(fieldPositions[i]);
+						aggFunctions[i].aggregate(val);
 				}
 			}
 			

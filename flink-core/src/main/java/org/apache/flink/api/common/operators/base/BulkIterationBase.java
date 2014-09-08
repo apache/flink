@@ -23,8 +23,8 @@ import java.io.Serializable;
 import java.util.Collections;
 import java.util.Map;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.aggregators.AggregatorRegistry;
@@ -281,7 +281,7 @@ public class BulkIterationBase<T> extends SingleInputOperator<T, T, AbstractRich
 	@SuppressWarnings("serial")
 	public static class TerminationCriterionAggregationConvergence implements ConvergenceCriterion<LongValue> {
 
-		private static final Log log = LogFactory.getLog(TerminationCriterionAggregationConvergence.class);
+		private static final Logger log = LoggerFactory.getLogger(TerminationCriterionAggregationConvergence.class);
 
 		@Override
 		public boolean isConverged(int iteration, LongValue countAggregate) {

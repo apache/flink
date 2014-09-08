@@ -19,8 +19,8 @@
 
 package org.apache.flink.runtime.taskmanager;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionListener;
@@ -43,7 +43,7 @@ public final class Task implements ExecutionObserver {
 	/**
 	 * The log object used for debugging.
 	 */
-	private static final Log LOG = LogFactory.getLog(Task.class);
+	private static final Logger LOG = LoggerFactory.getLogger(Task.class);
 
 	private final ExecutionVertexID vertexID;
 

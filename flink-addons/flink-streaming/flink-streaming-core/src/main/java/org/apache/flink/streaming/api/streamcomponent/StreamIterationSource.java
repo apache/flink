@@ -21,8 +21,8 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.runtime.io.network.api.RecordWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
@@ -31,7 +31,7 @@ import org.apache.flink.streaming.io.BlockingQueueBroker;
 
 public class StreamIterationSource<OUT extends Tuple> extends AbstractStreamComponent {
 
-	private static final Log LOG = LogFactory.getLog(StreamIterationSource.class);
+	private static final Logger LOG = LoggerFactory.getLogger(StreamIterationSource.class);
 
 	private OutputHandler<OUT> outputHandler;
 
