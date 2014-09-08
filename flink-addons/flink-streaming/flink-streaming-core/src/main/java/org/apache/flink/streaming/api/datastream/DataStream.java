@@ -26,12 +26,10 @@ import org.apache.commons.lang3.SerializationUtils;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.Function;
-import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.functions.RichFilterFunction;
 import org.apache.flink.api.java.functions.RichFlatMapFunction;
-import org.apache.flink.api.java.functions.RichGroupReduceFunction;
 import org.apache.flink.api.java.functions.RichMapFunction;
 import org.apache.flink.api.java.functions.RichReduceFunction;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -49,14 +47,12 @@ import org.apache.flink.streaming.api.function.sink.WriteSinkFunctionByBatches;
 import org.apache.flink.streaming.api.function.sink.WriteSinkFunctionByMillis;
 import org.apache.flink.streaming.api.invokable.SinkInvokable;
 import org.apache.flink.streaming.api.invokable.StreamOperatorInvokable;
-import org.apache.flink.streaming.api.invokable.operator.BatchGroupReduceInvokable;
 import org.apache.flink.streaming.api.invokable.operator.FilterInvokable;
 import org.apache.flink.streaming.api.invokable.operator.FlatMapInvokable;
 import org.apache.flink.streaming.api.invokable.operator.MapInvokable;
 import org.apache.flink.streaming.api.invokable.operator.StreamReduceInvokable;
-import org.apache.flink.streaming.api.invokable.operator.WindowGroupReduceInvokable;
-import org.apache.flink.streaming.api.invokable.util.DefaultTimestamp;
-import org.apache.flink.streaming.api.invokable.util.Timestamp;
+import org.apache.flink.streaming.api.invokable.util.DefaultTimeStamp;
+import org.apache.flink.streaming.api.invokable.util.TimeStamp;
 import org.apache.flink.streaming.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.partitioner.DistributePartitioner;
 import org.apache.flink.streaming.partitioner.FieldsPartitioner;
@@ -385,160 +381,113 @@ public class DataStream<OUT> {
 				ReduceFunction.class, 0), new StreamReduceInvokable<OUT>(reducer));
 	}
 
+	/**
+	 * Groups the elements of a {@link DataStream} by the given key position to
+	 * be used with grouped operators like
+	 * {@link GroupedDataStream#reduce(ReduceFunction)}
+	 * 
+	 * @param keyPosition
+	 *            The position of the field on which the {@link DataStream} will
+	 *            be grouped.
+	 * @return The transformed {@link DataStream}
+	 */
 	public GroupedDataStream<OUT> groupBy(int keyPosition) {
 		return new GroupedDataStream<OUT>(this, keyPosition);
 	}
 
 	/**
-	 * Applies a reduce transformation on preset chunks of the DataStream. The
-	 * transformation calls a {@link GroupReduceFunction} for each tuple batch
-	 * of the predefined size. Each GroupReduceFunction call can return any
-	 * number of elements including none. The user can also extend
-	 * {@link RichGroupReduceFunction} to gain access to other features provided
-	 * by the {@link RichFuntion} interface.
+	 * Collects the data stream elements into sliding batches creating a new
+	 * {@link BatchedDataStream}. The user can apply transformations like
+	 * {@link BatchedDataStream#reduce}, {@link BatchedDataStream#reduceGroup}
+	 * or aggregations on the {@link BatchedDataStream}.
 	 * 
-	 * 
-	 * @param reducer
-	 *            The GroupReduceFunction that is called for each tuple batch.
 	 * @param batchSize
-	 *            The number of tuples grouped together in the batch.
-	 * @param <R>
-	 *            output type
-	 * @return The transformed {@link DataStream}.
-	 */
-	public <R> SingleOutputStreamOperator<R, ?> batchReduce(GroupReduceFunction<OUT, R> reducer,
-			long batchSize) {
-		return batchReduce(reducer, batchSize, batchSize);
-	}
-
-	/**
-	 * Applies a reduce transformation on preset sliding chunks of the
-	 * DataStream. The transformation calls a {@link GroupReduceFunction} for
-	 * each tuple batch of the predefined size. The tuple batch gets slid by the
-	 * given number of tuples. Each GroupReduceFunction call can return any
-	 * number of elements including none. The user can also extend
-	 * {@link RichGroupReduceFunction} to gain access to other features provided
-	 * by the {@link RichFuntion} interface.
-	 * 
-	 * 
-	 * @param reducer
-	 *            The GroupReduceFunction that is called for each tuple batch.
-	 * @param batchSize
-	 *            The number of tuples grouped together in the batch.
+	 *            The number of elements in each batch at each operator
 	 * @param slideSize
-	 *            The number of tuples the batch is slid by.
-	 * @param <R>
-	 *            output type
-	 * @return The transformed {@link DataStream}.
+	 *            The number of elements with which the batches are slid by
+	 *            after each transformation.
+	 * @return The transformed {@link DataStream}
 	 */
-	public <R> SingleOutputStreamOperator<R, ?> batchReduce(GroupReduceFunction<OUT, R> reducer,
-			long batchSize, long slideSize) {
+	public BatchedDataStream<OUT> batch(long batchSize, long slideSize) {
 		if (batchSize < 1) {
 			throw new IllegalArgumentException("Batch size must be positive");
 		}
 		if (slideSize < 1) {
 			throw new IllegalArgumentException("Slide size must be positive");
 		}
-
-		FunctionTypeWrapper<OUT> inTypeWrapper = new FunctionTypeWrapper<OUT>(reducer,
-				GroupReduceFunction.class, 0);
-		FunctionTypeWrapper<R> outTypeWrapper = new FunctionTypeWrapper<R>(reducer,
-				GroupReduceFunction.class, 1);
-
-		return addFunction("batchReduce", reducer, inTypeWrapper, outTypeWrapper,
-				new BatchGroupReduceInvokable<OUT, R>(reducer, batchSize, slideSize));
+		return new BatchedDataStream<OUT>(this, batchSize, slideSize);
 	}
 
 	/**
-	 * Applies a reduce transformation on preset "time" chunks of the
-	 * DataStream. The transformation calls a {@link GroupReduceFunction} on
-	 * records received during the predefined time window. The window is shifted
-	 * after each reduce call. Each GroupReduceFunction call can return any
-	 * number of elements including none.The user can also extend
-	 * {@link RichGroupReduceFunction} to gain access to other features provided
-	 * by the {@link RichFuntion} interface.
+	 * Collects the data stream elements into sliding batches creating a new
+	 * {@link BatchedDataStream}. The user can apply transformations like
+	 * {@link BatchedDataStream#reduce}, {@link BatchedDataStream#reduceGroup}
+	 * or aggregations on the {@link BatchedDataStream}.
 	 * 
-	 * 
-	 * @param reducer
-	 *            The GroupReduceFunction that is called for each time window.
-	 * @param windowSize
-	 *            SingleOutputStreamOperator The time window to run the reducer
-	 *            on, in milliseconds.
-	 * @param <R>
-	 *            output type
-	 * @return The transformed DataStream.
+	 * @param batchSize
+	 *            The number of elements in each batch at each operator
+	 * @return The transformed {@link DataStream}
 	 */
-	public <R> SingleOutputStreamOperator<R, ?> windowReduce(GroupReduceFunction<OUT, R> reducer,
-			long windowSize) {
-		return windowReduce(reducer, windowSize, windowSize);
+	public BatchedDataStream<OUT> batch(long batchSize) {
+		return batch(batchSize, batchSize);
 	}
 
 	/**
-	 * Applies a reduce transformation on preset "time" chunks of the
-	 * DataStream. The transformation calls a {@link GroupReduceFunction} on
-	 * records received during the predefined time window. The window is shifted
-	 * after each reduce call. Each GroupReduceFunction call can return any
-	 * number of elements including none.The user can also extend
-	 * {@link RichGroupReduceFunction} to gain access to other features provided
-	 * by the {@link RichFuntion} interface.
+	 * Collects the data stream elements into sliding windows creating a new
+	 * {@link WindowDataStream}. The user can apply transformations like
+	 * {@link WindowDataStream#reduce}, {@link WindowDataStream#reduceGroup} or
+	 * aggregations on the {@link WindowDataStream}.
 	 * 
-	 * 
-	 * @param reducer
-	 *            The GroupReduceFunction that is called for each time window.
 	 * @param windowSize
-	 *            SingleOutputStreamOperator The time window to run the reducer
-	 *            on, in milliseconds.
+	 *            The length of the window in milliseconds.
 	 * @param slideInterval
-	 *            The time interval, batch is slid by.
-	 * @param <R>
-	 *            output type
-	 * @return The transformed DataStream.
-	 */
-	public <R> SingleOutputStreamOperator<R, ?> windowReduce(GroupReduceFunction<OUT, R> reducer,
-			long windowSize, long slideInterval) {
-		return windowReduce(reducer, windowSize, slideInterval, new DefaultTimestamp<OUT>());
-	}
-
-	/**
-	 * Applies a reduce transformation on preset "time" chunks of the
-	 * DataStream. The transformation calls a {@link GroupReduceFunction} on
-	 * records received during the predefined time window. The window is shifted
-	 * after each reduce call. Each GroupReduceFunction call can return any
-	 * number of elements including none. The time is determined by a
-	 * user-defined timestamp. The user can also extend
-	 * {@link RichGroupReduceFunction} to gain access to other features provided
-	 * by the {@link RichFuntion} interface.
-	 * 
-	 * 
-	 * @param reducer
-	 *            The GroupReduceFunction that is called for each time window.
-	 * @param windowSize
-	 *            SingleOutputStreamOperator The time window to run the reducer
-	 *            on, in milliseconds.
-	 * @param slideInterval
-	 *            The time interval, batch is slid by.
+	 *            The number of milliseconds with which the windows are slid by
+	 *            after each transformation.
 	 * @param timestamp
-	 *            Timestamp function to retrieve a timestamp from an element.
-	 * @param <R>
-	 *            output type
-	 * @return The transformed DataStream.
+	 *            User defined function for extracting time-stamps from each
+	 *            element
+	 * @return The transformed {@link DataStream}
 	 */
-	public <R> SingleOutputStreamOperator<R, ?> windowReduce(GroupReduceFunction<OUT, R> reducer,
-			long windowSize, long slideInterval, Timestamp<OUT> timestamp) {
+	public WindowDataStream<OUT> window(long windowSize, long slideInterval,
+			TimeStamp<OUT> timestamp) {
 		if (windowSize < 1) {
 			throw new IllegalArgumentException("Window size must be positive");
 		}
 		if (slideInterval < 1) {
 			throw new IllegalArgumentException("Slide interval must be positive");
 		}
+		return new WindowDataStream<OUT>(this, windowSize, slideInterval, timestamp);
+	}
 
-		FunctionTypeWrapper<OUT> inTypeWrapper = new FunctionTypeWrapper<OUT>(reducer,
-				GroupReduceFunction.class, 0);
-		FunctionTypeWrapper<R> outTypeWrapper = new FunctionTypeWrapper<R>(reducer,
-				GroupReduceFunction.class, 1);
+	/**
+	 * Collects the data stream elements into sliding windows creating a new
+	 * {@link WindowDataStream}. The user can apply transformations like
+	 * {@link WindowDataStream#reduce}, {@link WindowDataStream#reduceGroup} or
+	 * aggregations on the {@link WindowDataStream}.
+	 * 
+	 * @param windowSize
+	 *            The length of the window in milliseconds.
+	 * @param slideInterval
+	 *            The number of milliseconds with which the windows are slid by
+	 *            after each transformation.
+	 * @return The transformed {@link DataStream}
+	 */
+	public WindowDataStream<OUT> window(long windowSize, long slideInterval) {
+		return window(windowSize, slideInterval, new DefaultTimeStamp<OUT>());
+	}
 
-		return addFunction("batchReduce", reducer, inTypeWrapper, outTypeWrapper,
-				new WindowGroupReduceInvokable<OUT, R>(reducer, windowSize, slideInterval, timestamp));
+	/**
+	 * Collects the data stream elements into sliding windows creating a new
+	 * {@link WindowDataStream}. The user can apply transformations like
+	 * {@link WindowDataStream#reduce}, {@link WindowDataStream#reduceGroup} or
+	 * aggregations on the {@link WindowDataStream}.
+	 * 
+	 * @param windowSize
+	 *            The length of the window in milliseconds.
+	 * @return The transformed {@link DataStream}
+	 */
+	public WindowDataStream<OUT> window(long windowSize) {
+		return window(windowSize, windowSize);
 	}
 
 	/**
@@ -1115,7 +1064,7 @@ public class DataStream<OUT> {
 	 * 
 	 * @return The copy
 	 */
-	protected DataStream<OUT> copy(){
+	protected DataStream<OUT> copy() {
 		return new DataStream<OUT>(this);
 	}
 

@@ -20,24 +20,20 @@ package org.apache.flink.streaming.api.invokable.operator;
 import java.io.IOException;
 
 import org.apache.flink.api.common.functions.GroupReduceFunction;
-import org.apache.flink.streaming.api.invokable.util.Timestamp;
+import org.apache.flink.streaming.api.invokable.util.TimeStamp;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
 public class WindowGroupReduceInvokable<IN, OUT> extends BatchGroupReduceInvokable<IN, OUT> {
 	private static final long serialVersionUID = 1L;
 	private long startTime;
 	private long nextRecordTime;
-	private Timestamp<IN> timestamp;
+	private TimeStamp<IN> timestamp;
 
 	public WindowGroupReduceInvokable(GroupReduceFunction<IN, OUT> reduceFunction, long windowSize,
-			long slideInterval, Timestamp<IN> timestamp) {
+			long slideInterval, TimeStamp<IN> timestamp) {
 		super(reduceFunction, windowSize, slideInterval);
 		this.timestamp = timestamp;
-	}
-
-	@Override
-	protected void initializeAtFirstRecord() {
-		startTime = nextRecordTime - (nextRecordTime % granularity);
+		this.startTime = timestamp.getStartTime();
 	}
 
 	@Override

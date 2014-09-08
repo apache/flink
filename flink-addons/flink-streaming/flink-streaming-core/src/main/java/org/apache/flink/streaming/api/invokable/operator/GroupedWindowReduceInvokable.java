@@ -18,33 +18,26 @@
 package org.apache.flink.streaming.api.invokable.operator;
 
 import java.io.IOException;
-import java.util.Map;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.streaming.api.invokable.util.Timestamp;
+import org.apache.flink.streaming.api.invokable.util.TimeStamp;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
-import org.apache.flink.streaming.state.SlidingWindowState;
 
 public class GroupedWindowReduceInvokable<OUT> extends GroupedBatchReduceInvokable<OUT> {
 
 	private static final long serialVersionUID = 1L;
-	protected transient SlidingWindowState<Map<Object, OUT>> state;
 
-	private Timestamp<OUT> timestamp;
+	private TimeStamp<OUT> timestamp;
 	private long startTime;
 	private long nextRecordTime;
 
 	public GroupedWindowReduceInvokable(ReduceFunction<OUT> reduceFunction, long windowSize,
-			long slideInterval, Timestamp<OUT> timestamp, int keyPosition) {
+			long slideInterval, int keyPosition, TimeStamp<OUT> timestamp) {
 		super(reduceFunction, windowSize, slideInterval, keyPosition);
 		this.timestamp = timestamp;
+		this.startTime = timestamp.getStartTime();
 	}
-	
-	@Override
-	protected void initializeAtFirstRecord() {
-		startTime = nextRecordTime - (nextRecordTime % granularity);
-	}
-	
+
 	@Override
 	protected StreamRecord<OUT> getNextRecord() throws IOException {
 		reuse = recordIterator.next(reuse);
@@ -53,7 +46,7 @@ public class GroupedWindowReduceInvokable<OUT> extends GroupedBatchReduceInvokab
 		}
 		return reuse;
 	}
-	
+
 	@Override
 	protected boolean batchNotFull() {
 		if (nextRecordTime < startTime + granularity) {

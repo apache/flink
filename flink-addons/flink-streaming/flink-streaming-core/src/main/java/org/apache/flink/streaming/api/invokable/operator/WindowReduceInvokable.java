@@ -21,25 +21,21 @@ import java.io.IOException;
 import java.util.Iterator;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.streaming.api.invokable.util.Timestamp;
+import org.apache.flink.streaming.api.invokable.util.TimeStamp;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
 public class WindowReduceInvokable<OUT> extends BatchReduceInvokable<OUT> {
 	private static final long serialVersionUID = 1L;
 	private long startTime;
 	private long nextRecordTime;
-	private Timestamp<OUT> timestamp;
+	private TimeStamp<OUT> timestamp;
 	private String nullElement = "nullElement";
 
 	public WindowReduceInvokable(ReduceFunction<OUT> reduceFunction, long windowSize,
-			long slideInterval, Timestamp<OUT> timestamp) {
+			long slideInterval, TimeStamp<OUT> timestamp) {
 		super(reduceFunction, windowSize, slideInterval);
 		this.timestamp = timestamp;
-	}
-
-	@Override
-	protected void initializeAtFirstRecord() {
-		startTime = nextRecordTime - (nextRecordTime % granularity);
+		this.startTime = timestamp.getStartTime();
 	}
 
 	protected StreamRecord<OUT> getNextRecord() throws IOException {
@@ -59,7 +55,7 @@ public class WindowReduceInvokable<OUT> extends BatchReduceInvokable<OUT> {
 			return false;
 		}
 	}
-	
+
 	@Override
 	protected void collectOneUnit() throws Exception {
 		OUT reduced = null;
@@ -71,9 +67,9 @@ public class WindowReduceInvokable<OUT> extends BatchReduceInvokable<OUT> {
 				resetReuse();
 			}
 		}
-		if(reduced!=null){
+		if (reduced != null) {
 			state.pushBack(reduced);
-		}else{
+		} else {
 			state.pushBack(nullElement);
 		}
 	}

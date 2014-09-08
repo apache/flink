@@ -25,7 +25,7 @@ import java.util.List;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.streaming.api.invokable.util.Timestamp;
+import org.apache.flink.streaming.api.invokable.util.TimeStamp;
 import org.apache.flink.streaming.util.MockInvokable;
 import org.junit.Test;
 
@@ -52,12 +52,17 @@ public class WindowReduceInvokableTest {
 					public Integer reduce(Integer value1, Integer value2) throws Exception {
 						return value1 + value2;
 					}
-				}, 4, 2, new Timestamp<Integer>() {
+				}, 4, 2, new TimeStamp<Integer>() {
 					private static final long serialVersionUID = 1L;
 
 					@Override
 					public long getTimestamp(Integer value) {
 						return value;
+					}
+
+					@Override
+					public long getStartTime() {
+						return 0;
 					}
 				});
 
@@ -86,14 +91,19 @@ public class WindowReduceInvokableTest {
 							Tuple2<String, Integer> value2) throws Exception {
 						return new Tuple2<String, Integer>(value1.f0, value1.f1 + value2.f1);
 					}
-				}, 3, 2, new Timestamp<Tuple2<String, Integer>>() {
+				}, 3, 2, 0, new TimeStamp<Tuple2<String, Integer>>() {
 					private static final long serialVersionUID = 1L;
 
 					@Override
 					public long getTimestamp(Tuple2<String, Integer> value) {
 						return value.f1;
 					}
-				}, 0);
+
+					@Override
+					public long getStartTime() {
+						return 1;
+					}
+				});
 
 		List<Tuple2<String, Integer>> expected2 = new ArrayList<Tuple2<String, Integer>>();
 		expected2.add(new Tuple2<String, Integer>("a", 6));

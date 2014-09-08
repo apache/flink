@@ -17,22 +17,23 @@
 
 package org.apache.flink.streaming.api.invokable.util;
 
-import java.io.Serializable;
-
 /**
- * Interface for getting a timestamp from a custom value. Used in window
- * reduces. In order to work properly, the timestamps must be non-decreasing.
+ * Default timestamp function that uses the Java System.currentTimeMillis()
+ * method to retrieve a timestamp.
  *
  * @param <T>
- *            Type of the value to create the timestamp from.
+ *            Type of the inputs of the reducing function.
  */
-public interface Timestamp<T> extends Serializable {
+public class DefaultTimeStamp<T> implements TimeStamp<T> {
+	private static final long serialVersionUID = 1L;
 
-	/**
-	 * Values
-	 * @param value
-	 * The value to create the timestamp from
-	 * @return The timestamp
-	 */
-	public long getTimestamp(T value);
+	@Override
+	public long getTimestamp(T value) {
+		return System.currentTimeMillis();
+	}
+
+	@Override
+	public long getStartTime() {
+		return System.currentTimeMillis();
+	}
 }

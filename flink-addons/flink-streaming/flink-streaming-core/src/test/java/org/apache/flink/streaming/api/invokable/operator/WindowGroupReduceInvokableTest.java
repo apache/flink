@@ -25,7 +25,7 @@ import java.util.Iterator;
 import java.util.List;
 
 import org.apache.flink.api.common.functions.GroupReduceFunction;
-import org.apache.flink.streaming.api.invokable.util.Timestamp;
+import org.apache.flink.streaming.api.invokable.util.TimeStamp;
 import org.apache.flink.streaming.util.MockInvokable;
 import org.apache.flink.util.Collector;
 import org.junit.Before;
@@ -45,19 +45,26 @@ public class WindowGroupReduceInvokableTest {
 		}
 	}
 
-	public static final class MyTimestamp implements Timestamp<Integer> {
+	public static final class MyTimestamp implements TimeStamp<Integer> {
 		private static final long serialVersionUID = 1L;
 
 		private Iterator<Long> timestamps;
+		private long start;
 
 		public MyTimestamp(List<Long> timestamps) {
 			this.timestamps = timestamps.iterator();
+			this.start = timestamps.get(0);
 		}
 
 		@Override
 		public long getTimestamp(Integer value) {
 			long ts = timestamps.next();
 			return ts;
+		}
+
+		@Override
+		public long getStartTime() {
+			return start;
 		}
 	}
 
@@ -81,16 +88,16 @@ public class WindowGroupReduceInvokableTest {
 		slideSize = 5;
 		timestamps = Arrays.asList(101L, 103L, 121L, 122L, 123L, 124L, 180L, 181L, 185L, 190L);
 		expectedResults.add(Arrays.asList("1", "2", EOW, EOW, EOW, "3", "4", "5", "6", EOW, "3",
-				"4", "5", "6", EOW, EOW, EOW, EOW, EOW, EOW, EOW, EOW, EOW, EOW, EOW, "7", "8",
-				EOW, "7", "8", "9", EOW, "9", "10", EOW));
+				"4", "5", "6", EOW, EOW, EOW, EOW, EOW, EOW, EOW, EOW, EOW, EOW, "7", EOW, "7",
+				"8", "9", EOW, "8", "9", "10", EOW));
 		invokables.add(new WindowGroupReduceInvokable<Integer, String>(new MySlidingWindowReduce(),
 				windowSize, slideSize, new MyTimestamp(timestamps)));
 
 		windowSize = 10;
 		slideSize = 4;
 		timestamps = Arrays.asList(101L, 103L, 110L, 112L, 113L, 114L, 120L, 121L, 125L, 130L);
-		expectedResults.add(Arrays.asList("1", "2", EOW, "3", "4", "5", EOW, "3", "4", "5", "6",
-				EOW, "4", "5", "6", "7", "8", EOW, "7", "8", "9", EOW, "7", "8", "9", EOW, "9",
+		expectedResults.add(Arrays.asList("1", "2","3" ,EOW, "3", "4", "5","6", EOW, "3", "4", "5", "6",
+				EOW, "5", "6", "7", "8", EOW, "7", "8", "9", EOW, "8","9",
 				"10", EOW));
 		invokables.add(new WindowGroupReduceInvokable<Integer, String>(new MySlidingWindowReduce(),
 				windowSize, slideSize, new MyTimestamp(timestamps)));

@@ -242,33 +242,6 @@ Merges two or more `DataStream` instances creating a new DataStream containing a
 dataStream.merge(otherStream1, otherStream2…)
 ```
 
-### Window/Batch operators
-
-Window and batch operators allow the user to execute function on slices or windows of the DataStream in a sliding fashion. If the stepsize for the slide is not defined then the window/batchsize is used as stepsize by default.
-
-#### Window reduce
-The transformation calls a user-defined `GroupReduceFunction` on records received during the predefined time window. The window is shifted after each reduce call.
-A window reduce that sums the elements in the last minute with 10 seconds stepsize:
-
-```java
-dataStream.windowReduce(new GroupReduceFunction<Integer, Integer>() {
-			@Override
-			public void reduce(Iterable<Integer> values, Collector<Integer> out) throws Exception {
-				Integer sum = 0;
-				for(Integer val: values){
-					sum+=val;
-				}
-			}
-		}, 60000, 10000);
-```
-
-#### Batch reduce
-The transformation calls a `GroupReduceFunction` for each data batch of the predefined size. The batch slides by the predefined number of elements after each call. Works similarly to window reduce.
-
-```java
-dataStream.batchReduce(reducer, batchSize, slideSize)
-```
-
 ### Grouped operators
 
 Some transformations require that the `DataStream` is grouped on some key value. The user can create a `GroupedDataStream` by calling the `groupBy(keyPosition)` method of a non-grouped `DataStream`. The user can apply different reduce transformations on the obtained `GroupedDataStream`:
@@ -276,8 +249,35 @@ Some transformations require that the `DataStream` is grouped on some key value.
 #### Reduce on GroupedDataStream
 When the reduce operator is applied on a grouped data stream, the user-defined `ReduceFunction` will combine subsequent pairs of elements having the same key value. The combined results are sent to the output stream.
 
-#### Window/Batchreduce on GroupedDataStream
-Similarly to the grouped reduce operator the window and batch reduce operators work the same way as in the non-grouped case except that in a data window/batch every `GroupReduceFunction` call will receive data elements for only the same keys.
+### Aggregations
+
+The Flink streaming API supports different types of aggregation operators similarly to the core API. For grouped data streams the aggregations work in a grouped fashion.
+
+Types of aggregations: `sum(fieldPosition)`, `min(fieldPosition)`, `max(fieldPosition)`
+
+For every incoming tuple the selected field is replaced with the current aggregated value. If the aggregations are used without defining field position, 0 is used as default. 
+
+### Window/Batch operators
+
+Window and batch operators allow the user to execute function on slices or windows of the DataStream in a sliding fashion. If the stepsize for the slide is not defined then the window/batchsize is used as stepsize by default.
+
+When applied to grouped data streams the operators applied will be executed on groups of elements grouped by the selected key position.
+
+#### Reduce on windowed/batched data streams
+The transformation calls a user-defined `ReduceFunction` on records received in the batch or during the predefined time window. The window is shifted after each reduce call. The user can also use the different streaming aggregations.
+
+A window reduce that sums the elements in the last minute with 10 seconds slide interval:
+
+```java
+dataStream.window(60000, 10000).sum();
+```
+
+#### ReduceGroup on windowed/batched data streams
+The transformation calls a `GroupReduceFunction` for each data batch or data window. The batch/window slides by the predefined number of elements/time after each call.
+
+```java
+dataStream.batch(1000, 100).reduceGroup(reducer);
+```
 
 ### Co operators
 
