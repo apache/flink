@@ -117,10 +117,6 @@ public class JDBCOutputFormat<OUT extends Tuple> implements OutputFormat<OUT> {
 	@Override
 	public void writeRecord(OUT tuple) throws IOException {
 		try {
-			if (query.split("\\?,").length != tuple.getArity()) {
-				close();
-				throw new IOException("Tuple size does not match columncount");
-			}
 			if (types == null) {
 				extractTypes(tuple);
 			}
