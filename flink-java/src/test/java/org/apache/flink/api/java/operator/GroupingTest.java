@@ -22,19 +22,18 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.junit.Assert;
-
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.operators.Order;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.typeutils.BasicTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
-
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
 
 public class GroupingTest {
 
@@ -189,7 +188,64 @@ public class GroupingTest {
 		} catch(Exception e) {
 			Assert.fail();
 		}
+	}
+	
+	@Test
+	@SuppressWarnings("serial")
+	public void testGroupByKeySelector2() {
 		
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		this.customTypeData.add(new CustomType());
+		
+		try {
+			DataSet<CustomType> customDs = env.fromCollection(customTypeData);
+			// should work
+			customDs.groupBy(
+					new KeySelector<GroupingTest.CustomType, Tuple2<Integer, Long>>() {
+						@Override
+						public Tuple2<Integer,Long> getKey(CustomType value) {
+							return new Tuple2<Integer, Long>(value.myInt, value.myLong);
+					}
+			});
+		} catch(Exception e) {
+			Assert.fail();
+		}
+	}
+	
+	@Test(expected=IllegalArgumentException.class)
+	@SuppressWarnings("serial")
+	public void testGroupByKeySelector3() {
+		
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		this.customTypeData.add(new CustomType());
+		
+		DataSet<CustomType> customDs = env.fromCollection(customTypeData);
+		// should not work
+		customDs.groupBy(
+				new KeySelector<GroupingTest.CustomType, CustomType>() {
+					@Override
+					public CustomType getKey(CustomType value) {
+						return value;
+				}
+		});
+	}
+	
+	@Test(expected=IllegalArgumentException.class)
+	@SuppressWarnings("serial")
+	public void testGroupByKeySelector4() {
+		
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		this.customTypeData.add(new CustomType());
+		
+		DataSet<CustomType> customDs = env.fromCollection(customTypeData);
+		// should not work
+		customDs.groupBy(
+				new KeySelector<GroupingTest.CustomType, Tuple2<Integer, GroupingTest.CustomType>>() {
+					@Override
+					public Tuple2<Integer, CustomType> getKey(CustomType value) {
+						return new Tuple2<Integer, CustomType>(value.myInt, value);
+				}
+		});
 	}
 	
 	@Test

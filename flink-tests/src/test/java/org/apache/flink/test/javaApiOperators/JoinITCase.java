@@ -46,7 +46,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 @RunWith(Parameterized.class)
 public class JoinITCase extends JavaProgramTestBase {
 	
-	private static int NUM_PROGRAMS = 13;
+	private static int NUM_PROGRAMS = 14;
 	
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -452,6 +452,46 @@ public class JoinITCase extends JavaProgramTestBase {
 						"2,2,Hello world,2,1,Hello\n" +
 						"2,2,Hello world,2,2,Hello world\n";
 	
+			}
+			case 14: {
+				/*
+				 * UDF Join on tuples with tuple-returning key selectors
+				 */
+				
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				
+				DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.get3TupleDataSet(env);
+				DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.get5TupleDataSet(env);
+				DataSet<Tuple2<String, String>> joinDs = 
+						ds1.join(ds2)
+						   .where(new KeySelector<Tuple3<Integer,Long,String>, Tuple2<Integer, Long>>() {
+								private static final long serialVersionUID = 1L;
+								
+								@Override
+								public Tuple2<Integer, Long> getKey(Tuple3<Integer,Long,String> t) {
+									return new Tuple2<Integer, Long>(t.f0, t.f1);
+								}
+							})
+						   .equalTo(new KeySelector<Tuple5<Integer,Long,Integer,String,Long>, Tuple2<Integer, Long>>() {
+								private static final long serialVersionUID = 1L;
+								
+								@Override
+								public Tuple2<Integer, Long> getKey(Tuple5<Integer,Long,Integer,String,Long> t) {
+									return new Tuple2<Integer, Long>(t.f0, t.f4);
+								}
+							})
+						   .with(new T3T5FlatJoin());
+				
+				joinDs.writeAsCsv(resultPath);
+				env.execute();
+				
+				// return expected result
+				return "Hi,Hallo\n" +
+						"Hello,Hallo Welt\n" +
+						"Hello world,Hallo Welt wie gehts?\n" +
+						"Hello world,ABC\n" +
+						"I am fine.,HIJ\n" +
+						"I am fine.,IJK\n";
 			}
 			default: 
 				throw new IllegalArgumentException("Invalid program id");

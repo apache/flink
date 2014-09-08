@@ -399,7 +399,7 @@ public abstract class DataSet<T> {
 	 *                     distinction of the DataSet is decided.
 	 * @return A DistinctOperator that represents the distinct DataSet.
 	 */
-	public <K extends Comparable<K>> DistinctOperator<T> distinct(KeySelector<T, K> keyExtractor) {
+	public <K> DistinctOperator<T> distinct(KeySelector<T, K> keyExtractor) {
 		return new DistinctOperator<T>(this, new Keys.SelectorFunctionKeys<T, K>(keyExtractor, getType()));
 	}
 	

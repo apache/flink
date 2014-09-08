@@ -48,7 +48,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 @RunWith(Parameterized.class)
 public class GroupReduceITCase extends JavaProgramTestBase {
 	
-	private static int NUM_PROGRAMS = 13;
+	private static int NUM_PROGRAMS = 14;
 	
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -411,6 +411,40 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 							"111,6,Comment#15-Comment#14-Comment#13-Comment#12-Comment#11-Comment#10\n";
 
 				}
+				case 14: {
+					/*
+					 * check correctness of groupReduce on tuples with tuple-returning key selector
+					 */
+
+						final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+						DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
+						DataSet<Tuple5<Integer, Long, Integer, String, Long>> reduceDs = ds.
+								groupBy(
+										new KeySelector<Tuple5<Integer,Long,Integer,String,Long>, Tuple2<Integer, Long>>() {
+											private static final long serialVersionUID = 1L;
+				
+											@Override
+											public Tuple2<Integer, Long> getKey(Tuple5<Integer,Long,Integer,String,Long> t) {
+												return new Tuple2<Integer, Long>(t.f0, t.f4);
+											}
+										}).reduceGroup(new Tuple5GroupReduce());
+
+						reduceDs.writeAsCsv(resultPath);
+						env.execute();
+
+						// return expected result
+						return "1,1,0,P-),1\n" +
+								"2,3,0,P-),1\n" +
+								"2,2,0,P-),2\n" +
+								"3,9,0,P-),2\n" +
+								"3,6,0,P-),3\n" +
+								"4,17,0,P-),1\n" +
+								"4,17,0,P-),2\n" +
+								"5,11,0,P-),1\n" +
+								"5,29,0,P-),2\n" +
+								"5,25,0,P-),3\n";
+					}
 				default: {
 					throw new IllegalArgumentException("Invalid program id");
 				}

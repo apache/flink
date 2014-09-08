@@ -95,7 +95,7 @@ public class TupleTypeInfo<T extends Tuple> extends TypeInformation<T> implement
 	
 	@Override
 	public boolean isKeyType() {
-		return false;
+		return this.isValidKeyType(this);
 	}
 	
 	@Override
@@ -226,6 +226,22 @@ public class TupleTypeInfo<T extends Tuple> extends TypeInformation<T> implement
 		@SuppressWarnings("unchecked")
 		TupleTypeInfo<X> tupleInfo = (TupleTypeInfo<X>) new TupleTypeInfo<Tuple>(infos);
 		return tupleInfo;
+	}
+	
+	private boolean isValidKeyType(TypeInformation<?> typeInfo) {
+		if(typeInfo instanceof TupleTypeInfo) {
+			TupleTypeInfo<?> tupleType = ((TupleTypeInfo<?>)typeInfo);
+			for(int i=0;i<tupleType.getArity();i++) {
+				if (!isValidKeyType(tupleType.getTypeAt(i))) {
+					return false;
+				}
+			}
+			return true;
+		} else if(typeInfo.isKeyType()) {
+				return true;
+		} else {
+			return false;
+		}
 	}
 	
 	// --------------------------------------------------------------------------------------------	

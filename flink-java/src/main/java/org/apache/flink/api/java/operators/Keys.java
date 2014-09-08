@@ -134,6 +134,11 @@ public abstract class Keys<T> {
 			
 			this.keyExtractor = keyExtractor;
 			this.keyType = TypeExtractor.getKeySelectorTypes(keyExtractor, type);
+			
+			if (!this.keyType.isKeyType()) {
+				throw new IllegalArgumentException("Invalid type of KeySelector keys");
+			}
+			
 		}
 
 		public TypeInformation<K> getKeyType() {
