@@ -19,11 +19,10 @@
 
 package org.apache.flink.example.java.graph.util;
 
-import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 
@@ -33,34 +32,46 @@ import org.apache.flink.api.java.ExecutionEnvironment;
  *
  */
 public class ConnectedComponentsData {
+	
+	public static final Object[][] VERTICES  = new Object[][] {
+		new Object[]{1L}, new Object[]{2L}, new Object[]{3L}, new Object[]{4L}, 
+		new Object[]{5L},new Object[]{6L}, new Object[]{7L}, new Object[]{8L}, 
+		new Object[]{9L}, new Object[]{10L}, new Object[]{11L}, new Object[]{12L}, 
+		new Object[]{13L}, new Object[]{14L}, new Object[]{15L}, new Object[]{16L}
+	};
 
 	public static DataSet<Long> getDefaultVertexDataSet(ExecutionEnvironment env) {
-		
-		return env.fromElements(
-				1L, 2L, 3L, 4L, 5L, 
-				6L, 7L, 8L, 9L, 10L,
-				11L, 12L, 13L, 14L, 15L, 16L);
+		List<Long> verticesList = new LinkedList<Long>();
+		for (Object[] vertex : VERTICES) {
+			verticesList.add((Long) vertex[0]);
+		}
+		return env.fromCollection(verticesList);
 	}
+	
+	public static final Object[][] EDGES = new Object[][] {
+		new Object[]{1L, 2L},
+		new Object[]{2L, 3L},
+		new Object[]{2L, 4L},
+		new Object[]{3L, 5L},
+		new Object[]{6L, 7L},
+		new Object[]{8L, 9L},
+		new Object[]{8L, 10L},
+		new Object[]{5L, 11L},
+		new Object[]{11L, 12L},
+		new Object[]{10L, 13L},
+		new Object[]{9L, 14L},
+		new Object[]{13L, 14L},
+		new Object[]{1L, 15L},
+		new Object[]{16L, 1L}
+	};
 	
 	public static DataSet<Tuple2<Long, Long>> getDefaultEdgeDataSet(ExecutionEnvironment env) {
 		
-		List<Tuple2<Long, Long>> data = new ArrayList<Tuple2<Long, Long>>();
-		data.add(new Tuple2<Long, Long>(1L, 2L));
-		data.add(new Tuple2<Long, Long>(2L, 3L));
-		data.add(new Tuple2<Long, Long>(2L, 4L));
-		data.add(new Tuple2<Long, Long>(3L, 5L));
-		data.add(new Tuple2<Long, Long>(6L, 7L));
-		data.add(new Tuple2<Long, Long>(8L, 9L));
-		data.add(new Tuple2<Long, Long>(8L, 10L));
-		data.add(new Tuple2<Long, Long>(5L, 11L));
-		data.add(new Tuple2<Long, Long>(11L, 12L));
-		data.add(new Tuple2<Long, Long>(10L, 13L));
-		data.add(new Tuple2<Long, Long>(9L, 14L));
-		data.add(new Tuple2<Long, Long>(13L, 14L));
-		data.add(new Tuple2<Long, Long>(1L, 15L));
-		data.add(new Tuple2<Long, Long>(16L, 1L));
-		
-		return env.fromCollection(data);
+		List<Tuple2<Long, Long>> edgeList = new LinkedList<Tuple2<Long, Long>>();
+		for (Object[] edge : EDGES) {
+			edgeList.add(new Tuple2<Long, Long>((Long) edge[0], (Long) edge[1]));
+		}
+		return env.fromCollection(edgeList);
 	}
 	
 }
