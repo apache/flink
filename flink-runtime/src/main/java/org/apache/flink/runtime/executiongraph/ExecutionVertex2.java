@@ -20,6 +20,7 @@ package org.apache.flink.runtime.executiongraph;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import org.apache.commons.logging.Log;
@@ -65,8 +66,8 @@ public class ExecutionVertex2 {
 	private static final AtomicReferenceFieldUpdater<ExecutionVertex2, ExecutionState2> STATE_UPDATER =
 			AtomicReferenceFieldUpdater.newUpdater(ExecutionVertex2.class, ExecutionState2.class, "state");
 	
-	private static final AtomicReferenceFieldUpdater<ExecutionVertex2, AllocatedSlot> ASSIGNED_SLOT_UPDATER =
-			AtomicReferenceFieldUpdater.newUpdater(ExecutionVertex2.class, AllocatedSlot.class, "assignedSlot");
+	private static final AtomicReferenceFieldUpdater<ExecutionVertex2, ExecutionAttempt> ATTEMPT_UPDATER =
+			AtomicReferenceFieldUpdater.newUpdater(ExecutionVertex2.class, ExecutionAttempt.class, "currentOrLastAttempt");
 
 	private static final Logger LOG = ExecutionGraph.LOG;
 	
@@ -82,15 +83,13 @@ public class ExecutionVertex2 {
 	
 	private final int subTaskIndex;
 	
-	
 	private final long[] stateTimestamps;
 	
+	private final List<ExecutionAttempt> priorAttempts;
+	
+	private volatile ExecutionAttempt currentOrLastAttempt;
 	
 	private volatile ExecutionState2 state = CREATED;
-	
-	private volatile AllocatedSlot assignedSlot;
-	
-	private volatile Throwable failureCause;
 	
 	
 	public ExecutionVertex2(ExecutionJobVertex jobVertex, int subTaskIndex, IntermediateResult[] producedDataSets) {
@@ -107,6 +106,7 @@ public class ExecutionVertex2 {
 		this.inputEdges = new ExecutionEdge2[jobVertex.getJobVertex().getInputs().size()][];
 		
 		this.stateTimestamps = new long[ExecutionState2.values().length];
+		this.priorAttempts = new CopyOnWriteArrayList<ExecutionAttempt>();
 	}
 	
 	
@@ -149,21 +149,48 @@ public class ExecutionVertex2 {
 		return state;
 	}
 	
-	public Throwable getFailureCause() {
-		return failureCause;
-	}
-	
-	public AllocatedSlot getAssignedResource() {
-		return assignedSlot;
-	}
-	
 	public long getStateTimestamp(ExecutionState2 state) {
 		return this.stateTimestamps[state.ordinal()];
 	}
 	
-	
 	private ExecutionGraph getExecutionGraph() {
 		return this.jobVertex.getGraph();
+	}
+	
+	public Throwable getLastFailureCause() {
+		// copy reference to the stack
+		ExecutionAttempt attempt = this.currentOrLastAttempt;
+		if (attempt != null) {
+			return attempt.getFailureCause();
+		}
+		else if (priorAttempts.size() > 0) {
+			// since the list is append-only, this always works in the presence of concurrent modifications
+			return priorAttempts.get(priorAttempts.size() - 1).getFailureCause();
+		}
+		else {
+			return null;
+		}
+	}
+	
+	public AllocatedSlot getCurrentAssignedResource() {
+		// copy reference to the stack
+		ExecutionAttempt attempt = this.currentOrLastAttempt;
+		return attempt == null ? null : attempt.getAssignedResource();
+	}
+	
+	public AllocatedSlot getLastAssignedResource() {
+		// copy reference to the stack
+		ExecutionAttempt attempt = this.currentOrLastAttempt;
+		if (attempt != null) {
+			return attempt.getAssignedResource();
+		}
+		else if (priorAttempts.size() > 0) {
+			// since the list is append-only, this always works in the presence of concurrent modifications
+			return priorAttempts.get(priorAttempts.size() - 1).getAssignedResource();
+		}
+		else {
+			return null;
+		}
 	}
 	
 	// --------------------------------------------------------------------------------------------
