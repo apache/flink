@@ -15,56 +15,41 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.examples.scala.graph;
+package org.apache.flink.examples.scala.graph
 
 import org.apache.flink.api.scala._
 import org.apache.flink.example.java.graph.util.ConnectedComponentsData
-import org.apache.flink.api.java.aggregation.Aggregations
-import org.apache.flink.util.Collector
 
 /**
  * An implementation of the connected components algorithm, using a delta iteration.
- * 
- * Initially, the algorithm assigns each vertex an unique ID. In each step, a vertex picks the minimum of its own ID and its
- * neighbors' IDs, as its new ID and tells its neighbors about its new ID. After the algorithm has completed, all vertices in the
- * same component will have the same ID.
- * 
- * A vertex whose component ID did not change needs not propagate its information in the next step. Because of that,
- * the algorithm is easily expressible via a delta iteration. We here model the solution set as the vertices with
- * their current component ids, and the workset as the changed vertices. Because we see all vertices initially as
- * changed, the initial workset and the initial solution set are identical. Also, the delta to the solution set
- * is consequently also the next workset.
+ *
+ * Initially, the algorithm assigns each vertex an unique ID. In each step, a vertex picks the
+ * minimum of its own ID and its neighbors' IDs, as its new ID and tells its neighbors about its
+ * new ID. After the algorithm has completed, all vertices in the same component will have the same
+ * ID.
+ *
+ * A vertex whose component ID did not change needs not propagate its information in the next
+ * step. Because of that, the algorithm is easily expressible via a delta iteration. We here model
+ * the solution set as the vertices with their current component ids, and the workset as the changed
+ * vertices. Because we see all vertices initially as changed, the initial workset and the initial
+ * solution set are identical. Also, the delta to the solution set is consequently also the next
+ * workset.
  * 
  * Input files are plain text files and must be formatted as follows:
  *
- *   - Vertices represented as IDs and separated by new-line characters.
- *    
- * For example 
- *  {{{
- *  "1\n2\n12\n42\n63\n"
- *  }}}
- *  gives five vertices (1), (2), (12), (42), and (63).
- *  
- *  
- *   - Edges are represented as pairs for vertex IDs which are separated by space 
- * characters. Edges are separated by new-line characters.
- * 
- * For example 
- *  {{{
- *  "1 2\n2 12\n1 12\n42 63\n"
- *   }}}
- *   gives four (undirected) edges (1)-(2), (2)-(12), (1)-(12), and (42)-(63).
- *
- * 
+ *   - Vertices represented as IDs and separated by new-line characters. For example,
+ *     `"1\n2\n12\n42\n63\n"` gives five vertices (1), (2), (12), (42), and (63).
+ *   - Edges are represented as pairs for vertex IDs which are separated by space characters. Edges
+ *     are separated by new-line characters. For example `"1 2\n2 12\n1 12\n42 63\n"`
+ *     gives four (undirected) edges (1)-(2), (2)-(12), (1)-(12), and (42)-(63).
  *
  * Usage:
- *  {{{ 
- * 		ConnectedComponents <vertices path> <edges path> <result path> <max number of iterations>
- *   }}}
+ * {{{
+ *   ConnectedComponents <vertices path> <edges path> <result path> <max number of iterations>
+ * }}}
  *   
  * If no parameters are provided, the program is run with default data from
- *  [[org.apache.flink.example.java.graph.util.ConnectedComponentsData]]
- *  and 10 iterations. 
+ * [[org.apache.flink.example.java.graph.util.ConnectedComponentsData]] and 10 iterations.
  * 
  *
  * This example shows how to use:
@@ -78,46 +63,37 @@ object ConnectedComponents {
     if (!parseParameters(args)) {
       return
     }
-
     // set up execution environment
     val env = ExecutionEnvironment.getExecutionEnvironment
 
-    // read vertex and edge data 
+    // read vertex and edge data
     // assign the initial components (equal to the vertex id)
-    val vertices = getVerticesDataSet(env).map(id => (id, id))
-    
+    val vertices = getVerticesDataSet(env).map { id => (id, id) }
+
     // undirected edges by emitting for each input edge the input edges itself and an inverted version
-    val edges = getEdgesDataSet(env)
-      .flatMap { (edge, out: Collector[(Long, Long)]) => 
-      out.collect(edge)
-      out.collect((edge._2, edge._1))
-      }
-    
+    val edges = getEdgesDataSet(env).flatMap { edge => Seq(edge, (edge._2, edge._1)) }
+
     // open a delta iteration
     val verticesWithComponents = vertices.iterateDelta(vertices, maxIterations, Array(0)) {
-      (s, ws) => {
+      (s, ws) =>
 
-        // apply the step logic: join with the edges 
-        val allNeighbors = ws.join(edges)
-          .where(0).equalTo(0)
-          .map { in => (in._2._2, in._1._2) }
-        
-        // select the minimum neighbor 
-        val minNeighbors = allNeighbors.groupBy(0).aggregate(Aggregations.MIN, 1)
-        
+        // apply the step logic: join with the edges
+        val allNeighbors = ws.join(edges).where(0).equalTo(0) { (vertex, edge) =>
+          Some((edge._2, vertex._2))
+        }
+
+        // select the minimum neighbor
+        val minNeighbors = allNeighbors.groupBy(0).min(1)
+
         // update if the component of the candidate is smaller
-        val updatedComponents = minNeighbors.join(s).where(0).equalTo(0)
-        		.flatMap  { newAndOldComponent => 
-        		  newAndOldComponent match {
-        		    case ((vId, cNew), (_, cOld)) if cNew < cOld => Some((vId, cNew))
-        		    case _ => None 
-        		    }
-        		  }
+        val updatedComponents = minNeighbors.join(s).where(0).equalTo(0) {
+          (newVertex, oldVertex) => if (newVertex._2 < oldVertex._2) Some(newVertex) else None
+        }
+
         // delta and new workset are identical
-       (updatedComponents, updatedComponents)
-      }
+        (updatedComponents, updatedComponents)
     }
-      if (fileOutput) {
+    if (fileOutput) {
       verticesWithComponents.writeAsCsv(outputPath, "\n", " ")
     } else {
       verticesWithComponents.print()
@@ -154,10 +130,7 @@ object ConnectedComponents {
         .map { x => x._1 }
     }
     else {
-      val vertexData = ConnectedComponentsData.VERTICES map {
-        case Array(x) => x.asInstanceOf[Long]
-      }
-      env.fromCollection(vertexData);      
+      env.fromCollection(ConnectedComponentsData.VERTICES)
     }
   }
   
@@ -173,7 +146,7 @@ object ConnectedComponents {
       val edgeData = ConnectedComponentsData.EDGES map {
         case Array(x, y) => (x.asInstanceOf[Long], y.asInstanceOf[Long])
       }
-      env.fromCollection(edgeData);
+      env.fromCollection(edgeData)
     }
   }
 
