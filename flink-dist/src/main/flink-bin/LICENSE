@@ -246,7 +246,7 @@ under the Apache License (v 2.0):
 -----------------------------------------------------------------------
 
 The Apache Flink project depends on and/or bundles the following components
-under the The MIT License
+under the MIT License:
 
  - SLF4J (http://www.slf4j.org) - Copyright (c) 2004-2013 QOS.ch
  - jQuery 1.4.2 (http://jquery.com) - Copyright 2014 jQuery Foundation and other contributors
