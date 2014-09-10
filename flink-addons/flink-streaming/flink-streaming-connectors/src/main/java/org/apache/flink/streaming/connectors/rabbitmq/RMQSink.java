@@ -84,7 +84,7 @@ public abstract class RMQSink<IN> implements SinkFunction<IN> {
 			}
 		} catch (IOException e) {
 			if (LOG.isErrorEnabled()) {
-				LOG.error("Cannot send RMQ message " + QUEUE_NAME + " at " + HOST_NAME);
+				LOG.error("Cannot send RMQ message {} at {}", QUEUE_NAME, HOST_NAME);
 			}
 		}
 

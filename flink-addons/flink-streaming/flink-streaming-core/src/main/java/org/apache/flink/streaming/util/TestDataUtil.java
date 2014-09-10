@@ -66,7 +66,7 @@ public class TestDataUtil {
 
 		if (file.exists()) {
 			if (LOG.isInfoEnabled()) {
-				LOG.info(fileName + " already exists.");
+				LOG.info("{} already exists.", fileName);
 			}
 
 			try {
@@ -93,8 +93,10 @@ public class TestDataUtil {
 	}
 
 	public static void download(String fileName) {
-		LOG.info("downloading " + fileName);
-
+		if (LOG.isInfoEnabled()) {
+			LOG.info("downloading {}", fileName);
+		}
+		
 		try {
 			URL website = new URL(testRepoUrl + fileName);
 			BufferedReader bReader = new BufferedReader(new InputStreamReader(website.openStream()));

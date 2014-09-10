@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.examples.function;
+package org.apache.flink.streaming.connectors.json;
 
 import java.util.Arrays;
 import java.util.List;

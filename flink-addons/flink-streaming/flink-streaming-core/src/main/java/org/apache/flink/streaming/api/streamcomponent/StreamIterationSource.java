@@ -68,7 +68,7 @@ public class StreamIterationSource<OUT extends Tuple> extends AbstractStreamComp
 	@Override
 	public void invoke() throws Exception {
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("SOURCE " + getName() + " invoked with instance id " + getInstanceID());
+			LOG.debug("SOURCE {} invoked with instance id {}", getName(), getInstanceID());
 		}
 
 		outputHandler.initializeOutputSerializers();

@@ -71,7 +71,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	@Override
 	public void execute() {
 		if (LOG.isInfoEnabled()) {
-			LOG.info("Running remotely at " + host + ":" + port);
+			LOG.info("Running remotely at {}:{}", host, port);
 		}
 
 		JobGraph jobGraph = jobGraphBuilder.getJobGraph();

@@ -40,7 +40,7 @@ import org.slf4j.LoggerFactory;
 public class DirectedStreamCollector<OUT> extends StreamCollector<OUT> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(DirectedStreamCollector.class);
-	
+
 	OutputSelector<OUT> outputSelector;
 	private List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> selectAllOutputs;
 	private Set<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> emitted;
@@ -88,9 +88,8 @@ public class DirectedStreamCollector<OUT> extends StreamCollector<OUT> {
 					.get(outputName);
 			if (outputList == null) {
 				if (LOG.isErrorEnabled()) {
-					LOG.error(String.format(
-							"Cannot emit because no output is selected with the name: %s",
-							outputName));
+					LOG.error("Cannot emit because no output is selected with the name: {}",
+							outputName);
 				}
 			}
 
@@ -110,8 +109,8 @@ public class DirectedStreamCollector<OUT> extends StreamCollector<OUT> {
 				}
 			} catch (Exception e) {
 				if (LOG.isErrorEnabled()) {
-					LOG.error(String.format("Emit to %s failed due to: %s", outputName,
-							StringUtils.stringifyException(e)));
+					LOG.error("Emit to {} failed due to: {}", outputName,
+							StringUtils.stringifyException(e));
 				}
 			}
 		}

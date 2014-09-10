@@ -21,8 +21,6 @@ import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.flink.runtime.io.network.api.RecordWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.StreamConfig;
@@ -35,9 +33,11 @@ import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.io.StreamRecordWriter;
 import org.apache.flink.streaming.partitioner.StreamPartitioner;
 import org.apache.flink.types.TypeInformation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class OutputHandler<OUT> {
-	private static final Log LOG = LogFactory.getLog(OutputHandler.class);
+	private static final Logger LOG = LoggerFactory.getLogger(OutputHandler.class);
 
 	private AbstractStreamComponent streamComponent;
 	private StreamConfig configuration;
@@ -128,14 +128,14 @@ public class OutputHandler<OUT> {
 		outputs.add(output);
 		List<String> outputName = configuration.getOutputName(outputNumber);
 		boolean isSelectAllOutput = configuration.getSelectAll(outputNumber);
-		
+
 		if (collector != null) {
 			collector.addOutput(output, outputName, isSelectAllOutput);
 		}
 
 		if (LOG.isTraceEnabled()) {
-			LOG.trace("Partitioner set: " + outputPartitioner.getClass().getSimpleName() + " with "
-					+ outputNumber + " outputs");
+			LOG.trace("Partitioner set: {} with {} outputs", outputPartitioner.getClass()
+					.getSimpleName(), outputNumber);
 		}
 	}
 
@@ -153,11 +153,11 @@ public class OutputHandler<OUT> {
 
 	long startTime;
 
-	public void invokeUserFunction(String componentTypeName,
-			StreamInvokable<OUT> userInvokable) throws IOException, InterruptedException {
+	public void invokeUserFunction(String componentTypeName, StreamInvokable<OUT> userInvokable)
+			throws IOException, InterruptedException {
 		if (LOG.isDebugEnabled()) {
-			LOG.debug(componentTypeName + " " + streamComponent.getName()
-					+ " invoked with instance id " + streamComponent.getInstanceID());
+			LOG.debug("{} {} invoked with instance id {}", componentTypeName,
+					streamComponent.getName(), streamComponent.getInstanceID());
 		}
 
 		initializeOutputSerializers();
@@ -170,8 +170,8 @@ public class OutputHandler<OUT> {
 		}
 
 		if (LOG.isDebugEnabled()) {
-			LOG.debug(componentTypeName + " " + streamComponent.getName()
-					+ " invoke finished with instance id " + streamComponent.getInstanceID());
+			LOG.debug("{} {} invoke finished instance id {}", componentTypeName,
+					streamComponent.getName(), streamComponent.getInstanceID());
 		}
 
 		flushOutputs();

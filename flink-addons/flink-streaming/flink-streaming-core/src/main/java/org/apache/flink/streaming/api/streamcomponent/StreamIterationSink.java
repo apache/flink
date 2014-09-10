@@ -27,13 +27,12 @@ import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.io.BlockingQueueBroker;
 import org.apache.flink.util.StringUtils;
 
-public class StreamIterationSink<IN extends Tuple> extends
-		AbstractStreamComponent {
+public class StreamIterationSink<IN extends Tuple> extends AbstractStreamComponent {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamIterationSink.class);
 
 	private InputHandler<IN> inputHandler;
-	
+
 	private String iterationId;
 	@SuppressWarnings("rawtypes")
 	private BlockingQueue<StreamRecord> dataChannel;
@@ -61,13 +60,13 @@ public class StreamIterationSink<IN extends Tuple> extends
 	@Override
 	public void invoke() throws Exception {
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("SINK " + getName() + " invoked");
+			LOG.debug("SINK {} invoked", getName());
 		}
 
 		forwardRecords();
 
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("SINK " + getName() + " invoke finished");
+			LOG.debug("SINK {} invoke finished", getName());
 		}
 	}
 
@@ -92,8 +91,8 @@ public class StreamIterationSink<IN extends Tuple> extends
 			}
 		} catch (InterruptedException e) {
 			if (LOG.isErrorEnabled()) {
-				LOG.error(String.format("Pushing back record at iteration %s failed due to: %s",
-						iterationId, StringUtils.stringifyException(e)));
+				LOG.error("Pushing back record at iteration %s failed due to: {}", iterationId,
+						StringUtils.stringifyException(e));
 			}
 			return false;
 		}

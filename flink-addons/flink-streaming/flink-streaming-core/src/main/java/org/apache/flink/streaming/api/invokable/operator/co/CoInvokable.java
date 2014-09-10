@@ -17,8 +17,6 @@
 
 package org.apache.flink.streaming.api.invokable.operator.co;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
@@ -26,6 +24,8 @@ import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.io.CoReaderIterator;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public abstract class CoInvokable<IN1, IN2, OUT> extends StreamInvokable<OUT> {
 
@@ -34,7 +34,7 @@ public abstract class CoInvokable<IN1, IN2, OUT> extends StreamInvokable<OUT> {
 	}
 
 	private static final long serialVersionUID = 1L;
-	private static final Log LOG = LogFactory.getLog(CoInvokable.class);
+	private static final Logger LOG = LoggerFactory.getLogger(CoInvokable.class);
 
 	protected CoReaderIterator<StreamRecord<IN1>, StreamRecord<IN2>> recordIterator;
 	protected StreamRecord<IN1> reuse1;
@@ -120,8 +120,8 @@ public abstract class CoInvokable<IN1, IN2, OUT> extends StreamInvokable<OUT> {
 			callUserFunction1();
 		} catch (Exception e) {
 			if (LOG.isErrorEnabled()) {
-				LOG.error(String.format("Calling user function failed due to: %s",
-						StringUtils.stringifyException(e)));
+				LOG.error("Calling user function failed due to: {}",
+						StringUtils.stringifyException(e));
 			}
 		}
 	}
@@ -131,8 +131,8 @@ public abstract class CoInvokable<IN1, IN2, OUT> extends StreamInvokable<OUT> {
 			callUserFunction2();
 		} catch (Exception e) {
 			if (LOG.isErrorEnabled()) {
-				LOG.error(String.format("Calling user function failed due to: %s",
-						StringUtils.stringifyException(e)));
+				LOG.error("Calling user function failed due to: {}",
+						StringUtils.stringifyException(e));
 			}
 		}
 	}

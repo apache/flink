@@ -164,17 +164,16 @@ public class JobGraphBuilder {
 	 * @param parallelism
 	 *            Number of parallel instances created
 	 */
-	public void addSource(String componentName,
-			SourceInvokable<?> InvokableObject,
+	public void addSource(String componentName, SourceInvokable<?> InvokableObject,
 			TypeSerializerWrapper<?> outTypeWrapper, String operatorName,
 			byte[] serializedFunction, int parallelism) {
 
-		addComponent(componentName, StreamSource.class, InvokableObject,
-				operatorName, serializedFunction, parallelism);
+		addComponent(componentName, StreamSource.class, InvokableObject, operatorName,
+				serializedFunction, parallelism);
 		addTypeWrappers(componentName, null, null, outTypeWrapper, null);
 
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("SOURCE: " + componentName);
+			LOG.debug("SOURCE: {}", componentName);
 		}
 	}
 
@@ -193,11 +192,10 @@ public class JobGraphBuilder {
 	 * @param waitTime
 	 *            Max wait time for next record
 	 */
-	public void addIterationSource(String componentName, String iterationHead,
-			String iterationID, int parallelism, long waitTime) {
+	public void addIterationSource(String componentName, String iterationHead, String iterationID,
+			int parallelism, long waitTime) {
 
-		addComponent(componentName, StreamIterationSource.class, null, null,
-				null, parallelism);
+		addComponent(componentName, StreamIterationSource.class, null, null, null, parallelism);
 
 		iterationIds.put(componentName, iterationID);
 		iterationIDtoSourceName.put(iterationID, componentName);
@@ -205,14 +203,13 @@ public class JobGraphBuilder {
 		setBytesFrom(iterationHead, componentName);
 
 		setEdge(componentName, iterationHead,
-				connectionTypes.get(inEdgeList.get(iterationHead).get(0))
-						.get(0), 0, new ArrayList<String>(), false);
+				connectionTypes.get(inEdgeList.get(iterationHead).get(0)).get(0), 0,
+				new ArrayList<String>(), false);
 
-		iterationWaitTime.put(iterationIDtoSourceName.get(iterationID),
-				waitTime);
+		iterationWaitTime.put(iterationIDtoSourceName.get(iterationID), waitTime);
 
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("ITERATION SOURCE: " + componentName);
+			LOG.debug("ITERATION SOURCE: {}", componentName);
 		}
 	}
 
@@ -236,36 +233,32 @@ public class JobGraphBuilder {
 	 */
 	public <IN, OUT> void addTask(String componentName,
 			StreamOperatorInvokable<IN, OUT> taskInvokableObject,
-			TypeSerializerWrapper<?> inTypeWrapper,
-			TypeSerializerWrapper<?> outTypeWrapper, String operatorName,
-			byte[] serializedFunction, int parallelism) {
+			TypeSerializerWrapper<?> inTypeWrapper, TypeSerializerWrapper<?> outTypeWrapper,
+			String operatorName, byte[] serializedFunction, int parallelism) {
 
-		addComponent(componentName, StreamTask.class, taskInvokableObject,
-				operatorName, serializedFunction, parallelism);
+		addComponent(componentName, StreamTask.class, taskInvokableObject, operatorName,
+				serializedFunction, parallelism);
 
-		addTypeWrappers(componentName, inTypeWrapper, null, outTypeWrapper,
-				null);
+		addTypeWrappers(componentName, inTypeWrapper, null, outTypeWrapper, null);
 
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("TASK: " + componentName);
+			LOG.debug("TASK: {}", componentName);
 		}
 	}
 
 	public <IN1, IN2, OUT> void addCoTask(String componentName,
 			CoInvokable<IN1, IN2, OUT> taskInvokableObject,
-			TypeSerializerWrapper<?> in1TypeWrapper,
-			TypeSerializerWrapper<?> in2TypeWrapper,
+			TypeSerializerWrapper<?> in1TypeWrapper, TypeSerializerWrapper<?> in2TypeWrapper,
 			TypeSerializerWrapper<?> outTypeWrapper, String operatorName,
 			byte[] serializedFunction, int parallelism) {
 
-		addComponent(componentName, CoStreamTask.class,
-				taskInvokableObject, operatorName, serializedFunction,
-				parallelism);
-		
+		addComponent(componentName, CoStreamTask.class, taskInvokableObject, operatorName,
+				serializedFunction, parallelism);
+
 		addTypeWrappers(componentName, in1TypeWrapper, in2TypeWrapper, outTypeWrapper, null);
-		
+
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("CO-TASK: " + componentName);
+			LOG.debug("CO-TASK: {}", componentName);
 		}
 	}
 
@@ -284,15 +277,15 @@ public class JobGraphBuilder {
 	 *            Number of parallel instances created
 	 */
 	public void addSink(String componentName, SinkInvokable<?> InvokableObject,
-			TypeSerializerWrapper<?> inTypeWrapper, String operatorName,
-			byte[] serializedFunction, int parallelism) {
+			TypeSerializerWrapper<?> inTypeWrapper, String operatorName, byte[] serializedFunction,
+			int parallelism) {
 
-		addComponent(componentName, StreamSink.class,
-				InvokableObject, operatorName, serializedFunction, parallelism);
+		addComponent(componentName, StreamSink.class, InvokableObject, operatorName,
+				serializedFunction, parallelism);
 		addTypeWrappers(componentName, inTypeWrapper, null, null, null);
-		
+
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("SINK: " + componentName);
+			LOG.debug("SINK: {}", componentName);
 		}
 
 	}
@@ -315,19 +308,18 @@ public class JobGraphBuilder {
 	 * @param waitTime
 	 *            Max waiting time for next record
 	 */
-	public void addIterationSink(String componentName, String iterationTail,
-			String iterationID, int parallelism, long waitTime) {
+	public void addIterationSink(String componentName, String iterationTail, String iterationID,
+			int parallelism, long waitTime) {
 
-		addComponent(componentName, StreamIterationSink.class, null,
-				null, null, parallelism);
+		addComponent(componentName, StreamIterationSink.class, null, null, null, parallelism);
 		iterationIds.put(componentName, iterationID);
 		iterationIDtoSinkName.put(iterationID, componentName);
 		setBytesFrom(iterationTail, componentName);
-		//setInTypeWrappersFrom(iterationTail, componentName);
+		// setInTypeWrappersFrom(iterationTail, componentName);
 		iterationWaitTime.put(iterationIDtoSinkName.get(iterationID), waitTime);
 
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("ITERATION SINK: " + componentName);
+			LOG.debug("ITERATION SINK: {}", componentName);
 		}
 
 	}
@@ -351,9 +343,8 @@ public class JobGraphBuilder {
 	 *            Number of parallel instances created
 	 */
 	private void addComponent(String componentName,
-			Class<? extends AbstractInvokable> componentClass,
-			StreamInvokable<?> invokableObject, String operatorName,
-			byte[] serializedFunction, int parallelism) {
+			Class<? extends AbstractInvokable> componentClass, StreamInvokable<?> invokableObject,
+			String operatorName, byte[] serializedFunction, int parallelism) {
 
 		componentClasses.put(componentName, componentClass);
 		setParallelism(componentName, parallelism);
@@ -366,14 +357,13 @@ public class JobGraphBuilder {
 		outEdgeNames.put(componentName, new ArrayList<List<String>>());
 		outEdgeSelectAll.put(componentName, new ArrayList<Boolean>());
 		inEdgeList.put(componentName, new ArrayList<String>());
-		connectionTypes.put(componentName,
-				new ArrayList<StreamPartitioner<?>>());
+		connectionTypes.put(componentName, new ArrayList<StreamPartitioner<?>>());
 		iterationTailCount.put(componentName, 0);
 	}
 
-	private void addTypeWrappers(String componentName,
-			TypeSerializerWrapper<?> in1, TypeSerializerWrapper<?> in2,
-			TypeSerializerWrapper<?> out1, TypeSerializerWrapper<?> out2) {
+	private void addTypeWrappers(String componentName, TypeSerializerWrapper<?> in1,
+			TypeSerializerWrapper<?> in2, TypeSerializerWrapper<?> out1,
+			TypeSerializerWrapper<?> out2) {
 		typeWrapperIn1.put(componentName, in1);
 		typeWrapperIn2.put(componentName, in2);
 		typeWrapperOut1.put(componentName, out1);
@@ -390,10 +380,8 @@ public class JobGraphBuilder {
 	private void createVertex(String componentName) {
 
 		// Get vertex attributes
-		Class<? extends AbstractInvokable> componentClass = componentClasses
-				.get(componentName);
-		StreamInvokable<?> invokableObject = invokableObjects
-				.get(componentName);
+		Class<? extends AbstractInvokable> componentClass = componentClasses.get(componentName);
+		StreamInvokable<?> invokableObject = invokableObjects.get(componentName);
 		String operatorName = operatorNames.get(componentName);
 		byte[] serializedFunction = serializedFunctions.get(componentName);
 		int parallelism = componentParallelism.get(componentName);
@@ -417,20 +405,19 @@ public class JobGraphBuilder {
 		component.setInvokableClass(componentClass);
 		component.setNumberOfSubtasks(parallelism);
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("Parallelism set: " + parallelism + " for "
-					+ componentName);
+			LOG.debug("Parallelism set: {} for {}", parallelism, componentName);
 		}
 
 		StreamConfig config = new StreamConfig(component.getConfiguration());
 
 		config.setMutability(mutability.get(componentName));
 		config.setBufferTimeout(bufferTimeout.get(componentName));
-		
+
 		config.setTypeWrapperIn1(typeWrapperIn1.get(componentName));
 		config.setTypeWrapperIn2(typeWrapperIn2.get(componentName));
 		config.setTypeWrapperOut1(typeWrapperOut1.get(componentName));
 		config.setTypeWrapperOut2(typeWrapperOut2.get(componentName));
-		
+
 		// Set vertex config
 		config.setUserInvokable(invokableObject);
 		config.setComponentName(componentName);
@@ -486,10 +473,9 @@ public class JobGraphBuilder {
 	 * @param outputNames
 	 *            User defined names of the out edge
 	 */
-	public void setEdge(String upStreamComponentName,
-			String downStreamComponentName,
-			StreamPartitioner<?> partitionerObject, int typeNumber,
-			List<String> outputNames, boolean selectAll) {
+	public void setEdge(String upStreamComponentName, String downStreamComponentName,
+			StreamPartitioner<?> partitionerObject, int typeNumber, List<String> outputNames,
+			boolean selectAll) {
 		outEdgeList.get(upStreamComponentName).add(downStreamComponentName);
 		outEdgeType.get(upStreamComponentName).add(typeNumber);
 		inEdgeList.get(downStreamComponentName).add(upStreamComponentName);
@@ -509,45 +495,38 @@ public class JobGraphBuilder {
 	 * @param partitionerObject
 	 *            The partitioner
 	 */
-	private <T> void connect(String upStreamComponentName,
-			String downStreamComponentName,
+	private <T> void connect(String upStreamComponentName, String downStreamComponentName,
 			StreamPartitioner<T> partitionerObject) {
 
-		AbstractJobVertex upStreamComponent = components
-				.get(upStreamComponentName);
-		AbstractJobVertex downStreamComponent = components
-				.get(downStreamComponentName);
+		AbstractJobVertex upStreamComponent = components.get(upStreamComponentName);
+		AbstractJobVertex downStreamComponent = components.get(downStreamComponentName);
 
-		StreamConfig config = new StreamConfig(
-				upStreamComponent.getConfiguration());
+		StreamConfig config = new StreamConfig(upStreamComponent.getConfiguration());
 
 		try {
 			if (partitionerObject.getClass().equals(ForwardPartitioner.class)) {
-				upStreamComponent.connectTo(downStreamComponent,
-						ChannelType.NETWORK, DistributionPattern.POINTWISE);
+				upStreamComponent.connectTo(downStreamComponent, ChannelType.NETWORK,
+						DistributionPattern.POINTWISE);
 			} else {
-				upStreamComponent.connectTo(downStreamComponent,
-						ChannelType.NETWORK, DistributionPattern.BIPARTITE);
+				upStreamComponent.connectTo(downStreamComponent, ChannelType.NETWORK,
+						DistributionPattern.BIPARTITE);
 			}
 
 			if (LOG.isDebugEnabled()) {
-				LOG.debug("CONNECTED: "
-						+ partitionerObject.getClass().getSimpleName() + " - "
-						+ upStreamComponentName + " -> "
-						+ downStreamComponentName);
+				LOG.debug("CONNECTED: {} - {} -> {}", partitionerObject.getClass().getSimpleName(),
+						upStreamComponentName, downStreamComponentName);
 			}
 
 		} catch (JobGraphDefinitionException e) {
-			throw new RuntimeException("Cannot connect components: "
-					+ upStreamComponentName + " to " + downStreamComponentName,
-					e);
+			throw new RuntimeException("Cannot connect components: " + upStreamComponentName
+					+ " to " + downStreamComponentName, e);
 		}
 
 		int outputIndex = upStreamComponent.getNumberOfForwardConnections() - 1;
 
-		config.setOutputName(outputIndex,
-				outEdgeNames.get(upStreamComponentName).get(outputIndex));
-		config.setSelectAll(outputIndex, outEdgeSelectAll.get(upStreamComponentName).get(outputIndex));
+		config.setOutputName(outputIndex, outEdgeNames.get(upStreamComponentName).get(outputIndex));
+		config.setSelectAll(outputIndex,
+				outEdgeSelectAll.get(upStreamComponentName).get(outputIndex));
 		config.setPartitioner(outputIndex, partitionerObject);
 		config.setNumberOfOutputChannels(outputIndex,
 				componentParallelism.get(downStreamComponentName));
@@ -562,12 +541,10 @@ public class JobGraphBuilder {
 	 * @param iterationTail
 	 *            ID of the iteration tail
 	 */
-	public void setIterationSourceSettings(String iterationID,
-			String iterationTail) {
+	public void setIterationSourceSettings(String iterationID, String iterationTail) {
 		setParallelism(iterationIDtoSourceName.get(iterationID),
 				componentParallelism.get(iterationTail));
-		setBufferTimeout(iterationIDtoSourceName.get(iterationID),
-				bufferTimeout.get(iterationTail));
+		setBufferTimeout(iterationIDtoSourceName.get(iterationID), bufferTimeout.get(iterationTail));
 	}
 
 	/**
@@ -580,12 +557,11 @@ public class JobGraphBuilder {
 	 * @param serializedOutputSelector
 	 *            Byte array representing the serialized output selector.
 	 */
-	public <T> void setOutputSelector(String componentName,
-			byte[] serializedOutputSelector) {
+	public <T> void setOutputSelector(String componentName, byte[] serializedOutputSelector) {
 		outputSelectors.put(componentName, serializedOutputSelector);
 
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("Outputselector set for " + componentName);
+			LOG.debug("Outputselector set for {}", componentName);
 		}
 
 	}
@@ -613,34 +589,33 @@ public class JobGraphBuilder {
 	}
 
 	public void setInToOutTypeWrappersFrom(String from, String to) {
-		//TODO rename function
+		// TODO rename function
 		typeWrapperIn1.put(to, typeWrapperOut1.get(from));
 		typeWrapperIn2.put(to, typeWrapperOut2.get(from));
 	}
-	
+
 	public void setOutToOutTypeWrappersFrom(String from, String to) {
-		//TODO rename function
+		// TODO rename function
 		typeWrapperOut1.put(to, typeWrapperOut1.get(from));
 		typeWrapperOut2.put(to, typeWrapperOut2.get(from));
 	}
-	
+
 	public void setInToInTypeWrappersFrom(String from, String to) {
-		//TODO rename function
+		// TODO rename function
 		typeWrapperIn1.put(to, typeWrapperIn1.get(from));
 		typeWrapperIn2.put(to, typeWrapperIn2.get(from));
 	}
-	
-	public TypeInformation<?> getInTypeInfo(String id){
-		// TODO 
+
+	public TypeInformation<?> getInTypeInfo(String id) {
+		// TODO
 		System.out.println("DEBUG TypeInfo " + typeWrapperIn1.get(id));
 		return typeWrapperIn1.get(id).getTypeInfo();
 	}
-	
-	public TypeInformation<?> getOutTypeInfo(String id){
-		// TODO 
+
+	public TypeInformation<?> getOutTypeInfo(String id) {
+		// TODO
 		return typeWrapperOut1.get(id).getTypeInfo();
 	}
-	
 
 	/**
 	 * Sets instance sharing between the given components
@@ -662,13 +637,11 @@ public class JobGraphBuilder {
 	 */
 	private void setAutomaticInstanceSharing() {
 
-		AbstractJobVertex maxParallelismVertex = components
-				.get(maxParallelismVertexName);
+		AbstractJobVertex maxParallelismVertex = components.get(maxParallelismVertexName);
 
 		for (String componentName : components.keySet()) {
 			if (!componentName.equals(maxParallelismVertexName)) {
-				components.get(componentName).setVertexToShareInstancesWith(
-						maxParallelismVertex);
+				components.get(componentName).setVertexToShareInstancesWith(maxParallelismVertex);
 			}
 		}
 
@@ -679,9 +652,8 @@ public class JobGraphBuilder {
 	 */
 	private void setNumberOfJobInputs() {
 		for (AbstractJobVertex component : components.values()) {
-			(new StreamConfig(component.getConfiguration()))
-					.setNumberOfInputs(component
-							.getNumberOfBackwardConnections());
+			(new StreamConfig(component.getConfiguration())).setNumberOfInputs(component
+					.getNumberOfBackwardConnections());
 		}
 	}
 
@@ -691,9 +663,8 @@ public class JobGraphBuilder {
 	 */
 	private void setNumberOfJobOutputs() {
 		for (AbstractJobVertex component : components.values()) {
-			(new StreamConfig(component.getConfiguration()))
-					.setNumberOfOutputs(component
-							.getNumberOfForwardConnections());
+			(new StreamConfig(component.getConfiguration())).setNumberOfOutputs(component
+					.getNumberOfForwardConnections());
 		}
 	}
 
@@ -710,19 +681,15 @@ public class JobGraphBuilder {
 		for (String upStreamComponentName : outEdgeList.keySet()) {
 			int i = 0;
 
-			List<Integer> outEdgeTypeList = outEdgeType
-					.get(upStreamComponentName);
+			List<Integer> outEdgeTypeList = outEdgeType.get(upStreamComponentName);
 
-			for (String downStreamComponentName : outEdgeList
-					.get(upStreamComponentName)) {
-				StreamConfig downStreamComponentConfig = new StreamConfig(
-						components.get(downStreamComponentName)
-								.getConfiguration());
+			for (String downStreamComponentName : outEdgeList.get(upStreamComponentName)) {
+				StreamConfig downStreamComponentConfig = new StreamConfig(components.get(
+						downStreamComponentName).getConfiguration());
 
 				int inputNumber = downStreamComponentConfig.getNumberOfInputs();
 
-				downStreamComponentConfig.setInputType(inputNumber++,
-						outEdgeTypeList.get(i));
+				downStreamComponentConfig.setInputType(inputNumber++, outEdgeTypeList.get(i));
 				downStreamComponentConfig.setNumberOfInputs(inputNumber);
 
 				connect(upStreamComponentName, downStreamComponentName,

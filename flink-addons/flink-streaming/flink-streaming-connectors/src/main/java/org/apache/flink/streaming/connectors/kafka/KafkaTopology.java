@@ -18,16 +18,16 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.java.tuple.Tuple1;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.function.sink.SinkFunction;
 import org.apache.flink.streaming.api.function.source.SourceFunction;
 import org.apache.flink.util.Collector;
-import org.apache.flink.streaming.api.function.sink.SinkFunction;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class KafkaTopology {
-	private static final Log LOG = LogFactory.getLog(KafkaTopology.class);
+	private static final Logger LOG = LoggerFactory.getLogger(KafkaTopology.class);
 	
 	public static final class MySource implements SourceFunction<Tuple1<String>> {
 		private static final long serialVersionUID = 1L;
@@ -82,7 +82,9 @@ public class KafkaTopology {
 
 		@Override
 		public void invoke(Tuple1<String> value) {
-			LOG.info("String: " + value + " arrived from Kafka");
+			if (LOG.isInfoEnabled()) {
+				LOG.info("String: <{}> arrived from Kafka", value);
+			}
 		}
 	}
 

@@ -110,7 +110,7 @@ public abstract class FlumeSink<IN> implements SinkFunction<IN> {
 						Thread.sleep(1000);
 					} catch (InterruptedException e1) {
 						if (LOG.isErrorEnabled()) {
-							LOG.error("Interrupted while trying to connect " + port + " at " + host);
+							LOG.error("Interrupted while trying to connect {} at {}", port, host);
 						}
 					}
 				}

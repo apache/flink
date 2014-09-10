@@ -19,11 +19,11 @@ package org.apache.flink.streaming.connectors.rabbitmq;
 
 import java.io.IOException;
 
-import net.spy.memcached.compat.log.Logger;
-import net.spy.memcached.compat.log.LoggerFactory;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.function.source.RichSourceFunction;
 import org.apache.flink.util.Collector;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
@@ -86,7 +86,9 @@ public abstract class RMQSource<OUT> extends RichSourceFunction<OUT> {
 			try {
 				delivery = consumer.nextDelivery();
 			} catch (Exception e) {
-				LOG.error("Cannot receive RMQ message " + QUEUE_NAME + " at " + HOST_NAME);
+				if (LOG.isErrorEnabled()) {
+					LOG.error("Cannot recieve RMQ message {} at {}", QUEUE_NAME, HOST_NAME);
+				}
 			}
 
 			outTuple = deserialize(delivery.getBody());
@@ -103,8 +105,8 @@ public abstract class RMQSource<OUT> extends RichSourceFunction<OUT> {
 		try {
 			connection.close();
 		} catch (IOException e) {
-			throw new RuntimeException("Error while closing RMQ connection with " + QUEUE_NAME + " at "
-					+ HOST_NAME, e);
+			throw new RuntimeException("Error while closing RMQ connection with " + QUEUE_NAME
+					+ " at " + HOST_NAME, e);
 		}
 
 	}

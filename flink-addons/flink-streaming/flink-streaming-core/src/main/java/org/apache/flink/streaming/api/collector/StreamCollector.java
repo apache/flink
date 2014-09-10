@@ -59,7 +59,7 @@ public class StreamCollector<OUT> implements Collector<OUT> {
 	public StreamCollector(int channelID,
 			SerializationDelegate<StreamRecord<OUT>> serializationDelegate) {
 		this.serializationDelegate = serializationDelegate;
-		
+
 		if (serializationDelegate != null) {
 			this.streamRecord = serializationDelegate.getInstance();
 		} else {
@@ -104,7 +104,7 @@ public class StreamCollector<OUT> implements Collector<OUT> {
 			}
 		}
 	}
-	
+
 	/**
 	 * Collects and emits a tuple/object to the outputs by reusing a
 	 * StreamRecord object.
@@ -129,15 +129,14 @@ public class StreamCollector<OUT> implements Collector<OUT> {
 		serializationDelegate.setInstance(streamRecord);
 		emitToOutputs();
 	}
-	
+
 	protected void emitToOutputs() {
 		for (RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output : outputs) {
 			try {
 				output.emit(serializationDelegate);
 			} catch (Exception e) {
 				if (LOG.isErrorEnabled()) {
-					LOG.error(String.format("Emit failed due to: %s",
-							StringUtils.stringifyException(e)));
+					LOG.error("Emit failed due to: {}", StringUtils.stringifyException(e));
 				}
 			}
 		}

@@ -41,8 +41,8 @@ import com.twitter.hbc.httpclient.auth.Authentication;
 import com.twitter.hbc.httpclient.auth.OAuth1;
 
 /**
- * Implementation of {@link SourceFunction} specialized to emit tweets from Twitter.
- * It can connect to Twitter Streaming API, collect tweets and 
+ * Implementation of {@link SourceFunction} specialized to emit tweets from
+ * Twitter. It can connect to Twitter Streaming API, collect tweets and
  */
 public class TwitterSource extends RichSourceFunction<String> {
 
@@ -60,8 +60,10 @@ public class TwitterSource extends RichSourceFunction<String> {
 
 	/**
 	 * Create {@link TwitterSource} for streaming
+	 * 
 	 * @param authPath
-	 * Location of the properties file containing the required authentication information. 
+	 *            Location of the properties file containing the required
+	 *            authentication information.
 	 */
 	public TwitterSource(String authPath) {
 		this.authPath = authPath;
@@ -69,10 +71,11 @@ public class TwitterSource extends RichSourceFunction<String> {
 	}
 
 	/**
-	 * Create {@link TwitterSource} to 
-	 * collect finite number of tweets
+	 * Create {@link TwitterSource} to collect finite number of tweets
+	 * 
 	 * @param authPath
-	 * Location of the properties file containing the required authentication information. 
+	 *            Location of the properties file containing the required
+	 *            authentication information.
 	 * @param numberOfTweets
 	 * 
 	 */
@@ -86,17 +89,17 @@ public class TwitterSource extends RichSourceFunction<String> {
 	public void open(Configuration parameters) throws Exception {
 		initializeConnection();
 	}
-	
+
 	@Override
 	public void invoke(Collector<String> collector) throws Exception {
-		
+
 		if (streaming) {
 			collectMessages(collector);
 		} else {
 			collectFiniteMessages(collector);
 		}
 	}
-	
+
 	@Override
 	public void close() throws Exception {
 		closeConnection();
@@ -136,9 +139,9 @@ public class TwitterSource extends RichSourceFunction<String> {
 	}
 
 	/**
-	 * Reads the given properties file for the authentication data.   
-	 * @return
-	 * the authentication data.
+	 * Reads the given properties file for the authentication data.
+	 * 
+	 * @return the authentication data.
 	 */
 	private Properties loadAuthenticationProperties() {
 		Properties properties = new Properties();
@@ -147,18 +150,15 @@ public class TwitterSource extends RichSourceFunction<String> {
 			properties.load(input);
 			input.close();
 		} catch (IOException ioe) {
-			new RuntimeException("Cannot open .properties file: " + authPath,
-					ioe);
+			new RuntimeException("Cannot open .properties file: " + authPath, ioe);
 		}
 		return properties;
 	}
 
-	private void initializeClient(StatusesSampleEndpoint endpoint,
-			Authentication auth) {
+	private void initializeClient(StatusesSampleEndpoint endpoint, Authentication auth) {
 
-		client = new ClientBuilder().name("twitterSourceClient")
-				.hosts(Constants.STREAM_HOST).endpoint(endpoint)
-				.authentication(auth)
+		client = new ClientBuilder().name("twitterSourceClient").hosts(Constants.STREAM_HOST)
+				.endpoint(endpoint).authentication(auth)
 				.processor(new StringDelimitedProcessor(queue)).build();
 
 		client.connect();
@@ -166,8 +166,9 @@ public class TwitterSource extends RichSourceFunction<String> {
 
 	/**
 	 * Put tweets into collector
+	 * 
 	 * @param collector
-	 * Collector in which the tweets are collected.
+	 *            Collector in which the tweets are collected.
 	 */
 	protected void collectFiniteMessages(Collector<String> collector) {
 
@@ -186,8 +187,9 @@ public class TwitterSource extends RichSourceFunction<String> {
 
 	/**
 	 * Put tweets into collector
+	 * 
 	 * @param collector
-	 * Collector in which the tweets are collected.
+	 *            Collector in which the tweets are collected.
 	 */
 	protected void collectMessages(Collector<String> collector) {
 
@@ -202,14 +204,15 @@ public class TwitterSource extends RichSourceFunction<String> {
 
 	/**
 	 * Put one tweet into the collector.
+	 * 
 	 * @param collector
-	 * Collector in which the tweets are collected.
+	 *            Collector in which the tweets are collected.
 	 */
 	protected void collectOneMessage(Collector<String> collector) {
 		if (client.isDone()) {
 			if (LOG.isErrorEnabled()) {
-				LOG.error("Client connection closed unexpectedly: "
-						+ client.getExitEvent().getMessage());
+				LOG.error("Client connection closed unexpectedly: {}", client.getExitEvent()
+						.getMessage());
 			}
 		}
 
@@ -219,8 +222,7 @@ public class TwitterSource extends RichSourceFunction<String> {
 				collector.collect(msg);
 			} else {
 				if (LOG.isInfoEnabled()) {
-					LOG.info("Did not receive a message in " + waitSec
-							+ " seconds");
+					LOG.info("Did not receive a message in {} seconds", waitSec);
 				}
 			}
 		} catch (InterruptedException e) {
@@ -243,7 +245,8 @@ public class TwitterSource extends RichSourceFunction<String> {
 	}
 
 	/**
-	 * Get the size of the queue in which the tweets are contained temporarily. 
+	 * Get the size of the queue in which the tweets are contained temporarily.
+	 * 
 	 * @return
 	 */
 	public int getQueueSize() {
@@ -251,18 +254,19 @@ public class TwitterSource extends RichSourceFunction<String> {
 	}
 
 	/**
-	 * Set the size of the queue in which the tweets are contained temporarily. 
+	 * Set the size of the queue in which the tweets are contained temporarily.
+	 * 
 	 * @param queueSize
-	 * The desired value.
+	 *            The desired value.
 	 */
 	public void setQueueSize(int queueSize) {
 		this.queueSize = queueSize;
 	}
-	
+
 	/**
 	 * This function tells how long TwitterSource waits for the tweets.
-	 * @return
-	 * Number of second.
+	 * 
+	 * @return Number of second.
 	 */
 	public int getWaitSec() {
 		return waitSec;
@@ -270,8 +274,9 @@ public class TwitterSource extends RichSourceFunction<String> {
 
 	/**
 	 * This function sets how long TwitterSource should wait for the tweets.
+	 * 
 	 * @param waitSec
-	 * The desired value.
+	 *            The desired value.
 	 */
 	public void setWaitSec(int waitSec) {
 		this.waitSec = waitSec;

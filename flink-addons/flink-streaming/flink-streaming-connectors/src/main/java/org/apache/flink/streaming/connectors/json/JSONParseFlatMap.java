@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.examples.function;
+package org.apache.flink.streaming.connectors.json;
 
 import org.apache.flink.api.java.functions.RichFlatMapFunction;
 import org.apache.sling.commons.json.JSONException;
