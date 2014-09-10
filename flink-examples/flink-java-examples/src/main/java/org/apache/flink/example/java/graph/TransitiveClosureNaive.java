@@ -19,6 +19,7 @@
 
 package org.apache.flink.example.java.graph;
 
+import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.java.DataSet;
@@ -29,6 +30,9 @@ import org.apache.flink.api.common.ProgramDescription;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.example.java.graph.util.ConnectedComponentsData;
 import org.apache.flink.util.Collector;
+
+import java.util.HashSet;
+import java.util.Set;
 
 @SuppressWarnings("serial")
 public class TransitiveClosureNaive implements ProgramDescription {
@@ -70,6 +74,24 @@ public class TransitiveClosureNaive implements ProgramDescription {
 					@Override
 					public void reduce(Iterable<Tuple2<Long, Long>> values, Collector<Tuple2<Long, Long>> out) throws Exception {
 						out.collect(values.iterator().next());
+					}
+				});
+
+		DataSet<Tuple2<Long,Long>> newPaths = paths
+				.coGroup(nextPaths)
+				.where(0).equalTo(0)
+				.with(new CoGroupFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>>() {
+					Set prevSet = new HashSet<Tuple2<Long,Long>>();
+					@Override
+					public void coGroup(Iterable<Tuple2<Long, Long>> prevPaths, Iterable<Tuple2<Long, Long>> nextPaths, Collector<Tuple2<Long, Long>> out) throws Exception {
+						for (Tuple2<Long,Long> prev : prevPaths) {
+							prevSet.add(prev);
+						}
+						for (Tuple2<Long,Long> next: nextPaths) {
+							if (!prevSet.contains(next)) {
+								out.collect(next);
+							}
+						}
 					}
 				});
 
