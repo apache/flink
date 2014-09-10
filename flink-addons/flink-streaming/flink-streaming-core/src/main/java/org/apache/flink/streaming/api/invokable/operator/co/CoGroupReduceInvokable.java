@@ -17,69 +17,123 @@
 
 package org.apache.flink.streaming.api.invokable.operator.co;
 
-import org.apache.flink.streaming.api.function.co.CoReduceFunction;
-import org.apache.flink.streaming.state.MutableTableState;
+import java.util.Iterator;
 
-public class CoGroupReduceInvokable<IN1, IN2, OUT> extends CoReduceInvokable<IN1, IN2, OUT> {
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.function.co.CoGroupReduceFunction;
+import org.apache.flink.streaming.api.streamrecord.StreamRecord;
+import org.apache.flink.streaming.state.CircularFifoList;
+import org.apache.flink.streaming.state.StreamIterator;
+
+public abstract class CoGroupReduceInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2, OUT> {
 	private static final long serialVersionUID = 1L;
 
-	private int keyPosition1;
-	private int keyPosition2;
-	private MutableTableState<Object, IN1> values1;
-	private MutableTableState<Object, IN2> values2;
-	IN1 reduced1;
-	IN2 reduced2;
+	protected CoGroupReduceFunction<IN1, IN2, OUT> coReducer;
+	protected StreamIterator<IN1> userIterator1;
+	protected StreamIterator<IN2> userIterator2;
+	protected Iterable<IN1> userIterable1;
+	protected Iterable<IN2> userIterable2;
+	protected long windowSize1;
+	protected long windowSize2;
+	protected long slideInterval1;
+	protected long slideInterval2;
+	protected CircularFifoList<StreamRecord<IN1>> circularList1;
+	protected CircularFifoList<StreamRecord<IN2>> circularList2;
+	protected long WindowStartTime1;
+	protected long WindowStartTime2;
+	protected long WindowEndTime1;
+	protected long WindowEndTime2;
 
-	public CoGroupReduceInvokable(CoReduceFunction<IN1, IN2, OUT> coReducer, int keyPosition1,
-			int keyPosition2) {
-		super(coReducer);
-		this.coReducer = coReducer;
-		this.keyPosition1 = keyPosition1;
-		this.keyPosition2 = keyPosition2;
-		values1 = new MutableTableState<Object, IN1>();
-		values2 = new MutableTableState<Object, IN2>();
+	public CoGroupReduceInvokable(CoGroupReduceFunction<IN1, IN2, OUT> reduceFunction,
+			long windowSize1, long windowSize2, long slideInterval1, long slideInterval2) {
+		super(reduceFunction);
+		this.coReducer = reduceFunction;
+		this.userIterator1 = new StreamIterator<IN1>();
+		this.userIterator2 = new StreamIterator<IN2>();
+		this.windowSize1 = windowSize1;
+		this.windowSize2 = windowSize2;
+		this.slideInterval1 = slideInterval1;
+		this.slideInterval2 = slideInterval2;
+		this.circularList1 = new CircularFifoList<StreamRecord<IN1>>();
+		this.circularList2 = new CircularFifoList<StreamRecord<IN2>>();
 	}
 
 	@Override
-	public void handleStream1() throws Exception {
-		Object key = reuse1.getField(keyPosition1);
-		currentValue1 = values1.get(key);
-		nextValue1 = reuse1.getObject();
-		if (currentValue1 != null) {
-			callUserFunctionAndLogException1();
-			values1.put(key, reduced1);
-			collector.collect(coReducer.map1(reduced1));
-		} else {
-			values1.put(key, nextValue1);
-			collector.collect(coReducer.map1(nextValue1));
-		}
+	protected void mutableInvoke() throws Exception {
+		throw new RuntimeException("Reducing mutable sliding batch is not supported.");
 	}
 
 	@Override
-	public void handleStream2() throws Exception {
-		Object key = reuse2.getField(keyPosition2);
-		currentValue2 = values2.get(key);
-		nextValue2 = reuse2.getObject();
-		if (currentValue2 != null) {
-			callUserFunctionAndLogException2();
-			values2.put(key, reduced2);
-			collector.collect(coReducer.map2(reduced2));
-		} else {
-			values2.put(key, nextValue2);
-			collector.collect(coReducer.map2(nextValue2));
+	protected void handleStream1() throws Exception {
+		while (windowStart1()) {
+			circularList1.newSlide();
 		}
+		while (windowEnd1()) {
+			reduce1();
+			circularList1.shiftWindow();
+		}
+		circularList1.add(reuse1);
+	}
+
+	@Override
+	protected void handleStream2() throws Exception {
+		while (windowStart2()) {
+			circularList2.newSlide();
+		}
+		while (windowEnd2()) {
+			reduce2();
+			circularList2.shiftWindow();
+		}
+		circularList2.add(reuse2);
+	}
+
+	protected void reduce1() throws Exception {
+		userIterator1.load(circularList1.getIterator());
+		callUserFunctionAndLogException1();
+	}
+
+	protected void reduce2() throws Exception {
+		userIterator2.load(circularList2.getIterator());
+		callUserFunctionAndLogException2();
 	}
 
 	@Override
 	protected void callUserFunction1() throws Exception {
-		reduced1 = coReducer.reduce1(currentValue1, nextValue1);
-
+		coReducer.reduce1(userIterable1, collector);
 	}
 
 	@Override
 	protected void callUserFunction2() throws Exception {
-		reduced2 = coReducer.reduce2(currentValue2, nextValue2);
+		coReducer.reduce2(userIterable2, collector);
+	}
 
+	protected abstract boolean windowStart1() throws Exception;
+
+	protected abstract boolean windowStart2() throws Exception;
+
+	protected abstract boolean windowEnd1() throws Exception;
+
+	protected abstract boolean windowEnd2() throws Exception;
+
+	@Override
+	public void open(Configuration parameters) throws Exception {
+		super.open(parameters);
+		userIterable1 = new BatchIterable1();
+		userIterable2 = new BatchIterable2();
+	}
+
+	protected class BatchIterable1 implements Iterable<IN1> {
+		@Override
+		public Iterator<IN1> iterator() {
+			return userIterator1;
+		}
+	}
+
+	protected class BatchIterable2 implements Iterable<IN2> {
+		@Override
+		public Iterator<IN2> iterator() {
+			return userIterator2;
+		}
 	}
 
 }

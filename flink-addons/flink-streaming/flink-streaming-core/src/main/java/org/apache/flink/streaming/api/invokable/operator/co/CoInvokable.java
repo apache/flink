@@ -85,9 +85,11 @@ public abstract class CoInvokable<IN1, IN2, OUT> extends StreamInvokable<OUT> {
 			if (next == 0) {
 				break;
 			} else if (next == 1) {
+				initialize1();
 				handleStream1();
 				resetReuse1();
 			} else {
+				initialize2();
 				handleStream2();
 				resetReuse2();
 			}
@@ -100,8 +102,10 @@ public abstract class CoInvokable<IN1, IN2, OUT> extends StreamInvokable<OUT> {
 			if (next == 0) {
 				break;
 			} else if (next == 1) {
+				initialize1();
 				handleStream1();
 			} else {
+				initialize2();
 				handleStream2();
 			}
 		}
@@ -114,7 +118,15 @@ public abstract class CoInvokable<IN1, IN2, OUT> extends StreamInvokable<OUT> {
 	protected abstract void callUserFunction1() throws Exception;
 
 	protected abstract void callUserFunction2() throws Exception;
-	
+
+	protected void initialize1() {
+
+	};
+
+	protected void initialize2() {
+
+	};
+
 	protected void callUserFunctionAndLogException1() {
 		try {
 			callUserFunction1();

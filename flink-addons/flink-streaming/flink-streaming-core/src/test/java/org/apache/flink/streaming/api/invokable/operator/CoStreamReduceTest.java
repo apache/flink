@@ -1,4 +1,5 @@
-/** Licensed to the Apache Software Foundation (ASF) under one or more
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
  * The ASF licenses this file to You under the Apache License, Version 2.0
@@ -12,7 +13,6 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package org.apache.flink.streaming.api.invokable.operator;
@@ -23,13 +23,14 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.apache.flink.streaming.api.function.co.CoReduceFunction;
-import org.apache.flink.streaming.api.invokable.operator.co.CoReduceInvokable;
+import org.apache.flink.streaming.api.invokable.operator.co.CoStreamReduceInvokable;
 import org.apache.flink.streaming.util.MockCoInvokable;
 import org.junit.Test;
 
-public class CoReduceTest {
+public class CoStreamReduceTest {
 
-	public static class MyCoReduceFunction implements CoReduceFunction<Integer, String, Integer> {
+	public static class MyCoReduceFunction implements
+			CoReduceFunction<Integer, String, Integer> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -55,17 +56,16 @@ public class CoReduceTest {
 	}
 
 	@Test
-	public void coGroupReduceTest() {
+	public void coStreamReduceTest() {
 
-		CoReduceInvokable<Integer, String, Integer> coReduce = new CoReduceInvokable<Integer, String, Integer>(
+		CoStreamReduceInvokable<Integer, String, Integer> coReduce = new CoStreamReduceInvokable<Integer, String, Integer>(
 				new MyCoReduceFunction());
 
 		List<Integer> expected1 = Arrays.asList(1, 9, 2, 99, 6, 998, 24);
+		List<Integer> result = MockCoInvokable.createAndExecute(coReduce,
+				Arrays.asList(1, 2, 3, 4), Arrays.asList("9", "9", "8"));
 
-		assertEquals(
-				expected1,
-				(MockCoInvokable.createAndExecute(coReduce, Arrays.asList(1, 2, 3, 4),
-						Arrays.asList("9", "9", "8"))));
+		assertEquals(expected1, result);
 
 	}
 }

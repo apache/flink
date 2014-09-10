@@ -26,25 +26,25 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.streaming.util.MockInvokable;
 import org.junit.Test;
 
-public class GroupReduceInvokableTest {
+public class GroupedReduceInvokableTest {
 
-	private static class MyReducer implements ReduceFunction<Integer>{
+	private static class MyReducer implements ReduceFunction<Integer> {
 
 		private static final long serialVersionUID = 1L;
 
 		@Override
 		public Integer reduce(Integer value1, Integer value2) throws Exception {
-			return value1+value2;
+			return value1 + value2;
 		}
-		
+
 	}
-	
+
 	@Test
 	public void test() {
-		GroupReduceInvokable<Integer> invokable1 = new GroupReduceInvokable<Integer>(
-				new MyReducer(),0);
+		GroupedReduceInvokable<Integer> invokable1 = new GroupedReduceInvokable<Integer>(
+				new MyReducer(), 0);
 
-		List<Integer> expected = Arrays.asList(1,2,2,4,3);
+		List<Integer> expected = Arrays.asList(1, 2, 2, 4, 3);
 		List<Integer> actual = MockInvokable.createAndExecute(invokable1,
 				Arrays.asList(1, 1, 2, 2, 3));
 
