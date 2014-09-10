@@ -24,27 +24,26 @@ import org.apache.flink.api.common.functions.GroupReduceFunction
 import org.apache.flink.util.Collector
 import org.apache.flink.examples.java.graph.util.EnumTrianglesData
 import org.apache.flink.api.common.operators.Order
-import scala.collection.mutable.MutableList
+
+import scala.collection.mutable
 
 
 /**
  * Triangle enumeration is a pre-processing step to find closely connected parts in graphs.
  * A triangle consists of three edges that connect three vertices with each other.
  * 
- * <p>
- * The algorithm works as follows: 
+ * The algorithm works as follows:
  * It groups all edges that share a common vertex and builds triads, i.e., triples of vertices 
  * that are connected by two edges. Finally, all triads are filtered for which no third edge exists 
  * that closes the triangle.
  *  
- * <p>
  * Input files are plain text files and must be formatted as follows:
- * <ul>
- * <li>Edges are represented as pairs for vertex IDs which are separated by space 
- * characters. Edges are separated by new-line characters.<br>
- * For example <code>"1 2\n2 12\n1 12\n42 63\n"</code> gives four (undirected) edges (1)-(2), (2)-(12), (1)-(12), and (42)-(63)
- * that include a triangle
- * </ul>
+ *
+ *  - Edges are represented as pairs for vertex IDs which are separated by space
+ *   characters. Edges are separated by new-line characters.
+ *   For example `"1 2\n2 12\n1 12\n42 63\n"` gives four (undirected) edges (1)-(2), (2)-(12),
+ *   (1)-(12), and (42)-(63) that include a triangle
+ *
  * <pre>
  *     (1)
  *     /  \
@@ -59,13 +58,11 @@ import scala.collection.mutable.MutableList
  * If no parameters are provided, the program is run with default data from 
  * [[org.apache.flink.examples.java.graph.util.EnumTrianglesData]]
  * 
- * <p>
  * This example shows how to use:
- * <ul>
- * <li>Custom Java objects which extend Tuple
- * <li>Group Sorting
- * </ul>
- * 
+ *
+ *  - Custom Java objects which extend Tuple
+ *  - Group Sorting
+ *
  */
 object EnumTrianglesBasic {
 	
@@ -91,7 +88,7 @@ object EnumTrianglesBasic {
 		
 		// emit result
 		if (fileOutput) {
-			triangles.writeAsCsv(outputPath, "\n", " ")
+			triangles.writeAsCsv(outputPath, "\n", ",")
 		} else {
 			triangles.print()
 		}
@@ -119,12 +116,12 @@ object EnumTrianglesBasic {
 	 */
 	class TriadBuilder extends GroupReduceFunction[Edge, Triad] {
 
-		val vertices = MutableList[Integer]()
+		val vertices = mutable.MutableList[Integer]()
 		
 		override def reduce(edges: java.lang.Iterable[Edge], out: Collector[Triad]) = {
 			
 			// clear vertex list
-			vertices.clear
+			vertices.clear()
 
 			// build and emit triads
 			for(e <- edges.asScala) {
@@ -153,10 +150,10 @@ object EnumTrianglesBasic {
 				false
 			}
 		} else {
-			System.out.println("Executing Enum Triangles Basic example with built-in default data.");
-			System.out.println("  Provide parameters to read input data from files.");
-			System.out.println("  See the documentation for the correct format of input files.");
-			System.out.println("  Usage: EnumTriangleBasic <edge path> <result path>");
+			System.out.println("Executing Enum Triangles Basic example with built-in default data.")
+			System.out.println("  Provide parameters to read input data from files.")
+			System.out.println("  See the documentation for the correct format of input files.")
+			System.out.println("  Usage: EnumTriangleBasic <edge path> <result path>")
 		}
 		true
 	}

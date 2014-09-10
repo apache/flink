@@ -635,14 +635,12 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
    *   val left: DataSet[(String, Int, Int)] = ...
    *   val right: DataSet[(Int, String, Int)] = ...
    *   val joined = left.join(right).where(0).isEqualTo(1) { (l, r) =>
-   *     if (l._2 > 4) {
-   *       Some((l._2, r._3))
-   *     } else {
-   *       None
-   *     }
+   *     (l._1, r._2)
    *   }
    * }}}
-   * This can be used to implement a filter directly in the join or to output more than one values:
+   * A join function with a [[Collector]] can be used to implement a filter directly in the join
+   * or to output more than one values. This type of join function does not return a value, instead
+   * values are emitted using the collector:
    * {{{
    *   val left: DataSet[(String, Int, Int)] = ...
    *   val right: DataSet[(Int, String, Int)] = ...
@@ -696,11 +694,12 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
    *   val right: DataSet[(Int, String, Int)] = ...
    *   val coGrouped = left.coGroup(right).where(0).isEqualTo(1) { (l, r) =>
    *     // l and r are of type TraversableOnce
-   *     Some((l.min, r.max))
+   *     (l.min, r.max)
    *   }
    * }}}
-   * This can be used to implement a filter directly in the coGroup or to output more than one
-   * values:
+   * A coGroup function with a [[Collector]] can be used to implement a filter directly in the
+   * coGroup or to output more than one values. This type of coGroup function does not return a
+   * value, instead values are emitted using the collector
    * {{{
    *   val left: DataSet[(String, Int, Int)] = ...
    *   val right: DataSet[(Int, String, Int)] = ...

@@ -144,10 +144,8 @@ trait GroupedDataSet[T] {
 }
 
 /**
- * /**
  * Private implementation for [[GroupedDataSet]] to keep the implementation details, i.e. the
  * parameters of the constructor, hidden.
- */
  */
 private[flink] class GroupedDataSetImpl[T: ClassTag](
     private val set: JavaDataSet[T],
@@ -256,7 +254,7 @@ private[flink] class GroupedDataSetImpl[T: ClassTag](
   }
 
   def reduceGroup[R: TypeInformation: ClassTag](
-                                                 fun: (TraversableOnce[T]) => R): DataSet[R] = {
+      fun: (TraversableOnce[T]) => R): DataSet[R] = {
     Validate.notNull(fun, "Group reduce function must not be null.")
     val reducer = new GroupReduceFunction[T, R] {
       def reduce(in: java.lang.Iterable[T], out: Collector[R]) {

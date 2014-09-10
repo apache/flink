@@ -18,32 +18,29 @@
 
 package org.apache.flink.test.exampleScalaPrograms;
 
-
-import org.apache.flink.examples.scala.relational.WebLogAnalysis;
-import org.apache.flink.test.testdata.WebLogAnalysisData;
+import org.apache.flink.examples.scala.graph.EnumTrianglesBasic;
+import org.apache.flink.test.testdata.EnumTriangleData;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
-public class WebLogAnalysisITCase extends JavaProgramTestBase {
-
-	private String docsPath;
-	private String ranksPath;
-	private String visitsPath;
-	private String resultPath;
-
+public class EnumTriangleBasicITCase extends JavaProgramTestBase {
+	
+	protected String edgePath;
+	protected String resultPath;
+	
 	@Override
 	protected void preSubmit() throws Exception {
-		docsPath = createTempFile("docs", WebLogAnalysisData.DOCS);
-		ranksPath = createTempFile("ranks", WebLogAnalysisData.RANKS);
-		visitsPath = createTempFile("visits", WebLogAnalysisData.VISITS);
-		resultPath = getTempDirPath("result");
+		edgePath = createTempFile("edges", EnumTriangleData.EDGES);
+		resultPath = getTempDirPath("triangles");
 	}
 
 	@Override
 	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(WebLogAnalysisData.EXCEPTED_RESULT, resultPath);
+		compareResultsByLinesInMemory(EnumTriangleData.TRIANGLES_BY_ID, resultPath);
 	}
+	
 	@Override
 	protected void testProgram() throws Exception {
-		WebLogAnalysis.main(new String[]{docsPath, ranksPath, visitsPath, resultPath});
+		EnumTrianglesBasic.main(new String[] { edgePath, resultPath });
 	}
+
 }

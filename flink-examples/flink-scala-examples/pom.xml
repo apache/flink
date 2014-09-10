@@ -38,11 +38,11 @@ under the License.
 			<artifactId>flink-scala</artifactId>
 			<version>${project.version}</version>
 		</dependency>
-        <dependency>
-            <groupId>org.apache.flink</groupId>
-            <artifactId>flink-java-examples</artifactId>
-            <version>${project.version}</version>
-        </dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-java-examples</artifactId>
+			<version>${project.version}</version>
+		</dependency>
 	</dependencies>
 
 	<build>
@@ -54,7 +54,7 @@ under the License.
 				<version>3.1.4</version>
 				<executions>
 					<!-- Run scala compiler in the process-resources phase, so that dependencies on
-					    scala classes can be resolved later in the (Java) compile phase -->
+						scala classes can be resolved later in the (Java) compile phase -->
 					<execution>
 						<id>scala-compile-first</id>
 						<phase>process-resources</phase>
@@ -64,7 +64,7 @@ under the License.
 					</execution>
  
 					<!-- Run scala compiler in the process-test-resources phase, so that dependencies on
-					     scala classes can be resolved later in the (Java) test-compile phase -->
+						 scala classes can be resolved later in the (Java) test-compile phase -->
 					<execution>
 						<id>scala-test-compile</id>
 						<phase>process-test-resources</phase>
@@ -237,7 +237,7 @@ under the License.
 							</includes>
 						</configuration>
 					</execution>
-		               -->
+					   -->
 
 					<execution>
 						<id>WordCount</id>
@@ -260,7 +260,7 @@ under the License.
 							</includes>
 						</configuration>
 					</execution>
-                    <!--
+					<!--
 					<execution>
 						<id>ConnectedComponents</id>
 						<phase>package</phase>
@@ -282,27 +282,27 @@ under the License.
 					
 					-->
 
-                    <execution>
-                        <id>TransitiveClosureNaive</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>jar</goal>
-                        </goals>
+					<execution>
+						<id>TransitiveClosureNaive</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
 
-                        <configuration>
-                            <classifier>TransitiveClosureNaive</classifier>
+						<configuration>
+							<classifier>TransitiveClosureNaive</classifier>
 
-                            <archive>
-                                <manifestEntries>
-                                    <program-class>org.apache.flink.examples.scala.graph.TransitiveClosureNaive</program-class>
-                                </manifestEntries>
-                            </archive>
+							<archive>
+								<manifestEntries>
+									<program-class>org.apache.flink.examples.scala.graph.TransitiveClosureNaive</program-class>
+								</manifestEntries>
+							</archive>
 
-                            <includes>
-                                <include>**/wordcount/TransitiveClosureNaive*.class</include>
-                            </includes>
-                        </configuration>
-                    </execution>
+							<includes>
+								<include>**/wordcount/TransitiveClosureNaive*.class</include>
+							</includes>
+						</configuration>
+					</execution>
 
 				</executions>
 			</plugin>

@@ -33,17 +33,13 @@ import org.apache.flink.api.java.ExecutionEnvironment;
  */
 public class ConnectedComponentsData {
 	
-	public static final Object[][] VERTICES  = new Object[][] {
-		new Object[]{1L}, new Object[]{2L}, new Object[]{3L}, new Object[]{4L}, 
-		new Object[]{5L},new Object[]{6L}, new Object[]{7L}, new Object[]{8L}, 
-		new Object[]{9L}, new Object[]{10L}, new Object[]{11L}, new Object[]{12L}, 
-		new Object[]{13L}, new Object[]{14L}, new Object[]{15L}, new Object[]{16L}
-	};
+	public static final long[] VERTICES  = new long[] {
+			1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
 
 	public static DataSet<Long> getDefaultVertexDataSet(ExecutionEnvironment env) {
 		List<Long> verticesList = new LinkedList<Long>();
-		for (Object[] vertex : VERTICES) {
-			verticesList.add((Long) vertex[0]);
+		for (long vertexId : VERTICES) {
+			verticesList.add(vertexId);
 		}
 		return env.fromCollection(verticesList);
 	}

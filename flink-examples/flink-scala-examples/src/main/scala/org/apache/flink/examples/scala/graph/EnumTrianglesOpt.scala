@@ -26,6 +26,8 @@ import org.apache.flink.examples.java.graph.util.EnumTrianglesData
 import org.apache.flink.api.common.operators.Order
 import scala.collection.mutable.MutableList
 
+import scala.collection.mutable
+
 
 /**
  * Triangle enumeration is a pre-processing step to find closely connected parts in graphs.

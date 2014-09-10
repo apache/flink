@@ -28,58 +28,56 @@ import org.apache.flink.examples.java.ml.util.LinearRegressionData
 import scala.collection.JavaConverters._
 
 /**
- * This example implements a basic Linear Regression  to solve the y = theta0 + theta1*x problem using batch gradient descent algorithm.
+ * This example implements a basic Linear Regression  to solve the y = theta0 + theta1*x problem
+ * using batch gradient descent algorithm.
  *
- * <p>
- * Linear Regression with BGD(batch gradient descent) algorithm is an iterative clustering algorithm and works as follows:<br>
- * Giving a data set and target set, the BGD try to find out the best parameters for the data set to fit the target set.
- * In each iteration, the algorithm computes the gradient of the cost function and use it to update all the parameters.
- * The algorithm terminates after a fixed number of iterations (as in this implementation)
+ * Linear Regression with BGD(batch gradient descent) algorithm is an iterative clustering
+ * algorithm and works as follows:
+ *
+ * Giving a data set and target set, the BGD try to find out the best parameters for the data set
+ * to fit the target set.
+ * In each iteration, the algorithm computes the gradient of the cost function and use it to
+ * update all the parameters.
+ * The algorithm terminates after a fixed number of iterations (as in this implementation).
  * With enough iteration, the algorithm can minimize the cost function and find the best parameters
- * This is the Wikipedia entry for the <a href = "http://en.wikipedia.org/wiki/Linear_regression">Linear regression</a> and <a href = "http://en.wikipedia.org/wiki/Gradient_descent">Gradient descent algorithm</a>.
- * 
- * <p>
- * This implementation works on one-dimensional data. And find the two-dimensional theta.<br>
- * It find the best Theta parameter to fit the target.
- * 
- * <p>
+ * This is the Wikipedia entry for the
+ * [[http://en.wikipedia.org/wiki/Linear_regression Linear regression]] and
+ * [[http://en.wikipedia.org/wiki/Gradient_descent Gradient descent algorithm]].
+ *
+ * This implementation works on one-dimensional data and finds the best two-dimensional theta to
+ * fit the target.
+ *
  * Input files are plain text files and must be formatted as follows:
- * <ul>
- * <li>Data points are represented as two double values separated by a blank character. The first one represent the X(the training data) and the second represent the Y(target).
- * Data points are separated by newline characters.<br>
- * For example <code>"-0.02 -0.04\n5.3 10.6\n"</code> gives two data points (x=-0.02, y=-0.04) and (x=5.3, y=10.6).
- * </ul>
- * 
- * <p>
+ *
+ *  - Data points are represented as two double values separated by a blank character. The first
+ *    one represent the X(the training data) and the second represent the Y(target). Data points are
+ *    separated by newline characters.
+ *    For example `"-0.02 -0.04\n5.3 10.6\n"`gives two data points
+ *    (x=-0.02, y=-0.04) and (x=5.3, y=10.6).
+ *
  * This example shows how to use:
- * <ul>
- * <li> Bulk iterations
- * <li> Broadcast variables in bulk iterations
- * <li> Custom Java objects (PoJos)
- * </ul>
+ *
+ *  - Bulk iterations
+ *  - Broadcast variables in bulk iterations
  */
 object LinearRegression {
 
-	// *************************************************************************
-	//     PROGRAM
-	// *************************************************************************
 	def main(args: Array[String]) {
 		if (!parseParameters(args)) {
 			return
 		}
 
 		val env = ExecutionEnvironment.getExecutionEnvironment
-		val data: DataSet[Data] = getDataSet(env)
-		val parameters: DataSet[Params] = getParamsDataSet(env)
+		val data = getDataSet(env)
+		val parameters = getParamsDataSet(env)
+
 		val result = parameters.iterate(numIterations) { currentParameters =>
 			val newParameters = data
 				.map(new SubUpdate).withBroadcastSet(currentParameters, "parameters")
-				.reduce { (val1, val2) =>
-				val new_theta0: Double = val1._1.getTheta0 + val2._1.getTheta0
-				val new_theta1: Double = val1._1.getTheta1 + val2._1.getTheta1
-				val result: Params = new Params(new_theta0, new_theta1)
-				(result, val1._2 + val2._2)
-			}
+				.reduce { (p1, p2) =>
+          val result = p1._1 + p2._1
+				  (result, p1._2 + p2._2)
+			  }
 				.map { x => x._1.div(x._2) }
 			newParameters
 		}
@@ -88,73 +86,28 @@ object LinearRegression {
 			result.writeAsText(outputPath)
 		}
 		else {
-			result.print
+			result.print()
 		}
 		env.execute("Scala Linear Regression example")
 	}
 
-	// *************************************************************************
-	//     DATA TYPES
-	// *************************************************************************
 	/**
 	 * A simple data sample, x means the input, and y means the target.
 	 */
-	class Data extends Serializable {
-
-		def this(x: Double, y: Double) {
-			this()
-			this.x = x
-			this.y = y
-		}
-
-		override def toString: String = {
-			"(" + x + "|" + y + ")"
-		}
-
-		var x: Double = .0
-		var y: Double = .0
-	}
+  case class Data(var x: Double, var y: Double)
 
 	/**
 	 * A set of parameters -- theta0, theta1.
 	 */
-	class Params extends Serializable {
+  case class Params(theta0: Double, theta1: Double) {
+    def div(a: Int): Params = {
+      Params(theta0 / a, theta1 / a)
+    }
 
-		def this(x0: Double, x1: Double) {
-			this()
-			this.theta0 = x0
-			this.theta1 = x1
-		}
-
-		override def toString: String = {
-			theta0 + " " + theta1
-		}
-
-		def getTheta0: Double = {
-			theta0
-		}
-
-		def getTheta1: Double = {
-			theta1
-		}
-
-		def setTheta0(theta0: Double) {
-			this.theta0 = theta0
-		}
-
-		def setTheta1(theta1: Double) {
-			this.theta1 = theta1
-		}
-
-		def div(a: Integer): Params = {
-			this.theta0 = theta0 / a
-			this.theta1 = theta1 / a
-			return this
-		}
-
-		private var theta0: Double = .0
-		private var theta1: Double = .0
-	}
+    def +(other: Params) = {
+      Params(theta0 + other.theta0, theta1 + other.theta1)
+    }
+  }
 
 	// *************************************************************************
 	//     USER FUNCTIONS
@@ -163,24 +116,22 @@ object LinearRegression {
 	/**
 	 * Compute a single BGD type update for every parameters.
 	 */
-	class SubUpdate extends RichMapFunction[Data, Tuple2[Params, Integer]] {
+	class SubUpdate extends RichMapFunction[Data, (Params, Int)] {
 
-		private var parameters: Traversable[Params] = null
-		var parameter: Params = null
-		private var count: Int = 1
+		private var parameter: Params = null
 
 		/** Reads the parameters from a broadcast variable into a collection. */
 		override def open(parameters: Configuration) {
-			this.parameters = getRuntimeContext.getBroadcastVariable[Params]("parameters").asScala
+			val parameters = getRuntimeContext.getBroadcastVariable[Params]("parameters").asScala
+      parameter = parameters.head
 		}
 
-		def map(in: Data): Tuple2[Params, Integer] = {
-			for (p <- parameters) {
-				this.parameter = p
-			}
-			val theta_0: Double = parameter.getTheta0 - 0.01 * ((parameter.getTheta0 + (parameter.getTheta1 * in.x)) - in.y)
-			val theta_1: Double = parameter.getTheta1 - 0.01 * (((parameter.getTheta0 + (parameter.getTheta1 * in.x)) - in.y) * in.x)
-			new Tuple2[Params, Integer](new Params(theta_0, theta_1), count)
+		def map(in: Data): (Params, Int) = {
+			val theta0 =
+        parameter.theta0 - 0.01 * ((parameter.theta0 + (parameter.theta1 * in.x)) - in.y)
+			val theta1 =
+        parameter.theta1 - 0.01 * (((parameter.theta0 + (parameter.theta1 * in.x)) - in.y) * in.x)
+			(Params(theta0, theta1), 1)
 		}
 	}
 
@@ -198,7 +149,7 @@ object LinearRegression {
 			if (programArguments.length == 3) {
 				dataPath = programArguments(0)
 				outputPath = programArguments(1)
-				numIterations = Integer.parseInt(programArguments(2))
+				numIterations = programArguments(2).toInt
 			}
 			else {
 				System.err.println("Usage: LinearRegression <data path> <result path> <num iterations>")
@@ -206,11 +157,13 @@ object LinearRegression {
 			}
 		}
 		else {
-			System.out.println("Executing Linear Regression example with default parameters and built-in default data.")
-			System.out.println("  Provide parameters to read input data from files.")
-			System.out.println("  See the documentation for the correct format of input files.")
-			System.out.println("  We provide a data generator to create synthetic input files for this program.")
-			System.out.println("  Usage: LinearRegression <data path> <result path> <num iterations>")
+      System.out.println("Executing Linear Regression example with default parameters and " +
+        "built-in default data.")
+      System.out.println("  Provide parameters to read input data from files.")
+      System.out.println("  See the documentation for the correct format of input files.")
+      System.out.println("  We provide a data generator to create synthetic input files for this " +
+        "program.")
+      System.out.println("  Usage: LinearRegression <data path> <result path> <num iterations>")
 		}
 		true
 	}
@@ -225,7 +178,7 @@ object LinearRegression {
 		}
 		else {
 			val data = LinearRegressionData.DATA map {
-				case Array(x, y) => new Data(x.asInstanceOf[Double], y.asInstanceOf[Double])
+				case Array(x, y) => Data(x.asInstanceOf[Double], y.asInstanceOf[Double])
 			}
 			env.fromCollection(data)
 		}
@@ -233,7 +186,7 @@ object LinearRegression {
 
 	private def getParamsDataSet(env: ExecutionEnvironment): DataSet[Params] = {
 		val params = LinearRegressionData.PARAMS map {
-			case Array(x, y) => new Params(x.asInstanceOf[Double], y.asInstanceOf[Double])
+			case Array(x, y) => Params(x.asInstanceOf[Double], y.asInstanceOf[Double])
 		}
 		env.fromCollection(params)
 	}
