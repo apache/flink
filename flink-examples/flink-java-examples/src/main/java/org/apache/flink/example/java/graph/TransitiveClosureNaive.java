@@ -95,7 +95,7 @@ public class TransitiveClosureNaive implements ProgramDescription {
 					}
 				});
 
-		DataSet<Tuple2<Long, Long>> transitiveClosure = paths.closeWith(nextPaths);
+		DataSet<Tuple2<Long, Long>> transitiveClosure = paths.closeWith(nextPaths, newPaths);
 
 
 		// emit result
