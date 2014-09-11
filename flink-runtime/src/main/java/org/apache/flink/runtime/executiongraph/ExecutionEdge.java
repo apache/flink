@@ -20,11 +20,11 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.runtime.io.network.channels.ChannelID;
 
-public class ExecutionEdge2 {
+public class ExecutionEdge {
 
 	private final IntermediateResultPartition source;
 	
-	private final ExecutionVertex2 target;
+	private final ExecutionVertex target;
 	
 	private final int inputNum;
 
@@ -33,7 +33,7 @@ public class ExecutionEdge2 {
 	private final ChannelID outputChannelId;
 	
 	
-	public ExecutionEdge2(IntermediateResultPartition source, ExecutionVertex2 target, int inputNum) {
+	public ExecutionEdge(IntermediateResultPartition source, ExecutionVertex target, int inputNum) {
 		this.source = source;
 		this.target = target;
 		this.inputNum = inputNum;
@@ -42,7 +42,7 @@ public class ExecutionEdge2 {
 		this.outputChannelId = new ChannelID();
 	}
 	
-	public ExecutionEdge2(IntermediateResultPartition source, ExecutionVertex2 target, int inputNum, ChannelID inputChannelId, ChannelID outputChannelId) {
+	public ExecutionEdge(IntermediateResultPartition source, ExecutionVertex target, int inputNum, ChannelID inputChannelId, ChannelID outputChannelId) {
 		this.source = source;
 		this.target = target;
 		this.inputNum = inputNum;
@@ -56,7 +56,7 @@ public class ExecutionEdge2 {
 		return source;
 	}
 	
-	public ExecutionVertex2 getTarget() {
+	public ExecutionVertex getTarget() {
 		return target;
 	}
 	

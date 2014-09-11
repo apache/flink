@@ -29,5 +29,5 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 public interface ExecutionListener {
 
 	void executionStateChanged(JobID jobID, JobVertexID vertexId, int subtask, ExecutionAttemptID executionId,
-			ExecutionState2 newExecutionState, String optionalMessage);
+			ExecutionState newExecutionState, String optionalMessage);
 }

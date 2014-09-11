@@ -20,7 +20,9 @@ package org.apache.flink.runtime.taskmanager;
 
 import static org.junit.Assert.*;
 
-import org.apache.flink.runtime.execution.ExecutionState2;
+import java.io.IOException;
+
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
@@ -33,11 +35,11 @@ public class TaskExecutionStateTest {
 		try {
 			final JobID jid = new JobID();
 			final ExecutionAttemptID executionId = new ExecutionAttemptID();
-			final ExecutionState2 state = ExecutionState2.RUNNING;
-			final String description = "some test description";
+			final ExecutionState state = ExecutionState.RUNNING;
+			final Throwable error = new RuntimeException("some test error message");
 			
-			TaskExecutionState s1 = new TaskExecutionState(jid, executionId, state, description);
-			TaskExecutionState s2 = new TaskExecutionState(jid, executionId, state, description);
+			TaskExecutionState s1 = new TaskExecutionState(jid, executionId, state, error);
+			TaskExecutionState s2 = new TaskExecutionState(jid, executionId, state, error);
 			
 			assertEquals(s1.hashCode(), s2.hashCode());
 			assertEquals(s1, s2);
@@ -53,16 +55,23 @@ public class TaskExecutionStateTest {
 		try {
 			final JobID jid = new JobID();
 			final ExecutionAttemptID executionId = new ExecutionAttemptID();
-			final ExecutionState2 state = ExecutionState2.DEPLOYING;
-			final String description = "foo bar";
+			final ExecutionState state = ExecutionState.DEPLOYING;
+			final Throwable error = new IOException("fubar");
 			
-			TaskExecutionState original = new TaskExecutionState(jid, executionId, state, description);
+			TaskExecutionState original1 = new TaskExecutionState(jid, executionId, state, error);
+			TaskExecutionState original2 = new TaskExecutionState(jid, executionId, state);
 			
-			TaskExecutionState writableCopy = CommonTestUtils.createCopyWritable(original);
-			TaskExecutionState javaSerCopy = CommonTestUtils.createCopySerializable(original);
+			TaskExecutionState writableCopy1 = CommonTestUtils.createCopyWritable(original1);
+			TaskExecutionState writableCopy2 = CommonTestUtils.createCopyWritable(original2);
 			
-			assertEquals(original, writableCopy);
-			assertEquals(original, javaSerCopy);
+			TaskExecutionState javaSerCopy1 = CommonTestUtils.createCopySerializable(original1);
+			TaskExecutionState javaSerCopy2 = CommonTestUtils.createCopySerializable(original2);
+			
+			assertEquals(original1, writableCopy1);
+			assertEquals(original1, javaSerCopy1);
+			
+			assertEquals(original2, writableCopy2);
+			assertEquals(original2, javaSerCopy2);
 		}
 		catch (Exception e) {
 			e.printStackTrace();

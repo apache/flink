@@ -21,7 +21,6 @@ package org.apache.flink.runtime.executiongraph;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
@@ -33,6 +32,8 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobmanager.scheduler.DefaultScheduler;
+import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 
 import org.slf4j.Logger;
@@ -43,12 +44,13 @@ public class ExecutionJobVertex {
 	/** Use the same log for all ExecutionGraph classes */
 	private static final Logger LOG = ExecutionGraph.LOG;
 	
+	private final Object stateMonitor = new Object();
 	
 	private final ExecutionGraph graph;
 	
 	private final AbstractJobVertex jobVertex;
 	
-	private final ExecutionVertex2[] taskVertices;
+	private final ExecutionVertex[] taskVertices;
 
 	private final IntermediateResult[] producedDataSets;
 	
@@ -58,18 +60,21 @@ public class ExecutionJobVertex {
 	
 	private final int parallelism;
 	
-	
-	private final AtomicInteger numRunningTasks = new AtomicInteger(0);
-	
-	private final AtomicInteger numFinishedTasks = new AtomicInteger(0);
-	
-	private final AtomicInteger numCancelledOrFailedTasks = new AtomicInteger(0);
+	private final boolean[] finishedSubtasks;
+			
+	private int numSubtasksInFinalState;
 	
 	
 	private SlotSharingGroup slotSharingGroup;
 	
 	
 	public ExecutionJobVertex(ExecutionGraph graph, AbstractJobVertex jobVertex, int defaultParallelism) throws JobException {
+		this(graph, jobVertex, defaultParallelism, System.currentTimeMillis());
+	}
+	
+	public ExecutionJobVertex(ExecutionGraph graph, AbstractJobVertex jobVertex, int defaultParallelism, long createTimestamp)
+			throws JobException
+	{
 		if (graph == null || jobVertex == null) {
 			throw new NullPointerException();
 		}
@@ -81,7 +86,7 @@ public class ExecutionJobVertex {
 		int numTaskVertices = vertexParallelism > 0 ? vertexParallelism : defaultParallelism;
 		
 		this.parallelism = numTaskVertices;
-		this.taskVertices = new ExecutionVertex2[numTaskVertices];
+		this.taskVertices = new ExecutionVertex[numTaskVertices];
 		
 		this.inputs = new ArrayList<IntermediateResult>(jobVertex.getInputs().size());
 		
@@ -94,7 +99,7 @@ public class ExecutionJobVertex {
 		
 		// create all task vertices
 		for (int i = 0; i < numTaskVertices; i++) {
-			ExecutionVertex2 vertex = new ExecutionVertex2(this, i, this.producedDataSets);
+			ExecutionVertex vertex = new ExecutionVertex(this, i, this.producedDataSets, createTimestamp);
 			this.taskVertices[i] = vertex;
 		}
 		
@@ -122,6 +127,8 @@ public class ExecutionJobVertex {
 		catch (Throwable t) {
 			throw new JobException("Creating the input splits caused an error: " + t.getMessage(), t);
 		}
+		
+		this.finishedSubtasks = new boolean[parallelism];
 	}
 
 	public ExecutionGraph getGraph() {
@@ -144,7 +151,7 @@ public class ExecutionJobVertex {
 		return this.jobVertex.getID();
 	}
 	
-	public ExecutionVertex2[] getTaskVertices() {
+	public ExecutionVertex[] getTaskVertices() {
 		return taskVertices;
 	}
 	
@@ -166,6 +173,10 @@ public class ExecutionJobVertex {
 	
 	public List<IntermediateResult> getInputs() {
 		return inputs;
+	}
+	
+	public boolean isInFinalState() {
+		return numSubtasksInFinalState == parallelism;
 	}
 	
 	//---------------------------------------------------------------------------------------------
@@ -204,26 +215,73 @@ public class ExecutionJobVertex {
 			int consumerIndex = ires.registerConsumer();
 			
 			for (int i = 0; i < parallelism; i++) {
-				ExecutionVertex2 ev = taskVertices[i];
+				ExecutionVertex ev = taskVertices[i];
 				ev.connectSource(num, ires, edge, consumerIndex);
 			}
 		}
 	}
 	
 	//---------------------------------------------------------------------------------------------
-	//  State, deployment, and recovery logic 
+	//  Actions
 	//---------------------------------------------------------------------------------------------
 	
-	void vertexSwitchedToRunning(int subtask) {
-		this.numRunningTasks.incrementAndGet();
+	public void scheduleAll(DefaultScheduler scheduler, boolean queued) throws NoResourceAvailableException {
+		for (ExecutionVertex ev : getTaskVertices()) {
+			ev.scheduleForExecution(scheduler, queued);
+		}
+	}
+
+	public void cancel() {
+		for (ExecutionVertex ev : getTaskVertices()) {
+			ev.cancel();
+		}
 	}
 	
-	void vertexFailed(int subtask) {
-		
+	public void fail(Throwable t) {
+		for (ExecutionVertex ev : getTaskVertices()) {
+			ev.fail(t);
+		}
+	}
+	
+	public void waitForAllVerticesToReachFinishingState() throws InterruptedException {
+		synchronized (stateMonitor) {
+			while (numSubtasksInFinalState < parallelism) {
+				stateMonitor.wait();
+			}
+		}
+	}
+	
+	//---------------------------------------------------------------------------------------------
+	//  Notifications
+	//---------------------------------------------------------------------------------------------
+	
+	void vertexFinished(int subtask) {
+		subtaskInFinalState(subtask);
 	}
 	
 	void vertexCancelled(int subtask) {
-		
+		subtaskInFinalState(subtask);
+	}
+	
+	void vertexFailed(int subtask, Throwable error) {
+		subtaskInFinalState(subtask);
+	}
+	
+	private void subtaskInFinalState(int subtask) {
+		synchronized (stateMonitor) {
+			if (!finishedSubtasks[subtask]) {
+				finishedSubtasks[subtask] = true;
+				numSubtasksInFinalState++;
+				
+				if (numSubtasksInFinalState == parallelism) {
+					// we are in our final state
+					stateMonitor.notifyAll();
+					
+					// tell the graph
+					graph.jobVertexInFinalState(this);
+				}
+			}
+		}
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -233,5 +291,4 @@ public class ExecutionJobVertex {
 	public void execute(Runnable action) {
 		this.graph.execute(action);
 	}
-	
 }

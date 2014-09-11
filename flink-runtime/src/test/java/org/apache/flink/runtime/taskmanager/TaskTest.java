@@ -27,7 +27,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.deployment.GateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
-import org.apache.flink.runtime.execution.ExecutionState2;
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.RuntimeEnvironment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -56,24 +56,24 @@ public class TaskTest {
 			Task task = new Task(jid, vid, 2, 7, eid, "TestTask", taskManager);
 			task.setEnvironment(env);
 			
-			assertEquals(ExecutionState2.DEPLOYING, task.getExecutionState());
+			assertEquals(ExecutionState.DEPLOYING, task.getExecutionState());
 			
 			// cancel
 			task.cancelExecution();
-			assertEquals(ExecutionState2.CANCELED, task.getExecutionState());
+			assertEquals(ExecutionState.CANCELED, task.getExecutionState());
 			
 			// cannot go into running or finished state
 			
 			assertFalse(task.startExecution());
-			assertEquals(ExecutionState2.CANCELED, task.getExecutionState());
+			assertEquals(ExecutionState.CANCELED, task.getExecutionState());
 			
 			assertFalse(task.markAsFinished());
-			assertEquals(ExecutionState2.CANCELED, task.getExecutionState());
+			assertEquals(ExecutionState.CANCELED, task.getExecutionState());
 			
 			task.markFailed(new Exception("test"));
-			assertTrue(ExecutionState2.CANCELED == task.getExecutionState());
+			assertTrue(ExecutionState.CANCELED == task.getExecutionState());
 			
-			verify(taskManager, times(1)).notifyExecutionStateChange(jid, eid, ExecutionState2.CANCELED, null);
+			verify(taskManager, times(1)).notifyExecutionStateChange(jid, eid, ExecutionState.CANCELED, null);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -109,7 +109,7 @@ public class TaskTest {
 			final RuntimeEnvironment env = mock(RuntimeEnvironment.class);
 			when(env.getExecutingThread()).thenReturn(operation);
 			
-			assertEquals(ExecutionState2.DEPLOYING, task.getExecutionState());
+			assertEquals(ExecutionState.DEPLOYING, task.getExecutionState());
 			
 			// start the execution
 			task.setEnvironment(env);
@@ -122,9 +122,9 @@ public class TaskTest {
 				ExceptionUtils.rethrow(error.get());
 			}
 			
-			assertEquals(ExecutionState2.FINISHED, task.getExecutionState());
+			assertEquals(ExecutionState.FINISHED, task.getExecutionState());
 			
-			verify(taskManager).notifyExecutionStateChange(jid, eid, ExecutionState2.FINISHED, null);
+			verify(taskManager).notifyExecutionStateChange(jid, eid, ExecutionState.FINISHED, null);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -159,7 +159,7 @@ public class TaskTest {
 			final RuntimeEnvironment env = mock(RuntimeEnvironment.class);
 			when(env.getExecutingThread()).thenReturn(operation);
 			
-			assertEquals(ExecutionState2.DEPLOYING, task.getExecutionState());
+			assertEquals(ExecutionState.DEPLOYING, task.getExecutionState());
 			
 			// start the execution
 			task.setEnvironment(env);
@@ -173,8 +173,8 @@ public class TaskTest {
 			}
 			
 			// make sure the final state is correct and the task manager knows the changes
-			assertEquals(ExecutionState2.FAILED, task.getExecutionState());
-			verify(taskManager).notifyExecutionStateChange(Matchers.eq(jid), Matchers.eq(eid), Matchers.eq(ExecutionState2.FAILED), Matchers.anyString());
+			assertEquals(ExecutionState.FAILED, task.getExecutionState());
+			verify(taskManager).notifyExecutionStateChange(Matchers.eq(jid), Matchers.eq(eid), Matchers.eq(ExecutionState.FAILED), Matchers.any(Throwable.class));
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -216,7 +216,7 @@ public class TaskTest {
 			final RuntimeEnvironment env = mock(RuntimeEnvironment.class);
 			when(env.getExecutingThread()).thenReturn(operation);
 			
-			assertEquals(ExecutionState2.DEPLOYING, task.getExecutionState());
+			assertEquals(ExecutionState.DEPLOYING, task.getExecutionState());
 			
 			// start the execution
 			task.setEnvironment(env);
@@ -234,8 +234,8 @@ public class TaskTest {
 			}
 			
 			// make sure the final state is correct and the task manager knows the changes
-			assertEquals(ExecutionState2.CANCELED, task.getExecutionState());
-			verify(taskManager).notifyExecutionStateChange(jid, eid, ExecutionState2.CANCELED, null);
+			assertEquals(ExecutionState.CANCELED, task.getExecutionState());
+			verify(taskManager).notifyExecutionStateChange(jid, eid, ExecutionState.CANCELED, null);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -266,14 +266,14 @@ public class TaskTest {
 			
 			task.setEnvironment(env);
 			
-			assertEquals(ExecutionState2.DEPLOYING, task.getExecutionState());
+			assertEquals(ExecutionState.DEPLOYING, task.getExecutionState());
 			
 			task.startExecution();
 			task.getEnvironment().getExecutingThread().join();
 			
-			assertEquals(ExecutionState2.FINISHED, task.getExecutionState());
+			assertEquals(ExecutionState.FINISHED, task.getExecutionState());
 			
-			verify(taskManager).notifyExecutionStateChange(jid, eid, ExecutionState2.FINISHED, null);
+			verify(taskManager).notifyExecutionStateChange(jid, eid, ExecutionState.FINISHED, null);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -304,17 +304,17 @@ public class TaskTest {
 			
 			task.setEnvironment(env);
 			
-			assertEquals(ExecutionState2.DEPLOYING, task.getExecutionState());
+			assertEquals(ExecutionState.DEPLOYING, task.getExecutionState());
 			
 			task.startExecution();
 			task.getEnvironment().getExecutingThread().join();
 			
-			assertEquals(ExecutionState2.FAILED, task.getExecutionState());
+			assertEquals(ExecutionState.FAILED, task.getExecutionState());
 			
-			verify(taskManager).notifyExecutionStateChange(Matchers.eq(jid), Matchers.eq(eid), Matchers.eq(ExecutionState2.FAILED), Matchers.anyString());
-			verify(taskManager, times(0)).notifyExecutionStateChange(jid, eid, ExecutionState2.CANCELING, null);
-			verify(taskManager, times(0)).notifyExecutionStateChange(jid, eid, ExecutionState2.CANCELED, null);
-			verify(taskManager, times(0)).notifyExecutionStateChange(jid, eid, ExecutionState2.FINISHED, null);
+			verify(taskManager).notifyExecutionStateChange(Matchers.eq(jid), Matchers.eq(eid), Matchers.eq(ExecutionState.FAILED), Matchers.any(Throwable.class));
+			verify(taskManager, times(0)).notifyExecutionStateChange(jid, eid, ExecutionState.CANCELING, null);
+			verify(taskManager, times(0)).notifyExecutionStateChange(jid, eid, ExecutionState.CANCELED, null);
+			verify(taskManager, times(0)).notifyExecutionStateChange(jid, eid, ExecutionState.FINISHED, null);
 		}
 		catch (Exception e) {
 			e.printStackTrace();

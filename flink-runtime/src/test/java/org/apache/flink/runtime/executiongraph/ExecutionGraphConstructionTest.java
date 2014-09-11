@@ -20,14 +20,12 @@ package org.apache.flink.runtime.executiongraph;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import org.junit.BeforeClass;
 import org.junit.Test;
-
 import org.mockito.Matchers;
 
 import java.util.ArrayList;
@@ -40,6 +38,7 @@ import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.core.io.InputSplitSource;
 import org.apache.flink.runtime.JobException;
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
@@ -47,18 +46,11 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.util.LogUtils;
 
 /**
  * This class contains test concerning the correct conversion from {@link JobGraph} to {@link ExecutionGraph} objects.
  */
 public class ExecutionGraphConstructionTest {
-	
-	@BeforeClass
-	public static void setLogLevel() {
-		LogUtils.initializeDefaultTestConsoleLogger();
-	}
-
 	
 	/**
 	 * Creates a JobGraph of the following form:
@@ -260,7 +252,7 @@ public class ExecutionGraphConstructionTest {
 			assertEquals(v1.getParallelism(), e1.getTaskVertices().length);
 			
 			int num = 0;
-			for (ExecutionVertex2 ev : e1.getTaskVertices()) {
+			for (ExecutionVertex ev : e1.getTaskVertices()) {
 				assertEquals(jobId, ev.getJobId());
 				assertEquals(v1.getID(), ev.getJobvertexId());
 				
@@ -268,6 +260,8 @@ public class ExecutionGraphConstructionTest {
 				assertEquals(num++, ev.getParallelSubtaskIndex());
 				
 				assertEquals(0, ev.getNumberOfInputs());
+				
+				assertTrue(ev.getStateTimestamp(ExecutionState.CREATED) > 0);
 			}
 		}
 		
@@ -285,7 +279,7 @@ public class ExecutionGraphConstructionTest {
 			assertEquals(v2.getParallelism(), e2.getTaskVertices().length);
 			
 			int num = 0;
-			for (ExecutionVertex2 ev : e2.getTaskVertices()) {
+			for (ExecutionVertex ev : e2.getTaskVertices()) {
 				assertEquals(jobId, ev.getJobId());
 				assertEquals(v2.getID(), ev.getJobvertexId());
 				
@@ -293,11 +287,11 @@ public class ExecutionGraphConstructionTest {
 				assertEquals(num++, ev.getParallelSubtaskIndex());
 				
 				assertEquals(1, ev.getNumberOfInputs());
-				ExecutionEdge2[] inputs = ev.getInputEdges(0);
+				ExecutionEdge[] inputs = ev.getInputEdges(0);
 				assertEquals(v1.getParallelism(), inputs.length);
 				
 				int sumOfPartitions = 0;
-				for (ExecutionEdge2 inEdge : inputs) {
+				for (ExecutionEdge inEdge : inputs) {
 					assertEquals(0,inEdge.getInputNum());
 					sumOfPartitions += inEdge.getSource().getPartition();
 				}
@@ -322,7 +316,7 @@ public class ExecutionGraphConstructionTest {
 			assertEquals(v3.getParallelism(), e3.getTaskVertices().length);
 			
 			int num = 0;
-			for (ExecutionVertex2 ev : e3.getTaskVertices()) {
+			for (ExecutionVertex ev : e3.getTaskVertices()) {
 				assertEquals(jobId, ev.getJobId());
 				assertEquals(v3.getID(), ev.getJobvertexId());
 				
@@ -346,7 +340,7 @@ public class ExecutionGraphConstructionTest {
 			assertEquals(v4.getParallelism(), e4.getTaskVertices().length);
 			
 			int num = 0;
-			for (ExecutionVertex2 ev : e4.getTaskVertices()) {
+			for (ExecutionVertex ev : e4.getTaskVertices()) {
 				assertEquals(jobId, ev.getJobId());
 				assertEquals(v4.getID(), ev.getJobvertexId());
 				
@@ -356,11 +350,11 @@ public class ExecutionGraphConstructionTest {
 				assertEquals(2, ev.getNumberOfInputs());
 				// first input
 				{
-					ExecutionEdge2[] inputs = ev.getInputEdges(0);
+					ExecutionEdge[] inputs = ev.getInputEdges(0);
 					assertEquals(v2.getParallelism(), inputs.length);
 					
 					int sumOfPartitions = 0;
-					for (ExecutionEdge2 inEdge : inputs) {
+					for (ExecutionEdge inEdge : inputs) {
 						assertEquals(0, inEdge.getInputNum());
 						sumOfPartitions += inEdge.getSource().getPartition();
 					}
@@ -369,11 +363,11 @@ public class ExecutionGraphConstructionTest {
 				}
 				// second input
 				{
-					ExecutionEdge2[] inputs = ev.getInputEdges(1);
+					ExecutionEdge[] inputs = ev.getInputEdges(1);
 					assertEquals(v3.getParallelism(), inputs.length);
 					
 					int sumOfPartitions = 0;
-					for (ExecutionEdge2 inEdge : inputs) {
+					for (ExecutionEdge inEdge : inputs) {
 						assertEquals(1, inEdge.getInputNum());
 						sumOfPartitions += inEdge.getSource().getPartition();
 					}
@@ -395,7 +389,7 @@ public class ExecutionGraphConstructionTest {
 			assertEquals(v5.getParallelism(), e5.getTaskVertices().length);
 			
 			int num = 0;
-			for (ExecutionVertex2 ev : e5.getTaskVertices()) {
+			for (ExecutionVertex ev : e5.getTaskVertices()) {
 				assertEquals(jobId, ev.getJobId());
 				assertEquals(v5.getID(), ev.getJobvertexId());
 				
@@ -405,11 +399,11 @@ public class ExecutionGraphConstructionTest {
 				assertEquals(2, ev.getNumberOfInputs());
 				// first input
 				{
-					ExecutionEdge2[] inputs = ev.getInputEdges(0);
+					ExecutionEdge[] inputs = ev.getInputEdges(0);
 					assertEquals(v4.getParallelism(), inputs.length);
 					
 					int sumOfPartitions = 0;
-					for (ExecutionEdge2 inEdge : inputs) {
+					for (ExecutionEdge inEdge : inputs) {
 						assertEquals(0, inEdge.getInputNum());
 						sumOfPartitions += inEdge.getSource().getPartition();
 					}
@@ -418,11 +412,11 @@ public class ExecutionGraphConstructionTest {
 				}
 				// second input
 				{
-					ExecutionEdge2[] inputs = ev.getInputEdges(1);
+					ExecutionEdge[] inputs = ev.getInputEdges(1);
 					assertEquals(v3.getParallelism(), inputs.length);
 					
 					int sumOfPartitions = 0;
-					for (ExecutionEdge2 inEdge : inputs) {
+					for (ExecutionEdge inEdge : inputs) {
 						assertEquals(1, inEdge.getInputNum());
 						sumOfPartitions += inEdge.getSource().getPartition();
 					}
@@ -561,6 +555,43 @@ public class ExecutionGraphConstructionTest {
 			
 			assertEquals(assigner1, eg.getAllVertices().get(v3.getID()).getSplitAssigner());
 			assertEquals(assigner2, eg.getAllVertices().get(v5.getID()).getSplitAssigner());
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testMoreThanOneConsumerForIntermediateResult() {
+		try {
+			final JobID jobId = new JobID();
+			final String jobName = "Test Job Sample Name";
+			final Configuration cfg = new Configuration();
+			
+			AbstractJobVertex v1 = new AbstractJobVertex("vertex1");
+			AbstractJobVertex v2 = new AbstractJobVertex("vertex2");
+			AbstractJobVertex v3 = new AbstractJobVertex("vertex3");
+			
+			v1.setParallelism(5);
+			v2.setParallelism(7);
+			v3.setParallelism(2);
+
+			IntermediateDataSet result = v1.createAndAddResultDataSet();
+			v2.connectDataSetAsInput(result, DistributionPattern.BIPARTITE);
+			v3.connectDataSetAsInput(result, DistributionPattern.BIPARTITE);
+			
+			List<AbstractJobVertex> ordered = new ArrayList<AbstractJobVertex>(Arrays.asList(v1, v2, v3));
+
+			ExecutionGraph eg = new ExecutionGraph(jobId, jobName, cfg);
+
+			try {
+				eg.attachJobGraph(ordered);
+				fail("Should not be possible");
+			}
+			catch (RuntimeException e) {
+				// expected
+			}
 		}
 		catch (Exception e) {
 			e.printStackTrace();

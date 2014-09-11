@@ -18,48 +18,48 @@
 
 package org.apache.flink.runtime.jobmanager.scheduler;
 
-import org.apache.flink.runtime.executiongraph.ExecutionVertex2;
+import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
 public class ScheduledUnit {
 	
-	private final ExecutionVertex2 taskVertex;
+	private final Execution vertexExecution;
 	
 	private final SlotSharingGroup sharingGroup;
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public ScheduledUnit(ExecutionVertex2 taskVertex) {
+	public ScheduledUnit(Execution taskVertex) {
 		if (taskVertex == null) {
 			throw new NullPointerException();
 		}
 		
-		this.taskVertex = taskVertex;
+		this.vertexExecution = taskVertex;
 		this.sharingGroup = null;
 	}
 	
-	public ScheduledUnit(ExecutionVertex2 taskVertex, SlotSharingGroup sharingUnit) {
+	public ScheduledUnit(Execution taskVertex, SlotSharingGroup sharingUnit) {
 		if (taskVertex == null) {
 			throw new NullPointerException();
 		}
 		
-		this.taskVertex = taskVertex;
+		this.vertexExecution = taskVertex;
 		this.sharingGroup = sharingUnit;
 	}
 	
 	ScheduledUnit() {
-		this.taskVertex = null;
+		this.vertexExecution = null;
 		this.sharingGroup = null;
 	}
 
 	// --------------------------------------------------------------------------------------------
 	
 	public JobVertexID getJobVertexId() {
-		return this.taskVertex.getJobvertexId();
+		return this.vertexExecution.getVertex().getJobvertexId();
 	}
 	
-	public ExecutionVertex2 getTaskVertex() {
-		return taskVertex;
+	public Execution getTaskToExecute() {
+		return vertexExecution;
 	}
 	
 	public SlotSharingGroup getSlotSharingGroup() {
@@ -70,6 +70,6 @@ public class ScheduledUnit {
 	
 	@Override
 	public String toString() {
-		return "{vertex=" + taskVertex.getSimpleName() + ", sharingUnit=" + sharingGroup + '}';
+		return "{vertex=" + vertexExecution.getVertexWithAttempt() + ", sharingUnit=" + sharingGroup + '}';
 	}
 }

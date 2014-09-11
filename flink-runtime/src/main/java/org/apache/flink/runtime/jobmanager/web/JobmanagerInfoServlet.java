@@ -39,10 +39,11 @@ import org.apache.flink.runtime.event.job.AbstractEvent;
 import org.apache.flink.runtime.event.job.ExecutionStateChangeEvent;
 import org.apache.flink.runtime.event.job.JobEvent;
 import org.apache.flink.runtime.event.job.RecentJobEvent;
-import org.apache.flink.runtime.execution.ExecutionState2;
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
-import org.apache.flink.runtime.executiongraph.ExecutionVertex2;
+import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -248,20 +249,24 @@ public class JobmanagerInfoServlet extends HttpServlet {
 			if (jobEvent.getJobStatus() == JobStatus.FAILED) {
 				wrt.write("\"failednodes\": [");
 				boolean first = true;
-				for (ExecutionVertex2 vertex : graph.getAllExecutionVertices()) {
-					if (vertex.getExecutionState() == ExecutionState2.FAILED) {
-					if (first) {
-						first = false;
-					} else {
-						wrt.write(",");
+				for (ExecutionVertex vertex : graph.getAllExecutionVertices()) {
+					if (vertex.getExecutionState() == ExecutionState.FAILED) {
+						AllocatedSlot slot = vertex.getCurrentAssignedResource();
+						Throwable failureCause = vertex.getFailureCause();
+						if (slot != null || failureCause != null) {
+							if (first) {
+								first = false;
+							} else {
+								wrt.write(",");
+							}
+							wrt.write("{");
+							wrt.write("\"node\": \"" + (slot == null ? "(none)" : slot.getInstance().getInstanceConnectionInfo().hostname()) + "\",");
+							wrt.write("\"message\": \"" + (failureCause == null ? "" : StringUtils.escapeHtml(ExceptionUtils.stringifyException(failureCause))) + "\"");
+							wrt.write("}");
+						}
 					}
-					wrt.write("{");
-					wrt.write("\"node\": \"" + vertex.getAssignedResource().getInstance().getInstanceConnectionInfo().hostname() + "\",");
-					wrt.write("\"message\": \"" + StringUtils.escapeHtml(ExceptionUtils.stringifyException(vertex.getFailureCause())) + "\"");
-					wrt.write("}");
 				}
-			}
-			wrt.write("],");
+				wrt.write("],");
 			}
 
 			// Serialize ManagementGraph to json
@@ -307,16 +312,16 @@ public class JobmanagerInfoServlet extends HttpServlet {
 				long ended = 0;
 				
 				// Take earliest running state and latest endstate of groupmembers
-				for (ExecutionVertex2 vertex : groupVertex.getTaskVertices()) {
+				for (ExecutionVertex vertex : groupVertex.getTaskVertices()) {
 					
-					long running = vertex.getStateTimestamp(ExecutionState2.RUNNING);
+					long running = vertex.getStateTimestamp(ExecutionState.RUNNING);
 					if (running != 0 && running < started) {
 						started = running;
 					}
 					
-					long finished = vertex.getStateTimestamp(ExecutionState2.FINISHED);
-					long canceled = vertex.getStateTimestamp(ExecutionState2.CANCELED);
-					long failed = vertex.getStateTimestamp(ExecutionState2.FAILED);
+					long finished = vertex.getStateTimestamp(ExecutionState.FINISHED);
+					long canceled = vertex.getStateTimestamp(ExecutionState.CANCELED);
+					long failed = vertex.getStateTimestamp(ExecutionState.FAILED);
 					
 					if(finished != 0 && finished > ended) {
 						ended = finished;
@@ -460,7 +465,7 @@ public class JobmanagerInfoServlet extends HttpServlet {
 			for (ExecutionJobVertex groupVertex : graph.getAllVertices().values()) {
 				
 				int num = 0;
-				for (ExecutionVertex2 vertex : groupVertex.getTaskVertices()) {
+				for (ExecutionVertex vertex : groupVertex.getTaskVertices()) {
 					
 					if(first) {
 						first = false;
@@ -470,14 +475,14 @@ public class JobmanagerInfoServlet extends HttpServlet {
 					wrt.write("\""+jobVertex.getJobVertex()+"-"+num +"\": {");
 					wrt.write("\"vertexid\": \"" + vertex.getJobvertexId() + "\",");
 					wrt.write("\"vertexname\": \"" + vertex + "\",");
-					wrt.write("\"CREATED\": "+ vertex.getStateTimestamp(ExecutionState2.CREATED) + ",");
-					wrt.write("\"SCHEDULED\": "+ vertex.getStateTimestamp(ExecutionState2.SCHEDULED) + ",");
-					wrt.write("\"STARTING\": "+ vertex.getStateTimestamp(ExecutionState2.DEPLOYING) + ",");
-					wrt.write("\"RUNNING\": "+ vertex.getStateTimestamp(ExecutionState2.RUNNING) + ",");
-					wrt.write("\"FINISHED\": "+ vertex.getStateTimestamp(ExecutionState2.FINISHED) + ",");
-					wrt.write("\"CANCELING\": "+ vertex.getStateTimestamp(ExecutionState2.CANCELING) + ",");
-					wrt.write("\"CANCELED\": "+ vertex.getStateTimestamp(ExecutionState2.CANCELED) + ",");
-					wrt.write("\"FAILED\": "+ vertex.getStateTimestamp(ExecutionState2.FAILED) + "");
+					wrt.write("\"CREATED\": "+ vertex.getStateTimestamp(ExecutionState.CREATED) + ",");
+					wrt.write("\"SCHEDULED\": "+ vertex.getStateTimestamp(ExecutionState.SCHEDULED) + ",");
+					wrt.write("\"STARTING\": "+ vertex.getStateTimestamp(ExecutionState.DEPLOYING) + ",");
+					wrt.write("\"RUNNING\": "+ vertex.getStateTimestamp(ExecutionState.RUNNING) + ",");
+					wrt.write("\"FINISHED\": "+ vertex.getStateTimestamp(ExecutionState.FINISHED) + ",");
+					wrt.write("\"CANCELING\": "+ vertex.getStateTimestamp(ExecutionState.CANCELING) + ",");
+					wrt.write("\"CANCELED\": "+ vertex.getStateTimestamp(ExecutionState.CANCELED) + ",");
+					wrt.write("\"FAILED\": "+ vertex.getStateTimestamp(ExecutionState.FAILED) + "");
 					wrt.write("}");
 					
 					num++;

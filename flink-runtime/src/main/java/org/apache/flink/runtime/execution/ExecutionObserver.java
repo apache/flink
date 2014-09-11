@@ -28,7 +28,7 @@ public interface ExecutionObserver {
 	 * @param optionalMessage
 	 *        an optional message providing further information on the state change
 	 */
-	void executionStateChanged(ExecutionState2 newExecutionState, String optionalMessage);
+	void executionStateChanged(ExecutionState newExecutionState, String optionalMessage);
 
 	/**
 	 * Returns whether the task has been canceled.

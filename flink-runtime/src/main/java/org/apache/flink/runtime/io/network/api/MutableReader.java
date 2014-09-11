@@ -16,23 +16,13 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.io.network.api;
 
 import java.io.IOException;
 
 import org.apache.flink.core.io.IOReadableWritable;
 
-/**
- * 
- */
 public interface MutableReader<T extends IOReadableWritable> extends ReaderBase {
 	
-	/**
-	 * @param target
-	 * @return
-	 * @throws IOException
-	 * @throws InterruptedException
-	 */
 	boolean next(T target) throws IOException, InterruptedException;
 }

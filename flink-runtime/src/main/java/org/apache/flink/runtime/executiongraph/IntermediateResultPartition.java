@@ -25,21 +25,21 @@ public class IntermediateResultPartition {
 	
 	private final IntermediateResult totalResut;
 	
-	private final ExecutionVertex2 producer;
+	private final ExecutionVertex producer;
 	
 	private final int partition;
 	
-	private List<List<ExecutionEdge2>> consumers;
+	private List<List<ExecutionEdge>> consumers;
 	
 	
-	public IntermediateResultPartition(IntermediateResult totalResut, ExecutionVertex2 producer, int partition) {
+	public IntermediateResultPartition(IntermediateResult totalResut, ExecutionVertex producer, int partition) {
 		this.totalResut = totalResut;
 		this.producer = producer;
 		this.partition = partition;
-		this.consumers = new ArrayList<List<ExecutionEdge2>>(0);
+		this.consumers = new ArrayList<List<ExecutionEdge>>(0);
 	}
 	
-	public ExecutionVertex2 getProducer() {
+	public ExecutionVertex getProducer() {
 		return producer;
 	}
 	
@@ -51,17 +51,23 @@ public class IntermediateResultPartition {
 		return totalResut;
 	}
 	
-	public List<List<ExecutionEdge2>> getConsumers() {
+	public List<List<ExecutionEdge>> getConsumers() {
 		return consumers;
 	}
 	
 	int addConsumerGroup() {
 		int pos = consumers.size();
-		consumers.add(new ArrayList<ExecutionEdge2>());
+		
+		// NOTE: currently we support only one consumer per result!!!
+		if (pos != 0) {
+			throw new RuntimeException("Currenty, each intermediate result can only have one consumer.");
+		}
+		
+		consumers.add(new ArrayList<ExecutionEdge>());
 		return pos;
 	}
 	
-	public void addConsumer(ExecutionEdge2 edge, int consumerNumber) {
+	void addConsumer(ExecutionEdge edge, int consumerNumber) {
 		consumers.get(consumerNumber).add(edge);
 	}
 }

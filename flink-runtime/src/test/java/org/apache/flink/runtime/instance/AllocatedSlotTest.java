@@ -23,7 +23,7 @@ import static org.junit.Assert.*;
 
 import java.net.InetAddress;
 
-import org.apache.flink.runtime.executiongraph.ExecutionVertex2;
+import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.junit.Test;
 import org.mockito.Matchers;
@@ -69,8 +69,8 @@ public class AllocatedSlotTest {
 	@Test
 	public void testSetExecutionVertex() {
 		try {
-			ExecutionVertex2 ev = mock(ExecutionVertex2.class);
-			ExecutionVertex2 ev_2 = mock(ExecutionVertex2.class);
+			Execution ev = mock(Execution.class);
+			Execution ev_2 = mock(Execution.class);
 			
 			// assign to alive slot
 			{
@@ -111,7 +111,7 @@ public class AllocatedSlotTest {
 	@Test
 	public void testReleaseCancelsVertex() {
 		try {
-			ExecutionVertex2 ev = mock(ExecutionVertex2.class);
+			Execution ev = mock(Execution.class);
 			
 			AllocatedSlot slot = getSlot();
 			assertTrue(slot.setExecutedVertex(ev));

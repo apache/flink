@@ -27,7 +27,7 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.flink.runtime.executiongraph.ExecutionVertex2;
+import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceDiedException;
@@ -39,7 +39,7 @@ import org.apache.flink.runtime.instance.InstanceListener;
  */
 public class DefaultScheduler implements InstanceListener, SlotAvailablilityListener {
 
-	protected static final Logger LOG = LoggerFactory.getLogger(DefaultScheduler.class);
+	private static final Logger LOG = LoggerFactory.getLogger(DefaultScheduler.class);
 	
 	
 	private final Object globalLock = new Object();
@@ -136,6 +136,8 @@ public class DefaultScheduler implements InstanceListener, SlotAvailablilityList
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Scheduling task " + task);
 		}
+		
+		final ExecutionVertex vertex = task.getTaskToExecute().getVertex();
 	
 		synchronized (globalLock) {
 			// 1) If the task has a strict co-schedule hint, obey it, if it has been assigned.
@@ -154,7 +156,7 @@ public class DefaultScheduler implements InstanceListener, SlotAvailablilityList
 			if (sharingUnit != null) {
 				// see if we can add the task to the current sharing group.
 				SlotSharingGroupAssignment assignment = sharingUnit.getTaskAssignment();
-				AllocatedSlot slot = assignment.getSlotForTask(task.getJobVertexId(), task.getTaskVertex());
+				AllocatedSlot slot = assignment.getSlotForTask(vertex.getJobvertexId(), vertex);
 				if (slot != null) {
 					return slot;
 				}
@@ -165,11 +167,13 @@ public class DefaultScheduler implements InstanceListener, SlotAvailablilityList
 			// we need potentially to loop multiple times, because there may be false positives
 			// in the set-with-available-instances
 			while (true) {
-				Instance instanceToUse = getFreeInstanceForTask(task.getTaskVertex());
+				
+				
+				Instance instanceToUse = getFreeInstanceForTask(task.getTaskToExecute().getVertex());
 			
 				if (instanceToUse != null) {
 					try {
-						AllocatedSlot slot = instanceToUse.allocateSlot(task.getTaskVertex().getJobId());
+						AllocatedSlot slot = instanceToUse.allocateSlot(vertex.getJobId());
 						
 						// if the instance has further available slots, re-add it to the set of available resources.
 						if (instanceToUse.hasResourcesAvailable()) {
@@ -217,7 +221,7 @@ public class DefaultScheduler implements InstanceListener, SlotAvailablilityList
 	 * @param vertex The task to run. 
 	 * @return The instance to run the vertex on, it {@code null}, if no instance is available.
 	 */
-	protected Instance getFreeInstanceForTask(ExecutionVertex2 vertex) {
+	protected Instance getFreeInstanceForTask(ExecutionVertex vertex) {
 		if (this.instancesWithAvailableResources.isEmpty()) {
 			return null;
 		}
@@ -270,9 +274,10 @@ public class DefaultScheduler implements InstanceListener, SlotAvailablilityList
 			
 			if (queued != null) {
 				ScheduledUnit task = queued.getTask();
+				ExecutionVertex vertex = task.getTaskToExecute().getVertex();
 				
 				try {
-					AllocatedSlot newSlot = instance.allocateSlot(task.getTaskVertex().getJobId());
+					AllocatedSlot newSlot = instance.allocateSlot(vertex.getJobId());
 					if (newSlot != null) {
 						
 						// success, remove from the task queue and notify the future
@@ -282,8 +287,8 @@ public class DefaultScheduler implements InstanceListener, SlotAvailablilityList
 								queued.getFuture().setSlot(newSlot);
 							}
 							catch (Throwable t) {
-								LOG.error("Error calling allocation future for task " + task.getTaskVertex().getSimpleName(), t);
-								task.getTaskVertex().fail(t);
+								LOG.error("Error calling allocation future for task " + vertex.getSimpleName(), t);
+								task.getTaskToExecute().fail(t);
 							}
 						}
 					}

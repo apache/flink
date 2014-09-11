@@ -21,7 +21,7 @@ package org.apache.flink.runtime.profiling.impl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.runtime.execution.ExecutionListener;
-import org.apache.flink.runtime.execution.ExecutionState2;
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.RuntimeEnvironment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobID;
@@ -43,7 +43,7 @@ public class EnvironmentListenerImpl implements ExecutionListener {
 
 
 	@Override
-	public void executionStateChanged(JobID jobID, JobVertexID vertexId, int subtaskIndex, ExecutionAttemptID executionId, ExecutionState2 newExecutionState, String optionalMessage) {
+	public void executionStateChanged(JobID jobID, JobVertexID vertexId, int subtaskIndex, ExecutionAttemptID executionId, ExecutionState newExecutionState, String optionalMessage) {
 
 		switch (newExecutionState) {
 		case RUNNING:

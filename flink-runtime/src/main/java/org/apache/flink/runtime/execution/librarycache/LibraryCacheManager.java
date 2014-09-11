@@ -364,12 +364,14 @@ public final class LibraryCacheManager {
 
 		// Use spin lock here
 		while (this.lockMap.putIfAbsent(id, LOCK_OBJECT) != null);
-
-		if (decrementReferenceCounter(id) == 0) {
-			this.libraryManagerEntries.remove(id);
+		try {
+			if (decrementReferenceCounter(id) == 0) {
+				this.libraryManagerEntries.remove(id);
+			}
 		}
-
-		this.lockMap.remove(id);
+		finally {
+			this.lockMap.remove(id);
+		}
 	}
 
 	/**

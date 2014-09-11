@@ -23,7 +23,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
 
-import org.apache.flink.runtime.execution.ExecutionState2;
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
@@ -43,8 +43,8 @@ public class EventsTest {
 				JobVertexID jid = new JobVertexID();
 				ExecutionAttemptID eid = new ExecutionAttemptID();
 				
-				ExecutionStateChangeEvent e1 = new ExecutionStateChangeEvent(429345231796596L, jid, 17, eid, ExecutionState2.CANCELING);
-				ExecutionStateChangeEvent e2 = new ExecutionStateChangeEvent(429345231796596L, jid, 17, eid, ExecutionState2.CANCELING);
+				ExecutionStateChangeEvent e1 = new ExecutionStateChangeEvent(429345231796596L, jid, 17, eid, ExecutionState.CANCELING);
+				ExecutionStateChangeEvent e2 = new ExecutionStateChangeEvent(429345231796596L, jid, 17, eid, ExecutionState.CANCELING);
 				
 				assertTrue(e1.equals(e2));
 				assertEquals(e1.hashCode(), e2.hashCode());
@@ -89,11 +89,11 @@ public class EventsTest {
 				JobVertexID jid = new JobVertexID();
 				ExecutionAttemptID eid = new ExecutionAttemptID();
 				
-				VertexEvent e1 = new VertexEvent(64619276017401234L, jid, "peter", 44, 13, eid, ExecutionState2.DEPLOYING, "foo");
-				VertexEvent e2 = new VertexEvent(64619276017401234L, jid, "peter", 44, 13, eid, ExecutionState2.DEPLOYING, "foo");
+				VertexEvent e1 = new VertexEvent(64619276017401234L, jid, "peter", 44, 13, eid, ExecutionState.DEPLOYING, "foo");
+				VertexEvent e2 = new VertexEvent(64619276017401234L, jid, "peter", 44, 13, eid, ExecutionState.DEPLOYING, "foo");
 				
-				VertexEvent e3 = new VertexEvent(64619276017401234L, jid, null, 44, 13, eid, ExecutionState2.DEPLOYING, null);
-				VertexEvent e4 = new VertexEvent(64619276017401234L, jid, null, 44, 13, eid, ExecutionState2.DEPLOYING, null);
+				VertexEvent e3 = new VertexEvent(64619276017401234L, jid, null, 44, 13, eid, ExecutionState.DEPLOYING, null);
+				VertexEvent e4 = new VertexEvent(64619276017401234L, jid, null, 44, 13, eid, ExecutionState.DEPLOYING, null);
 				
 				assertTrue(e1.equals(e2));
 				assertTrue(e3.equals(e4));
@@ -119,7 +119,7 @@ public class EventsTest {
 			JobVertexID vid = new JobVertexID();
 			ExecutionAttemptID eid = new ExecutionAttemptID();
 			
-			ExecutionStateChangeEvent esce = new ExecutionStateChangeEvent(429345231796596L, vid, 17, eid, ExecutionState2.CANCELING);
+			ExecutionStateChangeEvent esce = new ExecutionStateChangeEvent(429345231796596L, vid, 17, eid, ExecutionState.CANCELING);
 
 			JobEvent je1 = new JobEvent(429345231796596L, JobStatus.CANCELED, "testmessage");
 			JobEvent je2 = new JobEvent(237217579123412431L, JobStatus.RUNNING, null);
@@ -127,8 +127,8 @@ public class EventsTest {
 			RecentJobEvent rce1 = new RecentJobEvent(jid, "some name", JobStatus.FAILED, false, 634563546, 546734734672572457L);
 			RecentJobEvent rce2 = new RecentJobEvent(jid, null, JobStatus.RUNNING, false, 42364716239476L, 127843618273607L);
 
-			VertexEvent ve1 = new VertexEvent(64619276017401234L, vid, "peter", 44, 13, eid, ExecutionState2.DEPLOYING, "foo");
-			VertexEvent ve2 = new VertexEvent(64619276017401234L, vid, null, 44, 13, eid, ExecutionState2.DEPLOYING, null);
+			VertexEvent ve1 = new VertexEvent(64619276017401234L, vid, "peter", 44, 13, eid, ExecutionState.DEPLOYING, "foo");
+			VertexEvent ve2 = new VertexEvent(64619276017401234L, vid, null, 44, 13, eid, ExecutionState.DEPLOYING, null);
 			
 			assertEquals(esce, CommonTestUtils.createCopyWritable(esce));
 			assertEquals(je1, CommonTestUtils.createCopyWritable(je1));

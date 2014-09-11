@@ -24,17 +24,15 @@ import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.types.StringValue;
+import org.apache.flink.util.StringUtils;
 
 import com.google.common.base.Preconditions;
 
 
-public class TaskOperationResult implements IOReadableWritable {
-
-	private JobVertexID vertexId;
+public class TaskOperationResult implements IOReadableWritable, java.io.Serializable {
 	
-	private int subtaskIndex;
+	private static final long serialVersionUID = -3852292420229699888L;
+
 	
 	private ExecutionAttemptID executionId;
 	
@@ -44,32 +42,21 @@ public class TaskOperationResult implements IOReadableWritable {
 
 
 	public TaskOperationResult() {
-		this(new JobVertexID(), -1, new ExecutionAttemptID(), false);
+		this(new ExecutionAttemptID(), false);
 	}
 	
-	public TaskOperationResult(JobVertexID vertexId, int subtaskIndex, ExecutionAttemptID executionId, boolean success) {
-		this(vertexId, subtaskIndex, executionId, success, null);
+	public TaskOperationResult(ExecutionAttemptID executionId, boolean success) {
+		this(executionId, success, null);
 	}
 	
-	public TaskOperationResult(JobVertexID vertexId, int subtaskIndex, ExecutionAttemptID executionId, boolean success, String description) {
-		Preconditions.checkNotNull(vertexId);
+	public TaskOperationResult(ExecutionAttemptID executionId, boolean success, String description) {
 		Preconditions.checkNotNull(executionId);
 		
-		this.vertexId = vertexId;
-		this.subtaskIndex = subtaskIndex;
 		this.executionId = executionId;
 		this.success = success;
 		this.description = description;
 	}
-
-
-	public JobVertexID getVertexId() {
-		return vertexId;
-	}
 	
-	public int getSubtaskIndex() {
-		return subtaskIndex;
-	}
 	
 	public ExecutionAttemptID getExecutionId() {
 		return executionId;
@@ -82,29 +69,32 @@ public class TaskOperationResult implements IOReadableWritable {
 	public String getDescription() {
 		return description;
 	}
+	
+	// --------------------------------------------------------------------------------------------
+	//  Serialization
+	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public void read(DataInputView in) throws IOException {
-		this.vertexId.read(in);
-		this.subtaskIndex = in.readInt();
+		this.executionId.read(in);
 		this.success = in.readBoolean();
-		
-		if (in.readBoolean()) {
-			this.description = StringValue.readString(in);
-		}
+		this.description = StringUtils.readNullableString(in);
 	}
 
 	@Override
 	public void write(DataOutputView out) throws IOException {
-		this.vertexId.write(out);
-		out.writeInt(subtaskIndex);
+		this.executionId.write(out);
 		out.writeBoolean(success);
-		
-		if (description != null) {
-			out.writeBoolean(true);
-			StringValue.writeString(description, out);
-		} else {
-			out.writeBoolean(false);
-		}
+		StringUtils.writeNullableString(description, out);
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	//  Utilities
+	// --------------------------------------------------------------------------------------------
+	
+	@Override
+	public String toString() {
+		return String.format("TaskOperationResult %s [%s]%s", executionId, 
+				success ? "SUCCESS" : "FAILED", description == null ? "" : " - " + description);
 	}
 }

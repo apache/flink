@@ -22,7 +22,7 @@ import java.io.IOException;
 
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.runtime.execution.ExecutionState2;
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.util.StringUtils;
@@ -53,7 +53,7 @@ public class VertexEvent extends AbstractEvent {
 	private ExecutionAttemptID executionAttemptId;
 
 	/** The current execution state of the subtask this event belongs to. */
-	private ExecutionState2 currentExecutionState;
+	private ExecutionState currentExecutionState;
 
 	/** An optional more detailed description of the event. */
 	private String description;
@@ -78,7 +78,7 @@ public class VertexEvent extends AbstractEvent {
 	 */
 	public VertexEvent(long timestamp, JobVertexID jobVertexID, String jobVertexName,
 			int totalNumberOfSubtasks, int indexOfSubtask, ExecutionAttemptID executionAttemptId,
-			ExecutionState2 currentExecutionState, String description)
+			ExecutionState currentExecutionState, String description)
 	{
 		super(timestamp);
 		
@@ -106,7 +106,7 @@ public class VertexEvent extends AbstractEvent {
 		this.totalNumberOfSubtasks = -1;
 		this.indexOfSubtask = -1;
 		this.executionAttemptId = new ExecutionAttemptID();
-		this.currentExecutionState = ExecutionState2.CREATED;
+		this.currentExecutionState = ExecutionState.CREATED;
 	}
 
 	/**
@@ -152,7 +152,7 @@ public class VertexEvent extends AbstractEvent {
 	 * 
 	 * @return the current execution state of the subtask this event belongs to
 	 */
-	public ExecutionState2 getCurrentExecutionState() {
+	public ExecutionState getCurrentExecutionState() {
 		return currentExecutionState;
 	}
 
@@ -181,7 +181,7 @@ public class VertexEvent extends AbstractEvent {
 		this.executionAttemptId.read(in);
 		this.totalNumberOfSubtasks = in.readInt();
 		this.indexOfSubtask = in.readInt();
-		this.currentExecutionState = ExecutionState2.values()[in.readInt()];
+		this.currentExecutionState = ExecutionState.values()[in.readInt()];
 		this.jobVertexName = StringUtils.readNullableString(in);
 		this.description = StringUtils.readNullableString(in);
 	}

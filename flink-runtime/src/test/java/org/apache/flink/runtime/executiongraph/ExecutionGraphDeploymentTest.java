@@ -19,11 +19,9 @@
 package org.apache.flink.runtime.executiongraph;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getInstance;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
-
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.spy;
@@ -31,27 +29,32 @@ import static org.mockito.Mockito.doAnswer;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
-import org.apache.flink.runtime.execution.ExecutionState2;
+import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobmanager.scheduler.DefaultScheduler;
 import org.apache.flink.runtime.operators.RegularPactTask;
 import org.apache.flink.runtime.protocols.TaskOperationProtocol;
 import org.apache.flink.runtime.taskmanager.TaskOperationResult;
+
 import org.junit.Test;
+
 import org.mockito.Matchers;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 public class ExecutionGraphDeploymentTest {
-
+	
 	@Test
 	public void testBuildDeploymentDescriptor() {
 		try {
@@ -97,7 +100,7 @@ public class ExecutionGraphDeploymentTest {
 			eg.attachJobGraph(ordered);
 			
 			ExecutionJobVertex ejv = eg.getAllVertices().get(jid2);
-			ExecutionVertex2 vertex = ejv.getTaskVertices()[3];
+			ExecutionVertex vertex = ejv.getTaskVertices()[3];
 			
 			// just some reference (needs not be atomic)
 			final AtomicReference<TaskDeploymentDescriptor> reference = new AtomicReference<TaskDeploymentDescriptor>();
@@ -107,18 +110,21 @@ public class ExecutionGraphDeploymentTest {
 			when(taskManager.submitTask(Matchers.any(TaskDeploymentDescriptor.class))).thenAnswer(new Answer<TaskOperationResult>() {
 				@Override
 				public TaskOperationResult answer(InvocationOnMock invocation) {
-					final TaskDeploymentDescriptor parameter = (TaskDeploymentDescriptor) invocation.getArguments()[0];
-					reference.set(parameter);
-					return new TaskOperationResult(jid2, 0, true);
+					final TaskDeploymentDescriptor tdd = (TaskDeploymentDescriptor) invocation.getArguments()[0];
+					reference.set(tdd);
+					return new TaskOperationResult(tdd.getExecutionId(), true);
 				}
 			});
 			
 			final Instance instance = getInstance(taskManager);
 			final AllocatedSlot slot = instance.allocateSlot(jobId);
 			
-			assertEquals(ExecutionState2.CREATED, vertex.getExecutionState());
+			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
+			
+			LibraryCacheManager.register(jobId, new String[0]);
 			vertex.deployToSlot(slot);
-			assertEquals(ExecutionState2.RUNNING, vertex.getExecutionState());
+			
+			assertEquals(ExecutionState.RUNNING, vertex.getExecutionState());
 			
 			TaskDeploymentDescriptor descr = reference.get();
 			assertNotNull(descr);
@@ -141,5 +147,129 @@ public class ExecutionGraphDeploymentTest {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
+	}
+	
+	@Test
+	public void testRegistrationOfExecutionsFinishing() {
+		try {
+			Map<ExecutionAttemptID, Execution> executions = setupExecution(7650, 2350);
+			
+			for (Execution e : executions.values()) {
+				e.markFinished();
+			}
+			
+			assertEquals(0, executions.size());
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testRegistrationOfExecutionsFailing() {
+		try {
+			Map<ExecutionAttemptID, Execution> executions = setupExecution(7, 6);
+			
+			for (Execution e : executions.values()) {
+				e.markFailed(null);
+			}
+			
+			assertEquals(0, executions.size());
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testRegistrationOfExecutionsFailedExternally() {
+		try {
+			Map<ExecutionAttemptID, Execution> executions = setupExecution(7, 6);
+			
+			for (Execution e : executions.values()) {
+				e.fail(null);
+			}
+			
+			assertEquals(0, executions.size());
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testRegistrationOfExecutionsCanceled() {
+		try {
+			Map<ExecutionAttemptID, Execution> executions = setupExecution(19, 37);
+			
+			for (Execution e : executions.values()) {
+				e.cancel();
+				e.cancelingComplete();
+			}
+			
+			assertEquals(0, executions.size());
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	private Map<ExecutionAttemptID, Execution> setupExecution(int dop1, int dop2) throws Exception {
+		final JobID jobId = new JobID();
+		
+		final JobVertexID jid1 = new JobVertexID();
+		final JobVertexID jid2 = new JobVertexID();
+		
+		AbstractJobVertex v1 = new AbstractJobVertex("v1", jid1);
+		AbstractJobVertex v2 = new AbstractJobVertex("v2", jid2);
+		
+		v1.setParallelism(dop1);
+		v2.setParallelism(dop2);
+		
+		v1.setInvokableClass(RegularPactTask.class);
+		v2.setInvokableClass(RegularPactTask.class);
+		
+		// execution graph that executes actions synchronously
+		ExecutionGraph eg = new ExecutionGraph(jobId, "some job", new Configuration());
+		eg.setQueuedSchedulingAllowed(false);
+		
+		List<AbstractJobVertex> ordered = Arrays.asList(v1, v2);
+		eg.attachJobGraph(ordered);
+		
+		// create a mock taskmanager that accepts deployment calls
+		TaskOperationProtocol taskManager = mock(TaskOperationProtocol.class);
+		when(taskManager.submitTask(Matchers.any(TaskDeploymentDescriptor.class))).thenAnswer(new Answer<TaskOperationResult>() {
+			@Override
+			public TaskOperationResult answer(InvocationOnMock invocation) {
+				final TaskDeploymentDescriptor tdd = (TaskDeploymentDescriptor) invocation.getArguments()[0];
+				return new TaskOperationResult(tdd.getExecutionId(), true);
+			}
+		});
+		when(taskManager.cancelTask(Matchers.any(ExecutionAttemptID.class))).thenAnswer(new Answer<TaskOperationResult>() {
+			@Override
+			public TaskOperationResult answer(InvocationOnMock invocation) {
+				final ExecutionAttemptID id = (ExecutionAttemptID) invocation.getArguments()[0];
+				return new TaskOperationResult(id, true);
+			}
+		});
+		
+		DefaultScheduler scheduler = new DefaultScheduler();
+		for (int i = 0; i < dop1 + dop2; i++) {
+			scheduler.newInstanceAvailable(getInstance(taskManager));
+		}
+		assertEquals(dop1 + dop2, scheduler.getNumberOfAvailableSlots());
+		
+		// schedule, this triggers mock deployment
+		LibraryCacheManager.register(jobId, new String[0]);
+		eg.scheduleForExecution(scheduler);
+		
+		Map<ExecutionAttemptID, Execution> executions = eg.getRegisteredExecutions();
+		assertEquals(dop1 + dop2, executions.size());
+		
+		return executions;
 	}
 }

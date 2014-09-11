@@ -23,9 +23,9 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 
 import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.core.io.StringRecord;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.util.StringUtils;
 
 /**
  * This class encapsulates all connection information necessary to connect to the instance's task manager.
@@ -154,9 +154,7 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 		this.ipcPort = in.readInt();
 		this.dataPort = in.readInt();
 		
-		if (in.readBoolean()) {
-			this.hostName = StringRecord.readString(in);
-		}
+		this.hostName = StringUtils.readNullableString(in);
 
 		try {
 			this.inetAddress = InetAddress.getByAddress(address);
@@ -174,12 +172,7 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 		out.writeInt(this.ipcPort);
 		out.writeInt(this.dataPort);
 		
-		if (this.hostName != null) {
-			out.writeBoolean(true);
-			StringRecord.writeString(out, this.hostName);
-		} else {
-			out.writeBoolean(false);
-		}
+		StringUtils.writeNullableString(hostName, out);
 	}
 
 	// --------------------------------------------------------------------------------------------

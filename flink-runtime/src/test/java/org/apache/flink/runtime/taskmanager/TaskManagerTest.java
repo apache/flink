@@ -33,7 +33,7 @@ import org.apache.flink.runtime.ExecutionMode;
 import org.apache.flink.runtime.deployment.ChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.GateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
-import org.apache.flink.runtime.execution.ExecutionState2;
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.instance.HardwareDescription;
@@ -42,6 +42,7 @@ import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.io.network.ConnectionInfoLookupResponse;
 import org.apache.flink.runtime.io.network.api.RecordReader;
 import org.apache.flink.runtime.io.network.api.RecordWriter;
+import org.apache.flink.runtime.io.network.bufferprovider.GlobalBufferPool;
 import org.apache.flink.runtime.io.network.channels.ChannelID;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -78,7 +79,6 @@ public class TaskManagerTest {
 			TaskOperationResult result = tm.submitTask(tdd);
 			assertTrue(result.isSuccess());
 			assertEquals(eid, result.getExecutionId());
-			assertEquals(vid, result.getVertexId());
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -126,8 +126,6 @@ public class TaskManagerTest {
 			assertTrue(result2.isSuccess());
 			assertEquals(eid1, result1.getExecutionId());
 			assertEquals(eid2, result2.getExecutionId());
-			assertEquals(vid1, result1.getVertexId());
-			assertEquals(vid2, result2.getVertexId());
 			
 			Map<ExecutionAttemptID, Task> tasks = tm.getAllRunningTasks();
 			assertEquals(2, tasks.size());
@@ -137,24 +135,24 @@ public class TaskManagerTest {
 			assertNotNull(t1);
 			assertNotNull(t2);
 			
-			assertEquals(ExecutionState2.RUNNING, t1.getExecutionState());
-			assertEquals(ExecutionState2.RUNNING, t2.getExecutionState());
+			assertEquals(ExecutionState.RUNNING, t1.getExecutionState());
+			assertEquals(ExecutionState.RUNNING, t2.getExecutionState());
 			
 			// cancel one task
-			assertTrue(tm.cancelTask(vid1, 1, eid1).isSuccess());
+			assertTrue(tm.cancelTask(eid1).isSuccess());
 			t1.getEnvironment().getExecutingThread().join();
-			assertEquals(ExecutionState2.CANCELED, t1.getExecutionState());
+			assertEquals(ExecutionState.CANCELED, t1.getExecutionState());
 			
 			tasks = tm.getAllRunningTasks();
 			assertEquals(1, tasks.size());
 			
 			// try to cancel a non existing task
-			assertFalse(tm.cancelTask(vid1, 1, eid1).isSuccess());
+			assertFalse(tm.cancelTask(eid1).isSuccess());
 			
 			// cancel the second task
-			assertTrue(tm.cancelTask(vid2, 2, eid2).isSuccess());
+			assertTrue(tm.cancelTask(eid2).isSuccess());
 			t2.getEnvironment().getExecutingThread().join();
-			assertEquals(ExecutionState2.CANCELED, t2.getExecutionState());
+			assertEquals(ExecutionState.CANCELED, t2.getExecutionState());
 			
 			tasks = tm.getAllRunningTasks();
 			assertEquals(0, tasks.size());
@@ -162,6 +160,8 @@ public class TaskManagerTest {
 			// the class loaders should be de-registered
 			assertNull(LibraryCacheManager.getClassLoader(jid1));
 			assertNull(LibraryCacheManager.getClassLoader(jid2));
+			
+			assertNetworkResourcesReleased(tm);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -205,6 +205,7 @@ public class TaskManagerTest {
 			
 			Map<ExecutionAttemptID, Task> tasks = tm.getAllRunningTasks();
 			assertEquals(0, tasks.size());
+			assertNetworkResourcesReleased(tm);
 			
 			// the class loaders should be de-registered
 			assertNull(LibraryCacheManager.getClassLoader(jid));
@@ -262,8 +263,6 @@ public class TaskManagerTest {
 			assertTrue(result2.isSuccess());
 			assertEquals(eid1, result1.getExecutionId());
 			assertEquals(eid2, result2.getExecutionId());
-			assertEquals(vid1, result1.getVertexId());
-			assertEquals(vid2, result2.getVertexId());
 			
 			Map<ExecutionAttemptID, Task> tasks = tm.getAllRunningTasks();
 			
@@ -278,14 +277,17 @@ public class TaskManagerTest {
 				t2.getEnvironment().getExecutingThread().join();
 			}
 			
-			assertEquals(ExecutionState2.FINISHED, t1.getExecutionState());
-			assertEquals(ExecutionState2.FINISHED, t2.getExecutionState());
+			assertEquals(ExecutionState.FINISHED, t1.getExecutionState());
+			assertEquals(ExecutionState.FINISHED, t2.getExecutionState());
 			
 			tasks = tm.getAllRunningTasks();
 			assertEquals(0, tasks.size());
 			
 			// the class loaders should be de-registered
 			assertNull(LibraryCacheManager.getClassLoader(jid));
+			
+			// make sure that the global buffer pool has all buffers back
+			assertNetworkResourcesReleased(tm);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -293,9 +295,97 @@ public class TaskManagerTest {
 		}
 	}
 	
+	@Test
+	public void testCancellingDependentAndStateUpdateFails() {
+		
+		// this tests creates two tasks. the sender sends data, and fails to send the
+		// state update back to the job manager
+		// the second one blocks to be canceled
+		
+		try {
+			JobID jid = new JobID();
+			
+			JobVertexID vid1 = new JobVertexID();
+			JobVertexID vid2 = new JobVertexID();
+			
+			ExecutionAttemptID eid1 = new ExecutionAttemptID();
+			ExecutionAttemptID eid2 = new ExecutionAttemptID();
+			
+			ChannelID senderId = new ChannelID();
+			ChannelID receiverId = new ChannelID();
+			
+			JobManager jobManager = getJobManagerMockBase();
+			when(jobManager.updateTaskExecutionState(any(TaskExecutionState.class))).thenReturn(false);
+			when(jobManager.lookupConnectionInfo(Matchers.any(InstanceConnectionInfo.class), Matchers.eq(jid), Matchers.eq(senderId)))
+				.thenReturn(ConnectionInfoLookupResponse.createReceiverFoundAndReady(receiverId));
+			
+			TaskManager tm = createTaskManager(jobManager);
+			
+			ChannelDeploymentDescriptor cdd = new ChannelDeploymentDescriptor(senderId, receiverId);
+			
+			TaskDeploymentDescriptor tdd1 = new TaskDeploymentDescriptor(jid, vid1, eid1, "Sender", 0, 1,
+					new Configuration(), new Configuration(), Sender.class.getName(),
+					Collections.singletonList(new GateDeploymentDescriptor(Collections.singletonList(cdd))), 
+					Collections.<GateDeploymentDescriptor>emptyList(),
+					new String[0], 0);
+			
+			TaskDeploymentDescriptor tdd2 = new TaskDeploymentDescriptor(jid, vid2, eid2, "Receiver", 2, 7,
+					new Configuration(), new Configuration(), ReceiverBlocking.class.getName(),
+					Collections.<GateDeploymentDescriptor>emptyList(),
+					Collections.singletonList(new GateDeploymentDescriptor(Collections.singletonList(cdd))),
+					new String[0], 0);
+			
+			// register the job twice (for two tasks) at the lib cache
+			LibraryCacheManager.register(jid, new String[0]);
+			LibraryCacheManager.register(jid, new String[0]);
+			assertNotNull(LibraryCacheManager.getClassLoader(jid));
+			
+			// deploy sender before receiver, so the target is online when the sender requests the connection info
+			TaskOperationResult result2 = tm.submitTask(tdd2);
+			TaskOperationResult result1 = tm.submitTask(tdd1);
+			
+			assertTrue(result1.isSuccess());
+			assertTrue(result2.isSuccess());
+			
+			Map<ExecutionAttemptID, Task> tasks = tm.getAllRunningTasks();
+			
+			Task t1 = tasks.get(eid1);
+			Task t2 = tasks.get(eid2);
+			
+			// cancel task 2. task one should either fail, or be done
+			tm.cancelTask(eid2);
+			
+			// wait until the task second task is canceled
+			if (t2 != null) {
+				t2.getEnvironment().getExecutingThread().join();
+			}
+			
+			if (t1 != null) {
+				if (t1.getExecutionState() == ExecutionState.RUNNING) {
+					tm.cancelTask(eid1);
+				}
+				t1.getEnvironment().getExecutingThread().join();
+			}
+			
+			// the task that failed to send the finished state 
+			assertEquals(0, tasks.size());
+			assertNetworkResourcesReleased(tm);
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	
+	private static void assertNetworkResourcesReleased(TaskManager tm) {
+		GlobalBufferPool gbp = tm.getChannelManager().getGlobalBufferPool();
+		assertEquals(gbp.numBuffers(), gbp.numAvailableBuffers());
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	
-	public static JobManager getJobManagerMockBase() {
+	public static JobManager getJobManagerMockBase() throws Exception {
 		JobManager jm = mock(JobManager.class);
 		
 		final InstanceID iid = new InstanceID();
@@ -304,6 +394,8 @@ public class TaskManagerTest {
 			.thenReturn(iid);
 		
 		when(jm.sendHeartbeat(iid)).thenReturn(true);
+		
+		when(jm.updateTaskExecutionState(any(TaskExecutionState.class))).thenReturn(true);
 		
 		return jm;
 	}
@@ -379,6 +471,21 @@ public class TaskManagerTest {
 			
 			if (i1.getValue() != 42 || i2.getValue() != 1337 || i3 != null) {
 				throw new Exception("Wrong Data Received");
+			}
+		}
+	}
+	
+	public static final class ReceiverBlocking extends AbstractInvokable {
+
+		@Override
+		public void registerInputOutput() {
+			new RecordReader<IntegerRecord>(this, IntegerRecord.class);
+		}
+
+		@Override
+		public void invoke() throws Exception {
+			synchronized(this) {
+				wait();
 			}
 		}
 	}

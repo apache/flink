@@ -25,7 +25,7 @@ import java.util.List;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.runtime.executiongraph.ExecutionEdge2;
+import org.apache.flink.runtime.executiongraph.ExecutionEdge;
 
 /**
  * A gate deployment descriptor contains the deployment descriptors for the channels associated with that gate.
@@ -83,17 +83,17 @@ public final class GateDeploymentDescriptor implements IOReadableWritable {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public static GateDeploymentDescriptor fromEdges(List<ExecutionEdge2> edges) {
+	public static GateDeploymentDescriptor fromEdges(List<ExecutionEdge> edges) {
 		List<ChannelDeploymentDescriptor> channels = new ArrayList<ChannelDeploymentDescriptor>(edges.size());
-		for (ExecutionEdge2 edge : edges) {
+		for (ExecutionEdge edge : edges) {
 			channels.add(ChannelDeploymentDescriptor.fromExecutionEdge(edge));
 		}
 		return new GateDeploymentDescriptor(channels);
 	}
 	
-	public static GateDeploymentDescriptor fromEdges(ExecutionEdge2[] edges) {
+	public static GateDeploymentDescriptor fromEdges(ExecutionEdge[] edges) {
 		List<ChannelDeploymentDescriptor> channels = new ArrayList<ChannelDeploymentDescriptor>(edges.length);
-		for (ExecutionEdge2 edge : edges) {
+		for (ExecutionEdge edge : edges) {
 			channels.add(ChannelDeploymentDescriptor.fromExecutionEdge(edge));
 		}
 		return new GateDeploymentDescriptor(channels);

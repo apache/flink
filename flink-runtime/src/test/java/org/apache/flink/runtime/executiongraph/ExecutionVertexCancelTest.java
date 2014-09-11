@@ -26,10 +26,10 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.times;
 
 import java.io.IOException;
-import java.util.NoSuchElementException;
 
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
-import org.apache.flink.runtime.execution.ExecutionState2;
+import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.jobgraph.JobID;
@@ -37,9 +37,9 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.DefaultScheduler;
 import org.apache.flink.runtime.protocols.TaskOperationProtocol;
 import org.apache.flink.runtime.taskmanager.TaskOperationResult;
-import org.apache.flink.util.LogUtils;
-import org.apache.log4j.Level;
+
 import org.junit.Test;
+
 import org.mockito.Matchers;
 
 public class ExecutionVertexCancelTest {
@@ -54,13 +54,19 @@ public class ExecutionVertexCancelTest {
 			final JobVertexID jid = new JobVertexID();
 			final ExecutionJobVertex ejv = getJobVertexNotExecuting(jid);
 			
-			final ExecutionVertex2 vertex = new ExecutionVertex2(ejv, 0, new IntermediateResult[0]);
+			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
 			
-			assertEquals(ExecutionState2.CREATED, vertex.getExecutionState());
+			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			
 			vertex.cancel();
 			
-			assertEquals(ExecutionState2.CANCELED, vertex.getExecutionState());
+			assertEquals(ExecutionState.CANCELED, vertex.getExecutionState());
+			
+			assertNull(vertex.getFailureCause());
+			
+			assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
+			assertTrue(vertex.getStateTimestamp(ExecutionState.CANCELING) > 0);
+			assertTrue(vertex.getStateTimestamp(ExecutionState.CANCELED) > 0);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -74,14 +80,20 @@ public class ExecutionVertexCancelTest {
 			final JobVertexID jid = new JobVertexID();
 			final ExecutionJobVertex ejv = getJobVertexNotExecuting(jid);
 			
-			final ExecutionVertex2 vertex = new ExecutionVertex2(ejv, 0, new IntermediateResult[0]);
+			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
 			
-			setVertexState(vertex, ExecutionState2.SCHEDULED);
-			assertEquals(ExecutionState2.SCHEDULED, vertex.getExecutionState());
+			setVertexState(vertex, ExecutionState.SCHEDULED);
+			assertEquals(ExecutionState.SCHEDULED, vertex.getExecutionState());
 			
 			vertex.cancel();
 			
-			assertEquals(ExecutionState2.CANCELED, vertex.getExecutionState());
+			assertEquals(ExecutionState.CANCELED, vertex.getExecutionState());
+			
+			assertNull(vertex.getFailureCause());
+			
+			assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
+			assertTrue(vertex.getStateTimestamp(ExecutionState.CANCELING) > 0);
+			assertTrue(vertex.getStateTimestamp(ExecutionState.CANCELED) > 0);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -97,51 +109,63 @@ public class ExecutionVertexCancelTest {
 			
 			final ExecutionJobVertex ejv = getJobVertexExecutingTriggered(jid, actions);
 			
-			final ExecutionVertex2 vertex = new ExecutionVertex2(ejv, 0, new IntermediateResult[0]);
+			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
+			final ExecutionAttemptID execId = vertex.getCurrentExecutionAttempt().getAttemptId();
 			
-			setVertexState(vertex, ExecutionState2.SCHEDULED);
-			assertEquals(ExecutionState2.SCHEDULED, vertex.getExecutionState());
+			setVertexState(vertex, ExecutionState.SCHEDULED);
+			assertEquals(ExecutionState.SCHEDULED, vertex.getExecutionState());
 			
 			// task manager mock
 			TaskOperationProtocol taskManager = mock(TaskOperationProtocol.class);
-			when(taskManager.submitTask(Matchers.any(TaskDeploymentDescriptor.class))).thenReturn(new TaskOperationResult(jid, 0, true));
-			when(taskManager.cancelTask(jid, 0)).thenReturn(new TaskOperationResult(jid, 0, true), new TaskOperationResult(jid, 0, false));
+			when(taskManager.submitTask(Matchers.any(TaskDeploymentDescriptor.class))).thenReturn(new TaskOperationResult(execId, true));
+			when(taskManager.cancelTask(execId)).thenReturn(new TaskOperationResult(execId, true), new TaskOperationResult(execId, false));
 			
 			Instance instance = getInstance(taskManager);
 			AllocatedSlot slot = instance.allocateSlot(new JobID());
 			
+			LibraryCacheManager.register(ejv.getJobId(), new String[0]);
 			vertex.deployToSlot(slot);
 			
-			assertEquals(ExecutionState2.DEPLOYING, vertex.getExecutionState());
+			assertEquals(ExecutionState.DEPLOYING, vertex.getExecutionState());
 			
 			vertex.cancel();
 			 
-			assertEquals(ExecutionState2.CANCELING, vertex.getExecutionState());
+			assertEquals(ExecutionState.CANCELING, vertex.getExecutionState());
 			
 			verify(taskManager, times(0)).submitTask(Matchers.any(TaskDeploymentDescriptor.class));
-			verify(taskManager, times(0)).cancelTask(jid, 0);
+			verify(taskManager, times(0)).cancelTask(execId);
 
 			// first action happens (deploy)
 			actions.triggerNextAction();
+			assertEquals(ExecutionState.CANCELING, vertex.getExecutionState());
 			verify(taskManager, times(1)).submitTask(Matchers.any(TaskDeploymentDescriptor.class));
 			
 			// the deploy call found itself in canceling after it returned and needs to send a cancel call
 			// the call did not yet execute, so it is still in canceling
-			assertEquals(ExecutionState2.CANCELING, vertex.getExecutionState());
+			assertEquals(ExecutionState.CANCELING, vertex.getExecutionState());
 			
 			// second action happens (cancel call from cancel function)
 			actions.triggerNextAction();
 			
+			// TaskManager reports back (canceling done)
+			vertex.getCurrentExecutionAttempt().cancelingComplete();
+			
 			// should properly set state to cancelled
-			assertEquals(ExecutionState2.CANCELED, vertex.getExecutionState());
+			assertEquals(ExecutionState.CANCELED, vertex.getExecutionState());
 			
 			// trigger the correction canceling call
 			actions.triggerNextAction();
-			assertEquals(ExecutionState2.CANCELED, vertex.getExecutionState());
+			assertEquals(ExecutionState.CANCELED, vertex.getExecutionState());
 			
-			verify(taskManager, times(2)).cancelTask(jid, 0);
+			verify(taskManager, times(2)).cancelTask(execId);
 			
 			assertTrue(slot.isReleased());
+			
+			assertNull(vertex.getFailureCause());
+			
+			assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
+			assertTrue(vertex.getStateTimestamp(ExecutionState.CANCELING) > 0);
+			assertTrue(vertex.getStateTimestamp(ExecutionState.CANCELED) > 0);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -157,31 +181,33 @@ public class ExecutionVertexCancelTest {
 			
 			final ExecutionJobVertex ejv = getJobVertexExecutingTriggered(jid, actions);
 			
-			final ExecutionVertex2 vertex = new ExecutionVertex2(ejv, 0, new IntermediateResult[0]);
+			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
+			final ExecutionAttemptID execId = vertex.getCurrentExecutionAttempt().getAttemptId();
 			
-			setVertexState(vertex, ExecutionState2.SCHEDULED);
-			assertEquals(ExecutionState2.SCHEDULED, vertex.getExecutionState());
+			setVertexState(vertex, ExecutionState.SCHEDULED);
+			assertEquals(ExecutionState.SCHEDULED, vertex.getExecutionState());
 			
 			// task manager mock
 			TaskOperationProtocol taskManager = mock(TaskOperationProtocol.class);
-			when(taskManager.submitTask(Matchers.any(TaskDeploymentDescriptor.class))).thenReturn(new TaskOperationResult(jid, 0, true));
+			when(taskManager.submitTask(Matchers.any(TaskDeploymentDescriptor.class))).thenReturn(new TaskOperationResult(execId, true));
 			
 			// first return NOT SUCCESS (task not found, cancel call overtook deploy call), then success (cancel call after deploy call)
-			when(taskManager.cancelTask(jid, 0)).thenReturn(new TaskOperationResult(jid, 0, false), new TaskOperationResult(jid, 0, true));
+			when(taskManager.cancelTask(execId)).thenReturn(new TaskOperationResult(execId, false), new TaskOperationResult(execId, true));
 			
 			Instance instance = getInstance(taskManager);
 			AllocatedSlot slot = instance.allocateSlot(new JobID());
 			
+			LibraryCacheManager.register(ejv.getJobId(), new String[0]);
 			vertex.deployToSlot(slot);
 			
-			assertEquals(ExecutionState2.DEPLOYING, vertex.getExecutionState());
+			assertEquals(ExecutionState.DEPLOYING, vertex.getExecutionState());
 			
 			vertex.cancel();
 			 
-			assertEquals(ExecutionState2.CANCELING, vertex.getExecutionState());
+			assertEquals(ExecutionState.CANCELING, vertex.getExecutionState());
 			
 			verify(taskManager, times(0)).submitTask(Matchers.any(TaskDeploymentDescriptor.class));
-			verify(taskManager, times(0)).cancelTask(jid, 0);
+			verify(taskManager, times(0)).cancelTask(execId);
 
 			// first action happens (deploy)
 			Runnable deployAction = actions.popNextAction();
@@ -191,7 +217,7 @@ public class ExecutionVertexCancelTest {
 			cancelAction.run();
 			
 			// did not find the task, not properly cancelled, stay in canceling
-			assertEquals(ExecutionState2.CANCELING, vertex.getExecutionState());
+			assertEquals(ExecutionState.CANCELING, vertex.getExecutionState());
 			
 			// deploy action next
 			deployAction.run();
@@ -200,15 +226,23 @@ public class ExecutionVertexCancelTest {
 			
 			// the deploy call found itself in canceling after it returned and needs to send a cancel call
 			// the call did not yet execute, so it is still in canceling
-			assertEquals(ExecutionState2.CANCELING, vertex.getExecutionState());
+			assertEquals(ExecutionState.CANCELING, vertex.getExecutionState());
 			
 			// trigger the correcting cancel call, should properly set state to cancelled
 			actions.triggerNextAction();
-			assertEquals(ExecutionState2.CANCELED, vertex.getExecutionState());
+			vertex.getCurrentExecutionAttempt().cancelingComplete();
 			
-			verify(taskManager, times(2)).cancelTask(jid, 0);
+			assertEquals(ExecutionState.CANCELED, vertex.getExecutionState());
+			
+			verify(taskManager, times(2)).cancelTask(execId);
 			
 			assertTrue(slot.isReleased());
+			
+			assertNull(vertex.getFailureCause());
+			
+			assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
+			assertTrue(vertex.getStateTimestamp(ExecutionState.CANCELING) > 0);
+			assertTrue(vertex.getStateTimestamp(ExecutionState.CANCELED) > 0);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -222,26 +256,34 @@ public class ExecutionVertexCancelTest {
 			final JobVertexID jid = new JobVertexID();
 			final ExecutionJobVertex ejv = getJobVertexExecutingSynchronously(jid);
 			
-			final ExecutionVertex2 vertex = new ExecutionVertex2(ejv, 0, new IntermediateResult[0]);
+			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
+			final ExecutionAttemptID execId = vertex.getCurrentExecutionAttempt().getAttemptId();
 
 			final TaskOperationProtocol taskManager = mock(TaskOperationProtocol.class);
-			when(taskManager.cancelTask(jid, 0)).thenReturn(new TaskOperationResult(jid, 0, true));
+			when(taskManager.cancelTask(execId)).thenReturn(new TaskOperationResult(execId, true));
 			
 			Instance instance = getInstance(taskManager);
 			AllocatedSlot slot = instance.allocateSlot(new JobID());
 
-			setVertexState(vertex, ExecutionState2.RUNNING);
+			setVertexState(vertex, ExecutionState.RUNNING);
 			setVertexResource(vertex, slot);
 			
-			assertEquals(ExecutionState2.RUNNING, vertex.getExecutionState());
+			assertEquals(ExecutionState.RUNNING, vertex.getExecutionState());
 			
 			vertex.cancel();
+			vertex.getCurrentExecutionAttempt().cancelingComplete(); // responce by task manager once actially canceled
 			
-			assertEquals(ExecutionState2.CANCELED, vertex.getExecutionState());
+			assertEquals(ExecutionState.CANCELED, vertex.getExecutionState());
 			
-			verify(taskManager).cancelTask(jid, 0);
+			verify(taskManager).cancelTask(execId);
 			
 			assertTrue(slot.isReleased());
+			
+			assertNull(vertex.getFailureCause());
+			
+			assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
+			assertTrue(vertex.getStateTimestamp(ExecutionState.CANCELING) > 0);
+			assertTrue(vertex.getStateTimestamp(ExecutionState.CANCELED) > 0);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -253,40 +295,45 @@ public class ExecutionVertexCancelTest {
 	public void testRepeatedCancelFromRunning() {
 		try {
 			final JobVertexID jid = new JobVertexID();
-			final ActionQueue actions = new ActionQueue();
-			final ExecutionJobVertex ejv = getJobVertexExecutingTriggered(jid, actions);
+			final ExecutionJobVertex ejv = getJobVertexExecutingSynchronously(jid);
 			
-			final ExecutionVertex2 vertex = new ExecutionVertex2(ejv, 0, new IntermediateResult[0]);
+			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
+			final ExecutionAttemptID execId = vertex.getCurrentExecutionAttempt().getAttemptId();
 
 			final TaskOperationProtocol taskManager = mock(TaskOperationProtocol.class);
-			when(taskManager.cancelTask(jid, 0)).thenReturn(new TaskOperationResult(jid, 0, true));
+			when(taskManager.cancelTask(execId)).thenReturn(new TaskOperationResult(execId, true));
 			
 			Instance instance = getInstance(taskManager);
 			AllocatedSlot slot = instance.allocateSlot(new JobID());
 
-			setVertexState(vertex, ExecutionState2.RUNNING);
+			setVertexState(vertex, ExecutionState.RUNNING);
 			setVertexResource(vertex, slot);
 			
-			assertEquals(ExecutionState2.RUNNING, vertex.getExecutionState());
+			assertEquals(ExecutionState.RUNNING, vertex.getExecutionState());
 			
 			vertex.cancel();
 			
-			assertEquals(ExecutionState2.CANCELING, vertex.getExecutionState());
+			assertEquals(ExecutionState.CANCELING, vertex.getExecutionState());
 			
 			vertex.cancel();
 			
-			assertEquals(ExecutionState2.CANCELING, vertex.getExecutionState());
+			assertEquals(ExecutionState.CANCELING, vertex.getExecutionState());
 			
-			actions.triggerNextAction();
+			// callback by TaskManager after canceling completes
+			vertex.getCurrentExecutionAttempt().cancelingComplete();
 			
-			assertEquals(ExecutionState2.CANCELED, vertex.getExecutionState());
+			assertEquals(ExecutionState.CANCELED, vertex.getExecutionState());
 			
-			try {
-				actions.triggerNextAction();
-				fail("Too many calls sent.");
-			} catch (NoSuchElementException e) {}
+			// check that we did not overdo our cancel calls
+			verify(taskManager, times(1)).cancelTask(execId);
 			
 			assertTrue(slot.isReleased());
+			
+			assertNull(vertex.getFailureCause());
+			
+			assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
+			assertTrue(vertex.getStateTimestamp(ExecutionState.CANCELING) > 0);
+			assertTrue(vertex.getStateTimestamp(ExecutionState.CANCELED) > 0);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -302,22 +349,28 @@ public class ExecutionVertexCancelTest {
 			final JobVertexID jid = new JobVertexID();
 			final ExecutionJobVertex ejv = getJobVertexExecutingSynchronously(jid);
 			
-			final ExecutionVertex2 vertex = new ExecutionVertex2(ejv, 0, new IntermediateResult[0]);
+			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
+			final ExecutionAttemptID execId = vertex.getCurrentExecutionAttempt().getAttemptId();
 
 			final TaskOperationProtocol taskManager = mock(TaskOperationProtocol.class);
-			when(taskManager.cancelTask(jid, 0)).thenReturn(new TaskOperationResult(jid, 0, false));
+			when(taskManager.cancelTask(execId)).thenReturn(new TaskOperationResult(execId, false));
 			
 			Instance instance = getInstance(taskManager);
 			AllocatedSlot slot = instance.allocateSlot(new JobID());
 
-			setVertexState(vertex, ExecutionState2.RUNNING);
+			setVertexState(vertex, ExecutionState.RUNNING);
 			setVertexResource(vertex, slot);
 			
-			assertEquals(ExecutionState2.RUNNING, vertex.getExecutionState());
+			assertEquals(ExecutionState.RUNNING, vertex.getExecutionState());
 			
 			vertex.cancel();
 			
-			assertEquals(ExecutionState2.CANCELING, vertex.getExecutionState());
+			assertEquals(ExecutionState.CANCELING, vertex.getExecutionState());
+			
+			assertNull(vertex.getFailureCause());
+			
+			assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
+			assertTrue(vertex.getStateTimestamp(ExecutionState.CANCELING) > 0);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -327,31 +380,36 @@ public class ExecutionVertexCancelTest {
 	
 	@Test
 	public void testCancelCallFails() {
-		// this may happen when the task finished or failed while the call was in progress
-		LogUtils.initializeDefaultConsoleLogger(Level.OFF);
 		
 		try {
 			final JobVertexID jid = new JobVertexID();
 			final ExecutionJobVertex ejv = getJobVertexExecutingSynchronously(jid);
 			
-			final ExecutionVertex2 vertex = new ExecutionVertex2(ejv, 0, new IntermediateResult[0]);
+			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
+			final ExecutionAttemptID execId = vertex.getCurrentExecutionAttempt().getAttemptId();
 
 			final TaskOperationProtocol taskManager = mock(TaskOperationProtocol.class);
-			when(taskManager.cancelTask(jid, 0)).thenThrow(new IOException("RPC call failed"));
+			when(taskManager.cancelTask(execId)).thenThrow(new IOException("RPC call failed"));
 			
 			Instance instance = getInstance(taskManager);
 			AllocatedSlot slot = instance.allocateSlot(new JobID());
 
-			setVertexState(vertex, ExecutionState2.RUNNING);
+			setVertexState(vertex, ExecutionState.RUNNING);
 			setVertexResource(vertex, slot);
 			
-			assertEquals(ExecutionState2.RUNNING, vertex.getExecutionState());
+			assertEquals(ExecutionState.RUNNING, vertex.getExecutionState());
 			
 			vertex.cancel();
 			
-			assertEquals(ExecutionState2.FAILED, vertex.getExecutionState());
+			assertEquals(ExecutionState.FAILED, vertex.getExecutionState());
 			
 			assertTrue(slot.isReleased());
+			
+			assertNotNull(vertex.getFailureCause());
+			
+			assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
+			assertTrue(vertex.getStateTimestamp(ExecutionState.CANCELING) > 0);
+			assertTrue(vertex.getStateTimestamp(ExecutionState.FAILED) > 0);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -369,19 +427,19 @@ public class ExecutionVertexCancelTest {
 			final JobVertexID jid = new JobVertexID();
 			final ExecutionJobVertex ejv = getJobVertexNotExecuting(jid);
 			
-			final ExecutionVertex2 vertex = new ExecutionVertex2(ejv, 0, new IntermediateResult[0]);
-			setVertexState(vertex, ExecutionState2.CANCELED);
+			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
+			setVertexState(vertex, ExecutionState.CANCELED);
 			
-			assertEquals(ExecutionState2.CANCELED, vertex.getExecutionState());
+			assertEquals(ExecutionState.CANCELED, vertex.getExecutionState());
 			
 			// 1)
 			// scheduling after being created should be tolerated (no exception) because
 			// it can occur as the result of races
 			{
 				DefaultScheduler scheduler = mock(DefaultScheduler.class);
-				vertex.scheduleForExecution(scheduler);
+				vertex.scheduleForExecution(scheduler, false);
 				
-				assertEquals(ExecutionState2.CANCELED, vertex.getExecutionState());
+				assertEquals(ExecutionState.CANCELED, vertex.getExecutionState());
 			}
 			
 			// 2)
@@ -396,7 +454,7 @@ public class ExecutionVertexCancelTest {
 				fail("Method should throw an exception");
 			}
 			catch (IllegalStateException e) {
-				assertEquals(ExecutionState2.CANCELED, vertex.getExecutionState());
+				assertEquals(ExecutionState.CANCELED, vertex.getExecutionState());
 			}
 		}
 		catch (Exception e) {
@@ -407,17 +465,18 @@ public class ExecutionVertexCancelTest {
 	
 	@Test
 	public void testActionsWhileCancelling() {
+		
 		try {
 			final JobVertexID jid = new JobVertexID();
 			final ExecutionJobVertex ejv = getJobVertexNotExecuting(jid);
 			
 			// scheduling while canceling is an illegal state transition
 			try {
-				ExecutionVertex2 vertex = new ExecutionVertex2(ejv, 0, new IntermediateResult[0]);
-				setVertexState(vertex, ExecutionState2.CANCELING);
+				ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
+				setVertexState(vertex, ExecutionState.CANCELING);
 				
 				DefaultScheduler scheduler = mock(DefaultScheduler.class);
-				vertex.scheduleForExecution(scheduler);
+				vertex.scheduleForExecution(scheduler, false);
 				fail("Method should throw an exception");
 			}
 			catch (IllegalStateException e) {}
@@ -425,8 +484,8 @@ public class ExecutionVertexCancelTest {
 			
 			// deploying while in canceling state is illegal (should immediately go to canceled)
 			try {
-				ExecutionVertex2 vertex = new ExecutionVertex2(ejv, 0, new IntermediateResult[0]);
-				setVertexState(vertex, ExecutionState2.CANCELING);
+				ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
+				setVertexState(vertex, ExecutionState.CANCELING);
 				
 				TaskOperationProtocol taskManager = mock(TaskOperationProtocol.class);
 				Instance instance = getInstance(taskManager);
@@ -440,19 +499,19 @@ public class ExecutionVertexCancelTest {
 			
 			// fail while canceling
 			{
-				ExecutionVertex2 vertex = new ExecutionVertex2(ejv, 0, new IntermediateResult[0]);
+				ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
 				
 				TaskOperationProtocol taskManager = mock(TaskOperationProtocol.class);
 				Instance instance = getInstance(taskManager);
 				AllocatedSlot slot = instance.allocateSlot(new JobID());
 				
 				setVertexResource(vertex, slot);
-				setVertexState(vertex, ExecutionState2.CANCELING);
+				setVertexState(vertex, ExecutionState.CANCELING);
 				
 				Exception failureCause = new Exception("test exception");
 				
 				vertex.fail(failureCause);
-				assertEquals(ExecutionState2.FAILED, vertex.getExecutionState());
+				assertEquals(ExecutionState.FAILED, vertex.getExecutionState());
 				assertEquals(failureCause, vertex.getFailureCause());
 				
 				assertTrue(slot.isReleased());

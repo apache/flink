@@ -61,7 +61,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.protocols.VersionedProtocol;
 import org.apache.flink.runtime.ExecutionMode;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
-import org.apache.flink.runtime.execution.ExecutionState2;
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.RuntimeEnvironment;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheProfileRequest;
@@ -501,17 +501,21 @@ public class TaskManager implements TaskOperationProtocol {
 		return Collections.unmodifiableMap(this.runningTasks);
 	}
 	
+	public ChannelManager getChannelManager() {
+		return channelManager;
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	//  Task Operation
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public TaskOperationResult cancelTask(JobVertexID vertexId, int subtaskIndex, ExecutionAttemptID executionId) throws IOException {
+	public TaskOperationResult cancelTask(ExecutionAttemptID executionId) throws IOException {
 
 		final Task task = this.runningTasks.get(executionId);
 
 		if (task == null) {
-			return new TaskOperationResult(vertexId, subtaskIndex, executionId, false, "No task with that execution ID was found.");
+			return new TaskOperationResult(executionId, false, "No task with that execution ID was found.");
 		}
 
 		// Pass call to executor service so IPC thread can return immediately
@@ -524,7 +528,7 @@ public class TaskManager implements TaskOperationProtocol {
 		this.executorService.execute(r);
 
 		// return success
-		return new TaskOperationResult(vertexId, subtaskIndex, executionId, true);
+		return new TaskOperationResult(executionId, true);
 	}
 
 
@@ -580,7 +584,7 @@ public class TaskManager implements TaskOperationProtocol {
 				}
 			
 				success = true;
-				return new TaskOperationResult(vertexId, taskIndex, executionId, true);
+				return new TaskOperationResult(executionId, true);
 			}
 			finally {
 				if (!success) {
@@ -604,7 +608,7 @@ public class TaskManager implements TaskOperationProtocol {
 				}
 			}
 			
-			return new TaskOperationResult(vertexId, taskIndex, executionId, false, ExceptionUtils.stringifyException(t));
+			return new TaskOperationResult(executionId, false, ExceptionUtils.stringifyException(t));
 		}
 	}
 
@@ -647,12 +651,12 @@ public class TaskManager implements TaskOperationProtocol {
 		}
 	}
 
-	public void notifyExecutionStateChange(JobID jobID, ExecutionAttemptID executionId, ExecutionState2 newExecutionState, String optionalDescription) {
+	public void notifyExecutionStateChange(JobID jobID, ExecutionAttemptID executionId, ExecutionState newExecutionState, Throwable optionalError) {
 		
 		// Get lock on the jobManager object and propagate the state change
 		boolean success = false;
 		try {
-			this.jobManager.updateTaskExecutionState(new TaskExecutionState(jobID, executionId, newExecutionState, optionalDescription));
+			success = this.jobManager.updateTaskExecutionState(new TaskExecutionState(jobID, executionId, newExecutionState, optionalError));
 		}
 		catch (Throwable t) {
 			String msg = "Error sending task state update to JobManager.";
@@ -662,10 +666,9 @@ public class TaskManager implements TaskOperationProtocol {
 		finally {
 			// in case of a failure, or when the tasks is in a finished state, then unregister the
 			// task (free all buffers, remove all channels, task-specific class loaders, etc...)
-			if (!success || newExecutionState == ExecutionState2.FINISHED || newExecutionState == ExecutionState2.CANCELED
-					|| newExecutionState == ExecutionState2.FAILED)
+			if (!success || newExecutionState == ExecutionState.FINISHED || newExecutionState == ExecutionState.CANCELED
+					|| newExecutionState == ExecutionState.FAILED)
 			{
-				
 				unregisterTask(executionId);
 			}
 		}

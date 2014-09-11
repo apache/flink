@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.jobmanager.scheduler;
 
 import static org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils.areAllDistinct;
-import static org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils.getDummyVertex;
+import static org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils.getDummyTask;
 import static org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils.getTestVertex;
 import static org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils.getRandomInstance;
 
@@ -120,17 +120,17 @@ public class SchedulerIsolatedTasksTest {
 			assertEquals(5, scheduler.getNumberOfAvailableSlots());
 			
 			// schedule something into all slots
-			AllocatedSlot s1 = scheduler.scheduleImmediately(new ScheduledUnit(getDummyVertex()));
-			AllocatedSlot s2 = scheduler.scheduleImmediately(new ScheduledUnit(getDummyVertex()));
-			AllocatedSlot s3 = scheduler.scheduleImmediately(new ScheduledUnit(getDummyVertex()));
-			AllocatedSlot s4 = scheduler.scheduleImmediately(new ScheduledUnit(getDummyVertex()));
-			AllocatedSlot s5 = scheduler.scheduleImmediately(new ScheduledUnit(getDummyVertex()));
+			AllocatedSlot s1 = scheduler.scheduleImmediately(new ScheduledUnit(getDummyTask()));
+			AllocatedSlot s2 = scheduler.scheduleImmediately(new ScheduledUnit(getDummyTask()));
+			AllocatedSlot s3 = scheduler.scheduleImmediately(new ScheduledUnit(getDummyTask()));
+			AllocatedSlot s4 = scheduler.scheduleImmediately(new ScheduledUnit(getDummyTask()));
+			AllocatedSlot s5 = scheduler.scheduleImmediately(new ScheduledUnit(getDummyTask()));
 			
 			// the slots should all be different
 			assertTrue(areAllDistinct(s1, s2, s3, s4, s5));
 			
 			try {
-				scheduler.scheduleImmediately(new ScheduledUnit(getDummyVertex()));
+				scheduler.scheduleImmediately(new ScheduledUnit(getDummyTask()));
 				fail("Scheduler accepted scheduling request without available resource.");
 			}
 			catch (NoResourceAvailableException e) {
@@ -143,8 +143,8 @@ public class SchedulerIsolatedTasksTest {
 			assertEquals(2, scheduler.getNumberOfAvailableSlots());
 			
 			// now we can schedule some more slots
-			AllocatedSlot s6 = scheduler.scheduleImmediately(new ScheduledUnit(getDummyVertex()));
-			AllocatedSlot s7 = scheduler.scheduleImmediately(new ScheduledUnit(getDummyVertex()));
+			AllocatedSlot s6 = scheduler.scheduleImmediately(new ScheduledUnit(getDummyTask()));
+			AllocatedSlot s7 = scheduler.scheduleImmediately(new ScheduledUnit(getDummyTask()));
 			
 			assertTrue(areAllDistinct(s1, s2, s3, s4, s5, s6, s7));
 			
@@ -242,7 +242,7 @@ public class SchedulerIsolatedTasksTest {
 			disposeThread.start();
 			
 			for (int i = 0; i < NUM_TASKS_TO_SCHEDULE; i++) {
-				SlotAllocationFuture future = scheduler.scheduleQueued(new ScheduledUnit(getDummyVertex()));
+				SlotAllocationFuture future = scheduler.scheduleQueued(new ScheduledUnit(getDummyTask()));
 				future.setFutureAction(action);
 				allAllocatedSlots.add(future);
 			}
@@ -281,11 +281,11 @@ public class SchedulerIsolatedTasksTest {
 			scheduler.newInstanceAvailable(i3);
 			
 			List<AllocatedSlot> slots = new ArrayList<AllocatedSlot>();
-			slots.add(scheduler.scheduleImmediately(new ScheduledUnit(getDummyVertex())));
-			slots.add(scheduler.scheduleImmediately(new ScheduledUnit(getDummyVertex())));
-			slots.add(scheduler.scheduleImmediately(new ScheduledUnit(getDummyVertex())));
-			slots.add(scheduler.scheduleImmediately(new ScheduledUnit(getDummyVertex())));
-			slots.add(scheduler.scheduleImmediately(new ScheduledUnit(getDummyVertex())));
+			slots.add(scheduler.scheduleImmediately(new ScheduledUnit(getDummyTask())));
+			slots.add(scheduler.scheduleImmediately(new ScheduledUnit(getDummyTask())));
+			slots.add(scheduler.scheduleImmediately(new ScheduledUnit(getDummyTask())));
+			slots.add(scheduler.scheduleImmediately(new ScheduledUnit(getDummyTask())));
+			slots.add(scheduler.scheduleImmediately(new ScheduledUnit(getDummyTask())));
 			
 			i2.markDead();
 			
@@ -306,7 +306,7 @@ public class SchedulerIsolatedTasksTest {
 			
 			// cannot get another slot, since all instances are dead
 			try {
-				scheduler.scheduleImmediately(new ScheduledUnit(getDummyVertex()));
+				scheduler.scheduleImmediately(new ScheduledUnit(getDummyTask()));
 				fail("Scheduler served a slot from a dead instance");
 			}
 			catch (NoResourceAvailableException e) {

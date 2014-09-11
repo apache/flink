@@ -19,17 +19,15 @@
 package org.apache.flink.runtime.jobmanager.scheduler;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
 import java.util.Set;
 
-import org.apache.flink.runtime.executiongraph.ExecutionVertex2;
+import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -41,9 +39,6 @@ public class SlotSharingGroupAssignment {
 	
 	/** The slots available per vertex type (jid), keyed by instance, to make them locatable */
 	private final Map<JobVertexID, Map<Instance, List<SharedSlot>>> availableSlotsPerJid = new LinkedHashMap<JobVertexID, Map<Instance, List<SharedSlot>>>();
-	
-	/** The tasks that are waiting, per vertex type (jid) */
-	private final Map<JobVertexID, Queue<ExecutionVertex2>> pendingTasks = new HashMap<JobVertexID, Queue<ExecutionVertex2>>();
 	
 	
 	// --------------------------------------------------------------------------------------------
@@ -84,7 +79,7 @@ public class SlotSharingGroupAssignment {
 		}
 	}
 	
-	public AllocatedSlot getSlotForTask(JobVertexID jid, ExecutionVertex2 vertex) {
+	public AllocatedSlot getSlotForTask(JobVertexID jid, ExecutionVertex vertex) {
 		synchronized (allSlots) {
 			return getSlotForTaskInternal(jid, vertex.getPreferredLocations());
 		}

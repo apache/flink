@@ -27,7 +27,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.execution.ExecutionListener;
-import org.apache.flink.runtime.execution.ExecutionState2;
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.RuntimeEnvironment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobID;
@@ -39,8 +39,8 @@ import org.apache.flink.util.ExceptionUtils;
 public final class Task {
 
 	/** For atomic state updates */
-	private static final AtomicReferenceFieldUpdater<Task, ExecutionState2> STATE_UPDATER = 
-			AtomicReferenceFieldUpdater.newUpdater(Task.class, ExecutionState2.class, "executionState");
+	private static final AtomicReferenceFieldUpdater<Task, ExecutionState> STATE_UPDATER = 
+			AtomicReferenceFieldUpdater.newUpdater(Task.class, ExecutionState.class, "executionState");
 			
 	/** The log object used for debugging. */
 	private static final Logger LOG = LoggerFactory.getLogger(Task.class);
@@ -68,7 +68,7 @@ public final class Task {
 	private volatile RuntimeEnvironment environment;
 	
 	/** The current execution state of the task */
-	private volatile ExecutionState2 executionState = ExecutionState2.DEPLOYING;
+	private volatile ExecutionState executionState = ExecutionState.DEPLOYING;
 
 	// --------------------------------------------------------------------------------------------	
 	
@@ -135,7 +135,7 @@ public final class Task {
 	 * 
 	 * @return the current execution state of the task
 	 */
-	public ExecutionState2 getExecutionState() {
+	public ExecutionState getExecutionState() {
 		return this.executionState;
 	}
 	
@@ -148,8 +148,8 @@ public final class Task {
 	}
 	
 	public boolean isCanceled() {
-		return executionState == ExecutionState2.CANCELING ||
-				executionState == ExecutionState2.CANCELED;
+		return executionState == ExecutionState.CANCELING ||
+				executionState == ExecutionState.CANCELED;
 	}
 	
 	public String getTaskName() {
@@ -172,9 +172,9 @@ public final class Task {
 	 * @return True, if the task correctly enters the state FINISHED.
 	 */
 	public boolean markAsFinished() {
-		if (STATE_UPDATER.compareAndSet(this, ExecutionState2.RUNNING, ExecutionState2.FINISHED)) {
-			notifyObservers(ExecutionState2.FINISHED, null);
-			taskManager.notifyExecutionStateChange(jobId, executionId, ExecutionState2.FINISHED, null);
+		if (STATE_UPDATER.compareAndSet(this, ExecutionState.RUNNING, ExecutionState.FINISHED)) {
+			notifyObservers(ExecutionState.FINISHED, null);
+			taskManager.notifyExecutionStateChange(jobId, executionId, ExecutionState.FINISHED, null);
 			return true;
 		} else {
 			return false;
@@ -183,16 +183,15 @@ public final class Task {
 	
 	public void markFailed(Throwable error) {
 		while (true) {
-			ExecutionState2 current = this.executionState;
+			ExecutionState current = this.executionState;
 			
-			if (current == ExecutionState2.CANCELED || current == ExecutionState2.CANCELING) {
+			if (current == ExecutionState.CANCELED || current == ExecutionState.CANCELING) {
 				return;
 			}
 			
-			if (STATE_UPDATER.compareAndSet(this, current, ExecutionState2.FAILED)) {
-				String message = ExceptionUtils.stringifyException(error);
-				notifyObservers(ExecutionState2.FAILED, message);
-				taskManager.notifyExecutionStateChange(jobId, executionId, ExecutionState2.FAILED, message);
+			if (STATE_UPDATER.compareAndSet(this, current, ExecutionState.FAILED)) {
+				notifyObservers(ExecutionState.FAILED, ExceptionUtils.stringifyException(error));
+				taskManager.notifyExecutionStateChange(jobId, executionId, ExecutionState.FAILED, error);
 				return;
 			}
 		}
@@ -200,27 +199,27 @@ public final class Task {
 	
 	public void cancelExecution() {
 		while (true) {
-			ExecutionState2 current = this.executionState;
+			ExecutionState current = this.executionState;
 			
 			// if the task is already canceled (or canceling) or finished, then we
 			// need not do anything
-			if (current == ExecutionState2.FINISHED || current == ExecutionState2.CANCELED ||
-					current == ExecutionState2.CANCELING) {
+			if (current == ExecutionState.FINISHED || current == ExecutionState.CANCELED ||
+					current == ExecutionState.CANCELING) {
 				return;
 			}
 			
-			if (current == ExecutionState2.DEPLOYING) {
+			if (current == ExecutionState.DEPLOYING) {
 				// directly set to canceled
-				if (STATE_UPDATER.compareAndSet(this, current, ExecutionState2.CANCELED)) {
-					notifyObservers(ExecutionState2.CANCELED, null);
-					taskManager.notifyExecutionStateChange(jobId, executionId, ExecutionState2.CANCELED, null);
+				if (STATE_UPDATER.compareAndSet(this, current, ExecutionState.CANCELED)) {
+					notifyObservers(ExecutionState.CANCELED, null);
+					taskManager.notifyExecutionStateChange(jobId, executionId, ExecutionState.CANCELED, null);
 					return;
 				}
 			}
-			else if (current == ExecutionState2.RUNNING) {
+			else if (current == ExecutionState.RUNNING) {
 				// go to canceling and perform the actual task canceling
-				if (STATE_UPDATER.compareAndSet(this, current, ExecutionState2.CANCELING)) {
-					notifyObservers(ExecutionState2.CANCELING, null);
+				if (STATE_UPDATER.compareAndSet(this, current, ExecutionState.CANCELING)) {
+					notifyObservers(ExecutionState.CANCELING, null);
 					try {
 						this.environment.cancelExecution();
 					} catch (Throwable e) {
@@ -237,9 +236,9 @@ public final class Task {
 	}
 	
 	public void cancelingDone() {
-		if (STATE_UPDATER.compareAndSet(this, ExecutionState2.CANCELING, ExecutionState2.CANCELED)) {
-			notifyObservers(ExecutionState2.CANCELED, null);
-			taskManager.notifyExecutionStateChange(jobId, executionId, ExecutionState2.CANCELED, null);
+		if (STATE_UPDATER.compareAndSet(this, ExecutionState.CANCELING, ExecutionState.CANCELED)) {
+			notifyObservers(ExecutionState.CANCELED, null);
+			taskManager.notifyExecutionStateChange(jobId, executionId, ExecutionState.CANCELED, null);
 		}
 	}
 
@@ -247,7 +246,7 @@ public final class Task {
 	 * Starts the execution of this task.
 	 */
 	public boolean startExecution() {
-		if (STATE_UPDATER.compareAndSet(this, ExecutionState2.DEPLOYING, ExecutionState2.RUNNING)) {
+		if (STATE_UPDATER.compareAndSet(this, ExecutionState.DEPLOYING, ExecutionState.RUNNING)) {
 			final Thread thread = this.environment.getExecutingThread();
 			thread.start();
 			return true;
@@ -314,7 +313,7 @@ public final class Task {
 		this.executionListeners.remove(listener);
 	}
 	
-	private void notifyObservers(ExecutionState2 newState, String message) {
+	private void notifyObservers(ExecutionState newState, String message) {
 		for (ExecutionListener listener : this.executionListeners) {
 			try {
 				listener.executionStateChanged(jobId, vertexId, subtaskIndex, executionId, newState, message);

@@ -30,7 +30,6 @@ import org.apache.flink.runtime.event.job.JobEvent;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.util.SerializableArrayList;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 /**

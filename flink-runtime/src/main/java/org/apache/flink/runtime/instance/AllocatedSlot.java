@@ -21,7 +21,7 @@ package org.apache.flink.runtime.instance;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
-import org.apache.flink.runtime.executiongraph.ExecutionVertex2;
+import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.jobgraph.JobID;
 
 /**
@@ -32,8 +32,8 @@ public class AllocatedSlot {
 	private static final AtomicIntegerFieldUpdater<AllocatedSlot> STATUS_UPDATER = 
 			AtomicIntegerFieldUpdater.newUpdater(AllocatedSlot.class, "status");
 	
-	private static final AtomicReferenceFieldUpdater<AllocatedSlot, ExecutionVertex2> VERTEX_UPDATER =
-			AtomicReferenceFieldUpdater.newUpdater(AllocatedSlot.class, ExecutionVertex2.class, "executedVertex");
+	private static final AtomicReferenceFieldUpdater<AllocatedSlot, Execution> VERTEX_UPDATER =
+			AtomicReferenceFieldUpdater.newUpdater(AllocatedSlot.class, Execution.class, "executedTask");
 	
 	private static final int ALLOCATED_AND_ALIVE = 0;		// tasks may be added and might be running
 	private static final int CANCELLED = 1;					// no more tasks may run
@@ -49,8 +49,8 @@ public class AllocatedSlot {
 	/** The number of the slot on which the task is deployed */
 	private final int slotNumber;
 	
-	/** Vertex being executed in the slot. Volatile to force a memory barrier and allow for correct double-checking */
-	private volatile ExecutionVertex2 executedVertex;
+	/** Task being executed in the slot. Volatile to force a memory barrier and allow for correct double-checking */
+	private volatile Execution executedTask;
 	
 	/** The state of the vertex, only atomically updated */
 	private volatile int status = ALLOCATED_AND_ALIVE;
@@ -85,7 +85,11 @@ public class AllocatedSlot {
 		return slotNumber;
 	}
 	
-	public boolean setExecutedVertex(ExecutionVertex2 executedVertex) {
+	public Execution getExecutedVertex() {
+		return executedTask;
+	}
+	
+	public boolean setExecutedVertex(Execution executedVertex) {
 		if (executedVertex == null) {
 			throw new NullPointerException();
 		}
@@ -102,15 +106,11 @@ public class AllocatedSlot {
 
 		// we need to do a double check that we were not cancelled in the meantime
 		if (status != ALLOCATED_AND_ALIVE) {
-			this.executedVertex = null;
+			this.executedTask = null;
 			return false;
 		}
 		
 		return true;
-	}
-	
-	public ExecutionVertex2 getExecutedVertex() {
-		return executedVertex;
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -133,8 +133,9 @@ public class AllocatedSlot {
 	public void cancel() {
 		if (STATUS_UPDATER.compareAndSet(this, ALLOCATED_AND_ALIVE, CANCELLED)) {
 			// kill all tasks currently running in this slot
-			if (this.executedVertex != null) {
-				this.executedVertex.fail(new Exception("The slot in which the task was scheduled has been cancelled."));
+			Execution exec = this.executedTask;
+			if (exec != null && !exec.isFinished()) {
+				exec.fail(new Exception("The slot in which the task was scheduled has been cancelled."));
 			}
 		}
 	}

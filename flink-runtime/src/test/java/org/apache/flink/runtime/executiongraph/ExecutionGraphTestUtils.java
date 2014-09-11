@@ -21,6 +21,8 @@ package org.apache.flink.runtime.executiongraph;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
+import static org.mockito.Matchers.any;
 
 import java.lang.reflect.Field;
 import java.net.InetAddress;
@@ -28,7 +30,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.execution.ExecutionState2;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.Instance;
@@ -36,9 +39,11 @@ import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.protocols.TaskOperationProtocol;
+import org.apache.flink.runtime.taskmanager.TaskOperationResult;
 import org.mockito.Matchers;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -49,25 +54,40 @@ public class ExecutionGraphTestUtils {
 	//  state modifications
 	// --------------------------------------------------------------------------------------------
 	
-	public static void setVertexState(ExecutionVertex2 vertex, ExecutionState2 state) {
+	public static void setVertexState(ExecutionVertex vertex, ExecutionState state) {
 		try {
-			Field f = ExecutionVertex2.class.getDeclaredField("state");
+			Execution exec = vertex.getCurrentExecutionAttempt();
+			
+			Field f = Execution.class.getDeclaredField("state");
 			f.setAccessible(true);
-			f.set(vertex, state);
+			f.set(exec, state);
 		}
 		catch (Exception e) {
 			throw new RuntimeException("Modifying the state failed", e);
 		}
 	}
 	
-	public static void setVertexResource(ExecutionVertex2 vertex, AllocatedSlot slot) {
+	public static void setVertexResource(ExecutionVertex vertex, AllocatedSlot slot) {
 		try {
-			Field f = ExecutionVertex2.class.getDeclaredField("assignedSlot");
+			Execution exec = vertex.getCurrentExecutionAttempt();
+			
+			Field f = Execution.class.getDeclaredField("assignedResource");
 			f.setAccessible(true);
-			f.set(vertex, slot);
+			f.set(exec, slot);
 		}
 		catch (Exception e) {
 			throw new RuntimeException("Modifying the slot failed", e);
+		}
+	}
+	
+	public static void setGraphStatus(ExecutionGraph graph, JobStatus status) {
+		try {
+			Field f = ExecutionGraph.class.getDeclaredField("state");
+			f.setAccessible(true);
+			f.set(graph, status);
+		}
+		catch (Exception e) {
+			throw new RuntimeException("Modifying the status failed", e);
 		}
 	}
 	
@@ -86,6 +106,28 @@ public class ExecutionGraphTestUtils {
 				return top;
 			}
 		};
+	}
+	
+	public static TaskOperationProtocol getSimpleAcknowledgingTaskmanager() throws Exception {
+		TaskOperationProtocol top = mock(TaskOperationProtocol.class);
+		
+		when(top.submitTask(any(TaskDeploymentDescriptor.class))).thenAnswer(new Answer<TaskOperationResult>() {
+			@Override
+			public TaskOperationResult answer(InvocationOnMock invocation) {
+				final TaskDeploymentDescriptor tdd = (TaskDeploymentDescriptor) invocation.getArguments()[0];
+				return new TaskOperationResult(tdd.getExecutionId(), true);
+			}
+		});
+		
+		when(top.cancelTask(Matchers.any(ExecutionAttemptID.class))).thenAnswer(new Answer<TaskOperationResult>() {
+			@Override
+			public TaskOperationResult answer(InvocationOnMock invocation) {
+				final ExecutionAttemptID id = (ExecutionAttemptID) invocation.getArguments()[0];
+				return new TaskOperationResult(id, true);
+			}
+		});
+		
+		return top;
 	}
 	
 	public static ExecutionJobVertex getJobVertexNotExecuting(JobVertexID id) throws JobException {
@@ -153,7 +195,20 @@ public class ExecutionGraphTestUtils {
 		
 		ExecutionGraph graph = new ExecutionGraph(new JobID(), "test job", new Configuration());
 		
-		return spy(new ExecutionJobVertex(graph, ajv, 1));
+		ExecutionJobVertex ejv = spy(new ExecutionJobVertex(graph, ajv, 1));
+		
+		Answer<Void> noop = new Answer<Void>() {
+			@Override
+			public Void answer(InvocationOnMock invocation) {
+				return null;
+			}
+		};
+		
+		doAnswer(noop).when(ejv).vertexCancelled(Matchers.anyInt());
+		doAnswer(noop).when(ejv).vertexFailed(Matchers.anyInt(), Matchers.any(Throwable.class));
+		doAnswer(noop).when(ejv).vertexFinished(Matchers.anyInt());
+		
+		return ejv;
 	}
 	
 	// --------------------------------------------------------------------------------------------

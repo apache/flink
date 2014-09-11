@@ -66,10 +66,10 @@ public class PointwisePatternTest {
 		
 		ExecutionJobVertex target = eg.getAllVertices().get(v2.getID());
 		
-		for (ExecutionVertex2 ev : target.getTaskVertices()) {
+		for (ExecutionVertex ev : target.getTaskVertices()) {
 			assertEquals(1, ev.getNumberOfInputs());
 			
-			ExecutionEdge2[] inEdges = ev.getInputEdges(0);
+			ExecutionEdge[] inEdges = ev.getInputEdges(0);
 			assertEquals(1, inEdges.length);
 			
 			assertEquals(ev.getParallelSubtaskIndex(), inEdges[0].getSource().getPartition());
@@ -101,10 +101,10 @@ public class PointwisePatternTest {
 		
 		ExecutionJobVertex target = eg.getAllVertices().get(v2.getID());
 		
-		for (ExecutionVertex2 ev : target.getTaskVertices()) {
+		for (ExecutionVertex ev : target.getTaskVertices()) {
 			assertEquals(1, ev.getNumberOfInputs());
 			
-			ExecutionEdge2[] inEdges = ev.getInputEdges(0);
+			ExecutionEdge[] inEdges = ev.getInputEdges(0);
 			assertEquals(2, inEdges.length);
 			
 			assertEquals(ev.getParallelSubtaskIndex() * 2, inEdges[0].getSource().getPartition());
@@ -137,10 +137,10 @@ public class PointwisePatternTest {
 		
 		ExecutionJobVertex target = eg.getAllVertices().get(v2.getID());
 		
-		for (ExecutionVertex2 ev : target.getTaskVertices()) {
+		for (ExecutionVertex ev : target.getTaskVertices()) {
 			assertEquals(1, ev.getNumberOfInputs());
 			
-			ExecutionEdge2[] inEdges = ev.getInputEdges(0);
+			ExecutionEdge[] inEdges = ev.getInputEdges(0);
 			assertEquals(3, inEdges.length);
 			
 			assertEquals(ev.getParallelSubtaskIndex() * 3, inEdges[0].getSource().getPartition());
@@ -174,10 +174,10 @@ public class PointwisePatternTest {
 		
 		ExecutionJobVertex target = eg.getAllVertices().get(v2.getID());
 		
-		for (ExecutionVertex2 ev : target.getTaskVertices()) {
+		for (ExecutionVertex ev : target.getTaskVertices()) {
 			assertEquals(1, ev.getNumberOfInputs());
 			
-			ExecutionEdge2[] inEdges = ev.getInputEdges(0);
+			ExecutionEdge[] inEdges = ev.getInputEdges(0);
 			assertEquals(1, inEdges.length);
 			
 			assertEquals(ev.getParallelSubtaskIndex() / 2, inEdges[0].getSource().getPartition());
@@ -209,10 +209,10 @@ public class PointwisePatternTest {
 		
 		ExecutionJobVertex target = eg.getAllVertices().get(v2.getID());
 		
-		for (ExecutionVertex2 ev : target.getTaskVertices()) {
+		for (ExecutionVertex ev : target.getTaskVertices()) {
 			assertEquals(1, ev.getNumberOfInputs());
 			
-			ExecutionEdge2[] inEdges = ev.getInputEdges(0);
+			ExecutionEdge[] inEdges = ev.getInputEdges(0);
 			assertEquals(1, inEdges.length);
 			
 			assertEquals(ev.getParallelSubtaskIndex() / 7, inEdges[0].getSource().getPartition());
@@ -266,10 +266,10 @@ public class PointwisePatternTest {
 		
 		int[] timesUsed = new int[lowDop];
 		
-		for (ExecutionVertex2 ev : target.getTaskVertices()) {
+		for (ExecutionVertex ev : target.getTaskVertices()) {
 			assertEquals(1, ev.getNumberOfInputs());
 			
-			ExecutionEdge2[] inEdges = ev.getInputEdges(0);
+			ExecutionEdge[] inEdges = ev.getInputEdges(0);
 			assertEquals(1, inEdges.length);
 			
 			
@@ -312,13 +312,13 @@ public class PointwisePatternTest {
 		
 		int[] timesUsed = new int[highDop];
 		
-		for (ExecutionVertex2 ev : target.getTaskVertices()) {
+		for (ExecutionVertex ev : target.getTaskVertices()) {
 			assertEquals(1, ev.getNumberOfInputs());
 			
-			ExecutionEdge2[] inEdges = ev.getInputEdges(0);
+			ExecutionEdge[] inEdges = ev.getInputEdges(0);
 			assertTrue(inEdges.length >= factor && inEdges.length <= factor + delta);
 			
-			for (ExecutionEdge2 ee : inEdges) {
+			for (ExecutionEdge ee : inEdges) {
 				timesUsed[ee.getSource().getPartition()]++;
 			}
 		}

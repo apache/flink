@@ -23,7 +23,7 @@ import java.io.IOException;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.runtime.executiongraph.ExecutionEdge2;
+import org.apache.flink.runtime.executiongraph.ExecutionEdge;
 import org.apache.flink.runtime.io.network.channels.ChannelID;
 
 /**
@@ -95,7 +95,7 @@ public final class ChannelDeploymentDescriptor implements IOReadableWritable {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public static ChannelDeploymentDescriptor fromExecutionEdge(ExecutionEdge2 edge) {
+	public static ChannelDeploymentDescriptor fromExecutionEdge(ExecutionEdge edge) {
 		return new ChannelDeploymentDescriptor(edge.getOutputChannelId(), edge.getInputChannelId());
 	}
 }

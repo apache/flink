@@ -37,7 +37,6 @@ import org.apache.flink.runtime.taskmanager.TaskManager;
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 public class LocalInstanceManagerTest {
@@ -152,7 +151,9 @@ public class LocalInstanceManagerTest {
 	private static final class MockRPC implements JobManagerProtocol {
 
 		@Override
-		public void updateTaskExecutionState(TaskExecutionState taskExecutionState) {}
+		public boolean updateTaskExecutionState(TaskExecutionState taskExecutionState) {
+			return false;
+		}
 
 		@Override
 		public boolean sendHeartbeat(InstanceID taskManagerId) {

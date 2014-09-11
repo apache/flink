@@ -415,18 +415,18 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 	}
 	
 	@Override
-	public void updateTaskExecutionState(TaskExecutionState executionState) throws IOException {
+	public boolean updateTaskExecutionState(TaskExecutionState executionState) throws IOException {
 		Preconditions.checkNotNull(executionState);
 
 
 		final ExecutionGraph eg = this.currentJobs.get(executionState.getJobID());
 		if (eg == null) {
-			LOG.error("Cannot find execution graph for ID " + executionState.getJobID() + " to change state to "
-				+ executionState.getExecutionState());
-			return;
+			LOG.debug("Orphaned execution task: UpdateTaskExecutionState call cannot find execution graph for ID " + executionState.getJobID() +
+					" to change state to " + executionState.getExecutionState());
+			return false;
 		}
 
-		eg.updateState(executionState);
+		return eg.updateState(executionState);
 	}
 	
 	@Override

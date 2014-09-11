@@ -30,17 +30,29 @@ import java.io.StringWriter;
 public class ExceptionUtils {
 
 	/**
-	 * Makes a string representation of the exception's stack trace.
+	 * Makes a string representation of the exception's stack trace, or "(null)", if the
+	 * exception is null.
+	 * 
+	 * This method makes a best effort and never fails.
 	 * 
 	 * @param e The exception to stringify.
 	 * @return A string with exception name and call stack.
 	 */
 	public static String stringifyException(final Throwable e) {
-		final StringWriter stm = new StringWriter();
-		final PrintWriter wrt = new PrintWriter(stm);
-		e.printStackTrace(wrt);
-		wrt.close();
-		return stm.toString();
+		if (e == null) {
+			return "(null)";
+		}
+		
+		try {
+			StringWriter stm = new StringWriter();
+			PrintWriter wrt = new PrintWriter(stm);
+			e.printStackTrace(wrt);
+			wrt.close();
+			return stm.toString();
+		}
+		catch (Throwable t) {
+			return e.getClass().getName() + " (error while printing stack trace)";
+		}
 	}
 	
 	/**

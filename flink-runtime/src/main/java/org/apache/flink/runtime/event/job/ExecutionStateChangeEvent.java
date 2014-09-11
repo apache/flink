@@ -22,7 +22,7 @@ import java.io.IOException;
 
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.runtime.execution.ExecutionState2;
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
@@ -41,7 +41,7 @@ public final class ExecutionStateChangeEvent extends AbstractEvent implements Ma
 	
 	private ExecutionAttemptID executionAttemptId;
 
-	private ExecutionState2 newExecutionState;
+	private ExecutionState newExecutionState;
 
 	/**
 	 * Constructs a new vertex event object.
@@ -54,7 +54,7 @@ public final class ExecutionStateChangeEvent extends AbstractEvent implements Ma
 	 *        the new execution state of the vertex this event refers to
 	 */
 	public ExecutionStateChangeEvent(long timestamp, JobVertexID vertexId, int subtask,
-			ExecutionAttemptID executionAttemptId, ExecutionState2 newExecutionState)
+			ExecutionAttemptID executionAttemptId, ExecutionState newExecutionState)
 	{
 		super(timestamp);
 		
@@ -79,7 +79,7 @@ public final class ExecutionStateChangeEvent extends AbstractEvent implements Ma
 
 		this.vertexId = new JobVertexID();
 		this.executionAttemptId = new ExecutionAttemptID();
-		this.newExecutionState = ExecutionState2.CREATED;
+		this.newExecutionState = ExecutionState.CREATED;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -106,7 +106,7 @@ public final class ExecutionStateChangeEvent extends AbstractEvent implements Ma
 	 * 
 	 * @return the new execution state of the vertex this event refers to
 	 */
-	public ExecutionState2 getNewExecutionState() {
+	public ExecutionState getNewExecutionState() {
 		return this.newExecutionState;
 	}
 
@@ -118,7 +118,7 @@ public final class ExecutionStateChangeEvent extends AbstractEvent implements Ma
 		this.vertexId.read(in);
 		this.executionAttemptId.read(in);
 		this.subtask = in.readInt();
-		this.newExecutionState = ExecutionState2.values()[in.readInt()];
+		this.newExecutionState = ExecutionState.values()[in.readInt()];
 	}
 
 

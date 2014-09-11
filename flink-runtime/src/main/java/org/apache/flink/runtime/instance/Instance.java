@@ -197,19 +197,21 @@ public class Instance {
 			throw new IOException("No entry of required libraries for job " + jobID);
 		}
 
-		LibraryCacheProfileRequest request = new LibraryCacheProfileRequest();
-		request.setRequiredLibraries(requiredLibraries);
-
-		// Send the request
-		LibraryCacheProfileResponse response = getTaskManagerProxy().getLibraryCacheProfile(request);
-
-		// Check response and transfer libraries if necessary
-		for (int k = 0; k < requiredLibraries.length; k++) {
-			if (!response.isCached(k)) {
-				LibraryCacheUpdate update = new LibraryCacheUpdate(requiredLibraries[k]);
-				getTaskManagerProxy().updateLibraryCache(update);
+//		if (requiredLibraries.length > 0) {
+			LibraryCacheProfileRequest request = new LibraryCacheProfileRequest();
+			request.setRequiredLibraries(requiredLibraries);
+	
+			// Send the request
+			LibraryCacheProfileResponse response = getTaskManagerProxy().getLibraryCacheProfile(request);
+	
+			// Check response and transfer libraries if necessary
+			for (int k = 0; k < requiredLibraries.length; k++) {
+				if (!response.isCached(k)) {
+					LibraryCacheUpdate update = new LibraryCacheUpdate(requiredLibraries[k]);
+					getTaskManagerProxy().updateLibraryCache(update);
+				}
 			}
-		}
+//		}
 	}
 	
 	// --------------------------------------------------------------------------------------------

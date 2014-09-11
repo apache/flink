@@ -21,11 +21,11 @@ package org.apache.flink.runtime.executiongraph;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-class AllVerticesIterator implements Iterator<ExecutionVertex2> {
+class AllVerticesIterator implements Iterator<ExecutionVertex> {
 
 	private final Iterator<ExecutionJobVertex> jobVertices;
 	
-	private ExecutionVertex2[] currVertices;
+	private ExecutionVertex[] currVertices;
 	
 	private int currPos;
 	
@@ -56,7 +56,7 @@ class AllVerticesIterator implements Iterator<ExecutionVertex2> {
 	}
 	
 	@Override
-	public ExecutionVertex2 next() {
+	public ExecutionVertex next() {
 		if (hasNext()) {
 			return currVertices[currPos++];
 		} else {

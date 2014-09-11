@@ -22,9 +22,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.flink.runtime.execution.ExecutionState2;
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
-import org.apache.flink.runtime.executiongraph.ExecutionVertex2;
+import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.io.network.channels.ChannelType;
@@ -32,14 +32,14 @@ import org.apache.flink.util.StringUtils;
 
 public class JsonFactory {
 
-	public static String toJson(ExecutionVertex2 vertex) {
+	public static String toJson(ExecutionVertex vertex) {
 		StringBuilder json = new StringBuilder("");
 		json.append("{");
 		json.append("\"vertexid\": \"" + vertex.getJobvertexId() + "\",");
 		json.append("\"vertexname\": \"" + StringUtils.escapeHtml(vertex.getSimpleName()) + "\",");
 		json.append("\"vertexstatus\": \"" + vertex.getExecutionState() + "\",");
 		
-		AllocatedSlot slot = vertex.getAssignedResource();
+		AllocatedSlot slot = vertex.getCurrentAssignedResource();
 		String instanceName = slot == null ? "(null)" : slot.getInstance().getInstanceConnectionInfo().hostname();
 		
 		json.append("\"vertexinstancename\": \"" + instanceName + "\"");
@@ -57,17 +57,17 @@ public class JsonFactory {
 		json.append("\"groupmembers\": [");
 		
 		// Count state status of group members
-		Map<ExecutionState2, Integer> stateCounts = new HashMap<ExecutionState2, Integer>();
+		Map<ExecutionState, Integer> stateCounts = new HashMap<ExecutionState, Integer>();
 		
 		// initialize with 0
-		for (ExecutionState2 state : ExecutionState2.values()) {
+		for (ExecutionState state : ExecutionState.values()) {
 			stateCounts.put(state, new Integer(0));
 		}
 		
-		ExecutionVertex2[] vertices = jobVertex.getTaskVertices();
+		ExecutionVertex[] vertices = jobVertex.getTaskVertices();
 		
 		for(int j = 0; j < vertices.length; j++) {
-			ExecutionVertex2 vertex = vertices[j];
+			ExecutionVertex vertex = vertices[j];
 			
 			json.append(toJson(vertex));
 			
@@ -103,7 +103,7 @@ public class JsonFactory {
 		json.append("]");
 		
 		// list number of members for each status
-		for (Map.Entry<ExecutionState2, Integer> stateCount : stateCounts.entrySet()) {
+		for (Map.Entry<ExecutionState, Integer> stateCount : stateCounts.entrySet()) {
 			json.append(",\""+stateCount.getKey()+"\": " + stateCount.getValue());
 		}
 		

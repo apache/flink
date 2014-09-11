@@ -26,7 +26,6 @@ import org.apache.flink.runtime.execution.librarycache.LibraryCacheProfileReques
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheProfileResponse;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheUpdate;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.taskmanager.TaskOperationResult;
 
 /**
@@ -38,7 +37,7 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 
 	TaskOperationResult submitTask(TaskDeploymentDescriptor task) throws IOException;
 
-	TaskOperationResult cancelTask(JobVertexID vertexId, int subtaskIndex, ExecutionAttemptID executionId) throws IOException;
+	TaskOperationResult cancelTask(ExecutionAttemptID executionId) throws IOException;
 
 	LibraryCacheProfileResponse getLibraryCacheProfile(LibraryCacheProfileRequest request) throws IOException;
 	

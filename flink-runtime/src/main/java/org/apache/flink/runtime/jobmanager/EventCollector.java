@@ -33,7 +33,7 @@ import org.apache.flink.runtime.event.job.ManagementEvent;
 import org.apache.flink.runtime.event.job.RecentJobEvent;
 import org.apache.flink.runtime.event.job.VertexEvent;
 import org.apache.flink.runtime.execution.ExecutionListener;
-import org.apache.flink.runtime.execution.ExecutionState2;
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
@@ -74,7 +74,7 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 
 		@Override
 		public void executionStateChanged(JobID jobID, JobVertexID vertexId, int subtask, ExecutionAttemptID executionId,
-				ExecutionState2 newExecutionState, String optionalMessage)
+				ExecutionState newExecutionState, String optionalMessage)
 		{
 			final long timestamp = System.currentTimeMillis();
 

@@ -110,6 +110,10 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 		this.globalBufferPool.destroy();
 	}
 
+	public GlobalBufferPool getGlobalBufferPool() {
+		return globalBufferPool;
+	}
+	
 	// -----------------------------------------------------------------------------------------------------------------
 	//                                               Task registration
 	// -----------------------------------------------------------------------------------------------------------------

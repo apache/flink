@@ -28,7 +28,8 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.flink.runtime.executiongraph.ExecutionVertex2;
+import org.apache.flink.runtime.executiongraph.Execution;
+import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
@@ -67,17 +68,32 @@ public class SchedulerTestUtils {
 	}
 	
 	
-	public static ExecutionVertex2 getDummyVertex() {
-		ExecutionVertex2 vertex = mock(ExecutionVertex2.class);
-		
+	public static Execution getDummyTask() {
+		ExecutionVertex vertex = mock(ExecutionVertex.class);
 		when(vertex.getJobId()).thenReturn(new JobID());
 		when(vertex.toString()).thenReturn("TEST-VERTEX");
 		
-		return vertex;
+		Execution execution = mock(Execution.class);
+		when(execution.getVertex()).thenReturn(vertex);
+		
+		return execution;
 	}
 	
-	public static ExecutionVertex2 getTestVertex(JobVertexID jid, int taskIndex, int numTasks) {
-		ExecutionVertex2 vertex = mock(ExecutionVertex2.class);
+	public static Execution getTestVertex(Iterable<Instance> preferredLocations) {
+		ExecutionVertex vertex = mock(ExecutionVertex.class);
+		
+		when(vertex.getPreferredLocations()).thenReturn(preferredLocations);
+		when(vertex.getJobId()).thenReturn(new JobID());
+		when(vertex.toString()).thenReturn("TEST-VERTEX");
+		
+		Execution execution = mock(Execution.class);
+		when(execution.getVertex()).thenReturn(vertex);
+		
+		return execution;
+	}
+	
+	public static Execution getTestVertex(JobVertexID jid, int taskIndex, int numTasks) {
+		ExecutionVertex vertex = mock(ExecutionVertex.class);
 		
 		when(vertex.getPreferredLocations()).thenReturn(null);
 		when(vertex.getJobId()).thenReturn(new JobID());
@@ -86,11 +102,14 @@ public class SchedulerTestUtils {
 		when(vertex.getTotalNumberOfParallelSubtasks()).thenReturn(numTasks);
 		when(vertex.toString()).thenReturn("TEST-VERTEX");
 		
-		return vertex;
+		Execution execution = mock(Execution.class);
+		when(execution.getVertex()).thenReturn(vertex);
+		
+		return execution;
 	}
 	
-	public static ExecutionVertex2 getTestVertexWithLocation(JobVertexID jid, int taskIndex, int numTasks, Instance... locations) {
-		ExecutionVertex2 vertex = mock(ExecutionVertex2.class);
+	public static Execution getTestVertexWithLocation(JobVertexID jid, int taskIndex, int numTasks, Instance... locations) {
+		ExecutionVertex vertex = mock(ExecutionVertex.class);
 		
 		when(vertex.getPreferredLocations()).thenReturn(Arrays.asList(locations));
 		when(vertex.getJobId()).thenReturn(new JobID());
@@ -99,17 +118,10 @@ public class SchedulerTestUtils {
 		when(vertex.getTotalNumberOfParallelSubtasks()).thenReturn(numTasks);
 		when(vertex.toString()).thenReturn("TEST-VERTEX");
 		
-		return vertex;
-	}
-	
-	public static ExecutionVertex2 getTestVertex(Iterable<Instance> preferredLocations) {
-		ExecutionVertex2 vertex = mock(ExecutionVertex2.class);
+		Execution execution = mock(Execution.class);
+		when(execution.getVertex()).thenReturn(vertex);
 		
-		when(vertex.getPreferredLocations()).thenReturn(preferredLocations);
-		when(vertex.getJobId()).thenReturn(new JobID());
-		when(vertex.toString()).thenReturn("TEST-VERTEX");
-		
-		return vertex;
+		return execution;
 	}
 	
 	// --------------------------------------------------------------------------------------------

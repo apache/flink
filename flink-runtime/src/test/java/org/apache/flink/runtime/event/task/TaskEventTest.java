@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.event.task;
 
 import static org.junit.Assert.assertEquals;
@@ -27,7 +26,6 @@ import java.io.IOException;
 import java.util.Iterator;
 
 import org.apache.flink.runtime.testutils.CommonTestUtils;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 /**

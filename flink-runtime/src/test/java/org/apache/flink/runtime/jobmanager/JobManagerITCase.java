@@ -53,7 +53,7 @@ public class JobManagerITCase {
 			
 			final JobGraph jobGraph = new JobGraph("Test Job", vertex);
 			
-			JobManager jm = startJobManager();
+			JobManager jm = startJobManager(3);
 			try {
 				
 				// we need to register the job at the library cache manager (with no libraries)
@@ -104,11 +104,12 @@ public class JobManagerITCase {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	private static final JobManager startJobManager() throws Exception {
+	private static final JobManager startJobManager(int numSlots) throws Exception {
 		Configuration cfg = new Configuration();
 		cfg.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");
 		cfg.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, getAvailablePort());
 		cfg.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 10);
+		cfg.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlots);
 		
 		GlobalConfiguration.includeConfiguration(cfg);
 		

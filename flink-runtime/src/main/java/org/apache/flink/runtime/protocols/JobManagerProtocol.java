@@ -53,12 +53,13 @@ public interface JobManagerProtocol extends VersionedProtocol {
 	InstanceID registerTaskManager(InstanceConnectionInfo instanceConnectionInfo, HardwareDescription hardwareDescription, int numberOfSlots) throws IOException;
 
 	/**
-	 * Reports an update of a task's execution state to the job manager.
+	 * Reports an update of a task's execution state to the job manager. This method returns true, if the state was
+	 * correctly registered. It it returns false, the calling task manager should cancel its execution of the task.
 	 * 
-	 * @param taskExecutionState
-	 *        the new task execution state
-	 * @throws IOException
-	 *         thrown if an error occurs during this remote procedure call
+	 * @param taskExecutionState The new task execution state.
+	 * @return True if everything is all right, false if the caller should cancel the task execution.
+	 * 
+	 * @throws IOException Thrown, if an error occurs during this remote procedure call
 	 */
-	void updateTaskExecutionState(TaskExecutionState taskExecutionState) throws IOException;
+	boolean updateTaskExecutionState(TaskExecutionState taskExecutionState) throws IOException;
 }
