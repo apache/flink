@@ -32,6 +32,7 @@ import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
+import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketAddress;
 import java.net.URI;
@@ -454,5 +455,29 @@ public class NetUtils {
 			}
 		}
 		return connectable;
+	}
+
+	public static final int getAvailablePort() {
+		for (int i = 0; i < 50; i++) {
+			ServerSocket serverSocket = null;
+			try {
+				serverSocket = new ServerSocket(0);
+				int port = serverSocket.getLocalPort();
+				if (port != 0) {
+					return port;
+				}
+			} catch (IOException e) {
+				LOG.debug("Unable to allocate port " + e.getMessage(), e);
+			} finally {
+				if (serverSocket != null) {
+					try {
+						serverSocket.close();
+					} catch (Throwable t) {
+					}
+				}
+			}
+		}
+
+		throw new RuntimeException("Could not find a free permitted port on the machine.");
 	}
 }

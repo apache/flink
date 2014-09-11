@@ -18,33 +18,20 @@
 
 package org.apache.flink.runtime.messages
 
-import akka.actor.ActorRef
-import org.apache.flink.runtime.event.job.{AbstractEvent, RecentJobEvent}
-import org.apache.flink.runtime.executiongraph.ExecutionGraph
-import org.apache.flink.runtime.jobgraph.JobID
-import org.apache.flink.runtime.profiling.types.ProfilingEvent
+import org.apache.flink.runtime.event.job.AbstractEvent
 
 import scala.collection.convert.DecorateAsJava
 
-object EventCollectorMessages extends DecorateAsJava{
-  case class ProcessProfilingEvent(profilingEvent: ProfilingEvent)
-  case class RegisterArchiveListener(listener: ActorRef)
-  case class RequestJobEvents(jobID: JobID, includeManagementEvents: Boolean)
-  case class RequestJobProgress(jobID: JobID)
-  case class RegisterJob(executionGraph: ExecutionGraph, profilingAvailable: Boolean, submissionTimestamp: Long)
 
-  case class RecentJobs(jobs: List[RecentJobEvent]){
-    def asJavaList: java.util.List[RecentJobEvent] = {
-      jobs.asJava
-    }
-  }
+object JobResult extends Enumeration with DecorateAsJava {
+  type JobResult = Value
+  val SUCCESS, ERROR = Value
 
-  case class JobEvents(jobs: List[AbstractEvent]){
+  case class JobProgressResult(returnCode: JobResult, description: String, events: List[AbstractEvent]){
     def asJavaList: java.util.List[AbstractEvent] = {
-      jobs.asJava
+      events.asJava
     }
   }
-
-  case object ArchiveExpiredEvents
-  case object RequestRecentJobs
+  case class JobCancelResult(returnCode: JobResult, description: String)
+  case class JobSubmissionResult(returnCode: JobResult, description: String)
 }

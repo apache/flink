@@ -23,6 +23,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -41,7 +42,7 @@ import org.apache.flink.util.InstantiationUtil;
  * for the transfer from TaskManagers to the JobManager and from the JobManager
  * to the Client.
  */
-public class AccumulatorEvent implements IOReadableWritable {
+public class AccumulatorEvent implements IOReadableWritable, Serializable {
 
 	private JobID jobID;
 	

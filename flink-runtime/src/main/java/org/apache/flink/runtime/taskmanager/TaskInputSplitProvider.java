@@ -20,36 +20,45 @@ package org.apache.flink.runtime.taskmanager;
 
 import java.io.IOException;
 
+import akka.actor.ActorRef;
+import akka.pattern.Patterns;
 import org.apache.flink.core.io.InputSplit;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
+import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.runtime.messages.TaskManagerMessages;
 import org.apache.flink.runtime.protocols.InputSplitProviderProtocol;
+import scala.concurrent.Await;
+import scala.concurrent.Future;
 
 public class TaskInputSplitProvider implements InputSplitProvider {
 
-	private final InputSplitProviderProtocol protocol;
+	private final ActorRef jobmanager;
 	
 	private final JobID jobId;
 	
 	private final JobVertexID vertexId;
 	
-	private final ExecutionAttemptID executionAttempt;
-	
-	public TaskInputSplitProvider(InputSplitProviderProtocol protocol, JobID jobId, JobVertexID vertexId, ExecutionAttemptID executionAttempt) {
-		this.protocol = protocol;
+	public TaskInputSplitProvider(ActorRef jobmanager, JobID jobId, JobVertexID vertexId) {
+		this.jobmanager = jobmanager;
 		this.jobId = jobId;
 		this.vertexId = vertexId;
-		this.executionAttempt = executionAttempt;
 	}
 
 	@Override
 	public InputSplit getNextInputSplit() {
 		try {
-			return protocol.requestNextInputSplit(jobId, vertexId, executionAttempt);
+			Future<Object> futureResponse = Patterns.ask(jobmanager, new JobManagerMessages.RequestNextInputSplit
+					(jobId, vertexId), AkkaUtils.FUTURE_TIMEOUT());
+
+			TaskManagerMessages.NextInputSplit nextInputSplit = (TaskManagerMessages.NextInputSplit) Await.result
+					(futureResponse,AkkaUtils.AWAIT_DURATION());
+
+			return nextInputSplit.inputSplit();
 		}
-		catch (IOException e) {
+		catch (Exception e) {
 			throw new RuntimeException("Requesting the next InputSplit failed.", e);
 		}
 	}

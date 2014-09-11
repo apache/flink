@@ -18,4 +18,4 @@
 
 package org.apache.flink.runtime.taskmanager
 
-case class TaskManagerCLIConfiguration(configDir: String = null, tmpDir: String = null)
+case class MemoryUsageLogging(logIntervalMs: Option[Int]= None)

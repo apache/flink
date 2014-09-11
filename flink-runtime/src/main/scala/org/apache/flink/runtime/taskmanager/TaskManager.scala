@@ -16,10 +16,11 @@
  * limitations under the License.
  */
 
+package org.apache.flink.runtime.taskmanager
 
 import java.io.{IOException, File}
 import java.lang.management.{GarbageCollectorMXBean, MemoryMXBean, ManagementFactory}
-import java.net.{InetAddress, InetSocketAddress}
+import java.net.InetSocketAddress
 import java.util
 import java.util.concurrent.{FutureTask, TimeUnit}
 
@@ -30,7 +31,7 @@ import org.apache.flink.configuration.{GlobalConfiguration, ConfigConstants, Con
 import org.apache.flink.core.fs.Path
 import org.apache.flink.runtime.ActorLogMessages
 import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.flink.runtime.execution.{RuntimeEnvironment, ExecutionState2}
+import org.apache.flink.runtime.execution.{ExecutionState, RuntimeEnvironment, ExecutionState2}
 import org.apache.flink.runtime.execution.librarycache.{LibraryCacheProfileResponse, LibraryCacheManager, LibraryCacheUpdate}
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
 import org.apache.flink.runtime.filecache.FileCache
@@ -158,13 +159,13 @@ ActorLogMessages with ActorLogging with DecorateAsScala with WrapAsScala{
       }
     }
 
-    case CancelTask(vertexID, subtaskIndex, executionID) => {
+    case CancelTask( executionID) => {
       runningTasks.get(executionID) match {
         case Some(task) =>
           Future{ task.cancelExecution() }
-          new TaskOperationResult(vertexID, subtaskIndex, executionID, true)
+          new TaskOperationResult(executionID, true)
         case None =>
-          new TaskOperationResult(vertexID, subtaskIndex, executionID, false, "No task with that execution ID was " +
+          new TaskOperationResult(executionID, false, "No task with that execution ID was " +
             "found.")
       }
     }
@@ -224,7 +225,7 @@ ActorLogMessages with ActorLogging with DecorateAsScala with WrapAsScala{
           }
 
           success = true
-          new TaskOperationResult(vertexID, taskIndex, executionID, true)
+          new TaskOperationResult(executionID, true)
         }finally{
           if(!success){
             runningTasks.remove(executionID)
@@ -244,7 +245,7 @@ ActorLogMessages with ActorLogging with DecorateAsScala with WrapAsScala{
               log.debug(s"Unregistering the execution ${executionID} caused an IOException.")
           }
 
-          new TaskOperationResult(vertexID, taskIndex, executionID, false, ExceptionUtils.stringifyException(t))
+          new TaskOperationResult(executionID, false, ExceptionUtils.stringifyException(t))
       }
     }
 
@@ -279,10 +280,10 @@ ActorLogMessages with ActorLogging with DecorateAsScala with WrapAsScala{
     }
   }
 
-  def notifyExecutionStateChange(jobID: JobID, executionID: ExecutionAttemptID, executionState : ExecutionState2,
-                                 message: String): Unit = {
+  def notifyExecutionStateChange(jobID: JobID, executionID: ExecutionAttemptID, executionState : ExecutionState,
+                                 optionalError: Throwable): Unit = {
     val futureResponse = currentJobManager ? UpdateTaskExecutionState(new TaskExecutionState(jobID, executionID,
-      executionState, message))
+      executionState, optionalError))
 
     futureResponse.onComplete{
       x =>
@@ -291,8 +292,8 @@ ActorLogMessages with ActorLogging with DecorateAsScala with WrapAsScala{
             log.error(ex, "Error sending task state update to JobManager.")
           case _ =>
         }
-        if(executionState == ExecutionState2.FINISHED || executionState == ExecutionState2.CANCELED || executionState ==
-          ExecutionState2.FAILED){
+        if(executionState == ExecutionState.FINISHED || executionState == ExecutionState.CANCELED || executionState ==
+          ExecutionState.FAILED){
           unregisterTask(executionID)
         }
     }
@@ -352,10 +353,7 @@ ActorLogMessages with ActorLogging with DecorateAsScala with WrapAsScala{
   }
 }
 
-public class IntPairPairComparator extends TypePairComparator<IntPair, IntPair> {
-	
-	private int key;
-	
+object TaskManager{
 
   val LOG = LoggerFactory.getLogger(classOf[TaskManager])
   val FAILURE_RETURN_CODE = -1
@@ -408,22 +406,14 @@ public class IntPairPairComparator extends TypePairComparator<IntPair, IntPair> 
 
   def startActorSystemAndActor(hostname: String, port: Int, configuration: Configuration) = {
     val actorSystem = AkkaUtils.createActorSystem(hostname, port, configuration)
-    startActor(actorSystem, hostname, configuration)
+    startActor(actorSystem, configuration)
     actorSystem
   }
 
-  def startActor(actorSystem: ActorSystem, hostname: String, configuration: Configuration): ActorRef = {
+  def startActor(actorSystem: ActorSystem, configuration: Configuration): ActorRef = {
     val jobManagerAddress = configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
     val jobManagerRPCPort = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
       ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
-
-    val dataPort = configuration.getInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, -1) match {
-      case -1 => NetUtils.getAvailablePort
-      case x => x
-    }
-
-    val instanceConnection = new InstanceConnectionInfo(InetAddress.getByName(hostname), dataPort)
-
 
     if(jobManagerAddress == null){
       throw new RuntimeException("JobManager address has not been specified in the configuration.")
@@ -447,37 +437,7 @@ public class IntPairPairComparator extends TypePairComparator<IntPair, IntPair> 
     val pageSize = configuration.getInteger(ConfigConstants.TASK_MANAGER_NETWORK_BUFFER_SIZE_KEY,
       ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_BUFFER_SIZE)
 
-    val tmpDirPaths = configuration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
-      ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(",|" + File.pathSeparator)
-
-    val numBuffers = configuration.getInteger(ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY,
-      ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_NUM_BUFFERS)
-    val bufferSize = configuration.getInteger(ConfigConstants.TASK_MANAGER_NETWORK_BUFFER_SIZE_KEY,
-      ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_BUFFER_SIZE)
-    val numInThreads = configuration.getInteger(ConfigConstants.TASK_MANAGER_NET_NUM_IN_THREADS_KEY,
-      ConfigConstants.DEFAULT_TASK_MANAGER_NET_NUM_IN_THREADS)
-    val numOutThreads = configuration.getInteger(ConfigConstants.TASK_MANAGER_NET_NUM_OUT_THREADS_KEY,
-      ConfigConstants.DEFAULT_TASK_MANAGER_NET_NUM_OUT_THREADS)
-    val closeAfterIdleForMs = configuration.getInteger(ConfigConstants.TASK_MANAGER_NET_CLOSE_AFTER_IDLE_FOR_MS_KEY,
-      ConfigConstants.DEFAULT_TASK_MANAGER_NET_CLOSE_AFTER_IDLE_FOR_MS)
-
-    val networkConnectionConfig = NetworkConnectionConfiguration(numBuffers, bufferSize, numInThreads, numOutThreads,
-      closeAfterIdleForMs)
-
-
-    val memoryUsageLogging = configuration.getBoolean(ConfigConstants
-      .TASK_MANAGER_DEBUG_MEMORY_USAGE_START_LOG_THREAD,
-      ConfigConstants.DEFAULT_TASK_MANAGER_DEBUG_MEMORY_USAGE_START_LOG_THREAD) match {
-      case true =>
-        MemoryUsageLogging(Some(configuration.getInteger(
-          ConfigConstants.TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS,
-          ConfigConstants.DEFAULT_TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS)
-        ))
-      case false => MemoryUsageLogging(None)
-    }
-
-    actorSystem.actorOf(Props(classOf[TaskManager],instanceConnection, jobManagerURL, numberOfSlots, memorySize,
-      pageSize, tmpDirPaths, networkConnectionConfig, memoryUsageLogging),"taskmanager");
+    actorSystem.actorOf(Props(classOf[TaskManager], jobManagerURL, numberOfSlots, memorySize, pageSize), "taskmanager");
   }
 
   def getAkkaURL(address: String): String = {

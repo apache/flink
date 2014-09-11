@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network;
 
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.AbstractID;
+import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.RuntimeEnvironment;
@@ -39,9 +40,11 @@ import org.apache.flink.runtime.io.network.gates.GateID;
 import org.apache.flink.runtime.io.network.gates.InputGate;
 import org.apache.flink.runtime.io.network.gates.OutputGate;
 import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.protocols.ChannelLookupProtocol;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.util.ExceptionUtils;
+import scala.concurrent.Future;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,7 +61,7 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 
 	private static final Logger LOG = LoggerFactory.getLogger(ChannelManager.class);
 
-	private final ChannelLookupProtocol channelLookupService;
+	private final ActorRef channelLookup;
 
 	private final InstanceConnectionInfo connectionInfo;
 
@@ -78,10 +81,10 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 
 	// -----------------------------------------------------------------------------------------------------------------
 
-	public ChannelManager(ChannelLookupProtocol channelLookupService, InstanceConnectionInfo connectionInfo,
-			int numNetworkBuffers, int networkBufferSize, NetworkConnectionManager networkConnectionManager) throws IOException {
+	public ChannelManager(ActorRef channelLookup, InstanceConnectionInfo connectionInfo, int numNetworkBuffers,
+						  int networkBufferSize, NetworkConnectionManager networkConnectionManager) throws IOException {
 
-		this.channelLookupService = channelLookupService;
+		this.channelLookup= channelLookup;
 		this.connectionInfo = connectionInfo;
 
 		try {
@@ -372,8 +375,18 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 
 		while (true) {
 			ConnectionInfoLookupResponse lookupResponse;
-			synchronized (this.channelLookupService) {
-				lookupResponse = this.channelLookupService.lookupConnectionInfo(this.connectionInfo, jobID, sourceChannelID);
+			synchronized (this.channelLookup) {
+				Future<Object> futureResponse = Patterns.ask(channelLookup,
+						new JobManagerMessages.LookupConnectionInformation(jobID, sourceChannelID),
+						AkkaUtils.FUTURE_TIMEOUT());
+				try{
+					lookupResponse = ((JobManagerMessages.ConnectionInformation) Await.result(futureResponse,
+							AkkaUtils.AWAIT_DURATION())).response();
+				}catch(IOException ioe){
+					throw ioe;
+				}catch(Exception e){
+					throw new RuntimeException("Caught exception while looking connection information up.", e);
+				}
 			}
 
 			if (lookupResponse.receiverReady()) {

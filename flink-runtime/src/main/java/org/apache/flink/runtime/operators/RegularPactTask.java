@@ -582,14 +582,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		}
 
 		// Report accumulators to JobManager
-		synchronized (env.getAccumulatorProtocolProxy()) {
-			try {
-				env.getAccumulatorProtocolProxy().reportAccumulatorResult(
-						new AccumulatorEvent(env.getJobID(), accumulators));
-			} catch (IOException e) {
-				throw new RuntimeException("Communication with JobManager is broken. Could not send accumulators.", e);
-			}
-		}
+		env.getAccumulator().tell(new AccumulatorEvent(env.getJobID(), accumulators), ActorRef.noSender());
 
 		// We also clear the accumulators, since stub instances might be reused
 		// (e.g. in iterations) and we don't want to count twice. This may not be

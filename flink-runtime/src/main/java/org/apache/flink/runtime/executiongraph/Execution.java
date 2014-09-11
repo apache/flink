@@ -274,7 +274,7 @@ public class Execution {
 					try {
 						Instance instance = slot.getInstance();
 
-						TaskOperationResult result = instance.getTaskManagerProxy().submitTask(deployment);
+						TaskOperationResult result = instance.submitTask(deployment);
 						if (result == null) {
 							markFailed(new Exception("Failed to deploy the task to slot " + slot + ": TaskOperationResult was null"));
 						}
@@ -588,7 +588,7 @@ public class Execution {
 					try {
 						// send the call. it may be that the task is not really there (asynchronous / overtaking messages)
 						// in which case it is fine (the deployer catches it)
-						TaskOperationResult result = slot.getInstance().getTaskManagerProxy().cancelTask(attemptId);
+						TaskOperationResult result = slot.getInstance().cancelTask(attemptId);
 						
 						if (!result.isSuccess()) {
 							// the task was not found, which may be when the task concurrently finishes or fails, or

@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.FutureTask;
 
+import akka.actor.ActorRef;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.IOReadableWritable;
@@ -38,7 +39,6 @@ import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
-import org.apache.flink.runtime.protocols.AccumulatorProtocol;
 
 /**
  * The user code of every Nephele task runs inside an <code>Environment</code> object. The environment provides
@@ -213,7 +213,7 @@ public interface Environment {
 	/**
 	 * Returns the proxy object for the accumulator protocol.
 	 */
-	AccumulatorProtocol getAccumulatorProtocolProxy();
+	ActorRef getAccumulator();
 
 	/**
 	 * Returns the user code class loader

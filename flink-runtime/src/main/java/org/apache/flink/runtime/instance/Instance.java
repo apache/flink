@@ -33,6 +33,7 @@ import akka.dispatch.Mapper;
 import akka.pattern.Patterns;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotAvailabilityListener;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
@@ -221,9 +222,9 @@ public class Instance {
 			throw new RuntimeException("Caught exception while submitting task.", e);
 		}
 	}
-	public TaskOperationResult cancelTask(JobVertexID jobVertexID, int subtaskIndex) throws IOException{
-		Future<Object> futureResponse = Patterns.ask(taskManager, new TaskManagerMessages.CancelTask(jobVertexID,
-				subtaskIndex), AkkaUtils.FUTURE_TIMEOUT());
+	public TaskOperationResult cancelTask(ExecutionAttemptID attemptID) throws IOException{
+		Future<Object> futureResponse = Patterns.ask(taskManager, new TaskManagerMessages.CancelTask(attemptID),
+				AkkaUtils.FUTURE_TIMEOUT());
 
 		try{
 			return (TaskOperationResult) Await.result(futureResponse, AkkaUtils.AWAIT_DURATION());

@@ -32,6 +32,7 @@ import java.util.Set;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import akka.actor.ActorRef;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.IOReadableWritable;
@@ -119,9 +120,9 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 	private Thread executingThread;
 
 	/**
-	 * The RPC proxy to report accumulators to JobManager
+	 * The ActorRef to the accumulator
 	 */
-	private final AccumulatorProtocol accumulatorProtocolProxy;
+	private final ActorRef accumulator;
 
 	private final Map<String,FutureTask<Path>> cacheCopyTasks = new HashMap<String, FutureTask<Path>>();
 	
@@ -136,7 +137,7 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 							ClassLoader userCodeClassLoader,
 							MemoryManager memoryManager, IOManager ioManager,
 							InputSplitProvider inputSplitProvider,
-							AccumulatorProtocol accumulatorProtocolProxy,
+							ActorRef accumulator)
 							BroadcastVariableManager bcVarManager)
 		throws Exception
 	{
@@ -144,7 +145,7 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 		Preconditions.checkNotNull(memoryManager);
 		Preconditions.checkNotNull(ioManager);
 		Preconditions.checkNotNull(inputSplitProvider);
-		Preconditions.checkNotNull(accumulatorProtocolProxy);
+		Preconditions.checkNotNull(accumulator);
 		Preconditions.checkNotNull(userCodeClassLoader);
 		Preconditions.checkNotNull(bcVarManager);
 		
@@ -153,7 +154,7 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 		this.memoryManager = memoryManager;
 		this.ioManager = ioManager;
 		this.inputSplitProvider = inputSplitProvider;
-		this.accumulatorProtocolProxy = accumulatorProtocolProxy;
+		this.accumulator = accumulator;
 		this.bcVarManager = bcVarManager;
 
 		// load and instantiate the invokable class
@@ -689,8 +690,8 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 	}
 
 	@Override
-	public AccumulatorProtocol getAccumulatorProtocolProxy() {
-		return accumulatorProtocolProxy;
+	public ActorRef getAccumulator() {
+		return accumulator;
 	}
 
 	@Override

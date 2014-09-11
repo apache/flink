@@ -22,18 +22,18 @@ package org.apache.flink.runtime.jobmanager
 import akka.actor.{Terminated, ActorRef, Actor, ActorLogging}
 import org.apache.flink.runtime.ActorLogMessages
 import org.apache.flink.runtime.event.job._
-import org.apache.flink.runtime.execution.ExecutionState
 import org.apache.flink.runtime.executiongraph._
-import org.apache.flink.runtime.jobgraph.{JobVertexID, JobStatus, JobID}
+import org.apache.flink.runtime.jobgraph.{JobStatus, JobID}
 import org.apache.flink.runtime.messages.ArchiveMessages.{ArchiveExecutionGraph, ArchiveJobEvent, ArchiveEvent}
 import org.apache.flink.runtime.messages.EventCollectorMessages._
 import org.apache.flink.runtime.messages.ExecutionGraphMessages.{JobStatusChanged, ExecutionStateChanged}
-import org.apache.hadoop.net.NetworkTopology
-import scala.collection.convert.{WrapAsScala, DecorateAsJava}
+import org.apache.flink.runtime.messages.JobManagerMessages.RequestJobProgress
+import org.apache.flink.runtime.messages.JobResult
+import org.apache.flink.runtime.messages.JobResult.JobProgressResult
+import scala.collection.convert.{WrapAsScala}
 import scala.concurrent.duration._
 
-class EventCollector(val timerTaskInterval: Int) extends Actor with ActorLogMessages with ActorLogging with
-DecorateAsJava with WrapAsScala {
+class EventCollector(val timerTaskInterval: Int) extends Actor with ActorLogMessages with ActorLogging with WrapAsScala {
   import context.dispatcher
 
   val collectedEvents = collection.mutable.HashMap[JobID, List[AbstractEvent]]()
@@ -98,10 +98,14 @@ DecorateAsJava with WrapAsScala {
       val events = collectedEvents.getOrElse(jobID, List())
       val filteredEvents = events filter { event => !event.isInstanceOf[ManagementEvent] || includeManagementEvents}
 
-      sender() ! filteredEvents.asJava
+      sender() ! JobEvents(filteredEvents)
+
+    case RequestJobProgress(jobID) =>
+      sender() ! JobProgressResult(JobResult.SUCCESS, null, collectedEvents.getOrElse(jobID, List()))
+
 
     case RequestRecentJobs =>
-      sender() ! recentJobs.values.asJavaCollection
+      sender() ! RecentJobs(recentJobs.values.toList)
 
     case RegisterJob(executionGraph, profilingAvailable, submissionTimestamp) =>
       val jobID = executionGraph.getJobID

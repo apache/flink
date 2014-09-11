@@ -46,11 +46,6 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 	private InetAddress inetAddress;
 
 	/**
-	 * The port the instance's task manager runs its IPC service on.
-	 */
-	private int ipcPort;
-
-	/**
 	 * The port the instance's task manager expects to receive transfer envelopes on.
 	 */
 	private int dataPort;
@@ -78,26 +73,17 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 	 * 
 	 * @param inetAddress
 	 *        the network address the instance's task manager binds its sockets to
-	 * @param ipcPort
-	 *        the port instance's task manager runs its IPC service on
 	 * @param dataPort
 	 *        the port instance's task manager expects to receive transfer envelopes on
 	 */
-	public InstanceConnectionInfo(InetAddress inetAddress, int ipcPort, int dataPort) {
+	public InstanceConnectionInfo(InetAddress inetAddress, int dataPort) {
 		if (inetAddress == null) {
 			throw new IllegalArgumentException("Argument inetAddress must not be null");
-		}
-		if (ipcPort <= 0) {
-			throw new IllegalArgumentException("Argument ipcPort must be greater than zero");
 		}
 		if (dataPort <= 0) {
 			throw new IllegalArgumentException("Argument dataPort must be greater than zero");
 		}
-		if (ipcPort == dataPort) {
-			throw new IllegalArgumentException("IPC and data port must be different");
-		}
 
-		this.ipcPort = ipcPort;
 		this.dataPort = dataPort;
 		this.inetAddress = inetAddress;
 		
@@ -120,14 +106,6 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 	 */
 	public InstanceConnectionInfo() {}
 
-	/**
-	 * Returns the port instance's task manager runs its IPC service on.
-	 * 
-	 * @return the port instance's task manager runs its IPC service on
-	 */
-	public int ipcPort() {
-		return this.ipcPort;
-	}
 
 	/**
 	 * Returns the port instance's task manager expects to receive transfer envelopes on.
@@ -184,7 +162,6 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 		byte[] address = new byte[addr_length];
 		in.readFully(address);
 		
-		this.ipcPort = in.readInt();
 		this.dataPort = in.readInt();
 		
 		this.fqdnHostName = StringUtils.readNullableString(in);
@@ -204,7 +181,6 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 		out.writeInt(this.inetAddress.getAddress().length);
 		out.write(this.inetAddress.getAddress());
 		
-		out.writeInt(this.ipcPort);
 		out.writeInt(this.dataPort);
 		
 		StringUtils.writeNullableString(fqdnHostName, out);
@@ -218,15 +194,14 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 
 	@Override
 	public String toString() {
-		return getFQDNHostname() + " (ipcPort=" + ipcPort + ", dataPort=" + dataPort + ")";
+		return hostname() + " ( dataPort=" + dataPort + ")";
 	}
 
 	@Override
 	public boolean equals(Object obj) {
 		if (obj instanceof InstanceConnectionInfo) {
 			InstanceConnectionInfo other = (InstanceConnectionInfo) obj;
-			return this.ipcPort == other.ipcPort &&
-					this.dataPort == other.dataPort &&
+			return this.dataPort == other.dataPort &&
 					this.inetAddress.equals(other.inetAddress);
 		} else {
 			return false;
@@ -236,8 +211,7 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 	@Override
 	public int hashCode() {
 		return this.inetAddress.hashCode() +
-				17*ipcPort +
-				23*dataPort;
+				17*dataPort;
 	}
 
 	@Override
@@ -263,11 +237,7 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 		}
 		
 		// addresses are identical, decide based on ports.
-		if (this.ipcPort < o.ipcPort) {
-			return -1;
-		} else if (this.ipcPort > o.ipcPort) {
-			return 1;
-		} else if (this.dataPort < o.dataPort) {
+		if (this.dataPort < o.dataPort) {
 			return -1;
 		} else if (this.dataPort > o.dataPort) {
 			return 1;

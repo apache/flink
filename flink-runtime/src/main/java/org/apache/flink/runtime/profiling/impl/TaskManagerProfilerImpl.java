@@ -53,7 +53,7 @@ public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerPro
 
 	private static final Logger LOG = LoggerFactory.getLogger(TaskManagerProfilerImpl.class);
 
-	private final ProfilerImplProtocol jobManagerProfiler;
+	private final ActorRef jobManagerProfiler;
 
 	private final Timer timer;
 
@@ -67,20 +67,10 @@ public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerPro
 
 	private final Map<Environment, EnvironmentThreadSet> monitoredThreads = new HashMap<Environment, EnvironmentThreadSet>();
 
-	public TaskManagerProfilerImpl(InetAddress jobManagerAddress, String instancePath)
+	public TaskManagerProfilerImpl(ActorRef jobManagerProfiler, String instancePath)
 			throws ProfilingException {
 
-		// Create RPC stub for communication with job manager's profiling component.
-		final InetSocketAddress profilingAddress = new InetSocketAddress(jobManagerAddress, GlobalConfiguration
-			.getInteger(ProfilingUtils.JOBMANAGER_RPC_PORT_KEY, ProfilingUtils.JOBMANAGER_DEFAULT_RPC_PORT));
-		ProfilerImplProtocol jobManagerProfilerTmp = null;
-		try {
-			jobManagerProfilerTmp = (ProfilerImplProtocol) RPC.getProxy(ProfilerImplProtocol.class, profilingAddress,
-				NetUtils.getSocketFactory());
-		} catch (IOException e) {
-			throw new ProfilingException(StringUtils.stringifyException(e));
-		}
-		this.jobManagerProfiler = jobManagerProfilerTmp;
+		this.jobManagerProfiler = jobManagerProfiler;
 
 		// Initialize MX interface and check if thread contention monitoring is supported
 		this.tmx = ManagementFactory.getThreadMXBean();
@@ -165,7 +155,7 @@ public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerPro
 
 			if (!this.profilingDataContainer.isEmpty()) {
 				try {
-					this.jobManagerProfiler.reportProfilingData(this.profilingDataContainer);
+					jobManagerProfiler.tell(new ReportProfilingData(this.profilingDataContainer), ActorRef.noSender());
 					this.profilingDataContainer.clear();
 				} catch (IOException e) {
 					LOG.error("Could not report profiling data.", e);

@@ -18,12 +18,23 @@
 
 package org.apache.flink.runtime.messages
 
-import org.apache.flink.runtime.jobgraph.{JobID, JobGraph}
+import org.apache.flink.runtime.accumulators.AccumulatorEvent
+import org.apache.flink.runtime.io.network.ConnectionInfoLookupResponse
+import org.apache.flink.runtime.io.network.channels.ChannelID
+import org.apache.flink.runtime.jobgraph.{JobVertexID, JobID, JobGraph}
+import org.apache.flink.runtime.taskmanager.TaskExecutionState
 
 object JobManagerMessages {
   case class SubmitJob(jobGraph: JobGraph)
   case class CancelJob(jobID: JobID)
+  case class UpdateTaskExecutionState(taskExecutionState: TaskExecutionState)
+  case class RequestNextInputSplit(jobID: JobID, vertexID: JobVertexID)
+  case class LookupConnectionInformation(jobID: JobID, sourceChannelID: ChannelID)
+  case class ConnectionInformation(response: ConnectionInfoLookupResponse)
+  case class ReportAccumulatorResult(accumulatorEvent: AccumulatorEvent)
+  case class RequestAccumulatorResult(jobID: JobID)
 
   case object RequestInstances
   case object RequestNumberRegisteredTaskManager
+  case object RequestAvailableSlots
 }

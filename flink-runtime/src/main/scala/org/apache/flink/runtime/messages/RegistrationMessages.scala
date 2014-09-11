@@ -18,23 +18,9 @@
 
 package org.apache.flink.runtime.messages
 
-import org.apache.flink.core.io.InputSplit
-import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheProfileRequest
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
-import org.apache.flink.runtime.instance.InstanceID
-import org.apache.flink.runtime.jobgraph.JobVertexID
+import org.apache.flink.runtime.instance.{InstanceID, HardwareDescription}
 
-object TaskManagerMessages {
-  case class RequestLibraryCacheProfile(request: LibraryCacheProfileRequest)
-  case class CancelTask(attemptID: ExecutionAttemptID)
-  case class SubmitTask(tasks: TaskDeploymentDescriptor)
-  case class NextInputSplit(inputSplit: InputSplit)
-
-  case class Heartbeat(instanceID: InstanceID)
-
-  case object RegisterAtMaster
-  case object SendHeartbeat
-  case object AcknowledgeLibraryCacheUpdate
-  case object LogMemoryUsage
+object RegistrationMessages {
+  case class RegisterTaskManager(hardwareDescription: HardwareDescription, numberOfSlots: Int)
+  case class AcknowledgeRegistration(instanceID: InstanceID)
 }

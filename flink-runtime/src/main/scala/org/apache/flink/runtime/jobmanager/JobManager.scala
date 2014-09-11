@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+package org.apache.flink.runtime.jobmanager
 
 import java.io.{FileNotFoundException, File}
 import java.net.InetAddress
