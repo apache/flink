@@ -23,7 +23,6 @@ import static org.apache.flink.api.java.aggregation.Aggregations.SUM;
 import static org.junit.Assert.fail;
 
 import org.apache.flink.api.common.Plan;
-import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.compiler.PactCompiler;
 import org.apache.flink.compiler.plan.BulkIterationPlanNode;
@@ -53,8 +52,7 @@ public class PageRankCompilerTest extends CompilerTestBase{
 			final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 			
 			// get input data
-			@SuppressWarnings("unchecked")
-			DataSet<Tuple1<Long>> pagesInput = env.fromElements(new Tuple1<Long>(1l));
+			DataSet<Long> pagesInput = env.fromElements(1l);
 			@SuppressWarnings("unchecked")
 			DataSet<Tuple2<Long, Long>> linksInput =env.fromElements(new Tuple2<Long, Long>(1l, 2l));
 			

@@ -91,7 +91,7 @@ public class PageRankBasic {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		
 		// get input data
-		DataSet<Tuple1<Long>> pagesInput = getPagesDataSet(env);
+		DataSet<Long> pagesInput = getPagesDataSet(env);
 		DataSet<Tuple2<Long, Long>> linksInput = getLinksDataSet(env);
 		
 		// assign initial rank to pages
@@ -138,7 +138,7 @@ public class PageRankBasic {
 	/** 
 	 * A map function that assigns an initial rank to all pages. 
 	 */
-	public static final class RankAssigner implements MapFunction<Tuple1<Long>, Tuple2<Long, Double>> {
+	public static final class RankAssigner implements MapFunction<Long, Tuple2<Long, Double>> {
 		Tuple2<Long, Double> outPageWithRank;
 		
 		public RankAssigner(double rank) {
@@ -146,8 +146,8 @@ public class PageRankBasic {
 		}
 		
 		@Override
-		public Tuple2<Long, Double> map(Tuple1<Long> page) {
-			outPageWithRank.f0 = page.f0;
+		public Tuple2<Long, Double> map(Long page) {
+			outPageWithRank.f0 = page;
 			return outPageWithRank;
 		}
 	}
@@ -259,12 +259,17 @@ public class PageRankBasic {
 		return true;
 	}
 	
-	private static DataSet<Tuple1<Long>> getPagesDataSet(ExecutionEnvironment env) {
+	private static DataSet<Long> getPagesDataSet(ExecutionEnvironment env) {
 		if(fileOutput) {
-			return env.readCsvFile(pagesInputPath)
-						.fieldDelimiter(' ')
-						.lineDelimiter("\n")
-						.types(Long.class);
+			return env
+						.readCsvFile(pagesInputPath)
+							.fieldDelimiter(' ')
+							.lineDelimiter("\n")
+							.types(Long.class)
+						.map(new MapFunction<Tuple1<Long>, Long>() {
+							@Override
+							public Long map(Tuple1<Long> v) { return v.f0; }
+						});
 		} else {
 			return PageRankData.getDefaultPagesDataSet(env);
 		}

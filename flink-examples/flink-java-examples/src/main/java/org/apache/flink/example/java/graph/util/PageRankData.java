@@ -22,11 +22,9 @@ package org.apache.flink.example.java.graph.util;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.flink.api.java.tuple.Tuple1;
-import org.apache.flink.api.java.tuple.Tuple2;
-
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.tuple.Tuple2;
 
 /**
  * Provides the default data sets used for the PageRank example program.
@@ -35,52 +33,51 @@ import org.apache.flink.api.java.ExecutionEnvironment;
  */
 public class PageRankData {
 
-	private static long numPages = 15;
+	public static final Object[][] EDGES = {
+		{1L, 2L},
+		{1L, 15L},
+		{2L, 3L},
+		{2L, 4L},
+		{2L, 5L},
+		{2L, 6L},
+		{2L, 7L},
+		{3L, 13L},
+		{4L, 2L},
+		{5L, 11L},
+		{5L, 12L},
+		{6L, 1L},
+		{6L, 7L},
+		{6L, 8L},
+		{7L, 1L},
+		{7L, 8L},
+		{8L, 1L},
+		{8L, 9L},
+		{8L, 10L},
+		{9L, 14L},
+		{9L, 1L},
+		{10L, 1L},
+		{10L, 13L},
+		{11L, 12L},
+		{11L, 1L},
+		{12L, 1L},
+		{13L, 14L},
+		{14L, 12L},
+		{15L, 1L},
+	};
 	
-	public static DataSet<Tuple1<Long>> getDefaultPagesDataSet(ExecutionEnvironment env) {
-		
-		List<Tuple1<Long>> data = new ArrayList<Tuple1<Long>>();
-		
-		for(long i=0; i<numPages; i++) {
-			data.add(new Tuple1<Long>(i));
-		}
-		return env.fromCollection(data);
-	}
+	private static long numPages = 15;
 	
 	public static DataSet<Tuple2<Long, Long>> getDefaultEdgeDataSet(ExecutionEnvironment env) {
 		
-		List<Tuple2<Long, Long>> data = new ArrayList<Tuple2<Long, Long>>();
-		data.add(new Tuple2<Long, Long>(1L, 2L));
-		data.add(new Tuple2<Long, Long>(1L, 15L));
-		data.add(new Tuple2<Long, Long>(2L, 3L));
-		data.add(new Tuple2<Long, Long>(2L, 4L));
-		data.add(new Tuple2<Long, Long>(2L, 5L));
-		data.add(new Tuple2<Long, Long>(2L, 6L));
-		data.add(new Tuple2<Long, Long>(2L, 7L));
-		data.add(new Tuple2<Long, Long>(3L, 13L));
-		data.add(new Tuple2<Long, Long>(4L, 2L));
-		data.add(new Tuple2<Long, Long>(5L, 11L));
-		data.add(new Tuple2<Long, Long>(5L, 12L));
-		data.add(new Tuple2<Long, Long>(6L, 1L));
-		data.add(new Tuple2<Long, Long>(6L, 7L));
-		data.add(new Tuple2<Long, Long>(6L, 8L));
-		data.add(new Tuple2<Long, Long>(7L, 1L));
-		data.add(new Tuple2<Long, Long>(7L, 8L));
-		data.add(new Tuple2<Long, Long>(8L, 1L));
-		data.add(new Tuple2<Long, Long>(8L, 9L));
-		data.add(new Tuple2<Long, Long>(8L, 10L));
-		data.add(new Tuple2<Long, Long>(9L, 14L));
-		data.add(new Tuple2<Long, Long>(9L, 1L));
-		data.add(new Tuple2<Long, Long>(10L, 1L));
-		data.add(new Tuple2<Long, Long>(10L, 13L));
-		data.add(new Tuple2<Long, Long>(11L, 12L));
-		data.add(new Tuple2<Long, Long>(11L, 1L));
-		data.add(new Tuple2<Long, Long>(12L, 1L));
-		data.add(new Tuple2<Long, Long>(13L, 14L));
-		data.add(new Tuple2<Long, Long>(14L, 12L));
-		data.add(new Tuple2<Long, Long>(15L, 1L));
-		
-		return env.fromCollection(data);
+		List<Tuple2<Long, Long>> edges = new ArrayList<Tuple2<Long, Long>>();
+		for(Object[] e : EDGES) {
+			edges.add(new Tuple2<Long, Long>((Long)e[0], (Long)e[1]));
+		}
+		return env.fromCollection(edges);
+	}
+	
+	public static DataSet<Long> getDefaultPagesDataSet(ExecutionEnvironment env) {
+		return env.generateSequence(1, 15);
 	}
 	
 	public static long getNumberOfPages() {
