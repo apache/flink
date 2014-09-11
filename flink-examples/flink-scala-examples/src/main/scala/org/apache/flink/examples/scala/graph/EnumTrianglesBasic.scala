@@ -91,7 +91,7 @@ object EnumTrianglesBasic {
 		
 		// emit result
 		if (fileOutput) {
-			triangles.writeAsCsv(outputPath, "\n", " ")
+			triangles.writeAsCsv(outputPath, "\n", ",")
 		} else {
 			triangles.print()
 		}
