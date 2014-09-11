@@ -32,42 +32,41 @@ import scala.collection.mutable
  * Triangle enumeration is a pre-processing step to find closely connected parts in graphs.
  * A triangle consists of three edges that connect three vertices with each other.
  *
- * <p>
- * The basic algorithm works as follows: 
+ * The basic algorithm works as follows:
  * It groups all edges that share a common vertex and builds triads, i.e., triples of vertices 
  * that are connected by two edges. Finally, all triads are filtered for which no third edge exists 
  * that closes the triangle.
  *
- * <p>
- * For a group of <i>n</i> edges that share a common vertex, the number of built triads is quadratic <i>((n*(n-1))/2)</i>.
- * Therefore, an optimization of the algorithm is to group edges on the vertex with the smaller output degree to
- * reduce the number of triads. 
+ * For a group of ''i'' edges that share a common vertex, the number of built triads is quadratic
+ * ''(n*(n-1))/2)''. Therefore, an optimization of the algorithm is to group edges on the vertex
+ * with the smaller output degree to reduce the number of triads.
  * This implementation extends the basic algorithm by computing output degrees of edge vertices and 
  * grouping on edges on the vertex with the smaller degree.
  *
- * <p>
  * Input files are plain text files and must be formatted as follows:
- * <ul>
- * <li>Edges are represented as pairs for vertex IDs which are separated by space 
- * characters. Edges are separated by new-line characters.<br>
- * For example <code>"1 2\n2 12\n1 12\n42 63\n"</code> gives four (undirected) edges (1)-(2), (2)-(12), (1)-(12), and (42)-(63)
- * that include a triangle
- * </ul>
+ *
+ *  - Edges are represented as pairs for vertex IDs which are separated by space
+ *    characters. Edges are separated by new-line characters.
+ *    For example `"1 2\n2 12\n1 12\n42 63\n"` gives four (undirected) edges (1)-(2), (2)-(12),
+ *    (1)-(12), and (42)-(63) that include a triangle
+ *
  * <pre>
  *     (1)
  *     /  \
  *   (2)-(12)
  * </pre>
  *
- * Usage: <code>EnumTriangleOpt &lt;edge path&gt; &lt;result path&gt;</code><br>
- * If no parameters are provided, the program is run with default data from {@link EnumTrianglesData}.
+ * Usage:
+ * {{{
+ *   EnumTriangleOpt <edge path> <result path>
+ * }}}
  *
- * <p>
+ * If no parameters are provided, the program is run with default data from [[EnumTrianglesData]].
+ *
  * This example shows how to use:
- * <ul>
- * <li>Custom Java objects which extend Tuple
- * <li>Group Sorting
- * </ul>
+ *
+ *  - Custom Java objects which extend Tuple
+ *  - Group Sorting
  *
  */
 object EnumTrianglesOpt {
