@@ -61,7 +61,8 @@ import scala.collection.mutable
  *   EnumTriangleOpt <edge path> <result path>
  * }}}
  *
- * If no parameters are provided, the program is run with default data from [[EnumTrianglesData]].
+ * If no parameters are provided, the program is run with default data from
+ * [[org.apache.flink.example.java.graph.util.EnumTrianglesData]].
  *
  * This example shows how to use:
  *

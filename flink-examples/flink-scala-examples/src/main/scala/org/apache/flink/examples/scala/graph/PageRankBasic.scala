@@ -52,7 +52,7 @@ import org.apache.flink.util.Collector
  * }}}
  *
  * If no parameters are provided, the program is run with default data from
- * [[PageRankData]] and 10 iterations.
+ * [[org.apache.flink.example.java.graph.util.PageRankData]] and 10 iterations.
  * 
  * This example shows how to use:
  *

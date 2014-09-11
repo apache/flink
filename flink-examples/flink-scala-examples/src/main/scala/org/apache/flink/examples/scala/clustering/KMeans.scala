@@ -58,7 +58,8 @@ import scala.collection.JavaConverters._
  * {{{
  *   KMeans <points path> <centers path> <result path> <num iterations>
  * }}}
- * If no parameters are provided, the program is run with default data from `KMeansData`
+ * If no parameters are provided, the program is run with default data from
+ * [[org.apache.flink.example.java.clustering.util.KMeansData]]
  * and 10 iterations.
  *
  * This example shows how to use:

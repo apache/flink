@@ -76,7 +76,8 @@ import org.apache.flink.util.Collector
  *   WebLogAnalysis <documents path> <ranks path> <visits path> <result path>
  * }}}
  *
- * If no parameters are provided, the program is run with default data from [[WebLogData]].
+ * If no parameters are provided, the program is run with default data from
+ * [[org.apache.flink.example.java.relational.util.WebLogData]].
  *
  * This example shows how to use:
  *
