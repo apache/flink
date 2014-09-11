@@ -36,7 +36,7 @@ public final class DataInputViewStream extends InputStream {
 		return inputView.readByte();
 	}
 	
-	public int read(byte b[], int off, int len) throws IOException {
+	public int read(byte[] b, int off, int len) throws IOException {
 		inputView.readFully(b, off, len);
 		return len;
 	}

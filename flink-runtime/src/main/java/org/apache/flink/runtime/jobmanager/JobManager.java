@@ -79,7 +79,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.accumulators.AccumulatorManager;
 import org.apache.flink.runtime.jobmanager.archive.ArchiveListener;
 import org.apache.flink.runtime.jobmanager.archive.MemoryArchivist;
-import org.apache.flink.runtime.jobmanager.scheduler.DefaultScheduler;
+import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.web.WebInfoServer;
 import org.apache.flink.runtime.protocols.AccumulatorProtocol;
 import org.apache.flink.runtime.protocols.ChannelLookupProtocol;
@@ -122,7 +122,7 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 	private final InstanceManager instanceManager;
 	
 	/** Assigns tasks to slots and keeps track on available and allocated task slots*/
-	private final DefaultScheduler scheduler;
+	private final Scheduler scheduler;
 	
 	/** The currently running jobs */
 	private final ConcurrentHashMap<JobID, ExecutionGraph> currentJobs;
@@ -142,7 +142,6 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 	private final AtomicBoolean isShutdownInProgress = new AtomicBoolean(false);
 	
 	private volatile boolean isShutDown;
-	
 	
 	private WebInfoServer server;
 	
@@ -222,7 +221,7 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 		}
 
 		// create the scheduler and make it listen at the availability of new instances
-		this.scheduler = new DefaultScheduler();
+		this.scheduler = new Scheduler(this.executorService);
 		this.instanceManager.addInstanceListener(this.scheduler);
 	}
 
@@ -349,6 +348,9 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 			if (LOG.isDebugEnabled()) {
 				LOG.debug(String.format("Successfully created execution graph from job graph %s (%s)", job.getJobID(), job.getName()));
 			}
+			
+			// should the job fail if a vertex cannot be deployed immediately (streams, closed iterations)
+			executionGraph.setQueuedSchedulingAllowed(job.getAllowQueuedScheduling());
 	
 			// Register job with the progress collector
 			if (this.eventCollector != null) {
@@ -461,12 +463,12 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 		
 		if (LOG.isInfoEnabled()) {
 			String message = optionalMessage == null ? "." : ": " + optionalMessage;
-			LOG.info(String.format("Status of job %s (%s) changed to %s%s", 
+			LOG.info(String.format("Job %s (%s) switched to %s%s", 
 					jid, executionGraph.getJobName(), newJobStatus, message));
 		}
 
 		// remove the job graph if the state is any terminal state
-		if (newJobStatus == JobStatus.FINISHED || newJobStatus == JobStatus.CANCELED || newJobStatus == JobStatus.FAILED) {
+		if (newJobStatus.isTerminalState()) {
 			this.currentJobs.remove(jid);
 			
 			try {
@@ -643,7 +645,11 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 
 	@Override
 	public InstanceID registerTaskManager(InstanceConnectionInfo instanceConnectionInfo, HardwareDescription hardwareDescription, int numberOfSlots) {
-		return this.instanceManager.registerTaskManager(instanceConnectionInfo, hardwareDescription, numberOfSlots);
+		if (this.instanceManager != null) {
+			return this.instanceManager.registerTaskManager(instanceConnectionInfo, hardwareDescription, numberOfSlots);
+		} else {
+			return null;
+		}
 	}
 	
 	

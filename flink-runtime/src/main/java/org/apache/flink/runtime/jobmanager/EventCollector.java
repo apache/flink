@@ -26,6 +26,8 @@ import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.flink.runtime.event.job.AbstractEvent;
 import org.apache.flink.runtime.event.job.ExecutionStateChangeEvent;
 import org.apache.flink.runtime.event.job.JobEvent;
@@ -51,6 +53,8 @@ import org.apache.flink.runtime.profiling.types.ProfilingEvent;
  * the event collector removes all intervals which are older than the interval.
  */
 public final class EventCollector extends TimerTask implements ProfilingListener {
+
+	private static final Log LOG = LogFactory.getLog(EventCollector.class);
 
 	/**
 	 * The execution listener wrapper is an auxiliary class. It is required
@@ -93,6 +97,8 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 					executionId, newExecutionState);
 
 			this.eventCollector.addEvent(jobID, executionStateChangeEvent);
+			
+			LOG.info(vertexEvent.toString());
 		}
 	}
 

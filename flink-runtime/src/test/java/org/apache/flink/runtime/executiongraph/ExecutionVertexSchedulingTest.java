@@ -29,7 +29,7 @@ import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobmanager.scheduler.DefaultScheduler;
+import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotAllocationFuture;
 import org.apache.flink.runtime.protocols.TaskOperationProtocol;
@@ -54,7 +54,7 @@ public class ExecutionVertexSchedulingTest {
 			final ExecutionJobVertex ejv = getJobVertexNotExecuting(new JobVertexID());
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
 			
-			DefaultScheduler scheduler = mock(DefaultScheduler.class);
+			Scheduler scheduler = mock(Scheduler.class);
 			when(scheduler.scheduleImmediately(Matchers.any(ScheduledUnit.class))).thenReturn(slot);
 			
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
@@ -89,7 +89,7 @@ public class ExecutionVertexSchedulingTest {
 			final ExecutionJobVertex ejv = getJobVertexNotExecuting(new JobVertexID());
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
 			
-			DefaultScheduler scheduler = mock(DefaultScheduler.class);
+			Scheduler scheduler = mock(Scheduler.class);
 			when(scheduler.scheduleQueued(Matchers.any(ScheduledUnit.class))).thenReturn(future);
 			
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
@@ -124,7 +124,7 @@ public class ExecutionVertexSchedulingTest {
 			final ExecutionJobVertex ejv = getJobVertexNotExecuting(new JobVertexID());
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
 			
-			DefaultScheduler scheduler = mock(DefaultScheduler.class);
+			Scheduler scheduler = mock(Scheduler.class);
 			when(scheduler.scheduleImmediately(Matchers.any(ScheduledUnit.class))).thenReturn(slot);
 			
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());

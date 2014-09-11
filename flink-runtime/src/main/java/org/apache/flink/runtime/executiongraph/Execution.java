@@ -18,7 +18,14 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import static org.apache.flink.runtime.execution.ExecutionState.*;
+import static org.apache.flink.runtime.execution.ExecutionState.CANCELED;
+import static org.apache.flink.runtime.execution.ExecutionState.CANCELING;
+import static org.apache.flink.runtime.execution.ExecutionState.CREATED;
+import static org.apache.flink.runtime.execution.ExecutionState.DEPLOYING;
+import static org.apache.flink.runtime.execution.ExecutionState.FAILED;
+import static org.apache.flink.runtime.execution.ExecutionState.FINISHED;
+import static org.apache.flink.runtime.execution.ExecutionState.RUNNING;
+import static org.apache.flink.runtime.execution.ExecutionState.SCHEDULED;
 
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
@@ -27,9 +34,9 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.instance.Instance;
-import org.apache.flink.runtime.jobmanager.scheduler.DefaultScheduler;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
+import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotAllocationFuture;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotAllocationFutureAction;
 import org.apache.flink.runtime.taskmanager.TaskOperationResult;
@@ -124,6 +131,10 @@ public class Execution {
 		return failureCause;
 	}
 	
+	public long[] getStateTimestamps() {
+		return stateTimestamps;
+	}
+	
 	public long getStateTimestamp(ExecutionState state) {
 		return this.stateTimestamps[state.ordinal()];
 	}
@@ -146,15 +157,12 @@ public class Execution {
 	 * @throws IllegalStateException Thrown, if the vertex is not in CREATED state, which is the only state that permits scheduling.
 	 * @throws NoResourceAvailableException Thrown is no queued scheduling is allowed and no resources are currently available.
 	 */
-	public void scheduleForExecution(DefaultScheduler scheduler, boolean queued) throws NoResourceAvailableException {
+	public void scheduleForExecution(Scheduler scheduler, boolean queued) throws NoResourceAvailableException {
 		if (scheduler == null) {
 			throw new NullPointerException();
 		}
 		
 		if (transitionState(CREATED, SCHEDULED)) {
-			
-			// record that we were scheduled
-			vertex.notifyStateTransition(attemptId, SCHEDULED, null);
 			
 			ScheduledUnit toSchedule = new ScheduledUnit(this, vertex.getJobVertex().getSlotSharingGroup());
 		
@@ -221,8 +229,6 @@ public class Execution {
 				// this should actually not happen and indicates a race somewhere else
 				throw new IllegalStateException("Cannot deploy task: Concurrent deployment call race.");
 			}
-			
-			vertex.notifyStateTransition(attemptId, DEPLOYING, null);
 		}
 		else {
 			// vertex may have been cancelled, or it was already scheduled
@@ -236,9 +242,15 @@ public class Execution {
 			}
 			this.assignedResource = slot;
 			
+			// race double check, did we fail/cancel and do we need to release the slot?
+			if (this.state != DEPLOYING) {
+				slot.releaseSlot();
+				return;
+			}
+			
 			final TaskDeploymentDescriptor deployment = vertex.createDeploymentDescriptor(attemptId, slot);
 			
-			// register this execution at the execution graph, to receive callbacks
+			// register this execution at the execution graph, to receive call backs
 			vertex.getExecutionGraph().registerExecution(this);
 			
 			// we execute the actual deploy call in a concurrent action to prevent this call from blocking for long
@@ -300,7 +312,6 @@ public class Execution {
 			else if (current == RUNNING || current == DEPLOYING) {
 				// try to transition to canceling, if successful, send the cancel call
 				if (transitionState(current, CANCELING)) {
-					vertex.notifyStateTransition(attemptId, CANCELING, null);
 					sendCancelRpcCall();
 					return;
 				}
@@ -318,7 +329,7 @@ public class Execution {
 					
 					// we skip the canceling state. set the timestamp, for a consistent appearance
 					markTimestamp(CANCELING, getStateTimestamp(CANCELED));
-					vertex.notifyStateTransition(attemptId, CANCELED, null);
+					vertex.executionCanceled();
 					return;
 				}
 				// else: fall through the loop
@@ -336,11 +347,7 @@ public class Execution {
 	 * @param t The exception that caused the task to fail.
 	 */
 	public void fail(Throwable t) {
-		if (processFail(t, false)) {
-			if (LOG.isErrorEnabled()) {
-				LOG.error("Task " + getVertexWithAttempt() + " was failed.", t);
-			}
-		}
+		processFail(t, false);
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -355,15 +362,11 @@ public class Execution {
 	 * @param t The exception that caused the task to fail.
 	 */
 	void markFailed(Throwable t) {
-		// the call returns true if it actually made the state transition (was not already failed before, etc)
-		if (processFail(t, true)) {
-			if (LOG.isErrorEnabled()) {
-				LOG.error("Task " + getVertexWithAttempt() + " failed.", t);
-			}
-		}
+		processFail(t, true);
 	}
 	
 	void markFinished() {
+		
 		// this call usually comes during RUNNING, but may also come while still in deploying (very fast tasks!)
 		while (true) {
 			ExecutionState current = this.state;
@@ -372,7 +375,6 @@ public class Execution {
 			
 				if (transitionState(current, FINISHED)) {
 					try {
-						vertex.notifyStateTransition(attemptId, FINISHED, null);
 						vertex.executionFinished();
 						return;
 					}
@@ -382,41 +384,60 @@ public class Execution {
 					}
 				}
 			}
+			else if (current == CANCELING) {
+				// we sent a cancel call, and the task manager finished before it arrived. We
+				// will never get a CANCELED call back from the job manager
+				cancelingComplete();
+				return;
+			}
+			else if (current == CANCELED || current == FAILED) {
+				if (LOG.isDebugEnabled()) {
+					LOG.debug("Task FINISHED, but concurrently went to state " + state);
+				}
+				return;
+			}
 			else {
-				if (current == CANCELED || current == CANCELING || current == FAILED) {
-					if (LOG.isDebugEnabled()) {
-						LOG.debug("Task FINISHED, but concurrently went to state " + state);
-					}
-					return;
-				}
-				else {
-					// this should not happen, we need to fail this
-					markFailed(new Exception("Vertex received FINISHED message while being in state " + state));
-					return;
-				}
+				// this should not happen, we need to fail this
+				markFailed(new Exception("Vertex received FINISHED message while being in state " + state));
+				return;
 			}
 		}
 	}
 	
 	void cancelingComplete() {
-		if (transitionState(CANCELING, CANCELED)) {
-			try {
-				vertex.executionCanceled();
-				vertex.notifyStateTransition(attemptId, CANCELED, null);
+		
+		// the taskmanagers can themselves cancel tasks without an external trigger, if they find that the
+		// network stack is canceled (for example by a failing / canceling receiver or sender
+		// this is an artifact of the old network runtime, but for now we need to support task transitions
+		// from running directly to canceled
+		
+		while (true) {
+			ExecutionState current = this.state;
+			
+			if (current == CANCELED) {
+				return;
 			}
-			finally {
-				vertex.getExecutionGraph().deregisterExecution(this);
-				assignedResource.releaseSlot();
-			}
-		}
-		else {
-			ExecutionState actualState = this.state;
-			// failing in the meantime may happen and is no problem.
-			// anything else is a serious problem !!!
-			if (actualState != FAILED) {
-				String message = String.format("Asynchronous race: Found state %s after successful cancel call.", state);
-				LOG.error(message);
-				vertex.getExecutionGraph().fail(new Exception(message));
+			else if (current == CANCELING || current == RUNNING) {
+				if (transitionState(current, CANCELED)) {
+					try {
+						vertex.executionCanceled();
+					}
+					finally {
+						vertex.getExecutionGraph().deregisterExecution(this);
+						assignedResource.releaseSlot();
+					}
+					return;
+				}
+			} 
+			else {
+				// failing in the meantime may happen and is no problem.
+				// anything else is a serious problem !!!
+				if (current != FAILED) {
+					String message = String.format("Asynchronous race: Found state %s after successful cancel call.", state);
+					LOG.error(message);
+					vertex.getExecutionGraph().fail(new Exception(message));
+				}
+				return;
 			}
 		}
 	}
@@ -440,17 +461,29 @@ public class Execution {
 				return false;
 			}
 			
-			if (current == CANCELED || (current == CANCELING && isCallback)) {
+			if (current == CANCELED) {
 				// we are already aborting or are already aborted
 				if (LOG.isDebugEnabled()) {
 					LOG.debug(String.format("Ignoring transition of vertex %s to %s while being %s", 
-							getVertexWithAttempt(), FAILED, current));
+							getVertexWithAttempt(), FAILED, CANCELED));
 				}
 				return false;
 			}
 			
-			if (transitionState(current, FAILED)) {
+			if (transitionState(current, FAILED, t)) {
 				// success (in a manner of speaking)
+				this.failureCause = t;
+				
+				try {
+					vertex.getExecutionGraph().deregisterExecution(this);
+					vertex.executionFailed(t);
+				}
+				finally {
+					if (assignedResource != null) {
+						assignedResource.releaseSlot();
+					}
+				}
+				
 				
 				if (!isCallback && (current == RUNNING || current == DEPLOYING)) {
 					if (LOG.isDebugEnabled()) {
@@ -467,29 +500,16 @@ public class Execution {
 					}
 				}
 				
-				try {
-					this.failureCause = t;
-					vertex.executionFailed(t);
-					vertex.notifyStateTransition(attemptId, FAILED, t);
-				}
-				finally {
-					if (assignedResource != null) {
-						assignedResource.releaseSlot();
-					}
-					vertex.getExecutionGraph().deregisterExecution(this);
-				}
-				
 				// leave the loop
 				return true;
 			}
 		}
 	}
 	
-	private void switchToRunning() {
+	private boolean switchToRunning() {
 		
-		// transition state, the common case
 		if (transitionState(DEPLOYING, RUNNING)) {
-			vertex.notifyStateTransition(attemptId, RUNNING, null);
+			return true;
 		}
 		else {
 			// something happened while the call was in progress.
@@ -501,10 +521,10 @@ public class Execution {
 			ExecutionState currentState = this.state;
 			
 			if (currentState == FINISHED || currentState == CANCELED) {
-				// do nothing, this is nice, the task was really fast
+				// do nothing, the task was really fast (nice)
+				// or it was canceled really fast
 			}
-			
-			if (currentState == CANCELING || currentState == FAILED) {
+			else if (currentState == CANCELING || currentState == FAILED) {
 				if (LOG.isDebugEnabled()) {
 					LOG.debug(String.format("Concurrent canceling/failing of %s while deployment was in progress.", getVertexWithAttempt()));
 				}
@@ -524,13 +544,15 @@ public class Execution {
 				// record the failure
 				markFailed(new Exception(message));
 			}
+			
+			return false;
 		}
 	}
 	
 	private void sendCancelRpcCall() {
 		final AllocatedSlot slot = this.assignedResource;
 		if (slot == null) {
-			throw new IllegalStateException("Cannot cancel when task was not running or deployed.");
+			return;
 		}
 		
 		Runnable cancelAction = new Runnable() {
@@ -578,8 +600,21 @@ public class Execution {
 	// --------------------------------------------------------------------------------------------
 	
 	private boolean transitionState(ExecutionState currentState, ExecutionState targetState) {
+		return transitionState(currentState, targetState, null);
+	}
+	
+	private boolean transitionState(ExecutionState currentState, ExecutionState targetState, Throwable error) {
 		if (STATE_UPDATER.compareAndSet(this, currentState, targetState)) {
 			markTimestamp(targetState);
+			
+			// make sure that the state transition completes normally.
+			// potential errors (in listeners may not affect the main logic)
+			try {
+				vertex.notifyStateTransition(attemptId, targetState, error);
+			}
+			catch (Throwable t) {
+				LOG.error("Error while notifying execution graph of execution state trnsition.", t);
+			}
 			return true;
 		} else {
 			return false;

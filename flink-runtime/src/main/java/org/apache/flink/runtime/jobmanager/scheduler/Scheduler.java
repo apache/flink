@@ -23,6 +23,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,12 +38,14 @@ import org.apache.flink.runtime.instance.InstanceListener;
  * The scheduler is responsible for distributing the ready-to-run tasks and assigning them to instances and
  * slots.
  */
-public class DefaultScheduler implements InstanceListener, SlotAvailablilityListener {
+public class Scheduler implements InstanceListener, SlotAvailablilityListener {
 
-	private static final Logger LOG = LoggerFactory.getLogger(DefaultScheduler.class);
+	private static final Logger LOG = LoggerFactory.getLogger(Scheduler.class);
 	
 	
 	private final Object globalLock = new Object();
+	
+	private final ExecutorService executor;
 	
 	
 	/** All instances that the scheduler can deploy to */
@@ -62,8 +65,14 @@ public class DefaultScheduler implements InstanceListener, SlotAvailablilityList
 	private int nonLocalizedAssignments = 0;
 	
 	
-	public DefaultScheduler() {
+	public Scheduler() {
+		this(null);
 	}
+	
+	public Scheduler(ExecutorService executorService) {
+		this.executor = executorService;
+	}
+	
 	
 	/**
 	 * Shuts the scheduler down. After shut down no more tasks can be added to the scheduler.
@@ -264,9 +273,34 @@ public class DefaultScheduler implements InstanceListener, SlotAvailablilityList
 	}
 	
 	@Override
-	public void newSlotAvailable(Instance instance) {
+	public void newSlotAvailable(final Instance instance) {
 		
-		// global lock before instance lock, so that the order of acquiring locks is always 1) global, 2) instance
+		// WARNING: The asynchrony here is necessary, because  we cannot guarantee the order
+		// of lock acquisition (global scheduler, instance) and otherwise lead to potential deadlocks:
+		// 
+		// -> The scheduler needs to grab them (1) global scheduler lock
+		//                                     (2) slot/instance lock
+		// -> The slot releasing grabs (1) slot/instance (for releasing) and
+		//                             (2) scheduler (to check whether to take a new task item
+		// 
+		// that leads with a high probability to deadlocks, when scheduling fast
+		
+		if (this.executor != null) {
+			this.executor.execute(new Runnable() {
+				@Override
+				public void run() {
+					handleNewSlot(instance);
+				}
+			});
+		}
+		else {
+			// for tests, we use the synchronous variant
+			handleNewSlot(instance);
+		}
+	}
+	
+	private void handleNewSlot(Instance instance) {
+		
 		synchronized (globalLock) {
 			QueuedTask queued = taskQueue.peek();
 			

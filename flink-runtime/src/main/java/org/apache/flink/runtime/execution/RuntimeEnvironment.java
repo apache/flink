@@ -113,7 +113,7 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 
 	
 	/** The thread executing the task in the environment. */
-	private volatile Thread executingThread;
+	private Thread executingThread;
 
 	/**
 	 * The RPC proxy to report accumulators to JobManager
@@ -221,7 +221,6 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 
 	@Override
 	public void run() {
-
 		// quick fail in case the task was cancelled while the tread was started
 		if (owner.isCanceled()) {
 			owner.cancelingDone();
@@ -238,6 +237,7 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 			}
 		}
 		catch (Throwable t) {
+			
 			if (!this.owner.isCanceled()) {
 
 				// Perform clean up when the task failed and has been not canceled by the user
@@ -260,7 +260,7 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 
 			return;
 		}
-
+		
 		try {
 			// If there is any unclosed input gate, close it and propagate close operation to corresponding output gate
 			closeInputGates();
@@ -275,6 +275,7 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 			waitForOutputChannelsToBeClosed();
 		}
 		catch (Throwable t) {
+			
 			// Release all resources that may currently be allocated by the individual channels
 			releaseAllChannelResources();
 
@@ -396,37 +397,38 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 		}
 		
 		final Thread executingThread = this.executingThread;
-		
-		// interrupt the running thread and wait for it to die
-		executingThread.interrupt();
-		
-		try {
-			executingThread.join(5000);
-		} catch (InterruptedException e) {}
-		
-		if (!executingThread.isAlive()) {
-			return;
-		}
-		
-		// Continuously interrupt the user thread until it changed to state CANCELED
-		while (executingThread != null && executingThread.isAlive()) {
-			LOG.warn("Task " + owner.getTaskNameWithSubtasks() + " did not react to cancelling signal. Sending repeated interrupt.");
-
-			if (LOG.isDebugEnabled()) {
-				StringBuilder bld = new StringBuilder("Task ").append(owner.getTaskNameWithSubtasks()).append(" is stuck in method:\n");
-				
-				StackTraceElement[] stack = executingThread.getStackTrace();
-				for (StackTraceElement e : stack) {
-					bld.append(e).append('\n');
-				}
-				LOG.debug(bld.toString());
-			}
-			
+		if (executingThread != null) {
+			// interrupt the running thread and wait for it to die
 			executingThread.interrupt();
 			
 			try {
-				executingThread.join(1000);
+				executingThread.join(5000);
 			} catch (InterruptedException e) {}
+			
+			if (!executingThread.isAlive()) {
+				return;
+			}
+			
+			// Continuously interrupt the user thread until it changed to state CANCELED
+			while (executingThread != null && executingThread.isAlive()) {
+				LOG.warn("Task " + owner.getTaskNameWithSubtasks() + " did not react to cancelling signal. Sending repeated interrupt.");
+	
+				if (LOG.isDebugEnabled()) {
+					StringBuilder bld = new StringBuilder("Task ").append(owner.getTaskNameWithSubtasks()).append(" is stuck in method:\n");
+					
+					StackTraceElement[] stack = executingThread.getStackTrace();
+					for (StackTraceElement e : stack) {
+						bld.append(e).append('\n');
+					}
+					LOG.debug(bld.toString());
+				}
+				
+				executingThread.interrupt();
+				
+				try {
+					executingThread.join(1000);
+				} catch (InterruptedException e) {}
+			}
 		}
 	}
 

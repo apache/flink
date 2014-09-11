@@ -58,7 +58,9 @@ public class ExecutorThreadFactory implements ThreadFactory {
 
 		@Override
 		public void uncaughtException(Thread t, Throwable e) {
-			LOG.error("Thread '" + t.getName() + "' produced an uncaught exception.", e);
+			if (LOG.isErrorEnabled()) {
+				LOG.error("Thread '" + t.getName() + "' produced an uncaught exception.", e);
+			}
 		}
 	}
 }

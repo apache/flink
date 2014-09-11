@@ -34,6 +34,8 @@ public class IntermediateResult {
 	
 	private int numConsumers;
 	
+	private final int connectionIndex;
+	
 	
 	public IntermediateResult(IntermediateDataSetID id, ExecutionJobVertex producer, int numParallelProducers) {
 		this.id = id;
@@ -43,6 +45,9 @@ public class IntermediateResult {
 		
 		// we do not set the intermediate result partitions here, because we let them be initialized by
 		// the execution vertex that produces them
+		
+		// assign a random connection index
+		this.connectionIndex = (int) (Math.random() * Integer.MAX_VALUE);
 	}
 	
 	public void setPartition(int partitionNumber, IntermediateResultPartition partition) {
@@ -86,5 +91,9 @@ public class IntermediateResult {
 			}
 		}
 		return index;
+	}
+	
+	public int getConnectionIndex() {
+		return connectionIndex;
 	}
 }

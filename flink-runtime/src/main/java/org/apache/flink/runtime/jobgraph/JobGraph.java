@@ -71,6 +71,8 @@ public class JobGraph implements IOReadableWritable {
 	/** Name of this job. */
 	private String jobName;
 	
+	private boolean allowQueuedScheduling;
+	
 	// --------------------------------------------------------------------------------------------
 	
 	/**
@@ -161,6 +163,14 @@ public class JobGraph implements IOReadableWritable {
 	 */
 	public Configuration getJobConfiguration() {
 		return this.jobConfiguration;
+	}
+	
+	public void setAllowQueuedScheduling(boolean allowQueuedScheduling) {
+		this.allowQueuedScheduling = allowQueuedScheduling;
+	}
+	
+	public boolean getAllowQueuedScheduling() {
+		return allowQueuedScheduling;
 	}
 
 	/**
@@ -304,6 +314,7 @@ public class JobGraph implements IOReadableWritable {
 		this.jobID.read(in);
 		this.jobName = StringValue.readString(in);
 		this.jobConfiguration.read(in);
+		this.allowQueuedScheduling = in.readBoolean();
 		
 		final int numVertices = in.readInt();
 		
@@ -332,6 +343,7 @@ public class JobGraph implements IOReadableWritable {
 		this.jobID.write(out);
 		StringValue.writeString(this.jobName, out);
 		this.jobConfiguration.write(out);
+		out.writeBoolean(allowQueuedScheduling);
 		
 		// write the task vertices using java serialization (to resolve references in the object graph)
 		out.writeInt(taskVertices.size());

@@ -39,6 +39,7 @@ public class IntermediateResultPartition {
 		this.consumers = new ArrayList<List<ExecutionEdge>>(0);
 	}
 	
+	
 	public ExecutionVertex getProducer() {
 		return producer;
 	}

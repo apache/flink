@@ -185,11 +185,15 @@ public final class Task {
 		while (true) {
 			ExecutionState current = this.executionState;
 			
-			if (current == ExecutionState.CANCELED || current == ExecutionState.CANCELING) {
+			// if canceled, fine. we are done, and the jobmanager has been told
+			if (current == ExecutionState.CANCELED) {
 				return;
 			}
 			
-			if (STATE_UPDATER.compareAndSet(this, current, ExecutionState.FAILED)) {
+			// if canceling, we are done, but we cannot be sure that the jobmanager has been told.
+			// after all, we may have recognized our failure state before the cancelling and never sent a canceled
+			// message back
+			else if (STATE_UPDATER.compareAndSet(this, current, ExecutionState.FAILED)) {
 				notifyObservers(ExecutionState.FAILED, ExceptionUtils.stringifyException(error));
 				taskManager.notifyExecutionStateChange(jobId, executionId, ExecutionState.FAILED, error);
 				return;
@@ -201,16 +205,18 @@ public final class Task {
 		while (true) {
 			ExecutionState current = this.executionState;
 			
-			// if the task is already canceled (or canceling) or finished, then we
-			// need not do anything
+			// if the task is already canceled (or canceling) or finished or failed,
+			// then we need not do anything
 			if (current == ExecutionState.FINISHED || current == ExecutionState.CANCELED ||
-					current == ExecutionState.CANCELING) {
+					current == ExecutionState.CANCELING || current == ExecutionState.FAILED)
+			{
 				return;
 			}
 			
 			if (current == ExecutionState.DEPLOYING) {
 				// directly set to canceled
 				if (STATE_UPDATER.compareAndSet(this, current, ExecutionState.CANCELED)) {
+					
 					notifyObservers(ExecutionState.CANCELED, null);
 					taskManager.notifyExecutionStateChange(jobId, executionId, ExecutionState.CANCELED, null);
 					return;
@@ -219,6 +225,7 @@ public final class Task {
 			else if (current == ExecutionState.RUNNING) {
 				// go to canceling and perform the actual task canceling
 				if (STATE_UPDATER.compareAndSet(this, current, ExecutionState.CANCELING)) {
+					
 					notifyObservers(ExecutionState.CANCELING, null);
 					try {
 						this.environment.cancelExecution();
@@ -236,9 +243,21 @@ public final class Task {
 	}
 	
 	public void cancelingDone() {
-		if (STATE_UPDATER.compareAndSet(this, ExecutionState.CANCELING, ExecutionState.CANCELED)) {
-			notifyObservers(ExecutionState.CANCELED, null);
-			taskManager.notifyExecutionStateChange(jobId, executionId, ExecutionState.CANCELED, null);
+		while (true) {
+			ExecutionState current = this.executionState;
+			
+			if (current == ExecutionState.CANCELED) {
+				return;
+			}
+			if (!(current == ExecutionState.RUNNING || current == ExecutionState.CANCELING)) {
+				LOG.error(String.format("Unexpected state transition in Task: %s -> %s", current, ExecutionState.CANCELED));
+			}
+			
+			if (STATE_UPDATER.compareAndSet(this, current, ExecutionState.CANCELED)) {
+				notifyObservers(ExecutionState.CANCELED, null);
+				taskManager.notifyExecutionStateChange(jobId, executionId, ExecutionState.CANCELED, null);
+				return;
+			}
 		}
 	}
 

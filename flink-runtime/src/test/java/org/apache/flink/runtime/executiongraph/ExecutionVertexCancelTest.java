@@ -34,7 +34,7 @@ import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobmanager.scheduler.DefaultScheduler;
+import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.protocols.TaskOperationProtocol;
 import org.apache.flink.runtime.taskmanager.TaskOperationResult;
 
@@ -417,6 +417,45 @@ public class ExecutionVertexCancelTest {
 		}
 	}
 	
+	@Test
+	public void testSendCancelAndReceiveFail() {
+		
+		try {
+			final JobVertexID jid = new JobVertexID();
+			final ExecutionJobVertex ejv = getJobVertexNotExecuting(jid);
+			
+			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
+			final ExecutionAttemptID execId = vertex.getCurrentExecutionAttempt().getAttemptId();
+
+			final TaskOperationProtocol taskManager = mock(TaskOperationProtocol.class);
+			when(taskManager.cancelTask(execId)).thenThrow(new IOException("RPC call failed"));
+			
+			Instance instance = getInstance(taskManager);
+			AllocatedSlot slot = instance.allocateSlot(new JobID());
+
+			setVertexState(vertex, ExecutionState.RUNNING);
+			setVertexResource(vertex, slot);
+			
+			assertEquals(ExecutionState.RUNNING, vertex.getExecutionState());
+			
+			vertex.cancel();
+			
+			assertEquals(ExecutionState.CANCELING, vertex.getExecutionState());
+			
+			vertex.getCurrentExecutionAttempt().markFailed(new Throwable("test"));
+			
+			assertTrue(vertex.getExecutionState() == ExecutionState.CANCELED || vertex.getExecutionState() == ExecutionState.FAILED);
+			
+			assertTrue(slot.isReleased());
+			
+			assertEquals(0, vertex.getExecutionGraph().getRegisteredExecutions().size());
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	//  Actions after a vertex has been canceled or while canceling
 	// --------------------------------------------------------------------------------------------
@@ -436,7 +475,7 @@ public class ExecutionVertexCancelTest {
 			// scheduling after being created should be tolerated (no exception) because
 			// it can occur as the result of races
 			{
-				DefaultScheduler scheduler = mock(DefaultScheduler.class);
+				Scheduler scheduler = mock(Scheduler.class);
 				vertex.scheduleForExecution(scheduler, false);
 				
 				assertEquals(ExecutionState.CANCELED, vertex.getExecutionState());
@@ -475,7 +514,7 @@ public class ExecutionVertexCancelTest {
 				ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
 				setVertexState(vertex, ExecutionState.CANCELING);
 				
-				DefaultScheduler scheduler = mock(DefaultScheduler.class);
+				Scheduler scheduler = mock(Scheduler.class);
 				vertex.scheduleForExecution(scheduler, false);
 				fail("Method should throw an exception");
 			}

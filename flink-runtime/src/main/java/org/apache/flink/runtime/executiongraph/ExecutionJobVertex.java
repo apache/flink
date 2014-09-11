@@ -32,7 +32,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobmanager.scheduler.DefaultScheduler;
+import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 
@@ -225,7 +225,7 @@ public class ExecutionJobVertex {
 	//  Actions
 	//---------------------------------------------------------------------------------------------
 	
-	public void scheduleAll(DefaultScheduler scheduler, boolean queued) throws NoResourceAvailableException {
+	public void scheduleAll(Scheduler scheduler, boolean queued) throws NoResourceAvailableException {
 		for (ExecutionVertex ev : getTaskVertices()) {
 			ev.scheduleForExecution(scheduler, queued);
 		}

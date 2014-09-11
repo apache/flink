@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -37,15 +38,17 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.execution.ExecutionListener;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.io.network.ConnectionInfoLookupResponse;
+import org.apache.flink.runtime.io.network.RemoteReceiver;
 import org.apache.flink.runtime.io.network.channels.ChannelID;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobmanager.scheduler.DefaultScheduler;
+import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.util.ExceptionUtils;
 
@@ -105,7 +108,9 @@ public class ExecutionGraph {
 	private volatile JobStatus state = JobStatus.CREATED;
 	
 	
-	private boolean allowQueuedScheduling = false;
+	private Scheduler scheduler;
+	
+	private boolean allowQueuedScheduling = true;
 	
 	
 	public ExecutionGraph(JobID jobId, String jobName, Configuration jobConfig) {
@@ -265,12 +270,17 @@ public class ExecutionGraph {
 	//  Actions
 	// --------------------------------------------------------------------------------------------
 	
-	public void scheduleForExecution(DefaultScheduler scheduler) throws JobException {
+	public void scheduleForExecution(Scheduler scheduler) throws JobException {
 		if (scheduler == null) {
 			throw new IllegalArgumentException("Scheduler must not be null.");
 		}
 		
+		if (this.scheduler != null && this.scheduler != scheduler) {
+			throw new IllegalArgumentException("Cann not use different schedulers for the same job");
+		}
+		
 		if (transitionState(JobStatus.CREATED, JobStatus.RUNNING)) {
+			this.scheduler = scheduler;
 			
 			// initially, we simply take the ones without inputs.
 			// next, we implement the logic to go back from vertices that need computation
@@ -289,32 +299,35 @@ public class ExecutionGraph {
 	public void cancel() {
 		while (true) {
 			JobStatus current = state;
+			
 			if (current == JobStatus.RUNNING || current == JobStatus.CREATED) {
 				if (transitionState(current, JobStatus.CANCELLING)) {
 					for (ExecutionJobVertex ejv : verticesInCreationOrder) {
 						ejv.cancel();
 					}
+					return;
 				}
 			}
-			
-			// no need to treat other states
+			else {
+				// no need to treat other states
+				return;
+			}
 		}
 	}
 	
 	public void fail(Throwable t) {
-		if (LOG.isErrorEnabled()) {
-			LOG.error(String.format("Failing ExecutionGraph %s (%s): ", getJobID(), getJobName()), t);
-		}
-		
 		while (true) {
 			JobStatus current = state;
-			if (current != JobStatus.FAILED) {
-				if (transitionState(current, JobStatus.FAILED, t)) {
-					// cancel all. what is failed will not cancel but stay failed
-					for (ExecutionJobVertex ejv : verticesInCreationOrder) {
-						ejv.cancel();
-					}
+			if (current == JobStatus.FAILED || current == JobStatus.FAILING) {
+				return;
+			}
+			else if (transitionState(current, JobStatus.FAILING, t)) {
+				// cancel all. what is failed will not cancel but stay failed
+				for (ExecutionJobVertex ejv : verticesInCreationOrder) {
+					ejv.cancel();
 				}
+				
+				return;
 			}
 			
 			// no need to treat other states
@@ -362,6 +375,7 @@ public class ExecutionGraph {
 				nextVertexToFinish = nextPos;
 				
 				if (nextPos == verticesInCreationOrder.size()) {
+					
 					// we are done, transition to the final state
 					
 					while (true) {
@@ -372,7 +386,7 @@ public class ExecutionGraph {
 						if (current == JobStatus.CANCELLING && transitionState(current, JobStatus.CANCELED)) {
 							break;
 						}
-						if (current == JobStatus.FAILED) {
+						if (current == JobStatus.FAILING && transitionState(current, JobStatus.FAILED)) {
 							break;
 						}
 						if (current == JobStatus.CANCELED || current == JobStatus.CREATED || current == JobStatus.FINISHED) {
@@ -417,99 +431,118 @@ public class ExecutionGraph {
 	}
 	
 	public ConnectionInfoLookupResponse lookupConnectionInfoAndDeployReceivers(InstanceConnectionInfo caller, ChannelID sourceChannelID) {
-		//TODO
-		return null;
 		
-//		final InternalJobStatus jobStatus = eg.getJobStatus();
-//		if (jobStatus == InternalJobStatus.FAILING || jobStatus == InternalJobStatus.CANCELING) {
-//			return ConnectionInfoLookupResponse.createJobIsAborting();
-//		}
-//
-//		final ExecutionEdge edge = eg.getEdgeByID(sourceChannelID);
-//		if (edge == null) {
-//			LOG.error("Cannot find execution edge associated with ID " + sourceChannelID);
-//			return ConnectionInfoLookupResponse.createReceiverNotFound();
-//		}
-//
-//		if (sourceChannelID.equals(edge.getInputChannelID())) {
-//			// Request was sent from an input channel
-//
-//			final ExecutionVertex connectedVertex = edge.getOutputGate().getVertex();
-//
-//			final Instance assignedInstance = connectedVertex.getAllocatedResource().getInstance();
-//			if (assignedInstance == null) {
-//				LOG.error("Cannot resolve lookup: vertex found for channel ID " + edge.getOutputGateIndex()
-//					+ " but no instance assigned");
-//				// LOG.info("Created receiverNotReady for " + connectedVertex + " 1");
-//				return ConnectionInfoLookupResponse.createReceiverNotReady();
-//			}
-//
-//			// Check execution state
-//			final ExecutionState executionState = connectedVertex.getExecutionState();
-//			if (executionState == ExecutionState.FINISHED) {
-//				// that should not happen. if there is data pending, the receiver cannot be ready
-//				return ConnectionInfoLookupResponse.createReceiverNotFound();
-//			}
-//
-//			// running is common, finishing is happens when the lookup is for the close event
-//			if (executionState != ExecutionState.RUNNING && executionState != ExecutionState.FINISHING) {
-//				// LOG.info("Created receiverNotReady for " + connectedVertex + " in state " + executionState + " 2");
-//				return ConnectionInfoLookupResponse.createReceiverNotReady();
-//			}
-//
-//			if (assignedInstance.getInstanceConnectionInfo().equals(caller)) {
-//				// Receiver runs on the same task manager
-//				return ConnectionInfoLookupResponse.createReceiverFoundAndReady(edge.getOutputChannelID());
-//			} else {
-//				// Receiver runs on a different task manager
-//
-//				final InstanceConnectionInfo ici = assignedInstance.getInstanceConnectionInfo();
-//				final InetSocketAddress isa = new InetSocketAddress(ici.address(), ici.dataPort());
-//
-//				return ConnectionInfoLookupResponse.createReceiverFoundAndReady(new RemoteReceiver(isa, edge.getConnectionID()));
-//			}
-//		}
-//		// else, the request is for an output channel
-//		// Find vertex of connected input channel
-//		final ExecutionVertex targetVertex = edge.getInputGate().getVertex();
-//
-//		// Check execution state
-//		final ExecutionState executionState = targetVertex.getExecutionState();
-//
-//		// check whether the task needs to be deployed
-//		if (executionState != ExecutionState.RUNNING && executionState != ExecutionState.FINISHING && executionState != ExecutionState.FINISHED) {
-//
-//			if (executionState == ExecutionState.ASSIGNED) {
-//				final Runnable command = new Runnable() {
-//					@Override
-//					public void run() {
-//						scheduler.deployAssignedVertices(targetVertex);
-//					}
-//				};
-//				eg.executeCommand(command);
-//			}
-//
-//			// LOG.info("Created receiverNotReady for " + targetVertex + " in state " + executionState + " 3");
-//			return ConnectionInfoLookupResponse.createReceiverNotReady();
-//		}
-//
-//		final Instance assignedInstance = targetVertex.getAllocatedResource().getInstance();
-//		if (assignedInstance == null) {
-//			LOG.error("Cannot resolve lookup: vertex found for channel ID " + edge.getInputChannelID() + " but no instance assigned");
-//			// LOG.info("Created receiverNotReady for " + targetVertex + " in state " + executionState + " 4");
-//			return ConnectionInfoLookupResponse.createReceiverNotReady();
-//		}
-//
-//		if (assignedInstance.getInstanceConnectionInfo().equals(caller)) {
-//			// Receiver runs on the same task manager
-//			return ConnectionInfoLookupResponse.createReceiverFoundAndReady(edge.getInputChannelID());
-//		} else {
-//			// Receiver runs on a different task manager
-//			final InstanceConnectionInfo ici = assignedInstance.getInstanceConnectionInfo();
-//			final InetSocketAddress isa = new InetSocketAddress(ici.address(), ici.dataPort());
-//
-//			return ConnectionInfoLookupResponse.createReceiverFoundAndReady(new RemoteReceiver(isa, edge.getConnectionID()));
-//		}
+		final ExecutionEdge edge = edges.get(sourceChannelID);
+		if (edge == null) {
+			// that is bad, we need to fail the job
+			LOG.error("Cannot find execution edge associated with ID " + sourceChannelID);
+			fail(new Exception("Channels are not correctly registered"));
+			return ConnectionInfoLookupResponse.createReceiverNotFound();
+		}
+		
+		
+		//  ----- Request was sent from an input channel (receiver side), requesting the output channel (sender side) ------
+		//  -----                               This is the case for backwards events                                 ------
+
+		if (sourceChannelID.equals(edge.getInputChannelId())) {
+			final ExecutionVertex targetVertex = edge.getSource().getProducer();
+			final ExecutionState executionState = targetVertex.getExecutionState();
+			
+			// common case - found task running
+			if (executionState == ExecutionState.RUNNING) {
+				Instance location = targetVertex.getCurrentAssignedResource().getInstance();
+				
+				if (location.getInstanceConnectionInfo().equals(caller)) {
+					// Receiver runs on the same task manager
+					return ConnectionInfoLookupResponse.createReceiverFoundAndReady(edge.getOutputChannelId());
+				}
+				else {
+					// Receiver runs on a different task manager
+					final InstanceConnectionInfo ici = location.getInstanceConnectionInfo();
+					final InetSocketAddress isa = new InetSocketAddress(ici.address(), ici.dataPort());
+
+					int connectionIdx = edge.getSource().getIntermediateResult().getConnectionIndex();
+					return ConnectionInfoLookupResponse.createReceiverFoundAndReady(new RemoteReceiver(isa, connectionIdx));
+				}
+			}
+			else if (executionState == ExecutionState.FINISHED) {
+				// that should not happen. if there is data pending, the sender cannot yet be done
+				// we need to fail the whole affair
+				LOG.error("Receiver " + targetVertex + " set to FINISHED even though data is pending");
+				fail(new Exception("Channels are not correctly registered"));
+				return ConnectionInfoLookupResponse.createReceiverNotFound();
+			}
+			else if (executionState == ExecutionState.FAILED || executionState == ExecutionState.CANCELED ||
+					executionState == ExecutionState.CANCELING)
+			{
+				return ConnectionInfoLookupResponse.createJobIsAborting();
+			}
+			else {
+				// all other states should not be, because the sender cannot be in CREATED, SCHEDULED, or DEPLOYING
+				// state when the receiver is already running
+				LOG.error("Channel lookup (backwards) - sender " + targetVertex + " found in inconsistent state " + executionState);
+				fail(new Exception("Channels are not correctly registered"));
+				return ConnectionInfoLookupResponse.createReceiverNotFound();
+			}
+		}
+		
+		//  ----- Request was sent from an output channel (sender side), requesting the input channel (receiver side) ------
+		//  -----                                 This is the case for forward data                                   ------
+		
+		final ExecutionVertex targetVertex = edge.getTarget();
+		final ExecutionState executionState = targetVertex.getExecutionState();
+
+		if (executionState == ExecutionState.RUNNING) {
+			
+			// already online
+			Instance location = targetVertex.getCurrentAssignedResource().getInstance();
+			
+			if (location.getInstanceConnectionInfo().equals(caller)) {
+				// Receiver runs on the same task manager
+				return ConnectionInfoLookupResponse.createReceiverFoundAndReady(edge.getInputChannelId());
+			}
+			else {
+				// Receiver runs on a different task manager
+				final InstanceConnectionInfo ici = location.getInstanceConnectionInfo();
+				final InetSocketAddress isa = new InetSocketAddress(ici.address(), ici.dataPort());
+
+				final int connectionIdx = edge.getSource().getIntermediateResult().getConnectionIndex();
+				return ConnectionInfoLookupResponse.createReceiverFoundAndReady(new RemoteReceiver(isa, connectionIdx));
+			}
+		}
+		else if (executionState == ExecutionState.DEPLOYING || executionState == ExecutionState.SCHEDULED) {
+			return ConnectionInfoLookupResponse.createReceiverNotReady();
+		}
+		else if (executionState == ExecutionState.CREATED) {
+			// bring the receiver online
+			try {
+				edge.getTarget().scheduleForExecution(scheduler, false);
+				
+				// delay the requester
+				return ConnectionInfoLookupResponse.createReceiverNotReady();
+			}
+			catch (JobException e) {
+				fail(new Exception("Cannot schedule the receivers, not enough resources."));
+				return ConnectionInfoLookupResponse.createJobIsAborting();
+			}
+		}
+		else if (executionState == ExecutionState.CANCELED || executionState == ExecutionState.CANCELING ||
+				executionState == ExecutionState.FAILED)
+		{
+			return ConnectionInfoLookupResponse.createJobIsAborting();
+		}
+		else {
+			// illegal state for all other states - or all the other state, since the only remaining state is FINISHED
+			// state when the receiver is already running
+			String message = "Channel lookup (forward) - receiver " + targetVertex + " found in inconsistent state " + executionState;
+			LOG.error(message);
+			fail(new Exception(message));
+			return ConnectionInfoLookupResponse.createReceiverNotFound();
+		}
+	}
+	
+	public Map<ExecutionAttemptID, Execution> getRegisteredExecutions() {
+		return Collections.unmodifiableMap(currentExecutions);
 	}
 	
 	void registerExecution(Execution exec) {
@@ -521,18 +554,15 @@ public class ExecutionGraph {
 	
 	void deregisterExecution(Execution exec) {
 		Execution contained = currentExecutions.remove(exec.getAttemptId());
+		
 		if (contained != null && contained != exec) {
 			fail(new Exception("De-registering execution " + exec + " failed. Found for same ID execution " + contained));
 		}
 	}
 	
-	Map<ExecutionAttemptID, Execution> getRegisteredExecutions() {
-		return Collections.unmodifiableMap(currentExecutions);
-	}
-	
 	void registerExecutionEdge(ExecutionEdge edge) {
-		ChannelID source = edge.getInputChannelId();
 		ChannelID target = edge.getInputChannelId();
+		ChannelID source = edge.getOutputChannelId();
 		edges.put(source, edge);
 		edges.put(target, edge);
 	}
@@ -581,6 +611,7 @@ public class ExecutionGraph {
 	 */
 	void notifyExecutionChange(JobVertexID vertexId, int subtask, ExecutionAttemptID executionId, ExecutionState newExecutionState, Throwable error) {
 		
+		// we must be very careful here with exceptions 
 		if (this.executionListeners.size() > 0) {
 			
 			String message = error == null ? null : ExceptionUtils.stringifyException(error);
@@ -592,11 +623,11 @@ public class ExecutionGraph {
 					LOG.error("Notification of execution state change caused an error.", t);
 				}
 			}
-			
-			// see what this means for us. currently, the first FAILED state means -> FAILED
-			if (newExecutionState == ExecutionState.FAILED) {
-				fail(error);
-			}
+		}
+		
+		// see what this means for us. currently, the first FAILED state means -> FAILED
+		if (newExecutionState == ExecutionState.FAILED) {
+			fail(error);
 		}
 	}
 	

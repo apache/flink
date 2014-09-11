@@ -24,20 +24,35 @@ package org.apache.flink.runtime.jobgraph;
 public enum JobStatus {
 
 	/** Job is newly created, no task has started to run. */
-	CREATED,
+	CREATED(false),
 
 	/** Some tasks are scheduled or running, some may be pending, some may be finished. */
-	RUNNING,
+	RUNNING(false),
 
+	/** The job has failed and is currently waiting for the cleanup to complete */
+	FAILING(false),
+	
 	/** The job has failed to to non-recoverable task failure */
-	FAILED,
+	FAILED(true),
 
 	/** Job is being cancelled */
-	CANCELLING,
+	CANCELLING(false),
 	
 	/** Job has been cancelled */
-	CANCELED,
+	CANCELED(true),
 
 	/** All of the job's tasks have successfully finished. */
-	FINISHED
+	FINISHED(true);
+	
+	// --------------------------------------------------------------------------------------------
+	
+	private final boolean terminalState;
+	
+	private JobStatus(boolean terminalState) {
+		this.terminalState = terminalState;
+	}
+	
+	public boolean isTerminalState() {
+		return terminalState;
+	}
 };

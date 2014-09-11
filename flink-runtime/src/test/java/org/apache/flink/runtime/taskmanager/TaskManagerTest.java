@@ -114,11 +114,6 @@ public class TaskManagerTest {
 					Collections.<GateDeploymentDescriptor>emptyList(),
 					new String[0], 0);
 			
-			LibraryCacheManager.register(jid1, new String[0]);
-			LibraryCacheManager.register(jid2, new String[0]);
-			assertNotNull(LibraryCacheManager.getClassLoader(jid1));
-			assertNotNull(LibraryCacheManager.getClassLoader(jid2));
-			
 			TaskOperationResult result1 = tm.submitTask(tdd1);
 			TaskOperationResult result2 = tm.submitTask(tdd2);
 			
@@ -196,10 +191,6 @@ public class TaskManagerTest {
 					Collections.<GateDeploymentDescriptor>emptyList(),
 					new String[0], 0);
 			
-			LibraryCacheManager.register(jid, new String[0]);
-			LibraryCacheManager.register(jid, new String[0]);
-			assertNotNull(LibraryCacheManager.getClassLoader(jid));
-			
 			assertFalse(tm.submitTask(tdd1).isSuccess());
 			assertFalse(tm.submitTask(tdd2).isSuccess());
 			
@@ -249,11 +240,6 @@ public class TaskManagerTest {
 					Collections.<GateDeploymentDescriptor>emptyList(),
 					Collections.singletonList(new GateDeploymentDescriptor(Collections.singletonList(cdd))),
 					new String[0], 0);
-			
-			// register the job twice (for two tasks) at the lib cache
-			LibraryCacheManager.register(jid, new String[0]);
-			LibraryCacheManager.register(jid, new String[0]);
-			assertNotNull(LibraryCacheManager.getClassLoader(jid));
 			
 			// deploy sender before receiver, so the target is online when the sender requests the connection info
 			TaskOperationResult result2 = tm.submitTask(tdd2);

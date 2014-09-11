@@ -228,6 +228,10 @@ public final class TaskDeploymentDescriptor implements IOReadableWritable {
 		return inputGates;
 	}
 	
+	public String[] getRequiredJarFiles() {
+		return requiredJarFiles;
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	//  Serialization
 	// --------------------------------------------------------------------------------------------

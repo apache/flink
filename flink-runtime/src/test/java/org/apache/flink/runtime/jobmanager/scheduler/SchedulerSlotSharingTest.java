@@ -42,7 +42,7 @@ public class SchedulerSlotSharingTest {
 			
 			SlotSharingGroup sharingGroup = new SlotSharingGroup(jid1);
 			
-			DefaultScheduler scheduler = new DefaultScheduler();
+			Scheduler scheduler = new Scheduler();
 			Instance i1 = getRandomInstance(2);
 			Instance i2 = getRandomInstance(2);
 			scheduler.newInstanceAvailable(i1);
@@ -124,7 +124,7 @@ public class SchedulerSlotSharingTest {
 			
 			SlotSharingGroup sharingGroup = new SlotSharingGroup(jid1, jid2);
 			
-			DefaultScheduler scheduler = new DefaultScheduler();
+			Scheduler scheduler = new Scheduler();
 			scheduler.newInstanceAvailable(getRandomInstance(2));
 			scheduler.newInstanceAvailable(getRandomInstance(2));
 			
@@ -240,7 +240,7 @@ public class SchedulerSlotSharingTest {
 			
 			SlotSharingGroup sharingGroup = new SlotSharingGroup(jid1, jid2, jid3);
 			
-			DefaultScheduler scheduler = new DefaultScheduler();
+			Scheduler scheduler = new Scheduler();
 			scheduler.newInstanceAvailable(getRandomInstance(2));
 			scheduler.newInstanceAvailable(getRandomInstance(2));
 			
@@ -346,7 +346,7 @@ public class SchedulerSlotSharingTest {
 			
 			SlotSharingGroup sharingGroup = new SlotSharingGroup(jid1, jid2);
 			
-			DefaultScheduler scheduler = new DefaultScheduler();
+			Scheduler scheduler = new Scheduler();
 			scheduler.newInstanceAvailable(getRandomInstance(2));
 			
 			// schedule 1 tasks from the first vertex group and 2 from the second
@@ -393,7 +393,7 @@ public class SchedulerSlotSharingTest {
 			
 			SlotSharingGroup sharingGroup = new SlotSharingGroup(jid1, jid2);
 			
-			DefaultScheduler scheduler = new DefaultScheduler();
+			Scheduler scheduler = new Scheduler();
 			scheduler.newInstanceAvailable(getRandomInstance(3));
 			scheduler.newInstanceAvailable(getRandomInstance(2));
 			
@@ -535,7 +535,7 @@ public class SchedulerSlotSharingTest {
 			Instance i1 = getRandomInstance(2);
 			Instance i2 = getRandomInstance(2);
 			
-			DefaultScheduler scheduler = new DefaultScheduler();
+			Scheduler scheduler = new Scheduler();
 			scheduler.newInstanceAvailable(i1);
 			scheduler.newInstanceAvailable(i2);
 			
@@ -583,7 +583,7 @@ public class SchedulerSlotSharingTest {
 			Instance i1 = getRandomInstance(2);
 			Instance i2 = getRandomInstance(2);
 			
-			DefaultScheduler scheduler = new DefaultScheduler();
+			Scheduler scheduler = new Scheduler();
 			scheduler.newInstanceAvailable(i1);
 			scheduler.newInstanceAvailable(i2);
 			

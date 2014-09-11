@@ -366,7 +366,7 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 			}
 			else if (lookupResponse.receiverNotReady()) {
 				try {
-					Thread.sleep(500);
+					Thread.sleep(100);
 				} catch (InterruptedException e) {
 					if (reportException) {
 						throw new IOException("Lookup was interrupted.");

@@ -40,14 +40,14 @@ import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.instance.Instance;
 
 /**
- * Tests for the {@link DefaultScheduler} when scheduling individual tasks.
+ * Tests for the {@link Scheduler} when scheduling individual tasks.
  */
 public class SchedulerIsolatedTasksTest {
 	
 	@Test
 	public void testAddAndRemoveInstance() {
 		try {
-			DefaultScheduler scheduler = new DefaultScheduler();
+			Scheduler scheduler = new Scheduler();
 			
 			Instance i1 = getRandomInstance(2);
 			Instance i2 = getRandomInstance(2);
@@ -111,7 +111,7 @@ public class SchedulerIsolatedTasksTest {
 	@Test
 	public void testScheduleImmediately() {
 		try {
-			DefaultScheduler scheduler = new DefaultScheduler();
+			Scheduler scheduler = new Scheduler();
 			assertEquals(0, scheduler.getNumberOfAvailableSlots());
 			
 			scheduler.newInstanceAvailable(getRandomInstance(2));
@@ -181,7 +181,7 @@ public class SchedulerIsolatedTasksTest {
 		final int NUM_TASKS_TO_SCHEDULE = 2000;
 		
 		try {
-			DefaultScheduler scheduler = new DefaultScheduler();
+			Scheduler scheduler = new Scheduler();
 			
 			for (int i = 0;i < NUM_INSTANCES; i++) {
 				scheduler.newInstanceAvailable(getRandomInstance((int) (Math.random() * NUM_SLOTS_PER_INSTANCE) + 1));
@@ -270,7 +270,7 @@ public class SchedulerIsolatedTasksTest {
 	@Test
 	public void testScheduleWithDyingInstances() {
 		try {
-			DefaultScheduler scheduler = new DefaultScheduler();
+			Scheduler scheduler = new Scheduler();
 			
 			Instance i1 = getRandomInstance(2);
 			Instance i2 = getRandomInstance(2);
@@ -330,7 +330,7 @@ public class SchedulerIsolatedTasksTest {
 	@Test
 	public void testSchedulingLocation() {
 		try {
-			DefaultScheduler scheduler = new DefaultScheduler();
+			Scheduler scheduler = new Scheduler();
 			
 			Instance i1 = getRandomInstance(2);
 			Instance i2 = getRandomInstance(2);

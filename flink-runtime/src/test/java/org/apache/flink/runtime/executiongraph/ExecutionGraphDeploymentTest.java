@@ -42,7 +42,7 @@ import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobmanager.scheduler.DefaultScheduler;
+import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.operators.RegularPactTask;
 import org.apache.flink.runtime.protocols.TaskOperationProtocol;
 import org.apache.flink.runtime.taskmanager.TaskOperationResult;
@@ -257,7 +257,7 @@ public class ExecutionGraphDeploymentTest {
 			}
 		});
 		
-		DefaultScheduler scheduler = new DefaultScheduler();
+		Scheduler scheduler = new Scheduler();
 		for (int i = 0; i < dop1 + dop2; i++) {
 			scheduler.newInstanceAvailable(getInstance(taskManager));
 		}

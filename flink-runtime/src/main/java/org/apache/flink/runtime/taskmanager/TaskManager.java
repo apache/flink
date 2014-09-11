@@ -69,6 +69,7 @@ import org.apache.flink.runtime.execution.librarycache.LibraryCacheProfileRespon
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheUpdate;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.filecache.FileCache;
+import org.apache.flink.runtime.instance.Hardware;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.instance.InstanceID;
@@ -218,7 +219,10 @@ public class TaskManager implements TaskOperationProtocol {
 
 		// Start local RPC server, give it the number of threads as we have slots
 		try {
-			this.taskManagerServer = RPC.getServer(this, taskManagerBindAddress.getHostAddress(), ipcPort, numberOfSlots);
+			// some magic number for the handler threads
+			final int numHandlers = Math.min(numberOfSlots, 2*Hardware.getNumberCPUCores());
+			
+			this.taskManagerServer = RPC.getServer(this, taskManagerBindAddress.getHostAddress(), ipcPort, numHandlers);
 			this.taskManagerServer.start();
 		} catch (IOException e) {
 			LOG.error("Failed to start TaskManager server. " + e.getMessage(), e);
@@ -396,6 +400,8 @@ public class TaskManager implements TaskOperationProtocol {
 
 		LOG.info("Shutting down TaskManager");
 		
+		cancelAndClearEverything();
+		
 		// first, stop the heartbeat thread and wait for it to terminate
 		this.heartbeatThread.interrupt();
 		try {
@@ -540,7 +546,13 @@ public class TaskManager implements TaskOperationProtocol {
 		final int taskIndex = tdd.getIndexInSubtaskGroup();
 		final int numSubtasks = tdd.getCurrentNumberOfSubtasks();
 		
+		boolean jarsRegistered = false;
+		
 		try {
+			// library and classloader issues first
+			LibraryCacheManager.register(jobID, tdd.getRequiredJarFiles());
+			jarsRegistered = true;
+			
 			final ClassLoader userCodeClassLoader = LibraryCacheManager.getClassLoader(jobID);
 			if (userCodeClassLoader == null) {
 				throw new Exception("No user code ClassLoader available.");
@@ -578,11 +590,17 @@ public class TaskManager implements TaskOperationProtocol {
 					cpTasks.put(e.getKey(), cp);
 				}
 				env.addCopyTasksForCacheFile(cpTasks);
-			
+				
 				if (!task.startExecution()) {
 					throw new Exception("Cannot start task. Task was canceled or failed.");
 				}
 			
+				// final check that we can go (we do this after the registration, so the the "happen's before"
+				// relationship ensures that either the shutdown removes this task, or we are aware of the shutdown
+				if (shutdownStarted.get()) {
+					throw new Exception("Task Manager is shut down.");
+				}
+				
 				success = true;
 				return new TaskOperationResult(executionId, true);
 			}
@@ -590,6 +608,7 @@ public class TaskManager implements TaskOperationProtocol {
 				if (!success) {
 					// remove task 
 					this.runningTasks.remove(executionId);
+					
 					// delete distributed cache files
 					for (Entry<String, DistributedCacheEntry> e : DistributedCache.readFileInfoFromConfig(tdd.getJobConfiguration())) {
 						this.fileCache.deleteTmpFile(e.getKey(), e.getValue(), jobID);
@@ -600,11 +619,13 @@ public class TaskManager implements TaskOperationProtocol {
 		catch (Throwable t) {
 			LOG.error("Could not instantiate task", t);
 			
-			try {
-				LibraryCacheManager.unregister(jobID);
-			} catch (IOException e) {
-				if (LOG.isDebugEnabled()) {
-					LOG.debug("Unregistering the execution " + executionId + " caused an IOException");
+			if (jarsRegistered) {
+				try {
+					LibraryCacheManager.unregister(jobID);
+				} catch (IOException e) {
+					if (LOG.isDebugEnabled()) {
+						LOG.debug("Unregistering the execution " + executionId + " caused an IOException");
+					}
 				}
 			}
 			
@@ -623,7 +644,9 @@ public class TaskManager implements TaskOperationProtocol {
 		// Task de-registration must be atomic
 		final Task task = this.runningTasks.remove(executionId);
 		if (task == null) {
-			LOG.error("Cannot find task with ID " + executionId + " to unregister");
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Cannot find task with ID " + executionId + " to unregister");
+			}
 			return;
 		}
 
