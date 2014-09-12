@@ -40,7 +40,7 @@ import org.apache.flink.runtime.instance.{InstanceManager}
 import org.apache.flink.runtime.jobgraph.{JobStatus, JobID}
 import org.apache.flink.runtime.jobmanager.accumulators.AccumulatorManager
 import org.apache.flink.runtime.jobmanager.scheduler.{Scheduler => FlinkScheduler}
-import org.apache.flink.runtime.messages.EventCollectorMessages.{RequestJobEvents, RegisterJob, RegisterArchiveListener}
+import org.apache.flink.runtime.messages.EventCollectorMessages._
 import org.apache.flink.runtime.messages.JobManagerMessages._
 import org.apache.flink.runtime.messages.RegistrationMessages._
 import org.apache.flink.runtime.messages.TaskManagerMessages.{NextInputSplit, Heartbeat}
@@ -260,6 +260,14 @@ ActorLogMessages with ActorLogging with WrapAsScala {
 
     case RequestAccumulatorResult(jobID) => {
       sender() ! new AccumulatorEvent(jobID, accumulatorManager.getJobAccumulators(jobID))
+    }
+
+    case RequestRecentJobs => {
+      eventCollector.tell(RequestRecentJobs, sender())
+    }
+
+    case msg:RequestJobProgress => {
+      eventCollector forward msg
     }
 
     case Heartbeat(instanceID) => {

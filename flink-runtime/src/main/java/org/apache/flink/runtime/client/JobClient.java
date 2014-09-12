@@ -31,15 +31,17 @@ import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.accumulators.AccumulatorEvent;
+import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.event.job.AbstractEvent;
 import org.apache.flink.runtime.event.job.JobEvent;
-import org.apache.flink.runtime.ipc.RPC;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
-import org.apache.flink.runtime.net.NetUtils;
-import org.apache.flink.runtime.protocols.AccumulatorProtocol;
-import org.apache.flink.runtime.protocols.JobManagementProtocol;
-import org.apache.flink.runtime.types.IntegerRecord;
+import org.apache.flink.runtime.messages.EventCollectorMessages;
+import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.runtime.messages.JobResult;
+import org.apache.flink.runtime.messages.JobResult.JobCancelResult;
+import org.apache.flink.runtime.messages.JobResult.JobSubmissionResult;
+import org.apache.flink.runtime.messages.JobResult.JobProgressResult;
 import org.apache.flink.util.StringUtils;
 
 /**
@@ -50,14 +52,10 @@ public class JobClient {
 	/** The logging object used for debugging. */
 	private static final Logger LOG = LoggerFactory.getLogger(JobClient.class);
 
-	/** The job management server stub.*/
-	private final JobManagementProtocol jobSubmitClient;
-
+	private final ActorRef jobManager;
 	/**
 	private final JobManagementProtocol jobSubmitClient;
 
-	/** The accumulator protocol stub to request accumulators from JobManager */
-	private AccumulatorProtocol accumulatorProtocolProxy;
 
 	/** The job graph assigned with this job client. */
 	private final JobGraph jobGraph;
@@ -67,11 +65,6 @@ public class JobClient {
 	 */
 	private final Configuration configuration;
 
-	/**
-	 * The shutdown hook which is executed if the user interrupts the job the job execution.
-	 */
-	private final JobCleanUp jobCleanUp;
-	
 	private final ClassLoader userCodeClassLoader;
 
 	/**
@@ -80,35 +73,6 @@ public class JobClient {
 	private long lastProcessedEventSequenceNumber = -1;
 
 	private PrintStream console;
-
-	/**
-	 * Inner class used to perform clean up tasks when the
-	 * job client is terminated.
-	 */
-	public static class JobCleanUp extends Thread {
-
-		/**
-		 * Stores a reference to the {@link JobClient} object this clean up object has been created for.
-		 */
-		private final JobClient jobClient;
-
-		/**
-		 * Constructs a new clean up object which is used to perform clean up tasks
-		 * when the job client is terminated.
-		 * 
-		 * @param jobClient
-		 *        the job client this clean up object belongs to
-		 */
-		public JobCleanUp(final JobClient jobClient) {
-			this.jobClient = jobClient;
-		}
-
-		@Override
-		public void run() {
-			// Close the RPC object
-			this.jobClient.close();
-		}
-	}
 
 	/**
 	 * Constructs a new job client object and instantiates a local
@@ -141,28 +105,10 @@ public class JobClient {
 			ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
 
 		final InetSocketAddress inetaddr = new InetSocketAddress(address, port);
-		this.jobSubmitClient = RPC.getProxy(JobManagementProtocol.class, inetaddr,
-			NetUtils.getSocketFactory());
-		this.accumulatorProtocolProxy = RPC.getProxy(AccumulatorProtocol.class, inetaddr,
-			NetUtils.getSocketFactory());
+		this.jobManager = AkkaUtils.getReference(inetaddr);
 		this.jobGraph = jobGraph;
 		this.configuration = configuration;
-		this.jobCleanUp = new JobCleanUp(this);
 		this.userCodeClassLoader = userCodeClassLoader;
-	}
-
-	/**
-	 * Closes the <code>JobClient</code> by destroying the RPC stub object.
-	 */
-	public void close() {
-
-		synchronized (this.jobSubmitClient) {
-			RPC.stopProxy(this.jobSubmitClient);
-		}
-
-		synchronized (this.accumulatorProtocolProxy) {
-			RPC.stopProxy(this.accumulatorProtocolProxy);
-		}
 	}
 
 	/**
@@ -183,9 +129,6 @@ public class JobClient {
 	 *         thrown in case of submission errors while transmitting the data to the job manager
 	 */
 	public JobSubmissionResult submitJob() throws IOException {
-
-		synchronized (this.jobSubmitClient) {
-
 			// Get port of BLOB server
 			final int port = this.jobSubmitClient.getBlobServerPort();
 			if (port == -1) {
@@ -203,8 +146,12 @@ public class JobClient {
 					port);
 
 			this.jobGraph.uploadRequiredJarFiles(blobManagerAddress);
-
-			return this.jobSubmitClient.submitJob(this.jobGraph);
+			
+			try{
+				return AkkaUtils.ask(jobManager, new JobManagerMessages.SubmitJob(jobGraph));
+			}catch(IOException ioe) {
+				throw ioe;
+			}
 		}
 	}
 
@@ -216,9 +163,10 @@ public class JobClient {
 	 *         thrown if an error occurred while transmitting the request to the job manager
 	 */
 	public JobCancelResult cancelJob() throws IOException {
-
-		synchronized (this.jobSubmitClient) {
-			return this.jobSubmitClient.cancelJob(this.jobGraph.getJobID());
+		try{
+			return AkkaUtils.ask(jobManager, new JobManagerMessages.CancelJob(jobGraph.getJobID()));
+		}catch(IOException ioe){
+			throw ioe;
 		}
 	}
 
@@ -230,10 +178,7 @@ public class JobClient {
 	 *         thrown if an error occurred while transmitting the request
 	 */
 	public JobProgressResult getJobProgress() throws IOException {
-
-		synchronized (this.jobSubmitClient) {
-			return this.jobSubmitClient.getJobProgress(this.jobGraph.getJobID());
-		}
+			return AkkaUtils.ask(jobManager, new EventCollectorMessages.RequestJobProgress(jobGraph.getJobID()));
 	}
 
 	/**
@@ -248,32 +193,21 @@ public class JobClient {
 	 */
 	public JobExecutionResult submitJobAndWait() throws IOException, JobExecutionException {
 
-		synchronized (this.jobSubmitClient) {
 
-			final JobSubmissionResult submissionResult = submitJob();
-			if (submissionResult.getReturnCode() == AbstractJobResult.ReturnCode.ERROR) {
-				LOG.error("ERROR: " + submissionResult.getDescription());
-				throw new JobExecutionException(submissionResult.getDescription(), false);
-			}
-
-			// Make sure the job is properly terminated when the user shut's down the client
-			Runtime.getRuntime().addShutdownHook(this.jobCleanUp);
+		final JobSubmissionResult submissionResult = submitJob();
+		if (submissionResult.returnCode() == JobResult.ERROR()) {
+			LOG.error("ERROR: " + submissionResult.description());
+			throw new JobExecutionException(submissionResult.description(), false);
 		}
 
 		long sleep = 0;
-		try {
-			final IntegerRecord interval = this.jobSubmitClient.getRecommendedPollingInterval();
-			sleep = interval.getValue() * 1000;
-		} catch (IOException ioe) {
-			Runtime.getRuntime().removeShutdownHook(this.jobCleanUp);
-			// Rethrow error
-			throw ioe;
-		}
+		final int interval = AkkaUtils.<Integer>ask(jobManager, JobManagerMessages.RequestPollingInterval$
+				.MODULE$);
+		sleep = interval * 1000;
 
 		try {
 			Thread.sleep(sleep / 2);
 		} catch (InterruptedException e) {
-			Runtime.getRuntime().removeShutdownHook(this.jobCleanUp);
 			logErrorAndRethrow(StringUtils.stringifyException(e));
 		}
 
@@ -285,24 +219,18 @@ public class JobClient {
 				logErrorAndRethrow("Job client has been interrupted");
 			}
 
-			JobProgressResult jobProgressResult = null;
-			try {
-				jobProgressResult = getJobProgress();
-			} catch (IOException ioe) {
-				Runtime.getRuntime().removeShutdownHook(this.jobCleanUp);
-				// Rethrow error
-				throw ioe;
-			}
+			JobResult.JobProgressResult jobProgressResult = null;
+			jobProgressResult = getJobProgress();
 
 			if (jobProgressResult == null) {
 				logErrorAndRethrow("Returned job progress is unexpectedly null!");
 			}
 
-			if (jobProgressResult.getReturnCode() == AbstractJobResult.ReturnCode.ERROR) {
-				logErrorAndRethrow("Could not retrieve job progress: " + jobProgressResult.getDescription());
+			if (jobProgressResult.returnCode() == JobResult.ERROR()) {
+				logErrorAndRethrow("Could not retrieve job progress: " + jobProgressResult.description());
 			}
 
-			final Iterator<AbstractEvent> it = jobProgressResult.getEvents();
+			final Iterator<AbstractEvent> it = jobProgressResult.asJavaList().iterator();
 			while (it.hasNext()) {
 
 				final AbstractEvent event = it.next();
@@ -327,21 +255,14 @@ public class JobClient {
 						startTimestamp = jobEvent.getTimestamp();
 					}
 					if (jobStatus == JobStatus.FINISHED) {
-						Runtime.getRuntime().removeShutdownHook(this.jobCleanUp);
 						final long jobDuration = jobEvent.getTimestamp() - startTimestamp;
 
 						// Request accumulators
 						Map<String, Object> accumulators = null;
-						try {
-							accumulators = AccumulatorHelper.toResultMap(getAccumulators().getAccumulators(this.userCodeClassLoader));
-						} catch (IOException ioe) {
-							Runtime.getRuntime().removeShutdownHook(this.jobCleanUp);
-							throw ioe; // Rethrow error
-						}
+						accumulators = AccumulatorHelper.toResultMap(getAccumulators().getAccumulators(this.userCodeClassLoader));
 						return new JobExecutionResult(jobDuration, accumulators);
 
 					} else if (jobStatus == JobStatus.CANCELED || jobStatus == JobStatus.FAILED) {
-						Runtime.getRuntime().removeShutdownHook(this.jobCleanUp);
 						LOG.info(jobEvent.getOptionalMessage());
 						if (jobStatus == JobStatus.CANCELED) {
 							throw new JobExecutionException(jobEvent.getOptionalMessage(), true);
@@ -357,21 +278,6 @@ public class JobClient {
 			} catch (InterruptedException e) {
 				logErrorAndRethrow(StringUtils.stringifyException(e));
 			}
-		}
-	}
-
-	/**
-	 * Returns the recommended interval in seconds in which a client
-	 * is supposed to poll for progress information.
-	 * 
-	 * @return the interval in seconds
-	 * @throws IOException
-	 *         thrown if an error occurred while transmitting the request
-	 */
-	public int getRecommendedPollingInterval() throws IOException {
-
-		synchronized (this.jobSubmitClient) {
-			return this.jobSubmitClient.getRecommendedPollingInterval().getValue();
 		}
 	}
 
@@ -393,8 +299,6 @@ public class JobClient {
 	}
 
 	private AccumulatorEvent getAccumulators() throws IOException {
-		synchronized (this.jobSubmitClient) {
-			return this.accumulatorProtocolProxy.getAccumulatorResults(this.jobGraph.getJobID());
-		}
+		return AkkaUtils.ask(jobManager, new JobManagerMessages.RequestAccumulatorResult(jobGraph.getJobID()));
 	}
 }

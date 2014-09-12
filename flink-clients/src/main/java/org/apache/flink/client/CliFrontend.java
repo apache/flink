@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
+import akka.actor.ActorRef;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.HelpFormatter;
@@ -52,12 +53,14 @@ import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.event.job.RecentJobEvent;
 import org.apache.flink.runtime.ipc.RPC;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.messages.EventCollectorMessages;
+import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.net.NetUtils;
-import org.apache.flink.runtime.protocols.ExtendedManagementProtocol;
 import org.apache.flink.util.StringUtils;
 
 /**
@@ -499,16 +502,16 @@ public class CliFrontend {
 			return 1;
 		}
 		
-		ExtendedManagementProtocol jmConn = null;
 		try {
-			jmConn = getJobManagerConnection(line);
-			if (jmConn == null) {
+			ActorRef jobManager = getJobManager(line);
+			if (jobManager == null) {
 				printHelpForList();
 				return 1;
 			}
-			
-			List<RecentJobEvent> recentJobs = jmConn.getRecentJobs();
-			
+
+			List<RecentJobEvent> recentJobs = AkkaUtils.<EventCollectorMessages.RecentJobs>ask(jobManager,
+					EventCollectorMessages.RequestRecentJobs$.MODULE$).asJavaList();
+
 			ArrayList<RecentJobEvent> runningJobs = null;
 			ArrayList<RecentJobEvent> scheduledJobs = null;
 			if (running) {
@@ -568,17 +571,6 @@ public class CliFrontend {
 		catch (Throwable t) {
 			return handleError(t);
 		}
-		finally {
-			if (jmConn != null) {
-				try {
-					RPC.stopProxy(jmConn);
-				} catch (Throwable t) {
-					System.out.println("Could not cleanly shut down connection from compiler to job manager");
-				}
-			}
-			jmConn = null;
-		}
-		
 	}
 	
 	/**
@@ -628,29 +620,19 @@ public class CliFrontend {
 			return 1;
 		}
 		
-		ExtendedManagementProtocol jmConn = null;
 		try {
-			jmConn = getJobManagerConnection(line);
-			if (jmConn == null) {
+			ActorRef jobManager = getJobManager(line);
+
+			if (jobManager == null) {
 				printHelpForCancel();
 				return 1;
 			}
-			
-			jmConn.cancelJob(jobId);
+
+			AkkaUtils.ask(jobManager, new JobManagerMessages.CancelJob(jobId));
 			return 0;
 		}
 		catch (Throwable t) {
 			return handleError(t);
-		}
-		finally {
-			if (jmConn != null) {
-				try {
-					RPC.stopProxy(jmConn);
-				} catch (Throwable t) {
-					System.out.println("Warning: Could not cleanly shut down connection to the JobManager.");
-				}
-			}
-			jmConn = null;
 		}
 	}
 
@@ -763,17 +745,13 @@ public class CliFrontend {
 		}
 	}
 	
-	protected ExtendedManagementProtocol getJobManagerConnection(CommandLine line) throws IOException {
+	protected ActorRef getJobManager(CommandLine line) throws IOException {
 		InetSocketAddress jobManagerAddress = getJobManagerAddress(line);
 		if (jobManagerAddress == null) {
 			return null;
 		}
-		
-		String address = jobManagerAddress.getAddress().getHostAddress();
-		int port = jobManagerAddress.getPort();
-		
-		return RPC.getProxy(ExtendedManagementProtocol.class, 
-				new InetSocketAddress(address, port), NetUtils.getSocketFactory());
+
+		return AkkaUtils.getReference(jobManagerAddress);
 	}
 	
 	

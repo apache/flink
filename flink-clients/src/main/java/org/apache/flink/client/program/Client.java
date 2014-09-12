@@ -43,9 +43,9 @@ import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.client.JobExecutionException;
-import org.apache.flink.runtime.client.JobSubmissionResult;
-import org.apache.flink.runtime.client.AbstractJobResult.ReturnCode;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.messages.JobResult;
+import org.apache.flink.runtime.messages.JobResult.JobSubmissionResult;
 
 import com.google.common.base.Preconditions;
 
@@ -312,9 +312,9 @@ public class Client {
 			else {
 				JobSubmissionResult result = client.submitJob();
 				
-				if (result.getReturnCode() != ReturnCode.SUCCESS) {
+				if (result.returnCode() != JobResult.SUCCESS()) {
 					throw new ProgramInvocationException("The job was not successfully submitted to the nephele job manager"
-						+ (result.getDescription() == null ? "." : ": " + result.getDescription()));
+						+ (result.description() == null ? "." : ": " + result.description()));
 				}
 			}
 		}

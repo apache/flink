@@ -39,4 +39,5 @@ object JobManagerMessages {
   case object RequestInstances
   case object RequestNumberRegisteredTaskManager
   case object RequestAvailableSlots
+  case object RequestPollingInterval
 }

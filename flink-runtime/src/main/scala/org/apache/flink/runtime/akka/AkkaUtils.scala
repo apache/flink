@@ -18,7 +18,11 @@
 
 package org.apache.flink.runtime.akka
 
+import java.io.IOException
+import java.net.InetSocketAddress
+
 import akka.actor.{ActorRef, ActorSystem}
+import akka.pattern.Patterns
 import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
@@ -99,5 +103,16 @@ object AkkaUtils {
        |  "$ioRWClass" = IOReadableWritable
        |}
      """.stripMargin
+  }
+
+  def getReference(address: InetSocketAddress): ActorRef = {
+    //TODO: implement
+    ActorRef.noSender
+  }
+
+  @throws(classOf[IOException])
+  def ask[T](actor: ActorRef, msg: Any): T = {
+    val future = Patterns.ask(actor, msg, FUTURE_TIMEOUT)
+    Await.result(future, AWAIT_DURATION).asInstanceOf[T]
   }
 }
