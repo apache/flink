@@ -33,7 +33,7 @@ class GroupingTest {
   private val emptyLongData = Array[Long]()
 
   @Test
-  def testGroupByKeyFields1(): Unit = {
+  def testGroupByKeyIndices1(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tupleDs = env.fromCollection(emptyTupleData)
 
@@ -47,7 +47,7 @@ class GroupingTest {
   }
 
   @Test(expected = classOf[InvalidProgramException])
-  def testGroupByKeyFields2(): Unit = {
+  def testGroupByKeyIndices2(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val longDs = env.fromCollection(emptyLongData)
 
@@ -56,7 +56,7 @@ class GroupingTest {
   }
 
   @Test(expected = classOf[InvalidProgramException])
-  def testGroupByKeyFields3(): Unit = {
+  def testGroupByKeyIndices3(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val customDs = env.fromCollection(customTypeData)
 
@@ -65,7 +65,7 @@ class GroupingTest {
   }
 
   @Test(expected = classOf[IllegalArgumentException])
-  def testGroupByKeyFields4(): Unit = {
+  def testGroupByKeyIndices4(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tupleDs = env.fromCollection(emptyTupleData)
 
@@ -74,12 +74,53 @@ class GroupingTest {
   }
 
   @Test(expected = classOf[IllegalArgumentException])
-  def testGroupByKeyFields5(): Unit = {
+  def testGroupByKeyIndices5(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tupleDs = env.fromCollection(emptyTupleData)
 
     // should not work, negative field position
     tupleDs.groupBy(-1)
+  }
+
+  @Test
+  def testGroupByKeyFields1(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tupleDs = env.fromCollection(emptyTupleData)
+
+    // should work
+    try {
+      tupleDs.groupBy("_1")
+    }
+    catch {
+      case e: Exception => Assert.fail()
+    }
+  }
+
+  @Test(expected = classOf[UnsupportedOperationException])
+  def testGroupByKeyFields2(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val longDs = env.fromCollection(emptyLongData)
+
+    // should not work, grouping on basic type
+    longDs.groupBy("_1")
+  }
+
+  @Test(expected = classOf[UnsupportedOperationException])
+  def testGroupByKeyFields3(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val customDs = env.fromCollection(customTypeData)
+
+    // should not work, field key on custom type
+    customDs.groupBy("_1")
+  }
+
+  @Test(expected = classOf[IllegalArgumentException])
+  def testGroupByKeyFields4(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tupleDs = env.fromCollection(emptyTupleData)
+
+    // should not work, invalid field
+    tupleDs.groupBy("foo")
   }
 
   @Ignore

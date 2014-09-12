@@ -94,8 +94,8 @@ trait CoGroupDataSet[T, O] extends DataSet[(Array[T], Array[O])] {
  */
 private[flink] class CoGroupDataSetImpl[T, O](
     coGroupOperator: CoGroupOperator[T, O, (Array[T], Array[O])],
-    thisSet: JavaDataSet[T],
-    otherSet: JavaDataSet[O],
+    thisSet: DataSet[T],
+    otherSet: DataSet[O],
     thisKeys: Keys[T],
     otherKeys: Keys[O]) extends DataSet(coGroupOperator) with CoGroupDataSet[T, O] {
 
@@ -107,7 +107,7 @@ private[flink] class CoGroupDataSetImpl[T, O](
         fun(left.iterator.asScala, right.iterator.asScala) map { out.collect(_) }
       }
     }
-    val coGroupOperator = new CoGroupOperator[T, O, R](thisSet, otherSet, thisKeys,
+    val coGroupOperator = new CoGroupOperator[T, O, R](thisSet.set, otherSet.set, thisKeys,
       otherKeys, coGrouper, implicitly[TypeInformation[R]])
     wrap(coGroupOperator)
   }
@@ -120,14 +120,14 @@ private[flink] class CoGroupDataSetImpl[T, O](
         fun(left.iterator.asScala, right.iterator.asScala, out)
       }
     }
-    val coGroupOperator = new CoGroupOperator[T, O, R](thisSet, otherSet, thisKeys,
+    val coGroupOperator = new CoGroupOperator[T, O, R](thisSet.set, otherSet.set, thisKeys,
       otherKeys, coGrouper, implicitly[TypeInformation[R]])
     wrap(coGroupOperator)
   }
 
   def apply[R: TypeInformation: ClassTag](joiner: CoGroupFunction[T, O, R]): DataSet[R] = {
     Validate.notNull(joiner, "CoGroup function must not be null.")
-    val coGroupOperator = new CoGroupOperator[T, O, R](thisSet, otherSet, thisKeys,
+    val coGroupOperator = new CoGroupOperator[T, O, R](thisSet.set, otherSet.set, thisKeys,
       otherKeys, joiner, implicitly[TypeInformation[R]])
     wrap(coGroupOperator)
   }
@@ -153,8 +153,8 @@ trait UnfinishedCoGroupOperation[T, O]
  * i.e. the parameters of the constructor, hidden.
  */
 private[flink] class UnfinishedCoGroupOperationImpl[T: ClassTag, O: ClassTag](
-    leftSet: JavaDataSet[T],
-    rightSet: JavaDataSet[O])
+    leftSet: DataSet[T],
+    rightSet: DataSet[O])
   extends UnfinishedKeyPairOperation[T, O, CoGroupDataSet[T, O]](leftSet, rightSet)
   with UnfinishedCoGroupOperation[T, O] {
 
@@ -173,11 +173,13 @@ private[flink] class UnfinishedCoGroupOperationImpl[T: ClassTag, O: ClassTag](
 
     // We have to use this hack, for some reason classOf[Array[T]] does not work.
     // Maybe because ObjectArrayTypeInfo does not accept the Scala Array as an array class.
-    val leftArrayType = ObjectArrayTypeInfo.getInfoFor(new Array[T](0).getClass, leftSet.getType)
-    val rightArrayType = ObjectArrayTypeInfo.getInfoFor(new Array[O](0).getClass, rightSet.getType)
+    val leftArrayType =
+      ObjectArrayTypeInfo.getInfoFor(new Array[T](0).getClass, leftSet.set.getType)
+    val rightArrayType =
+      ObjectArrayTypeInfo.getInfoFor(new Array[O](0).getClass, rightSet.set.getType)
 
     val returnType = new ScalaTupleTypeInfo[(Array[T], Array[O])](
-      classOf[(Array[T], Array[O])], Seq(leftArrayType, rightArrayType)) {
+      classOf[(Array[T], Array[O])], Seq(leftArrayType, rightArrayType), Array("_1", "_2")) {
 
       override def createSerializer: TypeSerializer[(Array[T], Array[O])] = {
         val fieldSerializers: Array[TypeSerializer[_]] = new Array[TypeSerializer[_]](getArity)
@@ -195,10 +197,10 @@ private[flink] class UnfinishedCoGroupOperationImpl[T: ClassTag, O: ClassTag](
       }
     }
     val coGroupOperator = new CoGroupOperator[T, O, (Array[T], Array[O])](
-      leftSet, rightSet, leftKey, rightKey, coGrouper, returnType)
+      leftSet.set, rightSet.set, leftKey, rightKey, coGrouper, returnType)
 
     // sanity check solution set key mismatches
-    leftSet match {
+    leftSet.set match {
       case solutionSet: DeltaIteration.SolutionSetPlaceHolder[_] =>
         leftKey match {
           case keyFields: Keys.FieldPositionKeys[_] =>
@@ -211,7 +213,7 @@ private[flink] class UnfinishedCoGroupOperationImpl[T: ClassTag, O: ClassTag](
         }
       case _ =>
     }
-    rightSet match {
+    rightSet.set match {
       case solutionSet: DeltaIteration.SolutionSetPlaceHolder[_] =>
         rightKey match {
           case keyFields: Keys.FieldPositionKeys[_] =>

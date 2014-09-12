@@ -86,28 +86,28 @@ object PageRankBasic {
       // initialize lists
       .map(e => AdjacencyList(e.sourceId, Array(e.targetId)))
       // concatenate lists
-      .groupBy(0).reduce((l1, l2) => AdjacencyList(l1.sourceId, l1.targetIds ++ l2.targetIds))
+      .groupBy("sourceId").reduce((l1, l2) => AdjacencyList(l1.sourceId, l1.targetIds ++ l2.targetIds))
 
     // start iteration
     val finalRanks = pagesWithRanks.iterateWithTermination(maxIterations) {
       currentRanks =>
         val newRanks = currentRanks
           // distribute ranks to target pages
-          .join(adjacencyLists).where(0).equalTo(0) {
+          .join(adjacencyLists).where("pageId").equalTo("sourceId") {
             (page, adjacent, out: Collector[Page]) =>
             for (targetId <- adjacent.targetIds) {
               out.collect(Page(targetId, page.rank / adjacent.targetIds.length))
             }
           }
           // collect ranks and sum them up
-          .groupBy(0).aggregate(SUM, 1)
+          .groupBy("pageId").aggregate(SUM, "rank")
           // apply dampening factor
           .map { p =>
             Page(p.pageId, (p.rank * DAMPENING_FACTOR) + ((1 - DAMPENING_FACTOR) / numPages))
           }
 
         // terminate if no rank update was significant
-        val termination = currentRanks.join(newRanks).where(0).equalTo(0) {
+        val termination = currentRanks.join(newRanks).where("pageId").equalTo("pageId") {
           (current, next) =>
             // check for significant update
             if (math.abs(current.rank - next.rank) > EPSILON) Some(1) else None
@@ -181,9 +181,8 @@ object PageRankBasic {
 
   private def getLinksDataSet(env: ExecutionEnvironment): DataSet[Link] = {
     if (fileOutput) {
-      env.readCsvFile[(Long, Long)](linksInputPath, fieldDelimiter = ' ',
+      env.readCsvFile[Link](linksInputPath, fieldDelimiter = ' ',
         includedFields = Array(0, 1))
-        .map { x => Link(x._1, x._2)}
     } else {
       val edges = PageRankData.EDGES.map { case Array(v1, v2) => Link(v1.asInstanceOf[Long],
         v2.asInstanceOf[Long])}

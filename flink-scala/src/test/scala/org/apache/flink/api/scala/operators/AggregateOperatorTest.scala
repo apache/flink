@@ -66,14 +66,54 @@ class AggregateOperatorTest {
   }
 
   @Test
+  def testFieldNamesAggregate(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    val tupleDs = env.fromCollection(emptyTupleData)
+
+    // should work
+    try {
+      tupleDs.aggregate(Aggregations.SUM, "_2")
+    } catch {
+      case e: Exception => Assert.fail()
+    }
+
+    // should not work: invalid field
+    try {
+      tupleDs.aggregate(Aggregations.SUM, "foo")
+      Assert.fail()
+    } catch {
+      case iae: IllegalArgumentException =>
+      case e: Exception => Assert.fail()
+    }
+
+    val longDs = env.fromCollection(emptyLongData)
+
+    // should not work: not applied to tuple DataSet
+    try {
+      longDs.aggregate(Aggregations.MIN, "_1")
+      Assert.fail()
+    } catch {
+      case uoe: InvalidProgramException =>
+      case uoe: UnsupportedOperationException =>
+      case e: Exception => Assert.fail()
+    }
+  }
+
+  @Test
   def testAggregationTypes(): Unit = {
     try {
       val env = ExecutionEnvironment.getExecutionEnvironment
 
       val tupleDs = env.fromCollection(emptyTupleData)
 
+      // should work: multiple aggregates
       tupleDs.aggregate(Aggregations.SUM, 0).aggregate(Aggregations.MIN, 4)
+
+      // should work: nested aggregates
       tupleDs.aggregate(Aggregations.MIN, 2).aggregate(Aggregations.SUM, 1)
+
+      // should not work: average on string
       try {
         tupleDs.aggregate(Aggregations.SUM, 2)
         Assert.fail()

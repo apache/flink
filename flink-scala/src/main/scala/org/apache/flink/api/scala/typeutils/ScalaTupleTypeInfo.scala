@@ -18,8 +18,7 @@
 
 package org.apache.flink.api.scala.typeutils
 
-import org.apache.flink.api.java.tuple.Tuple
-import org.apache.flink.api.java.typeutils.{TupleTypeInfo, AtomicType, TupleTypeInfoBase}
+import org.apache.flink.api.java.typeutils.{AtomicType, TupleTypeInfoBase}
 import org.apache.flink.types.TypeInformation
 import org.apache.flink.api.common.typeutils.{TypeComparator, TypeSerializer}
 
@@ -29,7 +28,8 @@ import org.apache.flink.api.common.typeutils.{TypeComparator, TypeSerializer}
  */
 abstract class ScalaTupleTypeInfo[T <: Product](
     tupleClass: Class[T],
-    fieldTypes: Seq[TypeInformation[_]])
+    fieldTypes: Seq[TypeInformation[_]],
+    val fieldNames: Seq[String])
   extends TupleTypeInfoBase[T](tupleClass, fieldTypes: _*) {
 
   def createComparator(logicalKeyFields: Array[Int], orders: Array[Boolean]): TypeComparator[T] = {
@@ -74,6 +74,15 @@ abstract class ScalaTupleTypeInfo[T <: Product](
     }
 
     new ScalaTupleComparator[T](logicalKeyFields, fieldComparators, fieldSerializers)
+  }
+
+  def getFieldIndices(fields: Array[String]): Array[Int] = {
+    val result = fields map { x => fieldNames.indexOf(x) }
+    if (result.contains(-1)) {
+      throw new IllegalArgumentException("Fields '" + fields.mkString(", ") + "' are not valid for" +
+        " " + tupleClass + " with fields '" + fieldNames.mkString(", ") + "'.")
+    }
+    result
   }
 
   override def toString = "Scala " + super.toString

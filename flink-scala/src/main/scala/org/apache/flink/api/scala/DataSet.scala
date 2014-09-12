@@ -30,6 +30,7 @@ import org.apache.flink.api.java.operators.Keys.FieldPositionKeys
 import org.apache.flink.api.java.operators._
 import org.apache.flink.api.java.{DataSet => JavaDataSet}
 import org.apache.flink.api.scala.operators.{ScalaCsvOutputFormat, ScalaAggregateOperator}
+import org.apache.flink.api.scala.typeutils.ScalaTupleTypeInfo
 import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.core.fs.{FileSystem, Path}
 import org.apache.flink.types.TypeInformation
@@ -376,6 +377,25 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
   }
 
   /**
+   * Creates a new [[DataSet]] by aggregating the specified field using the given aggregation
+   * function. Since this is not a keyed DataSet the aggregation will be performed on the whole
+   * collection of elements.
+   *
+   * This only works on CaseClass DataSets.
+   */
+  def aggregate(agg: Aggregations, field: String): DataSet[T] = {
+    val fieldIndex = fieldNames2Indices(set.getType, Array(field))(0)
+
+    set match {
+      case aggregation: ScalaAggregateOperator[T] =>
+        aggregation.and(agg, fieldIndex)
+        wrap(aggregation)
+
+      case _ => wrap(new ScalaAggregateOperator[T](set, agg, fieldIndex))
+    }
+  }
+
+  /**
    * Syntactic sugar for [[aggregate]] with `SUM`
    */
   def sum(field: Int) = {
@@ -393,6 +413,27 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
    * Syntactic sugar for [[aggregate]] with `MIN`
    */
   def min(field: Int) = {
+    aggregate(Aggregations.MIN, field)
+  }
+
+  /**
+   * Syntactic sugar for [[aggregate]] with `SUM`
+   */
+  def sum(field: String) = {
+    aggregate(Aggregations.SUM, field)
+  }
+
+  /**
+   * Syntactic sugar for [[aggregate]] with `MAX`
+   */
+  def max(field: String) = {
+    aggregate(Aggregations.MAX, field)
+  }
+
+  /**
+   * Syntactic sugar for [[aggregate]] with `MIN`
+   */
+  def min(field: String) = {
     aggregate(Aggregations.MIN, field)
   }
 
@@ -486,12 +527,25 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
    * Creates a new DataSet containing the distinct elements of this DataSet. The decision whether
    * two elements are distinct or not is made based on only the specified tuple fields.
    *
-   * This only works if this DataSet contains Tuples.
+   * This only works on tuple DataSets.
    */
   def distinct(fields: Int*): DataSet[T] = {
     wrap(new DistinctOperator[T](
       set,
       new Keys.FieldPositionKeys[T](fields.toArray, set.getType, true)))
+  }
+
+  /**
+   * Creates a new DataSet containing the distinct elements of this DataSet. The decision whether
+   * two elements are distinct or not is made based on only the specified fields.
+   *
+   * This only works on CaseClass DataSets
+   */
+  def distinct(firstField: String, otherFields: String*): DataSet[T] = {
+    val fieldIndices = fieldNames2Indices(set.getType, firstField +: otherFields.toArray)
+    wrap(new DistinctOperator[T](
+      set,
+      new Keys.FieldPositionKeys[T](fieldIndices, set.getType, true)))
   }
 
   /**
@@ -537,6 +591,23 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
     new GroupedDataSetImpl[T](
       set,
       new Keys.FieldPositionKeys[T](fields.toArray, set.getType,false))
+  }
+
+  /**
+   * Creates a [[GroupedDataSet]] which provides operations on groups of elements. Elements are
+   * grouped based on the given fields.
+   *
+   * This will not create a new DataSet, it will just attach the field names which will be
+   * used for grouping when executing a grouped operation.
+   *
+   * This only works on CaseClass DataSets.
+   */
+  def groupBy(firstField: String, otherFields: String*): GroupedDataSet[T] = {
+    val fieldIndices = fieldNames2Indices(set.getType, firstField +: otherFields.toArray)
+
+    new GroupedDataSetImpl[T](
+      set,
+      new Keys.FieldPositionKeys[T](fieldIndices, set.getType,false))
   }
 
   //	public UnsortedGrouping<T> groupBy(String... fields) {
@@ -587,21 +658,21 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
    * }}}
    */
   def join[O](other: DataSet[O]): UnfinishedJoinOperation[T, O] =
-    new UnfinishedJoinOperationImpl(this.set, other.set, JoinHint.OPTIMIZER_CHOOSES)
+    new UnfinishedJoinOperationImpl(this, other, JoinHint.OPTIMIZER_CHOOSES)
 
   /**
    * Special [[join]] operation for explicitly telling the system that the right side is assumed
    * to be a lot smaller than the left side of the join.
    */
   def joinWithTiny[O](other: DataSet[O]): UnfinishedJoinOperation[T, O] =
-    new UnfinishedJoinOperationImpl(this.set, other.set, JoinHint.BROADCAST_HASH_SECOND)
+    new UnfinishedJoinOperationImpl(this, other, JoinHint.BROADCAST_HASH_SECOND)
 
   /**
    * Special [[join]] operation for explicitly telling the system that the left side is assumed
    * to be a lot smaller than the right side of the join.
    */
   def joinWithHuge[O](other: DataSet[O]): UnfinishedJoinOperation[T, O] =
-    new UnfinishedJoinOperationImpl(this.set, other.set, JoinHint.BROADCAST_HASH_FIRST)
+    new UnfinishedJoinOperationImpl(this, other, JoinHint.BROADCAST_HASH_FIRST)
 
   // --------------------------------------------------------------------------------------------
   //  Co-Group
@@ -641,7 +712,7 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
    * }}}
    */
   def coGroup[O: ClassTag](other: DataSet[O]): UnfinishedCoGroupOperation[T, O] =
-    new UnfinishedCoGroupOperationImpl(this.set, other.set)
+    new UnfinishedCoGroupOperationImpl(this, other)
 
   // --------------------------------------------------------------------------------------------
   //  Cross

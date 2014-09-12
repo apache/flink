@@ -32,11 +32,11 @@ object PiEstimation {
     // the upper right quadrant of the unit circle
     val count =
       env.generateSequence(1, numSamples)
-        .map (sample => {
-        val x = Math.random()
-        val y = Math.random()
-        if (x * x + y * y < 1) 1L else 0L
-      })
+        .map  { sample =>
+          val x = Math.random()
+          val y = Math.random()
+          if (x * x + y * y < 1) 1L else 0L
+        }
         .reduce(_+_)
 
     // ratio of samples in upper right quadrant vs total samples gives surface of upper

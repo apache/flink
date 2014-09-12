@@ -31,12 +31,79 @@ class JoinOperatorTest {
   private val emptyLongData = Array[Long]()
 
   @Test
+  def testJoinKeyIndices1(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val ds1 = env.fromCollection(emptyTupleData)
+    val ds2 = env.fromCollection(emptyTupleData)
+
+    // should work
+    try {
+      ds1.join(ds2).where(0).equalTo(0)
+    }
+    catch {
+      case e: Exception => Assert.fail()
+    }
+  }
+
+  @Test(expected = classOf[InvalidProgramException])
+  def testJoinKeyIndices2(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val ds1 = env.fromCollection(emptyTupleData)
+    val ds2 = env.fromCollection(emptyTupleData)
+
+    // should not work, incompatible key types
+    ds1.join(ds2).where(0).equalTo(2)
+  }
+
+  @Test(expected = classOf[InvalidProgramException])
+  def testJoinKeyIndices3(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val ds1 = env.fromCollection(emptyTupleData)
+    val ds2 = env.fromCollection(emptyTupleData)
+
+    // should not work, non-matching number of key indices
+    ds1.join(ds2).where(0, 1).equalTo(2)
+  }
+
+  @Test(expected = classOf[IllegalArgumentException])
+  def testJoinKeyIndices4(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val ds1 = env.fromCollection(emptyTupleData)
+    val ds2 = env.fromCollection(emptyTupleData)
+
+    // should not work, index out of range
+    ds1.join(ds2).where(5).equalTo(0)
+  }
+
+  @Test(expected = classOf[IllegalArgumentException])
+  def testJoinKeyIndices5(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val ds1 = env.fromCollection(emptyTupleData)
+    val ds2 = env.fromCollection(emptyTupleData)
+
+    // should not work, negative position
+    ds1.join(ds2).where(-1).equalTo(-1)
+  }
+
+  @Test(expected = classOf[IllegalArgumentException])
+  def testJoinKeyIndices6(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val ds1 = env.fromCollection(emptyTupleData)
+    val ds2 = env.fromCollection(customTypeData)
+
+    // should not work, key index on custom type
+    ds1.join(ds2).where(5).equalTo(0)
+  }
+
+  @Test
   def testJoinKeyFields1(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = env.fromCollection(emptyTupleData)
     val ds2 = env.fromCollection(emptyTupleData)
+
+    // should work
     try {
-      ds1.join(ds2).where(0).equalTo(0)
+      ds1.join(ds2).where("_1").equalTo("_1")
     }
     catch {
       case e: Exception => Assert.fail()
@@ -48,7 +115,9 @@ class JoinOperatorTest {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = env.fromCollection(emptyTupleData)
     val ds2 = env.fromCollection(emptyTupleData)
-    ds1.join(ds2).where(0).equalTo(2)
+
+    // should not work, incompatible field types
+    ds1.join(ds2).where("_1").equalTo("_3")
   }
 
   @Test(expected = classOf[InvalidProgramException])
@@ -56,7 +125,10 @@ class JoinOperatorTest {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = env.fromCollection(emptyTupleData)
     val ds2 = env.fromCollection(emptyTupleData)
-    ds1.join(ds2).where(0, 1).equalTo(2)
+
+    // should not work, non-matching number of key indices
+
+    ds1.join(ds2).where("_1", "_2").equalTo("_3")
   }
 
   @Test(expected = classOf[IllegalArgumentException])
@@ -64,7 +136,9 @@ class JoinOperatorTest {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = env.fromCollection(emptyTupleData)
     val ds2 = env.fromCollection(emptyTupleData)
-    ds1.join(ds2).where(5).equalTo(0)
+
+    // should not work, non-existent key
+    ds1.join(ds2).where("foo").equalTo("_1")
   }
 
   @Test(expected = classOf[IllegalArgumentException])
@@ -72,15 +146,19 @@ class JoinOperatorTest {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = env.fromCollection(emptyTupleData)
     val ds2 = env.fromCollection(emptyTupleData)
-    ds1.join(ds2).where(-1).equalTo(-1)
+
+    // should not work, non-matching number of key indices
+    ds1.join(ds2).where("_1").equalTo("bar")
   }
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test(expected = classOf[UnsupportedOperationException])
   def testJoinKeyFields6(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = env.fromCollection(emptyTupleData)
     val ds2 = env.fromCollection(customTypeData)
-    ds1.join(ds2).where(5).equalTo(0)
+
+    // should not work, field key on custom type
+    ds1.join(ds2).where("_2").equalTo("_1")
   }
 
   @Ignore

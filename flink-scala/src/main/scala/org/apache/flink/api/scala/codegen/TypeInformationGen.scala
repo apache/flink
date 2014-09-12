@@ -68,8 +68,11 @@ private[flink] trait TypeInformationGen[C <: Context] {
     }
     val fieldsExpr = c.Expr[Seq[TypeInformation[_]]](mkList(fields))
     val instance = mkCreateTupleInstance[T](desc)(c.WeakTypeTag(desc.tpe))
+
+    val fieldNames = desc.getters map { f => Literal(Constant(f.getter.name.toString)) } toList
+    val fieldNamesExpr = c.Expr[Seq[String]](mkSeq(fieldNames))
     reify {
-      new ScalaTupleTypeInfo[T](tpeClazz.splice, fieldsExpr.splice) {
+      new ScalaTupleTypeInfo[T](tpeClazz.splice, fieldsExpr.splice, fieldNamesExpr.splice) {
         override def createSerializer: TypeSerializer[T] = {
           val fieldSerializers: Array[TypeSerializer[_]] = new Array[TypeSerializer[_]](getArity)
           for (i <- 0 until getArity) {

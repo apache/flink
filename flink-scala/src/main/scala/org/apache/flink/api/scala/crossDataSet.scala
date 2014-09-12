@@ -110,7 +110,7 @@ private[flink] object CrossDataSetImpl {
       }
     }
     val returnType = new ScalaTupleTypeInfo[(T, O)](
-      classOf[(T, O)], Seq(leftSet.getType, rightSet.getType)) {
+      classOf[(T, O)], Seq(leftSet.getType, rightSet.getType), Array("_1", "_2")) {
 
       override def createSerializer: TypeSerializer[(T, O)] = {
         val fieldSerializers: Array[TypeSerializer[_]] = new Array[TypeSerializer[_]](getArity)

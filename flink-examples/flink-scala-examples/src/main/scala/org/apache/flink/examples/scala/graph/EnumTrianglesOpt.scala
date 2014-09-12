@@ -87,9 +87,9 @@ object EnumTrianglesOpt {
       // duplicate and switch edges
       .flatMap(e => Seq(e, Edge(e.v2, e.v1)))
       // add degree of first vertex
-      .groupBy(0).sortGroup(1, Order.ASCENDING).reduceGroup(new DegreeCounter())
+      .groupBy("v1").sortGroup("v2", Order.ASCENDING).reduceGroup(new DegreeCounter())
       // join degrees of vertices
-      .groupBy(0, 2).reduce {
+      .groupBy("v1", "v2").reduce {
         (e1, e2) =>
           if (e1.d2 == 0) {
             new EdgeWithDegrees(e1.v1, e1.d1, e1.v2, e2.d2)
@@ -107,9 +107,9 @@ object EnumTrianglesOpt {
 
     val triangles = edgesByDegree
       // build triads
-      .groupBy(0).sortGroup(1, Order.ASCENDING).reduceGroup(new TriadBuilder())
+      .groupBy("v1").sortGroup("v2", Order.ASCENDING).reduceGroup(new TriadBuilder())
       // filter triads
-      .join(edgesById).where(1, 2).equalTo(0, 1) { (t, _) => Some(t)}
+      .join(edgesById).where("v2", "v3").equalTo("v1", "v2") { (t, _) => Some(t)}
 
     // emit result
     if (fileOutput) {
@@ -212,11 +212,11 @@ object EnumTrianglesOpt {
         edgePath = args(0)
         outputPath = args(1)
       } else {
-        System.err.println("Usage: EnumTriangleBasic <edge path> <result path>")
+        System.err.println("Usage: EnumTriangleOpt <edge path> <result path>")
         false
       }
     } else {
-      System.out.println("Executing Enum Triangles Basic example with built-in default data.")
+      System.out.println("Executing Enum Triangles Optimized example with built-in default data.")
       System.out.println("  Provide parameters to read input data from files.")
       System.out.println("  See the documentation for the correct format of input files.")
       System.out.println("  Usage: EnumTriangleBasic <edge path> <result path>")
@@ -226,10 +226,10 @@ object EnumTrianglesOpt {
 
   private def getEdgeDataSet(env: ExecutionEnvironment): DataSet[Edge] = {
     if (fileOutput) {
-      env.readCsvFile[(Int, Int)](
+      env.readCsvFile[Edge](
         edgePath,
         fieldDelimiter = ' ',
-        includedFields = Array(0, 1)).map { x => new Edge(x._1, x._2)}
+        includedFields = Array(0, 1))
     } else {
       val edges = EnumTrianglesData.EDGES.map {
         case Array(v1, v2) => new Edge(v1.asInstanceOf[Int], v2.asInstanceOf[Int])}
