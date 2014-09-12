@@ -61,7 +61,7 @@ public interface UdfOperator<O extends UdfOperator<O>> {
 	 * 
 	 * @return The semantic properties of the UDF.
 	 */
-	SemanticProperties getSematicProperties();
+	SemanticProperties getSemanticProperties();
 	
 	// --------------------------------------------------------------------------------------------
 	// Fluent API methods

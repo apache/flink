@@ -142,17 +142,17 @@ public abstract class SingleInputUdfOperator<IN, OUT, O extends SingleInputUdfOp
 	}
 
 	@Override
-	public SingleInputSemanticProperties getSematicProperties() {
+	public SingleInputSemanticProperties getSemanticProperties() {
 		return this.udfSemantics;
 	}
 
 	/**
 	 * Sets the semantic properties for the user-defined function (UDF). The semantic properties
 	 * define how fields of tuples and other objects are modified or preserved through this UDF.
-	 * The configured properties can be retrieved via {@link UdfOperator#getSematicProperties()}.
+	 * The configured properties can be retrieved via {@link UdfOperator#getSemanticProperties()}.
 	 *
 	 * @param properties The semantic properties for the UDF.
-	 * @see UdfOperator#getSematicProperties()
+	 * @see UdfOperator#getSemanticProperties()
 	 */
 	public void setSemanticProperties(SingleInputSemanticProperties properties) {
 		this.udfSemantics = properties;

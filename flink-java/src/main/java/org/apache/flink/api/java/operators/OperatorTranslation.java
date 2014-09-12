@@ -128,7 +128,7 @@ public class OperatorTranslation {
 			}
 			
 			// set the semantic properties
-			dataFlowOp.setSemanticProperties(udfOp.getSematicProperties());
+			dataFlowOp.setSemanticProperties(udfOp.getSemanticProperties());
 		}
 		
 		return dataFlowOp;
@@ -160,7 +160,7 @@ public class OperatorTranslation {
 			}
 			
 			// set the semantic properties
-			dataFlowOp.setSemanticProperties(udfOp.getSematicProperties());
+			dataFlowOp.setSemanticProperties(udfOp.getSemanticProperties());
 		}
 		
 		return dataFlowOp;
