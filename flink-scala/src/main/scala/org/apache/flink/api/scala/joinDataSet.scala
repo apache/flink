@@ -168,8 +168,8 @@ trait UnfinishedJoinOperation[T, O] extends UnfinishedKeyPairOperation[T, O, Joi
  * i.e. the parameters of the constructor, hidden.
  */
 private[flink] class UnfinishedJoinOperationImpl[T, O](
-    leftSet: JavaDataSet[T],
-    rightSet: JavaDataSet[O],
+    leftSet: DataSet[T],
+    rightSet: DataSet[O],
     joinHint: JoinHint)
   extends UnfinishedKeyPairOperation[T, O, JoinDataSet[T, O]](leftSet, rightSet)
   with UnfinishedJoinOperation[T, O] {
@@ -181,7 +181,7 @@ private[flink] class UnfinishedJoinOperationImpl[T, O](
       }
     }
     val returnType = new ScalaTupleTypeInfo[(T, O)](
-      classOf[(T, O)], Seq(leftSet.getType, rightSet.getType)) {
+      classOf[(T, O)], Seq(leftSet.set.getType, rightSet.set.getType), Array("_1", "_2")) {
 
       override def createSerializer: TypeSerializer[(T, O)] = {
         val fieldSerializers: Array[TypeSerializer[_]] = new Array[TypeSerializer[_]](getArity)
@@ -197,10 +197,10 @@ private[flink] class UnfinishedJoinOperationImpl[T, O](
       }
     }
     val joinOperator = new EquiJoin[T, O, (T, O)](
-      leftSet, rightSet, leftKey, rightKey, joiner, returnType, joinHint)
+      leftSet.set, rightSet.set, leftKey, rightKey, joiner, returnType, joinHint)
 
     // sanity check solution set key mismatches
-    leftSet match {
+    leftSet.set match {
       case solutionSet: DeltaIteration.SolutionSetPlaceHolder[_] =>
         leftKey match {
           case keyFields: Keys.FieldPositionKeys[_] =>
@@ -213,7 +213,7 @@ private[flink] class UnfinishedJoinOperationImpl[T, O](
         }
       case _ =>
     }
-    rightSet match {
+    rightSet.set match {
       case solutionSet: DeltaIteration.SolutionSetPlaceHolder[_] =>
         rightKey match {
           case keyFields: Keys.FieldPositionKeys[_] =>
@@ -227,6 +227,6 @@ private[flink] class UnfinishedJoinOperationImpl[T, O](
       case _ =>
     }
 
-    new JoinDataSetImpl(joinOperator, leftSet, rightSet, leftKey, rightKey)
+    new JoinDataSetImpl(joinOperator, leftSet.set, rightSet.set, leftKey, rightKey)
   }
 }

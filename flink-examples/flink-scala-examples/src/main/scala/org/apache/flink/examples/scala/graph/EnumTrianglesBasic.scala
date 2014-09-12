@@ -85,9 +85,9 @@ object EnumTrianglesBasic {
 		
 		val triangles = edgesById
 						// build triads
-						.groupBy(0).sortGroup(1, Order.ASCENDING).reduceGroup(new TriadBuilder())
+						.groupBy("v1").sortGroup("v2", Order.ASCENDING).reduceGroup(new TriadBuilder())
 						// filter triads
-						.join(edgesById).where(1,2).equalTo(0,1) { (t, _) => Some(t) }
+						.join(edgesById).where("v2", "v3").equalTo("v1", "v2") { (t, _) => Some(t) }
 		
 		// emit result
 		if (fileOutput) {
@@ -163,8 +163,7 @@ object EnumTrianglesBasic {
 
 	private def getEdgeDataSet(env: ExecutionEnvironment): DataSet[Edge] = {
 		if (fileOutput) {
-			env.readCsvFile[(Int, Int)](edgePath, fieldDelimiter = ' ', includedFields = Array(0, 1)).
-			map { x => new Edge(x._1, x._2) }
+			env.readCsvFile[Edge](edgePath, fieldDelimiter = ' ', includedFields = Array(0, 1))
 		} else {
 			val edges = EnumTrianglesData.EDGES.map{ case Array(v1, v2) => new Edge(v1.asInstanceOf[Int], v2.asInstanceOf[Int]) }
 			env.fromCollection(edges)

@@ -21,7 +21,7 @@ package org.apache.flink.api
 import _root_.scala.reflect.ClassTag
 import language.experimental.macros
 import org.apache.flink.types.TypeInformation
-import org.apache.flink.api.scala.typeutils.TypeUtils
+import org.apache.flink.api.scala.typeutils.{ScalaTupleTypeInfo, TypeUtils}
 import org.apache.flink.api.java.{DataSet => JavaDataSet}
 
 package object scala {
@@ -31,4 +31,17 @@ package object scala {
 
   // We need to wrap Java DataSet because we need the scala operations
   private[flink] def wrap[R: ClassTag](set: JavaDataSet[R]) = new DataSet[R](set)
+
+  private[flink] def fieldNames2Indices(
+      typeInfo: TypeInformation[_],
+      fields: Array[String]): Array[Int] = {
+    typeInfo match {
+      case ti: ScalaTupleTypeInfo[_] =>
+        ti.getFieldIndices(fields)
+
+      case _ =>
+        throw new UnsupportedOperationException("Specifying fields by name is only" +
+          "supported on Case Classes (for now).")
+    }
+  }
 }
