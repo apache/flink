@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.state;
 
+import java.io.Serializable;
 import java.util.Iterator;
 
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
@@ -25,7 +26,9 @@ import org.apache.flink.streaming.api.streamrecord.StreamRecord;
  * Simple wrapper class to convert an Iterator<StreamRecord<T>> to an
  * Iterator<T> iterator by invoking the getObject() method on every element.
  */
-public class StreamIterator<T> implements Iterator<T> {
+public class StreamIterator<T> implements Iterator<T>, Serializable {
+	private static final long serialVersionUID = 1L;
+
 	private Iterator<StreamRecord<T>> iterator = null;
 
 	public void load(Iterator<StreamRecord<T>> iterator) {

@@ -21,8 +21,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.function.co.CoGroupReduceFunction;
 
 public class CoBatchGroupReduceInvokable<IN1, IN2, OUT> extends CoGroupReduceInvokable<IN1, IN2, OUT> {
-
 	private static final long serialVersionUID = 1L;
+	
 	protected long startCounter1;
 	protected long startCounter2;
 	protected long endCounter1;

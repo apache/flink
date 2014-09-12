@@ -17,8 +17,7 @@
 
 package org.apache.flink.streaming.state;
 
-import java.util.ArrayDeque;
-import java.util.Deque;
+import java.io.Serializable;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Queue;
@@ -28,14 +27,16 @@ import java.util.Queue;
  * queue if full and a new element is added, the elements that belong to the
  * first sliding interval are removed.
  */
-public class CircularFifoList<T> {
+public class CircularFifoList<T> implements Serializable {
+	private static final long serialVersionUID = 1L;
+
 	private Queue<T> queue;
-	private Deque<Long> slideSizes;
+	private Queue<Long> slideSizes;
 	private long counter;
 
 	public CircularFifoList() {
 		this.queue = new LinkedList<T>();
-		this.slideSizes = new ArrayDeque<Long>();
+		this.slideSizes = new LinkedList<Long>();
 		this.counter = 0;
 	}
 
@@ -50,10 +51,10 @@ public class CircularFifoList<T> {
 	}
 
 	public void shiftWindow() {
-		for (int i = 0; i < slideSizes.getFirst(); i++) {
+		Long firstSlideSize = slideSizes.remove();
+		for (int i = 0; i < firstSlideSize; i++) {
 			queue.remove();
 		}
-		slideSizes.remove();
 	}
 
 	public Iterator<T> getIterator() {
