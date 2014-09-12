@@ -144,7 +144,7 @@ private[flink] class JoinDataSetImpl[T, O](
     val generatedFunction: FlatJoinFunction[T, O, R] = new WrappingFlatJoinFunction[T, O, R](fun)
 
     val joinOperator = new EquiJoin[T, O, R](thisSet, otherSet, thisKeys,
-      otherKeys, generatedFunction, implicitly[TypeInformation[R]], JoinHint.OPTIMIZER_CHOOSES)
+      otherKeys, generatedFunction, fun, implicitly[TypeInformation[R]], JoinHint.OPTIMIZER_CHOOSES)
     wrap(joinOperator)
   }
 }
