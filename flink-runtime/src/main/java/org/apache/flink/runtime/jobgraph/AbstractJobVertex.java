@@ -44,9 +44,6 @@ public class AbstractJobVertex implements java.io.Serializable {
 	/** The ID of the vertex. */
 	private final JobVertexID id;
 
-	/** The name of the vertex */
-	private final String name;
-
 	/** List of produced data sets, one per writer */
 	private final ArrayList<IntermediateDataSet> results = new ArrayList<IntermediateDataSet>();
 
@@ -67,6 +64,9 @@ public class AbstractJobVertex implements java.io.Serializable {
 	
 	/** Optionally, a sharing group that allows subtasks from different job vertices to run concurrently in one slot */
 	private SlotSharingGroup slotSharingGroup;
+	
+	/** The name of the vertex */
+	private String name;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -108,6 +108,15 @@ public class AbstractJobVertex implements java.io.Serializable {
 	 */
 	public String getName() {
 		return this.name;
+	}
+	
+	/**
+	 * Sets the name of the vertex
+	 * 
+	 * @param name The new name.
+	 */
+	public void setName(String name) {
+		this.name = name == null ? DEFAULT_NAME : name;
 	}
 
 	/**
