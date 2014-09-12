@@ -826,6 +826,21 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
     wrap(result)
   }
 
+  // -------------------------------------------------------------------------------------------
+  //  Custom Operators
+  // -------------------------------------------------------------------------------------------
+
+  // Keep it out until we have an actual use case for this.
+//  /**
+//   * Runs a [[CustomUnaryOperation]] on the data set. Custom operations are typically complex
+//   * operators that are composed of multiple steps.
+//   */
+//  def runOperation[R: ClassTag](operation: CustomUnaryOperation[T, R]): DataSet[R] = {
+//    Validate.notNull(operation, "The custom operator must not be null.")
+//    operation.setInput(this.set)
+//    wrap(operation.createResult)
+//  }
+
   // --------------------------------------------------------------------------------------------
   //  Union
   // --------------------------------------------------------------------------------------------
