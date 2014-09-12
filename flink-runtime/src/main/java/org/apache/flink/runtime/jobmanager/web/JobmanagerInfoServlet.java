@@ -23,8 +23,6 @@ import java.io.PrintWriter;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -33,26 +31,12 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.apache.flink.api.common.accumulators.AccumulatorHelper;
-import org.apache.flink.runtime.event.job.AbstractEvent;
-import org.apache.flink.runtime.event.job.ExecutionStateChangeEvent;
-import org.apache.flink.runtime.event.job.JobEvent;
 import org.apache.flink.runtime.event.job.RecentJobEvent;
-import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
-import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
-import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.jobgraph.JobID;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.util.EnvironmentInformation;
-import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.StringUtils;
 import org.eclipse.jetty.io.EofException;
-
 
 public class JobmanagerInfoServlet extends HttpServlet {
 	
@@ -485,132 +469,132 @@ public class JobmanagerInfoServlet extends HttpServlet {
 //		} catch (IOException ioe) { // Connection closed by client
 //			LOG.info("Info server for jobmanager: Connection closed by client, IOException");
 //		}
-		
-			ExecutionGraph graph = jobmanager.getRecentExecutionGraph(jobEvent.getJobID());
-			
-			//Serialize job to json
-			wrt.write("{");
-			wrt.write("\"jobid\": \"" + jobEvent.getJobID() + "\",");
-			wrt.write("\"jobname\": \"" + jobEvent.getJobName()+"\",");
-			wrt.write("\"status\": \""+ jobEvent.getJobStatus() + "\",");
-			wrt.write("\"SCHEDULED\": "+ graph.getStatusTimestamp(JobStatus.CREATED) + ",");
-			wrt.write("\"RUNNING\": "+ graph.getStatusTimestamp(JobStatus.RUNNING) + ",");
-			wrt.write("\"FINISHED\": "+ graph.getStatusTimestamp(JobStatus.FINISHED) + ",");
-			wrt.write("\"FAILED\": "+ graph.getStatusTimestamp(JobStatus.FAILED) + ",");
-			wrt.write("\"CANCELED\": "+ graph.getStatusTimestamp(JobStatus.CANCELED) + ",");
-
-			if (jobEvent.getJobStatus() == JobStatus.FAILED) {
-				wrt.write("\"failednodes\": [");
-				boolean first = true;
-				for (ExecutionVertex vertex : graph.getAllExecutionVertices()) {
-					if (vertex.getExecutionState() == ExecutionState.FAILED) {
-						AllocatedSlot slot = vertex.getCurrentAssignedResource();
-						Throwable failureCause = vertex.getFailureCause();
-						if (slot != null || failureCause != null) {
-							if (first) {
-								first = false;
-							} else {
-								wrt.write(",");
-							}
-							wrt.write("{");
-							wrt.write("\"node\": \"" + (slot == null ? "(none)" : slot.getInstance().getInstanceConnectionInfo().getFQDNHostname()) + "\",");
-							wrt.write("\"message\": \"" + (failureCause == null ? "" : StringUtils.escapeHtml(ExceptionUtils.stringifyException(failureCause))) + "\"");
-							wrt.write("}");
-						}
-					}
-				}
-				wrt.write("],");
-			}
-
-			// Serialize ManagementGraph to json
-			wrt.write("\"groupvertices\": [");
-			boolean first = true;
-			for (ExecutionJobVertex groupVertex : graph.getVerticesTopologically()) {
-				//Write seperator between json objects
-				if(first) {
-					first = false;
-				} else {
-					wrt.write(","); }
-				
-				wrt.write(JsonFactory.toJson(groupVertex));
-				
-			}
-			wrt.write("],");
-			
-			// write accumulators
-			Map<String, Object> accMap = AccumulatorHelper.toResultMap(jobmanager.getAccumulators(jobEvent.getJobID()));
-			
-			wrt.write("\n\"accumulators\": [");
-			int i = 0;
-			for( Entry<String, Object> accumulator : accMap.entrySet()) {
-				wrt.write("{ \"name\": \""+accumulator.getKey()+" (" + accumulator.getValue().getClass().getName()+")\","
-						+ " \"value\": \""+accumulator.getValue().toString()+"\"}\n");
-				if(++i < accMap.size()) {
-					wrt.write(",");
-				}
-			}
-			wrt.write("],\n");
-			
-			wrt.write("\"groupverticetimes\": {");
-			first = true;
-			for (ExecutionJobVertex groupVertex : graph.getVerticesTopologically()) {
-				
-				if(first) {
-					first = false;
-				} else {
-					wrt.write(","); }
-				
-				// Calculate start and end time for groupvertex
-				long started = Long.MAX_VALUE;
-				long ended = 0;
-				
-				// Take earliest running state and latest endstate of groupmembers
-				for (ExecutionVertex vertex : groupVertex.getTaskVertices()) {
-					
-					long running = vertex.getStateTimestamp(ExecutionState.RUNNING);
-					if (running != 0 && running < started) {
-						started = running;
-					}
-					
-					long finished = vertex.getStateTimestamp(ExecutionState.FINISHED);
-					long canceled = vertex.getStateTimestamp(ExecutionState.CANCELED);
-					long failed = vertex.getStateTimestamp(ExecutionState.FAILED);
-					
-					if(finished != 0 && finished > ended) {
-						ended = finished;
-					}
-					
-					if(canceled != 0 && canceled > ended) {
-						ended = canceled;
-					}
-					
-					if(failed != 0 && failed > ended) {
-						ended = failed;
-					}
-
-				}
-				
-				wrt.write("\""+groupVertex.getJobVertexId()+"\": {");
-				wrt.write("\"groupvertexid\": \"" + groupVertex.getJobVertexId() + "\",");
-				wrt.write("\"groupvertexname\": \"" + groupVertex + "\",");
-				wrt.write("\"STARTED\": "+ started + ",");
-				wrt.write("\"ENDED\": "+ ended);
-				wrt.write("}");
-				
-			}
-
-			wrt.write("}");
-			
-			wrt.write("}");
-			
-			
-		wrt.write("]");
-		
-		} catch (EofException eof) { // Connection closed by client
-			LOG.info("Info server for jobmanager: Connection closed by client, EofException");
-		} catch (IOException ioe) { // Connection closed by client	
-			LOG.info("Info server for jobmanager: Connection closed by client, IOException");
-		} 
+//
+//			ExecutionGraph graph = jobmanager.getRecentExecutionGraph(jobEvent.getJobID());
+//
+//			//Serialize job to json
+//			wrt.write("{");
+//			wrt.write("\"jobid\": \"" + jobEvent.getJobID() + "\",");
+//			wrt.write("\"jobname\": \"" + jobEvent.getJobName()+"\",");
+//			wrt.write("\"status\": \""+ jobEvent.getJobStatus() + "\",");
+//			wrt.write("\"SCHEDULED\": "+ graph.getStatusTimestamp(JobStatus.CREATED) + ",");
+//			wrt.write("\"RUNNING\": "+ graph.getStatusTimestamp(JobStatus.RUNNING) + ",");
+//			wrt.write("\"FINISHED\": "+ graph.getStatusTimestamp(JobStatus.FINISHED) + ",");
+//			wrt.write("\"FAILED\": "+ graph.getStatusTimestamp(JobStatus.FAILED) + ",");
+//			wrt.write("\"CANCELED\": "+ graph.getStatusTimestamp(JobStatus.CANCELED) + ",");
+//
+//			if (jobEvent.getJobStatus() == JobStatus.FAILED) {
+//				wrt.write("\"failednodes\": [");
+//				boolean first = true;
+//				for (ExecutionVertex vertex : graph.getAllExecutionVertices()) {
+//					if (vertex.getExecutionState() == ExecutionState.FAILED) {
+//						AllocatedSlot slot = vertex.getCurrentAssignedResource();
+//						Throwable failureCause = vertex.getFailureCause();
+//						if (slot != null || failureCause != null) {
+//							if (first) {
+//								first = false;
+//							} else {
+//								wrt.write(",");
+//							}
+//							wrt.write("{");
+//							wrt.write("\"node\": \"" + (slot == null ? "(none)" : slot.getInstance().getInstanceConnectionInfo().hostname()) + "\",");
+//							wrt.write("\"message\": \"" + (failureCause == null ? "" : StringUtils.escapeHtml(ExceptionUtils.stringifyException(failureCause))) + "\"");
+//							wrt.write("}");
+//						}
+//					}
+//				}
+//				wrt.write("],");
+//			}
+//
+//			// Serialize ManagementGraph to json
+//			wrt.write("\"groupvertices\": [");
+//			boolean first = true;
+//			for (ExecutionJobVertex groupVertex : graph.getVerticesTopologically()) {
+//				//Write seperator between json objects
+//				if(first) {
+//					first = false;
+//				} else {
+//					wrt.write(","); }
+//
+//				wrt.write(JsonFactory.toJson(groupVertex));
+//
+//			}
+//			wrt.write("],");
+//
+//			// write accumulators
+//			Map<String, Object> accMap = AccumulatorHelper.toResultMap(jobmanager.getAccumulators(jobEvent.getJobID()));
+//
+//			wrt.write("\n\"accumulators\": [");
+//			int i = 0;
+//			for( Entry<String, Object> accumulator : accMap.entrySet()) {
+//				wrt.write("{ \"name\": \""+accumulator.getKey()+" (" + accumulator.getValue().getClass().getName()+")\","
+//						+ " \"value\": \""+accumulator.getValue().toString()+"\"}\n");
+//				if(++i < accMap.size()) {
+//					wrt.write(",");
+//				}
+//			}
+//			wrt.write("],\n");
+//
+//			wrt.write("\"groupverticetimes\": {");
+//			first = true;
+//			for (ExecutionJobVertex groupVertex : graph.getVerticesTopologically()) {
+//
+//				if(first) {
+//					first = false;
+//				} else {
+//					wrt.write(","); }
+//
+//				// Calculate start and end time for groupvertex
+//				long started = Long.MAX_VALUE;
+//				long ended = 0;
+//
+//				// Take earliest running state and latest endstate of groupmembers
+//				for (ExecutionVertex vertex : groupVertex.getTaskVertices()) {
+//
+//					long running = vertex.getStateTimestamp(ExecutionState.RUNNING);
+//					if (running != 0 && running < started) {
+//						started = running;
+//					}
+//
+//					long finished = vertex.getStateTimestamp(ExecutionState.FINISHED);
+//					long canceled = vertex.getStateTimestamp(ExecutionState.CANCELED);
+//					long failed = vertex.getStateTimestamp(ExecutionState.FAILED);
+//
+//					if(finished != 0 && finished > ended) {
+//						ended = finished;
+//					}
+//
+//					if(canceled != 0 && canceled > ended) {
+//						ended = canceled;
+//					}
+//
+//					if(failed != 0 && failed > ended) {
+//						ended = failed;
+//					}
+//
+//				}
+//
+//				wrt.write("\""+groupVertex.getJobVertexId()+"\": {");
+//				wrt.write("\"groupvertexid\": \"" + groupVertex.getJobVertexId() + "\",");
+//				wrt.write("\"groupvertexname\": \"" + groupVertex + "\",");
+//				wrt.write("\"STARTED\": "+ started + ",");
+//				wrt.write("\"ENDED\": "+ ended);
+//				wrt.write("}");
+//
+//			}
+//
+//			wrt.write("}");
+//
+//			wrt.write("}");
+//
+//
+//		wrt.write("]");
+//
+//		} catch (EofException eof) { // Connection closed by client
+//			LOG.info("Info server for jobmanager: Connection closed by client, EofException");
+//		} catch (IOException ioe) { // Connection closed by client
+//			LOG.info("Info server for jobmanager: Connection closed by client, IOException");
+//		}
 		
 	}
 	
@@ -757,55 +741,56 @@ public class JobmanagerInfoServlet extends HttpServlet {
 	 * Writes info about one particular archived JobVertex in a job, including all member execution vertices, their times and statuses.
 	 */
 	private void writeJsonForArchivedJobGroupvertex(PrintWriter wrt, RecentJobEvent jobEvent, JobVertexID vertexId) {
-		try {
-			ExecutionGraph graph = jobmanager.getRecentExecutionGraph(jobEvent.getJobID());
-			
-			ExecutionJobVertex jobVertex = graph.getJobVertex(vertexId);
-			
-			// Serialize ManagementGraph to json
-			wrt.write("{\"groupvertex\": " + JsonFactory.toJson(jobVertex) + ",");
-			
-			wrt.write("\"verticetimes\": {");
-			boolean first = true;
-			for (ExecutionJobVertex groupVertex : graph.getAllVertices().values()) {
-				
-				for (ExecutionVertex vertex : groupVertex.getTaskVertices()) {
-					
-					Execution exec = vertex.getCurrentExecutionAttempt();
-					
-					if(first) {
-						first = false;
-					} else {
-						wrt.write(","); }
-					
-					wrt.write("\""+exec.getAttemptId() +"\": {");
-					wrt.write("\"vertexid\": \"" + exec.getAttemptId() + "\",");
-					wrt.write("\"vertexname\": \"" + vertex + "\",");
-					wrt.write("\"CREATED\": "+ vertex.getStateTimestamp(ExecutionState.CREATED) + ",");
-					wrt.write("\"SCHEDULED\": "+ vertex.getStateTimestamp(ExecutionState.SCHEDULED) + ",");
-					wrt.write("\"DEPLOYING\": "+ vertex.getStateTimestamp(ExecutionState.DEPLOYING) + ",");
-					wrt.write("\"RUNNING\": "+ vertex.getStateTimestamp(ExecutionState.RUNNING) + ",");
-					wrt.write("\"FINISHED\": "+ vertex.getStateTimestamp(ExecutionState.FINISHED) + ",");
-					wrt.write("\"CANCELING\": "+ vertex.getStateTimestamp(ExecutionState.CANCELING) + ",");
-					wrt.write("\"CANCELED\": "+ vertex.getStateTimestamp(ExecutionState.CANCELED) + ",");
-					wrt.write("\"FAILED\": "+ vertex.getStateTimestamp(ExecutionState.FAILED) + "");
-					wrt.write("}");
-				}
-				
-			}
-			wrt.write("}}");
-			
-		}
-		catch (IOException ioe) { // Connection closed by client
-			String message = "Info server for jobmanager: Connection closed by client - " + ioe.getClass().getSimpleName();
-
-			if (LOG.isDebugEnabled()) {
-				LOG.debug(message, ioe);
-			}
-			else if (LOG.isInfoEnabled()) {
-				LOG.info(message);
-			}
-		} 
+//		try {
+//			ExecutionGraph graph = jobmanager.getRecentExecutionGraph(jobEvent.getJobID());
+//
+//			ExecutionJobVertex jobVertex = graph.getJobVertex(vertexId);
+//
+//			// Serialize ManagementGraph to json
+//			wrt.write("{\"groupvertex\": " + JsonFactory.toJson(jobVertex) + ",");
+//
+//			wrt.write("\"verticetimes\": {");
+//			boolean first = true;
+//			for (ExecutionJobVertex groupVertex : graph.getAllVertices().values()) {
+//
+//				int num = 0;
+//				for (ExecutionVertex vertex : groupVertex.getTaskVertices()) {
+//
+//					if(first) {
+//						first = false;
+//					} else {
+//						wrt.write(","); }
+//
+//					wrt.write("\""+jobVertex.getJobVertex()+"-"+num +"\": {");
+//					wrt.write("\"vertexid\": \"" + vertex.getJobvertexId() + "\",");
+//					wrt.write("\"vertexname\": \"" + vertex + "\",");
+//					wrt.write("\"CREATED\": "+ vertex.getStateTimestamp(ExecutionState.CREATED) + ",");
+//					wrt.write("\"SCHEDULED\": "+ vertex.getStateTimestamp(ExecutionState.SCHEDULED) + ",");
+//					wrt.write("\"STARTING\": "+ vertex.getStateTimestamp(ExecutionState.DEPLOYING) + ",");
+//					wrt.write("\"RUNNING\": "+ vertex.getStateTimestamp(ExecutionState.RUNNING) + ",");
+//					wrt.write("\"FINISHED\": "+ vertex.getStateTimestamp(ExecutionState.FINISHED) + ",");
+//					wrt.write("\"CANCELING\": "+ vertex.getStateTimestamp(ExecutionState.CANCELING) + ",");
+//					wrt.write("\"CANCELED\": "+ vertex.getStateTimestamp(ExecutionState.CANCELED) + ",");
+//					wrt.write("\"FAILED\": "+ vertex.getStateTimestamp(ExecutionState.FAILED) + "");
+//					wrt.write("}");
+//
+//					num++;
+//				}
+//
+//			}
+//			wrt.write("}}");
+//
+//		}
+//		catch (IOException ioe) { // Connection closed by client
+//			String message = "Info server for jobmanager: Connection closed by client - " + ioe.getClass().getSimpleName();
+//
+//			if (LOG.isDebugEnabled()) {
+//				LOG.debug(message, ioe);
+//			}
+//			else if (LOG.isInfoEnabled()) {
+//				LOG.info(message);
+//			}
+//		}
 	}
 	
 	/**

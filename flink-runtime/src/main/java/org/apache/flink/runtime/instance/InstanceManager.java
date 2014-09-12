@@ -160,8 +160,8 @@ public class InstanceManager {
 		}
 	}
 
-	public InstanceID registerTaskManager(ActorRef taskManager, HardwareDescription resources,
-										  int numberOfSlots){
+	public InstanceID registerTaskManager(ActorRef taskManager, InstanceConnectionInfo connectionInfo,
+										HardwareDescription resources, int numberOfSlots){
 		synchronized(this.lock){
 			if (this.shutdown) {
 				throw new IllegalStateException("InstanceManager is shut down.");
@@ -186,7 +186,7 @@ public class InstanceManager {
 			} while (registeredHostsById.containsKey(id));
 			
 			
-			Instance host = new Instance(taskManager, id, resources, numberOfSlots);
+			Instance host = new Instance(taskManager, connectionInfo, id, resources, numberOfSlots);
 			
 			registeredHostsById.put(id, host);
 			registeredHostsByConnection.put(taskManager, host);

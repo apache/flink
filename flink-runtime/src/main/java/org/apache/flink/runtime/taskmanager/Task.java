@@ -65,6 +65,8 @@ public final class Task {
 	
 	private final List<ExecutionListener> executionListeners = new CopyOnWriteArrayList<ExecutionListener>();
 
+	private final List<ActorRef> executionListenerActors = new CopyOnWriteArrayList<ActorRef>();
+
 	/** The environment (with the invokable) executed by this task */
 	private volatile RuntimeEnvironment environment;
 	
@@ -377,11 +379,19 @@ public final class Task {
 		this.executionListeners.add(listener);
 	}
 
+	public void registerExecutionListener(ActorRef listener){
+		executionListenerActors.add(listener);
+	}
+
 	public void unregisterExecutionListener(ExecutionListener listener) {
 		if (listener == null) {
 			throw new IllegalArgumentException();
 		}
 		this.executionListeners.remove(listener);
+	}
+
+	public void unregisterExecutionListener(ActorRef listener){
+		executionListenerActors.remove(listener);
 	}
 	
 	private void notifyObservers(ExecutionState newState, String message) {
@@ -396,6 +406,11 @@ public final class Task {
 			catch (Throwable t) {
 				LOG.error("Error while calling execution listener.", t);
 			}
+		}
+
+		for(ActorRef listener: executionListenerActors){
+			listener.tell(new ExecutionGraphMessages.ExecutionStateChanged(jobId, vertexId, subtaskIndex,
+					executionId, newState, message), ActorRef.noSender());
 		}
 	}
 	

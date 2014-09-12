@@ -26,10 +26,10 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.PlanExecutor;
 import org.apache.flink.api.common.Program;
+import org.apache.flink.client.minicluster.FlinkMiniCluster;
 import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.client.minicluster.NepheleMiniCluster;
 import org.apache.flink.compiler.DataStatistics;
 import org.apache.flink.compiler.PactCompiler;
 import org.apache.flink.compiler.contextcheck.ContextChecker;
@@ -49,7 +49,7 @@ public class LocalExecutor extends PlanExecutor {
 
 	private final Object lock = new Object();	// we lock to ensure singleton execution
 	
-	private NepheleMiniCluster nephele;
+	private FlinkMiniCluster nephele;
 
 	// ---------------------------------- config options ------------------------------------------
 	
@@ -144,7 +144,7 @@ public class LocalExecutor extends PlanExecutor {
 			if (this.nephele == null) {
 				
 				// create the embedded runtime
-				this.nephele = new NepheleMiniCluster();
+				this.nephele = new FlinkMiniCluster();
 				
 				// configure it, if values were changed. otherwise the embedded runtime uses the internal defaults
 				if (jobManagerRpcPort > 0) {

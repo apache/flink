@@ -41,7 +41,6 @@ import org.apache.flink.runtime.io.network.gates.InputGate;
 import org.apache.flink.runtime.io.network.gates.OutputGate;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.messages.JobManagerMessages;
-import org.apache.flink.runtime.protocols.ChannelLookupProtocol;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.util.ExceptionUtils;
 import scala.concurrent.Future;
@@ -82,7 +81,7 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 	// -----------------------------------------------------------------------------------------------------------------
 
 	public ChannelManager(ActorRef channelLookup, InstanceConnectionInfo connectionInfo, int numNetworkBuffers,
-						  int networkBufferSize, NetworkConnectionManager networkConnectionManager) throws IOException {
+						int networkBufferSize, NetworkConnectionManager networkConnectionManager) throws IOException {
 
 		this.channelLookup= channelLookup;
 		this.connectionInfo = connectionInfo;
@@ -377,7 +376,7 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 			ConnectionInfoLookupResponse lookupResponse;
 			synchronized (this.channelLookup) {
 				Future<Object> futureResponse = Patterns.ask(channelLookup,
-						new JobManagerMessages.LookupConnectionInformation(jobID, sourceChannelID),
+						new JobManagerMessages.LookupConnectionInformation(connectionInfo, jobID, sourceChannelID),
 						AkkaUtils.FUTURE_TIMEOUT());
 				try{
 					lookupResponse = ((JobManagerMessages.ConnectionInformation) Await.result(futureResponse,

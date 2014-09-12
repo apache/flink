@@ -22,8 +22,6 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
-import java.util.Date;
 import java.util.List;
 import java.util.Set;
 
@@ -33,18 +31,11 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import akka.actor.ActorRef;
-import akka.pattern.Patterns;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.instance.Instance;
-import org.apache.flink.runtime.jobmanager.JobManager;
 
-import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
-import scala.concurrent.Await;
-import scala.concurrent.Future;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

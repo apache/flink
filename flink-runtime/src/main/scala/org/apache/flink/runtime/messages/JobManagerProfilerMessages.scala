@@ -18,13 +18,9 @@
 
 package org.apache.flink.runtime.messages
 
-import org.apache.flink.runtime.execution.{ExecutionState}
-import org.apache.flink.runtime.executiongraph.{ExecutionAttemptID, ExecutionGraph}
-import org.apache.flink.runtime.jobgraph.{JobStatus, JobVertexID, JobID}
+import org.apache.flink.runtime.profiling.impl.types.ProfilingDataContainer
 
-object ExecutionGraphMessages {
-  case class ExecutionStateChanged(jobID: JobID, vertexID: JobVertexID, subtask: Int, executionID: ExecutionAttemptID,
-                                   newExecutionState: ExecutionState, optionalMessage: String)
+object JobManagerProfilerMessages {
+  case class ReportProfilingData(profilingDataContainer: ProfilingDataContainer)
 
-  case class JobStatusChanged(executionGraph: ExecutionGraph, newJobStatus: JobStatus, optionalMessage: String)
 }

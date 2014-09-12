@@ -31,7 +31,7 @@ import org.apache.flink.configuration.{GlobalConfiguration, ConfigConstants, Con
 import org.apache.flink.core.fs.Path
 import org.apache.flink.runtime.ActorLogMessages
 import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.flink.runtime.execution.{ExecutionState, RuntimeEnvironment, ExecutionState2}
+import org.apache.flink.runtime.execution.{ExecutionState, RuntimeEnvironment}
 import org.apache.flink.runtime.execution.librarycache.{LibraryCacheProfileResponse, LibraryCacheManager, LibraryCacheUpdate}
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
 import org.apache.flink.runtime.filecache.FileCache
@@ -45,7 +45,9 @@ import org.apache.flink.runtime.memorymanager.DefaultMemoryManager
 import org.apache.flink.runtime.messages.JobManagerMessages.UpdateTaskExecutionState
 import org.apache.flink.runtime.messages.RegistrationMessages.{RegisterTaskManager, AcknowledgeRegistration}
 import org.apache.flink.runtime.messages.TaskManagerMessages._
+import org.apache.flink.runtime.messages.TaskManagerProfilerMessages.{UnmonitorTask, MonitorTask, RegisterProfilingListener}
 import org.apache.flink.runtime.net.NetUtils
+import org.apache.flink.runtime.profiling.ProfilingUtils
 import org.apache.flink.runtime.util.EnvironmentInformation
 import org.apache.flink.util.ExceptionUtils
 import org.slf4j.LoggerFactory
@@ -55,11 +57,12 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.Failure
 
-class TaskManager(val instanceConnection: InstanceConnectionInfo, val jobManagerURL: String, val numberOfSlots: Int,
+class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerURL: String, val numberOfSlots: Int,
 val memorySize: Long, val pageSize: Int, val tmpDirPaths: Array[String], val networkConnectionConfig:
-NetworkConnectionConfiguration, memoryUsageLogging: MemoryUsageLogging) extends Actor with
+NetworkConnectionConfiguration, memoryUsageLogging: MemoryUsageLogging, profilingInterval: Option[Long]) extends Actor
+with
 ActorLogMessages with ActorLogging with DecorateAsScala with WrapAsScala{
-  import context.dispatcher
+  import context._
   import AkkaUtils.FUTURE_TIMEOUT
 
   val REGISTRATION_DELAY = 0 seconds
@@ -74,6 +77,10 @@ ActorLogMessages with ActorLogging with DecorateAsScala with WrapAsScala{
   val fileCache = new FileCache()
   val runningTasks = scala.collection.concurrent.TrieMap[ExecutionAttemptID, Task]()
 
+  val profiler = profilingInterval match {
+    case Some(interval) => Some(TaskManager.startProfiler(self.path.toSerializationFormat, interval))
+    case None => None
+  }
 
   var channelManager: Option[ChannelManager] = None
   var registrationScheduler: Option[Cancellable] = None
@@ -136,7 +143,7 @@ ActorLogMessages with ActorLogging with DecorateAsScala with WrapAsScala{
         log.info(s"Try to register at master ${jobManagerURL}. ${registrationAttempts}. Attempt")
         val jobManager = context.actorSelection(jobManagerURL)
 
-        jobManager ! RegisterTaskManager(hardwareDescription, numberOfSlots)
+        jobManager ! RegisterTaskManager(connectionInfo, hardwareDescription, numberOfSlots)
       } else {
         log.error("TaskManager could not register at JobManager.");
         throw new RuntimeException("TaskManager could not register at JobManager");
@@ -156,6 +163,10 @@ ActorLogMessages with ActorLogging with DecorateAsScala with WrapAsScala{
         context.watch(currentJobManager)
 
         setupChannelManager()
+
+        profiler foreach {
+          _.tell(RegisterProfilingListener, JobManager.getProfiler(currentJobManager))
+        }
       }
     }
 
@@ -205,12 +216,12 @@ ActorLogMessages with ActorLogging with DecorateAsScala with WrapAsScala{
 
           val jobConfig = tdd.getJobConfiguration
 
-          // TODO: Implement profiler
-          val enableProfiling = false
-
-//          if(enableProfiling){
-//            task.registerProfiler(profiler, jobConfig)
-//          }
+          if(jobConfig.getBoolean(ProfilingUtils.PROFILE_JOB_KEY, true)){
+            profiler match {
+              case Some(profiler) => profiler ! MonitorTask(task)
+              case None => log.warning("There is no profiling enabled for the task manager.")
+            }
+          }
 
           val cpTasks = new util.HashMap[String, FutureTask[Path]]()
 
@@ -301,14 +312,14 @@ ActorLogMessages with ActorLogging with DecorateAsScala with WrapAsScala{
 
   def unregisterTask(executionID: ExecutionAttemptID): Unit = {
     runningTasks.remove(executionID) match {
-      case task: Task =>
+      case Some(task) =>
         for(entry <- DistributedCache.readFileInfoFromConfig(task.getEnvironment.getJobConfiguration)){
           fileCache.deleteTmpFile(entry.getKey, entry.getValue, task.getJobID)
         }
 
         channelManager foreach { _.unregister(executionID, task) }
 
-//        task.unregisterProfiler(profiler)
+        profiler foreach { _ ! UnmonitorTask(task.getExecutionId) }
 
         task.unregisterMemoryManager(memoryManager)
 
@@ -318,7 +329,7 @@ ActorLogMessages with ActorLogging with DecorateAsScala with WrapAsScala{
           case ioe: IOException =>
             log.error(ioe, s"Unregistering the execution ${executionID} caused an IOException.")
         }
-      case _ =>
+      case None =>
         log.error(s"Cannot find task with ID ${executionID} to unregister.")
     }
   }
@@ -341,9 +352,9 @@ ActorLogMessages with ActorLogging with DecorateAsScala with WrapAsScala{
     try {
       import networkConnectionConfig._
 
-      val networkConnectionManager = new NettyConnectionManager(instanceConnection.address(), instanceConnection.dataPort(),
+      val networkConnectionManager = new NettyConnectionManager(connectionInfo.address(), connectionInfo.dataPort(),
         bufferSize, numInThreads, numOutThreads, closeAfterIdleForMs)
-      channelManager = Some(new ChannelManager(currentJobManager, instanceConnection, numBuffers, bufferSize,
+      channelManager = Some(new ChannelManager(currentJobManager, connectionInfo, numBuffers, bufferSize,
         networkConnectionManager))
     }catch{
       case ioe: IOException =>
@@ -357,6 +368,9 @@ object TaskManager{
 
   val LOG = LoggerFactory.getLogger(classOf[TaskManager])
   val FAILURE_RETURN_CODE = -1
+
+  val TASK_MANAGER_NAME = "taskmanager"
+  val PROFILER_NAME = "profiler"
 
   def main(args: Array[String]): Unit = {
     val (hostname, port, configuration) = initialize(args)
@@ -437,7 +451,12 @@ object TaskManager{
     val pageSize = configuration.getInteger(ConfigConstants.TASK_MANAGER_NETWORK_BUFFER_SIZE_KEY,
       ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_BUFFER_SIZE)
 
-    actorSystem.actorOf(Props(classOf[TaskManager], jobManagerURL, numberOfSlots, memorySize, pageSize), "taskmanager");
+    actorSystem.actorOf(Props(classOf[TaskManager], jobManagerURL, numberOfSlots, memorySize, pageSize),
+      TASK_MANAGER_NAME);
+  }
+
+  def startProfiler(instancePath: String, reportInterval: Long)(implicit system: ActorSystem): ActorRef = {
+    system.actorOf(Props(classOf[TaskManagerProfiler], instancePath, reportInterval), PROFILER_NAME)
   }
 
   def getAkkaURL(address: String): String = {

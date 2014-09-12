@@ -16,15 +16,17 @@
  * limitations under the License.
  */
 
+package org.apache.flink.runtime.messages
 
-package org.apache.flink.runtime.profiling.impl;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
+import org.apache.flink.runtime.taskmanager.Task
 
-import java.io.IOException;
+object TaskManagerProfilerMessages {
+  case class MonitorTask(task: Task)
+  case class UnmonitorTask(executionID: ExecutionAttemptID)
 
-import org.apache.flink.core.protocols.VersionedProtocol;
-import org.apache.flink.runtime.profiling.impl.types.ProfilingDataContainer;
+  case object RegisterProfilingListener
+  case object UnregisterProfilingListener
+  case object ProfileTasks
 
-public interface ProfilerImplProtocol extends VersionedProtocol {
-
-	void reportProfilingData(ProfilingDataContainer profilingDataContainer) throws IOException;
 }

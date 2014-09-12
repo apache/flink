@@ -56,7 +56,6 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
-import org.apache.flink.runtime.protocols.AccumulatorProtocol;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -654,7 +653,6 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 
 		return Collections.unmodifiableSet(outputChannelIDs);
 	}
-
 
 	@Override
 	public Set<ChannelID> getInputChannelIDsOfGate(final GateID gateID) {

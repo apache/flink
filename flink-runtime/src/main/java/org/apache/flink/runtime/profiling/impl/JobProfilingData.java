@@ -58,8 +58,8 @@ public class JobProfilingData {
 
 	public boolean addIfInstanceIsAllocatedByJob(InternalInstanceProfilingData instanceProfilingData) {
 
-		for (ExecutionVertex2 executionVertex : this.executionGraph.getAllExecutionVertices()) {
-			AllocatedSlot slot = executionVertex.getAssignedSlot();
+		for (ExecutionVertex executionVertex : this.executionGraph.getAllExecutionVertices()) {
+			AllocatedSlot slot = executionVertex.getCurrentAssignedResource();
 			if (slot != null && slot.getInstance().getPath().equals(
 					instanceProfilingData.getInstancePath()))
 			{
@@ -75,8 +75,8 @@ public class JobProfilingData {
 
 		final Set<Instance> tempSet = new HashSet<Instance>();
 		
-		for (ExecutionVertex2 executionVertex : this.executionGraph.getAllExecutionVertices()) {
-			AllocatedSlot slot = executionVertex.getAssignedSlot();
+		for (ExecutionVertex executionVertex : this.executionGraph.getAllExecutionVertices()) {
+			AllocatedSlot slot = executionVertex.getCurrentAssignedResource();
 			if (slot != null) {
 				tempSet.add(slot.getInstance());
 			}

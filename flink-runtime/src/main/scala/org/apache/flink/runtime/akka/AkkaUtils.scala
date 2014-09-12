@@ -18,12 +18,13 @@
 
 package org.apache.flink.runtime.akka
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.core.io.IOReadableWritable
 import org.apache.flink.runtime.akka.serialization.IOReadableWritableSerializer
+import scala.concurrent.Await
 import scala.concurrent.duration._
 
 object AkkaUtils {
@@ -35,6 +36,10 @@ object AkkaUtils {
     val actorSystem = ActorSystem.create("flink", akkaConfig)
 
     actorSystem
+  }
+
+  def getChild(parent: ActorRef, child: String)(implicit system: ActorSystem): ActorRef = {
+    Await.result(system.actorSelection(parent.path / child).resolveOne(), AWAIT_DURATION)
   }
 
   def getConfigString(host: String, port: Int, configuration: Configuration): String = {

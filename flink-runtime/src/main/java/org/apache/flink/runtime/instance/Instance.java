@@ -51,6 +51,9 @@ public class Instance {
 	
 	/** The actor ref to the task manager represented by this taskManager. */
 	private final ActorRef taskManager;
+
+	/** The instance connection information for the data transfer. */
+	private final InstanceConnectionInfo connectionInfo;
 	
 	/** A description of the resources of the task manager */
 	private final HardwareDescription resources;
@@ -88,8 +91,10 @@ public class Instance {
 	 * @param resources The resources available on the machine.
 	 * @param numberOfSlots The number of task slots offered by this taskManager.
 	 */
-	public Instance(ActorRef taskManager, InstanceID id, HardwareDescription resources, int numberOfSlots) {
+	public Instance(ActorRef taskManager, InstanceConnectionInfo connectionInfo, InstanceID id,
+					HardwareDescription resources, int numberOfSlots) {
 		this.taskManager = taskManager;
+		this.connectionInfo = connectionInfo;
 		this.instanceId = id;
 		this.resources = resources;
 		this.numberOfSlots = numberOfSlots;
@@ -341,6 +346,10 @@ public class Instance {
 
 	public String getPath(){
 		return taskManager.path().toString();
+	}
+
+	public InstanceConnectionInfo getInstanceConnectionInfo() {
+		return connectionInfo;
 	}
 	
 	public int getNumberOfAvailableSlots() {

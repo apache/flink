@@ -539,7 +539,7 @@ public class ExecutionGraph {
 			// common case - found task running
 			if (executionState == ExecutionState.RUNNING) {
 				Instance location = targetVertex.getCurrentAssignedResource().getInstance();
-				
+
 				if (location.getInstanceConnectionInfo().equals(caller)) {
 					// Receiver runs on the same task manager
 					return ConnectionInfoLookupResponse.createReceiverFoundAndReady(edge.getOutputChannelId());
@@ -714,7 +714,7 @@ public class ExecutionGraph {
 	 * @param error
 	 */
 	void notifyExecutionChange(JobVertexID vertexId, int subtask, ExecutionAttemptID executionID, ExecutionState
-							   newExecutionState, Throwable error) {
+							newExecutionState, Throwable error) {
 		if(executionListeners.size() >0){
 			String message = error == null ? null : ExceptionUtils.stringifyException(error);
 			for (ExecutionListener listener : this.executionListeners) {

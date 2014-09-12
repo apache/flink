@@ -45,7 +45,7 @@ import scala.concurrent.Await;
 import scala.concurrent.Future;
 
 
-public class NepheleMiniCluster {
+public class FlinkMiniCluster {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(NepheleMiniCluster.class);
 	
@@ -92,7 +92,9 @@ public class NepheleMiniCluster {
 	private boolean defaultAlwaysCreateDirectory = false;
 
 	
-	private JobManager jobManager;
+	private ActorSystem jobManagerActorSystem;
+
+	private List<ActorSystem> taskManagersActorSystems = new ArrayList<ActorSystem>();
 
 	// ------------------------------------------------------------------------
 	//  Constructor and feature / properties setup
@@ -226,7 +228,7 @@ public class NepheleMiniCluster {
 			Configuration configuration = GlobalConfiguration.getConfiguration();
 			
 			// start the job manager
-			jobManager = JobManager.startActorSystemAndActor(HOSTNAME, jobManagerRpcPort, configuration);
+			jobManagerActorSystem = JobManager.startActorSystemAndActor(HOSTNAME, jobManagerRpcPort, configuration);
 
 			int tmRPCPort = GlobalConfiguration.getInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY,
 					ConfigConstants.DEFAULT_TASK_MANAGER_IPC_PORT);
@@ -238,23 +240,26 @@ public class NepheleMiniCluster {
 				tmConfiguration.setInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, tmRPCPort + i);
 				tmConfiguration.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, tmDataPort + i);
 				ActorSystem taskManager = TaskManager.startActorSystemAndActor(HOSTNAME, tmRPCPort+i, configuration);
-				taskManagers.add(taskManager);
+				taskManagersActorSystems.add(taskManager);
 			}
 
-			// start the job manager
-			jobManager = new JobManager(ExecutionMode.LOCAL);
-	
 			waitForJobManagerToBecomeReady(taskManagerNumSlots * numTaskManager);
 		}
 	}
 
 	public void stop() throws Exception {
-		synchronized (this.startStopLock) {
-			if (jobManager != null) {
-				jobManager.shutdown();
-				jobManager = null;
-			}
+		for(ActorSystem system: taskManagersActorSystems){
+			system.shutdown();
 		}
+
+		for(ActorSystem system: taskManagersActorSystems){
+			system.awaitTermination();
+		}
+
+		taskManagersActorSystems.clear();
+
+		jobManagerActorSystem.shutdown();
+		jobManagerActorSystem.awaitTermination();
 	}
 	
 	public TaskManager[] getTaskManagers() {
@@ -278,7 +283,7 @@ public class NepheleMiniCluster {
 		boolean notReady = true;
 
 		Timeout timeout = new Timeout(1L, TimeUnit.MINUTES);
-		ActorSelection jobManagerSelection = jobManager.actorSelection("/user/jobmanager");
+		ActorSelection jobManagerSelection = jobManagerActorSystem.actorSelection("/user/jobmanager");
 
 		while(notReady){
 			Future<Object> futureNumTaskManagers = Patterns.ask(jobManagerSelection,

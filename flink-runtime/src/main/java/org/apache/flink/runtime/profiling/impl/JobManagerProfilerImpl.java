@@ -48,7 +48,7 @@ import org.apache.flink.runtime.profiling.types.SingleInstanceProfilingEvent;
 import org.apache.flink.runtime.profiling.types.ThreadProfilingEvent;
 import org.apache.flink.util.StringUtils;
 
-public class JobManagerProfilerImpl implements JobManagerProfiler, ProfilerImplProtocol {
+public class JobManagerProfilerImpl implements JobManagerProfiler {
 
 	private static final Logger LOG = LoggerFactory.getLogger(JobManagerProfilerImpl.class);
 
@@ -201,7 +201,6 @@ public class JobManagerProfilerImpl implements JobManagerProfiler, ProfilerImplP
 		}
 	}
 
-	@Override
 	public void reportProfilingData(ProfilingDataContainer profilingDataContainer) {
 
 		final long timestamp = System.currentTimeMillis();

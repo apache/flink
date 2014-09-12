@@ -25,8 +25,6 @@ import java.io.IOException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import akka.actor.ActorRef;
-import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.profiling.ProfilingException;
 import org.apache.flink.runtime.profiling.impl.types.InternalInstanceProfilingData;
 import org.apache.flink.util.StringUtils;
@@ -86,7 +84,7 @@ public class InstanceProfiler {
 		generateProfilingData(this.firstTimestamp);
 	}
 
-	InternalInstanceProfilingData generateProfilingData(long timestamp) throws ProfilingException {
+	public InternalInstanceProfilingData generateProfilingData(long timestamp) throws ProfilingException {
 
 		final long profilingInterval = timestamp - lastTimestamp;
 

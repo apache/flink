@@ -19,9 +19,11 @@
 package org.apache.flink.runtime.messages
 
 import org.apache.flink.runtime.accumulators.AccumulatorEvent
+import org.apache.flink.runtime.instance.InstanceConnectionInfo
 import org.apache.flink.runtime.io.network.ConnectionInfoLookupResponse
 import org.apache.flink.runtime.io.network.channels.ChannelID
 import org.apache.flink.runtime.jobgraph.{JobVertexID, JobID, JobGraph}
+import org.apache.flink.runtime.profiling.impl.types.ProfilingDataContainer
 import org.apache.flink.runtime.taskmanager.TaskExecutionState
 
 object JobManagerMessages {
@@ -29,7 +31,7 @@ object JobManagerMessages {
   case class CancelJob(jobID: JobID)
   case class UpdateTaskExecutionState(taskExecutionState: TaskExecutionState)
   case class RequestNextInputSplit(jobID: JobID, vertexID: JobVertexID)
-  case class LookupConnectionInformation(jobID: JobID, sourceChannelID: ChannelID)
+  case class LookupConnectionInformation(caller: InstanceConnectionInfo, jobID: JobID, sourceChannelID: ChannelID)
   case class ConnectionInformation(response: ConnectionInfoLookupResponse)
   case class ReportAccumulatorResult(accumulatorEvent: AccumulatorEvent)
   case class RequestAccumulatorResult(jobID: JobID)

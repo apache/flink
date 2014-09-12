@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.taskmanager;
 
-import java.io.IOException;
-
 import akka.actor.ActorRef;
 import akka.pattern.Patterns;
 import org.apache.flink.core.io.InputSplit;
@@ -29,7 +27,6 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
-import org.apache.flink.runtime.protocols.InputSplitProviderProtocol;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 

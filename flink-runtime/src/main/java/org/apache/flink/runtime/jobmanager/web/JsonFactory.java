@@ -39,7 +39,7 @@ public class JsonFactory {
 		json.append("\"vertexname\": \"" + StringUtils.escapeHtml(vertex.getSimpleName()) + "\",");
 		json.append("\"vertexstatus\": \"" + vertex.getExecutionState() + "\",");
 		
-		AllocatedSlot slot = vertex.getAssignedSlot();
+		AllocatedSlot slot = vertex.getCurrentAssignedResource();
 		String instanceName = slot == null ? "(null)" : slot.getInstance().getPath();
 		
 		json.append("\"vertexinstancename\": \"" + instanceName + "\"");

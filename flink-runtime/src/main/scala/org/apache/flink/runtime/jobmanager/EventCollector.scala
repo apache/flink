@@ -27,7 +27,6 @@ import org.apache.flink.runtime.jobgraph.{JobStatus, JobID}
 import org.apache.flink.runtime.messages.ArchiveMessages.{ArchiveExecutionGraph, ArchiveJobEvent, ArchiveEvent}
 import org.apache.flink.runtime.messages.EventCollectorMessages._
 import org.apache.flink.runtime.messages.ExecutionGraphMessages.{JobStatusChanged, ExecutionStateChanged}
-import org.apache.flink.runtime.messages.JobManagerMessages.RequestJobProgress
 import org.apache.flink.runtime.messages.JobResult
 import org.apache.flink.runtime.messages.JobResult.JobProgressResult
 import scala.collection.convert.{WrapAsScala}
@@ -122,7 +121,6 @@ class EventCollector(val timerTaskInterval: Int) extends Actor with ActorLogMess
           val vertex = graph.getJobVertex(vertexID)
           val taskName = if(vertex != null) vertex.getJobVertex.getName else "(null)"
           val totalNumberOfSubtasks = if(vertex != null) vertex.getParallelism else -1
-
 
           val vertexEvent = new VertexEvent(timestamp, vertexID, taskName, totalNumberOfSubtasks, subtask, executionID,
             newExecutionState, optionalMessage)
