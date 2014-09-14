@@ -23,8 +23,7 @@ import java.util.Arrays;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
-import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.types.TypeInformation;
 
 
@@ -32,46 +31,47 @@ public abstract class Keys<T> {
 
 
 	public abstract int getNumberOfKeyFields();
-	
+
 	public boolean isEmpty() {
 		return getNumberOfKeyFields() == 0;
 	}
-	
+
 	public abstract boolean areCompatibale(Keys<?> other);
-	
+
 	public abstract int[] computeLogicalKeyPositions();
-	
+
 	// --------------------------------------------------------------------------------------------
 	//  Specializations for field indexed / expression-based / extractor-based grouping
 	// --------------------------------------------------------------------------------------------
-	
+
 	public static class FieldPositionKeys<T> extends Keys<T> {
-		
+
 		private final int[] fieldPositions;
 		private final TypeInformation<?>[] types;
-		
+
 		public FieldPositionKeys(int[] groupingFields, TypeInformation<T> type) {
 			this(groupingFields, type, false);
 		}
-		
+
 		public FieldPositionKeys(int[] groupingFields, TypeInformation<T> type, boolean allowEmpty) {
 			if (!type.isTupleType()) {
-				throw new InvalidProgramException("Specifying keys via field positions is only valid for tuple data types");
+				throw new InvalidProgramException("Specifying keys via field positions is only valid" +
+						"for tuple data types. Type: " + type);
 			}
-			
+
 			if (!allowEmpty && (groupingFields == null || groupingFields.length == 0)) {
 				throw new IllegalArgumentException("The grouping fields must not be empty.");
 			}
-			
-			TupleTypeInfo<?> tupleType = (TupleTypeInfo<?>)type;
-	
-			this.fieldPositions = makeFields(groupingFields, (TupleTypeInfo<?>) type);
-			
+
+			TupleTypeInfoBase<?> tupleType = (TupleTypeInfoBase<?>)type;
+
+			this.fieldPositions = makeFields(groupingFields, (TupleTypeInfoBase<?>) type);
+
 			types = new TypeInformation[this.fieldPositions.length];
 			for(int i = 0; i < this.fieldPositions.length; i++) {
 				types[i] = tupleType.getTypeAt(this.fieldPositions[i]);
 			}
-			
+
 		}
 
 		@Override
@@ -81,10 +81,10 @@ public abstract class Keys<T> {
 
 		@Override
 		public boolean areCompatibale(Keys<?> other) {
-			
+
 			if (other instanceof FieldPositionKeys) {
 				FieldPositionKeys<?> oKey = (FieldPositionKeys<?>) other;
-				
+
 				if(oKey.types.length != this.types.length) {
 					return false;
 				}
@@ -94,14 +94,14 @@ public abstract class Keys<T> {
 					}
 				}
 				return true;
-				
+
 			} else if (other instanceof SelectorFunctionKeys) {
 				if(this.types.length != 1) {
 					return false;
 				}
-				
+
 				SelectorFunctionKeys<?, ?> sfk = (SelectorFunctionKeys<?, ?>) other;
-				
+
 				return sfk.keyType.equals(this.types[0]);
 			}
 			else {
@@ -113,32 +113,33 @@ public abstract class Keys<T> {
 		public int[] computeLogicalKeyPositions() {
 			return this.fieldPositions;
 		}
-	
+
 		@Override
 		public String toString() {
-			return Arrays.toString(fieldPositions);
+			String fieldsString = Arrays.toString(fieldPositions);
+			String typesString = Arrays.toString(types);
+			return "Tuple position key (Fields: " + fieldsString + " Types: " + typesString + ")";
 		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	public static class SelectorFunctionKeys<T, K> extends Keys<T> {
 
 		private final KeySelector<T, K> keyExtractor;
 		private final TypeInformation<K> keyType;
-		
-		public SelectorFunctionKeys(KeySelector<T, K> keyExtractor, TypeInformation<T> type) {
+
+		public SelectorFunctionKeys(KeySelector<T, K> keyExtractor, TypeInformation<T> inputType, TypeInformation<K> keyType) {
 			if (keyExtractor == null) {
 				throw new NullPointerException("Key extractor must not be null.");
 			}
-			
+
 			this.keyExtractor = keyExtractor;
-			this.keyType = TypeExtractor.getKeySelectorTypes(keyExtractor, type);
-			
+			this.keyType = keyType;
+
 			if (!this.keyType.isKeyType()) {
 				throw new IllegalArgumentException("Invalid type of KeySelector keys");
 			}
-			
 		}
 
 		public TypeInformation<K> getKeyType() {
@@ -156,20 +157,20 @@ public abstract class Keys<T> {
 
 		@Override
 		public boolean areCompatibale(Keys<?> other) {
-			
+
 			if (other instanceof SelectorFunctionKeys) {
 				@SuppressWarnings("unchecked")
 				SelectorFunctionKeys<?, K> sfk = (SelectorFunctionKeys<?, K>) other;
-				
+
 				return sfk.keyType.equals(this.keyType);
 			}
 			else if (other instanceof FieldPositionKeys) {
 				FieldPositionKeys<?> fpk = (FieldPositionKeys<?>) other;
-						
+
 				if(fpk.types.length != 1) {
 					return false;
 				}
-				
+
 				return fpk.types[0].equals(this.keyType);
 			}
 			else {
@@ -181,15 +182,15 @@ public abstract class Keys<T> {
 		public int[] computeLogicalKeyPositions() {
 			return new int[] {0};
 		}
-		
+
 		@Override
 		public String toString() {
-			return keyExtractor + " (" + keyType + ")";
+			return "Key function (Type: " + keyType + ")";
 		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	public static class ExpressionKeys<T> extends Keys<T> {
 
 		private int[] logicalPositions;
@@ -250,15 +251,15 @@ public abstract class Keys<T> {
 			return logicalPositions;
 		}
 	}
-	
-	
+
+
 	// --------------------------------------------------------------------------------------------
 	//  Utilities
 	// --------------------------------------------------------------------------------------------
-	
-	private static int[] makeFields(int[] fields, TupleTypeInfo<?> type) {
+
+	private static int[] makeFields(int[] fields, TupleTypeInfoBase<?> type) {
 		int inLength = type.getArity();
-		
+
 		// null parameter means all fields are considered
 		if (fields == null || fields.length == 0) {
 			fields = new int[inLength];
@@ -270,30 +271,30 @@ public abstract class Keys<T> {
 			return rangeCheckAndOrderFields(fields, inLength-1);
 		}
 	}
-	
+
 	private static final int[] rangeCheckAndOrderFields(int[] fields, int maxAllowedField) {
 		// order
 		Arrays.sort(fields);
-		
+
 		// range check and duplicate eliminate
 		int i = 1, k = 0;
 		int last = fields[0];
-		
+
 		if (last < 0 || last > maxAllowedField) {
 			throw new IllegalArgumentException("Tuple position is out of range.");
 		}
-		
+
 		for (; i < fields.length; i++) {
 			if (fields[i] < 0 || i > maxAllowedField) {
 				throw new IllegalArgumentException("Tuple position is out of range.");
 			}
-			
+
 			if (fields[i] != last) {
 				k++;
 				fields[k] = fields[i];
 			}
 		}
-		
+
 		// check if we eliminated something
 		if (k == fields.length - 1) {
 			return fields;

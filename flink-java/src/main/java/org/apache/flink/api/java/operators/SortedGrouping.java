@@ -27,6 +27,9 @@ import org.apache.flink.api.common.operators.Order;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.functions.UnsupportedLambdaExpressionException;
+import org.apache.flink.types.TypeInformation;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
+
 
 /**
  * SortedGrouping is an intermediate step for a transformation on a grouped and sorted DataSet.<br/>
@@ -67,14 +70,14 @@ public class SortedGrouping<T> extends Grouping<T> {
 
 	/**
 	 * Applies a GroupReduce transformation on a grouped and sorted {@link DataSet}.<br/>
-	 * The transformation calls a {@link org.apache.flink.api.java.functions.RichGroupReduceFunction} for each group of the DataSet.
+	 * The transformation calls a {@link org.apache.flink.api.common.functions.RichGroupReduceFunction} for each group of the DataSet.
 	 * A GroupReduceFunction can iterate over all elements of a group and emit any
 	 *   number of output elements including none.
 	 * 
 	 * @param reducer The GroupReduceFunction that is applied on each group of the DataSet.
 	 * @return A GroupReduceOperator that represents the reduced DataSet.
 	 * 
-	 * @see org.apache.flink.api.java.functions.RichGroupReduceFunction
+	 * @see org.apache.flink.api.common.functions.RichGroupReduceFunction
 	 * @see GroupReduceOperator
 	 * @see DataSet
 	 */
@@ -85,7 +88,8 @@ public class SortedGrouping<T> extends Grouping<T> {
 		if (FunctionUtils.isLambdaFunction(reducer)) {
 			throw new UnsupportedLambdaExpressionException();
 		}
-		return new GroupReduceOperator<T, R>(this, reducer);
+		TypeInformation<R> resultType = TypeExtractor.getGroupReduceReturnTypes(reducer, this.getDataSet().getType());
+		return new GroupReduceOperator<T, R>(this, resultType, reducer);
 	}
 
 	

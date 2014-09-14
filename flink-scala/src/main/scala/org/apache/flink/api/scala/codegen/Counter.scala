@@ -19,7 +19,7 @@
 
 package org.apache.flink.api.scala.codegen
 
-class Counter {
+private[flink] class Counter {
   private var value: Int = 0
 
   def next: Int = {

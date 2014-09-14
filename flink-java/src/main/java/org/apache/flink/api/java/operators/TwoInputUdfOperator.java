@@ -35,8 +35,8 @@ import org.apache.flink.api.java.DataSet;
 /**
  * The <tt>TwoInputUdfOperator</tt> is the base class of all binary operators that execute
  * user-defined functions (UDFs). The UDFs encapsulated by this operator are naturally UDFs that
- * have two inputs (such as {@link org.apache.flink.api.java.functions.RichJoinFunction} or
- * {@link org.apache.flink.api.java.functions.RichCoGroupFunction}).
+ * have two inputs (such as {@link org.apache.flink.api.common.functions.RichJoinFunction} or
+ * {@link org.apache.flink.api.common.functions.RichCoGroupFunction}).
  * <p>
  * This class encapsulates utilities for the UDFs, such as broadcast variables, parameterization
  * through configuration objects, and semantic properties.
@@ -184,17 +184,17 @@ public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOp
 	}
 
 	@Override
-	public DualInputSemanticProperties getSematicProperties() {
+	public DualInputSemanticProperties getSemanticProperties() {
 		return this.udfSemantics;
 	}
 
 	/**
 	 * Sets the semantic properties for the user-defined function (UDF). The semantic properties
 	 * define how fields of tuples and other objects are modified or preserved through this UDF.
-	 * The configured properties can be retrieved via {@link UdfOperator#getSematicProperties()}.
+	 * The configured properties can be retrieved via {@link UdfOperator#getSemanticProperties()}.
 	 *
 	 * @param properties The semantic properties for the UDF.
-	 * @see UdfOperator#getSematicProperties()
+	 * @see UdfOperator#getSemanticProperties()
 	 */
 	public void setSemanticProperties(DualInputSemanticProperties properties) {
 		this.udfSemantics = properties;

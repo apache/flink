@@ -35,8 +35,8 @@ import org.apache.flink.api.java.DataSet;
 /**
  * The <tt>SingleInputUdfOperator</tt> is the base class of all unary operators that execute
  * user-defined functions (UDFs). The UDFs encapsulated by this operator are naturally UDFs that
- * have one input (such as {@link org.apache.flink.api.java.functions.RichMapFunction} or
- * {@link org.apache.flink.api.java.functions.RichReduceFunction}).
+ * have one input (such as {@link org.apache.flink.api.common.functions.RichMapFunction} or
+ * {@link org.apache.flink.api.common.functions.RichReduceFunction}).
  * <p>
  * This class encapsulates utilities for the UDFs, such as broadcast variables, parameterization
  * through configuration objects, and semantic properties.
@@ -142,17 +142,17 @@ public abstract class SingleInputUdfOperator<IN, OUT, O extends SingleInputUdfOp
 	}
 
 	@Override
-	public SingleInputSemanticProperties getSematicProperties() {
+	public SingleInputSemanticProperties getSemanticProperties() {
 		return this.udfSemantics;
 	}
 
 	/**
 	 * Sets the semantic properties for the user-defined function (UDF). The semantic properties
 	 * define how fields of tuples and other objects are modified or preserved through this UDF.
-	 * The configured properties can be retrieved via {@link UdfOperator#getSematicProperties()}.
+	 * The configured properties can be retrieved via {@link UdfOperator#getSemanticProperties()}.
 	 *
 	 * @param properties The semantic properties for the UDF.
-	 * @see UdfOperator#getSematicProperties()
+	 * @see UdfOperator#getSemanticProperties()
 	 */
 	public void setSemanticProperties(SingleInputSemanticProperties properties) {
 		this.udfSemantics = properties;

@@ -316,7 +316,7 @@ public final class NormalizedKeySorter<T> implements InMemorySorter<T>
 		this.recordBufferForComparison.setReadPosition(pointer2);
 		
 		try {
-			return this.comparator.compare(this.recordBuffer, this.recordBufferForComparison);
+			return this.comparator.compareSerialized(this.recordBuffer, this.recordBufferForComparison);
 		} catch (IOException ioex) {
 			throw new RuntimeException("Error comparing two records.", ioex);
 		}

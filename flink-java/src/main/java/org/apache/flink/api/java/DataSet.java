@@ -45,9 +45,11 @@ import org.apache.flink.api.java.operators.CoGroupOperator.CoGroupOperatorSets;
 import org.apache.flink.api.java.operators.CrossOperator;
 import org.apache.flink.api.java.operators.CustomUnaryOperation;
 import org.apache.flink.api.java.operators.DataSink;
+import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.operators.DistinctOperator;
 import org.apache.flink.api.java.operators.FilterOperator;
 import org.apache.flink.api.java.operators.FlatMapOperator;
+import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.java.operators.JoinOperator.JoinHint;
 import org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets;
 import org.apache.flink.api.java.operators.Keys;
@@ -66,6 +68,8 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.types.TypeInformation;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
+
 
 
 /**
@@ -128,13 +132,13 @@ public abstract class DataSet<T> {
 	
 	/**
 	 * Applies a Map transformation on a {@link DataSet}.<br/>
-	 * The transformation calls a {@link org.apache.flink.api.java.functions.RichMapFunction} for each element of the DataSet.
+	 * The transformation calls a {@link org.apache.flink.api.common.functions.RichMapFunction} for each element of the DataSet.
 	 * Each MapFunction call returns exactly one element.
 	 * 
 	 * @param mapper The MapFunction that is called for each element of the DataSet.
 	 * @return A MapOperator that represents the transformed DataSet.
 	 * 
-	 * @see org.apache.flink.api.java.functions.RichMapFunction
+	 * @see org.apache.flink.api.common.functions.RichMapFunction
 	 * @see MapOperator
 	 * @see DataSet
 	 */
@@ -145,7 +149,10 @@ public abstract class DataSet<T> {
 		if (FunctionUtils.isLambdaFunction(mapper)) {
 			throw new UnsupportedLambdaExpressionException();
 		}
-		return new MapOperator<T, R>(this, mapper);
+
+		TypeInformation<R> resultType = TypeExtractor.getMapReturnTypes(mapper, this.getType());
+
+		return new MapOperator<T, R>(this, resultType, mapper);
 	}
 
 
@@ -172,18 +179,19 @@ public abstract class DataSet<T> {
 		if (mapPartition == null) {
 			throw new NullPointerException("MapPartition function must not be null.");
 		}
-		return new MapPartitionOperator<T, R>(this, mapPartition);
+		TypeInformation<R> resultType = TypeExtractor.getMapPartitionReturnTypes(mapPartition, this.getType());
+		return new MapPartitionOperator<T, R>(this, resultType, mapPartition);
 	}
 	
 	/**
 	 * Applies a FlatMap transformation on a {@link DataSet}.<br/>
-	 * The transformation calls a {@link org.apache.flink.api.java.functions.RichFlatMapFunction} for each element of the DataSet.
+	 * The transformation calls a {@link org.apache.flink.api.common.functions.RichFlatMapFunction} for each element of the DataSet.
 	 * Each FlatMapFunction call can return any number of elements including none.
 	 * 
 	 * @param flatMapper The FlatMapFunction that is called for each element of the DataSet. 
 	 * @return A FlatMapOperator that represents the transformed DataSet.
 	 * 
-	 * @see org.apache.flink.api.java.functions.RichFlatMapFunction
+	 * @see org.apache.flink.api.common.functions.RichFlatMapFunction
 	 * @see FlatMapOperator
 	 * @see DataSet
 	 */
@@ -194,19 +202,20 @@ public abstract class DataSet<T> {
 		if (FunctionUtils.isLambdaFunction(flatMapper)) {
 			throw new UnsupportedLambdaExpressionException();
 		}
-		return new FlatMapOperator<T, R>(this, flatMapper);
+		TypeInformation<R> resultType = TypeExtractor.getFlatMapReturnTypes(flatMapper, this.getType());
+		return new FlatMapOperator<T, R>(this, resultType, flatMapper);
 	}
 	
 	/**
 	 * Applies a Filter transformation on a {@link DataSet}.<br/>
-	 * The transformation calls a {@link org.apache.flink.api.java.functions.RichFilterFunction} for each element of the DataSet
+	 * The transformation calls a {@link org.apache.flink.api.common.functions.RichFilterFunction} for each element of the DataSet
 	 * and retains only those element for which the function returns true. Elements for 
 	 * which the function returns false are filtered. 
 	 * 
 	 * @param filter The FilterFunction that is called for each element of the DataSet.
 	 * @return A FilterOperator that represents the filtered DataSet.
 	 * 
-	 * @see org.apache.flink.api.java.functions.RichFilterFunction
+	 * @see org.apache.flink.api.common.functions.RichFilterFunction
 	 * @see FilterOperator
 	 * @see DataSet
 	 */
@@ -302,14 +311,14 @@ public abstract class DataSet<T> {
 	
 	/**
 	 * Applies a Reduce transformation on a non-grouped {@link DataSet}.<br/>
-	 * The transformation consecutively calls a {@link org.apache.flink.api.java.functions.RichReduceFunction}
+	 * The transformation consecutively calls a {@link org.apache.flink.api.common.functions.RichReduceFunction}
 	 *   until only a single element remains which is the result of the transformation.
 	 * A ReduceFunction combines two elements into one new element of the same type.
 	 * 
 	 * @param reducer The ReduceFunction that is applied on the DataSet.
 	 * @return A ReduceOperator that represents the reduced DataSet.
 	 * 
-	 * @see org.apache.flink.api.java.functions.RichReduceFunction
+	 * @see org.apache.flink.api.common.functions.RichReduceFunction
 	 * @see ReduceOperator
 	 * @see DataSet
 	 */
@@ -322,14 +331,14 @@ public abstract class DataSet<T> {
 	
 	/**
 	 * Applies a GroupReduce transformation on a non-grouped {@link DataSet}.<br/>
-	 * The transformation calls a {@link org.apache.flink.api.java.functions.RichGroupReduceFunction} once with the full DataSet.
+	 * The transformation calls a {@link org.apache.flink.api.common.functions.RichGroupReduceFunction} once with the full DataSet.
 	 * The GroupReduceFunction can iterate over all elements of the DataSet and emit any
 	 *   number of output elements including none.
 	 * 
 	 * @param reducer The GroupReduceFunction that is applied on the DataSet.
 	 * @return A GroupReduceOperator that represents the reduced DataSet.
 	 * 
-	 * @see org.apache.flink.api.java.functions.RichGroupReduceFunction
+	 * @see org.apache.flink.api.common.functions.RichGroupReduceFunction
 	 * @see org.apache.flink.api.java.operators.GroupReduceOperator
 	 * @see DataSet
 	 */
@@ -340,7 +349,8 @@ public abstract class DataSet<T> {
 		if (FunctionUtils.isLambdaFunction(reducer)) {
 			throw new UnsupportedLambdaExpressionException();
 		}
-		return new GroupReduceOperator<T, R>(this, reducer);
+		TypeInformation<R> resultType = TypeExtractor.getGroupReduceReturnTypes(reducer, this.getType());
+		return new GroupReduceOperator<T, R>(this, resultType, reducer);
 	}
 
 /**
@@ -400,7 +410,8 @@ public abstract class DataSet<T> {
 	 * @return A DistinctOperator that represents the distinct DataSet.
 	 */
 	public <K> DistinctOperator<T> distinct(KeySelector<T, K> keyExtractor) {
-		return new DistinctOperator<T>(this, new Keys.SelectorFunctionKeys<T, K>(keyExtractor, getType()));
+		TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keyExtractor, type);
+		return new DistinctOperator<T>(this, new Keys.SelectorFunctionKeys<T, K>(keyExtractor, getType(), keyType));
 	}
 	
 	/**
@@ -456,9 +467,9 @@ public abstract class DataSet<T> {
 	 * @see org.apache.flink.api.java.operators.GroupReduceOperator
 	 * @see DataSet
 	 */
-
 	public <K> UnsortedGrouping<T> groupBy(KeySelector<T, K> keyExtractor) {
-		return new UnsortedGrouping<T>(this, new Keys.SelectorFunctionKeys<T, K>(keyExtractor, getType()));
+		TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keyExtractor, type);
+		return new UnsortedGrouping<T>(this, new Keys.SelectorFunctionKeys<T, K>(keyExtractor, getType(), keyType));
 	}
 	
 	/**
@@ -589,7 +600,7 @@ public abstract class DataSet<T> {
 	 * Initiates a CoGroup transformation.<br/>
 	 * A CoGroup transformation combines the elements of
 	 *   two {@link DataSet DataSets} into one DataSet. It groups each DataSet individually on a key and 
-	 *   gives groups of both DataSets with equal keys together into a {@link org.apache.flink.api.java.functions.RichCoGroupFunction}.
+	 *   gives groups of both DataSets with equal keys together into a {@link org.apache.flink.api.common.functions.RichCoGroupFunction}.
 	 *   If a DataSet has a group with no matching key in the other DataSet, the CoGroupFunction
 	 *   is called with an empty group for the non-existing group.</br>
 	 * The CoGroupFunction can iterate over the elements of both groups and return any number 
@@ -719,7 +730,7 @@ public abstract class DataSet<T> {
 
 	/**
 	 * Initiates an iterative part of the program that executes multiple times and feeds back data sets.
-	 * The iterative part needs to be closed by calling {@link IterativeDataSet#closeWith(DataSet)}. The data set
+	 * The iterative part needs to be closed by calling {@link org.apache.flink.api.java.operators.IterativeDataSet#closeWith(DataSet)}. The data set
 	 * given to the {@code closeWith(DataSet)} method is the data set that will be fed back and used as the input
 	 * to the next iteration. The return value of the {@code closeWith(DataSet)} method is the resulting
 	 * data set after the iteration has terminated.
@@ -739,13 +750,13 @@ public abstract class DataSet<T> {
 	 * </pre>
 	 * <p>
 	 * The iteration has a maximum number of times that it executes. A dynamic termination can be realized by using a
-	 * termination criterion (see {@link IterativeDataSet#closeWith(DataSet, DataSet)}).
+	 * termination criterion (see {@link org.apache.flink.api.java.operators.IterativeDataSet#closeWith(DataSet, DataSet)}).
 	 * 
 	 * @param maxIterations The maximum number of times that the iteration is executed.
 	 * @return An IterativeDataSet that marks the start of the iterative part and needs to be closed by
-	 *         {@link IterativeDataSet#closeWith(DataSet)}.
+	 *         {@link org.apache.flink.api.java.operators.IterativeDataSet#closeWith(DataSet)}.
 	 * 
-	 * @see IterativeDataSet
+	 * @see org.apache.flink.api.java.operators.IterativeDataSet
 	 */
 	public IterativeDataSet<T> iterate(int maxIterations) {
 		return new IterativeDataSet<T>(getExecutionEnvironment(), getType(), this, maxIterations);
@@ -754,13 +765,13 @@ public abstract class DataSet<T> {
 	/**
 	 * Initiates a delta iteration. A delta iteration is similar to a regular iteration (as started by {@link #iterate(int)},
 	 * but maintains state across the individual iteration steps. The Solution set, which represents the current state
-	 * at the beginning of each iteration can be obtained via {@link DeltaIteration#getSolutionSet()} ()}.
+	 * at the beginning of each iteration can be obtained via {@link org.apache.flink.api.java.operators.DeltaIteration#getSolutionSet()} ()}.
 	 * It can be be accessed by joining (or CoGrouping) with it. The DataSet that represents the workset of an iteration
-	 * can be obtained via {@link DeltaIteration#getWorkset()}.
+	 * can be obtained via {@link org.apache.flink.api.java.operators.DeltaIteration#getWorkset()}.
 	 * The solution set is updated by producing a delta for it, which is merged into the solution set at the end of each
 	 * iteration step.
 	 * <p>
-	 * The delta iteration must be closed by calling {@link DeltaIteration#closeWith(DataSet, DataSet)}. The two
+	 * The delta iteration must be closed by calling {@link org.apache.flink.api.java.operators.DeltaIteration#closeWith(DataSet, DataSet)}. The two
 	 * parameters are the delta for the solution set and the new workset (the data set that will be fed back).
 	 * The return value of the {@code closeWith(DataSet, DataSet)} method is the resulting
 	 * data set after the iteration has terminated. Delta iterations terminate when the feed back data set
@@ -795,7 +806,7 @@ public abstract class DataSet<T> {
 	 * 
 	 * @return The DeltaIteration that marks the start of a delta iteration.
 	 * 
-	 * @see DeltaIteration
+	 * @see org.apache.flink.api.java.operators.DeltaIteration
 	 */
 	public <R> DeltaIteration<T, R> iterateDelta(DataSet<R> workset, int maxIterations, int... keyPositions) {
 		Keys.FieldPositionKeys<T> keys = new Keys.FieldPositionKeys<T>(keyPositions, getType(), false);

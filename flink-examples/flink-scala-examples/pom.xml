@@ -38,6 +38,11 @@ under the License.
 			<artifactId>flink-scala</artifactId>
 			<version>${project.version}</version>
 		</dependency>
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-java-examples</artifactId>
+            <version>${project.version}</version>
+        </dependency>
 	</dependencies>
 
 	<build>
@@ -232,7 +237,8 @@ under the License.
 							</includes>
 						</configuration>
 					</execution>
-		
+		               -->
+
 					<execution>
 						<id>WordCount</id>
 						<phase>package</phase>
@@ -254,7 +260,7 @@ under the License.
 							</includes>
 						</configuration>
 					</execution>
-
+                    <!--
 					<execution>
 						<id>ConnectedComponents</id>
 						<phase>package</phase>
@@ -275,7 +281,29 @@ under the License.
 					</execution>
 					
 					-->
-		
+
+                    <execution>
+                        <id>TransitiveClosureNaive</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+
+                        <configuration>
+                            <classifier>TransitiveClosureNaive</classifier>
+
+                            <archive>
+                                <manifestEntries>
+                                    <program-class>org.apache.flink.examples.scala.graph.TransitiveClosureNaive</program-class>
+                                </manifestEntries>
+                            </archive>
+
+                            <includes>
+                                <include>**/wordcount/TransitiveClosureNaive*.class</include>
+                            </includes>
+                        </configuration>
+                    </execution>
+
 				</executions>
 			</plugin>
 			

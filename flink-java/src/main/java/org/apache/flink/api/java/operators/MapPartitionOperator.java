@@ -22,8 +22,8 @@ import org.apache.flink.api.common.functions.MapPartitionFunction;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.MapPartitionOperatorBase;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.types.TypeInformation;
 
 /**
  * This operator represents the application of a "mapPartition" function on a data set, and the
@@ -39,8 +39,8 @@ public class MapPartitionOperator<IN, OUT> extends SingleInputUdfOperator<IN, OU
 	protected final MapPartitionFunction<IN, OUT> function;
 	
 	
-	public MapPartitionOperator(DataSet<IN> input, MapPartitionFunction<IN, OUT> function) {
-		super(input, TypeExtractor.getMapPartitionReturnTypes(function, input.getType()));
+	public MapPartitionOperator(DataSet<IN> input, TypeInformation<OUT> resultType, MapPartitionFunction<IN, OUT> function) {
+		super(input, resultType);
 		
 		this.function = function;
 		extractSemanticAnnotationsFromUdf(function.getClass());

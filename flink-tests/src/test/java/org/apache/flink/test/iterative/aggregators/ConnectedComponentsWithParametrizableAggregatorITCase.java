@@ -23,8 +23,8 @@ import java.util.List;
 
 import org.apache.flink.api.common.aggregators.LongSumAggregator;
 import org.apache.flink.api.common.functions.JoinFunction;
-import org.apache.flink.api.java.functions.RichFlatMapFunction;
-import org.apache.flink.api.java.functions.RichGroupReduceFunction;
+import org.apache.flink.api.common.functions.RichFlatMapFunction;
+import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.JavaProgramTestBase;
@@ -33,7 +33,7 @@ import org.apache.flink.util.Collector;
 import org.junit.Assert;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.IterativeDataSet;
+import org.apache.flink.api.java.operators.IterativeDataSet;
 
 /**
  * Connected Components test case that uses a parameterizable aggregator

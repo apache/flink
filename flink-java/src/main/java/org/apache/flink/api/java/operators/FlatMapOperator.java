@@ -22,9 +22,9 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.FlatMapOperatorBase;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
 
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.types.TypeInformation;
 
 /**
  * This operator represents the application of a "flatMap" function on a data set, and the
@@ -38,8 +38,8 @@ public class FlatMapOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT, Fl
 	protected final FlatMapFunction<IN, OUT> function;
 	
 	
-	public FlatMapOperator(DataSet<IN> input, FlatMapFunction<IN, OUT> function) {
-		super(input, TypeExtractor.getFlatMapReturnTypes(function, input.getType()));
+	public FlatMapOperator(DataSet<IN> input, TypeInformation<OUT> resultType, FlatMapFunction<IN, OUT> function) {
+		super(input, resultType);
 		
 		this.function = function;
 		extractSemanticAnnotationsFromUdf(function.getClass());

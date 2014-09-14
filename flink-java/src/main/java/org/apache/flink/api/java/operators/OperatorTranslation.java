@@ -18,11 +18,7 @@
 
 package org.apache.flink.api.java.operators;
 
-import org.apache.flink.api.java.BulkIterationResultSet;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.DeltaIteration;
-import org.apache.flink.api.java.DeltaIterationResultSet;
-import org.apache.flink.api.java.IterativeDataSet;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -132,7 +128,7 @@ public class OperatorTranslation {
 			}
 			
 			// set the semantic properties
-			dataFlowOp.setSemanticProperties(udfOp.getSematicProperties());
+			dataFlowOp.setSemanticProperties(udfOp.getSemanticProperties());
 		}
 		
 		return dataFlowOp;
@@ -164,7 +160,7 @@ public class OperatorTranslation {
 			}
 			
 			// set the semantic properties
-			dataFlowOp.setSemanticProperties(udfOp.getSematicProperties());
+			dataFlowOp.setSemanticProperties(udfOp.getSemanticProperties());
 		}
 		
 		return dataFlowOp;

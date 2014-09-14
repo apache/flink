@@ -23,7 +23,7 @@ import org.apache.flink.client.program.Client.ProgramAbortException;
 import org.apache.flink.client.program.PackagedProgram.PreviewPlanEnvironment;
 import org.apache.flink.compiler.plan.OptimizedPlan;
 import org.apache.flink.compiler.plandump.PlanJSONDumpGenerator;
-import org.apache.flink.example.java.clustering.KMeans;
+import org.apache.flink.examples.java.clustering.KMeans;
 import org.apache.flink.test.compiler.util.CompilerTestBase;
 import org.apache.flink.test.recordJobs.graph.DeltaPageRankWithInitialDeltas;
 import org.apache.flink.test.recordJobs.kmeans.KMeansBroadcast;
