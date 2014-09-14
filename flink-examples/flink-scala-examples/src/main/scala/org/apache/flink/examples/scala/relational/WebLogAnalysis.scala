@@ -45,7 +45,7 @@ import org.apache.flink.util.Collector
  *
  * Input files are plain text CSV files using the pipe character ('|') as field separator.
  * The tables referenced in the query can be generated using the
- * [org.apache.flink.example.java.relational.util.WebLogDataGenerator]] and
+ * [org.apache.flink.examples.java.relational.util.WebLogDataGenerator]] and
  * have the following schemas
  *
  * {{{
@@ -77,7 +77,7 @@ import org.apache.flink.util.Collector
  * }}}
  *
  * If no parameters are provided, the program is run with default data from
- * [[org.apache.flink.example.java.relational.util.WebLogData]].
+ * [[org.apache.flink.examples.java.relational.util.WebLogData]].
  *
  * This example shows how to use:
  *
@@ -109,7 +109,7 @@ object WebLogAnalysis {
       .filter(visit => visit._2.substring(0, 4).toInt == 2007)
 
     val joinDocsRanks = filteredDocs.join(filteredRanks).where(0).equalTo(1) {
-      (doc, rank) => Some(rank)
+      (doc, rank) => rank
     }
 
     val result = joinDocsRanks.coGroup(filteredVisits).where(1).equalTo(0) {

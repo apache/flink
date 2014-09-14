@@ -63,11 +63,10 @@ trait CoGroupDataSet[T, O] extends DataSet[(Array[T], Array[O])] {
 
   /**
    * Creates a new [[DataSet]] where the result for each pair of co-grouped element lists is the
-   * result of the given function. You can either return an element or choose to return [[None]],
-   * which allows implementing a filter directly in the coGroup function.
+   * result of the given function.
    */
   def apply[R: TypeInformation: ClassTag](
-      fun: (TraversableOnce[T], TraversableOnce[O]) => Option[R]): DataSet[R]
+      fun: (TraversableOnce[T], TraversableOnce[O]) => R): DataSet[R]
 
   /**
    * Creates a new [[DataSet]] where the result for each pair of co-grouped element lists is the
@@ -100,11 +99,11 @@ private[flink] class CoGroupDataSetImpl[T, O](
     otherKeys: Keys[O]) extends DataSet(coGroupOperator) with CoGroupDataSet[T, O] {
 
   def apply[R: TypeInformation: ClassTag](
-      fun: (TraversableOnce[T], TraversableOnce[O]) => Option[R]): DataSet[R] = {
+      fun: (TraversableOnce[T], TraversableOnce[O]) => R): DataSet[R] = {
     Validate.notNull(fun, "CoGroup function must not be null.")
     val coGrouper = new CoGroupFunction[T, O, R] {
       def coGroup(left: java.lang.Iterable[T], right: java.lang.Iterable[O], out: Collector[R]) = {
-        fun(left.iterator.asScala, right.iterator.asScala) map { out.collect(_) }
+        out.collect(fun(left.iterator.asScala, right.iterator.asScala))
       }
     }
     val coGroupOperator = new CoGroupOperator[T, O, R](thisSet.set, otherSet.set, thisKeys,

@@ -52,7 +52,7 @@ import org.apache.flink.util.Collector
  * }}}
  *
  * If no parameters are provided, the program is run with default data from
- * [[org.apache.flink.example.java.graph.util.PageRankData]] and 10 iterations.
+ * [[org.apache.flink.examples.java.graph.util.PageRankData]] and 10 iterations.
  * 
  * This example shows how to use:
  *
@@ -108,9 +108,9 @@ object PageRankBasic {
 
         // terminate if no rank update was significant
         val termination = currentRanks.join(newRanks).where("pageId").equalTo("pageId") {
-          (current, next) =>
+          (current, next, out: Collector[Int]) =>
             // check for significant update
-            if (math.abs(current.rank - next.rank) > EPSILON) Some(1) else None
+            if (math.abs(current.rank - next.rank) > EPSILON) out.collect(1)
         }
 
         (newRanks, termination)

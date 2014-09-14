@@ -57,7 +57,7 @@ import scala.collection.mutable.MutableList
  * }}}
  * <br>
  * If no parameters are provided, the program is run with default data from 
- * [[org.apache.flink.example.java.graph.util.EnumTrianglesData]]
+ * [[org.apache.flink.examples.java.graph.util.EnumTrianglesData]]
  * 
  * <p>
  * This example shows how to use:
@@ -87,7 +87,7 @@ object EnumTrianglesBasic {
 						// build triads
 						.groupBy("v1").sortGroup("v2", Order.ASCENDING).reduceGroup(new TriadBuilder())
 						// filter triads
-						.join(edgesById).where("v2", "v3").equalTo("v1", "v2") { (t, _) => Some(t) }
+						.join(edgesById).where("v2", "v3").equalTo("v1", "v2") { (t, _) => t }
 		
 		// emit result
 		if (fileOutput) {

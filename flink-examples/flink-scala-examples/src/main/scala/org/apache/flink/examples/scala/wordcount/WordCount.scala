@@ -32,7 +32,7 @@ import org.apache.flink.examples.java.wordcount.util.WordCountData
  * }}}
  *
  * If no parameters are provided, the program is run with default data from
- * [[org.apache.flink.example.java.wordcount.util.WordCountData]]
+ * [[org.apache.flink.examples.java.wordcount.util.WordCountData]]
  *
  * This example shows how to:
  *

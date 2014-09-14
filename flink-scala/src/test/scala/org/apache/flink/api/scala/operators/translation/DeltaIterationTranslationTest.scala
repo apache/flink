@@ -58,7 +58,7 @@ class DeltaIterationTranslationTest {
       val result = initialSolutionSet.iterateDelta(initialWorkSet, NUM_ITERATIONS, ITERATION_KEYS) {
         (s, ws) =>
           val wsSelfJoin = ws.map(new IdentityMapper[(Double, String)]())
-            .join(ws).where(1).equalTo(1) { (l, r) => Some(l) }
+            .join(ws).where(1).equalTo(1) { (l, r) => l }
 
           val joined = wsSelfJoin.join(s).where(1).equalTo(2).apply(new SolutionWorksetJoin)
           (joined, joined.map(new NextWorksetMapper).name(BEFORE_NEXT_WORKSET_MAP))
