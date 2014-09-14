@@ -24,7 +24,8 @@ import org.apache.flink.api.common.functions.GroupReduceFunction
 import org.apache.flink.util.Collector
 import org.apache.flink.example.java.graph.util.EnumTrianglesData
 import org.apache.flink.api.common.operators.Order
-import scala.collection.mutable.MutableList
+
+import scala.collection.mutable
 
 
 /**
@@ -115,12 +116,12 @@ object EnumTrianglesBasic {
 	 */
 	class TriadBuilder extends GroupReduceFunction[Edge, Triad] {
 
-		val vertices = MutableList[Integer]()
+		val vertices = mutable.MutableList[Integer]()
 		
 		override def reduce(edges: java.lang.Iterable[Edge], out: Collector[Triad]) = {
 			
 			// clear vertex list
-			vertices.clear
+			vertices.clear()
 
 			// build and emit triads
 			for(e <- edges.asScala) {
@@ -149,10 +150,10 @@ object EnumTrianglesBasic {
 				false
 			}
 		} else {
-			System.out.println("Executing Enum Triangles Basic example with built-in default data.");
-			System.out.println("  Provide parameters to read input data from files.");
-			System.out.println("  See the documentation for the correct format of input files.");
-			System.out.println("  Usage: EnumTriangleBasic <edge path> <result path>");
+			System.out.println("Executing Enum Triangles Basic example with built-in default data.")
+			System.out.println("  Provide parameters to read input data from files.")
+			System.out.println("  See the documentation for the correct format of input files.")
+			System.out.println("  Usage: EnumTriangleBasic <edge path> <result path>")
 		}
 		true
 	}
