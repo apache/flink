@@ -34,8 +34,22 @@ if [ ! -f "$HOSTLIST" ]; then
     exit 1
 fi
 
+MODIFIED_JOBM_ADD=`grep "$KEY_JOBM_ADD: localhost" $YAML_CONF`
+
+if [ "${UNAME:0:6}" == "CYGWIN" ] || [ "$UNAME" == "Linux" ]; then
+    sed -i 's/'$KEY_JOBM_ADD': localhost/'$KEY_JOBM_ADD': '$HOSTNAME'/g' $YAML_CONF
+elif [ "$UNAME" == "Darwin" ]; then
+    sed -i "" 's/'$KEY_JOBM_ADD': localhost/'$KEY_JOBM_ADD': '$HOSTNAME'/g' $YAML_CONF
+else
+    echo "System $UNAME is not supported to rewrite the jobmanager address in config file."
+fi
+
 # cluster mode, bring up job manager locally and a task manager on every slave host
-"$FLINK_BIN_DIR"/jobmanager.sh start cluster
+if [ "$MODIFIED_JOBM_ADD" = "" ]; then
+    "$FLINK_BIN_DIR"/jobmanager.sh start cluster
+else
+    "$FLINK_BIN_DIR"/jobmanager.sh start cluster $HOSTNAME
+fi
 
 GOON=true
 while $GOON
@@ -43,6 +57,10 @@ do
     read line || GOON=false
     if [ -n "$line" ]; then
         HOST=$( extractHostName $line)
-        ssh -n $FLINK_SSH_OPTS $HOST -- "nohup /bin/bash $FLINK_BIN_DIR/taskmanager.sh start &"
+        if [ "$MODIFIED_JOBM_ADD" = "" ]; then
+            ssh -n $FLINK_SSH_OPTS $HOST -- "nohup /bin/bash $FLINK_BIN_DIR/taskmanager.sh start"
+        else
+            ssh -n $FLINK_SSH_OPTS $HOST -- "nohup /bin/bash $FLINK_BIN_DIR/taskmanager.sh start $HOSTNAME"
+        fi
     fi
 done < "$HOSTLIST"

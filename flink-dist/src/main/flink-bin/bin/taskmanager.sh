@@ -19,6 +19,7 @@
 
 
 STARTSTOP=$1
+JOBMANAGER_ADDRESS=$2
 
 bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
@@ -73,7 +74,11 @@ case $STARTSTOP in
         rotateLogFile $out
 
         echo Starting task manager on host $HOSTNAME
-        $JAVA_RUN $JVM_ARGS ${FLINK_ENV_JAVA_OPTS} "${log_setting[@]}" -classpath "$FLINK_TM_CLASSPATH" org.apache.flink.runtime.taskmanager.TaskManager -configDir "$FLINK_CONF_DIR" > "$out" 2>&1 < /dev/null &
+        if [[ -z "$JOBMANAGER_ADDRESS" ]]; then
+            $JAVA_RUN $JVM_ARGS ${FLINK_ENV_JAVA_OPTS} "${log_setting[@]}" -classpath "$FLINK_TM_CLASSPATH" org.apache.flink.runtime.taskmanager.TaskManager -configDir "$FLINK_CONF_DIR" > "$out" 2>&1 < /dev/null &
+        else
+            $JAVA_RUN $JVM_ARGS ${FLINK_ENV_JAVA_OPTS} "${log_setting[@]}" -classpath "$FLINK_TM_CLASSPATH" org.apache.flink.runtime.taskmanager.TaskManager -jobmanagerAdd "$JOBMANAGER_ADDRESS" -configDir "$FLINK_CONF_DIR" > "$out" 2>&1 < /dev/null &
+        fi
         echo $! > $pid
     ;;
 
