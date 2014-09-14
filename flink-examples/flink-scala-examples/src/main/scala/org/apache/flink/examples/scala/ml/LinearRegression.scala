@@ -23,8 +23,7 @@ import java.io.Serializable
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.scala._
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.example.java.clustering.util.KMeansData
-import org.apache.flink.example.java.ml.util.LinearRegressionData
+import org.apache.flink.examples.java.ml.util.LinearRegressionData
 
 import scala.collection.JavaConverters._
 

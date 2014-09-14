@@ -34,8 +34,8 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.LocalCollectionOutputFormat;
-import org.apache.flink.example.java.graph.ConnectedComponents.DuplicateValue;
-import org.apache.flink.example.java.graph.ConnectedComponents.NeighborWithComponentIDJoin;
+import org.apache.flink.examples.java.graph.ConnectedComponents.DuplicateValue;
+import org.apache.flink.examples.java.graph.ConnectedComponents.NeighborWithComponentIDJoin;
 
 @SuppressWarnings("serial")
 public class CoGroupConnectedComponentsSecondITCase extends JavaProgramTestBase {

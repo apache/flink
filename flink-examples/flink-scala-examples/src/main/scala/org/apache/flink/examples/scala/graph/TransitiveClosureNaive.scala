@@ -18,7 +18,7 @@
 package org.apache.flink.examples.scala.graph
 
 import org.apache.flink.api.scala._
-import org.apache.flink.example.java.graph.util.ConnectedComponentsData
+import org.apache.flink.examples.java.graph.util.ConnectedComponentsData
 import org.apache.flink.util.Collector
 
 object TransitiveClosureNaive {
