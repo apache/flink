@@ -149,74 +149,74 @@ public class Scheduler implements InstanceListener, SlotAvailablilityListener {
 		final ExecutionVertex vertex = task.getTaskToExecute().getVertex();
 	
 		synchronized (globalLock) {
-			// 1) If the task has a strict co-schedule hint, obey it, if it has been assigned.
-//			CoLocationHint hint = task.getCoScheduleHint();
-//			if (hint != null) {
-//				
-//				// try to add to the slot, or make it wait on the hint and schedule the hint itself
-//				if () {
-//					return slot;
-//				}
-//			}
+			// 1)  === If the task has a strict co-schedule hint, obey it ===
+
 		
-			// 2) See if we can place the task somewhere together with another existing task.
-			//    This is defined by the slot sharing groups
+			// 2)  === If the task has a slot sharing group, schedule with shared slots ===
+			
 			SlotSharingGroup sharingUnit = task.getSlotSharingGroup();
 			if (sharingUnit != null) {
-				// see if we can add the task to the current sharing group.
-				SlotSharingGroupAssignment assignment = sharingUnit.getTaskAssignment();
-				AllocatedSlot slot = assignment.getSlotForTask(vertex.getJobvertexId(), vertex);
-				if (slot != null) {
-					return slot;
+				final SlotSharingGroupAssignment assignment = sharingUnit.getTaskAssignment();
+				
+				AllocatedSlot newSlot = null;
+				AllocatedSlot slotFromGroup = assignment.getSlotForTask(vertex.getJobvertexId(), vertex, true);
+				
+				try {
+					if (slotFromGroup != null) {
+						// local (or unconstrained in the current group)
+						if (slotFromGroup.getLocality() != Locality.NON_LOCAL) {
+							updateLocalityCounters(slotFromGroup.getLocality());
+							return slotFromGroup;
+						}
+					}
+					
+					// get another new slot, since we could not place it into the group,
+					// (or we could not place it locally)
+					newSlot = getFreeSlotForTask(vertex);
+					AllocatedSlot toUse;
+					
+					if (newSlot == null) {
+						if (slotFromGroup == null) {
+							throw new NoResourceAvailableException();
+						} else {
+							toUse = slotFromGroup;
+						}
+					}
+					else if (slotFromGroup == null || newSlot.getLocality() == Locality.LOCAL) {
+						toUse = sharingUnit.getTaskAssignment().addSlotWithTask(newSlot, task.getJobVertexId());
+					} else {
+						toUse = slotFromGroup;
+					}
+					
+					updateLocalityCounters(toUse.getLocality());
+					return toUse;
+				}
+				catch (Throwable t) {
+					if (slotFromGroup != null) {
+						slotFromGroup.releaseSlot();
+					}
+					if (newSlot != null) {
+						newSlot.releaseSlot();
+					}
 				}
 			}
 		
-			// 3) We could not schedule it to an existing slot, so we need to get a new one or queue the task
+			// 3) === schedule without hints and sharing ===
 			
-			// we need potentially to loop multiple times, because there may be false positives
-			// in the set-with-available-instances
-			while (true) {
-				
-				
-				Instance instanceToUse = getFreeInstanceForTask(task.getTaskToExecute().getVertex());
-			
-				if (instanceToUse != null) {
-					try {
-						AllocatedSlot slot = instanceToUse.allocateSlot(vertex.getJobId());
-						
-						// if the instance has further available slots, re-add it to the set of available resources.
-						if (instanceToUse.hasResourcesAvailable()) {
-							this.instancesWithAvailableResources.add(instanceToUse);
-						}
-						
-						if (slot != null) {
-							
-							// if the task is in a shared group, assign the slot to that group
-							// and get a sub slot in turn
-							if (sharingUnit != null) {
-								slot = sharingUnit.getTaskAssignment().addSlotWithTask(slot, task.getJobVertexId());
-							}
-							
-							return slot;
-						}
-					}
-					catch (InstanceDiedException e) {
-						// the instance died it has not yet been propagated to this scheduler
-						// remove the instance from the set of available instances
-						this.allInstances.remove(instanceToUse);
-						this.instancesWithAvailableResources.remove(instanceToUse);
-					}
+			AllocatedSlot slot = getFreeSlotForTask(vertex);
+			if (slot != null) {
+				updateLocalityCounters(slot.getLocality());
+				return slot;
+			}
+			else {
+				// no resource available now, so queue the request
+				if (queueIfNoResource) {
+					SlotAllocationFuture future = new SlotAllocationFuture();
+					this.taskQueue.add(new QueuedTask(task, future));
+					return future;
 				}
 				else {
-					// no resource available now, so queue the request
-					if (queueIfNoResource) {
-						SlotAllocationFuture future = new SlotAllocationFuture();
-						this.taskQueue.add(new QueuedTask(task, future));
-						return future;
-					}
-					else {
-						throw new NoResourceAvailableException(task);
-					}
+					throw new NoResourceAvailableException(task);
 				}
 			}
 		}
@@ -230,45 +230,75 @@ public class Scheduler implements InstanceListener, SlotAvailablilityListener {
 	 * @param vertex The task to run. 
 	 * @return The instance to run the vertex on, it {@code null}, if no instance is available.
 	 */
-	protected Instance getFreeInstanceForTask(ExecutionVertex vertex) {
-		if (this.instancesWithAvailableResources.isEmpty()) {
-			return null;
-		}
+	protected AllocatedSlot getFreeSlotForTask(ExecutionVertex vertex) {
 		
-		Iterable<Instance> locationsIterable = vertex.getPreferredLocations();
-		Iterator<Instance> locations = locationsIterable == null ? null : locationsIterable.iterator();
-		
-		if (locations != null && locations.hasNext()) {
+		// we need potentially to loop multiple times, because there may be false positives
+		// in the set-with-available-instances
+		while (true) {
+			if (this.instancesWithAvailableResources.isEmpty()) {
+				return null;
+			}
 			
-			while (locations.hasNext()) {
-				Instance location = locations.next();
+			Iterable<Instance> locationsIterable = vertex.getPreferredLocations();
+			Iterator<Instance> locations = locationsIterable == null ? null : locationsIterable.iterator();
+			
+			Instance instanceToUse = null;
+			Locality locality = Locality.UNCONSTRAINED;
+			
+			if (locations != null && locations.hasNext()) {
+				// we have a locality preference
 				
-				if (location != null && this.instancesWithAvailableResources.remove(location)) {
+				while (locations.hasNext()) {
+					Instance location = locations.next();
 					
-					localizedAssignments++;
-					if (LOG.isDebugEnabled()) {
-						LOG.debug("Local assignment: " + vertex.getSimpleName() + " --> " + location);
+					if (location != null && this.instancesWithAvailableResources.remove(location)) {
+						instanceToUse = location;
+						locality = Locality.LOCAL;
+						
+						if (LOG.isDebugEnabled()) {
+							LOG.debug("Local assignment: " + vertex.getSimpleName() + " --> " + location);
+						}
+						
+						break;
 					}
-					
-					return location;
+				}
+				
+				if (instanceToUse == null) {					
+					instanceToUse = this.instancesWithAvailableResources.poll();
+					locality = Locality.NON_LOCAL;
+					if (LOG.isDebugEnabled()) {
+						LOG.debug("Non-local assignment: " + vertex.getSimpleName() + " --> " + instanceToUse);
+					}
+				}
+			}
+			else {
+				instanceToUse = this.instancesWithAvailableResources.poll();
+				if (LOG.isDebugEnabled()) {
+					LOG.debug("Unconstrained assignment: " + vertex.getSimpleName() + " --> " + instanceToUse);
 				}
 			}
 			
-			Instance instance = this.instancesWithAvailableResources.poll();
-			nonLocalizedAssignments++;
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Non-local assignment: " + vertex.getSimpleName() + " --> " + instance);
+			try {
+				AllocatedSlot slot = instanceToUse.allocateSlot(vertex.getJobId());
+				
+				// if the instance has further available slots, re-add it to the set of available resources.
+				if (instanceToUse.hasResourcesAvailable()) {
+					this.instancesWithAvailableResources.add(instanceToUse);
+				}
+				
+				if (slot != null) {
+					slot.setLocality(locality);
+					return slot;
+				}
 			}
-			return instance;
-		}
-		else {
-			Instance instance = this.instancesWithAvailableResources.poll();
-			unconstrainedAssignments++;
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Unconstrained assignment: " + vertex.getSimpleName() + " --> " + instance);
+			catch (InstanceDiedException e) {
+				// the instance died it has not yet been propagated to this scheduler
+				// remove the instance from the set of available instances
+				this.allInstances.remove(instanceToUse);
+				this.instancesWithAvailableResources.remove(instanceToUse);
 			}
 			
-			return instance;
+			// if we failed to get a slot, fall through the loop
 		}
 	}
 	
@@ -337,6 +367,22 @@ public class Scheduler implements InstanceListener, SlotAvailablilityListener {
 			else {
 				this.instancesWithAvailableResources.add(instance);
 			}
+		}
+	}
+	
+	private void updateLocalityCounters(Locality locality) {
+		switch (locality) {
+		case UNCONSTRAINED:
+			this.unconstrainedAssignments++;
+			break;
+		case LOCAL:
+			this.localizedAssignments++;
+			break;
+		case NON_LOCAL:
+			this.nonLocalizedAssignments++;
+			break;
+		default:
+			throw new RuntimeException(locality.name());
 		}
 	}
 

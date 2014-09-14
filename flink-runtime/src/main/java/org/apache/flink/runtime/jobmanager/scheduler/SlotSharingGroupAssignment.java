@@ -55,6 +55,10 @@ public class SlotSharingGroupAssignment {
 			
 			// allocate us a sub slot to return
 			SubSlot subslot = sharedSlot.allocateSubSlot(jid);
+			
+			// preserve the locality information
+			subslot.setLocality(slot.getLocality());
+			
 			boolean entryForNewJidExists = false;
 			
 			// let the other vertex types know about this one as well
@@ -79,9 +83,9 @@ public class SlotSharingGroupAssignment {
 		}
 	}
 	
-	public AllocatedSlot getSlotForTask(JobVertexID jid, ExecutionVertex vertex) {
+	public AllocatedSlot getSlotForTask(JobVertexID jid, ExecutionVertex vertex, boolean localOnly) {
 		synchronized (allSlots) {
-			return getSlotForTaskInternal(jid, vertex.getPreferredLocations());
+			return getSlotForTaskInternal(jid, vertex.getPreferredLocations(), localOnly);
 		}
 	}
 	
@@ -143,7 +147,7 @@ public class SlotSharingGroupAssignment {
 	 * @param jid
 	 * @return An allocated sub slot, or {@code null}, if no slot is available.
 	 */
-	private AllocatedSlot getSlotForTaskInternal(JobVertexID jid, Iterable<Instance> preferredLocations) {
+	private AllocatedSlot getSlotForTaskInternal(JobVertexID jid, Iterable<Instance> preferredLocations, boolean localOnly) {
 		if (allSlots.isEmpty()) {
 			return null;
 		}
@@ -165,19 +169,35 @@ public class SlotSharingGroupAssignment {
 		}
 		
 		// check whether we can schedule the task to a preferred location
+		boolean didNotGetPreferred = false;
+		
 		if (preferredLocations != null) {
 			for (Instance location : preferredLocations) {
+				
+				// set the flag that we failed a preferred location. If one will be found,
+				// we return early anyways and skip the flag evaluation
+				didNotGetPreferred = true;
+				
 				SharedSlot slot = removeFromMultiMap(slotsForJid, location);
 				if (slot != null) {
-					return slot.allocateSubSlot(jid);
+					SubSlot subslot = slot.allocateSubSlot(jid);
+					subslot.setLocality(Locality.LOCAL);
+					return subslot;
 				}
 			}
+		}
+		
+		// if we want only local assignments, exit now with a "not found" result
+		if (didNotGetPreferred && localOnly) {
+			return null;
 		}
 		
 		// schedule the task to any available location
 		SharedSlot slot = pollFromMultiMap(slotsForJid);
 		if (slot != null) {
-			return slot.allocateSubSlot(jid);
+			SubSlot subslot = slot.allocateSubSlot(jid);
+			subslot.setLocality(didNotGetPreferred ? Locality.NON_LOCAL : Locality.UNCONSTRAINED);
+			return subslot;
 		}
 		else {
 			return null;

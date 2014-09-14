@@ -23,6 +23,7 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 
 /**
  * An allocated slot is the unit in which resources are allocated on instances.
@@ -54,6 +55,8 @@ public class AllocatedSlot {
 	
 	/** The state of the vertex, only atomically updated */
 	private volatile int status = ALLOCATED_AND_ALIVE;
+	
+	private Locality locality = Locality.UNCONSTRAINED;
 	
 
 	public AllocatedSlot(JobID jobID, Instance instance, int slotNumber) {
@@ -87,6 +90,14 @@ public class AllocatedSlot {
 	
 	public Execution getExecutedVertex() {
 		return executedTask;
+	}
+	
+	public Locality getLocality() {
+		return locality;
+	}
+	
+	public void setLocality(Locality locality) {
+		this.locality = locality;
 	}
 	
 	public boolean setExecutedVertex(Execution executedVertex) {
@@ -143,9 +154,11 @@ public class AllocatedSlot {
 	public void releaseSlot() {
 		// cancel everything, if there is something. since this is atomically status based,
 		// it will not happen twice if another attempt happened before or concurrently
-		cancel();
-		
-		this.instance.returnAllocatedSlot(this);
+		try {
+			cancel();
+		} finally {
+			this.instance.returnAllocatedSlot(this);
+		}
 	}
 	
 	protected boolean markReleased() {

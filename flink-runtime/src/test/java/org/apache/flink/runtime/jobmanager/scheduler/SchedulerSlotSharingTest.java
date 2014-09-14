@@ -109,6 +109,11 @@ public class SchedulerSlotSharingTest {
 			
 			// test that everything is released
 			assertEquals(4, scheduler.getNumberOfAvailableSlots());
+
+			// check the scheduler's bookkeeping
+			assertEquals(0, scheduler.getNumberOfLocalizedAssignments());
+			assertEquals(0, scheduler.getNumberOfNonLocalizedAssignments());
+			assertEquals(8, scheduler.getNumberOfUnconstrainedAssignments());
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -224,6 +229,11 @@ public class SchedulerSlotSharingTest {
 			// test that everything is released
 			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfSlots());
 			assertEquals(4, scheduler.getNumberOfAvailableSlots());
+			
+			// check the scheduler's bookkeeping
+			assertEquals(0, scheduler.getNumberOfLocalizedAssignments());
+			assertEquals(0, scheduler.getNumberOfNonLocalizedAssignments());
+			assertEquals(10, scheduler.getNumberOfUnconstrainedAssignments());
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -330,6 +340,11 @@ public class SchedulerSlotSharingTest {
 			
 			// test that everything is released
 			assertEquals(4, scheduler.getNumberOfAvailableSlots());
+			
+			// check the scheduler's bookkeeping
+			assertEquals(0, scheduler.getNumberOfLocalizedAssignments());
+			assertEquals(0, scheduler.getNumberOfNonLocalizedAssignments());
+			assertEquals(15, scheduler.getNumberOfUnconstrainedAssignments());
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -374,6 +389,11 @@ public class SchedulerSlotSharingTest {
 			assertEquals(1, sharingGroup.getTaskAssignment().getNumberOfSlots());
 			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForJid(jid1));
 			assertEquals(1, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForJid(jid2));
+			
+			// check the scheduler's bookkeeping
+			assertEquals(0, scheduler.getNumberOfLocalizedAssignments());
+			assertEquals(0, scheduler.getNumberOfNonLocalizedAssignments());
+			assertEquals(4, scheduler.getNumberOfUnconstrainedAssignments());
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -514,6 +534,11 @@ public class SchedulerSlotSharingTest {
 			
 			// test that everything is released
 			assertEquals(5, scheduler.getNumberOfAvailableSlots());
+			
+			// check the scheduler's bookkeeping
+			assertEquals(0, scheduler.getNumberOfLocalizedAssignments());
+			assertEquals(0, scheduler.getNumberOfNonLocalizedAssignments());
+			assertEquals(15, scheduler.getNumberOfUnconstrainedAssignments());
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -562,6 +587,8 @@ public class SchedulerSlotSharingTest {
 			
 			// check the scheduler's bookkeeping
 			assertEquals(4, scheduler.getNumberOfLocalizedAssignments());
+			assertEquals(0, scheduler.getNumberOfNonLocalizedAssignments());
+			assertEquals(0, scheduler.getNumberOfUnconstrainedAssignments());
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -610,6 +637,8 @@ public class SchedulerSlotSharingTest {
 			
 			// check the scheduler's bookkeeping
 			assertEquals(4, scheduler.getNumberOfLocalizedAssignments());
+			assertEquals(0, scheduler.getNumberOfNonLocalizedAssignments());
+			assertEquals(0, scheduler.getNumberOfUnconstrainedAssignments());
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -623,7 +652,51 @@ public class SchedulerSlotSharingTest {
 	@Test
 	public void testLocalizedAssignment3() {
 		try {
+			JobVertexID jid1 = new JobVertexID();
+			JobVertexID jid2 = new JobVertexID();
 			
+			SlotSharingGroup sharingGroup = new SlotSharingGroup(jid1, jid2);
+			
+			Instance i1 = getRandomInstance(2);
+			Instance i2 = getRandomInstance(2);
+			
+			Scheduler scheduler = new Scheduler();
+			scheduler.newInstanceAvailable(i1);
+			scheduler.newInstanceAvailable(i2);
+			
+			// schedule until the one instance is full
+			AllocatedSlot s1 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid1, 0, 2, i1), sharingGroup));
+			AllocatedSlot s2 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid1, 1, 2, i1), sharingGroup));
+			AllocatedSlot s3 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid2, 0, 4, i1), sharingGroup));
+			AllocatedSlot s4 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid2, 1, 4, i1), sharingGroup));
+
+			// schedule two more with preference of same instance --> need to go to other instance
+			AllocatedSlot s5 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid2, 3, 4, i1), sharingGroup));
+			AllocatedSlot s6 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid2, 4, 4, i1), sharingGroup));
+			
+			assertNotNull(s1);
+			assertNotNull(s2);
+			assertNotNull(s3);
+			assertNotNull(s4);
+			assertNotNull(s5);
+			assertNotNull(s6);
+			
+			assertEquals(4, sharingGroup.getTaskAssignment().getNumberOfSlots());
+			
+			assertEquals(0, i1.getNumberOfAvailableSlots());
+			assertEquals(0, i2.getNumberOfAvailableSlots());
+			
+			assertEquals(i1, s1.getInstance());
+			assertEquals(i1, s2.getInstance());
+			assertEquals(i1, s3.getInstance());
+			assertEquals(i1, s4.getInstance());
+			assertEquals(i2, s5.getInstance());
+			assertEquals(i2, s6.getInstance());
+			
+			// check the scheduler's bookkeeping
+			assertEquals(4, scheduler.getNumberOfLocalizedAssignments());
+			assertEquals(2, scheduler.getNumberOfNonLocalizedAssignments());
+			assertEquals(0, scheduler.getNumberOfUnconstrainedAssignments());
 		}
 		catch (Exception e) {
 			e.printStackTrace();
