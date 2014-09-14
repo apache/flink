@@ -18,7 +18,7 @@
 
 package org.apache.flink.test.exampleJavaPrograms;
 
-import org.apache.flink.example.java.wordcount.WordCount;
+import org.apache.flink.examples.java.wordcount.WordCount;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.JavaProgramTestBase;
 

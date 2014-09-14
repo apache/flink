@@ -24,7 +24,7 @@ import java.util.Collection;
 import java.util.LinkedList;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.example.java.graph.PageRankBasic;
+import org.apache.flink.examples.java.graph.PageRankBasic;
 import org.apache.flink.test.testdata.PageRankData;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.junit.runner.RunWith;

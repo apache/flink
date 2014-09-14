@@ -22,7 +22,7 @@ import scala.collection.JavaConverters._
 import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.api.common.functions.GroupReduceFunction
 import org.apache.flink.util.Collector
-import org.apache.flink.example.java.graph.util.EnumTrianglesData
+import org.apache.flink.examples.java.graph.util.EnumTrianglesData
 import org.apache.flink.api.common.operators.Order
 import scala.collection.mutable.MutableList
 

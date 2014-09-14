@@ -19,7 +19,7 @@
 package org.apache.flink.test.exampleJavaPrograms;
 
 
-import org.apache.flink.example.java.relational.WebLogAnalysis;
+import org.apache.flink.examples.java.relational.WebLogAnalysis;
 import org.apache.flink.test.testdata.WebLogAnalysisData;
 import org.apache.flink.test.util.JavaProgramTestBase;
 

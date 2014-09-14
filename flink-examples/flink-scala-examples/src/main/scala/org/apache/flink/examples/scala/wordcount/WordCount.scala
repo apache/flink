@@ -18,7 +18,7 @@
 package org.apache.flink.examples.scala.wordcount
 
 import org.apache.flink.api.scala._
-import org.apache.flink.example.java.wordcount.util.WordCountData
+import org.apache.flink.examples.java.wordcount.util.WordCountData
 
 /**
  * Implements the "WordCount" program that computes a simple word occurrence histogram

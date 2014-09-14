@@ -20,7 +20,7 @@ package org.apache.flink.examples.scala.clustering
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.scala._
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.example.java.clustering.util.KMeansData
+import org.apache.flink.examples.java.clustering.util.KMeansData
 
 import scala.collection.JavaConverters._
 
