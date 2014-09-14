@@ -21,35 +21,40 @@ package org.apache.flink.runtime.jobmanager.scheduler;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
+import com.google.common.base.Preconditions;
+
 public class ScheduledUnit {
 	
 	private final Execution vertexExecution;
 	
 	private final SlotSharingGroup sharingGroup;
 	
+	private final CoLocationConstraint locationConstraint;
+	
 	// --------------------------------------------------------------------------------------------
 	
-	public ScheduledUnit(Execution taskVertex) {
-		if (taskVertex == null) {
-			throw new NullPointerException();
-		}
+	public ScheduledUnit(Execution task) {
+		Preconditions.checkNotNull(task);
 		
-		this.vertexExecution = taskVertex;
+		this.vertexExecution = task;
 		this.sharingGroup = null;
+		this.locationConstraint = null;
 	}
 	
-	public ScheduledUnit(Execution taskVertex, SlotSharingGroup sharingUnit) {
-		if (taskVertex == null) {
-			throw new NullPointerException();
-		}
+	public ScheduledUnit(Execution task, SlotSharingGroup sharingUnit) {
+		Preconditions.checkNotNull(task);
 		
-		this.vertexExecution = taskVertex;
+		this.vertexExecution = task;
 		this.sharingGroup = sharingUnit;
+		this.locationConstraint = null;
 	}
 	
-	ScheduledUnit() {
-		this.vertexExecution = null;
+	public ScheduledUnit(Execution task, CoLocationConstraint locationConstraint) {
+		Preconditions.checkNotNull(task);
+		
+		this.vertexExecution = task;
 		this.sharingGroup = null;
+		this.locationConstraint = locationConstraint;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -65,11 +70,16 @@ public class ScheduledUnit {
 	public SlotSharingGroup getSlotSharingGroup() {
 		return sharingGroup;
 	}
+	
+	public CoLocationConstraint getLocationConstraint() {
+		return locationConstraint;
+	}
 
 	// --------------------------------------------------------------------------------------------
 	
 	@Override
 	public String toString() {
-		return "{vertex=" + vertexExecution.getVertexWithAttempt() + ", sharingUnit=" + sharingGroup + '}';
+		return "{task=" + vertexExecution.getVertexWithAttempt() + ", sharingUnit=" + sharingGroup + 
+				", locationConstraint=" + locationConstraint + '}';
 	}
 }

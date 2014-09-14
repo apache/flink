@@ -45,10 +45,13 @@ public class SubSlot extends AllocatedSlot {
 	public void releaseSlot() {
 		// cancel everything, if there is something. since this is atomically status based,
 		// it will not happen twice if another attempt happened before or concurrently
-		cancel();
-		
-		if (markReleased()) {
-			this.sharedSlot.returnAllocatedSlot(this);
+		try {
+			cancel();
+		}
+		finally {
+			if (markReleased()) {
+				this.sharedSlot.returnAllocatedSlot(this);
+			}
 		}
 	}
 	

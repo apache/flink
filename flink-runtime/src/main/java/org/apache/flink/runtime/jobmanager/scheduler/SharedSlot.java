@@ -48,6 +48,16 @@ public class SharedSlot {
 		this.subSlots = new HashSet<SubSlot>();
 	}
 	
+	public SharedSlot(AllocatedSlot allocatedSlot) {
+		if (allocatedSlot == null) {
+			throw new NullPointerException();
+		}
+		
+		this.allocatedSlot = allocatedSlot;
+		this.assignmentGroup = null;;
+		this.subSlots = new HashSet<SubSlot>();
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	
 	public AllocatedSlot getAllocatedSlot() {
@@ -76,6 +86,17 @@ public class SharedSlot {
 		}
 	}
 	
+	public void rease() {
+		synchronized (this.subSlots) {
+			disposed = true;
+			for (SubSlot ss : subSlots) {
+				ss.releaseSlot();
+			}
+		}
+		
+		allocatedSlot.releaseSlot();
+	}
+	
 	void returnAllocatedSlot(SubSlot slot) {
 		boolean release;
 		
@@ -84,7 +105,11 @@ public class SharedSlot {
 				throw new IllegalArgumentException("Wrong shared slot for subslot.");
 			}
 			
-			release = assignmentGroup.sharedSlotAvailableForJid(this, slot.getJobVertexId(), this.subSlots.isEmpty());
+			if (assignmentGroup != null) {
+				release = assignmentGroup.sharedSlotAvailableForJid(this, slot.getJobVertexId(), this.subSlots.isEmpty());
+			} else {
+				release = subSlots.isEmpty();
+			}
 			
 			if (release) {
 				disposed = true;

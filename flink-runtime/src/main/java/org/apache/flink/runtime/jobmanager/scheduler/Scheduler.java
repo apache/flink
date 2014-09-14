@@ -27,7 +27,6 @@ import java.util.concurrent.ExecutorService;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.instance.Instance;
@@ -149,13 +148,66 @@ public class Scheduler implements InstanceListener, SlotAvailablilityListener {
 		final ExecutionVertex vertex = task.getTaskToExecute().getVertex();
 	
 		synchronized (globalLock) {
+			
 			// 1)  === If the task has a strict co-schedule hint, obey it ===
-
+			
+			CoLocationConstraint locationConstraint = task.getLocationConstraint();
+			if (locationConstraint != null) {
+				// location constraints can never be scheduled in a queued fashion
+				if (queueIfNoResource) {
+					throw new IllegalArgumentException("A task with a location constraint was scheduled in a queued fashion.");
+				}
+				
+				// since we are inside the global lock scope, we can check, allocate, and assign
+				// in one atomic action. however, slots may die and be deallocated
+				
+				// (a) is the constraint has not yet has a slot, get one
+				if (locationConstraint.isUnassigned()) {
+					// try and get a slot
+					AllocatedSlot newSlot = getFreeSlotForTask(vertex);
+					if (newSlot == null) {
+						throw new NoResourceAvailableException();
+					}
+					SharedSlot sl = locationConstraint.swapInNewSlot(newSlot);
+					SubSlot slot = sl.allocateSubSlot(vertex.getJobvertexId());
+					
+					updateLocalityCounters(newSlot.getLocality());
+					return slot;
+				}
+				else {
+					// try to get a subslot. returns null, if the location's slot has been released
+					// in the meantime
+					SubSlot slot = locationConstraint.allocateSubSlot(vertex.getJobvertexId());
+					if (slot == null) {
+						// get a new slot. at the same instance!!!
+						Instance location = locationConstraint.getSlot().getAllocatedSlot().getInstance();
+						AllocatedSlot newSlot;
+						try {
+							newSlot = location.allocateSlot(vertex.getJobId());
+						} catch (InstanceDiedException e) {
+							throw new NoResourceAvailableException("The instance of the required location died.");
+						}
+						if (newSlot == null) {
+							throw new NoResourceAvailableException();
+						}
+						SharedSlot sharedSlot = locationConstraint.swapInNewSlot(newSlot);
+						slot = sharedSlot.allocateSubSlot(vertex.getJobvertexId());
+					}
+					
+					updateLocalityCounters(Locality.LOCAL);
+					return slot;
+				}
+			}
 		
 			// 2)  === If the task has a slot sharing group, schedule with shared slots ===
 			
 			SlotSharingGroup sharingUnit = task.getSlotSharingGroup();
 			if (sharingUnit != null) {
+				
+				if (queueIfNoResource) {
+					throw new IllegalArgumentException("A task with a vertex sharing group was scheduled in a queued fashion.");
+				}
+				
 				final SlotSharingGroupAssignment assignment = sharingUnit.getTaskAssignment();
 				
 				AllocatedSlot newSlot = null;
@@ -263,7 +315,7 @@ public class Scheduler implements InstanceListener, SlotAvailablilityListener {
 					}
 				}
 				
-				if (instanceToUse == null) {					
+				if (instanceToUse == null) {
 					instanceToUse = this.instancesWithAvailableResources.poll();
 					locality = Locality.NON_LOCAL;
 					if (LOG.isDebugEnabled()) {
