@@ -19,6 +19,7 @@ package org.apache.flink.examples.scala.graph
 
 import org.apache.flink.api.scala._
 import org.apache.flink.examples.java.graph.util.ConnectedComponentsData
+import org.apache.flink.util.Collector
 
 /**
  * An implementation of the connected components algorithm, using a delta iteration.
@@ -49,7 +50,7 @@ import org.apache.flink.examples.java.graph.util.ConnectedComponentsData
  * }}}
  *   
  * If no parameters are provided, the program is run with default data from
- * [[org.apache.flink.example.java.graph.util.ConnectedComponentsData]] and 10 iterations.
+ * [[org.apache.flink.examples.java.graph.util.ConnectedComponentsData]] and 10 iterations.
  * 
  *
  * This example shows how to use:
@@ -79,7 +80,7 @@ object ConnectedComponents {
 
         // apply the step logic: join with the edges
         val allNeighbors = ws.join(edges).where(0).equalTo(0) { (vertex, edge) =>
-          Some((edge._2, vertex._2))
+          (edge._2, vertex._2)
         }
 
         // select the minimum neighbor
@@ -87,7 +88,8 @@ object ConnectedComponents {
 
         // update if the component of the candidate is smaller
         val updatedComponents = minNeighbors.join(s).where(0).equalTo(0) {
-          (newVertex, oldVertex) => if (newVertex._2 < oldVertex._2) Some(newVertex) else None
+          (newVertex, oldVertex, out: Collector[(Long, Long)]) =>
+            if (newVertex._2 < oldVertex._2) out.collect(newVertex)
         }
 
         // delta and new workset are identical

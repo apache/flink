@@ -62,10 +62,9 @@ trait JoinDataSet[T, O] extends DataSet[(T, O)] {
 
   /**
    * Creates a new [[DataSet]] where the result for each pair of joined elements is the result
-   * of the given function. You can either return an element or choose to return [[None]],
-   * which allows implementing a filter directly in the join function.
+   * of the given function.
    */
-  def apply[R: TypeInformation: ClassTag](fun: (T, O) => Option[R]): DataSet[R]
+  def apply[R: TypeInformation: ClassTag](fun: (T, O) => R): DataSet[R]
 
   /**
    * Creates a new [[DataSet]] by passing each pair of joined values to the given function.
@@ -107,11 +106,11 @@ private[flink] class JoinDataSetImpl[T, O](
   extends DataSet(joinOperator)
   with JoinDataSet[T, O] {
 
-  def apply[R: TypeInformation: ClassTag](fun: (T, O) => Option[R]): DataSet[R] = {
+  def apply[R: TypeInformation: ClassTag](fun: (T, O) => R): DataSet[R] = {
     Validate.notNull(fun, "Join function must not be null.")
     val joiner = new FlatJoinFunction[T, O, R] {
       def join(left: T, right: O, out: Collector[R]) = {
-        fun(left, right) map { out.collect(_) }
+        out.collect(fun(left, right))
       }
     }
     val joinOperator = new EquiJoin[T, O, R](thisSet, otherSet, thisKeys,
