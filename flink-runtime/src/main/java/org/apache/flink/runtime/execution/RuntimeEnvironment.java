@@ -55,7 +55,6 @@ import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
 import org.apache.flink.runtime.protocols.AccumulatorProtocol;
 import org.apache.flink.runtime.taskmanager.Task;
-import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,8 +66,12 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 	/** The log object used for debugging. */
 	private static final Logger LOG = LoggerFactory.getLogger(RuntimeEnvironment.class);
 
+	private static final ThreadGroup TASK_THREADS = new ThreadGroup("Task Threads");
+	
 	/** The interval to sleep in case a communication channel is not yet entirely set up (in milliseconds). */
 	private static final int SLEEPINTERVAL = 100;
+	
+	
 	
 	// --------------------------------------------------------------------------------------------
 
@@ -235,6 +238,27 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 			if (this.owner.isCanceled()) {
 				throw new CancelTaskException();
 			}
+			
+			// If there is any unclosed input gate, close it and propagate close operation to corresponding output gate
+			closeInputGates();
+
+			// First, close all output gates to indicate no records will be emitted anymore
+			requestAllOutputGatesToClose();
+
+			// Wait until all input channels are closed
+			waitForInputChannelsToBeClosed();
+
+			// Now we wait until all output channels have written out their data and are closed
+			waitForOutputChannelsToBeClosed();
+			
+			if (this.owner.isCanceled()) {
+				throw new CancelTaskException();
+			}
+			
+			// Finally, switch execution state to FINISHED and report to job manager
+			if (!owner.markAsFinished()) {
+				throw new Exception("Could notify job manager that the task is finished.");
+			}
 		}
 		catch (Throwable t) {
 			
@@ -244,7 +268,7 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 				try {
 					this.invokable.cancel();
 				} catch (Throwable t2) {
-					LOG.error(StringUtils.stringifyException(t2));
+					LOG.error("Error while canceling the task", t2);
 				}
 			}
 
@@ -257,44 +281,10 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 			else {
 				this.owner.markFailed(t);
 			}
-
-			return;
 		}
-		
-		try {
-			// If there is any unclosed input gate, close it and propagate close operation to corresponding output gate
-			closeInputGates();
-
-			// First, close all output gates to indicate no records will be emitted anymore
-			requestAllOutputGatesToClose();
-
-			// Wait until all input channels are closed
-			waitForInputChannelsToBeClosed();
-
-			// Now we wait until all output channels have written out their data and are closed
-			waitForOutputChannelsToBeClosed();
-		}
-		catch (Throwable t) {
-			
+		finally {
 			// Release all resources that may currently be allocated by the individual channels
 			releaseAllChannelResources();
-
-			if (this.owner.isCanceled() || t instanceof CancelTaskException) {
-				this.owner.cancelingDone();
-			}
-			else {
-				this.owner.markFailed(t);
-			}
-
-			return;
-		}
-
-		// Release all resources that may currently be allocated by the individual channels
-		releaseAllChannelResources();
-
-		// Finally, switch execution state to FINISHED and report to job manager
-		if (!owner.markAsFinished()) {
-			owner.markFailed(new Exception());
 		}
 	}
 
@@ -373,7 +363,7 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 
 			if (this.executingThread == null) {
 				String name = owner.getTaskNameWithSubtasks();
-				this.executingThread = new Thread(this, name);
+				this.executingThread = new Thread(TASK_THREADS, this, name);
 			}
 
 			return this.executingThread;

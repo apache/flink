@@ -334,12 +334,16 @@ public class ExecutionGraph {
 		}
 	}
 	
-	public void waitForJobEnd() throws InterruptedException {
+	public void waitForJobEnd(long timeout) throws InterruptedException {
 		synchronized (progressLock) {
 			while (nextVertexToFinish < verticesInCreationOrder.size()) {
-				progressLock.wait();
+				progressLock.wait(timeout);
 			}
 		}
+	}
+	
+	public void waitForJobEnd() throws InterruptedException {
+		waitForJobEnd(0);
 	}
 	
 	

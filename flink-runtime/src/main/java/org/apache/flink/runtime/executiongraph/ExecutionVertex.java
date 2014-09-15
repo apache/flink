@@ -274,10 +274,12 @@ public class ExecutionVertex {
 			ExecutionEdge[] sources = inputEdges[i];
 			if (sources != null) {
 				for (int k = 0; k < sources.length; k++) {
-					Instance source = sources[k].getSource().getProducer().getCurrentAssignedResource().getInstance();
-					locations.add(source);
-					if (locations.size() > MAX_DISTINCT_LOCATIONS_TO_CONSIDER) {
-						return null;
+					AllocatedSlot sourceSlot = sources[k].getSource().getProducer().getCurrentAssignedResource();
+					if (sourceSlot != null) {
+						locations.add(sourceSlot.getInstance());
+						if (locations.size() > MAX_DISTINCT_LOCATIONS_TO_CONSIDER) {
+							return null;
+						}
 					}
 				}
 			}

@@ -272,6 +272,8 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 	@Override
 	public JobSubmissionResult submitJob(JobGraph job) throws IOException {
 		
+		
+		ExecutionGraph executionGraph = null;
 		boolean success = false;
 		
 		try {
@@ -285,7 +287,7 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 			}
 			
 			// get the existing execution graph (if we attach), or construct a new empty one to attach
-			ExecutionGraph executionGraph = this.currentJobs.get(job.getJobID());
+			executionGraph = this.currentJobs.get(job.getJobID());
 			if (executionGraph == null) {
 				if (LOG.isInfoEnabled()) {
 					LOG.info("Creating new execution graph for job " + job.getJobID() + " (" + job.getName() + ')');
@@ -331,7 +333,9 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 				}
 			}
 			catch (FileNotFoundException e) {
-				LOG.error("File-not-Found: " + e.getMessage());
+				String message = "File-not-Found: " + e.getMessage();
+				LOG.error(message);
+				executionGraph.fail(e);
 				return new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR, e.getMessage());
 			}
 			
@@ -373,10 +377,22 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 		}
 		catch (Throwable t) {
 			LOG.error("Job submission failed.", t);
+			executionGraph.fail(t);
 			return new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR, StringUtils.stringifyException(t));
 		}
 		finally {
 			if (!success) {
+				if (executionGraph != null) {
+					if (executionGraph.getState() != JobStatus.FAILING && executionGraph.getState() != JobStatus.FAILED) {
+						executionGraph.fail(new Exception("Could not set up and start execution graph on JobManager"));
+					}
+					try {
+						executionGraph.waitForJobEnd(10000);
+					} catch (InterruptedException e) {
+						LOG.error("Interrupted while waiting for job to finish canceling.");
+					}
+				}
+				
 				this.currentJobs.remove(job.getJobID());
 				
 				try {

@@ -32,25 +32,96 @@ import org.apache.flink.runtime.ExecutionMode;
 import org.apache.flink.runtime.client.AbstractJobResult;
 import org.apache.flink.runtime.client.JobSubmissionResult;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
-import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.instance.LocalInstanceManager;
 import org.apache.flink.runtime.io.network.api.RecordReader;
 import org.apache.flink.runtime.io.network.api.RecordWriter;
+import org.apache.flink.runtime.io.network.bufferprovider.GlobalBufferPool;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobmanager.tasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.jobmanager.tasks.NoOpInvokable;
 import org.apache.flink.runtime.types.IntegerRecord;
-import org.apache.flink.util.StringUtils;
-
 import org.junit.Test;
 
 /**
  * This test is intended to cover the basic functionality of the {@link JobManager}.
  */
 public class JobManagerITCase {
+	
+	@Test
+	public void testScheduleNotEnoughSlots() {
+		
+		try {
+			final AbstractJobVertex vertex = new AbstractJobVertex("Test Vertex");
+			vertex.setParallelism(2);
+			vertex.setInvokableClass(BlockingNoOpInvokable.class);
+			
+			final JobGraph jobGraph = new JobGraph("Test Job", vertex);
+			
+			final JobManager jm = startJobManager(1);
+			
+			final GlobalBufferPool bp = ((LocalInstanceManager) jm.getInstanceManager())
+					.getTaskManagers()[0].getChannelManager().getGlobalBufferPool();
+			
+			try {
+				
+				assertEquals(1, jm.getAvailableSlots());
+				
+				// we need to register the job at the library cache manager (with no libraries)
+				LibraryCacheManager.register(jobGraph.getJobID(), new String[0]);
+				
+				JobSubmissionResult result = jm.submitJob(jobGraph);
+				assertEquals(AbstractJobResult.ReturnCode.ERROR, result.getReturnCode());
+				
+				// monitor the execution
+				ExecutionGraph eg = jm.getCurrentJobs().get(jobGraph.getJobID());
+				
+				if (eg != null) {
+					
+					long deadline = System.currentTimeMillis() + 60*1000;
+					boolean success = false;
+					
+					while (System.currentTimeMillis() < deadline) {
+						JobStatus state = eg.getState();
+						if (state == JobStatus.FINISHED) {
+							success = true;
+							break;
+						}
+						else if (state == JobStatus.FAILED || state == JobStatus.CANCELED) {
+							break;
+						}
+						else {
+							Thread.sleep(200);
+						}
+					}
+					
+					assertTrue("The job did not finish successfully.", success);
+					
+					assertEquals(0, eg.getRegisteredExecutions().size());
+				}
+				else {
+					// already done, that was fast;
+				}
+				
+				
+				
+				// make sure that in any case, the network buffers are all returned
+				waitForTaskThreadsToBeTerminated();
+				assertEquals(bp.numBuffers(), bp.numAvailableBuffers());
+			}
+			finally {
+				jm.shutdown();
+			}
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
 	
 	@Test
 	public void testSingleVertexJobImmediately() {
@@ -64,7 +135,11 @@ public class JobManagerITCase {
 			
 			final JobGraph jobGraph = new JobGraph("Test Job", vertex);
 			
-			JobManager jm = startJobManager(NUM_TASKS);
+			final JobManager jm = startJobManager(NUM_TASKS);
+			
+			final GlobalBufferPool bp = ((LocalInstanceManager) jm.getInstanceManager())
+					.getTaskManagers()[0].getChannelManager().getGlobalBufferPool();
+			
 			try {
 				
 				assertEquals(NUM_TASKS, jm.getAvailableSlots());
@@ -106,6 +181,12 @@ public class JobManagerITCase {
 				else {
 					// already done, that was fast;
 				}
+				
+				assertEquals(0, eg.getRegisteredExecutions().size());
+				
+				// make sure that in any case, the network buffers are all returned
+				waitForTaskThreadsToBeTerminated();
+				assertEquals(bp.numBuffers(), bp.numAvailableBuffers());
 			}
 			finally {
 				jm.shutdown();
@@ -130,7 +211,11 @@ public class JobManagerITCase {
 			final JobGraph jobGraph = new JobGraph("Test Job", vertex);
 			jobGraph.setAllowQueuedScheduling(true);
 			
-			JobManager jm = startJobManager(10);
+			final JobManager jm = startJobManager(10);
+			
+			final GlobalBufferPool bp = ((LocalInstanceManager) jm.getInstanceManager())
+					.getTaskManagers()[0].getChannelManager().getGlobalBufferPool();
+			
 			try {
 				
 				// we need to register the job at the library cache manager (with no libraries)
@@ -150,6 +235,12 @@ public class JobManagerITCase {
 				else {
 					// already done, that was fast;
 				}
+				
+				assertEquals(0, eg.getRegisteredExecutions().size());
+				
+				// make sure that in any case, the network buffers are all returned
+				waitForTaskThreadsToBeTerminated();
+				assertEquals(bp.numBuffers(), bp.numAvailableBuffers());
 			}
 			finally {
 				jm.shutdown();
@@ -180,7 +271,11 @@ public class JobManagerITCase {
 			
 			final JobGraph jobGraph = new JobGraph("Pointwise Job", sender, receiver);
 			
-			JobManager jm = startJobManager(2 * NUM_TASKS);
+			final JobManager jm = startJobManager(2 * NUM_TASKS);
+			
+			final GlobalBufferPool bp = ((LocalInstanceManager) jm.getInstanceManager())
+					.getTaskManagers()[0].getChannelManager().getGlobalBufferPool();
+			
 			try {
 				// we need to register the job at the library cache manager (with no libraries)
 				LibraryCacheManager.register(jobGraph.getJobID(), new String[0]);
@@ -199,6 +294,11 @@ public class JobManagerITCase {
 				else {
 					// already done, that was fast;
 				}
+				
+				// make sure that in any case, the network buffers are all returned
+				waitForTaskThreadsToBeTerminated();
+				assertEquals(0, eg.getRegisteredExecutions().size());
+				assertEquals(bp.numBuffers(), bp.numAvailableBuffers());
 			}
 			finally {
 				jm.shutdown();
@@ -229,7 +329,11 @@ public class JobManagerITCase {
 			
 			final JobGraph jobGraph = new JobGraph("Bipartite Job", sender, receiver);
 			
-			JobManager jm = startJobManager(2 * NUM_TASKS);
+			final JobManager jm = startJobManager(2 * NUM_TASKS);
+			
+			final GlobalBufferPool bp = ((LocalInstanceManager) jm.getInstanceManager())
+					.getTaskManagers()[0].getChannelManager().getGlobalBufferPool();
+			
 			try {
 				// we need to register the job at the library cache manager (with no libraries)
 				LibraryCacheManager.register(jobGraph.getJobID(), new String[0]);
@@ -248,6 +352,12 @@ public class JobManagerITCase {
 				else {
 					// already done, that was fast;
 				}
+				
+				assertEquals(0, eg.getRegisteredExecutions().size());
+				
+				// make sure that in any case, the network buffers are all returned
+				waitForTaskThreadsToBeTerminated();
+				assertEquals(bp.numBuffers(), bp.numAvailableBuffers());
 			}
 			finally {
 				jm.shutdown();
@@ -260,9 +370,9 @@ public class JobManagerITCase {
 	}
 	
 	@Test
-	public void testTwoInputJob() {
+	public void testTwoInputJobFailingEdgeMismatch() {
 		
-		final int NUM_TASKS = 13;
+		final int NUM_TASKS = 2;
 		
 		try {
 			final AbstractJobVertex sender1 = new AbstractJobVertex("Sender1");
@@ -274,15 +384,19 @@ public class JobManagerITCase {
 			receiver.setInvokableClass(AgnosticReceiver.class);
 			
 			sender1.setParallelism(NUM_TASKS);
-			sender2.setParallelism(2*NUM_TASKS);
-			receiver.setParallelism(3*NUM_TASKS);
+			sender2.setParallelism(NUM_TASKS);
+			receiver.setParallelism(NUM_TASKS);
 			
 			receiver.connectNewDataSetAsInput(sender1, DistributionPattern.POINTWISE);
 			receiver.connectNewDataSetAsInput(sender2, DistributionPattern.BIPARTITE);
 			
 			final JobGraph jobGraph = new JobGraph("Bipartite Job", sender1, receiver, sender2);
 			
-			JobManager jm = startJobManager(6 * NUM_TASKS);
+			final JobManager jm = startJobManager(3 * NUM_TASKS);
+			
+			final GlobalBufferPool bp = ((LocalInstanceManager) jm.getInstanceManager())
+					.getTaskManagers()[0].getChannelManager().getGlobalBufferPool();
+			
 			try {
 				// we need to register the job at the library cache manager (with no libraries)
 				LibraryCacheManager.register(jobGraph.getJobID(), new String[0]);
@@ -301,6 +415,74 @@ public class JobManagerITCase {
 				else {
 					// already done, that was fast;
 				}
+				
+				// make sure that in any case, the network buffers are all returned
+				waitForTaskThreadsToBeTerminated();
+				assertEquals(0, eg.getRegisteredExecutions().size());
+				assertEquals(bp.numBuffers(), bp.numAvailableBuffers());
+			}
+			finally {
+				jm.shutdown();
+			}
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testTwoInputJob() {
+		
+		final int NUM_TASKS = 11;
+		
+		try {
+			final AbstractJobVertex sender1 = new AbstractJobVertex("Sender1");
+			final AbstractJobVertex sender2 = new AbstractJobVertex("Sender2");
+			final AbstractJobVertex receiver = new AbstractJobVertex("Receiver");
+			
+			sender1.setInvokableClass(Sender.class);
+			sender2.setInvokableClass(Sender.class);
+			receiver.setInvokableClass(AgnosticBinaryReceiver.class);
+			
+			sender1.setParallelism(NUM_TASKS);
+			sender2.setParallelism(2*NUM_TASKS);
+			receiver.setParallelism(3*NUM_TASKS);
+			
+			receiver.connectNewDataSetAsInput(sender1, DistributionPattern.POINTWISE);
+			receiver.connectNewDataSetAsInput(sender2, DistributionPattern.BIPARTITE);
+			
+			final JobGraph jobGraph = new JobGraph("Bipartite Job", sender1, receiver, sender2);
+			
+			JobManager jm = startJobManager(6 * NUM_TASKS);
+			
+			final GlobalBufferPool bp = ((LocalInstanceManager) jm.getInstanceManager())
+								.getTaskManagers()[0].getChannelManager().getGlobalBufferPool();
+			
+			try {
+				// we need to register the job at the library cache manager (with no libraries)
+				LibraryCacheManager.register(jobGraph.getJobID(), new String[0]);
+				
+				JobSubmissionResult result = jm.submitJob(jobGraph);
+
+				assertEquals(AbstractJobResult.ReturnCode.SUCCESS, result.getReturnCode());
+				
+				// monitor the execution
+				ExecutionGraph eg = jm.getCurrentJobs().get(jobGraph.getJobID());
+				
+				if (eg != null) {
+					eg.waitForJobEnd();
+					assertEquals(JobStatus.FINISHED, eg.getState());
+				}
+				else {
+					// already done, that was fast;
+				}
+				
+				assertEquals(0, eg.getRegisteredExecutions().size());
+				
+				// make sure that in any case, the network buffers are all returned
+				waitForTaskThreadsToBeTerminated();
+				assertEquals(bp.numBuffers(), bp.numAvailableBuffers());
 			}
 			finally {
 				jm.shutdown();
@@ -331,7 +513,11 @@ public class JobManagerITCase {
 			
 			final JobGraph jobGraph = new JobGraph("Pointwise Job", sender, receiver);
 			
-			JobManager jm = startJobManager(NUM_TASKS);
+			final JobManager jm = startJobManager(NUM_TASKS);
+			
+			final GlobalBufferPool bp = ((LocalInstanceManager) jm.getInstanceManager())
+					.getTaskManagers()[0].getChannelManager().getGlobalBufferPool();
+			
 			try {
 				assertEquals(NUM_TASKS, jm.getAvailableSlots());
 				
@@ -354,6 +540,10 @@ public class JobManagerITCase {
 				}
 				
 				assertEquals(0, eg.getRegisteredExecutions().size());
+				
+				// make sure that in any case, the network buffers are all returned
+				waitForTaskThreadsToBeTerminated();
+				assertEquals(bp.numBuffers(), bp.numAvailableBuffers());
 			}
 			finally {
 				jm.shutdown();
@@ -384,7 +574,11 @@ public class JobManagerITCase {
 			
 			final JobGraph jobGraph = new JobGraph("Pointwise Job", sender, receiver);
 			
-			JobManager jm = startJobManager(NUM_TASKS);
+			final JobManager jm = startJobManager(NUM_TASKS);
+			
+			final GlobalBufferPool bp = ((LocalInstanceManager) jm.getInstanceManager())
+					.getTaskManagers()[0].getChannelManager().getGlobalBufferPool();
+			
 			try {
 				assertEquals(NUM_TASKS, jm.getAvailableSlots());
 				
@@ -407,6 +601,10 @@ public class JobManagerITCase {
 				}
 				
 				assertEquals(0, eg.getRegisteredExecutions().size());
+				
+				// make sure that in any case, the network buffers are all returned
+				waitForTaskThreadsToBeTerminated();
+				assertEquals(bp.numBuffers(), bp.numAvailableBuffers());
 			}
 			finally {
 				jm.shutdown();
@@ -437,7 +635,11 @@ public class JobManagerITCase {
 			
 			final JobGraph jobGraph = new JobGraph("Pointwise Job", sender, receiver);
 			
-			JobManager jm = startJobManager(2 * NUM_TASKS);
+			final JobManager jm = startJobManager(2 * NUM_TASKS);
+			
+			final GlobalBufferPool bp = ((LocalInstanceManager) jm.getInstanceManager())
+					.getTaskManagers()[0].getChannelManager().getGlobalBufferPool();
+			
 			try {
 				
 				// we need to register the job at the library cache manager (with no libraries)
@@ -459,6 +661,10 @@ public class JobManagerITCase {
 				}
 				
 				assertEquals(0, eg.getRegisteredExecutions().size());
+				
+				// make sure that in any case, the network buffers are all returned
+				waitForTaskThreadsToBeTerminated();
+				assertEquals(bp.numBuffers(), bp.numAvailableBuffers());
 			}
 			finally {
 				jm.shutdown();
@@ -492,7 +698,11 @@ public class JobManagerITCase {
 			
 			final JobGraph jobGraph = new JobGraph("Pointwise Job", sender, receiver);
 			
-			JobManager jm = startJobManager(NUM_TASKS);
+			final JobManager jm = startJobManager(NUM_TASKS);
+			
+			final GlobalBufferPool bp = ((LocalInstanceManager) jm.getInstanceManager())
+					.getTaskManagers()[0].getChannelManager().getGlobalBufferPool();
+			
 			try {
 				assertEquals(NUM_TASKS, jm.getAvailableSlots());
 				
@@ -515,6 +725,10 @@ public class JobManagerITCase {
 				}
 				
 				assertEquals(0, eg.getRegisteredExecutions().size());
+				
+				// make sure that in any case, the network buffers are all returned
+				waitForTaskThreadsToBeTerminated();
+				assertEquals(bp.numBuffers(), bp.numAvailableBuffers());
 			}
 			finally {
 				jm.shutdown();
@@ -548,7 +762,11 @@ public class JobManagerITCase {
 			
 			final JobGraph jobGraph = new JobGraph("Pointwise Job", sender, receiver);
 			
-			JobManager jm = startJobManager(NUM_TASKS);
+			final JobManager jm = startJobManager(NUM_TASKS);
+			
+			final GlobalBufferPool bp = ((LocalInstanceManager) jm.getInstanceManager())
+					.getTaskManagers()[0].getChannelManager().getGlobalBufferPool();
+			
 			try {
 				assertEquals(NUM_TASKS, jm.getAvailableSlots());
 				
@@ -570,11 +788,11 @@ public class JobManagerITCase {
 					// already done, that was fast;
 				}
 				
-				for (Execution e : eg.getRegisteredExecutions().values()) {
-					System.out.println(e + StringUtils.arrayAwareToString(e.getStateTimestamps()));
-				}
-				
 				assertEquals(0, eg.getRegisteredExecutions().size());
+				
+				// make sure that in any case, the network buffers are all returned
+				waitForTaskThreadsToBeTerminated();
+				assertEquals(bp.numBuffers(), bp.numAvailableBuffers());
 			}
 			finally {
 				jm.shutdown();
@@ -627,6 +845,21 @@ public class JobManagerITCase {
 		}
 		
 		throw new IOException("could not find free port");
+	}
+	
+	private static void waitForTaskThreadsToBeTerminated() throws InterruptedException {
+		Thread[] threads = new Thread[Thread.activeCount()];
+		Thread.enumerate(threads);
+		
+		for (Thread t : threads) {
+			if (t == null) {
+				continue;
+			}
+			ThreadGroup tg = t.getThreadGroup();
+			if (tg != null && tg.getName() != null && tg.getName().equals("Task Threads")) {
+				t.join();
+			}
+		}
 	}
 	
 	// --------------------------------------------------------------------------------------------

@@ -667,9 +667,10 @@ public class TaskManager implements TaskOperationProtocol {
 		// Unregister task from library cache manager
 		try {
 			LibraryCacheManager.unregister(task.getJobID());
-		} catch (IOException e) {
+		}
+		catch (Throwable t) {
 			if (LOG.isDebugEnabled()) {
-				LOG.debug("Unregistering the execution " + executionId + " caused an IOException");
+				LOG.debug("Unregistering the cached libraries caused an exception: ",  t);
 			}
 		}
 	}
