@@ -202,9 +202,8 @@ public class BatchedDataStream<OUT> {
 		BatchReduceInvokable<OUT> invokable = getReduceInvokable(aggregate);
 
 		SingleOutputStreamOperator<OUT, ?> returnStream = dataStream.addFunction("batchReduce",
-				aggregate, null, null, invokable);
+				aggregate, dataStream.outTypeWrapper, dataStream.outTypeWrapper, invokable);
 
-		dataStream.jobGraphBuilder.setTypeWrappersFrom(dataStream.getId(), returnStream.getId());
 		return returnStream;
 	}
 

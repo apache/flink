@@ -312,10 +312,11 @@ public class JobGraphBuilder {
 			int parallelism, long waitTime) {
 
 		addComponent(componentName, StreamIterationSink.class, null, null, null, parallelism);
+
 		iterationIds.put(componentName, iterationID);
 		iterationIDtoSinkName.put(iterationID, componentName);
+
 		setBytesFrom(iterationTail, componentName);
-		// setInTypeWrappersFrom(iterationTail, componentName);
 		iterationWaitTime.put(iterationIDtoSinkName.get(iterationID), waitTime);
 
 		if (LOG.isDebugEnabled()) {
@@ -576,44 +577,21 @@ public class JobGraphBuilder {
 	 *            to
 	 */
 	public void setBytesFrom(String from, String to) {
-
 		operatorNames.put(to, operatorNames.get(from));
 		serializedFunctions.put(to, serializedFunctions.get(from));
 
-		setTypeWrappersFrom(from, to);
-	}
-
-	public void setTypeWrappersFrom(String from, String to) {
-		setInToOutTypeWrappersFrom(from, to);
-		setOutToOutTypeWrappersFrom(from, to);
-	}
-
-	public void setInToOutTypeWrappersFrom(String from, String to) {
-		// TODO rename function
 		typeWrapperIn1.put(to, typeWrapperOut1.get(from));
 		typeWrapperIn2.put(to, typeWrapperOut2.get(from));
-	}
-
-	public void setOutToOutTypeWrappersFrom(String from, String to) {
-		// TODO rename function
 		typeWrapperOut1.put(to, typeWrapperOut1.get(from));
 		typeWrapperOut2.put(to, typeWrapperOut2.get(from));
 	}
 
-	public void setInToInTypeWrappersFrom(String from, String to) {
-		// TODO rename function
-		typeWrapperIn1.put(to, typeWrapperIn1.get(from));
-		typeWrapperIn2.put(to, typeWrapperIn2.get(from));
-	}
-
 	public TypeInformation<?> getInTypeInfo(String id) {
-		// TODO
 		System.out.println("DEBUG TypeInfo " + typeWrapperIn1.get(id));
 		return typeWrapperIn1.get(id).getTypeInfo();
 	}
 
 	public TypeInformation<?> getOutTypeInfo(String id) {
-		// TODO
 		return typeWrapperOut1.get(id).getTypeInfo();
 	}
 
