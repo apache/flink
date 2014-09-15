@@ -26,8 +26,6 @@ import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.flink.runtime.event.job.AbstractEvent;
 import org.apache.flink.runtime.event.job.ExecutionStateChangeEvent;
 import org.apache.flink.runtime.event.job.JobEvent;
@@ -46,6 +44,8 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.archive.ArchiveListener;
 import org.apache.flink.runtime.profiling.ProfilingListener;
 import org.apache.flink.runtime.profiling.types.ProfilingEvent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The event collector collects events which occurred during the execution of a job and prepares them
@@ -54,7 +54,7 @@ import org.apache.flink.runtime.profiling.types.ProfilingEvent;
  */
 public final class EventCollector extends TimerTask implements ProfilingListener {
 
-	private static final Log LOG = LogFactory.getLog(EventCollector.class);
+	private static final Logger LOG = LoggerFactory.getLogger(EventCollector.class);
 
 	/**
 	 * The execution listener wrapper is an auxiliary class. It is required

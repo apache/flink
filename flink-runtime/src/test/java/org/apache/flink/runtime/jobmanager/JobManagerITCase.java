@@ -177,12 +177,12 @@ public class JobManagerITCase {
 					}
 					
 					assertTrue("The job did not finish successfully.", success);
+					
+					assertEquals(0, eg.getRegisteredExecutions().size());
 				}
 				else {
 					// already done, that was fast;
 				}
-				
-				assertEquals(0, eg.getRegisteredExecutions().size());
 				
 				// make sure that in any case, the network buffers are all returned
 				waitForTaskThreadsToBeTerminated();
@@ -223,6 +223,9 @@ public class JobManagerITCase {
 				
 				JobSubmissionResult result = jm.submitJob(jobGraph);
 				
+				if (result.getReturnCode() != AbstractJobResult.ReturnCode.SUCCESS) {
+					System.out.println(result.getDescription());
+				}
 				assertEquals(AbstractJobResult.ReturnCode.SUCCESS, result.getReturnCode());
 				
 				// monitor the execution
@@ -231,12 +234,12 @@ public class JobManagerITCase {
 				if (eg != null) {
 					eg.waitForJobEnd();
 					assertEquals(JobStatus.FINISHED, eg.getState());
+					
+					assertEquals(0, eg.getRegisteredExecutions().size());
 				}
 				else {
 					// already done, that was fast;
 				}
-				
-				assertEquals(0, eg.getRegisteredExecutions().size());
 				
 				// make sure that in any case, the network buffers are all returned
 				waitForTaskThreadsToBeTerminated();
@@ -282,6 +285,9 @@ public class JobManagerITCase {
 				
 				JobSubmissionResult result = jm.submitJob(jobGraph);
 
+				if (result.getReturnCode() != AbstractJobResult.ReturnCode.SUCCESS) {
+					System.out.println(result.getDescription());
+				}
 				assertEquals(AbstractJobResult.ReturnCode.SUCCESS, result.getReturnCode());
 				
 				// monitor the execution
@@ -290,6 +296,8 @@ public class JobManagerITCase {
 				if (eg != null) {
 					eg.waitForJobEnd();
 					assertEquals(JobStatus.FINISHED, eg.getState());
+					
+					assertEquals(0, eg.getRegisteredExecutions().size());
 				}
 				else {
 					// already done, that was fast;
@@ -297,7 +305,6 @@ public class JobManagerITCase {
 				
 				// make sure that in any case, the network buffers are all returned
 				waitForTaskThreadsToBeTerminated();
-				assertEquals(0, eg.getRegisteredExecutions().size());
 				assertEquals(bp.numBuffers(), bp.numAvailableBuffers());
 			}
 			finally {
@@ -340,6 +347,9 @@ public class JobManagerITCase {
 				
 				JobSubmissionResult result = jm.submitJob(jobGraph);
 
+				if (result.getReturnCode() != AbstractJobResult.ReturnCode.SUCCESS) {
+					System.out.println(result.getDescription());
+				}
 				assertEquals(AbstractJobResult.ReturnCode.SUCCESS, result.getReturnCode());
 				
 				// monitor the execution
@@ -348,12 +358,12 @@ public class JobManagerITCase {
 				if (eg != null) {
 					eg.waitForJobEnd();
 					assertEquals(JobStatus.FINISHED, eg.getState());
+					
+					assertEquals(0, eg.getRegisteredExecutions().size());
 				}
 				else {
 					// already done, that was fast;
 				}
-				
-				assertEquals(0, eg.getRegisteredExecutions().size());
 				
 				// make sure that in any case, the network buffers are all returned
 				waitForTaskThreadsToBeTerminated();
@@ -372,7 +382,7 @@ public class JobManagerITCase {
 	@Test
 	public void testTwoInputJobFailingEdgeMismatch() {
 		
-		final int NUM_TASKS = 2;
+		final int NUM_TASKS = 11;
 		
 		try {
 			final AbstractJobVertex sender1 = new AbstractJobVertex("Sender1");
@@ -384,15 +394,15 @@ public class JobManagerITCase {
 			receiver.setInvokableClass(AgnosticReceiver.class);
 			
 			sender1.setParallelism(NUM_TASKS);
-			sender2.setParallelism(NUM_TASKS);
-			receiver.setParallelism(NUM_TASKS);
+			sender2.setParallelism(2*NUM_TASKS);
+			receiver.setParallelism(3*NUM_TASKS);
 			
 			receiver.connectNewDataSetAsInput(sender1, DistributionPattern.POINTWISE);
 			receiver.connectNewDataSetAsInput(sender2, DistributionPattern.BIPARTITE);
 			
 			final JobGraph jobGraph = new JobGraph("Bipartite Job", sender1, receiver, sender2);
 			
-			final JobManager jm = startJobManager(3 * NUM_TASKS);
+			final JobManager jm = startJobManager(6*NUM_TASKS);
 			
 			final GlobalBufferPool bp = ((LocalInstanceManager) jm.getInstanceManager())
 					.getTaskManagers()[0].getChannelManager().getGlobalBufferPool();
@@ -403,6 +413,9 @@ public class JobManagerITCase {
 				
 				JobSubmissionResult result = jm.submitJob(jobGraph);
 
+				if (result.getReturnCode() != AbstractJobResult.ReturnCode.SUCCESS) {
+					System.out.println(result.getDescription());
+				}
 				assertEquals(AbstractJobResult.ReturnCode.SUCCESS, result.getReturnCode());
 				
 				// monitor the execution
@@ -411,6 +424,8 @@ public class JobManagerITCase {
 				if (eg != null) {
 					eg.waitForJobEnd();
 					assertEquals(JobStatus.FAILED, eg.getState());
+					
+					assertEquals(0, eg.getRegisteredExecutions().size());
 				}
 				else {
 					// already done, that was fast;
@@ -418,7 +433,6 @@ public class JobManagerITCase {
 				
 				// make sure that in any case, the network buffers are all returned
 				waitForTaskThreadsToBeTerminated();
-				assertEquals(0, eg.getRegisteredExecutions().size());
 				assertEquals(bp.numBuffers(), bp.numAvailableBuffers());
 			}
 			finally {
@@ -465,6 +479,9 @@ public class JobManagerITCase {
 				
 				JobSubmissionResult result = jm.submitJob(jobGraph);
 
+				if (result.getReturnCode() != AbstractJobResult.ReturnCode.SUCCESS) {
+					System.out.println(result.getDescription());
+				}
 				assertEquals(AbstractJobResult.ReturnCode.SUCCESS, result.getReturnCode());
 				
 				// monitor the execution
@@ -473,12 +490,12 @@ public class JobManagerITCase {
 				if (eg != null) {
 					eg.waitForJobEnd();
 					assertEquals(JobStatus.FINISHED, eg.getState());
+					
+					assertEquals(0, eg.getRegisteredExecutions().size());
 				}
 				else {
 					// already done, that was fast;
 				}
-				
-				assertEquals(0, eg.getRegisteredExecutions().size());
 				
 				// make sure that in any case, the network buffers are all returned
 				waitForTaskThreadsToBeTerminated();
@@ -526,6 +543,9 @@ public class JobManagerITCase {
 				
 				JobSubmissionResult result = jm.submitJob(jobGraph);
 
+				if (result.getReturnCode() != AbstractJobResult.ReturnCode.SUCCESS) {
+					System.out.println(result.getDescription());
+				}
 				assertEquals(AbstractJobResult.ReturnCode.SUCCESS, result.getReturnCode());
 				
 				// monitor the execution
@@ -534,12 +554,12 @@ public class JobManagerITCase {
 				if (eg != null) {
 					eg.waitForJobEnd();
 					assertEquals(JobStatus.FAILED, eg.getState());
+					
+					assertEquals(0, eg.getRegisteredExecutions().size());
 				}
 				else {
 					// already done, that was fast;
 				}
-				
-				assertEquals(0, eg.getRegisteredExecutions().size());
 				
 				// make sure that in any case, the network buffers are all returned
 				waitForTaskThreadsToBeTerminated();
@@ -587,6 +607,9 @@ public class JobManagerITCase {
 				
 				JobSubmissionResult result = jm.submitJob(jobGraph);
 
+				if (result.getReturnCode() != AbstractJobResult.ReturnCode.SUCCESS) {
+					System.out.println(result.getDescription());
+				}
 				assertEquals(AbstractJobResult.ReturnCode.SUCCESS, result.getReturnCode());
 				
 				// monitor the execution
@@ -595,12 +618,12 @@ public class JobManagerITCase {
 				if (eg != null) {
 					eg.waitForJobEnd();
 					assertEquals(JobStatus.FAILED, eg.getState());
+					
+					assertEquals(0, eg.getRegisteredExecutions().size());
 				}
 				else {
 					// already done, that was fast;
 				}
-				
-				assertEquals(0, eg.getRegisteredExecutions().size());
 				
 				// make sure that in any case, the network buffers are all returned
 				waitForTaskThreadsToBeTerminated();
@@ -647,6 +670,9 @@ public class JobManagerITCase {
 				
 				JobSubmissionResult result = jm.submitJob(jobGraph);
 				
+				if (result.getReturnCode() != AbstractJobResult.ReturnCode.SUCCESS) {
+					System.out.println(result.getDescription());
+				}
 				assertEquals(AbstractJobResult.ReturnCode.SUCCESS, result.getReturnCode());
 				
 				// monitor the execution
@@ -655,12 +681,12 @@ public class JobManagerITCase {
 				if (eg != null) {
 					eg.waitForJobEnd();
 					assertEquals(JobStatus.FAILED, eg.getState());
+					
+					assertEquals(0, eg.getRegisteredExecutions().size());
 				}
 				else {
 					// already done, that was fast;
 				}
-				
-				assertEquals(0, eg.getRegisteredExecutions().size());
 				
 				// make sure that in any case, the network buffers are all returned
 				waitForTaskThreadsToBeTerminated();
@@ -711,6 +737,9 @@ public class JobManagerITCase {
 				
 				JobSubmissionResult result = jm.submitJob(jobGraph);
 
+				if (result.getReturnCode() != AbstractJobResult.ReturnCode.SUCCESS) {
+					System.out.println(result.getDescription());
+				}
 				assertEquals(AbstractJobResult.ReturnCode.SUCCESS, result.getReturnCode());
 				
 				// monitor the execution
@@ -719,12 +748,12 @@ public class JobManagerITCase {
 				if (eg != null) {
 					eg.waitForJobEnd();
 					assertEquals(JobStatus.FAILED, eg.getState());
+					
+					assertEquals(0, eg.getRegisteredExecutions().size());
 				}
 				else {
 					// already done, that was fast;
 				}
-				
-				assertEquals(0, eg.getRegisteredExecutions().size());
 				
 				// make sure that in any case, the network buffers are all returned
 				waitForTaskThreadsToBeTerminated();
@@ -775,6 +804,9 @@ public class JobManagerITCase {
 				
 				JobSubmissionResult result = jm.submitJob(jobGraph);
 
+				if (result.getReturnCode() != AbstractJobResult.ReturnCode.SUCCESS) {
+					System.out.println(result.getDescription());
+				}
 				assertEquals(AbstractJobResult.ReturnCode.SUCCESS, result.getReturnCode());
 				
 				// monitor the execution
@@ -783,12 +815,12 @@ public class JobManagerITCase {
 				if (eg != null) {
 					eg.waitForJobEnd();
 					assertEquals(JobStatus.FAILED, eg.getState());
+					
+					assertEquals(0, eg.getRegisteredExecutions().size());
 				}
 				else {
 					// already done, that was fast;
 				}
-				
-				assertEquals(0, eg.getRegisteredExecutions().size());
 				
 				// make sure that in any case, the network buffers are all returned
 				waitForTaskThreadsToBeTerminated();
