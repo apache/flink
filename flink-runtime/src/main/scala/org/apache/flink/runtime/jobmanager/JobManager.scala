@@ -19,19 +19,17 @@
 package org.apache.flink.runtime.jobmanager
 
 import java.io.{FileNotFoundException, File}
-import java.net.InetAddress
+import java.net.{InetSocketAddress}
 
 import akka.actor._
-import akka.pattern.{ask, pipe}
 import com.google.common.base.Preconditions
 import org.apache.flink.configuration.{ConfigConstants, GlobalConfiguration, Configuration}
 import org.apache.flink.core.io.InputSplitAssigner
 import org.apache.flink.runtime.accumulators.AccumulatorEvent
-import org.apache.flink.runtime.event.job.AbstractEvent
 import org.apache.flink.runtime.io.network.ConnectionInfoLookupResponse
 import org.apache.flink.runtime.messages.ExecutionGraphMessages.JobStatusChanged
 import org.apache.flink.runtime.messages.JobResult
-import org.apache.flink.runtime.messages.JobResult.{JobProgressResult, JobCancelResult, JobSubmissionResult}
+import org.apache.flink.runtime.messages.JobResult.{JobCancelResult, JobSubmissionResult}
 import org.apache.flink.runtime.{JobException, ActorLogMessages}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager
@@ -45,12 +43,11 @@ import org.apache.flink.runtime.messages.JobManagerMessages._
 import org.apache.flink.runtime.messages.RegistrationMessages._
 import org.apache.flink.runtime.messages.TaskManagerMessages.{NextInputSplit, Heartbeat}
 import org.apache.flink.runtime.profiling.ProfilingUtils
-import org.apache.flink.runtime.profiling.impl.JobManagerProfilerImpl
 import org.apache.flink.util.StringUtils
 import org.slf4j.LoggerFactory
 
-import scala.collection.convert.{WrapAsScala}
-import scala.concurrent.{Await, Future}
+import scala.collection.convert.WrapAsScala
+import scala.concurrent.Future
 
 class JobManager(archiveCount: Int, profiling: Boolean, recommendedPollingInterval: Int) extends Actor with
 ActorLogMessages with ActorLogging with WrapAsScala {
@@ -77,6 +74,7 @@ ActorLogMessages with ActorLogging with WrapAsScala {
   instanceManager.addInstanceListener(scheduler)
 
   override def postStop(): Unit = {
+    log.info(s"Stopping job manager ${self.path}.")
     instanceManager.shutdown()
     scheduler.shutdown()
   }
@@ -273,6 +271,12 @@ ActorLogMessages with ActorLogging with WrapAsScala {
     case Heartbeat(instanceID) => {
       instanceManager.reportHeartBeat(instanceID)
     }
+
+    case Terminated(taskManager) => {
+      log.info(s"Task manager ${taskManager.path} terminated.")
+      instanceManager.unregisterTaskManager(taskManager)
+      context.unwatch(taskManager)
+    }
   }
 }
 
@@ -361,5 +365,9 @@ object JobManager{
 
   def getArchivist(jobManager: ActorRef)(implicit system: ActorSystem): ActorRef = {
     AkkaUtils.getChild(jobManager, ARCHIVE_NAME)
+  }
+
+  def getJobManager(address: InetSocketAddress): ActorRef = {
+    AkkaUtils.getReference(getAkkaURL(address.getHostName + ":" + address.getPort))
   }
 }

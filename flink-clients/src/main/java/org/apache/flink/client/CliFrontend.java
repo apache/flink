@@ -55,12 +55,11 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.event.job.RecentJobEvent;
-import org.apache.flink.runtime.ipc.RPC;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.messages.EventCollectorMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages;
-import org.apache.flink.runtime.net.NetUtils;
 import org.apache.flink.util.StringUtils;
 
 /**
@@ -751,7 +750,7 @@ public class CliFrontend {
 			return null;
 		}
 
-		return AkkaUtils.getReference(jobManagerAddress);
+		return JobManager.getJobManager(jobManagerAddress);
 	}
 	
 	

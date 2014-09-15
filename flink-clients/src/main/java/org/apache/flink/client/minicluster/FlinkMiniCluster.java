@@ -20,6 +20,8 @@ package org.apache.flink.client.minicluster;
 
 import akka.actor.ActorSelection;
 import akka.actor.ActorSystem;
+import akka.util.Timeout;
+import org.apache.flink.runtime.akka.AkkaUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.io.FileInputFormat;
@@ -41,13 +43,10 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.flink.runtime.util.EnvironmentInformation;
-import scala.concurrent.Await;
-import scala.concurrent.Future;
-
 
 public class FlinkMiniCluster {
 	
-	private static final Logger LOG = LoggerFactory.getLogger(NepheleMiniCluster.class);
+	private static final Logger LOG = LoggerFactory.getLogger(FlinkMiniCluster.class);
 	
 	private static final int DEFAULT_JM_RPC_PORT = 6498;
 	
@@ -248,18 +247,18 @@ public class FlinkMiniCluster {
 	}
 
 	public void stop() throws Exception {
+		LOG.info("Stopping FlinkMiniCluster.");
 		for(ActorSystem system: taskManagersActorSystems){
 			system.shutdown();
 		}
+		jobManagerActorSystem.shutdown();
 
 		for(ActorSystem system: taskManagersActorSystems){
 			system.awaitTermination();
 		}
+		jobManagerActorSystem.awaitTermination();
 
 		taskManagersActorSystems.clear();
-
-		jobManagerActorSystem.shutdown();
-		jobManagerActorSystem.awaitTermination();
 	}
 	
 	public TaskManager[] getTaskManagers() {
@@ -286,10 +285,8 @@ public class FlinkMiniCluster {
 		ActorSelection jobManagerSelection = jobManagerActorSystem.actorSelection("/user/jobmanager");
 
 		while(notReady){
-			Future<Object> futureNumTaskManagers = Patterns.ask(jobManagerSelection,
-					JobManagerMessages.RequestNumberRegisteredTaskManager$.MODULE$, timeout);
-
-			int numRegisteredTaskManagers = (Integer)Await.result(futureNumTaskManagers, timeout.duration());
+			int numRegisteredTaskManagers = AkkaUtils.<Integer>ask(jobManagerSelection,
+					JobManagerMessages.RequestNumberRegisteredTaskManager$.MODULE$);
 
 			LOG.debug("Number of registered task manager: " + numRegisteredTaskManagers);
 

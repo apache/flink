@@ -52,7 +52,6 @@ import javax.net.SocketFactory;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.apache.flink.runtime.ipc.Server;
 
 public class NetUtils {
 	private static final Logger LOG = LoggerFactory.getLogger(NetUtils.class);
@@ -171,23 +170,6 @@ public class NetUtils {
 			}
 			return l;
 		}
-	}
-
-	/**
-	 * Returns InetSocketAddress that a client can use to
-	 * connect to the server. Server.getListenerAddress() is not correct when
-	 * the server binds to "0.0.0.0". This returns "127.0.0.1:port" when
-	 * the getListenerAddress() returns "0.0.0.0:port".
-	 * 
-	 * @param server
-	 * @return socket address that a client can use to connect to the server.
-	 */
-	public static InetSocketAddress getConnectAddress(Server server) {
-		InetSocketAddress addr = server.getListenerAddress();
-		if (addr.getAddress().getHostAddress().equals("0.0.0.0")) {
-			addr = new InetSocketAddress("127.0.0.1", addr.getPort());
-		}
-		return addr;
 	}
 
 	/**

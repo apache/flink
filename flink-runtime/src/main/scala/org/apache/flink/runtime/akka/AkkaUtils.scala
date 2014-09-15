@@ -19,9 +19,8 @@
 package org.apache.flink.runtime.akka
 
 import java.io.IOException
-import java.net.InetSocketAddress
 
-import akka.actor.{ActorRef, ActorSystem}
+import akka.actor.{ActorSelection, ActorRef, ActorSystem}
 import akka.pattern.Patterns
 import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
@@ -32,6 +31,8 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 
 object AkkaUtils {
+  lazy val defaultActorSystem = ActorSystem.create("DefaultActorSystem",
+    ConfigFactory.parseString(getDefaultActorSystemConfigString))
   implicit val FUTURE_TIMEOUT: Timeout = 1 minute
   implicit val AWAIT_DURATION: Duration = 1 minute
 
@@ -69,45 +70,56 @@ object AkkaUtils {
 
     val logLifecycleEvents = if(lifecycleEvents) "on" else "off"
 
-    val ioRWSerializerClass = classOf[IOReadableWritableSerializer].getCanonicalName
-    val ioRWClass = classOf[IOReadableWritable].getCanonicalName
-
-    s"""akka.daemonic = on
-       |akka.loggers = ["akka.event.slf4j.Slf4jLogger"]
-       |akka.loglevel = "DEBUG"
-       |akka.logging-filter = "akka.event.slf4j.Slf4jLoggingFilter"
-       |akka.stdout-logleve = "DEBUG"
-       |akka.jvm-exit-on-fatal-error = off
-       |akka.remote.transport-failure-detector.heartbeat-interval = $transportHeartbeatInterval
+    val configString = s"""akka.remote.transport-failure-detector.heartbeat-interval = $transportHeartbeatInterval
        |akka.remote.transport-failure-detector.acceptable-heartbeat-pause = $transportHeartbeatPause
        |akka.remote.transport-failure-detector.threshold = $transportThreshold
        |akka.remote.watch-failure-detector.heartbeat-interval = $watchHeartbeatInterval
        |akka.remote.watch-failure-detector.acceptable-heartbeat-pause = $watchHeartbeatPause
        |akka.remote.wathc-failure-detector.threshold = $watchThreshold
-       |akka.actor.provider = "akka.remote.RemoteActorRefProvider"
-       |akka.remote.netty.tcp.transport-class = "akka.remote.transport.netty.NettyTransport"
        |akka.remote.netty.tcp.hostname = $host
        |akka.remote.netty.tcp.port = $port
-       |akka.remote.netty.tcp.tcp-nodelay = on
        |akka.remote.netty.tcp.connection-timeout = $akkaTCPTimeout
        |akka.remote.netty.tcp.maximum-frame-size = $akkaFramesize
        |akka.actor.default-dispatcher.throughput = $akkaThroughput
-       |akka.log-config-on-start = on
        |akka.remote.log-remote-lifecycle-events = $logLifecycleEvents
        |akka.log-dead-letters = $logLifecycleEvents
        |akka.log-dead-letters-during-shutdown = $logLifecycleEvents
-       |akka.actor.serializers {
-       |  IOReadableWritable = "$ioRWSerializerClass"
-       |}
-       |akka.actor.serialization-bindings {
-       |  "$ioRWClass" = IOReadableWritable
-       |}
      """.stripMargin
+
+    getDefaultActorSystemConfigString + configString
   }
 
-  def getReference(address: InetSocketAddress): ActorRef = {
-    //TODO: implement
-    ActorRef.noSender
+  def getDefaultActorSystemConfigString: String = {
+    val ioRWSerializerClass = classOf[IOReadableWritableSerializer].getCanonicalName
+    val ioRWClass = classOf[IOReadableWritable].getCanonicalName
+
+    s"""akka.daemonic = on
+      |akka.loggers = ["akka.event.slf4j.Slf4jLogger"]
+      |akka.loglevel = "DEBUG"
+      |akka.logging-filter = "akka.event.slf4j.Slf4jLoggingFilter"
+      |akka.stdout-loglevel = "DEBUG"
+      |akka.jvm-exit-on-fata-error = off
+      |akka.actor.provider = "akka.remote.RemoteActorRefProvider"
+      |akka.remote.netty.tcp.transport-class = "akka.remote.transport.netty.NettyTransport"
+      |akka.remote.netty.tcp.tcp-nodelay = on
+      |akka.log-config-on-start = on
+      |akka.actor.serializers {
+      | IOReadableWritable = "$ioRWSerializerClass"
+      |}
+      |akka.actor.serialization-bindings {
+      | "$ioRWClass" = IOReadableWritable
+      |}
+    """.stripMargin
+  }
+
+  def getReference(path: String): ActorRef = {
+    Await.result(defaultActorSystem.actorSelection(path).resolveOne(), AWAIT_DURATION)
+  }
+
+  @throws(classOf[IOException])
+  def ask[T](actorSelection: ActorSelection, msg: Any): T ={
+    val future = Patterns.ask(actorSelection, msg, FUTURE_TIMEOUT)
+    Await.result(future, AWAIT_DURATION).asInstanceOf[T]
   }
 
   @throws(classOf[IOException])

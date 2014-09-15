@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.taskmanager;
 
 import akka.actor.ActorRef;
-import akka.pattern.Patterns;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.jobgraph.JobID;
@@ -27,19 +26,17 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
-import scala.concurrent.Await;
-import scala.concurrent.Future;
 
 public class TaskInputSplitProvider implements InputSplitProvider {
 
-	private final ActorRef jobmanager;
+	private final ActorRef jobManager;
 	
 	private final JobID jobId;
 	
 	private final JobVertexID vertexId;
 	
-	public TaskInputSplitProvider(ActorRef jobmanager, JobID jobId, JobVertexID vertexId) {
-		this.jobmanager = jobmanager;
+	public TaskInputSplitProvider(ActorRef jobManager, JobID jobId, JobVertexID vertexId) {
+		this.jobManager = jobManager;
 		this.jobId = jobId;
 		this.vertexId = vertexId;
 	}
@@ -47,11 +44,8 @@ public class TaskInputSplitProvider implements InputSplitProvider {
 	@Override
 	public InputSplit getNextInputSplit() {
 		try {
-			Future<Object> futureResponse = Patterns.ask(jobmanager, new JobManagerMessages.RequestNextInputSplit
-					(jobId, vertexId), AkkaUtils.FUTURE_TIMEOUT());
-
-			TaskManagerMessages.NextInputSplit nextInputSplit = (TaskManagerMessages.NextInputSplit) Await.result
-					(futureResponse,AkkaUtils.AWAIT_DURATION());
+			TaskManagerMessages.NextInputSplit nextInputSplit = AkkaUtils.ask(jobManager,
+					new JobManagerMessages.RequestNextInputSplit(jobId, vertexId));
 
 			return nextInputSplit.inputSplit();
 		}

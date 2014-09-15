@@ -38,7 +38,6 @@ import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
 import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
 import org.apache.flink.runtime.jobmanager.JobManagerITCase;
-import org.apache.flink.runtime.protocols.ExtendedManagementProtocol;
 
 /**
  * This class contains a selection of utility functions which are used for testing the nephele-server module.
@@ -169,24 +168,6 @@ public final class ServerTestUtils {
 		jos.close();
 
 		return jarFile;
-	}
-
-	/**
-	 * Waits until the job manager for the tests has become ready to accept jobs.
-	 * 
-	 * @param jobManager
-	 *        the instance of the job manager to wait for
-	 * @throws IOException
-	 *         thrown if a connection to the job manager could not be established
-	 * @throws InterruptedException
-	 *         thrown if the thread was interrupted while waiting for the job manager to become ready
-	 */
-	public static void waitForJobManagerToBecomeReady(final ExtendedManagementProtocol jobManager) throws IOException,
-			InterruptedException {
-
-		while (jobManager.getTotalNumberOfRegisteredSlots() == 0) {
-			Thread.sleep(100);
-		}
 	}
 
 	/**

@@ -207,6 +207,22 @@ public class InstanceManager {
 		}
 	}
 
+	public void unregisterTaskManager(ActorRef taskManager){
+		Instance host = registeredHostsByConnection.get(taskManager);
+
+		if(host != null){
+			registeredHostsByConnection.remove(taskManager);
+			registeredHostsById.remove(taskManager);
+			deadHosts.add(taskManager);
+
+			host.markDead();
+
+			totalNumberOfAliveTaskSlots -= host.getTotalNumberOfSlots();
+
+			notifyDeadInstance(host);
+		}
+	}
+
 	public int getNumberOfRegisteredTaskManagers() {
 		return this.registeredHostsById.size();
 	}
@@ -287,7 +303,7 @@ public class InstanceManager {
 					// remove from the living
 					entries.remove();
 					registeredHostsByConnection.remove(host.getTaskManager());
-					
+
 					// add to the dead
 					deadHosts.add(host.getTaskManager());
 					

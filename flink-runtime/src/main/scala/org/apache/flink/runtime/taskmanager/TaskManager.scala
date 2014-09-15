@@ -20,7 +20,7 @@ package org.apache.flink.runtime.taskmanager
 
 import java.io.{IOException, File}
 import java.lang.management.{GarbageCollectorMXBean, MemoryMXBean, ManagementFactory}
-import java.net.InetSocketAddress
+import java.net.{InetAddress, InetSocketAddress}
 import java.util
 import java.util.concurrent.{FutureTask, TimeUnit}
 
@@ -108,6 +108,10 @@ ActorLogMessages with ActorLogging with DecorateAsScala with WrapAsScala{
   }
 
   override def postStop(): Unit = {
+    log.info(s"Stopping task manager ${self.path}.")
+
+    heartbeatScheduler foreach { _.cancel() }
+
     channelManager foreach {
       channelManager =>
       try {
@@ -158,11 +162,10 @@ ActorLogMessages with ActorLogging with DecorateAsScala with WrapAsScala{
 
         log.info(s"TaskManager successfully registered at JobManager ${currentJobManager.path.toString}.")
 
+        setupChannelManager()
+
         heartbeatScheduler = Some(context.system.scheduler.schedule(HEARTBEAT_INTERVAL, HEARTBEAT_INTERVAL, self,
           SendHeartbeat))
-        context.watch(currentJobManager)
-
-        setupChannelManager()
 
         profiler foreach {
           _.tell(RegisterProfilingListener, JobManager.getProfiler(currentJobManager))
@@ -353,7 +356,7 @@ ActorLogMessages with ActorLogging with DecorateAsScala with WrapAsScala{
       import networkConnectionConfig._
 
       val networkConnectionManager = new NettyConnectionManager(connectionInfo.address(), connectionInfo.dataPort(),
-        bufferSize, numInThreads, numOutThreads, closeAfterIdleForMs)
+        bufferSize, numInThreads, numOutThreads, lowWaterMark, highWaterMark)
       channelManager = Some(new ChannelManager(currentJobManager, connectionInfo, numBuffers, bufferSize,
         networkConnectionManager))
     }catch{
@@ -420,11 +423,15 @@ object TaskManager{
 
   def startActorSystemAndActor(hostname: String, port: Int, configuration: Configuration) = {
     val actorSystem = AkkaUtils.createActorSystem(hostname, port, configuration)
-    startActor(actorSystem, configuration)
+    startActor(actorSystem, hostname, configuration)
     actorSystem
   }
 
-  def startActor(actorSystem: ActorSystem, configuration: Configuration): ActorRef = {
+  def startActor(actorSystem: ActorSystem, hostname: String, configuration: Configuration): ActorRef = {
+    val dataport = configuration.getInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY,
+      ConfigConstants.DEFAULT_TASK_MANAGER_DATA_PORT)
+    val connectionInfo = new InstanceConnectionInfo(InetAddress.getByName(hostname), dataport)
+
     val jobManagerAddress = configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
     val jobManagerRPCPort = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
       ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
@@ -451,8 +458,40 @@ object TaskManager{
     val pageSize = configuration.getInteger(ConfigConstants.TASK_MANAGER_NETWORK_BUFFER_SIZE_KEY,
       ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_BUFFER_SIZE)
 
-    actorSystem.actorOf(Props(classOf[TaskManager], jobManagerURL, numberOfSlots, memorySize, pageSize),
-      TASK_MANAGER_NAME);
+    val tmpDirs = configuration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
+      ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(",|" + File.pathSeparator)
+
+    val numBuffers = configuration.getInteger(ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY,
+      ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_NUM_BUFFERS)
+    val bufferSize = configuration.getInteger(ConfigConstants.TASK_MANAGER_NETWORK_BUFFER_SIZE_KEY,
+      ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_BUFFER_SIZE)
+    val numInThreads = configuration.getInteger(ConfigConstants.TASK_MANAGER_NET_NUM_IN_THREADS_KEY,
+      ConfigConstants.DEFAULT_TASK_MANAGER_NET_NUM_IN_THREADS)
+    val numOutThreads = configuration.getInteger(ConfigConstants.TASK_MANAGER_NET_NUM_OUT_THREADS_KEY,
+      ConfigConstants.DEFAULT_TASK_MANAGER_NET_NUM_OUT_THREADS)
+    val lowWaterMark = configuration.getInteger(ConfigConstants.TASK_MANAGER_NET_NETTY_LOW_WATER_MARK,
+      ConfigConstants.DEFAULT_TASK_MANAGER_NET_NETTY_LOW_WATER_MARK)
+    val highWaterMark = configuration.getInteger(ConfigConstants.TASK_MANAGER_NET_NETTY_HIGH_WATER_MARK,
+      ConfigConstants.DEFAULT_TASK_MANAGER_NET_NETTY_HIGH_WATER_MARK)
+
+    val logIntervalMs = configuration.getBoolean(ConfigConstants.TASK_MANAGER_DEBUG_MEMORY_USAGE_START_LOG_THREAD,
+      ConfigConstants.DEFAULT_TASK_MANAGER_DEBUG_MEMORY_USAGE_START_LOG_THREAD) match {
+      case true => Some(
+        configuration.getInteger(ConfigConstants.TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS,
+            ConfigConstants.DEFAULT_TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS)
+      )
+      case false => None
+    }
+
+    val profilingInterval = configuration.getBoolean(ProfilingUtils.ENABLE_PROFILING_KEY, false) match {
+      case true => Some(configuration.getInteger(ProfilingUtils.TASKMANAGER_REPORTINTERVAL_KEY,
+        ProfilingUtils.DEFAULT_TASKMANAGER_REPORTINTERVAL))
+      case false => None
+    }
+
+    actorSystem.actorOf(Props(classOf[TaskManager], connectionInfo, jobManagerURL, numberOfSlots, memorySize, pageSize,
+      tmpDirs, NetworkConnectionConfiguration(numBuffers, bufferSize, numInThreads, numOutThreads, lowWaterMark,
+        highWaterMark), MemoryUsageLogging(logIntervalMs), profilingInterval), TASK_MANAGER_NAME);
   }
 
   def startProfiler(instancePath: String, reportInterval: Long)(implicit system: ActorSystem): ActorRef = {

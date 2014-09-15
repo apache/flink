@@ -19,4 +19,4 @@
 package org.apache.flink.runtime.taskmanager
 
 case class NetworkConnectionConfiguration(numBuffers: Int, bufferSize: Int, numInThreads: Int, numOutThreads: Int,
-                                          closeAfterIdleForMs: Int)
+                                          lowWaterMark: Int, highWaterMark: Int)

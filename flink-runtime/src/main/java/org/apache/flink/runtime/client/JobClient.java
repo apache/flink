@@ -24,6 +24,7 @@ import java.net.InetSocketAddress;
 import java.util.Iterator;
 import java.util.Map;
 
+import akka.actor.ActorRef;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.JobExecutionResult;
@@ -36,6 +37,7 @@ import org.apache.flink.runtime.event.job.AbstractEvent;
 import org.apache.flink.runtime.event.job.JobEvent;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.messages.EventCollectorMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.JobResult;
@@ -105,7 +107,7 @@ public class JobClient {
 			ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
 
 		final InetSocketAddress inetaddr = new InetSocketAddress(address, port);
-		this.jobManager = AkkaUtils.getReference(inetaddr);
+		this.jobManager = JobManager.getJobManager(inetaddr);
 		this.jobGraph = jobGraph;
 		this.configuration = configuration;
 		this.userCodeClassLoader = userCodeClassLoader;

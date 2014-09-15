@@ -125,6 +125,12 @@ under the License.
 			<groupId>com.github.scopt</groupId>
 			<artifactId>scopt_2.10</artifactId>
 			<version>3.2.0</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.scala-lang</groupId>
+					<artifactId>scala-library</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		
 	</dependencies>
@@ -258,7 +264,7 @@ under the License.
 			</plugin>
 			<plugin>
 				<!-- Description: https://github.com/ktoso/maven-git-commit-id-plugin
-					Used to show the git ref when starting the jobmanager. -->
+					Used to show the git ref when starting the jobManager. -->
 				<groupId>pl.project13.maven</groupId>
 				<artifactId>git-commit-id-plugin</artifactId>
 				<version>2.1.5</version>

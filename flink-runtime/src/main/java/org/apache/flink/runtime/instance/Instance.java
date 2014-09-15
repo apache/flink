@@ -217,26 +217,17 @@ public class Instance {
 	}
 
 	public TaskOperationResult submitTask(TaskDeploymentDescriptor tdd) throws IOException{
-		Future<Object> futureResponse = Patterns.ask(taskManager, new TaskManagerMessages.SubmitTask(tdd),
-				AkkaUtils.FUTURE_TIMEOUT());
 		try{
-			return (TaskOperationResult) Await.result(futureResponse, AkkaUtils.AWAIT_DURATION());
-		}catch(IOException ioe){
+			return AkkaUtils.ask(taskManager, new TaskManagerMessages.SubmitTask(tdd));
+		}catch(IOException ioe) {
 			throw ioe;
-		}catch(Exception e){
-			throw new RuntimeException("Caught exception while submitting task.", e);
 		}
 	}
 	public TaskOperationResult cancelTask(ExecutionAttemptID attemptID) throws IOException{
-		Future<Object> futureResponse = Patterns.ask(taskManager, new TaskManagerMessages.CancelTask(attemptID),
-				AkkaUtils.FUTURE_TIMEOUT());
-
 		try{
-			return (TaskOperationResult) Await.result(futureResponse, AkkaUtils.AWAIT_DURATION());
+			return AkkaUtils.ask(taskManager, new TaskManagerMessages.CancelTask(attemptID));
 		}catch(IOException ioe){
 			throw ioe;
-		}catch(Exception e){
-			throw new RuntimeException("Caught exception while cancelling task.", e);
 		}
 
 	// --------------------------------------------------------------------------------------------

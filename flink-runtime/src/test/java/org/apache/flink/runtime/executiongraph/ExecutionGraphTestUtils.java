@@ -28,6 +28,7 @@ import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import akka.actor.ActorRef;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
@@ -95,21 +96,16 @@ public class ExecutionGraphTestUtils {
 	//  utility mocking methods
 	// --------------------------------------------------------------------------------------------
 	
-	public static Instance getInstance(final TaskOperationProtocol top) throws Exception {
+	public static Instance getInstance(final ActorRef taskManager) throws Exception {
 		return getInstance(top, 1);
 	}
 	
 	public static Instance getInstance(final TaskOperationProtocol top, int numSlots) throws Exception {
 		HardwareDescription hardwareDescription = new HardwareDescription(4, 2L*1024*1024*1024, 1024*1024*1024, 512*1024*1024);
 		InetAddress address = InetAddress.getByName("127.0.0.1");
-		InstanceConnectionInfo connection = new InstanceConnectionInfo(address, 10000, 10001);
+		InstanceConnectionInfo connection = new InstanceConnectionInfo(address, 10001);
 		
-		return new Instance(connection, new InstanceID(), hardwareDescription, numSlots) {
-			@Override
-			public TaskOperationProtocol getTaskManagerProxy() {
-				return top;
-			}
-		};
+		return new Instance(taskManager, connection, new InstanceID(), hardwareDescription, 1);
 	}
 	
 	public static TaskOperationProtocol getSimpleAcknowledgingTaskmanager() throws Exception {

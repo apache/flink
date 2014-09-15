@@ -19,6 +19,7 @@
 package org.apache.flink.core.io;
 
 import java.io.IOException;
+import java.io.Serializable;
 
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -30,7 +31,7 @@ import org.apache.flink.core.memory.DataOutputView;
  * to a binary representation.
  * When implementing this Interface make sure that the implementing class has a default (zero-argument) constructor!
  */
-public interface IOReadableWritable {
+public interface IOReadableWritable extends Serializable {
 
 	/**
 	 * Writes the object's internal data to the given data output view.

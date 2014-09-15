@@ -30,12 +30,13 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import akka.actor.ActorRef;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.event.job.RecentJobEvent;
-import org.apache.flink.runtime.ipc.RPC;
-import org.apache.flink.runtime.net.NetUtils;
-import org.apache.flink.runtime.protocols.ExtendedManagementProtocol;
+import org.apache.flink.runtime.jobmanager.JobManager;
+import org.apache.flink.runtime.messages.EventCollectorMessages;
 
 
 public class JobsInfoServlet extends HttpServlet {
@@ -56,12 +57,16 @@ public class JobsInfoServlet extends HttpServlet {
 	protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
 		//resp.setContentType("application/json");
 		
-		ExtendedManagementProtocol jmConn = null;
 		try {
-			
-			jmConn = getJMConnection();
-			List<RecentJobEvent> recentJobs = jmConn.getRecentJobs();
-			
+			String jmHost = config.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
+			int jmPort = config.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
+					ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
+
+			ActorRef jm = JobManager.getJobManager(new InetSocketAddress(jmHost, jmPort));
+
+			List<RecentJobEvent> recentJobs = AkkaUtils.<EventCollectorMessages.RecentJobs>ask(jm,
+					EventCollectorMessages.RequestRecentJobs$.MODULE$).asJavaList();
+
 			ArrayList<RecentJobEvent> jobs = new ArrayList<RecentJobEvent>(recentJobs);
 			
 			resp.setStatus(HttpServletResponse.SC_OK);
@@ -89,30 +94,7 @@ public class JobsInfoServlet extends HttpServlet {
 		} catch (Throwable t) {
 			resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
 			resp.getWriter().print(t.getMessage());
-		} finally {
-			if (jmConn != null) {
-				try {
-					RPC.stopProxy(jmConn);
-				} catch (Throwable t) {
-					System.err.println("Could not cleanly shut down connection from compiler to job manager");
-				}
-			}
-			jmConn = null;
 		}
-	}
-	
-	/**
-	 * Sets up a connection to the JobManager.
-	 * 
-	 * @return Connection to the JobManager.
-	 * @throws IOException
-	 */
-	private ExtendedManagementProtocol getJMConnection() throws IOException {
-		String jmHost = config.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
-		String jmPort = config.getString(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, null);
-		
-		return RPC.getProxy(ExtendedManagementProtocol.class,
-				new InetSocketAddress(jmHost, Integer.parseInt(jmPort)), NetUtils.getSocketFactory());
 	}
 
 	protected String escapeString(String str) {

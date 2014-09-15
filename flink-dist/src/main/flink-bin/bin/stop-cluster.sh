@@ -46,4 +46,4 @@ do
 done < $HOSTLIST
 
 # cluster mode, stop the job manager locally and stop the task manager on every slave host
-"$FLINK_BIN_DIR"/jobmanager.sh stop
+"$FLINK_BIN_DIR"/jobManager.sh stop

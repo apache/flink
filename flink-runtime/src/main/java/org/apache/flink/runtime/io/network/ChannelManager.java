@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network;
 
+import akka.actor.ActorRef;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.AbstractID;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -43,7 +44,6 @@ import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.util.ExceptionUtils;
-import scala.concurrent.Future;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -375,16 +375,12 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 		while (true) {
 			ConnectionInfoLookupResponse lookupResponse;
 			synchronized (this.channelLookup) {
-				Future<Object> futureResponse = Patterns.ask(channelLookup,
-						new JobManagerMessages.LookupConnectionInformation(connectionInfo, jobID, sourceChannelID),
-						AkkaUtils.FUTURE_TIMEOUT());
 				try{
-					lookupResponse = ((JobManagerMessages.ConnectionInformation) Await.result(futureResponse,
-							AkkaUtils.AWAIT_DURATION())).response();
-				}catch(IOException ioe){
+					lookupResponse = AkkaUtils.<JobManagerMessages.ConnectionInformation>ask(channelLookup,
+							new JobManagerMessages.LookupConnectionInformation(connectionInfo, jobID,
+									sourceChannelID)).response();
+				}catch(IOException ioe) {
 					throw ioe;
-				}catch(Exception e){
-					throw new RuntimeException("Caught exception while looking connection information up.", e);
 				}
 			}
 

@@ -24,4 +24,4 @@ bin=`cd "$bin"; pwd`
 . "$bin"/config.sh
 
 # stop local job manager (has an internal task manager)
-"$FLINK_BIN_DIR"/jobmanager.sh stop
+"$FLINK_BIN_DIR"/jobManager.sh stop

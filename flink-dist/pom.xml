@@ -249,7 +249,7 @@ under the License.
 									<controlDir>${basedir}/src/deb/control</controlDir>
 									<dataSet>
 										<data>
-											<src>${basedir}/src/deb/bin/jobmanager</src>
+											<src>${basedir}/src/deb/bin/jobManager</src>
 											<type>file</type>
 											<mapper>
 												<type>perm</type>

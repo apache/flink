@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.FutureTask;
 
+import akka.actor.ActorRef;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.IOReadableWritable;
@@ -314,6 +315,11 @@ public class MockEnvironment implements Environment, BufferProvider, LocalBuffer
 	}
 
 	@Override
+	public ActorRef getAccumulator() {
+		throw new UnsupportedOperationException("Accumulators are not supported by the MockEnvironment.");
+	}
+
+	@Override
 	public OutputGate createAndRegisterOutputGate() {
 		return this.outputs.remove(0);
 	}
@@ -332,12 +338,6 @@ public class MockEnvironment implements Environment, BufferProvider, LocalBuffer
 	@Override
 	public int getNumberOfInputChannels() {
 		return this.inputs.size();
-	}
-	
-	@Override
-	public AccumulatorProtocol getAccumulatorProtocolProxy() {
-		throw new UnsupportedOperationException(
-				"getAccumulatorProtocolProxy() is not supported by MockEnvironment");
 	}
 
 	@Override

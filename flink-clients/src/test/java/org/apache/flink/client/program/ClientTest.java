@@ -21,10 +21,6 @@ package org.apache.flink.client.program;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.Plan;
-import org.apache.flink.client.program.Client;
-import org.apache.flink.client.program.JobWithJars;
-import org.apache.flink.client.program.PackagedProgram;
-import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.compiler.DataStatistics;
 import org.apache.flink.compiler.PactCompiler;
 import org.apache.flink.compiler.costs.CostEstimator;
@@ -33,9 +29,9 @@ import org.apache.flink.compiler.plantranslate.NepheleJobGraphGenerator;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobClient;
-import org.apache.flink.runtime.client.JobSubmissionResult;
-import org.apache.flink.runtime.client.AbstractJobResult.ReturnCode;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.messages.JobResult;
+import org.apache.flink.runtime.messages.JobResult.JobSubmissionResult;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -101,7 +97,7 @@ public class ClientTest {
 
 	@Test
 	public void shouldSubmitToJobClient() throws ProgramInvocationException, IOException {
-		when(jobSubmissionResultMock.getReturnCode()).thenReturn(ReturnCode.SUCCESS);
+		when(jobSubmissionResultMock.returnCode()).thenReturn(JobResult.SUCCESS());
 
 		Client out = new Client(configMock, getClass().getClassLoader());
 		out.run(program.getPlanWithJars(), -1, false);
@@ -114,7 +110,7 @@ public class ClientTest {
 
 	@Test(expected = ProgramInvocationException.class)
 	public void shouldThrowException() throws Exception {
-		when(jobSubmissionResultMock.getReturnCode()).thenReturn(ReturnCode.ERROR);
+		when(jobSubmissionResultMock.returnCode()).thenReturn(JobResult.ERROR());
 
 		Client out = new Client(configMock, getClass().getClassLoader());
 		out.run(program.getPlanWithJars(), -1, false);
