@@ -877,10 +877,15 @@ public class JobManagerITCase {
 
 		@Override
 		public void invoke() throws Exception {
-			writer.initializeSerializers();
-			writer.emit(new IntegerRecord(42));
-			writer.emit(new IntegerRecord(1337));
-			writer.flush();
+			try {
+				writer.initializeSerializers();
+				writer.emit(new IntegerRecord(42));
+				writer.emit(new IntegerRecord(1337));
+				writer.flush();
+			}
+			finally {
+				writer.clearBuffers();
+			}
 		}
 	}
 	

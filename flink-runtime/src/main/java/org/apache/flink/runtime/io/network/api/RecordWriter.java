@@ -138,4 +138,15 @@ public class RecordWriter<T extends IOReadableWritable> extends BufferWriter {
 			}
 		}
 	}
+	
+	public void clearBuffers() {
+		if (this.serializers != null) {
+			for (RecordSerializer<?> s: this.serializers) {
+				Buffer b = s.getCurrentBuffer();
+				if (b != null) {
+					b.recycleBuffer();
+				}
+			}
+		}
+	}
 }

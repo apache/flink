@@ -44,6 +44,7 @@ import org.apache.flink.runtime.io.network.gates.OutputGate;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.protocols.ChannelLookupProtocol;
 import org.apache.flink.runtime.taskmanager.Task;
+import org.apache.flink.util.ExceptionUtils;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -596,6 +597,10 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 		} catch (CancelTaskException e) {
 			releaseEnvelope(envelope);
 			throw e;
+		} catch (Throwable t) {
+			releaseEnvelope(envelope);
+			ExceptionUtils.rethrow(t, "Error while requesting receiver list.");
+			return null; // silence the compiler
 		}
 	}
 	
