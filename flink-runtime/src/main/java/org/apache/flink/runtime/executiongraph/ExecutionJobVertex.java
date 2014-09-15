@@ -32,10 +32,10 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
-
 import org.slf4j.Logger;
 
 
@@ -62,10 +62,12 @@ public class ExecutionJobVertex {
 	
 	private final boolean[] finishedSubtasks;
 			
-	private int numSubtasksInFinalState;
+	private volatile int numSubtasksInFinalState;
 	
 	
-	private SlotSharingGroup slotSharingGroup;
+	private final SlotSharingGroup slotSharingGroup;
+	
+	private final CoLocationGroup coLocationGroup;
 	
 	
 	public ExecutionJobVertex(ExecutionGraph graph, AbstractJobVertex jobVertex, int defaultParallelism) throws JobException {
@@ -90,6 +92,15 @@ public class ExecutionJobVertex {
 		
 		this.inputs = new ArrayList<IntermediateResult>(jobVertex.getInputs().size());
 		
+		// take the sharing group
+		this.slotSharingGroup = jobVertex.getSlotSharingGroup();
+		this.coLocationGroup = jobVertex.getCoLocationGroup();
+		
+		// setup the coLocation group
+		if (coLocationGroup != null && slotSharingGroup == null) {
+			throw new JobException("Vertex uses a co-location constraint without using slot sharing");
+		}
+		
 		// create the intermediate results
 		this.producedDataSets = new IntermediateResult[jobVertex.getNumberOfProducedIntermediateDataSets()];
 		for (int i = 0; i < jobVertex.getProducedDataSets().size(); i++) {
@@ -109,9 +120,6 @@ public class ExecutionJobVertex {
 				throw new RuntimeException("The intermediate result's partitions were not correctly assiged.");
 			}
 		}
-		
-		// take the sharing group
-		this.slotSharingGroup = jobVertex.getSlotSharingGroup();
 		
 		// set up the input splits, if the vertex has any
 		try {
@@ -163,12 +171,12 @@ public class ExecutionJobVertex {
 		return splitAssigner;
 	}
 	
-	public void setSlotSharingGroup(SlotSharingGroup slotSharingGroup) {
-		this.slotSharingGroup = slotSharingGroup;
-	}
-	
 	public SlotSharingGroup getSlotSharingGroup() {
 		return slotSharingGroup;
+	}
+	
+	public CoLocationGroup getCoLocationGroup() {
+		return coLocationGroup;
 	}
 	
 	public List<IntermediateResult> getInputs() {

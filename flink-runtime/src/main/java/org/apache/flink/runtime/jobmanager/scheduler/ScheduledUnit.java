@@ -49,11 +49,13 @@ public class ScheduledUnit {
 		this.locationConstraint = null;
 	}
 	
-	public ScheduledUnit(Execution task, CoLocationConstraint locationConstraint) {
+	public ScheduledUnit(Execution task, SlotSharingGroup sharingUnit, CoLocationConstraint locationConstraint) {
 		Preconditions.checkNotNull(task);
+		Preconditions.checkNotNull(sharingUnit);
+		Preconditions.checkNotNull(locationConstraint);
 		
 		this.vertexExecution = task;
-		this.sharingGroup = null;
+		this.sharingGroup = sharingUnit;
 		this.locationConstraint = locationConstraint;
 	}
 

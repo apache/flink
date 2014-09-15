@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.compiler.plantranslate;
 
 import java.util.ArrayList;
@@ -123,6 +122,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 	private int iterationIdEnumerator = 1;
 	
 	private IterationPlanNode currentIteration;	// hack: as long as no nesting is possible, remember the enclosing iteration
+	
 	
 	// ------------------------------------------------------------------------
 
@@ -357,6 +357,10 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 				// store the id of the iterations the step functions participate in
 				IterationDescriptor descr = this.iterations.get(this.currentIteration);
 				new TaskConfig(vertex.getConfiguration()).setIterationId(descr.getId());
+				
+				// make sure tasks inside iterations are co-located with the head
+				AbstractJobVertex headVertex = this.iterations.get(this.currentIteration).getHeadTask();
+				vertex.setStrictlyCoLocatedWith(headVertex);
 			}
 	
 			// store in the map

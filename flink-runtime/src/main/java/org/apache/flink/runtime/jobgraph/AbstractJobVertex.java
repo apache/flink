@@ -25,6 +25,7 @@ import org.apache.commons.lang3.Validate;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplitSource;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 
 /**
@@ -68,8 +69,9 @@ public class AbstractJobVertex implements java.io.Serializable {
 	/** Optionally, a sharing group that allows subtasks from different job vertices to run concurrently in one slot */
 	private SlotSharingGroup slotSharingGroup;
 	
-//	private AbstractJobVertex coLocatedWith
-
+	/** The group inside which the vertex subtasks share slots */
+	private CoLocationGroup coLocationGroup;
+	
 	// --------------------------------------------------------------------------------------------
 
 	/**
@@ -227,6 +229,12 @@ public class AbstractJobVertex implements java.io.Serializable {
 		return this.inputs;
 	}
 	
+	/**
+	 * Associates this vertex with a slot sharing group for scheduling. Different vertices in the same
+	 * slot sharing group can run one subtask each in the same slot.
+	 * 
+	 * @param grp The slot sharing group to associate the vertex with.
+	 */
 	public void setSlotSharingGroup(SlotSharingGroup grp) {
 		if (this.slotSharingGroup != null) {
 			this.slotSharingGroup.removeVertexFromGroup(id);
@@ -238,8 +246,71 @@ public class AbstractJobVertex implements java.io.Serializable {
 		}
 	}
 	
+	/**
+	 * Gets the slot sharing group that this vertex is associated with. Different vertices in the same
+	 * slot sharing group can run one subtask each in the same slot. If the vertex is not associated with
+	 * a slot sharing group, this method returns {@code null}.
+	 * 
+	 * @return The slot sharing group to associate the vertex with, or {@code null}, if not associated with one.
+	 */
 	public SlotSharingGroup getSlotSharingGroup() {
 		return slotSharingGroup;
+	}
+	
+	/**
+	 * Tells this vertex to strictly co locate its subtasks with the subtasks of the given vertex.
+	 * Strict co-location implies that the n'th subtask of this vertex will run on the same parallel computing
+	 * instance (TaskManager) as the n'th subtask of the given vertex.
+	 * 
+	 * NOTE: Co-location is only possible between vertices in a slot sharing group.
+	 * 
+	 * NOTE: This vertex must (transitively) depend on the vertex to be co-located with. That means that the
+	 * respective vertex must be a (transitive) input of this vertex.
+	 * 
+	 * @param strictlyCoLocatedWith The vertex whose subtasks to co-locate this vertex's subtasks with.
+	 * 
+	 * @throws IllegalArgumentException Thrown, if this vertex and the vertex to co-locate with are not in a common
+	 *                                  slot sharing group.
+	 * 
+	 * @see #setSlotSharingGroup(SlotSharingGroup)
+	 */
+	public void setStrictlyCoLocatedWith(AbstractJobVertex strictlyCoLocatedWith) {
+		if (this.slotSharingGroup == null || this.slotSharingGroup != strictlyCoLocatedWith.slotSharingGroup) {
+			throw new IllegalArgumentException();
+		}
+		
+		CoLocationGroup thisGroup = this.coLocationGroup;
+		CoLocationGroup otherGroup = strictlyCoLocatedWith.coLocationGroup;
+		
+		if (otherGroup == null) {
+			if (thisGroup == null) {
+				CoLocationGroup group = new CoLocationGroup(this, strictlyCoLocatedWith);
+				this.coLocationGroup = group;
+				strictlyCoLocatedWith.coLocationGroup = group;
+			}
+			else {
+				thisGroup.addVertex(strictlyCoLocatedWith);
+				strictlyCoLocatedWith.coLocationGroup = thisGroup;
+			}
+		}
+		else {
+			if (thisGroup == null) {
+				otherGroup.addVertex(this);
+				this.coLocationGroup = otherGroup;
+			}
+			else {
+				// both had yet distinct groups, we need to merge them
+				thisGroup.mergeInto(otherGroup);
+			}
+		}
+	}
+	
+	public CoLocationGroup getCoLocationGroup() {
+		return coLocationGroup;
+	}
+	
+	public void updateCoLocationGroup(CoLocationGroup group) {
+		this.coLocationGroup = group;
 	}
 	
 	// --------------------------------------------------------------------------------------------

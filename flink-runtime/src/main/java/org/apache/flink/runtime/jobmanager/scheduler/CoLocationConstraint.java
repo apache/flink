@@ -18,47 +18,30 @@
 
 package org.apache.flink.runtime.jobmanager.scheduler;
 
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
-
-import org.apache.flink.runtime.instance.AllocatedSlot;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.instance.Instance;
 
 public class CoLocationConstraint {
 	
-	private static final AtomicReferenceFieldUpdater<CoLocationConstraint, SharedSlot> UPDATER =
-			AtomicReferenceFieldUpdater.newUpdater(CoLocationConstraint.class, SharedSlot.class, "slot");
+	private volatile Instance location;
 	
-	private volatile SharedSlot slot;
-
+	
+	public void setLocation(Instance location) {
+		if (location == null) {
+			throw new IllegalArgumentException();
+		}
+		
+		if (this.location == null) {
+			this.location = location;
+		} else {
+			throw new IllegalStateException("The constraint has already been assigned a location.");
+		}
+	}
+	
+	public Instance getLocation() {
+		return location;
+	}
 	
 	public boolean isUnassigned() {
-		return slot == null;
-	}
-	
-	public SharedSlot getSlot() {
-		return slot;
-	}
-	
-	public SharedSlot swapInNewSlot(AllocatedSlot newSlot) {
-		SharedSlot newShared = new SharedSlot(newSlot);
-		
-		// atomic swap/release-other to prevent resource leaks
-		while (true) {
-			SharedSlot current = this.slot;
-			if (UPDATER.compareAndSet(this, current, newShared)) {
-				if (current != null) {
-					current.rease();
-				}
-				return newShared;
-			}
-		}
-	}
-	
-	public SubSlot allocateSubSlot(JobVertexID jid) {
-		if (this.slot == null) {
-			throw new IllegalStateException("Location constraint has not yet been assigned a slot.");
-		}
-		
-		return slot.allocateSubSlot(jid);
+		return this.location == null;
 	}
 }

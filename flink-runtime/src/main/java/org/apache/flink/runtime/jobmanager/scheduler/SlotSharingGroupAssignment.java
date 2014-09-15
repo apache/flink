@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmanager.scheduler;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -83,11 +84,34 @@ public class SlotSharingGroupAssignment {
 		}
 	}
 	
-	public AllocatedSlot getSlotForTask(JobVertexID jid, ExecutionVertex vertex, boolean localOnly) {
+	/**
+	 * Gets a slot suitable for the given task vertex. This method will prefer slots that are local
+	 * (with respect to {@link ExecutionVertex#getPreferredLocations()}), but will return non local
+	 * slots if no local slot is available. The method returns null, when no slot is available for the
+	 * given JobVertexID at all.
+	 * 
+	 * @param jid
+	 * @param vertex
+	 * 
+	 * @return A task vertex for a task with the given JobVertexID, or null, if none is available.
+	 */
+	public AllocatedSlot getSlotForTask(JobVertexID jid, ExecutionVertex vertex) {
 		synchronized (allSlots) {
-			return getSlotForTaskInternal(jid, vertex.getPreferredLocations(), localOnly);
+			return getSlotForTaskInternal(jid, vertex.getPreferredLocations(), false);
 		}
 	}
+	
+	
+	public AllocatedSlot getSlotForTask(JobVertexID jid, CoLocationConstraint constraint) {
+		if (constraint.isUnassigned()) {
+			throw new IllegalArgumentException("CoLocationConstraint is unassigned");
+		}
+		
+		synchronized (allSlots) {
+			return getSlotForTaskInternal(jid, Collections.singleton(constraint.getLocation()), true);
+		}
+	}
+	
 	
 	public boolean sharedSlotAvailableForJid(SharedSlot slot, JobVertexID jid, boolean lastSubSlot) {
 		if (slot == null || jid == null) {

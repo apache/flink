@@ -34,11 +34,13 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.instance.Instance;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotAllocationFuture;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotAllocationFutureAction;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.taskmanager.TaskOperationResult;
 import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
@@ -162,9 +164,19 @@ public class Execution {
 			throw new NullPointerException();
 		}
 		
+		final SlotSharingGroup sharingGroup = vertex.getJobVertex().getSlotSharingGroup();
+		final CoLocationConstraint locationConstraint = vertex.getLocationConstraint();
+		
+		// sanity check
+		if (locationConstraint != null && sharingGroup == null) {
+			throw new RuntimeException("Trying to schedule with co-location constraint but without slot sharing allowed.");
+		}
+				
 		if (transitionState(CREATED, SCHEDULED)) {
 			
-			ScheduledUnit toSchedule = new ScheduledUnit(this, vertex.getJobVertex().getSlotSharingGroup());
+			ScheduledUnit toSchedule = locationConstraint == null ?
+				new ScheduledUnit(this, sharingGroup) :
+				new ScheduledUnit(this, sharingGroup, locationConstraint);
 		
 			// IMPORTANT: To prevent leaks of cluster resources, we need to make sure that slots are returned
 			//     in all cases where the deployment failed. we use many try {} finally {} clauses to assure that
@@ -483,7 +495,6 @@ public class Execution {
 						assignedResource.releaseSlot();
 					}
 				}
-				
 				
 				if (!isCallback && (current == RUNNING || current == DEPLOYING)) {
 					if (LOG.isDebugEnabled()) {

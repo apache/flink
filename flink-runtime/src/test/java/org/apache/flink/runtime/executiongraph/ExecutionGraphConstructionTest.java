@@ -20,6 +20,7 @@ package org.apache.flink.runtime.executiongraph;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
@@ -30,8 +31,10 @@ import org.mockito.Matchers;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
@@ -46,6 +49,8 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 
 /**
  * This class contains test concerning the correct conversion from {@link JobGraph} to {@link ExecutionGraph} objects.
@@ -591,6 +596,117 @@ public class ExecutionGraphConstructionTest {
 			}
 			catch (RuntimeException e) {
 				// expected
+			}
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testCoLocationConstraintCreation() {
+		try {
+			final JobID jobId = new JobID();
+			final String jobName = "Co-Location Constraint Sample Job";
+			final Configuration cfg = new Configuration();
+			
+			// simple group of two, cyclic
+			AbstractJobVertex v1 = new AbstractJobVertex("vertex1");
+			AbstractJobVertex v2 = new AbstractJobVertex("vertex2");
+			v1.setParallelism(6);
+			v2.setParallelism(4);
+			
+			SlotSharingGroup sl1 = new SlotSharingGroup();
+			v1.setSlotSharingGroup(sl1);
+			v2.setSlotSharingGroup(sl1);
+			v2.setStrictlyCoLocatedWith(v1);
+			v1.setStrictlyCoLocatedWith(v2);
+			
+			// complex forked dependency pattern
+			AbstractJobVertex v3 = new AbstractJobVertex("vertex3");
+			AbstractJobVertex v4 = new AbstractJobVertex("vertex4");
+			AbstractJobVertex v5 = new AbstractJobVertex("vertex5");
+			AbstractJobVertex v6 = new AbstractJobVertex("vertex6");
+			AbstractJobVertex v7 = new AbstractJobVertex("vertex7");
+			v3.setParallelism(3);
+			v4.setParallelism(3);
+			v5.setParallelism(3);
+			v6.setParallelism(3);
+			v7.setParallelism(3);
+			
+			SlotSharingGroup sl2 = new SlotSharingGroup();
+			v3.setSlotSharingGroup(sl2);
+			v4.setSlotSharingGroup(sl2);
+			v5.setSlotSharingGroup(sl2);
+			v6.setSlotSharingGroup(sl2);
+			v7.setSlotSharingGroup(sl2);
+			
+			v4.setStrictlyCoLocatedWith(v3);
+			v5.setStrictlyCoLocatedWith(v4);
+			v6.setStrictlyCoLocatedWith(v3);
+			v3.setStrictlyCoLocatedWith(v7);
+			
+			// isolated vertex
+			AbstractJobVertex v8 = new AbstractJobVertex("vertex8");
+			v8.setParallelism(2);
+			
+			JobGraph jg = new JobGraph(jobId, jobName, v1, v2, v3, v4, v5, v6, v7, v8);
+			
+			ExecutionGraph eg = new ExecutionGraph(jobId, jobName, cfg);
+			eg.attachJobGraph(jg.getVerticesSortedTopologicallyFromSources());
+			
+			// check the v1 / v2 co location hints ( assumes parallelism(v1) >= parallelism(v2) )
+			{
+				ExecutionVertex[] v1s = eg.getJobVertex(v1.getID()).getTaskVertices();
+				ExecutionVertex[] v2s = eg.getJobVertex(v2.getID()).getTaskVertices();
+				
+				Set<CoLocationConstraint> all = new HashSet<CoLocationConstraint>();
+				
+				for (int i = 0; i < v2.getParallelism(); i++) {
+					assertNotNull(v1s[i].getLocationConstraint());
+					assertNotNull(v2s[i].getLocationConstraint());
+					assertTrue(v1s[i].getLocationConstraint() == v2s[i].getLocationConstraint());
+					all.add(v1s[i].getLocationConstraint());
+				}
+				
+				for (int i = v2.getParallelism(); i < v1.getParallelism(); i++) {
+					assertNotNull(v1s[i].getLocationConstraint());
+					all.add(v1s[i].getLocationConstraint());
+				}
+				
+				assertEquals("not all co location constraints are distinct", v1.getParallelism(), all.size());
+			}
+			
+			// check the v1 / v2 co location hints ( assumes parallelism(v1) >= parallelism(v2) )
+			{
+				ExecutionVertex[] v3s = eg.getJobVertex(v3.getID()).getTaskVertices();
+				ExecutionVertex[] v4s = eg.getJobVertex(v4.getID()).getTaskVertices();
+				ExecutionVertex[] v5s = eg.getJobVertex(v5.getID()).getTaskVertices();
+				ExecutionVertex[] v6s = eg.getJobVertex(v6.getID()).getTaskVertices();
+				ExecutionVertex[] v7s = eg.getJobVertex(v7.getID()).getTaskVertices();
+				
+				Set<CoLocationConstraint> all = new HashSet<CoLocationConstraint>();
+				
+				for (int i = 0; i < v3.getParallelism(); i++) {
+					assertNotNull(v3s[i].getLocationConstraint());
+					assertTrue(v3s[i].getLocationConstraint() == v4s[i].getLocationConstraint());
+					assertTrue(v4s[i].getLocationConstraint() == v5s[i].getLocationConstraint());
+					assertTrue(v5s[i].getLocationConstraint() == v6s[i].getLocationConstraint());
+					assertTrue(v6s[i].getLocationConstraint() == v7s[i].getLocationConstraint());
+					all.add(v3s[i].getLocationConstraint());
+				}
+				
+				assertEquals("not all co location constraints are distinct", v3.getParallelism(), all.size());
+			}
+			
+			// check the v8 has no co location hints
+			{
+				ExecutionVertex[] v8s = eg.getJobVertex(v8.getID()).getTaskVertices();
+				
+				for (int i = 0; i < v8.getParallelism(); i++) {
+					assertNull(v8s[i].getLocationConstraint());
+				}
 			}
 		}
 		catch (Exception e) {

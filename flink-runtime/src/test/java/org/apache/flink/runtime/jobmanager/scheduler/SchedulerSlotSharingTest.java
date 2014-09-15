@@ -242,6 +242,70 @@ public class SchedulerSlotSharingTest {
 	}
 	
 	@Test
+	public void scheduleImmediatelyWithIntermediateTotallyEmptySharingGroup() {
+		try {
+			JobVertexID jid1 = new JobVertexID();
+			JobVertexID jid2 = new JobVertexID();
+			
+			SlotSharingGroup sharingGroup = new SlotSharingGroup(jid1, jid2);
+			
+			Scheduler scheduler = new Scheduler();
+			scheduler.newInstanceAvailable(getRandomInstance(2));
+			scheduler.newInstanceAvailable(getRandomInstance(2));
+			
+			// schedule 4 tasks from the first vertex group
+			AllocatedSlot s1 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(jid1, 0, 4), sharingGroup));
+			AllocatedSlot s2 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(jid1, 1, 4), sharingGroup));
+			AllocatedSlot s3 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(jid1, 2, 4), sharingGroup));
+			AllocatedSlot s4 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(jid1, 3, 4), sharingGroup));
+			
+			assertEquals(4, sharingGroup.getTaskAssignment().getNumberOfSlots());
+			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForJid(jid1));
+			assertEquals(4, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForJid(jid2));
+			
+			s1.releaseSlot();
+			s2.releaseSlot();
+			s3.releaseSlot();
+			s4.releaseSlot();
+			
+			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfSlots());
+			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForJid(jid1));
+			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForJid(jid2));
+			
+			// schedule some tasks from the second ID group
+			AllocatedSlot s1_2 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(jid2, 0, 4), sharingGroup));
+			AllocatedSlot s2_2 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(jid2, 1, 4), sharingGroup));
+			AllocatedSlot s3_2 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(jid2, 2, 4), sharingGroup));
+			AllocatedSlot s4_2 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(jid2, 3, 4), sharingGroup));
+
+			assertEquals(4, sharingGroup.getTaskAssignment().getNumberOfSlots());
+			assertEquals(4, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForJid(jid1));
+			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForJid(jid2));
+			
+			s1_2.releaseSlot();
+			s2_2.releaseSlot();
+			s3_2.releaseSlot();
+			s4_2.releaseSlot();
+			
+			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfSlots());
+			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForJid(jid1));
+			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForJid(jid2));
+
+			// test that everything is released
+			assertEquals(4, scheduler.getNumberOfAvailableSlots());
+			
+			// check the scheduler's bookkeeping
+			assertEquals(0, scheduler.getNumberOfLocalizedAssignments());
+			assertEquals(0, scheduler.getNumberOfNonLocalizedAssignments());
+			assertEquals(8, scheduler.getNumberOfUnconstrainedAssignments());
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	@Test
 	public void scheduleImmediatelyWithTemprarilyEmptyVertexGroup() {
 		try {
 			JobVertexID jid1 = new JobVertexID();

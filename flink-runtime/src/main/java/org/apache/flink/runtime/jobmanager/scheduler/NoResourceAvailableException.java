@@ -25,11 +25,13 @@ public class NoResourceAvailableException extends JobException {
 	private static final long serialVersionUID = -2249953165298717803L;
 
 	public NoResourceAvailableException() {
-		super("Not enough resources available for the Job.");
+		super("Not enough free slots available to run the job. "
+				+ "You can decrease the operator parallelism or increase the number of slots per TaskManager in the configuration.");
 	}
 	
 	public NoResourceAvailableException(ScheduledUnit unit) {
-		super("No resource available to schedule unit " + unit);
+		super("No resource available to schedule unit " + unit
+				+ ". You can decrease the operator parallelism or increase the number of slots per TaskManager in the configuration.");
 	}
 
 	public NoResourceAvailableException(String message) {

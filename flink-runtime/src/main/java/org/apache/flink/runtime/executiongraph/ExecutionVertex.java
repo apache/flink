@@ -38,6 +38,8 @@ import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 
@@ -64,6 +66,8 @@ public class ExecutionVertex {
 	
 	private final List<Execution> priorExecutions;
 	
+	private final CoLocationConstraint locationConstraint;
+	
 	private volatile Execution currentExecution;	// this field must never be null
 	
 	// --------------------------------------------------------------------------------------------
@@ -87,6 +91,14 @@ public class ExecutionVertex {
 		this.priorExecutions = new CopyOnWriteArrayList<Execution>();
 		
 		this.currentExecution = new Execution(this, 0, createTimestamp);
+		
+		// create a co-location scheduling hint, if necessary
+		CoLocationGroup clg = jobVertex.getCoLocationGroup();
+		if (clg != null) {
+			this.locationConstraint = clg.getLocationConstraint(subTaskIndex);
+		} else {
+			this.locationConstraint = null;
+		}
 	}
 	
 	
@@ -127,6 +139,10 @@ public class ExecutionVertex {
 			throw new IllegalArgumentException(String.format("Input %d is out of range [0..%d)", input, this.inputEdges.length));
 		}
 		return inputEdges[input];
+	}
+	
+	public CoLocationConstraint getLocationConstraint() {
+		return locationConstraint;
 	}
 	
 	public Execution getCurrentExecutionAttempt() {

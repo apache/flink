@@ -38,7 +38,6 @@ import org.apache.flink.runtime.jobmanager.tasks.Sender;
 import org.junit.Test;
 
 public class CoLocationConstraintITCase {
-
 	
 	/**
 	 * This job runs in N slots with N senders and N receivers. Unless slot sharing is used, it cannot complete.
@@ -63,6 +62,8 @@ public class CoLocationConstraintITCase {
 			SlotSharingGroup sharingGroup = new SlotSharingGroup(sender.getID(), receiver.getID());
 			sender.setSlotSharingGroup(sharingGroup);
 			receiver.setSlotSharingGroup(sharingGroup);
+			
+			receiver.setStrictlyCoLocatedWith(sender);
 			
 			final JobGraph jobGraph = new JobGraph("Pointwise Job", sender, receiver);
 			
