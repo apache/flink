@@ -29,11 +29,15 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
  * deployed together within a slot. This is a soft permission, in contrast to the hard constraint
  * defined by a co-location hint.
  */
-public class SlotSharingGroup {
+public class SlotSharingGroup implements java.io.Serializable {
 	
+	private static final long serialVersionUID = 1L;
+	
+
 	private final Set<JobVertexID> ids = new TreeSet<JobVertexID>();
 	
-	private SlotSharingGroupAssignment taskAssignment;
+	/** Mapping of tasks to subslots. This field is only needed inside the JobManager, and is not RPCed. */
+	private transient SlotSharingGroupAssignment taskAssignment;
 	
 	
 	public SlotSharingGroup() {}
