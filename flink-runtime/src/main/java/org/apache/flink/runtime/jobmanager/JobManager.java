@@ -661,7 +661,7 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 
 	@Override
 	public InstanceID registerTaskManager(InstanceConnectionInfo instanceConnectionInfo, HardwareDescription hardwareDescription, int numberOfSlots) {
-		if (this.instanceManager != null) {
+		if (this.instanceManager != null && this.scheduler != null) {
 			return this.instanceManager.registerTaskManager(instanceConnectionInfo, hardwareDescription, numberOfSlots);
 		} else {
 			return null;
