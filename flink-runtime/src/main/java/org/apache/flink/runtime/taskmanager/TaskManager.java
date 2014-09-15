@@ -51,7 +51,6 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.OptionBuilder;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
-
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
 import org.apache.flink.configuration.ConfigConstants;
@@ -97,7 +96,6 @@ import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.StringUtils;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -763,8 +761,12 @@ public class TaskManager implements TaskOperationProtocol {
 					try {
 						resultId = this.jobManager.registerTaskManager(this.localInstanceConnectionInfo,
 								this.hardwareDescription, this.numberOfSlots);
+						
+						if (resultId == null) {
+							throw new Exception("Registration attempt refused by JobManager.");
+						}
 					}
-					catch (IOException e) {
+					catch (Exception e) {
 						// this may be if the job manager was not yet online
 						// if this has happened for a while, report it. if it has just happened
 						// at the very beginning, this may not mean anything (JM still in startup)
@@ -780,9 +782,6 @@ public class TaskManager implements TaskOperationProtocol {
 						// success
 						this.registeredId = resultId;
 						break;
-					} else {
-						// this is bad. The job manager refused us. report and try again later
-						LOG.error("Registration attempt refused by JobManager.");
 					}
 		
 					try {
