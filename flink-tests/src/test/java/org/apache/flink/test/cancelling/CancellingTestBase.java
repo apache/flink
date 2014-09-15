@@ -196,7 +196,6 @@ public abstract class CancellingTestBase {
 						case CANCELED:
 							exitLoop = true;
 							break;
-						case SCHEDULED: // okay
 						case RUNNING:
 							break;
 						default:

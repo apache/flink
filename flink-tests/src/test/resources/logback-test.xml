@@ -23,12 +23,14 @@
         </encoder>
     </appender>
 
-    <root level="WARN">
+    <root level="INFO">
         <appender-ref ref="STDOUT"/>
     </root>
 
+<!-- 
     <logger name="org.apache.flink.test.recordJobs.relational.query1Util.LineItemFilter" level="ERROR"/>
     <logger name="org.apache.flink.runtime.operators.RegularPactTask" level="OFF"/>
     <logger name="org.apache.flink.runtime.taskmanager.Task" level="OFF"/>
     <logger name="org.apache.flink.runtime.jobmanager.JobManager" level="OFF"/>
+    -->
 </configuration>

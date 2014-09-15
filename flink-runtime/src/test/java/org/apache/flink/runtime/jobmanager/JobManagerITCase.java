@@ -18,17 +18,12 @@
 
 package org.apache.flink.runtime.jobmanager;
 
+import static org.apache.flink.runtime.jobgraph.JobManagerTestUtils.*;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import java.io.IOException;
-import java.net.ServerSocket;
-
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.runtime.ExecutionMode;
 import org.apache.flink.runtime.client.AbstractJobResult;
 import org.apache.flink.runtime.client.JobSubmissionResult;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
@@ -42,8 +37,12 @@ import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobmanager.tasks.AgnosticBinaryReceiver;
+import org.apache.flink.runtime.jobmanager.tasks.AgnosticReceiver;
 import org.apache.flink.runtime.jobmanager.tasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.jobmanager.tasks.NoOpInvokable;
+import org.apache.flink.runtime.jobmanager.tasks.Receiver;
+import org.apache.flink.runtime.jobmanager.tasks.Sender;
 import org.apache.flink.runtime.types.IntegerRecord;
 import org.junit.Test;
 
@@ -837,143 +836,8 @@ public class JobManagerITCase {
 	}
 	
 	// --------------------------------------------------------------------------------------------
-	
-	private static final JobManager startJobManager(int numSlots) throws Exception {
-		Configuration cfg = new Configuration();
-		cfg.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");
-		cfg.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, getAvailablePort());
-		cfg.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 10);
-		cfg.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlots);
-		
-		GlobalConfiguration.includeConfiguration(cfg);
-		
-		JobManager jm = new JobManager(ExecutionMode.LOCAL);
-		
-		// we need to wait until the taskmanager is registered
-		// max time is 5 seconds
-		long deadline = System.currentTimeMillis() + 5000;
-		
-		while (jm.getAvailableSlots() < numSlots && System.currentTimeMillis() < deadline) {
-			Thread.sleep(10);
-		}
-		
-		assertEquals(numSlots, jm.getAvailableSlots());
-		
-		return jm;
-	}
-	
-	private static int getAvailablePort() throws IOException {
-		for (int i = 0; i < 50; i++) {
-			ServerSocket serverSocket = null;
-			try {
-				serverSocket = new ServerSocket(0);
-				int port = serverSocket.getLocalPort();
-				if (port != 0) {
-					return port;
-				}
-			} finally {
-				serverSocket.close();
-			}
-		}
-		
-		throw new IOException("could not find free port");
-	}
-	
-	private static void waitForTaskThreadsToBeTerminated() throws InterruptedException {
-		Thread[] threads = new Thread[Thread.activeCount()];
-		Thread.enumerate(threads);
-		
-		for (Thread t : threads) {
-			if (t == null) {
-				continue;
-			}
-			ThreadGroup tg = t.getThreadGroup();
-			if (tg != null && tg.getName() != null && tg.getName().equals("Task Threads")) {
-				t.join();
-			}
-		}
-	}
-	
-	// --------------------------------------------------------------------------------------------
 	//  Simple test tasks
 	// --------------------------------------------------------------------------------------------
-	
-	public static final class Sender extends AbstractInvokable {
-
-		private RecordWriter<IntegerRecord> writer;
-		
-		@Override
-		public void registerInputOutput() {
-			writer = new RecordWriter<IntegerRecord>(this);
-		}
-
-		@Override
-		public void invoke() throws Exception {
-			try {
-				writer.initializeSerializers();
-				writer.emit(new IntegerRecord(42));
-				writer.emit(new IntegerRecord(1337));
-				writer.flush();
-			}
-			finally {
-				writer.clearBuffers();
-			}
-		}
-	}
-	
-	public static final class Receiver extends AbstractInvokable {
-
-		private RecordReader<IntegerRecord> reader;
-		
-		@Override
-		public void registerInputOutput() {
-			reader = new RecordReader<IntegerRecord>(this, IntegerRecord.class);
-		}
-
-		@Override
-		public void invoke() throws Exception {
-			IntegerRecord i1 = reader.next();
-			IntegerRecord i2 = reader.next();
-			IntegerRecord i3 = reader.next();
-			
-			if (i1.getValue() != 42 || i2.getValue() != 1337 || i3 != null) {
-				throw new Exception("Wrong Data Received");
-			}
-		}
-	}
-	
-	public static final class AgnosticReceiver extends AbstractInvokable {
-
-		private RecordReader<IntegerRecord> reader;
-		
-		@Override
-		public void registerInputOutput() {
-			reader = new RecordReader<IntegerRecord>(this, IntegerRecord.class);
-		}
-
-		@Override
-		public void invoke() throws Exception {
-			while (reader.next() != null);
-		}
-	}
-	
-	public static final class AgnosticBinaryReceiver extends AbstractInvokable {
-
-		private RecordReader<IntegerRecord> reader1;
-		private RecordReader<IntegerRecord> reader2;
-		
-		@Override
-		public void registerInputOutput() {
-			reader1 = new RecordReader<IntegerRecord>(this, IntegerRecord.class);
-			reader2 = new RecordReader<IntegerRecord>(this, IntegerRecord.class);
-		}
-
-		@Override
-		public void invoke() throws Exception {
-			while (reader1.next() != null);
-			while (reader2.next() != null);
-		}
-	}
 	
 	public static final class ExceptionSender extends AbstractInvokable {
 

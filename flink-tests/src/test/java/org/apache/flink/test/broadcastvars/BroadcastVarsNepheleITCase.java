@@ -34,12 +34,12 @@ import org.apache.flink.api.java.typeutils.runtime.record.RecordSerializerFactor
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.io.network.channels.ChannelType;
+import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
-import org.apache.flink.runtime.jobgraph.InputFormatInputVertex;
+import org.apache.flink.runtime.jobgraph.InputFormatVertex;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobGraphDefinitionException;
-import org.apache.flink.runtime.jobgraph.JobTaskVertex;
-import org.apache.flink.runtime.jobgraph.OutputFormatOutputVertex;
+import org.apache.flink.runtime.jobgraph.OutputFormatVertex;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.operators.CollectorMapDriver;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.RegularPactTask;
@@ -254,8 +254,8 @@ public class BroadcastVarsNepheleITCase extends RecordAPITestBase {
 		return modelsInput;
 	}
 
-	private static JobTaskVertex createMapper(JobGraph jobGraph, int numSubTasks, TypeSerializerFactory<?> serializer) {
-		JobTaskVertex pointsInput = JobGraphUtils.createTask(RegularPactTask.class, "Map[DotProducts]", jobGraph, numSubTasks);
+	private static AbstractJobVertex createMapper(JobGraph jobGraph, int numSubTasks, TypeSerializerFactory<?> serializer) {
+		AbstractJobVertex pointsInput = JobGraphUtils.createTask(RegularPactTask.class, "Map[DotProducts]", jobGraph, numSubTasks);
 
 		{
 			TaskConfig taskConfig = new TaskConfig(pointsInput.getConfiguration());
@@ -300,7 +300,7 @@ public class BroadcastVarsNepheleITCase extends RecordAPITestBase {
 	// Unified solution set and workset tail update
 	// -------------------------------------------------------------------------------------------------------------
 
-	private JobGraph createJobGraphV1(String pointsPath, String centersPath, String resultPath, int numSubTasks) throws JobGraphDefinitionException {
+	private JobGraph createJobGraphV1(String pointsPath, String centersPath, String resultPath, int numSubTasks) {
 
 		// -- init -------------------------------------------------------------------------------------------------
 		final TypeSerializerFactory<?> serializer = RecordSerializerFactory.get();
@@ -310,7 +310,7 @@ public class BroadcastVarsNepheleITCase extends RecordAPITestBase {
 		// -- vertices ---------------------------------------------------------------------------------------------
 		InputFormatVertex points = createPointsInput(jobGraph, pointsPath, numSubTasks, serializer);
 		InputFormatVertex models = createModelsInput(jobGraph, centersPath, numSubTasks, serializer);
-		JobTaskVertex mapper = createMapper(jobGraph, numSubTasks, serializer);
+		AbstractJobVertex mapper = createMapper(jobGraph, numSubTasks, serializer);
 		OutputFormatVertex output = createOutput(jobGraph, resultPath, numSubTasks, serializer);
 
 		// -- edges ------------------------------------------------------------------------------------------------
@@ -319,9 +319,13 @@ public class BroadcastVarsNepheleITCase extends RecordAPITestBase {
 		JobGraphUtils.connect(mapper, output, ChannelType.NETWORK, DistributionPattern.POINTWISE);
 
 		// -- instance sharing -------------------------------------------------------------------------------------
-		points.setVertexToShareInstancesWith(output);
-		models.setVertexToShareInstancesWith(output);
-		mapper.setVertexToShareInstancesWith(output);
+		
+		SlotSharingGroup sharing = new SlotSharingGroup();
+		
+		points.setSlotSharingGroup(sharing);
+		models.setSlotSharingGroup(sharing);
+		mapper.setSlotSharingGroup(sharing);
+		output.setSlotSharingGroup(sharing);
 
 		return jobGraph;
 	}

@@ -16,28 +16,29 @@
  * limitations under the License.
  */
 
-package org.apache.flink.client.program;
+package org.apache.flink.runtime.jobmanager.tasks;
 
-import java.io.File;
+import org.apache.flink.runtime.io.network.api.RecordReader;
+import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.types.IntegerRecord;
 
-import org.apache.flink.client.CliFrontendTestUtils;
-import org.apache.flink.client.program.PackagedProgram;
-import org.junit.Assert;
-import org.junit.Test;
+public final class Receiver extends AbstractInvokable {
 
+	private RecordReader<IntegerRecord> reader;
+	
+	@Override
+	public void registerInputOutput() {
+		reader = new RecordReader<IntegerRecord>(this, IntegerRecord.class);
+	}
 
-public class PackagedProgramTest {
-
-	@Test
-	public void testGetPreviewPlan() {
-		try {
-			PackagedProgram prog = new PackagedProgram(new File(CliFrontendTestUtils.getTestJarPath()));
-			Assert.assertNotNull(prog.getPreviewPlan());
-		}
-		catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			Assert.fail("Test is erroneous: " + e.getMessage());
+	@Override
+	public void invoke() throws Exception {
+		IntegerRecord i1 = reader.next();
+		IntegerRecord i2 = reader.next();
+		IntegerRecord i3 = reader.next();
+		
+		if (i1.getValue() != 42 || i2.getValue() != 1337 || i3 != null) {
+			throw new Exception("Wrong Data Received");
 		}
 	}
 }

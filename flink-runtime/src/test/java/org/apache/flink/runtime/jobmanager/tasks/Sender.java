@@ -16,28 +16,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.client.program;
+package org.apache.flink.runtime.jobmanager.tasks;
 
-import java.io.File;
+import org.apache.flink.runtime.io.network.api.RecordWriter;
+import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.types.IntegerRecord;
 
-import org.apache.flink.client.CliFrontendTestUtils;
-import org.apache.flink.client.program.PackagedProgram;
-import org.junit.Assert;
-import org.junit.Test;
+public final class Sender extends AbstractInvokable {
 
+	private RecordWriter<IntegerRecord> writer;
+	
+	@Override
+	public void registerInputOutput() {
+		writer = new RecordWriter<IntegerRecord>(this);
+	}
 
-public class PackagedProgramTest {
-
-	@Test
-	public void testGetPreviewPlan() {
+	@Override
+	public void invoke() throws Exception {
 		try {
-			PackagedProgram prog = new PackagedProgram(new File(CliFrontendTestUtils.getTestJarPath()));
-			Assert.assertNotNull(prog.getPreviewPlan());
+			writer.initializeSerializers();
+			writer.emit(new IntegerRecord(42));
+			writer.emit(new IntegerRecord(1337));
+			writer.flush();
 		}
-		catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			Assert.fail("Test is erroneous: " + e.getMessage());
+		finally {
+			writer.clearBuffers();
 		}
 	}
 }

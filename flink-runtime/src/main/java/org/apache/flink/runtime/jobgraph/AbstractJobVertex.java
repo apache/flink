@@ -62,11 +62,13 @@ public class AbstractJobVertex implements java.io.Serializable {
 	/** Optionally, a source of input splits */
 	private InputSplitSource<?> inputSplitSource;
 	
+	/** The name of the vertex */
+	private String name;
+	
 	/** Optionally, a sharing group that allows subtasks from different job vertices to run concurrently in one slot */
 	private SlotSharingGroup slotSharingGroup;
 	
-	/** The name of the vertex */
-	private String name;
+//	private AbstractJobVertex coLocatedWith
 
 	// --------------------------------------------------------------------------------------------
 

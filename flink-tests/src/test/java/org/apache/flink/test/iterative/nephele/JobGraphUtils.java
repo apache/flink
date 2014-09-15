@@ -34,7 +34,6 @@ import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.InputFormatVertex;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobGraphDefinitionException;
 import org.apache.flink.runtime.jobgraph.OutputFormatVertex;
 import org.apache.flink.runtime.operators.DataSinkTask;
 import org.apache.flink.runtime.operators.DataSourceTask;
@@ -45,8 +44,8 @@ public class JobGraphUtils {
 
 	public static final long MEGABYTE = 1024l * 1024l;
 
-	private JobGraphUtils() {
-	}
+	private JobGraphUtils() {}
+	
 
 	public static void submit(JobGraph graph, Configuration nepheleConfig) throws IOException, JobExecutionException {
 		JobClient client = new JobClient(graph, nepheleConfig, JobGraphUtils.class.getClassLoader());
@@ -63,10 +62,10 @@ public class JobGraphUtils {
 	private static <T extends InputFormat<?,?>> InputFormatVertex createInput(UserCodeWrapper<T> stub, String name, JobGraph graph,
 			int degreeOfParallelism)
 	{
-		InputFormatVertex inputVertex = new InputFormatVertex(graph, name);
+		InputFormatVertex inputVertex = new InputFormatVertex(name);
+		graph.addVertex(inputVertex);
 		
 		inputVertex.setInvokableClass(DataSourceTask.class);
-		
 		inputVertex.setParallelism(degreeOfParallelism);
 
 		TaskConfig inputConfig = new TaskConfig(inputVertex.getConfiguration());
@@ -83,42 +82,49 @@ public class JobGraphUtils {
 //	}
 	
 	public static void connect(AbstractJobVertex source, AbstractJobVertex target, ChannelType channelType,
-			DistributionPattern distributionPattern) throws JobGraphDefinitionException
+			DistributionPattern distributionPattern)
 	{
-		source.connectTo(target, channelType, distributionPattern);
+		target.connectNewDataSetAsInput(source, distributionPattern);
 	}
 
-	public static JobTaskVertex createTask(@SuppressWarnings("rawtypes") Class<? extends RegularPactTask> task, String name, JobGraph graph,
-			int degreeOfParallelism)
+	@SuppressWarnings("rawtypes") 
+	public static AbstractJobVertex createTask(Class<? extends RegularPactTask> task, String name, JobGraph graph, int parallelism)
 	{
-		JobTaskVertex taskVertex = new JobTaskVertex(name, graph);
+		AbstractJobVertex taskVertex = new AbstractJobVertex(name);
+		graph.addVertex(taskVertex);
+		
 		taskVertex.setInvokableClass(task);
-		taskVertex.setNumberOfSubtasks(degreeOfParallelism);
+		taskVertex.setParallelism(parallelism);
 		return taskVertex;
 	}
 
-	public static OutputFormatVertex createSync(JobGraph jobGraph, int degreeOfParallelism) {
-		OutputFormatVertex sync = new OutputFormatVertex(jobGraph, "BulkIterationSync");
+	public static AbstractJobVertex createSync(JobGraph jobGraph, int parallelism) {
+		AbstractJobVertex sync = new AbstractJobVertex("BulkIterationSync");
+		jobGraph.addVertex(sync);
+		
 		sync.setInvokableClass(IterationSynchronizationSinkTask.class);
 		sync.setParallelism(1);
+		
 		TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());
-		syncConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, degreeOfParallelism);
+		syncConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, parallelism);
 		return sync;
 	}
 
-	public static OutputFormatVertex createFakeOutput(JobGraph jobGraph, String name, int degreeOfParallelism)
-	{
-		OutputFormatVertex outputVertex = new OutputFormatVertex(jobGraph, name);
+	public static OutputFormatVertex createFakeOutput(JobGraph jobGraph, String name, int degreeOfParallelism) {
+		OutputFormatVertex outputVertex = new OutputFormatVertex(name);
+		jobGraph.addVertex(outputVertex);
+		
 		outputVertex.setInvokableClass(FakeOutputTask.class);
 		outputVertex.setParallelism(degreeOfParallelism);
 		return outputVertex;
 	}
 
-	public static OutputFormatVertex createFileOutput(JobGraph jobGraph, String name, int degreeOfParallelism)
-	{
-		OutputFormatVertex sinkVertex = new OutputFormatVertex(jobGraph, name);
+	public static OutputFormatVertex createFileOutput(JobGraph jobGraph, String name, int parallelism) {
+		OutputFormatVertex sinkVertex = new OutputFormatVertex(name);
+		jobGraph.addVertex(sinkVertex);
+		
 		sinkVertex.setInvokableClass(DataSinkTask.class);
-		sinkVertex.setParallelism(degreeOfParallelism);
+		sinkVertex.setParallelism(parallelism);
 		return sinkVertex;
 	}
 }
