@@ -57,35 +57,8 @@ public class FunctionUtils {
 			return defaultContext;
 		}
 	}
-
-	public static boolean isLambdaFunction(Function function) {
-		if (function == null) {
-			throw new IllegalArgumentException();
-		}
-		
-		for (Class<?> clazz = function.getClass(); clazz != null; clazz = clazz.getSuperclass()) {
-			try {
-				Method replaceMethod = clazz.getDeclaredMethod("writeReplace");
-				replaceMethod.setAccessible(true);
-				Object serialVersion = replaceMethod.invoke(function);
-				
-				if (serialVersion.getClass().getName().equals("java.lang.invoke.SerializedLambda")) {
-					return true;
-				}
-			}
-			catch (NoSuchMethodException e) {
-				// thrown if the method is not there. fall through the loop
-			}
-			catch (Throwable t) {
-				// this should not happen, we are not executing any method code.
-				throw new RuntimeException("Error while checking whether function is a lambda.", t);
-			}
-		}
-		
-		return false;
-	}
 	
-	public static Method extractLambdaMethod(Function function) {
+	public static Method checkAndExtractLambdaMethod(Function function) {
 		try {
 			// get serialized lambda
 			Object serializedLambda = null;
@@ -97,12 +70,12 @@ public class FunctionUtils {
 
 					// check if class is a lambda function
 					if (serialVersion.getClass().getName().equals("java.lang.invoke.SerializedLambda")) {
-						
+
 						// check if SerializedLambda class is present
 						try {
 							Class.forName("java.lang.invoke.SerializedLambda");
 						}
-						catch (Throwable t) {
+						catch (Exception e) {
 							throw new UnsupportedOperationException("User code tries to use lambdas, but framework is running with a Java version < 8");
 						}
 						serializedLambda = serialVersion;
@@ -113,16 +86,21 @@ public class FunctionUtils {
 					// thrown if the method is not there. fall through the loop
 				}
 			}
-			
+
+			// not a lambda method -> return null
+			if (serializedLambda == null) {
+				return null;
+			}
+
 			// find lambda method
 			Method implClassMethod = serializedLambda.getClass().getDeclaredMethod("getImplClass");
 			Method implMethodNameMethod = serializedLambda.getClass().getDeclaredMethod("getImplMethodName");
-			
+
 			String className = (String) implClassMethod.invoke(serializedLambda);
 			String methodName = (String) implMethodNameMethod.invoke(serializedLambda);
-			
+
 			Class<?> implClass = Class.forName(className.replace('/', '.'));
-			
+
 			Method[] methods = implClass.getDeclaredMethods();
 			Method parameterizedMethod = null;
 			for(Method method : methods) {
@@ -142,8 +120,8 @@ public class FunctionUtils {
 			}
 			return parameterizedMethod;
 		}
-		catch(Throwable t) {
-			throw new RuntimeException("Could not extract lambda method out of function.", t);
+		catch(Exception e) {
+			throw new RuntimeException("Could not extract lambda method out of function.", e);
 		}
 	}
 }

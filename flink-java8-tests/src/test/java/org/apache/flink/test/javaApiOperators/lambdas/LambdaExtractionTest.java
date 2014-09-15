@@ -18,8 +18,8 @@
 
 package org.apache.flink.test.javaApiOperators.lambdas;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
 import junit.framework.Assert;
 
@@ -32,6 +32,7 @@ import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.MapPartitionFunction;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
+import org.apache.flink.api.java.functions.InvalidTypesException;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple1;
@@ -70,12 +71,12 @@ public class LambdaExtractionTest {
 			
 			MapFunction<String, Integer> lambda = (str) -> Integer.parseInt(str);
 			
-			assertFalse(FunctionUtils.isLambdaFunction(anonymousFromInterface));
-			assertFalse(FunctionUtils.isLambdaFunction(anonymousFromClass));
-			assertFalse(FunctionUtils.isLambdaFunction(fromProperClass));
-			assertFalse(FunctionUtils.isLambdaFunction(fromDerived));
-			assertTrue(FunctionUtils.isLambdaFunction(lambda));
-			assertTrue(FunctionUtils.isLambdaFunction(STATIC_LAMBDA));
+			assertNull(FunctionUtils.checkAndExtractLambdaMethod(anonymousFromInterface));
+			assertNull(FunctionUtils.checkAndExtractLambdaMethod(anonymousFromClass));
+			assertNull(FunctionUtils.checkAndExtractLambdaMethod(fromProperClass));
+			assertNull(FunctionUtils.checkAndExtractLambdaMethod(fromDerived));
+			assertNotNull(FunctionUtils.checkAndExtractLambdaMethod(lambda));
+			assertNotNull(FunctionUtils.checkAndExtractLambdaMethod(STATIC_LAMBDA));
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -104,6 +105,7 @@ public class LambdaExtractionTest {
 			return (i) -> s;
 		}
 	}
+	
 	@Test
 	public void testLambdaWithMemberVariable() {		
 		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(new MyClass().getMapFunction(), TypeInfoParser.parse("Integer"));
@@ -219,6 +221,20 @@ public class LambdaExtractionTest {
 		Assert.assertEquals(2, ti.getArity());
 		Assert.assertTrue(((TupleTypeInfo<?>) ti).getTypeAt(0).isTupleType());
 		Assert.assertEquals(((TupleTypeInfo<?>) ti).getTypeAt(1), BasicTypeInfo.STRING_TYPE_INFO);
+	}
+	
+	@SuppressWarnings("rawtypes")
+	@Test
+	public void testLambdaTypeErasureException() {
+		MapFunction<Tuple1, Tuple1> f = (i) -> null;
+		
+		try {
+			TypeExtractor.getMapReturnTypes(f, TypeInfoParser.parse("Tuple1<String>"));
+			Assert.fail();
+		}
+		catch (InvalidTypesException e) {
+			// ok
+		}
 	}
 	
 }

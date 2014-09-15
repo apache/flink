@@ -115,8 +115,10 @@ public class TypeExtractor {
 	
 	@SuppressWarnings("unchecked")
 	private static <IN, OUT> TypeInformation<OUT> getUnaryOperatorReturnType(Function function, Class<?> baseClass, boolean hasIterable, boolean hasCollector, TypeInformation<IN> inType) {
-		if (FunctionUtils.isLambdaFunction(function)) {
-			final Method m = FunctionUtils.extractLambdaMethod(function);
+		final Method m = FunctionUtils.checkAndExtractLambdaMethod(function);
+		if (m != null) {
+			// check for lambda type erasure
+			validateLambdaGenericParameters(m);
 			
 			// parameters must be accessed from behind, since JVM can add additional parameters e.g. when using local variables inside lambda function
 			final int paramLen = m.getGenericParameterTypes().length - 1;
@@ -138,8 +140,10 @@ public class TypeExtractor {
 	
 	@SuppressWarnings("unchecked")
 	private static <IN1, IN2, OUT> TypeInformation<OUT> getBinaryOperatorReturnType(Function function, Class<?> baseClass, boolean hasIterables, boolean hasCollector, TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type) {
-		if (FunctionUtils.isLambdaFunction(function)) {
-			final Method m = FunctionUtils.extractLambdaMethod(function);
+		final Method m = FunctionUtils.checkAndExtractLambdaMethod(function);
+		if (m != null) {
+			// check for lambda type erasure
+			validateLambdaGenericParameters(m);
 			
 			// parameters must be accessed from behind, since JVM can add additional parameters e.g. when using local variables inside lambda function
 			final int paramLen = m.getGenericParameterTypes().length - 1;
@@ -669,6 +673,30 @@ public class TypeExtractor {
 			return ((ParameterizedType) t).getActualTypeArguments()[0];
 		}
 		return t;
+	}
+	
+	private static void validateLambdaGenericParameters(Method m) {
+		// check the arguments
+		for (Type t : m.getGenericParameterTypes()) {
+			validateLambdaGenericParameter(t);
+		}
+
+		// check the return type
+		validateLambdaGenericParameter(m.getGenericReturnType());
+	}
+
+	private static void validateLambdaGenericParameter(Type t) {
+		if(!(t instanceof Class)) {
+			return;
+		}
+		final Class<?> clazz = (Class<?>) t;
+
+		if(clazz.getTypeParameters().length > 0) {
+			throw new InvalidTypesException("The generic type parameters of '" + clazz.getSimpleName() + "' are missing. \n"
+					+ "It seems that your compiler has not stored them into the .class file. \n"
+					+ "Currently, only the Eclipse JDT compiler preserves the type information necessary to use the lambdas feature type-safely. \n"
+					+ "See the documentation for more information about how to compile jobs containing lambda expressions.");
+		}
 	}
 	
 	private static String encodePrimitiveClass(Class<?> primitiveClass) {
