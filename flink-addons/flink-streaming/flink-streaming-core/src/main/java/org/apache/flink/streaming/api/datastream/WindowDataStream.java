@@ -57,7 +57,7 @@ public class WindowDataStream<OUT> extends BatchedDataStream<OUT> {
 	}
 
 	protected BatchReduceInvokable<OUT> getReduceInvokable(ReduceFunction<OUT> reducer) {
-		BatchReduceInvokable<OUT> invokable;
+		WindowReduceInvokable<OUT> invokable;
 		if (isGrouped) {
 			invokable = new GroupedWindowReduceInvokable<OUT>(reducer, batchSize, slideSize,
 					keyPosition, timeStamp);

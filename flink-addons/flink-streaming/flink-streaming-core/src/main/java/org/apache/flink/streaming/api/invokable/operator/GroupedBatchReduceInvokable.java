@@ -18,77 +18,40 @@
 package org.apache.flink.streaming.api.invokable.operator;
 
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
-import java.util.Map.Entry;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.state.SlidingWindowState;
+import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
 public class GroupedBatchReduceInvokable<OUT> extends BatchReduceInvokable<OUT> {
 
 	private static final long serialVersionUID = 1L;
-	protected transient SlidingWindowState<Map<Object, OUT>> intermediateValues;
-
-	private int keyPosition;
+	int keyPosition;
+	Map<Object, StreamBatch> streamBatches;
 
 	public GroupedBatchReduceInvokable(ReduceFunction<OUT> reduceFunction, long batchSize,
 			long slideSize, int keyPosition) {
 		super(reduceFunction, batchSize, slideSize);
 		this.keyPosition = keyPosition;
-	}
-
-	protected void collectOneUnit() throws Exception {
-		Map<Object, OUT> values = new HashMap<Object, OUT>();
-		if (batchNotFull()) {
-			do {
-				Object key = reuse.getField(keyPosition);
-				OUT nextValue = reuse.getObject();
-				OUT currentValue = values.get(key);
-				if (currentValue == null) {
-					values.put(key, nextValue);
-				} else {
-					values.put(key, reducer.reduce(currentValue, nextValue));
-				}
-				resetReuse();
-			} while (getNextRecord() != null && batchNotFull());
-		}
-		intermediateValues.pushBack(values);
+		this.streamBatches = new HashMap<Object, StreamBatch>();
 	}
 
 	@Override
-	protected boolean isStateFull() {
-		return intermediateValues.isFull();
+	protected void reduceLastBatch() throws Exception {
+		for(StreamBatch batch: streamBatches.values()){
+			batch.reduceLastBatch();
+		}		
 	}
 
 	@Override
-	protected void callUserFunction() throws Exception {
-		Iterator<Map<Object, OUT>> reducedIterator = intermediateValues.getBufferIterator();
-		Map<Object, OUT> reducedValues = reducedIterator.next();
-
-		while (reducedIterator.hasNext()) {
-			Map<Object, OUT> nextValues = reducedIterator.next();
-			for (Entry<Object, OUT> entry : nextValues.entrySet()) {
-				OUT currentValue = reducedValues.get(entry.getKey());
-				if (currentValue == null) {
-					reducedValues.put(entry.getKey(), entry.getValue());
-				} else {
-					OUT next = typeSerializer.copy(entry.getValue(), reduceReuse);
-					reducedValues.put(entry.getKey(), reducer.reduce(currentValue, next));
-				}
-			}
+	protected StreamBatch getBatch(StreamRecord<OUT> next) {
+		Object key = next.getField(keyPosition);
+		StreamBatch batch = streamBatches.get(key);
+		if(batch == null){
+			batch=new StreamBatch();
+			streamBatches.put(key, batch);
 		}
-		for (OUT value : reducedValues.values()) {
-			collector.collect(value);
-		}
-	}
-
-	@Override
-	public void open(Configuration parameters) throws Exception {
-		super.open(parameters);
-		this.intermediateValues = new SlidingWindowState<Map<Object, OUT>>(batchSize, slideSize,
-				granularity);
+		return batch;
 	}
 
 }

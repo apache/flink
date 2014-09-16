@@ -44,6 +44,15 @@ public class GroupedBatchReduceTest {
 		inputs.add(5);
 		inputs.add(1);
 		inputs.add(5);
+		
+		List<Integer> expected = new ArrayList<Integer>();
+		expected.add(15);
+		expected.add(3);
+		expected.add(3);
+		expected.add(15);
+		expected.add(1);
+		expected.add(5);
+
 
 		GroupedBatchReduceInvokable<Integer> invokable = new GroupedBatchReduceInvokable<Integer>(
 				new ReduceFunction<Integer>() {
@@ -53,17 +62,8 @@ public class GroupedBatchReduceTest {
 					public Integer reduce(Integer value1, Integer value2) throws Exception {
 						return value1 + value2;
 					}
-				}, 4, 2, 0);
-
-		List<Integer> expected = new ArrayList<Integer>();
-		expected.add(2);
-		expected.add(10);
-		expected.add(1);
-		expected.add(15);
-		expected.add(2);
-		expected.add(10);
-		expected.add(2);
-		expected.add(10);
+				}, 3, 2, 0);
+		
 		List<Integer> actual = MockInvokable.createAndExecute(invokable, inputs);
 		assertEquals(new HashSet<Integer>(expected), new HashSet<Integer>(actual));
 		assertEquals(expected.size(), actual.size());
@@ -77,6 +77,11 @@ public class GroupedBatchReduceTest {
 		inputs2.add(new Tuple2<Integer, String>(10, "a"));
 		inputs2.add(new Tuple2<Integer, String>(2, "b"));
 		inputs2.add(new Tuple2<Integer, String>(1, "a"));
+		
+		List<Tuple2<Integer, String>> expected2 = new ArrayList<Tuple2<Integer, String>>();
+		expected2.add(new Tuple2<Integer, String>(-1, "a"));
+		expected2.add(new Tuple2<Integer, String>(-2, "a"));
+		expected2.add(new Tuple2<Integer, String>(0, "b"));
 
 		GroupedBatchReduceInvokable<Tuple2<Integer, String>> invokable2 = new GroupedBatchReduceInvokable<Tuple2<Integer, String>>(
 				new ReduceFunction<Tuple2<Integer, String>>() {
@@ -93,14 +98,10 @@ public class GroupedBatchReduceTest {
 					}
 				}, 3, 3, 1);
 
-		List<Tuple2<Integer, String>> expected2 = new ArrayList<Tuple2<Integer, String>>();
-		expected2.add(new Tuple2<Integer, String>(1, "a"));
-		expected2.add(new Tuple2<Integer, String>(0, "b"));
-		expected2.add(new Tuple2<Integer, String>(-2, "a"));
-		expected2.add(new Tuple2<Integer, String>(2, "b"));
-		expected2.add(new Tuple2<Integer, String>(1, "a"));
+		
 
 		List<Tuple2<Integer, String>> actual2 = MockInvokable.createAndExecute(invokable2, inputs2);
+		
 		assertEquals(new HashSet<Tuple2<Integer, String>>(expected2),
 				new HashSet<Tuple2<Integer, String>>(actual2));
 		assertEquals(expected2.size(), actual2.size());

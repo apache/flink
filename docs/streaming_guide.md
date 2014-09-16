@@ -261,8 +261,10 @@ For every incoming tuple the selected field is replaced with the current aggrega
 
 Window and batch operators allow the user to execute function on slices or windows of the DataStream in a sliding fashion. If the stepsize for the slide is not defined then the window/batchsize is used as stepsize by default.
 
-When applied to grouped data streams the operators applied will be executed on groups of elements grouped by the selected key position.
+When applied to grouped data streams the data stream will be batched/windowed for different key values separately. 
 
+For example a `ds.groupBy(0).batch(100, 10)` will produce batches of the last 100 elements for each key value with 10 record step size.
+ 
 #### Reduce on windowed/batched data streams
 The transformation calls a user-defined `ReduceFunction` on records received in the batch or during the predefined time window. The window is shifted after each reduce call. The user can also use the different streaming aggregations.
 

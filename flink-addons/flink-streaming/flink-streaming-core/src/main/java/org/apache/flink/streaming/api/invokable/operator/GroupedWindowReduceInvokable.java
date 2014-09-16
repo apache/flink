@@ -17,44 +17,99 @@
 
 package org.apache.flink.streaming.api.invokable.operator;
 
-import java.io.IOException;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Map.Entry;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.streaming.api.invokable.util.TimeStamp;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
-public class GroupedWindowReduceInvokable<OUT> extends GroupedBatchReduceInvokable<OUT> {
+public class GroupedWindowReduceInvokable<OUT> extends WindowReduceInvokable<OUT> {
 
 	private static final long serialVersionUID = 1L;
-
-	private TimeStamp<OUT> timestamp;
-	private long startTime;
-	private long nextRecordTime;
+	private int keyPosition;
 
 	public GroupedWindowReduceInvokable(ReduceFunction<OUT> reduceFunction, long windowSize,
 			long slideInterval, int keyPosition, TimeStamp<OUT> timestamp) {
-		super(reduceFunction, windowSize, slideInterval, keyPosition);
-		this.timestamp = timestamp;
-		this.startTime = timestamp.getStartTime();
+		super(reduceFunction, windowSize, slideInterval, timestamp);
+		this.keyPosition = keyPosition;
+		this.window = new GroupedStreamWindow();
+		this.batch = this.window;
 	}
-
+	
 	@Override
-	protected StreamRecord<OUT> getNextRecord() throws IOException {
-		reuse = recordIterator.next(reuse);
-		if (reuse != null) {
-			nextRecordTime = timestamp.getTimestamp(reuse.getObject());
+	protected void callUserFunction() throws Exception {	
+		@SuppressWarnings("unchecked")
+		Iterator<Map<Object, OUT>> reducedIterator = (Iterator<Map<Object, OUT>>) batch.getIterator();
+		Map<Object, OUT> reducedValues = reducedIterator.next();
+
+		while (reducedIterator.hasNext()) {
+			Map<Object, OUT> nextValues = reducedIterator.next();
+			for (Entry<Object, OUT> entry : nextValues.entrySet()) {
+				OUT currentValue = reducedValues.get(entry.getKey());
+				if (currentValue == null) {
+					reducedValues.put(entry.getKey(), entry.getValue());
+				} else {
+					reducedValues.put(entry.getKey(), reducer.reduce(currentValue, entry.getValue()));
+				}
+			}
 		}
-		return reuse;
+		for (OUT value : reducedValues.values()) {
+			collector.collect(value);
+		}
 	}
+	
 
-	@Override
-	protected boolean batchNotFull() {
-		if (nextRecordTime < startTime + granularity) {
-			return true;
-		} else {
-			startTime += granularity;
-			return false;
+	protected class GroupedStreamWindow extends StreamWindow {
+
+		private static final long serialVersionUID = 1L;
+		private Map<Object, OUT> currentValues;
+
+		public GroupedStreamWindow() {
+			super();
+			this.currentValues  = new HashMap<Object, OUT>();
 		}
+
+		@Override
+		public void reduceToBuffer(StreamRecord<OUT> next) throws Exception {
+
+			OUT nextValue = next.getObject();
+			Object key = next.getField(keyPosition);
+			checkBatchEnd(timestamp.getTimestamp(nextValue));
+
+			OUT currentValue = currentValues.get(key);
+			if (currentValue != null) {
+				currentValues.put(key, reducer.reduce(currentValue, nextValue));
+			}else{
+				currentValues.put(key, nextValue);
+			}
+
+		}
+		
+		@Override
+		public boolean miniBatchInProgress() {
+			return !currentValues.isEmpty();
+		};
+
+		@SuppressWarnings("unchecked")
+		@Override
+		protected void addToBuffer() {
+			Map<Object, OUT> reuseMap;
+			
+			if (circularBuffer.isFull()) {
+				reuseMap = (Map<Object, OUT>) circularBuffer.remove();
+				reuseMap.clear();
+			} else {
+				reuseMap = new HashMap<Object, OUT>(currentValues.size());
+			}
+			
+			circularBuffer.add(currentValues);
+			minibatchCounter++;
+			currentValues = reuseMap;
+		}
+
 	}
 
 }

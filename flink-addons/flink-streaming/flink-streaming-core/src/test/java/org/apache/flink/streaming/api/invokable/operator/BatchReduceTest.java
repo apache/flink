@@ -50,7 +50,7 @@ public class BatchReduceTest {
 		expected.add(12);
 		expected.add(18);
 		expected.add(24);
-		expected.add(27);
+		expected.add(19);
 		assertEquals(expected, MockInvokable.createAndExecute(invokable, inputs));
 
 		List<Integer> inputs2 = new ArrayList<Integer>();
@@ -58,7 +58,7 @@ public class BatchReduceTest {
 		inputs2.add(2);
 		inputs2.add(-1);
 		inputs2.add(-3);
-		inputs2.add(3);
+		inputs2.add(-4);
 
 		BatchReduceInvokable<Integer> invokable2 = new BatchReduceInvokable<Integer>(
 				new ReduceFunction<Integer>() {
@@ -72,12 +72,11 @@ public class BatchReduceTest {
 							return value2;
 						}
 					}
-				}, 2, 2);
+				}, 2, 3);
 
 		List<Integer> expected2 = new ArrayList<Integer>();
 		expected2.add(1);
-		expected2.add(-3);
-		expected2.add(3);
+		expected2.add(-4);
 
 		assertEquals(expected2, MockInvokable.createAndExecute(invokable2, inputs2));
 

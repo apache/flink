@@ -17,87 +17,104 @@
 
 package org.apache.flink.streaming.api.invokable.operator;
 
-import java.io.IOException;
-import java.util.Iterator;
-
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.invokable.util.DefaultTimeStamp;
 import org.apache.flink.streaming.api.invokable.util.TimeStamp;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
 public class WindowReduceInvokable<OUT> extends BatchReduceInvokable<OUT> {
 	private static final long serialVersionUID = 1L;
-	private long startTime;
-	private long nextRecordTime;
-	private TimeStamp<OUT> timestamp;
-	private String nullElement = "nullElement";
+	protected long startTime;
+	protected long nextRecordTime;
+	protected TimeStamp<OUT> timestamp;
+	protected StreamWindow window;
 
 	public WindowReduceInvokable(ReduceFunction<OUT> reduceFunction, long windowSize,
 			long slideInterval, TimeStamp<OUT> timestamp) {
 		super(reduceFunction, windowSize, slideInterval);
 		this.timestamp = timestamp;
 		this.startTime = timestamp.getStartTime();
+		this.window = new StreamWindow();
+		this.batch = this.window;
 	}
 
-	protected StreamRecord<OUT> getNextRecord() throws IOException {
-		reuse = recordIterator.next(reuse);
-		if (reuse != null) {
-			nextRecordTime = timestamp.getTimestamp(reuse.getObject());
+	protected class StreamWindow extends StreamBatch {
+
+		private static final long serialVersionUID = 1L;
+
+		public StreamWindow() {
+			super();
+
 		}
-		return reuse;
-	}
 
-	@Override
-	protected boolean batchNotFull() {
-		if (nextRecordTime < startTime + granularity) {
-			return true;
-		} else {
-			startTime += granularity;
-			return false;
-		}
-	}
-
-	@Override
-	protected void collectOneUnit() throws Exception {
-		OUT reduced = null;
-		if (batchNotFull()) {
-			reduced = reuse.getObject();
-			resetReuse();
-			while (getNextRecord() != null && batchNotFull()) {
-				reduced = reducer.reduce(reduced, reuse.getObject());
-				resetReuse();
+		@Override
+		public void reduceToBuffer(StreamRecord<OUT> next) throws Exception {
+			OUT nextValue = next.getObject();
+			
+			checkBatchEnd(timestamp.getTimestamp(nextValue));
+			
+			if (currentValue != null) {
+				currentValue = reducer.reduce(currentValue, nextValue);
+			} else {
+				currentValue = nextValue;
 			}
 		}
-		if (reduced != null) {
-			state.pushBack(reduced);
-		} else {
-			state.pushBack(nullElement);
-		}
-	}
 
-	@Override
-	protected void callUserFunction() throws Exception {
-		Iterator<OUT> reducedIterator = state.getBufferIterator();
-		OUT reduced = null;
-		do {
-			OUT next = reducedIterator.next();
-			if (next != nullElement) {
-				reduced = next;
-			}
-		} while (reducedIterator.hasNext() && reduced == null);
+		protected synchronized void checkBatchEnd(long timeStamp) {
+			nextRecordTime = timeStamp;
 
-		while (reducedIterator.hasNext()) {
-			OUT next = reducedIterator.next();
-			if (next != null) {
-				try {
-					next = typeSerializer.copy(next, reduceReuse);
-					reduced = reducer.reduce(reduced, next);
-				} catch (ClassCastException e) {
-					// nullElement in buffer
+			while (miniBatchEnd()) {
+				addToBuffer();
+				if (batchEnd()) {
+					reduceBatch();
 				}
 			}
 		}
-		if (reduced != null) {
-			collector.collect(reduced);
+
+		@Override
+		protected boolean miniBatchEnd() {
+			if (nextRecordTime < startTime + granularity) {
+				return false;
+			} else {
+				startTime += granularity;
+				return true;
+			}
+		}
+
+		@Override
+		public boolean batchEnd() {
+			if (minibatchCounter == numberOfBatches) {
+				minibatchCounter -= batchPerSlide;
+				return true;
+			}
+			return false;
+		}
+
+	}
+
+	@Override
+	public void open(Configuration config) throws Exception {
+		super.open(config);
+		if (timestamp instanceof DefaultTimeStamp) {
+			(new TimeCheck()).start();
+		}
+	}
+
+	private class TimeCheck extends Thread {
+		@Override
+		public void run() {
+			while (true) {
+				try {
+					Thread.sleep(slideSize);
+				} catch (InterruptedException e) {
+				}
+				if (isRunning) {
+					window.checkBatchEnd(System.currentTimeMillis());
+				} else {
+					break;
+				}
+			}
 		}
 	}
 
