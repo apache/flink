@@ -21,6 +21,7 @@ package org.apache.flink.runtime;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Random;
 
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
@@ -35,6 +36,9 @@ import io.netty.buffer.ByteBuf;
 public class AbstractID implements IOReadableWritable, Comparable<AbstractID>, java.io.Serializable {
 
 	private static final long serialVersionUID = 1L;
+	
+	private static final Random RND = new Random();
+	
 
 	/** The size of a long in bytes */
 	private static final int SIZE_OF_LONG = 8;
@@ -94,8 +98,8 @@ public class AbstractID implements IOReadableWritable, Comparable<AbstractID>, j
 	 * Constructs a new random ID from a uniform distribution.
 	 */
 	public AbstractID() {
-		this.lowerPart = generateRandomLong();
-		this.upperPart = generateRandomLong();
+		this.lowerPart = RND.nextLong();
+		this.upperPart = RND.nextLong();
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -109,15 +113,6 @@ public class AbstractID implements IOReadableWritable, Comparable<AbstractID>, j
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
-	/**
-	 * Generates a uniformly distributed random positive long.
-	 *
-	 * @return a uniformly distributed random positive long
-	 */
-	protected static long generateRandomLong() {
-		return (long) (Math.random() * Long.MAX_VALUE);
-	}
 
 	/**
 	 * Converts the given byte array to a long.
