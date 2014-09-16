@@ -107,7 +107,7 @@ public class CellInfoLocal {
 	}
 
 	// Example for connecting data streams
-	public static void main(String[] args) {
+	public static void main(String[] args) throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(
 				PARALLELISM).setBufferTimeout(100);
 

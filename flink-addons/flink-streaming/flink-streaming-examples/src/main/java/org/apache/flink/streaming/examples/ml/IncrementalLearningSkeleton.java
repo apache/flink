@@ -117,7 +117,7 @@ public class IncrementalLearningSkeleton {
 	private static final int PARALLELISM = 1;
 	private static final int SOURCE_PARALLELISM = 1;
 
-	public static void main(String[] args) {
+	public static void main(String[] args) throws Exception {
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(
 				PARALLELISM).setBufferTimeout(1000);

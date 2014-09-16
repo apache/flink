@@ -72,7 +72,7 @@ public class TwitterStreaming {
 		}
 	}
 
-	public static void main(String[] args) {
+	public static void main(String[] args) throws Exception {
 
 		String path = new String();
 

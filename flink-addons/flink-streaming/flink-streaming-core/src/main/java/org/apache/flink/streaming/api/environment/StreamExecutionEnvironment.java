@@ -454,8 +454,9 @@ public abstract class StreamExecutionEnvironment {
 	 * <p>
 	 * The program execution will be logged and displayed with a generated
 	 * default name.
+	 * @throws Exception 
 	 **/
-	public abstract void execute();
+	public abstract void execute() throws Exception;
 
 	/**
 	 * Getter of the {@link JobGraphBuilder} of the streaming job.

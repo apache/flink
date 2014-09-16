@@ -43,7 +43,7 @@ public class WordCountLocal {
 		}
 	}
 
-	public static void main(String[] args) {
+	public static void main(String[] args) throws Exception {
 
 		TestDataUtil.downloadIfNotExists("hamlet.txt");
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);

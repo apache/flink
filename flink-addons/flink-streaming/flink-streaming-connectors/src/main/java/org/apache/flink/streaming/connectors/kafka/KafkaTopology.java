@@ -90,7 +90,7 @@ public class KafkaTopology {
 
 	private static final int SOURCE_PARALELISM = 1;
 
-	public static void main(String[] args) {
+	public static void main(String[] args) throws Exception {
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 

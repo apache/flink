@@ -30,7 +30,7 @@ public class JoinLocal {
 	// This example will join two streams. One which emits people's grades and
 	// one which emits people's salaries.
 
-	public static void main(String[] args) {
+	public static void main(String[] args) throws Exception {
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(
 				PARALLELISM).setBufferTimeout(100);

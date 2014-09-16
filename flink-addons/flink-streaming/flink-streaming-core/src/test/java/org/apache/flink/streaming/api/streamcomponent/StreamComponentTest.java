@@ -34,9 +34,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.co.CoMapFunction;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
 import org.apache.flink.streaming.api.function.source.SourceFunction;
-import org.apache.flink.streaming.util.ClusterUtil;
 import org.apache.flink.util.Collector;
-import org.junit.Ignore;
 import org.junit.Test;
 
 public class StreamComponentTest {
@@ -83,7 +81,6 @@ public class StreamComponentTest {
 	private static final int SOURCE_PARALELISM = 1;
 	private static final long MEMORYSIZE = 32;
 
-	@Ignore
 	@Test
 	public void wrongJobGraph() {
 		LocalStreamEnvironment env = StreamExecutionEnvironment
@@ -92,8 +89,7 @@ public class StreamComponentTest {
 		try {
 			env.execute();
 			fail();
-		} catch (RuntimeException e) {
-			assertEquals(e.getMessage(), ClusterUtil.CANNOT_EXECUTE_EMPTY_JOB);
+		} catch (Exception e) {
 		}
 
 		env.fromCollection(Arrays.asList("a", "b"));
@@ -101,8 +97,7 @@ public class StreamComponentTest {
 		try {
 			env.execute();
 			fail();
-		} catch (RuntimeException e) {
-			System.out.println(e.getMessage());
+		} catch (Exception e) {
 		}
 
 		try {
@@ -157,6 +152,7 @@ public class StreamComponentTest {
 	}
 
 	static HashSet<String> resultSet;
+
 	private static class SetSink implements SinkFunction<String> {
 		private static final long serialVersionUID = 1L;
 
@@ -165,33 +161,33 @@ public class StreamComponentTest {
 			resultSet.add(value);
 		}
 	}
-	
+
 	@Test
-	public void coTest() {
+	public void coTest() throws Exception {
 		LocalStreamEnvironment env = StreamExecutionEnvironment
 				.createLocalEnvironment(SOURCE_PARALELISM);
 
 		DataStream<String> fromStringElements = env.fromElements("aa", "bb", "cc");
 		DataStream<Long> generatedSequence = env.generateSequence(0, 3);
-		
+
 		fromStringElements.connect(generatedSequence).map(new CoMap()).addSink(new SetSink());
-		
+
 		resultSet = new HashSet<String>();
 		env.execute();
-		
-		HashSet<String> expectedSet = new HashSet<String>(Arrays.asList("aa", "bb", "cc", "0", "1", "2", "3"));
+
+		HashSet<String> expectedSet = new HashSet<String>(Arrays.asList("aa", "bb", "cc", "0", "1",
+				"2", "3"));
 		assertEquals(expectedSet, resultSet);
 	}
 
 	@Test
-	public void runStream() {
+	public void runStream() throws Exception {
 		LocalStreamEnvironment env = StreamExecutionEnvironment
 				.createLocalEnvironment(SOURCE_PARALELISM);
 
 		env.addSource(new MySource(), SOURCE_PARALELISM).map(new MyTask()).addSink(new MySink());
 
 		env.executeTest(MEMORYSIZE);
-
 		assertEquals(10, data.keySet().size());
 
 		for (Integer k : data.keySet()) {
