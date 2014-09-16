@@ -30,8 +30,8 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-java8-tests</artifactId>
-	<name>flink-java8-tests</name>
+	<artifactId>flink-java8</artifactId>
+	<name>flink-java8</name>
 
 	<packaging>jar</packaging>
 
@@ -130,15 +130,9 @@ under the License.
 							<pluginExecutions>
 								<pluginExecution>
 									<pluginExecutionFilter>
-										<groupId>
-											org.apache.maven.plugins
-										</groupId>
-										<artifactId>
-											maven-assembly-plugin
-										</artifactId>
-										<versionRange>
-											[2.4,)
-										</versionRange>
+										<groupId>org.apache.maven.plugins</groupId>
+										<artifactId>maven-assembly-plugin</artifactId>
+										<versionRange>[2.4,)</versionRange>
 										<goals>
 											<goal>single</goal>
 										</goals>
@@ -149,15 +143,9 @@ under the License.
 								</pluginExecution>
 								<pluginExecution>
 									<pluginExecutionFilter>
-										<groupId>
-											org.apache.maven.plugins
-										</groupId>
-										<artifactId>
-											maven-compiler-plugin
-										</artifactId>
-										<versionRange>
-											[3.1,)
-										</versionRange>
+										<groupId>org.apache.maven.plugins</groupId>
+										<artifactId>maven-compiler-plugin</artifactId>
+										<versionRange>[3.1,)</versionRange>
 										<goals>
 											<goal>testCompile</goal>
 										</goals>

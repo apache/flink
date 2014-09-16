@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.test.javaApiOperators.lambdas;
+package org.apache.flink.api.java.type.lambdas;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
