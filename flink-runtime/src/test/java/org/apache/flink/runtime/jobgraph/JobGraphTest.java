@@ -94,6 +94,8 @@ public class JobGraphTest {
 			JobGraph graph = new JobGraph("TestGraph", source1, source2, intermediate1, intermediate2, target1, target2);
 			List<AbstractJobVertex> sorted = graph.getVerticesSortedTopologicallyFromSources();
 			
+			assertEquals(6, sorted.size());
+			
 			assertBefore(source1, target1, sorted);
 			assertBefore(source1, target2, sorted);
 			assertBefore(source2, target2, sorted);
@@ -136,6 +138,8 @@ public class JobGraphTest {
 			JobGraph graph = new JobGraph("TestGraph", source1, source2, root, l11, l13, l12, l2);
 			List<AbstractJobVertex> sorted = graph.getVerticesSortedTopologicallyFromSources();
 			
+			assertEquals(7,  sorted.size());
+			
 			assertBefore(source1, root, sorted);
 			assertBefore(source2, root, sorted);
 			assertBefore(l11, root, sorted);
@@ -151,6 +155,41 @@ public class JobGraphTest {
 			assertBefore(source2, l2, sorted);
 			
 			assertBefore(source2, l13, sorted);
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testTopologicalSort3() {
+		//             --> op1 --
+		//            /         \
+		//  (source) -           +-> op2 -> op3
+		//            \         /
+		//             ---------
+		
+		try {
+			AbstractJobVertex source = new AbstractJobVertex("source");
+			AbstractJobVertex op1 = new AbstractJobVertex("op4");
+			AbstractJobVertex op2 = new AbstractJobVertex("op2");
+			AbstractJobVertex op3 = new AbstractJobVertex("op3");
+			
+			op1.connectNewDataSetAsInput(source, DistributionPattern.POINTWISE);
+			op2.connectNewDataSetAsInput(op1, DistributionPattern.POINTWISE);
+			op2.connectNewDataSetAsInput(source, DistributionPattern.POINTWISE);
+			op3.connectNewDataSetAsInput(op2, DistributionPattern.POINTWISE);
+			
+			JobGraph graph = new JobGraph("TestGraph", source, op1, op2, op3);
+			List<AbstractJobVertex> sorted = graph.getVerticesSortedTopologicallyFromSources();
+			
+			assertEquals(4,  sorted.size());
+			
+			assertBefore(source, op1, sorted);
+			assertBefore(source, op2, sorted);
+			assertBefore(op1, op2, sorted);
+			assertBefore(op2, op3, sorted);
 		}
 		catch (Exception e) {
 			e.printStackTrace();

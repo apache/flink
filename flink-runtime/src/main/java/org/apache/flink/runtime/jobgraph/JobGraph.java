@@ -280,6 +280,10 @@ public class JobGraph implements IOReadableWritable {
 				
 				// a vertex can be added, if it has no predecessors that are still in the 'remaining' set
 				AbstractJobVertex v = edge.getTarget();
+				if (!remaining.contains(v)) {
+					continue;
+				}
+				
 				boolean hasNewPredecessors = false;
 				
 				for (JobEdge e : v.getInputs()) {
