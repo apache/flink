@@ -107,6 +107,8 @@ public class ExecutionGraph {
 	
 	private volatile JobStatus state = JobStatus.CREATED;
 	
+	private volatile Throwable failureCause;
+	
 	
 	private Scheduler scheduler;
 	
@@ -322,6 +324,8 @@ public class ExecutionGraph {
 				return;
 			}
 			else if (transitionState(current, JobStatus.FAILING, t)) {
+				this.failureCause = t;
+				
 				// cancel all. what is failed will not cancel but stay failed
 				for (ExecutionJobVertex ejv : verticesInCreationOrder) {
 					ejv.cancel();
@@ -366,7 +370,9 @@ public class ExecutionGraph {
 		synchronized (progressLock) {
 			int nextPos = nextVertexToFinish;
 			if (nextPos >= verticesInCreationOrder.size()) {
-				throw new RuntimeException("Inconsistency in job progress detection.");
+				// already done, and we still get a report?
+				LOG.error("Job entered finished state a repeated time.");
+				return;
 			}
 			
 			// see if we are the next to finish and then progress until the next unfinished one
@@ -390,7 +396,7 @@ public class ExecutionGraph {
 						if (current == JobStatus.CANCELLING && transitionState(current, JobStatus.CANCELED)) {
 							break;
 						}
-						if (current == JobStatus.FAILING && transitionState(current, JobStatus.FAILED)) {
+						if (current == JobStatus.FAILING && transitionState(current, JobStatus.FAILED, failureCause)) {
 							break;
 						}
 						if (current == JobStatus.CANCELED || current == JobStatus.CREATED || current == JobStatus.FINISHED) {
@@ -526,7 +532,7 @@ public class ExecutionGraph {
 				return ConnectionInfoLookupResponse.createReceiverNotReady();
 			}
 			catch (JobException e) {
-				fail(new Exception("Cannot schedule the receivers, not enough resources."));
+				fail(new Exception("Cannot schedule the receivers, not enough resources", e));
 				return ConnectionInfoLookupResponse.createJobIsAborting();
 			}
 		}

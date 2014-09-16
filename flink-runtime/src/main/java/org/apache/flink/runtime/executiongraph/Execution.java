@@ -341,7 +341,16 @@ public class Execution {
 					
 					// we skip the canceling state. set the timestamp, for a consistent appearance
 					markTimestamp(CANCELING, getStateTimestamp(CANCELED));
-					vertex.executionCanceled();
+					
+					try {
+						vertex.executionCanceled();
+					}
+					finally {
+						vertex.getExecutionGraph().deregisterExecution(this);
+						if (assignedResource != null) {
+							assignedResource.releaseSlot();
+						}
+					}
 					return;
 				}
 				// else: fall through the loop
@@ -440,6 +449,8 @@ public class Execution {
 					}
 					return;
 				}
+				
+				// else fall through the loop
 			} 
 			else {
 				// failing in the meantime may happen and is no problem.
