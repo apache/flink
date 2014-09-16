@@ -41,7 +41,41 @@ public class SingleInputSemanticProperties extends SemanticProperties {
 	 */
 	private FieldSet readFields;
 
-	
+	@Override
+	public FieldSet getForwardFields(int input, int field) {
+		if (input != 0) {
+			throw new IndexOutOfBoundsException();
+		}
+		return this.getForwardedField(field);
+	}
+
+	@Override
+	public FieldSet getSourceField(int input, int field) {
+		if (input != 0) {
+			throw new IndexOutOfBoundsException();
+		}
+
+		if (isAllFieldsConstant()) {
+			return new FieldSet(field);
+		}
+
+		return this.forwardedFrom(field);
+	}
+
+	public FieldSet forwardedFrom(int dest) {
+		FieldSet fs = null;
+		for (Map.Entry<Integer, FieldSet> entry : forwardedFields.entrySet()) {
+			if (entry.getValue().contains(dest)) {
+				if (fs == null) {
+					fs = new FieldSet();
+				}
+
+				fs = fs.addField(entry.getKey());
+			}
+		}
+		return fs;
+	}
+
 	public SingleInputSemanticProperties() {
 		super();
 		this.init();
@@ -101,6 +135,10 @@ public class SingleInputSemanticProperties extends SemanticProperties {
 	 * @return the destination fields, or null if they do not exist
 	 */
 	public FieldSet getForwardedField(int sourceField) {
+		if (isAllFieldsConstant()) {
+			return new FieldSet(sourceField);
+		}
+
 		return this.forwardedFields.get(sourceField);
 	}
 	
@@ -144,7 +182,12 @@ public class SingleInputSemanticProperties extends SemanticProperties {
 		this.init();
 		super.clearProperties();
 	}
-	
+
+	@Override
+	public String toString() {
+		return "SISP(" + this.forwardedFields + ")";
+	}
+
 	private void init() {
 		this.forwardedFields = new HashMap<Integer,FieldSet>();
 		this.readFields = null;

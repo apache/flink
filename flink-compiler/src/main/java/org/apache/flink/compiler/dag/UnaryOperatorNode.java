@@ -21,6 +21,8 @@ package org.apache.flink.compiler.dag;
 import java.util.Arrays;
 import java.util.List;
 
+import org.apache.flink.api.common.operators.SemanticProperties;
+import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.compiler.DataStatistics;
 import org.apache.flink.compiler.operators.OperatorDescriptorSingle;
@@ -54,12 +56,12 @@ public class UnaryOperatorNode extends SingleInputNode {
 	public String getName() {
 		return this.name;
 	}
-	
-	public boolean isFieldConstant(int input, int fieldNumber) {
-		if (input != 0) {
-			throw new IndexOutOfBoundsException();
-		}
-		return true;
+
+	@Override
+	public SemanticProperties getSemanticProperties() {
+		SingleInputSemanticProperties sprops = new SingleInputSemanticProperties();
+		sprops.setAllFieldsConstant(true);
+		return sprops;
 	}
 
 	@Override

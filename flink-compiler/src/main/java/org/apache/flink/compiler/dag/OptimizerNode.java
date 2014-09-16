@@ -31,6 +31,7 @@ import java.util.Set;
 import org.apache.flink.api.common.operators.AbstractUdfOperator;
 import org.apache.flink.api.common.operators.CompilerHints;
 import org.apache.flink.api.common.operators.Operator;
+import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.compiler.CompilerException;
 import org.apache.flink.compiler.DataStatistics;
@@ -268,16 +269,8 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 */
 	@Override
 	public abstract void accept(Visitor<OptimizerNode> visitor);
-	
-	/**
-	 * Checks whether a field is modified by the user code or whether it is kept unchanged.
-	 * 
-	 * @param input The input number.
-	 * @param fieldNumber The position of the field.
-	 * 
-	 * @return True if the field is not changed by the user function, false otherwise.
-	 */
-	public abstract boolean isFieldConstant(int input, int fieldNumber);
+
+	public abstract SemanticProperties getSemanticProperties();
 
 	// ------------------------------------------------------------------------
 	//                          Getters / Setters
@@ -688,8 +681,12 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 					return null;
 				}
 				for (int keyColumn : keyColumns) {
-					if (!isFieldConstant(input, keyColumn)) {
-						return null;	
+					FieldSet fs = getSemanticProperties() == null ? null : getSemanticProperties().getForwardFields(input, keyColumn);
+
+					if (fs == null) {
+						return null;
+					} else if (!fs.contains(keyColumn)) {
+						return null;
 					}
 				}
 				return keyColumns;

@@ -24,6 +24,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.flink.api.common.operators.DualInputSemanticProperties;
+import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.operators.Union;
 import org.apache.flink.compiler.CompilerException;
 import org.apache.flink.compiler.DataStatistics;
@@ -252,8 +254,10 @@ public class BinaryUnionNode extends TwoInputNode {
 	protected void readStubAnnotations() {}
 
 	@Override
-	public boolean isFieldConstant(int input, int fieldNumber) {
-		return true;
+	public SemanticProperties getSemanticProperties() {
+		DualInputSemanticProperties sprops = new DualInputSemanticProperties();
+		sprops.setAllFieldsConstant(true);
+		return sprops;
 	}
 	
 	@Override
