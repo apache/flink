@@ -71,7 +71,9 @@ private[flink] abstract class UnfinishedKeyPairOperation[T, O, R](
    * This only works on a CaseClass [[DataSet]].
    */
   def where(firstLeftField: String, otherLeftFields: String*) = {
-    val fieldIndices = fieldNames2Indices(leftSet.set.getType, firstLeftField +: otherLeftFields.toArray)
+    val fieldIndices = fieldNames2Indices(
+      leftSet.set.getType,
+      firstLeftField +: otherLeftFields.toArray)
 
     val leftKey = new FieldPositionKeys[T](fieldIndices, leftSet.set.getType)
     new HalfUnfinishedKeyPairOperation[T, O, R](this, leftKey)

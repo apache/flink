@@ -267,7 +267,7 @@ private[flink] class GroupedDataSetImpl[T: ClassTag](
   }
 
   def reduceGroup[R: TypeInformation: ClassTag](
-                                                 fun: (TraversableOnce[T], Collector[R]) => Unit): DataSet[R] = {
+      fun: (TraversableOnce[T], Collector[R]) => Unit): DataSet[R] = {
     Validate.notNull(fun, "Group reduce function must not be null.")
     val reducer = new GroupReduceFunction[T, R] {
       def reduce(in: java.lang.Iterable[T], out: Collector[R]) {

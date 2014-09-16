@@ -86,7 +86,9 @@ object PageRankBasic {
       // initialize lists
       .map(e => AdjacencyList(e.sourceId, Array(e.targetId)))
       // concatenate lists
-      .groupBy("sourceId").reduce((l1, l2) => AdjacencyList(l1.sourceId, l1.targetIds ++ l2.targetIds))
+      .groupBy("sourceId").reduce {
+      (l1, l2) => AdjacencyList(l1.sourceId, l1.targetIds ++ l2.targetIds)
+      }
 
     // start iteration
     val finalRanks = pagesWithRanks.iterateWithTermination(maxIterations) {

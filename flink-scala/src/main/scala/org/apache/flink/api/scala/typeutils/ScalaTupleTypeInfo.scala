@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.api.java.typeutils.{AtomicType, TupleTypeInfoBase}
@@ -79,8 +78,8 @@ abstract class ScalaTupleTypeInfo[T <: Product](
   def getFieldIndices(fields: Array[String]): Array[Int] = {
     val result = fields map { x => fieldNames.indexOf(x) }
     if (result.contains(-1)) {
-      throw new IllegalArgumentException("Fields '" + fields.mkString(", ") + "' are not valid for" +
-        " " + tupleClass + " with fields '" + fieldNames.mkString(", ") + "'.")
+      throw new IllegalArgumentException("Fields '" + fields.mkString(", ") +
+        "' are not valid for " + tupleClass + " with fields '" + fieldNames.mkString(", ") + "'.")
     }
     result
   }

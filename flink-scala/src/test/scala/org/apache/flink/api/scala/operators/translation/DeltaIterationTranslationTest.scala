@@ -100,7 +100,9 @@ class DeltaIterationTranslationTest {
       assertEquals(classOf[IdentityMapper[_]], worksetMapper.getUserCodeWrapper.getUserCodeClass)
 
 
-      assertEquals(classOf[NextWorksetMapper], nextWorksetMapper.getUserCodeWrapper.getUserCodeClass)
+      assertEquals(
+        classOf[NextWorksetMapper],
+        nextWorksetMapper.getUserCodeWrapper.getUserCodeClass)
 
 
       if (solutionSetJoin.getUserCodeWrapper.getUserCodeObject.isInstanceOf[WrappingFunction[_]]) {
@@ -203,7 +205,8 @@ class DeltaIterationTranslationTest {
 //      val iteration: DeltaIteration[Tuple3[Double, Long, String], Tuple2[Double,
 //        String]] = initialSolutionSet.iterateDelta(initialWorkSet, 10, 1)
 //      try {
-//        iteration.getWorkset.coGroup(iteration.getSolutionSet).where(1).equalTo(2).`with`(new DeltaIterationTranslationTest.SolutionWorksetCoGroup1)
+//        iteration.getWorkset.coGroup(iteration.getSolutionSet).where(1).equalTo(2).`with`(
+// new DeltaIterationTranslationTest.SolutionWorksetCoGroup1)
 //        fail("Accepted invalid program.")
 //      }
 //      catch {
@@ -211,7 +214,8 @@ class DeltaIterationTranslationTest {
 //        }
 //      }
 //      try {
-//        iteration.getSolutionSet.coGroup(iteration.getWorkset).where(2).equalTo(1).`with`(new DeltaIterationTranslationTest.SolutionWorksetCoGroup2)
+//        iteration.getSolutionSet.coGroup(iteration.getWorkset).where(2).equalTo(1).`with`(
+// new DeltaIterationTranslationTest.SolutionWorksetCoGroup2)
 //        fail("Accepted invalid program.")
 //      }
 //      catch {

@@ -71,7 +71,8 @@ object ConnectedComponents {
     // assign the initial components (equal to the vertex id)
     val vertices = getVerticesDataSet(env).map { id => (id, id) }
 
-    // undirected edges by emitting for each input edge the input edges itself and an inverted version
+    // undirected edges by emitting for each input edge the input edges itself and an inverted
+    // version
     val edges = getEdgesDataSet(env).flatMap { edge => Seq(edge, (edge._2, edge._1)) }
 
     // open a delta iteration
@@ -106,20 +107,22 @@ object ConnectedComponents {
  
   private def parseParameters(args: Array[String]): Boolean = {
     if (args.length > 0) {
-        fileOutput = true
+      fileOutput = true
       if (args.length == 4) {
         verticesPath = args(0)
         edgesPath = args(1)
         outputPath = args(2)
         maxIterations = args(3).toInt
       } else {
-        System.err.println("Usage: ConnectedComponents <vertices path> <edges path> <result path> <max number of iterations>")
+        System.err.println("Usage: ConnectedComponents <vertices path> <edges path> <result path>" +
+          " <max number of iterations>")
         false
       }
     } else {
       System.out.println("Executing Connected Components example with built-in default data.")
       System.out.println("  Provide parameters to read input data from a file.")
-      System.out.println("  Usage: ConnectedComponents <vertices path> <edges path> <result path> <max number of iterations>")
+      System.out.println("  Usage: ConnectedComponents <vertices path> <edges path> <result path>" +
+        " <max number of iterations>")
     }
     true
   }

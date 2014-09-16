@@ -1,4 +1,5 @@
 .cache
+scalastyle-output.xml
 .classpath
 .idea
 .metadata

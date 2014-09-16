@@ -34,8 +34,8 @@ class TupleSerializerTest {
 
   @Test
   def testTuple1Int(): Unit = {
-    val testTuples =
-      Array(Tuple1(42), Tuple1(1), Tuple1(0), Tuple1(-1), Tuple1(Int.MaxValue), Tuple1(Int.MinValue))
+    val testTuples = Array(Tuple1(42), Tuple1(1), Tuple1(0), Tuple1(-1), Tuple1(Int.MaxValue),
+      Tuple1(Int.MinValue))
     runTests(testTuples)
   }
 

@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.api.scala
 
 import org.apache.commons.lang3.Validate
@@ -610,9 +609,9 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
       new Keys.FieldPositionKeys[T](fieldIndices, set.getType,false))
   }
 
-  //	public UnsortedGrouping<T> groupBy(String... fields) {
-  //		new UnsortedGrouping<T>(this, new Keys.ExpressionKeys<T>(fields, getType()));
-  //	}
+  //  public UnsortedGrouping<T> groupBy(String... fields) {
+  //    new UnsortedGrouping<T>(this, new Keys.ExpressionKeys<T>(fields, getType()));
+  //  }
 
   // --------------------------------------------------------------------------------------------
   //  Joining
@@ -807,7 +806,7 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
 
   /**
    * Creates a new DataSet by performing delta (or workset) iterations using the given step
-   * function. At the beginning `this` DataSet is the solution set and `workset` is  the Workset.
+   * function. At the beginning `this` DataSet is the solution set and `workset` is the Workset.
    * The iteration step function gets the current solution set and workset and must output the
    * delta for the solution set and the workset for the next iteration.
    *
@@ -816,6 +815,28 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
   def iterateDelta[R: ClassTag](workset: DataSet[R], maxIterations: Int, keyFields: Array[Int])(
       stepFunction: (DataSet[T], DataSet[R]) => (DataSet[T], DataSet[R])) = {
     val key = new FieldPositionKeys[T](keyFields, set.getType, false)
+    val iterativeSet = new DeltaIteration[T, R](
+      set.getExecutionEnvironment, set.getType, set, workset.set, key, maxIterations)
+    val (newSolution, newWorkset) = stepFunction(
+      wrap(iterativeSet.getSolutionSet),
+      wrap(iterativeSet.getWorkset))
+    val result = iterativeSet.closeWith(newSolution.set, newWorkset.set)
+    wrap(result)
+  }
+
+  /**
+   * Creates a new DataSet by performing delta (or workset) iterations using the given step
+   * function. At the beginning `this` DataSet is the solution set and `workset` is the Workset.
+   * The iteration step function gets the current solution set and workset and must output the
+   * delta for the solution set and the workset for the next iteration.
+   *
+   * Note: The syntax of delta iterations are very likely going to change soon.
+   */
+  def iterateDelta[R: ClassTag](workset: DataSet[R], maxIterations: Int, keyFields: Array[String])(
+    stepFunction: (DataSet[T], DataSet[R]) => (DataSet[T], DataSet[R])) = {
+    val fieldIndices = fieldNames2Indices(set.getType, keyFields)
+
+    val key = new FieldPositionKeys[T](fieldIndices, set.getType, false)
     val iterativeSet = new DeltaIteration[T, R](
       set.getExecutionEnvironment, set.getType, set, workset.set, key, maxIterations)
     val (newSolution, newWorkset) = stepFunction(

@@ -46,7 +46,7 @@ class SemanticPropertiesTranslationTest {
     try {
       val env = ExecutionEnvironment.getExecutionEnvironment
 
-      val input = env.fromElements((3l, "test", 42))
+      val input = env.fromElements((3L, "test", 42))
       input.map(new WildcardConstantMapper[(Long, String, Int)]).print()
 
       val plan = env.createProgramPlan()
@@ -83,7 +83,7 @@ class SemanticPropertiesTranslationTest {
     try {
       val env = ExecutionEnvironment.getExecutionEnvironment
 
-      val input = env.fromElements((3l, "test", 42))
+      val input = env.fromElements((3L, "test", 42))
       input.map(new IndividualConstantMapper[Long, String, Int]).print()
 
       val plan = env.createProgramPlan()
@@ -120,8 +120,8 @@ class SemanticPropertiesTranslationTest {
     try {
       val env = ExecutionEnvironment.getExecutionEnvironment
 
-      val input1 = env.fromElements((3l, "test"))
-      val input2 = env.fromElements((3l, 3.1415))
+      val input1 = env.fromElements((3L, "test"))
+      val input2 = env.fromElements((3L, 3.1415))
 
       input1.join(input2).where(0).equalTo(0)(
         new ForwardingTupleJoin[Long, String, Long, Double]).print()

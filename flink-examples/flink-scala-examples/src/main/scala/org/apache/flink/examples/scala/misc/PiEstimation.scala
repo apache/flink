@@ -37,7 +37,7 @@ object PiEstimation {
           val y = Math.random()
           if (x * x + y * y < 1) 1L else 0L
         }
-        .reduce(_+_)
+        .reduce(_ + _)
 
     // ratio of samples in upper right quadrant vs total samples gives surface of upper
     // right quadrant, times 4 gives surface of whole unit circle, i.e. PI

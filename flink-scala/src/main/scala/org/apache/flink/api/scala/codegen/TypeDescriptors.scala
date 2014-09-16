@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,8 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-
 package org.apache.flink.api.scala.codegen
 
 import scala.language.postfixOps
@@ -122,7 +120,8 @@ private[flink] trait TypeDescriptors[C <: Context] { this: MacroContextHolder[C]
       id: Int, tpe: Type, override val getters: Seq[FieldAccessor], subTypes: Seq[UDTDescriptor])
     extends UDTDescriptor {
 
-    override def flatten = this +: ((getters flatMap { _.desc.flatten }) ++ (subTypes flatMap { _.flatten }))
+    override def flatten =
+      this +: ((getters flatMap { _.desc.flatten }) ++ (subTypes flatMap { _.flatten }))
     override def canBeKey = flatten forall { f => f.canBeKey }
     
     override def select(path: List[String]): Seq[Option[UDTDescriptor]] = path match {
@@ -151,7 +150,8 @@ private[flink] trait TypeDescriptors[C <: Context] { this: MacroContextHolder[C]
     override def hashCode = (id, tpe, ctor, getters).hashCode
     override def equals(that: Any) = that match {
       case CaseClassDescriptor(thatId, thatTpe, thatMutable, thatCtor, thatGetters) =>
-        (id, tpe, mutable, ctor, getters).equals(thatId, thatTpe, thatMutable, thatCtor, thatGetters)
+        (id, tpe, mutable, ctor, getters).equals(
+          thatId, thatTpe, thatMutable, thatCtor, thatGetters)
       case _ => false
     }
     
@@ -164,7 +164,12 @@ private[flink] trait TypeDescriptors[C <: Context] { this: MacroContextHolder[C]
     }
   }
 
-  case class FieldAccessor(getter: Symbol, setter: Symbol, tpe: Type, isBaseField: Boolean, desc: UDTDescriptor)
+  case class FieldAccessor(
+      getter: Symbol,
+      setter: Symbol,
+      tpe: Type,
+      isBaseField: Boolean,
+      desc: UDTDescriptor)
 
   case class RecursiveDescriptor(id: Int, tpe: Type, refId: Int) extends UDTDescriptor {
     override def flatten = Seq(this)

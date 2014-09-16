@@ -65,111 +65,113 @@ import scala.collection.mutable
  *
  */
 object EnumTrianglesBasic {
-	
-	def main(args: Array[String]) {
-		if (!parseParameters(args)) {
-			return
-		}
 
-		// set up execution environment
-		val env = ExecutionEnvironment.getExecutionEnvironment
+  def main(args: Array[String]) {
+    if (!parseParameters(args)) {
+      return
+    }
 
-		// read input data
-		val edges = getEdgeDataSet(env)
-		
-		// project edges by vertex id
-		val edgesById = edges map(e => if (e.v1 < e.v2) e else Edge(e.v2, e.v1) )
-		
-		val triangles = edgesById
-						// build triads
-						.groupBy("v1").sortGroup("v2", Order.ASCENDING).reduceGroup(new TriadBuilder())
-						// filter triads
-						.join(edgesById).where("v2", "v3").equalTo("v1", "v2") { (t, _) => t }
-		
-		// emit result
-		if (fileOutput) {
-			triangles.writeAsCsv(outputPath, "\n", ",")
-		} else {
-			triangles.print()
-		}
-		
-		// execute program
-		env.execute("TriangleEnumeration Example")
-	}
+    // set up execution environment
+    val env = ExecutionEnvironment.getExecutionEnvironment
 
-	// *************************************************************************
-	//     USER DATA TYPES
-	// *************************************************************************
+    // read input data
+    val edges = getEdgeDataSet(env)
+    
+    // project edges by vertex id
+    val edgesById = edges map(e => if (e.v1 < e.v2) e else Edge(e.v2, e.v1) )
+    
+    val triangles = edgesById
+            // build triads
+            .groupBy("v1").sortGroup("v2", Order.ASCENDING).reduceGroup(new TriadBuilder())
+            // filter triads
+            .join(edgesById).where("v2", "v3").equalTo("v1", "v2") { (t, _) => t }
+    
+    // emit result
+    if (fileOutput) {
+      triangles.writeAsCsv(outputPath, "\n", ",")
+    } else {
+      triangles.print()
+    }
+    
+    // execute program
+    env.execute("TriangleEnumeration Example")
+  }
 
-	case class Edge(v1: Int, v2: Int) extends Serializable
-	case class Triad(v1: Int, v2: Int, v3: Int) extends Serializable
-	
-		
-	// *************************************************************************
-	//     USER FUNCTIONS
-	// *************************************************************************
+  // *************************************************************************
+  //     USER DATA TYPES
+  // *************************************************************************
 
-	/**
-	 *  Builds triads (triples of vertices) from pairs of edges that share a vertex.
-	 *  The first vertex of a triad is the shared vertex, the second and third vertex are ordered by vertexId. 
-	 *  Assumes that input edges share the first vertex and are in ascending order of the second vertex.
-	 */
-	class TriadBuilder extends GroupReduceFunction[Edge, Triad] {
+  case class Edge(v1: Int, v2: Int) extends Serializable
+  case class Triad(v1: Int, v2: Int, v3: Int) extends Serializable
+  
+    
+  // *************************************************************************
+  //     USER FUNCTIONS
+  // *************************************************************************
 
-		val vertices = mutable.MutableList[Integer]()
-		
-		override def reduce(edges: java.lang.Iterable[Edge], out: Collector[Triad]) = {
-			
-			// clear vertex list
-			vertices.clear()
+  /**
+   *  Builds triads (triples of vertices) from pairs of edges that share a vertex. The first vertex
+   *  of a triad is the shared vertex, the second and third vertex are ordered by vertexId. Assumes
+   *  that input edges share the first vertex and are in ascending order of the second vertex.
+   */
+  class TriadBuilder extends GroupReduceFunction[Edge, Triad] {
 
-			// build and emit triads
-			for(e <- edges.asScala) {
-			
-				// combine vertex with all previously read vertices
-				for(v <- vertices) {
-					out.collect(Triad(e.v1, v, e.v2))
-				}
-				vertices += e.v2
-			}
-		}
-	}
+    val vertices = mutable.MutableList[Integer]()
+    
+    override def reduce(edges: java.lang.Iterable[Edge], out: Collector[Triad]) = {
+      
+      // clear vertex list
+      vertices.clear()
 
-	// *************************************************************************
-	//     UTIL METHODS
-	// *************************************************************************
+      // build and emit triads
+      for(e <- edges.asScala) {
+      
+        // combine vertex with all previously read vertices
+        for(v <- vertices) {
+          out.collect(Triad(e.v1, v, e.v2))
+        }
+        vertices += e.v2
+      }
+    }
+  }
 
-	private def parseParameters(args: Array[String]): Boolean = {
-		if (args.length > 0) {
-			fileOutput = true
-			if (args.length == 2) {
-				edgePath = args(0)
-				outputPath = args(1)
-			} else {
-				System.err.println("Usage: EnumTriangleBasic <edge path> <result path>")
-				false
-			}
-		} else {
-			System.out.println("Executing Enum Triangles Basic example with built-in default data.")
-			System.out.println("  Provide parameters to read input data from files.")
-			System.out.println("  See the documentation for the correct format of input files.")
-			System.out.println("  Usage: EnumTriangleBasic <edge path> <result path>")
-		}
-		true
-	}
+  // *************************************************************************
+  //     UTIL METHODS
+  // *************************************************************************
 
-	private def getEdgeDataSet(env: ExecutionEnvironment): DataSet[Edge] = {
-		if (fileOutput) {
-			env.readCsvFile[Edge](edgePath, fieldDelimiter = ' ', includedFields = Array(0, 1))
-		} else {
-			val edges = EnumTrianglesData.EDGES.map{ case Array(v1, v2) => new Edge(v1.asInstanceOf[Int], v2.asInstanceOf[Int]) }
-			env.fromCollection(edges)
-		}
-	}
-	
-	
-	private var fileOutput: Boolean = false
-	private var edgePath: String = null
-	private var outputPath: String = null
+  private def parseParameters(args: Array[String]): Boolean = {
+    if (args.length > 0) {
+      fileOutput = true
+      if (args.length == 2) {
+        edgePath = args(0)
+        outputPath = args(1)
+      } else {
+        System.err.println("Usage: EnumTriangleBasic <edge path> <result path>")
+        false
+      }
+    } else {
+      System.out.println("Executing Enum Triangles Basic example with built-in default data.")
+      System.out.println("  Provide parameters to read input data from files.")
+      System.out.println("  See the documentation for the correct format of input files.")
+      System.out.println("  Usage: EnumTriangleBasic <edge path> <result path>")
+    }
+    true
+  }
+
+  private def getEdgeDataSet(env: ExecutionEnvironment): DataSet[Edge] = {
+    if (fileOutput) {
+      env.readCsvFile[Edge](edgePath, fieldDelimiter = ' ', includedFields = Array(0, 1))
+    } else {
+      val edges = EnumTrianglesData.EDGES.map {
+        case Array(v1, v2) => new Edge(v1.asInstanceOf[Int], v2.asInstanceOf[Int])
+      }
+      env.fromCollection(edges)
+    }
+  }
+  
+  
+  private var fileOutput: Boolean = false
+  private var edgePath: String = null
+  private var outputPath: String = null
 
 }

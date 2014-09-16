@@ -62,101 +62,101 @@ import scala.collection.JavaConverters._
  */
 object LinearRegression {
 
-	def main(args: Array[String]) {
-		if (!parseParameters(args)) {
-			return
-		}
+  def main(args: Array[String]) {
+    if (!parseParameters(args)) {
+      return
+    }
 
-		val env = ExecutionEnvironment.getExecutionEnvironment
-		val data = getDataSet(env)
-		val parameters = getParamsDataSet(env)
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val data = getDataSet(env)
+    val parameters = getParamsDataSet(env)
 
-		val result = parameters.iterate(numIterations) { currentParameters =>
-			val newParameters = data
-				.map(new SubUpdate).withBroadcastSet(currentParameters, "parameters")
-				.reduce { (p1, p2) =>
+    val result = parameters.iterate(numIterations) { currentParameters =>
+      val newParameters = data
+        .map(new SubUpdate).withBroadcastSet(currentParameters, "parameters")
+        .reduce { (p1, p2) =>
           val result = p1._1 + p2._1
-				  (result, p1._2 + p2._2)
-			  }
-				.map { x => x._1.div(x._2) }
-			newParameters
-		}
+          (result, p1._2 + p2._2)
+        }
+        .map { x => x._1.div(x._2) }
+      newParameters
+    }
 
-		if (fileOutput) {
-			result.writeAsText(outputPath)
-		}
-		else {
-			result.print()
-		}
-		env.execute("Scala Linear Regression example")
-	}
+    if (fileOutput) {
+      result.writeAsText(outputPath)
+    }
+    else {
+      result.print()
+    }
+    env.execute("Scala Linear Regression example")
+  }
 
-	/**
-	 * A simple data sample, x means the input, and y means the target.
-	 */
+  /**
+   * A simple data sample, x means the input, and y means the target.
+   */
   case class Data(var x: Double, var y: Double)
 
-	/**
-	 * A set of parameters -- theta0, theta1.
-	 */
+  /**
+   * A set of parameters -- theta0, theta1.
+   */
   case class Params(theta0: Double, theta1: Double) {
     def div(a: Int): Params = {
       Params(theta0 / a, theta1 / a)
     }
 
-    def +(other: Params) = {
+    def + (other: Params) = {
       Params(theta0 + other.theta0, theta1 + other.theta1)
     }
   }
 
-	// *************************************************************************
-	//     USER FUNCTIONS
-	// *************************************************************************
+  // *************************************************************************
+  //     USER FUNCTIONS
+  // *************************************************************************
 
-	/**
-	 * Compute a single BGD type update for every parameters.
-	 */
-	class SubUpdate extends RichMapFunction[Data, (Params, Int)] {
+  /**
+   * Compute a single BGD type update for every parameters.
+   */
+  class SubUpdate extends RichMapFunction[Data, (Params, Int)] {
 
-		private var parameter: Params = null
+    private var parameter: Params = null
 
-		/** Reads the parameters from a broadcast variable into a collection. */
-		override def open(parameters: Configuration) {
-			val parameters = getRuntimeContext.getBroadcastVariable[Params]("parameters").asScala
+    /** Reads the parameters from a broadcast variable into a collection. */
+    override def open(parameters: Configuration) {
+      val parameters = getRuntimeContext.getBroadcastVariable[Params]("parameters").asScala
       parameter = parameters.head
-		}
+    }
 
-		def map(in: Data): (Params, Int) = {
-			val theta0 =
+    def map(in: Data): (Params, Int) = {
+      val theta0 =
         parameter.theta0 - 0.01 * ((parameter.theta0 + (parameter.theta1 * in.x)) - in.y)
-			val theta1 =
+      val theta1 =
         parameter.theta1 - 0.01 * (((parameter.theta0 + (parameter.theta1 * in.x)) - in.y) * in.x)
-			(Params(theta0, theta1), 1)
-		}
-	}
+      (Params(theta0, theta1), 1)
+    }
+  }
 
-	// *************************************************************************
-	//     UTIL METHODS
-	// *************************************************************************
-	private var fileOutput: Boolean = false
-	private var dataPath: String = null
-	private var outputPath: String = null
-	private var numIterations: Int = 10
+  // *************************************************************************
+  //     UTIL METHODS
+  // *************************************************************************
+  private var fileOutput: Boolean = false
+  private var dataPath: String = null
+  private var outputPath: String = null
+  private var numIterations: Int = 10
 
-	private def parseParameters(programArguments: Array[String]): Boolean = {
-		if (programArguments.length > 0) {
-			fileOutput = true
-			if (programArguments.length == 3) {
-				dataPath = programArguments(0)
-				outputPath = programArguments(1)
-				numIterations = programArguments(2).toInt
-			}
-			else {
-				System.err.println("Usage: LinearRegression <data path> <result path> <num iterations>")
-				false
-			}
-		}
-		else {
+  private def parseParameters(programArguments: Array[String]): Boolean = {
+    if (programArguments.length > 0) {
+      fileOutput = true
+      if (programArguments.length == 3) {
+        dataPath = programArguments(0)
+        outputPath = programArguments(1)
+        numIterations = programArguments(2).toInt
+      }
+      else {
+        System.err.println("Usage: LinearRegression <data path> <result path> <num iterations>")
+        false
+      }
+    }
+    else {
       System.out.println("Executing Linear Regression example with default parameters and " +
         "built-in default data.")
       System.out.println("  Provide parameters to read input data from files.")
@@ -164,30 +164,30 @@ object LinearRegression {
       System.out.println("  We provide a data generator to create synthetic input files for this " +
         "program.")
       System.out.println("  Usage: LinearRegression <data path> <result path> <num iterations>")
-		}
-		true
-	}
+    }
+    true
+  }
 
-	private def getDataSet(env: ExecutionEnvironment): DataSet[Data] = {
-		if (fileOutput) {
-			env.readCsvFile[(Double, Double)](
-				dataPath,
-				fieldDelimiter = ' ',
-				includedFields = Array(0, 1))
-				.map { t => new Data(t._1, t._2) }
-		}
-		else {
-			val data = LinearRegressionData.DATA map {
-				case Array(x, y) => Data(x.asInstanceOf[Double], y.asInstanceOf[Double])
-			}
-			env.fromCollection(data)
-		}
-	}
+  private def getDataSet(env: ExecutionEnvironment): DataSet[Data] = {
+    if (fileOutput) {
+      env.readCsvFile[(Double, Double)](
+        dataPath,
+        fieldDelimiter = ' ',
+        includedFields = Array(0, 1))
+        .map { t => new Data(t._1, t._2) }
+    }
+    else {
+      val data = LinearRegressionData.DATA map {
+        case Array(x, y) => Data(x.asInstanceOf[Double], y.asInstanceOf[Double])
+      }
+      env.fromCollection(data)
+    }
+  }
 
-	private def getParamsDataSet(env: ExecutionEnvironment): DataSet[Params] = {
-		val params = LinearRegressionData.PARAMS map {
-			case Array(x, y) => Params(x.asInstanceOf[Double], y.asInstanceOf[Double])
-		}
-		env.fromCollection(params)
-	}
+  private def getParamsDataSet(env: ExecutionEnvironment): DataSet[Params] = {
+    val params = LinearRegressionData.PARAMS map {
+      case Array(x, y) => Params(x.asInstanceOf[Double], y.asInstanceOf[Double])
+    }
+    env.fromCollection(params)
+  }
 }

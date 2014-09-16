@@ -522,8 +522,10 @@ under the License.
 						<exclude>**/*.creole</exclude>
 						<exclude>CONTRIBUTORS</exclude>
 						<exclude>DEPENDENCIES</exclude>
-						<!-- Build fiels -->
+						<!-- Build files -->
 						<exclude>tools/maven/checkstyle.xml</exclude>
+						<exclude>tools/maven/scalastyle-config.xml</exclude>
+						<exclude>**/scalastyle-output.xml</exclude>
 						<exclude>tools/maven/suppressions.xml</exclude>
 						<exclude>**/pom.xml</exclude>
 						<exclude>**/pom.hadoop2.xml</exclude>
@@ -556,6 +558,29 @@ under the License.
 					<logViolationsToConsole>true</logViolationsToConsole>
 				</configuration>
 			</plugin>
+			<plugin>
+            	<groupId>org.scalastyle</groupId>
+           		<artifactId>scalastyle-maven-plugin</artifactId>
+            	<version>0.5.0</version>
+            	<configuration>
+              		<verbose>false</verbose>
+              		<failOnViolation>true</failOnViolation>
+              		<includeTestSourceDirectory>true</includeTestSourceDirectory>
+              		<failOnWarning>false</failOnWarning>
+              		<sourceDirectory>${basedir}/src/main/scala</sourceDirectory>
+              		<testSourceDirectory>${basedir}/src/test/scala</testSourceDirectory>
+              		<configLocation>tools/maven/scalastyle-config.xml</configLocation>
+              		<outputFile>${project.basedir}/scalastyle-output.xml</outputFile>
+              		<outputEncoding>UTF-8</outputEncoding>
+            	</configuration>
+            	<executions>
+              		<execution>
+                		<goals>
+                  			<goal>check</goal>
+                		</goals>
+              		</execution>
+            	</executions>
+          </plugin>
 			<plugin>
 				<!-- just define the Java version to be used for compiling and plugins -->
 				<groupId>org.apache.maven.plugins</groupId>

@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,8 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-
 package org.apache.flink.api.scala.codegen
 
 import org.apache.flink.api.common.typeutils.TypeSerializer
@@ -116,14 +114,16 @@ private[flink] trait TypeInformationGen[C <: Context] {
     }
   }
 
-  def mkValueTypeInfo[T <: Value : c.WeakTypeTag](desc: UDTDescriptor): c.Expr[TypeInformation[T]] = {
+  def mkValueTypeInfo[T <: Value : c.WeakTypeTag](
+      desc: UDTDescriptor): c.Expr[TypeInformation[T]] = {
     val tpeClazz = c.Expr[Class[T]](Literal(Constant(desc.tpe)))
     reify {
       new ValueTypeInfo[T](tpeClazz.splice)
     }
   }
 
-  def mkWritableTypeInfo[T <: Writable : c.WeakTypeTag](desc: UDTDescriptor): c.Expr[TypeInformation[T]] = {
+  def mkWritableTypeInfo[T <: Writable : c.WeakTypeTag](
+      desc: UDTDescriptor): c.Expr[TypeInformation[T]] = {
     val tpeClazz = c.Expr[Class[T]](Literal(Constant(desc.tpe)))
     reify {
       new WritableTypeInfo[T](tpeClazz.splice)
@@ -153,7 +153,8 @@ private[flink] trait TypeInformationGen[C <: Context] {
     c.Expr[T](result)
   }
 
-//    def mkCaseClassTypeInfo[T: c.WeakTypeTag](desc: CaseClassDescriptor): c.Expr[TypeInformation[T]] = {
+//    def mkCaseClassTypeInfo[T: c.WeakTypeTag](
+//        desc: CaseClassDescriptor): c.Expr[TypeInformation[T]] = {
 //      val tpeClazz = c.Expr[Class[_]](Literal(Constant(desc.tpe)))
 //      val caseFields = mkCaseFields(desc)
 //      reify {
@@ -178,10 +179,12 @@ private[flink] trait TypeInformationGen[C <: Context] {
 //    c.Expr(mkMap(fields))
 //  }
 //
-//  protected def getFields(name: String, desc: UDTDescriptor): Seq[(String, UDTDescriptor)] = desc match {
+//  protected def getFields(name: String, desc: UDTDescriptor): Seq[(String, UDTDescriptor)] =
+//  desc match {
 //    // Flatten product types
 //    case CaseClassDescriptor(_, _, _, _, getters) =>
-//      getters filterNot { _.isBaseField } flatMap { f => getFields(name + "." + f.getter.name, f.desc) }
+//      getters filterNot { _.isBaseField } flatMap {
+//        f => getFields(name + "." + f.getter.name, f.desc) }
 //    case _ => Seq((name, desc))
 //  }
 }

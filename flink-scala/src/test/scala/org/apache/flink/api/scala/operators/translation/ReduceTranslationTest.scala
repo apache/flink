@@ -121,7 +121,9 @@ class ReduceTranslationTest {
       assertEquals(keyValueInfo, reducer.getOperatorInfo.getOutputType)
       assertEquals(keyValueInfo, keyProjector.getOperatorInfo.getInputType)
       assertEquals(initialData.set.getType, keyProjector.getOperatorInfo.getOutputType)
-      assertEquals(classOf[KeyExtractingMapper[_, _]], keyExtractor.getUserCodeWrapper.getUserCodeClass)
+      assertEquals(
+        classOf[KeyExtractingMapper[_, _]],
+        keyExtractor.getUserCodeWrapper.getUserCodeClass)
       assertTrue(keyExtractor.getInput.isInstanceOf[GenericDataSourceBase[_, _]])
     }
     catch {

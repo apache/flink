@@ -22,7 +22,7 @@ import java.util.UUID
 import org.apache.commons.lang3.Validate
 import org.apache.flink.api.common.JobExecutionResult
 import org.apache.flink.api.java.io._
-import org.apache.flink.api.java.typeutils.{TupleTypeInfoBase, BasicTypeInfo}
+import org.apache.flink.api.java.typeutils.{ValueTypeInfo, TupleTypeInfoBase, BasicTypeInfo}
 import org.apache.flink.api.scala.operators.ScalaCsvInputFormat
 import org.apache.flink.core.fs.Path
 
@@ -30,7 +30,7 @@ import org.apache.flink.api.java.{ExecutionEnvironment => JavaEnv}
 import org.apache.flink.api.common.io.{InputFormat, FileInputFormat}
 
 import org.apache.flink.api.java.operators.DataSource
-import org.apache.flink.types.TypeInformation
+import org.apache.flink.types.{StringValue, TypeInformation}
 import org.apache.flink.util.{NumberSequenceIterator, SplittableIterator}
 
 import scala.collection.JavaConverters._
@@ -101,6 +101,27 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
     val format = new TextInputFormat(new Path(filePath))
     format.setCharsetName(charsetName)
     val source = new DataSource[String](javaEnv, format, BasicTypeInfo.STRING_TYPE_INFO)
+    wrap(source)
+  }
+
+  /**
+   * Creates a DataSet of Strings produced by reading the given file line wise.
+   * This method is similar to [[readTextFile]], but it produces a DataSet with mutable
+   * [[StringValue]] objects, rather than Java Strings. StringValues can be used to tune
+   * implementations to be less object and garbage collection heavy.
+   *
+   * @param filePath The path of the file, as a URI (e.g., "file:///some/local/file" or
+   *                 "hdfs://host:port/file/path").
+   * @param charsetName The name of the character set used to read the file. Default is UTF-0
+   */
+  def readTextFileWithValue(
+      filePath: String,
+      charsetName: String = "UTF-8"): DataSet[StringValue] = {
+    Validate.notNull(filePath, "The file path may not be null.")
+    val format = new TextValueInputFormat(new Path(filePath))
+    format.setCharsetName(charsetName)
+    val source = new DataSource[StringValue](
+      javaEnv, format, new ValueTypeInfo[StringValue](classOf[StringValue]))
     wrap(source)
   }
 
@@ -337,8 +358,9 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   def createProgramPlan(jobName: String = "") = {
     if (jobName.isEmpty) {
       javaEnv.createProgramPlan()
-    } else
+    } else {
       javaEnv.createProgramPlan(jobName)
+    }
   }
 }
 
@@ -360,7 +382,8 @@ object ExecutionEnvironment {
    * of parallelism of the local environment is the number of hardware contexts (CPU cores/threads).
    */
   def createLocalEnvironment(
-      degreeOfParallelism: Int = Runtime.getRuntime.availableProcessors()) : ExecutionEnvironment = {
+      degreeOfParallelism: Int = Runtime.getRuntime.availableProcessors())
+      : ExecutionEnvironment = {
     val javaEnv = JavaEnv.createLocalEnvironment()
     javaEnv.setDegreeOfParallelism(degreeOfParallelism)
     new ExecutionEnvironment(javaEnv)

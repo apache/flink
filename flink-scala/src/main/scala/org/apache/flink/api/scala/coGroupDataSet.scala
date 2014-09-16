@@ -33,8 +33,8 @@ import scala.reflect.ClassTag
 
 
 /**
- * A specific [[DataSet]] that results from a `coGroup` operation. The result of a default coGroup is
- * a tuple containing two arrays of values from the two sides of the coGroup. The result of the
+ * A specific [[DataSet]] that results from a `coGroup` operation. The result of a default coGroup
+ * is a tuple containing two arrays of values from the two sides of the coGroup. The result of the
  * coGroup can be changed by specifying a custom coGroup function using the `apply` method or by
  * providing a [[RichCoGroupFunction]].
  *
