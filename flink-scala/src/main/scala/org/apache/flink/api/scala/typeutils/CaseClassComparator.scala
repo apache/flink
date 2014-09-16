@@ -24,10 +24,10 @@ import org.apache.flink.types.{KeyFieldOutOfBoundsException, NullKeyFieldExcepti
 ;
 
 /**
- * Comparator for Scala Tuples. Access is different from
+ * Comparator for Case Classes. Access is different from
  * our Java Tuples so we have to treat them differently.
  */
-class ScalaTupleComparator[T <: Product](
+class CaseClassComparator[T <: Product](
     keys: Array[Int],
     scalaComparators: Array[TypeComparator[_]],
     scalaSerializers: Array[TypeSerializer[_]] )
@@ -39,7 +39,7 @@ class ScalaTupleComparator[T <: Product](
   def duplicate: TypeComparator[T] = {
     // ensure that the serializers are available
     instantiateDeserializationUtils()
-    val result = new ScalaTupleComparator[T](keyPositions, comparators, serializers)
+    val result = new CaseClassComparator[T](keyPositions, comparators, serializers)
     result.privateDuplicate(this)
     result
   }

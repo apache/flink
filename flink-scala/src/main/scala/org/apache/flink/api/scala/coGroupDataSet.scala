@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.java.operators._
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo
 import org.apache.flink.api.java.{DataSet => JavaDataSet}
-import org.apache.flink.api.scala.typeutils.{ScalaTupleSerializer, ScalaTupleTypeInfo}
+import org.apache.flink.api.scala.typeutils.{CaseClassSerializer, CaseClassTypeInfo}
 import org.apache.flink.types.TypeInformation
 import org.apache.flink.util.Collector
 
@@ -177,7 +177,7 @@ private[flink] class UnfinishedCoGroupOperationImpl[T: ClassTag, O: ClassTag](
     val rightArrayType =
       ObjectArrayTypeInfo.getInfoFor(new Array[O](0).getClass, rightSet.set.getType)
 
-    val returnType = new ScalaTupleTypeInfo[(Array[T], Array[O])](
+    val returnType = new CaseClassTypeInfo[(Array[T], Array[O])](
       classOf[(Array[T], Array[O])], Seq(leftArrayType, rightArrayType), Array("_1", "_2")) {
 
       override def createSerializer: TypeSerializer[(Array[T], Array[O])] = {
@@ -186,7 +186,7 @@ private[flink] class UnfinishedCoGroupOperationImpl[T: ClassTag, O: ClassTag](
           fieldSerializers(i) = types(i).createSerializer
         }
 
-        new ScalaTupleSerializer[(Array[T], Array[O])](
+        new CaseClassSerializer[(Array[T], Array[O])](
           classOf[(Array[T], Array[O])],
           fieldSerializers) {
           override def createInstance(fields: Array[AnyRef]) = {

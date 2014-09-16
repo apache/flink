@@ -18,7 +18,7 @@
 package org.apache.flink.api.scala.runtime.tuple.base
 
 import org.apache.flink.api.common.typeutils.ComparatorTestBase
-import org.apache.flink.api.scala.typeutils.{ScalaTupleSerializer, ScalaTupleComparator}
+import org.apache.flink.api.scala.typeutils.{CaseClassSerializer, CaseClassComparator}
 import org.junit.Assert._
 
 abstract class TupleComparatorTestBase[T <: Product] extends ComparatorTestBase[T] {

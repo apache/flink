@@ -22,7 +22,7 @@ import org.apache.flink.api.common.functions.{RichCrossFunction, CrossFunction}
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.java.operators._
 import org.apache.flink.api.java.{DataSet => JavaDataSet}
-import org.apache.flink.api.scala.typeutils.{ScalaTupleSerializer, ScalaTupleTypeInfo}
+import org.apache.flink.api.scala.typeutils.{CaseClassSerializer, CaseClassTypeInfo}
 import org.apache.flink.types.TypeInformation
 import org.apache.flink.util.Collector
 
@@ -109,7 +109,7 @@ private[flink] object CrossDataSetImpl {
         (left, right)
       }
     }
-    val returnType = new ScalaTupleTypeInfo[(T, O)](
+    val returnType = new CaseClassTypeInfo[(T, O)](
       classOf[(T, O)], Seq(leftSet.getType, rightSet.getType), Array("_1", "_2")) {
 
       override def createSerializer: TypeSerializer[(T, O)] = {
@@ -118,7 +118,7 @@ private[flink] object CrossDataSetImpl {
           fieldSerializers(i) = types(i).createSerializer
         }
 
-        new ScalaTupleSerializer[(T, O)](classOf[(T, O)], fieldSerializers) {
+        new CaseClassSerializer[(T, O)](classOf[(T, O)], fieldSerializers) {
           override def createInstance(fields: Array[AnyRef]) = {
             (fields(0).asInstanceOf[T], fields(1).asInstanceOf[O])
           }

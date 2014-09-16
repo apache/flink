@@ -23,13 +23,13 @@ import org.apache.flink.core.memory.{DataOutputView, DataInputView}
 ;
 
 /**
- * Serializer for Scala Tuples. Creation and access is different from
+ * Serializer for Case Classes. Creation and access is different from
  * our Java Tuples so we have to treat them differently.
  */
-abstract class ScalaTupleSerializer[T <: Product](
-    tupleClass: Class[T],
+abstract class CaseClassSerializer[T <: Product](
+    clazz: Class[T],
     scalaFieldSerializers: Array[TypeSerializer[_]])
-  extends TupleSerializerBase[T](tupleClass, scalaFieldSerializers) {
+  extends TupleSerializerBase[T](clazz, scalaFieldSerializers) {
 
   def createInstance: T = {
     val fields: Array[AnyRef] = new Array(arity)

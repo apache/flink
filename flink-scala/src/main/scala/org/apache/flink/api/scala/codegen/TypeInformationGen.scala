@@ -19,7 +19,7 @@ package org.apache.flink.api.scala.codegen
 
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.java.typeutils._
-import org.apache.flink.api.scala.typeutils.{ScalaTupleSerializer, ScalaTupleTypeInfo}
+import org.apache.flink.api.scala.typeutils.{CaseClassSerializer, CaseClassTypeInfo}
 import org.apache.flink.types.{Value, TypeInformation}
 import org.apache.hadoop.io.Writable
 
@@ -70,14 +70,14 @@ private[flink] trait TypeInformationGen[C <: Context] {
     val fieldNames = desc.getters map { f => Literal(Constant(f.getter.name.toString)) } toList
     val fieldNamesExpr = c.Expr[Seq[String]](mkSeq(fieldNames))
     reify {
-      new ScalaTupleTypeInfo[T](tpeClazz.splice, fieldsExpr.splice, fieldNamesExpr.splice) {
+      new CaseClassTypeInfo[T](tpeClazz.splice, fieldsExpr.splice, fieldNamesExpr.splice) {
         override def createSerializer: TypeSerializer[T] = {
           val fieldSerializers: Array[TypeSerializer[_]] = new Array[TypeSerializer[_]](getArity)
           for (i <- 0 until getArity) {
             fieldSerializers(i) = types(i).createSerializer
           }
 
-          new ScalaTupleSerializer[T](tupleType, fieldSerializers) {
+          new CaseClassSerializer[T](tupleType, fieldSerializers) {
             override def createInstance(fields: Array[AnyRef]): T = {
               instance.splice
             }

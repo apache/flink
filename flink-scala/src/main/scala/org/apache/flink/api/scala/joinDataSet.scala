@@ -25,7 +25,7 @@ import org.apache.flink.api.java.operators.JoinOperator.DefaultJoin.WrappingFlat
 import org.apache.flink.api.java.operators.JoinOperator.{EquiJoin, JoinHint}
 import org.apache.flink.api.java.operators._
 import org.apache.flink.api.java.{DataSet => JavaDataSet}
-import org.apache.flink.api.scala.typeutils.{ScalaTupleSerializer, ScalaTupleTypeInfo}
+import org.apache.flink.api.scala.typeutils.{CaseClassSerializer, CaseClassTypeInfo}
 import org.apache.flink.types.TypeInformation
 import org.apache.flink.util.Collector
 
@@ -179,7 +179,7 @@ private[flink] class UnfinishedJoinOperationImpl[T, O](
         out.collect((left, right))
       }
     }
-    val returnType = new ScalaTupleTypeInfo[(T, O)](
+    val returnType = new CaseClassTypeInfo[(T, O)](
       classOf[(T, O)], Seq(leftSet.set.getType, rightSet.set.getType), Array("_1", "_2")) {
 
       override def createSerializer: TypeSerializer[(T, O)] = {
@@ -188,7 +188,7 @@ private[flink] class UnfinishedJoinOperationImpl[T, O](
           fieldSerializers(i) = types(i).createSerializer
         }
 
-        new ScalaTupleSerializer[(T, O)](classOf[(T, O)], fieldSerializers) {
+        new CaseClassSerializer[(T, O)](classOf[(T, O)], fieldSerializers) {
           override def createInstance(fields: Array[AnyRef]) = {
             (fields(0).asInstanceOf[T], fields(1).asInstanceOf[O])
           }

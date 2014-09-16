@@ -19,7 +19,7 @@ package org.apache.flink.api.scala
 
 import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.scala.operators.ScalaAggregateOperator
-import org.apache.flink.api.scala.typeutils.ScalaTupleTypeInfo
+import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 
 import scala.collection.JavaConverters._
 

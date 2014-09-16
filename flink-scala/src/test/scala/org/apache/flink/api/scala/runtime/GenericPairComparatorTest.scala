@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeutils.base.{DoubleComparator, DoubleSeria
 
 import org.apache.flink.api.java.typeutils.runtime.{GenericPairComparator, TupleComparator}
 import org.apache.flink.api.scala.runtime.tuple.base.PairComparatorTestBase
-import org.apache.flink.api.scala.typeutils.ScalaTupleComparator
+import org.apache.flink.api.scala.typeutils.CaseClassComparator
 
 class GenericPairComparatorTest
   extends PairComparatorTestBase[(Int, String, Double), (Int, Float, Long, Double)] {
@@ -42,8 +42,8 @@ class GenericPairComparatorTest
     val sers2 =
       Array[TypeSerializer[_]](IntSerializer.INSTANCE, DoubleSerializer.INSTANCE)
 
-    val comp1 = new ScalaTupleComparator[(Int, String, Double)](fields1, comps1, sers1)
-    val comp2 = new ScalaTupleComparator[(Int, Float, Long, Double)](fields2, comps2, sers2)
+    val comp1 = new CaseClassComparator[(Int, String, Double)](fields1, comps1, sers1)
+    val comp2 = new CaseClassComparator[(Int, Float, Long, Double)](fields2, comps2, sers2)
 
     new GenericPairComparator[(Int, String, Double), (Int, Float, Long, Double)](comp1, comp2)
   }

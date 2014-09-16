@@ -22,14 +22,14 @@ import org.apache.flink.types.TypeInformation
 import org.apache.flink.api.common.typeutils.{TypeComparator, TypeSerializer}
 
 /**
- * TypeInformation for Scala Tuples. Creation and access is different from
+ * TypeInformation for Case Classes. Creation and access is different from
  * our Java Tuples so we have to treat them differently.
  */
-abstract class ScalaTupleTypeInfo[T <: Product](
-    tupleClass: Class[T],
+abstract class CaseClassTypeInfo[T <: Product](
+    clazz: Class[T],
     fieldTypes: Seq[TypeInformation[_]],
     val fieldNames: Seq[String])
-  extends TupleTypeInfoBase[T](tupleClass, fieldTypes: _*) {
+  extends TupleTypeInfoBase[T](clazz, fieldTypes: _*) {
 
   def createComparator(logicalKeyFields: Array[Int], orders: Array[Boolean]): TypeComparator[T] = {
     // sanity checks
@@ -72,14 +72,14 @@ abstract class ScalaTupleTypeInfo[T <: Product](
       fieldSerializers(i) = types(i).createSerializer
     }
 
-    new ScalaTupleComparator[T](logicalKeyFields, fieldComparators, fieldSerializers)
+    new CaseClassComparator[T](logicalKeyFields, fieldComparators, fieldSerializers)
   }
 
   def getFieldIndices(fields: Array[String]): Array[Int] = {
     val result = fields map { x => fieldNames.indexOf(x) }
     if (result.contains(-1)) {
       throw new IllegalArgumentException("Fields '" + fields.mkString(", ") +
-        "' are not valid for " + tupleClass + " with fields '" + fieldNames.mkString(", ") + "'.")
+        "' are not valid for " + clazz + " with fields '" + fieldNames.mkString(", ") + "'.")
     }
     result
   }

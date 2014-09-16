@@ -21,7 +21,7 @@ package org.apache.flink.api
 import _root_.scala.reflect.ClassTag
 import language.experimental.macros
 import org.apache.flink.types.TypeInformation
-import org.apache.flink.api.scala.typeutils.{ScalaTupleTypeInfo, TypeUtils}
+import org.apache.flink.api.scala.typeutils.{CaseClassTypeInfo, TypeUtils}
 import org.apache.flink.api.java.{DataSet => JavaDataSet}
 
 package object scala {
@@ -36,7 +36,7 @@ package object scala {
       typeInfo: TypeInformation[_],
       fields: Array[String]): Array[Int] = {
     typeInfo match {
-      case ti: ScalaTupleTypeInfo[_] =>
+      case ti: CaseClassTypeInfo[_] =>
         ti.getFieldIndices(fields)
 
       case _ =>
