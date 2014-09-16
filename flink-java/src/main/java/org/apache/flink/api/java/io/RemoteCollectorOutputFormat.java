@@ -19,11 +19,16 @@
 package org.apache.flink.api.java.io;
 
 import java.io.IOException;
+import java.rmi.AccessException;
+import java.rmi.NotBoundException;
+import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.configuration.Configuration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * An output format that sends results through JAVA RMI to an
@@ -36,12 +41,16 @@ import org.apache.flink.configuration.Configuration;
 public class RemoteCollectorOutputFormat<T> implements OutputFormat<T> {
 
 	private static final long serialVersionUID = 1922744224032398102L;
-
+	
+	private static Logger log = LoggerFactory.getLogger(RemoteCollectorOutputFormat.class);
+	
 	/**
 	 * The reference of the {@link IRemoteCollector} object
 	 */
-	private IRemoteCollector<T> remoteCollector;
+	private transient IRemoteCollector<T> remoteCollector;
 
+	transient private Registry registry;
+	
 	/**
 	 * Config parameter for the remote's port number
 	 */
@@ -53,7 +62,36 @@ public class RemoteCollectorOutputFormat<T> implements OutputFormat<T> {
 	/**
 	 * An id used necessary for Java RMI
 	 */
-	public static final String ID = "RemoteCollector";
+	public static final String RMI_ID = "rmiId";
+	
+	private String remote;
+	
+	private int port;
+
+	private String rmiId;
+
+	
+	/**
+	 * Create a new {@link RemoteCollectorOutputFormat} instance. The remote and port for this
+	 * output are by default localhost:8888 but can be configured via a {@link Configuration} object.
+	 * 
+	 * @see RemoteCollectorOutputFormat#REMOTE
+	 * @see RemoteCollectorOutputFormat#PORT
+	 */
+	public RemoteCollectorOutputFormat() {
+		this("localhost", 8888, null);
+	}
+
+	/**
+	 * Creates a new {@link RemoteCollectorOutputFormat} instance for the specified remote and port.
+	 * @param rmiId 
+	 */
+	public RemoteCollectorOutputFormat(String remote, int port, String rmiId) {
+		super();
+		this.remote = remote;
+		this.port = port;
+		this.rmiId = rmiId;
+	}
 
 	@SuppressWarnings("unchecked")
 	@Override
@@ -62,17 +100,34 @@ public class RemoteCollectorOutputFormat<T> implements OutputFormat<T> {
 	 */
 	public void configure(Configuration parameters) {
 
-		Registry registry = null;
+		this.remote = parameters.getString(REMOTE, this.remote);
+		this.port = parameters.getInteger(PORT, this.port);
+		this.rmiId = parameters.getString(RMI_ID, this.rmiId);
+		
+		if (this.remote == null) {
+			throw new IllegalStateException(String.format("No remote configured for %s.", this));
+		}
+		
+		if (this.rmiId == null) {
+			throw new IllegalStateException(String.format("No registry ID configured for %s.", this));
+		}
+		
 		// get the remote's RMI Registry
 		try {
-			registry = LocateRegistry.getRegistry(
-					parameters.getString(REMOTE, "localhost"),
-					parameters.getInteger(PORT, 8888));
+			registry = LocateRegistry.getRegistry(this.remote, this.port);
+		} catch (RemoteException e) {
+			throw new IllegalStateException(e);
+		}
 
-			// try to get an intance of an IRemoteCollector implementation
-			this.remoteCollector = (IRemoteCollector<T>) registry.lookup(ID);
-		} catch (Throwable t) {
-			throw new RuntimeException(t);
+		// try to get an intance of an IRemoteCollector implementation
+		try {
+			this.remoteCollector = (IRemoteCollector<T>) registry.lookup(this.rmiId);
+		} catch (AccessException e) {
+			throw new IllegalStateException(e);
+		} catch (RemoteException e) {
+			throw new IllegalStateException(e);
+		} catch (NotBoundException e) {
+			throw new IllegalStateException(e);
 		}
 	}
 
@@ -101,4 +156,6 @@ public class RemoteCollectorOutputFormat<T> implements OutputFormat<T> {
 	public String toString() {
 		return "RemoteCollectorOutputFormat(" + remote + ":" + port + ", " + rmiId + ")";
 	}
+	
+	
 }

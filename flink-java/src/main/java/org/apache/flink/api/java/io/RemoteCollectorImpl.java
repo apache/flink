@@ -22,6 +22,7 @@ import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.ServerSocket;
+import java.rmi.AlreadyBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
@@ -29,6 +30,7 @@ import java.rmi.server.UnicastRemoteObject;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
+import java.util.UUID;
 
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.java.DataSet;
@@ -61,10 +63,11 @@ public class RemoteCollectorImpl<T> extends UnicastRemoteObject implements
 	 *            The port where the local colector is listening.
 	 * @param consumer
 	 *            The consumer instance.
+	 * @param rmiId 
+	 * 	          An ID to register the collector in the RMI registry.
 	 * @return
 	 */
-	public static <T> void createAndBind(Integer port,
-			IRemoteCollectorConsumer<T> consumer) {
+	public static <T> void createAndBind(Integer port, IRemoteCollectorConsumer<T> consumer, String rmiId) {
 		RemoteCollectorImpl<T> collectorInstance = null;
 
 		try {
@@ -73,9 +76,11 @@ public class RemoteCollectorImpl<T> extends UnicastRemoteObject implements
 			Registry registry;
 
 			registry = LocateRegistry.createRegistry(port);
-			registry.bind(RemoteCollectorOutputFormat.ID, collectorInstance);
-		} catch (Throwable t) {
-			throw new RuntimeException(t);
+			registry.bind(rmiId, collectorInstance);
+		} catch (RemoteException e) {
+			e.printStackTrace();
+		} catch (AlreadyBoundException e) {
+			e.printStackTrace();
 		}
 
 		collectorInstance.setConsumer(consumer);
@@ -126,18 +131,14 @@ public class RemoteCollectorImpl<T> extends UnicastRemoteObject implements
 			throw new RuntimeException(t);
 		}
 
+		// create an ID for this output format instance
+		String rmiId = String.format("%s-%s", RemoteCollectorOutputFormat.class.getName(), UUID.randomUUID());
+		
 		// create the local listening object and bind it to the RMI registry
-		RemoteCollectorImpl.createAndBind(randomPort, consumer);
+		RemoteCollectorImpl.createAndBind(randomPort, consumer, rmiId);
 
 		// create and configure the output format
-		OutputFormat<T> remoteCollectorOutputFormat = new RemoteCollectorOutputFormat<T>();
-
-		Configuration remoteCollectorConfiguration = new Configuration();
-		remoteCollectorConfiguration.setString(
-				RemoteCollectorOutputFormat.REMOTE, ip);
-		remoteCollectorConfiguration.setInteger(
-				RemoteCollectorOutputFormat.PORT, randomPort);
-		remoteCollectorOutputFormat.configure(remoteCollectorConfiguration);
+		OutputFormat<T> remoteCollectorOutputFormat = new RemoteCollectorOutputFormat<T>(ip, randomPort, rmiId);
 
 		// create sink
 		return source.output(remoteCollectorOutputFormat);
