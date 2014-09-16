@@ -25,6 +25,7 @@ import static org.apache.flink.client.CliFrontendTestUtils.getNonJarFilePath;
 import static org.apache.flink.client.CliFrontendTestUtils.getTestJarPath;
 import static org.apache.flink.client.CliFrontendTestUtils.pipeSystemOutToNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
@@ -246,7 +247,7 @@ public class CliFrontendPackageProgramTest {
 			ClassLoader testClassLoader = new ClassLoader(prog.getUserCodeClassLoader()) {
 				@Override
 				public Class<?> loadClass(String name) throws ClassNotFoundException {
-					assertTrue(name.equals("org.apache.hadoop.hive.ql.io.RCFileInputFormat"));
+					assertEquals("org.apache.hadoop.hive.ql.io.RCFileInputFormat", name);
 					callme[0] = true;
 					return String.class; // Intentionally return the wrong class.
 				}
