@@ -32,13 +32,12 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.network.channels.ChannelType;
 import org.apache.flink.runtime.iterative.task.IterationHeadPactTask;
 import org.apache.flink.runtime.iterative.task.IterationTailPactTask;
+import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
-import org.apache.flink.runtime.jobgraph.InputFormatInputVertex;
+import org.apache.flink.runtime.jobgraph.InputFormatVertex;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobGraphDefinitionException;
-import org.apache.flink.runtime.jobgraph.JobTaskVertex;
-import org.apache.flink.runtime.jobgraph.OutputFormatOutputVertex;
-import org.apache.flink.runtime.jobgraph.SimpleOutputVertex;
+import org.apache.flink.runtime.jobgraph.OutputFormatVertex;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.operators.CollectorMapDriver;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.GroupReduceDriver;
@@ -113,8 +112,7 @@ public class IterationWithChainingNepheleITCase extends RecordAPITestBase {
 		return getTestJobGraph(dataPath, resultPath, numSubTasks, maxIterations);
 	}
 
-	private JobGraph getTestJobGraph(String inputPath, String outputPath, int numSubTasks, int maxIterations)
-			throws JobGraphDefinitionException {
+	private JobGraph getTestJobGraph(String inputPath, String outputPath, int numSubTasks, int maxIterations) {
 
 		final JobGraph jobGraph = new JobGraph("Iteration Tail with Chaining");
 
@@ -140,8 +138,7 @@ public class IterationWithChainingNepheleITCase extends RecordAPITestBase {
 		}
 
 		// - head ------------------------------------------------------------------------------------------------------
-		JobTaskVertex head = JobGraphUtils.createTask(
-			IterationHeadPactTask.class, "Iteration Head", jobGraph, numSubTasks);
+		AbstractJobVertex head = JobGraphUtils.createTask(IterationHeadPactTask.class, "Iteration Head", jobGraph, numSubTasks);
 		TaskConfig headConfig = new TaskConfig(head.getConfiguration());
 		{
 			headConfig.setIterationId(ITERATION_ID);
@@ -176,8 +173,7 @@ public class IterationWithChainingNepheleITCase extends RecordAPITestBase {
 		}
 
 		// - tail ------------------------------------------------------------------------------------------------------
-		JobTaskVertex tail = JobGraphUtils.createTask(
-			IterationTailPactTask.class, "Chained Iteration Tail", jobGraph, numSubTasks);
+		AbstractJobVertex tail = JobGraphUtils.createTask(IterationTailPactTask.class, "Chained Iteration Tail", jobGraph, numSubTasks);
 		TaskConfig tailConfig = new TaskConfig(tail.getConfiguration());
 		{
 			tailConfig.setIterationId(ITERATION_ID);
@@ -225,10 +221,10 @@ public class IterationWithChainingNepheleITCase extends RecordAPITestBase {
 		}
 
 		// - fake tail -------------------------------------------------------------------------------------------------
-		OutputFormatVertex fakeTail = JobGraphUtils.createFakeOutput(jobGraph, "Fake Tail", numSubTasks);
+		AbstractJobVertex fakeTail = JobGraphUtils.createFakeOutput(jobGraph, "Fake Tail", numSubTasks);
 
 		// - sync ------------------------------------------------------------------------------------------------------
-		OutputFormatVertex sync = JobGraphUtils.createSync(jobGraph, numSubTasks);
+		AbstractJobVertex sync = JobGraphUtils.createSync(jobGraph, numSubTasks);
 		TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());
 		syncConfig.setNumberOfIterations(maxIterations);
 		syncConfig.setIterationId(ITERATION_ID);
@@ -250,15 +246,18 @@ public class IterationWithChainingNepheleITCase extends RecordAPITestBase {
 		// --------------------------------------------------------------------------------------------------------------
 		// 3. INSTANCE SHARING
 		// --------------------------------------------------------------------------------------------------------------
-		input.setVertexToShareInstancesWith(head);
-
-		tail.setVertexToShareInstancesWith(head);
-
-		output.setVertexToShareInstancesWith(head);
-
-		sync.setVertexToShareInstancesWith(head);
-
-		fakeTail.setVertexToShareInstancesWith(tail);
+		
+		SlotSharingGroup sharingGroup = new SlotSharingGroup();
+		
+		input.setSlotSharingGroup(sharingGroup);
+		head.setSlotSharingGroup(sharingGroup);
+		tail.setSlotSharingGroup(sharingGroup);
+		fakeTail.setSlotSharingGroup(sharingGroup);
+		output.setSlotSharingGroup(sharingGroup);
+		sync.setSlotSharingGroup(sharingGroup);
+		
+		tail.setStrictlyCoLocatedWith(head);
+		fakeTail.setStrictlyCoLocatedWith(tail);
 
 		return jobGraph;
 	}

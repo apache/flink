@@ -276,7 +276,7 @@ public class AbstractJobVertex implements java.io.Serializable {
 	 */
 	public void setStrictlyCoLocatedWith(AbstractJobVertex strictlyCoLocatedWith) {
 		if (this.slotSharingGroup == null || this.slotSharingGroup != strictlyCoLocatedWith.slotSharingGroup) {
-			throw new IllegalArgumentException();
+			throw new IllegalArgumentException("Strict co-location requires that both vertices are in the same slot sharing group.");
 		}
 		
 		CoLocationGroup thisGroup = this.coLocationGroup;

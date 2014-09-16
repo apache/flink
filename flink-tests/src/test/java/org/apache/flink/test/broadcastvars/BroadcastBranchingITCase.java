@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.broadcastvars;
 
 import java.util.Collection;

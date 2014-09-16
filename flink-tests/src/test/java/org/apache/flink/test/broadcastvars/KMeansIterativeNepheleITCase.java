@@ -36,6 +36,7 @@ import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.InputFormatVertex;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.OutputFormatVertex;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.operators.CollectorMapDriver;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.GroupReduceDriver;
@@ -221,7 +222,7 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 	private static AbstractJobVertex createReducer(JobGraph jobGraph, int numSubTasks, TypeSerializerFactory<?> inputSerializer,
 			TypeComparatorFactory<?> inputComparator, TypeSerializerFactory<?> outputSerializer)
 	{
-		// ---------------- the tail (co group) --------------------
+		// ---------------- the tail (reduce) --------------------
 		
 		AbstractJobVertex tail = JobGraphUtils.createTask(IterationTailPactTask.class, "Reduce / Iteration Tail", jobGraph,
 			numSubTasks);
@@ -248,7 +249,7 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 		tailConfig.setOutputSerializer(outputSerializer);
 		
 		// the udf
-		tailConfig.setStubWrapper(new UserCodeObjectWrapper<RecomputeClusterCenter>(new RecomputeClusterCenter()));
+		tailConfig.setStubWrapper(new UserCodeObjectWrapper<WrappingReduceFunction>(new WrappingReduceFunction(new RecomputeClusterCenter())));
 		
 		return tail;
 	}
@@ -283,7 +284,7 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 		
 		AbstractJobVertex reducer = createReducer(jobGraph, numSubTasks, serializer, int0Comparator, serializer);
 		
-		OutputFormatVertex fakeTailOutput = JobGraphUtils.createFakeOutput(jobGraph, "FakeTailOutput", numSubTasks);
+		AbstractJobVertex fakeTailOutput = JobGraphUtils.createFakeOutput(jobGraph, "FakeTailOutput", numSubTasks);
 		
 		AbstractJobVertex sync = createSync(jobGraph, numIterations, numSubTasks);
 		
@@ -310,13 +311,21 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 		JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
 
 		// -- instance sharing -------------------------------------------------------------------------------------
-		points.setVertexToShareInstancesWith(output);
-		centers.setVertexToShareInstancesWith(output);
-		head.setVertexToShareInstancesWith(output);
-		mapper.setVertexToShareInstancesWith(output);
-		reducer.setVertexToShareInstancesWith(output);
-		fakeTailOutput.setVertexToShareInstancesWith(output);
-		sync.setVertexToShareInstancesWith(output);
+		
+		SlotSharingGroup sharingGroup = new SlotSharingGroup();
+		
+		points.setSlotSharingGroup(sharingGroup);
+		centers.setSlotSharingGroup(sharingGroup);
+		head.setSlotSharingGroup(sharingGroup);
+		mapper.setSlotSharingGroup(sharingGroup);
+		reducer.setSlotSharingGroup(sharingGroup);
+		fakeTailOutput.setSlotSharingGroup(sharingGroup);
+		sync.setSlotSharingGroup(sharingGroup);
+		output.setSlotSharingGroup(sharingGroup);
+		
+		mapper.setStrictlyCoLocatedWith(head);
+		reducer.setStrictlyCoLocatedWith(head);
+		fakeTailOutput.setStrictlyCoLocatedWith(reducer);
 
 		return jobGraph;
 	}

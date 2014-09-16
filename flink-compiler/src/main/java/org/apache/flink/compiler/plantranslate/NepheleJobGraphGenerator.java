@@ -123,6 +123,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 	
 	private IterationPlanNode currentIteration;	// hack: as long as no nesting is possible, remember the enclosing iteration
 	
+	private SlotSharingGroup sharingGroup;
 	
 	// ------------------------------------------------------------------------
 
@@ -157,6 +158,8 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		this.auxVertices = new ArrayList<AbstractJobVertex>();
 		this.iterations = new HashMap<IterationPlanNode, IterationDescriptor>();
 		
+		this.sharingGroup = new SlotSharingGroup();
+		
 		// generate Nephele job graph
 		program.accept(this);
 		
@@ -183,13 +186,9 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		JobGraph graph = new JobGraph(program.getJobName());
 		graph.setAllowQueuedScheduling(false);
 		
-		// all vertices share the same slot sharing group, for now
-		SlotSharingGroup sharingGroup = new SlotSharingGroup();
-		
 		// add vertices to the graph
 		for (AbstractJobVertex vertex : this.vertices.values()) {
 			graph.addVertex(vertex);
-			vertex.setSlotSharingGroup(sharingGroup);
 		}
 		
 		for (AbstractJobVertex vertex : this.auxVertices) {
@@ -346,6 +345,8 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			int pd = node.getDegreeOfParallelism();
 			vertex.setParallelism(pd);
 			
+			vertex.setSlotSharingGroup(sharingGroup);
+			
 			// check whether this vertex is part of an iteration step function
 			if (this.currentIteration != null) {
 				// check that the task has the same DOP as the iteration as such
@@ -357,10 +358,6 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 				// store the id of the iterations the step functions participate in
 				IterationDescriptor descr = this.iterations.get(this.currentIteration);
 				new TaskConfig(vertex.getConfiguration()).setIterationId(descr.getId());
-				
-				// make sure tasks inside iterations are co-located with the head
-				AbstractJobVertex headVertex = this.iterations.get(this.currentIteration).getHeadTask();
-				vertex.setStrictlyCoLocatedWith(headVertex);
 			}
 	
 			// store in the map
@@ -417,13 +414,14 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 				return;
 			}
 			
+			final AbstractJobVertex targetVertex = this.vertices.get(node);
+			
+			
 			// --------- Main Path: Translation of channels ----------
 			// 
 			// There are two paths of translation: One for chained tasks (or merged tasks in general),
 			// which do not have their own task vertex. The other for tasks that have their own vertex,
 			// or are the primary task in a vertex (to which the others are chained).
-			
-			final AbstractJobVertex targetVertex = this.vertices.get(node);
 			
 			// check whether this node has its own task, or is merged with another one
 			if (targetVertex == null) {
@@ -491,6 +489,17 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			}
 			
 			// -------- Here, we translate non-chained tasks -------------
+			
+			
+			if (this.currentIteration != null) {
+				AbstractJobVertex head = this.iterations.get(this.currentIteration).getHeadTask();
+				if (head == null) {
+					throw new CompilerException("Found no iteration head task in the postVisit of translating a task inside an iteration");
+				}
+				
+				targetVertex.setStrictlyCoLocatedWith(head);
+			}
+			
 			
 			// create the config that will contain all the description of the inputs
 			final TaskConfig targetVertexConfig = new TaskConfig(targetVertex.getConfiguration());

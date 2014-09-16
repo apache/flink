@@ -29,12 +29,12 @@ import org.apache.flink.runtime.io.network.channels.ChannelType;
 import org.apache.flink.runtime.iterative.task.IterationHeadPactTask;
 import org.apache.flink.runtime.iterative.task.IterationIntermediatePactTask;
 import org.apache.flink.runtime.iterative.task.IterationTailPactTask;
+import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
-import org.apache.flink.runtime.jobgraph.InputFormatInputVertex;
+import org.apache.flink.runtime.jobgraph.InputFormatVertex;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobTaskVertex;
-import org.apache.flink.runtime.jobgraph.OutputFormatOutputVertex;
-import org.apache.flink.runtime.jobgraph.SimpleOutputVertex;
+import org.apache.flink.runtime.jobgraph.OutputFormatVertex;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.operators.BuildSecondCachedMatchDriver;
 import org.apache.flink.runtime.operators.CoGroupDriver;
 import org.apache.flink.runtime.operators.CollectorMapDriver;
@@ -155,7 +155,7 @@ public class CustomCompensatableDanglingPageRankWithCombiner {
 		adjacencyListInputConfig.setOutputComparator(vertexWithAdjacencyListComparator, 0);
 
 		// --------------- the head ---------------------
-		JobTaskVertex head = JobGraphUtils.createTask(IterationHeadPactTask.class, "IterationHead", jobGraph,
+		AbstractJobVertex head = JobGraphUtils.createTask(IterationHeadPactTask.class, "IterationHead", jobGraph,
 			degreeOfParallelism);
 		TaskConfig headConfig = new TaskConfig(head.getConfiguration());
 		headConfig.setIterationId(ITERATION_ID);
@@ -200,7 +200,7 @@ public class CustomCompensatableDanglingPageRankWithCombiner {
 
 		// --------------- the join ---------------------
 		
-		JobTaskVertex intermediate = JobGraphUtils.createTask(IterationIntermediatePactTask.class,
+		AbstractJobVertex intermediate = JobGraphUtils.createTask(IterationIntermediatePactTask.class,
 			"IterationIntermediate", jobGraph, degreeOfParallelism);
 		TaskConfig intermediateConfig = new TaskConfig(intermediate.getConfiguration());
 		intermediateConfig.setIterationId(ITERATION_ID);
@@ -240,11 +240,11 @@ public class CustomCompensatableDanglingPageRankWithCombiner {
 
 		// ---------------- the tail (co group) --------------------
 		
-		JobTaskVertex tail = JobGraphUtils.createTask(IterationTailPactTask.class, "IterationTail", jobGraph,
+		AbstractJobVertex tail = JobGraphUtils.createTask(IterationTailPactTask.class, "IterationTail", jobGraph,
 			degreeOfParallelism);
 		TaskConfig tailConfig = new TaskConfig(tail.getConfiguration());
 		tailConfig.setIterationId(ITERATION_ID);
-        tailConfig.setIsWorksetUpdate();
+		tailConfig.setIsWorksetUpdate();
 		
 		// inputs and driver
 		tailConfig.setDriver(CoGroupDriver.class);
@@ -288,10 +288,10 @@ public class CustomCompensatableDanglingPageRankWithCombiner {
 		
 		// --------------- the auxiliaries ---------------------
 		
-		OutputFormatVertex fakeTailOutput = JobGraphUtils.createFakeOutput(jobGraph, "FakeTailOutput",
+		AbstractJobVertex fakeTailOutput = JobGraphUtils.createFakeOutput(jobGraph, "FakeTailOutput",
 			degreeOfParallelism);
 
-		OutputFormatVertex sync = JobGraphUtils.createSync(jobGraph, degreeOfParallelism);
+		AbstractJobVertex sync = JobGraphUtils.createSync(jobGraph, degreeOfParallelism);
 		TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());
 		syncConfig.setNumberOfIterations(numIterations);
 		syncConfig.addIterationAggregator(CustomCompensatableDotProductCoGroup.AGGREGATOR_NAME, new PageRankStatsAggregator());
@@ -317,13 +317,19 @@ public class CustomCompensatableDanglingPageRankWithCombiner {
 
 		JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.POINTWISE);
 		
-		fakeTailOutput.setVertexToShareInstancesWith(tail);
-		tail.setVertexToShareInstancesWith(head);
-		pageWithRankInput.setVertexToShareInstancesWith(head);
-		adjacencyListInput.setVertexToShareInstancesWith(head);
-		intermediate.setVertexToShareInstancesWith(head);
-		output.setVertexToShareInstancesWith(head);
-		sync.setVertexToShareInstancesWith(head);
+		SlotSharingGroup sharingGroup = new SlotSharingGroup();
+		pageWithRankInput.setSlotSharingGroup(sharingGroup);
+		adjacencyListInput.setSlotSharingGroup(sharingGroup);
+		head.setSlotSharingGroup(sharingGroup);
+		intermediate.setSlotSharingGroup(sharingGroup);
+		tail.setSlotSharingGroup(sharingGroup);
+		fakeTailOutput.setSlotSharingGroup(sharingGroup);
+		output.setSlotSharingGroup(sharingGroup);
+		sync.setSlotSharingGroup(sharingGroup);
+		
+		fakeTailOutput.setStrictlyCoLocatedWith(tail);
+		tail.setStrictlyCoLocatedWith(head);
+		intermediate.setStrictlyCoLocatedWith(head);
 
 		return jobGraph;
 	}

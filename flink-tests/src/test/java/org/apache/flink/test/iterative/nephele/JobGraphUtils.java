@@ -110,8 +110,8 @@ public class JobGraphUtils {
 		return sync;
 	}
 
-	public static OutputFormatVertex createFakeOutput(JobGraph jobGraph, String name, int degreeOfParallelism) {
-		OutputFormatVertex outputVertex = new OutputFormatVertex(name);
+	public static AbstractJobVertex createFakeOutput(JobGraph jobGraph, String name, int degreeOfParallelism) {
+		AbstractJobVertex outputVertex = new AbstractJobVertex(name);
 		jobGraph.addVertex(outputVertex);
 		
 		outputVertex.setInvokableClass(FakeOutputTask.class);

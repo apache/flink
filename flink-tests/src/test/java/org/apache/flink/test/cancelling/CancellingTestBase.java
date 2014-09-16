@@ -197,9 +197,10 @@ public abstract class CancellingTestBase {
 							exitLoop = true;
 							break;
 						case RUNNING:
+						case CANCELLING:
+						case FAILING:
+						case CREATED:
 							break;
-						default:
-							throw new Exception("Bug: Unrecognized Job Status.");
 						}
 					}
 

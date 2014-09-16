@@ -43,13 +43,12 @@ import org.apache.flink.runtime.iterative.convergence.WorksetEmptyConvergenceCri
 import org.apache.flink.runtime.iterative.task.IterationHeadPactTask;
 import org.apache.flink.runtime.iterative.task.IterationIntermediatePactTask;
 import org.apache.flink.runtime.iterative.task.IterationTailPactTask;
+import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
-import org.apache.flink.runtime.jobgraph.InputFormatInputVertex;
+import org.apache.flink.runtime.jobgraph.InputFormatVertex;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobGraphDefinitionException;
-import org.apache.flink.runtime.jobgraph.JobTaskVertex;
-import org.apache.flink.runtime.jobgraph.OutputFormatOutputVertex;
-import org.apache.flink.runtime.jobgraph.SimpleOutputVertex;
+import org.apache.flink.runtime.jobgraph.OutputFormatVertex;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.operators.BuildSecondCachedMatchDriver;
 import org.apache.flink.runtime.operators.CollectorMapDriver;
 import org.apache.flink.runtime.operators.DriverStrategy;
@@ -175,8 +174,8 @@ public class ConnectedComponentsNepheleITCase extends RecordAPITestBase {
 	// -----------------------------------------------------------------------------------------------------------------
 
 	private static InputFormatVertex createVerticesInput(JobGraph jobGraph, String verticesPath, int numSubTasks,
-			TypeSerializerFactory<?> serializer,
-			TypeComparatorFactory<?> comparator) {
+			TypeSerializerFactory<?> serializer, TypeComparatorFactory<?> comparator)
+	{
 		@SuppressWarnings("unchecked")
 		CsvInputFormat verticesInFormat = new CsvInputFormat(' ', LongValue.class);
 		InputFormatVertex verticesInput = JobGraphUtils.createInput(verticesInFormat, verticesPath, "VerticesInput",
@@ -205,13 +204,13 @@ public class ConnectedComponentsNepheleITCase extends RecordAPITestBase {
 		return verticesInput;
 	}
 
-	private static InputFormatInputVertex createEdgesInput(JobGraph jobGraph, String edgesPath, int numSubTasks,
-			TypeSerializerFactory<?> serializer,
-			TypeComparatorFactory<?> comparator) {
+	private static InputFormatVertex createEdgesInput(JobGraph jobGraph, String edgesPath, int numSubTasks,
+			TypeSerializerFactory<?> serializer, TypeComparatorFactory<?> comparator)
+	{
 		// edges
 		@SuppressWarnings("unchecked")
 		CsvInputFormat edgesInFormat = new CsvInputFormat(' ', LongValue.class, LongValue.class);
-		InputFormatInputVertex edgesInput = JobGraphUtils.createInput(edgesInFormat, edgesPath, "EdgesInput", jobGraph,
+		InputFormatVertex edgesInput = JobGraphUtils.createInput(edgesInFormat, edgesPath, "EdgesInput", jobGraph,
 			numSubTasks);
 		TaskConfig edgesInputConfig = new TaskConfig(edgesInput.getConfiguration());
 		{
@@ -223,13 +222,12 @@ public class ConnectedComponentsNepheleITCase extends RecordAPITestBase {
 		return edgesInput;
 	}
 
-	private static JobTaskVertex createIterationHead(JobGraph jobGraph, int numSubTasks,
+	private static AbstractJobVertex createIterationHead(JobGraph jobGraph, int numSubTasks,
 			TypeSerializerFactory<?> serializer,
 			TypeComparatorFactory<?> comparator,
 			TypePairComparatorFactory<?, ?> pairComparator) {
 
-		JobTaskVertex head = JobGraphUtils.createTask(IterationHeadPactTask.class, "Join With Edges (Iteration Head)",
-			jobGraph, numSubTasks);
+		AbstractJobVertex head = JobGraphUtils.createTask(IterationHeadPactTask.class, "Join With Edges (Iteration Head)", jobGraph, numSubTasks);
 		TaskConfig headConfig = new TaskConfig(head.getConfiguration());
 		{
 			headConfig.setIterationId(ITERATION_ID);
@@ -295,12 +293,11 @@ public class ConnectedComponentsNepheleITCase extends RecordAPITestBase {
 		return head;
 	}
 
-	private static JobTaskVertex createIterationIntermediate(JobGraph jobGraph, int numSubTasks,
-			TypeSerializerFactory<?> serializer,
-			TypeComparatorFactory<?> comparator) {
-
+	private static AbstractJobVertex createIterationIntermediate(JobGraph jobGraph, int numSubTasks,
+			TypeSerializerFactory<?> serializer, TypeComparatorFactory<?> comparator)
+	{
 		// --------------- the intermediate (reduce to min id) ---------------
-		JobTaskVertex intermediate = JobGraphUtils.createTask(IterationIntermediatePactTask.class,
+		AbstractJobVertex intermediate = JobGraphUtils.createTask(IterationIntermediatePactTask.class,
 			"Find Min Component-ID", jobGraph, numSubTasks);
 		TaskConfig intermediateConfig = new TaskConfig(intermediate.getConfiguration());
 		{
@@ -352,14 +349,12 @@ public class ConnectedComponentsNepheleITCase extends RecordAPITestBase {
 		return output;
 	}
 
-	private static OutputFormatVertex createFakeTail(JobGraph jobGraph, int numSubTasks) {
-		OutputFormatVertex fakeTailOutput =
-			JobGraphUtils.createFakeOutput(jobGraph, "FakeTailOutput", numSubTasks);
-		return fakeTailOutput;
+	private static AbstractJobVertex createFakeTail(JobGraph jobGraph, int numSubTasks) {
+		return JobGraphUtils.createFakeOutput(jobGraph, "FakeTailOutput", numSubTasks);
 	}
 
-	private static OutputFormatVertex createSync(JobGraph jobGraph, int numSubTasks, int maxIterations) {
-		OutputFormatVertex sync = JobGraphUtils.createSync(jobGraph, numSubTasks);
+	private static AbstractJobVertex createSync(JobGraph jobGraph, int numSubTasks, int maxIterations) {
+		AbstractJobVertex sync = JobGraphUtils.createSync(jobGraph, numSubTasks);
 		TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());
 		syncConfig.setNumberOfIterations(maxIterations);
 		syncConfig.setIterationId(ITERATION_ID);
@@ -377,7 +372,6 @@ public class ConnectedComponentsNepheleITCase extends RecordAPITestBase {
 
 	public JobGraph createJobGraphUnifiedTails(
 			String verticesPath, String edgesPath, String resultPath, int numSubTasks, int maxIterations)
-			throws JobGraphDefinitionException
 	{
 		// -- init -------------------------------------------------------------------------------------------------
 		final TypeSerializerFactory<?> serializer = RecordSerializerFactory.get();
@@ -391,18 +385,17 @@ public class ConnectedComponentsNepheleITCase extends RecordAPITestBase {
 		// -- invariant vertices -----------------------------------------------------------------------------------
 		InputFormatVertex vertices = createVerticesInput(jobGraph, verticesPath, numSubTasks, serializer, comparator);
 		InputFormatVertex edges = createEdgesInput(jobGraph, edgesPath, numSubTasks, serializer, comparator);
-		JobTaskVertex head = createIterationHead(jobGraph, numSubTasks, serializer, comparator, pairComparator);
+		AbstractJobVertex head = createIterationHead(jobGraph, numSubTasks, serializer, comparator, pairComparator);
 
-		JobTaskVertex intermediate = createIterationIntermediate(jobGraph, numSubTasks, serializer, comparator);
+		AbstractJobVertex intermediate = createIterationIntermediate(jobGraph, numSubTasks, serializer, comparator);
 		TaskConfig intermediateConfig = new TaskConfig(intermediate.getConfiguration());
 
 		OutputFormatVertex output = createOutput(jobGraph, resultPath, numSubTasks, serializer);
-		OutputFormatVertex fakeTail = createFakeTail(jobGraph, numSubTasks);
-		OutputFormatVertex sync = createSync(jobGraph, numSubTasks, maxIterations);
+		AbstractJobVertex fakeTail = createFakeTail(jobGraph, numSubTasks);
+		AbstractJobVertex sync = createSync(jobGraph, numSubTasks, maxIterations);
 
 		// --------------- the tail (solution set join) ---------------
-		JobTaskVertex tail = JobGraphUtils.createTask(IterationTailPactTask.class, "IterationTail", jobGraph,
-			numSubTasks);
+		AbstractJobVertex tail = JobGraphUtils.createTask(IterationTailPactTask.class, "IterationTail", jobGraph, numSubTasks);
 		TaskConfig tailConfig = new TaskConfig(tail.getConfiguration());
 		{
 			tailConfig.setIterationId(ITERATION_ID);
@@ -446,22 +439,25 @@ public class ConnectedComponentsNepheleITCase extends RecordAPITestBase {
 
 		JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.POINTWISE);
 
-		vertices.setVertexToShareInstancesWith(head);
-		edges.setVertexToShareInstancesWith(head);
-
-		intermediate.setVertexToShareInstancesWith(head);
-		tail.setVertexToShareInstancesWith(head);
-
-		output.setVertexToShareInstancesWith(head);
-		sync.setVertexToShareInstancesWith(head);
-		fakeTail.setVertexToShareInstancesWith(tail);
+		SlotSharingGroup sharingGroup = new SlotSharingGroup();
+		vertices.setSlotSharingGroup(sharingGroup);
+		edges.setSlotSharingGroup(sharingGroup);
+		head.setSlotSharingGroup(sharingGroup);
+		intermediate.setSlotSharingGroup(sharingGroup);
+		tail.setSlotSharingGroup(sharingGroup);
+		output.setSlotSharingGroup(sharingGroup);
+		sync.setSlotSharingGroup(sharingGroup);
+		fakeTail.setSlotSharingGroup(sharingGroup);
+		
+		intermediate.setStrictlyCoLocatedWith(head);
+		tail.setStrictlyCoLocatedWith(head);
+		fakeTail.setStrictlyCoLocatedWith(tail);
 
 		return jobGraph;
 	}
 
 	public JobGraph createJobGraphSeparateTails(
 			String verticesPath, String edgesPath, String resultPath, int numSubTasks, int maxIterations)
-		throws JobGraphDefinitionException
 	{
 		// -- init -------------------------------------------------------------------------------------------------
 		final TypeSerializerFactory<?> serializer = RecordSerializerFactory.get();
@@ -477,22 +473,22 @@ public class ConnectedComponentsNepheleITCase extends RecordAPITestBase {
 		InputFormatVertex edges = createEdgesInput(jobGraph, edgesPath, numSubTasks, serializer, comparator);
 
 		// head
-		JobTaskVertex head = createIterationHead(jobGraph, numSubTasks, serializer, comparator, pairComparator);
+		AbstractJobVertex head = createIterationHead(jobGraph, numSubTasks, serializer, comparator, pairComparator);
 		TaskConfig headConfig = new TaskConfig(head.getConfiguration());
 		headConfig.setWaitForSolutionSetUpdate();
 
 		// intermediate
-		JobTaskVertex intermediate = createIterationIntermediate(jobGraph, numSubTasks, serializer, comparator);
+		AbstractJobVertex intermediate = createIterationIntermediate(jobGraph, numSubTasks, serializer, comparator);
 		TaskConfig intermediateConfig = new TaskConfig(intermediate.getConfiguration());
 
 		// output and auxiliaries
 		OutputFormatVertex output = createOutput(jobGraph, resultPath, numSubTasks, serializer);
-		OutputFormatVertex ssFakeTail = createFakeTail(jobGraph, numSubTasks);
-		OutputFormatVertex wsFakeTail = createFakeTail(jobGraph, numSubTasks);
-		OutputFormatVertex sync = createSync(jobGraph, numSubTasks, maxIterations);
+		AbstractJobVertex ssFakeTail = createFakeTail(jobGraph, numSubTasks);
+		AbstractJobVertex wsFakeTail = createFakeTail(jobGraph, numSubTasks);
+		AbstractJobVertex sync = createSync(jobGraph, numSubTasks, maxIterations);
 
 		// ------------------ the intermediate (ss join) ----------------------
-		JobTaskVertex ssJoinIntermediate = JobGraphUtils.createTask(IterationIntermediatePactTask.class,
+		AbstractJobVertex ssJoinIntermediate = JobGraphUtils.createTask(IterationIntermediatePactTask.class,
 			"Solution Set Join", jobGraph, numSubTasks);
 		TaskConfig ssJoinIntermediateConfig = new TaskConfig(ssJoinIntermediate.getConfiguration());
 		{
@@ -521,7 +517,7 @@ public class ConnectedComponentsNepheleITCase extends RecordAPITestBase {
 		}
 
 		// -------------------------- ss tail --------------------------------
-		JobTaskVertex ssTail = JobGraphUtils.createTask(IterationTailPactTask.class, "IterationSolutionSetTail",
+		AbstractJobVertex ssTail = JobGraphUtils.createTask(IterationTailPactTask.class, "IterationSolutionSetTail",
 			jobGraph, numSubTasks);
 		TaskConfig ssTailConfig = new TaskConfig(ssTail.getConfiguration());
 		{
@@ -546,7 +542,7 @@ public class ConnectedComponentsNepheleITCase extends RecordAPITestBase {
 		}
 
 		// -------------------------- ws tail --------------------------------
-		JobTaskVertex wsTail = JobGraphUtils.createTask(IterationTailPactTask.class, "IterationWorksetTail",
+		AbstractJobVertex wsTail = JobGraphUtils.createTask(IterationTailPactTask.class, "IterationWorksetTail",
 			jobGraph, numSubTasks);
 		TaskConfig wsTailConfig = new TaskConfig(wsTail.getConfiguration());
 		{
@@ -593,27 +589,32 @@ public class ConnectedComponentsNepheleITCase extends RecordAPITestBase {
 
 		JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.POINTWISE);
 
-		vertices.setVertexToShareInstancesWith(head);
-		edges.setVertexToShareInstancesWith(head);
-
-		intermediate.setVertexToShareInstancesWith(head);
-
-		ssJoinIntermediate.setVertexToShareInstancesWith(head);
-		wsTail.setVertexToShareInstancesWith(head);
-
-		output.setVertexToShareInstancesWith(head);
-		sync.setVertexToShareInstancesWith(head);
-
-		ssTail.setVertexToShareInstancesWith(wsTail);
-		ssFakeTail.setVertexToShareInstancesWith(ssTail);
-		wsFakeTail.setVertexToShareInstancesWith(wsTail);
+		SlotSharingGroup sharingGroup = new SlotSharingGroup();
+		vertices.setSlotSharingGroup(sharingGroup);
+		edges.setSlotSharingGroup(sharingGroup);
+		head.setSlotSharingGroup(sharingGroup);
+		intermediate.setSlotSharingGroup(sharingGroup);
+		ssJoinIntermediate.setSlotSharingGroup(sharingGroup);
+		wsTail.setSlotSharingGroup(sharingGroup);
+		ssTail.setSlotSharingGroup(sharingGroup);
+		output.setSlotSharingGroup(sharingGroup);
+		sync.setSlotSharingGroup(sharingGroup);
+		wsFakeTail.setSlotSharingGroup(sharingGroup);
+		ssFakeTail.setSlotSharingGroup(sharingGroup);
+		
+		intermediate.setStrictlyCoLocatedWith(head);
+		ssJoinIntermediate.setStrictlyCoLocatedWith(head);
+		wsTail.setStrictlyCoLocatedWith(head);
+		ssTail.setStrictlyCoLocatedWith(head);
+		wsFakeTail.setStrictlyCoLocatedWith(wsTail);
+		ssFakeTail.setStrictlyCoLocatedWith(ssTail);
 
 		return jobGraph;
 	}
 
 	public JobGraph createJobGraphIntermediateWorksetUpdateAndSolutionSetTail(
 			String verticesPath, String edgesPath, String resultPath, int numSubTasks, int maxIterations)
-			throws JobGraphDefinitionException {
+	{
 		// -- init -------------------------------------------------------------------------------------------------
 		final TypeSerializerFactory<?> serializer = RecordSerializerFactory.get();
 		@SuppressWarnings("unchecked")
@@ -628,23 +629,22 @@ public class ConnectedComponentsNepheleITCase extends RecordAPITestBase {
 		InputFormatVertex edges = createEdgesInput(jobGraph, edgesPath, numSubTasks, serializer, comparator);
 
 		// head
-		JobTaskVertex head = createIterationHead(jobGraph, numSubTasks, serializer, comparator, pairComparator);
+		AbstractJobVertex head = createIterationHead(jobGraph, numSubTasks, serializer, comparator, pairComparator);
 		TaskConfig headConfig = new TaskConfig(head.getConfiguration());
 		headConfig.setWaitForSolutionSetUpdate();
 
 		// intermediate
-		JobTaskVertex intermediate = createIterationIntermediate(jobGraph, numSubTasks, serializer, comparator);
+		AbstractJobVertex intermediate = createIterationIntermediate(jobGraph, numSubTasks, serializer, comparator);
 		TaskConfig intermediateConfig = new TaskConfig(intermediate.getConfiguration());
 
 		// output and auxiliaries
-		OutputFormatVertex output = createOutput(jobGraph, resultPath, numSubTasks, serializer);
-		OutputFormatVertex fakeTail = createFakeTail(jobGraph, numSubTasks);
-		OutputFormatVertex sync = createSync(jobGraph, numSubTasks, maxIterations);
+		AbstractJobVertex output = createOutput(jobGraph, resultPath, numSubTasks, serializer);
+		AbstractJobVertex fakeTail = createFakeTail(jobGraph, numSubTasks);
+		AbstractJobVertex sync = createSync(jobGraph, numSubTasks, maxIterations);
 
 		// ------------------ the intermediate (ws update) ----------------------
-		JobTaskVertex wsUpdateIntermediate =
-			JobGraphUtils.createTask(IterationIntermediatePactTask.class, "WorksetUpdate", jobGraph,
-				numSubTasks);
+		AbstractJobVertex wsUpdateIntermediate = 
+			JobGraphUtils.createTask(IterationIntermediatePactTask.class, "WorksetUpdate", jobGraph, numSubTasks);
 		TaskConfig wsUpdateConfig = new TaskConfig(wsUpdateIntermediate.getConfiguration());
 		{
 			wsUpdateConfig.setIterationId(ITERATION_ID);
@@ -672,9 +672,8 @@ public class ConnectedComponentsNepheleITCase extends RecordAPITestBase {
 		}
 
 		// -------------------------- ss tail --------------------------------
-		JobTaskVertex ssTail =
-			JobGraphUtils.createTask(IterationTailPactTask.class, "IterationSolutionSetTail", jobGraph,
-				numSubTasks);
+		AbstractJobVertex ssTail =
+			JobGraphUtils.createTask(IterationTailPactTask.class, "IterationSolutionSetTail", jobGraph, numSubTasks);
 		TaskConfig ssTailConfig = new TaskConfig(ssTail.getConfiguration());
 		{
 			ssTailConfig.setIterationId(ITERATION_ID);
@@ -717,18 +716,21 @@ public class ConnectedComponentsNepheleITCase extends RecordAPITestBase {
 
 		JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.POINTWISE);
 
-		vertices.setVertexToShareInstancesWith(head);
-		edges.setVertexToShareInstancesWith(head);
+		SlotSharingGroup sharingGroup = new SlotSharingGroup();
+		vertices.setSlotSharingGroup(sharingGroup);
+		edges.setSlotSharingGroup(sharingGroup);
+		head.setSlotSharingGroup(sharingGroup);
+		intermediate.setSlotSharingGroup(sharingGroup);
+		wsUpdateIntermediate.setSlotSharingGroup(sharingGroup);
+		ssTail.setSlotSharingGroup(sharingGroup);
+		output.setSlotSharingGroup(sharingGroup);
+		sync.setSlotSharingGroup(sharingGroup);
+		fakeTail.setSlotSharingGroup(sharingGroup);
 
-		intermediate.setVertexToShareInstancesWith(head);
-
-		wsUpdateIntermediate.setVertexToShareInstancesWith(head);
-		ssTail.setVertexToShareInstancesWith(head);
-
-		output.setVertexToShareInstancesWith(head);
-		sync.setVertexToShareInstancesWith(head);
-
-		fakeTail.setVertexToShareInstancesWith(ssTail);
+		intermediate.setStrictlyCoLocatedWith(head);
+		wsUpdateIntermediate.setStrictlyCoLocatedWith(head);
+		ssTail.setStrictlyCoLocatedWith(head);
+		fakeTail.setStrictlyCoLocatedWith(ssTail);
 
 		return jobGraph;
 	}
@@ -739,7 +741,7 @@ public class ConnectedComponentsNepheleITCase extends RecordAPITestBase {
 
 	public JobGraph createJobGraphSolutionSetUpdateAndWorksetTail(
 			String verticesPath, String edgesPath, String resultPath, int numSubTasks, int maxIterations)
-			throws JobGraphDefinitionException {
+	{
 		// -- init -------------------------------------------------------------------------------------------------
 		final TypeSerializerFactory<?> serializer = RecordSerializerFactory.get();
 		@SuppressWarnings("unchecked")
@@ -754,19 +756,19 @@ public class ConnectedComponentsNepheleITCase extends RecordAPITestBase {
 		InputFormatVertex edges = createEdgesInput(jobGraph, edgesPath, numSubTasks, serializer, comparator);
 
 		// head
-		JobTaskVertex head = createIterationHead(jobGraph, numSubTasks, serializer, comparator, pairComparator);
+		AbstractJobVertex head = createIterationHead(jobGraph, numSubTasks, serializer, comparator, pairComparator);
 
 		// intermediate
-		JobTaskVertex intermediate = createIterationIntermediate(jobGraph, numSubTasks, serializer, comparator);
+		AbstractJobVertex intermediate = createIterationIntermediate(jobGraph, numSubTasks, serializer, comparator);
 		TaskConfig intermediateConfig = new TaskConfig(intermediate.getConfiguration());
 
 		// output and auxiliaries
-		OutputFormatVertex output = createOutput(jobGraph, resultPath, numSubTasks, serializer);
-		OutputFormatVertex fakeTail = createFakeTail(jobGraph, numSubTasks);
-		OutputFormatVertex sync = createSync(jobGraph, numSubTasks, maxIterations);
+		AbstractJobVertex output = createOutput(jobGraph, resultPath, numSubTasks, serializer);
+		AbstractJobVertex fakeTail = createFakeTail(jobGraph, numSubTasks);
+		AbstractJobVertex sync = createSync(jobGraph, numSubTasks, maxIterations);
 
 		// ------------------ the intermediate (ss update) ----------------------
-		JobTaskVertex ssJoinIntermediate = JobGraphUtils.createTask(IterationIntermediatePactTask.class,
+		AbstractJobVertex ssJoinIntermediate = JobGraphUtils.createTask(IterationIntermediatePactTask.class,
 			"Solution Set Update", jobGraph, numSubTasks);
 		TaskConfig ssJoinIntermediateConfig = new TaskConfig(ssJoinIntermediate.getConfiguration());
 		{
@@ -794,8 +796,7 @@ public class ConnectedComponentsNepheleITCase extends RecordAPITestBase {
 		}
 
 		// -------------------------- ws tail --------------------------------
-		JobTaskVertex wsTail = JobGraphUtils.createTask(IterationTailPactTask.class, "IterationWorksetTail",
-			jobGraph, numSubTasks);
+		AbstractJobVertex wsTail = JobGraphUtils.createTask(IterationTailPactTask.class, "IterationWorksetTail", jobGraph, numSubTasks);
 		TaskConfig wsTailConfig = new TaskConfig(wsTail.getConfiguration());
 		{
 			wsTailConfig.setIterationId(ITERATION_ID);
@@ -837,18 +838,22 @@ public class ConnectedComponentsNepheleITCase extends RecordAPITestBase {
 
 		JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.POINTWISE);
 
-		vertices.setVertexToShareInstancesWith(head);
-		edges.setVertexToShareInstancesWith(head);
+		
+		SlotSharingGroup sharingGroup = new SlotSharingGroup();
+		vertices.setSlotSharingGroup(sharingGroup);
+		edges.setSlotSharingGroup(sharingGroup);
+		head.setSlotSharingGroup(sharingGroup);
+		intermediate.setSlotSharingGroup(sharingGroup);
+		ssJoinIntermediate.setSlotSharingGroup(sharingGroup);
+		wsTail.setSlotSharingGroup(sharingGroup);
+		output.setSlotSharingGroup(sharingGroup);
+		sync.setSlotSharingGroup(sharingGroup);
+		fakeTail.setSlotSharingGroup(sharingGroup);
 
-		intermediate.setVertexToShareInstancesWith(head);
-
-		ssJoinIntermediate.setVertexToShareInstancesWith(head);
-		wsTail.setVertexToShareInstancesWith(head);
-
-		output.setVertexToShareInstancesWith(head);
-		sync.setVertexToShareInstancesWith(head);
-
-		fakeTail.setVertexToShareInstancesWith(wsTail);
+		intermediate.setStrictlyCoLocatedWith(head);
+		ssJoinIntermediate.setStrictlyCoLocatedWith(head);
+		wsTail.setStrictlyCoLocatedWith(head);
+		fakeTail.setStrictlyCoLocatedWith(wsTail);
 
 		return jobGraph;
 	}

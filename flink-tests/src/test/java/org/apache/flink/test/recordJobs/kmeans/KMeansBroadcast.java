@@ -16,9 +16,7 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.recordJobs.kmeans;
-
 
 import java.io.IOException;
 import java.util.ArrayList;

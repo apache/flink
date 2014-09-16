@@ -165,6 +165,6 @@ public class FileInputSplit extends LocatableInputSplit {
 	
 	@Override
 	public String toString() {
-		return '[' + getSplitNumber() + "] " + file + ":" + start + "+" + length;
+		return "[" + getSplitNumber() + "] " + file + ":" + start + "+" + length;
 	}
 }
