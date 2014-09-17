@@ -56,7 +56,6 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.iterative.convergence.WorksetEmptyConvergenceCriterion;
-import org.apache.flink.runtime.iterative.io.FakeOutputTask;
 import org.apache.flink.runtime.iterative.task.IterationHeadPactTask;
 import org.apache.flink.runtime.iterative.task.IterationIntermediatePactTask;
 import org.apache.flink.runtime.iterative.task.IterationSynchronizationSinkTask;
@@ -1179,21 +1178,11 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		tailConfig.setIsWorksetUpdate();
 		
 		// No following termination criterion
-		if(rootOfStepFunction.getOutgoingChannels().isEmpty()) {
+		if (rootOfStepFunction.getOutgoingChannels().isEmpty()) {
 			
 			rootOfStepFunctionVertex.setInvokableClass(IterationTailPactTask.class);
 			
 			tailConfig.setOutputSerializer(bulkNode.getSerializerForIterationChannel());
-			tailConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
-			
-			// create the fake output task
-			AbstractJobVertex fakeTail = new AbstractJobVertex("Fake Tail");
-			fakeTail.setInvokableClass(FakeOutputTask.class);
-			fakeTail.setParallelism(headVertex.getParallelism());
-			this.auxVertices.add(fakeTail);
-			
-			// connect the fake tail
-			fakeTail.connectNewDataSetAsInput(rootOfStepFunctionVertex, DistributionPattern.POINTWISE);
 		}
 		
 		
@@ -1222,15 +1211,6 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			// Hack
 			tailConfigOfTerminationCriterion.setIsSolutionSetUpdate();
 			tailConfigOfTerminationCriterion.setOutputSerializer(bulkNode.getSerializerForIterationChannel());
-			tailConfigOfTerminationCriterion.addOutputShipStrategy(ShipStrategyType.FORWARD);
-			
-			AbstractJobVertex fakeTailTerminationCriterion = new AbstractJobVertex("Fake Tail for Termination Criterion");
-			fakeTailTerminationCriterion.setInvokableClass(FakeOutputTask.class);
-			fakeTailTerminationCriterion.setParallelism(headVertex.getParallelism());
-			this.auxVertices.add(fakeTailTerminationCriterion);
-		
-			// connect the fake tail
-			fakeTailTerminationCriterion.connectNewDataSetAsInput(rootOfTerminationCriterionVertex, DistributionPattern.POINTWISE);
 			
 			// tell the head that it needs to wait for the solution set updates
 			headConfig.setWaitForSolutionSetUpdate();
@@ -1345,16 +1325,6 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 					nextWorksetVertex.setInvokableClass(IterationTailPactTask.class);
 					
 					worksetTailConfig.setOutputSerializer(iterNode.getWorksetSerializer());
-					worksetTailConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
-					
-					// create the fake output task
-					AbstractJobVertex fakeTail = new AbstractJobVertex("Fake Tail");
-					fakeTail.setInvokableClass(FakeOutputTask.class);
-					fakeTail.setParallelism(headVertex.getParallelism());
-					this.auxVertices.add(fakeTail);
-					
-					// connect the fake tail
-					fakeTail.connectNewDataSetAsInput(nextWorksetVertex, DistributionPattern.POINTWISE);
 				}
 			}
 			{
@@ -1379,16 +1349,6 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 					solutionDeltaVertex.setInvokableClass(IterationTailPactTask.class);
 					
 					solutionDeltaConfig.setOutputSerializer(iterNode.getSolutionSetSerializer());
-					solutionDeltaConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
-	
-					// create the fake output task
-					AbstractJobVertex fakeTail = new AbstractJobVertex("Fake Tail");
-					fakeTail.setInvokableClass(FakeOutputTask.class);
-					fakeTail.setParallelism(headVertex.getParallelism());
-					this.auxVertices.add(fakeTail);
-					
-					// connect the fake tail
-					fakeTail.connectNewDataSetAsInput(solutionDeltaVertex, DistributionPattern.POINTWISE);
 					
 					// tell the head that it needs to wait for the solution set updates
 					headConfig.setWaitForSolutionSetUpdate();

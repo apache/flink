@@ -28,7 +28,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.io.network.channels.ChannelType;
-import org.apache.flink.runtime.iterative.io.FakeOutputTask;
 import org.apache.flink.runtime.iterative.task.IterationSynchronizationSinkTask;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -108,15 +107,6 @@ public class JobGraphUtils {
 		TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());
 		syncConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, parallelism);
 		return sync;
-	}
-
-	public static AbstractJobVertex createFakeOutput(JobGraph jobGraph, String name, int degreeOfParallelism) {
-		AbstractJobVertex outputVertex = new AbstractJobVertex(name);
-		jobGraph.addVertex(outputVertex);
-		
-		outputVertex.setInvokableClass(FakeOutputTask.class);
-		outputVertex.setParallelism(degreeOfParallelism);
-		return outputVertex;
 	}
 
 	public static OutputFormatVertex createFileOutput(JobGraph jobGraph, String name, int parallelism) {

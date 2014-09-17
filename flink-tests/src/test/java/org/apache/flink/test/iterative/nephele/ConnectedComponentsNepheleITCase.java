@@ -349,10 +349,6 @@ public class ConnectedComponentsNepheleITCase extends RecordAPITestBase {
 		return output;
 	}
 
-	private static AbstractJobVertex createFakeTail(JobGraph jobGraph, int numSubTasks) {
-		return JobGraphUtils.createFakeOutput(jobGraph, "FakeTailOutput", numSubTasks);
-	}
-
 	private static AbstractJobVertex createSync(JobGraph jobGraph, int numSubTasks, int maxIterations) {
 		AbstractJobVertex sync = JobGraphUtils.createSync(jobGraph, numSubTasks);
 		TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());
@@ -391,7 +387,6 @@ public class ConnectedComponentsNepheleITCase extends RecordAPITestBase {
 		TaskConfig intermediateConfig = new TaskConfig(intermediate.getConfiguration());
 
 		OutputFormatVertex output = createOutput(jobGraph, resultPath, numSubTasks, serializer);
-		AbstractJobVertex fakeTail = createFakeTail(jobGraph, numSubTasks);
 		AbstractJobVertex sync = createSync(jobGraph, numSubTasks, maxIterations);
 
 		// --------------- the tail (solution set join) ---------------
@@ -411,7 +406,6 @@ public class ConnectedComponentsNepheleITCase extends RecordAPITestBase {
 			tailConfig.setInputSerializer(serializer, 0);
 
 			// output
-			tailConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
 			tailConfig.setOutputSerializer(serializer);
 
 			// the driver
@@ -435,7 +429,6 @@ public class ConnectedComponentsNepheleITCase extends RecordAPITestBase {
 		tailConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, 1);
 
 		JobGraphUtils.connect(head, output, ChannelType.IN_MEMORY, DistributionPattern.POINTWISE);
-		JobGraphUtils.connect(tail, fakeTail, ChannelType.IN_MEMORY, DistributionPattern.POINTWISE);
 
 		JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.POINTWISE);
 
@@ -447,11 +440,9 @@ public class ConnectedComponentsNepheleITCase extends RecordAPITestBase {
 		tail.setSlotSharingGroup(sharingGroup);
 		output.setSlotSharingGroup(sharingGroup);
 		sync.setSlotSharingGroup(sharingGroup);
-		fakeTail.setSlotSharingGroup(sharingGroup);
 		
 		intermediate.setStrictlyCoLocatedWith(head);
 		tail.setStrictlyCoLocatedWith(head);
-		fakeTail.setStrictlyCoLocatedWith(tail);
 
 		return jobGraph;
 	}
@@ -483,8 +474,6 @@ public class ConnectedComponentsNepheleITCase extends RecordAPITestBase {
 
 		// output and auxiliaries
 		OutputFormatVertex output = createOutput(jobGraph, resultPath, numSubTasks, serializer);
-		AbstractJobVertex ssFakeTail = createFakeTail(jobGraph, numSubTasks);
-		AbstractJobVertex wsFakeTail = createFakeTail(jobGraph, numSubTasks);
 		AbstractJobVertex sync = createSync(jobGraph, numSubTasks, maxIterations);
 
 		// ------------------ the intermediate (ss join) ----------------------
@@ -532,7 +521,6 @@ public class ConnectedComponentsNepheleITCase extends RecordAPITestBase {
 			ssTailConfig.setRelativeInputMaterializationMemory(0, MEM_FRAC_PER_CONSUMER);
 
 			// output
-			ssTailConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
 			ssTailConfig.setOutputSerializer(serializer);
 
 			// the driver
@@ -555,7 +543,6 @@ public class ConnectedComponentsNepheleITCase extends RecordAPITestBase {
 			wsTailConfig.setInputSerializer(serializer, 0);
 
 			// output
-			wsTailConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
 			wsTailConfig.setOutputSerializer(serializer);
 
 			// the driver
@@ -584,9 +571,6 @@ public class ConnectedComponentsNepheleITCase extends RecordAPITestBase {
 
 		JobGraphUtils.connect(head, output, ChannelType.IN_MEMORY, DistributionPattern.POINTWISE);
 
-		JobGraphUtils.connect(ssTail, ssFakeTail, ChannelType.IN_MEMORY, DistributionPattern.POINTWISE);
-		JobGraphUtils.connect(wsTail, wsFakeTail, ChannelType.IN_MEMORY, DistributionPattern.POINTWISE);
-
 		JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.POINTWISE);
 
 		SlotSharingGroup sharingGroup = new SlotSharingGroup();
@@ -599,15 +583,11 @@ public class ConnectedComponentsNepheleITCase extends RecordAPITestBase {
 		ssTail.setSlotSharingGroup(sharingGroup);
 		output.setSlotSharingGroup(sharingGroup);
 		sync.setSlotSharingGroup(sharingGroup);
-		wsFakeTail.setSlotSharingGroup(sharingGroup);
-		ssFakeTail.setSlotSharingGroup(sharingGroup);
 		
 		intermediate.setStrictlyCoLocatedWith(head);
 		ssJoinIntermediate.setStrictlyCoLocatedWith(head);
 		wsTail.setStrictlyCoLocatedWith(head);
 		ssTail.setStrictlyCoLocatedWith(head);
-		wsFakeTail.setStrictlyCoLocatedWith(wsTail);
-		ssFakeTail.setStrictlyCoLocatedWith(ssTail);
 
 		return jobGraph;
 	}
@@ -639,7 +619,6 @@ public class ConnectedComponentsNepheleITCase extends RecordAPITestBase {
 
 		// output and auxiliaries
 		AbstractJobVertex output = createOutput(jobGraph, resultPath, numSubTasks, serializer);
-		AbstractJobVertex fakeTail = createFakeTail(jobGraph, numSubTasks);
 		AbstractJobVertex sync = createSync(jobGraph, numSubTasks, maxIterations);
 
 		// ------------------ the intermediate (ws update) ----------------------
@@ -685,7 +664,6 @@ public class ConnectedComponentsNepheleITCase extends RecordAPITestBase {
 			ssTailConfig.setInputSerializer(serializer, 0);
 
 			// output
-			ssTailConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
 			ssTailConfig.setOutputSerializer(serializer);
 
 			// the driver
@@ -712,8 +690,6 @@ public class ConnectedComponentsNepheleITCase extends RecordAPITestBase {
 
 		JobGraphUtils.connect(head, output, ChannelType.IN_MEMORY, DistributionPattern.POINTWISE);
 
-		JobGraphUtils.connect(ssTail, fakeTail, ChannelType.IN_MEMORY, DistributionPattern.POINTWISE);
-
 		JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.POINTWISE);
 
 		SlotSharingGroup sharingGroup = new SlotSharingGroup();
@@ -725,12 +701,10 @@ public class ConnectedComponentsNepheleITCase extends RecordAPITestBase {
 		ssTail.setSlotSharingGroup(sharingGroup);
 		output.setSlotSharingGroup(sharingGroup);
 		sync.setSlotSharingGroup(sharingGroup);
-		fakeTail.setSlotSharingGroup(sharingGroup);
 
 		intermediate.setStrictlyCoLocatedWith(head);
 		wsUpdateIntermediate.setStrictlyCoLocatedWith(head);
 		ssTail.setStrictlyCoLocatedWith(head);
-		fakeTail.setStrictlyCoLocatedWith(ssTail);
 
 		return jobGraph;
 	}
@@ -764,7 +738,6 @@ public class ConnectedComponentsNepheleITCase extends RecordAPITestBase {
 
 		// output and auxiliaries
 		AbstractJobVertex output = createOutput(jobGraph, resultPath, numSubTasks, serializer);
-		AbstractJobVertex fakeTail = createFakeTail(jobGraph, numSubTasks);
 		AbstractJobVertex sync = createSync(jobGraph, numSubTasks, maxIterations);
 
 		// ------------------ the intermediate (ss update) ----------------------
@@ -808,7 +781,6 @@ public class ConnectedComponentsNepheleITCase extends RecordAPITestBase {
 			wsTailConfig.setInputSerializer(serializer, 0);
 
 			// output
-			wsTailConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
 			wsTailConfig.setOutputSerializer(serializer);
 
 			// the driver
@@ -834,8 +806,6 @@ public class ConnectedComponentsNepheleITCase extends RecordAPITestBase {
 
 		JobGraphUtils.connect(head, output, ChannelType.IN_MEMORY, DistributionPattern.POINTWISE);
 
-		JobGraphUtils.connect(wsTail, fakeTail, ChannelType.IN_MEMORY, DistributionPattern.POINTWISE);
-
 		JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.POINTWISE);
 
 		
@@ -848,12 +818,10 @@ public class ConnectedComponentsNepheleITCase extends RecordAPITestBase {
 		wsTail.setSlotSharingGroup(sharingGroup);
 		output.setSlotSharingGroup(sharingGroup);
 		sync.setSlotSharingGroup(sharingGroup);
-		fakeTail.setSlotSharingGroup(sharingGroup);
 
 		intermediate.setStrictlyCoLocatedWith(head);
 		ssJoinIntermediate.setStrictlyCoLocatedWith(head);
 		wsTail.setStrictlyCoLocatedWith(head);
-		fakeTail.setStrictlyCoLocatedWith(wsTail);
 
 		return jobGraph;
 	}

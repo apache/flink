@@ -266,7 +266,6 @@ public class CustomCompensatableDanglingPageRankWithCombiner {
 		tailConfig.addIterationAggregator(CustomCompensatableDotProductCoGroup.AGGREGATOR_NAME, new PageRankStatsAggregator());
 		
 		// output
-		tailConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
 		tailConfig.setOutputSerializer(vertexWithRankAndDanglingSerializer);
 		
 		// the stub
@@ -287,9 +286,6 @@ public class CustomCompensatableDanglingPageRankWithCombiner {
 		outputConfig.setStubParameter(FileOutputFormat.FILE_PARAMETER_KEY, outputPath);
 		
 		// --------------- the auxiliaries ---------------------
-		
-		AbstractJobVertex fakeTailOutput = JobGraphUtils.createFakeOutput(jobGraph, "FakeTailOutput",
-			degreeOfParallelism);
 
 		AbstractJobVertex sync = JobGraphUtils.createSync(jobGraph, degreeOfParallelism);
 		TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());
@@ -313,7 +309,6 @@ public class CustomCompensatableDanglingPageRankWithCombiner {
 		tailConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(1, degreeOfParallelism);
 
 		JobGraphUtils.connect(head, output, ChannelType.IN_MEMORY, DistributionPattern.POINTWISE);
-		JobGraphUtils.connect(tail, fakeTailOutput, ChannelType.IN_MEMORY, DistributionPattern.POINTWISE);
 
 		JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.POINTWISE);
 		
@@ -323,11 +318,9 @@ public class CustomCompensatableDanglingPageRankWithCombiner {
 		head.setSlotSharingGroup(sharingGroup);
 		intermediate.setSlotSharingGroup(sharingGroup);
 		tail.setSlotSharingGroup(sharingGroup);
-		fakeTailOutput.setSlotSharingGroup(sharingGroup);
 		output.setSlotSharingGroup(sharingGroup);
 		sync.setSlotSharingGroup(sharingGroup);
-		
-		fakeTailOutput.setStrictlyCoLocatedWith(tail);
+
 		tail.setStrictlyCoLocatedWith(head);
 		intermediate.setStrictlyCoLocatedWith(head);
 

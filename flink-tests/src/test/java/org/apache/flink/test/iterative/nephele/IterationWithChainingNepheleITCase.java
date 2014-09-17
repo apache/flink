@@ -201,7 +201,6 @@ public class IterationWithChainingNepheleITCase extends RecordAPITestBase {
 			chainedMapperConfig.setInputLocalStrategy(0, LocalStrategy.NONE);
 			chainedMapperConfig.setInputSerializer(serializer, 0);
 
-			chainedMapperConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
 			chainedMapperConfig.setOutputSerializer(serializer);
 
 			chainedMapperConfig.setIsWorksetUpdate();
@@ -219,9 +218,6 @@ public class IterationWithChainingNepheleITCase extends RecordAPITestBase {
 			outputConfig.setStubWrapper(new UserCodeClassWrapper<PointOutFormat>(PointOutFormat.class));
 			outputConfig.setStubParameter(FileOutputFormat.FILE_PARAMETER_KEY, outputPath);
 		}
-
-		// - fake tail -------------------------------------------------------------------------------------------------
-		AbstractJobVertex fakeTail = JobGraphUtils.createFakeOutput(jobGraph, "Fake Tail", numSubTasks);
 
 		// - sync ------------------------------------------------------------------------------------------------------
 		AbstractJobVertex sync = JobGraphUtils.createSync(jobGraph, numSubTasks);
@@ -241,8 +237,6 @@ public class IterationWithChainingNepheleITCase extends RecordAPITestBase {
 
 		JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.POINTWISE);
 
-		JobGraphUtils.connect(tail, fakeTail, ChannelType.IN_MEMORY, DistributionPattern.POINTWISE);
-
 		// --------------------------------------------------------------------------------------------------------------
 		// 3. INSTANCE SHARING
 		// --------------------------------------------------------------------------------------------------------------
@@ -252,12 +246,10 @@ public class IterationWithChainingNepheleITCase extends RecordAPITestBase {
 		input.setSlotSharingGroup(sharingGroup);
 		head.setSlotSharingGroup(sharingGroup);
 		tail.setSlotSharingGroup(sharingGroup);
-		fakeTail.setSlotSharingGroup(sharingGroup);
 		output.setSlotSharingGroup(sharingGroup);
 		sync.setSlotSharingGroup(sharingGroup);
 		
 		tail.setStrictlyCoLocatedWith(head);
-		fakeTail.setStrictlyCoLocatedWith(tail);
 
 		return jobGraph;
 	}

@@ -1241,10 +1241,10 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	 * @return The OutputCollector that data produced in this task is submitted to.
 	 */
 	public static <T> Collector<T> getOutputCollector(AbstractInvokable task, TaskConfig config, ClassLoader cl, List<BufferWriter> eventualOutputs, int numOutputs)
-	throws Exception
+			throws Exception
 	{
-		if (numOutputs <= 0) {
-			throw new Exception("BUG: The task must have at least one output");
+		if (numOutputs == 0) {
+			return null;
 		}
 
 		// get the factory for the serializer
