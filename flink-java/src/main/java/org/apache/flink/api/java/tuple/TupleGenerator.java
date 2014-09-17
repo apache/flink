@@ -673,7 +673,7 @@ class TupleGenerator {
 		w.println("\tpublic String toString() {");
 		w.println("\t\treturn \"(\" + StringUtils.arrayAwareToString(this.f0)");
 		for (int i = 1; i < numFields; i++) {
-			w.println("\t\t\t+ \", \" + StringUtils.arrayAwareToString(this.f" + i + ")");
+			w.println("\t\t\t+ \",\" + StringUtils.arrayAwareToString(this.f" + i + ")");
 		}
 		w.println("\t\t\t+ \")\";");
 		w.println("\t}");
@@ -844,13 +844,15 @@ class TupleGenerator {
 		+ " * with the License.  You may obtain a copy of the License at\n"
 		+ " *\n"
 		+ " *     http://www.apache.org/licenses/LICENSE-2.0\n"
-		+ "	*\n"
+		+ " *\n"
 		+ " * Unless required by applicable law or agreed to in writing, software\n"
 		+ " * distributed under the License is distributed on an \"AS IS\" BASIS,\n"
 		+ " * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n"
 		+ " * See the License for the specific language governing permissions and\n"
 		+ " * limitations under the License.\n"
 		+ " */" +
+		"\n" +
+		"\n" +
 		"\n" +
 		"// --------------------------------------------------------------\n" +
 		"//  THIS IS A GENERATED SOURCE FILE. DO NOT EDIT!\n" +

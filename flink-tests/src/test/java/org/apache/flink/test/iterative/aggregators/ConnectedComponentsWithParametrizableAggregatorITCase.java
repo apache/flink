@@ -83,8 +83,8 @@ public class ConnectedComponentsWithParametrizableAggregatorITCase extends JavaP
 
 		resultPath = getTempDirPath("result");
 
-		expectedResult = "(1, 1)\n" + "(2, 1)\n" + "(3, 1)\n" + "(4, 1)\n" +
-						"(5, 1)\n" + "(6, 1)\n" + "(7, 7)\n" + "(8, 7)\n" + "(9, 7)\n";
+		expectedResult = "(1,1)\n" + "(2,1)\n" + "(3,1)\n" + "(4,1)\n" +
+						"(5,1)\n" + "(6,1)\n" + "(7,7)\n" + "(8,7)\n" + "(9,7)\n";
 	}
 
 	@Override

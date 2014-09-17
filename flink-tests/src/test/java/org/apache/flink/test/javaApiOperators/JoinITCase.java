@@ -162,9 +162,9 @@ public class JoinITCase extends JavaProgramTestBase {
 				env.execute();
 				
 				// return expected result
-				return "(1, 1, Hi),(2, 2, 1, Hallo Welt, 2)\n" +
-						"(2, 2, Hello),(2, 3, 2, Hallo Welt wie, 1)\n" +
-						"(3, 2, Hello world),(3, 4, 3, Hallo Welt wie gehts?, 2)\n";
+				return "(1,1,Hi),(2,2,1,Hallo Welt,2)\n" +
+						"(2,2,Hello),(2,3,2,Hallo Welt wie,1)\n" +
+						"(3,2,Hello world),(3,4,3,Hallo Welt wie gehts?,2)\n";
 			
 			}
 			case 4: {
