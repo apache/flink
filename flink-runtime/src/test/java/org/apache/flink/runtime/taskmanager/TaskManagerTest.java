@@ -387,7 +387,7 @@ public class TaskManagerTest {
 	}
 	
 	public static TaskManager createTaskManager(JobManager jm) throws Exception {
-		InetAddress localhost = InetAddress.getLoopbackAddress();
+		InetAddress localhost = InetAddress.getLocalHost();
 		InetSocketAddress jmMockAddress = new InetSocketAddress(localhost, 55443);
 		
 		Configuration cfg = new Configuration();
