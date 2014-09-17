@@ -76,6 +76,7 @@ under the License.
 			 it on the "mvn" commandline in travis. -->
 		<flink.forkCount>1.5C</flink.forkCount>
 		<flink.reuseForks>true</flink.reuseForks>
+		<slf4j.version>1.7.7</slf4j.version>
 	</properties>
 
 	<dependencies>
@@ -88,7 +89,7 @@ under the License.
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
-            <version>1.7.7</version>
+            <version>${slf4j.version}</version>
         </dependency>
 
         <dependency>
@@ -97,6 +98,12 @@ under the License.
             <version>1.0.13</version>
             <scope>runtime</scope>
         </dependency>
+
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>log4j-over-slf4j</artifactId>
+			<version>${slf4j.version}</version>
+		</dependency>
 
 		<dependency>
 			<groupId>com.google.guava</groupId>
@@ -189,16 +196,38 @@ under the License.
 						<groupId>org.apache.hadoop</groupId>
 						<artifactId>hadoop-common</artifactId>
 						<version>${hadoop.version}</version>
+						<exclusions>
+							<exclusion>
+								<groupId>org.slf4j</groupId>
+								<artifactId>slf4j-log4j12</artifactId>
+							</exclusion>
+							<exclusion>
+								<groupId>log4j</groupId>
+								<artifactId>log4j</artifactId>
+							</exclusion>
+						</exclusions>
 					</dependency>
 					<dependency>
 						<groupId>org.apache.hadoop</groupId>
 						<artifactId>hadoop-hdfs</artifactId>
 						<version>${hadoop.version}</version>
+						<exclusions>
+							<exclusion>
+								<groupId>log4j</groupId>
+								<artifactId>log4j</artifactId>
+							</exclusion>
+						</exclusions>
 					</dependency>
 					<dependency>
 						<groupId>org.apache.hadoop</groupId>
 						<artifactId>hadoop-client</artifactId>
 						<version>${hadoop.version}</version>
+						<exclusions>
+							<exclusion>
+								<groupId>org.slf4j</groupId>
+								<artifactId>slf4j-log4j12</artifactId>
+							</exclusion>
+						</exclusions>
 					</dependency>
 				</dependencies>
 			</dependencyManagement>
