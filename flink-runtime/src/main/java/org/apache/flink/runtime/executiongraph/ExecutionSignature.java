@@ -16,18 +16,17 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.executiongraph;
 
-import java.io.IOException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
-import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 
 /**
@@ -37,7 +36,6 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
  * to recognize particular parts of a job. Execution signature objects are immutable and, consequently, thread-safe.
  * <p>
  * This class is thread-safe.
- * 
  */
 public final class ExecutionSignature {
 
@@ -54,7 +52,7 @@ public final class ExecutionSignature {
 	/**
 	 * The message digest object used to calculate the signature.
 	 */
-	private static MessageDigest messageDigest = null;
+	private static MessageDigest MESSAGE_DIGEST = null;
 
 	/**
 	 * The buffer storing the signature.
@@ -76,17 +74,17 @@ public final class ExecutionSignature {
 	 * 
 	 * @param invokableClass
 	 *        the name of the class to contain the task program
-	 * @param jobID
-	 *        the ID of the job
+	 * @param requiredJarFiles
+	 *        + * list of BLOB keys referring to the JAR files required to run this job in lexicographic order
 	 * @return the cryptographic signature of this vertex
 	 */
 	public static synchronized ExecutionSignature createSignature(
-			final Class<? extends AbstractInvokable> invokableClass, final JobID jobID) {
+			final Class<? extends AbstractInvokable> invokableClass, final List<BlobKey> requiredJarFiles) {
 
 		// First, try to load message digest algorithm, if necessary
-		if (messageDigest == null) {
+		if (MESSAGE_DIGEST == null) {
 			try {
-				messageDigest = MessageDigest.getInstance(HASHINGALGORITHM);
+				MESSAGE_DIGEST = MessageDigest.getInstance(HASHINGALGORITHM);
 			} catch (NoSuchAlgorithmException e) {
 				LOG.error("Unable to load message digest algorithm " + HASHINGALGORITHM);
 				return null;
@@ -94,30 +92,15 @@ public final class ExecutionSignature {
 		}
 
 		// Reset digest buffer and add the name of the invokable class to the message digest buffer
-		messageDigest.reset();
-		messageDigest.update(invokableClass.getName().getBytes());
+		MESSAGE_DIGEST.reset();
+		MESSAGE_DIGEST.update(invokableClass.getName().getBytes());
 
-		String[] requiredJarFiles;
-		// Next, retrieve the JAR-files associated with this job
-		try {
-			requiredJarFiles = LibraryCacheManager.getRequiredJarFiles(jobID);
-		} catch (IOException ioe) {
-			// Output an error message and return
-			LOG.error("Cannot access library cache manager for job ID " + jobID);
-			return null;
+		for (final Iterator<BlobKey> it = requiredJarFiles.iterator(); it.hasNext();) {
+			it.next().addToMessageDigest(MESSAGE_DIGEST);
 		}
 
-		// Now, sort the list of JAR-files in order to always calculate the signature in the same manner
-		Arrays.sort(requiredJarFiles);
-
-		// Finally, add the names of the JAR-files to the hash calculation
-		for (int i = 0; i < requiredJarFiles.length; i++) {
-			messageDigest.update(requiredJarFiles[i].getBytes());
-		}
-
-		return new ExecutionSignature(messageDigest.digest());
+		return new ExecutionSignature(MESSAGE_DIGEST.digest());
 	}
-
 
 	@Override
 	public boolean equals(final Object obj) {
@@ -131,7 +114,6 @@ public final class ExecutionSignature {
 		return false;
 	}
 
-
 	@Override
 	public int hashCode() {
 
@@ -143,7 +125,6 @@ public final class ExecutionSignature {
 
 		return hashCode;
 	}
-
 
 	@Override
 	public String toString() {

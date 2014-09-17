@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.executiongraph;
 
 import java.io.IOException;
@@ -57,7 +56,6 @@ import org.apache.flink.util.StringUtils;
  * task managers and process the task in parallel.
  * <p>
  * This class is thread-safe.
- * 
  */
 public final class ExecutionVertex {
 
@@ -127,7 +125,6 @@ public final class ExecutionVertex {
 	 * failed.
 	 */
 	private final AtomicInteger retriesLeft;
-
 
 	/**
 	 * The execution pipeline this vertex is part of.
@@ -701,7 +698,7 @@ public final class ExecutionVertex {
 	 * corresponding task is not in the state <code>RUNNING</code>, this call will be ignored. If the call has been
 	 * executed
 	 * successfully, the task will change the state <code>FAILED</code>.
-	 *
+	 * 
 	 * @return the result of the task kill attempt
 	 */
 	public TaskKillResult killTask() {
@@ -824,7 +821,6 @@ public final class ExecutionVertex {
 		return this.executionGraph;
 	}
 
-
 	@Override
 	public String toString() {
 
@@ -887,7 +883,6 @@ public final class ExecutionVertex {
 		this.vertexAssignmentListeners.remove(vertexAssignmentListener);
 	}
 
-
 	/**
 	 * Registers the {@link ExecutionListener} object for this vertex. This object
 	 * will be notified about particular events during the vertex's lifetime.
@@ -923,7 +918,6 @@ public final class ExecutionVertex {
 
 		this.executionListeners.remove(Integer.valueOf(executionListener.getPriority()));
 	}
-
 
 	/**
 	 * Sets the {@link ExecutionPipeline} this vertex shall be part of.
@@ -996,7 +990,7 @@ public final class ExecutionVertex {
 			this.vertexID, this.groupVertex.getName(), this.indexInVertexGroup,
 			this.groupVertex.getCurrentNumberOfGroupMembers(), this.executionGraph.getJobConfiguration(),
 			this.groupVertex.getConfiguration(), this.groupVertex.getInvokableClass(), ogd,
-			igd);
+			igd, this.executionGraph.getRequiredJarFiles());
 
 		return tdd;
 	}

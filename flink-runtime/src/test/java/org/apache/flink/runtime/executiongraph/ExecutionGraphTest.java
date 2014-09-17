@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.executiongraph;
 
 import static org.junit.Assert.assertEquals;
@@ -28,9 +27,12 @@ import static org.junit.Assert.fail;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.io.network.channels.ChannelType;
@@ -50,9 +52,14 @@ import org.apache.flink.api.java.io.TextInputFormat;
 
 /**
  * This class contains test concerning the correct conversion from {@link JobGraph} to {@link ExecutionGraph} objects.
- * 
  */
 public class ExecutionGraphTest {
+
+	/**
+	 * Dummy list of required JAR files.
+	 */
+	private static final Collection<BlobKey> REQUIRED_JAR_FILES = Collections.emptyList();
+
 	/*
 	 * input1 -> task1 -> output1
 	 * output1 shares instance with input1
@@ -98,7 +105,7 @@ public class ExecutionGraphTest {
 			i1.connectTo(t1);
 			t1.connectTo(o1);
 
-			LibraryCacheManager.register(jobID, new String[0]);
+			LibraryCacheManager.register(jobID, REQUIRED_JAR_FILES);
 
 			final ExecutionGraph eg = new ExecutionGraph(jg, 1);
 
@@ -299,7 +306,7 @@ public class ExecutionGraphTest {
 			i1.connectTo(t1, ChannelType.IN_MEMORY);
 			t1.connectTo(o1, ChannelType.IN_MEMORY);
 
-			LibraryCacheManager.register(jobID, new String[0]);
+			LibraryCacheManager.register(jobID, REQUIRED_JAR_FILES);
 
 			// now convert job graph to execution graph
 			final ExecutionGraph eg = new ExecutionGraph(jg, 1);
@@ -389,7 +396,7 @@ public class ExecutionGraphTest {
 			i1.setInvokableClass(DataSourceTask.class);
 			i1.setInputFormat(new TextInputFormat(new Path(inputFile1.toURI())));
 			i1.setNumberOfSubtasks(2);
-			
+
 			final JobInputVertex i2 = new JobInputVertex("Input 2", jg);
 			i2.setInvokableClass(DataSourceTask.class);
 			i2.setInputFormat(new TextInputFormat(new Path(inputFile2.toURI())));
@@ -406,7 +413,6 @@ public class ExecutionGraphTest {
 			t3.setInvokableClass(ForwardTask2Inputs1Output.class);
 			t3.setNumberOfSubtasks(2);
 
-			
 			// output vertex
 			final JobOutputVertex o1 = new JobOutputVertex("Output 1", jg);
 			o1.setInvokableClass(DataSinkTask.class);
@@ -425,7 +431,7 @@ public class ExecutionGraphTest {
 			t2.connectTo(t3);
 			t3.connectTo(o1);
 
-			LibraryCacheManager.register(jobID, new String[0]);
+			LibraryCacheManager.register(jobID, REQUIRED_JAR_FILES);
 
 			final ExecutionGraph eg = new ExecutionGraph(jg, 1);
 
@@ -670,7 +676,7 @@ public class ExecutionGraphTest {
 			t4.connectTo(o1, ChannelType.NETWORK);
 			t4.connectTo(o2, ChannelType.NETWORK);
 
-			LibraryCacheManager.register(jobID, new String[0]);
+			LibraryCacheManager.register(jobID, REQUIRED_JAR_FILES);
 
 			// now convert job graph to execution graph
 			final ExecutionGraph eg = new ExecutionGraph(jg, 1);
@@ -679,7 +685,7 @@ public class ExecutionGraphTest {
 			ExecutionStage executionStage = eg.getCurrentExecutionStage();
 			assertNotNull(executionStage);
 			assertEquals(0, executionStage.getStageNumber());
-			
+
 			assertEquals(20, executionStage.getRequiredSlots());
 			// Fake transition to next stage by triggering execution state changes manually
 			final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(eg, eg.getIndexOfCurrentExecutionStage(),
@@ -767,7 +773,7 @@ public class ExecutionGraphTest {
 			cross.connectTo(output, ChannelType.IN_MEMORY, 0, 0,
 				DistributionPattern.POINTWISE);
 
-			LibraryCacheManager.register(jobID, new String[0]);
+			LibraryCacheManager.register(jobID, REQUIRED_JAR_FILES);
 
 			// now convert job graph to execution graph
 			final ExecutionGraph eg = new ExecutionGraph(jg, 1);
@@ -877,8 +883,6 @@ public class ExecutionGraphTest {
 			input1.setInvokableClass(DataSourceTask.class);
 			input1.setInputFormat(new TextInputFormat(new Path(inputFile1.toURI())));
 			input1.setNumberOfSubtasks(degreeOfParallelism);
-			
-			
 
 			// forward vertex 1
 			final JobTaskVertex forward1 = new JobTaskVertex("Forward 1", jg);
@@ -905,9 +909,9 @@ public class ExecutionGraphTest {
 			input1.connectTo(forward1, ChannelType.IN_MEMORY,
 				DistributionPattern.POINTWISE);
 			forward1.connectTo(forward2, ChannelType.IN_MEMORY,
-					DistributionPattern.POINTWISE);
+				DistributionPattern.POINTWISE);
 			forward2.connectTo(forward3, ChannelType.NETWORK,
-					DistributionPattern.POINTWISE);
+				DistributionPattern.POINTWISE);
 			forward3.connectTo(output1, ChannelType.IN_MEMORY);
 
 			// setup instance sharing
@@ -916,7 +920,7 @@ public class ExecutionGraphTest {
 			forward2.setVertexToShareInstancesWith(forward3);
 			forward3.setVertexToShareInstancesWith(output1);
 
-			LibraryCacheManager.register(jobID, new String[0]);
+			LibraryCacheManager.register(jobID, REQUIRED_JAR_FILES);
 
 			// now convert job graph to execution graph
 			final ExecutionGraph eg = new ExecutionGraph(jg, 1);

@@ -68,9 +68,6 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.RuntimeEnvironment;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheProfileRequest;
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheProfileResponse;
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheUpdate;
 import org.apache.flink.runtime.executiongraph.ExecutionVertexID;
 import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.instance.HardwareDescription;
@@ -389,6 +386,19 @@ public class TaskManager implements TaskOperationProtocol {
 			} catch (Throwable t) {
 				LOG.error("Unable to initialize memory manager with " + (memorySize >>> 20) + " megabytes of memory.", t);
 				throw new Exception("Unable to initialize memory manager.", t);
+			}
+		}
+		
+		// Determine the port of the BLOB server and register it with the library cache manager
+		{
+			final IntegerRecord blobPort = this.jobManager.getBlobServerPort();
+			if (blobPort.getValue() == -1) {
+				LOG.warn("Unable to determine BLOB server address: User library download will not be available");
+			} else {
+				final InetSocketAddress blobServerAddress = new InetSocketAddress(
+					jobManagerAddress.getAddress(), blobPort.getValue());
+				LOG.info("Determined BLOB server address to be " + blobServerAddress);
+				LibraryCacheManager.setBlobServerAddress(blobServerAddress);
 			}
 		}
 
@@ -927,30 +937,6 @@ public class TaskManager implements TaskOperationProtocol {
 				}
 			}
 		}
-	}
-
-
-	@Override
-	public LibraryCacheProfileResponse getLibraryCacheProfile(LibraryCacheProfileRequest request) throws IOException {
-
-		LibraryCacheProfileResponse response = new LibraryCacheProfileResponse(request);
-		String[] requiredLibraries = request.getRequiredLibraries();
-
-		for (int i = 0; i < requiredLibraries.length; i++) {
-			if (LibraryCacheManager.contains(requiredLibraries[i]) == null) {
-				response.setCached(i, false);
-			} else {
-				response.setCached(i, true);
-			}
-		}
-
-		return response;
-	}
-
-
-	@Override
-	public void updateLibraryCache(LibraryCacheUpdate update) throws IOException {
-		// Nothing to to here
 	}
 
 	public void executionStateChanged(final JobID jobID, final ExecutionVertexID id,

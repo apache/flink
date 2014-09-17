@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.jobmanager;
 
 import java.io.File;
@@ -51,6 +50,7 @@ import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.io.StringRecord;
 import org.apache.flink.runtime.ExecutionMode;
 import org.apache.flink.runtime.accumulators.AccumulatorEvent;
+import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.client.AbstractJobResult;
 import org.apache.flink.runtime.client.JobCancelResult;
 import org.apache.flink.runtime.client.JobProgressResult;
@@ -113,16 +113,14 @@ import org.apache.flink.runtime.util.SerializableArrayList;
 import org.apache.flink.util.StringUtils;
 
 /**
- * In Nephele the job manager is the central component for communication with clients, creating
+ * In Flink the job manager is the central component for communication with clients, creating
  * schedules for incoming jobs and supervise their execution. A job manager may only exist once in
  * the system and its address must be known the clients.
  * Task managers can discover the job manager by means of an UDP broadcast and afterwards advertise
  * themselves as new workers for tasks.
- * 
  */
 public class JobManager implements DeploymentManager, ExtendedManagementProtocol, InputSplitProviderProtocol,
-		JobManagerProtocol, ChannelLookupProtocol, JobStatusListener, AccumulatorProtocol
-{
+		JobManagerProtocol, ChannelLookupProtocol, JobStatusListener, AccumulatorProtocol {
 
 	private static final Logger LOG = LoggerFactory.getLogger(JobManager.class);
 
@@ -131,13 +129,15 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	private final JobManagerProfiler profiler;
 
 	private final EventCollector eventCollector;
-	
+
+	private final BlobServer blobServer;
+
 	private final ArchiveListener archive;
 
 	private final InputSplitManager inputSplitManager;
 
 	private final DefaultScheduler scheduler;
-	
+
 	private AccumulatorManager accumulatorManager;
 
 	private InstanceManager instanceManager;
@@ -151,13 +151,13 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	private final AtomicBoolean isShutdownInProgress = new AtomicBoolean(false);
 
 	private volatile boolean isShutDown;
-	
+
 	private WebInfoServer server;
-	
-	
+
 	public JobManager(ExecutionMode executionMode) throws Exception {
 
-		final String ipcAddressString = GlobalConfiguration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
+		final String ipcAddressString = GlobalConfiguration
+			.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
 
 		InetAddress ipcAddress = null;
 		if (ipcAddressString != null) {
@@ -177,10 +177,13 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 		// Load the job progress collector
 		this.eventCollector = new EventCollector(this.recommendedClientPollingInterval);
-		
+
+		// Start the BLOB server
+		this.blobServer = new BlobServer();
+
 		// Register simple job archive
 		int archived_items = GlobalConfiguration.getInteger(
-				ConfigConstants.JOB_MANAGER_WEB_ARCHIVE_COUNT, ConfigConstants.DEFAULT_JOB_MANAGER_WEB_ARCHIVE_COUNT);
+			ConfigConstants.JOB_MANAGER_WEB_ARCHIVE_COUNT, ConfigConstants.DEFAULT_JOB_MANAGER_WEB_ARCHIVE_COUNT);
 		if (archived_items > 0) {
 			this.archive = new MemoryArchivist(archived_items);
 			this.eventCollector.registerArchivist(archive);
@@ -188,7 +191,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		else {
 			this.archive = null;
 		}
-		
+
 		// Create the accumulator manager, with same archiving limit as web
 		// interface. We need to store the accumulators for at least one job.
 		// Otherwise they might be deleted before the client requested the
@@ -205,7 +208,8 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		try {
 			final int handlerCount = GlobalConfiguration.getInteger(ConfigConstants.JOB_MANAGER_IPC_HANDLERS_KEY,
 				ConfigConstants.DEFAULT_JOB_MANAGER_IPC_HANDLERS);
-			this.jobManagerServer = RPC.getServer(this, rpcServerAddress.getHostName(), rpcServerAddress.getPort(), handlerCount);
+			this.jobManagerServer = RPC.getServer(this, rpcServerAddress.getHostName(), rpcServerAddress.getPort(),
+				handlerCount);
 			this.jobManagerServer.start();
 		} catch (IOException e) {
 			throw new Exception("Cannot start RPC server: " + e.getMessage(), e);
@@ -276,6 +280,11 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			}
 		}
 
+		// Stop the BLOB server
+		if (this.blobServer != null) {
+			this.blobServer.shutDown();
+		}
+
 		// Stop and clean up the job progress collector
 		if (this.eventCollector != null) {
 			this.eventCollector.shutdown();
@@ -297,14 +306,14 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		this.isShutDown = true;
 		LOG.debug("Shutdown of job manager completed");
 	}
-	
+
 	/**
 	 * Entry point for the program
 	 * 
 	 * @param args
 	 *        arguments from the command line
 	 */
-	
+
 	public static void main(String[] args) {
 		JobManager jobManager;
 		try {
@@ -316,17 +325,18 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			LOG.error(e.getMessage(), e);
 			System.exit(FAILURE_RETURN_CODE);
 		}
-		
+
 		// Clean up is triggered through a shutdown hook
 		// freeze this thread to keep the JVM alive (the job manager threads are daemon threads)
 		Object w = new Object();
 		synchronized (w) {
 			try {
 				w.wait();
-			} catch (InterruptedException e) {}
+			} catch (InterruptedException e) {
+			}
 		}
 	}
-	
+
 	@SuppressWarnings("static-access")
 	public static JobManager initialize(String[] args) throws Exception {
 		final Option configDirOpt = OptionBuilder.withArgName("config directory").hasArg()
@@ -350,7 +360,7 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 		final String configDir = line.getOptionValue(configDirOpt.getOpt(), null);
 		final String executionModeName = line.getOptionValue(executionModeOpt.getOpt(), "local");
-		
+
 		ExecutionMode executionMode = null;
 		if ("local".equals(executionModeName)) {
 			executionMode = ExecutionMode.LOCAL;
@@ -360,25 +370,24 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			System.err.println("Unrecognized execution mode: " + executionModeName);
 			System.exit(FAILURE_RETURN_CODE);
 		}
-		
+
 		// print some startup environment info, like user, code revision, etc
 		EnvironmentInformation.logEnvironmentInfo(LOG, "JobManager");
-		
+
 		// First, try to load global configuration
 		GlobalConfiguration.loadConfiguration(configDir);
 
 		// Create a new job manager object
 		JobManager jobManager = new JobManager(executionMode);
-		
+
 		// Set base dir for info server
 		Configuration infoserverConfig = GlobalConfiguration.getConfiguration();
 		if (configDir != null && new File(configDir).isDirectory()) {
-			infoserverConfig.setString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY, configDir+"/..");
+			infoserverConfig.setString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY, configDir + "/..");
 		}
 		GlobalConfiguration.includeConfiguration(infoserverConfig);
 		return jobManager;
 	}
-
 
 	@Override
 	public JobSubmissionResult submitJob(JobGraph job) throws IOException {
@@ -387,11 +396,11 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			if (job == null) {
 				return new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR, "Submitted job is null!");
 			}
-	
+
 			if (LOG.isDebugEnabled()) {
 				LOG.debug("Submitted job " + job.getName() + " is not null");
 			}
-	
+
 			// Check if any vertex of the graph has null edges
 			AbstractJobVertex jv = job.findVertexWithNullEdges();
 			if (jv != null) {
@@ -399,33 +408,33 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 					+ jv.getName() + " has at least one null edge");
 				return result;
 			}
-	
+
 			if (LOG.isDebugEnabled()) {
 				LOG.debug("Submitted job " + job.getName() + " has no null edges");
 			}
-	
+
 			// Next, check if the graph is weakly connected
 			if (!job.isWeaklyConnected()) {
 				JobSubmissionResult result = new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR,
 					"Job graph is not weakly connected");
 				return result;
 			}
-	
+
 			if (LOG.isDebugEnabled()) {
 				LOG.debug("The graph of job " + job.getName() + " is weakly connected");
 			}
-	
+
 			// Check if job graph has cycles
 			if (!job.isAcyclic()) {
 				JobSubmissionResult result = new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR,
 					"Job graph is not a DAG");
 				return result;
 			}
-	
+
 			if (LOG.isDebugEnabled()) {
 				LOG.debug("The graph of job " + job.getName() + " is acyclic");
 			}
-	
+
 			// Check constrains on degree
 			jv = job.areVertexDegreesCorrect();
 			if (jv != null) {
@@ -433,90 +442,91 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 					"Degree of vertex " + jv.getName() + " is incorrect");
 				return result;
 			}
-	
+
 			if (LOG.isDebugEnabled()) {
 				LOG.debug("All vertices of job " + job.getName() + " have the correct degree");
 			}
-	
+
 			if (!job.isInstanceDependencyChainAcyclic()) {
 				JobSubmissionResult result = new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR,
 					"The dependency chain for instance sharing contains a cycle");
-	
+
 				return result;
 			}
-	
+
 			if (LOG.isDebugEnabled()) {
 				LOG.debug("The dependency chain for instance sharing is acyclic");
 			}
-	
+
 			// Check if the job will be executed with profiling enabled
 			boolean jobRunsWithProfiling = false;
 			if (this.profiler != null && job.getJobConfiguration().getBoolean(ProfilingUtils.PROFILE_JOB_KEY, true)) {
 				jobRunsWithProfiling = true;
 			}
-	
+
 			// Try to create initial execution graph from job graph
 			LOG.info("Creating initial execution graph from job graph " + job.getName());
 			ExecutionGraph eg;
-	
+
 			try {
 				eg = new ExecutionGraph(job, 1);
 			} catch (GraphConversionException e) {
 				if (e.getCause() == null) {
-					return new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR, StringUtils.stringifyException(e));
+					return new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR,
+						StringUtils.stringifyException(e));
 				} else {
 					Throwable t = e.getCause();
 					if (t instanceof FileNotFoundException) {
 						return new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR, t.getMessage());
 					} else {
-						return new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR, StringUtils.stringifyException(t));
+						return new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR,
+							StringUtils.stringifyException(t));
 					}
 				}
 			}
-	
+
 			// Register job with the progress collector
 			if (this.eventCollector != null) {
 				this.eventCollector.registerJob(eg, jobRunsWithProfiling, System.currentTimeMillis());
 			}
-	
+
 			// Check if profiling should be enabled for this job
 			if (jobRunsWithProfiling) {
 				this.profiler.registerProfilingJob(eg);
-	
+
 				if (this.eventCollector != null) {
 					this.profiler.registerForProfilingData(eg.getJobID(), this.eventCollector);
 				}
-	
+
 			}
-	
+
 			// Register job with the dynamic input split assigner
 			this.inputSplitManager.registerJob(eg);
-	
+
 			// Register for updates on the job status
 			eg.registerJobStatusListener(this);
-	
+
 			// Schedule job
 			if (LOG.isInfoEnabled()) {
 				LOG.info("Scheduling job " + job.getName());
 			}
-	
+
 			try {
 				this.scheduler.scheduleJob(eg);
 			} catch (SchedulingException e) {
 				unregisterJob(eg);
-				JobSubmissionResult result = new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR, StringUtils.stringifyException(e));
+				JobSubmissionResult result = new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR,
+					StringUtils.stringifyException(e));
 				return result;
 			}
-	
+
 			// Return on success
 			return new JobSubmissionResult(AbstractJobResult.ReturnCode.SUCCESS, null);
-		}
-		catch (Throwable t) {
+		} catch (Throwable t) {
 			LOG.error("Job submission failed.", t);
 			return new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR, StringUtils.stringifyException(t));
 		}
 	}
-	
 
 	public InstanceManager getInstanceManager() {
 		return this.instanceManager;
@@ -557,7 +567,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		}
 	}
 
-
 	@Override
 	public void sendHeartbeat(final InstanceConnectionInfo instanceConnectionInfo) {
 
@@ -578,13 +587,13 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 	@Override
 	public RegisterTaskManagerResult registerTaskManager(final InstanceConnectionInfo instanceConnectionInfo,
-									final HardwareDescription hardwareDescription, final IntegerRecord numberOfSlots){
-		if(this.instanceManager != null) {
+			final HardwareDescription hardwareDescription, final IntegerRecord numberOfSlots) {
+		if (this.instanceManager != null) {
 			final Runnable registerTaskManagerRunnable = new Runnable() {
 				@Override
-				public void run(){
+				public void run() {
 					instanceManager.registerTaskManager(instanceConnectionInfo, hardwareDescription,
-							numberOfSlots.getValue());
+						numberOfSlots.getValue());
 				}
 			};
 
@@ -594,7 +603,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 		return new RegisterTaskManagerResult(RegisterTaskManagerResult.ReturnCode.FAILURE);
 	}
-
 
 	@Override
 	public void updateTaskExecutionState(final TaskExecutionState executionState) throws IOException {
@@ -626,7 +634,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		// Asynchronously update execute state of vertex
 		vertex.updateExecutionStateAsynchronously(executionState.getExecutionState(), executionState.getDescription());
 	}
-
 
 	@Override
 	public JobCancelResult cancelJob(final JobID jobID) throws IOException {
@@ -687,7 +694,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		return errorResult;
 	}
 
-
 	@Override
 	public JobProgressResult getJobProgress(final JobID jobID) throws IOException {
 
@@ -702,9 +708,9 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		return new JobProgressResult(ReturnCode.SUCCESS, null, eventList);
 	}
 
-
 	@Override
-	public ConnectionInfoLookupResponse lookupConnectionInfo(InstanceConnectionInfo caller, JobID jobID, ChannelID sourceChannelID) {
+	public ConnectionInfoLookupResponse lookupConnectionInfo(InstanceConnectionInfo caller, JobID jobID,
+			ChannelID sourceChannelID) {
 
 		final ExecutionGraph eg = this.scheduler.getExecutionGraphByID(jobID);
 		if (eg == null) {
@@ -758,7 +764,8 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 				final InstanceConnectionInfo ici = assignedInstance.getInstanceConnectionInfo();
 				final InetSocketAddress isa = new InetSocketAddress(ici.address(), ici.dataPort());
 
-				return ConnectionInfoLookupResponse.createReceiverFoundAndReady(new RemoteReceiver(isa, edge.getConnectionID()));
+				return ConnectionInfoLookupResponse.createReceiverFoundAndReady(new RemoteReceiver(isa, edge
+					.getConnectionID()));
 			}
 		}
 		// else, the request is for an output channel
@@ -769,7 +776,8 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		final ExecutionState executionState = targetVertex.getExecutionState();
 
 		// check whether the task needs to be deployed
-		if (executionState != ExecutionState.RUNNING && executionState != ExecutionState.FINISHING && executionState != ExecutionState.FINISHED) {
+		if (executionState != ExecutionState.RUNNING && executionState != ExecutionState.FINISHING
+			&& executionState != ExecutionState.FINISHED) {
 
 			if (executionState == ExecutionState.ASSIGNED) {
 				final Runnable command = new Runnable() {
@@ -787,7 +795,8 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 		final Instance assignedInstance = targetVertex.getAllocatedResource().getInstance();
 		if (assignedInstance == null) {
-			LOG.error("Cannot resolve lookup: vertex found for channel ID " + edge.getInputChannelID() + " but no instance assigned");
+			LOG.error("Cannot resolve lookup: vertex found for channel ID " + edge.getInputChannelID()
+				+ " but no instance assigned");
 			// LOG.info("Created receiverNotReady for " + targetVertex + " in state " + executionState + " 4");
 			return ConnectionInfoLookupResponse.createReceiverNotReady();
 		}
@@ -800,24 +809,23 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			final InstanceConnectionInfo ici = assignedInstance.getInstanceConnectionInfo();
 			final InetSocketAddress isa = new InetSocketAddress(ici.address(), ici.dataPort());
 
-			return ConnectionInfoLookupResponse.createReceiverFoundAndReady(new RemoteReceiver(isa, edge.getConnectionID()));
+			return ConnectionInfoLookupResponse.createReceiverFoundAndReady(new RemoteReceiver(isa, edge
+				.getConnectionID()));
 		}
 	}
 
 	/**
-	 * Returns current ManagementGraph from eventCollector and, if not current, from archive
-	 * 
-	 * {@inheritDoc}
+	 * Returns current ManagementGraph from eventCollector and, if not current, from archive {@inheritDoc}
 	 */
 	@Override
 	public ManagementGraph getManagementGraph(final JobID jobID) throws IOException {
 
 		ManagementGraph mg = this.eventCollector.getManagementGraph(jobID);
 		if (mg == null) {
-			if(this.archive != null) {
+			if (this.archive != null) {
 				mg = this.archive.getManagementGraph(jobID);
 			}
-			
+
 			if (mg == null) {
 				throw new IOException("Cannot find job with ID " + jobID);
 			}
@@ -825,7 +833,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 		return mg;
 	}
-
 
 	@Override
 	public NetworkTopology getNetworkTopology(final JobID jobID) throws IOException {
@@ -837,13 +844,11 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		return null;
 	}
 
-
 	@Override
 	public IntegerRecord getRecommendedPollingInterval() throws IOException {
 
 		return new IntegerRecord(this.recommendedClientPollingInterval);
 	}
-
 
 	@Override
 	public List<RecentJobEvent> getRecentJobs() throws IOException {
@@ -859,7 +864,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		return eventList;
 	}
 
-
 	@Override
 	public List<AbstractEvent> getEvents(final JobID jobID) throws IOException {
 
@@ -873,7 +877,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 		return eventList;
 	}
-
 
 	@Override
 	public void killTask(final JobID jobID, final ManagementVertexID id) throws IOException {
@@ -906,7 +909,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 		eg.executeCommand(runnable);
 	}
-
 
 	@Override
 	public void killInstance(final StringRecord instanceName) throws IOException {
@@ -945,8 +947,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		return this.isShutDown;
 	}
 
-
-
 	@Override
 	public void jobStatusHasChanged(final ExecutionGraph executionGraph, final InternalJobStatus newJobStatus,
 			final String optionalMessage) {
@@ -966,7 +966,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			unregisterJob(executionGraph);
 		}
 	}
-
 
 	@Override
 	public void logBufferUtilization(final JobID jobID) throws IOException {
@@ -1024,7 +1023,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		return getInstanceManager().getNumberOfSlots();
 	}
 
-
 	@Override
 	public void deploy(final JobID jobID, final Instance instance,
 			final List<ExecutionVertex> verticesToBeDeployed) {
@@ -1053,13 +1051,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			 */
 			@Override
 			public void run() {
-
-				// Check if all required libraries are available on the instance
-				try {
-					instance.checkLibraryAvailability(jobID);
-				} catch (IOException ioe) {
-					LOG.error("Cannot check library availability: " + StringUtils.stringifyException(ioe));
-				}
 
 				final List<TaskDeploymentDescriptor> submissionList = new SerializableArrayList<TaskDeploymentDescriptor>();
 
@@ -1117,7 +1108,6 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 		this.executorService.execute(deploymentRunnable);
 	}
 
-
 	@Override
 	public InputSplitWrapper requestNextInputSplit(final JobID jobID, final ExecutionVertexID vertexID,
 			final IntegerRecord sequenceNumber) throws IOException {
@@ -1136,16 +1126,16 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 
 		return new InputSplitWrapper(jobID, this.inputSplitManager.getNextInputSplit(vertex, sequenceNumber.getValue()));
 	}
-	
+
 	/**
 	 * Starts the Jetty Infoserver for the Jobmanager
-	 * 
 	 */
 	public void startInfoServer() {
 		final Configuration config = GlobalConfiguration.getConfiguration();
 		// Start InfoServer
 		try {
-			int port = config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT);
+			int port = config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY,
+				ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT);
 			server = new WebInfoServer(config, port, this);
 			server.start();
 		} catch (FileNotFoundException e) {
@@ -1154,22 +1144,21 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 			LOG.error("Cannot instantiate info server: " + e.getMessage(), e);
 		}
 	}
-	
-	
+
 	// TODO Add to RPC?
 	public List<RecentJobEvent> getOldJobs() throws IOException {
 
-		//final List<RecentJobEvent> eventList = new SerializableArrayList<RecentJobEvent>();
+		// final List<RecentJobEvent> eventList = new SerializableArrayList<RecentJobEvent>();
 
 		if (this.archive == null) {
 			throw new IOException("No instance of the event collector found");
 		}
 
-		//this.eventCollector.getRecentJobs(eventList);
+		// this.eventCollector.getRecentJobs(eventList);
 
 		return this.archive.getJobs();
 	}
-	
+
 	public ArchiveListener getArchive() {
 		return this.archive;
 	}
@@ -1177,14 +1166,16 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	public int getNumberOfTaskManagers() {
 		return this.instanceManager.getNumberOfTaskManagers();
 	}
-	
+
 	public Map<InstanceConnectionInfo, Instance> getInstances() {
 		return this.instanceManager.getInstances();
 	}
 
 	@Override
 	public void reportAccumulatorResult(AccumulatorEvent accumulatorEvent) throws IOException {
-		this.accumulatorManager.processIncomingAccumulators(accumulatorEvent.getJobID(), accumulatorEvent.getAccumulators(LibraryCacheManager.getClassLoader(accumulatorEvent.getJobID())));
+
+		this.accumulatorManager.processIncomingAccumulators(accumulatorEvent.getJobID(), 
+			accumulatorEvent.getAccumulators(LibraryCacheManager.getClassLoader(accumulatorEvent.getJobID())));
 	}
 
 	@Override
@@ -1194,5 +1185,15 @@ public class JobManager implements DeploymentManager, ExtendedManagementProtocol
 	
 	public Map<String, Accumulator<?, ?>> getAccumulators(JobID jobID) {
 		return this.accumulatorManager.getJobAccumulators(jobID);
+	}
+
+	@Override
+	public IntegerRecord getBlobServerPort() {
+
+		if (this.blobServer == null) {
+			return new IntegerRecord(-1);
+		}
+
+		return new IntegerRecord(this.blobServer.getServerPort());
 	}
 }
