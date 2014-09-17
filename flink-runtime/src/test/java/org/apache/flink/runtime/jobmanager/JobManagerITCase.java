@@ -68,7 +68,7 @@ public class JobManagerITCase {
 			
 			try {
 				
-				assertEquals(1, jm.getAvailableSlots());
+				assertEquals(1, jm.getTotalNumberOfRegisteredSlots());
 				
 				// we need to register the job at the library cache manager (with no libraries)
 				LibraryCacheManager.register(jobGraph.getJobID(), new String[0]);
@@ -141,7 +141,7 @@ public class JobManagerITCase {
 			
 			try {
 				
-				assertEquals(NUM_TASKS, jm.getAvailableSlots());
+				assertEquals(NUM_TASKS, jm.getTotalNumberOfRegisteredSlots());
 				
 				// we need to register the job at the library cache manager (with no libraries)
 				LibraryCacheManager.register(jobGraph.getJobID(), new String[0]);
@@ -535,7 +535,7 @@ public class JobManagerITCase {
 					.getTaskManagers()[0].getChannelManager().getGlobalBufferPool();
 			
 			try {
-				assertEquals(NUM_TASKS, jm.getAvailableSlots());
+				assertEquals(NUM_TASKS, jm.getTotalNumberOfRegisteredSlots());
 				
 				// we need to register the job at the library cache manager (with no libraries)
 				LibraryCacheManager.register(jobGraph.getJobID(), new String[0]);
@@ -599,7 +599,7 @@ public class JobManagerITCase {
 					.getTaskManagers()[0].getChannelManager().getGlobalBufferPool();
 			
 			try {
-				assertEquals(NUM_TASKS, jm.getAvailableSlots());
+				assertEquals(NUM_TASKS, jm.getTotalNumberOfRegisteredSlots());
 				
 				// we need to register the job at the library cache manager (with no libraries)
 				LibraryCacheManager.register(jobGraph.getJobID(), new String[0]);
@@ -727,7 +727,7 @@ public class JobManagerITCase {
 					.getTaskManagers()[0].getChannelManager().getGlobalBufferPool();
 			
 			try {
-				assertEquals(NUM_TASKS, jm.getAvailableSlots());
+				assertEquals(NUM_TASKS, jm.getTotalNumberOfRegisteredSlots());
 				
 				// we need to register the job at the library cache manager (with no libraries)
 				LibraryCacheManager.register(jobGraph.getJobID(), new String[0]);
@@ -788,13 +788,13 @@ public class JobManagerITCase {
 			
 			final JobGraph jobGraph = new JobGraph("Pointwise Job", sender, receiver);
 			
-			final JobManager jm = startJobManager(NUM_TASKS);
+			final JobManager jm = startJobManager(2*NUM_TASKS);
 			
 			final GlobalBufferPool bp = ((LocalInstanceManager) jm.getInstanceManager())
 					.getTaskManagers()[0].getChannelManager().getGlobalBufferPool();
 			
 			try {
-				assertEquals(NUM_TASKS, jm.getAvailableSlots());
+				assertEquals(2*NUM_TASKS, jm.getNumberOfSlotsAvailableToScheduler());
 				
 				// we need to register the job at the library cache manager (with no libraries)
 				LibraryCacheManager.register(jobGraph.getJobID(), new String[0]);

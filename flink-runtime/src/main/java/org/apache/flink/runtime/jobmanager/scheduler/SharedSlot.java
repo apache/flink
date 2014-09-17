@@ -24,7 +24,13 @@ import java.util.Set;
 import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
-public class SharedSlot {
+/**
+ * 
+ * NOTE: This class does no synchronization by itself and its mutating
+ *       methods may only be called from within the synchronization scope of
+ *       it associated SlotSharingGroupAssignment.
+ */
+class SharedSlot {
 
 	private final AllocatedSlot allocatedSlot;
 	
@@ -48,77 +54,58 @@ public class SharedSlot {
 		this.subSlots = new HashSet<SubSlot>();
 	}
 	
-	public SharedSlot(AllocatedSlot allocatedSlot) {
-		if (allocatedSlot == null) {
-			throw new NullPointerException();
+	// --------------------------------------------------------------------------------------------
+	
+	AllocatedSlot getAllocatedSlot() {
+		return this.allocatedSlot;
+	}
+	
+	boolean isDisposed() {
+		return disposed;
+	}
+	
+	int getNumberOfAllocatedSubSlots() {
+		return this.subSlots.size();
+	}
+	
+	SubSlot allocateSubSlot(JobVertexID jid) {
+		if (disposed) {
+			return null;
+		} else {
+			SubSlot ss = new SubSlot(this, subSlotNumber++, jid);
+			this.subSlots.add(ss);
+			return ss;
+		}
+	}
+	
+	void returnAllocatedSlot(SubSlot slot) {
+		if (!slot.isReleased()) {
+			throw new IllegalArgumentException("SubSlot is not released.");
 		}
 		
-		this.allocatedSlot = allocatedSlot;
-		this.assignmentGroup = null;;
-		this.subSlots = new HashSet<SubSlot>();
+		this.assignmentGroup.releaseSubSlot(slot, this);
+	}
+	
+	int releaseSlot(SubSlot slot) {
+		if (!this.subSlots.remove(slot)) {
+			throw new IllegalArgumentException("Wrong shared slot for subslot.");
+		}
+		return subSlots.size();
+	}
+	
+	void dispose() {
+		if (subSlots.isEmpty()) {
+			disposed = true;
+			this.allocatedSlot.releaseSlot();
+		} else {
+			throw new IllegalStateException("Cannot dispose while subslots are still alive.");
+		}
 	}
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public AllocatedSlot getAllocatedSlot() {
-		return this.allocatedSlot;
-	}
-	
-	public boolean isDisposed() {
-		return disposed;
-	}
-	
-	public int getNumberOfAllocatedSubSlots() {
-		synchronized (this.subSlots) {
-			return this.subSlots.size();
-		}
-	}
-	
-	public SubSlot allocateSubSlot(JobVertexID jid) {
-		synchronized (this.subSlots) {
-			if (isDisposed()) {
-				return null;
-			} else {
-				SubSlot ss = new SubSlot(this, subSlotNumber++, jid);
-				this.subSlots.add(ss);
-				return ss;
-			}
-		}
-	}
-	
-	public void rease() {
-		synchronized (this.subSlots) {
-			disposed = true;
-			for (SubSlot ss : subSlots) {
-				ss.releaseSlot();
-			}
-		}
-		
-		allocatedSlot.releaseSlot();
-	}
-	
-	void returnAllocatedSlot(SubSlot slot) {
-		boolean release;
-		
-		synchronized (this.subSlots) {
-			if (!this.subSlots.remove(slot)) {
-				throw new IllegalArgumentException("Wrong shared slot for subslot.");
-			}
-			
-			if (assignmentGroup != null) {
-				release = assignmentGroup.sharedSlotAvailableForJid(this, slot.getJobVertexId(), this.subSlots.isEmpty());
-			} else {
-				release = subSlots.isEmpty();
-			}
-			
-			if (release) {
-				disposed = true;
-			}
-		}
-		
-		// do this call outside the lock, because releasing the allocated slot may go into further scheduler calls
-		if (release) {
-			this.allocatedSlot.releaseSlot();
-		}
+	@Override
+	public String toString() {
+		return "Shared " + allocatedSlot.toString();
 	}
 }

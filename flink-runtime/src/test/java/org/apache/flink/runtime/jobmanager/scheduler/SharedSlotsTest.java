@@ -19,14 +19,13 @@
 package org.apache.flink.runtime.jobmanager.scheduler;
 
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
-
 import static org.junit.Assert.*;
 
 import org.junit.Test;
-
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -37,7 +36,16 @@ public class SharedSlotsTest {
 	public void createAndDoNotRelease() {
 		try {
 			SlotSharingGroupAssignment assignment = mock(SlotSharingGroupAssignment.class);
-			when(assignment.sharedSlotAvailableForJid(any(SharedSlot.class), any(JobVertexID.class), any(boolean.class))).thenReturn(false);
+			doAnswer(new Answer<Void>() {
+				@Override
+				public Void answer(InvocationOnMock invocation) throws Throwable {
+					final SubSlot sub = (SubSlot) invocation.getArguments()[0];
+					final SharedSlot shared = (SharedSlot) invocation.getArguments()[1];
+					shared.releaseSlot(sub);
+					return null;
+				}
+				
+			}).when(assignment).releaseSubSlot(any(SubSlot.class), any(SharedSlot.class));
 			
 			Instance instance = SchedulerTestUtils.getRandomInstance(1);
 			
@@ -77,8 +85,18 @@ public class SharedSlotsTest {
 	public void createAndRelease() {
 		try {
 			SlotSharingGroupAssignment assignment = mock(SlotSharingGroupAssignment.class);
-			when(assignment.sharedSlotAvailableForJid(any(SharedSlot.class), any(JobVertexID.class), eq(false))).thenReturn(false);
-			when(assignment.sharedSlotAvailableForJid(any(SharedSlot.class), any(JobVertexID.class), eq(true))).thenReturn(true);
+			doAnswer(new Answer<Void>() {
+				@Override
+				public Void answer(InvocationOnMock invocation) throws Throwable {
+					final SubSlot sub = (SubSlot) invocation.getArguments()[0];
+					final SharedSlot shared = (SharedSlot) invocation.getArguments()[1];
+					if (shared.releaseSlot(sub) == 0) {
+						shared.dispose();
+					}
+					return null;
+				}
+				
+			}).when(assignment).releaseSubSlot(any(SubSlot.class), any(SharedSlot.class));
 			
 			Instance instance = SchedulerTestUtils.getRandomInstance(1);
 			

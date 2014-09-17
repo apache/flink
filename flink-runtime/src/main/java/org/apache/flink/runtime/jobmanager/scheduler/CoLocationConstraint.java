@@ -18,30 +18,52 @@
 
 package org.apache.flink.runtime.jobmanager.scheduler;
 
+import org.apache.flink.runtime.AbstractID;
 import org.apache.flink.runtime.instance.Instance;
+
+import com.google.common.base.Preconditions;
 
 public class CoLocationConstraint {
 	
-	private volatile Instance location;
+	private final CoLocationGroup group;
+	
+	private volatile SharedSlot sharedSlot;
 	
 	
-	public void setLocation(Instance location) {
-		if (location == null) {
-			throw new IllegalArgumentException();
-		}
-		
-		if (this.location == null) {
-			this.location = location;
-		} else {
-			throw new IllegalStateException("The constraint has already been assigned a location.");
-		}
+	CoLocationConstraint(CoLocationGroup group) {
+		Preconditions.checkNotNull(group);
+		this.group = group;
+	}
+	
+	
+	public SharedSlot getSharedSlot() {
+		return sharedSlot;
 	}
 	
 	public Instance getLocation() {
-		return location;
+		if (sharedSlot != null) {
+			return sharedSlot.getAllocatedSlot().getInstance();
+		} else {
+			throw new IllegalStateException("Not assigned");
+		}
+	}
+	
+	public void setSharedSlot(SharedSlot sharedSlot) {
+		if (this.sharedSlot == sharedSlot) {
+			return;
+		}
+		else if (this.sharedSlot == null || this.sharedSlot.isDisposed()) {
+			this.sharedSlot = sharedSlot;
+		} else {
+			throw new IllegalStateException("Overriding shared slot that is still alive.");
+		}
 	}
 	
 	public boolean isUnassigned() {
-		return this.location == null;
+		return this.sharedSlot == null;
+	}
+	
+	public AbstractID getGroupId() {
+		return this.group.getId();
 	}
 }

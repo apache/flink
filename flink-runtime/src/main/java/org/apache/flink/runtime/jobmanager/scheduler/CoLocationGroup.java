@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobmanager.scheduler;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.flink.runtime.AbstractID;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 
 import com.google.common.base.Preconditions;
@@ -29,6 +30,9 @@ public class CoLocationGroup implements java.io.Serializable {
 	
 	private static final long serialVersionUID = -2605819490401895297L;
 
+	// we use a job vertex ID, because the co location group acts as a unit inside which exclusive sharing of
+	// slots is used
+	private final AbstractID id = new AbstractID();
 	
 	private final List<AbstractJobVertex> vertices = new ArrayList<AbstractJobVertex>();
 	
@@ -80,8 +84,12 @@ public class CoLocationGroup implements java.io.Serializable {
 		if (num > constraints.size()) {
 			constraints.ensureCapacity(num);
 			for (int i = constraints.size(); i < num; i++) {
-				constraints.add(new CoLocationConstraint());
+				constraints.add(new CoLocationConstraint(this));
 			}
 		}
+	}
+	
+	public AbstractID getId() {
+		return id;
 	}
 }

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobmanager.scheduler;
 
 import static org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils.getRandomInstance;
 import static org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils.getTestVertex;
+import static org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils.getTestVertexWithLocation;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -48,12 +49,13 @@ public class ScheduleWithCoLocationHintTest {
 			
 			SlotSharingGroup sharingGroup = new SlotSharingGroup();
 			
-			CoLocationConstraint c1 = new CoLocationConstraint();
-			CoLocationConstraint c2 = new CoLocationConstraint();
-			CoLocationConstraint c3 = new CoLocationConstraint();
-			CoLocationConstraint c4 = new CoLocationConstraint();
-			CoLocationConstraint c5 = new CoLocationConstraint();
-			CoLocationConstraint c6 = new CoLocationConstraint();
+			CoLocationGroup ccg = new CoLocationGroup();
+			CoLocationConstraint c1 = new CoLocationConstraint(ccg);
+			CoLocationConstraint c2 = new CoLocationConstraint(ccg);
+			CoLocationConstraint c3 = new CoLocationConstraint(ccg);
+			CoLocationConstraint c4 = new CoLocationConstraint(ccg);
+			CoLocationConstraint c5 = new CoLocationConstraint(ccg);
+			CoLocationConstraint c6 = new CoLocationConstraint(ccg);
 			
 			// schedule 4 tasks from the first vertex group
 			AllocatedSlot s1 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(jid1, 0, 6), sharingGroup, c1));
@@ -174,7 +176,7 @@ public class ScheduleWithCoLocationHintTest {
 			assertEquals(2, scheduler.getNumberOfAvailableSlots());
 			
 			SlotSharingGroup sharingGroup = new SlotSharingGroup();
-			CoLocationConstraint c1 = new CoLocationConstraint();
+			CoLocationConstraint c1 = new CoLocationConstraint(new CoLocationGroup());
 			
 			AllocatedSlot s1 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(jid1, 0, 1), sharingGroup, c1));
 			AllocatedSlot s2 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(jid2, 0, 1), sharingGroup, c1));
@@ -218,7 +220,7 @@ public class ScheduleWithCoLocationHintTest {
 			assertEquals(2, scheduler.getNumberOfAvailableSlots());
 			
 			SlotSharingGroup sharingGroup = new SlotSharingGroup();
-			CoLocationConstraint c1 = new CoLocationConstraint();
+			CoLocationConstraint c1 = new CoLocationConstraint(new CoLocationGroup());
 			
 			AllocatedSlot s1 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(jid1, 0, 1), sharingGroup, c1));
 			s1.releaseSlot();
@@ -260,10 +262,12 @@ public class ScheduleWithCoLocationHintTest {
 			
 			assertEquals(4, scheduler.getNumberOfAvailableSlots());
 			
-			CoLocationConstraint clc1 = new CoLocationConstraint();
-			CoLocationConstraint clc2 = new CoLocationConstraint();
-			CoLocationConstraint clc3 = new CoLocationConstraint();
-			CoLocationConstraint clc4 = new CoLocationConstraint();
+			CoLocationGroup grp = new CoLocationGroup();
+			CoLocationConstraint clc1 = new CoLocationConstraint(grp);
+			CoLocationConstraint clc2 = new CoLocationConstraint(grp);
+			CoLocationConstraint clc3 = new CoLocationConstraint(grp);
+			CoLocationConstraint clc4 = new CoLocationConstraint(grp);
+			
 			SlotSharingGroup shareGroup = new SlotSharingGroup();
 
 			// first wave
@@ -297,6 +301,300 @@ public class ScheduleWithCoLocationHintTest {
 			assertEquals(4, scheduler.getNumberOfLocalizedAssignments());
 			assertEquals(0, scheduler.getNumberOfNonLocalizedAssignments());
 			assertEquals(12, scheduler.getNumberOfUnconstrainedAssignments());
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+
+	
+	@Test
+	public void testGetsNonLocalFromSharingGroupFirst() {
+		try {
+			JobVertexID jid1 = new JobVertexID();
+			JobVertexID jid2 = new JobVertexID();
+			JobVertexID jid3 = new JobVertexID();
+			
+			Scheduler scheduler = new Scheduler();
+			
+			Instance i1 = getRandomInstance(1);
+			Instance i2 = getRandomInstance(1);
+			
+			scheduler.newInstanceAvailable(i2);
+			scheduler.newInstanceAvailable(i1);
+			
+			assertEquals(2, scheduler.getNumberOfAvailableSlots());
+			
+			SlotSharingGroup sharingGroup = new SlotSharingGroup();
+			
+			CoLocationGroup ccg = new CoLocationGroup();
+			CoLocationConstraint cc1 = new CoLocationConstraint(ccg);
+			CoLocationConstraint cc2 = new CoLocationConstraint(ccg);
+
+			// schedule something into the shared group so that both instances are in the sharing group
+			AllocatedSlot s1 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid1, 0, 2, i1), sharingGroup));
+			AllocatedSlot s2 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid1, 1, 2, i2), sharingGroup));
+			
+			// schedule one locally to instance 1
+			AllocatedSlot s3 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid2, 0, 2, i1), sharingGroup, cc1));
+
+			// schedule with co location constraint (yet unassigned) and a preference for
+			// instance 1, but it can only get instance 2
+			AllocatedSlot s4 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid2, 1, 2, i1), sharingGroup, cc2));
+			
+			// schedule something into the assigned co-location constraints and check that they override the
+			// other preferences
+			AllocatedSlot s5 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid3, 0, 2, i2), sharingGroup, cc1));
+			AllocatedSlot s6 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid3, 1, 2, i1), sharingGroup, cc2));
+			
+			// check that each slot got three
+			assertEquals(3, ((SubSlot) s1).getSharedSlot().getNumberOfAllocatedSubSlots());
+			assertEquals(3, ((SubSlot) s2).getSharedSlot().getNumberOfAllocatedSubSlots());
+			
+			assertEquals(s1.getInstance(), s3.getInstance());
+			assertEquals(s2.getInstance(), s4.getInstance());
+			assertEquals(s1.getInstance(), s5.getInstance());
+			assertEquals(s2.getInstance(), s6.getInstance());
+			
+			// check the scheduler's bookkeeping
+			assertEquals(0, scheduler.getNumberOfAvailableSlots());
+			
+			assertEquals(5, scheduler.getNumberOfLocalizedAssignments());
+			assertEquals(1, scheduler.getNumberOfNonLocalizedAssignments());
+			assertEquals(0, scheduler.getNumberOfUnconstrainedAssignments());
+			
+			// release some slots, be sure that new available ones come up
+			s1.releaseSlot();
+			s2.releaseSlot();
+			s3.releaseSlot();
+			s4.releaseSlot();
+			s5.releaseSlot();
+			s6.releaseSlot();
+			assertEquals(2, scheduler.getNumberOfAvailableSlots());
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testSlotReleasedInBetween() {
+		try {
+			JobVertexID jid1 = new JobVertexID();
+			JobVertexID jid2 = new JobVertexID();
+			
+			Scheduler scheduler = new Scheduler();
+			
+			Instance i1 = getRandomInstance(1);
+			Instance i2 = getRandomInstance(1);
+			
+			scheduler.newInstanceAvailable(i2);
+			scheduler.newInstanceAvailable(i1);
+			
+			assertEquals(2, scheduler.getNumberOfAvailableSlots());
+			
+			SlotSharingGroup sharingGroup = new SlotSharingGroup();
+			
+			CoLocationGroup ccg = new CoLocationGroup();
+			CoLocationConstraint cc1 = new CoLocationConstraint(ccg);
+			CoLocationConstraint cc2 = new CoLocationConstraint(ccg);
+
+			AllocatedSlot s1 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid1, 0, 2, i1), sharingGroup, cc1));
+			AllocatedSlot s2 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid1, 1, 2, i2), sharingGroup, cc2));
+			
+			s1.releaseSlot();
+			s2.releaseSlot();
+			
+			assertEquals(2, scheduler.getNumberOfAvailableSlots());
+			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfSlots());
+
+			AllocatedSlot s3 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid2, 0, 2, i2), sharingGroup, cc1));
+			AllocatedSlot s4 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid2, 1, 2, i1), sharingGroup, cc2));
+			
+			// still preserves the previous instance mapping)
+			assertEquals(i1, s3.getInstance());
+			assertEquals(i2, s4.getInstance());
+			
+			s3.releaseSlot();
+			s4.releaseSlot();
+
+			assertEquals(2, scheduler.getNumberOfAvailableSlots());
+			
+			assertEquals(4, scheduler.getNumberOfLocalizedAssignments());
+			assertEquals(0, scheduler.getNumberOfNonLocalizedAssignments());
+			assertEquals(0, scheduler.getNumberOfUnconstrainedAssignments());
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testSlotReleasedInBetweenAndNoNewLocal() {
+		try {
+			JobVertexID jid1 = new JobVertexID();
+			JobVertexID jid2 = new JobVertexID();
+			JobVertexID jidx = new JobVertexID();
+			
+			Scheduler scheduler = new Scheduler();
+			
+			Instance i1 = getRandomInstance(1);
+			Instance i2 = getRandomInstance(1);
+			
+			scheduler.newInstanceAvailable(i2);
+			scheduler.newInstanceAvailable(i1);
+			
+			assertEquals(2, scheduler.getNumberOfAvailableSlots());
+			
+			SlotSharingGroup sharingGroup = new SlotSharingGroup();
+			
+			CoLocationGroup ccg = new CoLocationGroup();
+			CoLocationConstraint cc1 = new CoLocationConstraint(ccg);
+			CoLocationConstraint cc2 = new CoLocationConstraint(ccg);
+
+			AllocatedSlot s1 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid1, 0, 2, i1), sharingGroup, cc1));
+			AllocatedSlot s2 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid1, 1, 2, i2), sharingGroup, cc2));
+			
+			s1.releaseSlot();
+			s2.releaseSlot();
+			
+			assertEquals(2, scheduler.getNumberOfAvailableSlots());
+			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfSlots());
+
+			AllocatedSlot sa = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jidx, 0, 2)));
+			AllocatedSlot sb = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jidx, 1, 2)));
+			
+			try {
+				scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid2, 0, 2, i2), sharingGroup, cc1));
+				fail("should not be able to find a resource");
+			} catch (NoResourceAvailableException e) {
+				// good
+			} catch (Exception e) {
+				fail("wrong exception");
+			}
+			
+			sa.releaseSlot();
+			sb.releaseSlot();
+
+			assertEquals(2, scheduler.getNumberOfAvailableSlots());
+			
+			assertEquals(2, scheduler.getNumberOfLocalizedAssignments());
+			assertEquals(0, scheduler.getNumberOfNonLocalizedAssignments());
+			assertEquals(2, scheduler.getNumberOfUnconstrainedAssignments());
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testScheduleOutOfOrder() {
+		try {
+			JobVertexID jid1 = new JobVertexID();
+			JobVertexID jid2 = new JobVertexID();
+			
+			Scheduler scheduler = new Scheduler();
+			
+			Instance i1 = getRandomInstance(1);
+			Instance i2 = getRandomInstance(1);
+			
+			scheduler.newInstanceAvailable(i2);
+			scheduler.newInstanceAvailable(i1);
+			
+			assertEquals(2, scheduler.getNumberOfAvailableSlots());
+			
+			SlotSharingGroup sharingGroup = new SlotSharingGroup();
+			
+			CoLocationGroup ccg = new CoLocationGroup();
+			CoLocationConstraint cc1 = new CoLocationConstraint(ccg);
+			CoLocationConstraint cc2 = new CoLocationConstraint(ccg);
+
+			// schedule something from the second job vertex id before the first is filled,
+			// and give locality preferences that hint at using the same shared slot for both
+			// co location constraints (which we seek to prevent)
+			AllocatedSlot s1 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid1, 0, 2, i1), sharingGroup, cc1));
+			AllocatedSlot s2 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid2, 0, 2, i1), sharingGroup, cc2));
+
+			AllocatedSlot s3 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid2, 1, 2, i1), sharingGroup, cc1));
+			AllocatedSlot s4 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid1, 1, 2, i1), sharingGroup, cc2));
+			
+			// check that each slot got three
+			assertEquals(2, ((SubSlot) s1).getSharedSlot().getNumberOfAllocatedSubSlots());
+			assertEquals(2, ((SubSlot) s2).getSharedSlot().getNumberOfAllocatedSubSlots());
+			
+			assertEquals(s1.getInstance(), s3.getInstance());
+			assertEquals(s2.getInstance(), s4.getInstance());
+			
+			// check the scheduler's bookkeeping
+			assertEquals(0, scheduler.getNumberOfAvailableSlots());
+			
+			assertEquals(3, scheduler.getNumberOfLocalizedAssignments());
+			assertEquals(1, scheduler.getNumberOfNonLocalizedAssignments());
+			assertEquals(0, scheduler.getNumberOfUnconstrainedAssignments());
+			
+			// release some slots, be sure that new available ones come up
+			s1.releaseSlot();
+			s2.releaseSlot();
+			s3.releaseSlot();
+			s4.releaseSlot();
+			assertEquals(2, scheduler.getNumberOfAvailableSlots());
+			
+			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfSlots());
+			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForJid(jid1));
+			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForJid(jid2));
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void nonColocationFollowsCoLocation() {
+		try {
+			JobVertexID jid1 = new JobVertexID();
+			JobVertexID jid2 = new JobVertexID();
+			
+			Scheduler scheduler = new Scheduler();
+			
+			Instance i1 = getRandomInstance(1);
+			Instance i2 = getRandomInstance(1);
+			
+			scheduler.newInstanceAvailable(i2);
+			scheduler.newInstanceAvailable(i1);
+			
+			assertEquals(2, scheduler.getNumberOfAvailableSlots());
+			
+			SlotSharingGroup sharingGroup = new SlotSharingGroup();
+			
+			CoLocationGroup ccg = new CoLocationGroup();
+			CoLocationConstraint cc1 = new CoLocationConstraint(ccg);
+			CoLocationConstraint cc2 = new CoLocationConstraint(ccg);
+
+			AllocatedSlot s1 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid1, 0, 2, i1), sharingGroup, cc1));
+			AllocatedSlot s2 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid1, 1, 2, i2), sharingGroup, cc2));
+
+			AllocatedSlot s3 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid2, 0, 2, i1), sharingGroup));
+			AllocatedSlot s4 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertexWithLocation(jid2, 1, 2, i1), sharingGroup));
+			
+			// check that each slot got three
+			assertEquals(2, ((SubSlot) s1).getSharedSlot().getNumberOfAllocatedSubSlots());
+			assertEquals(2, ((SubSlot) s2).getSharedSlot().getNumberOfAllocatedSubSlots());
+			
+			s1.releaseSlot();
+			s2.releaseSlot();
+			s3.releaseSlot();
+			s4.releaseSlot();
+			
+			assertEquals(2, scheduler.getNumberOfAvailableSlots());
+			
+			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfSlots());
+			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForJid(jid1));
+			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfAvailableSlotsForJid(jid2));
 		}
 		catch (Exception e) {
 			e.printStackTrace();

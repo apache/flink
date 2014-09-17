@@ -59,5 +59,7 @@ public interface ExtendedManagementProtocol extends JobManagementProtocol {
 	 * @return number of available slots
 	 * @throws IOException
 	 */
-	int getAvailableSlots() throws IOException;
+	int getTotalNumberOfRegisteredSlots() throws IOException;
+	
+	int getNumberOfSlotsAvailableToScheduler() throws IOException;
 }

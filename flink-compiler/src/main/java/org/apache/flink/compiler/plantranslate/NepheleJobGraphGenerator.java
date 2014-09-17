@@ -493,11 +493,10 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			
 			if (this.currentIteration != null) {
 				AbstractJobVertex head = this.iterations.get(this.currentIteration).getHeadTask();
-				if (head == null) {
-					throw new CompilerException("Found no iteration head task in the postVisit of translating a task inside an iteration");
+				// the head may still be null if we descend into the static parts first
+				if (head != null) {
+					targetVertex.setStrictlyCoLocatedWith(head);
 				}
-				
-				targetVertex.setStrictlyCoLocatedWith(head);
 			}
 			
 			

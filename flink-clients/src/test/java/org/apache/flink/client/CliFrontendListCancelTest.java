@@ -183,7 +183,12 @@ public class CliFrontendListCancelTest {
 		}
 
 		@Override
-		public int getAvailableSlots() {
+		public int getTotalNumberOfRegisteredSlots() {
+			return 1;
+		}
+
+		@Override
+		public int getNumberOfSlotsAvailableToScheduler() throws IOException {
 			return 1;
 		}
 	}

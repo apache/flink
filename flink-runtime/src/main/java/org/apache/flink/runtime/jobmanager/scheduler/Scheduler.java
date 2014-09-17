@@ -41,7 +41,7 @@ import org.apache.flink.util.ExceptionUtils;
  */
 public class Scheduler implements InstanceListener, SlotAvailablilityListener {
 
-	private static final Logger LOG = LoggerFactory.getLogger(Scheduler.class);
+	static final Logger LOG = LoggerFactory.getLogger(Scheduler.class);
 	
 	
 	private final Object globalLock = new Object();
@@ -150,56 +150,6 @@ public class Scheduler implements InstanceListener, SlotAvailablilityListener {
 		final ExecutionVertex vertex = task.getTaskToExecute().getVertex();
 	
 		synchronized (globalLock) {
-			
-//			// 1)  === If the task has a strict co-schedule hint, obey it ===
-//			
-//			CoLocationConstraint locationConstraint = task.getLocationConstraint();
-//			if (locationConstraint != null) {
-//				// location constraints can never be scheduled in a queued fashion
-//				if (queueIfNoResource) {
-//					throw new IllegalArgumentException("A task with a location constraint was scheduled in a queued fashion.");
-//				}
-//				
-//				// since we are inside the global lock scope, we can check, allocate, and assign
-//				// in one atomic action. however, slots may die and be deallocated
-//				
-//				// (a) is the constraint has not yet has a slot, get one
-//				if (locationConstraint.isUnassigned()) {
-//					// try and get a slot
-//					AllocatedSlot newSlot = getFreeSlotForTask(vertex);
-//					if (newSlot == null) {
-//						throw new NoResourceAvailableException();
-//					}
-//					SharedSlot sl = locationConstraint.swapInNewSlot(newSlot);
-//					SubSlot slot = sl.allocateSubSlot(vertex.getJobvertexId());
-//					
-//					updateLocalityCounters(newSlot.getLocality());
-//					return slot;
-//				}
-//				else {
-//					// try to get a subslot. returns null, if the location's slot has been released
-//					// in the meantime
-//					SubSlot slot = locationConstraint.allocateSubSlot(vertex.getJobvertexId());
-//					if (slot == null) {
-//						// get a new slot. at the same instance!!!
-//						Instance location = locationConstraint.getSlot().getAllocatedSlot().getInstance();
-//						AllocatedSlot newSlot;
-//						try {
-//							newSlot = location.allocateSlot(vertex.getJobId());
-//						} catch (InstanceDiedException e) {
-//							throw new NoResourceAvailableException("The instance of the required location died.");
-//						}
-//						if (newSlot == null) {
-//							throw new NoResourceAvailableException();
-//						}
-//						SharedSlot sharedSlot = locationConstraint.swapInNewSlot(newSlot);
-//						slot = sharedSlot.allocateSubSlot(vertex.getJobvertexId());
-//					}
-//					
-//					updateLocalityCounters(Locality.LOCAL);
-//					return slot;
-//				}
-//			}
 		
 			// 1)  === If the task has a slot sharing group, schedule with shared slots ===
 			
@@ -213,17 +163,16 @@ public class Scheduler implements InstanceListener, SlotAvailablilityListener {
 				final SlotSharingGroupAssignment assignment = sharingUnit.getTaskAssignment();
 				final CoLocationConstraint constraint = task.getLocationConstraint();
 				
-				AllocatedSlot newSlot = null;
-				
-				// get a slot from the group. obey location constraints, if existing and assigned
-				AllocatedSlot slotFromGroup;
-				if (constraint == null || constraint.isUnassigned()) {
-					slotFromGroup = assignment.getSlotForTask(vertex.getJobvertexId(), vertex);
+				// get a slot from the group, if the group has one for us (and can fulfill the constraint)
+				SubSlot slotFromGroup;
+				if (constraint == null) {
+					slotFromGroup = assignment.getSlotForTask(vertex);
 				}
 				else {
-					// this returns null, if the constraint cannot be fulfilled
-					slotFromGroup = assignment.getSlotForTask(vertex.getJobvertexId(), constraint);
+					slotFromGroup = assignment.getSlotForTask(vertex, constraint);
 				}
+				
+				AllocatedSlot newSlot = null;
 				
 				// the following needs to make sure any allocated slot is released in case of an error
 				try {
@@ -232,12 +181,6 @@ public class Scheduler implements InstanceListener, SlotAvailablilityListener {
 					if (slotFromGroup != null) {
 						// local (or unconstrained in the current group)
 						if (slotFromGroup.getLocality() != Locality.NON_LOCAL) {
-							
-							// attach to the locality constraint
-							if (constraint != null && constraint.isUnassigned()) {
-								constraint.setLocation(slotFromGroup.getInstance());
-							}
-							
 							updateLocalityCounters(slotFromGroup.getLocality());
 							return slotFromGroup;
 						}
@@ -249,13 +192,19 @@ public class Scheduler implements InstanceListener, SlotAvailablilityListener {
 					// get a new slot, since we could not place it into the group, or we could not place it locally
 					newSlot = getFreeSlotForTask(vertex, locations);
 					
-					AllocatedSlot toUse;
+					SubSlot toUse;
 					
 					if (newSlot == null) {
 						if (slotFromGroup == null) {
 							// both null
-							throw new NoResourceAvailableException();
+							if (constraint == null || constraint.isUnassigned()) {
+								throw new NoResourceAvailableException();
+							} else {
+								throw new NoResourceAvailableException("Could not allocate a slot on instance " + 
+											constraint.getLocation() + ", as required by the co-location constraint.");
+							}
 						} else {
+							// got a non-local from the group, and no new one
 							toUse = slotFromGroup;
 						}
 					}
@@ -265,17 +214,28 @@ public class Scheduler implements InstanceListener, SlotAvailablilityListener {
 							slotFromGroup.releaseSlot();
 						}
 						
-						toUse = sharingUnit.getTaskAssignment().addSlotWithTask(newSlot, task.getJobVertexId());
+						if (constraint == null) {
+							toUse = assignment.addNewSlotWithTask(newSlot, vertex);
+						} else {
+							toUse = assignment.addNewSlotWithTask(newSlot, vertex, constraint);
+						}
 					}
 					else {
-						// both are available and potentially usable
+						// both are available and usable. neither is local
 						newSlot.releaseSlot();
 						toUse = slotFromGroup;
 					}
 					
 					// assign to the co-location hint, if we have one and it is unassigned
-					if (constraint != null && constraint.isUnassigned()) {
-						constraint.setLocation(toUse.getInstance());
+					// if it was assigned before and the new one is not local, it is a fail
+					if (constraint != null) {
+						if (constraint.isUnassigned() || toUse.getLocality() == Locality.LOCAL) {
+							constraint.setSharedSlot(toUse.getSharedSlot());
+						} else {
+							// the fail
+							throw new NoResourceAvailableException("Could not allocate a slot on instance " + 
+									constraint.getLocation() + ", as required by the co-location constraint.");
+						}
 					}
 					
 					updateLocalityCounters(toUse.getLocality());

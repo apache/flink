@@ -28,34 +28,53 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.flink.runtime.AbstractID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.slf4j.Logger;
+
 
 public class SlotSharingGroupAssignment {
+	
+	private static final Logger LOG = Scheduler.LOG;
+	
+	private final Object lock = new Object();
 	
 	/** All slots currently allocated to this sharing group */
 	private final Set<SharedSlot> allSlots = new LinkedHashSet<SharedSlot>();
 	
 	/** The slots available per vertex type (jid), keyed by instance, to make them locatable */
-	private final Map<JobVertexID, Map<Instance, List<SharedSlot>>> availableSlotsPerJid = new LinkedHashMap<JobVertexID, Map<Instance, List<SharedSlot>>>();
+	private final Map<AbstractID, Map<Instance, List<SharedSlot>>> availableSlotsPerJid = new LinkedHashMap<AbstractID, Map<Instance, List<SharedSlot>>>();
 	
 	
 	// --------------------------------------------------------------------------------------------
 	
 	
-	public SubSlot addSlotWithTask(AllocatedSlot slot, JobVertexID jid) {
+	public SubSlot addNewSlotWithTask(AllocatedSlot slot, ExecutionVertex vertex) {
+		JobVertexID id = vertex.getJobvertexId();
+		return addNewSlotWithTask(slot, id, id);
+	}
+	
+	public SubSlot addNewSlotWithTask(AllocatedSlot slot, ExecutionVertex vertex, CoLocationConstraint constraint) {
+		AbstractID groupId = constraint.getGroupId();
+		return addNewSlotWithTask(slot, groupId, null);
+	}
+	
+	private SubSlot addNewSlotWithTask(AllocatedSlot slot, AbstractID groupId, JobVertexID vertexId) {
 		
 		final SharedSlot sharedSlot = new SharedSlot(slot, this);
 		final Instance location = slot.getInstance();
 		
-		synchronized (allSlots) {
+		synchronized (lock) {
 			// add to the total bookkeeping
 			allSlots.add(sharedSlot);
 			
 			// allocate us a sub slot to return
-			SubSlot subslot = sharedSlot.allocateSubSlot(jid);
+			SubSlot subslot = sharedSlot.allocateSubSlot(vertexId);
 			
 			// preserve the locality information
 			subslot.setLocality(slot.getLocality());
@@ -63,10 +82,9 @@ public class SlotSharingGroupAssignment {
 			boolean entryForNewJidExists = false;
 			
 			// let the other vertex types know about this one as well
-			
-			for (Map.Entry<JobVertexID, Map<Instance, List<SharedSlot>>> entry : availableSlotsPerJid.entrySet()) {
+			for (Map.Entry<AbstractID, Map<Instance, List<SharedSlot>>> entry : availableSlotsPerJid.entrySet()) {
 				
-				if (entry.getKey().equals(jid)) {
+				if (entry.getKey().equals(groupId)) {
 					entryForNewJidExists = true;
 					continue;
 				}
@@ -75,9 +93,9 @@ public class SlotSharingGroupAssignment {
 				putIntoMultiMap(available, location, sharedSlot);
 			}
 			
-			// make sure an empty entry exists for this jid, if no other entry exists
+			// make sure an empty entry exists for this group, if no other entry exists
 			if (!entryForNewJidExists) {
-				availableSlotsPerJid.put(jid, new LinkedHashMap<Instance, List<SharedSlot>>());
+				availableSlotsPerJid.put(groupId, new LinkedHashMap<Instance, List<SharedSlot>>());
 			}
 			
 			return subslot;
@@ -90,105 +108,97 @@ public class SlotSharingGroupAssignment {
 	 * slots if no local slot is available. The method returns null, when no slot is available for the
 	 * given JobVertexID at all.
 	 * 
-	 * @param jid
 	 * @param vertex
 	 * 
 	 * @return A task vertex for a task with the given JobVertexID, or null, if none is available.
 	 */
-	public AllocatedSlot getSlotForTask(JobVertexID jid, ExecutionVertex vertex) {
-		synchronized (allSlots) {
-			return getSlotForTaskInternal(jid, vertex.getPreferredLocations(), false);
-		}
-	}
-	
-	
-	public AllocatedSlot getSlotForTask(JobVertexID jid, CoLocationConstraint constraint) {
-		if (constraint.isUnassigned()) {
-			throw new IllegalArgumentException("CoLocationConstraint is unassigned");
-		}
-		
-		synchronized (allSlots) {
-			return getSlotForTaskInternal(jid, Collections.singleton(constraint.getLocation()), true);
-		}
-	}
-	
-	
-	public boolean sharedSlotAvailableForJid(SharedSlot slot, JobVertexID jid, boolean lastSubSlot) {
-		if (slot == null || jid == null) {
-			throw new NullPointerException();
-		}
-		
-		synchronized (allSlots) {
-			if (!allSlots.contains(slot)) {
-				throw new IllegalArgumentException("Slot was not associated with this SlotSharingGroup before.");
-			}
+	public SubSlot getSlotForTask(ExecutionVertex vertex) {
+		synchronized (lock) {
+			Pair<SharedSlot, Locality> p = getSlotForTaskInternal(vertex.getJobvertexId(), vertex, vertex.getPreferredLocations(), false);
 			
-			if (lastSubSlot) {
-				// this was the last sub slot. unless there is something pending for this jid
-				// remove this from the availability list of all jids and 
-				// return that this one is good to release
-				allSlots.remove(slot);
-				
-				Instance location = slot.getAllocatedSlot().getInstance();
-				
-				for (Map.Entry<JobVertexID, Map<Instance, List<SharedSlot>>> mapEntry : availableSlotsPerJid.entrySet()) {
-					if (mapEntry.getKey().equals(jid)) {
-						continue;
-					}
+			if (p != null) {
+				SharedSlot ss = p.getLeft();
+				SubSlot slot = ss.allocateSubSlot(vertex.getJobvertexId());
+				slot.setLocality(p.getRight());
+				return slot;
+			}
+			else {
+				return null;
+			}
+		}
+		
+	}
+	
+	public SubSlot getSlotForTask(ExecutionVertex vertex, CoLocationConstraint constraint) {
+		
+		synchronized (lock) {
+			SharedSlot shared = constraint.getSharedSlot();
+			
+			if (shared != null && !shared.isDisposed()) {
+				// initialized and set
+				SubSlot subslot = shared.allocateSubSlot(null);
+				subslot.setLocality(Locality.LOCAL);
+				return subslot;
+			}
+			else if (shared == null) {
+				// not initialized, grab a new slot. preferred locations are defined by the vertex
+				// we only associate the slot with the constraint, if it was a local match
+				Pair<SharedSlot, Locality> p = getSlotForTaskInternal(constraint.getGroupId(), vertex, vertex.getPreferredLocations(), false);
+				if (p == null) {
+					return null;
+				} else {
+					shared = p.getLeft();
+					Locality l = p.getRight();
 					
-					Map<Instance, List<SharedSlot>> map = mapEntry.getValue();
-					List<SharedSlot> list = map.get(location);
-					if (list == null || !list.remove(slot)) {
-						throw new IllegalStateException("SharedSlot was not available to another vertex type that it was not allocated for before.");
+					SubSlot sub = shared.allocateSubSlot(null);
+					sub.setLocality(l);
+					
+					if (l != Locality.NON_LOCAL) {
+						constraint.setSharedSlot(shared);
 					}
-					if (list.isEmpty()) {
-						map.remove(location);
-					}
+					return sub;
 				}
-				
-				return true;
 			}
-			
-			Map<Instance, List<SharedSlot>> slotsForJid = availableSlotsPerJid.get(jid);
-			
-			// sanity check
-			if (slotsForJid == null) {
-				throw new IllegalStateException("Trying to return a slot for jid " + jid + 
-						" when available slots indicated that all slots were available.");
+			else {
+				// disposed. get a new slot on the same instance
+				Instance location = shared.getAllocatedSlot().getInstance();
+				Pair<SharedSlot, Locality> p = getSlotForTaskInternal(constraint.getGroupId(), vertex, Collections.singleton(location), true);
+				if (p == null) {
+					return null;
+				} else {
+					shared = p.getLeft();
+					constraint.setSharedSlot(shared);
+					SubSlot subslot = shared.allocateSubSlot(null);
+					subslot.setLocality(Locality.LOCAL);
+					return subslot;
+				}
 			}
-			
-			putIntoMultiMap(slotsForJid, slot.getAllocatedSlot().getInstance(), slot);
-			
-			// do not release, we are still depending on this shared slot
-			return false;
 		}
 	}
-	
 	
 	/**
 	 * NOTE: This method is not synchronized by itself, needs to be synchronized externally.
 	 * 
-	 * @param jid
 	 * @return An allocated sub slot, or {@code null}, if no slot is available.
 	 */
-	private AllocatedSlot getSlotForTaskInternal(JobVertexID jid, Iterable<Instance> preferredLocations, boolean localOnly) {
+	private Pair<SharedSlot, Locality> getSlotForTaskInternal(AbstractID groupId, ExecutionVertex vertex, Iterable<Instance> preferredLocations, boolean localOnly) {
 		if (allSlots.isEmpty()) {
 			return null;
 		}
 		
-		Map<Instance, List<SharedSlot>> slotsForJid = availableSlotsPerJid.get(jid);
+		Map<Instance, List<SharedSlot>> slotsForGroup = availableSlotsPerJid.get(groupId);
 		
-		// get the available slots for the vertex type (jid)
-		if (slotsForJid == null) {
-			// no task is yet scheduled for that jid, so all slots are available
-			slotsForJid = new LinkedHashMap<Instance, List<SharedSlot>>();
-			availableSlotsPerJid.put(jid, slotsForJid);
+		// get the available slots for the group
+		if (slotsForGroup == null) {
+			// no task is yet scheduled for that group, so all slots are available
+			slotsForGroup = new LinkedHashMap<Instance, List<SharedSlot>>();
+			availableSlotsPerJid.put(groupId, slotsForGroup);
 			
 			for (SharedSlot availableSlot : allSlots) {
-				putIntoMultiMap(slotsForJid, availableSlot.getAllocatedSlot().getInstance(), availableSlot);
+				putIntoMultiMap(slotsForGroup, availableSlot.getAllocatedSlot().getInstance(), availableSlot);
 			}
 		}
-		else if (slotsForJid.isEmpty()) {
+		else if (slotsForGroup.isEmpty()) {
 			return null;
 		}
 		
@@ -202,31 +212,101 @@ public class SlotSharingGroupAssignment {
 				// we return early anyways and skip the flag evaluation
 				didNotGetPreferred = true;
 				
-				SharedSlot slot = removeFromMultiMap(slotsForJid, location);
-				if (slot != null) {
-					SubSlot subslot = slot.allocateSubSlot(jid);
-					subslot.setLocality(Locality.LOCAL);
-					return subslot;
+				SharedSlot slot = removeFromMultiMap(slotsForGroup, location);
+				if (slot != null && !slot.isDisposed()) {
+					if (LOG.isDebugEnabled()) {
+						LOG.debug("Local assignment in shared group : " + vertex + " --> " + slot);
+					}
+					
+					return new ImmutablePair<SharedSlot, Locality>(slot, Locality.LOCAL);
 				}
 			}
 		}
 		
 		// if we want only local assignments, exit now with a "not found" result
 		if (didNotGetPreferred && localOnly) {
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("No local assignment in shared possible for " + vertex);
+			}
 			return null;
 		}
 		
 		// schedule the task to any available location
-		SharedSlot slot = pollFromMultiMap(slotsForJid);
-		if (slot != null) {
-			SubSlot subslot = slot.allocateSubSlot(jid);
-			subslot.setLocality(didNotGetPreferred ? Locality.NON_LOCAL : Locality.UNCONSTRAINED);
-			return subslot;
+		SharedSlot slot = pollFromMultiMap(slotsForGroup);
+		if (slot != null && !slot.isDisposed()) {
+			if (LOG.isDebugEnabled()) {
+				LOG.debug((didNotGetPreferred ? "Non-local" : "Unconstrained") + " assignment in shared group : " + vertex + " --> " + slot);
+			}
+			
+			return new ImmutablePair<SharedSlot, Locality>(slot, didNotGetPreferred ? Locality.NON_LOCAL : Locality.UNCONSTRAINED);
 		}
 		else {
 			return null;
 		}
 	}
+	
+	
+	void releaseSubSlot(SubSlot subslot, SharedSlot sharedSlot) {
+		
+		AbstractID groupId = subslot.getGroupId();
+		
+		synchronized (lock) {
+
+			if (!allSlots.contains(sharedSlot)) {
+				throw new IllegalArgumentException("Slot was not associated with this SlotSharingGroup before.");
+			}
+			
+			int slotsRemaining = sharedSlot.releaseSlot(subslot);
+			
+			if (slotsRemaining == 0) {
+				// this was the last sub slot. remove this from the availability list 
+				// and trigger disposal
+				try {
+					allSlots.remove(sharedSlot);
+					
+					Instance location = sharedSlot.getAllocatedSlot().getInstance();
+
+					if (groupId != null) {
+						for (Map.Entry<AbstractID, Map<Instance, List<SharedSlot>>> mapEntry : availableSlotsPerJid.entrySet()) {
+							AbstractID id = mapEntry.getKey();
+							
+							// hack: we identify co location hint entries by the fact that they are keyed
+							//       by an abstract id, rather than a job vertex id
+							if (id.getClass() == AbstractID.class || id.equals(groupId)) {
+								continue;
+							}
+							
+							Map<Instance, List<SharedSlot>> map = mapEntry.getValue();
+							List<SharedSlot> list = map.get(location);
+							if (list == null || !list.remove(sharedSlot)) {
+								throw new IllegalStateException("Bug: SharedSlot was not available to another vertex type that it was not allocated for before.");
+							}
+							if (list.isEmpty()) {
+								map.remove(location);
+							}
+						}
+					}
+				} finally {
+					sharedSlot.dispose();
+				}
+			}
+			else if (groupId != null) {
+				// make the shared slot available to tasks within the group it available to
+				Map<Instance, List<SharedSlot>> slotsForJid = availableSlotsPerJid.get(groupId);
+				
+				// sanity check
+				if (slotsForJid == null) {
+					throw new IllegalStateException("Trying to return a slot for group " + groupId + 
+							" when available slots indicated that all slots were available.");
+				}
+				
+				putIntoMultiMap(slotsForJid, sharedSlot.getAllocatedSlot().getInstance(), sharedSlot);
+			}
+		}
+	}
+	
+	
+	
 	
 	// --------------------------------------------------------------------------------------------
 	//  State
@@ -237,7 +317,7 @@ public class SlotSharingGroupAssignment {
 	}
 	
 	public int getNumberOfAvailableSlotsForJid(JobVertexID jid) {
-		synchronized (allSlots) {
+		synchronized (lock) {
 			Map<Instance, List<SharedSlot>> available = availableSlotsPerJid.get(jid);
 			
 			if (available != null) {
@@ -255,6 +335,10 @@ public class SlotSharingGroupAssignment {
 			}
 		}
 	}
+
+	// --------------------------------------------------------------------------------------------
+	
+	
 	
 	// --------------------------------------------------------------------------------------------
 	//  Utilities

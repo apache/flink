@@ -46,11 +46,11 @@ public class JobManagerTestUtils {
 		// max time is 5 seconds
 		long deadline = System.currentTimeMillis() + 5000;
 		
-		while (jm.getAvailableSlots() < numSlots && System.currentTimeMillis() < deadline) {
+		while (jm.getNumberOfSlotsAvailableToScheduler() < numSlots && System.currentTimeMillis() < deadline) {
 			Thread.sleep(10);
 		}
 		
-		assertEquals(numSlots, jm.getAvailableSlots());
+		assertEquals(numSlots, jm.getNumberOfSlotsAvailableToScheduler());
 		
 		return jm;
 	}

@@ -574,8 +574,13 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 	}
 
 	@Override
-	public int getAvailableSlots() {
+	public int getTotalNumberOfRegisteredSlots() {
 		return getInstanceManager().getTotalNumberOfSlots();
+	}
+	
+	@Override
+	public int getNumberOfSlotsAvailableToScheduler() {
+		return scheduler.getNumberOfAvailableSlots();
 	}
 	
 	/**

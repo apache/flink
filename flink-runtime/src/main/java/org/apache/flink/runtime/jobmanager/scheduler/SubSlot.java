@@ -18,25 +18,25 @@
 
 package org.apache.flink.runtime.jobmanager.scheduler;
 
+import org.apache.flink.runtime.AbstractID;
 import org.apache.flink.runtime.instance.AllocatedSlot;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 
 public class SubSlot extends AllocatedSlot {
 
 	private final SharedSlot sharedSlot;
 	
-	private final JobVertexID jid;
+	private final AbstractID groupId;
 	
 	private final int subSlotNumber;
 	
 	
-	public SubSlot(SharedSlot sharedSlot, int subSlotNumber, JobVertexID jid) {
+	public SubSlot(SharedSlot sharedSlot, int subSlotNumber, AbstractID groupId) {
 		super(sharedSlot.getAllocatedSlot().getJobID(),
 				sharedSlot.getAllocatedSlot().getInstance(),
 				sharedSlot.getAllocatedSlot().getSlotNumber());
 		
 		this.sharedSlot = sharedSlot;
-		this.jid = jid;
+		this.groupId = groupId;
 		this.subSlotNumber = subSlotNumber;
 	}
 	
@@ -59,8 +59,8 @@ public class SubSlot extends AllocatedSlot {
 		return this.sharedSlot;
 	}
 	
-	public JobVertexID getJobVertexId() {
-		return jid;
+	public AbstractID getGroupId() {
+		return groupId;
 	}
 	
 	// --------------------------------------------------------------------------------------------
