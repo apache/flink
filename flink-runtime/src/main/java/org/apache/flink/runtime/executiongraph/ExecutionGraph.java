@@ -139,6 +139,7 @@ public class ExecutionGraph {
 		this.executionListeners = new CopyOnWriteArrayList<ExecutionListener>();
 		
 		this.stateTimestamps = new long[JobStatus.values().length];
+		this.stateTimestamps[JobStatus.CREATED.ordinal()] = System.currentTimeMillis();
 	}
 
 	// --------------------------------------------------------------------------------------------

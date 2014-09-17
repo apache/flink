@@ -516,9 +516,10 @@ public class ExecutionVertexCancelTest {
 				
 				Scheduler scheduler = mock(Scheduler.class);
 				vertex.scheduleForExecution(scheduler, false);
-				fail("Method should throw an exception");
 			}
-			catch (IllegalStateException e) {}
+			catch (Exception e) {
+				fail("should not throw an exception");
+			}
 			
 			
 			// deploying while in canceling state is illegal (should immediately go to canceled)

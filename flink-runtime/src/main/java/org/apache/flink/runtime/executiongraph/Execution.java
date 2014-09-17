@@ -171,7 +171,7 @@ public class Execution {
 		if (locationConstraint != null && sharingGroup == null) {
 			throw new RuntimeException("Trying to schedule with co-location constraint but without slot sharing allowed.");
 		}
-				
+		
 		if (transitionState(CREATED, SCHEDULED)) {
 			
 			ScheduledUnit toSchedule = locationConstraint == null ?
@@ -213,13 +213,9 @@ public class Execution {
 				}
 			}
 		}
-		else if (this.state == CANCELED) {
-			// this can occur very rarely through heavy races. if the task was canceled, we do not
-			// schedule it
-			return;
-		}
 		else {
-			throw new IllegalStateException("The vertex must be in CREATED state to be scheduled.");
+			// call race, already deployed
+			return;
 		}
 	}
 	

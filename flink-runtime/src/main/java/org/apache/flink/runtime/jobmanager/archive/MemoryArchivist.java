@@ -103,8 +103,8 @@ public class MemoryArchivist implements ArchiveListener {
 	public RecentJobEvent getJob(JobID jobId) {
 		synchronized (lock) {
 			return oldJobs.get(jobId);
-		}}
-	
+		}
+	}
 	
 	@Override
 	public List<AbstractEvent> getEvents(JobID jobID) {

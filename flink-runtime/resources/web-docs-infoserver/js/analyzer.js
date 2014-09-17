@@ -230,18 +230,18 @@ function analyzeGroupvertexTime(json) {
 
 		data.addRows([
 						[
-							new Date(json.verticetimes[vertex.vertexid].READY),
-							new Date(json.verticetimes[vertex.vertexid].STARTING),
-							"ready",
+							new Date(json.verticetimes[vertex.vertexid].SCHEDULED),
+							new Date(json.verticetimes[vertex.vertexid].DEPLOYING),
+							"scheduled",
 							vertex.vertexinstancename+ "_" + cnt,
-							"ready" 
+							"scheduled" 
 						],
 						[
-							new Date(json.verticetimes[vertex.vertexid].STARTING),
+							new Date(json.verticetimes[vertex.vertexid].DEPLOYING),
 							new Date(json.verticetimes[vertex.vertexid].RUNNING),
-							"starting",
+							"deploying",
 							vertex.vertexinstancename+ "_"+ cnt,
-							"starting" 
+							"deploying" 
 						] 
 					]);
 
@@ -249,17 +249,10 @@ function analyzeGroupvertexTime(json) {
 			data.addRows([
 							[
 								new Date(json.verticetimes[vertex.vertexid].RUNNING),
-								new Date(json.verticetimes[vertex.vertexid].FINISHING),
-								" running",
+								new Date(json.verticetimes[vertex.vertexid].FINISHED),
+								"running",
 								vertex.vertexinstancename + "_" + cnt,
 								"running" 
-							],
-							[
-								new Date(json.verticetimes[vertex.vertexid].FINISHING),
-								new Date(json.verticetimes[vertex.vertexid].FINISHED),
-								"finishing",
-								vertex.vertexinstancename + "_" + cnt,
-								"finishing" 
 							] 
 						]);
 

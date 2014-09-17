@@ -35,7 +35,7 @@ public class JsonFactory {
 	public static String toJson(ExecutionVertex vertex) {
 		StringBuilder json = new StringBuilder("");
 		json.append("{");
-		json.append("\"vertexid\": \"" + vertex.getJobvertexId() + "\",");
+		json.append("\"vertexid\": \"" + vertex.getCurrentExecutionAttempt().getAttemptId() + "\",");
 		json.append("\"vertexname\": \"" + StringUtils.escapeHtml(vertex.getSimpleName()) + "\",");
 		json.append("\"vertexstatus\": \"" + vertex.getExecutionState() + "\",");
 		
@@ -66,7 +66,7 @@ public class JsonFactory {
 		
 		ExecutionVertex[] vertices = jobVertex.getTaskVertices();
 		
-		for(int j = 0; j < vertices.length; j++) {
+		for (int j = 0; j < vertices.length; j++) {
 			ExecutionVertex vertex = vertices[j];
 			
 			json.append(toJson(vertex));
