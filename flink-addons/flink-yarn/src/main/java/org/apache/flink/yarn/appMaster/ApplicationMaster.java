@@ -486,7 +486,7 @@ public class ApplicationMaster implements YARNClientMasterProtocol {
 			amStatus.setNumSlots(0);
 		} else {
 			amStatus.setNumTaskManagers(jobManager.getNumberOfTaskManagers());
-			amStatus.setNumSlots(jobManager.getAvailableSlots());
+			amStatus.setNumSlots(jobManager.getTotalNumberOfRegisteredSlots());
 		}
 		amStatus.setMessageCount(messages.size());
 		amStatus.setFailed(isFailed);

@@ -199,8 +199,8 @@ public class AbstractID implements IOReadableWritable, Comparable<AbstractID>, j
 	
 	@Override
 	public int compareTo(AbstractID o) {
-		int diff1 = Long.compare(this.upperPart, o.upperPart);
-		int diff2 = Long.compare(this.lowerPart, o.lowerPart);
+		int diff1 = (this.upperPart < o.upperPart) ? -1 : ((this.upperPart == o.upperPart) ? 0 : 1);
+		int diff2 = (this.lowerPart < o.lowerPart) ? -1 : ((this.lowerPart == o.lowerPart) ? 0 : 1);
 		return diff1 == 0 ? diff2 : diff1;
 	}
 }
