@@ -1,5 +1,3 @@
-package org.apache.flink.api.java.io;
-
 /**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -18,10 +16,9 @@ package org.apache.flink.api.java.io;
  * limitations under the License.
  */
 
+package org.apache.flink.api.java.io;
+
 import java.io.IOException;
-import java.rmi.AccessException;
-import java.rmi.NotBoundException;
-import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 
@@ -68,21 +65,14 @@ public class RemoteCollectorOutputFormat<T> implements OutputFormat<T> {
 		Registry registry = null;
 		// get the remote's RMI Registry
 		try {
-			registry = LocateRegistry.getRegistry(parameters.getString(REMOTE, "localhost"),
+			registry = LocateRegistry.getRegistry(
+					parameters.getString(REMOTE, "localhost"),
 					parameters.getInteger(PORT, 8888));
-		} catch (RemoteException e) {
-			e.printStackTrace();
-		}
 
-		// try to get an intance of an IRemoteCollector implementation
-		try {
+			// try to get an intance of an IRemoteCollector implementation
 			this.remoteCollector = (IRemoteCollector<T>) registry.lookup(ID);
-		} catch (AccessException e) {
-			e.printStackTrace();
-		} catch (RemoteException e) {
-			e.printStackTrace();
-		} catch (NotBoundException e) {
-			e.printStackTrace();
+		} catch (Throwable t) {
+			throw new RuntimeException(t);
 		}
 	}
 
@@ -105,6 +95,6 @@ public class RemoteCollectorOutputFormat<T> implements OutputFormat<T> {
 	 */
 	@Override
 	public void close() throws IOException {
-	
+
 	}
 }

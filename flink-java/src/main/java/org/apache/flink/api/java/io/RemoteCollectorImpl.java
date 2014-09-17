@@ -1,5 +1,3 @@
-package org.apache.flink.api.java.io;
-
 /**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -18,13 +16,12 @@ package org.apache.flink.api.java.io;
  * limitations under the License.
  */
 
-import java.io.IOException;
+package org.apache.flink.api.java.io;
+
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.ServerSocket;
-import java.net.SocketException;
-import java.rmi.AlreadyBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
@@ -43,7 +40,8 @@ import org.apache.flink.configuration.Configuration;
  * {@link RemoteCollectorOutputFormat}.
  */
 
-public class RemoteCollectorImpl<T> extends UnicastRemoteObject implements IRemoteCollector<T>{
+public class RemoteCollectorImpl<T> extends UnicastRemoteObject implements
+		IRemoteCollector<T> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -65,28 +63,24 @@ public class RemoteCollectorImpl<T> extends UnicastRemoteObject implements IRemo
 	 *            The consumer instance.
 	 * @return
 	 */
-	public static <T> void createAndBind(Integer port, IRemoteCollectorConsumer<T> consumer) {
+	public static <T> void createAndBind(Integer port,
+			IRemoteCollectorConsumer<T> consumer) {
 		RemoteCollectorImpl<T> collectorInstance = null;
 
 		try {
 			collectorInstance = new RemoteCollectorImpl<T>();
-		} catch (RemoteException e) {
-			e.printStackTrace();
-		}
 
-		Registry registry;
-		try {
+			Registry registry;
+
 			registry = LocateRegistry.createRegistry(port);
 			registry.bind(RemoteCollectorOutputFormat.ID, collectorInstance);
-		} catch (RemoteException e) {
-			e.printStackTrace();
-		} catch (AlreadyBoundException e) {
-			e.printStackTrace();
+		} catch (Throwable t) {
+			throw new RuntimeException(t);
 		}
 
 		collectorInstance.setConsumer(consumer);
 	}
-	
+
 	/**
 	 * Writes a DataSet to a {@link IRemoteCollectorConsumer} through an
 	 * {@link IRemoteCollector} remotely called from the
@@ -94,22 +88,27 @@ public class RemoteCollectorImpl<T> extends UnicastRemoteObject implements IRemo
 	 * 
 	 * @return The DataSink that writes the DataSet.
 	 */
-	public static <T> DataSink<T> collectLocal(DataSet<T> source, IRemoteCollectorConsumer<T> consumer) {
+	public static <T> DataSink<T> collectLocal(DataSet<T> source,
+			IRemoteCollectorConsumer<T> consumer) {
 		// if the RMI parameter was not set by the user make a "good guess"
 		String ip = System.getProperty("java.rmi.server.hostname");
 		if (ip == null) {
 			Enumeration<NetworkInterface> networkInterfaces = null;
 			try {
 				networkInterfaces = NetworkInterface.getNetworkInterfaces();
-			} catch (SocketException e) {
-				e.printStackTrace();
+			} catch (Throwable t) {
+				throw new RuntimeException(t);
 			}
 			while (networkInterfaces.hasMoreElements()) {
-				NetworkInterface networkInterface = (NetworkInterface) networkInterfaces.nextElement();
-				Enumeration<InetAddress> inetAddresses = networkInterface.getInetAddresses();
+				NetworkInterface networkInterface = (NetworkInterface) networkInterfaces
+						.nextElement();
+				Enumeration<InetAddress> inetAddresses = networkInterface
+						.getInetAddresses();
 				while (inetAddresses.hasMoreElements()) {
-					InetAddress inetAddress = (InetAddress) inetAddresses.nextElement();
-					if (!inetAddress.isLoopbackAddress() && inetAddress instanceof Inet4Address) {
+					InetAddress inetAddress = (InetAddress) inetAddresses
+							.nextElement();
+					if (!inetAddress.isLoopbackAddress()
+							&& inetAddress instanceof Inet4Address) {
 						ip = inetAddress.getHostAddress();
 						System.setProperty("java.rmi.server.hostname", ip);
 					}
@@ -123,8 +122,8 @@ public class RemoteCollectorImpl<T> extends UnicastRemoteObject implements IRemo
 			ServerSocket tmp = new ServerSocket(0);
 			randomPort = tmp.getLocalPort();
 			tmp.close();
-		} catch (IOException e) {
-			e.printStackTrace();
+		} catch (Throwable t) {
+			throw new RuntimeException(t);
 		}
 
 		// create the local listening object and bind it to the RMI registry
@@ -134,8 +133,10 @@ public class RemoteCollectorImpl<T> extends UnicastRemoteObject implements IRemo
 		OutputFormat<T> remoteCollectorOutputFormat = new RemoteCollectorOutputFormat<T>();
 
 		Configuration remoteCollectorConfiguration = new Configuration();
-		remoteCollectorConfiguration.setString(RemoteCollectorOutputFormat.REMOTE, ip);
-		remoteCollectorConfiguration.setInteger(RemoteCollectorOutputFormat.PORT, randomPort);
+		remoteCollectorConfiguration.setString(
+				RemoteCollectorOutputFormat.REMOTE, ip);
+		remoteCollectorConfiguration.setInteger(
+				RemoteCollectorOutputFormat.PORT, randomPort);
 		remoteCollectorOutputFormat.configure(remoteCollectorConfiguration);
 
 		// create sink
@@ -152,8 +153,10 @@ public class RemoteCollectorImpl<T> extends UnicastRemoteObject implements IRemo
 	 * @param port
 	 * @param collection
 	 */
-	public static <T> void collectLocal(DataSet<T> source, Collection<T> collection) {
-		final Collection<T> synchronizedCollection = Collections.synchronizedCollection(collection);
+	public static <T> void collectLocal(DataSet<T> source,
+			Collection<T> collection) {
+		final Collection<T> synchronizedCollection = Collections
+				.synchronizedCollection(collection);
 		collectLocal(source, new IRemoteCollectorConsumer<T>() {
 			@Override
 			public void collect(T element) {
@@ -164,6 +167,7 @@ public class RemoteCollectorImpl<T> extends UnicastRemoteObject implements IRemo
 
 	/**
 	 * Necessary private default constructor.
+	 * 
 	 * @throws RemoteException
 	 */
 	private RemoteCollectorImpl() throws RemoteException {

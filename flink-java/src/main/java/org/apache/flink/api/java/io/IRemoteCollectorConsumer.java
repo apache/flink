@@ -1,5 +1,3 @@
-package org.apache.flink.api.java.io;
-
 /**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -18,10 +16,11 @@ package org.apache.flink.api.java.io;
  * limitations under the License.
  */
 
+package org.apache.flink.api.java.io;
+
 /**
  * This interface describes consumers of {@link IRemoteCollector} implementations.
  */
-
 public interface IRemoteCollectorConsumer<T> {
 	public void collect(T element);
 }

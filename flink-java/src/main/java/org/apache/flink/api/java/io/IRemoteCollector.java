@@ -1,5 +1,3 @@
-package org.apache.flink.api.java.io;
-
 /**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -18,13 +16,14 @@ package org.apache.flink.api.java.io;
  * limitations under the License.
  */
 
+package org.apache.flink.api.java.io;
+
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 
 /**
- * This interface is the counterpart to the
- * {@link RemoteCollectorOutputFormat} and implementations will receive
- * remote results through the collect function.
+ * This interface is the counterpart to the {@link RemoteCollectorOutputFormat}
+ * and implementations will receive remote results through the collect function.
  * 
  * @param <T>
  *            The type of the records the collector will receive
@@ -32,9 +31,10 @@ import java.rmi.RemoteException;
 public interface IRemoteCollector<T> extends Remote {
 
 	public void collect(T element) throws RemoteException;
-	
+
 	public IRemoteCollectorConsumer<T> getConsumer() throws RemoteException;
 
-	public void setConsumer(IRemoteCollectorConsumer<T> consumer) throws RemoteException;
+	public void setConsumer(IRemoteCollectorConsumer<T> consumer)
+			throws RemoteException;
 
 }
