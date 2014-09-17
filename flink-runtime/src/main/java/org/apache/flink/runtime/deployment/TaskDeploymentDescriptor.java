@@ -280,9 +280,9 @@ public final class TaskDeploymentDescriptor implements IOReadableWritable {
 		inputGates = readGateList(in);
 		outputGates = readGateList(in);
 
-		String[] jarFiles = new String[in.readInt()];
-		for (int i = 0; i < jarFiles.length; i++) {
-			jarFiles[i] = StringValue.readString(in);
+		this.requiredJarFiles = new String[in.readInt()];
+		for (int i = 0; i < this.requiredJarFiles.length; i++) {
+			this.requiredJarFiles[i] = StringValue.readString(in);
 		}
 	}
 	

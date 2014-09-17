@@ -20,9 +20,11 @@ package org.apache.flink.runtime.deployment;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.apache.flink.configuration.Configuration;
@@ -70,6 +72,8 @@ public class TaskDeploymentDescriptorTest {
 			assertEquals(orig.getCurrentNumberOfSubtasks(), copy.getCurrentNumberOfSubtasks());
 			assertEquals(orig.getOutputGates(), copy.getOutputGates());
 			assertEquals(orig.getInputGates(), copy.getInputGates());
+			
+			assertTrue(Arrays.equals(orig.getRequiredJarFiles(), copy.getRequiredJarFiles()));
 		}
 		catch (Exception e) {
 			e.printStackTrace();
