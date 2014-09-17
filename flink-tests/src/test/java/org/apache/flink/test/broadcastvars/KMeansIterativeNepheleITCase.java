@@ -245,7 +245,6 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 		tailConfig.setSpillingThresholdInput(0, 0.9f);
 		
 		// output
-		tailConfig.addOutputShipStrategy(ShipStrategyType.FORWARD);
 		tailConfig.setOutputSerializer(outputSerializer);
 		
 		// the udf
@@ -284,8 +283,6 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 		
 		AbstractJobVertex reducer = createReducer(jobGraph, numSubTasks, serializer, int0Comparator, serializer);
 		
-		AbstractJobVertex fakeTailOutput = JobGraphUtils.createFakeOutput(jobGraph, "FakeTailOutput", numSubTasks);
-		
 		AbstractJobVertex sync = createSync(jobGraph, numIterations, numSubTasks);
 		
 		OutputFormatVertex output = createOutput(jobGraph, resultPath, numSubTasks, serializer);
@@ -304,8 +301,6 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 		JobGraphUtils.connect(mapper, reducer, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
 		new TaskConfig(reducer.getConfiguration()).setGateIterativeWithNumberOfEventsUntilInterrupt(0, numSubTasks);
 		
-		JobGraphUtils.connect(reducer, fakeTailOutput, ChannelType.NETWORK, DistributionPattern.POINTWISE);
-		
 		JobGraphUtils.connect(head, output, ChannelType.NETWORK, DistributionPattern.POINTWISE);
 		
 		JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
@@ -319,13 +314,11 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 		head.setSlotSharingGroup(sharingGroup);
 		mapper.setSlotSharingGroup(sharingGroup);
 		reducer.setSlotSharingGroup(sharingGroup);
-		fakeTailOutput.setSlotSharingGroup(sharingGroup);
 		sync.setSlotSharingGroup(sharingGroup);
 		output.setSlotSharingGroup(sharingGroup);
 		
 		mapper.setStrictlyCoLocatedWith(head);
 		reducer.setStrictlyCoLocatedWith(head);
-		fakeTailOutput.setStrictlyCoLocatedWith(reducer);
 
 		return jobGraph;
 	}
