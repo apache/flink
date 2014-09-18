@@ -22,7 +22,7 @@ import java.util.Comparator;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
-import org.apache.flink.client.minicluster.NepheleMiniCluster;
+import org.apache.flink.runtime.minicluster.NepheleMiniCluster;
 import org.apache.flink.compiler.DataStatistics;
 import org.apache.flink.compiler.PactCompiler;
 import org.apache.flink.compiler.plan.OptimizedPlan;

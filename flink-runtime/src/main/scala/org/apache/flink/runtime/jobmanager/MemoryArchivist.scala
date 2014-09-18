@@ -24,6 +24,8 @@ import org.apache.flink.runtime.event.job.{RecentJobEvent, AbstractEvent}
 import org.apache.flink.runtime.executiongraph.ExecutionGraph
 import org.apache.flink.runtime.jobgraph.JobID
 import org.apache.flink.runtime.messages.ArchiveMessages._
+import org.apache.flink.runtime.messages.ExecutionGraphMessages.{JobNotFound, JobStatusFound}
+import org.apache.flink.runtime.messages.JobManagerMessages.RequestJobStatus
 
 import scala.collection.convert.DecorateAsJava
 import scala.collection.mutable.ListBuffer
@@ -34,50 +36,46 @@ DecorateAsJava {
    * The map which stores all collected events until they are either
    * fetched by the client or discarded.
    */
-  private val collectedEvents = collection.mutable.HashMap[JobID, ListBuffer[AbstractEvent]]()
+  val collectedEvents = collection.mutable.HashMap[JobID, ListBuffer[AbstractEvent]]()
 
   /**
    * Map of recently started jobs with the time stamp of the last received job event.
    */
-  private val oldJobs = collection.mutable.HashMap[JobID, RecentJobEvent]()
+  val oldJobs = collection.mutable.HashMap[JobID, RecentJobEvent]()
 
   /**
    * Map of execution graphs belonging to recently started jobs with the time stamp of the last received job event.
    */
-  private val graphs = collection.mutable.HashMap[JobID, ExecutionGraph]()
+  val graphs = collection.mutable.HashMap[JobID, ExecutionGraph]()
 
   
-  private val lru = collection.mutable.Queue[JobID]()
+  val lru = collection.mutable.Queue[JobID]()
 
   override def receiveWithLogMessages: Receive = {
-    case ArchiveEvent(jobID, event) =>
+    case ArchiveEvent(jobID, event) => {
       val list = collectedEvents.getOrElseUpdate(jobID, ListBuffer())
       list += event
       cleanup(jobID)
+    }
 
-    case ArchiveJobEvent(jobID, event) =>
+    case ArchiveJobEvent(jobID, event) => {
       oldJobs.update(jobID, event)
       cleanup(jobID)
+    }
 
-    case ArchiveExecutionGraph(jobID, graph) =>
+    case ArchiveExecutionGraph(jobID, graph) => {
       graphs.update(jobID, graph)
       cleanup(jobID)
+    }
 
-    case GetJobs =>
-      oldJobs.values.toSeq.asJava
+    case RequestJobStatus(jobID) => {
+      val response = oldJobs get jobID match {
+        case Some(recentJobEvent) => JobStatusFound(jobID, recentJobEvent.getJobStatus)
+        case None => JobNotFound(jobID)
+      }
 
-    case GetJob(jobID) =>
-      sender() ! oldJobs.get(jobID)
-
-    case GetEvents(jobID) =>
-      sender() ! collectedEvents.get(jobID)
-
-    case GetExecutionGraph(jobID) =>
-      sender() ! (graphs.get(jobID) match{
-        case Some(graph) => graph
-        case None => akka.actor.Status.Failure(new IllegalArgumentException(s"Could not find execution graph for job " +
-          s"id $jobID."))
-      })
+      sender() ! response
+    }
   }
 
   def cleanup(jobID: JobID): Unit = {

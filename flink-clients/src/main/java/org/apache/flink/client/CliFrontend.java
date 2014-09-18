@@ -509,7 +509,7 @@ public class CliFrontend {
 			}
 
 			List<RecentJobEvent> recentJobs = AkkaUtils.<EventCollectorMessages.RecentJobs>ask(jobManager,
-					EventCollectorMessages.RequestRecentJobs$.MODULE$).asJavaList();
+					EventCollectorMessages.RequestRecentJobEvents$.MODULE$).asJavaList();
 
 			ArrayList<RecentJobEvent> runningJobs = null;
 			ArrayList<RecentJobEvent> scheduledJobs = null;

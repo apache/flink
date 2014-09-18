@@ -35,6 +35,9 @@ object JobManagerMessages {
   case class ConnectionInformation(response: ConnectionInfoLookupResponse)
   case class ReportAccumulatorResult(accumulatorEvent: AccumulatorEvent)
   case class RequestAccumulatorResult(jobID: JobID)
+  case class RegisterJobStatusListener(jobID: JobID)
+  case class RequestJobStatusWhenTerminated(jobID: JobID)
+  case class RequestJobStatus(jobID: JobID)
 
   case object RequestInstances
   case object RequestNumberRegisteredTaskManager

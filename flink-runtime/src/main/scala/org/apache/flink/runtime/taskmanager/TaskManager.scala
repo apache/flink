@@ -57,7 +57,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.Failure
 
-class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerURL: String, val numberOfSlots: Int,
+class TaskManager(_connectionInfo: InstanceConnectionInfo, val jobManagerURL: String, val numberOfSlots: Int,
 val memorySize: Long, val pageSize: Int, val tmpDirPaths: Array[String], val networkConnectionConfig:
 NetworkConnectionConfiguration, memoryUsageLogging: MemoryUsageLogging, profilingInterval: Option[Long]) extends Actor
 with
@@ -69,6 +69,12 @@ ActorLogMessages with ActorLogging with DecorateAsScala with WrapAsScala{
   val REGISTRATION_INTERVAL = 10 seconds
   val MAX_REGISTRATION_ATTEMPTS = 1
   val HEARTBEAT_INTERVAL = 200 millisecond
+
+  // check if we have to automatically select a data port
+  val connectionInfo = _connectionInfo.dataPort() match {
+    case 0 => new InstanceConnectionInfo(_connectionInfo.address(), NetUtils.getAvailablePort)
+    case _ => _connectionInfo
+  }
 
   TaskManager.checkTempDirs(tmpDirPaths)
   val ioManager = new IOManager(tmpDirPaths)
@@ -378,7 +384,7 @@ object TaskManager{
   def main(args: Array[String]): Unit = {
     val (hostname, port, configuration) = initialize(args)
 
-    val taskManagerSystem = startActorSystemAndActor(hostname, port, configuration)
+    val (taskManagerSystem, _) = startActorSystemAndActor(hostname, port, configuration)
     taskManagerSystem.awaitTermination()
   }
 
@@ -421,15 +427,16 @@ object TaskManager{
     }
   }
 
-  def startActorSystemAndActor(hostname: String, port: Int, configuration: Configuration) = {
-    val actorSystem = AkkaUtils.createActorSystem(hostname, port, configuration)
-    startActor(actorSystem, hostname, configuration)
-    actorSystem
+  def startActorSystemAndActor(hostname: String, port: Int, configuration: Configuration): (ActorSystem, ActorRef) = {
+    implicit val actorSystem = AkkaUtils.createActorSystem(hostname, port, configuration)
+    (actorSystem, (startActor _).tupled(parseConfiguration(hostname, configuration)))
   }
 
-  def startActor(actorSystem: ActorSystem, hostname: String, configuration: Configuration): ActorRef = {
+  def parseConfiguration(hostname: String, configuration: Configuration): (InstanceConnectionInfo, String, Int, Long,
+    Int, Array[String], NetworkConnectionConfiguration, MemoryUsageLogging, Option[Long]) = {
     val dataport = configuration.getInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY,
       ConfigConstants.DEFAULT_TASK_MANAGER_DATA_PORT)
+
     val connectionInfo = new InstanceConnectionInfo(InetAddress.getByName(hostname), dataport)
 
     val jobManagerAddress = configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
@@ -478,20 +485,33 @@ object TaskManager{
       ConfigConstants.DEFAULT_TASK_MANAGER_DEBUG_MEMORY_USAGE_START_LOG_THREAD) match {
       case true => Some(
         configuration.getInteger(ConfigConstants.TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS,
-            ConfigConstants.DEFAULT_TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS)
+          ConfigConstants.DEFAULT_TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS)
       )
       case false => None
     }
 
     val profilingInterval = configuration.getBoolean(ProfilingUtils.ENABLE_PROFILING_KEY, false) match {
       case true => Some(configuration.getInteger(ProfilingUtils.TASKMANAGER_REPORTINTERVAL_KEY,
-        ProfilingUtils.DEFAULT_TASKMANAGER_REPORTINTERVAL))
+        ProfilingUtils.DEFAULT_TASKMANAGER_REPORTINTERVAL).toLong)
       case false => None
     }
 
+    (connectionInfo, jobManagerURL, numberOfSlots, memorySize, pageSize, tmpDirs,
+      NetworkConnectionConfiguration(numBuffers, bufferSize, numInThreads, numOutThreads, lowWaterMark,
+        highWaterMark), MemoryUsageLogging(logIntervalMs), profilingInterval)
+  }
+
+  def startActor(connectionInfo: InstanceConnectionInfo, jobManagerURL: String,
+                 numberOfSlots: Int, memorySize: Long, pageSize: Int, tmpDirs: Array[String],
+                 networkConnectionConfiguration: NetworkConnectionConfiguration,
+                 memoryUsageLogging: MemoryUsageLogging, profilingInterval: Option[Long])(implicit actorSystem:
+  ActorSystem): ActorRef = {
     actorSystem.actorOf(Props(classOf[TaskManager], connectionInfo, jobManagerURL, numberOfSlots, memorySize, pageSize,
-      tmpDirs, NetworkConnectionConfiguration(numBuffers, bufferSize, numInThreads, numOutThreads, lowWaterMark,
-        highWaterMark), MemoryUsageLogging(logIntervalMs), profilingInterval), TASK_MANAGER_NAME);
+      tmpDirs, networkConnectionConfiguration, memoryUsageLogging, profilingInterval), TASK_MANAGER_NAME);
+  }
+
+  def startActorWithConfiguration(hostname: String, configuration: Configuration)(implicit system: ActorSystem) = {
+    (startActor _).tupled(parseConfiguration(hostname, configuration))
   }
 
   def startProfiler(instancePath: String, reportInterval: Long)(implicit system: ActorSystem): ActorRef = {

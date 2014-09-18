@@ -65,7 +65,7 @@ public class JobsInfoServlet extends HttpServlet {
 			ActorRef jm = JobManager.getJobManager(new InetSocketAddress(jmHost, jmPort));
 
 			List<RecentJobEvent> recentJobs = AkkaUtils.<EventCollectorMessages.RecentJobs>ask(jm,
-					EventCollectorMessages.RequestRecentJobs$.MODULE$).asJavaList();
+					EventCollectorMessages.RequestRecentJobEvents$.MODULE$).asJavaList();
 
 			ArrayList<RecentJobEvent> jobs = new ArrayList<RecentJobEvent>(recentJobs);
 			

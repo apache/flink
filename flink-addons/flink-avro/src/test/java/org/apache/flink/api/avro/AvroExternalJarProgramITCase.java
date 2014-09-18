@@ -21,7 +21,7 @@ package org.apache.flink.api.avro;
 import java.io.File;
 import java.net.InetSocketAddress;
 
-import org.apache.flink.client.minicluster.NepheleMiniCluster;
+import org.apache.flink.runtime.minicluster.NepheleMiniCluster;
 import org.apache.flink.client.program.Client;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;

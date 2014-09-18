@@ -16,14 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.messages
+package org.apache.flink.runtime.jobmanager
 
-import org.apache.flink.runtime.event.job.{RecentJobEvent, AbstractEvent}
-import org.apache.flink.runtime.executiongraph.ExecutionGraph
-import org.apache.flink.runtime.jobgraph.JobID
+import org.apache.flink.runtime.ActorLogMessages
+import org.apache.flink.runtime.jobmanager.TestingJobManagerMessages.{ExecutionGraphNotFound, ExecutionGraphFound, RequestExecutionGraph}
 
-object ArchiveMessages {
-  case class ArchiveEvent(jobID: JobID, event: AbstractEvent)
-  case class ArchiveJobEvent(jobID: JobID, event: RecentJobEvent)
-  case class ArchiveExecutionGraph(jobID: JobID, graph: ExecutionGraph)
+trait TestingMemoryArchivist extends ActorLogMessages {
+  self: MemoryArchivist =>
+
+  abstract override def receiveWithLogMessages = {
+    receiveTestingMessages orElse super.receiveWithLogMessages
+  }
+
+  def receiveTestingMessages: Receive = {
+    case RequestExecutionGraph(jobID) =>
+      graphs.get(jobID) match {
+        case Some(executionGraph) => sender() ! ExecutionGraphFound(jobID, executionGraph)
+        case None => sender() ! ExecutionGraphNotFound(jobID)
+      }
+
+  }
 }

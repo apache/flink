@@ -20,20 +20,25 @@ package org.apache.flink.runtime.jobmanager
 
 
 import akka.actor.{Terminated, ActorRef, Actor, ActorLogging}
+import akka.pattern.{ask, pipe}
 import org.apache.flink.runtime.ActorLogMessages
+import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.event.job._
 import org.apache.flink.runtime.executiongraph._
 import org.apache.flink.runtime.jobgraph.{JobStatus, JobID}
 import org.apache.flink.runtime.messages.ArchiveMessages.{ArchiveExecutionGraph, ArchiveJobEvent, ArchiveEvent}
 import org.apache.flink.runtime.messages.EventCollectorMessages._
-import org.apache.flink.runtime.messages.ExecutionGraphMessages.{JobStatusChanged, ExecutionStateChanged}
+import org.apache.flink.runtime.messages.ExecutionGraphMessages.{JobStatusFound, JobNotFound, JobStatusChanged, ExecutionStateChanged}
+import org.apache.flink.runtime.messages.JobManagerMessages.RequestJobStatus
 import org.apache.flink.runtime.messages.JobResult
 import org.apache.flink.runtime.messages.JobResult.JobProgressResult
 import scala.collection.convert.{WrapAsScala}
+import scala.concurrent.Future
 import scala.concurrent.duration._
 
 class EventCollector(val timerTaskInterval: Int) extends Actor with ActorLogMessages with ActorLogging with WrapAsScala {
   import context.dispatcher
+  import AkkaUtils.FUTURE_TIMEOUT
 
   val collectedEvents = collection.mutable.HashMap[JobID, List[AbstractEvent]]()
 
@@ -63,64 +68,62 @@ class EventCollector(val timerTaskInterval: Int) extends Actor with ActorLogMess
   }
 
   override def receiveWithLogMessages: Receive = {
-    case ArchiveExpiredEvents =>
+    case ArchiveExpiredEvents => {
       val currentTime = System.currentTimeMillis()
 
-      collectedEvents.retain{
+      collectedEvents.retain {
         (jobID, events) =>
-          val (outdatedElements, currentElements) = events.partition{
+          val (outdatedElements, currentElements) = events.partition {
             event => event.getTimestamp + timerTaskInterval < currentTime
           }
 
-          outdatedElements foreach ( archiveEvent(jobID, _) )
+          outdatedElements foreach (archiveEvent(jobID, _))
           currentElements.nonEmpty
       }
 
-      recentJobs.retain{
+      recentJobs.retain {
         (jobID, recentJobEvent) =>
           import JobStatus._
           val status = recentJobEvent.getJobStatus
 
           // only remove jobs which have stopped running
-          if((status == FINISHED || status == CANCELED || status != FAILED) &&
-            recentJobEvent.getTimestamp + timerTaskInterval < currentTime){
+          if ((status == FINISHED || status == CANCELED || status != FAILED) &&
+            recentJobEvent.getTimestamp + timerTaskInterval < currentTime) {
             archiveJobEvent(jobID, recentJobEvent)
             archiveExecutionGraph(jobID, recentExecutionGraphs.remove(jobID).get)
             jobInformation.remove(jobID)
             false
-          }else{
+          } else {
             true
           }
       }
+    }
 
-    case RequestJobEvents(jobID, includeManagementEvents) =>
-      val events = collectedEvents.getOrElse(jobID, List())
-      val filteredEvents = events filter { event => !event.isInstanceOf[ManagementEvent] || includeManagementEvents}
-
-      sender() ! JobEvents(filteredEvents)
-
-    case RequestJobProgress(jobID) =>
+    case RequestJobProgress(jobID) => {
       sender() ! JobProgressResult(JobResult.SUCCESS, null, collectedEvents.getOrElse(jobID, List()))
+    }
 
 
-    case RequestRecentJobs =>
+    case RequestRecentJobEvents => {
       sender() ! RecentJobs(recentJobs.values.toList)
+    }
 
-    case RegisterJob(executionGraph, profilingAvailable, submissionTimestamp) =>
+    case RegisterJob(executionGraph, profilingAvailable, submissionTimestamp) => {
       val jobID = executionGraph.getJobID
 
       executionGraph.registerExecutionListener(self)
       executionGraph.registerJobStatusListener(self)
-      jobInformation += jobID -> (executionGraph.getJobName, profilingAvailable, submissionTimestamp)
+      jobInformation += jobID ->(executionGraph.getJobName, profilingAvailable, submissionTimestamp)
+    }
 
-    case ExecutionStateChanged(jobID, vertexID, subtask, executionID, newExecutionState, optionalMessage) =>
+    case ExecutionStateChanged(jobID, vertexID, subtask, executionID, newExecutionState, optionalMessage) => {
       val timestamp = System.currentTimeMillis()
 
       recentExecutionGraphs.get(jobID) match {
         case Some(graph) =>
           val vertex = graph.getJobVertex(vertexID)
-          val taskName = if(vertex != null) vertex.getJobVertex.getName else "(null)"
-          val totalNumberOfSubtasks = if(vertex != null) vertex.getParallelism else -1
+          val taskName = if (vertex != null) vertex.getJobVertex.getName else "(null)"
+          val totalNumberOfSubtasks = if (vertex != null) vertex.getParallelism else -1
 
           val vertexEvent = new VertexEvent(timestamp, vertexID, taskName, totalNumberOfSubtasks, subtask, executionID,
             newExecutionState, optionalMessage)
@@ -133,11 +136,12 @@ class EventCollector(val timerTaskInterval: Int) extends Actor with ActorLogMess
         case None =>
           log.warning(s"Could not find execution graph with jobID ${jobID}.")
       }
+    }
 
-    case JobStatusChanged(executionGraph, newJobStatus, optionalMessage) =>
+    case JobStatusChanged(executionGraph, newJobStatus, optionalMessage) => {
       val jobID = executionGraph.getJobID()
 
-      if(newJobStatus == JobStatus.RUNNING){
+      if (newJobStatus == JobStatus.RUNNING) {
         this.recentExecutionGraphs += jobID -> executionGraph
       }
 
@@ -147,18 +151,38 @@ class EventCollector(val timerTaskInterval: Int) extends Actor with ActorLogMess
         currentTime))
 
       val events = collectedEvents.getOrElse(jobID, List())
-      collectedEvents += jobID -> ((new JobEvent(currentTime, newJobStatus, optionalMessage))::events)
+      collectedEvents += jobID -> ((new JobEvent(currentTime, newJobStatus, optionalMessage)) :: events)
+    }
 
-    case ProcessProfilingEvent(profilingEvent) =>
+    case ProcessProfilingEvent(profilingEvent) => {
       val events = collectedEvents.getOrElse(profilingEvent.getJobID, List())
-      collectedEvents += profilingEvent.getJobID -> (profilingEvent::events)
+      collectedEvents += profilingEvent.getJobID -> (profilingEvent :: events)
+    }
 
-    case RegisterArchiveListener(actorListener) =>
+    case RegisterArchiveListener(actorListener) => {
       context.watch(actorListener)
       archiveListeners += actorListener
+    }
 
-    case Terminated(terminatedListener) =>
+    case Terminated(terminatedListener) => {
       archiveListeners -= terminatedListener
+    }
+
+    case RequestJobStatus(jobID) => {
+      recentJobs.get(jobID) match {
+        case Some(recentJobEvent) => sender() ! JobStatusFound(jobID, recentJobEvent.getJobStatus)
+        case None =>
+          val responses = archiveListeners map { archivist => archivist ? RequestJobStatus(jobID) filter {
+            case _: JobStatusFound => true
+            case _ => false
+          }}
+          val noResponse = akka.pattern.after(AkkaUtils.FUTURE_DURATION, context.system.scheduler){
+            Future.successful(JobNotFound(jobID))
+          }
+
+          Future.firstCompletedOf(responses + noResponse) pipeTo sender()
+      }
+    }
   }
 
   private def archiveEvent(jobID: JobID, event: AbstractEvent): Unit = {

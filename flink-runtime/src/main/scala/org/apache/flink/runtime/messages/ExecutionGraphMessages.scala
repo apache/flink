@@ -25,6 +25,11 @@ import org.apache.flink.runtime.jobgraph.{JobStatus, JobVertexID, JobID}
 object ExecutionGraphMessages {
   case class ExecutionStateChanged(jobID: JobID, vertexID: JobVertexID, subtask: Int, executionID: ExecutionAttemptID,
                                    newExecutionState: ExecutionState, optionalMessage: String)
-
   case class JobStatusChanged(executionGraph: ExecutionGraph, newJobStatus: JobStatus, optionalMessage: String)
+
+  sealed trait JobStatusResponse{
+    def jobID: JobID
+  };
+  case class JobStatusFound(jobID: JobID, status: JobStatus) extends JobStatusResponse
+  case class JobNotFound(jobID: JobID) extends JobStatusResponse
 }

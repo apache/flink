@@ -19,7 +19,7 @@ package org.apache.flink.streaming.util;
 
 import java.net.InetSocketAddress;
 
-import org.apache.flink.client.minicluster.NepheleMiniCluster;
+import org.apache.flink.runtime.minicluster.NepheleMiniCluster;
 import org.apache.flink.client.program.Client;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;

@@ -27,7 +27,7 @@ import org.apache.flink.configuration.{ConfigConstants, GlobalConfiguration, Con
 import org.apache.flink.core.io.InputSplitAssigner
 import org.apache.flink.runtime.accumulators.AccumulatorEvent
 import org.apache.flink.runtime.io.network.ConnectionInfoLookupResponse
-import org.apache.flink.runtime.messages.ExecutionGraphMessages.JobStatusChanged
+import org.apache.flink.runtime.messages.ExecutionGraphMessages.{JobStatusFound, JobStatusResponse, JobStatusChanged}
 import org.apache.flink.runtime.messages.JobResult
 import org.apache.flink.runtime.messages.JobResult.{JobCancelResult, JobSubmissionResult}
 import org.apache.flink.runtime.{JobException, ActorLogMessages}
@@ -49,18 +49,22 @@ import org.slf4j.LoggerFactory
 import scala.collection.convert.WrapAsScala
 import scala.concurrent.Future
 
-class JobManager(archiveCount: Int, profiling: Boolean, recommendedPollingInterval: Int) extends Actor with
+class JobManager(val archiveCount: Int, val profiling: Boolean, val recommendedPollingInterval: Int) extends Actor with
 ActorLogMessages with ActorLogging with WrapAsScala {
   import context._
 
+  def profilerProps: Props = Props(classOf[JobManagerProfiler])
+  def archiveProps: Props = Props(classOf[MemoryArchivist], archiveCount)
+  def eventCollectorProps: Props = Props(classOf[EventCollector], recommendedPollingInterval)
+
   val profiler = profiling match {
-    case true => Some(JobManager.startProfiler)
+    case true => Some(context.actorOf(profilerProps, JobManager.PROFILER_NAME))
     case false => None
   }
 
   // will be removed
-  val archive = JobManager.startArchive(archiveCount)
-  val eventCollector = JobManager.startEventCollector(recommendedPollingInterval)
+  val archive = context.actorOf(archiveProps, JobManager.ARCHIVE_NAME)
+  val eventCollector = context.actorOf(eventCollectorProps, JobManager.EVENT_COLLECTOR_NAME)
 
   val accumulatorManager = new AccumulatorManager(Math.min(1, archiveCount))
   val instanceManager = new InstanceManager()
@@ -68,6 +72,7 @@ ActorLogMessages with ActorLogging with WrapAsScala {
   val webserver = null
 
   val currentJobs = scala.collection.concurrent.TrieMap[JobID, ExecutionGraph]()
+  val jobTerminationListener = scala.collection.mutable.HashMap[JobID, Set[ActorRef]]()
 
   eventCollector ! RegisterArchiveListener(archive)
 
@@ -229,6 +234,13 @@ ActorLogMessages with ActorLogging with WrapAsScala {
       log.info(s"Status of job ${jobID} (${executionGraph.getJobName}) changed to ${newJobStatus}${optionalMessage}.")
 
       if(Set(JobStatus.FINISHED, JobStatus.CANCELED, JobStatus.FAILED) contains newJobStatus){
+        // send final job status to job termination listeners
+        jobTerminationListener.get(jobID) foreach {
+          listeners =>
+            listeners foreach {
+              _ ! JobStatusFound(jobID, newJobStatus)
+            }
+        }
         currentJobs.remove(jobID)
 
         try{
@@ -260,8 +272,33 @@ ActorLogMessages with ActorLogging with WrapAsScala {
       sender() ! new AccumulatorEvent(jobID, accumulatorManager.getJobAccumulators(jobID))
     }
 
-    case RequestRecentJobs => {
-      eventCollector.tell(RequestRecentJobs, sender())
+    case RegisterJobStatusListener(jobID) => {
+      currentJobs.get(jobID) match {
+        case Some(executionGraph) =>
+          executionGraph.registerJobStatusListener(sender())
+        case None =>
+          log.warning(s"There is no running job with job ID ${jobID}.")
+      }
+    }
+
+    case RequestJobStatusWhenTerminated(jobID) => {
+      if(currentJobs.contains(jobID)){
+        val listeners = jobTerminationListener.getOrElse(jobID, Set())
+        jobTerminationListener += jobID -> (listeners + sender())
+      }else{
+        eventCollector.tell(RequestJobStatus(jobID), sender())
+      }
+    }
+
+    case RequestJobStatus(jobID) => {
+      currentJobs.get(jobID) match {
+        case Some(executionGraph) => sender() ! JobStatusFound(jobID, executionGraph.getState)
+        case None => eventCollector.tell(RequestJobStatus(jobID), sender())
+      }
+    }
+
+    case RequestRecentJobEvents => {
+      eventCollector.tell(RequestRecentJobEvents, sender())
     }
 
     case msg:RequestJobProgress => {
@@ -291,7 +328,7 @@ object JobManager{
   def main(args: Array[String]):Unit = {
     val (hostname, port, configuration) = initialize(args)
 
-    val jobManagerSystem = startActorSystemAndActor(hostname, port, configuration)
+    val (jobManagerSystem,_) = startActorSystemAndActor(hostname, port, configuration)
     jobManagerSystem.awaitTermination()
   }
 
@@ -322,33 +359,29 @@ object JobManager{
     }
   }
 
-  def startActorSystemAndActor(hostname: String, port: Int, configuration: Configuration): ActorSystem = {
-    val actorSystem = AkkaUtils.createActorSystem(hostname, port, configuration)
-    startActor(actorSystem, configuration)
-    actorSystem
+  def startActorSystemAndActor(hostname: String, port: Int, configuration: Configuration): (ActorSystem, ActorRef) = {
+    implicit val actorSystem = AkkaUtils.createActorSystem(hostname, port, configuration)
+    (actorSystem, (startActor _).tupled(parseConfiguration(configuration)))
   }
 
-  def startActor(actorSystem: ActorSystem, configuration: Configuration): ActorRef = {
+  def parseConfiguration(configuration: Configuration): (Int, Boolean, Int) = {
     val archiveCount = configuration.getInteger(ConfigConstants.JOB_MANAGER_WEB_ARCHIVE_COUNT,
       ConfigConstants.DEFAULT_JOB_MANAGER_WEB_ARCHIVE_COUNT)
     val profilingEnabled = configuration.getBoolean(ProfilingUtils.PROFILE_JOB_KEY, true)
     val recommendedPollingInterval = configuration.getInteger(ConfigConstants.JOBCLIENT_POLLING_INTERVAL_KEY,
       ConfigConstants.DEFAULT_JOBCLIENT_POLLING_INTERVAL)
 
+    (archiveCount, profilingEnabled, recommendedPollingInterval)
+  }
+
+  def startActorWithConfiguration(configuration: Configuration)(implicit actorSystem: ActorSystem) = {
+    (startActor _).tupled(parseConfiguration(configuration))
+  }
+
+  def startActor(archiveCount: Int, profilingEnabled: Boolean, recommendedPollingInterval: Int)(implicit actorSystem:
+  ActorSystem): ActorRef = {
     actorSystem.actorOf(Props(classOf[JobManager], archiveCount, profilingEnabled, recommendedPollingInterval),
       JOB_MANAGER_NAME)
-  }
-
-  def startArchive(archiveCount: Int)(implicit actorSystem: ActorSystem): ActorRef = {
-    actorSystem.actorOf(Props(classOf[MemoryArchivist], archiveCount), ARCHIVE_NAME)
-  }
-
-  def startEventCollector(recommendedPollingInterval: Int)(implicit actorSystem: ActorSystem): ActorRef = {
-    actorSystem.actorOf(Props(classOf[EventCollector], recommendedPollingInterval), EVENT_COLLECTOR_NAME)
-  }
-
-  def startProfiler(implicit actorSystem: ActorSystem): ActorRef = {
-    actorSystem.actorOf(Props(classOf[JobManagerProfiler]), PROFILER_NAME)
   }
 
   def getAkkaURL(address: String): String = {

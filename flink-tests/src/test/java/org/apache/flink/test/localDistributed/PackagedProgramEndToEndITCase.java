@@ -22,7 +22,7 @@ import java.io.File;
 import java.io.FileWriter;
 
 import org.apache.flink.client.RemoteExecutor;
-import org.apache.flink.client.minicluster.NepheleMiniCluster;
+import org.apache.flink.runtime.minicluster.NepheleMiniCluster;
 import org.apache.flink.test.testdata.KMeansData;
 import org.junit.Assert;
 import org.junit.Test;

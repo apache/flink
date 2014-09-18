@@ -29,7 +29,6 @@ import scala.collection.convert.DecorateAsJava
 object EventCollectorMessages extends DecorateAsJava{
   case class ProcessProfilingEvent(profilingEvent: ProfilingEvent)
   case class RegisterArchiveListener(listener: ActorRef)
-  case class RequestJobEvents(jobID: JobID, includeManagementEvents: Boolean)
   case class RequestJobProgress(jobID: JobID)
   case class RegisterJob(executionGraph: ExecutionGraph, profilingAvailable: Boolean, submissionTimestamp: Long)
 
@@ -46,5 +45,5 @@ object EventCollectorMessages extends DecorateAsJava{
   }
 
   case object ArchiveExpiredEvents
-  case object RequestRecentJobs
+  case object RequestRecentJobEvents
 }

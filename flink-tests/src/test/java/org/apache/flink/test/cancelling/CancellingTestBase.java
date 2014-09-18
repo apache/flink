@@ -26,7 +26,7 @@ import org.junit.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.Plan;
-import org.apache.flink.client.minicluster.NepheleMiniCluster;
+import org.apache.flink.runtime.minicluster.NepheleMiniCluster;
 import org.apache.flink.compiler.DataStatistics;
 import org.apache.flink.compiler.PactCompiler;
 import org.apache.flink.compiler.plan.OptimizedPlan;

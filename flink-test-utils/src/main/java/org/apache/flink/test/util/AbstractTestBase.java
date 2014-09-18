@@ -38,7 +38,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.flink.client.minicluster.NepheleMiniCluster;
+import org.apache.flink.runtime.minicluster.NepheleMiniCluster;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.hadoop.fs.FileSystem;

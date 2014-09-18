@@ -399,16 +399,16 @@ public final class ConfigConstants {
 	public static final int DEFAULT_JOB_MANAGER_DEAD_TASKMANAGER_TIMEOUT = 30*1000;
 	
 	/**
-	 * The default network port the task manager expects incoming IPC connections. The {@code -1} means that
+	 * The default network port the task manager expects incoming IPC connections. The {@code 0} means that
 	 * the TaskManager searches for a free port.
 	 */
-	public static final int DEFAULT_TASK_MANAGER_IPC_PORT = -1;
+	public static final int DEFAULT_TASK_MANAGER_IPC_PORT = 0;
 
 	/**
-	 * The default network port the task manager expects to receive transfer envelopes on. The {@code -1} means that
+	 * The default network port the task manager expects to receive transfer envelopes on. The {@code 0} means that
 	 * the TaskManager searches for a free port.
 	 */
-	public static final int DEFAULT_TASK_MANAGER_DATA_PORT = -1;
+	public static final int DEFAULT_TASK_MANAGER_DATA_PORT = 0;
 
 	/**
 	 * The default directory for temporary files of the task manager.
@@ -475,6 +475,11 @@ public final class ConfigConstants {
 	 * The interval (in ms) for the log thread to log the current memory usage.
 	 */
 	public static final int DEFAULT_TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS = 5000;
+
+	/**
+	 * The default number of task slots per task manager
+	 */
+	public static final int DEFAULT_TASK_MANAGER_NUM_TASK_SLOTS = -1;
 	
 	/**
 	 * The default value for the JobClient's polling interval. 2 Seconds.

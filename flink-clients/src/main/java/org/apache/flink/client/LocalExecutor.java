@@ -26,7 +26,8 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.PlanExecutor;
 import org.apache.flink.api.common.Program;
-import org.apache.flink.client.minicluster.FlinkMiniCluster;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.minicluster.FlinkMiniCluster;
 import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -37,6 +38,7 @@ import org.apache.flink.compiler.dag.DataSinkNode;
 import org.apache.flink.compiler.plan.OptimizedPlan;
 import org.apache.flink.compiler.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.compiler.plantranslate.NepheleJobGraphGenerator;
+import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 
 /**
  * A class for executing a {@link Plan} on a local embedded Flink runtime instance.
@@ -49,7 +51,7 @@ public class LocalExecutor extends PlanExecutor {
 
 	private final Object lock = new Object();	// we lock to ensure singleton execution
 	
-	private FlinkMiniCluster nephele;
+	private LocalFlinkMiniCluster flink;
 
 	// ---------------------------------- config options ------------------------------------------
 	
@@ -141,33 +143,14 @@ public class LocalExecutor extends PlanExecutor {
 	
 	public void start() throws Exception {
 		synchronized (this.lock) {
-			if (this.nephele == null) {
+			if (this.flink == null) {
 				
 				// create the embedded runtime
-				this.nephele = new FlinkMiniCluster();
-				
-				// configure it, if values were changed. otherwise the embedded runtime uses the internal defaults
-				if (jobManagerRpcPort > 0) {
-					nephele.setJobManagerRpcPort(jobManagerRpcPort);
-				}
-				if (taskManagerRpcPort > 0) {
-					nephele.setTaskManagerRpcPort(jobManagerRpcPort);
-				}
-				if (taskManagerDataPort > 0) {
-					nephele.setTaskManagerDataPort(taskManagerDataPort);
-				}
-				if (configDir != null) {
-					nephele.setConfigDir(configDir);
-				}
-				if (hdfsConfigFile != null) {
-					nephele.setHdfsConfigFile(hdfsConfigFile);
-				}
-				nephele.setDefaultOverwriteFiles(defaultOverwriteFiles);
-				nephele.setDefaultAlwaysCreateDirectory(defaultAlwaysCreateDirectory);
-				nephele.setTaskManagerNumSlots(taskManagerNumSlots);
+				this.flink = new LocalFlinkMiniCluster(configDir);
+				Configuration configuration = new Configuration();
 				
 				// start it up
-				this.nephele.start();
+				this.flink.start(configuration);
 			} else {
 				throw new IllegalStateException("The local executor was already started.");
 			}
@@ -179,9 +162,9 @@ public class LocalExecutor extends PlanExecutor {
 	 */
 	public void stop() throws Exception {
 		synchronized (this.lock) {
-			if (this.nephele != null) {
-				this.nephele.stop();
-				this.nephele = null;
+			if (this.flink != null) {
+				this.flink.stop();
+				this.flink = null;
 			} else {
 				throw new IllegalStateException("The local executor was not started.");
 			}
@@ -210,7 +193,7 @@ public class LocalExecutor extends PlanExecutor {
 			
 			// check if we start a session dedicated for this execution
 			final boolean shutDownAtEnd;
-			if (this.nephele == null) {
+			if (this.flink == null) {
 				// we start a session just for us now
 				shutDownAtEnd = true;
 				
@@ -235,7 +218,7 @@ public class LocalExecutor extends PlanExecutor {
 				NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
 				JobGraph jobGraph = jgg.compileJobGraph(op);
 				
-				JobClient jobClient = this.nephele.getJobClient(jobGraph);
+				JobClient jobClient = this.flink.getJobClient(jobGraph);
 				JobExecutionResult result = jobClient.submitJobAndWait();
 				return result;
 			}

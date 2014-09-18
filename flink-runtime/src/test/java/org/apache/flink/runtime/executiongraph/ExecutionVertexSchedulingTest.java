@@ -23,6 +23,7 @@ import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.ge
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
+import akka.actor.ActorRef;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.AllocatedSlot;
@@ -45,7 +46,7 @@ public class ExecutionVertexSchedulingTest {
 		
 		try {
 			// a slot than cannot be deployed to
-			final TaskOperationProtocol taskManager = mock(TaskOperationProtocol.class);
+			final ActorRef taskManager = mock(ActorRef.class);
 			final Instance instance = getInstance(taskManager);
 			final AllocatedSlot slot = instance.allocateSlot(new JobID());
 			slot.cancel();
@@ -65,7 +66,7 @@ public class ExecutionVertexSchedulingTest {
 			assertEquals(ExecutionState.FAILED, vertex.getExecutionState());
 			assertTrue(slot.isReleased());
 			
-			verify(taskManager, times(0)).submitTask(Matchers.any(TaskDeploymentDescriptor.class));
+			verify(instance, times(0)).submitTask(Matchers.any(TaskDeploymentDescriptor.class));
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -78,7 +79,7 @@ public class ExecutionVertexSchedulingTest {
 
 		try {
 			// a slot than cannot be deployed to
-			final TaskOperationProtocol taskManager = mock(TaskOperationProtocol.class);
+			final ActorRef taskManager = mock(ActorRef.class);
 			final Instance instance = getInstance(taskManager);
 			final AllocatedSlot slot = instance.allocateSlot(new JobID());
 			slot.cancel();
@@ -105,7 +106,7 @@ public class ExecutionVertexSchedulingTest {
 			assertEquals(ExecutionState.FAILED, vertex.getExecutionState());
 			assertTrue(slot.isReleased());
 			
-			verify(taskManager, times(0)).submitTask(Matchers.any(TaskDeploymentDescriptor.class));
+			verify(instance, times(0)).submitTask(Matchers.any(TaskDeploymentDescriptor.class));
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -117,7 +118,7 @@ public class ExecutionVertexSchedulingTest {
 	public void testScheduleToDeploy() {
 		try {
 			// a slot than cannot be deployed to
-			final TaskOperationProtocol taskManager = mock(TaskOperationProtocol.class);
+			final ActorRef taskManager = mock(ActorRef.class);
 			final Instance instance = getInstance(taskManager);
 			final AllocatedSlot slot = instance.allocateSlot(new JobID());
 			

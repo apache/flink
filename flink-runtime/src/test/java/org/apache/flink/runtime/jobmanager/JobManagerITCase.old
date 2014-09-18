@@ -24,6 +24,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import akka.actor.ActorRef;
+import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.io.network.api.RecordReader;
 import org.apache.flink.runtime.io.network.api.RecordWriter;
@@ -37,8 +39,10 @@ import org.apache.flink.runtime.jobmanager.tasks.AgnosticBinaryReceiver;
 import org.apache.flink.runtime.jobmanager.tasks.AgnosticReceiver;
 import org.apache.flink.runtime.jobmanager.tasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.jobmanager.tasks.NoOpInvokable;
-import org.apache.flink.runtime.jobmanager.tasks.Receiver;
-import org.apache.flink.runtime.jobmanager.tasks.Sender;
+import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.runtime.messages.JobResult;
+import org.apache.flink.runtime.messages.JobResult.JobSubmissionResult;
+import org.apache.flink.runtime.minicluster.FlinkMiniCluster;
 import org.apache.flink.runtime.types.IntegerRecord;
 import org.junit.Test;
 
@@ -56,19 +60,18 @@ public class JobManagerITCase {
 			vertex.setInvokableClass(BlockingNoOpInvokable.class);
 			
 			final JobGraph jobGraph = new JobGraph("Test Job", vertex);
+
+			final FlinkMiniCluster cluster = startFlinkCluster(1);
 			
-			final JobManager jm = startJobManager(1);
-			
-			final GlobalBufferPool bp = ((LocalInstanceManager) jm.getInstanceManager())
-					.getTaskManagers()[0].getChannelManager().getGlobalBufferPool();
-			
+			final ActorRef jm = cluster.getJobManager();
+
 			try {
+				int availableSlots = AkkaUtils.ask(jm, JobManagerMessages.RequestAvailableSlots$.MODULE$);
+				assertEquals(1, availableSlots);
 				
-				assertEquals(1, jm.getTotalNumberOfRegisteredSlots());
-				
-				JobSubmissionResult result = jm.submitJob(jobGraph);
-				assertEquals(AbstractJobResult.ReturnCode.ERROR, result.getReturnCode());
-				
+				JobSubmissionResult result = AkkaUtils.ask(jm, new JobManagerMessages.SubmitJob(jobGraph));
+				assertEquals(JobResult.ERROR(), result.returnCode());
+
 				// monitor the execution
 				ExecutionGraph eg = jm.getCurrentJobs().get(jobGraph.getJobID());
 				
@@ -98,15 +101,9 @@ public class JobManagerITCase {
 				else {
 					// already done, that was fast;
 				}
-				
-				
-				
-				// make sure that in any case, the network buffers are all returned
-				waitForTaskThreadsToBeTerminated();
-				assertEquals(bp.numBuffers(), bp.numAvailableBuffers());
 			}
 			finally {
-				jm.shutdown();
+				cluster.stop();
 			}
 		}
 		catch (Exception e) {

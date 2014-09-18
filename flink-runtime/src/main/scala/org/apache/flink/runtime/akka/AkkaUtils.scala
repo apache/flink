@@ -34,7 +34,8 @@ object AkkaUtils {
   lazy val defaultActorSystem = ActorSystem.create("DefaultActorSystem",
     ConfigFactory.parseString(getDefaultActorSystemConfigString))
   implicit val FUTURE_TIMEOUT: Timeout = 1 minute
-  implicit val AWAIT_DURATION: Duration = 1 minute
+  implicit val AWAIT_DURATION: FiniteDuration = 1 minute
+  implicit val FUTURE_DURATION: FiniteDuration = 1 minute
 
   def createActorSystem(host: String, port: Int, configuration: Configuration): ActorSystem = {
     val akkaConfig = ConfigFactory.parseString(AkkaUtils.getConfigString(host, port, configuration))

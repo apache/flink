@@ -16,14 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.messages
+package org.apache.flink.runtime.jobmanager
 
-import org.apache.flink.runtime.event.job.{RecentJobEvent, AbstractEvent}
 import org.apache.flink.runtime.executiongraph.ExecutionGraph
 import org.apache.flink.runtime.jobgraph.JobID
 
-object ArchiveMessages {
-  case class ArchiveEvent(jobID: JobID, event: AbstractEvent)
-  case class ArchiveJobEvent(jobID: JobID, event: RecentJobEvent)
-  case class ArchiveExecutionGraph(jobID: JobID, graph: ExecutionGraph)
+object TestingJobManagerMessages {
+  case class RequestExecutionGraph(jobID: JobID)
+
+  sealed trait ResponseExecutionGraph{
+    def jobID: JobID
+  }
+  case class ExecutionGraphFound(jobID: JobID, executionGraph: ExecutionGraph) extends ResponseExecutionGraph
+  case class ExecutionGraphNotFound(jobID: JobID) extends ResponseExecutionGraph
 }

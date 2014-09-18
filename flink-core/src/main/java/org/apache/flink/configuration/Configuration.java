@@ -35,7 +35,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Lightweight configuration object which can store key/value pairs.
  */
-public class Configuration implements IOReadableWritable, java.io.Serializable {
+public class Configuration implements IOReadableWritable, java.io.Serializable, Cloneable {
 
 	private static final long serialVersionUID = 1L;
 	
@@ -432,6 +432,11 @@ public class Configuration implements IOReadableWritable, java.io.Serializable {
 				}
 			}
 		}
+	}
+
+	@Override
+	public Configuration clone() {
+		return this.clone();
 	}
 
 	/**
