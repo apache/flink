@@ -2,8 +2,8 @@
 title: "Spargel Graph Processing API"
 ---
 
-Spargel
-=======
+* This will be replaced by the TOC
+{:toc}
 
 Spargel is our [Giraph](http://giraph.apache.org) like **graph processing** Java API. It supports basic graph computations, which are run as a sequence of [supersteps](iterations.html#supersteps). Spargel and Giraph both implement the [Bulk Synchronous Parallel (BSP)](https://en.wikipedia.org/wiki/Bulk_Synchronous_Parallel) programming model, propsed by Google's [Pregel](http://googleresearch.blogspot.de/2009/06/large-scale-graph-computing-at-google.html).
 
@@ -21,13 +21,13 @@ The Spargel API is part of the *addons* Maven project. All relevant classes are 
 
 Add the following dependency to your `pom.xml` to use the Spargel.
 
-```xml
+~~~xml
 <dependency>
 	<groupId>org.apache.flink</groupId>
 	<artifactId>spargel</artifactId>
 	<version>{{site.FLINK_VERSION_STABLE}}</version>
 </dependency>
-```
+~~~
 
 Extend **VertexUpdateFunction&lt;***VertexKeyType*, *VertexValueType*, *MessageType***&gt;** to implement your *custom vertex update logic*.
 
@@ -40,7 +40,7 @@ Example: Propagate Minimum Vertex ID in Graph
 
 The Spargel operator **SpargelIteration** includes Spargel graph processing into your data flow. As usual, it can be combined with other operators like *map*, *reduce*, *join*, etc.
 
-```java
+~~~java
 FileDataSource vertices = new FileDataSource(...);
 FileDataSource edges = new FileDataSource(...);
 
@@ -53,7 +53,7 @@ FileDataSink result = new FileDataSink(...);
 result.setInput(iteration.getOutput());
 
 new Plan(result);
-```
+~~~
 
 Besides the **program logic** of vertex updates in *MinNeighborUpdater* and messages in *MinMessager*, you have to specify the **initial vertex** and **edge input**. Every vertex has a **key** and **value**. In each superstep, it **receives messages** from other vertices and updates its state:
 
@@ -68,7 +68,7 @@ For our example, we set the vertex ID as both *id and value* (initial minimum) a
 
 In order to **propagate the minimum vertex ID**, we iterate over all received messages (which contain the neighboring IDs) and update our value, if we found a new minimum:
 
-```java
+~~~java
 public class MinNeighborUpdater extends VertexUpdateFunction<IntValue, IntValue, IntValue> {
 	
 	@Override
@@ -87,11 +87,11 @@ public class MinNeighborUpdater extends VertexUpdateFunction<IntValue, IntValue,
 		}
 	}
 }
-```
+~~~
 
 The **messages in each superstep** consist of the **current minimum ID** seen by the vertex:
 
-```java
+~~~java
 public class MinMessager extends MessagingFunction<IntValue, IntValue, IntValue, NullValue> {
 	
 	@Override
@@ -100,7 +100,7 @@ public class MinMessager extends MessagingFunction<IntValue, IntValue, IntValue,
 		sendMessageToAllNeighbors(currentMin);
     }
 }
-```
+~~~
 
 The **API-provided method** `sendMessageToAllNeighbors(MessageType)` sends the message to all neighboring vertices. It is also possible to address specific vertices with `sendMessageTo(VertexKeyType, MessageType)`.
 

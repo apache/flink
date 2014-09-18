@@ -2,13 +2,16 @@
 title: "Quickstart: Scala API"
 ---
 
+* This will be replaced by the TOC
+{:toc}
+
 Start working on your Flink Scala program in a few simple steps.
 
-#Requirements
+## Requirements
 The only requirements are working __Maven 3.0.4__ (or higher) and __Java 6.x__ (or higher) installations.
 
 
-#Create Project
+## Create Project
 Use one of the following commands to __create a project__:
 
 <ul class="nav nav-tabs" style="border-bottom: none;">
@@ -33,7 +36,7 @@ $ mvn archetype:generate                             \
 </div>
 
 
-#Inspect Project
+## Inspect Project
 There will be a __new directory in your working directory__. If you've used the _curl_ approach, the directory is called `quickstart`. Otherwise, it has the name of your artifactId.
 
 The sample project is a __Maven project__, which contains a sample scala _job_ that implements Word Count. Please note that the _RunJobLocal_ and _RunJobRemote_ objects allow you to start Flink in a development/testing mode.</p>
@@ -52,11 +55,11 @@ We recommend to __import this project into your IDE__. For Eclipse, you need the
 The IntelliJ IDE also supports Maven and offers a plugin for Scala development.
 
 
-# Build Project
+## Build Project
 
 If you want to __build your project__, go to your project directory and issue the`mvn clean package` command. You will __find a jar__ that runs on every Flink cluster in __target/flink-project-0.1-SNAPSHOT.jar__.
 
-#Next Steps
+## Next Steps
 
 __Write your application!__
 If you have any trouble, ask on our [Jira page](https://issues.apache.org/jira/browse/FLINK) (open an issue) or on our Mailing list. We are happy to provide help.

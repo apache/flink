@@ -2,9 +2,12 @@
 title:  "Web Client"
 ---
 
+* This will be replaced by the TOC
+{:toc}
+
 Flink provides a web interface to upload jobs, inspect their execution plans, and execute them. The interface is a great tool to showcase programs, debug execution plans, or demonstrate the system as a whole.
 
-# Start, Stop, and Configure the Web Interface
+## Starting, Stopping, and Configuring the Web Interface
 
 Start the web interface by executing:
 
@@ -16,14 +19,14 @@ and stop it by calling:
 
 The web interface runs on port 8080 by default. To specify a custom port set the ```webclient.port``` property in the *./conf/flink.yaml* configuration file. Jobs are submitted to the JobManager specified by ```jobmanager.rpc.address``` and ```jobmanager.rpc.port```. Please consult the [configuration](config.html#web_frontend) page for details and further configuration options.
 
-# Use the Web Interface
+## Using the Web Interface
 
 The web interface provides two views:
 
 1.  The **job view** to upload, preview, and submit Flink programs.
 2.  The **plan view** to analyze the optimized execution plans of Flink programs.
 
-## Job View
+### Job View
 
 The interface starts serving the job view. 
 
@@ -41,7 +44,7 @@ In case the jar's manifest file does not specify the program class, you can spec
 assembler <assemblerClass> <programArgs...>
 ```
 
-## Plan View
+### Plan View
 
 The plan view shows the optimized execution plan of the submitted program in the upper half of the page. The bottom part of the page displays detailed information about the currently selected plan operator including:
 

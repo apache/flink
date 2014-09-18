@@ -30,9 +30,7 @@ defaults:
       layout: docs
 
 highlighter: pygments
-markdown: redcarpet
-redcarpet:
-  # https://help.github.com/articles/github-flavored-markdown
-  extensions: ["no_intra_emphasis", "fenced_code_blocks", "autolink",
-               "tables", "with_toc_data", "strikethrough", "superscript",
-               "lax_spacing"]
+markdown: KramdownPygments
+
+kramdown:
+    toc_levels: 1..3

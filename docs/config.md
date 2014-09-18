@@ -2,7 +2,10 @@
 title:  "Configuration"
 ---
 
-# Overview
+* This will be replaced by the TOC
+{:toc}
+
+## Overview
 
 The default configuration parameters allow Flink to run out-of-the-box
 in single node setups.
@@ -19,7 +22,7 @@ The system and run scripts parse the config at startup time. Changes to the conf
 file require restarting the Flink JobManager and TaskManagers.
 
 
-# Common Options
+## Common Options
 
 - `env.java.home`: The path to the Java installation to use (DEFAULT: system's
 default Java installation, if found). Needs to be specified if the startup
@@ -71,7 +74,7 @@ and replication factors. Flink will look for the "core-site.xml" and
 "hdfs-site.xml" files in teh specified directory.
 
 
-# Advanced Options
+## Advanced Options
 
 - `taskmanager.tmp.dirs`: The directory for temporary files, or a list of
 directories separated by the systems directory delimiter (for example ':'
@@ -116,9 +119,9 @@ free for objects created by user-defined functions. (DEFAULT: 0.7)
 This parameter is only evaluated, if `taskmanager.memory.size` is not set.
 
 
-# Full Reference
+## Full Reference
 
-## HDFS
+### HDFS
 
 These parameters configure the default HDFS used by Flink. Setups that do not
 specify a HDFS configuration have to specify the full path to 
@@ -133,7 +136,7 @@ directory (DEFAULT: null).
 - `fs.hdfs.hdfssite`: The absolute path of Hadoop's own configuration file
 "hdfs-site.xml" (DEFAULT: null).
 
-## JobManager &amp; TaskManager
+### JobManager &amp; TaskManager
 
 The following parameters configure Flink's JobManager and TaskManagers.
 
@@ -196,7 +199,7 @@ but may cause intermediate merging/partitioning, if set too small (DEFAULT: 128)
 - `taskmanager.runtime.sort-spilling-threshold`: A sort operation starts spilling
 when this fraction of its memory budget is full (DEFAULT: 0.8).
 
-## JobManager Web Frontend
+### JobManager Web Frontend
 
 - `jobmanager.web.port`: Port of the JobManager's web interface that displays
 status of running jobs and execution time breakdowns of finished jobs
@@ -204,7 +207,7 @@ status of running jobs and execution time breakdowns of finished jobs
 - `jobmanager.web.history`: The number of latest jobs that the JobManager's web
 front-end in its history (DEFAULT: 5).
 
-## Webclient
+### Webclient
 
 These parameters configure the web interface that can be used to submit jobs and
 review the compiler's execution plans.
@@ -219,7 +222,7 @@ uploaded programs (DEFAULT: ${webclient.tempdir}/webclient-jobs/).
 temporary JSON files describing the execution plans
 (DEFAULT: ${webclient.tempdir}/webclient-plans/).
 
-## File Systems
+### File Systems
 
 The parameters define the behavior of tasks that create result files.
 
@@ -234,7 +237,7 @@ and place a single result file into it. If the option is set to *false*, the
 writer will directly create the file directly at the output path, without
 creating a containing directory. (DEFAULT: false)
 
-## Compiler/Optimizer
+### Compiler/Optimizer
 
 - `compiler.delimited-informat.max-line-samples`: The maximum number of line
 samples taken by the compiler for delimited inputs. The samples are used to
@@ -250,7 +253,7 @@ sample exceeds this value (possible because of misconfiguration of the parser),
 the sampling aborts. This value can be overridden for a specific input with the
 input format's parameters (DEFAULT: 2097152 (= 2 MiBytes)).
 
-# YARN
+## YARN
 
 Please note that all ports used by Flink in a YARN session are offsetted by the YARN application ID
 to avoid duplicate port allocations when running multiple YARN sessions in parallel. 

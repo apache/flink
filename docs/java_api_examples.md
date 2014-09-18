@@ -2,16 +2,19 @@
 title:  "Java API Examples"
 ---
 
+* This will be replaced by the TOC
+{:toc}
+
 The following example programs showcase different applications of Flink 
 from simple word counting to graph algorithms. The code samples illustrate the 
 use of [Flink's Java API](java_api_guide.html). 
 
 The full source code of the following and more examples can be found in the __flink-java-examples__ module.
 
-# Word Count
+## Word Count
 WordCount is the "Hello World" of Big Data processing systems. It computes the frequency of words in a text collection. The algorithm works in two steps: First, the texts are splits the text to individual words. Second, the words are grouped and counted.
 
-```java
+~~~java
 // get input data
 DataSet<String> text = getTextDataSet(env);
 
@@ -40,17 +43,17 @@ public static final class Tokenizer extends FlatMapFunction<String, Tuple2<Strin
         }
     }
 }
-```
+~~~
 
 The {% gh_link /flink-examples/flink-java-examples/src/main/java/org/apache/flink/example/java/wordcount/WordCount.java  "WordCount example" %} implements the above described algorithm with input parameters: `<text input path>, <output path>`. As test data, any text file will do.
 
-# Page Rank
+## Page Rank
 
 The PageRank algorithm computes the "importance" of pages in a graph defined by links, which point from one pages to another page. It is an iterative graph algorithm, which means that it repeatedly applies the same computation. In each iteration, each page distributes its current rank over all its neighbors, and compute its new rank as a taxed sum of the ranks it received from its neighbors. The PageRank algorithm was popularized by the Google search engine which uses the importance of webpages to rank the results of search queries.
 
 In this simple example, PageRank is implemented with a [bulk iteration](java_api_guide.html#iterations) and a fixed number of iterations.
 
-```java
+~~~java
 // get input data
 DataSet<Tuple2<Long, Double>> pagesWithRanks = getPagesWithRanksDataSet(env);
 DataSet<Tuple2<Long, Long[]>> pageLinkLists = getLinksDataSet(env);
@@ -116,7 +119,7 @@ public static final class EpsilonFilter
         return Math.abs(value.f0.f1 - value.f1.f1) > EPSILON;
     }
 }
-```
+~~~
 
 The {% gh_link /flink-examples/flink-java-examples/src/main/java/org/apache/flink/example/java/graph/PageRankBasic.java "PageRank program" %} implements the above example.
 It requires the following parameters to run: `<pages input path>, <links input path>, <output path>, <num pages>, <num iterations>`.
@@ -129,13 +132,13 @@ Input files are plain text files and must be formatted as follows:
 
 For this simple implementation it is required that each page has at least one incoming and one outgoing link (a page can point to itself).
 
-# Connected Components
+## Connected Components
 
 The Connected Components algorithm identifies parts of a larger graph which are connected by assigning all vertices in the same connected part the same component ID. Similar to PageRank, Connected Components is an iterative algorithm. In each step, each vertex propagates its current component ID to all its neighbors. A vertex accepts the component ID from a neighbor, if it is smaller than its own component ID.
 
 This implementation uses a [delta iteration](iterations.html): Vertices that have not changed their component ID do not participate in the next step. This yields much better performance, because the later iterations typically deal only with a few outlier vertices.
 
-```java
+~~~java
 // read vertex and edge data
 DataSet<Long> vertices = getVertexDataSet(env);
 DataSet<Tuple2<Long, Long>> edges = getEdgeDataSet(env).flatMap(new UndirectEdge());
@@ -207,7 +210,7 @@ public static final class ComponentIdFilter
         }
     }
 }
-```
+~~~
 
 The {% gh_link /flink-examples/flink-java-examples/src/main/java/org/apache/flink/example/java/graph/ConnectedComponents.java "ConnectedComponents program" %} implements the above example. It requires the following parameters to run: `<vertex input path>, <edge input path>, <output path> <max num iterations>`.
 
@@ -217,13 +220,13 @@ Input files are plain text files and must be formatted as follows:
 - Edges are represented as pairs for vertex IDs which are separated by space characters. Edges are separated by new-line characters:
     * For example `"1 2\n2 12\n1 12\n42 63\n"` gives four (undirected) links (1)-(2), (2)-(12), (1)-(12), and (42)-(63).
 
-# Relational Query
+## Relational Query
 
 The Relational Query example assumes two tables, one with `orders` and the other with `lineitems` as specified by the [TPC-H decision support benchmark](http://www.tpc.org/tpch/). TPC-H is a standard benchmark in the database industry. See below for instructions how to generate the input data.
 
 The example implements the following SQL query.
 
-```sql
+~~~sql
 SELECT l_orderkey, o_shippriority, sum(l_extendedprice) as revenue
     FROM orders, lineitem
 WHERE l_orderkey = o_orderkey
@@ -231,11 +234,11 @@ WHERE l_orderkey = o_orderkey
     AND YEAR(o_orderdate) > 1993
     AND o_orderpriority LIKE "5%"
 GROUP BY l_orderkey, o_shippriority;
-```
+~~~
 
 The Flink Java program, which implements the above query looks as follows.
 
-```java
+~~~java
 // get orders data set: (orderkey, orderstatus, orderdate, orderpriority, shippriority)
 DataSet<Tuple5<Integer, String, String, String, Integer>> orders = getOrdersDataSet(env);
 // get lineitem data set: (orderkey, extendedprice)
@@ -278,7 +281,7 @@ DataSet<Tuple3<Integer, Integer, Double>> priceSums =
 
 // emit result
 priceSums.writeAsCsv(outputPath);
-```
+~~~
 
 The {% gh_link /flink-examples/flink-java-examples/src/main/java/org/apache/flink/example/java/relational/RelationalQuery.java "Relational Query program" %} implements the above query. It requires the following parameters to run: `<orders input path>, <lineitem input path>, <output path>`.
 
@@ -288,17 +291,17 @@ Take the following steps to generate arbitrary large input files for the provide
 1.  Download and unpack DBGEN
 2.  Make a copy of *makefile.suite* called *Makefile* and perform the following changes:
 
-```bash
+~~~bash
 DATABASE = DB2
 MACHINE  = LINUX
 WORKLOAD = TPCH
 CC       = gcc
-```
+~~~
 
 1.  Build DBGEN using *make*
 2.  Generate lineitem and orders relations using dbgen. A scale factor
     (-s) of 1 results in a generated data set with about 1 GB size.
 
-```bash
+~~~bash
 ./dbgen -T o -s 1
-```
+~~~

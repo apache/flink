@@ -2,13 +2,16 @@
 title: "Quickstart: Java API"
 ---
 
+* This will be replaced by the TOC
+{:toc}
+
 Start working on your Flink Java program in a few simple steps.
 
 
-# Requirements
+## Requirements
 The only requirements are working __Maven 3.0.4__ (or higher) and __Java 6.x__ (or higher) installations.
 
-# Create Project
+## Create Project
 Use one of the following commands to __create a project__:
 
 <ul class="nav nav-tabs" style="border-bottom: none;">
@@ -32,7 +35,7 @@ Use one of the following commands to __create a project__:
     </div>
 </div>
 
-# Inspect Project
+## Inspect Project
 There will be a new directory in your working directory. If you've used the _curl_ approach, the directory is called `quickstart`. Otherwise, it has the name of your artifactId.
 
 The sample project is a __Maven project__, which contains two classes. _Job_ is a basic skeleton program and _WordCountJob_ a working example. Please note that the _main_ method of both classes allow you to start Flink in a development/testing mode.
@@ -42,28 +45,31 @@ We recommend to __import this project into your IDE__ to develop and test it. If
 
 A note to Mac OS X users: The default JVM heapsize for Java is too small for Flink. You have to manually increase it. Choose "Run Configurations" -> Arguments and write into the "VM Arguments" box: "-Xmx800m" in Eclipse.
 
-# Build Project
+## Build Project
 If you want to __build your project__, go to your project directory and issue the `mvn clean package` command. You will __find a jar__ that runs on every Flink cluster in `target/flink-project-0.1-SNAPSHOT.jar`.
 
-# Next Steps
+## Next Steps
 Write your application!
 
 The quickstart project contains a WordCount implementation, the "Hello World" of Big Data processing systems. The goal of WordCount is to determine the frequencies of words in a text, e.g., how often do the terms "the" or "house" occurs in all Wikipedia texts.
 
 __Sample Input__:
-```bash
+
+~~~bash
 big data is big
-```
+~~~
 
 __Sample Output__:
-```bash
+
+~~~bash
 big 2
 data 1
 is 1
-```
+~~~
+
 The following code shows the WordCount implementation from the Quickstart which processes some text lines with two operators (FlatMap and Reduce), and writes the prints the resulting words and counts to std-out.
 
-```java
+~~~java
 public class WordCount {
   
   public static void main(String[] args) throws Exception {
@@ -93,11 +99,11 @@ public class WordCount {
     env.execute("WordCount Example");
   }
 }
-```
+~~~
 
 The operations are defined by specialized classes, here the LineSplitter class.
 
-```java
+~~~java
 public class LineSplitter extends FlatMapFunction<String, Tuple2<String, Integer>> {
 
   @Override
@@ -113,7 +119,8 @@ public class LineSplitter extends FlatMapFunction<String, Tuple2<String, Integer
     }
   }
 }
-```
+~~~
+
 {% gh_link /flink-examples/flink-java-examples/src/main/java/org/apache/flink/example/java/wordcount/WordCount.java "Check GitHub" %} for the full example code.
 
 For a complete overview over our Java API, have a look at the [API Documentation](java_api_guide.html) and [further example programs](java_api_examples.html). If you have any trouble, ask on our [Mailing List](http://mail-archives.apache.org/mod_mbox/incubator-flink-dev/). We are happy to provide help.

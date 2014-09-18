@@ -8,6 +8,7 @@
 
     <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css">
     <link rel="stylesheet" href="css/syntax.css">
+    <link rel="stylesheet" href="css/codetabs.css">
 
     <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
     <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
@@ -46,9 +47,8 @@
 
                     <li>Programming Guides
                         <ul>
-                            <li><a href="java_api_guide.html">Java API</a></li>
-                            <li><a href="java_api_transformations.html">Java API Transformations</a></li>
-                            <li><a href="scala_api_guide.html">Scala API</a></li>
+                            <li><a href="programming_guide.html">Flink Programming Guide</a></li>
+                            <li><a href="dataset_transformations.html">DataSet Transformations</a></li>
                             <li><a href="hadoop_compatability.html">Hadoop Compatability</a></li>
                             <li><a href="iterations.html">Iterations</a></li>
                             <li><a href="spargel_guide.html">Spargel Graph API</a></li>
@@ -77,14 +77,13 @@
                             <li><a href="internal_overview.html">Overview</a></li>
                             <li><a href="internal_general_arch.html">General Architecture</a></li>
                             <li><a href="internal_add_operator.html">How-to: Adding a new Operator</a></li>
+                            <li><a href="internal_logging.html">How-to: Logging</a></li>
                         </ul>
                     </li>
                 </ul>
             </div>
             <div class="col-md-9">
                 <h1>{{ page.title }}</h1>
-
-                {{ page.content | tocify }}
 
                 {{ content }}
             </div>
@@ -93,5 +92,6 @@
 
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
     <script src="//netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js"></script>
+    <script src="js/codetabs.js"></script>
   </body>
 </html>

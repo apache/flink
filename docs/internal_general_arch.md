@@ -2,6 +2,9 @@
 title:  "General Architecture and Process Model"
 ---
 
+* This will be replaced by the TOC
+{:toc}
+
 ## The Processes
 
 When the Flink system is started, it bring up the *JobManager* and one or more *TaskManagers*. The JobManager

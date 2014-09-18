@@ -2,8 +2,6 @@
 title:  "Overview of Flink System Architecture & Internals"
 ---
 
-# Overview
-
 This documentation provides an overview of the architecture of the Flink system
 and its components. It is intended as guide to contributors, and people
 that are interested in the technology behind Flink.
@@ -13,7 +11,7 @@ We kindly ask anyone that adds and changes components to eventually provide a pa
 or pull request that updates these documents as well.*
 
 
-### Architectures and Components
+## Architectures and Components
 
 - [General Architecture and Process Model](internal_general_arch.html)
 

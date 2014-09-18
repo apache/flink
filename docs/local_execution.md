@@ -2,7 +2,7 @@
 title:  "Local Execution"
 ---
 
-# Local Execution/Debugging
+## Local Execution/Debugging
 
 Flink can run on a single machine, even in a single Java Virtual Machine. This allows users to test and debug Flink programs locally. This section gives an overview of the local execution mechanisms.
 
@@ -17,19 +17,19 @@ The `JobExecutionResult` object, which is returned after the execution finished,
 *Note:* The local execution environments do not start any web frontend to monitor the execution.
 
 
-# Maven Dependency
+## Maven Dependency
 
 If you are developing your program in a Maven project, you have to add the `flink-clients` module using this dependency:
 
-```xml
+~~~xml
 <dependency>
   <groupId>org.apache.flink</groupId>
   <artifactId>flink-clients</artifactId>
   <version>{{site.FLINK_VERSION_STABLE}}</version>
 </dependency>
-```
+~~~
 
-# Local Environment
+## Local Environment
 
 The `LocalEnvironment` is a handle to local execution for Flink programs. Use it to run a program within a local JVM - standalone or embedded in other programs.
 
@@ -37,7 +37,7 @@ The local environment is instantiated via the method `ExecutionEnvironment.creat
 
 In most cases, calling `ExecutionEnvironment.getExecutionEnvironment()` is the even better way to go. That method returns a `LocalEnvironment` when the program is started locally (outside the command line interface), and it returns a pre-configured environment for cluster execution, when the program is invoked by the [command line interface](cli.html).
 
-```java
+~~~java
 public static void main(String[] args) throws Exception {
     ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
 
@@ -53,16 +53,16 @@ public static void main(String[] args) throws Exception {
 
     env.execute();
 }
-```
+~~~
 
 
-# Local Executor
+## Local Executor
 
 The *LocalExecutor* is similar to the local environment, but it takes a *Plan* object, which describes the program as a single executable unit. The *LocalExecutor* is typically used with the Scala API. 
 
 The following code shows how you would use the `LocalExecutor` with the Wordcount example for Scala Programs:
 
-```scala
+~~~scala
 public static void main(String[] args) throws Exception {
     val input = TextFile("hdfs://path/to/file")
 
@@ -74,15 +74,15 @@ public static void main(String[] args) throws Exception {
     val plan = new ScalaPlan(Seq(output), "Word Count")
     LocalExecutor.executePlan(p);
 }
-```
+~~~
 
 
-# LocalDistributedExecutor
+## LocalDistributedExecutor
 
 Flink also offers a `LocalDistributedExecutor` which starts multiple TaskManagers within one JVM. The standard `LocalExecutor` starts one JobManager and one TaskManager in one JVM.
 With the `LocalDistributedExecutor` you can define the number of TaskManagers to start. This is useful for debugging network related code and more of a developer tool than a user tool.
 
-```java
+~~~java
 public static void main(String[] args) throws Exception {
     ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -101,6 +101,6 @@ public static void main(String[] args) throws Exception {
     lde.startNephele(2); // start two TaskManagers
     lde.run(p);
 }
-```
+~~~
 
 
