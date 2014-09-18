@@ -54,6 +54,8 @@ class ScalaAPICompletenessTest {
       "org.apache.flink.api.java.operators.TwoInputOperator.getInput2",
       "org.apache.flink.api.java.operators.TwoInputOperator.getInput1Type",
       "org.apache.flink.api.java.operators.TwoInputOperator.getInput2Type",
+      "org.apache.flink.api.java.ExecutionEnvironment.localExecutionIsAllowed",
+      "org.apache.flink.api.java.ExecutionEnvironment.setDefaultLocalParallelism",
 
       // This is really just a mapper, which in Scala can easily expressed as a map lambda
       "org.apache.flink.api.java.DataSet.writeAsFormattedText",
@@ -137,6 +139,10 @@ class ScalaAPICompletenessTest {
   @Test
   def testCompleteness(): Unit = {
     checkMethods("DataSet", "DataSet", classOf[JavaDataSet[_]], classOf[DataSet[_]])
+
+    checkMethods(
+      "ExecutionEnvironment", "ExecutionEnvironment",
+      classOf[org.apache.flink.api.java.ExecutionEnvironment], classOf[ExecutionEnvironment])
 
     checkMethods("Operator", "DataSet", classOf[Operator[_, _]], classOf[DataSet[_]])
 
