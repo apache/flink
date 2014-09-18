@@ -40,7 +40,6 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.OptionBuilder;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
-
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -61,6 +60,7 @@ import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
+import org.apache.flink.runtime.instance.Hardware;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
@@ -92,7 +92,6 @@ import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.util.SerializableArrayList;
 import org.apache.flink.util.StringUtils;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -112,7 +111,7 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 	
 	
 	/** Executor service for asynchronous commands (to relieve the RPC threads of work) */
-	private final ExecutorService executorService = Executors.newCachedThreadPool(ExecutorThreadFactory.INSTANCE);
+	private final ExecutorService executorService = Executors.newFixedThreadPool(2 * Hardware.getNumberCPUCores(), ExecutorThreadFactory.INSTANCE);
 	
 
 	/** The RPC end point through which the JobManager gets its calls */
@@ -230,6 +229,21 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 		if (!this.isShutdownInProgress.compareAndSet(false, true)) {
 			return;
 		}
+		
+		for (ExecutionGraph e : this.currentJobs.values()) {
+			e.fail(new Exception("The JobManager is shutting down."));
+		}
+		
+		// Stop the executor service
+		// this waits for any pending calls to be done
+		if (this.executorService != null) {
+			this.executorService.shutdown();
+			try {
+				this.executorService.awaitTermination(5000L, TimeUnit.MILLISECONDS);
+			} catch (InterruptedException e) {
+				LOG.debug("Shutdown of executor thread pool interrupted", e);
+			}
+		}
 
 		// Stop instance manager
 		if (this.instanceManager != null) {
@@ -239,16 +253,6 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 		// Stop RPC server
 		if (this.jobManagerServer != null) {
 			this.jobManagerServer.stop();
-		}
-
-		// Stop the executor service
-		if (this.executorService != null) {
-			this.executorService.shutdown();
-			try {
-				this.executorService.awaitTermination(5000L, TimeUnit.MILLISECONDS);
-			} catch (InterruptedException e) {
-				LOG.debug("Shutdown of executor thread pool interrupted", e);
-			}
 		}
 
 		// Stop and clean up the job progress collector
