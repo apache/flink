@@ -77,7 +77,7 @@ public class JsonFactory {
 			}
 			
 			// Increment state status count
-			Integer count =  stateCounts.get(vertex.getExecutionState()) + new Integer(1);
+			int count =  stateCounts.get(vertex.getExecutionState()) + 1;
 			stateCounts.put(vertex.getExecutionState(), count);
 		}
 		

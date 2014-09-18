@@ -89,8 +89,6 @@ public class CoLocationConstraintITCase {
 				if (eg != null) {
 					eg.waitForJobEnd();
 					assertEquals(JobStatus.FINISHED, eg.getState());
-					
-					assertEquals(0, eg.getRegisteredExecutions().size());
 				}
 				else {
 					// already done, that was fast;
