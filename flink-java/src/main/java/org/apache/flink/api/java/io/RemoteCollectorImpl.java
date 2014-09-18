@@ -35,7 +35,6 @@ import java.util.UUID;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.operators.DataSink;
-import org.apache.flink.configuration.Configuration;
 
 /**
  * This class provides a counterpart implementation for the
@@ -43,16 +42,16 @@ import org.apache.flink.configuration.Configuration;
  */
 
 public class RemoteCollectorImpl<T> extends UnicastRemoteObject implements
-		IRemoteCollector<T> {
+		RemoteCollector<T> {
 
 	private static final long serialVersionUID = 1L;
 
 	/**
-	 * Instance of an implementation of a {@link IRemoteCollectorConsumer}. This
+	 * Instance of an implementation of a {@link RemoteCollectorConsumer}. This
 	 * instance will get the records passed.
 	 */
 
-	private IRemoteCollectorConsumer<T> consumer;
+	private RemoteCollectorConsumer<T> consumer;
 
 	/**
 	 * This factory method creates an instance of the
@@ -67,7 +66,7 @@ public class RemoteCollectorImpl<T> extends UnicastRemoteObject implements
 	 * 	          An ID to register the collector in the RMI registry.
 	 * @return
 	 */
-	public static <T> void createAndBind(Integer port, IRemoteCollectorConsumer<T> consumer, String rmiId) {
+	public static <T> void createAndBind(Integer port, RemoteCollectorConsumer<T> consumer, String rmiId) {
 		RemoteCollectorImpl<T> collectorInstance = null;
 
 		try {
@@ -87,14 +86,14 @@ public class RemoteCollectorImpl<T> extends UnicastRemoteObject implements
 	}
 
 	/**
-	 * Writes a DataSet to a {@link IRemoteCollectorConsumer} through an
-	 * {@link IRemoteCollector} remotely called from the
+	 * Writes a DataSet to a {@link RemoteCollectorConsumer} through an
+	 * {@link RemoteCollector} remotely called from the
 	 * {@link RemoteCollectorOutputFormat}.<br/>
 	 * 
 	 * @return The DataSink that writes the DataSet.
 	 */
 	public static <T> DataSink<T> collectLocal(DataSet<T> source,
-			IRemoteCollectorConsumer<T> consumer) {
+			RemoteCollectorConsumer<T> consumer) {
 		// if the RMI parameter was not set by the user make a "good guess"
 		String ip = System.getProperty("java.rmi.server.hostname");
 		if (ip == null) {
@@ -146,7 +145,7 @@ public class RemoteCollectorImpl<T> extends UnicastRemoteObject implements
 
 	/**
 	 * Writes a DataSet to a local {@link Collection} through an
-	 * {@link IRemoteCollector} and a standard {@link IRemoteCollectorConsumer}
+	 * {@link RemoteCollector} and a standard {@link RemoteCollectorConsumer}
 	 * implementation remotely called from the
 	 * {@link RemoteCollectorOutputFormat}.<br/>
 	 * 
@@ -158,7 +157,7 @@ public class RemoteCollectorImpl<T> extends UnicastRemoteObject implements
 			Collection<T> collection) {
 		final Collection<T> synchronizedCollection = Collections
 				.synchronizedCollection(collection);
-		collectLocal(source, new IRemoteCollectorConsumer<T>() {
+		collectLocal(source, new RemoteCollectorConsumer<T>() {
 			@Override
 			public void collect(T element) {
 				synchronizedCollection.add(element);
@@ -184,12 +183,12 @@ public class RemoteCollectorImpl<T> extends UnicastRemoteObject implements
 	}
 
 	@Override
-	public IRemoteCollectorConsumer<T> getConsumer() {
+	public RemoteCollectorConsumer<T> getConsumer() {
 		return this.consumer;
 	}
 
 	@Override
-	public void setConsumer(IRemoteCollectorConsumer<T> consumer) {
+	public void setConsumer(RemoteCollectorConsumer<T> consumer) {
 		this.consumer = consumer;
 	}
 }

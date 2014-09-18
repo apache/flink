@@ -27,13 +27,11 @@ import java.rmi.registry.Registry;
 
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.configuration.Configuration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * An output format that sends results through JAVA RMI to an
- * {@link IRemoteCollector} implementation. The client has to provide an
- * implementation of {@link IRemoteCollector} and has to write it's plan's
+ * {@link RemoteCollector} implementation. The client has to provide an
+ * implementation of {@link RemoteCollector} and has to write it's plan's
  * output into an instance of {@link RemoteCollectorOutputFormat}. Further in
  * the client's VM parameters -Djava.rmi.server.hostname should be set to the
  * own IP address.
@@ -42,12 +40,10 @@ public class RemoteCollectorOutputFormat<T> implements OutputFormat<T> {
 
 	private static final long serialVersionUID = 1922744224032398102L;
 	
-	private static Logger log = LoggerFactory.getLogger(RemoteCollectorOutputFormat.class);
-	
 	/**
-	 * The reference of the {@link IRemoteCollector} object
+	 * The reference of the {@link RemoteCollector} object
 	 */
-	private transient IRemoteCollector<T> remoteCollector;
+	private transient RemoteCollector<T> remoteCollector;
 
 	transient private Registry registry;
 	
@@ -121,7 +117,7 @@ public class RemoteCollectorOutputFormat<T> implements OutputFormat<T> {
 
 		// try to get an intance of an IRemoteCollector implementation
 		try {
-			this.remoteCollector = (IRemoteCollector<T>) registry.lookup(this.rmiId);
+			this.remoteCollector = (RemoteCollector<T>) registry.lookup(this.rmiId);
 		} catch (AccessException e) {
 			throw new IllegalStateException(e);
 		} catch (RemoteException e) {
@@ -137,7 +133,7 @@ public class RemoteCollectorOutputFormat<T> implements OutputFormat<T> {
 
 	/**
 	 * This method forwards records simply to the remote's
-	 * {@link IRemoteCollector} implementation
+	 * {@link RemoteCollector} implementation
 	 */
 	@Override
 	public void writeRecord(T record) throws IOException {
@@ -146,7 +142,7 @@ public class RemoteCollectorOutputFormat<T> implements OutputFormat<T> {
 
 	/**
 	 * This method unbinds the reference of the implementation of
-	 * {@link IRemoteCollector}.
+	 * {@link RemoteCollector}.
 	 */
 	@Override
 	public void close() throws IOException {

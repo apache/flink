@@ -28,13 +28,13 @@ import java.rmi.RemoteException;
  * @param <T>
  *            The type of the records the collector will receive
  */
-public interface IRemoteCollector<T> extends Remote {
+public interface RemoteCollector<T> extends Remote {
 
 	public void collect(T element) throws RemoteException;
 
-	public IRemoteCollectorConsumer<T> getConsumer() throws RemoteException;
+	public RemoteCollectorConsumer<T> getConsumer() throws RemoteException;
 
-	public void setConsumer(IRemoteCollectorConsumer<T> consumer)
+	public void setConsumer(RemoteCollectorConsumer<T> consumer)
 			throws RemoteException;
 
 }

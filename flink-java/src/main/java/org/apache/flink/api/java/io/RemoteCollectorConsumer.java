@@ -19,8 +19,8 @@
 package org.apache.flink.api.java.io;
 
 /**
- * This interface describes consumers of {@link IRemoteCollector} implementations.
+ * This interface describes consumers of {@link RemoteCollector} implementations.
  */
-public interface IRemoteCollectorConsumer<T> {
+public interface RemoteCollectorConsumer<T> {
 	public void collect(T element);
 }

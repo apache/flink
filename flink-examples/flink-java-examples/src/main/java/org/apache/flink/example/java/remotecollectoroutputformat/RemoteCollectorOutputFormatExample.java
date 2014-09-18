@@ -25,7 +25,7 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.aggregation.Aggregations;
-import org.apache.flink.api.java.io.IRemoteCollectorConsumer;
+import org.apache.flink.api.java.io.RemoteCollectorConsumer;
 import org.apache.flink.api.java.io.RemoteCollectorImpl;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.Collector;
@@ -33,7 +33,7 @@ import org.apache.flink.util.Collector;
 /**
  * Implements the "WordCount" program that computes a simple word occurrence
  * histogram over some sample data and collects the results with an
- * implementation of a {@link IRemoteCollectorConsumer}.
+ * implementation of a {@link RemoteCollectorConsumer}.
  */
 @SuppressWarnings("serial")
 public class RemoteCollectorOutputFormatExample {
@@ -65,7 +65,7 @@ public class RemoteCollectorOutputFormatExample {
 
 		// emit result
 		RemoteCollectorImpl.collectLocal(counts,
-				new IRemoteCollectorConsumer<Tuple2<String, Integer>>() {
+				new RemoteCollectorConsumer<Tuple2<String, Integer>>() {
 					// user defined IRemoteCollectorConsumer
 					@Override
 					public void collect(Tuple2<String, Integer> element) {
