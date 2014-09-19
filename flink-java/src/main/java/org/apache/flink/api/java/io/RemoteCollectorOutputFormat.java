@@ -31,22 +31,22 @@ import org.apache.flink.configuration.Configuration;
 /**
  * An output format that sends results through JAVA RMI to an
  * {@link RemoteCollector} implementation. The client has to provide an
- * implementation of {@link RemoteCollector} and has to write it's plan's
- * output into an instance of {@link RemoteCollectorOutputFormat}. Further in
- * the client's VM parameters -Djava.rmi.server.hostname should be set to the
- * own IP address.
+ * implementation of {@link RemoteCollector} and has to write it's plan's output
+ * into an instance of {@link RemoteCollectorOutputFormat}. Further in the
+ * client's VM parameters -Djava.rmi.server.hostname should be set to the own IP
+ * address.
  */
 public class RemoteCollectorOutputFormat<T> implements OutputFormat<T> {
 
 	private static final long serialVersionUID = 1922744224032398102L;
-	
+
 	/**
 	 * The reference of the {@link RemoteCollector} object
 	 */
 	private transient RemoteCollector<T> remoteCollector;
 
 	transient private Registry registry;
-	
+
 	/**
 	 * Config parameter for the remote's port number
 	 */
@@ -59,17 +59,17 @@ public class RemoteCollectorOutputFormat<T> implements OutputFormat<T> {
 	 * An id used necessary for Java RMI
 	 */
 	public static final String RMI_ID = "rmiId";
-	
+
 	private String remote;
-	
+
 	private int port;
 
 	private String rmiId;
 
-	
 	/**
-	 * Create a new {@link RemoteCollectorOutputFormat} instance. The remote and port for this
-	 * output are by default localhost:8888 but can be configured via a {@link Configuration} object.
+	 * Create a new {@link RemoteCollectorOutputFormat} instance. The remote and
+	 * port for this output are by default localhost:8888 but can be configured
+	 * via a {@link Configuration} object.
 	 * 
 	 * @see RemoteCollectorOutputFormat#REMOTE
 	 * @see RemoteCollectorOutputFormat#PORT
@@ -79,35 +79,51 @@ public class RemoteCollectorOutputFormat<T> implements OutputFormat<T> {
 	}
 
 	/**
-	 * Creates a new {@link RemoteCollectorOutputFormat} instance for the specified remote and port.
-	 * @param rmiId 
+	 * Creates a new {@link RemoteCollectorOutputFormat} instance for the
+	 * specified remote and port.
+	 * 
+	 * @param rmiId
 	 */
 	public RemoteCollectorOutputFormat(String remote, int port, String rmiId) {
 		super();
 		this.remote = remote;
 		this.port = port;
 		this.rmiId = rmiId;
+		
+		if (this.remote == null) {
+			throw new IllegalStateException(String.format(
+					"No remote configured for %s.", this));
+		}
+
+		if (this.rmiId == null) {
+			throw new IllegalStateException(String.format(
+					"No registry ID configured for %s.", this));
+		}
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
 	/**
 	 * This method receives the Configuration object, where the fields "remote" and "port" must be set.
 	 */
 	public void configure(Configuration parameters) {
-
 		this.remote = parameters.getString(REMOTE, this.remote);
 		this.port = parameters.getInteger(PORT, this.port);
 		this.rmiId = parameters.getString(RMI_ID, this.rmiId);
-		
+
 		if (this.remote == null) {
-			throw new IllegalStateException(String.format("No remote configured for %s.", this));
+			throw new IllegalStateException(String.format(
+					"No remote configured for %s.", this));
 		}
-		
+
 		if (this.rmiId == null) {
-			throw new IllegalStateException(String.format("No registry ID configured for %s.", this));
+			throw new IllegalStateException(String.format(
+					"No registry ID configured for %s.", this));
 		}
-		
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public void open(int taskNumber, int numTasks) throws IOException {
 		// get the remote's RMI Registry
 		try {
 			registry = LocateRegistry.getRegistry(this.remote, this.port);
@@ -117,7 +133,8 @@ public class RemoteCollectorOutputFormat<T> implements OutputFormat<T> {
 
 		// try to get an intance of an IRemoteCollector implementation
 		try {
-			this.remoteCollector = (RemoteCollector<T>) registry.lookup(this.rmiId);
+			this.remoteCollector = (RemoteCollector<T>) registry
+					.lookup(this.rmiId);
 		} catch (AccessException e) {
 			throw new IllegalStateException(e);
 		} catch (RemoteException e) {
@@ -125,10 +142,6 @@ public class RemoteCollectorOutputFormat<T> implements OutputFormat<T> {
 		} catch (NotBoundException e) {
 			throw new IllegalStateException(e);
 		}
-	}
-
-	@Override
-	public void open(int taskNumber, int numTasks) throws IOException {
 	}
 
 	/**
@@ -150,8 +163,8 @@ public class RemoteCollectorOutputFormat<T> implements OutputFormat<T> {
 
 	@Override
 	public String toString() {
-		return "RemoteCollectorOutputFormat(" + remote + ":" + port + ", " + rmiId + ")";
+		return "RemoteCollectorOutputFormat(" + remote + ":" + port + ", "
+				+ rmiId + ")";
 	}
-	
-	
+
 }
