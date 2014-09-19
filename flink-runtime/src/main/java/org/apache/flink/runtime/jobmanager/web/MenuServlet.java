@@ -28,6 +28,8 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.runtime.profiling.ProfilingUtils;
 
 /**
  * A Servlet that displays the Configruation in the webinterface.
@@ -49,21 +51,30 @@ public class MenuServlet extends HttpServlet {
 	 * Array of possible menu entries on the left
 	 */
 	private static final String[] entries =  {
-		"index", "history", "configuration", "taskmanagers"
+		"index", "history", "configuration", "taskmanagers", "resource-usage-detailed"
 	};
 	
 	/**
 	 * The names of the menu entries shown in the browser
 	 */
 	private static final String[] names = {
-		"Dashboard", "History", "Configuration", "Task Managers"
+		"Dashboard", "History", "Configuration", "Task Managers", "Resource Usage"
 	};
 	
 	/**
 	 * The classes of the icons shown next to the names in the browser
 	 */
 	private static final String[] classes = {
-		"fa fa-dashboard", "fa fa-bar-chart-o", "fa fa-keyboard-o", "fa fa-building-o"
+		"fa fa-dashboard", "fa fa-archive", "fa fa-wrench", "fa fa-building-o", "fa fa-bar-chart-o"
+	};
+	
+	/**
+	 * Functions that check if a menu entry shall be displayed.
+	 */
+	private static final ActivityChecker[] activityCheckers = { 
+		AlwaysTrueActivityChecker.INSTANCE, AlwaysTrueActivityChecker.INSTANCE,
+		AlwaysTrueActivityChecker.INSTANCE, AlwaysTrueActivityChecker.INSTANCE,
+		new ConfigurationPropertyActivityChecker(ProfilingUtils.ENABLE_PROFILING_KEY) 
 	};
 	
 	public MenuServlet() {
@@ -79,16 +90,19 @@ public class MenuServlet extends HttpServlet {
 		resp.setStatus(HttpServletResponse.SC_OK);
 		resp.setContentType("application/json");
 		
-		if ("index".equals(req.getParameter("get"))) {
+		String getParameter = req.getParameter("get");
+		if ("index".equals(getParameter)) {
 			writeMenu("index", resp);
-		} else if ("analyze".equals(req.getParameter("get"))) {
+		} else if ("analyze".equals(getParameter)) {
 			writeMenu("analyze", resp);
-		} else if ("history".equals(req.getParameter("get"))) {
+		} else if ("history".equals(getParameter)) {
 			writeMenu("history", resp);
-		} else if ("configuration".equals(req.getParameter("get"))) {
+		} else if ("configuration".equals(getParameter)) {
 			writeMenu("configuration", resp);
-		} else if ("taskmanagers".equals(req.getParameter("get"))) {
+		} else if ("taskmanagers".equals(getParameter)) {
 			writeMenu("taskmanagers", resp);
+		} else if ("resourceUsage".equals(getParameter)) {
+			writeMenu("resourceUsage", resp);
 		}
 
 	}
@@ -98,6 +112,10 @@ public class MenuServlet extends HttpServlet {
 		String r = "";
 		
 		for (int i = 0; i < entries.length; i++) {
+			if (!activityCheckers[i].isActive()) {
+				continue;
+			}
+			
 			if (entries[i].equals(me)) {
 				r += writeLine(3, "<li class='active'><a href='"+ entries[i] +".html'><i class='"+ classes[i] +"'></i> "+ names[i] +"</a></li>");
 			} else {
@@ -115,6 +133,37 @@ public class MenuServlet extends HttpServlet {
 		}
 		s+= " " + line + " \n";
 		return s;
+	}
+	
+	private static interface ActivityChecker {
+		boolean isActive();
+	}
+	
+	private static class AlwaysTrueActivityChecker implements ActivityChecker {
+		
+		private static final AlwaysTrueActivityChecker INSTANCE = new AlwaysTrueActivityChecker();
+		
+		@Override
+		public boolean isActive() {
+			return true;
+		}
+	}
+	
+	private static class ConfigurationPropertyActivityChecker implements ActivityChecker {
+		
+		private final String property;
+
+		public ConfigurationPropertyActivityChecker(String property) {
+			this.property = property;
+		}
+
+		@Override
+		public boolean isActive() {
+			boolean isPropertyTrue = GlobalConfiguration.getBoolean(this.property, false);
+			return isPropertyTrue;
+		}
+		
+		
 	}
 	
 }

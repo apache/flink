@@ -94,6 +94,12 @@ public class JobmanagerInfoServlet extends HttpServlet {
 			else if("taskmanagers".equals(req.getParameter("get"))) {
 				resp.getWriter().write("{\"taskmanagers\": " + jobmanager.getNumberOfTaskManagers() +", \"slots\": "+jobmanager.getAvailableSlots()+"}");
 			}
+			else if("instances".equals(req.getParameter("get"))) {
+				String enclosingQuotes = jobmanager.getInstances().isEmpty() ? "" : "\"";
+				resp.getWriter().write(
+						"{\"instances\": [" + enclosingQuotes + StringUtils.join(jobmanager.getInstances().keySet(), "\",\"")
+								+ enclosingQuotes + "]}");
+			}
 			else if("cancel".equals(req.getParameter("get"))) {
 				String jobId = req.getParameter("job");
 				jobmanager.cancelJob(JobID.fromHexString(jobId));

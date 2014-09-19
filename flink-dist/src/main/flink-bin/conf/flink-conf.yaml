@@ -27,6 +27,8 @@ jobmanager.rpc.port: 6123
 
 jobmanager.heap.mb: 256
 
+jobmanager.profiling.enable: false
+
 taskmanager.heap.mb: 512
 
 taskmanager.numberOfTaskSlots: -1
@@ -38,6 +40,10 @@ parallelization.degree.default: 1
 #==============================================================================
 
 jobmanager.web.port: 8081
+
+# Duration of profiling events to display in ms (-1 = unlimited)
+#
+jobmanager.web.profiling.windowsize: 300000
 
 webclient.port: 8080
 
