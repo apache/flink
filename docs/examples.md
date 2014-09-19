@@ -1,5 +1,5 @@
 ---
-title:  "Java API Examples"
+title:  "Bundled Examples"
 ---
 
 * This will be replaced by the TOC
@@ -7,12 +7,16 @@ title:  "Java API Examples"
 
 The following example programs showcase different applications of Flink 
 from simple word counting to graph algorithms. The code samples illustrate the 
-use of [Flink's Java API](java_api_guide.html). 
+use of [Flink's API](programming_guide.html). 
 
-The full source code of the following and more examples can be found in the __flink-java-examples__ module.
+The full source code of the following and more examples can be found in the __flink-java-examples__
+or __flink-scala-examples__ module.
 
 ## Word Count
 WordCount is the "Hello World" of Big Data processing systems. It computes the frequency of words in a text collection. The algorithm works in two steps: First, the texts are splits the text to individual words. Second, the words are grouped and counted.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
 
 ~~~java
 // get input data
@@ -47,11 +51,37 @@ public static final class Tokenizer extends FlatMapFunction<String, Tuple2<Strin
 
 The {% gh_link /flink-examples/flink-java-examples/src/main/java/org/apache/flink/example/java/wordcount/WordCount.java  "WordCount example" %} implements the above described algorithm with input parameters: `<text input path>, <output path>`. As test data, any text file will do.
 
+</div>
+<div data-lang="scala" markdown="1">
+
+~~~scala
+val env = ExecutionEnvironment.getExecutionEnvironment
+
+// get input data
+val text = getTextDataSet(env)
+
+val counts = text.flatMap { _.toLowerCase.split("\\W+") filter { _.nonEmpty } }
+  .map { (_, 1) }
+  .groupBy(0)
+  .sum(1)
+
+counts.writeAsCsv(outputPath, "\n", " ")
+~~~
+
+The {% gh_link /flink-examples/flink-scala-examples/src/main/scala/org/apache/flink/examples/scala/wordcount/WordCount.scala  "WordCount example" %} implements the above described algorithm with input parameters: `<text input path>, <output path>`. As test data, any text file will do.
+
+
+</div>
+</div>
+
 ## Page Rank
 
 The PageRank algorithm computes the "importance" of pages in a graph defined by links, which point from one pages to another page. It is an iterative graph algorithm, which means that it repeatedly applies the same computation. In each iteration, each page distributes its current rank over all its neighbors, and compute its new rank as a taxed sum of the ranks it received from its neighbors. The PageRank algorithm was popularized by the Google search engine which uses the importance of webpages to rank the results of search queries.
 
 In this simple example, PageRank is implemented with a [bulk iteration](java_api_guide.html#iterations) and a fixed number of iterations.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
 
 ~~~java
 // get input data
@@ -124,6 +154,73 @@ public static final class EpsilonFilter
 The {% gh_link /flink-examples/flink-java-examples/src/main/java/org/apache/flink/example/java/graph/PageRankBasic.java "PageRank program" %} implements the above example.
 It requires the following parameters to run: `<pages input path>, <links input path>, <output path>, <num pages>, <num iterations>`.
 
+</div>
+<div data-lang="scala" markdown="1">
+
+~~~scala
+// set up execution environment
+val env = ExecutionEnvironment.getExecutionEnvironment
+
+// read input data
+val pages = getPagesDataSet(env)
+val links = getLinksDataSet(env)
+
+// assign initial ranks to pages
+val pagesWithRanks = pages.map(p => Page(p, 1.0 / numPages))
+
+// build adjacency list from link input
+val adjacencyLists = links
+  // initialize lists
+  .map(e => AdjacencyList(e.sourceId, Array(e.targetId)))
+  // concatenate lists
+  .groupBy("sourceId").reduce {
+  (l1, l2) => AdjacencyList(l1.sourceId, l1.targetIds ++ l2.targetIds)
+  }
+
+// start iteration
+val finalRanks = pagesWithRanks.iterateWithTermination(maxIterations) {
+  currentRanks =>
+    val newRanks = currentRanks
+      // distribute ranks to target pages
+      .join(adjacencyLists).where("pageId").equalTo("sourceId") {
+        (page, adjacent, out: Collector[Page]) =>
+        for (targetId <- adjacent.targetIds) {
+          out.collect(Page(targetId, page.rank / adjacent.targetIds.length))
+        }
+      }
+      // collect ranks and sum them up
+      .groupBy("pageId").aggregate(SUM, "rank")
+      // apply dampening factor
+      .map { p =>
+        Page(p.pageId, (p.rank * DAMPENING_FACTOR) + ((1 - DAMPENING_FACTOR) / numPages))
+      }
+
+    // terminate if no rank update was significant
+    val termination = currentRanks.join(newRanks).where("pageId").equalTo("pageId") {
+      (current, next, out: Collector[Int]) =>
+        // check for significant update
+        if (math.abs(current.rank - next.rank) > EPSILON) out.collect(1)
+    }
+
+    (newRanks, termination)
+}
+
+val result = finalRanks
+
+// emit result
+result.writeAsCsv(outputPath, "\n", " ")
+
+// User-defined types
+case class Link(sourceId: Long, targetId: Long)
+case class Page(pageId: Long, rank: Double)
+case class AdjacencyList(sourceId: Long, targetIds: Array[Long])
+~~~
+
+he {% gh_link /flink-examples/flink-scala-examples/src/main/scala/org/apache/flink/examples/scala/graph/PageRankBasic.scala "PageRank program" %} implements the above example.
+It requires the following parameters to run: `<pages input path>, <links input path>, <output path>, <num pages>, <num iterations>`.
+</div>
+</div>
+
 Input files are plain text files and must be formatted as follows:
 - Pages represented as an (long) ID separated by new-line characters.
     * For example `"1\n2\n12\n42\n63\n"` gives five pages with IDs 1, 2, 12, 42, and 63.
@@ -137,6 +234,9 @@ For this simple implementation it is required that each page has at least one in
 The Connected Components algorithm identifies parts of a larger graph which are connected by assigning all vertices in the same connected part the same component ID. Similar to PageRank, Connected Components is an iterative algorithm. In each step, each vertex propagates its current component ID to all its neighbors. A vertex accepts the component ID from a neighbor, if it is smaller than its own component ID.
 
 This implementation uses a [delta iteration](iterations.html): Vertices that have not changed their component ID do not participate in the next step. This yields much better performance, because the later iterations typically deal only with a few outlier vertices.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
 
 ~~~java
 // read vertex and edge data
@@ -214,6 +314,51 @@ public static final class ComponentIdFilter
 
 The {% gh_link /flink-examples/flink-java-examples/src/main/java/org/apache/flink/example/java/graph/ConnectedComponents.java "ConnectedComponents program" %} implements the above example. It requires the following parameters to run: `<vertex input path>, <edge input path>, <output path> <max num iterations>`.
 
+</div>
+<div data-lang="scala" markdown="1">
+
+~~~scala
+// set up execution environment
+val env = ExecutionEnvironment.getExecutionEnvironment
+
+// read vertex and edge data
+// assign the initial components (equal to the vertex id)
+val vertices = getVerticesDataSet(env).map { id => (id, id) }
+
+// undirected edges by emitting for each input edge the input edges itself and an inverted
+// version
+val edges = getEdgesDataSet(env).flatMap { edge => Seq(edge, (edge._2, edge._1)) }
+
+// open a delta iteration
+val verticesWithComponents = vertices.iterateDelta(vertices, maxIterations, Array(0)) {
+  (s, ws) =>
+
+    // apply the step logic: join with the edges
+    val allNeighbors = ws.join(edges).where(0).equalTo(0) { (vertex, edge) =>
+      (edge._2, vertex._2)
+    }
+
+    // select the minimum neighbor
+    val minNeighbors = allNeighbors.groupBy(0).min(1)
+
+    // update if the component of the candidate is smaller
+    val updatedComponents = minNeighbors.join(s).where(0).equalTo(0) {
+      (newVertex, oldVertex, out: Collector[(Long, Long)]) =>
+        if (newVertex._2 < oldVertex._2) out.collect(newVertex)
+    }
+
+    // delta and new workset are identical
+    (updatedComponents, updatedComponents)
+}
+
+verticesWithComponents.writeAsCsv(outputPath, "\n", " ")
+    
+~~~
+
+The {% gh_link /flink-examples/flink-scala-examples/src/main/scala/org/apache/flink/examples/scala/graph/ConnectedComponents.scala "ConnectedComponents program" %} implements the above example. It requires the following parameters to run: `<vertex input path>, <edge input path>, <output path> <max num iterations>`.
+</div>
+</div>
+
 Input files are plain text files and must be formatted as follows:
 - Vertices represented as IDs and separated by new-line characters.
     * For example `"1\n2\n12\n42\n63\n"` gives five vertices with (1), (2), (12), (42), and (63).
@@ -236,7 +381,10 @@ WHERE l_orderkey = o_orderkey
 GROUP BY l_orderkey, o_shippriority;
 ~~~
 
-The Flink Java program, which implements the above query looks as follows.
+The Flink program, which implements the above query looks as follows.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
 
 ~~~java
 // get orders data set: (orderkey, orderstatus, orderdate, orderpriority, shippriority)
@@ -284,6 +432,15 @@ priceSums.writeAsCsv(outputPath);
 ~~~
 
 The {% gh_link /flink-examples/flink-java-examples/src/main/java/org/apache/flink/example/java/relational/RelationalQuery.java "Relational Query program" %} implements the above query. It requires the following parameters to run: `<orders input path>, <lineitem input path>, <output path>`.
+
+</div>
+<div data-lang="scala" markdown="1">
+Coming soon...
+
+The {% gh_link /flink-examples/flink-scala-examples/src/main/scala/org/apache/flink/examples/scala/relational/RelationalQuery.scala "Relational Query program" %} implements the above query. It requires the following parameters to run: `<orders input path>, <lineitem input path>, <output path>`.
+
+</div>
+</div>
 
 The orders and lineitem files can be generated using the [TPC-H benchmark](http://www.tpc.org/tpch/) suite's data generator tool (DBGEN). 
 Take the following steps to generate arbitrary large input files for the provided Flink programs:
