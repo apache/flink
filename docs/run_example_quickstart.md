@@ -76,7 +76,7 @@ The Flink webclient allows to submit Flink programs using a graphical user inter
 		1. <a href="http://localhost:8080/launch.html">Open webclient on localhost:8080</a> <br>
 		2. Upload the file. 
 			{% highlight bash %}
-			examples/flink-java-examples-0.6-incubating-KMeans.jar
+			examples/flink-java-examples-{{ site.FLINK_VERSION_STABLE }}-KMeans.jar
 			{% endhighlight %} </br>
 		3. Select it in the left box to see how the operators in the plan are connected to each other. <br>
 		4. Enter the arguments in the lower left box:
