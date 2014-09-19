@@ -65,6 +65,11 @@ public final class ConfigConstants {
 	 * for communication with the job manager.
 	 */
 	public static final String JOB_MANAGER_IPC_PORT_KEY = "jobmanager.rpc.port";
+
+	/**
+	 * The config parameter defining the akka url of the job manager
+	 */
+	public static final String JOB_MANAGER_AKKA_URL = "jobmanager.akka.url";
 	
 	/**
 	 * The config parameter defining the number of handler threads for the jobmanager RPC service.

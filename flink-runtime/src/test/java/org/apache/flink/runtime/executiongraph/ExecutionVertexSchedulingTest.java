@@ -40,14 +40,14 @@ import org.junit.Test;
 import org.mockito.Matchers;
 
 public class ExecutionVertexSchedulingTest {
+
 	
 	@Test
 	public void testSlotReleasedWhenScheduledImmediately() {
 		
 		try {
 			// a slot than cannot be deployed to
-			final ActorRef taskManager = mock(ActorRef.class);
-			final Instance instance = getInstance(taskManager);
+			final Instance instance = getInstance(ActorRef.noSender());
 			final AllocatedSlot slot = instance.allocateSlot(new JobID());
 			slot.cancel();
 			assertFalse(slot.isReleased());
@@ -65,8 +65,6 @@ public class ExecutionVertexSchedulingTest {
 			// will have failed
 			assertEquals(ExecutionState.FAILED, vertex.getExecutionState());
 			assertTrue(slot.isReleased());
-			
-			verify(instance, times(0)).submitTask(Matchers.any(TaskDeploymentDescriptor.class));
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -79,8 +77,7 @@ public class ExecutionVertexSchedulingTest {
 
 		try {
 			// a slot than cannot be deployed to
-			final ActorRef taskManager = mock(ActorRef.class);
-			final Instance instance = getInstance(taskManager);
+			final Instance instance = getInstance(ActorRef.noSender());
 			final AllocatedSlot slot = instance.allocateSlot(new JobID());
 			slot.cancel();
 			assertFalse(slot.isReleased());
@@ -105,8 +102,6 @@ public class ExecutionVertexSchedulingTest {
 			// will have failed
 			assertEquals(ExecutionState.FAILED, vertex.getExecutionState());
 			assertTrue(slot.isReleased());
-			
-			verify(instance, times(0)).submitTask(Matchers.any(TaskDeploymentDescriptor.class));
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -118,8 +113,7 @@ public class ExecutionVertexSchedulingTest {
 	public void testScheduleToDeploy() {
 		try {
 			// a slot than cannot be deployed to
-			final ActorRef taskManager = mock(ActorRef.class);
-			final Instance instance = getInstance(taskManager);
+			final Instance instance = getInstance(ActorRef.noSender());
 			final AllocatedSlot slot = instance.allocateSlot(new JobID());
 			
 			final ExecutionJobVertex ejv = getJobVertexNotExecuting(new JobVertexID());

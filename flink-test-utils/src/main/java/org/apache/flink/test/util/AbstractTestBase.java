@@ -38,7 +38,8 @@ import java.util.LinkedList;
 import java.util.List;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.flink.runtime.minicluster.NepheleMiniCluster;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.hadoop.fs.FileSystem;
@@ -54,17 +55,17 @@ public abstract class AbstractTestBase {
 
 	protected static final int DEFAULT_TASK_MANAGER_NUM_SLOTS = 1;
 
-	protected static final int DEFAULT_NUM_TASK_MANAGER = 1;
+	protected static final int DEFAULT_NUM_TASK_MANAGERS = 1;
 
 	protected final Configuration config;
 	
-	protected NepheleMiniCluster executor;
+	protected LocalFlinkMiniCluster executor;
 	
 	private final List<File> tempFiles;
 
 	protected int taskManagerNumSlots = DEFAULT_TASK_MANAGER_NUM_SLOTS;
 
-	protected int numTaskManager = DEFAULT_NUM_TASK_MANAGER;
+	protected int numTaskManagers = DEFAULT_NUM_TASK_MANAGERS;
 
 	public AbstractTestBase(Configuration config) {
 		verifyJvmOptions();
@@ -82,13 +83,14 @@ public abstract class AbstractTestBase {
 	// --------------------------------------------------------------------------------------------
 	
 	public void startCluster() throws Exception {
-		this.executor = new NepheleMiniCluster();
-		this.executor.setDefaultOverwriteFiles(true);
-		this.executor.setLazyMemoryAllocation(true);
-		this.executor.setMemorySize(TASK_MANAGER_MEMORY_SIZE);
-		this.executor.setTaskManagerNumSlots(taskManagerNumSlots);
-		this.executor.setNumTaskManager(this.numTaskManager);
-		this.executor.start();
+		this.executor = new LocalFlinkMiniCluster(null);
+		Configuration config = new Configuration();
+		config.setBoolean(ConfigConstants.FILESYSTEM_DEFAULT_OVERWRITE_KEY, true);
+		config.setBoolean(ConfigConstants.TASK_MANAGER_MEMORY_LAZY_ALLOCATION_KEY, true);
+		config.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, TASK_MANAGER_MEMORY_SIZE);
+		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, taskManagerNumSlots);
+		config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, numTaskManagers);
+		this.executor.start(config);
 	}
 	
 	public void stopCluster() throws Exception {
@@ -132,9 +134,9 @@ public abstract class AbstractTestBase {
 
 	public void setTaskManagerNumSlots(int taskManagerNumSlots) { this.taskManagerNumSlots = taskManagerNumSlots; }
 
-	public int getNumTaskManager() { return numTaskManager; }
+	public int getNumTaskManagers() { return numTaskManagers; }
 
-	public void setNumTaskManager(int numTaskManager) { this.numTaskManager = numTaskManager; }
+	public void setNumTaskManagers(int numTaskManagers) { this.numTaskManagers = numTaskManagers; }
 
 	
 	// --------------------------------------------------------------------------------------------

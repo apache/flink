@@ -19,7 +19,7 @@
 <configuration>
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{60} %X{sourceThread} - %msg%n</pattern>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] [%X{sourceThread} - %X{akkaSource}] %-5level %logger{60} - %msg%n</pattern>
         </encoder>
     </appender>
 
@@ -35,7 +35,7 @@
     <logger name="org.apache.flink.runtime.client.JobClient" level="OFF"/>
     <logger name="org.apache.flink.runtime.taskmanager.Task" level="OFF"/>
     <logger name="org.apache.flink.runtime.jobmanager.JobManager" level="OFF"/>
-    <logger name="org.apache.flink.runtime.taskmanager.TaskManager" level="OFF"/>
+    <logger name="org.apache.flink.runtime.testingActors" level="OFF"/>
     <logger name="org.apache.flink.runtime.executiongraph.ExecutionGraph" level="OFF"/>
     <logger name="org.apache.flink.runtime.jobmanager.EventCollector" level="OFF"/>
     <logger name="org.apache.flink.runtime.instance.InstanceManager" level="OFF"/>

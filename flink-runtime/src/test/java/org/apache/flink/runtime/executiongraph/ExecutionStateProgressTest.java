@@ -24,17 +24,35 @@ import static org.mockito.Mockito.mock;
 
 import java.util.Arrays;
 
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import akka.actor.Props;
+import akka.testkit.JavaTestKit;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.TestingUtils;
 import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.protocols.TaskOperationProtocol;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 public class ExecutionStateProgressTest {
+
+	private static ActorSystem system;
+
+	@BeforeClass
+	public static void setup(){
+		system = ActorSystem.create("TestingActorSystem", TestingUtils.testConfig());
+	}
+
+	@AfterClass
+	public static void teardown(){
+		JavaTestKit.shutdownActorSystem(system);
+	}
 
 	@Test
 	public void testAccumulatedStateFinished() {
@@ -54,7 +72,7 @@ public class ExecutionStateProgressTest {
 			ExecutionJobVertex ejv = graph.getJobVertex(vid);
 			
 			// mock resources and mock taskmanager
-			TaskOperationProtocol taskManager = getSimpleAcknowledgingTaskmanager();
+			ActorRef taskManager = system.actorOf(Props.create(SimpleAcknowledgingTaskManager.class));
 			for (ExecutionVertex ee : ejv.getTaskVertices()) {
 				AllocatedSlot slot = getInstance(taskManager).allocateSlot(jid);
 				ee.deployToSlot(slot);

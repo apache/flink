@@ -37,7 +37,6 @@ import java.util.jar.Manifest;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
 import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
-import org.apache.flink.runtime.jobmanager.JobManagerITCase;
 
 /**
  * This class contains a selection of utility functions which are used for testing the nephele-server module.
@@ -127,47 +126,6 @@ public final class ServerTestUtils {
 	public static String getTempDir() {
 
 		return System.getProperty("java.io.tmpdir");
-	}
-
-	/**
-	 * Creates a jar file from the class with the given class name and stores it in the directory for temporary files.
-	 * 
-	 * @param className
-	 *        the name of the class to create a jar file from
-	 * @return a {@link File} object referring to the jar file
-	 * @throws IOException
-	 *         thrown if an error occurs while writing the jar file
-	 */
-	public static File createJarFile(String className) throws IOException {
-
-		final String jarPath = getTempDir() + File.separator + className + ".jar";
-		final File jarFile = new File(jarPath);
-
-		if (jarFile.exists()) {
-			jarFile.delete();
-		}
-
-		final JarOutputStream jos = new JarOutputStream(new FileOutputStream(jarPath), new Manifest());
-		final String classPath = JobManagerITCase.class.getResource("").getPath() + className + ".class";
-		final File classFile = new File(classPath);
-
-		String packageName = JobManagerITCase.class.getPackage().getName();
-		packageName = packageName.replaceAll("\\.", "\\/");
-		jos.putNextEntry(new JarEntry("/" + packageName + "/" + className + ".class"));
-
-		final FileInputStream fis = new FileInputStream(classFile);
-		final byte[] buffer = new byte[1024];
-		int num = fis.read(buffer);
-
-		while (num != -1) {
-			jos.write(buffer, 0, num);
-			num = fis.read(buffer);
-		}
-
-		fis.close();
-		jos.close();
-
-		return jarFile;
 	}
 
 	/**

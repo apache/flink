@@ -97,4 +97,38 @@ public class TaskOperationResult implements IOReadableWritable, java.io.Serializ
 		return String.format("TaskOperationResult %s [%s]%s", executionId, 
 				success ? "SUCCESS" : "FAILED", description == null ? "" : " - " + description);
 	}
+
+	@Override
+	public boolean equals(Object o){
+		if(o == null){
+			return false;
+		}
+
+		if(o instanceof TaskOperationResult){
+			TaskOperationResult tor = (TaskOperationResult) o;
+			boolean result = true;
+
+			if(executionId == null){
+				if(tor.executionId != null){
+					return false;
+				}
+			}else{
+				result &= executionId.equals(tor.executionId);
+			}
+
+			result &= success == tor.success;
+
+			if(description == null){
+				if(tor.description != null){
+					return false;
+				}
+			}else{
+				result &= description.equals(tor.description);
+			}
+
+			return result;
+		}else{
+			return false;
+		}
+	}
 }

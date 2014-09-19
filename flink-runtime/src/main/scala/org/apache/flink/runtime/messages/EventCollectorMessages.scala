@@ -24,15 +24,19 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraph
 import org.apache.flink.runtime.jobgraph.JobID
 import org.apache.flink.runtime.profiling.types.ProfilingEvent
 
-import scala.collection.convert.DecorateAsJava
+import scala.collection.convert.{WrapAsScala, DecorateAsJava}
 
-object EventCollectorMessages extends DecorateAsJava{
+object EventCollectorMessages extends DecorateAsJava with WrapAsScala{
   case class ProcessProfilingEvent(profilingEvent: ProfilingEvent)
   case class RegisterArchiveListener(listener: ActorRef)
   case class RequestJobProgress(jobID: JobID)
   case class RegisterJob(executionGraph: ExecutionGraph, profilingAvailable: Boolean, submissionTimestamp: Long)
 
   case class RecentJobs(jobs: List[RecentJobEvent]){
+    def this(_jobs: java.util.List[RecentJobEvent]) = {
+      this(_jobs.toList)
+    }
+
     def asJavaList: java.util.List[RecentJobEvent] = {
       jobs.asJava
     }

@@ -18,7 +18,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 <project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
-	xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-taskManager">
+	xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 
 	<parent>
 		<groupId>org.apache</groupId>
@@ -63,9 +63,8 @@ under the License.
 		<!--<module>flink-tests</module>-->
 		<!--<module>flink-test-utils</module>-->
 		<!--<module>flink-addons</module>-->
-		<!--<module>flink-quickstart</module>-->
-		<!--<module>flink-dist</module>-->
-		<module>testing</module>
+		<module>flink-quickstart</module>
+		<module>flink-dist</module>
 	</modules>
 
 	<properties>

@@ -19,15 +19,18 @@
 package org.apache.flink.runtime.minicluster;
 
 import akka.actor.ActorRef;
-import akka.actor.ActorSelection;
 import akka.actor.ActorSystem;
-import org.apache.flink.configuration.GlobalConfiguration;
+import akka.dispatch.ExecutionContexts;
+import akka.dispatch.Futures;
+import akka.pattern.Patterns;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.messages.TaskManagerMessages;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.messages.JobManagerMessages;
+import scala.concurrent.Await;
+import scala.concurrent.Future;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -46,7 +49,7 @@ abstract public class FlinkMiniCluster {
 
 	public abstract ActorRef startJobManager(final ActorSystem system, final Configuration configuration);
 	public abstract ActorRef startTaskManager(final ActorSystem system, final Configuration configuration,
-											  final int index);
+											final int index);
 
 	ActorSystem startJobManagerActorSystem(final Configuration configuration) {
 		int port = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY,
@@ -87,7 +90,7 @@ abstract public class FlinkMiniCluster {
 			taskManagerActors.add(taskManager);
 		}
 
-		waitForJobManagerToBecomeReady(numTaskManagers);
+		waitForTaskManagersToBeRegistered();
 	}
 
 	public void stop() throws Exception {
@@ -109,24 +112,20 @@ abstract public class FlinkMiniCluster {
 	// ------------------------------------------------------------------------
 	// Network utility methods
 	// ------------------------------------------------------------------------
-	
-	private void waitForJobManagerToBecomeReady(int numTaskManagers) throws Exception {
-		LOG.debug("Wait until " + numTaskManagers + " task managers are ready.");
-		boolean notReady = true;
 
-		ActorSelection jobManagerSelection = jobManagerActorSystem.actorSelection("/user/jobmanager");
+	private void waitForTaskManagersToBeRegistered(){
+		List<Future<Object>> responses = new ArrayList<Future<Object>>();
 
-		while(notReady){
-			int numRegisteredTaskManagers = AkkaUtils.<Integer>ask(jobManagerSelection,
-					JobManagerMessages.RequestNumberRegisteredTaskManager$.MODULE$);
+		for(ActorRef taskManager: taskManagerActors){
+			Future<Object> response = Patterns.ask(taskManager, TaskManagerMessages.NotifyWhenRegisteredAtMaster$
+					.MODULE$, AkkaUtils.FUTURE_TIMEOUT());
+			responses.add(response);
+		}
 
-			LOG.debug("Number of registered task manager: " + numRegisteredTaskManagers);
-
-			if(numRegisteredTaskManagers < numTaskManagers){
-				Thread.sleep(500);
-			}else{
-				notReady = false;
-			}
+		try {
+			Await.ready(Futures.sequence(responses, ExecutionContexts.global()), AkkaUtils.AWAIT_DURATION());
+		}catch(Exception e){
+			throw new RuntimeException("Not all task managers could register at the job manager.", e);
 		}
 	}
 }

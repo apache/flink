@@ -25,19 +25,37 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+
 import java.net.InetAddress;
 
+import akka.actor.ActorSystem;
+import akka.testkit.JavaTestKit;
+import org.apache.flink.runtime.TestingUtils;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 
+import org.junit.AfterClass;
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 /**
  * Tests for {@link org.apache.flink.runtime.instance.InstanceManager}.
  */
-public class InstanceManagerTest {
-	
-	
+public class InstanceManagerTest{
+
+	static ActorSystem system;
+
+	@BeforeClass
+	public static void setup(){
+		system = ActorSystem.create("TestingActorSystem", TestingUtils.testConfig());
+	}
+
+	@AfterClass
+	public static void teardown(){
+		JavaTestKit.shutdownActorSystem(system);
+		system = null;
+	}
+
 	@Test
 	public void testInstanceRegistering() {
 		try {
@@ -47,7 +65,6 @@ public class InstanceManagerTest {
 			// milliseconds by verifying that the timeout is not larger than 2 minutes.
 			assertTrue(cm.getHeartbeatTimeout() < 2 * 60 * 1000);
 			
-			final int ipcPort = 10000;
 			final int dataPort = 20000;
 
 			HardwareDescription hardwareDescription = HardwareDescription.extractFromSystem(4096);
@@ -55,13 +72,17 @@ public class InstanceManagerTest {
 			InetAddress address = InetAddress.getByName("127.0.0.1");
 			
 			// register three instances
-			InstanceConnectionInfo ici1 = new InstanceConnectionInfo(address, ipcPort + 0, dataPort + 0);
-			InstanceConnectionInfo ici2 = new InstanceConnectionInfo(address, ipcPort + 15, dataPort + 15);
-			InstanceConnectionInfo ici3 = new InstanceConnectionInfo(address, ipcPort + 30, dataPort + 30);
-			
-			InstanceID i1 = cm.registerTaskManager(ici1, hardwareDescription, 1);
-			InstanceID i2 = cm.registerTaskManager(ici2, hardwareDescription, 2);
-			InstanceID i3 = cm.registerTaskManager(ici3, hardwareDescription, 5);
+			InstanceConnectionInfo ici1 = new InstanceConnectionInfo(address, dataPort + 0);
+			InstanceConnectionInfo ici2 = new InstanceConnectionInfo(address, dataPort + 15);
+			InstanceConnectionInfo ici3 = new InstanceConnectionInfo(address, dataPort + 30);
+
+			final JavaTestKit probe1 = new JavaTestKit(system);
+			final JavaTestKit probe2 = new JavaTestKit(system);
+			final JavaTestKit probe3 = new JavaTestKit(system);
+
+			InstanceID i1 = cm.registerTaskManager(probe1.getRef(), ici1, hardwareDescription, 1);
+			InstanceID i2 = cm.registerTaskManager(probe2.getRef(), ici2, hardwareDescription, 2);
+			InstanceID i3 = cm.registerTaskManager(probe3.getRef(), ici3, hardwareDescription, 5);
 			
 			assertEquals(3, cm.getNumberOfRegisteredTaskManagers());
 			assertEquals(8, cm.getTotalNumberOfSlots());
@@ -84,20 +105,20 @@ public class InstanceManagerTest {
 		try {
 			InstanceManager cm = new InstanceManager();
 			
-			final int ipcPort = 10000;
 			final int dataPort = 20000;
 
 			HardwareDescription resources = HardwareDescription.extractFromSystem(4096);
 			InetAddress address = InetAddress.getByName("127.0.0.1");
-			InstanceConnectionInfo ici = new InstanceConnectionInfo(address, ipcPort + 0, dataPort + 0);
-			
-			InstanceID i = cm.registerTaskManager(ici, resources, 1);
+			InstanceConnectionInfo ici = new InstanceConnectionInfo(address, dataPort + 0);
+
+			JavaTestKit probe = new JavaTestKit(system);
+			InstanceID i = cm.registerTaskManager(probe.getRef(), ici, resources, 1);
 
 			assertNotNull(i);
 			assertEquals(1, cm.getNumberOfRegisteredTaskManagers());
 			assertEquals(1, cm.getTotalNumberOfSlots());
 			
-			InstanceID next = cm.registerTaskManager(ici, resources, 1);
+			InstanceID next = cm.registerTaskManager(probe.getRef(), ici, resources, 1);
 			assertNull(next);
 			
 			assertEquals(1, cm.getNumberOfRegisteredTaskManagers());
@@ -117,7 +138,6 @@ public class InstanceManagerTest {
 		try {
 			InstanceManager cm = new InstanceManager();
 			
-			final int ipcPort = 10000;
 			final int dataPort = 20000;
 
 			HardwareDescription hardwareDescription = HardwareDescription.extractFromSystem(4096);
@@ -125,13 +145,17 @@ public class InstanceManagerTest {
 			InetAddress address = InetAddress.getByName("127.0.0.1");
 			
 			// register three instances
-			InstanceConnectionInfo ici1 = new InstanceConnectionInfo(address, ipcPort + 0, dataPort + 0);
-			InstanceConnectionInfo ici2 = new InstanceConnectionInfo(address, ipcPort + 1, dataPort + 1);
-			InstanceConnectionInfo ici3 = new InstanceConnectionInfo(address, ipcPort + 2, dataPort + 2);
+			InstanceConnectionInfo ici1 = new InstanceConnectionInfo(address, dataPort + 0);
+			InstanceConnectionInfo ici2 = new InstanceConnectionInfo(address, dataPort + 1);
+			InstanceConnectionInfo ici3 = new InstanceConnectionInfo(address, dataPort + 2);
+
+			JavaTestKit probe1 = new JavaTestKit(system);
+			JavaTestKit probe2 = new JavaTestKit(system);
+			JavaTestKit probe3 = new JavaTestKit(system);
 			
-			InstanceID i1 = cm.registerTaskManager(ici1, hardwareDescription, 1);
-			InstanceID i2 = cm.registerTaskManager(ici2, hardwareDescription, 1);
-			InstanceID i3 = cm.registerTaskManager(ici3, hardwareDescription, 1);
+			InstanceID i1 = cm.registerTaskManager(probe1.getRef(), ici1, hardwareDescription, 1);
+			InstanceID i2 = cm.registerTaskManager(probe2.getRef(), ici2, hardwareDescription, 1);
+			InstanceID i3 = cm.registerTaskManager(probe3.getRef(), ici3, hardwareDescription, 1);
 
 			// report some immediate heart beats
 			assertTrue(cm.reportHeartBeat(i1));
@@ -177,9 +201,10 @@ public class InstanceManagerTest {
 			try {
 				HardwareDescription resources = HardwareDescription.extractFromSystem(4096);
 				InetAddress address = InetAddress.getByName("127.0.0.1");
-				InstanceConnectionInfo ici = new InstanceConnectionInfo(address, 10000, 20000);
-		
-				cm.registerTaskManager(ici, resources, 1);
+				InstanceConnectionInfo ici = new InstanceConnectionInfo(address, 20000);
+
+				JavaTestKit probe = new JavaTestKit(system);
+				cm.registerTaskManager(probe.getRef(), ici, resources, 1);
 				fail("Should raise exception in shutdown state");
 			}
 			catch (IllegalStateException e) {
@@ -205,12 +230,14 @@ public class InstanceManagerTest {
 
 			HardwareDescription resources = HardwareDescription.extractFromSystem(4096);
 			InetAddress address = InetAddress.getByName("127.0.0.1");
-			InstanceConnectionInfo ici1 = new InstanceConnectionInfo(address, 10000, 20000);
-			InstanceConnectionInfo ici2 = new InstanceConnectionInfo(address, 10001, 20001);
+			InstanceConnectionInfo ici1 = new InstanceConnectionInfo(address, 20000);
+			InstanceConnectionInfo ici2 = new InstanceConnectionInfo(address, 20001);
 
-			// register three instances
-			InstanceID i1 = cm.registerTaskManager(ici1, resources, 1);
-			InstanceID i2 = cm.registerTaskManager(ici2, resources, 1);
+			JavaTestKit probe1 = new JavaTestKit(system);
+			JavaTestKit probe2 = new JavaTestKit(system);
+			// register two instances
+			InstanceID i1 = cm.registerTaskManager(probe1.getRef(), ici1, resources, 1);
+			InstanceID i2 = cm.registerTaskManager(probe2.getRef(), ici2, resources, 1);
 
 			assertNotNull(i1);
 			assertNotNull(i2);
@@ -245,7 +272,7 @@ public class InstanceManagerTest {
 			assertFalse(cm.reportHeartBeat(i2));
 			
 			// allow the lost TM to re-register itself
-			i2 = cm.registerTaskManager(ici2, resources, 1);
+			i2 = cm.registerTaskManager(probe2.getRef(), ici2, resources, 1);
 			assertEquals(2, cm.getNumberOfRegisteredTaskManagers());
 			assertEquals(2, cm.getTotalNumberOfSlots());
 			

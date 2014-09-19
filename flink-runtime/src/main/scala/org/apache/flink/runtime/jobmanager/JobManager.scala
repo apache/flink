@@ -201,9 +201,10 @@ ActorLogMessages with ActorLogging with WrapAsScala {
       Preconditions.checkNotNull(taskExecutionState)
 
       currentJobs.get(taskExecutionState.getJobID) match {
-        case Some(executionGraph) => executionGraph.updateState(taskExecutionState)
+        case Some(executionGraph) => sender() ! executionGraph.updateState(taskExecutionState)
         case None => log.error(s"Cannot find execution graph for ID ${taskExecutionState.getJobID} to change state to" +
           s" ${taskExecutionState.getExecutionState}.")
+          sender() ! false
       }
     }
 

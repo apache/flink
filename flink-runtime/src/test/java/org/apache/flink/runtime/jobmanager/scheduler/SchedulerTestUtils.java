@@ -28,6 +28,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import akka.actor.ActorRef;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.instance.HardwareDescription;
@@ -56,15 +57,14 @@ public class SchedulerTestUtils {
 			throw new RuntimeException("Test could not create IP address for localhost loopback.");
 		}
 		
-		int ipcPort = port.getAndIncrement();
 		int dataPort = port.getAndIncrement();
 		
-		InstanceConnectionInfo ci = new InstanceConnectionInfo(address, ipcPort, dataPort);
+		InstanceConnectionInfo ci = new InstanceConnectionInfo(address, dataPort);
 		
 		final long GB = 1024L*1024*1024;
 		HardwareDescription resources = new HardwareDescription(4, 4*GB, 3*GB, 2*GB);
 		
-		return new Instance(ci, new InstanceID(), resources, numSlots);
+		return new Instance(ActorRef.noSender(), ci, new InstanceID(), resources, numSlots);
 	}
 	
 	

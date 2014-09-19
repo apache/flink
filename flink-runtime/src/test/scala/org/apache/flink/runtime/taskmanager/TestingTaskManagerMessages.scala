@@ -16,42 +16,10 @@
  * limitations under the License.
  */
 
+package org.apache.flink.runtime.taskmanager
 
-package org.apache.flink.test.iterative.nephele.danglingpagerank;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
 
-import java.io.IOException;
-
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.types.Value;
-
-public class BooleanValue implements Value {
-  private static final long serialVersionUID = 1L;
-
-  private boolean value;
-
-  public BooleanValue(boolean value) {
-    this.value = value;
-  }
-
-  public BooleanValue() {
-  }
-
-  public boolean get() {
-    return value;
-  }
-
-  public void set(boolean value) {
-    this.value = value;
-  }
-
-  @Override
-  public void write(DataOutputView out) throws IOException {
-    out.writeBoolean(value);
-  }
-
-  @Override
-  public void read(DataInputView in) throws IOException {
-    value = in.readBoolean();
-  }
+object TestingTaskManagerMessages {
+  case class NotifyWhenTaskRemoved(executionID: ExecutionAttemptID)
 }

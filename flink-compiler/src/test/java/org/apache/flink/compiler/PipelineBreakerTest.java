@@ -20,6 +20,8 @@ package org.apache.flink.compiler;
 
 import static org.junit.Assert.*;
 
+import org.apache.flink.compiler.testfunctions.IdentityMapper;
+import org.apache.flink.compiler.testfunctions.SelectOneReducer;
 import org.junit.Test;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.DataSet;
@@ -30,8 +32,6 @@ import org.apache.flink.compiler.plan.DualInputPlanNode;
 import org.apache.flink.compiler.plan.OptimizedPlan;
 import org.apache.flink.compiler.plan.SingleInputPlanNode;
 import org.apache.flink.compiler.plan.SinkPlanNode;
-import org.apache.flink.compiler.testfunctions.IdentityMapper;
-import org.apache.flink.compiler.testfunctions.SelectOneReducer;
 import org.apache.flink.configuration.Configuration;
 
 @SuppressWarnings("serial")

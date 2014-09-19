@@ -127,7 +127,7 @@ public class InstanceProfilerTest {
 		PowerMockito.mockStatic(System.class);
 		when(System.currentTimeMillis()).thenReturn(0L);
 
-		this.out = new InstanceProfiler(ActorRef.noSender());
+		this.out = new InstanceProfiler("InstanceProfilerTest");
 	}
 
 	@Test

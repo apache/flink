@@ -30,9 +30,12 @@ object TaskManagerMessages {
   case class CancelTask(attemptID: ExecutionAttemptID)
   case class SubmitTask(tasks: TaskDeploymentDescriptor)
   case class NextInputSplit(inputSplit: InputSplit)
+  case class UnregisterTask(executionID: ExecutionAttemptID)
 
   case class Heartbeat(instanceID: InstanceID)
 
+  case object NotifyWhenRegisteredAtMaster
+  case object RegisteredAtMaster
   case object RegisterAtMaster
   case object SendHeartbeat
   case object AcknowledgeLibraryCacheUpdate

@@ -36,10 +36,10 @@ public class InstanceConnectionInfoTest {
 	public void testEqualsHashAndCompareTo() {
 		try {
 			// one == four != two != three
-			InstanceConnectionInfo one = new InstanceConnectionInfo(InetAddress.getByName("127.0.0.1"), 10523, 19871);
-			InstanceConnectionInfo two = new InstanceConnectionInfo(InetAddress.getByName("0.0.0.0"), 10523, 19871);
-			InstanceConnectionInfo three = new InstanceConnectionInfo(InetAddress.getByName("192.168.0.1"), 7891, 10871);
-			InstanceConnectionInfo four = new InstanceConnectionInfo(InetAddress.getByName("127.0.0.1"), 10523, 19871);
+			InstanceConnectionInfo one = new InstanceConnectionInfo(InetAddress.getByName("127.0.0.1"), 19871);
+			InstanceConnectionInfo two = new InstanceConnectionInfo(InetAddress.getByName("0.0.0.0"), 19871);
+			InstanceConnectionInfo three = new InstanceConnectionInfo(InetAddress.getByName("192.168.0.1"), 10871);
+			InstanceConnectionInfo four = new InstanceConnectionInfo(InetAddress.getByName("127.0.0.1"), 19871);
 			
 			assertTrue(one.equals(four));
 			assertTrue(!one.equals(two));
@@ -70,7 +70,7 @@ public class InstanceConnectionInfoTest {
 		try {
 			// without resolved hostname
 			{
-				InstanceConnectionInfo original = new InstanceConnectionInfo(InetAddress.getByName("1.2.3.4"), 9999, 8888);
+				InstanceConnectionInfo original = new InstanceConnectionInfo(InetAddress.getByName("1.2.3.4"), 8888);
 				
 				InstanceConnectionInfo copy = CommonTestUtils.createCopyWritable(original);
 				assertEquals(original, copy);
@@ -81,7 +81,7 @@ public class InstanceConnectionInfoTest {
 						
 			// with resolved hostname
 			{
-				InstanceConnectionInfo original = new InstanceConnectionInfo(InetAddress.getByName("127.0.0.1"), 10523, 19871);
+				InstanceConnectionInfo original = new InstanceConnectionInfo(InetAddress.getByName("127.0.0.1"), 19871);
 				original.getFQDNHostname();
 				
 				InstanceConnectionInfo copy = CommonTestUtils.createCopyWritable(original);
@@ -100,10 +100,10 @@ public class InstanceConnectionInfoTest {
 	@Test
 	public void testGetFQDNHostname() {
 		try {
-			InstanceConnectionInfo info1 = new InstanceConnectionInfo(InetAddress.getByName("127.0.0.1"), 10523, 19871);
+			InstanceConnectionInfo info1 = new InstanceConnectionInfo(InetAddress.getByName("127.0.0.1"), 19871);
 			assertTrue(info1.getFQDNHostname() != null);
 			
-			InstanceConnectionInfo info2 = new InstanceConnectionInfo(InetAddress.getByName("1.2.3.4"), 9999, 8888);
+			InstanceConnectionInfo info2 = new InstanceConnectionInfo(InetAddress.getByName("1.2.3.4"), 8888);
 			assertTrue(info2.getFQDNHostname() != null);
 		}
 		catch (Exception e) {

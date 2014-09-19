@@ -18,15 +18,42 @@
 
 package org.apache.flink.client;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import akka.actor.Props;
+import akka.actor.UntypedActor;
+import akka.testkit.JavaTestKit;
+import org.apache.commons.cli.CommandLine;
+import org.apache.flink.runtime.event.job.RecentJobEvent;
 import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.runtime.messages.EventCollectorMessages;
+import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.runtime.messages.JobResult;
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.util.ArrayList;
+
 //TODO: Update test case
 public class CliFrontendListCancelTest {
+
+	private static ActorSystem actorSystem;
+
+	@BeforeClass
+	public static void setup(){
+		actorSystem = ActorSystem.create("TestingActorSystem");
+	}
+
+	@AfterClass
+	public static void teardown(){
+		JavaTestKit.shutdownActorSystem(actorSystem);
+		actorSystem = null;
+	}
 	
 	@BeforeClass
 	public static void init() {
@@ -57,9 +84,11 @@ public class CliFrontendListCancelTest {
 			{
 				JobID jid = new JobID();
 				String jidString = jid.toString();
+
+				final ActorRef jm = actorSystem.actorOf(Props.create(CliJobManager.class, jid));
 				
 				String[] parameters = {"-i", jidString};
-				InfoListTestCliFrontend testFrontend = new InfoListTestCliFrontend();
+				InfoListTestCliFrontend testFrontend = new InfoListTestCliFrontend(jm);
 				int retCode = testFrontend.cancel(parameters);
 				assertTrue(retCode == 0);
 			}
@@ -75,6 +104,8 @@ public class CliFrontendListCancelTest {
 	@Test
 	public void testList() {
 		try {
+			final ActorRef jm = actorSystem.actorOf(Props.create(CliJobManager.class, (Object)null));
+
 			// test unrecognized option
 			{
 				String[] parameters = {"-v", "-k"};
@@ -94,7 +125,7 @@ public class CliFrontendListCancelTest {
 			// test list properly
 			{
 				String[] parameters = {"-r", "-s"};
-				InfoListTestCliFrontend testFrontend = new InfoListTestCliFrontend();
+				InfoListTestCliFrontend testFrontend = new InfoListTestCliFrontend(jm);
 				int retCode = testFrontend.list(parameters);
 				assertTrue(retCode == 0);
 			}
@@ -108,20 +139,36 @@ public class CliFrontendListCancelTest {
 
 
 	protected static final class InfoListTestCliFrontend extends CliFrontendTestUtils.TestingCliFrontend {
+		private ActorRef jobmanager;
 
-		public InfoListTestCliFrontend() {
-		}
-
-		public int getTotalNumberOfRegisteredSlots() {
-			return 1;
+		public InfoListTestCliFrontend(ActorRef jobmanager){
+			this.jobmanager = jobmanager;
 		}
 
 		@Override
-		public int getNumberOfSlotsAvailableToScheduler() throws IOException {
+		public ActorRef getJobManager(CommandLine line){
+			return jobmanager;
+		}
+	}
+
+	protected static final class CliJobManager extends UntypedActor{
+		private final JobID jobID;
+
+		public CliJobManager(final JobID jobID){
+			this.jobID = jobID;
+		}
 
 		@Override
-		public int getBlobServerPort() {
-			throw new UnsupportedOperationException();
+		public void onReceive(Object message) throws Exception {
+			if(message instanceof JobManagerMessages.RequestAvailableSlots$){
+				getSender().tell(1, getSelf());
+			}else if(message instanceof EventCollectorMessages.RequestRecentJobEvents$) {
+				getSender().tell(new EventCollectorMessages.RecentJobs(new ArrayList<RecentJobEvent>()), getSelf());
+			}else if(message instanceof JobManagerMessages.CancelJob){
+				JobManagerMessages.CancelJob cancelJob = (JobManagerMessages.CancelJob) message;
+				assertEquals(jobID, cancelJob.jobID());
+				getSender().tell(new JobResult.JobCancelResult(JobResult.SUCCESS(), null), getSelf());
+			}
 		}
 	}
 }

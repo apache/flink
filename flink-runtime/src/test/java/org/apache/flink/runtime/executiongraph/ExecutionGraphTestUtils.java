@@ -21,18 +21,17 @@ package org.apache.flink.runtime.executiongraph;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.when;
-import static org.mockito.Matchers.any;
 
 import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import akka.actor.ActorRef;
+import akka.actor.UntypedActor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.execution.librarycache.LibraryCacheProfileResponse;
 import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.Instance;
@@ -43,7 +42,7 @@ import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.protocols.TaskOperationProtocol;
+import org.apache.flink.runtime.messages.TaskManagerMessages;
 import org.apache.flink.runtime.taskmanager.TaskOperationResult;
 import org.mockito.Matchers;
 import org.mockito.invocation.InvocationOnMock;
@@ -107,27 +106,22 @@ public class ExecutionGraphTestUtils {
 		
 		return new Instance(taskManager, connection, new InstanceID(), hardwareDescription, 1);
 	}
-	
-	public static TaskOperationProtocol getSimpleAcknowledgingTaskmanager() throws Exception {
-		TaskOperationProtocol top = mock(TaskOperationProtocol.class);
-		
-		when(top.submitTask(any(TaskDeploymentDescriptor.class))).thenAnswer(new Answer<TaskOperationResult>() {
-			@Override
-			public TaskOperationResult answer(InvocationOnMock invocation) {
-				final TaskDeploymentDescriptor tdd = (TaskDeploymentDescriptor) invocation.getArguments()[0];
-				return new TaskOperationResult(tdd.getExecutionId(), true);
+
+	public static class SimpleAcknowledgingTaskManager extends UntypedActor{
+
+		@Override
+		public void onReceive(Object msg) throws Exception {
+			if(msg instanceof TaskManagerMessages.SubmitTask){
+				TaskManagerMessages.SubmitTask submitTask = (TaskManagerMessages.SubmitTask)msg;
+
+				getSender().tell(new TaskOperationResult(submitTask.tasks().getExecutionId(), true), getSelf());
+			}else if(msg instanceof TaskManagerMessages.CancelTask){
+				TaskManagerMessages.CancelTask cancelTask = (TaskManagerMessages.CancelTask)msg;
+				getSender().tell(new TaskOperationResult(cancelTask.attemptID(), true), getSelf());
+			}else if(msg instanceof TaskManagerMessages.RequestLibraryCacheProfile){
+				getSender().tell(new LibraryCacheProfileResponse(), getSelf());
 			}
-		});
-		
-		when(top.cancelTask(Matchers.any(ExecutionAttemptID.class))).thenAnswer(new Answer<TaskOperationResult>() {
-			@Override
-			public TaskOperationResult answer(InvocationOnMock invocation) {
-				final ExecutionAttemptID id = (ExecutionAttemptID) invocation.getArguments()[0];
-				return new TaskOperationResult(id, true);
-			}
-		});
-		
-		return top;
+		}
 	}
 	
 	public static ExecutionJobVertex getJobVertexNotExecuting(JobVertexID id) throws JobException {

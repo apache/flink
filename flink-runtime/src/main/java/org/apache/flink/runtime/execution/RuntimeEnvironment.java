@@ -147,7 +147,7 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 		Preconditions.checkNotNull(accumulator);
 		Preconditions.checkNotNull(userCodeClassLoader);
 		Preconditions.checkNotNull(bcVarManager);
-		
+
 		this.owner = owner;
 
 		this.memoryManager = memoryManager;

@@ -19,297 +19,354 @@
 package org.apache.flink.runtime.taskmanager;
 
 import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
 
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
+import java.io.IOException;
+import java.sql.Blob;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import akka.actor.Props;
+import akka.actor.UntypedActor;
+import akka.japi.Creator;
+import akka.pattern.Patterns;
+import akka.testkit.JavaTestKit;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.runtime.ExecutionMode;
+import org.apache.flink.runtime.TestingUtils;
+import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.deployment.ChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.GateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.instance.HardwareDescription;
-import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.io.network.ConnectionInfoLookupResponse;
 import org.apache.flink.runtime.io.network.api.RecordReader;
 import org.apache.flink.runtime.io.network.api.RecordWriter;
-import org.apache.flink.runtime.io.network.bufferprovider.GlobalBufferPool;
 import org.apache.flink.runtime.io.network.channels.ChannelID;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.jobmanager.JobManager;
+import org.apache.flink.runtime.jobmanager.TestingTaskManagerMessages;
+import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.runtime.messages.RegistrationMessages;
+import org.apache.flink.runtime.messages.TaskManagerMessages;
+import org.apache.flink.runtime.testingActors.TestingActors;
 import org.apache.flink.runtime.types.IntegerRecord;
+import org.apache.flink.runtime.taskmanager.TestingTaskManagerMessages.NotifyWhenTaskRemoved;
 
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
-import org.mockito.Matchers;
+import scala.concurrent.Await;
+import scala.concurrent.Future;
+import scala.concurrent.duration.FiniteDuration;
 
 
 public class TaskManagerTest {
+
+	private static ActorSystem system;
+
+	@BeforeClass
+	public static void setup(){
+		system = ActorSystem.create("TestActorSystem", TestingUtils.testConfig());
+	}
+
+	@AfterClass
+	public static void teardown(){
+		JavaTestKit.shutdownActorSystem(system);
+		system = null;
+	}
 	
 	@Test
 	public void testSetupTaskManager() {
-		JobManager jobManager = null;
-		TaskManager tm = null;
-		try {
-			jobManager = getJobManagerMockBase();
-			tm = createTaskManager(jobManager);
+		new JavaTestKit(system){{
+			try {
+				ActorRef jobManager = system.actorOf(Props.create(SimpleJobManager.class));
+				final ActorRef tm = createTaskManager(jobManager);
 
-			JobID jid = new JobID();
-			JobVertexID vid = new JobVertexID();
-			ExecutionAttemptID eid = new ExecutionAttemptID();
-			
-			TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(jid, vid, eid, "TestTask", 2, 7,
-					new Configuration(), new Configuration(), TestInvokableCorrect.class.getName(),
-					Collections.<GateDeploymentDescriptor>emptyList(), 
-					Collections.<GateDeploymentDescriptor>emptyList(),
+				JobID jid = new JobID();
+				JobVertexID vid = new JobVertexID();
+				final ExecutionAttemptID eid = new ExecutionAttemptID();
+
+				final TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(jid, vid, eid, "TestTask", 2, 7,
+						new Configuration(), new Configuration(), TestInvokableCorrect.class.getName(),
+						Collections.<GateDeploymentDescriptor>emptyList(),
+						Collections.<GateDeploymentDescriptor>emptyList(),
 					new ArrayList<BlobKey>(), 0);
-			
-			TaskOperationResult result = tm.submitTask(tdd);
-			assertTrue(result.getDescription(), result.isSuccess());
-			assertEquals(eid, result.getExecutionId());
 
-			jobManager.shutdown();
-			tm.shutdown();
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}finally{
-			if(jobManager != null){
-				jobManager.shutdown();
-			}
+				new Within(duration("1 seconds")){
 
-			if(tm != null){
-				tm.shutdown();
+					@Override
+					protected void run() {
+						tm.tell(new TaskManagerMessages.SubmitTask(tdd), getRef());
+						expectMsgEquals(new TaskOperationResult(eid, true));
+					}
+				};
 			}
-		}
+			catch (Exception e) {
+				e.printStackTrace();
+				fail(e.getMessage());
+			}
+		}};
 	}
 	
 	@Test
 	public void testJobSubmissionAndCanceling() {
-		JobManager jobManager = null;
-		TaskManager tm = null;
-		try {
-			jobManager = getJobManagerMockBase();
-			tm = createTaskManager(jobManager);
+		new JavaTestKit(system){{
+			try {
 
-			JobID jid1 = new JobID();
-			JobID jid2 = new JobID();
-			
-			JobVertexID vid1 = new JobVertexID();
-			JobVertexID vid2 = new JobVertexID();
-			
-			ExecutionAttemptID eid1 = new ExecutionAttemptID();
-			ExecutionAttemptID eid2 = new ExecutionAttemptID();
-			
-			TaskDeploymentDescriptor tdd1 = new TaskDeploymentDescriptor(jid1, vid1, eid1, "TestTask1", 1, 5,
-					new Configuration(), new Configuration(), TestInvokableBlockingCancelable.class.getName(),
-					Collections.<GateDeploymentDescriptor>emptyList(), 
-					Collections.<GateDeploymentDescriptor>emptyList(),
-					new ArrayList<BlobKey>(), 0);
-			
-			TaskDeploymentDescriptor tdd2 = new TaskDeploymentDescriptor(jid2, vid2, eid2, "TestTask2", 2, 7,
-					new Configuration(), new Configuration(), TestInvokableBlockingCancelable.class.getName(),
-					Collections.<GateDeploymentDescriptor>emptyList(), 
-					Collections.<GateDeploymentDescriptor>emptyList(),
+				ActorRef jobManager = system.actorOf(Props.create(SimpleJobManager.class));
+				final ActorRef tm = createTaskManager(jobManager);
+
+				final JobID jid1 = new JobID();
+				final JobID jid2 = new JobID();
+
+				JobVertexID vid1 = new JobVertexID();
+				JobVertexID vid2 = new JobVertexID();
+
+				final ExecutionAttemptID eid1 = new ExecutionAttemptID();
+				final ExecutionAttemptID eid2 = new ExecutionAttemptID();
+
+				final TaskDeploymentDescriptor tdd1 = new TaskDeploymentDescriptor(jid1, vid1, eid1, "TestTask1", 1, 5,
+						new Configuration(), new Configuration(), TestInvokableBlockingCancelable.class.getName(),
+						Collections.<GateDeploymentDescriptor>emptyList(),
+						Collections.<GateDeploymentDescriptor>emptyList(),
 					new ArrayList<BlobKey>(), 0);
 
-			TaskOperationResult result1 = tm.submitTask(tdd1);
-			TaskOperationResult result2 = tm.submitTask(tdd2);
-			
-			assertTrue(result1.getDescription(), result1.isSuccess());
-			assertTrue(result2.getDescription(), result2.isSuccess());
-			assertEquals(eid1, result1.getExecutionId());
-			assertEquals(eid2, result2.getExecutionId());
-			
-			Map<ExecutionAttemptID, Task> tasks = tm.getAllRunningTasks();
-			assertEquals(2, tasks.size());
-			
-			Task t1 = tasks.get(eid1);
-			Task t2 = tasks.get(eid2);
-			assertNotNull(t1);
-			assertNotNull(t2);
-			
-			assertEquals(ExecutionState.RUNNING, t1.getExecutionState());
-			assertEquals(ExecutionState.RUNNING, t2.getExecutionState());
-			
-			// cancel one task
-			assertTrue(tm.cancelTask(eid1).isSuccess());
-			t1.getEnvironment().getExecutingThread().join();
-			assertEquals(ExecutionState.CANCELED, t1.getExecutionState());
-			
-			tasks = tm.getAllRunningTasks();
-			assertEquals(1, tasks.size());
-			
-			// try to cancel a non existing task
-			assertFalse(tm.cancelTask(eid1).isSuccess());
-			
-			// cancel the second task
-			assertTrue(tm.cancelTask(eid2).isSuccess());
-			t2.getEnvironment().getExecutingThread().join();
-			assertEquals(ExecutionState.CANCELED, t2.getExecutionState());
-			
-			tasks = tm.getAllRunningTasks();
-			assertEquals(0, tasks.size());
-			
-			assertNetworkResourcesReleased(tm);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}finally{
-			if(jobManager != null){
-				jobManager.shutdown();
+				final TaskDeploymentDescriptor tdd2 = new TaskDeploymentDescriptor(jid2, vid2, eid2, "TestTask2", 2, 7,
+						new Configuration(), new Configuration(), TestInvokableBlockingCancelable.class.getName(),
+						Collections.<GateDeploymentDescriptor>emptyList(),
+						Collections.<GateDeploymentDescriptor>emptyList(),
+					new ArrayList<BlobKey>(), 0);
+
+				final FiniteDuration d = duration("1 second");
+
+				new Within(d) {
+
+					@Override
+					protected void run() {
+						try {
+							tm.tell(new TaskManagerMessages.SubmitTask(tdd1), getRef());
+							tm.tell(new TaskManagerMessages.SubmitTask(tdd2), getRef());
+
+							expectMsgEquals(new TaskOperationResult(eid1, true));
+							expectMsgEquals(new TaskOperationResult(eid2, true));
+
+							tm.tell(TestingTaskManagerMessages.RequestRunningTasks$.MODULE$, getRef());
+
+							Map<ExecutionAttemptID, Task> runningTasks = expectMsgClass(TestingTaskManagerMessages
+									.ResponseRunningTasks.class).asJava();
+
+							assertEquals(2, runningTasks.size());
+							Task t1 = runningTasks.get(eid1);
+							Task t2 = runningTasks.get(eid2);
+							assertNotNull(t1);
+							assertNotNull(t2);
+
+							assertEquals(ExecutionState.RUNNING, t1.getExecutionState());
+							assertEquals(ExecutionState.RUNNING, t2.getExecutionState());
+
+							tm.tell(new TaskManagerMessages.CancelTask(eid1), getRef());
+
+							expectMsgEquals(new TaskOperationResult(eid1, true));
+
+							Future<Object> response = Patterns.ask(tm, new NotifyWhenTaskRemoved(eid1),
+									AkkaUtils.FUTURE_TIMEOUT());
+							Await.ready(response, d);
+
+							assertEquals(ExecutionState.CANCELED, t1.getExecutionState());
+
+							tm.tell(TestingTaskManagerMessages.RequestRunningTasks$.MODULE$, getRef());
+							runningTasks = expectMsgClass(TestingTaskManagerMessages
+									.ResponseRunningTasks.class).asJava();
+
+							assertEquals(1, runningTasks.size());
+
+							tm.tell(new TaskManagerMessages.CancelTask(eid1), getRef());
+							expectMsgEquals(new TaskOperationResult(eid1, false, "No task with that execution ID was " +
+									"found."));
+
+							tm.tell(new TaskManagerMessages.CancelTask(eid2), getRef());
+							expectMsgEquals(new TaskOperationResult(eid2, true));
+
+							response = Patterns.ask(tm, new NotifyWhenTaskRemoved(eid2),
+									AkkaUtils.FUTURE_TIMEOUT());
+							Await.ready(response, d);
+
+							assertEquals(ExecutionState.CANCELED, t2.getExecutionState());
+
+							tm.tell(TestingTaskManagerMessages.RequestRunningTasks$.MODULE$, getRef());
+							runningTasks = expectMsgClass(TestingTaskManagerMessages
+									.ResponseRunningTasks.class).asJava();
+
+							assertEquals(0, runningTasks.size());
+
+							assertNull(LibraryCacheManager.getClassLoader(jid1));
+							assertNull(LibraryCacheManager.getClassLoader(jid2));
+						} catch (Exception e) {
+							e.printStackTrace();
+							fail(e.getMessage());
+						}
+					}
+				};
+			}catch(Exception e){
+				e.printStackTrace();
+				fail(e.getMessage());
 			}
 
-			if(tm != null){
-				tm.shutdown();
-			}
-		}
+		}};
 	}
 	
 	@Test
 	public void testGateChannelEdgeMismatch() {
-		JobManager jobManager = null;
-		TaskManager tm = null;
-		try {
-			jobManager = getJobManagerMockBase();
-			tm = createTaskManager(jobManager);
+		new JavaTestKit(system){{
+			try {
+				ActorRef jm = system.actorOf(Props.create(SimpleJobManager.class));
 
-			JobID jid = new JobID();;
-			
-			JobVertexID vid1 = new JobVertexID();
-			JobVertexID vid2 = new JobVertexID();
-			
-			ExecutionAttemptID eid1 = new ExecutionAttemptID();
-			ExecutionAttemptID eid2 = new ExecutionAttemptID();
-			
-			TaskDeploymentDescriptor tdd1 = new TaskDeploymentDescriptor(jid, vid1, eid1, "Sender", 0, 1,
-					new Configuration(), new Configuration(), Sender.class.getName(),
-					Collections.<GateDeploymentDescriptor>emptyList(),
-					Collections.<GateDeploymentDescriptor>emptyList(),
-					new ArrayList<BlobKey>(), 0);
-			
-			TaskDeploymentDescriptor tdd2 = new TaskDeploymentDescriptor(jid, vid2, eid2, "Receiver", 2, 7,
-					new Configuration(), new Configuration(), Receiver.class.getName(),
-					Collections.<GateDeploymentDescriptor>emptyList(),
-					Collections.<GateDeploymentDescriptor>emptyList(),
+				final ActorRef tm = createTaskManager(jm);
+
+				final JobID jid = new JobID();
+
+				JobVertexID vid1 = new JobVertexID();
+				JobVertexID vid2 = new JobVertexID();
+
+				final ExecutionAttemptID eid1 = new ExecutionAttemptID();
+				final ExecutionAttemptID eid2 = new ExecutionAttemptID();
+
+				final TaskDeploymentDescriptor tdd1 = new TaskDeploymentDescriptor(jid, vid1, eid1, "Sender", 0, 1,
+						new Configuration(), new Configuration(), Sender.class.getName(),
+						Collections.<GateDeploymentDescriptor>emptyList(),
+						Collections.<GateDeploymentDescriptor>emptyList(),
 					new ArrayList<BlobKey>(), 0);
 
-			assertFalse(tm.submitTask(tdd1).isSuccess());
-			assertFalse(tm.submitTask(tdd2).isSuccess());
-			
-			Map<ExecutionAttemptID, Task> tasks = tm.getAllRunningTasks();
-			assertEquals(0, tasks.size());
-			assertNetworkResourcesReleased(tm);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}finally{
-			if(jobManager != null){
-				jobManager.shutdown();
-			}
+				final TaskDeploymentDescriptor tdd2 = new TaskDeploymentDescriptor(jid, vid2, eid2, "Receiver", 2, 7,
+						new Configuration(), new Configuration(), Receiver.class.getName(),
+						Collections.<GateDeploymentDescriptor>emptyList(),
+						Collections.<GateDeploymentDescriptor>emptyList(),
+					new ArrayList<BlobKey>(), 0);
 
-			if(tm != null){
-				tm.shutdown();
+				new Within(duration("1 second")){
+
+					@Override
+					protected void run() {
+						try {
+							tm.tell(new TaskManagerMessages.SubmitTask(tdd1), getRef());
+							tm.tell(new TaskManagerMessages.SubmitTask(tdd2), getRef());
+							TaskOperationResult result = expectMsgClass(TaskOperationResult.class);
+							assertFalse(result.isSuccess());
+							assertEquals(eid1, result.getExecutionId());
+
+							result = expectMsgClass(TaskOperationResult.class);
+							assertFalse(result.isSuccess());
+							assertEquals(eid2, result.getExecutionId());
+
+							tm.tell(TestingTaskManagerMessages.RequestRunningTasks$.MODULE$, getRef());
+							Map<ExecutionAttemptID, Task> tasks = expectMsgClass(TestingTaskManagerMessages
+									.ResponseRunningTasks.class).asJava();
+
+							assertEquals(0, tasks.size());
+							assertNull(LibraryCacheManager.getClassLoader(jid));
+						}catch (Exception e) {
+							e.printStackTrace();
+							fail(e.getMessage());
+						}
+					}
+				};
+			}catch (Exception e) {
+				e.printStackTrace();
+				fail(e.getMessage());
 			}
-		}
+		}};
 	}
 	
 	@Test
 	public void testRunJobWithForwardChannel() {
-		JobManager jobManager = null;
-		TaskManager tm = null;
+		new JavaTestKit(system){{
+			final JobID jid = new JobID();
 
-		try {
-			JobID jid = new JobID();
-			
 			JobVertexID vid1 = new JobVertexID();
 			JobVertexID vid2 = new JobVertexID();
-			
-			ExecutionAttemptID eid1 = new ExecutionAttemptID();
-			ExecutionAttemptID eid2 = new ExecutionAttemptID();
-			
-			ChannelID senderId = new ChannelID();
-			ChannelID receiverId = new ChannelID();
-			
-			jobManager = getJobManagerMockBase();
-			when(jobManager.lookupConnectionInfo(Matchers.any(InstanceConnectionInfo.class), Matchers.eq(jid), Matchers.eq(senderId)))
-				.thenReturn(ConnectionInfoLookupResponse.createReceiverFoundAndReady(receiverId));
-			
-			tm = createTaskManager(jobManager);
-			
+
+			final ExecutionAttemptID eid1 = new ExecutionAttemptID();
+			final ExecutionAttemptID eid2 = new ExecutionAttemptID();
+
+			final ChannelID senderId = new ChannelID();
+			final ChannelID receiverId = new ChannelID();
+
+			ActorRef jm = system.actorOf(Props.create(new SimpleLookupJobManagerCreator(receiverId)));
+			final ActorRef tm = createTaskManager(jm);
+
 			ChannelDeploymentDescriptor cdd = new ChannelDeploymentDescriptor(senderId, receiverId);
-			
-			TaskDeploymentDescriptor tdd1 = new TaskDeploymentDescriptor(jid, vid1, eid1, "Sender", 0, 1,
+
+			final TaskDeploymentDescriptor tdd1 = new TaskDeploymentDescriptor(jid, vid1, eid1, "Sender", 0, 1,
 					new Configuration(), new Configuration(), Sender.class.getName(),
-					Collections.singletonList(new GateDeploymentDescriptor(Collections.singletonList(cdd))), 
+					Collections.singletonList(new GateDeploymentDescriptor(Collections.singletonList(cdd))),
 					Collections.<GateDeploymentDescriptor>emptyList(),
 					new ArrayList<BlobKey>(), 0);
-			
-			TaskDeploymentDescriptor tdd2 = new TaskDeploymentDescriptor(jid, vid2, eid2, "Receiver", 2, 7,
+
+			final TaskDeploymentDescriptor tdd2 = new TaskDeploymentDescriptor(jid, vid2, eid2, "Receiver", 2, 7,
 					new Configuration(), new Configuration(), Receiver.class.getName(),
 					Collections.<GateDeploymentDescriptor>emptyList(),
 					Collections.singletonList(new GateDeploymentDescriptor(Collections.singletonList(cdd))),
 					new ArrayList<BlobKey>(), 0);
 
-			// deploy sender before receiver, so the target is online when the sender requests the connection info
-			TaskOperationResult result2 = tm.submitTask(tdd2);
-			TaskOperationResult result1 = tm.submitTask(tdd1);
+			final FiniteDuration d = duration("1 second");
 
-			assertTrue(result1.isSuccess());
-			assertTrue(result2.isSuccess());
-			assertEquals(eid1, result1.getExecutionId());
-			assertEquals(eid2, result2.getExecutionId());
-			
-			Map<ExecutionAttemptID, Task> tasks = tm.getAllRunningTasks();
-			
-			Task t1 = tasks.get(eid1);
-			Task t2 = tasks.get(eid2);
-			
+			new Within(d){
+
+				@Override
+				protected void run() {
+					try {
+						tm.tell(new TaskManagerMessages.SubmitTask(tdd2), getRef());
+						expectMsgEquals(new TaskOperationResult(eid2, true));
+						tm.tell(new TaskManagerMessages.SubmitTask(tdd1), getRef());
+						expectMsgEquals(new TaskOperationResult(eid1, true));
+
+						tm.tell(TestingTaskManagerMessages.RequestRunningTasks$.MODULE$, getRef());
+						Map<ExecutionAttemptID, Task> tasks = expectMsgClass(TestingTaskManagerMessages.ResponseRunningTasks
+								.class).asJava();
+
+						Task t1 = tasks.get(eid1);
+						Task t2 = tasks.get(eid2);
+
 			// wait until the tasks are done. rare thread races may cause the tasks to be done before
 			// we get to the check, so we need to guard the check
-			if (t1 != null) {
-				t1.getEnvironment().getExecutingThread().join();
-				assertEquals(ExecutionState.FINISHED, t1.getExecutionState());
-			}
-			if (t2 != null) {
-				t2.getEnvironment().getExecutingThread().join();
+						if (t1 != null) {
+							Future<Object> response = Patterns.ask(tm, new NotifyWhenTaskRemoved(eid1),
+									AkkaUtils.FUTURE_TIMEOUT());
+							Await.ready(response, d);
+						}
+
+						if (t2 != null) {
+							Future<Object> response = Patterns.ask(tm, new NotifyWhenTaskRemoved(eid2),
+									AkkaUtils.FUTURE_TIMEOUT());
+							Await.ready(response, d);
 				assertEquals(ExecutionState.FINISHED, t2.getExecutionState());
 			}
-			
-			tasks = tm.getAllRunningTasks();
-			assertEquals(0, tasks.size());
-			
-			// make sure that the global buffer pool has all buffers back
-			assertNetworkResourcesReleased(tm);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-		finally {
-			if (jobManager != null) {
-				jobManager.shutdown();
-			}
 
-			if (tm != null) {
-				tm.shutdown();
-			}
-		}
+						tm.tell(TestingTaskManagerMessages.RequestRunningTasks$.MODULE$, getRef());
+						tasks = expectMsgClass(TestingTaskManagerMessages.ResponseRunningTasks
+								.class).asJava();
+
+						assertEquals(0, tasks.size());
+						assertNull(LibraryCacheManager.getClassLoader(jid));
+					}catch (Exception e) {
+						e.printStackTrace();
+						fail(e.getMessage());
+
+					}
+				}
+			};
+		}};
 	}
 	
 	@Test
@@ -319,126 +376,184 @@ public class TaskManagerTest {
 		// state update back to the job manager
 		// the second one blocks to be canceled
 
-		JobManager jobManager = null;
-		TaskManager tm = null;
+		new JavaTestKit(system){{
+			final JobID jid = new JobID();
 
-		try {
-			JobID jid = new JobID();
-			
 			JobVertexID vid1 = new JobVertexID();
 			JobVertexID vid2 = new JobVertexID();
-			
-			ExecutionAttemptID eid1 = new ExecutionAttemptID();
-			ExecutionAttemptID eid2 = new ExecutionAttemptID();
-			
-			ChannelID senderId = new ChannelID();
-			ChannelID receiverId = new ChannelID();
-			
-			jobManager = getJobManagerMockBase();
-			when(jobManager.updateTaskExecutionState(any(TaskExecutionState.class))).thenReturn(false);
-			when(jobManager.lookupConnectionInfo(Matchers.any(InstanceConnectionInfo.class), Matchers.eq(jid), Matchers.eq(senderId)))
-				.thenReturn(ConnectionInfoLookupResponse.createReceiverFoundAndReady(receiverId));
-			
-			tm = createTaskManager(jobManager);
-			
+
+			final ExecutionAttemptID eid1 = new ExecutionAttemptID();
+			final ExecutionAttemptID eid2 = new ExecutionAttemptID();
+
+			final ChannelID senderId = new ChannelID();
+			final ChannelID receiverId = new ChannelID();
+
+			ActorRef jm = system.actorOf(Props.create(new SimpleLookupFailingUpdateJobManagerCreator(receiverId)));
+			final ActorRef tm = createTaskManager(jm);
+
 			ChannelDeploymentDescriptor cdd = new ChannelDeploymentDescriptor(senderId, receiverId);
-			
-			TaskDeploymentDescriptor tdd1 = new TaskDeploymentDescriptor(jid, vid1, eid1, "Sender", 0, 1,
+
+			final TaskDeploymentDescriptor tdd1 = new TaskDeploymentDescriptor(jid, vid1, eid1, "Sender", 0, 1,
 					new Configuration(), new Configuration(), Sender.class.getName(),
-					Collections.singletonList(new GateDeploymentDescriptor(Collections.singletonList(cdd))), 
+					Collections.singletonList(new GateDeploymentDescriptor(Collections.singletonList(cdd))),
 					Collections.<GateDeploymentDescriptor>emptyList(),
 					new ArrayList<BlobKey>(), 0);
-			
-			TaskDeploymentDescriptor tdd2 = new TaskDeploymentDescriptor(jid, vid2, eid2, "Receiver", 2, 7,
+
+			final TaskDeploymentDescriptor tdd2 = new TaskDeploymentDescriptor(jid, vid2, eid2, "Receiver", 2, 7,
 					new Configuration(), new Configuration(), ReceiverBlocking.class.getName(),
 					Collections.<GateDeploymentDescriptor>emptyList(),
 					Collections.singletonList(new GateDeploymentDescriptor(Collections.singletonList(cdd))),
 					new ArrayList<BlobKey>(), 0);
-			
-			// deploy sender before receiver, so the target is online when the sender requests the connection info
-			TaskOperationResult result2 = tm.submitTask(tdd2);
-			TaskOperationResult result1 = tm.submitTask(tdd1);
-			
-			assertTrue(result1.isSuccess());
-			assertTrue(result2.isSuccess());
-			
-			Map<ExecutionAttemptID, Task> tasks = tm.getAllRunningTasks();
-			
-			Task t1 = tasks.get(eid1);
-			Task t2 = tasks.get(eid2);
-			
-			// cancel task 2. task one should either fail, or be done
-			tm.cancelTask(eid2);
-			
-			// wait until the task second task is canceled
-			if (t2 != null) {
-				t2.getEnvironment().getExecutingThread().join();
-			}
-			
-			if (t1 != null) {
-				if (t1.getExecutionState() == ExecutionState.RUNNING) {
-					tm.cancelTask(eid1);
-				}
-				t1.getEnvironment().getExecutingThread().join();
-			}
-			
-			// the task that failed to send the finished state 
-			assertEquals(0, tasks.size());
-			assertNetworkResourcesReleased(tm);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}finally{
-			if(jobManager != null){
-				jobManager.shutdown();
-			}
 
-			if(tm != null){
-				tm.shutdown();
-			}
-		}
+			final FiniteDuration d = duration("1 second");
+
+			new Within(d){
+			
+				@Override
+				protected void run() {
+					try {
+						// deploy sender before receiver, so the target is online when the sender requests the connection info
+						tm.tell(new TaskManagerMessages.SubmitTask(tdd2), getRef());
+						tm.tell(new TaskManagerMessages.SubmitTask(tdd1), getRef());
+
+						expectMsgEquals(new TaskOperationResult(eid2, true));
+						expectMsgEquals(new TaskOperationResult(eid1, true));
+
+						tm.tell(TestingTaskManagerMessages.RequestRunningTasks$.MODULE$, getRef());
+						Map<ExecutionAttemptID, Task> tasks = expectMsgClass(TestingTaskManagerMessages
+								.ResponseRunningTasks.class).asJava();
+
+						Task t1 = tasks.get(eid1);
+						Task t2 = tasks.get(eid2);
+
+						tm.tell(new TaskManagerMessages.CancelTask(eid2), getRef());
+						expectMsgEquals(new TaskOperationResult(eid2, true));
+
+						if (t2 != null) {
+							Future<Object> response = Patterns.ask(tm, new NotifyWhenTaskRemoved(eid2),
+									AkkaUtils.FUTURE_TIMEOUT());
+							Await.ready(response, d);
+						}
+
+						if (t1 != null) {
+							if (t1.getExecutionState() == ExecutionState.RUNNING) {
+								tm.tell(new TaskManagerMessages.CancelTask(eid1), getRef());
+								expectMsgEquals(new TaskOperationResult(eid1, true));
+							}
+							Future<Object> response = Patterns.ask(tm, new NotifyWhenTaskRemoved(eid1),
+									AkkaUtils.FUTURE_TIMEOUT());
+							Await.ready(response, d);
+						}
+
+						tm.tell(TestingTaskManagerMessages.RequestRunningTasks$.MODULE$, getRef());
+						tasks = expectMsgClass(TestingTaskManagerMessages
+								.ResponseRunningTasks.class).asJava();
+
+						assertEquals(0, tasks.size());
+					}catch(Exception e){
+						e.printStackTrace();
+						fail(e.getMessage());
+					}
+				}
+			};
+		}};
 	}
-	
-	
-	private static void assertNetworkResourcesReleased(TaskManager tm) {
-		GlobalBufferPool gbp = tm.getChannelManager().getGlobalBufferPool();
-		assertEquals(gbp.numBuffers(), gbp.numAvailableBuffers());
-	}
+
 	
 	// --------------------------------------------------------------------------------------------
-	
-	public static JobManager getJobManagerMockBase() throws Exception {
-		JobManager jm = mock(JobManager.class);
-		
-		final InstanceID iid = new InstanceID();
-		
-		when(jm.registerTaskManager(Matchers.any(InstanceConnectionInfo.class), Matchers.any(HardwareDescription.class), Matchers.anyInt()))
-			.thenReturn(iid);
-		
-		when(jm.sendHeartbeat(iid)).thenReturn(true);
-		
-		when(jm.updateTaskExecutionState(any(TaskExecutionState.class))).thenReturn(true);
-		
-		return jm;
+
+	public static class SimpleJobManager extends UntypedActor{
+		@Override
+		public void onReceive(Object message) throws Exception {
+			if(message instanceof RegistrationMessages.RegisterTaskManager){
+				final InstanceID iid = new InstanceID();
+				getSender().tell(new RegistrationMessages.AcknowledgeRegistration(iid), getSelf());
+			}else if(message instanceof JobManagerMessages.UpdateTaskExecutionState){
+				getSender().tell(true, getSelf());
+			}
+		}
 	}
-	
-	public static TaskManager createTaskManager(JobManager jm) throws Exception {
-		InetAddress localhost = InetAddress.getLocalHost();
-		InetSocketAddress jmMockAddress = new InetSocketAddress(localhost, 55443);
-		
+
+	public static class SimpleLookupJobManager extends SimpleJobManager{
+		private final ChannelID receiverID;
+
+		public SimpleLookupJobManager(ChannelID receiverID){
+			this.receiverID = receiverID;
+		}
+		@Override
+		public void onReceive(Object message) throws Exception {
+			if(message instanceof JobManagerMessages.LookupConnectionInformation){
+				getSender().tell(new JobManagerMessages.ConnectionInformation(ConnectionInfoLookupResponse
+						.createReceiverFoundAndReady(receiverID)), getSelf());
+			}else{
+				super.onReceive(message);
+			}
+		}
+	}
+
+	public static class SimpleLookupFailingUpdateJobManager extends SimpleLookupJobManager{
+
+		public SimpleLookupFailingUpdateJobManager(ChannelID receiverID) {
+			super(receiverID);
+		}
+
+		@Override
+		public void onReceive(Object message) throws Exception{
+			if(message instanceof JobManagerMessages.UpdateTaskExecutionState){
+				getSender().tell(false, getSelf());
+			}else{
+				super.onReceive(message);
+			}
+		}
+	}
+
+	public static class SimpleLookupJobManagerCreator implements Creator<SimpleLookupJobManager>{
+		private final ChannelID receiverID;
+
+		public SimpleLookupJobManagerCreator(ChannelID receiverID){
+			this.receiverID = receiverID;
+		}
+
+		@Override
+		public SimpleLookupJobManager create() throws Exception {
+			return new SimpleLookupJobManager(receiverID);
+		}
+	}
+
+	public static class SimpleLookupFailingUpdateJobManagerCreator implements
+			Creator<SimpleLookupFailingUpdateJobManager>{
+		private final ChannelID receiverID;
+
+		public SimpleLookupFailingUpdateJobManagerCreator(ChannelID receiverID){
+			this.receiverID = receiverID;
+		}
+
+		@Override
+		public SimpleLookupFailingUpdateJobManager create() throws Exception {
+			return new SimpleLookupFailingUpdateJobManager(receiverID);
+		}
+	}
+
+	public static ActorRef createTaskManager(ActorRef jm) {
 		Configuration cfg = new Configuration();
 		cfg.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 10);
 		GlobalConfiguration.includeConfiguration(cfg);
-		
-		TaskManager tm = new TaskManager(ExecutionMode.LOCAL, jm, jm, jm, jm, jmMockAddress, localhost);
-		
-		// wait until the task manager is registered
-		while (tm.getRegisteredId() == null) {
-			Thread.sleep(10);
+		String akkaURL = jm.path().toSerializationFormat();
+		cfg.setString(ConfigConstants.JOB_MANAGER_AKKA_URL, akkaURL);
+
+		ActorRef taskManager = TestingActors.startTestingTaskManagerWithConfiguration("localhost", cfg, system);
+
+		Future<Object> response = Patterns.ask(taskManager, TaskManagerMessages.NotifyWhenRegisteredAtMaster$.MODULE$,
+				AkkaUtils.FUTURE_TIMEOUT());
+
+		try {
+			FiniteDuration d = new FiniteDuration(1, TimeUnit.SECONDS);
+			Await.ready(response, d);
+		}catch(Exception e){
+			throw new RuntimeException("Exception while waiting for the task manager registration.", e);
 		}
-		
-		return tm;
+
+		return taskManager;
 	}
 	
 	// --------------------------------------------------------------------------------------------

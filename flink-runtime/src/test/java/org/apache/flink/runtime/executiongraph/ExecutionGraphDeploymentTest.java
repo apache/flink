@@ -23,7 +23,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
@@ -35,7 +34,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import akka.actor.Props;
+import akka.testkit.JavaTestKit;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.TestingUtils;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.AllocatedSlot;
@@ -46,14 +50,27 @@ import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.operators.RegularPactTask;
-import org.apache.flink.runtime.protocols.TaskOperationProtocol;
 import org.apache.flink.runtime.taskmanager.TaskOperationResult;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.Matchers;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 public class ExecutionGraphDeploymentTest {
+	private static ActorSystem system;
+
+	@BeforeClass
+	public static void setup(){
+		system = ActorSystem.create("TestingActorSystem", TestingUtils.testConfig());
+	}
+
+	@AfterClass
+	public static void teardown(){
+		JavaTestKit.shutdownActorSystem(system);
+		system = null;
+	}
 	
 	@Test
 	public void testBuildDeploymentDescriptor() {
@@ -105,18 +122,20 @@ public class ExecutionGraphDeploymentTest {
 			// just some reference (needs not be atomic)
 			final AtomicReference<TaskDeploymentDescriptor> reference = new AtomicReference<TaskDeploymentDescriptor>();
 			
-			// mock taskmanager to simply accept the call
-			TaskOperationProtocol taskManager = mock(TaskOperationProtocol.class);
-			when(taskManager.submitTask(Matchers.any(TaskDeploymentDescriptor.class))).thenAnswer(new Answer<TaskOperationResult>() {
+			final ActorRef simpleTaskManager = system.actorOf(Props.create(ExecutionGraphTestUtils
+					.SimpleAcknowledgingTaskManager.class));
+
+			final Instance instance = spy(getInstance(simpleTaskManager));
+			doAnswer(new Answer<TaskOperationResult>() {
+
 				@Override
-				public TaskOperationResult answer(InvocationOnMock invocation) {
-					final TaskDeploymentDescriptor tdd = (TaskDeploymentDescriptor) invocation.getArguments()[0];
+				public TaskOperationResult answer(InvocationOnMock invocation) throws Throwable {
+					TaskDeploymentDescriptor tdd = (TaskDeploymentDescriptor)invocation.getArguments()[0];
 					reference.set(tdd);
-					return new TaskOperationResult(tdd.getExecutionId(), true);
+					return (TaskOperationResult) invocation.callRealMethod();
 				}
-			});
-			
-			final Instance instance = getInstance(taskManager);
+			}).when(instance).submitTask(Matchers
+					.<TaskDeploymentDescriptor>any());
 			final AllocatedSlot slot = instance.allocateSlot(jobId);
 			
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
@@ -305,25 +324,11 @@ public class ExecutionGraphDeploymentTest {
 		eg.attachJobGraph(ordered);
 		
 		// create a mock taskmanager that accepts deployment calls
-		TaskOperationProtocol taskManager = mock(TaskOperationProtocol.class);
-		when(taskManager.submitTask(Matchers.any(TaskDeploymentDescriptor.class))).thenAnswer(new Answer<TaskOperationResult>() {
-			@Override
-			public TaskOperationResult answer(InvocationOnMock invocation) {
-				final TaskDeploymentDescriptor tdd = (TaskDeploymentDescriptor) invocation.getArguments()[0];
-				return new TaskOperationResult(tdd.getExecutionId(), true);
-			}
-		});
-		when(taskManager.cancelTask(Matchers.any(ExecutionAttemptID.class))).thenAnswer(new Answer<TaskOperationResult>() {
-			@Override
-			public TaskOperationResult answer(InvocationOnMock invocation) {
-				final ExecutionAttemptID id = (ExecutionAttemptID) invocation.getArguments()[0];
-				return new TaskOperationResult(id, true);
-			}
-		});
-		
+		ActorRef tm = system.actorOf(Props.create(ExecutionGraphTestUtils.SimpleAcknowledgingTaskManager.class));
+
 		Scheduler scheduler = new Scheduler();
 		for (int i = 0; i < dop1 + dop2; i++) {
-			scheduler.newInstanceAvailable(getInstance(taskManager));
+			scheduler.newInstanceAvailable(ExecutionGraphTestUtils.getInstance(tm));
 		}
 		assertEquals(dop1 + dop2, scheduler.getNumberOfAvailableSlots());
 		

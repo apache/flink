@@ -23,6 +23,7 @@ import static org.junit.Assert.*;
 
 import java.net.InetAddress;
 
+import akka.actor.ActorRef;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.junit.Test;
@@ -132,9 +133,9 @@ public class AllocatedSlotTest {
 	public static AllocatedSlot getSlot() throws Exception {
 		HardwareDescription hardwareDescription = new HardwareDescription(4, 2L*1024*1024*1024, 1024*1024*1024, 512*1024*1024);
 		InetAddress address = InetAddress.getByName("127.0.0.1");
-		InstanceConnectionInfo connection = new InstanceConnectionInfo(address, 10000, 10001);
+		InstanceConnectionInfo connection = new InstanceConnectionInfo(address, 10001);
 		
-		Instance instance = new Instance(connection, new InstanceID(), hardwareDescription, 1);
+		Instance instance = new Instance(ActorRef.noSender(), connection, new InstanceID(), hardwareDescription, 1);
 		return instance.allocateSlot(new JobID());
 	}
 }

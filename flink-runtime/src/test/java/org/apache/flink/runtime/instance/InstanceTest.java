@@ -23,6 +23,7 @@ import static org.junit.Assert.*;
 import java.lang.reflect.Method;
 import java.net.InetAddress;
 
+import akka.actor.ActorRef;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.junit.Test;
 
@@ -36,9 +37,9 @@ public class InstanceTest {
 		try {
 			HardwareDescription hardwareDescription = new HardwareDescription(4, 2L*1024*1024*1024, 1024*1024*1024, 512*1024*1024);
 			InetAddress address = InetAddress.getByName("127.0.0.1");
-			InstanceConnectionInfo connection = new InstanceConnectionInfo(address, 10000, 10001);
+			InstanceConnectionInfo connection = new InstanceConnectionInfo(address, 10001);
 			
-			Instance instance = new Instance(connection, new InstanceID(), hardwareDescription, 4);
+			Instance instance = new Instance(ActorRef.noSender(), connection, new InstanceID(), hardwareDescription, 4);
 			
 			assertEquals(4, instance.getTotalNumberOfSlots());
 			assertEquals(4, instance.getNumberOfAvailableSlots());
@@ -102,9 +103,9 @@ public class InstanceTest {
 		try {
 			HardwareDescription hardwareDescription = new HardwareDescription(4, 2L*1024*1024*1024, 1024*1024*1024, 512*1024*1024);
 			InetAddress address = InetAddress.getByName("127.0.0.1");
-			InstanceConnectionInfo connection = new InstanceConnectionInfo(address, 10000, 10001);
+			InstanceConnectionInfo connection = new InstanceConnectionInfo(address, 10001);
 			
-			Instance instance = new Instance(connection, new InstanceID(), hardwareDescription, 3);
+			Instance instance = new Instance(ActorRef.noSender(), connection, new InstanceID(), hardwareDescription, 3);
 			
 			assertEquals(3, instance.getNumberOfAvailableSlots());
 			
@@ -132,9 +133,9 @@ public class InstanceTest {
 		try {
 			HardwareDescription hardwareDescription = new HardwareDescription(4, 2L*1024*1024*1024, 1024*1024*1024, 512*1024*1024);
 			InetAddress address = InetAddress.getByName("127.0.0.1");
-			InstanceConnectionInfo connection = new InstanceConnectionInfo(address, 10000, 10001);
+			InstanceConnectionInfo connection = new InstanceConnectionInfo(address, 10001);
 			
-			Instance instance = new Instance(connection, new InstanceID(), hardwareDescription, 3);
+			Instance instance = new Instance(ActorRef.noSender(), connection, new InstanceID(), hardwareDescription, 3);
 			
 			assertEquals(3, instance.getNumberOfAvailableSlots());
 			

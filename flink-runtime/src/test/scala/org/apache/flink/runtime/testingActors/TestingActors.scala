@@ -16,42 +16,19 @@
  * limitations under the License.
  */
 
+package org.apache.flink.runtime.testingActors
 
-package org.apache.flink.test.iterative.nephele.danglingpagerank;
+import akka.actor.{Props, ActorSystem}
+import org.apache.flink.configuration.Configuration
+import org.apache.flink.runtime.taskmanager.{TestingTaskManager, TaskManager}
 
-import java.io.IOException;
+object TestingActors {
+  def startTestingTaskManagerWithConfiguration(hostname: String, config: Configuration)(implicit system: ActorSystem) ={
+    val (connectionInfo, jobManagerURL, numberOfSlots, memorySize, pageSize, tmpDirPaths, networkConnectionConfig,
+    memoryUsageLogging, profilingInterval) =  TaskManager.parseConfiguration(hostname, config);
 
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.types.Value;
-
-public class BooleanValue implements Value {
-  private static final long serialVersionUID = 1L;
-
-  private boolean value;
-
-  public BooleanValue(boolean value) {
-    this.value = value;
-  }
-
-  public BooleanValue() {
-  }
-
-  public boolean get() {
-    return value;
-  }
-
-  public void set(boolean value) {
-    this.value = value;
-  }
-
-  @Override
-  public void write(DataOutputView out) throws IOException {
-    out.writeBoolean(value);
-  }
-
-  @Override
-  public void read(DataInputView in) throws IOException {
-    value = in.readBoolean();
+    system.actorOf(Props(new TaskManager(connectionInfo, jobManagerURL, numberOfSlots,
+      memorySize, pageSize, tmpDirPaths, networkConnectionConfig, memoryUsageLogging,
+      profilingInterval) with TestingTaskManager))
   }
 }
