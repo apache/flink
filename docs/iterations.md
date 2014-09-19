@@ -9,7 +9,7 @@ Iterative algorithms occur in many domains of data analysis, such as *machine le
 
 Flink programs implement iterative algorithms by defining a **step function** and embedding it into a special iteration operator. There are two  variants of this operator: **Iterate** and **Delta Iterate**. Both operators repeatedly invoke the step function on the current iteration state until a certain termination condition is reached.
 
-Here, we provide background on both operator variants and outline their usage. The [programming guides](java_api_guide.html) explain how to implement the operators in both [Scala](scala_api_guide.html) and [Java](java_api_guide.html#iterations). We also provide a **vertex-centric graph processing API** called [Spargel](spargel_guide.html).
+Here, we provide background on both operator variants and outline their usage. The [programming guide](programming_guide.html) explain how to implement the operators in both Scala and Java. We also provide a **vertex-centric graph processing API** called [Spargel](spargel_guide.html).
 
 The following table provides an overview of both operators:
 
