@@ -1235,7 +1235,7 @@ wordCounts groupBy { _.word } reduce(new MyReduceFunction())
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 
-You can use the `Tuple` classes for composite types. Tuples contain a fix number of fields of
+You can use the Tuple classes for composite types. Tuples contain a fix number of fields of
 various types. The Java API provides classes from `Tuple1` up to `Tuple25`. Every field of a tuple
 can be an arbitrary Flink type - including further tuples, resulting in nested tuples. Fields of a
 Tuple can be accessed directly using the fields `tuple.f4`, or using the generic getter method
@@ -1266,7 +1266,7 @@ wordCounts
 {% endhighlight %}
 
 In order to access fields more intuitively and to generate more readable code, it is also possible
-to extend a subclass of `Tuple`. You can add getters and setters with custom names that delegate to
+to extend a subclass of Tuple. You can add getters and setters with custom names that delegate to
 the field positions. See this
 {% gh_link /flink-examples/flink-java-examples/src/main/java/org/apache/flink/example/java/relational/TPCHQuery3.java "example" %} for an
 illustration how to make use of that mechanism.

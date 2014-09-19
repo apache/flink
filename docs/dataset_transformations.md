@@ -2,23 +2,25 @@
 title: "DataSet Transformations"
 ---
 
-<section id="top">
-DataSet Transformations
------------------------
+* This will be replaced by the TOC
+{:toc}
 
 This document gives a deep-dive into the available transformations on DataSets. For a general introduction to the
-Flink Java API, please refer to the [API guide](java_api_guide.html)
+Flink Java API, please refer to the [Programming Guide](programming_guide.html)
 
 
 ### Map
 
-The Map transformation applies a user-defined `MapFunction` on each element of a DataSet.
+The Map transformation applies a user-defined map function on each element of a DataSet.
 It implements a one-to-one mapping, that is, exactly one element must be returned by
 the function.
 
-The following code transforms a `DataSet` of Integer pairs into a `DataSet` of Integers:
+The following code transforms a DataSet of Integer pairs into a DataSet of Integers:
 
-```java
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+~~~java
 // MapFunction that adds two integer values
 public class IntAdder implements MapFunction<Tuple2<Integer, Integer>, Integer> {
   @Override
@@ -30,16 +32,30 @@ public class IntAdder implements MapFunction<Tuple2<Integer, Integer>, Integer> 
 // [...]
 DataSet<Tuple2<Integer, Integer>> intPairs = // [...]
 DataSet<Integer> intSums = intPairs.map(new IntAdder());
-```
+~~~
+
+</div>
+<div data-lang="scala" markdown="1">
+
+~~~scala
+val intPairs: DataSet[(Int, Int)] = // [...]
+val intSums = intPairs.map { pair => pair._1 + pair._2 }
+~~~
+
+</div>
+</div>
 
 ### FlatMap
 
-The FlatMap transformation applies a user-defined `FlatMapFunction` on each element of a `DataSet`.
+The FlatMap transformation applies a user-defined flat-map function on each element of a DataSet.
 This variant of a map function can return arbitrary many result elements (including none) for each input element.
 
-The following code transforms a `DataSet` of text lines into a `DataSet` of words:
+The following code transforms a DataSet of text lines into a DataSet of words:
 
-```java
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+~~~java
 // FlatMapFunction that tokenizes a String by whitespace characters and emits all String tokens.
 public class Tokenizer implements FlatMapFunction<String, String> {
   @Override
@@ -53,17 +69,31 @@ public class Tokenizer implements FlatMapFunction<String, String> {
 // [...]
 DataSet<String> textLines = // [...]
 DataSet<String> words = textLines.flatMap(new Tokenizer());
-```
+~~~
+
+</div>
+<div data-lang="scala" markdown="1">
+
+~~~scala
+val textLines: DataSet[String] = // [...]
+val words = textLines.flatMap { _.split(" ") }
+~~~
+
+</div>
+</div>
 
 ### MapPartition
 
-The MapPartition function transforms a parallel partition in a single function call. The function get the partition as an `Iterable` stream and
-can produce an arbitrary number of result values. The number of elements in each partition depends on the degree-of-parallelism
+MapPartition transforms a parallel partition in a single function call. The map-partition function
+gets the partition as Iterable and can produce an arbitrary number of result values. The number of elements in each partition depends on the degree-of-parallelism
 and previous operations.
 
-The following code transforms a `DataSet` of text lines into a `DataSet` of counts per partition:
+The following code transforms a DataSet of text lines into a DataSet of counts per partition:
 
-```java
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+~~~java
 public class PartitionCounter implements MapPartitionFunction<String, Long> {
 
   public void mapPartition(Iterable<String> values, Collector<Long> out) {
@@ -78,15 +108,31 @@ public class PartitionCounter implements MapPartitionFunction<String, Long> {
 // [...]
 DataSet<String> textLines = // [...]
 DataSet<Long> counts = textLines.mapPartition(new PartitionCounter());
-```
+~~~
+
+</div>
+<div data-lang="scala" markdown="1">
+
+~~~scala
+val textLines: DataSet[String] = // [...]
+// Some is required because the return value must be a Collection.
+// There is an implicit conversion from Option to a Collection.
+val counts = texLines.mapPartition { in => Some(in.size) }
+~~~
+
+</div>
+</div>
 
 ### Filter
 
-The Filter transformation applies a user-defined `FilterFunction` on each element of a `DataSet` and retains only those elements for which the function returns `true`.
+The Filter transformation applies a user-defined filter function on each element of a DataSet and retains only those elements for which the function returns `true`.
 
-The following code removes all Integers smaller than zero from a `DataSet`:
+The following code removes all Integers smaller than zero from a DataSet:
 
-```java
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+~~~java
 // FilterFunction that filters out all Integers smaller than zero.
 public class NaturalNumberFilter implements FilterFunction<Integer> {
   @Override
@@ -98,45 +144,64 @@ public class NaturalNumberFilter implements FilterFunction<Integer> {
 // [...]
 DataSet<Integer> intNumbers = // [...]
 DataSet<Integer> naturalNumbers = intNumbers.filter(new NaturalNumberFilter());
-```
+~~~
 
-### Project (Tuple DataSets only)
+</div>
+<div data-lang="scala" markdown="1">
 
-The Project transformation removes or moves `Tuple` fields of a `Tuple` `DataSet`.
-The `project(int...)` method selects `Tuple` fields that should be retained by their index and defines their order in the output `Tuple`.
-The `types(Class<?> ...)`method must give the types of the output `Tuple` fields.
+~~~scala
+val intNumbers: DataSet[Int] = // [...]
+val naturalNumbers = intNumbers.filter { _ > 0 }
+~~~
+
+</div>
+</div>
+
+### Project (Tuple DataSets only) (Java API Only)
+
+The Project transformation removes or moves Tuple fields of a Tuple DataSet.
+The `project(int...)` method selects Tuple fields that should be retained by their index and defines their order in the output Tuple.
+The `types(Class<?> ...)`method must give the types of the output Tuple fields.
 
 Projections do not require the definition of a user function.
 
-The following code shows different ways to apply a Project transformation on a `DataSet`:
+The following code shows different ways to apply a Project transformation on a DataSet:
 
-```java
+~~~java
 DataSet<Tuple3<Integer, Double, String>> in = // [...]
 // converts Tuple3<Integer, Double, String> into Tuple2<String, Integer>
 DataSet<Tuple2<String, Integer>> out = in.project(2,0).types(String.class, Integer.class);
-```
+~~~
 
-### Transformations on grouped DataSet
+### Transformations on Grouped DataSet
 
 The reduce operations can operate on grouped data sets. Specifying the key to
 be used for grouping can be done in two ways:
 
-- a `KeySelector` function or
-- one or more field position keys (`Tuple` `DataSet` only).
+- a key-selector function or
+- one or more field position keys (Tuple DataSet only).
+- Case Class fields (Case Classes only).
 
 Please look at the reduce examples to see how the grouping keys are specified.
 
-### Reduce on grouped DataSet
+### Reduce on Grouped DataSet
 
-A Reduce transformation that is applied on a grouped `DataSet` reduces each group to a single element using a user-defined `ReduceFunction`.
-For each group of input elements, a `ReduceFunction` successively combines pairs of elements into one element until only a single element for each group remains.
+A Reduce transformation that is applied on a grouped DataSet reduces each group to a single
+element using a user-defined reduce function.
+For each group of input elements, a reduce function successively combines pairs of elements into one
+element until only a single element for each group remains.
 
-#### Reduce on DataSet grouped by KeySelector Function
+#### Reduce on DataSet Grouped by KeySelector Function
 
-A `KeySelector` function extracts a key value from each element of a `DataSet`. The extracted key value is used to group the `DataSet`.
-The following code shows how to group a POJO `DataSet` using a `KeySelector` function and to reduce it with a `ReduceFunction`.
+A key-selector function extracts a key value from each element of a DataSet. The extracted key
+value is used to group the DataSet.
+The following code shows how to group a POJO DataSet using a key-selector function and to reduce it
+with a reduce function.
 
-```java
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+~~~java
 // some ordinary POJO
 public class WC {
   public String word;
@@ -162,14 +227,38 @@ DataSet<WC> wordCounts = words
                            })
                          // apply ReduceFunction on grouped DataSet
                          .reduce(new WordCounter());
-```
+~~~
 
-#### Reduce on DataSet grouped by Field Position Keys (Tuple DataSets only)
+</div>
+<div data-lang="scala" markdown="1">
 
-Field position keys specify one or more fields of a `Tuple` `DataSet` that are used as grouping keys.
-The following code shows how to use field position keys and apply a `ReduceFunction`.
+~~~scala
+// some ordinary POJO
+class WC(val word: String, val count: Int) {
+  def this() {
+    this(null, -1)
+  }
+  // [...]
+}
 
-```java
+val words: DataSet[WC] = // [...]
+val wordCounts = words.groupBy { _.word } reduce { 
+  (w1, w2) => new WC(w1.word, w1.count + w2.count)
+}
+~~~
+
+</div>
+</div>
+
+#### Reduce on DataSet Grouped by Field Position Keys (Tuple DataSets only)
+
+Field position keys specify one or more fields of a Tuple DataSet that are used as grouping keys.
+The following code shows how to use field position keys and apply a reduce function
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+~~~java
 DataSet<Tuple3<String, Integer, Double>> tuples = // [...]
 DataSet<Tuple3<String, Integer, Double>> reducedTuples =
                                          tuples
@@ -177,19 +266,48 @@ DataSet<Tuple3<String, Integer, Double>> reducedTuples =
                                          .groupBy(0,1)
                                          // apply ReduceFunction on grouped DataSet
                                          .reduce(new MyTupleReducer());
-```
+~~~
 
-### GroupReduce on grouped DataSet
+</div>
+<div data-lang="scala" markdown="1">
 
-A GroupReduce transformation that is applied on a grouped `DataSet` calls a user-defined `GroupReduceFunction` for each group. The difference
-between this and `Reduce` is that the user defined function gets the whole group at once.
-The function is invoked with an Iterable over all elements of a group and can return an arbitrary number of result elements using the collector.
+~~~scala
+val tuples = DataSet[(String, Int, Double)] = // [...]
+// group on the first and second Tuple field
+val reducedTuples = tuples.groupBy(0, 1).reduce { ... }
+~~~
 
-#### GroupReduce on DataSet grouped by Field Position Keys (Tuple DataSets only)
 
-The following code shows how duplicate strings can be removed from a `DataSet` grouped by Integer.
+#### Reduce on DataSet grouped by Case Class Fields
 
-```java
+When using Case Classes you can also specify the grouping key using the names of the fields: 
+
+~~~scala
+case class MyClass(val a: String, b: Int, c: Double)
+val tuples = DataSet[MyClass]] = // [...]
+// group on the first and second field
+val reducedTuples = tuples.groupBy("a", "b").reduce { ... }
+~~~
+
+</div>
+</div>
+
+### GroupReduce on Grouped DataSet
+
+A GroupReduce transformation that is applied on a grouped DataSet calls a user-defined
+group-reduce function for each group. The difference
+between this and *Reduce* is that the user defined function gets the whole group at once.
+The function is invoked with an Iterable over all elements of a group and can return an arbitrary
+number of result elements.
+
+#### GroupReduce on DataSet Grouped by Field Position Keys (Tuple DataSets only)
+
+The following code shows how duplicate strings can be removed from a DataSet grouped by Integer.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+~~~java
 public class DistinctReduce
          implements GroupReduceFunction<Tuple2<Integer, String>, Tuple2<Integer, String>> {
 
@@ -217,20 +335,43 @@ DataSet<Tuple2<Integer, String>> input = // [...]
 DataSet<Tuple2<Integer, String>> output = input
                            .groupBy(0)            // group DataSet by the first tuple field
                            .reduceGroup(new DistinctReduce());  // apply GroupReduceFunction
-```
+~~~
 
-#### GroupReduce on DataSet grouped by KeySelector Function
+</div>
+<div data-lang="scala" markdown="1">
 
-Works analogous to `KeySelector` functions in Reduce transformations.
+~~~scala
+val input: DataSet[(Int, String)] = // [...]
+val output = input.groupBy(0).reduceGroup {
+      (in, out: Collector[(Int, String)]) =>
+        in.toSet foreach (out.collect)
+    }
+~~~
+
+#### GroupReduce on DataSet Grouped by Case Class Fields
+
+Works analogous to grouping by Case Class fields in *Reduce* transformations.
+
+
+</div>
+</div>
+
+#### GroupReduce on DataSet Grouped by KeySelector Function
+
+Works analogous to key-selector functions in *Reduce* transformations.
 
 #### GroupReduce on sorted groups (Tuple DataSets only)
 
-A `GroupReduceFunction` accesses the elements of a group using an Iterable. Optionally, the Iterable can hand out the elements of a group in a specified order. In many cases this can help to reduce the complexity of a user-defined `GroupReduceFunction` and improve its efficiency.
+A group-reduce function accesses the elements of a group using an Iterable. Optionally, the Iterable can hand out the elements of a group in a specified order. In many cases this can help to reduce the complexity of a user-defined
+group-reduce function and improve its efficiency.
 Right now, this feature is only available for DataSets of Tuples.
 
-The following code shows another example how to remove duplicate Strings in a `DataSet` grouped by an Integer and sorted by String.
+The following code shows another example how to remove duplicate Strings in a DataSet grouped by an Integer and sorted by String.
 
-```java
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+~~~java
 // GroupReduceFunction that removes consecutive identical elements
 public class DistinctReduce
          implements GroupReduceFunction<Tuple2<Integer, String>, Tuple2<Integer, String>> {
@@ -259,19 +400,41 @@ DataSet<Double> output = input
                          .groupBy(0)                         // group DataSet by first field
                          .sortGroup(1, Order.ASCENDING)      // sort groups on second tuple field
                          .reduceGroup(new DistinctReduce());
-```
+~~~
+
+</div>
+<div data-lang="scala" markdown="1">
+
+~~~scala
+val input: DataSet[(Int, String)] = // [...]
+val output = input.groupBy(0).sortGroup(1, Order.ASCENDING).reduceGroup {
+      (in, out: Collector[(Int, String)]) =>
+        var prev: (Int, String) = null
+        for (t <- in) {
+          if (prev == null || prev != t)
+            out.collect(t)
+        }
+    }
+
+~~~
+
+</div>
+</div>
 
 **Note:** A GroupSort often comes for free if the grouping is established using a sort-based execution strategy of an operator before the reduce operation.
 
 #### Combinable GroupReduceFunctions
 
-In contrast to a `ReduceFunction`, a `GroupReduceFunction` is not
-necessarily combinable. In order to make a `GroupReduceFunction`
+In contrast to a reduce function, a group-reduce function is not
+necessarily combinable. In order to make a group-reduce function
 combinable, you need to use the `RichGroupReduceFunction` variant,
 implement (override) the `combine()` method, and annotate the
-`GroupReduceFunction` with the `@Combinable` annotation as shown here:
+`RichGroupReduceFunction` with the `@Combinable` annotation as shown here:
 
-```java
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+~~~java
 // Combinable GroupReduceFunction that computes two sums.
 // Note that we use the RichGroupReduceFunction because it defines the combine method
 @Combinable
@@ -302,9 +465,49 @@ public class MyCombinableGroupReducer
     this.reduce(in, out);
   }
 }
-```
+~~~
 
-### Aggregate on grouped Tuple DataSet
+</div>
+<div data-lang="scala" markdown="1">
+
+~~~scala
+
+// Combinable GroupReduceFunction that computes two sums.
+// Note that we use the RichGroupReduceFunction because it defines the combine method
+@Combinable
+class MyCombinableGroupReducer
+  extends RichGroupReduceFunction[(String, Int, Double), (String, Int, Double)] {}
+
+  def reduce(
+      in: java.lang.Iterable[(String, Int, Double)],
+      out: Collector[(String, Int, Double)]): Unit = {
+
+    val key: String = null
+    val intSum = 0
+    val doubleSum = 0.0
+
+    for (curr <- in) {
+      key = curr._1
+      intSum += curr._2
+      doubleSum += curr._3
+    }
+    // emit a tuple with both sums
+    out.collect(key, intSum, doubleSum);
+  }
+
+  def combine(
+      in: java.lang.Iterable[(String, Int, Double)],
+      out: Collector[(String, Int, Double)]): Unit = {
+    // in some cases combine() calls can simply be forwarded to reduce().
+    this.reduce(in, out)
+  }
+}
+~~~
+
+</div>
+</div>
+
+### Aggregate on Grouped Tuple DataSet
 
 There are some common aggregation operations that are frequently used. The Aggregate transformation provides the following build-in aggregation functions:
 
@@ -312,17 +515,30 @@ There are some common aggregation operations that are frequently used. The Aggre
 - Min, and
 - Max.
 
-The Aggregate transformation can only be applied on a `Tuple` `DataSet` and supports only field positions keys for grouping.
+The Aggregate transformation can only be applied on a Tuple DataSet and supports only field positions keys for grouping.
 
-The following code shows how to apply an Aggregation transformation on a `DataSet` grouped by field position keys:
+The following code shows how to apply an Aggregation transformation on a DataSet grouped by field position keys:
 
-```java
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+~~~java
 DataSet<Tuple3<Integer, String, Double>> input = // [...]
 DataSet<Tuple3<Integer, String, Double>> output = input
                                    .groupBy(1)        // group DataSet on second field
                                    .aggregate(SUM, 0) // compute sum of the first field
                                    .and(MIN, 2);      // compute minimum of the third field
-```
+~~~
+
+</div>
+<div data-lang="scala" markdown="1">
+
+~~~scala
+
+~~~
+
+</div>
+</div>
 
 To apply multiple aggregations on a DataSet it is necessary to use the `.and()` function after the first aggregate, that means `.aggregate(SUM, 0).and(MIN, 2)` produces the sum of field 0 and the minimum of field 2 of the original DataSet. 
 In contrast to that `.aggregate(SUM, 0).aggregate(MIN, 2)` will apply an aggregation on an aggregation. In the given example it would produce the minimum of field 2 after calculating the sum of field 0 grouped by field 1.
@@ -331,12 +547,15 @@ In contrast to that `.aggregate(SUM, 0).aggregate(MIN, 2)` will apply an aggrega
 
 ### Reduce on full DataSet
 
-The Reduce transformation applies a user-defined `ReduceFunction` to all elements of a `DataSet`.
+The Reduce transformation applies a user-defined `ReduceFunction` to all elements of a DataSet.
 The `ReduceFunction` subsequently combines pairs of elements into one element until only a single element remains.
 
-The following code shows how to sum all elements of an Integer `DataSet`:
+The following code shows how to sum all elements of an Integer DataSet:
 
-```java
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+~~~java
 // ReduceFunction that sums Integers
 public class IntSummer implements ReduceFunction<Integer> {
   @Override
@@ -348,24 +567,47 @@ public class IntSummer implements ReduceFunction<Integer> {
 // [...]
 DataSet<Integer> intNumbers = // [...]
 DataSet<Integer> sum = intNumbers.reduce(new IntSummer());
-```
+~~~
 
-Reducing a full `DataSet` using the Reduce transformation implies that the final Reduce operation cannot be done in parallel. However, a `ReduceFunction` is automatically combinable such that a Reduce transformation does not limit scalability for most use cases.
+</div>
+<div data-lang="scala" markdown="1">
+
+~~~scala
+
+~~~
+
+</div>
+</div>
+
+Reducing a full DataSet using the Reduce transformation implies that the final Reduce operation cannot be done in parallel. However, a `ReduceFunction` is automatically combinable such that a Reduce transformation does not limit scalability for most use cases.
 
 ### GroupReduce on full DataSet
 
-The GroupReduce transformation applies a user-defined `GroupReduceFunction` on all elements of a `DataSet`.
-A `GroupReduceFunction` can iterate over all elements of `DataSet` and return an arbitrary number of result elements.
+The GroupReduce transformation applies a user-defined `GroupReduceFunction` on all elements of a DataSet.
+A `GroupReduceFunction` can iterate over all elements of DataSet and return an arbitrary number of result elements.
 
-The following example shows how to apply a GroupReduce transformation on a full `DataSet`:
+The following example shows how to apply a GroupReduce transformation on a full DataSet:
 
-```java
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+~~~java
 DataSet<Integer> input = // [...]
 // apply a (preferably combinable) GroupReduceFunction to a DataSet
 DataSet<Double> output = input.reduceGroup(new MyGroupReducer());
-```
+~~~
 
-**Note:** A GroupReduce transformation on a full `DataSet` cannot be done in parallel if the `GroupReduceFunction` is not combinable. Therefore, this can be a very compute intensive operation. See the paragraph on "Combineable `GroupReduceFunction`s" above to learn how to implement a combinable `GroupReduceFunction`.
+</div>
+<div data-lang="scala" markdown="1">
+
+~~~scala
+
+~~~
+
+</div>
+</div>
+
+**Note:** A GroupReduce transformation on a full DataSet cannot be done in parallel if the `GroupReduceFunction` is not combinable. Therefore, this can be a very compute intensive operation. See the paragraph on "Combineable `GroupReduceFunction`s" above to learn how to implement a combinable `GroupReduceFunction`.
 
 ### Aggregate on full Tuple DataSet
 
@@ -375,35 +617,51 @@ There are some common aggregation operations that are frequently used. The Aggre
 - Min, and
 - Max.
 
-The Aggregate transformation can only be applied on a `Tuple` `DataSet`.
+The Aggregate transformation can only be applied on a Tuple DataSet.
 
-The following code shows how to apply an Aggregation transformation on a full `DataSet`:
+The following code shows how to apply an Aggregation transformation on a full DataSet:
 
-```java
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+~~~java
 DataSet<Tuple2<Integer, Double>> input = // [...]
 DataSet<Tuple2<Integer, Double>> output = input
                                      .aggregate(SUM, 0)    // compute sum of the first field
                                      .and(MIN, 1);    // compute minimum of the second field
-```
+~~~
+
+</div>
+<div data-lang="scala" markdown="1">
+
+~~~scala
+
+~~~
+
+</div>
+</div>
 
 **Note:** Extending the set of supported aggregation functions is on our roadmap.
 
 ### Join
 
-The Join transformation joins two `DataSet`s into one `DataSet`. The elements of both `DataSet`s are joined on one or more keys which can be specified using
+The Join transformation joins two DataSets into one DataSet. The elements of both DataSets are joined on one or more keys which can be specified using
 
 - a `KeySelector` function or
-- one or more field position keys (`Tuple` `DataSet` only).
+- one or more field position keys (Tuple DataSet only).
 
 There are a few different ways to perform a Join transformation which are shown in the following.
 
 #### Default Join (Join into Tuple2)
 
-The default Join transformation produces a new `Tuple``DataSet` with two fields. Each tuple holds a joined element of the first input `DataSet` in the first tuple field and a matching element of the second input `DataSet` in the second field.
+The default Join transformation produces a new TupleDataSet with two fields. Each tuple holds a joined element of the first input DataSet in the first tuple field and a matching element of the second input DataSet in the second field.
 
 The following code shows a default Join transformation using field position keys:
 
-```java
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+~~~java
 DataSet<Tuple2<Integer, String>> input1 = // [...]
 DataSet<Tuple2<Double, Integer>> input2 = // [...]
 // result dataset is typed as Tuple2
@@ -411,16 +669,29 @@ DataSet<Tuple2<Tuple2<Integer, String>, Tuple2<Double, Integer>>>
             result = input1.join(input2)
                            .where(0)       // key of the first input
                            .equalTo(1);    // key of the second input
-```
+~~~
+
+</div>
+<div data-lang="scala" markdown="1">
+
+~~~scala
+
+~~~
+
+</div>
+</div>
 
 #### Join with JoinFunction
 
 A Join transformation can also call a user-defined `JoinFunction` to process joining tuples.
-A `JoinFunction` receives one element of the first input `DataSet` and one element of the second input `DataSet` and returns exactly one element.
+A `JoinFunction` receives one element of the first input DataSet and one element of the second input DataSet and returns exactly one element.
 
-The following code performs a join of `DataSet` with custom java objects and a `Tuple` `DataSet` using `KeySelector` functions and shows how to call a user-defined `JoinFunction`:
+The following code performs a join of DataSet with custom java objects and a Tuple DataSet using `KeySelector` functions and shows how to call a user-defined `JoinFunction`:
 
-```java
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+~~~java
 // some POJO
 public class Rating {
   public String name;
@@ -457,7 +728,17 @@ DataSet<Tuple2<String, Double>>
 
                    // applying the JoinFunction on joining pairs
                    .with(new PointWeighter());
-```
+~~~
+
+</div>
+<div data-lang="scala" markdown="1">
+
+~~~scala
+
+~~~
+
+</div>
+</div>
 
 #### Join with FlatJoinFunction
 
@@ -485,7 +766,10 @@ DataSet<Tuple2<String, Double>>
 
 A Join transformation can construct result tuples using a projection as shown here:
 
-```java
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+~~~java
 DataSet<Tuple3<Integer, Byte, String>> input1 = // [...]
 DataSet<Tuple2<Integer, Double>> input2 = // [...]
 DataSet<Tuple4<Integer, String, Double, Byte>
@@ -498,16 +782,29 @@ DataSet<Tuple4<Integer, String, Double, Byte>
                   // select and reorder fields of matching tuples
                   .projectFirst(0,2).projectSecond(1).projectFirst(1)
                   .types(Integer.class, String.class, Double.class, Byte.class);
-```
+~~~
 
-`projectFirst(int...)` and `projectSecond(int...)` select the fields of the first and second joined input that should be assembled into an output `Tuple`. The order of indexes defines the order of fields in the output tuple.
-The join projection works also for non-`Tuple` `DataSet`s. In this case, `projectFirst()` or `projectSecond()` must be called without arguments to add a joined element to the output `Tuple`.
+</div>
+<div data-lang="scala" markdown="1">
+
+~~~scala
+
+~~~
+
+</div>
+</div>
+
+`projectFirst(int...)` and `projectSecond(int...)` select the fields of the first and second joined input that should be assembled into an output Tuple. The order of indexes defines the order of fields in the output tuple.
+The join projection works also for non-Tuple DataSets. In this case, `projectFirst()` or `projectSecond()` must be called without arguments to add a joined element to the output Tuple.
 
 #### Join with DataSet Size Hint
 
-In order to guide the optimizer to pick the right execution strategy, you can hint the size of a `DataSet` to join as shown here:
+In order to guide the optimizer to pick the right execution strategy, you can hint the size of a DataSet to join as shown here:
 
-```java
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+~~~java
 DataSet<Tuple2<Integer, String>> input1 = // [...]
 DataSet<Tuple2<Integer, String>> input2 = // [...]
 
@@ -524,11 +821,21 @@ DataSet<Tuple2<Tuple2<Integer, String>, Tuple2<Integer, String>>>
             input1.joinWithHuge(input2)
                   .where(0)
                   .equalTo(0);
-```
+~~~
+
+</div>
+<div data-lang="scala" markdown="1">
+
+~~~scala
+
+~~~
+
+</div>
+</div>
 
 ### Cross
 
-The Cross transformation combines two `DataSet`s into one `DataSet`. It builds all pairwise combinations of the elements of both input `DataSet`s, i.e., it builds a Cartesian product.
+The Cross transformation combines two DataSets into one DataSet. It builds all pairwise combinations of the elements of both input DataSets, i.e., it builds a Cartesian product.
 The Cross transformation either calls a user-defined `CrossFunction` on each pair of elements or applies a projection. Both modes are shown in the following.
 
 **Note:** Cross is potentially a *very* compute-intensive operation which can challenge even large compute clusters!
@@ -537,9 +844,12 @@ The Cross transformation either calls a user-defined `CrossFunction` on each pai
 
 A Cross transformation can call a user-defined `CrossFunction`. A `CrossFunction` receives one element of the first input and one element of the second input and returns exactly one result element.
 
-The following code shows how to apply a Cross transformation on two `DataSet`s using a `CrossFunction`:
+The following code shows how to apply a Cross transformation on two DataSets using a `CrossFunction`:
 
-```java
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+~~~java
 public class Coord {
   public int id;
   public int x;
@@ -565,13 +875,26 @@ DataSet<Tuple3<Integer, Integer, Double>>
             coords1.cross(coords2)
                    // apply CrossFunction
                    .with(new EuclideanDistComputer());
-```
+~~~
+
+</div>
+<div data-lang="scala" markdown="1">
+
+~~~scala
+
+~~~
+
+</div>
+</div>
 
 #### Cross with Projection
 
 A Cross transformation can also construct result tuples using a projection as shown here:
 
-```java
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+~~~java
 DataSet<Tuple3<Integer, Byte, String>> input1 = // [...]
 DataSet<Tuple2<Integer, Double>> input2 = // [...]
 DataSet<Tuple4<Integer, Byte, Integer, Double>
@@ -580,15 +903,28 @@ DataSet<Tuple4<Integer, Byte, Integer, Double>
                   // select and reorder fields of matching tuples
                   .projectSecond(0).projectFirst(1,0).projectSecond(1)
                   .types(Integer.class, Byte.class, Integer.class, Double.class);
-```
+~~~
+
+</div>
+<div data-lang="scala" markdown="1">
+
+~~~scala
+
+~~~
+
+</div>
+</div>
 
 The field selection in a Cross projection works the same way as in the projection of Join results.
 
 #### Cross with DataSet Size Hint
 
-In order to guide the optimizer to pick the right execution strategy, you can hint the size of a `DataSet` to cross as shown here:
+In order to guide the optimizer to pick the right execution strategy, you can hint the size of a DataSet to cross as shown here:
 
-```java
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+~~~java
 DataSet<Tuple2<Integer, String>> input1 = // [...]
 DataSet<Tuple2<Integer, String>> input2 = // [...]
 
@@ -605,21 +941,34 @@ DataSet<Tuple3<Integer, Integer, String>>
             input1.crossWithHuge(input2)
                   // apply a projection (or any Cross function)
                   .projectFirst(0,1).projectSecond(1).types(Integer.class, String.class, String.class)
-```
+~~~
+
+</div>
+<div data-lang="scala" markdown="1">
+
+~~~scala
+
+~~~
+
+</div>
+</div>
 
 ### CoGroup
 
-The CoGroup transformation jointly processes groups of two `DataSet`s. Both `DataSet`s are grouped on a defined key and groups of both `DataSet`s that share the same key are handed together to a user-defined `CoGroupFunction`. If for a specific key only one `DataSet` has a group, the `CoGroupFunction` is called with this group and an empty group.
+The CoGroup transformation jointly processes groups of two DataSets. Both DataSets are grouped on a defined key and groups of both DataSets that share the same key are handed together to a user-defined `CoGroupFunction`. If for a specific key only one DataSet has a group, the `CoGroupFunction` is called with this group and an empty group.
 A `CoGroupFunction` can separately iterate over the elements of both groups and return an arbitrary number of result elements.
 
 Similar to Reduce, GroupReduce, and Join, keys can be defined using
 
 - a `KeySelector` function or
-- one or more field position keys (`Tuple` `DataSet` only).
+- one or more field position keys (Tuple DataSet only).
 
-#### CoGroup on DataSets grouped by Field Position Keys (Tuple DataSets only)
+#### CoGroup on DataSets Grouped by Field Position Keys (Tuple DataSets only)
 
-```java
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+~~~java
 // Some CoGroupFunction definition
 class MyCoGrouper
          implements CoGroupFunction<Tuple2<String, Integer>, Tuple2<String, Double>, Double> {
@@ -655,23 +1004,44 @@ DataSet<Double> output = iVals.coGroup(dVals)
                          .equalTo(0)
                          // apply CoGroup function on each pair of groups
                          .with(new MyCoGrouper());
-```
+~~~
 
-#### CoGroup on DataSets grouped by Key Selector Function
+</div>
+<div data-lang="scala" markdown="1">
 
-Works analogous to key selector functions in Join transformations.
+~~~scala
+
+~~~
+
+</div>
+</div>
+
+#### CoGroup on DataSets Grouped by Key-Selector Function
+
+Works analogous to key-selector functions in Join transformations.
 
 ### Union
 
-Produces the union of two `DataSet`s, which have to be of the same type. A union of more than two `DataSet`s can be implemented with multiple union calls, as shown here:
+Produces the union of two DataSets, which have to be of the same type. A union of more than two DataSets can be implemented with multiple union calls, as shown here:
 
-```java
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+~~~java
 DataSet<Tuple2<String, Integer>> vals1 = // [...]
 DataSet<Tuple2<String, Integer>> vals2 = // [...]
 DataSet<Tuple2<String, Integer>> vals3 = // [...]
 DataSet<Tuple2<String, Integer>> unioned = vals1.union(vals2)
                     .union(vals3);
-```
+~~~
 
+</div>
+<div data-lang="scala" markdown="1">
 
-[Back to top](#top)
+~~~scala
+
+~~~
+
+</div>
+</div>
+
