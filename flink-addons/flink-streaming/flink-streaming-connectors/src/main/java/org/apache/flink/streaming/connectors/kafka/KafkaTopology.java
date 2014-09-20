@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
@@ -29,20 +28,20 @@ import org.slf4j.LoggerFactory;
 public class KafkaTopology {
 	private static final Logger LOG = LoggerFactory.getLogger(KafkaTopology.class);
 	
-	public static final class MySource implements SourceFunction<Tuple1<String>> {
+	public static final class MySource implements SourceFunction<String> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void invoke(Collector<Tuple1<String>> collector) throws Exception {
+		public void invoke(Collector<String> collector) throws Exception {
 			for (int i = 0; i < 10; i++) {
-				collector.collect(new Tuple1<String>(Integer.toString(i)));
+				collector.collect(new String(Integer.toString(i)));
 			}
-			collector.collect(new Tuple1<String>("q"));
+			collector.collect(new String("q"));
 
 		}
 	}
 
-	public static final class MyKafkaSource extends KafkaSource<Tuple1<String>> {
+	public static final class MyKafkaSource extends KafkaSource<String> {
 		private static final long serialVersionUID = 1L;
 
 		public MyKafkaSource(String zkQuorum, String groupId, String topicId, int numThreads) {
@@ -50,17 +49,17 @@ public class KafkaTopology {
 		}
 
 		@Override
-		public Tuple1<String> deserialize(byte[] msg) {
+		public String deserialize(byte[] msg) {
 			String s = new String(msg);
 			if (s.equals("q")) {
 				closeWithoutSend();
 			}
-			return new Tuple1<String>(s);
+			return new String(s);
 		}
 
 	}
 
-	public static final class MyKafkaSink extends KafkaSink<Tuple1<String>, String> {
+	public static final class MyKafkaSink extends KafkaSink<String, String> {
 		private static final long serialVersionUID = 1L;
 
 		public MyKafkaSink(String topicId, String brokerAddr) {
@@ -68,20 +67,20 @@ public class KafkaTopology {
 		}
 
 		@Override
-		public String serialize(Tuple1<String> tuple) {
-			if (tuple.f0.equals("q")) {
+		public String serialize(String tuple) {
+			if (tuple.equals("q")) {
 				sendAndClose();
 			}
-			return tuple.f0;
+			return tuple;
 		}
 
 	}
 	
-	public static final class MyKafkaPrintSink implements SinkFunction<Tuple1<String>> {
+	public static final class MyKafkaPrintSink implements SinkFunction<String> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void invoke(Tuple1<String> value) {
+		public void invoke(String value) {
 			if (LOG.isInfoEnabled()) {
 				LOG.info("String: <{}> arrived from Kafka", value);
 			}
@@ -95,12 +94,12 @@ public class KafkaTopology {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 
 		@SuppressWarnings("unused")
-		DataStream<Tuple1<String>> stream1 = env
+		DataStream<String> stream1 = env
 			.addSource(new MyKafkaSource("localhost:2181", "group", "test", 1), SOURCE_PARALELISM)
 			.addSink(new MyKafkaPrintSink());
 
 		@SuppressWarnings("unused")
-		DataStream<Tuple1<String>> stream2 = env
+		DataStream<String> stream2 = env
 			.addSource(new MySource())
 			.addSink(new MyKafkaSink("test", "localhost:9092"));
 
