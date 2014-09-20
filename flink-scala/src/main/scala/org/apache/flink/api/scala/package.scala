@@ -24,6 +24,18 @@ import org.apache.flink.types.TypeInformation
 import org.apache.flink.api.scala.typeutils.{CaseClassTypeInfo, TypeUtils}
 import org.apache.flink.api.java.{DataSet => JavaDataSet}
 
+/**
+ * The Flink Scala API. [[org.apache.flink.api.scala.ExecutionEnvironment]] is the starting-point
+ * of any Flink program. It can be used to read from local files, HDFS, or other sources.
+ * [[org.apache.flink.api.scala.DataSet]] is the main abstraction of data in Flink. It provides
+ * operations that create new DataSets via transformations.
+ * [[org.apache.flink.api.scala.GroupedDataSet]] provides operations on grouped data that results
+ * from [[org.apache.flink.api.scala.DataSet.groupBy()]].
+ *
+ * Use [[org.apache.flink.api.scala.ExecutionEnvironment.getExecutionEnvironment]] to obtain
+ * an execution environment. This will either create a local environment or a remote environment,
+ * depending on the context where your program is executing.
+ */
 package object scala {
   // We have this here so that we always have generated TypeInformationS when
   // using the Scala API
