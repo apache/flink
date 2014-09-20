@@ -275,17 +275,18 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 
 	@Override
 	public JobSubmissionResult submitJob(JobGraph job) throws IOException {
-		
+		// First check the basics
+		if (job == null) {
+			return new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR, "Submitted job is null!");
+		}
+		if (job.getNumberOfVertices() == 0) {
+			return new JobSubmissionResult(ReturnCode.ERROR, "Job is empty.");
+		}
 		
 		ExecutionGraph executionGraph = null;
 		boolean success = false;
 		
 		try {
-			// First check if job is null
-			if (job == null) {
-				return new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR, "Submitted job is null!");
-			}
-	
 			if (LOG.isInfoEnabled()) {
 				LOG.info(String.format("Received job %s (%s)", job.getJobID(), job.getName()));
 			}
