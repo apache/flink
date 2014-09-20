@@ -19,7 +19,7 @@ require 'rubygems'
 include FileUtils
 
 if ENV['BUILD_API'] == '1' then
-  # Build Javadoc and Scaladoc
+  # Build Javadoc
 
   cd("..")
 
@@ -47,5 +47,20 @@ if ENV['BUILD_API'] == '1' then
 
   puts "cp -r " + source + "/. " + dest
   cp_r(source + "/.", dest)
+
+  # Build Scaladoc
+  cd("../flink-scala")
+
+  puts "Generating Scaladoc"
+  puts `mvn scala:doc`
+
+  cd("../docs")
+
+  source = "../flink-scala/target/site/scaladocs"
+  dest = "api/scala/"
+
+  puts "cp -r " + source + "/. " + dest
+  cp_r(source + "/.", dest)
+
 
 end
