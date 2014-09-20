@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.connectors.twitter;
 
 import java.io.FileInputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
@@ -27,10 +26,10 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.function.source.RichSourceFunction;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.flink.streaming.api.function.source.SourceFunction;
 import org.apache.flink.util.Collector;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.twitter.hbc.ClientBuilder;
 import com.twitter.hbc.core.Constants;
@@ -149,8 +148,8 @@ public class TwitterSource extends RichSourceFunction<String> {
 			InputStream input = new FileInputStream(authPath);
 			properties.load(input);
 			input.close();
-		} catch (IOException ioe) {
-			new RuntimeException("Cannot open .properties file: " + authPath, ioe);
+		} catch (Exception e) {
+			throw new RuntimeException("Cannot open .properties file: " + authPath, e);
 		}
 		return properties;
 	}
@@ -226,7 +225,7 @@ public class TwitterSource extends RichSourceFunction<String> {
 				}
 			}
 		} catch (InterruptedException e) {
-			new RuntimeException("'Waiting for tweet' thread is interrupted", e);
+			throw new RuntimeException("'Waiting for tweet' thread is interrupted", e);
 		}
 
 	}

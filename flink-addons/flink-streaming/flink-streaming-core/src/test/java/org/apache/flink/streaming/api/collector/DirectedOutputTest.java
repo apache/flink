@@ -43,6 +43,7 @@ public class DirectedOutputTest {
 	private static final String EVEN_AND_ODD = "evenAndOdd";
 	private static final String ODD_AND_TEN = "oddAndTen";
 	private static final String EVEN = "even";
+	private static final String NON_SELECTED = "nonSelected";
 
 	static final class MyMap implements MapFunction<Long, Long> {
 		private static final long serialVersionUID = 1L;
@@ -66,6 +67,10 @@ public class DirectedOutputTest {
 			
 			if (value == 10L) {
 				outputs.add(TEN);
+			}
+			
+			if (value == 11L) {
+				outputs.add(NON_SELECTED);
 			}
 		}
 	}
@@ -97,10 +102,11 @@ public class DirectedOutputTest {
 	
 	@Test
 	public void outputSelectorTest() throws Exception {
+		
 
 		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 		
-		SplitDataStream<Long> source = env.generateSequence(1, 10).split(new MyOutputSelector());
+		SplitDataStream<Long> source = env.generateSequence(1, 11).split(new MyOutputSelector());
 		source.select(EVEN).addSink(new ListSink(EVEN));
 		source.select(ODD, TEN).addSink(new ListSink(ODD_AND_TEN));
 		source.select(EVEN, ODD).addSink(new ListSink(EVEN_AND_ODD));
@@ -108,8 +114,8 @@ public class DirectedOutputTest {
 		
 		env.executeTest(128);
 		assertEquals(Arrays.asList(2L, 4L, 6L, 8L, 10L), outputs.get(EVEN));
-		assertEquals(Arrays.asList(1L, 3L, 5L, 7L, 9L, 10L), outputs.get(ODD_AND_TEN));
-		assertEquals(Arrays.asList(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L), outputs.get(EVEN_AND_ODD));
-		assertEquals(Arrays.asList(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L), outputs.get(ALL));
+		assertEquals(Arrays.asList(1L, 3L, 5L, 7L, 9L, 10L, 11L), outputs.get(ODD_AND_TEN));
+		assertEquals(Arrays.asList(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L, 11L), outputs.get(EVEN_AND_ODD));
+		assertEquals(Arrays.asList(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L, 11L), outputs.get(ALL));
 	}
 }
