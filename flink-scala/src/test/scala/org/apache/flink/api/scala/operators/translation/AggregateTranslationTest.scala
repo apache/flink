@@ -35,7 +35,7 @@ class AggregateTranslationTest {
 
       val initialData = env.fromElements((3.141592, "foobar", 77L))
 
-      initialData.groupBy(0).aggregate(Aggregations.MIN, 1).aggregate(Aggregations.SUM, 2).print()
+      initialData.groupBy(0).aggregate(Aggregations.MIN, 1).and(Aggregations.SUM, 2).print()
 
       val p: Plan = env.createProgramPlan()
       val sink = p.getDataSinks.iterator.next

@@ -29,7 +29,6 @@ import org.apache.flink.api.java.operators.Keys.FieldPositionKeys
 import org.apache.flink.api.java.operators._
 import org.apache.flink.api.java.{DataSet => JavaDataSet}
 import org.apache.flink.api.scala.operators.{ScalaCsvOutputFormat, ScalaAggregateOperator}
-import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.core.fs.{FileSystem, Path}
 import org.apache.flink.types.TypeInformation
@@ -367,12 +366,8 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
    *
    * This only works on Tuple DataSets.
    */
-  def aggregate(agg: Aggregations, field: Int): DataSet[T] = set match {
-    case aggregation: ScalaAggregateOperator[T] =>
-      aggregation.and(agg, field)
-      wrap(aggregation)
-
-    case _ => wrap(new ScalaAggregateOperator[T](set, agg, field))
+  def aggregate(agg: Aggregations, field: Int): AggregateDataSet[T] = {
+    new AggregateDataSet(new ScalaAggregateOperator[T](set, agg, field))
   }
 
   /**
@@ -382,16 +377,10 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
    *
    * This only works on CaseClass DataSets.
    */
-  def aggregate(agg: Aggregations, field: String): DataSet[T] = {
+  def aggregate(agg: Aggregations, field: String): AggregateDataSet[T] = {
     val fieldIndex = fieldNames2Indices(set.getType, Array(field))(0)
 
-    set match {
-      case aggregation: ScalaAggregateOperator[T] =>
-        aggregation.and(agg, fieldIndex)
-        wrap(aggregation)
-
-      case _ => wrap(new ScalaAggregateOperator[T](set, agg, fieldIndex))
-    }
+    new AggregateDataSet(new ScalaAggregateOperator[T](set, agg, fieldIndex))
   }
 
   /**

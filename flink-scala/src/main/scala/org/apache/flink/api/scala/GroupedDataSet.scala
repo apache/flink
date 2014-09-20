@@ -19,7 +19,6 @@ package org.apache.flink.api.scala
 
 import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.scala.operators.ScalaAggregateOperator
-import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 
 import scala.collection.JavaConverters._
 
@@ -67,7 +66,7 @@ trait GroupedDataSet[T] {
    *
    * This only works on Tuple DataSets.
    */
-  def aggregate(agg: Aggregations, field: Int): DataSet[T]
+  def aggregate(agg: Aggregations, field: Int): AggregateDataSet[T]
 
   /**
    * Creates a new [[DataSet]] by aggregating the specified field using the given aggregation
@@ -76,37 +75,37 @@ trait GroupedDataSet[T] {
    *
    * This only works on CaseClass DataSets.
    */
-  def aggregate(agg: Aggregations, field: String): DataSet[T]
+  def aggregate(agg: Aggregations, field: String): AggregateDataSet[T]
 
   /**
    * Syntactic sugar for [[aggregate]] with `SUM`
    */
-  def sum(field: Int): DataSet[T]
+  def sum(field: Int): AggregateDataSet[T]
 
   /**
    * Syntactic sugar for [[aggregate]] with `MAX`
    */
-  def max(field: Int): DataSet[T]
+  def max(field: Int): AggregateDataSet[T]
 
   /**
    * Syntactic sugar for [[aggregate]] with `MIN`
    */
-  def min(field: Int): DataSet[T]
+  def min(field: Int): AggregateDataSet[T]
 
   /**
    * Syntactic sugar for [[aggregate]] with `SUM`
    */
-  def sum(field: String): DataSet[T]
+  def sum(field: String): AggregateDataSet[T]
 
   /**
    * Syntactic sugar for [[aggregate]] with `MAX`
    */
-  def max(field: String): DataSet[T]
+  def max(field: String): AggregateDataSet[T]
 
   /**
    * Syntactic sugar for [[aggregate]] with `MIN`
    */
-  def min(field: String): DataSet[T]
+  def min(field: String): AggregateDataSet[T]
 
   /**
    * Creates a new [[DataSet]] by merging the elements of each group (elements with the same key)
@@ -194,47 +193,37 @@ private[flink] class GroupedDataSetImpl[T: ClassTag](
   /** Convenience methods for creating the [[UnsortedGrouping]] */
   private def createUnsortedGrouping(): Grouping[T] = new UnsortedGrouping[T](set, keys)
 
-  def aggregate(agg: Aggregations, field: String): DataSet[T] = {
+  def aggregate(agg: Aggregations, field: String): AggregateDataSet[T] = {
     val fieldIndex = fieldNames2Indices(set.getType, Array(field))(0)
 
-    set match {
-      case aggregation: ScalaAggregateOperator[T] =>
-        aggregation.and(agg, fieldIndex)
-        wrap(aggregation)
-
-      case _ => wrap(new ScalaAggregateOperator[T](createUnsortedGrouping(), agg, fieldIndex))
-    }
+    new AggregateDataSet(new ScalaAggregateOperator[T](createUnsortedGrouping(), agg, fieldIndex))
   }
 
-  def aggregate(agg: Aggregations, field: Int): DataSet[T] = set match {
-    case aggregation: ScalaAggregateOperator[T] =>
-      aggregation.and(agg, field)
-      wrap(aggregation)
-
-    case _ => wrap(new ScalaAggregateOperator[T](createUnsortedGrouping(), agg, field))
+  def aggregate(agg: Aggregations, field: Int): AggregateDataSet[T] = {
+    new AggregateDataSet(new ScalaAggregateOperator[T](createUnsortedGrouping(), agg, field))
   }
 
-  def sum(field: Int): DataSet[T] = {
+  def sum(field: Int) = {
     aggregate(Aggregations.SUM, field)
   }
 
-  def max(field: Int): DataSet[T] = {
+  def max(field: Int) = {
     aggregate(Aggregations.MAX, field)
   }
 
-  def min(field: Int): DataSet[T] = {
+  def min(field: Int) = {
     aggregate(Aggregations.MIN, field)
   }
 
-  def sum(field: String): DataSet[T] = {
+  def sum(field: String) = {
     aggregate(Aggregations.SUM, field)
   }
 
-  def max(field: String): DataSet[T] = {
+  def max(field: String) = {
     aggregate(Aggregations.MAX, field)
   }
 
-  def min(field: String): DataSet[T] = {
+  def min(field: String) = {
     aggregate(Aggregations.MIN, field)
   }
 

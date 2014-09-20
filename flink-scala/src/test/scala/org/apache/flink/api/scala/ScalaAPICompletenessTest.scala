@@ -152,6 +152,9 @@ class ScalaAPICompletenessTest {
     checkMethods("SortedGrouping", "GroupedDataSet",
       classOf[SortedGrouping[_]], classOf[GroupedDataSet[_]])
 
+    checkMethods("AggregateOperator", "AggregateDataSet",
+      classOf[AggregateOperator[_]], classOf[AggregateDataSet[_]])
+
     checkMethods("SingleInputOperator", "DataSet",
       classOf[SingleInputOperator[_, _, _]], classOf[DataSet[_]])
 

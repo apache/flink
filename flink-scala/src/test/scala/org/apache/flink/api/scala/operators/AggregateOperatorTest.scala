@@ -108,10 +108,10 @@ class AggregateOperatorTest {
       val tupleDs = env.fromCollection(emptyTupleData)
 
       // should work: multiple aggregates
-      tupleDs.aggregate(Aggregations.SUM, 0).aggregate(Aggregations.MIN, 4)
+      tupleDs.aggregate(Aggregations.SUM, 0).and(Aggregations.MIN, 4)
 
       // should work: nested aggregates
-      tupleDs.aggregate(Aggregations.MIN, 2).aggregate(Aggregations.SUM, 1)
+      tupleDs.aggregate(Aggregations.MIN, 2).and(Aggregations.SUM, 1)
 
       // should not work: average on string
       try {
