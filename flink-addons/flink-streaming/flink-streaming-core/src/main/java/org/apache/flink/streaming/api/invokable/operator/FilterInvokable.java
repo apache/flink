@@ -18,9 +18,9 @@
 package org.apache.flink.streaming.api.invokable.operator;
 
 import org.apache.flink.api.common.functions.FilterFunction;
-import org.apache.flink.streaming.api.invokable.StreamOperatorInvokable;
+import org.apache.flink.streaming.api.invokable.StreamInvokable;
 
-public class FilterInvokable<IN> extends StreamOperatorInvokable<IN, IN> {
+public class FilterInvokable<IN> extends StreamInvokable<IN, IN> {
 
 	private static final long serialVersionUID = 1L;
 

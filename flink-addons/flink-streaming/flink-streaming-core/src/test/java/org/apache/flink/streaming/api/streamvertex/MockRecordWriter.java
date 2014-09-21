@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.streamcomponent;
+package org.apache.flink.streaming.api.streamvertex;
 
 import java.util.ArrayList;
 

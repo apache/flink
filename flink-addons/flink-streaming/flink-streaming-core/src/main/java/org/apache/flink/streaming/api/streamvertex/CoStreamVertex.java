@@ -15,12 +15,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.streamcomponent;
+package org.apache.flink.streaming.api.streamvertex;
 
 import java.util.ArrayList;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.runtime.io.network.api.MutableRecordReader;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.streaming.api.invokable.operator.co.CoInvokable;
@@ -30,8 +29,8 @@ import org.apache.flink.streaming.io.CoReaderIterator;
 import org.apache.flink.streaming.io.CoRecordReader;
 import org.apache.flink.util.MutableObjectIterator;
 
-public class CoStreamTask<IN1 extends Tuple, IN2 extends Tuple, OUT extends Tuple> extends
-		AbstractStreamComponent {
+public class CoStreamVertex<IN1, IN2, OUT> extends
+		StreamVertex<IN1,OUT> {
 
 	private OutputHandler<OUT> outputHandler;
 
@@ -47,9 +46,9 @@ public class CoStreamTask<IN1 extends Tuple, IN2 extends Tuple, OUT extends Tupl
 	private CoInvokable<IN1, IN2, OUT> userInvokable;
 	private static int numTasks;
 
-	public CoStreamTask() {
+	public CoStreamVertex() {
 		userInvokable = null;
-		numTasks = newComponent();
+		numTasks = newVertex();
 		instanceID = numTasks;
 	}
 
@@ -78,7 +77,7 @@ public class CoStreamTask<IN1 extends Tuple, IN2 extends Tuple, OUT extends Tupl
 				inputDeserializer2, isMutable);
 	}
 
-	protected void setConfigInputs() throws StreamComponentException {
+	protected void setConfigInputs() throws StreamVertexException {
 		setDeserializers();
 
 		int numberOfInputs = configuration.getNumberOfInputs();

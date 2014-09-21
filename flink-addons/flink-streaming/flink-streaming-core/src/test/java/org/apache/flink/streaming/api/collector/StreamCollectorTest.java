@@ -23,8 +23,8 @@ import java.util.ArrayList;
 
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
-import org.apache.flink.streaming.api.streamcomponent.MockRecordWriter;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
+import org.apache.flink.streaming.api.streamvertex.MockRecordWriter;
 import org.apache.flink.streaming.util.MockRecordWriterFactory;
 import org.junit.Test;
 

@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.streamcomponent;
+package org.apache.flink.streaming.api.streamvertex;
 
 /**
- * An exception that is thrown by the stream components when encountering an
+ * An exception that is thrown by the stream verices when encountering an
  * illegal condition.
  */
-public class StreamComponentException extends RuntimeException {
+public class StreamVertexException extends RuntimeException {
 
 	/**
 	 * Serial version UID for serialization interoperability.
@@ -31,7 +31,7 @@ public class StreamComponentException extends RuntimeException {
 	/**
 	 * Creates a compiler exception with no message and no cause.
 	 */
-	public StreamComponentException() {
+	public StreamVertexException() {
 	}
 
 	/**
@@ -40,7 +40,7 @@ public class StreamComponentException extends RuntimeException {
 	 * @param message
 	 *            The message for the exception.
 	 */
-	public StreamComponentException(String message) {
+	public StreamVertexException(String message) {
 		super(message);
 	}
 
@@ -50,7 +50,7 @@ public class StreamComponentException extends RuntimeException {
 	 * @param cause
 	 *            The <tt>Throwable</tt> that caused this exception.
 	 */
-	public StreamComponentException(Throwable cause) {
+	public StreamVertexException(Throwable cause) {
 		super(cause);
 	}
 
@@ -62,7 +62,7 @@ public class StreamComponentException extends RuntimeException {
 	 * @param cause
 	 *            The <tt>Throwable</tt> that caused this exception.
 	 */
-	public StreamComponentException(String message, Throwable cause) {
+	public StreamVertexException(String message, Throwable cause) {
 		super(message, cause);
 	}
 }

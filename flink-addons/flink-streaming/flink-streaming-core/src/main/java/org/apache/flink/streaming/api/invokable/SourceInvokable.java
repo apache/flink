@@ -21,7 +21,7 @@ import java.io.Serializable;
 
 import org.apache.flink.streaming.api.function.source.SourceFunction;
 
-public class SourceInvokable<OUT> extends StreamInvokable<OUT> implements Serializable {
+public class SourceInvokable<OUT> extends StreamInvokable<OUT,OUT> implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
@@ -36,6 +36,18 @@ public class SourceInvokable<OUT> extends StreamInvokable<OUT> implements Serial
 	@Override
 	public void invoke() throws Exception {
 		sourceFunction.invoke(collector);
+	}
+
+	@Override
+	protected void immutableInvoke() throws Exception {		
+	}
+
+	@Override
+	protected void mutableInvoke() throws Exception {		
+	}
+
+	@Override
+	protected void callUserFunction() throws Exception {
 	}
 
 }

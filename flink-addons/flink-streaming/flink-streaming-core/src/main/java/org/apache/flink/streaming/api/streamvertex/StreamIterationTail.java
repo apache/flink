@@ -15,21 +15,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.streamcomponent;
+package org.apache.flink.streaming.api.streamvertex;
 
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.io.BlockingQueueBroker;
 import org.apache.flink.util.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class StreamIterationSink<IN extends Tuple> extends AbstractStreamComponent {
+public class StreamIterationTail<IN extends Tuple> extends StreamVertex<IN,IN> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(StreamIterationSink.class);
+	private static final Logger LOG = LoggerFactory.getLogger(StreamIterationTail.class);
 
 	private InputHandler<IN> inputHandler;
 
@@ -39,7 +39,7 @@ public class StreamIterationSink<IN extends Tuple> extends AbstractStreamCompone
 	private long iterationWaitTime;
 	private boolean shouldWait;
 
-	public StreamIterationSink() {
+	public StreamIterationTail() {
 	}
 
 	@Override
@@ -52,7 +52,7 @@ public class StreamIterationSink<IN extends Tuple> extends AbstractStreamCompone
 			shouldWait = iterationWaitTime > 0;
 			dataChannel = BlockingQueueBroker.instance().get(iterationId);
 		} catch (Exception e) {
-			throw new StreamComponentException(String.format(
+			throw new StreamVertexException(String.format(
 					"Cannot register inputs of StreamIterationSink %s", iterationId), e);
 		}
 	}

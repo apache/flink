@@ -27,7 +27,7 @@ import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public abstract class CoInvokable<IN1, IN2, OUT> extends StreamInvokable<OUT> {
+public abstract class CoInvokable<IN1, IN2, OUT> extends StreamInvokable<IN1, OUT> {
 
 	public CoInvokable(Function userFunction) {
 		super(userFunction);
@@ -41,7 +41,6 @@ public abstract class CoInvokable<IN1, IN2, OUT> extends StreamInvokable<OUT> {
 	protected StreamRecord<IN2> reuse2;
 	protected StreamRecordSerializer<IN1> serializer1;
 	protected StreamRecordSerializer<IN2> serializer2;
-	protected boolean isMutable;
 
 	public void initialize(Collector<OUT> collector,
 			CoReaderIterator<StreamRecord<IN1>, StreamRecord<IN2>> recordIterator,
@@ -71,14 +70,7 @@ public abstract class CoInvokable<IN1, IN2, OUT> extends StreamInvokable<OUT> {
 		this.reuse2 = serializer2.createInstance();
 	}
 
-	public void invoke() throws Exception {
-		if (this.isMutable) {
-			mutableInvoke();
-		} else {
-			immutableInvoke();
-		}
-	}
-
+	@Override
 	protected void immutableInvoke() throws Exception {
 		while (true) {
 			int next = recordIterator.next(reuse1, reuse2);
@@ -96,6 +88,7 @@ public abstract class CoInvokable<IN1, IN2, OUT> extends StreamInvokable<OUT> {
 		}
 	}
 
+	@Override
 	protected void mutableInvoke() throws Exception {
 		while (true) {
 			int next = recordIterator.next(reuse1, reuse2);
@@ -147,6 +140,10 @@ public abstract class CoInvokable<IN1, IN2, OUT> extends StreamInvokable<OUT> {
 						StringUtils.stringifyException(e));
 			}
 		}
+	}
+
+	@Override
+	protected void callUserFunction() throws Exception {
 	}
 
 }

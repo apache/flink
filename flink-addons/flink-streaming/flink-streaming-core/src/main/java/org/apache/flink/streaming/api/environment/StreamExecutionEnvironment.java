@@ -230,8 +230,8 @@ public abstract class StreamExecutionEnvironment {
 
 		try {
 			SourceFunction<OUT> function = new FromElementsFunction<OUT>(data);
-			jobGraphBuilder.addSource(returnStream.getId(), new SourceInvokable<OUT>(function),
-					outTypeWrapper, "source", SerializationUtils.serialize(function), 1);
+			jobGraphBuilder.addStreamVertex(returnStream.getId(), new SourceInvokable<OUT>(function),
+					null, outTypeWrapper, "source", SerializationUtils.serialize(function), 1);
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize elements");
 		}
@@ -267,8 +267,8 @@ public abstract class StreamExecutionEnvironment {
 		try {
 			SourceFunction<OUT> function = new FromElementsFunction<OUT>(data);
 
-			jobGraphBuilder.addSource(returnStream.getId(), new SourceInvokable<OUT>(
-					new FromElementsFunction<OUT>(data)), new ObjectTypeWrapper<OUT>(data
+			jobGraphBuilder.addStreamVertex(returnStream.getId(), new SourceInvokable<OUT>(
+					new FromElementsFunction<OUT>(data)), null, new ObjectTypeWrapper<OUT>(data
 					.iterator().next()), "source", SerializationUtils.serialize(function), 1);
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize collection");
@@ -311,8 +311,9 @@ public abstract class StreamExecutionEnvironment {
 				outTypeWrapper);
 
 		try {
-			jobGraphBuilder.addSource(returnStream.getId(), new SourceInvokable<OUT>(function),
-					outTypeWrapper, "source", SerializationUtils.serialize(function), parallelism);
+			jobGraphBuilder.addStreamVertex(returnStream.getId(), new SourceInvokable<OUT>(function),
+					null, outTypeWrapper, "source", SerializationUtils.serialize(function),
+					parallelism);
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize SourceFunction");
 		}
@@ -454,7 +455,8 @@ public abstract class StreamExecutionEnvironment {
 	 * <p>
 	 * The program execution will be logged and displayed with a generated
 	 * default name.
-	 * @throws Exception 
+	 * 
+	 * @throws Exception
 	 **/
 	public abstract void execute() throws Exception;
 

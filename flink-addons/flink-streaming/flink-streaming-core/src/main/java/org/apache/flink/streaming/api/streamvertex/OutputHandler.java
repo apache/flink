@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.streamcomponent;
+package org.apache.flink.streaming.api.streamvertex;
 
 import java.io.IOException;
 import java.util.LinkedList;
@@ -39,7 +39,7 @@ import org.slf4j.LoggerFactory;
 public class OutputHandler<OUT> {
 	private static final Logger LOG = LoggerFactory.getLogger(OutputHandler.class);
 
-	private AbstractStreamComponent streamComponent;
+	private StreamVertex<?,OUT> streamVertex;
 	private StreamConfig configuration;
 
 	private List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> outputs;
@@ -50,15 +50,15 @@ public class OutputHandler<OUT> {
 	StreamRecordSerializer<OUT> outSerializer = null;
 	SerializationDelegate<StreamRecord<OUT>> outSerializationDelegate = null;
 
-	public OutputHandler(AbstractStreamComponent streamComponent) {
-		this.streamComponent = streamComponent;
+	public OutputHandler(StreamVertex<?,OUT> streamComponent) {
+		this.streamVertex = streamComponent;
 		this.outputs = new LinkedList<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>>();
 		this.configuration = new StreamConfig(streamComponent.getTaskConfiguration());
 
 		try {
 			setConfigOutputs();
-		} catch (StreamComponentException e) {
-			throw new StreamComponentException("Cannot register outputs for "
+		} catch (StreamVertexException e) {
+			throw new StreamVertexException("Cannot register outputs for "
 					+ streamComponent.getClass().getSimpleName(), e);
 		}
 	}
@@ -80,13 +80,13 @@ public class OutputHandler<OUT> {
 	}
 
 	private StreamCollector<OUT> setCollector() {
-		if (streamComponent.configuration.getDirectedEmit()) {
-			OutputSelector<OUT> outputSelector = streamComponent.configuration.getOutputSelector();
+		if (streamVertex.configuration.getDirectedEmit()) {
+			OutputSelector<OUT> outputSelector = streamVertex.configuration.getOutputSelector();
 
-			collector = new DirectedStreamCollector<OUT>(streamComponent.getInstanceID(),
+			collector = new DirectedStreamCollector<OUT>(streamVertex.getInstanceID(),
 					outSerializationDelegate, outputSelector);
 		} else {
-			collector = new StreamCollector<OUT>(streamComponent.getInstanceID(),
+			collector = new StreamCollector<OUT>(streamVertex.getInstanceID(),
 					outSerializationDelegate);
 		}
 		return collector;
@@ -98,9 +98,11 @@ public class OutputHandler<OUT> {
 
 	void setSerializers() {
 		outTypeInfo = configuration.getTypeInfoOut1();
-		outSerializer = new StreamRecordSerializer<OUT>(outTypeInfo);
-		outSerializationDelegate = new SerializationDelegate<StreamRecord<OUT>>(outSerializer);
-		outSerializationDelegate.setInstance(outSerializer.createInstance());
+		if (outTypeInfo != null) {
+			outSerializer = new StreamRecordSerializer<OUT>(outTypeInfo);
+			outSerializationDelegate = new SerializationDelegate<StreamRecord<OUT>>(outSerializer);
+			outSerializationDelegate.setInstance(outSerializer.createInstance());
+		}
 	}
 
 	void setPartitioner(int outputNumber,
@@ -111,17 +113,17 @@ public class OutputHandler<OUT> {
 			outputPartitioner = configuration.getPartitioner(outputNumber);
 
 		} catch (Exception e) {
-			throw new StreamComponentException("Cannot deserialize partitioner for "
-					+ streamComponent.getName() + " with " + outputNumber + " outputs", e);
+			throw new StreamVertexException("Cannot deserialize partitioner for "
+					+ streamVertex.getName() + " with " + outputNumber + " outputs", e);
 		}
 
 		RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output;
 
 		if (bufferTimeout > 0) {
 			output = new StreamRecordWriter<SerializationDelegate<StreamRecord<OUT>>>(
-					streamComponent, outputPartitioner, bufferTimeout);
+					streamVertex, outputPartitioner, bufferTimeout);
 		} else {
-			output = new RecordWriter<SerializationDelegate<StreamRecord<OUT>>>(streamComponent,
+			output = new RecordWriter<SerializationDelegate<StreamRecord<OUT>>>(streamVertex,
 					outputPartitioner);
 		}
 
@@ -153,17 +155,17 @@ public class OutputHandler<OUT> {
 
 	long startTime;
 
-	public void invokeUserFunction(String componentTypeName, StreamInvokable<OUT> userInvokable)
+	public void invokeUserFunction(String componentTypeName, StreamInvokable<?,OUT> userInvokable)
 			throws IOException, InterruptedException {
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("{} {} invoked with instance id {}", componentTypeName,
-					streamComponent.getName(), streamComponent.getInstanceID());
+					streamVertex.getName(), streamVertex.getInstanceID());
 		}
 
 		initializeOutputSerializers();
 
 		try {
-			streamComponent.invokeUserFunction(userInvokable);
+			streamVertex.invokeUserFunction(userInvokable);
 		} catch (Exception e) {
 			flushOutputs();
 			throw new RuntimeException(e);
@@ -171,7 +173,7 @@ public class OutputHandler<OUT> {
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("{} {} invoke finished instance id {}", componentTypeName,
-					streamComponent.getName(), streamComponent.getInstanceID());
+					streamVertex.getName(), streamVertex.getInstanceID());
 		}
 
 		flushOutputs();

@@ -47,7 +47,7 @@ import org.apache.flink.streaming.api.function.sink.WriteFormatAsText;
 import org.apache.flink.streaming.api.function.sink.WriteSinkFunctionByBatches;
 import org.apache.flink.streaming.api.function.sink.WriteSinkFunctionByMillis;
 import org.apache.flink.streaming.api.invokable.SinkInvokable;
-import org.apache.flink.streaming.api.invokable.StreamOperatorInvokable;
+import org.apache.flink.streaming.api.invokable.StreamInvokable;
 import org.apache.flink.streaming.api.invokable.operator.CounterInvokable;
 import org.apache.flink.streaming.api.invokable.operator.FilterInvokable;
 import org.apache.flink.streaming.api.invokable.operator.FlatMapInvokable;
@@ -558,7 +558,7 @@ public class DataStream<OUT> {
 	public SingleOutputStreamOperator<OUT, ?> max() {
 		return max(0);
 	}
-	
+
 	/**
 	 * Applies an aggregation that gives the count of the data point.
 	 * 
@@ -568,15 +568,16 @@ public class DataStream<OUT> {
 		TypeSerializerWrapper<OUT> inTypeWrapper = outTypeWrapper;
 		TypeSerializerWrapper<Long> outTypeWrapper = new ObjectTypeWrapper<Long>(new Long(0));
 
-		return addFunction("counter", null, inTypeWrapper, outTypeWrapper, new CounterInvokable<OUT>());
+		return addFunction("counter", null, inTypeWrapper, outTypeWrapper,
+				new CounterInvokable<OUT>());
 	}
 
 	protected SingleOutputStreamOperator<OUT, ?> aggregate(AggregationFunction<OUT> aggregate) {
 
 		StreamReduceInvokable<OUT> invokable = new StreamReduceInvokable<OUT>(aggregate);
 
-		SingleOutputStreamOperator<OUT, ?> returnStream = addFunction("reduce", aggregate, outTypeWrapper,
-				outTypeWrapper, invokable);
+		SingleOutputStreamOperator<OUT, ?> returnStream = addFunction("reduce", aggregate,
+				outTypeWrapper, outTypeWrapper, invokable);
 
 		return returnStream;
 	}
@@ -759,7 +760,8 @@ public class DataStream<OUT> {
 	private DataStreamSink<OUT> writeAsText(DataStream<OUT> inputStream, String path,
 			WriteFormatAsText<OUT> format, int batchSize, OUT endTuple) {
 		DataStreamSink<OUT> returnStream = addSink(inputStream,
-				new WriteSinkFunctionByBatches<OUT>(path, format, batchSize, endTuple), inputStream.outTypeWrapper);
+				new WriteSinkFunctionByBatches<OUT>(path, format, batchSize, endTuple),
+				inputStream.outTypeWrapper);
 		jobGraphBuilder.setMutability(returnStream.getId(), false);
 		return returnStream;
 	}
@@ -909,7 +911,8 @@ public class DataStream<OUT> {
 	private DataStreamSink<OUT> writeAsCsv(DataStream<OUT> inputStream, String path,
 			WriteFormatAsCsv<OUT> format, int batchSize, OUT endTuple) {
 		DataStreamSink<OUT> returnStream = addSink(inputStream,
-				new WriteSinkFunctionByBatches<OUT>(path, format, batchSize, endTuple), inputStream.outTypeWrapper);
+				new WriteSinkFunctionByBatches<OUT>(path, format, batchSize, endTuple),
+				inputStream.outTypeWrapper);
 		jobGraphBuilder.setMutability(returnStream.getId(), false);
 		return returnStream;
 	}
@@ -944,7 +947,7 @@ public class DataStream<OUT> {
 
 		DataStream<R> returnStream = new DataStreamSource<R>(environment, "iterationSource", null);
 
-		jobGraphBuilder.addIterationSource(returnStream.getId(), this.getId(), iterationID,
+		jobGraphBuilder.addIterationHead(returnStream.getId(), this.getId(), iterationID,
 				degreeOfParallelism, waitTime);
 
 		return this.copy();
@@ -966,15 +969,14 @@ public class DataStream<OUT> {
 	 */
 	protected <R> SingleOutputStreamOperator<R, ?> addFunction(String functionName,
 			final Function function, TypeSerializerWrapper<OUT> inTypeWrapper,
-			TypeSerializerWrapper<R> outTypeWrapper,
-			StreamOperatorInvokable<OUT, R> functionInvokable) {
+			TypeSerializerWrapper<R> outTypeWrapper, StreamInvokable<OUT, R> functionInvokable) {
 		DataStream<OUT> inputStream = this.copy();
 		@SuppressWarnings({ "unchecked", "rawtypes" })
 		SingleOutputStreamOperator<R, ?> returnStream = new SingleOutputStreamOperator(environment,
 				functionName, outTypeWrapper);
 
 		try {
-			jobGraphBuilder.addTask(returnStream.getId(), functionInvokable, inTypeWrapper,
+			jobGraphBuilder.addStreamVertex(returnStream.getId(), functionInvokable, inTypeWrapper,
 					outTypeWrapper, functionName,
 					SerializationUtils.serialize((Serializable) function), degreeOfParallelism);
 		} catch (SerializationException e) {
@@ -1049,13 +1051,13 @@ public class DataStream<OUT> {
 	}
 
 	private DataStreamSink<OUT> addSink(DataStream<OUT> inputStream,
-			SinkFunction<OUT> sinkFunction, TypeSerializerWrapper<OUT> typeWrapper) {
+			SinkFunction<OUT> sinkFunction, TypeSerializerWrapper<OUT> inTypeWrapper) {
 		DataStreamSink<OUT> returnStream = new DataStreamSink<OUT>(environment, "sink",
 				outTypeWrapper);
 
 		try {
-			jobGraphBuilder.addSink(returnStream.getId(), new SinkInvokable<OUT>(sinkFunction),
-					typeWrapper, "sink", SerializationUtils.serialize(sinkFunction),
+			jobGraphBuilder.addStreamVertex(returnStream.getId(), new SinkInvokable<OUT>(sinkFunction),
+					inTypeWrapper, null, "sink", SerializationUtils.serialize(sinkFunction),
 					degreeOfParallelism);
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize SinkFunction");

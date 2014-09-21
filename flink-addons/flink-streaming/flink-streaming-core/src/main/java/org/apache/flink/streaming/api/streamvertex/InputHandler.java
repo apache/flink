@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.streamcomponent;
+package org.apache.flink.streaming.api.streamvertex;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -35,51 +35,56 @@ public class InputHandler<IN> {
 	private MutableObjectIterator<StreamRecord<IN>> inputIter;
 	private MutableReader<IOReadableWritable> inputs;
 
-	private AbstractStreamComponent streamComponent;
+	private StreamVertex<IN,?> streamVertex;
 	private StreamConfig configuration;
 
-	public InputHandler(AbstractStreamComponent streamComponent) {
-		this.streamComponent = streamComponent;
+	public InputHandler(StreamVertex<IN,?> streamComponent) {
+		this.streamVertex = streamComponent;
 		this.configuration = new StreamConfig(streamComponent.getTaskConfiguration());
 		try {
 			setConfigInputs();
 		} catch (Exception e) {
-			throw new StreamComponentException("Cannot register inputs for "
+			throw new StreamVertexException("Cannot register inputs for "
 					+ getClass().getSimpleName(), e);
 		}
 
 	}
 
 	@SuppressWarnings("unchecked")
-	protected void setConfigInputs() throws StreamComponentException {
+	protected void setConfigInputs() throws StreamVertexException {
 		setDeserializer();
 
 		int numberOfInputs = configuration.getNumberOfInputs();
+		if (numberOfInputs > 0) {
 
-		if (numberOfInputs < 2) {
+			if (numberOfInputs < 2) {
 
-			inputs = new MutableRecordReader<IOReadableWritable>(streamComponent);
+				inputs = new MutableRecordReader<IOReadableWritable>(streamVertex);
 
-		} else {
-			MutableRecordReader<IOReadableWritable>[] recordReaders = (MutableRecordReader<IOReadableWritable>[]) new MutableRecordReader<?>[numberOfInputs];
+			} else {
+				MutableRecordReader<IOReadableWritable>[] recordReaders = (MutableRecordReader<IOReadableWritable>[]) new MutableRecordReader<?>[numberOfInputs];
 
-			for (int i = 0; i < numberOfInputs; i++) {
-				recordReaders[i] = new MutableRecordReader<IOReadableWritable>(streamComponent);
+				for (int i = 0; i < numberOfInputs; i++) {
+					recordReaders[i] = new MutableRecordReader<IOReadableWritable>(streamVertex);
+				}
+				inputs = new MutableUnionRecordReader<IOReadableWritable>(recordReaders);
 			}
-			inputs = new MutableUnionRecordReader<IOReadableWritable>(recordReaders);
-		}
 
-		inputIter = createInputIterator();
+			inputIter = createInputIterator();
+		}
 	}
 
 	private void setDeserializer() {
 		TypeInformation<IN> inTupleTypeInfo = configuration.getTypeInfoIn1();
-		inputSerializer = new StreamRecordSerializer<IN>(inTupleTypeInfo);
+		if (inTupleTypeInfo != null) {
+			inputSerializer = new StreamRecordSerializer<IN>(inTupleTypeInfo);
+		}
 	}
 
 	private MutableObjectIterator<StreamRecord<IN>> createInputIterator() {
 		@SuppressWarnings({ "unchecked", "rawtypes" })
-		final MutableObjectIterator<StreamRecord<IN>> iter = new ReaderIterator(inputs, inputSerializer);
+		final MutableObjectIterator<StreamRecord<IN>> iter = new ReaderIterator(inputs,
+				inputSerializer);
 		return iter;
 	}
 

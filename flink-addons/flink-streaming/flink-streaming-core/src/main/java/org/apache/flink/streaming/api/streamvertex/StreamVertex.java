@@ -15,25 +15,37 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.streamcomponent;
+package org.apache.flink.streaming.api.streamvertex;
 
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.streaming.api.StreamConfig;
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
 
-public abstract class AbstractStreamComponent extends AbstractInvokable {
-
+public class StreamVertex<IN, OUT> extends AbstractInvokable {
+	
+	private static int numTasks;
+	
 	protected StreamConfig configuration;
 	protected int instanceID;
 	protected String name;
-	private static int numComponents = 0;
+	private static int numVertices = 0;
 	protected boolean isMutable;
 	protected Object function;
 	protected String functionName;
+	
+	private InputHandler<IN> inputHandler;
+	private OutputHandler<OUT> outputHandler;
+	private StreamInvokable<IN, OUT> userInvokable;
+	
+	public StreamVertex() {
+		userInvokable = null;
+		numTasks = newVertex();
+		instanceID = numTasks;
+	}
 
-	protected static int newComponent() {
-		numComponents++;
-		return numComponents;
+	protected static int newVertex() {
+		numVertices++;
+		return numVertices;
 	}
 
 	@Override
@@ -45,27 +57,40 @@ public abstract class AbstractStreamComponent extends AbstractInvokable {
 	
 	protected void initialize() {
 		this.configuration = new StreamConfig(getTaskConfiguration());
-		this.name = configuration.getComponentName();
+		this.name = configuration.getVertexName();
 		this.isMutable = configuration.getMutability();
 		this.functionName = configuration.getFunctionName();
 		this.function = configuration.getFunction();
 	}
 
-	protected <T> void invokeUserFunction(StreamInvokable<T> userInvokable) throws Exception {
+	protected <T> void invokeUserFunction(StreamInvokable<?,T> userInvokable) throws Exception {
 		userInvokable.open(getTaskConfiguration());
 		userInvokable.invoke();
 		userInvokable.close();
 	}
+	
 
-	protected abstract void setInputsOutputs();
+	public void setInputsOutputs() {
+		inputHandler = new InputHandler<IN>(this);
+		outputHandler = new OutputHandler<OUT>(this);
+	}
 
-	protected abstract void setInvokable();
-
+	protected void setInvokable() {
+		userInvokable = configuration.getUserInvokable();
+		userInvokable.initialize(outputHandler.getCollector(), inputHandler.getInputIter(),
+				inputHandler.getInputSerializer(), isMutable);
+	}
+	
 	public String getName() {
 		return name;
 	}
 
 	public int getInstanceID() {
 		return instanceID;
+	}
+
+	@Override
+	public void invoke() throws Exception {
+		outputHandler.invokeUserFunction("TASK", userInvokable);
 	}
 }

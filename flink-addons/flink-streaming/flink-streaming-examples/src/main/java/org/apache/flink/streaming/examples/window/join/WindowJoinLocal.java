@@ -23,8 +23,8 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 public class WindowJoinLocal {
 
-	private static final int PARALLELISM = 1;
-	private static final int SOURCE_PARALLELISM = 1;
+	private static final int PARALLELISM = 4;
+	private static final int SOURCE_PARALLELISM = 2;
 
 	// This example will join two streams with a sliding window. One which emits
 	// people's grades and one which emits people's salaries.

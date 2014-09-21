@@ -15,23 +15,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.streamcomponent;
+package org.apache.flink.streaming.api.streamvertex;
 
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.runtime.io.network.api.RecordWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.io.BlockingQueueBroker;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class StreamIterationSource<OUT extends Tuple> extends AbstractStreamComponent {
+public class StreamIterationHead<OUT extends Tuple> extends StreamVertex<OUT,OUT> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(StreamIterationSource.class);
+	private static final Logger LOG = LoggerFactory.getLogger(StreamIterationHead.class);
 
 	private OutputHandler<OUT> outputHandler;
 
@@ -43,8 +43,8 @@ public class StreamIterationSource<OUT extends Tuple> extends AbstractStreamComp
 	private boolean shouldWait;
 
 	@SuppressWarnings("rawtypes")
-	public StreamIterationSource() {
-		numSources = newComponent();
+	public StreamIterationHead() {
+		numSources = newVertex();
 		instanceID = numSources;
 		dataChannel = new ArrayBlockingQueue<StreamRecord>(1);
 	}
