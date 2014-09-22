@@ -11,6 +11,9 @@ FLINK_VERSION_SHORT: 0.6
 FLINK_ISSUES_URL: https://issues.apache.org/jira/browse/FLINK
 FLINK_GITHUB_URL:  https://github.com/apache/incubator-flink
 
+FLINK_WEBSITE_URL: http://flink.incubator.apache.org
+FLINK_DOWNLOAD_URL: http://flink.incubator.apache.org/downloads.html
+
 FLINK_DOWNLOAD_URL_HADOOP_1_STABLE: http://www.apache.org/dyn/closer.cgi/incubator/flink/flink-0.6-incubating-bin-hadoop1.tgz
 FLINK_DOWNLOAD_URL_HADOOP_2_STABLE: http://www.apache.org/dyn/closer.cgi/incubator/flink/flink-0.6-incubating-bin-hadoop2.tgz
 FLINK_DOWNLOAD_URL_YARN_STABLE: http://www.apache.org/dyn/closer.cgi/incubator/flink/flink-0.6-incubating-bin-hadoop2-yarn.tgz
@@ -27,7 +30,7 @@ defaults:
     scope:
       path: ""
     values:
-      layout: docs
+      layout: default
 
 highlighter: pygments
 markdown: redcarpet
