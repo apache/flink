@@ -36,7 +36,7 @@ if ENV['BUILD_API'] == '1' then
   puts `mvn clean install -DskipTests`
 
   puts "Generating Javadoc"
-  puts `mvn javadoc:aggregate -Pdocs-and-source $JAVA8JAVADOCFIX -Dmaven.javadoc.failOnError=false -Dquiet=true -Dheader="<a href=\"/\" target=\"_top\"><h1>Back to Flink Documentation</h1></a>"`
+  puts `mvn javadoc:aggregate -Pdocs-and-source $JAVA8JAVADOCFIX -Dmaven.javadoc.failOnError=false -Dquiet=true -Dheader="<a href=\"/docs/0.7-incubating/\" target=\"_top\"><h1>Back to Flink Documentation</h1></a>"`
   
   cd("docs")
 
