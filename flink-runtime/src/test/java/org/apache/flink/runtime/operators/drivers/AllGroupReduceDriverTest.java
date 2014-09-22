@@ -23,6 +23,7 @@ import java.util.List;
 
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.runtime.operators.AllGroupReduceDriver;
@@ -32,7 +33,6 @@ import org.apache.flink.runtime.util.EmptyMutableObjectIterator;
 import org.apache.flink.runtime.util.RegularToMutableObjectIterator;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.StringValue;
-import org.apache.flink.types.TypeInformation;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 import org.junit.Assert;

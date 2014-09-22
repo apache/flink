@@ -30,8 +30,8 @@ import java.util.Map;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.typeutils.runtime.record.RecordComparator;
-import org.apache.flink.api.java.typeutils.runtime.record.RecordSerializer;
+import org.apache.flink.api.common.typeutils.record.RecordComparator;
+import org.apache.flink.api.common.typeutils.record.RecordSerializer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -52,7 +52,6 @@ import org.apache.flink.types.Key;
 import org.apache.flink.types.NullKeyFieldException;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.MutableObjectIterator;
-
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;

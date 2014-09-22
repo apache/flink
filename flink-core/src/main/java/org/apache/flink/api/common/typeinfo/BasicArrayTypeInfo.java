@@ -16,16 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.java.typeutils;
+package org.apache.flink.api.common.typeinfo;
 
 import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.array.StringArraySerializer;
-import org.apache.flink.api.java.functions.InvalidTypesException;
-import org.apache.flink.api.java.typeutils.runtime.GenericArraySerializer;
-import org.apache.flink.types.TypeInformation;
+import org.apache.flink.api.common.functions.InvalidTypesException;
+import org.apache.flink.api.common.typeutils.base.GenericArraySerializer;
 
 public class BasicArrayTypeInfo<T, C> extends TypeInformation<T> {
 

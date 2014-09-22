@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.java.typeutils;
+package org.apache.flink.api.common.typeinfo;
 
 import java.lang.reflect.Constructor;
 import java.util.HashMap;
@@ -42,7 +42,6 @@ import org.apache.flink.api.common.typeutils.base.ShortComparator;
 import org.apache.flink.api.common.typeutils.base.ShortSerializer;
 import org.apache.flink.api.common.typeutils.base.StringComparator;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
-import org.apache.flink.types.TypeInformation;
 
 
 /**

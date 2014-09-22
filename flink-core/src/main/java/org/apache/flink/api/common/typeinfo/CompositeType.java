@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.java.typeutils;
+package org.apache.flink.api.common.typeinfo;
 
 import org.apache.flink.api.common.typeutils.TypeComparator;
 

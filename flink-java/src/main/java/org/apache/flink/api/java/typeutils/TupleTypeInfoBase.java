@@ -20,7 +20,8 @@ package org.apache.flink.api.java.typeutils;
 
 import java.util.Arrays;
 
-import org.apache.flink.types.TypeInformation;
+import org.apache.flink.api.common.typeinfo.CompositeType;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 public abstract class TupleTypeInfoBase<T> extends TypeInformation<T> implements CompositeType<T> {
 	

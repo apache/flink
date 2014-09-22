@@ -20,12 +20,12 @@
 package org.apache.flink.api.java.io;
 
 import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.types.TypeInformation;
 import org.junit.Assert;
 import org.junit.Test;
 

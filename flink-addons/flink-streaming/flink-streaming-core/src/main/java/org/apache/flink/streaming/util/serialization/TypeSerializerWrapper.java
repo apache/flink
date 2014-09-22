@@ -19,7 +19,7 @@ package org.apache.flink.streaming.util.serialization;
 
 import java.io.Serializable;
 
-import org.apache.flink.types.TypeInformation;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 public abstract class TypeSerializerWrapper<T>
 		implements Serializable {

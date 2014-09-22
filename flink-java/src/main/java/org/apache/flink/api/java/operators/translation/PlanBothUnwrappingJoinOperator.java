@@ -21,9 +21,9 @@ package org.apache.flink.api.java.operators.translation;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.operators.BinaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.operators.Keys;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.types.TypeInformation;
 import org.apache.flink.util.Collector;
 
 public class PlanBothUnwrappingJoinOperator<I1, I2, OUT, K>

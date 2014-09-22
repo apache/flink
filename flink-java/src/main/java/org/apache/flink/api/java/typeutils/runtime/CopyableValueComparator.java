@@ -43,9 +43,9 @@ public class CopyableValueComparator<T extends CopyableValue<T> & Comparable<T>>
 	
 	private transient T tempReference;
 
-	private final Comparable[] extractedKey = new Comparable[1];
+	private final Comparable<?>[] extractedKey = new Comparable[1];
 
-	private final TypeComparator[] comparators = new TypeComparator[] {this};
+	private final TypeComparator<?>[] comparators = new TypeComparator[] {this};
 
 	public CopyableValueComparator(boolean ascending, Class<T> type) {
 		this.type = type;
@@ -132,7 +132,7 @@ public class CopyableValueComparator<T extends CopyableValue<T> & Comparable<T>>
 	}
 
 	@Override
-	public TypeComparator[] getComparators() {
+	public TypeComparator<?>[] getComparators() {
 		return comparators;
 	}
 	

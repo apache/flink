@@ -23,12 +23,12 @@ import java.io.DataOutput;
 import java.io.IOException;
 
 import org.junit.Assert;
-
-import org.apache.flink.api.java.typeutils.BasicArrayTypeInfo;
-import org.apache.flink.api.java.typeutils.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
-import org.apache.flink.api.java.typeutils.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.api.java.typeutils.ValueTypeInfo;
@@ -45,7 +45,6 @@ import org.apache.flink.types.MapValue;
 import org.apache.flink.types.NullValue;
 import org.apache.flink.types.ShortValue;
 import org.apache.flink.types.StringValue;
-import org.apache.flink.types.TypeInformation;
 import org.apache.hadoop.io.Writable;
 import org.junit.Test;
 

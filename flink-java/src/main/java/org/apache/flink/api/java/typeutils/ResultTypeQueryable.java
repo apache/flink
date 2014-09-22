@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.java.typeutils;
 
-import org.apache.flink.types.TypeInformation;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 /**
  * This interface can be implemented by functions and input formats to tell the framework

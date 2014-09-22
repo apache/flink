@@ -19,8 +19,8 @@ package org.apache.flink.streaming.api.datastream;
 
 import java.util.Arrays;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.collector.OutputSelector;
-import org.apache.flink.types.TypeInformation;
 
 /**
  * The SplitDataStream represents an operator that has been split using an

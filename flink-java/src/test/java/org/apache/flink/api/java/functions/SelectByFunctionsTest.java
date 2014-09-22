@@ -17,8 +17,8 @@
  */
 package org.apache.flink.api.java.functions;
 
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.tuple.Tuple5;
-import org.apache.flink.api.java.typeutils.BasicTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.junit.Assert;
 import org.junit.Test;

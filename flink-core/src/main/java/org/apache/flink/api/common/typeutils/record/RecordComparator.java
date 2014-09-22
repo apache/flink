@@ -17,7 +17,7 @@
  */
 
 
-package org.apache.flink.api.java.typeutils.runtime.record;
+package org.apache.flink.api.common.typeutils.record;
 
 import java.io.IOException;
 
@@ -397,7 +397,7 @@ public final class RecordComparator extends TypeComparator<Record> {
 	}
 
 	@Override
-	public TypeComparator[] getComparators() {
+	public TypeComparator<?>[] getComparators() {
 		throw new UnsupportedOperationException("Record does not support extactKeys and " +
 				"getComparators. This cannot be used with the GenericPairComparator.");
 	}

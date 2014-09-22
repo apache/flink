@@ -25,11 +25,10 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.flink.api.common.operators.DualInputSemanticProperties;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.FunctionAnnotation;
 import org.apache.flink.api.java.functions.SemanticPropUtil;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.types.TypeInformation;
-
 import org.apache.flink.api.java.DataSet;
 
 /**

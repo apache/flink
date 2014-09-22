@@ -18,10 +18,10 @@
 
 package org.apache.flink.api.java.typeutils;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.typeutils.runtime.record.RecordSerializer;
+import org.apache.flink.api.common.typeutils.record.RecordSerializer;
 import org.apache.flink.types.Record;
-import org.apache.flink.types.TypeInformation;
 
 
 /**

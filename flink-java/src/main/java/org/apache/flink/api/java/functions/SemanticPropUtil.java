@@ -30,6 +30,7 @@ import org.apache.flink.api.common.operators.DualInputSemanticProperties;
 import org.apache.flink.api.common.operators.SemanticProperties;
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.util.FieldSet;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFields;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFieldsExcept;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFieldsFirst;
@@ -39,7 +40,6 @@ import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFieldsSeco
 import org.apache.flink.api.java.functions.FunctionAnnotation.ReadFields;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ReadFieldsFirst;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ReadFieldsSecond;
-import org.apache.flink.types.TypeInformation;
 
 public class SemanticPropUtil {
 

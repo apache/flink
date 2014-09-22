@@ -21,8 +21,7 @@ import org.junit.Assert._
 import org.apache.flink.api.common.functions.RichJoinFunction
 import org.apache.flink.api.common.functions.RichMapFunction
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties
-import org.apache.flink.api.common.operators.base.{JoinOperatorBase, GenericDataSinkBase,
-MapOperatorBase}
+import org.apache.flink.api.common.operators.base.{JoinOperatorBase, GenericDataSinkBase, MapOperatorBase}
 import org.apache.flink.api.common.operators.util.FieldSet
 import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFields
 import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFieldsFirst

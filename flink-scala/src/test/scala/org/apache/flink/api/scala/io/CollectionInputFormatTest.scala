@@ -21,7 +21,7 @@ import org.apache.flink.api.java.io.CollectionInputFormat
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
-import org.apache.flink.api.java.typeutils.BasicTypeInfo
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.core.io.GenericInputSplit
 import org.junit.Test
 import java.io.ByteArrayInputStream

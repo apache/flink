@@ -19,7 +19,7 @@ package org.apache.flink.api.scala.typeutils
 
 import scala.reflect.macros.Context
 import org.apache.flink.api.scala.codegen.MacroContextHolder
-import org.apache.flink.types.TypeInformation
+import org.apache.flink.api.common.typeinfo.TypeInformation
 
 private[flink] object TypeUtils {
 

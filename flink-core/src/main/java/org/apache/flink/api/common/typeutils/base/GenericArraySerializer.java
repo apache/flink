@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.java.typeutils.runtime;
+package org.apache.flink.api.common.typeutils.base;
 
 import java.io.IOException;
 import java.lang.reflect.Array;

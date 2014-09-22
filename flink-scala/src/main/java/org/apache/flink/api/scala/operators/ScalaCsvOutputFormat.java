@@ -23,11 +23,11 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.io.FileOutputFormat;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.io.CsvInputFormat;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.StringValue;
-import org.apache.flink.types.TypeInformation;
 
 import java.io.BufferedOutputStream;
 import java.io.IOException;
@@ -213,7 +213,7 @@ public class ScalaCsvOutputFormat<T extends Product> extends FileOutputFormat<T>
 		return "CsvOutputFormat (path: " + this.getOutputFilePath() + ", delimiter: " + this.fieldDelimiter + ")";
 	}
 
-    /**
+	/**
 	 *
 	 * The purpose of this method is solely to check whether the data type to be processed
 	 * is in fact a tuple type.

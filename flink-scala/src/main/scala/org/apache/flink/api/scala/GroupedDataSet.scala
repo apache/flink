@@ -27,7 +27,7 @@ import org.apache.flink.api.common.functions.{GroupReduceFunction, ReduceFunctio
 import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.java.aggregation.Aggregations
 import org.apache.flink.api.java.operators._
-import org.apache.flink.types.TypeInformation
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.util.Collector
 import org.apache.flink.api.java.{DataSet => JavaDataSet}
 

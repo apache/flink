@@ -16,31 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.java.functions;
+package org.apache.flink.api.common.typeinfo;
 
-import org.apache.flink.api.common.InvalidProgramException;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 
-/**
- * A special case of the {@link InvalidProgramException}, indicating that the types used in
- * an operation are invalid or inconsistent. 
- */
-public class InvalidTypesException extends InvalidProgramException {
-
-	private static final long serialVersionUID = 1L;
-
-	/**
-	 * Creates a new exception with no message.
-	 */
-	public InvalidTypesException() {
-		super();
-	}
-
-	/**
-	 * Creates a new exception with the given message.
-	 * 
-	 * @param message The exception message.
-	 */
-	public InvalidTypesException(String message) {
-		super(message);
-	}
+public abstract class TypeInformation<T> {
+	
+	public abstract boolean isBasicType();
+	
+	public abstract boolean isTupleType();
+	
+	public abstract int getArity();
+	
+	public abstract Class<T> getTypeClass();
+	
+	public abstract boolean isKeyType();
+	
+	public abstract TypeSerializer<T> createSerializer();
 }

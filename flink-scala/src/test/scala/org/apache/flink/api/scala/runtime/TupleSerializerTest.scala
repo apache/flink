@@ -19,7 +19,7 @@ package org.apache.flink.api.scala.runtime
 
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
 import org.apache.flink.api.java.typeutils.runtime.AbstractGenericTypeSerializerTest._
-import org.apache.flink.types.TypeInformation
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.util.StringUtils
 import org.junit.Assert
 import org.junit.Test

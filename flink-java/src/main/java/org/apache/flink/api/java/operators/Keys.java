@@ -21,10 +21,10 @@ package org.apache.flink.api.java.operators;
 import java.util.Arrays;
 
 import org.apache.flink.api.common.InvalidProgramException;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
-import org.apache.flink.types.TypeInformation;
 
 
 public abstract class Keys<T> {

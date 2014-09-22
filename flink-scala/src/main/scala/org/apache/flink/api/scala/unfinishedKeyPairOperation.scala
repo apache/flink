@@ -25,7 +25,7 @@ import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.operators.Keys
 import org.apache.flink.api.java.operators.Keys.FieldPositionKeys
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
-import org.apache.flink.types.TypeInformation
+import org.apache.flink.api.common.typeinfo.TypeInformation
 
 /**
  * This is for dealing with operations that require keys and use a fluent interface (join, and

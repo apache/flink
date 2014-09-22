@@ -19,7 +19,8 @@ package org.apache.flink.api.scala.operators.translation
 
 import org.apache.flink.api.java.operators.translation.{KeyExtractingMapper,
 PlanUnwrappingReduceOperator}
-import org.apache.flink.api.java.typeutils.{TupleTypeInfo, BasicTypeInfo}
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+import org.apache.flink.api.java.typeutils.TupleTypeInfo
 import org.junit.Assert._
 import org.apache.flink.api.common.operators.base.GenericDataSinkBase
 import org.apache.flink.api.common.operators.base.GenericDataSourceBase

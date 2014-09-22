@@ -16,11 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.java.typeutils;
+package org.apache.flink.api.common.typeinfo;
 
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BooleanPrimitiveArraySerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
@@ -30,8 +31,6 @@ import org.apache.flink.api.common.typeutils.base.array.FloatPrimitiveArraySeria
 import org.apache.flink.api.common.typeutils.base.array.IntPrimitiveArraySerializer;
 import org.apache.flink.api.common.typeutils.base.array.LongPrimitiveArraySerializer;
 import org.apache.flink.api.common.typeutils.base.array.ShortPrimitiveArraySerializer;
-import org.apache.flink.api.java.functions.InvalidTypesException;
-import org.apache.flink.types.TypeInformation;
 
 public class PrimitiveArrayTypeInfo<T> extends TypeInformation<T> {
 

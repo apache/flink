@@ -22,7 +22,9 @@ import java.util.UUID
 import org.apache.commons.lang3.Validate
 import org.apache.flink.api.common.JobExecutionResult
 import org.apache.flink.api.java.io._
-import org.apache.flink.api.java.typeutils.{ValueTypeInfo, TupleTypeInfoBase, BasicTypeInfo}
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+import org.apache.flink.api.java.typeutils.{ValueTypeInfo, TupleTypeInfoBase}
 import org.apache.flink.api.scala.operators.ScalaCsvInputFormat
 import org.apache.flink.core.fs.Path
 
@@ -30,7 +32,7 @@ import org.apache.flink.api.java.{ExecutionEnvironment => JavaEnv}
 import org.apache.flink.api.common.io.{InputFormat, FileInputFormat}
 
 import org.apache.flink.api.java.operators.DataSource
-import org.apache.flink.types.{StringValue, TypeInformation}
+import org.apache.flink.types.StringValue
 import org.apache.flink.util.{NumberSequenceIterator, SplittableIterator}
 
 import scala.collection.JavaConverters._

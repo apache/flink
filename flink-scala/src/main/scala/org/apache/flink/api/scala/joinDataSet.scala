@@ -26,7 +26,7 @@ import org.apache.flink.api.java.operators.JoinOperator.{EquiJoin, JoinHint}
 import org.apache.flink.api.java.operators._
 import org.apache.flink.api.java.{DataSet => JavaDataSet}
 import org.apache.flink.api.scala.typeutils.{CaseClassSerializer, CaseClassTypeInfo}
-import org.apache.flink.types.TypeInformation
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.util.Collector
 
 import scala.reflect.ClassTag

@@ -17,10 +17,16 @@
  */
 package org.apache.flink.api.scala.codegen
 
+import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo
+import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.java.typeutils._
 import org.apache.flink.api.scala.typeutils.{CaseClassSerializer, CaseClassTypeInfo}
-import org.apache.flink.types.{Value, TypeInformation}
+import org.apache.flink.types.Value
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.hadoop.io.Writable
 
 import scala.reflect.macros.Context

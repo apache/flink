@@ -30,6 +30,9 @@ import org.apache.flink.api.common.operators.base.DeltaIterationBase;
 import org.apache.flink.api.common.operators.base.GenericDataSourceBase;
 import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
 import org.apache.flink.api.common.operators.util.FieldList;
+import org.apache.flink.api.common.typeinfo.AtomicType;
+import org.apache.flink.api.common.typeinfo.CompositeType;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypePairComparatorFactory;
@@ -37,8 +40,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.api.java.operators.translation.PlanUnwrappingReduceGroupOperator;
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.api.java.typeutils.AtomicType;
-import org.apache.flink.api.java.typeutils.CompositeType;
 import org.apache.flink.api.java.typeutils.runtime.RuntimeComparatorFactory;
 import org.apache.flink.api.java.typeutils.runtime.RuntimePairComparatorFactory;
 import org.apache.flink.api.java.typeutils.runtime.RuntimeStatefulSerializerFactory;
@@ -60,7 +61,6 @@ import org.apache.flink.compiler.plan.WorksetIterationPlanNode;
 import org.apache.flink.compiler.plan.WorksetPlanNode;
 import org.apache.flink.compiler.util.NoOpUnaryUdfOp;
 import org.apache.flink.runtime.operators.DriverStrategy;
-import org.apache.flink.types.TypeInformation;
 
 /**
  * The post-optimizer plan traversal. This traversal fills in the API specific utilities (serializers and

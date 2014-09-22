@@ -18,9 +18,9 @@
 
 package org.apache.flink.api.java.operators;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.types.TypeInformation;
 
 /**
  * Base class of all operators in the Java API.

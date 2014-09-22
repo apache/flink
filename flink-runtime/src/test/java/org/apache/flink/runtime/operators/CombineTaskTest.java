@@ -22,10 +22,9 @@ import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.junit.Assert;
-
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
+import org.apache.flink.api.common.typeutils.record.RecordComparator;
 import org.apache.flink.api.java.record.operators.ReduceOperator.Combinable;
-import org.apache.flink.api.java.typeutils.runtime.record.RecordComparator;
 import org.apache.flink.runtime.operators.testutils.DelayingInfinitiveInputIterator;
 import org.apache.flink.runtime.operators.testutils.DiscardingOutputCollector;
 import org.apache.flink.runtime.operators.testutils.DriverTestBase;

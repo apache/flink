@@ -38,10 +38,10 @@ import org.apache.flink.api.common.operators.SingleInputOperator;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
+import org.apache.flink.api.common.typeinfo.NothingTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.Nothing;
-import org.apache.flink.types.NothingTypeInfo;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Visitor;
 

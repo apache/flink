@@ -17,8 +17,9 @@
  */
 package org.apache.flink.api.scala.typeutils
 
-import org.apache.flink.api.java.typeutils.{AtomicType, TupleTypeInfoBase}
-import org.apache.flink.types.TypeInformation
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeinfo.AtomicType
+import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
 import org.apache.flink.api.common.typeutils.{TypeComparator, TypeSerializer}
 
 /**

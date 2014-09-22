@@ -24,10 +24,9 @@ import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.operators.Order;
-
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.functions.UnsupportedLambdaExpressionException;
-import org.apache.flink.types.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 
 

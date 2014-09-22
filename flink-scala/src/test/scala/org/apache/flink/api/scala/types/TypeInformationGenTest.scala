@@ -19,6 +19,7 @@ package org.apache.flink.api.scala.types
 
 import java.io.DataInput
 import java.io.DataOutput
+import org.apache.flink.api.common.typeinfo._
 import org.apache.flink.api.java.typeutils._
 import org.apache.flink.types.{IntValue, StringValue}
 import org.apache.hadoop.io.Writable

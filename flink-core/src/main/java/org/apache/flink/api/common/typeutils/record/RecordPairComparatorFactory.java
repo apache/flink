@@ -17,7 +17,7 @@
  */
 
 
-package org.apache.flink.api.java.typeutils.runtime.record;
+package org.apache.flink.api.common.typeutils.record;
 
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;

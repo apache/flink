@@ -20,7 +20,7 @@ package org.apache.flink.api.java.typeutils;
 
 import java.lang.reflect.Field;
 
-import org.apache.flink.types.TypeInformation;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 class PojoField {
 	public Field field;

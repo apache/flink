@@ -23,13 +23,13 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import org.apache.flink.api.common.typeinfo.NothingTypeInfo;
 import org.apache.flink.compiler.CompilerException;
 import org.apache.flink.compiler.DataStatistics;
 import org.apache.flink.compiler.operators.OperatorDescriptorDual;
 import org.apache.flink.compiler.operators.UtilSinkJoinOpDescriptor;
 import org.apache.flink.compiler.util.NoOpBinaryUdfOp;
 import org.apache.flink.types.Nothing;
-import org.apache.flink.types.NothingTypeInfo;
 
 /**
  * This class represents a utility node that is not part of the actual plan. It is used for plans with multiple data sinks to

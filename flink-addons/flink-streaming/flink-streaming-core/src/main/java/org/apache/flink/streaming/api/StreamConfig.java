@@ -24,6 +24,7 @@ import java.util.List;
 import org.apache.commons.lang3.SerializationException;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.collector.OutputSelector;
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
@@ -31,7 +32,6 @@ import org.apache.flink.streaming.api.streamcomponent.StreamComponentException;
 import org.apache.flink.streaming.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.util.serialization.TypeSerializerWrapper;
-import org.apache.flink.types.TypeInformation;
 
 public class StreamConfig {
 	private static final String INPUT_TYPE = "inputType_";

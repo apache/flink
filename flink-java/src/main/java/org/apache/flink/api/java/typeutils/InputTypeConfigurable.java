@@ -19,7 +19,7 @@
 package org.apache.flink.api.java.typeutils;
 
 
-import org.apache.flink.types.TypeInformation;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 /**
  * {@link org.apache.flink.api.common.io.OutputFormat}s can implement this interface to be configured

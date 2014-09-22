@@ -20,7 +20,9 @@ package org.apache.flink.api.scala.operators;
 
 
 import com.google.common.base.Preconditions;
+
 import org.apache.flink.api.common.io.GenericCsvInputFormat;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
@@ -29,7 +31,6 @@ import org.apache.flink.api.java.typeutils.runtime.RuntimeStatelessSerializerFac
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializerBase;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.types.TypeInformation;
 import org.apache.flink.types.parser.FieldParser;
 import org.apache.flink.util.StringUtils;
 

@@ -23,9 +23,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 import org.junit.Assert;
-
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
-import org.apache.flink.api.java.typeutils.runtime.record.RecordComparator;
+import org.apache.flink.api.common.typeutils.record.RecordComparator;
 import org.apache.flink.runtime.operators.CombineTaskTest.MockCombiningReduceStub;
 import org.apache.flink.runtime.operators.testutils.DriverTestBase;
 import org.apache.flink.runtime.operators.testutils.UniformRecordGenerator;

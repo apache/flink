@@ -1,4 +1,4 @@
- /**
+/**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,39 +16,15 @@
  * limitations under the License.
  */
 
+package org.apache.flink.api.common.typeinfo;
 
-package org.apache.flink.types;
+import org.apache.flink.api.common.typeutils.TypeComparator;
 
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 
-public class NothingTypeInfo extends TypeInformation<Nothing> {
-	@Override
-	public boolean isBasicType() {
-		return false;
-	}
-
-	@Override
-	public boolean isTupleType() {
-		return false;
-	}
-
-	@Override
-	public int getArity() {
-		return 0;
-	}
-
-	@Override
-	public Class<Nothing> getTypeClass() {
-		return Nothing.class;
-	}
-
-	@Override
-	public boolean isKeyType() {
-		return false;
-	}
-
-	@Override
-	public TypeSerializer<Nothing> createSerializer() {
-		throw new RuntimeException("The Nothing type cannot have a serializer.");
-	}
+/**
+ *
+ */
+public interface AtomicType<T> {
+	
+	TypeComparator<T> createComparator(boolean sortOrderAscending);
 }

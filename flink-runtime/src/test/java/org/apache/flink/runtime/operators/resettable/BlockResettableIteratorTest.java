@@ -24,9 +24,8 @@ import java.util.Iterator;
 import java.util.List;
 
 import org.junit.Assert;
-
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.typeutils.runtime.record.RecordSerializer;
+import org.apache.flink.api.common.typeutils.record.RecordSerializer;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
