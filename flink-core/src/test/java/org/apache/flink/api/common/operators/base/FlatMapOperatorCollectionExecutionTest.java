@@ -34,6 +34,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+@SuppressWarnings("serial")
 public class FlatMapOperatorCollectionExecutionTest implements Serializable {
 
 	@Test
@@ -60,6 +61,7 @@ public class FlatMapOperatorCollectionExecutionTest implements Serializable {
 			Assert.assertEquals(input.get(i), result.get(i));
 		}
 	}
+
 
 	public class IdRichFlatMap<IN> extends RichFlatMapFunction<IN, IN> {
 
