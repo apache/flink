@@ -58,10 +58,12 @@ under the MIT License
 
  - Mockito (http://www.mockito.org) - Copyright (c) 2007 Mockito contributors
  - SLF4J (http://www.slf4j.org) - Copyright (c) 2004-2013 QOS.ch
- - jQuery 1.4.2 (http://jquery.com) - Copyright 2014 jQuery Foundation and other contributors
+ - jQuery v1.10.2, v1.4.2, v2.1.0. (http://jquery.com) - Copyright 2014 jQuery Foundation and other contributors
+ - Sizzle.js (http://sizzlejs.com) - Copyright 2010, The Dojo Foundation
  - jCanvas 13.11.21 (http://calebevans.me/projects/jcanvas/) - Copyright 2014 Caleb Evans
  - Flot 0.8.1 (http://www.flotcharts.org) - Copyright (c) 2007-2013 IOLA and Ole Laursen
- - Bootstrap (http://getbootstrap.com) - Copyright (c) 2011-2014 Twitter, Inc
+ - Bootstrap 3.1.0 (http://getbootstrap.com) - Copyright (c) 2011-2014 Twitter, Inc
+ - normalize.css v3.0.0 (http://git.io/normalize) - Copyright (c) Nicolas Gallagher and Jonathan Neal
  - Font Awesome - Code (http://fortawesome.github.io/Font-Awesome/) - Copyright (c) 2014 Dave Gandy
  - D3 dagre renderer (https://github.com/cpettitt/dagre-d3) - Copyright (c) 2012-2013 Chris Pettitt
 
