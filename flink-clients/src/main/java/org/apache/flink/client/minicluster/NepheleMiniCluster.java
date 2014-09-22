@@ -62,7 +62,7 @@ public class NepheleMiniCluster {
 	
 	private int taskManagerDataPort = DEFAULT_TM_DATA_PORT;
 
-	private int numTaskTracker = DEFAULT_NUM_TASK_MANAGER;
+	private int numTaskManager = DEFAULT_NUM_TASK_MANAGER;
 
 	private int taskManagerNumSlots = DEFAULT_TASK_MANAGER_NUM_SLOTS;
 	
@@ -157,9 +157,9 @@ public class NepheleMiniCluster {
 		this.defaultAlwaysCreateDirectory = defaultAlwaysCreateDirectory;
 	}
 
-	public void setNumTaskTracker(int numTaskTracker) { this.numTaskTracker = numTaskTracker; }
+	public void setNumTaskManager(int numTaskManager) { this.numTaskManager = numTaskManager; }
 
-	public int getNumTaskTracker() { return numTaskTracker; }
+	public int getNumTaskManager() { return numTaskManager; }
 
 	public void setTaskManagerNumSlots(int taskManagerNumSlots) { this.taskManagerNumSlots = taskManagerNumSlots; }
 
@@ -202,7 +202,7 @@ public class NepheleMiniCluster {
 			} else {
 				Configuration conf = getMiniclusterDefaultConfig(jobManagerRpcPort, taskManagerRpcPort,
 					taskManagerDataPort, memorySize, hdfsConfigFile, lazyMemoryAllocation, defaultOverwriteFiles,
-						defaultAlwaysCreateDirectory, taskManagerNumSlots, numTaskTracker);
+						defaultAlwaysCreateDirectory, taskManagerNumSlots, numTaskManager);
 				GlobalConfiguration.includeConfiguration(conf);
 			}
 
@@ -226,7 +226,7 @@ public class NepheleMiniCluster {
 			// start the job manager
 			jobManager = new JobManager(ExecutionMode.LOCAL);
 	
-			waitForJobManagerToBecomeReady(numTaskTracker);
+			waitForJobManagerToBecomeReady(taskManagerNumSlots * numTaskManager);
 		}
 	}
 
@@ -243,8 +243,8 @@ public class NepheleMiniCluster {
 	// Network utility methods
 	// ------------------------------------------------------------------------
 	
-	private void waitForJobManagerToBecomeReady(int numTaskManagers) throws InterruptedException {
-		while (jobManager.getNumberOfTaskManagers() < numTaskManagers) {
+	private void waitForJobManagerToBecomeReady(int numSlots) throws InterruptedException {
+		while (jobManager.getNumberOfSlotsAvailableToScheduler() < numSlots) {
 			Thread.sleep(50);
 		}
 	}

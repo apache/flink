@@ -48,7 +48,7 @@ public class ClusterUtil {
 
 		NepheleMiniCluster exec = new NepheleMiniCluster();
 		exec.setMemorySize(memorySize);
-		exec.setNumTaskTracker(numberOfTaskTrackers);
+		exec.setNumTaskManager(numberOfTaskTrackers);
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Running on mini cluster");
 		}

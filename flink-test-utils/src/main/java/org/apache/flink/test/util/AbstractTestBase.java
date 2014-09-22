@@ -55,7 +55,7 @@ public abstract class AbstractTestBase {
 
 	protected static final int DEFAULT_TASK_MANAGER_NUM_SLOTS = 1;
 
-	protected static final int DEFAULT_NUM_TASK_TRACKER = 1;
+	protected static final int DEFAULT_NUM_TASK_MANAGER = 1;
 
 	protected final Configuration config;
 	
@@ -65,7 +65,7 @@ public abstract class AbstractTestBase {
 
 	protected int taskManagerNumSlots = DEFAULT_TASK_MANAGER_NUM_SLOTS;
 
-	protected int numTaskTracker = DEFAULT_NUM_TASK_TRACKER;
+	protected int numTaskManager = DEFAULT_NUM_TASK_MANAGER;
 
 	public AbstractTestBase(Configuration config) {
 		verifyJvmOptions();
@@ -89,7 +89,7 @@ public abstract class AbstractTestBase {
 		this.executor.setLazyMemoryAllocation(true);
 		this.executor.setMemorySize(TASK_MANAGER_MEMORY_SIZE);
 		this.executor.setTaskManagerNumSlots(taskManagerNumSlots);
-		this.executor.setNumTaskTracker(this.numTaskTracker);
+		this.executor.setNumTaskManager(this.numTaskManager);
 		this.executor.start();
 	}
 
@@ -115,9 +115,9 @@ public abstract class AbstractTestBase {
 
 	public void setTaskManagerNumSlots(int taskManagerNumSlots) { this.taskManagerNumSlots = taskManagerNumSlots; }
 
-	public int getNumTaskTracker() { return numTaskTracker; }
+	public int getNumTaskManager() { return numTaskManager; }
 
-	public void setNumTaskTracker(int numTaskTracker) { this.numTaskTracker = numTaskTracker; }
+	public void setNumTaskManager(int numTaskManager) { this.numTaskManager = numTaskManager; }
 
 	
 	// --------------------------------------------------------------------------------------------

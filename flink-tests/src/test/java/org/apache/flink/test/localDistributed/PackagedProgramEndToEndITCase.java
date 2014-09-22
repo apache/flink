@@ -59,7 +59,7 @@ public class PackagedProgramEndToEndITCase {
 			String jarPath = "target/maven-test-jar.jar";
 
 			// run KMeans
-			cluster.setNumTaskTracker(2);
+			cluster.setNumTaskManager(2);
 			cluster.setTaskManagerNumSlots(2);
 			cluster.start();
 

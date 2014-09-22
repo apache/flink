@@ -82,7 +82,7 @@ public class NetworkStackThroughput {
 				throw new RuntimeException("The test case defines a parallelism that is not a multiple of the slots per task manager.");
 			}
 
-			setNumTaskTracker(parallelism / numSlots);
+			setNumTaskManager(parallelism / numSlots);
 			setTaskManagerNumSlots(numSlots);
 		}
 
