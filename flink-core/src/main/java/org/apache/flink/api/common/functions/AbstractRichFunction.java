@@ -39,11 +39,7 @@ public abstract class AbstractRichFunction implements RichFunction, Serializable
 	private transient RuntimeContext runtimeContext;
 
 	public void setRuntimeContext(RuntimeContext t) {
-		if (this.runtimeContext == null) {
-			this.runtimeContext = t;
-		} else {
-			throw new IllegalStateException("Error: The runtime context has already been set.");
-		}
+		this.runtimeContext = t;
 	}
 	
 	public RuntimeContext getRuntimeContext() {
