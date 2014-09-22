@@ -21,6 +21,7 @@ package org.apache.flink.api.common.operators.base;
 
 import java.io.Serializable;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 import org.slf4j.Logger;
@@ -31,6 +32,7 @@ import org.apache.flink.api.common.aggregators.AggregatorRegistry;
 import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.GenericCollectorMap;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.operators.IterationOperator;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.OperatorInformation;
@@ -298,5 +300,10 @@ public class BulkIterationBase<T> extends SingleInputOperator<T, T, AbstractRich
 				return false;
 			}
 		}
+	}
+
+	@Override
+	protected List<T> executeOnCollections(List<T> inputData, RuntimeContext runtimeContext) {
+		throw new UnsupportedOperationException();
 	}
 }
