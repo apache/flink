@@ -46,7 +46,7 @@ changes of all operators as the program progresses through the operations.
 
 ### How can I figure out why a program failed?
 
-- Thw JobManager web frontend (by default on port 8081) displays the exceptions
+- The JobManager web frontend (by default on port 8081) displays the exceptions
 of failed tasks.
 - If you run the program from the command-line, task exceptions are printed to
 the standard error stream and shown on the console.
@@ -68,6 +68,20 @@ information inside the program's operations and show them after the program
 execution.
 
 ## Errors
+
+### Why am I getting a "NonSerializableException" ?
+
+All functions in Flink must be serializable, as defined by [java.io.Serializable](http://docs.oracle.com/javase/7/docs/api/java/io/Serializable.html).
+Since all function interfaces are serializable, the exception means that one
+of the fields used in your function is not serializable.
+
+In particular, if your function is an inner class, or anonymous inner class,
+it contains a hidden reference to the enclosing class (usually called `this$0`, if you look
+at the function in the debugger). If the enclosing class is not serializable, this is probably
+the source of the error. Solutions are to
+- make the function a standalone class, or a static inner class (no more reference to the enclosing class)
+- make the enclosing class serializable
+- use a Java 8 lambda function.
 
 ### I get an error message saying that not enough buffers are available. How do I fix this?
 
