@@ -29,11 +29,7 @@ public class CollectionEnvironment extends ExecutionEnvironment {
 		Plan p = createProgramPlan(jobName);
 		
 		CollectionExecutor exec = new CollectionExecutor();
-		
-		long start = System.currentTimeMillis();
-		exec.execute(p);
-		long stop = System.currentTimeMillis();
-		return new JobExecutionResult(stop - start, null);
+		return exec.execute(p);
 	}
 	
 	@Override

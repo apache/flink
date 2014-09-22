@@ -91,6 +91,13 @@ public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOp
 
 	@Override
 	public O withBroadcastSet(DataSet<?> data, String name) {
+		if (data == null) {
+			throw new IllegalArgumentException("Broadcast variable data must not be null.");
+		}
+		if (name == null) {
+			throw new IllegalArgumentException("Broadcast variable name must not be null.");
+		}
+		
 		if (this.broadcastVariables == null) {
 			this.broadcastVariables = new HashMap<String, DataSet<?>>();
 		}

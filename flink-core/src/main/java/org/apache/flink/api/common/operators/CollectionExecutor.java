@@ -127,9 +127,15 @@ public class CollectionExecutor {
 		@SuppressWarnings("unchecked")
 		SingleInputOperator<IN, OUT, ?> typedOp = (SingleInputOperator<IN, OUT, ?>) operator;
 		
+		// build the runtime context and compute broadcast variables, if necessary
 		RuntimeUDFContext ctx;
 		if (RichFunction.class.isAssignableFrom(typedOp.getUserCodeWrapper().getUserCodeClass())) {
 			ctx = new RuntimeUDFContext(operator.getName(), 1, 0);
+			
+			for (Map.Entry<String, Operator<?>> bcInputs : operator.getBroadcastInputs().entrySet()) {
+				List<?> bcData = execute(bcInputs.getValue());
+				ctx.setBroadcastVariable(bcInputs.getKey(), bcData);
+			}
 		} else {
 			ctx = null;
 		}
@@ -153,6 +159,7 @@ public class CollectionExecutor {
 			throw new InvalidProgramException("The binary operation " + operator.getName() + " has no second input.");
 		}
 		
+		// compute inputs
 		@SuppressWarnings("unchecked")
 		List<IN1> inputData1 = (List<IN1>) execute(inputOp1);
 		@SuppressWarnings("unchecked")
@@ -161,9 +168,15 @@ public class CollectionExecutor {
 		@SuppressWarnings("unchecked")
 		DualInputOperator<IN1, IN2, OUT, ?> typedOp = (DualInputOperator<IN1, IN2, OUT, ?>) operator;
 		
+		// build the runtime context and compute broadcast variables, if necessary
 		RuntimeUDFContext ctx;
 		if (RichFunction.class.isAssignableFrom(typedOp.getUserCodeWrapper().getUserCodeClass())) {
 			ctx = new RuntimeUDFContext(operator.getName(), 1, 0);
+			
+			for (Map.Entry<String, Operator<?>> bcInputs : operator.getBroadcastInputs().entrySet()) {
+				List<?> bcData = execute(bcInputs.getValue());
+				ctx.setBroadcastVariable(bcInputs.getKey(), bcData);
+			}
 		} else {
 			ctx = null;
 		}
