@@ -58,8 +58,8 @@ public class MapOperatorBase<IN, OUT, FT extends MapFunction<IN, OUT>> extends S
 	protected List<OUT> executeOnCollections(List<IN> inputData, RuntimeContext ctx) throws Exception {
 		MapFunction<IN, OUT> function = this.userFunction.getUserCodeObject();
 		
-		FunctionUtils.openFunction(function, this.parameters);
 		FunctionUtils.setFunctionRuntimeContext(function, ctx);
+		FunctionUtils.openFunction(function, this.parameters);
 		
 		ArrayList<OUT> result = new ArrayList<OUT>(inputData.size());
 		for (IN element : inputData) {
