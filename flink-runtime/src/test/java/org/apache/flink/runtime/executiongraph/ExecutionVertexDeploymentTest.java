@@ -43,7 +43,6 @@ import org.junit.Test;
 import org.mockito.Matchers;
 
 public class ExecutionVertexDeploymentTest {
-
 	
 	@Test
 	public void testDeployCall() {
@@ -244,7 +243,9 @@ public class ExecutionVertexDeploymentTest {
 			
 			// wait until the state transition must be done
 			for (int i = 0; i < 100; i++) {
-				if (vertex.getExecutionState() != ExecutionState.FAILED) {
+				if (vertex.getExecutionState() == ExecutionState.FAILED && vertex.getFailureCause() != null) {
+					break;
+				} else {
 					Thread.sleep(10);
 				}
 			}
