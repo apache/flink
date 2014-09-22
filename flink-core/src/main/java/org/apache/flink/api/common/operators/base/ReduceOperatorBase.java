@@ -19,12 +19,24 @@
 
 package org.apache.flink.api.common.operators.base;
 
+import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.operators.SingleInputOperator;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
+import org.apache.flink.api.common.operators.util.TypeComparable;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
+import org.apache.flink.api.common.typeinfo.CompositeType;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeComparator;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 
 /**
@@ -88,7 +100,7 @@ public class ReduceOperatorBase<T, FT extends ReduceFunction<T>> extends SingleI
 	public ReduceOperatorBase(UserCodeWrapper<FT> udf, UnaryOperatorInformation<T, T> operatorInfo, String name) {
 		super(udf, operatorInfo, name);
 	}
-	
+
 	/**
 	 * Creates a non-grouped reduce data flow operator (all-reduce).
 	 * 
@@ -109,5 +121,62 @@ public class ReduceOperatorBase<T, FT extends ReduceFunction<T>> extends SingleI
 	 */
 	public ReduceOperatorBase(Class<? extends FT> udf, UnaryOperatorInformation<T, T> operatorInfo, String name) {
 		super(new UserCodeClassWrapper<FT>(udf), operatorInfo, name);
+	}
+
+// --------------------------------------------------------------------------------------------
+
+	@SuppressWarnings("unchecked")
+	@Override
+	protected List<T> executeOnCollections(List<T> inputData, RuntimeContext ctx)
+			throws Exception {
+		ReduceFunction<T> function = this.userFunction.getUserCodeObject();
+
+		UnaryOperatorInformation<T, T> operatorInfo = getOperatorInfo();
+		TypeInformation<T> inputType = operatorInfo.getInputType();
+
+		if (!(inputType instanceof CompositeType)) {
+			throw new InvalidProgramException("Input type of groupReduce operation must be" +
+					" composite type.");
+		}
+
+		FunctionUtils.setFunctionRuntimeContext(function, ctx);
+		FunctionUtils.openFunction(function, this.parameters);
+
+		int[] inputColumns = getKeyColumns(0);
+		if (inputColumns.length > 0) {
+			boolean[] inputOrderings = new boolean[inputColumns.length];
+			TypeComparator<T> inputComparator = ((CompositeType<T>) inputType).createComparator(inputColumns, inputOrderings);
+
+			Map<TypeComparable<T>, T> aggregateMap = new HashMap<TypeComparable<T>, T>(inputData.size() / 10);
+
+			for (T next : inputData) {
+				TypeComparable<T> wrapper = new TypeComparable<T>(next, inputComparator);
+				T existing = aggregateMap.get(wrapper);
+				T result;
+				if (existing != null) {
+					result = function.reduce(existing, next);
+				} else {
+					result = next;
+				}
+				aggregateMap.put(wrapper, result);
+			}
+
+			List<T> result = new ArrayList<T>(aggregateMap.values().size());
+			result.addAll(aggregateMap.values());
+
+			FunctionUtils.closeFunction(function);
+			return result;
+		} else {
+			T aggregate = inputData.get(0);
+			for (int i = 1; i < inputData.size(); i++) {
+				aggregate = function.reduce(aggregate, inputData.get(i));
+			}
+			List<T> result = new ArrayList<T>(1);
+			result.add(aggregate);
+
+			FunctionUtils.setFunctionRuntimeContext(function, ctx);
+			return result;
+		}
+
 	}
 }
