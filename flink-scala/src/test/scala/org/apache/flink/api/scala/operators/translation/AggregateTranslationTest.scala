@@ -18,7 +18,8 @@
 package org.apache.flink.api.scala.operators.translation
 
 import org.apache.flink.api.common.Plan
-import org.apache.flink.api.common.operators.base.{GenericDataSourceBase, GroupReduceOperatorBase}
+import org.apache.flink.api.common.operators.GenericDataSourceBase
+import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase
 
 import org.apache.flink.api.java.aggregation.Aggregations
 import org.apache.flink.api.scala._
