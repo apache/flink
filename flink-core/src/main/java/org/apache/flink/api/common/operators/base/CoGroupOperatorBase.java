@@ -19,7 +19,10 @@
 
 package org.apache.flink.api.common.operators.base;
 
+import java.util.List;
+
 import org.apache.flink.api.common.functions.CoGroupFunction;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.operators.BinaryOperatorInformation;
 import org.apache.flink.api.common.operators.DualInputOperator;
 import org.apache.flink.api.common.operators.Ordering;
@@ -151,5 +154,11 @@ public class CoGroupOperatorBase<IN1, IN2, OUT, FT extends CoGroupFunction<IN1, 
 
 	public void setCombinableSecond(boolean combinableSecond) {
 		this.combinableSecond = combinableSecond;
+	}
+
+	@Override
+	protected List<OUT> executeOnCollections(List<IN1> inputData1, List<IN2> inputData2, RuntimeContext runtimeContext) throws Exception {
+		// TODO Auto-generated method stub
+		return null;
 	}
 }

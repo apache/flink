@@ -20,11 +20,26 @@
 package org.apache.flink.api.common.operators.base;
 
 import org.apache.flink.api.common.functions.FlatJoinFunction;
+import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.functions.util.FunctionUtils;
+import org.apache.flink.api.common.functions.util.ListCollector;
 import org.apache.flink.api.common.operators.BinaryOperatorInformation;
 import org.apache.flink.api.common.operators.DualInputOperator;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
+import org.apache.flink.api.common.typeinfo.AtomicType;
+import org.apache.flink.api.common.typeinfo.CompositeType;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.GenericPairComparator;
+import org.apache.flink.api.common.typeutils.TypeComparator;
+import org.apache.flink.api.common.typeutils.TypePairComparator;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * @see org.apache.flink.api.common.functions.FlatJoinFunction
@@ -34,12 +49,91 @@ public class JoinOperatorBase<IN1, IN2, OUT, FT extends FlatJoinFunction<IN1, IN
 	public JoinOperatorBase(UserCodeWrapper<FT> udf, BinaryOperatorInformation<IN1, IN2, OUT> operatorInfo, int[] keyPositions1, int[] keyPositions2, String name) {
 		super(udf, operatorInfo, keyPositions1, keyPositions2, name);
 	}
-	
+
 	public JoinOperatorBase(FT udf, BinaryOperatorInformation<IN1, IN2, OUT> operatorInfo, int[] keyPositions1, int[] keyPositions2, String name) {
 		super(new UserCodeObjectWrapper<FT>(udf), operatorInfo, keyPositions1, keyPositions2, name);
 	}
 	
 	public JoinOperatorBase(Class<? extends FT> udf, BinaryOperatorInformation<IN1, IN2, OUT> operatorInfo, int[] keyPositions1, int[] keyPositions2, String name) {
 		super(new UserCodeClassWrapper<FT>(udf), operatorInfo, keyPositions1, keyPositions2, name);
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	protected List<OUT> executeOnCollections(List<IN1> inputData1, List<IN2> inputData2, RuntimeContext runtimeContext) throws Exception {
+		FlatJoinFunction<IN1, IN2, OUT> function = userFunction.getUserCodeObject();
+
+		FunctionUtils.setFunctionRuntimeContext(function, runtimeContext);
+		FunctionUtils.openFunction(function, this.parameters);
+
+		TypeInformation<IN1> leftInformation = getOperatorInfo().getFirstInputType();
+		TypeInformation<IN2> rightInformation = getOperatorInfo().getSecondInputType();
+
+		TypeComparator<IN1> leftComparator;
+		TypeComparator<IN2> rightComparator;
+
+		if(leftInformation instanceof AtomicType){
+			leftComparator = ((AtomicType<IN1>) leftInformation).createComparator(true);
+		}else if(leftInformation instanceof CompositeType){
+			int[] keyPositions = getKeyColumns(0);
+			boolean[] orders = new boolean[keyPositions.length];
+			Arrays.fill(orders, true);
+
+			leftComparator = ((CompositeType<IN1>) leftInformation).createComparator(keyPositions, orders);
+		}else{
+			throw new RuntimeException("Type information for left input of type " + leftInformation.getClass()
+					.getCanonicalName() + " is not supported. Could not generate a comparator.");
+		}
+
+		if(rightInformation instanceof AtomicType){
+			rightComparator = ((AtomicType<IN2>) rightInformation).createComparator(true);
+		}else if(rightInformation instanceof CompositeType){
+			int[] keyPositions = getKeyColumns(1);
+			boolean[] orders = new boolean[keyPositions.length];
+			Arrays.fill(orders, true);
+
+			rightComparator = ((CompositeType<IN2>) rightInformation).createComparator(keyPositions, orders);
+		}else{
+			throw new RuntimeException("Type information for right input of type " + rightInformation.getClass()
+					.getCanonicalName() + " is not supported. Could not generate a comparator.");
+		}
+
+		TypePairComparator<IN1, IN2> pairComparator = new GenericPairComparator<IN1, IN2>(leftComparator,
+				rightComparator);
+
+		List<OUT> result = new ArrayList<OUT>();
+		ListCollector<OUT> collector = new ListCollector<OUT>(result);
+
+		Map<Integer, List<IN2>> probeTable = new HashMap<Integer, List<IN2>>();
+
+		//Build probe table
+		for(IN2 element: inputData2){
+			List<IN2> list = probeTable.get(rightComparator.hash(element));
+			if(list == null){
+				list = new ArrayList<IN2>();
+				probeTable.put(rightComparator.hash(element), list);
+			}
+
+			list.add(element);
+		}
+
+		//Probing
+		for(IN1 left: inputData1){
+			List<IN2> matchingHashes = probeTable.get(leftComparator.hash(left));
+
+			pairComparator.setReference(left);
+
+			if(matchingHashes != null){
+				for(IN2 right: matchingHashes){
+					if(pairComparator.equalToReference(right)){
+						function.join(left, right, collector);
+					}
+				}
+			}
+		}
+
+		FunctionUtils.closeFunction(function);
+
+		return result;
 	}
 }

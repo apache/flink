@@ -20,10 +20,12 @@
 package org.apache.flink.api.common.operators.base;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.flink.api.common.aggregators.AggregatorRegistry;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.operators.BinaryOperatorInformation;
 import org.apache.flink.api.common.operators.DualInputOperator;
 import org.apache.flink.api.common.operators.IterationOperator;
@@ -328,5 +330,11 @@ public class DeltaIterationBase<ST, WT> extends DualInputOperator<ST, WT, ST, Ab
 		public UserCodeWrapper<?> getUserCodeWrapper() {
 			return null;
 		}
+	}
+
+	@Override
+	protected List<ST> executeOnCollections(List<ST> inputData1, List<WT> inputData2, RuntimeContext runtimeContext) throws Exception {
+		// TODO Auto-generated method stub
+		return null;
 	}
 }
