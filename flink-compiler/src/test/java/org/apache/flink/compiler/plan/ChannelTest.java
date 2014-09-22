@@ -19,8 +19,8 @@
 
 package org.apache.flink.compiler.plan;
 
+import org.apache.flink.api.common.operators.GenericDataSourceBase;
 import org.apache.flink.api.common.operators.OperatorInformation;
-import org.apache.flink.api.common.operators.base.GenericDataSourceBase;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.compiler.dag.DataSourceNode;
 import org.apache.flink.compiler.plan.Channel;

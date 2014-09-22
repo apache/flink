@@ -24,9 +24,9 @@ import com.google.common.base.Preconditions;
 import java.util.List;
 
 import org.apache.flink.api.common.io.OutputFormat;
+import org.apache.flink.api.common.operators.GenericDataSinkBase;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
-import org.apache.flink.api.common.operators.base.GenericDataSinkBase;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.typeinfo.NothingTypeInfo;
 import org.apache.flink.api.java.typeutils.RecordTypeInfo;

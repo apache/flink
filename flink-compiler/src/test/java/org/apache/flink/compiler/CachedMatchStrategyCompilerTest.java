@@ -24,7 +24,7 @@ import static org.junit.Assert.fail;
 
 import org.junit.Test;
 import org.apache.flink.api.common.Plan;
-import org.apache.flink.api.common.operators.base.GenericDataSourceBase;
+import org.apache.flink.api.common.operators.GenericDataSourceBase;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.operators.IterativeDataSet;

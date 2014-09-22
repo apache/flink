@@ -1,4 +1,4 @@
-/*
+/**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,24 +16,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.java.operators.translation;
+package org.apache.flink.api.java;
 
-import java.util.List;
-
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
-import org.apache.flink.api.common.operators.GenericDataSinkBase;
+import org.apache.flink.api.common.operators.CollectionExecutor;
 
-/**
- * {@link Plan} subclass for the main Java api.
- */
-public class JavaPlan extends Plan {
-
-	public JavaPlan(List<GenericDataSinkBase<?>> sinks) {
-		super(sinks);
-	}
+public class CollectionEnvironment extends ExecutionEnvironment {
 
 	@Override
-	public String getPostPassClassName() {
-		return "org.apache.flink.compiler.postpass.JavaApiPostPass";
+	public JobExecutionResult execute(String jobName) throws Exception {
+		Plan p = createProgramPlan(jobName);
+		
+		CollectionExecutor exec = new CollectionExecutor();
+		
+		long start = System.currentTimeMillis();
+		exec.execute(p);
+		long stop = System.currentTimeMillis();
+		return new JobExecutionResult(stop - start, null);
+	}
+	
+	@Override
+	public String getExecutionPlan() throws Exception {
+		throw new UnsupportedOperationException("Execution plans are not used for collection-based execution.");
 	}
 }

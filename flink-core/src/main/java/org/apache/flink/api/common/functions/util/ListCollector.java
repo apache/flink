@@ -1,4 +1,4 @@
-/*
+/**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,24 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.java.operators.translation;
+package org.apache.flink.api.common.functions.util;
 
 import java.util.List;
 
-import org.apache.flink.api.common.Plan;
-import org.apache.flink.api.common.operators.GenericDataSinkBase;
+import org.apache.flink.util.Collector;
 
-/**
- * {@link Plan} subclass for the main Java api.
- */
-public class JavaPlan extends Plan {
+public class ListCollector<T> implements Collector<T> {
 
-	public JavaPlan(List<GenericDataSinkBase<?>> sinks) {
-		super(sinks);
+	private final List<T> list;
+
+	public ListCollector(List<T> list) {
+		this.list = list;
 	}
 
 	@Override
-	public String getPostPassClassName() {
-		return "org.apache.flink.compiler.postpass.JavaApiPostPass";
+	public void collect(T record) {
+		list.add(record);
 	}
+
+	@Override
+	public void close() {}
 }

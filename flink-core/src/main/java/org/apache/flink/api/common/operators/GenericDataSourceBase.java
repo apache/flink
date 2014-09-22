@@ -17,14 +17,17 @@
  */
 
 
-package org.apache.flink.api.common.operators.base;
+package org.apache.flink.api.common.operators;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.flink.api.common.io.InputFormat;
-import org.apache.flink.api.common.operators.Operator;
-import org.apache.flink.api.common.operators.OperatorInformation;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.util.Visitor;
 
 /**
@@ -171,7 +174,34 @@ public class GenericDataSourceBase<OUT, T extends InputFormat<OUT, ?>> extends O
 		}
 	}
 	
-
+	// --------------------------------------------------------------------------------------------
+	
+	protected List<OUT> executeOnCollections() throws Exception {
+		@SuppressWarnings("unchecked")
+		InputFormat<OUT, InputSplit> inputFormat = (InputFormat<OUT, InputSplit>) this.formatWrapper.getUserCodeObject();
+		inputFormat.configure(this.parameters);
+		
+		List<OUT> result = new ArrayList<OUT>();
+		
+		// splits
+		InputSplit[] splits = inputFormat.createInputSplits(1);
+		TypeSerializer<OUT> serializer = getOperatorInfo().getOutputType().createSerializer();
+		
+		for (InputSplit split : splits) {
+			inputFormat.open(split);
+			
+			while (!inputFormat.reachedEnd()) {
+				result.add(inputFormat.nextRecord(serializer.createInstance()));
+			}
+			
+			inputFormat.close();
+		}
+		
+		return result;
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
 	public String toString() {
 		return this.name;
 	}
