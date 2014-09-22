@@ -22,11 +22,8 @@ import java.util.Arrays;
 
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
-import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.operators.Order;
-
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.functions.UnsupportedLambdaExpressionException;
 
 /**
  * SortedGrouping is an intermediate step for a transformation on a grouped and sorted DataSet.<br/>
@@ -81,9 +78,6 @@ public class SortedGrouping<T> extends Grouping<T> {
 	public <R> GroupReduceOperator<T, R> reduceGroup(GroupReduceFunction<T, R> reducer) {
 		if (reducer == null) {
 			throw new NullPointerException("GroupReduce function must not be null.");
-		}
-		if (FunctionUtils.isLambdaFunction(reducer)) {
-			throw new UnsupportedLambdaExpressionException();
 		}
 		return new GroupReduceOperator<T, R>(this, reducer);
 	}

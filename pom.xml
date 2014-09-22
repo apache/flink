@@ -354,7 +354,7 @@ under the License.
 					<jdk>1.8</jdk>
 				</activation>
 				<modules>
-					<module>flink-java8-tests</module>
+					<module>flink-java8</module>
 				</modules>
 				<build>
 					<plugins>

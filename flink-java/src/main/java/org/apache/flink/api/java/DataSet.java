@@ -20,13 +20,13 @@ package org.apache.flink.api.java;
 
 import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.common.InvalidProgramException;
+import org.apache.flink.api.common.functions.CrossFunction;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.MapPartitionFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.java.aggregation.Aggregations;
@@ -34,7 +34,6 @@ import org.apache.flink.api.java.functions.FormattingMapper;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.functions.SelectByMaxFunction;
 import org.apache.flink.api.java.functions.SelectByMinFunction;
-import org.apache.flink.api.java.functions.UnsupportedLambdaExpressionException;
 import org.apache.flink.api.java.io.CsvOutputFormat;
 import org.apache.flink.api.java.io.PrintingOutputFormat;
 import org.apache.flink.api.java.io.TextOutputFormat;
@@ -48,13 +47,13 @@ import org.apache.flink.api.java.operators.DataSink;
 import org.apache.flink.api.java.operators.DistinctOperator;
 import org.apache.flink.api.java.operators.FilterOperator;
 import org.apache.flink.api.java.operators.FlatMapOperator;
+import org.apache.flink.api.java.operators.GroupReduceOperator;
 import org.apache.flink.api.java.operators.JoinOperator.JoinHint;
 import org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets;
 import org.apache.flink.api.java.operators.Keys;
 import org.apache.flink.api.java.operators.MapOperator;
 import org.apache.flink.api.java.operators.MapPartitionOperator;
 import org.apache.flink.api.java.operators.ProjectOperator.Projection;
-import org.apache.flink.api.java.operators.GroupReduceOperator;
 import org.apache.flink.api.java.operators.ReduceOperator;
 import org.apache.flink.api.java.operators.SortedGrouping;
 import org.apache.flink.api.java.operators.UnionOperator;
@@ -63,8 +62,8 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.TypeInformation;
 
 
@@ -142,9 +141,6 @@ public abstract class DataSet<T> {
 		if (mapper == null) {
 			throw new NullPointerException("Map function must not be null.");
 		}
-		if (FunctionUtils.isLambdaFunction(mapper)) {
-			throw new UnsupportedLambdaExpressionException();
-		}
 		return new MapOperator<T, R>(this, mapper);
 	}
 
@@ -190,9 +186,6 @@ public abstract class DataSet<T> {
 	public <R> FlatMapOperator<T, R> flatMap(FlatMapFunction<T, R> flatMapper) {
 		if (flatMapper == null) {
 			throw new NullPointerException("FlatMap function must not be null.");
-		}
-		if (FunctionUtils.isLambdaFunction(flatMapper)) {
-			throw new UnsupportedLambdaExpressionException();
 		}
 		return new FlatMapOperator<T, R>(this, flatMapper);
 	}
@@ -336,9 +329,6 @@ public abstract class DataSet<T> {
 	public <R> GroupReduceOperator<T, R> reduceGroup(GroupReduceFunction<T, R> reducer) {
 		if (reducer == null) {
 			throw new NullPointerException("GroupReduce function must not be null.");
-		}
-		if (FunctionUtils.isLambdaFunction(reducer)) {
-			throw new UnsupportedLambdaExpressionException();
 		}
 		return new GroupReduceOperator<T, R>(this, reducer);
 	}
