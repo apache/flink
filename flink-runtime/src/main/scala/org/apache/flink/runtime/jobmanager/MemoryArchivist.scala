@@ -30,8 +30,8 @@ import org.apache.flink.runtime.messages.JobManagerMessages.RequestJobStatus
 import scala.collection.convert.DecorateAsJava
 import scala.collection.mutable.ListBuffer
 
-class MemoryArchivist(private val max_entries: Int) extends Actor with ActorLogMessages with ActorLogging with
-DecorateAsJava {
+class MemoryArchivist(private val max_entries: Int) extends Actor with ActorLogMessages with
+ActorLogging with DecorateAsJava {
   /**
    * The map which stores all collected events until they are either
    * fetched by the client or discarded.
@@ -44,11 +44,12 @@ DecorateAsJava {
   val oldJobs = collection.mutable.HashMap[JobID, RecentJobEvent]()
 
   /**
-   * Map of execution graphs belonging to recently started jobs with the time stamp of the last received job event.
+   * Map of execution graphs belonging to recently started jobs with the time stamp of the last
+   * received job event.
    */
   val graphs = collection.mutable.HashMap[JobID, ExecutionGraph]()
 
-  
+
   val lru = collection.mutable.Queue[JobID]()
 
   override def receiveWithLogMessages: Receive = {
@@ -79,11 +80,11 @@ DecorateAsJava {
   }
 
   def cleanup(jobID: JobID): Unit = {
-    if(!lru.contains(jobID)){
+    if (!lru.contains(jobID)) {
       lru.enqueue(jobID)
     }
 
-    while(lru.size > max_entries){
+    while (lru.size > max_entries) {
       val removedJobID = lru.dequeue()
       collectedEvents.remove(removedJobID)
       oldJobs.remove(removedJobID)

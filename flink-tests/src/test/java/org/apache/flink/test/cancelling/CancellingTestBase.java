@@ -21,21 +21,23 @@ package org.apache.flink.test.cancelling;
 
 import java.util.Iterator;
 
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.messages.JobResult;
+import org.apache.flink.runtime.messages.JobResult.JobProgressResult;
+import org.apache.flink.runtime.messages.JobResult.JobSubmissionResult;
+import org.apache.flink.runtime.messages.JobResult.JobCancelResult;
+import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.junit.Assert;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.Plan;
-import org.apache.flink.runtime.minicluster.NepheleMiniCluster;
 import org.apache.flink.compiler.DataStatistics;
 import org.apache.flink.compiler.PactCompiler;
 import org.apache.flink.compiler.plan.OptimizedPlan;
 import org.apache.flink.compiler.plantranslate.NepheleJobGraphGenerator;
-import org.apache.flink.runtime.client.AbstractJobResult;
-import org.apache.flink.runtime.client.JobCancelResult;
 import org.apache.flink.runtime.client.JobClient;
-import org.apache.flink.runtime.client.JobProgressResult;
-import org.apache.flink.runtime.client.JobSubmissionResult;
 import org.apache.flink.runtime.event.job.AbstractEvent;
 import org.apache.flink.runtime.event.job.JobEvent;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -64,7 +66,7 @@ public abstract class CancellingTestBase {
 
 	// --------------------------------------------------------------------------------------------
 	
-	protected NepheleMiniCluster executor;
+	protected LocalFlinkMiniCluster executor;
 
 	protected int taskManagerNumSlots = DEFAULT_TASK_MANAGER_NUM_SLOTS;
 	
@@ -79,10 +81,11 @@ public abstract class CancellingTestBase {
 	@Before
 	public void startCluster() throws Exception {
 		verifyJvmOptions();
-		this.executor = new NepheleMiniCluster();
-		this.executor.setDefaultOverwriteFiles(true);
-		this.executor.setTaskManagerNumSlots(taskManagerNumSlots);
-		this.executor.start();
+		this.executor = new LocalFlinkMiniCluster(null);
+		Configuration config = new Configuration();
+		config.setBoolean(ConfigConstants.FILESYSTEM_DEFAULT_OVERWRITE_KEY, true);
+
+		this.executor.start(config);
 	}
 
 	@After
@@ -110,9 +113,10 @@ public abstract class CancellingTestBase {
 			long cancelTime = -1L;
 			final JobClient client = this.executor.getJobClient(jobGraph);
 			final JobSubmissionResult submissionResult = client.submitJob();
-			if (submissionResult.getReturnCode() != AbstractJobResult.ReturnCode.SUCCESS) {
-				throw new IllegalStateException(submissionResult.getDescription());
+			if (submissionResult.returnCode() != JobResult.SUCCESS()) {
+				throw new IllegalStateException(submissionResult.description());
 			}
+
 
 			final int interval = client.getRecommendedPollingInterval();
 			final long sleep = interval * 1000L;
@@ -142,8 +146,8 @@ public abstract class CancellingTestBase {
 							throw new IllegalStateException("Return value of cancelJob is null!");
 						}
 
-						if (jcr.getReturnCode() != AbstractJobResult.ReturnCode.SUCCESS) {
-							throw new IllegalStateException(jcr.getDescription());
+						if (jcr.returnCode() != JobResult.SUCCESS()) {
+							throw new IllegalStateException(jcr.description());
 						}
 
 						// Save when the cancel request has been issued
@@ -164,14 +168,14 @@ public abstract class CancellingTestBase {
 					throw new IllegalStateException("Returned job progress is unexpectedly null!");
 				}
 
-				if (jobProgressResult.getReturnCode() == AbstractJobResult.ReturnCode.ERROR) {
+				if (jobProgressResult.returnCode() == JobResult.ERROR()) {
 					throw new IllegalStateException("Could not retrieve job progress: "
-						+ jobProgressResult.getDescription());
+						+ jobProgressResult.description());
 				}
 
 				boolean exitLoop = false;
 
-				final Iterator<AbstractEvent> it = jobProgressResult.getEvents();
+				final Iterator<AbstractEvent> it = jobProgressResult.asJavaList().iterator();
 				while (it.hasNext()) {
 
 					final AbstractEvent event = it.next();

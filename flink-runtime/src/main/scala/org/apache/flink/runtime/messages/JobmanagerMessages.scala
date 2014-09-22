@@ -27,20 +27,36 @@ import org.apache.flink.runtime.profiling.impl.types.ProfilingDataContainer
 import org.apache.flink.runtime.taskmanager.TaskExecutionState
 
 object JobManagerMessages {
+
   case class SubmitJob(jobGraph: JobGraph)
+
   case class CancelJob(jobID: JobID)
+
   case class UpdateTaskExecutionState(taskExecutionState: TaskExecutionState)
+
   case class RequestNextInputSplit(jobID: JobID, vertexID: JobVertexID)
-  case class LookupConnectionInformation(caller: InstanceConnectionInfo, jobID: JobID, sourceChannelID: ChannelID)
+
+  case class LookupConnectionInformation(caller: InstanceConnectionInfo, jobID: JobID,
+                                         sourceChannelID: ChannelID)
+
   case class ConnectionInformation(response: ConnectionInfoLookupResponse)
+
   case class ReportAccumulatorResult(accumulatorEvent: AccumulatorEvent)
+
   case class RequestAccumulatorResult(jobID: JobID)
+
   case class RegisterJobStatusListener(jobID: JobID)
+
   case class RequestJobStatusWhenTerminated(jobID: JobID)
+
   case class RequestJobStatus(jobID: JobID)
 
   case object RequestInstances
+
   case object RequestNumberRegisteredTaskManager
+
   case object RequestAvailableSlots
+
   case object RequestPollingInterval
+
 }

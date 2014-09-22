@@ -37,7 +37,6 @@ import akka.testkit.JavaTestKit;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.runtime.TestingUtils;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.deployment.ChannelDeploymentDescriptor;
@@ -54,13 +53,12 @@ import org.apache.flink.runtime.io.network.channels.ChannelID;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.jobmanager.TestingTaskManagerMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.RegistrationMessages;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
-import org.apache.flink.runtime.testingActors.TestingActors;
+import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.types.IntegerRecord;
-import org.apache.flink.runtime.taskmanager.TestingTaskManagerMessages.NotifyWhenTaskRemoved;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -179,7 +177,7 @@ public class TaskManagerTest {
 
 							expectMsgEquals(new TaskOperationResult(eid1, true));
 
-							Future<Object> response = Patterns.ask(tm, new NotifyWhenTaskRemoved(eid1),
+							Future<Object> response = Patterns.ask(tm, new TestingTaskManagerMessages.NotifyWhenTaskRemoved(eid1),
 									AkkaUtils.FUTURE_TIMEOUT());
 							Await.ready(response, d);
 
@@ -198,7 +196,7 @@ public class TaskManagerTest {
 							tm.tell(new TaskManagerMessages.CancelTask(eid2), getRef());
 							expectMsgEquals(new TaskOperationResult(eid2, true));
 
-							response = Patterns.ask(tm, new NotifyWhenTaskRemoved(eid2),
+							response = Patterns.ask(tm, new TestingTaskManagerMessages.NotifyWhenTaskRemoved(eid2),
 									AkkaUtils.FUTURE_TIMEOUT());
 							Await.ready(response, d);
 
@@ -341,13 +339,13 @@ public class TaskManagerTest {
 			// wait until the tasks are done. rare thread races may cause the tasks to be done before
 			// we get to the check, so we need to guard the check
 						if (t1 != null) {
-							Future<Object> response = Patterns.ask(tm, new NotifyWhenTaskRemoved(eid1),
+							Future<Object> response = Patterns.ask(tm, new TestingTaskManagerMessages.NotifyWhenTaskRemoved(eid1),
 									AkkaUtils.FUTURE_TIMEOUT());
 							Await.ready(response, d);
 						}
 
 						if (t2 != null) {
-							Future<Object> response = Patterns.ask(tm, new NotifyWhenTaskRemoved(eid2),
+							Future<Object> response = Patterns.ask(tm, new TestingTaskManagerMessages.NotifyWhenTaskRemoved(eid2),
 									AkkaUtils.FUTURE_TIMEOUT());
 							Await.ready(response, d);
 				assertEquals(ExecutionState.FINISHED, t2.getExecutionState());
@@ -430,7 +428,7 @@ public class TaskManagerTest {
 						expectMsgEquals(new TaskOperationResult(eid2, true));
 
 						if (t2 != null) {
-							Future<Object> response = Patterns.ask(tm, new NotifyWhenTaskRemoved(eid2),
+							Future<Object> response = Patterns.ask(tm, new TestingTaskManagerMessages.NotifyWhenTaskRemoved(eid2),
 									AkkaUtils.FUTURE_TIMEOUT());
 							Await.ready(response, d);
 						}
@@ -440,7 +438,7 @@ public class TaskManagerTest {
 								tm.tell(new TaskManagerMessages.CancelTask(eid1), getRef());
 								expectMsgEquals(new TaskOperationResult(eid1, true));
 							}
-							Future<Object> response = Patterns.ask(tm, new NotifyWhenTaskRemoved(eid1),
+							Future<Object> response = Patterns.ask(tm, new TestingTaskManagerMessages.NotifyWhenTaskRemoved(eid1),
 									AkkaUtils.FUTURE_TIMEOUT());
 							Await.ready(response, d);
 						}
@@ -541,7 +539,7 @@ public class TaskManagerTest {
 		String akkaURL = jm.path().toSerializationFormat();
 		cfg.setString(ConfigConstants.JOB_MANAGER_AKKA_URL, akkaURL);
 
-		ActorRef taskManager = TestingActors.startTestingTaskManagerWithConfiguration("localhost", cfg, system);
+		ActorRef taskManager = TestingUtils.startTestingTaskManagerWithConfiguration("localhost", cfg, system);
 
 		Future<Object> response = Patterns.ask(taskManager, TaskManagerMessages.NotifyWhenRegisteredAtMaster$.MODULE$,
 				AkkaUtils.FUTURE_TIMEOUT());

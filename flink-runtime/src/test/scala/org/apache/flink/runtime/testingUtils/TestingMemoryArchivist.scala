@@ -16,11 +16,25 @@
  * limitations under the License.
  */
 
+package org.apache.flink.runtime.testingUtils
 
-package org.apache.flink.core.protocols;
+import org.apache.flink.runtime.ActorLogMessages
+import org.apache.flink.runtime.jobmanager.MemoryArchivist
+import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.{ExecutionGraphNotFound, ExecutionGraphFound, RequestExecutionGraph}
 
-/**
- * Abstract base class for all protocols which use Nephele's IPC subsystem.
- */
-public interface VersionedProtocol {
+trait TestingMemoryArchivist extends ActorLogMessages {
+  self: MemoryArchivist =>
+
+  abstract override def receiveWithLogMessages = {
+    receiveTestingMessages orElse super.receiveWithLogMessages
+  }
+
+  def receiveTestingMessages: Receive = {
+    case RequestExecutionGraph(jobID) =>
+      graphs.get(jobID) match {
+        case Some(executionGraph) => sender() ! ExecutionGraphFound(jobID, executionGraph)
+        case None => sender() ! ExecutionGraphNotFound(jobID)
+      }
+
+  }
 }

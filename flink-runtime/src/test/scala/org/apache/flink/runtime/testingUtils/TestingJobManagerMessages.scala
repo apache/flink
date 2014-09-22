@@ -16,29 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmanager.tasks;
+package org.apache.flink.runtime.testingUtils
 
-import org.apache.flink.runtime.io.network.api.RecordReader;
-import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.types.IntegerRecord;
+import org.apache.flink.runtime.executiongraph.ExecutionGraph
+import org.apache.flink.runtime.jobgraph.JobID
 
-public final class Receiver extends AbstractInvokable {
+object TestingJobManagerMessages {
 
-	private RecordReader<IntegerRecord> reader;
-	
-	@Override
-	public void registerInputOutput() {
-		reader = new RecordReader<IntegerRecord>(this, IntegerRecord.class);
-	}
+  case class RequestExecutionGraph(jobID: JobID)
 
-	@Override
-	public void invoke() throws Exception {
-		IntegerRecord i1 = reader.next();
-		IntegerRecord i2 = reader.next();
-		IntegerRecord i3 = reader.next();
-		
-		if (i1.getValue() != 42 || i2.getValue() != 1337 || i3 != null) {
-			throw new Exception("Wrong Data Received");
-		}
-	}
+  sealed trait ResponseExecutionGraph {
+    def jobID: JobID
+  }
+
+  case class ExecutionGraphFound(jobID: JobID, executionGraph: ExecutionGraph) extends
+  ResponseExecutionGraph
+
+  case class ExecutionGraphNotFound(jobID: JobID) extends ResponseExecutionGraph
+
 }

@@ -283,6 +283,15 @@ public class JobClient {
 		}
 	}
 
+	public int getRecommendedPollingInterval(){
+		try {
+			return AkkaUtils.<Integer>ask(jobManager, JobManagerMessages.RequestPollingInterval$.MODULE$);
+		}catch(IOException ioe){
+			throw new RuntimeException("Could not request recommended polling interval from job " +
+					"manager.", ioe);
+		}
+	}
+
 	/**
 	 * Writes the given error message to the log and throws it in an {@link IOException}.
 	 * 

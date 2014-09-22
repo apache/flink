@@ -30,7 +30,7 @@ import java.net.InetAddress;
 
 import akka.actor.ActorSystem;
 import akka.testkit.JavaTestKit;
-import org.apache.flink.runtime.TestingUtils;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 
 import org.junit.AfterClass;

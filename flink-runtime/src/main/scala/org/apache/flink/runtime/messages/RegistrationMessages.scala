@@ -21,7 +21,11 @@ package org.apache.flink.runtime.messages
 import org.apache.flink.runtime.instance.{InstanceConnectionInfo, InstanceID, HardwareDescription}
 
 object RegistrationMessages {
-  case class RegisterTaskManager(connectionInfo: InstanceConnectionInfo, hardwareDescription: HardwareDescription,
-  numberOfSlots: Int)
+
+  case class RegisterTaskManager(connectionInfo: InstanceConnectionInfo,
+                                 hardwareDescription: HardwareDescription,
+                                 numberOfSlots: Int)
+
   case class AcknowledgeRegistration(instanceID: InstanceID)
+
 }

@@ -16,15 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmanager
+package org.apache.flink.runtime.testingUtils
 
-import akka.actor.{Props, ActorSystem}
+import akka.actor.{ActorSystem, Props}
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
+import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.minicluster.FlinkMiniCluster
 import org.apache.flink.runtime.net.NetUtils
 import org.apache.flink.runtime.taskmanager.TaskManager
 
-class TestingCluster extends FlinkMiniCluster{
+class TestingCluster extends FlinkMiniCluster {
   override def getConfiguration(userConfig: Configuration): Configuration = {
     val cfg = new Configuration()
     cfg.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost")
@@ -36,16 +37,21 @@ class TestingCluster extends FlinkMiniCluster{
   }
 
   override def startJobManager(system: ActorSystem, config: Configuration) = {
-    val (archiveCount, profiling, recommendedPollingInterval) = JobManager.parseConfiguration(config)
-    system.actorOf(Props(new JobManager(archiveCount, profiling, recommendedPollingInterval) with TestingJobManager),
+    val (archiveCount, profiling, recommendedPollingInterval) =
+      JobManager.parseConfiguration(config)
+
+    system.actorOf(Props(new JobManager(archiveCount, profiling, recommendedPollingInterval) with
+      TestingJobManager),
       JobManager.JOB_MANAGER_NAME)
   }
 
   override def startTaskManager(system: ActorSystem, config: Configuration, index: Int) = {
-    val (connectionInfo, jobManagerURL, numberOfSlots, memorySize, pageSize, tmpDirPaths, networkConnectionConfig,
-      memoryUsageLogging, profilingInterval) = TaskManager.parseConfiguration(FlinkMiniCluster.HOSTNAME, config)
-    system.actorOf(Props(new TaskManager(connectionInfo, jobManagerURL, numberOfSlots, memorySize, pageSize,
-      tmpDirPaths, networkConnectionConfig, memoryUsageLogging, profilingInterval)),
-      TaskManager.TASK_MANAGER_NAME + index)
+    val (connectionInfo, jobManagerURL, numberOfSlots, memorySize, pageSize, tmpDirPaths,
+    networkConnectionConfig, memoryUsageLogging, profilingInterval) =
+      TaskManager.parseConfiguration(FlinkMiniCluster.HOSTNAME, config)
+
+    system.actorOf(Props(new TaskManager(connectionInfo, jobManagerURL, numberOfSlots,
+      memorySize, pageSize, tmpDirPaths, networkConnectionConfig, memoryUsageLogging,
+      profilingInterval)), TaskManager.TASK_MANAGER_NAME + index)
   }
 }

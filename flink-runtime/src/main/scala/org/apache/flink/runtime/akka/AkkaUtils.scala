@@ -44,34 +44,34 @@ object AkkaUtils {
     actorSystem
   }
 
-  def getChild(parent: ActorRef, child: String)(implicit system: ActorSystem): ActorRef = {
-    Await.result(system.actorSelection(parent.path / child).resolveOne(), AWAIT_DURATION)
-  }
-
   def getConfigString(host: String, port: Int, configuration: Configuration): String = {
-    val transportHeartbeatInterval = configuration.getString(ConfigConstants.AKKA_TRANSPORT_HEARTBEAT_INTERVAL,
+    val transportHeartbeatInterval = configuration.getString(ConfigConstants.
+      AKKA_TRANSPORT_HEARTBEAT_INTERVAL,
       ConfigConstants.DEFAULT_AKKA_TRANSPORT_HEARTBEAT_INTERVAL)
-    val transportHeartbeatPause = configuration.getString(ConfigConstants.AKKA_TRANSPORT_HEARTBEAT_PAUSE,
+    val transportHeartbeatPause = configuration.getString(ConfigConstants.
+      AKKA_TRANSPORT_HEARTBEAT_PAUSE,
       ConfigConstants.DEFAULT_AKKA_TRANSPORT_HEARTBEAT_PAUSE)
     val transportThreshold = configuration.getDouble(ConfigConstants.AKKA_TRANSPORT_THRESHOLD,
       ConfigConstants.DEFAULT_AKKA_TRANSPORT_THRESHOLD)
-    val watchHeartbeatInterval = configuration.getString(ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL,
-      ConfigConstants.DEFAULT_AKKA_WATCH_HEARTBEAT_INTERVAL)
+    val watchHeartbeatInterval = configuration.getString(ConfigConstants
+      .AKKA_WATCH_HEARTBEAT_INTERVAL, ConfigConstants.DEFAULT_AKKA_WATCH_HEARTBEAT_INTERVAL)
     val watchHeartbeatPause = configuration.getString(ConfigConstants.AKKA_WATCH_HEARTBEAT_PAUSE,
       ConfigConstants.DEFAULT_AKKA_WATCH_HEARTBEAT_PAUSE)
     val watchThreshold = configuration.getDouble(ConfigConstants.AKKA_WATCH_THRESHOLD,
       ConfigConstants.DEFAULT_AKKA_WATCH_THRESHOLD)
     val akkaTCPTimeout = configuration.getString(ConfigConstants.AKKA_TCP_TIMEOUT,
       ConfigConstants.DEFAULT_AKKA_TCP_TIMEOUT)
-    val akkaFramesize = configuration.getString(ConfigConstants.AKKA_FRAMESIZE, ConfigConstants.DEFAULT_AKKA_FRAMESIZE)
+    val akkaFramesize = configuration.getString(ConfigConstants.AKKA_FRAMESIZE,
+      ConfigConstants.DEFAULT_AKKA_FRAMESIZE)
     val akkaThroughput = configuration.getInteger(ConfigConstants.AKKA_DISPATCHER_THROUGHPUT,
       ConfigConstants.DEFAULT_AKKA_DISPATCHER_THROUGHPUT)
     val lifecycleEvents = configuration.getBoolean(ConfigConstants.AKKA_LOG_LIFECYCLE_EVENTS,
       ConfigConstants.DEFAULT_AKKA_LOG_LIFECYCLE_EVENTS)
 
-    val logLifecycleEvents = if(lifecycleEvents) "on" else "off"
+    val logLifecycleEvents = if (lifecycleEvents) "on" else "off"
 
-    val configString = s"""akka.remote.transport-failure-detector.heartbeat-interval = $transportHeartbeatInterval
+    val configString = s"""akka.remote.transport-failure-detector.heartbeat-interval =
+                       $transportHeartbeatInterval
        |akka.remote.transport-failure-detector.acceptable-heartbeat-pause = $transportHeartbeatPause
        |akka.remote.transport-failure-detector.threshold = $transportThreshold
        |akka.remote.watch-failure-detector.heartbeat-interval = $watchHeartbeatInterval
@@ -113,12 +113,16 @@ object AkkaUtils {
     """.stripMargin
   }
 
+  def getChild(parent: ActorRef, child: String)(implicit system: ActorSystem): ActorRef = {
+    Await.result(system.actorSelection(parent.path / child).resolveOne(), AWAIT_DURATION)
+  }
+
   def getReference(path: String): ActorRef = {
     Await.result(defaultActorSystem.actorSelection(path).resolveOne(), AWAIT_DURATION)
   }
 
   @throws(classOf[IOException])
-  def ask[T](actorSelection: ActorSelection, msg: Any): T ={
+  def ask[T](actorSelection: ActorSelection, msg: Any): T = {
     val future = Patterns.ask(actorSelection, msg, FUTURE_TIMEOUT)
     Await.result(future, AWAIT_DURATION).asInstanceOf[T]
   }

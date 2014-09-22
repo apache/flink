@@ -16,12 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmanager
+package org.apache.flink.runtime.testingUtils
 
 import akka.pattern.{ask, pipe}
 import org.apache.flink.runtime.ActorLogMessages
 import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.flink.runtime.jobmanager.TestingJobManagerMessages.{ExecutionGraphNotFound, ExecutionGraphFound, RequestExecutionGraph}
+import org.apache.flink.runtime.jobmanager.EventCollector
+import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.{ExecutionGraphNotFound, ExecutionGraphFound, RequestExecutionGraph}
+
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
@@ -29,7 +31,7 @@ trait TestingEventCollector extends ActorLogMessages {
   self: EventCollector =>
 
   import context.dispatcher
-  import AkkaUtils.FUTURE_TIMEOUT
+  import org.apache.flink.runtime.akka.AkkaUtils.FUTURE_TIMEOUT
 
   abstract override def receiveWithLogMessages: Receive = {
     receiveTestingMessages orElse super.receiveWithLogMessages

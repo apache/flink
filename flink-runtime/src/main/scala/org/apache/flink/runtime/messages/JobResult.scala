@@ -27,11 +27,15 @@ object JobResult extends Enumeration with DecorateAsJava {
   type JobResult = Value
   val SUCCESS, ERROR = Value
 
-  case class JobProgressResult(returnCode: JobResult, description: String, events: List[AbstractEvent]){
+  case class JobProgressResult(returnCode: JobResult, description: String,
+                               events: List[AbstractEvent]) {
     def asJavaList: java.util.List[AbstractEvent] = {
       events.asJava
     }
   }
+
   case class JobCancelResult(returnCode: JobResult, description: String)
+
   case class JobSubmissionResult(returnCode: JobResult, description: String)
+
 }

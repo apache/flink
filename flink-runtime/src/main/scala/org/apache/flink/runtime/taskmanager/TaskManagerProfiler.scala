@@ -35,21 +35,23 @@ import org.apache.flink.runtime.profiling.impl.{EnvironmentThreadSet, InstancePr
 
 import scala.concurrent.duration.FiniteDuration
 
-class TaskManagerProfiler(val instancePath: String, val reportInterval: Int) extends Actor with ActorLogMessages with
-ActorLogging {
+class TaskManagerProfiler(val instancePath: String, val reportInterval: Int) extends Actor with
+ActorLogMessages with ActorLogging {
+
   import context.dispatcher
 
   val tmx = ManagementFactory.getThreadMXBean
   val instanceProfiler = new InstanceProfiler(instancePath)
   val listeners = scala.collection.mutable.Set[ActorRef]()
   val environments = scala.collection.mutable.HashMap[ExecutionAttemptID, RuntimeEnvironment]()
-  val monitoredThreads = scala.collection.mutable.HashMap[RuntimeEnvironment, EnvironmentThreadSet]()
+  val monitoredThreads = scala.collection.mutable.HashMap[RuntimeEnvironment,
+    EnvironmentThreadSet]()
 
   var monitoringScheduler: Option[Cancellable] = None
 
-  if(tmx.isThreadContentionMonitoringSupported){
+  if (tmx.isThreadContentionMonitoringSupported) {
     tmx.setThreadContentionMonitoringEnabled(true)
-  }else{
+  } else {
     throw new ProfilingException("The thread contention monitoring is not supported.")
   }
 
@@ -66,14 +68,14 @@ ActorLogging {
 
     case RegisterProfilingListener => {
       listeners += sender()
-      if(monitoringScheduler.isEmpty){
+      if (monitoringScheduler.isEmpty) {
         startMonitoring
       }
     }
 
     case UnregisterProfilingListener => {
       listeners -= sender()
-      if(listeners.isEmpty){
+      if (listeners.isEmpty) {
         stopMonitoring
       }
     }
@@ -83,15 +85,15 @@ ActorLogging {
 
       val profilingDataContainer = new ProfilingDataContainer()
 
-      for((env, set) <- monitoredThreads){
+      for ((env, set) <- monitoredThreads) {
         val threadProfilingData = set.captureCPUUtilization(env.getJobID, tmx, timestamp)
 
-        if(threadProfilingData != null){
+        if (threadProfilingData != null) {
           profilingDataContainer.addProfilingData(threadProfilingData)
         }
 
-        if(monitoredThreads.nonEmpty){
-          val instanceProfilingData = try{
+        if (monitoredThreads.nonEmpty) {
+          val instanceProfilingData = try {
             Some(instanceProfiler.generateProfilingData(timestamp))
           } catch {
             case e: ProfilingException => {
@@ -100,10 +102,12 @@ ActorLogging {
             }
           }
 
-          instanceProfilingData foreach { profilingDataContainer.addProfilingData(_) }
+          instanceProfilingData foreach {
+            profilingDataContainer.addProfilingData(_)
+          }
 
-          if(!profilingDataContainer.isEmpty){
-            for(listener <- listeners){
+          if (!profilingDataContainer.isEmpty) {
+            for (listener <- listeners) {
               listener ! ReportProfilingData(profilingDataContainer)
             }
           }
@@ -119,7 +123,8 @@ ActorLogging {
       environments.get(executionID) match {
         case Some(environment) =>
           newExecutionState match {
-            case RUNNING => registerMainThreadForCPUProfiling(environment, vertexID, subtaskIndex, executionID)
+            case RUNNING => registerMainThreadForCPUProfiling(environment, vertexID,
+              subtaskIndex, executionID)
             case FINISHED | CANCELING | CANCELED | FAILED =>
               unregisterMainThreadFromCPUProfiling(environment)
             case _ =>
@@ -132,26 +137,32 @@ ActorLogging {
 
   def startMonitoring(): Unit = {
     val interval = new FiniteDuration(reportInterval, TimeUnit.MILLISECONDS)
-    val delay = new FiniteDuration((reportInterval* Math.random()).toLong, TimeUnit.MILLISECONDS)
-    monitoringScheduler = Some(context.system.scheduler.schedule(delay, interval, self, ProfileTasks))
+    val delay = new FiniteDuration((reportInterval * Math.random()).toLong, TimeUnit.MILLISECONDS)
+    monitoringScheduler = Some(context.system.scheduler.schedule(delay, interval, self,
+      ProfileTasks))
   }
 
   def stopMonitoring(): Unit = {
-    monitoringScheduler.foreach { _.cancel() }
+    monitoringScheduler.foreach {
+      _.cancel()
+    }
     monitoringScheduler = None
   }
 
-  def registerMainThreadForCPUProfiling(environment: RuntimeEnvironment, vertexID: JobVertexID, subtask: Int,
+  def registerMainThreadForCPUProfiling(environment: RuntimeEnvironment, vertexID: JobVertexID,
+                                        subtask: Int,
                                         executionID: ExecutionAttemptID): Unit = {
-    monitoredThreads += environment -> new EnvironmentThreadSet(tmx, environment.getExecutingThread, vertexID,
+    monitoredThreads += environment -> new EnvironmentThreadSet(tmx,
+      environment.getExecutingThread, vertexID,
       subtask, executionID)
   }
 
   def unregisterMainThreadFromCPUProfiling(environment: RuntimeEnvironment): Unit = {
     monitoredThreads.remove(environment) match {
       case Some(set) =>
-        if(set.getMainThread != environment.getExecutingThread){
-          log.error(s"The thread ${environment.getExecutingThread.getName} is not the main thread of this environment.")
+        if (set.getMainThread != environment.getExecutingThread) {
+          log.error(s"The thread ${environment.getExecutingThread.getName} is not the main thread" +
+            s" of this environment.")
         }
       case None =>
     }

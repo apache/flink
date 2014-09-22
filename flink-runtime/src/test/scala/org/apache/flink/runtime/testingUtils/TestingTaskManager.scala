@@ -16,14 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.taskmanager
+package org.apache.flink.runtime.testingUtils
 
 import akka.actor.ActorRef
-import org.apache.flink.runtime.ActorLogMessages
+import org.apache.flink.runtime.taskmanager.TaskManager
+import org.apache.flink.runtime.{ActorLogMessages}
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
-import org.apache.flink.runtime.jobmanager.TestingTaskManagerMessages.{ResponseRunningTasks, RequestRunningTasks}
+import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.{NotifyWhenTaskRemoved, ResponseRunningTasks, RequestRunningTasks}
 import org.apache.flink.runtime.messages.TaskManagerMessages.UnregisterTask
-import org.apache.flink.runtime.taskmanager.TestingTaskManagerMessages.NotifyWhenTaskRemoved
 
 trait TestingTaskManager extends ActorLogMessages {
   self: TaskManager =>

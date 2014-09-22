@@ -20,24 +20,25 @@ package org.apache.flink.runtime.jobmanager
 
 import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestKit}
-import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager
-import org.apache.flink.runtime.io.network.api.{RecordReader, RecordWriter}
-import org.apache.flink.runtime.jobgraph.{DistributionPattern, JobStatus, JobGraph, AbstractJobVertex}
-import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable
-import org.apache.flink.runtime.jobmanager.TestingJobManagerMessages.{ExecutionGraphNotFound, ExecutionGraphFound, ResponseExecutionGraph, RequestExecutionGraph}
+import org.apache.flink.runtime.jobgraph.{DistributionPattern, JobStatus, JobGraph,
+AbstractJobVertex}
+import Tasks._
+import org.apache.flink.runtime.testingUtils.{TestingUtils, TestingJobManagerMessages}
+import TestingJobManagerMessages.{ExecutionGraphNotFound, ExecutionGraphFound,
+ResponseExecutionGraph, RequestExecutionGraph}
 import org.apache.flink.runtime.messages.ExecutionGraphMessages.JobStatusFound
-import org.apache.flink.runtime.messages.JobManagerMessages.{RequestJobStatusWhenTerminated, SubmitJob, RequestAvailableSlots}
+import org.apache.flink.runtime.messages.JobManagerMessages.{RequestJobStatusWhenTerminated,
+SubmitJob, RequestAvailableSlots}
 import org.apache.flink.runtime.messages.JobResult
 import org.apache.flink.runtime.messages.JobResult.JobSubmissionResult
-import org.apache.flink.runtime.types.IntegerRecord
 import org.scalatest.{Matchers, WordSpecLike, BeforeAndAfterAll}
 import scala.concurrent.duration._
 
-class JobManagerITCase2(_system: ActorSystem) extends TestKit(_system) with ImplicitSender with WordSpecLike with
-Matchers with BeforeAndAfterAll{
-  def this() = this(ActorSystem("TestingActorSystem"))
+class JobManagerITCase(_system: ActorSystem) extends TestKit(_system) with ImplicitSender with
+WordSpecLike with Matchers with BeforeAndAfterAll {
+  def this() = this(ActorSystem("TestingActorSystem", TestingUtils.testConfig))
 
   override def afterAll: Unit = {
     TestKit.shutdownActorSystem(system)
@@ -51,10 +52,10 @@ Matchers with BeforeAndAfterAll{
 
       val jobGraph = new JobGraph("Test Job", vertex)
 
-      val cluster = startTestingCluster(1)
+      val cluster = TestingUtils.startTestingCluster(1)
       val jm = cluster.getJobManager
 
-      try{
+      try {
         val availableSlots = AkkaUtils.ask[Int](jm, RequestAvailableSlots)
         availableSlots should equal(1)
 
@@ -63,18 +64,20 @@ Matchers with BeforeAndAfterAll{
 
         result.returnCode should equal(JobResult.ERROR)
 
-        within(1 second){
+        within(1 second) {
           jm ! RequestJobStatusWhenTerminated
           expectMsg(JobStatusFound(jobGraph.getJobID, JobStatus.FINISHED))
         }
 
-        val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm, RequestExecutionGraph(jobGraph.getJobID)) match {
+        val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
+          RequestExecutionGraph(jobGraph.getJobID)) match {
           case ExecutionGraphFound(_, executionGraph) => executionGraph
-          case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} was not retrievable.")
+          case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} " +
+            s"was not retrievable.")
         }
 
         executionGraph.getRegisteredExecutions.size should equal(0)
-      }finally{
+      } finally {
         cluster.stop()
       }
     }
@@ -87,10 +90,10 @@ Matchers with BeforeAndAfterAll{
 
       val jobGraph = new JobGraph("Test Job", vertex)
 
-      val cluster = startTestingCluster(num_tasks)
+      val cluster = TestingUtils.startTestingCluster(num_tasks)
       val jm = cluster.getJobManager
 
-      try{
+      try {
         val availableSlots = AkkaUtils.ask[Int](jm, RequestAvailableSlots)
         availableSlots should equal(num_tasks)
 
@@ -100,18 +103,20 @@ Matchers with BeforeAndAfterAll{
 
         result.returnCode should equal(JobResult.SUCCESS)
 
-        within(1 second){
+        within(1 second) {
           jm ! RequestJobStatusWhenTerminated
           expectMsg(JobStatusFound(jobGraph.getJobID, JobStatus.FINISHED))
         }
 
-        val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm, RequestExecutionGraph(jobGraph.getJobID)) match {
+        val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
+          RequestExecutionGraph(jobGraph.getJobID)) match {
           case ExecutionGraphFound(_, eg) => eg
-          case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} was not retrievable.")
+          case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} " +
+            s"was not retrievable.")
         }
 
         executionGraph.getRegisteredExecutions.size should equal(0)
-      }finally{
+      } finally {
         cluster.stop()
       }
     }
@@ -126,10 +131,10 @@ Matchers with BeforeAndAfterAll{
       val jobGraph = new JobGraph("Test job", vertex)
       jobGraph.setAllowQueuedScheduling(true)
 
-      val cluster = startTestingCluster(10)
+      val cluster = TestingUtils.startTestingCluster(10)
       val jm = cluster.getJobManager
 
-      try{
+      try {
         LibraryCacheManager.register(jobGraph.getJobID, Array[String]())
 
         within(1 second) {
@@ -142,13 +147,15 @@ Matchers with BeforeAndAfterAll{
           expectMsg(JobStatusFound(jobGraph.getJobID, JobStatus.FINISHED))
         }
 
-        val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm, RequestExecutionGraph(jobGraph.getJobID)) match {
+        val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
+          RequestExecutionGraph(jobGraph.getJobID)) match {
           case ExecutionGraphFound(_, eg) => eg
-          case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} was not retrievable.")
+          case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} " +
+            s"was not retrievable.")
         }
 
         executionGraph.getRegisteredExecutions.size should equal(0)
-      }finally{
+      } finally {
         cluster.stop()
       }
     }
@@ -168,10 +175,10 @@ Matchers with BeforeAndAfterAll{
 
       val jobGraph = new JobGraph("Pointwise Job", sender, receiver)
 
-      val cluster = startTestingCluster(2*num_tasks)
+      val cluster = TestingUtils.startTestingCluster(2 * num_tasks)
       val jm = cluster.getJobManager
 
-      try{
+      try {
         LibraryCacheManager.register(jobGraph.getJobID, Array[String]())
 
         within(1 second) {
@@ -184,13 +191,15 @@ Matchers with BeforeAndAfterAll{
           expectMsg(JobStatusFound(jobGraph.getJobID, JobStatus.FINISHED))
         }
 
-        val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm, RequestExecutionGraph(jobGraph.getJobID)) match {
+        val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
+          RequestExecutionGraph(jobGraph.getJobID)) match {
           case ExecutionGraphFound(_, eg) => eg
-          case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} was not retrievable.")
+          case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} " +
+            s"was not retrievable.")
         }
 
         executionGraph.getRegisteredExecutions.size should equal(0)
-      }finally{
+      } finally {
         cluster.stop()
       }
     }
@@ -207,13 +216,13 @@ Matchers with BeforeAndAfterAll{
 
       val jobGraph = new JobGraph("Bipartite Job", sender, receiver)
 
-      val cluster = startTestingCluster(2* num_tasks)
+      val cluster = TestingUtils.startTestingCluster(2 * num_tasks)
       val jm = cluster.getJobManager
 
-      try{
+      try {
         LibraryCacheManager.register(jobGraph.getJobID, Array[String]())
 
-        within(1 second){
+        within(1 second) {
           jm ! SubmitJob(jobGraph)
 
           expectMsg(JobSubmissionResult(JobResult.SUCCESS, null))
@@ -223,13 +232,15 @@ Matchers with BeforeAndAfterAll{
           expectMsg(JobStatusFound(jobGraph.getJobID, JobStatus.FINISHED))
         }
 
-        val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm, RequestExecutionGraph(jobGraph.getJobID)) match {
+        val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
+          RequestExecutionGraph(jobGraph.getJobID)) match {
           case ExecutionGraphFound(_, eg) => eg
-          case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} was not retrievable.")
+          case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} " +
+            s"was not retrievable.")
         }
 
         executionGraph.getRegisteredExecutions.size should equal(0)
-      }finally{
+      } finally {
         cluster.stop()
       }
     }
@@ -245,18 +256,18 @@ Matchers with BeforeAndAfterAll{
       receiver.setInvokableClass(classOf[AgnosticReceiver])
 
       sender1.setParallelism(num_tasks)
-      sender2.setParallelism(2*num_tasks)
-      receiver.setParallelism(3* num_tasks)
+      sender2.setParallelism(2 * num_tasks)
+      receiver.setParallelism(3 * num_tasks)
 
       receiver.connectNewDataSetAsInput(sender1, DistributionPattern.POINTWISE)
       receiver.connectNewDataSetAsInput(sender2, DistributionPattern.BIPARTITE)
 
       val jobGraph = new JobGraph("Bipartite Job", sender1, receiver, sender2)
 
-      val cluster = startTestingCluster(6*num_tasks)
+      val cluster = TestingUtils.startTestingCluster(6 * num_tasks)
       val jm = cluster.getJobManager
 
-      try{
+      try {
         LibraryCacheManager.register(jobGraph.getJobID, Array[String]())
 
         within(1 second) {
@@ -269,13 +280,15 @@ Matchers with BeforeAndAfterAll{
           expectMsg(JobStatusFound(jobGraph.getJobID, JobStatus.FAILED))
         }
 
-        val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm, RequestExecutionGraph(jobGraph.getJobID)) match {
+        val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
+          RequestExecutionGraph(jobGraph.getJobID)) match {
           case ExecutionGraphFound(_, eg) => eg
-          case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} was not retrievable.")
+          case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} " +
+            s"was not retrievable.")
         }
 
         executionGraph.getRegisteredExecutions.size should equal(0)
-      }finally{
+      } finally {
         cluster.stop()
       }
     }
@@ -291,18 +304,18 @@ Matchers with BeforeAndAfterAll{
       receiver.setInvokableClass(classOf[AgnosticBinaryReceiver])
 
       sender1.setParallelism(num_tasks)
-      sender2.setParallelism(2*num_tasks)
-      receiver.setParallelism(3* num_tasks)
+      sender2.setParallelism(2 * num_tasks)
+      receiver.setParallelism(3 * num_tasks)
 
       receiver.connectNewDataSetAsInput(sender1, DistributionPattern.POINTWISE)
       receiver.connectNewDataSetAsInput(sender2, DistributionPattern.BIPARTITE)
 
       val jobGraph = new JobGraph("Bipartite Job", sender1, receiver, sender2)
 
-      val cluster = startTestingCluster(6*num_tasks)
+      val cluster = TestingUtils.startTestingCluster(6 * num_tasks)
       val jm = cluster.getJobManager
 
-      try{
+      try {
         LibraryCacheManager.register(jobGraph.getJobID, Array[String]())
 
         within(1 second) {
@@ -315,13 +328,15 @@ Matchers with BeforeAndAfterAll{
           expectMsg(JobStatusFound(jobGraph.getJobID, JobStatus.FINISHED))
         }
 
-        val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm, RequestExecutionGraph(jobGraph.getJobID)) match {
+        val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
+          RequestExecutionGraph(jobGraph.getJobID)) match {
           case ExecutionGraphFound(_, eg) => eg
-          case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} was not retrievable.")
+          case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} " +
+            s"was not retrievable.")
         }
 
         executionGraph.getRegisteredExecutions.size should equal(0)
-      }finally{
+      } finally {
         cluster.stop()
       }
     }
@@ -341,10 +356,10 @@ Matchers with BeforeAndAfterAll{
 
       val jobGraph = new JobGraph("Pointwise Job", sender, receiver)
 
-      val cluster = startTestingCluster(num_tasks)
+      val cluster = TestingUtils.startTestingCluster(num_tasks)
       val jm = cluster.getJobManager
 
-      try{
+      try {
         within(1 second) {
           jm ! RequestAvailableSlots
           expectMsg(num_tasks)
@@ -360,13 +375,15 @@ Matchers with BeforeAndAfterAll{
           expectMsg(JobStatusFound(jobGraph.getJobID, JobStatus.FAILED))
         }
 
-        val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm, RequestExecutionGraph(jobGraph.getJobID)) match {
+        val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
+          RequestExecutionGraph(jobGraph.getJobID)) match {
           case ExecutionGraphFound(_, eg) => eg
-          case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} was not retrievable.")
+          case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} " +
+            s"was not retrievable.")
         }
 
         executionGraph.getRegisteredExecutions.size should equal(0)
-      }finally{
+      } finally {
         cluster.stop()
       }
     }
@@ -386,10 +403,10 @@ Matchers with BeforeAndAfterAll{
 
       val jobGraph = new JobGraph("Pointwise Job", sender, receiver)
 
-      val cluster = startTestingCluster(num_tasks)
+      val cluster = TestingUtils.startTestingCluster(num_tasks)
       val jm = cluster.getJobManager
 
-      try{
+      try {
         within(1 second) {
           jm ! RequestAvailableSlots
           expectMsg(num_tasks)
@@ -405,13 +422,15 @@ Matchers with BeforeAndAfterAll{
           expectMsg(JobStatusFound(jobGraph.getJobID, JobStatus.FAILED))
         }
 
-        val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm, RequestExecutionGraph(jobGraph.getJobID)) match {
+        val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
+          RequestExecutionGraph(jobGraph.getJobID)) match {
           case ExecutionGraphFound(_, eg) => eg
-          case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} was not retrievable.")
+          case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} " +
+            s"was not retrievable.")
         }
 
         executionGraph.getRegisteredExecutions.size should equal(0)
-      }finally{
+      } finally {
         cluster.stop()
       }
     }
@@ -431,10 +450,10 @@ Matchers with BeforeAndAfterAll{
 
       val jobGraph = new JobGraph("Pointwise job", sender, receiver)
 
-      val cluster = startTestingCluster(2*num_tasks)
+      val cluster = TestingUtils.startTestingCluster(2 * num_tasks)
       val jm = cluster.getJobManager
 
-      try{
+      try {
         LibraryCacheManager.register(jobGraph.getJobID, Array[String]())
 
         within(1 second) {
@@ -445,13 +464,15 @@ Matchers with BeforeAndAfterAll{
           expectMsg(JobStatusFound(jobGraph.getJobID, JobStatus.FAILED))
         }
 
-        val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm, RequestExecutionGraph(jobGraph.getJobID)) match {
+        val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
+          RequestExecutionGraph(jobGraph.getJobID)) match {
           case ExecutionGraphFound(_, eg) => eg
-          case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} was not retrievable.")
+          case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} " +
+            s"was not retrievable.")
         }
 
         executionGraph.getRegisteredExecutions.size should equal(0)
-      }finally{
+      } finally {
         cluster.stop()
       }
     }
@@ -471,10 +492,10 @@ Matchers with BeforeAndAfterAll{
 
       val jobGraph = new JobGraph("Pointwise job", sender, receiver)
 
-      val cluster = startTestingCluster(num_tasks)
+      val cluster = TestingUtils.startTestingCluster(num_tasks)
       val jm = cluster.getJobManager
 
-      try{
+      try {
         within(1 second) {
           jm ! RequestAvailableSlots
           expectMsg(num_tasks)
@@ -490,13 +511,15 @@ Matchers with BeforeAndAfterAll{
           expectMsg(JobStatusFound(jobGraph.getJobID, JobStatus.FAILED))
         }
 
-        val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm, RequestExecutionGraph(jobGraph.getJobID)) match {
+        val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
+          RequestExecutionGraph(jobGraph.getJobID)) match {
           case ExecutionGraphFound(_, eg) => eg
-          case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} was not retrievable.")
+          case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} " +
+            s"was not retrievable.")
         }
 
         executionGraph.getRegisteredExecutions.size should equal(0)
-      }finally{
+      } finally {
         cluster.stop()
       }
     }
@@ -516,10 +539,10 @@ Matchers with BeforeAndAfterAll{
 
       val jobGraph = new JobGraph("Pointwise job", sender, receiver)
 
-      val cluster = startTestingCluster(num_tasks)
+      val cluster = TestingUtils.startTestingCluster(num_tasks)
       val jm = cluster.getJobManager
 
-      try{
+      try {
         within(1 second) {
           jm ! RequestAvailableSlots
           expectMsg(num_tasks)
@@ -535,173 +558,17 @@ Matchers with BeforeAndAfterAll{
           expectMsg(JobStatusFound(jobGraph.getJobID, JobStatus.FAILED))
         }
 
-        val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm, RequestExecutionGraph(jobGraph.getJobID)) match {
+        val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
+          RequestExecutionGraph(jobGraph.getJobID)) match {
           case ExecutionGraphFound(_, eg) => eg
-          case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} was not retrievable.")
+          case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} " +
+            s"was not retrievable.")
         }
 
         executionGraph.getRegisteredExecutions.size should equal(0)
-      }finally{
+      } finally {
         cluster.stop()
       }
     }
-  }
-
-
-  def startTestingCluster(slots: Int) = {
-    val configuration = new Configuration()
-    configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, slots)
-
-    val cluster = new TestingCluster()
-    cluster.start(configuration)
-    cluster
-  }
-}
-
-class BlockingNoOpInvokable extends AbstractInvokable {
-  override def registerInputOutput(): Unit = {}
-
-  override def invoke(): Unit = {
-    val o = new Object()
-    o.synchronized{
-      o.wait()
-    }
-  }
-}
-
-class NoOpInvokable extends AbstractInvokable{
-  override def registerInputOutput(): Unit = {}
-
-  override def invoke(): Unit = {}
-}
-
-class Sender extends AbstractInvokable{
-  var writer: RecordWriter[IntegerRecord] = _
-  override def registerInputOutput(): Unit = {
-    writer = new RecordWriter[IntegerRecord](this)
-  }
-
-  override def invoke(): Unit = {
-    try{
-      writer.initializeSerializers()
-      writer.emit(new IntegerRecord(42))
-      writer.emit(new IntegerRecord(1337))
-      writer.flush()
-    }finally{
-      writer.clearBuffers()
-    }
-  }
-}
-
-class Receiver extends AbstractInvokable {
-  var reader: RecordReader[IntegerRecord] = _
-
-  override def registerInputOutput(): Unit = {
-    reader = new RecordReader[IntegerRecord](this, classOf[IntegerRecord])
-  }
-
-  override def invoke(): Unit = {
-    val i1 = reader.next()
-    val i2 = reader.next()
-    val i3 = reader.next()
-
-    if(i1.getValue != 42 || i2.getValue != 1337 || i3 != null){
-      throw new Exception("Wrong data received.")
-    }
-  }
-}
-
-class AgnosticReceiver extends AbstractInvokable {
-  var reader: RecordReader[IntegerRecord] = _
-
-  override def registerInputOutput(): Unit = {
-    reader = new RecordReader[IntegerRecord](this, classOf[IntegerRecord])
-  }
-
-  override def invoke(): Unit = {
-    while(reader.next() != null){}
-  }
-}
-
-class AgnosticBinaryReceiver extends AbstractInvokable {
-  var reader1: RecordReader[IntegerRecord] = _
-  var reader2: RecordReader[IntegerRecord] = _
-
-  override def registerInputOutput(): Unit = {
-    reader1 = new RecordReader[IntegerRecord](this, classOf[IntegerRecord])
-    reader2 = new RecordReader[IntegerRecord](this, classOf[IntegerRecord])
-  }
-
-  override def invoke(): Unit = {
-    while(reader1.next() != null){}
-    while(reader2.next() != null){}
-  }
-}
-
-class ExceptionSender extends AbstractInvokable{
-  var writer: RecordWriter[IntegerRecord] = _
-
-  override def registerInputOutput(): Unit = {
-    writer = new RecordWriter[IntegerRecord](this)
-  }
-
-  override def invoke(): Unit = {
-    writer.initializeSerializers()
-
-    throw new Exception("Test exception")
-  }
-}
-
-class SometimesExceptionSender extends AbstractInvokable {
-  var writer: RecordWriter[IntegerRecord] = _
-
-  override def registerInputOutput(): Unit = {
-    writer = new RecordWriter[IntegerRecord](this)
-  }
-
-  override def invoke(): Unit = {
-    writer.initializeSerializers()
-
-    if(Math.random() < 0.05){
-      throw new Exception("Test exception")
-    }else{
-      val o = new Object()
-      o.synchronized(o.wait())
-    }
-  }
-}
-
-class ExceptionReceiver extends AbstractInvokable {
-  override def registerInputOutput(): Unit = {
-    new RecordReader[IntegerRecord](this, classOf[IntegerRecord])
-  }
-
-  override def invoke(): Unit = {
-    throw new Exception("Test exception")
-  }
-}
-
-class InstantiationErrorSender extends AbstractInvokable{
-  throw new RuntimeException("Test exception in constructor")
-
-  override def registerInputOutput(): Unit = {
-  }
-
-  override def invoke(): Unit = {
-  }
-}
-
-class SometimesInstantiationErrorSender extends AbstractInvokable{
-  if(Math.random < 0.05){
-    throw new RuntimeException("Test exception in constructor")
-  }
-
-  override def registerInputOutput(): Unit = {
-    new RecordWriter[IntegerRecord](this)
-  }
-
-  override def invoke(): Unit = {
-    val o = new Object()
-    o.synchronized(o.wait())
   }
 }

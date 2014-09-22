@@ -55,7 +55,6 @@ import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
-import org.apache.flink.runtime.protocols.AccumulatorProtocol;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.MutableObjectIterator;
 

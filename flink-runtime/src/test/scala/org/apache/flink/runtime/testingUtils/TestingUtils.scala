@@ -16,11 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime
+package org.apache.flink.runtime.testingUtils
 
+import akka.actor.{Props, ActorSystem}
 import com.typesafe.config.ConfigFactory
+import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.core.io.IOReadableWritable
 import org.apache.flink.runtime.akka.serialization.IOReadableWritableSerializer
+import org.apache.flink.runtime.minicluster.FlinkMiniCluster
+import org.apache.flink.runtime.taskmanager.TaskManager
 
 object TestingUtils {
   val testConfig = ConfigFactory.parseString(getDefaultTestingActorSystemConfigString)
@@ -43,5 +47,25 @@ object TestingUtils {
       | "$ioRWClass" = IOReadableWritable
       |}
     """.stripMargin
+  }
+
+  def startTestingTaskManagerWithConfiguration(hostname: String, config: Configuration)
+                                              (implicit system: ActorSystem) = {
+    val (connectionInfo, jobManagerURL, numberOfSlots, memorySize, pageSize, tmpDirPaths,
+    networkConnectionConfig, memoryUsageLogging, profilingInterval) =
+      TaskManager.parseConfiguration(hostname, config);
+
+    system.actorOf(Props(new TaskManager(connectionInfo, jobManagerURL, numberOfSlots,
+      memorySize, pageSize, tmpDirPaths, networkConnectionConfig, memoryUsageLogging,
+      profilingInterval) with TestingTaskManager))
+  }
+
+  def startTestingCluster(numSlots: Int): FlinkMiniCluster = {
+    val config = new Configuration()
+    config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlots)
+    val cluster = new TestingCluster
+    cluster.start(config)
+
+    cluster
   }
 }

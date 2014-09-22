@@ -24,8 +24,6 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.core.protocols.VersionedProtocol;
 
 /**
  * Utility class which provides various methods for dynamic class loading.
@@ -36,49 +34,6 @@ public final class ClassUtils {
 	 * Private constructor used to overwrite public one.
 	 */
 	private ClassUtils() {}
-
-	/**
-	 * Searches for a protocol class by its name and attempts to load it.
-	 * 
-	 * @param className
-	 *        the name of the protocol class
-	 * @return an instance of the protocol class
-	 * @throws ClassNotFoundException
-	 *         thrown if no class with such a name can be found
-	 */
-	public static Class<? extends VersionedProtocol> getProtocolByName(final String className)
-			throws ClassNotFoundException {
-
-		if (!className.contains("Protocol")) {
-			System.out.println(className);
-			throw new ClassNotFoundException("Only use this method for protocols!");
-		}
-
-		return (Class<? extends VersionedProtocol>) Class.forName(className, true, getClassLoader()).asSubclass(VersionedProtocol.class);
-	}
-
-	/**
-	 * Searches for a record class by its name and attempts to load it.
-	 * 
-	 * @param className
-	 *        the name of the record class
-	 * @return an instance of the record class
-	 * @throws ClassNotFoundException
-	 *         thrown if no class with such a name can be found
-	 */
-	@SuppressWarnings("unchecked")
-	public static Class<? extends IOReadableWritable> getRecordByName(final String className)
-			throws ClassNotFoundException {
-//		
-//		Class<?> clazz = Class.forName(className, true, getClassLoader());
-//		if (IOReadableWritable.class.isAssignableFrom(clazz)) {
-//			return clazz.asSubclass(IOReadableWritable.class);
-//		} else {
-//			return (Class<? extends IOReadableWritable>) clazz;
-//		}
-//		
-		return (Class<? extends IOReadableWritable>) Class.forName(className, true, getClassLoader());
-	}
 
 	/**
 	 * Searches for a file system class by its name and attempts to load it.

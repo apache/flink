@@ -16,18 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmanager.tasks;
+package org.apache.flink.runtime.testingUtils
 
-import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
+import org.apache.flink.runtime.taskmanager.Task
 
-/**
- * An invokable that does nothing.
- */
-public class NoOpInvokable extends AbstractInvokable {
+import scala.collection.convert.DecorateAsJava
 
-	@Override
-	public void registerInputOutput() {}
-
-	@Override
-	public void invoke() {}
+object TestingTaskManagerMessages extends DecorateAsJava{
+  case class NotifyWhenTaskRemoved(executionID: ExecutionAttemptID)
+  case object RequestRunningTasks
+  case class ResponseRunningTasks(tasks: Map[ExecutionAttemptID, Task]){
+    def asJava: java.util.Map[ExecutionAttemptID, Task] = tasks.asJava
+  }
 }

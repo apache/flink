@@ -22,7 +22,9 @@ import java.io.File;
 import java.io.FileWriter;
 
 import org.apache.flink.client.RemoteExecutor;
-import org.apache.flink.runtime.minicluster.NepheleMiniCluster;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.test.testdata.KMeansData;
 import org.junit.Assert;
 import org.junit.Test;
@@ -34,7 +36,7 @@ public class PackagedProgramEndToEndITCase {
 
 	@Test
 	public void testEverything() {
-		NepheleMiniCluster cluster = new NepheleMiniCluster();
+		LocalFlinkMiniCluster cluster = new LocalFlinkMiniCluster(null);
 
 		File points = null;
 		File clusters = null;
@@ -59,11 +61,12 @@ public class PackagedProgramEndToEndITCase {
 			String jarPath = "target/maven-test-jar.jar";
 
 			// run KMeans
-			cluster.setNumTaskManager(2);
-			cluster.setTaskManagerNumSlots(2);
-			cluster.start();
+			Configuration config = new Configuration();
+			config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 2);
+			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 2);
+			cluster.start(config);
 
-			RemoteExecutor ex = new RemoteExecutor("localhost", cluster.getJobManagerRpcPort());
+			RemoteExecutor ex = new RemoteExecutor("localhost", cluster.getJobManagerRPCPort());
 
 			ex.executeJar(jarPath,
 					"org.apache.flink.test.util.testjar.KMeansForTest",

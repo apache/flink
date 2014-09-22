@@ -21,10 +21,11 @@ package org.apache.flink.api.avro;
 import java.io.File;
 import java.net.InetSocketAddress;
 
-import org.apache.flink.runtime.minicluster.NepheleMiniCluster;
 import org.apache.flink.client.program.Client;
 import org.apache.flink.client.program.PackagedProgram;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -38,19 +39,21 @@ public class AvroExternalJarProgramITCase {
 	@Test
 	public void testExternalProgram() {
 		
-		NepheleMiniCluster testMiniCluster = null;
+		LocalFlinkMiniCluster testMiniCluster = null;
 		
 		try {
-			testMiniCluster = new NepheleMiniCluster();
-			testMiniCluster.setTaskManagerNumSlots(4);
-			testMiniCluster.start();
+			testMiniCluster = new LocalFlinkMiniCluster(null);
+			Configuration config = new Configuration();
+			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 4);
+			testMiniCluster.start(config);
 			
 			String jarFile = JAR_FILE;
 			String testData = getClass().getResource(TEST_DATA_FILE).toString();
 			
 			PackagedProgram program = new PackagedProgram(new File(jarFile), new String[] { testData });
 						
-			Client c = new Client(new InetSocketAddress("localhost", testMiniCluster.getJobManagerRpcPort()), new Configuration(), program.getUserCodeClassLoader());
+			Client c = new Client(new InetSocketAddress("localhost", testMiniCluster.getJobManagerRPCPort()),
+					new Configuration(), program.getUserCodeClassLoader());
 			c.run(program, 4, true);
 		}
 		catch (Throwable t) {

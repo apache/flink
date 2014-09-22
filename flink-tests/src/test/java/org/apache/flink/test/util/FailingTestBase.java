@@ -18,9 +18,9 @@
 
 package org.apache.flink.test.util;
 
+import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.junit.Assert;
 
-import org.apache.flink.runtime.minicluster.NepheleMiniCluster;
 import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -119,7 +119,7 @@ public abstract class FailingTestBase extends RecordAPITestBase {
 		// reference to the timeout thread
 		private final Thread timeoutThread;
 		// cluster to submit the job to.
-		private final NepheleMiniCluster executor;
+		private final LocalFlinkMiniCluster executor;
 		// job graph of the failing job (submitted first)
 		private final JobGraph failingJob;
 		// job graph of the working job (submitted after return from failing job)
@@ -128,7 +128,8 @@ public abstract class FailingTestBase extends RecordAPITestBase {
 		private volatile Exception error;
 		
 
-		public SubmissionThread(Thread timeoutThread, NepheleMiniCluster executor, JobGraph failingJob, JobGraph job) {
+		public SubmissionThread(Thread timeoutThread, LocalFlinkMiniCluster executor, JobGraph failingJob,
+								JobGraph job) {
 			this.timeoutThread = timeoutThread;
 			this.executor = executor;
 			this.failingJob = failingJob;

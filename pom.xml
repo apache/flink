@@ -60,9 +60,9 @@ under the License.
 		<module>flink-compiler</module>
 		<module>flink-examples</module>
 		<module>flink-clients</module>
-		<!--<module>flink-tests</module>-->
-		<!--<module>flink-test-utils</module>-->
-		<!--<module>flink-addons</module>-->
+		<module>flink-tests</module>
+		<module>flink-test-utils</module>
+		<module>flink-addons</module>
 		<module>flink-quickstart</module>
 		<module>flink-dist</module>
 	</modules>

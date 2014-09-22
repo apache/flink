@@ -16,18 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmanager
+package org.apache.flink.runtime.testingUtils
 
 import akka.actor.Props
 import org.apache.flink.runtime.ActorLogMessages
-import org.apache.flink.runtime.jobmanager.TestingJobManagerMessages.{ExecutionGraphFound, RequestExecutionGraph}
+import org.apache.flink.runtime.jobmanager.{EventCollector, JobManager, MemoryArchivist}
+import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.{ExecutionGraphFound,
+RequestExecutionGraph}
 
 
 trait TestingJobManager extends ActorLogMessages {
   self: JobManager =>
 
   override def archiveProps = Props(new MemoryArchivist(archiveCount) with TestingMemoryArchivist)
-  override def eventCollectorProps = Props(new EventCollector(recommendedPollingInterval) with TestingEventCollector)
+
+  override def eventCollectorProps = Props(new EventCollector(recommendedPollingInterval) with
+    TestingEventCollector)
 
   abstract override def receiveWithLogMessages: Receive = {
     receiveTestingMessages orElse super.receiveWithLogMessages
@@ -36,7 +40,7 @@ trait TestingJobManager extends ActorLogMessages {
   def receiveTestingMessages: Receive = {
     case RequestExecutionGraph(jobID) =>
       currentJobs.get(jobID) match {
-        case Some(executionGraph) => sender() ! ExecutionGraphFound(jobID,executionGraph)
+        case Some(executionGraph) => sender() ! ExecutionGraphFound(jobID, executionGraph)
         case None => eventCollector.tell(RequestExecutionGraph(jobID), sender())
       }
   }
