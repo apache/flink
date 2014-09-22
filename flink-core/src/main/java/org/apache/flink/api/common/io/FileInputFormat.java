@@ -28,7 +28,7 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
-import org.apache.flink.api.common.operators.base.GenericDataSourceBase;
+import org.apache.flink.api.common.operators.GenericDataSourceBase;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;

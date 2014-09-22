@@ -20,7 +20,7 @@
 package org.apache.flink.api.java.record.operators;
 
 import org.apache.flink.api.common.io.InputFormat;
-import org.apache.flink.api.common.operators.base.GenericDataSourceBase;
+import org.apache.flink.api.common.operators.GenericDataSourceBase;
 import org.apache.flink.types.Record;
 
 /**

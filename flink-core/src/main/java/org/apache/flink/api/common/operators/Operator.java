@@ -47,7 +47,7 @@ public abstract class Operator<OUT> implements Visitable<Operator<?>> {
 	 */
 	protected final OperatorInformation<OUT> operatorInfo;
 
-	// --------------------------------------------------------------------------------------------	
+	// --------------------------------------------------------------------------------------------
 
 	/**
 	 * Creates a new contract with the given name. The parameters are empty by default and
@@ -191,6 +191,8 @@ public abstract class Operator<OUT> implements Visitable<Operator<?>> {
 	public UserCodeWrapper<?> getUserCodeWrapper() {
 		return null;
 	}
+	
+	// --------------------------------------------------------------------------------------------
 	
 	/**
 	 * Takes a list of operators and creates a cascade of unions of this inputs, if needed.

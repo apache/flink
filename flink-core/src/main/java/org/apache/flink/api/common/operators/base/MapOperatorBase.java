@@ -19,7 +19,12 @@
 
 package org.apache.flink.api.common.operators.base;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.operators.SingleInputOperator;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
@@ -45,5 +50,24 @@ public class MapOperatorBase<IN, OUT, FT extends MapFunction<IN, OUT>> extends S
 	
 	public MapOperatorBase(Class<? extends FT> udf, UnaryOperatorInformation<IN, OUT> operatorInfo, String name) {
 		super(new UserCodeClassWrapper<FT>(udf), operatorInfo, name);
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	@Override
+	protected List<OUT> executeOnCollections(List<IN> inputData, RuntimeContext ctx) throws Exception {
+		MapFunction<IN, OUT> function = this.userFunction.getUserCodeObject();
+		
+		FunctionUtils.openFunction(function, this.parameters);
+		FunctionUtils.setFunctionRuntimeContext(function, ctx);
+		
+		ArrayList<OUT> result = new ArrayList<OUT>(inputData.size());
+		for (IN element : inputData) {
+			result.add(function.map(element));
+		}
+		
+		FunctionUtils.closeFunction(function);
+		
+		return result;
 	}
 }

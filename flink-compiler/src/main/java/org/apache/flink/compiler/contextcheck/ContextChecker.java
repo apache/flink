@@ -25,12 +25,12 @@ import java.util.Set;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.operators.DualInputOperator;
+import org.apache.flink.api.common.operators.GenericDataSinkBase;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.SingleInputOperator;
 import org.apache.flink.api.common.operators.base.BulkIterationBase;
 import org.apache.flink.api.common.operators.base.FileDataSinkBase;
 import org.apache.flink.api.common.operators.base.FileDataSourceBase;
-import org.apache.flink.api.common.operators.base.GenericDataSinkBase;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.Visitor;
 

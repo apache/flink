@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.operators.udf;
+package org.apache.flink.api.common.functions.util;
 
 import java.util.HashMap;
 import java.util.List;
@@ -66,6 +66,7 @@ public class RuntimeUDFContext implements RuntimeContext {
 		this.userCodeClassLoader = userCodeClassLoader;
 		this.distributedCache.setCopyTasks(cpTasks);
 	}
+	
 	@Override
 	public String getTaskName() {
 		return this.name;

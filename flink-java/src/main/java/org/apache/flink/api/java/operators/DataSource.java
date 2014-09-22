@@ -19,8 +19,8 @@
 package org.apache.flink.api.java.operators;
 
 import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.operators.GenericDataSourceBase;
 import org.apache.flink.api.common.operators.OperatorInformation;
-import org.apache.flink.api.common.operators.base.GenericDataSourceBase;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ExecutionEnvironment;
 
