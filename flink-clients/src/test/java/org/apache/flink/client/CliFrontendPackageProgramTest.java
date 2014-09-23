@@ -25,7 +25,6 @@ import static org.apache.flink.client.CliFrontendTestUtils.getNonJarFilePath;
 import static org.apache.flink.client.CliFrontendTestUtils.getTestJarPath;
 import static org.apache.flink.client.CliFrontendTestUtils.pipeSystemOutToNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
@@ -233,7 +232,7 @@ public class CliFrontendPackageProgramTest {
 	 */
 	@Test
 	public void testPlanWithExternalClass() throws CompilerException, ProgramInvocationException {
-		final Boolean callme[] = { false }; // create a final object reference, to be able to change its val later
+		final boolean[] callme = { false }; // create a final object reference, to be able to change its val later
 		try {
 			String[] parameters = {getTestJarPath(), "-c", TEST_JAR_CLASSLOADERTEST_CLASS , "some", "program"};
 			CommandLine line = new PosixParser().parse(CliFrontend.getProgramSpecificOptions(new Options()), parameters, false);
@@ -247,9 +246,12 @@ public class CliFrontendPackageProgramTest {
 			ClassLoader testClassLoader = new ClassLoader(prog.getUserCodeClassLoader()) {
 				@Override
 				public Class<?> loadClass(String name) throws ClassNotFoundException {
-					assertEquals("org.apache.hadoop.hive.ql.io.RCFileInputFormat", name);
-					callme[0] = true;
-					return String.class; // Intentionally return the wrong class.
+					if ("org.apache.hadoop.hive.ql.io.RCFileInputFormat".equals(name)) {
+						callme[0] = true;
+						return String.class; // Intentionally return the wrong class.
+					} else {
+						return super.loadClass(name);
+					}
 				}
 			};
 			when(prog.getUserCodeClassLoader()).thenReturn(testClassLoader);
@@ -262,7 +264,8 @@ public class CliFrontendPackageProgramTest {
 			Client cli = new Client(c, getClass().getClassLoader());
 			
 			cli.getOptimizedPlanAsJson(prog, 666);
-		} catch(ProgramInvocationException pie) {
+		}
+		catch(ProgramInvocationException pie) {
 			assertTrue("Classloader was not called", callme[0]);
 			// class not found exception is expected as some point
 			if( ! ( pie.getCause() instanceof ClassNotFoundException ) ) {
