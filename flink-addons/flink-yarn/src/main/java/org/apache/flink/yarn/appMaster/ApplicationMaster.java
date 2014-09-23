@@ -137,6 +137,11 @@ public class ApplicationMaster implements YARNClientMasterProtocol {
 	private boolean hasLogback;
 	
 	/**
+	 * Indicates if a log4j config file is being shipped.
+	 */
+	private boolean hasLog4j;
+	
+	/**
 	 * Heap size of TaskManager containers in MB.
 	 */
 	private int heapLimit;
@@ -333,6 +338,7 @@ public class ApplicationMaster implements YARNClientMasterProtocol {
 
 
 		hasLogback = new File(currDir+"/logback.xml").exists();
+		hasLog4j = new File(currDir+"/log4j.properties").exists();
 		// prepare the files to ship
 		LocalResource[] remoteShipRsc = null;
 		String[] remoteShipPaths = shipListString.split(",");
@@ -416,9 +422,14 @@ public class ApplicationMaster implements YARNClientMasterProtocol {
 				ContainerLaunchContext ctx = Records.newRecord(ContainerLaunchContext.class);
 
 				String tmCommand = "$JAVA_HOME/bin/java -Xmx"+heapLimit+"m " + javaOpts ;
+				if(hasLogback || hasLog4j) {
+					tmCommand += " -Dlog.file=\""+ApplicationConstants.LOG_DIR_EXPANSION_VAR +"/taskmanager.log\"";
+				}
 				if(hasLogback) {
-					tmCommand += " -Dlog.file=\""+ApplicationConstants.LOG_DIR_EXPANSION_VAR +"/taskmanager-logback" +
-							".log\" -Dlogback.configurationFile=file:logback.xml";
+					tmCommand += " -Dlogback.configurationFile=file:logback.xml";
+				}
+				if(hasLog4j) {
+					tmCommand += " -Dlog4j.configuration=file:log4j.properties";
 				}
 				tmCommand	+= " "+YarnTaskManagerRunner.class.getName()+" -configDir . "
 						+ " 1>"

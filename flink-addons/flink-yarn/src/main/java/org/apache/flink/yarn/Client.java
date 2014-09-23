@@ -271,12 +271,18 @@ public class Client {
 			}
 		}
 		boolean hasLogback = false;
-		//check if there is a logback file
+		boolean hasLog4j = false;
+		//check if there is a logback or log4j file
 		if(confDirPath.length() > 0) {
 			File logback = new File(confDirPath+"/logback.xml");
 			if(logback.exists()) {
 				shipFiles.add(logback);
 				hasLogback = true;
+			}
+			File log4j = new File(confDirPath+"/log4j.properties");
+			if(log4j.exists()) {
+				shipFiles.add(log4j);
+				hasLog4j = true;
 			}
 		}
 
@@ -416,10 +422,16 @@ public class Client {
 
 		String amCommand = "$JAVA_HOME/bin/java"
 					+ " -Xmx"+Utils.calculateHeapSize(jmMemory)+"M " +javaOpts;
-		if(hasLogback) {
-			amCommand 	+= " -Dlog.file=\""+ApplicationConstants.LOG_DIR_EXPANSION_VAR +"/jobmanager-logback.log\" " +
-					"-Dlogback.configurationFile=file:logback.xml";
+		if(hasLogback || hasLog4j) {
+			amCommand += " -Dlog.file=\""+ApplicationConstants.LOG_DIR_EXPANSION_VAR +"/jobmanager-main.log\"";
 		}
+		if(hasLogback) {
+			amCommand += " -Dlogback.configurationFile=file:logback.xml";
+		}
+		if(hasLog4j) {
+			amCommand += " -Dlog4j.configuration=file:log4j.properties";
+		}
+		
 		amCommand 	+= " "+ApplicationMaster.class.getName()+" "
 					+ " 1>"
 					+ ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager-stdout.log"

@@ -114,6 +114,21 @@ under the License.
 			<fileMode>0644</fileMode>
 		</file>
 		<file>
+			<source>src/main/flink-bin/conf/logback-yarn.xml</source>
+			<outputDirectory>conf</outputDirectory>
+			<fileMode>0644</fileMode>
+		</file>
+		<file>
+			<source>src/main/flink-bin/conf/log4j.properties</source>
+			<outputDirectory>conf</outputDirectory>
+			<fileMode>0644</fileMode>
+		</file>
+		<file>
+			<source>src/main/flink-bin/conf/log4j-yarn-session.properties</source>
+			<outputDirectory>conf</outputDirectory>
+			<fileMode>0644</fileMode>
+		</file>
+		<file>
 			<source>src/main/flink-bin/conf/logback.xml</source>
 			<outputDirectory>conf</outputDirectory>
 			<fileMode>0644</fileMode>

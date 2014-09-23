@@ -89,6 +89,9 @@ under the License.
 			<directory>src/main/flink-bin/conf</directory>
 			<outputDirectory>conf</outputDirectory>
 			<fileMode>0644</fileMode>
+			<excludes>
+				<exclude>log4j-yarn-session.properties</exclude>
+			</excludes>
 		</fileSet>
 
 		<fileSet>

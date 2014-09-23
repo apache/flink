@@ -5,7 +5,11 @@ title: "How to use logging"
 * This will be replaced by the TOC
 {:toc}
 
-The logging in Flink is implemented using the slf4j logging interface. As underlying logging framework, logback is used.
+The logging in Flink is implemented using the slf4j logging interface. As underlying logging framework, log4j is used. We also provide logback configuration files and pass them to the JVM's as properties. Users willing to use logback instead of log4j can just exclude log4j (or delete it from the lib/ folder).
+
+## Configuring Log4j
+
+Log4j is controlled using property files. In Flink's case, the file is usually called `log4j.properties`. We pass the filename and location of this file using the `-Dlog4j.configuration=` parameter to the JVM.
 
 ## Configuring logback
 
