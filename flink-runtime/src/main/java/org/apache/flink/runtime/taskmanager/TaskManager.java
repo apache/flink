@@ -120,7 +120,7 @@ public class TaskManager implements TaskOperationProtocol {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	private final ExecutorService executorService = Executors.newCachedThreadPool(ExecutorThreadFactory.INSTANCE);
+	private final ExecutorService executorService = Executors.newFixedThreadPool(2 * Hardware.getNumberCPUCores(), ExecutorThreadFactory.INSTANCE);
 	
 	
 	private final InstanceConnectionInfo localInstanceConnectionInfo;
