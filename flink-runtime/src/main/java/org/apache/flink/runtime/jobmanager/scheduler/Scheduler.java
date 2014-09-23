@@ -108,6 +108,20 @@ public class Scheduler implements InstanceListener, SlotAvailablilityListener {
 		return count;
 	}
 	
+	public int getTotalNumberOfSlots() {
+		int count = 0;
+		
+		synchronized (globalLock) {
+			for (Instance instance : allInstances) {
+				if (instance.isAlive()) {
+					count += instance.getTotalNumberOfSlots();
+				}
+			}
+		}
+		
+		return count;
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	//  Scheduling
 	// --------------------------------------------------------------------------------------------
@@ -198,7 +212,7 @@ public class Scheduler implements InstanceListener, SlotAvailablilityListener {
 						if (slotFromGroup == null) {
 							// both null
 							if (constraint == null || constraint.isUnassigned()) {
-								throw new NoResourceAvailableException();
+								throw new NoResourceAvailableException(getNumberOfAvailableInstances(), getTotalNumberOfSlots());
 							} else {
 								throw new NoResourceAvailableException("Could not allocate a slot on instance " + 
 											constraint.getLocation() + ", as required by the co-location constraint.");
@@ -271,7 +285,7 @@ public class Scheduler implements InstanceListener, SlotAvailablilityListener {
 					return future;
 				}
 				else {
-					throw new NoResourceAvailableException(task);
+					throw new NoResourceAvailableException(getNumberOfAvailableInstances(), getTotalNumberOfSlots());
 				}
 			}
 		}
@@ -439,7 +453,7 @@ public class Scheduler implements InstanceListener, SlotAvailablilityListener {
 			throw new RuntimeException(locality.name());
 		}
 	}
-
+	
 	// --------------------------------------------------------------------------------------------
 	//  Instance Availability
 	// --------------------------------------------------------------------------------------------

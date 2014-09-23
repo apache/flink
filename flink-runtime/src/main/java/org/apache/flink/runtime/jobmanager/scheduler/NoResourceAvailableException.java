@@ -23,15 +23,22 @@ import org.apache.flink.runtime.JobException;
 public class NoResourceAvailableException extends JobException {
 
 	private static final long serialVersionUID = -2249953165298717803L;
+	
+	private static final String BASE_MESSAGE = "Not enough free slots available to run the job. "
+			+ "You can decrease the operator parallelism or increase the number of slots per TaskManager in the configuration.";
 
 	public NoResourceAvailableException() {
-		super("Not enough free slots available to run the job. "
-				+ "You can decrease the operator parallelism or increase the number of slots per TaskManager in the configuration.");
+		super(BASE_MESSAGE);
 	}
 	
 	public NoResourceAvailableException(ScheduledUnit unit) {
 		super("No resource available to schedule unit " + unit
 				+ ". You can decrease the operator parallelism or increase the number of slots per TaskManager in the configuration.");
+	}
+	
+	NoResourceAvailableException(int numInstances, int numSlotsTotal) {
+		super(String.format("%s Resources available to scheduler: Number of instances=%d, total number of slots=%d", 
+				BASE_MESSAGE, numInstances, numSlotsTotal));
 	}
 
 	public NoResourceAvailableException(String message) {
