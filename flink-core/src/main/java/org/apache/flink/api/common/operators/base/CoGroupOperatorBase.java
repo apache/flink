@@ -219,6 +219,7 @@ public class CoGroupOperatorBase<IN1, IN2, OUT, FT extends CoGroupFunction<IN1, 
 		return result;
 	}
 
+	@SuppressWarnings("unchecked")
 	private <T> TypeComparator<T> getTypeComparator(TypeInformation<T> inputType, int[] inputKeys, boolean[] inputSortDirections) {
 		if (!(inputType instanceof CompositeType)) {
 			throw new InvalidProgramException("Input types of coGroup must be composite types.");
