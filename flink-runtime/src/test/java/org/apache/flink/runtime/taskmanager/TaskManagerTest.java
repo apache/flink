@@ -255,16 +255,16 @@ public class TaskManagerTest {
 			Task t1 = tasks.get(eid1);
 			Task t2 = tasks.get(eid2);
 			
-			// wait until the tasks are done
+			// wait until the tasks are done. rare thread races may cause the tasks to be done before
+			// we get to the check, so we need to guard the check
 			if (t1 != null) {
 				t1.getEnvironment().getExecutingThread().join();
+				assertEquals(ExecutionState.FINISHED, t1.getExecutionState());
 			}
 			if (t2 != null) {
 				t2.getEnvironment().getExecutingThread().join();
+				assertEquals(ExecutionState.FINISHED, t2.getExecutionState());
 			}
-			
-			assertEquals(ExecutionState.FINISHED, t1.getExecutionState());
-			assertEquals(ExecutionState.FINISHED, t2.getExecutionState());
 			
 			tasks = tm.getAllRunningTasks();
 			assertEquals(0, tasks.size());
