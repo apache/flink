@@ -35,7 +35,7 @@ import java.util.Arrays;
 import java.util.List;
 
 @SuppressWarnings("serial")
-public class FlatMapOperatorCollectionExecutionTest implements Serializable {
+public class FlatMapOperatorCollectionTest implements Serializable {
 
 	@Test
 	public void testExecuteOnCollection() {

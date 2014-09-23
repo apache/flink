@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.api.common.operators.util;
 
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -26,13 +27,10 @@ import java.util.NoSuchElementException;
 
 /**
  * The KeyValueIterator returns a key and all values that belong to the key (share the same key).
- *
  */
 public final class ListKeyGroupedIterator<E> {
 
 	private final List<E> input;
-
-//	private final TypeSerializer<E> serializer;
 
 	private final TypeComparator<E> comparator;
 
@@ -57,8 +55,9 @@ public final class ListKeyGroupedIterator<E> {
 		}
 
 		this.input = input;
-//		this.serializer = serializer;
 		this.comparator = comparator;
+
+		this.done = input.isEmpty() ? true : false;
 	}
 
 	/**
@@ -185,6 +184,10 @@ public final class ListKeyGroupedIterator<E> {
 		@Override
 		public Iterator<E> iterator() {
 			return this;
+		}
+
+		public E getCurrent() {
+			return next;
 		}
 	}
 }
