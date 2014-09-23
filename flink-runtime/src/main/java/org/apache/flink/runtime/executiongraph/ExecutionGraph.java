@@ -372,7 +372,10 @@ public class ExecutionGraph {
 			int nextPos = nextVertexToFinish;
 			if (nextPos >= verticesInCreationOrder.size()) {
 				// already done, and we still get a report?
-				LOG.error("Job entered finished state a repeated time.");
+				// this can happen when:
+				// - two job vertices finish almost simultaneously
+				// - The first one advances the position for the second as well (second is in final state)
+				// - the second (after it could grab the lock) tries to advance the position again
 				return;
 			}
 			
