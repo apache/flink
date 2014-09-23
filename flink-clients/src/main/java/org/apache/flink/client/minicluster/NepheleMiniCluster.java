@@ -50,7 +50,7 @@ public class NepheleMiniCluster {
 
 	private static final boolean DEFAULT_LAZY_MEMORY_ALLOCATION = true;
 
-	private static final int DEFAULT_TASK_MANAGER_NUM_SLOTS = -1;
+	private static final int DEFAULT_TASK_MANAGER_NUM_SLOTS = 1;
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -244,6 +244,11 @@ public class NepheleMiniCluster {
 	// ------------------------------------------------------------------------
 	
 	private void waitForJobManagerToBecomeReady(int numSlots) throws InterruptedException {
+		if (numSlots < 0) {
+			// may happen due to miss-configuration. wait at least till the first slot.
+			numSlots = 1;
+		}
+		
 		while (jobManager.getNumberOfSlotsAvailableToScheduler() < numSlots) {
 			Thread.sleep(50);
 		}
