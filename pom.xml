@@ -65,6 +65,7 @@ under the License.
 		<module>flink-addons</module>
 		<module>flink-quickstart</module>
 		<module>flink-dist</module>
+		<module>testing</module>
 	</modules>
 
 	<properties>

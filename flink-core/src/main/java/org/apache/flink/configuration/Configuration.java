@@ -436,7 +436,10 @@ public class Configuration implements IOReadableWritable, java.io.Serializable, 
 
 	@Override
 	public Configuration clone() {
-		return this.clone();
+		Configuration config = new Configuration();
+		config.addAll(this);
+
+		return config;
 	}
 
 	/**

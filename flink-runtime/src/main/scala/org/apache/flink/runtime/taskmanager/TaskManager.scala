@@ -575,9 +575,8 @@ object TaskManager {
       TASK_MANAGER_NAME);
   }
 
-  def startActorWithConfiguration(hostname: String, configuration: Configuration)(implicit
-                                                                                  system:
-                                                                                  ActorSystem) = {
+  def startActorWithConfiguration(hostname: String, configuration: Configuration)
+                                 (implicit system: ActorSystem) = {
     (startActor _).tupled(parseConfiguration(hostname, configuration))
   }
 

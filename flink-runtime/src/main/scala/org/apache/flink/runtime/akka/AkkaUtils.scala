@@ -96,9 +96,9 @@ object AkkaUtils {
 
     s"""akka.daemonic = on
       |akka.loggers = ["akka.event.slf4j.Slf4jLogger"]
-      |akka.loglevel = "INFO"
+      |akka.loglevel = "DEBUG"
       |akka.logging-filter = "akka.event.slf4j.Slf4jLoggingFilter"
-      |akka.stdout-loglevel = "INFO"
+      |akka.stdout-loglevel = "DEBUG"
       |akka.jvm-exit-on-fata-error = off
       |akka.actor.provider = "akka.remote.RemoteActorRefProvider"
       |akka.remote.netty.tcp.transport-class = "akka.remote.transport.netty.NettyTransport"

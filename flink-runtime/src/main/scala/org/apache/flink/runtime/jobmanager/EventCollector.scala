@@ -77,8 +77,8 @@ ActorLogging with WrapAsScala {
       val currentTime = System.currentTimeMillis()
 
       collectedEvents.retain { (jobID, events) =>
-        val (outdatedElements, currentElements) = events.partition { event => event.getTimestamp
-          +timerTaskInterval < currentTime
+        val (outdatedElements, currentElements) = events.partition { event => event.getTimestamp +
+          timerTaskInterval < currentTime
         }
 
         outdatedElements foreach (archiveEvent(jobID, _))

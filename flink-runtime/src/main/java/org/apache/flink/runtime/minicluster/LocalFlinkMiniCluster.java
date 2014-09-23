@@ -92,7 +92,7 @@ public class LocalFlinkMiniCluster extends FlinkMiniCluster {
 				int taskManagerRPC = 1024 + forkNumber * 300 + 100;
 				int taskManagerDATA = 1024 + forkNumber * 300 + 200;
 
-				configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, jobManagerRPC);
+				configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerRPC);
 				configuration.setInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, taskManagerRPC);
 				configuration.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, taskManagerDATA);
 			}

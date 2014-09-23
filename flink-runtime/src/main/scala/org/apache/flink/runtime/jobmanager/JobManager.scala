@@ -82,6 +82,8 @@ Int) extends Actor with ActorLogMessages with ActorLogging with WrapAsScala {
 
   instanceManager.addInstanceListener(scheduler)
 
+  log.info(s"Started job manager. Waiting for incoming messages.")
+
   override def postStop(): Unit = {
     log.info(s"Stopping job manager ${self.path}.")
     instanceManager.shutdown()

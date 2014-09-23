@@ -52,7 +52,7 @@ abstract public class FlinkMiniCluster {
 											final int index);
 
 	ActorSystem startJobManagerActorSystem(final Configuration configuration) {
-		int port = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY,
+		int port = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
 				ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
 
 		return AkkaUtils.createActorSystem(HOSTNAME, port, configuration);
