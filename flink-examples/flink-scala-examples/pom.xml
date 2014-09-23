@@ -146,6 +146,30 @@ under the License.
 			</plugin>
 
 			<plugin>
+				<groupId>org.scalastyle</groupId>
+				<artifactId>scalastyle-maven-plugin</artifactId>
+				<version>0.5.0</version>
+				<executions>
+					<execution>
+						<goals>
+							<goal>check</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<verbose>false</verbose>
+					<failOnViolation>true</failOnViolation>
+					<includeTestSourceDirectory>true</includeTestSourceDirectory>
+					<failOnWarning>false</failOnWarning>
+					<sourceDirectory>${basedir}/src/main/scala</sourceDirectory>
+					<testSourceDirectory>${basedir}/src/test/scala</testSourceDirectory>
+					<configLocation>${project.basedir}/../../tools/maven/scalastyle-config.xml</configLocation>
+					<outputFile>${project.basedir}/scalastyle-output.xml</outputFile>
+					<outputEncoding>UTF-8</outputEncoding>
+				</configuration>
+			</plugin>
+			
+			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>
 				<executions>
@@ -237,7 +261,6 @@ under the License.
 							</includes>
 						</configuration>
 					</execution>
-					   -->
 
 					<execution>
 						<id>WordCount</id>
@@ -257,10 +280,11 @@ under the License.
 		
 							<includes>
 								<include>**/wordcount/WordCount*.class</include>
+								<include>**/wordcount/util/WordCountData.class</include>
 							</includes>
 						</configuration>
 					</execution>
-					<!--
+					
 					<execution>
 						<id>ConnectedComponents</id>
 						<phase>package</phase>
@@ -275,13 +299,11 @@ under the License.
 								</manifestEntries>
 							</archive>
 							<includes>
-								<include>**/graph/ConnectedComponents*.class</include>
+								DOES NOT WORK <include>**/graph/ConnectedComponents*.class</include>
 							</includes>
 						</configuration>
 					</execution>
 					
-					-->
-
 					<execution>
 						<id>TransitiveClosureNaive</id>
 						<phase>package</phase>
@@ -300,10 +322,12 @@ under the License.
 
 							<includes>
 								<include>**/wordcount/TransitiveClosureNaive*.class</include>
+								  DOES NOT WORK <include>**/java/graph/util/ConnectedComponentsData.class</include>
 							</includes>
 						</configuration>
 					</execution>
-
+					-->
+					
 				</executions>
 			</plugin>
 			

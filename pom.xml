@@ -84,20 +84,20 @@ under the License.
 			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-lang3</artifactId>
 			<version>3.1</version>
+			</dependency>
+	
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-api</artifactId>
+			<version>${slf4j.version}</version>
 		</dependency>
-
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
-            <version>${slf4j.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>ch.qos.logback</groupId>
-            <artifactId>logback-classic</artifactId>
-            <version>1.0.13</version>
-            <scope>runtime</scope>
-        </dependency>
+	
+		<dependency>
+			<groupId>ch.qos.logback</groupId>
+			<artifactId>logback-classic</artifactId>
+			<version>1.0.13</version>
+			<scope>runtime</scope>
+		</dependency>
 
 		<dependency>
 			<groupId>org.slf4j</groupId>
@@ -558,29 +558,6 @@ under the License.
 					<logViolationsToConsole>true</logViolationsToConsole>
 				</configuration>
 			</plugin>
-			<plugin>
-            	<groupId>org.scalastyle</groupId>
-           		<artifactId>scalastyle-maven-plugin</artifactId>
-            	<version>0.5.0</version>
-            	<configuration>
-              		<verbose>false</verbose>
-              		<failOnViolation>true</failOnViolation>
-              		<includeTestSourceDirectory>true</includeTestSourceDirectory>
-              		<failOnWarning>false</failOnWarning>
-              		<sourceDirectory>${basedir}/src/main/scala</sourceDirectory>
-              		<testSourceDirectory>${basedir}/src/test/scala</testSourceDirectory>
-              		<configLocation>tools/maven/scalastyle-config.xml</configLocation>
-              		<outputFile>${project.basedir}/scalastyle-output.xml</outputFile>
-              		<outputEncoding>UTF-8</outputEncoding>
-            	</configuration>
-            	<executions>
-              		<execution>
-                		<goals>
-                  			<goal>check</goal>
-                		</goals>
-              		</execution>
-            	</executions>
-          </plugin>
 			<plugin>
 				<!-- just define the Java version to be used for compiling and plugins -->
 				<groupId>org.apache.maven.plugins</groupId>

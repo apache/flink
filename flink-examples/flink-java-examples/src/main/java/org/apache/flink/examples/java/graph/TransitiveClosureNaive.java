@@ -80,7 +80,7 @@ public class TransitiveClosureNaive implements ProgramDescription {
 				.coGroup(nextPaths)
 				.where(0).equalTo(0)
 				.with(new CoGroupFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>>() {
-					Set prevSet = new HashSet<Tuple2<Long,Long>>();
+					Set<Tuple2<Long,Long>> prevSet = new HashSet<Tuple2<Long,Long>>();
 					@Override
 					public void coGroup(Iterable<Tuple2<Long, Long>> prevPaths, Iterable<Tuple2<Long, Long>> nextPaths, Collector<Tuple2<Long, Long>> out) throws Exception {
 						for (Tuple2<Long,Long> prev : prevPaths) {
