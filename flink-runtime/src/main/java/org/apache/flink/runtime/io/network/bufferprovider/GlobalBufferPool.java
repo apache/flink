@@ -138,4 +138,8 @@ public final class GlobalBufferPool {
 			this.buffers.clear();
 		}
 	}
+	
+	public boolean isDestroyed() {
+		return isDestroyed;
+	}
 }

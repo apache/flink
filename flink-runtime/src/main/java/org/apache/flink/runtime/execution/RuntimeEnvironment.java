@@ -225,7 +225,7 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 	@Override
 	public void run() {
 		// quick fail in case the task was cancelled while the tread was started
-		if (owner.isCanceled()) {
+		if (owner.isCanceledOrFailed()) {
 			owner.cancelingDone();
 			return;
 		}
@@ -235,7 +235,7 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 			this.invokable.invoke();
 
 			// Make sure, we enter the catch block when the task has been canceled
-			if (this.owner.isCanceled()) {
+			if (this.owner.isCanceledOrFailed()) {
 				throw new CancelTaskException();
 			}
 			
@@ -251,7 +251,7 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 			// Now we wait until all output channels have written out their data and are closed
 			waitForOutputChannelsToBeClosed();
 			
-			if (this.owner.isCanceled()) {
+			if (this.owner.isCanceledOrFailed()) {
 				throw new CancelTaskException();
 			}
 			
@@ -262,7 +262,7 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 		}
 		catch (Throwable t) {
 			
-			if (!this.owner.isCanceled()) {
+			if (!this.owner.isCanceledOrFailed()) {
 
 				// Perform clean up when the task failed and has been not canceled by the user
 				try {
@@ -275,10 +275,13 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 			// Release all resources that may currently be allocated by the individual channels
 			releaseAllChannelResources();
 
-			if (this.owner.isCanceled() || t instanceof CancelTaskException) {
+			// if we are already set as cancelled or failed (when failure is triggered externally),
+			// mark that the thread is done.
+			if (this.owner.isCanceledOrFailed() || t instanceof CancelTaskException) {
 				this.owner.cancelingDone();
 			}
 			else {
+				// failure from inside the task thread. notify the task of teh failure
 				this.owner.markFailed(t);
 			}
 		}
@@ -429,7 +432,7 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 	 */
 	private void waitForOutputChannelsToBeClosed() throws InterruptedException {
 		// Make sure, we leave this method with an InterruptedException when the task has been canceled
-		if (this.owner.isCanceled()) {
+		if (this.owner.isCanceledOrFailed()) {
 			return;
 		}
 
@@ -449,7 +452,7 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 		while (!canceled.get()) {
 
 			// Make sure, we leave this method with an InterruptedException when the task has been canceled
-			if (this.owner.isCanceled()) {
+			if (this.owner.isCanceledOrFailed()) {
 				throw new InterruptedException();
 			}
 

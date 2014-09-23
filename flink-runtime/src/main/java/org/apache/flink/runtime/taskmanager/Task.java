@@ -147,9 +147,10 @@ public final class Task {
 		return environment;
 	}
 	
-	public boolean isCanceled() {
+	public boolean isCanceledOrFailed() {
 		return executionState == ExecutionState.CANCELING ||
-				executionState == ExecutionState.CANCELED;
+				executionState == ExecutionState.CANCELED ||
+				executionState == ExecutionState.FAILED;
 	}
 	
 	public String getTaskName() {
@@ -242,11 +243,60 @@ public final class Task {
 		}
 	}
 	
+	/**
+	 * Sets the tasks to be cancelled and reports a failure back to the master.
+	 * This method is important if a failure needs to be reported to the master, because
+	 * a simple canceled m
+	 * 
+	 * @param cause The exception to report in the error message
+	 */
+	public void failExternally(Throwable cause) {
+		while (true) {
+			ExecutionState current = this.executionState;
+			
+			// if the task is already canceled (or canceling) or finished or failed,
+			// then we need not do anything
+			if (current == ExecutionState.FINISHED || current == ExecutionState.CANCELED ||
+					current == ExecutionState.CANCELING || current == ExecutionState.FAILED)
+			{
+				return;
+			}
+			
+			if (current == ExecutionState.DEPLOYING) {
+				// directly set to canceled
+				if (STATE_UPDATER.compareAndSet(this, current, ExecutionState.FAILED)) {
+					
+					notifyObservers(ExecutionState.FAILED, null);
+					taskManager.notifyExecutionStateChange(jobId, executionId, ExecutionState.FAILED, cause);
+					return;
+				}
+			}
+			else if (current == ExecutionState.RUNNING) {
+				// go to canceling and perform the actual task canceling
+				if (STATE_UPDATER.compareAndSet(this, current, ExecutionState.FAILED)) {
+					try {
+						this.environment.cancelExecution();
+					} catch (Throwable e) {
+						LOG.error("Error while cancelling the task.", e);
+					}
+					
+					notifyObservers(ExecutionState.FAILED, null);
+					taskManager.notifyExecutionStateChange(jobId, executionId, ExecutionState.FAILED, cause);
+					
+					return;
+				}
+			}
+			else {
+				throw new RuntimeException("unexpected state for cancelling: " + current);
+			}
+		}
+	}
+	
 	public void cancelingDone() {
 		while (true) {
 			ExecutionState current = this.executionState;
 			
-			if (current == ExecutionState.CANCELED) {
+			if (current == ExecutionState.CANCELED || current == ExecutionState.FAILED) {
 				return;
 			}
 			if (!(current == ExecutionState.RUNNING || current == ExecutionState.CANCELING)) {

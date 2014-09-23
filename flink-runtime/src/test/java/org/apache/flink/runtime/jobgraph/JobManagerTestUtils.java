@@ -32,11 +32,16 @@ import org.apache.flink.runtime.jobmanager.JobManager;
 public class JobManagerTestUtils {
 
 	public static final JobManager startJobManager(int numSlots) throws Exception {
+		return startJobManager(1, numSlots);
+	}
+	
+	public static final JobManager startJobManager(int numTaskManagers, int numSlotsPerTaskManager) throws Exception {
 		Configuration cfg = new Configuration();
 		cfg.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");
 		cfg.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, getAvailablePort());
 		cfg.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 10);
-		cfg.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlots);
+		cfg.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlotsPerTaskManager);
+		cfg.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, numTaskManagers);
 		
 		GlobalConfiguration.includeConfiguration(cfg);
 		
@@ -46,11 +51,13 @@ public class JobManagerTestUtils {
 		// max time is 5 seconds
 		long deadline = System.currentTimeMillis() + 5000;
 		
-		while (jm.getNumberOfSlotsAvailableToScheduler() < numSlots && System.currentTimeMillis() < deadline) {
+		while (jm.getNumberOfSlotsAvailableToScheduler() < numTaskManagers * numSlotsPerTaskManager &&
+				System.currentTimeMillis() < deadline)
+		{
 			Thread.sleep(10);
 		}
 		
-		assertEquals(numSlots, jm.getNumberOfSlotsAvailableToScheduler());
+		assertEquals(numTaskManagers * numSlotsPerTaskManager, jm.getNumberOfSlotsAvailableToScheduler());
 		
 		return jm;
 	}

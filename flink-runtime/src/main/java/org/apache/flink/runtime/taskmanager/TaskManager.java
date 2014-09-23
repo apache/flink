@@ -398,7 +398,7 @@ public class TaskManager implements TaskOperationProtocol {
 
 		LOG.info("Shutting down TaskManager");
 		
-		cancelAndClearEverything();
+		cancelAndClearEverything(new Exception("Task Manager is shutting down"));
 		
 		// first, stop the heartbeat thread and wait for it to terminate
 		this.heartbeatThread.interrupt();
@@ -699,11 +699,14 @@ public class TaskManager implements TaskOperationProtocol {
 	/**
 	 * Removes all tasks from this TaskManager.
 	 */
-	public void cancelAndClearEverything() {
-		LOG.info("Cancelling all computations and discarding all cached data.");
-		for (Task t : runningTasks.values()) {
-			t.cancelExecution();
-			runningTasks.remove(t.getExecutionId());
+	public void cancelAndClearEverything(Throwable cause) {
+		if (runningTasks.size() > 0) {
+			LOG.info("Cancelling all computations and discarding all cached data.");
+			
+			for (Task t : runningTasks.values()) {
+				t.failExternally(cause);
+				runningTasks.remove(t.getExecutionId());
+			}
 		}
 	}
 	
@@ -841,7 +844,7 @@ public class TaskManager implements TaskOperationProtocol {
 					
 					// mark us as disconnected and abort all computation
 					this.registeredId = null;
-					cancelAndClearEverything();
+					cancelAndClearEverything(new Exception("TaskManager lost heartbeat connection to JobManager"));
 					
 					// wait for a while, then attempt to register again
 					try {
