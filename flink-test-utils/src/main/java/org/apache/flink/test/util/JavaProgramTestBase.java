@@ -34,6 +34,7 @@ import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.junit.Assert;
 import org.junit.Test;
+import org.apache.flink.api.java.CollectionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple;
 
@@ -84,6 +85,51 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
 
 	@Test
 	public void testJob() throws Exception {
+		startCluster();
+		try {
+			// pre-submit
+			try {
+				preSubmit();
+			}
+			catch (Exception e) {
+				System.err.println(e.getMessage());
+				e.printStackTrace();
+				Assert.fail("Pre-submit work caused an error: " + e.getMessage());
+			}
+			
+			// prepare the test environment
+			TestEnvironment env = new TestEnvironment(this.executor, this.degreeOfParallelism);
+			env.setAsContext();
+			
+			// call the test program
+			try {
+				testProgram();
+				this.latestExecutionResult = env.latestResult;
+			}
+			catch (Exception e) {
+				System.err.println(e.getMessage());
+				e.printStackTrace();
+				Assert.fail("Error while calling the test program: " + e.getMessage());
+			}
+			
+			Assert.assertNotNull("The test program never triggered an execution.", this.latestExecutionResult);
+			
+			// post-submit
+			try {
+				postSubmit();
+			}
+			catch (Exception e) {
+				System.err.println(e.getMessage());
+				e.printStackTrace();
+				Assert.fail("Post-submit work caused an error: " + e.getMessage());
+			}
+		} finally {
+			stopCluster();
+		}
+	}
+	
+	@Test
+	public void testJobCollectionExecution() throws Exception {
 		// pre-submit
 		try {
 			preSubmit();
@@ -95,7 +141,7 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
 		}
 		
 		// prepare the test environment
-		TestEnvironment env = new TestEnvironment(this.executor, this.degreeOfParallelism);
+		CollectionTestEnvironment env = new CollectionTestEnvironment();
 		env.setAsContext();
 		
 		// call the test program
@@ -120,10 +166,6 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
 			e.printStackTrace();
 			Assert.fail("Post-submit work caused an error: " + e.getMessage());
 		}
-	}
-
-	protected ExecutionEnvironment getExecutionEnvironment() {
-		return new TestEnvironment(this.executor, this.degreeOfParallelism);
 	}
 	
 	private static final class TestEnvironment extends ExecutionEnvironment {
@@ -176,6 +218,27 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
 			
 			PactCompiler pc = new PactCompiler(new DataStatistics());
 			return pc.compile(p);
+		}
+		
+		private void setAsContext() {
+			initializeContextEnvironment(this);
+		}
+	}
+	
+	private static final class CollectionTestEnvironment extends CollectionEnvironment {
+		
+		private JobExecutionResult latestResult;
+		
+		@Override
+		public JobExecutionResult execute() throws Exception {
+			return execute("test job");
+		}
+		
+		@Override
+		public JobExecutionResult execute(String jobName) throws Exception {
+			JobExecutionResult result = super.execute(jobName);
+			this.latestResult = result;
+			return result;
 		}
 		
 		private void setAsContext() {

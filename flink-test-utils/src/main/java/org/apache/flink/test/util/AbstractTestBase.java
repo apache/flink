@@ -41,9 +41,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.flink.client.minicluster.NepheleMiniCluster;
 import org.apache.flink.configuration.Configuration;
 import org.apache.hadoop.fs.FileSystem;
-import org.junit.After;
 import org.junit.Assert;
-import org.junit.Before;
 
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
@@ -82,7 +80,6 @@ public abstract class AbstractTestBase {
 	//  Local Test Cluster Life Cycle
 	// --------------------------------------------------------------------------------------------
 	
-	@Before
 	public void startCluster() throws Exception {
 		this.executor = new NepheleMiniCluster();
 		this.executor.setDefaultOverwriteFiles(true);
@@ -92,8 +89,7 @@ public abstract class AbstractTestBase {
 		this.executor.setNumTaskManager(this.numTaskManager);
 		this.executor.start();
 	}
-
-	@After
+	
 	public void stopCluster() throws Exception {
 		try {
 			if (this.executor != null) {

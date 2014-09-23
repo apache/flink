@@ -191,7 +191,10 @@ public class GenericDataSourceBase<OUT, T extends InputFormat<OUT, ?>> extends O
 			inputFormat.open(split);
 			
 			while (!inputFormat.reachedEnd()) {
-				result.add(inputFormat.nextRecord(serializer.createInstance()));
+				OUT next = inputFormat.nextRecord(serializer.createInstance());
+				if (next != null) {
+					result.add(next);
+				}
 			}
 			
 			inputFormat.close();

@@ -43,6 +43,7 @@ public class TypeComparable<T> {
 		if (!(o instanceof TypeComparable)) {
 			return false;
 		}
+		@SuppressWarnings("unchecked")
 		TypeComparable<T> other = (TypeComparable<T>) o;
 		return comparator.compare(elem, other.elem) == 0;
 	}
