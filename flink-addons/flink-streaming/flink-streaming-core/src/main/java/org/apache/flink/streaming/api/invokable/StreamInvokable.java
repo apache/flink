@@ -43,7 +43,7 @@ public abstract class StreamInvokable<IN, OUT> implements Serializable {
 	private static final Logger LOG = LoggerFactory.getLogger(StreamInvokable.class);
 
 	protected MutableObjectIterator<StreamRecord<IN>> recordIterator;
-	protected StreamRecordSerializer<IN> serializer;
+	protected StreamRecordSerializer<IN> inSerializer;
 	protected StreamRecord<IN> reuse;
 	protected boolean isMutable;
 
@@ -73,8 +73,8 @@ public abstract class StreamInvokable<IN, OUT> implements Serializable {
 			StreamRecordSerializer<IN> serializer, boolean isMutable) {
 		this.collector = collector;
 		this.recordIterator = recordIterator;
-		this.serializer = serializer;
-		if(this.serializer != null){
+		this.inSerializer = serializer;
+		if(this.inSerializer != null){
 			this.reuse = serializer.createInstance();
 		}
 		this.isMutable = isMutable;
@@ -84,7 +84,7 @@ public abstract class StreamInvokable<IN, OUT> implements Serializable {
 	 * Re-initializes the object in which the next input record will be read in
 	 */
 	protected void resetReuse() {
-		this.reuse = serializer.createInstance();
+		this.reuse = inSerializer.createInstance();
 	}
 
 	/**

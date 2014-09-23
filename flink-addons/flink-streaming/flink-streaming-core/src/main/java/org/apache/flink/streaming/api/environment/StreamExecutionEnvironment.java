@@ -35,7 +35,7 @@ import org.apache.flink.streaming.api.function.source.SourceFunction;
 import org.apache.flink.streaming.api.invokable.SourceInvokable;
 import org.apache.flink.streaming.util.serialization.FunctionTypeWrapper;
 import org.apache.flink.streaming.util.serialization.ObjectTypeWrapper;
-import org.apache.flink.streaming.util.serialization.TypeSerializerWrapper;
+import org.apache.flink.streaming.util.serialization.TypeWrapper;
 
 /**
  * {@link ExecutionEnvironment} for streaming jobs. An instance of it is
@@ -224,7 +224,7 @@ public abstract class StreamExecutionEnvironment {
 					"fromElements needs at least one element as argument");
 		}
 
-		TypeSerializerWrapper<OUT> outTypeWrapper = new ObjectTypeWrapper<OUT>(data[0]);
+		TypeWrapper<OUT> outTypeWrapper = new ObjectTypeWrapper<OUT>(data[0]);
 		DataStreamSource<OUT> returnStream = new DataStreamSource<OUT>(this, "elements",
 				outTypeWrapper);
 
@@ -259,7 +259,7 @@ public abstract class StreamExecutionEnvironment {
 			throw new IllegalArgumentException("Collection must not be empty");
 		}
 
-		TypeSerializerWrapper<OUT> outTypeWrapper = new ObjectTypeWrapper<OUT>(data.iterator()
+		TypeWrapper<OUT> outTypeWrapper = new ObjectTypeWrapper<OUT>(data.iterator()
 				.next());
 		DataStreamSource<OUT> returnStream = new DataStreamSource<OUT>(this, "elements",
 				outTypeWrapper);
@@ -305,7 +305,7 @@ public abstract class StreamExecutionEnvironment {
 	 * @return the data stream constructed
 	 */
 	public <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function, int parallelism) {
-		TypeSerializerWrapper<OUT> outTypeWrapper = new FunctionTypeWrapper<OUT>(function,
+		TypeWrapper<OUT> outTypeWrapper = new FunctionTypeWrapper<OUT>(function,
 				SourceFunction.class, 0);
 		DataStreamSource<OUT> returnStream = new DataStreamSource<OUT>(this, "source",
 				outTypeWrapper);

@@ -22,7 +22,7 @@ import java.io.IOException;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 
 public class ObjectTypeWrapper<T> extends
-		TypeSerializerWrapper<T> {
+		TypeWrapper<T> {
 	private static final long serialVersionUID = 1L;
 
 	private T instance;

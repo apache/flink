@@ -117,7 +117,7 @@ public class BatchReduceInvokable<OUT> extends StreamInvokable<OUT, OUT> {
 	@Override
 	public void open(Configuration config) throws Exception {
 		super.open(config);
-		this.typeSerializer = serializer.getObjectSerializer();
+		this.typeSerializer = inSerializer.getObjectSerializer();
 	}
 
 	protected class StreamBatch implements Serializable {

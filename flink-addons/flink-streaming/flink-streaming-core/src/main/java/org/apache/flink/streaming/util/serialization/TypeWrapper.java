@@ -21,7 +21,7 @@ import java.io.Serializable;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 
-public abstract class TypeSerializerWrapper<T>
+public abstract class TypeWrapper<T>
 		implements Serializable {
 	private static final long serialVersionUID = 1L;
 

@@ -33,6 +33,7 @@ import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.functions.RichReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.streaming.api.JobGraphBuilder;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -63,7 +64,7 @@ import org.apache.flink.streaming.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.util.serialization.FunctionTypeWrapper;
 import org.apache.flink.streaming.util.serialization.ObjectTypeWrapper;
-import org.apache.flink.streaming.util.serialization.TypeSerializerWrapper;
+import org.apache.flink.streaming.util.serialization.TypeWrapper;
 
 /**
  * A DataStream represents a stream of elements of the same type. A DataStream
@@ -88,7 +89,7 @@ public class DataStream<OUT> {
 	protected List<String> userDefinedNames;
 	protected boolean selectAll;
 	protected StreamPartitioner<OUT> partitioner;
-	protected final TypeSerializerWrapper<OUT> outTypeWrapper;
+	protected final TypeWrapper<OUT> outTypeWrapper;
 	protected List<DataStream<OUT>> mergedStreams;
 
 	protected final JobGraphBuilder jobGraphBuilder;
@@ -105,7 +106,7 @@ public class DataStream<OUT> {
 	 *            Type of the output
 	 */
 	public DataStream(StreamExecutionEnvironment environment, String operatorType,
-			TypeSerializerWrapper<OUT> outTypeWrapper) {
+			TypeWrapper<OUT> outTypeWrapper) {
 		if (environment == null) {
 			throw new NullPointerException("context is null");
 		}
@@ -384,6 +385,29 @@ public class DataStream<OUT> {
 	}
 
 	/**
+	 * Initiates a Project transformation on a {@link Tuple} {@link DataStream}.<br/>
+	 * <b>Note: Only Tuple DataStreams can be projected.</b></br> The
+	 * transformation projects each Tuple of the DataSet onto a (sub)set of
+	 * fields.</br> This method returns a {@link StreamProjection} on which
+	 * {@link StreamProjection#types()} needs to be called to completed the
+	 * transformation.
+	 * 
+	 * @param fieldIndexes
+	 *            The field indexes of the input tuples that are retained. The
+	 *            order of fields in the output tuple corresponds to the order
+	 *            of field indexes.
+	 * @return A StreamProjection that needs to be converted into a DataStream
+	 *         to complete the project transformation by calling
+	 *         {@link StreamProjection#types()}.
+	 * 
+	 * @see Tuple
+	 * @see DataStream
+	 */
+	public StreamProjection<OUT> project(int... fieldIndexes) {
+		return new StreamProjection<OUT>(this.copy(), fieldIndexes);
+	}
+
+	/**
 	 * Groups the elements of a {@link DataStream} by the given key position to
 	 * be used with grouped operators like
 	 * {@link GroupedDataStream#reduce(ReduceFunction)}
@@ -565,8 +589,8 @@ public class DataStream<OUT> {
 	 * @return The transformed DataStream.
 	 */
 	public SingleOutputStreamOperator<Long, ?> count() {
-		TypeSerializerWrapper<OUT> inTypeWrapper = outTypeWrapper;
-		TypeSerializerWrapper<Long> outTypeWrapper = new ObjectTypeWrapper<Long>(new Long(0));
+		TypeWrapper<OUT> inTypeWrapper = outTypeWrapper;
+		TypeWrapper<Long> outTypeWrapper = new ObjectTypeWrapper<Long>(new Long(0));
 
 		return addFunction("counter", null, inTypeWrapper, outTypeWrapper,
 				new CounterInvokable<OUT>());
@@ -968,8 +992,8 @@ public class DataStream<OUT> {
 	 * @return the data stream constructed
 	 */
 	protected <R> SingleOutputStreamOperator<R, ?> addFunction(String functionName,
-			final Function function, TypeSerializerWrapper<OUT> inTypeWrapper,
-			TypeSerializerWrapper<R> outTypeWrapper, StreamInvokable<OUT, R> functionInvokable) {
+			final Function function, TypeWrapper<OUT> inTypeWrapper, TypeWrapper<R> outTypeWrapper,
+			StreamInvokable<OUT, R> functionInvokable) {
 		DataStream<OUT> inputStream = this.copy();
 		@SuppressWarnings({ "unchecked", "rawtypes" })
 		SingleOutputStreamOperator<R, ?> returnStream = new SingleOutputStreamOperator(environment,
@@ -1051,14 +1075,14 @@ public class DataStream<OUT> {
 	}
 
 	private DataStreamSink<OUT> addSink(DataStream<OUT> inputStream,
-			SinkFunction<OUT> sinkFunction, TypeSerializerWrapper<OUT> inTypeWrapper) {
+			SinkFunction<OUT> sinkFunction, TypeWrapper<OUT> inTypeWrapper) {
 		DataStreamSink<OUT> returnStream = new DataStreamSink<OUT>(environment, "sink",
 				outTypeWrapper);
 
 		try {
-			jobGraphBuilder.addStreamVertex(returnStream.getId(), new SinkInvokable<OUT>(sinkFunction),
-					inTypeWrapper, null, "sink", SerializationUtils.serialize(sinkFunction),
-					degreeOfParallelism);
+			jobGraphBuilder.addStreamVertex(returnStream.getId(), new SinkInvokable<OUT>(
+					sinkFunction), inTypeWrapper, null, "sink", SerializationUtils
+					.serialize(sinkFunction), degreeOfParallelism);
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize SinkFunction");
 		}

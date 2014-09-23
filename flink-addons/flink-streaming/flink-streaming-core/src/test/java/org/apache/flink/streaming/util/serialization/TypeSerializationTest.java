@@ -38,12 +38,12 @@ public class TypeSerializationTest {
 	@SuppressWarnings("unchecked")
 	@Test
 	public void functionTypeSerializationTest() {
-		TypeSerializerWrapper<Integer> ser = new FunctionTypeWrapper<Integer>(new MyMap(),
+		TypeWrapper<Integer> ser = new FunctionTypeWrapper<Integer>(new MyMap(),
 				RichMapFunction.class, 0);
 
 		byte[] serializedType = SerializationUtils.serialize(ser);
 
-		TypeSerializerWrapper<Integer> ser2 = (TypeSerializerWrapper<Integer>) SerializationUtils
+		TypeWrapper<Integer> ser2 = (TypeWrapper<Integer>) SerializationUtils
 				.deserialize(serializedType);
 
 		assertNotNull(ser.getTypeInfo());
@@ -57,11 +57,11 @@ public class TypeSerializationTest {
 	public void objectTypeSerializationTest() {
 		Integer instance = new Integer(22);
 		
-		TypeSerializerWrapper<Integer> ser = new ObjectTypeWrapper<Integer>(instance);
+		TypeWrapper<Integer> ser = new ObjectTypeWrapper<Integer>(instance);
 		
 		byte[] serializedType = SerializationUtils.serialize(ser);
 
-		TypeSerializerWrapper<Integer> ser2 = (TypeSerializerWrapper<Integer>) SerializationUtils
+		TypeWrapper<Integer> ser2 = (TypeWrapper<Integer>) SerializationUtils
 				.deserialize(serializedType);
 
 		assertNotNull(ser.getTypeInfo());

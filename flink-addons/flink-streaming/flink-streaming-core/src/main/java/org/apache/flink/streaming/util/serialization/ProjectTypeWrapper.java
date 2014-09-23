@@ -1,4 +1,4 @@
-/*
+/**
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -19,21 +19,23 @@ package org.apache.flink.streaming.util.serialization;
 
 import java.io.IOException;
 
-import org.apache.flink.api.common.functions.Function;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 
-public class FunctionTypeWrapper<T> extends TypeWrapper<T> {
+public class ProjectTypeWrapper<IN,OUT extends Tuple> extends
+		TypeWrapper<OUT> {
 	private static final long serialVersionUID = 1L;
 
-	private Function function;
-	private Class<? extends Function> functionSuperClass;
-	private int typeParameterNumber;
 
-	public FunctionTypeWrapper(Function function, Class<? extends Function> functionSuperClass,
-			int typeParameterNumber) {
-		this.function = function;
-		this.functionSuperClass = functionSuperClass;
-		this.typeParameterNumber = typeParameterNumber;
+	private TypeWrapper<IN> inType;
+	Class<?>[] givenTypes;
+	int[] fields;
+
+	public ProjectTypeWrapper(TypeWrapper<IN> inType,int[] fields,Class<?>[] givenTypes) {
+		this.inType = inType;
+		this.givenTypes = givenTypes;
+		this.fields = fields;
 		setTypeInfo();
 	}
 
@@ -45,9 +47,24 @@ public class FunctionTypeWrapper<T> extends TypeWrapper<T> {
 
 	@Override
 	protected void setTypeInfo() {
-		if (typeParameterNumber != -1) {
-			typeInfo = TypeExtractor.createTypeInfo(functionSuperClass, function.getClass(),
-					typeParameterNumber, null, null);
+		TypeInformation<?>[] outTypes = extractFieldTypes();
+		this.typeInfo = new TupleTypeInfo<OUT>(outTypes);
+	}
+	
+	private TypeInformation<?>[] extractFieldTypes() {
+		
+		TupleTypeInfo<?> inTupleType = (TupleTypeInfo<?>) inType.getTypeInfo();
+		TypeInformation<?>[] fieldTypes = new TypeInformation[fields.length];
+				
+		for(int i=0; i<fields.length; i++) {
+			
+			if(inTupleType.getTypeAt(fields[i]).getTypeClass() != givenTypes[i]) {
+				throw new IllegalArgumentException("Given types do not match types of input data set.");
+			}
+				
+			fieldTypes[i] = inTupleType.getTypeAt(fields[i]);
 		}
+		
+		return fieldTypes;
 	}
 }

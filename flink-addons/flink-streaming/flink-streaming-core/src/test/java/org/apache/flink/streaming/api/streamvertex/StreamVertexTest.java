@@ -116,6 +116,11 @@ public class StreamVertexTest {
 			fail();
 		} catch (IllegalArgumentException e) {
 		}
+		try {
+			env.generateSequence(1, 10).project(2);
+			fail();
+		} catch (RuntimeException e) {
+		}
 
 		try {
 			env.readTextFile("random/path/that/is/not/valid");

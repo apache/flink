@@ -21,7 +21,7 @@ import org.apache.commons.lang3.SerializationException;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.flink.streaming.api.collector.OutputSelector;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.util.serialization.TypeSerializerWrapper;
+import org.apache.flink.streaming.util.serialization.TypeWrapper;
 
 /**
  * The SingleOutputStreamOperator represents a user defined transformation
@@ -36,7 +36,7 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 		DataStream<OUT> {
 
 	protected SingleOutputStreamOperator(StreamExecutionEnvironment environment,
-			String operatorType, TypeSerializerWrapper<OUT> outTypeWrapper) {
+			String operatorType, TypeWrapper<OUT> outTypeWrapper) {
 		super(environment, operatorType, outTypeWrapper);
 		setBufferTimeout(environment.getBufferTimeout());
 	}

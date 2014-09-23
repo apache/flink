@@ -17,20 +17,24 @@
 
 package org.apache.flink.streaming.util;
 
+import java.io.Serializable;
 import java.util.Collection;
 
+import org.apache.commons.lang3.SerializationUtils;
 import org.apache.flink.util.Collector;
 
 public class MockCollector<T> implements Collector<T> {
 	private Collection<T> outputs;
-	
+
 	public MockCollector(Collection<T> outputs) {
 		this.outputs = outputs;
 	}
 
 	@Override
 	public void collect(T record) {
-		outputs.add(record);
+		T copied = SerializationUtils.deserialize(SerializationUtils
+				.serialize((Serializable) record));
+		outputs.add(copied);
 	}
 
 	@Override

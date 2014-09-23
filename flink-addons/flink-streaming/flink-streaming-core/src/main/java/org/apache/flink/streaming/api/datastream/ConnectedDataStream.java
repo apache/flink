@@ -41,7 +41,7 @@ import org.apache.flink.streaming.api.invokable.operator.co.CoWindowGroupReduceI
 import org.apache.flink.streaming.api.invokable.util.DefaultTimeStamp;
 import org.apache.flink.streaming.api.invokable.util.TimeStamp;
 import org.apache.flink.streaming.util.serialization.FunctionTypeWrapper;
-import org.apache.flink.streaming.util.serialization.TypeSerializerWrapper;
+import org.apache.flink.streaming.util.serialization.TypeWrapper;
 
 /**
  * The ConnectedDataStream represents a stream for two different data types. It
@@ -431,8 +431,8 @@ public class ConnectedDataStream<IN1, IN2> {
 	}
 
 	protected <OUT> SingleOutputStreamOperator<OUT, ?> addCoFunction(String functionName,
-			final Function function, TypeSerializerWrapper<IN1> in1TypeWrapper,
-			TypeSerializerWrapper<IN2> in2TypeWrapper, TypeSerializerWrapper<OUT> outTypeWrapper,
+			final Function function, TypeWrapper<IN1> in1TypeWrapper,
+			TypeWrapper<IN2> in2TypeWrapper, TypeWrapper<OUT> outTypeWrapper,
 			CoInvokable<IN1, IN2, OUT> functionInvokable) {
 
 		@SuppressWarnings({ "unchecked", "rawtypes" })

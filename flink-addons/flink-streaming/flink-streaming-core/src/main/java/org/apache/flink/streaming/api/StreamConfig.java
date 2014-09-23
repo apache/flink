@@ -31,7 +31,7 @@ import org.apache.flink.streaming.api.invokable.StreamInvokable;
 import org.apache.flink.streaming.api.streamvertex.StreamVertexException;
 import org.apache.flink.streaming.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.partitioner.StreamPartitioner;
-import org.apache.flink.streaming.util.serialization.TypeSerializerWrapper;
+import org.apache.flink.streaming.util.serialization.TypeWrapper;
 
 public class StreamConfig {
 	private static final String INPUT_TYPE = "inputType_";
@@ -79,19 +79,19 @@ public class StreamConfig {
 	private static final String TYPE_WRAPPER_OUT_1 = "typeWrapper_out_1";
 	private static final String TYPE_WRAPPER_OUT_2 = "typeWrapper_out_2";
 
-	public void setTypeWrapperIn1(TypeSerializerWrapper<?> typeWrapper) {
+	public void setTypeWrapperIn1(TypeWrapper<?> typeWrapper) {
 		setTypeWrapper(TYPE_WRAPPER_IN_1, typeWrapper);
 	}
 
-	public void setTypeWrapperIn2(TypeSerializerWrapper<?> typeWrapper) {
+	public void setTypeWrapperIn2(TypeWrapper<?> typeWrapper) {
 		setTypeWrapper(TYPE_WRAPPER_IN_2, typeWrapper);
 	}
 
-	public void setTypeWrapperOut1(TypeSerializerWrapper<?> typeWrapper) {
+	public void setTypeWrapperOut1(TypeWrapper<?> typeWrapper) {
 		setTypeWrapper(TYPE_WRAPPER_OUT_1, typeWrapper);
 	}
 
-	public void setTypeWrapperOut2(TypeSerializerWrapper<?> typeWrapper) {
+	public void setTypeWrapperOut2(TypeWrapper<?> typeWrapper) {
 		setTypeWrapper(TYPE_WRAPPER_OUT_2, typeWrapper);
 	}
 
@@ -111,7 +111,7 @@ public class StreamConfig {
 		return getTypeInfo(TYPE_WRAPPER_OUT_2);
 	}
 
-	private void setTypeWrapper(String key, TypeSerializerWrapper<?> typeWrapper) {
+	private void setTypeWrapper(String key, TypeWrapper<?> typeWrapper) {
 		config.setBytes(key, SerializationUtils.serialize(typeWrapper));
 	}
 
@@ -123,7 +123,7 @@ public class StreamConfig {
 			throw new RuntimeException("TypeSerializationWrapper must be set");
 		}
 
-		TypeSerializerWrapper<T> typeWrapper = (TypeSerializerWrapper<T>) SerializationUtils
+		TypeWrapper<T> typeWrapper = (TypeWrapper<T>) SerializationUtils
 				.deserialize(serializedWrapper);
 		if (typeWrapper != null) {
 			return typeWrapper.getTypeInfo();
