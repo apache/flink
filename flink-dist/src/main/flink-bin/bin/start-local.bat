@@ -33,7 +33,7 @@ SET logname=flink-%username%-jobmanager-%computername%.log
 SET log=%FLINK_LOG_DIR%\%logname%
 SET outname=flink-%username%-jobmanager-%computername%.out
 SET out=%FLINK_LOG_DIR%\%outname%
-SET log_setting=-Dlog.file=%log% -Dlogback.configurationFile=file:%FLINK_CONF_DIR%/logback.xml
+SET log_setting=-Dlog.file=%log% -Dlogback.configurationFile=file:%FLINK_CONF_DIR%/logback.xml -Dlog4j.configuration=file:%FLINK_CONF_DIR%/log4j.properties
 
 
 :: Log rotation (quick and dirty)

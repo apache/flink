@@ -17,6 +17,7 @@ under the Apache License (v 2.0):
  - Apache Commons FileUpload (http://commons.apache.org/fileupload/)
  - Apache Commons IO (http://commons.apache.org/io/)
  - Apache Commons Math (http://commons.apache.org/proper/commons-math/)
+ - Apache Log4J (http://logging.apache.org/log4j/1.2/)
  - Apache Avro (http://avro.apache.org)
  - Apache Hadoop (http://hadoop.apache.org)
  - Apache Derby (http://db.apache.org/derby/)
@@ -42,8 +43,6 @@ The Apache Flink project depends on and/or bundles the following components
 under the Eclipse Public License (v 1.0)
 
  - JUnit (http://junit.org/)
- - LOGback (http://logback.qos.ch)
-     Copyright (C) 1999-2012, QOS.ch. All rights reserved.
  
 You may obtain a copy of the Eclipse Public License (v 1.0) at
 https://www.eclipse.org/legal/epl-v10.html
@@ -189,21 +188,15 @@ with permission from the original authors.
 Original source copyright:
 Copyright (c) 2008 Alexander Beider & Stephen P. Morse.
 
-
 -----------------------------------------------------------------------
-                          LOGBack
+                          Apache Log4J
 -----------------------------------------------------------------------
 
-Copyright (C) 1999-2012, QOS.ch
+ResolverUtil.java
+Copyright 2005-2006 Tim Fennell
 
-This program and the accompanying materials are dual-licensed under
-either the terms of the Eclipse Public License v1.0 as published by
-the Eclipse Foundation
-
-  or (per the licensee's choosing)
-
-under the terms of the GNU Lesser General Public License version 2.1
-as published by the Free Software Foundation.
+Dumbster SMTP test server
+Copyright 2004 Jason Paul Kitchen
 
 
 -----------------------------------------------------------------------
