@@ -75,6 +75,7 @@ public class GroupedDataStream<OUT> extends DataStream<OUT> {
 	 *            The position in the data point to sum
 	 * @return The transformed DataStream.
 	 */
+	@Override
 	public SingleOutputStreamOperator<OUT, ?> sum(final int positionToSum) {
 		return super.sum(positionToSum);
 	}
@@ -88,8 +89,43 @@ public class GroupedDataStream<OUT> extends DataStream<OUT> {
 	 *            The position in the data point to minimize
 	 * @return The transformed DataStream.
 	 */
+	@Override
 	public SingleOutputStreamOperator<OUT, ?> min(final int positionToMin) {
 		return super.min(positionToMin);
+	}
+
+	/**
+	 * Applies an aggregation that that gives the current element with the
+	 * minimum value at the given position for each group on a grouped data
+	 * stream. If more elements have the minimum value at the given position,
+	 * the operator returns the first one by default.
+	 * 
+	 * @param positionToMinBy
+	 *            The position in the data point to minimize
+	 * @return The transformed DataStream.
+	 */
+	@Override
+	public SingleOutputStreamOperator<OUT, ?> minBy(int positionToMinBy) {
+		return super.minBy(positionToMinBy);
+	}
+
+	/**
+	 * Applies an aggregation that that gives the current element with the
+	 * minimum value at the given position for each group on a grouped data
+	 * stream. If more elements have the minimum value at the given position,
+	 * the operator returns either the first or last one depending on the
+	 * parameters.
+	 * 
+	 * @param positionToMinBy
+	 *            The position in the data point to minimize
+	 * @param first
+	 *            If true, then the operator return the first element with the
+	 *            maximum value, otherwise returns the last
+	 * @return The transformed DataStream.
+	 */
+	@Override
+	public SingleOutputStreamOperator<OUT, ?> minBy(int positionToMinBy, boolean first) {
+		return super.minBy(positionToMinBy, first);
 	}
 
 	/**
@@ -101,8 +137,43 @@ public class GroupedDataStream<OUT> extends DataStream<OUT> {
 	 *            The position in the data point to maximize
 	 * @return The transformed DataStream.
 	 */
+	@Override
 	public SingleOutputStreamOperator<OUT, ?> max(final int positionToMax) {
 		return super.max(positionToMax);
+	}
+
+	/**
+	 * Applies an aggregation that that gives the current element with the
+	 * maximum value at the given position for each group on a grouped data
+	 * stream. If more elements have the maximum value at the given position,
+	 * the operator returns the first one by default.
+	 * 
+	 * @param positionToMaxBy
+	 *            The position in the data point to maximize
+	 * @return The transformed DataStream.
+	 */
+	@Override
+	public SingleOutputStreamOperator<OUT, ?> maxBy(int positionToMaxBy) {
+		return super.maxBy(positionToMaxBy);
+	}
+
+	/**
+	 * Applies an aggregation that that gives the current element with the
+	 * maximum value at the given position for each group on a grouped data
+	 * stream. If more elements have the maximum value at the given position,
+	 * the operator returns either the first or last one depending on the
+	 * parameters.
+	 * 
+	 * @param positionToMaxBy
+	 *            The position in the data point to maximize
+	 * @param first
+	 *            If true, then the operator return the first element with the
+	 *            maximum value, otherwise returns the last
+	 * @return The transformed DataStream.
+	 */
+	@Override
+	public SingleOutputStreamOperator<OUT, ?> maxBy(int positionToMaxBy, boolean first) {
+		return super.maxBy(positionToMaxBy, first);
 	}
 
 	@Override

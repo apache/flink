@@ -24,7 +24,9 @@ import org.apache.flink.api.common.functions.RichReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.function.aggregation.AggregationFunction;
 import org.apache.flink.streaming.api.function.aggregation.MaxAggregationFunction;
+import org.apache.flink.streaming.api.function.aggregation.MaxByAggregationFunction;
 import org.apache.flink.streaming.api.function.aggregation.MinAggregationFunction;
+import org.apache.flink.streaming.api.function.aggregation.MinByAggregationFunction;
 import org.apache.flink.streaming.api.function.aggregation.SumAggregationFunction;
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
 import org.apache.flink.streaming.api.invokable.operator.BatchGroupReduceInvokable;
@@ -118,8 +120,8 @@ public class BatchedDataStream<OUT> {
 	 */
 	public <R> SingleOutputStreamOperator<R, ?> reduceGroup(GroupReduceFunction<OUT, R> reducer) {
 		return dataStream.addFunction("batchReduce", reducer, new FunctionTypeWrapper<OUT>(reducer,
-				GroupReduceFunction.class, 0), new FunctionTypeWrapper<R>(reducer, GroupReduceFunction.class,
-				1), getGroupReduceInvokable(reducer));
+				GroupReduceFunction.class, 0), new FunctionTypeWrapper<R>(reducer,
+				GroupReduceFunction.class, 1), getGroupReduceInvokable(reducer));
 	}
 
 	/**
@@ -160,6 +162,38 @@ public class BatchedDataStream<OUT> {
 	}
 
 	/**
+	 * Applies an aggregation that gives the minimum element of every sliding
+	 * batch/window of the data stream by the given position. If more elements
+	 * have the same minimum value the operator returns the first element by
+	 * default.
+	 * 
+	 * @param positionToMinBy
+	 *            The position in the data point to minimize
+	 * @return The transformed DataStream.
+	 */
+	public SingleOutputStreamOperator<OUT, ?> minBy(int positionToMinBy) {
+		return this.minBy(positionToMinBy, true);
+	}
+
+	/**
+	 * Applies an aggregation that gives the minimum element of every sliding
+	 * batch/window of the data stream by the given position. If more elements
+	 * have the same minimum value the operator returns either the first or last
+	 * one depending on the parameter setting.
+	 * 
+	 * @param positionToMinBy
+	 *            The position in the data point to minimize
+	 * @param first
+	 *            If true, then the operator return the first element with the
+	 *            minimum value, otherwise returns the last
+	 * @return The transformed DataStream.
+	 */
+	public SingleOutputStreamOperator<OUT, ?> minBy(int positionToMinBy, boolean first) {
+		dataStream.checkFieldRange(positionToMinBy);
+		return aggregate(new MinByAggregationFunction<OUT>(positionToMinBy, first));
+	}
+
+	/**
 	 * Syntactic sugar for min(0)
 	 * 
 	 * @return The transformed DataStream.
@@ -179,6 +213,37 @@ public class BatchedDataStream<OUT> {
 	public SingleOutputStreamOperator<OUT, ?> max(int positionToMax) {
 		dataStream.checkFieldRange(positionToMax);
 		return aggregate(new MaxAggregationFunction<OUT>(positionToMax));
+	}
+
+	/**
+	 * Applies an aggregation that gives the maximum element of every sliding
+	 * batch/window of the data stream by the given position. If more elements
+	 * have the same maximum value the operator returns the first by default.
+	 * 
+	 * @param positionToMaxBy
+	 *            The position in the data point to maximize
+	 * @return The transformed DataStream.
+	 */
+	public SingleOutputStreamOperator<OUT, ?> maxBy(int positionToMaxBy) {
+		return this.maxBy(positionToMaxBy, true);
+	}
+
+	/**
+	 * Applies an aggregation that gives the maximum element of every sliding
+	 * batch/window of the data stream by the given position. If more elements
+	 * have the same maximum value the operator returns either the first or last
+	 * one depending on the parameter setting.
+	 * 
+	 * @param positionToMaxBy
+	 *            The position in the data point to maximize
+	 * @param first
+	 *            If true, then the operator return the first element with the
+	 *            maximum value, otherwise returns the last
+	 * @return The transformed DataStream.
+	 */
+	public SingleOutputStreamOperator<OUT, ?> maxBy(int positionToMaxBy, boolean first) {
+		dataStream.checkFieldRange(positionToMaxBy);
+		return aggregate(new MaxByAggregationFunction<OUT>(positionToMaxBy, first));
 	}
 
 	/**
