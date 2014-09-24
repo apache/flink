@@ -22,6 +22,7 @@ import static org.apache.flink.runtime.jobgraph.JobManagerTestUtils.*;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
+import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.client.AbstractJobResult;
 import org.apache.flink.runtime.client.JobSubmissionResult;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
@@ -37,6 +38,8 @@ import org.apache.flink.runtime.jobmanager.tasks.AgnosticBinaryReceiver;
 import org.apache.flink.runtime.jobmanager.tasks.Receiver;
 import org.apache.flink.runtime.jobmanager.tasks.Sender;
 import org.junit.Test;
+
+import java.util.ArrayList;
 
 public class SlotSharingITCase {
 
@@ -74,7 +77,7 @@ public class SlotSharingITCase {
 			
 			try {
 				// we need to register the job at the library cache manager (with no libraries)
-				LibraryCacheManager.register(jobGraph.getJobID(), new String[0]);
+				LibraryCacheManager.register(jobGraph.getJobID(), new ArrayList<BlobKey>());
 				
 				JobSubmissionResult result = jm.submitJob(jobGraph);
 
@@ -146,7 +149,7 @@ public class SlotSharingITCase {
 			
 			try {
 				// we need to register the job at the library cache manager (with no libraries)
-				LibraryCacheManager.register(jobGraph.getJobID(), new String[0]);
+				LibraryCacheManager.register(jobGraph.getJobID(), new ArrayList<BlobKey>());
 				
 				JobSubmissionResult result = jm.submitJob(jobGraph);
 

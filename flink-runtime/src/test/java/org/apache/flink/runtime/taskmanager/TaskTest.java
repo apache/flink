@@ -21,10 +21,12 @@ package org.apache.flink.runtime.taskmanager;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.deployment.GateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -256,7 +258,7 @@ public class TaskTest {
 					new Configuration(), new Configuration(), TestInvokableCorrect.class.getName(),
 					Collections.<GateDeploymentDescriptor>emptyList(), 
 					Collections.<GateDeploymentDescriptor>emptyList(),
-					new String[0], 0);
+					new ArrayList<BlobKey>(), 0);
 			
 			Task task = new Task(jid, vid, 2, 7, eid, "TestTask", taskManager);
 			
@@ -294,7 +296,7 @@ public class TaskTest {
 					new Configuration(), new Configuration(), TestInvokableWithException.class.getName(),
 					Collections.<GateDeploymentDescriptor>emptyList(), 
 					Collections.<GateDeploymentDescriptor>emptyList(),
-					new String[0], 0);
+					new ArrayList<BlobKey>(), 0);
 			
 			Task task = new Task(jid, vid, 2, 7, eid, "TestTask", taskManager);
 			

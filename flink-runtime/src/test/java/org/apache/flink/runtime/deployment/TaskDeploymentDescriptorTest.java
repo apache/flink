@@ -20,14 +20,13 @@ package org.apache.flink.runtime.deployment;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -37,7 +36,6 @@ import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.junit.Test;
 
 public class TaskDeploymentDescriptorTest {
-
 	@Test
 	public void testSerialization() {
 		try {
@@ -52,10 +50,11 @@ public class TaskDeploymentDescriptorTest {
 			final Class<? extends AbstractInvokable> invokableClass = RegularPactTask.class;
 			final List<GateDeploymentDescriptor> outputGates = new ArrayList<GateDeploymentDescriptor>(0);
 			final List<GateDeploymentDescriptor> inputGates = new ArrayList<GateDeploymentDescriptor>(0);
+			final List<BlobKey> requiredJars = new ArrayList<BlobKey>(0);
 	
 			final TaskDeploymentDescriptor orig = new TaskDeploymentDescriptor(jobID, vertexID, execId, taskName,
 				indexInSubtaskGroup, currentNumberOfSubtasks, jobConfiguration, taskConfiguration,
-				invokableClass.getName(), outputGates, inputGates, new String[] { "jar1", "jar2" }, 47);
+				invokableClass.getName(), outputGates, inputGates, requiredJars, 47);
 	
 			final TaskDeploymentDescriptor copy = CommonTestUtils.createCopyWritable(orig);
 	
@@ -72,8 +71,8 @@ public class TaskDeploymentDescriptorTest {
 			assertEquals(orig.getCurrentNumberOfSubtasks(), copy.getCurrentNumberOfSubtasks());
 			assertEquals(orig.getOutputGates(), copy.getOutputGates());
 			assertEquals(orig.getInputGates(), copy.getInputGates());
-			
-			assertTrue(Arrays.equals(orig.getRequiredJarFiles(), copy.getRequiredJarFiles()));
+
+			assertEquals(orig.getRequiredJarFiles(), copy.getRequiredJarFiles());
 		}
 		catch (Exception e) {
 			e.printStackTrace();

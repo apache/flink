@@ -28,6 +28,7 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.times;
 import static org.mockito.Matchers.any;
 
+import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
@@ -41,6 +42,8 @@ import org.apache.flink.runtime.taskmanager.TaskOperationResult;
 import org.junit.Test;
 
 import org.mockito.Matchers;
+
+import java.util.ArrayList;
 
 public class ExecutionVertexDeploymentTest {
 	
@@ -99,7 +102,7 @@ public class ExecutionVertexDeploymentTest {
 			
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			
-			LibraryCacheManager.register(vertex.getJobId(), new String[0]);
+			LibraryCacheManager.register(vertex.getJobId(), new ArrayList<BlobKey>());
 			vertex.deployToSlot(slot);
 			
 			assertEquals(ExecutionState.RUNNING, vertex.getExecutionState());
@@ -144,7 +147,7 @@ public class ExecutionVertexDeploymentTest {
 			
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			
-			LibraryCacheManager.register(vertex.getJobId(), new String[0]);
+			LibraryCacheManager.register(vertex.getJobId(), new ArrayList<BlobKey>());
 			vertex.deployToSlot(slot);
 			
 			// no repeated scheduling
@@ -202,7 +205,7 @@ public class ExecutionVertexDeploymentTest {
 			
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			
-			LibraryCacheManager.register(vertex.getJobId(), new String[0]);
+			LibraryCacheManager.register(vertex.getJobId(), new ArrayList<BlobKey>());
 			vertex.deployToSlot(slot);
 			
 			assertEquals(ExecutionState.FAILED, vertex.getExecutionState());
@@ -238,7 +241,7 @@ public class ExecutionVertexDeploymentTest {
 			
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			
-			LibraryCacheManager.register(vertex.getJobId(), new String[0]);
+			LibraryCacheManager.register(vertex.getJobId(), new ArrayList<BlobKey>());
 			vertex.deployToSlot(slot);
 			
 			// wait until the state transition must be done
@@ -327,7 +330,7 @@ public class ExecutionVertexDeploymentTest {
 			
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			
-			LibraryCacheManager.register(vertex.getJobId(), new String[0]);
+			LibraryCacheManager.register(vertex.getJobId(), new ArrayList<BlobKey>());
 			vertex.deployToSlot(slot);
 			assertEquals(ExecutionState.DEPLOYING, vertex.getExecutionState());
 			

@@ -63,9 +63,6 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.RuntimeEnvironment;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheProfileRequest;
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheProfileResponse;
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheUpdate;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.instance.Hardware;
@@ -333,6 +330,19 @@ public class TaskManager implements TaskOperationProtocol {
 		
 		this.hardwareDescription = HardwareDescription.extractFromSystem(this.memoryManager.getMemorySize());
 
+		// Determine the port of the BLOB server and register it with the library cache manager
+		{
+			final int blobPort = this.jobManager.getBlobServerPort();
+
+			if (blobPort == -1) {
+				LOG.warn("Unable to determine BLOB server address: User library download will not be available");
+			} else {
+				final InetSocketAddress blobServerAddress = new InetSocketAddress(
+					jobManagerAddress.getAddress(), blobPort);
+				LOG.info("Determined BLOB server address to be " + blobServerAddress);
+				LibraryCacheManager.setBlobServerAddress(blobServerAddress);
+			}
+		}
 		this.ioManager = new IOManager(tmpDirPaths);
 		
 		// start the heart beats
@@ -549,7 +559,6 @@ public class TaskManager implements TaskOperationProtocol {
 		
 		try {
 			// library and classloader issues first
-			LibraryCacheManager.register(jobID, tdd.getRequiredJarFiles());
 			jarsRegistered = true;
 			
 			final ClassLoader userCodeClassLoader = LibraryCacheManager.getClassLoader(jobID);
@@ -710,34 +719,7 @@ public class TaskManager implements TaskOperationProtocol {
 			}
 		}
 	}
-	
-	// --------------------------------------------------------------------------------------------
-	//  Library caching
-	// --------------------------------------------------------------------------------------------
-	
-	@Override
-	public LibraryCacheProfileResponse getLibraryCacheProfile(LibraryCacheProfileRequest request) throws IOException {
 
-		LibraryCacheProfileResponse response = new LibraryCacheProfileResponse(request);
-		String[] requiredLibraries = request.getRequiredLibraries();
-
-		for (int i = 0; i < requiredLibraries.length; i++) {
-			if (LibraryCacheManager.contains(requiredLibraries[i]) == null) {
-				response.setCached(i, false);
-			} else {
-				response.setCached(i, true);
-			}
-		}
-
-		return response;
-	}
-	
-	@Override
-	public void updateLibraryCache(LibraryCacheUpdate update) throws IOException {
-		// Nothing to to here, because the libraries are added to the cache when the
-		// update is deserialized (WE SHOULD CHANGE THAT!!!)
-	}
-	
 	// --------------------------------------------------------------------------------------------
 	//  Heartbeats
 	// --------------------------------------------------------------------------------------------

@@ -49,6 +49,7 @@ import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.runtime.ExecutionMode;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.AccumulatorEvent;
+import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.client.AbstractJobResult;
 import org.apache.flink.runtime.client.AbstractJobResult.ReturnCode;
 import org.apache.flink.runtime.client.JobCancelResult;
@@ -126,7 +127,8 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 	/** The currently running jobs */
 	private final ConcurrentHashMap<JobID, ExecutionGraph> currentJobs;
 	
-	
+	private final BlobServer blobServer;
+
 	// begin: these will be consolidated / removed 
 	private final EventCollector eventCollector;
 	
@@ -171,6 +173,8 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 
 		// Load the job progress collector
 		this.eventCollector = new EventCollector(this.recommendedClientPollingInterval);
+
+		this.blobServer = new BlobServer();
 		
 		// Register simple job archive
 		int archived_items = GlobalConfiguration.getInteger(
@@ -250,6 +254,11 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 			this.instanceManager.shutdown();
 		}
 
+		// Stop the BLOB server
+		if (this.blobServer != null) {
+			this.blobServer.shutDown();
+		}
+
 		// Stop RPC server
 		if (this.jobManagerServer != null) {
 			this.jobManagerServer.stop();
@@ -298,7 +307,8 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 					LOG.info("Creating new execution graph for job " + job.getJobID() + " (" + job.getName() + ')');
 				}
 				
-				executionGraph = new ExecutionGraph(job.getJobID(), job.getName(), job.getJobConfiguration(), this.executorService);
+				executionGraph = new ExecutionGraph(job.getJobID(), job.getName(),
+						job.getJobConfiguration(), job.getUserJarBlobKeys(), this.executorService);
 				ExecutionGraph previous = this.currentJobs.putIfAbsent(job.getJobID(), executionGraph);
 				if (previous != null) {
 					throw new JobException("Concurrent submission of a job with the same jobId: " + job.getJobID());
@@ -315,12 +325,7 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 			if (userCodeLoader == null) {
 				throw new JobException("The user code class loader could not be initialized.");
 			}
-			
-			String[] jarFilesForJob = LibraryCacheManager.getRequiredJarFiles(job.getJobID());
-			for (String fileId : jarFilesForJob) {
-				executionGraph.addUserCodeJarFile(fileId);
-			}
-			
+
 			// first, perform the master initialization of the nodes
 			if (LOG.isDebugEnabled()) {
 				LOG.debug(String.format("Running master initialization of job %s (%s)", job.getJobID(), job.getName()));
@@ -765,5 +770,10 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 		}
 		GlobalConfiguration.includeConfiguration(infoserverConfig);
 		return jobManager;
+	}
+
+	@Override
+	public int getBlobServerPort() {
+		return blobServer.getServerPort();
 	}
 }

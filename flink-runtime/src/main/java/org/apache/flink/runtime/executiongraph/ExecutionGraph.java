@@ -36,6 +36,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
+import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.execution.ExecutionListener;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.Instance;
@@ -77,12 +78,13 @@ public class ExecutionGraph {
 	
 	/** All vertices, in the order in which they were created **/
 	private final List<ExecutionJobVertex> verticesInCreationOrder;
-	
+
 	/** All intermediate results that are part of this graph */
 	private final ConcurrentHashMap<IntermediateDataSetID, IntermediateResult> intermediateResults;
 	
 	/** The currently executed tasks, for callbacks */
 	private final ConcurrentHashMap<ExecutionAttemptID, Execution> currentExecutions;
+
 	
 	
 	private final Map<ChannelID, ExecutionEdge> edges = new HashMap<ChannelID, ExecutionEdge>();
@@ -90,9 +92,8 @@ public class ExecutionGraph {
 	
 	/** An executor that can run long actions (involving remote calls) */
 	private final ExecutorService executor;
-	
-	
-	private final List<String> userCodeJarFiles;
+
+	private final List<BlobKey> requiredJarFiles;
 	
 	private final List<JobStatusListener> jobStatusListeners;
 	
@@ -116,10 +117,11 @@ public class ExecutionGraph {
 	
 	
 	public ExecutionGraph(JobID jobId, String jobName, Configuration jobConfig) {
-		this(jobId, jobName, jobConfig, null);
+		this(jobId, jobName, jobConfig, new ArrayList<BlobKey>(), null);
 	}
 	
-	public ExecutionGraph(JobID jobId, String jobName, Configuration jobConfig, ExecutorService executor) {
+	public ExecutionGraph(JobID jobId, String jobName, Configuration jobConfig,
+						List<BlobKey> requiredJarFiles,ExecutorService executor) {
 		if (jobId == null || jobName == null || jobConfig == null) {
 			throw new NullPointerException();
 		}
@@ -134,12 +136,13 @@ public class ExecutionGraph {
 		this.verticesInCreationOrder = new ArrayList<ExecutionJobVertex>();
 		this.currentExecutions = new ConcurrentHashMap<ExecutionAttemptID, Execution>();
 		
-		this.userCodeJarFiles = new ArrayList<String>();
 		this.jobStatusListeners = new CopyOnWriteArrayList<JobStatusListener>();
 		this.executionListeners = new CopyOnWriteArrayList<ExecutionListener>();
 		
 		this.stateTimestamps = new long[JobStatus.values().length];
 		this.stateTimestamps[JobStatus.CREATED.ordinal()] = System.currentTimeMillis();
+
+		this.requiredJarFiles = requiredJarFiles;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -175,15 +178,15 @@ public class ExecutionGraph {
 			this.verticesInCreationOrder.add(ejv);
 		}
 	}
-	
-	public void addUserCodeJarFile(String jarFile) {
-		this.userCodeJarFiles.add(jarFile);
+
+	/**
+	 * Returns a list of BLOB keys referring to the JAR files required to run this job
+	 * @return list of BLOB keys referring to the JAR files required to run this job
+	 */
+	public List<BlobKey> getRequiredJarFiles() {
+		return this.requiredJarFiles;
 	}
-	
-	public String[] getUserCodeJarFiles() {
-		return (String[]) this.userCodeJarFiles.toArray(new String[this.userCodeJarFiles.size()]);
-	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	
 	public JobID getJobID() {
@@ -624,7 +627,7 @@ public class ExecutionGraph {
 	 * @param error
 	 */
 	void notifyExecutionChange(JobVertexID vertexId, int subtask, ExecutionAttemptID executionId, ExecutionState newExecutionState, Throwable error) {
-		
+
 		// we must be very careful here with exceptions 
 		if (this.executionListeners.size() > 0) {
 			
@@ -644,7 +647,7 @@ public class ExecutionGraph {
 			fail(error);
 		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//  Miscellaneous
 	// --------------------------------------------------------------------------------------------

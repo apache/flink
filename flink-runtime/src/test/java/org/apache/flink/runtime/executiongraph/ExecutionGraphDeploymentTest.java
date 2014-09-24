@@ -27,12 +27,14 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.doAnswer;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
@@ -121,7 +123,7 @@ public class ExecutionGraphDeploymentTest {
 			
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			
-			LibraryCacheManager.register(jobId, new String[0]);
+			LibraryCacheManager.register(jobId, new ArrayList<BlobKey>());
 			vertex.deployToSlot(slot);
 			
 			assertEquals(ExecutionState.RUNNING, vertex.getExecutionState());
@@ -264,7 +266,7 @@ public class ExecutionGraphDeploymentTest {
 		assertEquals(dop1 + dop2, scheduler.getNumberOfAvailableSlots());
 		
 		// schedule, this triggers mock deployment
-		LibraryCacheManager.register(jobId, new String[0]);
+		LibraryCacheManager.register(jobId, new ArrayList<BlobKey>());
 		eg.scheduleForExecution(scheduler);
 		
 		Map<ExecutionAttemptID, Execution> executions = eg.getRegisteredExecutions();

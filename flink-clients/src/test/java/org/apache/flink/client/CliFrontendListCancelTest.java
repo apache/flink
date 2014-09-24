@@ -191,5 +191,10 @@ public class CliFrontendListCancelTest {
 		public int getNumberOfSlotsAvailableToScheduler() throws IOException {
 			return 1;
 		}
+
+		@Override
+		public int getBlobServerPort() {
+			throw new UnsupportedOperationException();
+		}
 	}
 }

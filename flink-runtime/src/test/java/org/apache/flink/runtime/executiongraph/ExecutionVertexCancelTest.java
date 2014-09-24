@@ -26,7 +26,9 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.times;
 
 import java.io.IOException;
+import java.util.ArrayList;
 
+import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
@@ -123,7 +125,7 @@ public class ExecutionVertexCancelTest {
 			Instance instance = getInstance(taskManager);
 			AllocatedSlot slot = instance.allocateSlot(new JobID());
 			
-			LibraryCacheManager.register(ejv.getJobId(), new String[0]);
+			LibraryCacheManager.register(ejv.getJobId(), new ArrayList<BlobKey>());
 			vertex.deployToSlot(slot);
 			
 			assertEquals(ExecutionState.DEPLOYING, vertex.getExecutionState());
@@ -197,7 +199,7 @@ public class ExecutionVertexCancelTest {
 			Instance instance = getInstance(taskManager);
 			AllocatedSlot slot = instance.allocateSlot(new JobID());
 			
-			LibraryCacheManager.register(ejv.getJobId(), new String[0]);
+			LibraryCacheManager.register(ejv.getJobId(), new ArrayList<BlobKey>());
 			vertex.deployToSlot(slot);
 			
 			assertEquals(ExecutionState.DEPLOYING, vertex.getExecutionState());

@@ -20,7 +20,6 @@ package org.apache.flink.runtime.protocols;
 
 import java.io.IOException;
 
-import org.apache.flink.core.protocols.VersionedProtocol;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.instance.InstanceID;
@@ -31,7 +30,7 @@ import org.apache.flink.runtime.taskmanager.TaskExecutionState;
  * to task managers which allows them to register themselves, send heart beat messages
  * or to report the results of a task execution.
  */
-public interface JobManagerProtocol extends VersionedProtocol {
+public interface JobManagerProtocol extends ServiceDiscoveryProtocol {
 
 	/**
 	 * Sends a heart beat to the job manager.

@@ -23,6 +23,8 @@ import static org.mockito.Mockito.*;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.sql.Blob;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Map;
 
@@ -30,6 +32,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.ExecutionMode;
+import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.deployment.ChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.GateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
@@ -72,9 +75,9 @@ public class TaskManagerTest {
 					new Configuration(), new Configuration(), TestInvokableCorrect.class.getName(),
 					Collections.<GateDeploymentDescriptor>emptyList(), 
 					Collections.<GateDeploymentDescriptor>emptyList(),
-					new String[0], 0);
+					new ArrayList<BlobKey>(), 0);
 			
-			LibraryCacheManager.register(jid, new String[0]);
+			LibraryCacheManager.register(jid, new ArrayList<BlobKey>());
 			
 			TaskOperationResult result = tm.submitTask(tdd);
 			assertTrue(result.isSuccess());
@@ -106,13 +109,16 @@ public class TaskManagerTest {
 					new Configuration(), new Configuration(), TestInvokableBlockingCancelable.class.getName(),
 					Collections.<GateDeploymentDescriptor>emptyList(), 
 					Collections.<GateDeploymentDescriptor>emptyList(),
-					new String[0], 0);
+					new ArrayList<BlobKey>(), 0);
 			
 			TaskDeploymentDescriptor tdd2 = new TaskDeploymentDescriptor(jid2, vid2, eid2, "TestTask2", 2, 7,
 					new Configuration(), new Configuration(), TestInvokableBlockingCancelable.class.getName(),
 					Collections.<GateDeploymentDescriptor>emptyList(), 
 					Collections.<GateDeploymentDescriptor>emptyList(),
-					new String[0], 0);
+					new ArrayList<BlobKey>(), 0);
+
+			LibraryCacheManager.register(jid1, new ArrayList<BlobKey>());
+			LibraryCacheManager.register(jid2, new ArrayList<BlobKey>());
 			
 			TaskOperationResult result1 = tm.submitTask(tdd1);
 			TaskOperationResult result2 = tm.submitTask(tdd2);
@@ -183,13 +189,16 @@ public class TaskManagerTest {
 					new Configuration(), new Configuration(), Sender.class.getName(),
 					Collections.<GateDeploymentDescriptor>emptyList(),
 					Collections.<GateDeploymentDescriptor>emptyList(),
-					new String[0], 0);
+					new ArrayList<BlobKey>(), 0);
 			
 			TaskDeploymentDescriptor tdd2 = new TaskDeploymentDescriptor(jid, vid2, eid2, "Receiver", 2, 7,
 					new Configuration(), new Configuration(), Receiver.class.getName(),
 					Collections.<GateDeploymentDescriptor>emptyList(),
 					Collections.<GateDeploymentDescriptor>emptyList(),
-					new String[0], 0);
+					new ArrayList<BlobKey>(), 0);
+
+			LibraryCacheManager.register(jid, new ArrayList<BlobKey>());
+			LibraryCacheManager.register(jid, new ArrayList<BlobKey>());
 			
 			assertFalse(tm.submitTask(tdd1).isSuccess());
 			assertFalse(tm.submitTask(tdd2).isSuccess());
@@ -233,13 +242,16 @@ public class TaskManagerTest {
 					new Configuration(), new Configuration(), Sender.class.getName(),
 					Collections.singletonList(new GateDeploymentDescriptor(Collections.singletonList(cdd))), 
 					Collections.<GateDeploymentDescriptor>emptyList(),
-					new String[0], 0);
+					new ArrayList<BlobKey>(), 0);
 			
 			TaskDeploymentDescriptor tdd2 = new TaskDeploymentDescriptor(jid, vid2, eid2, "Receiver", 2, 7,
 					new Configuration(), new Configuration(), Receiver.class.getName(),
 					Collections.<GateDeploymentDescriptor>emptyList(),
 					Collections.singletonList(new GateDeploymentDescriptor(Collections.singletonList(cdd))),
-					new String[0], 0);
+					new ArrayList<BlobKey>(), 0);
+
+			// Register at LibraryCacheManager
+			LibraryCacheManager.register(jid, new ArrayList<BlobKey>());
 			
 			// deploy sender before receiver, so the target is online when the sender requests the connection info
 			TaskOperationResult result2 = tm.submitTask(tdd2);
@@ -313,17 +325,17 @@ public class TaskManagerTest {
 					new Configuration(), new Configuration(), Sender.class.getName(),
 					Collections.singletonList(new GateDeploymentDescriptor(Collections.singletonList(cdd))), 
 					Collections.<GateDeploymentDescriptor>emptyList(),
-					new String[0], 0);
+					new ArrayList<BlobKey>(), 0);
 			
 			TaskDeploymentDescriptor tdd2 = new TaskDeploymentDescriptor(jid, vid2, eid2, "Receiver", 2, 7,
 					new Configuration(), new Configuration(), ReceiverBlocking.class.getName(),
 					Collections.<GateDeploymentDescriptor>emptyList(),
 					Collections.singletonList(new GateDeploymentDescriptor(Collections.singletonList(cdd))),
-					new String[0], 0);
+					new ArrayList<BlobKey>(), 0);
 			
 			// register the job twice (for two tasks) at the lib cache
-			LibraryCacheManager.register(jid, new String[0]);
-			LibraryCacheManager.register(jid, new String[0]);
+			LibraryCacheManager.register(jid, new ArrayList<BlobKey>());
+			LibraryCacheManager.register(jid, new ArrayList<BlobKey>());
 			assertNotNull(LibraryCacheManager.getClassLoader(jid));
 			
 			// deploy sender before receiver, so the target is online when the sender requests the connection info
