@@ -565,13 +565,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	 * working on the input format do not reach the file system.
 	 */
 	@Override
-	public void open(FileInputSplit split) throws IOException {
-		
-		if (!(split instanceof FileInputSplit)) {
-			throw new IllegalArgumentException("File Input Formats can only be used with FileInputSplits.");
-		}
-		
-		final FileInputSplit fileSplit = (FileInputSplit) split;
+	public void open(FileInputSplit fileSplit) throws IOException {
 		
 		this.splitStart = fileSplit.getStart();
 		this.splitLength = fileSplit.getLength();
