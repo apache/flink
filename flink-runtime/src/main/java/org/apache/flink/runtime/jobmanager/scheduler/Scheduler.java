@@ -24,7 +24,9 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,6 +60,8 @@ public class Scheduler implements InstanceListener, SlotAvailablilityListener {
 	/** All tasks pending to be scheduled */
 	private final Queue<QueuedTask> taskQueue = new ArrayDeque<QueuedTask>();
 	
+	private final BlockingQueue<Instance> newlyAvailableInstances;
+	
 	
 	private int unconstrainedAssignments;
 	
@@ -72,6 +76,7 @@ public class Scheduler implements InstanceListener, SlotAvailablilityListener {
 	
 	public Scheduler(ExecutorService executorService) {
 		this.executor = executorService;
+		this.newlyAvailableInstances = new LinkedBlockingQueue<Instance>();
 	}
 	
 	
@@ -305,7 +310,13 @@ public class Scheduler implements InstanceListener, SlotAvailablilityListener {
 		// in the set-with-available-instances
 		while (true) {
 			if (this.instancesWithAvailableResources.isEmpty()) {
-				return null;
+				// check if the asynchronous calls did not yet return the queues
+				Instance queuedInstance = this.newlyAvailableInstances.poll();
+				if (queuedInstance == null) {
+					return null;
+				} else {
+					this.instancesWithAvailableResources.add(queuedInstance);
+				}
 			}
 			
 			Iterator<Instance> locations = requestedLocations == null ? null : requestedLocations.iterator();
@@ -383,23 +394,31 @@ public class Scheduler implements InstanceListener, SlotAvailablilityListener {
 		// 
 		// that leads with a high probability to deadlocks, when scheduling fast
 		
+		this.newlyAvailableInstances.add(instance);
+		
 		if (this.executor != null) {
 			this.executor.execute(new Runnable() {
 				@Override
 				public void run() {
-					handleNewSlot(instance);
+					handleNewSlot();
 				}
 			});
 		}
 		else {
 			// for tests, we use the synchronous variant
-			handleNewSlot(instance);
+			handleNewSlot();
 		}
 	}
 	
-	private void handleNewSlot(Instance instance) {
+	private void handleNewSlot() {
 		
 		synchronized (globalLock) {
+			Instance instance = this.newlyAvailableInstances.poll();
+			if (instance == null || !instance.hasResourcesAvailable()) {
+				// someone else took it
+				return;
+			}
+			
 			QueuedTask queued = taskQueue.peek();
 			
 			// the slot was properly released, we can allocate a new one from that instance
