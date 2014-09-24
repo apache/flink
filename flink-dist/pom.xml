@@ -94,6 +94,24 @@ under the License.
 			<artifactId>flink-scala-examples</artifactId>
 			<version>${project.version}</version>
 		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-streaming-core</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-streaming-connectors</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-streaming-examples</artifactId>
+			<version>${project.version}</version>
+		</dependency>
 	</dependencies>
 
 	<!-- See main pom.xml for explanation of profiles -->
@@ -110,7 +128,7 @@ under the License.
 				<!-- No extra dependencies: pact-hbase is currently not compatible with Hadoop v1 -->
 			</dependencies>
 		</profile>
-		
+
 		<profile>
 			<id>include-yarn</id>
 			<activation>
@@ -149,8 +167,8 @@ under the License.
 									<archive>
 										<manifest>
 											<mainClass>org.apache.flink.yarn.Client</mainClass>
-											<addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>  
-											<addDefaultImplementationEntries>true</addDefaultImplementationEntries>  
+											<addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
+											<addDefaultImplementationEntries>true</addDefaultImplementationEntries>
 										</manifest>
 									</archive>
 									<descriptors>
@@ -158,7 +176,7 @@ under the License.
 									</descriptors>
 								</configuration>
 							</execution>
-							
+
 							<!-- yarn bin directory -->
 							<execution>
 								<id>yarn-bin</id>
@@ -179,7 +197,7 @@ under the License.
 				</plugins>
 			</build>
 		</profile>
-		
+
 		<profile>
 			<id>hadoop-2</id>
 			<activation>
@@ -196,7 +214,7 @@ under the License.
 				</dependency>
 			</dependencies>
 		</profile>
-		
+
 		<profile>
 			<id>debian-package</id>
 			<build>
@@ -336,8 +354,8 @@ under the License.
 			</build>
 		</profile>
 	</profiles>
-	
-	
+
+
 
 	<build>
 		<plugins>
@@ -368,7 +386,7 @@ under the License.
 					<skip>true</skip>
 				</configuration>
 			</plugin>
-			
+
 			<plugin>
 				<!-- Description: https://github.com/ktoso/maven-git-commit-id-plugin -->
 				<groupId>pl.project13.maven</groupId>
