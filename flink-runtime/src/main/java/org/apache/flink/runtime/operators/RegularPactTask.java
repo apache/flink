@@ -37,7 +37,6 @@ import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.accumulators.AccumulatorEvent;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.api.BufferWriter;
 import org.apache.flink.runtime.io.network.api.ChannelSelector;
@@ -180,11 +179,6 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	protected TaskConfig config;
 
 	/**
-	 * The class loader used to instantiate user code and user data types.
-	 */
-	protected ClassLoader userCodeClassLoader;
-
-	/**
 	 * A list of chained drivers, if there are any.
 	 */
 	protected ArrayList<ChainedDriver<?, ?>> chainedTasks;
@@ -231,18 +225,11 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 			LOG.debug(formatLogString("Start registering input and output."));
 		}
 
-		// get the classloader first. the classloader might have been set before by mock environments during testing
-		if (this.userCodeClassLoader == null) {
-			try {
-				this.userCodeClassLoader = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
-			}
-			catch (IOException ioe) {
-				throw new RuntimeException("The ClassLoader for the user code could not be instantiated from the library cache.", ioe);
-			}
-		}
+		ClassLoader userCodeClassLoader = getEnvironment().getUserClassLoader();
 
 		// obtain task configuration (including stub parameters)
 		Configuration taskConf = getTaskConfiguration();
+		taskConf.setClassLoader(userCodeClassLoader);
 		this.config = new TaskConfig(taskConf);
 
 		// now get the operator class which drives the operation
@@ -405,16 +392,6 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		} finally {
 			closeLocalStrategiesAndCaches();
 		}
-	}
-
-
-	/**
-	 * Sets the class-loader to be used to load the user code.
-	 *
-	 * @param cl The class-loader to be used to load the user code.
-	 */
-	public void setUserCodeClassLoader(ClassLoader cl) {
-		this.userCodeClassLoader = cl;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -694,7 +671,8 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 
 	protected S initStub(Class<? super S> stubSuperClass) throws Exception {
 		try {
-			S stub = config.<S>getStubWrapper(this.userCodeClassLoader).getUserCodeObject(stubSuperClass, this.userCodeClassLoader);
+			ClassLoader userCodeClassLoader = getEnvironment().getUserClassLoader();
+			S stub = config.<S>getStubWrapper(userCodeClassLoader).getUserCodeObject(stubSuperClass, userCodeClassLoader);
 			// check if the class is a subclass, if the check is required
 			if (stubSuperClass != null && !stubSuperClass.isAssignableFrom(stub.getClass())) {
 				throw new RuntimeException("The class '" + stub.getClass().getName() + "' is not a subclass of '" + 
@@ -785,11 +763,12 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		this.inputSerializers = new TypeSerializerFactory<?>[numInputs];
 		this.inputComparators = numComparators > 0 ? new TypeComparator[numComparators] : null;
 		this.inputIterators = new MutableObjectIterator[numInputs];
+
+		ClassLoader userCodeClassLoader = getEnvironment().getUserClassLoader();
 		
-		//  ---------------- create the input serializers  ---------------------
 		for (int i = 0; i < numInputs; i++) {
 			
-			final TypeSerializerFactory<?> serializerFactory = this.config.getInputSerializer(i, this.userCodeClassLoader);
+			final TypeSerializerFactory<?> serializerFactory = this.config.getInputSerializer(i, userCodeClassLoader);
 			this.inputSerializers[i] = serializerFactory;
 			
 			this.inputIterators[i] = createInputIterator(this.inputReaders[i], this.inputSerializers[i]);
@@ -799,7 +778,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		for (int i = 0; i < numComparators; i++) {
 			
 			if (this.inputComparators != null) {
-				final TypeComparatorFactory<?> comparatorFactory = this.config.getDriverComparator(i, this.userCodeClassLoader);
+				final TypeComparatorFactory<?> comparatorFactory = this.config.getDriverComparator(i, userCodeClassLoader);
 				this.inputComparators[i] = comparatorFactory.createComparator();
 			}
 		}
@@ -812,9 +791,11 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		this.broadcastInputSerializers = new TypeSerializerFactory[numBroadcastInputs];
 		this.broadcastInputIterators = new MutableObjectIterator[numBroadcastInputs];
 
+		ClassLoader userCodeClassLoader = getEnvironment().getUserClassLoader();
+
 		for (int i = 0; i < numBroadcastInputs; i++) {
 			//  ---------------- create the serializer first ---------------------
-			final TypeSerializerFactory<?> serializerFactory = this.config.getBroadcastInputSerializer(i, this.userCodeClassLoader);
+			final TypeSerializerFactory<?> serializerFactory = this.config.getBroadcastInputSerializer(i, userCodeClassLoader);
 			this.broadcastInputSerializers[i] = serializerFactory;
 
 			this.broadcastInputIterators[i] = createInputIterator(this.broadcastInputReaders[i], this.broadcastInputSerializers[i]);
@@ -1025,7 +1006,9 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	}
 
 	private <T> TypeComparator<T> getLocalStrategyComparator(int inputNum) throws Exception {
-		TypeComparatorFactory<T> compFact = this.config.getInputComparator(inputNum, this.userCodeClassLoader);
+		ClassLoader userCodeClassLoader = getEnvironment().getUserClassLoader();
+
+		TypeComparatorFactory<T> compFact = this.config.getInputComparator(inputNum, userCodeClassLoader);
 		if (compFact == null) {
 			throw new Exception("Missing comparator factory for local strategy on input " + inputNum);
 		}
@@ -1060,7 +1043,10 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	protected void initOutputs() throws Exception {
 		this.chainedTasks = new ArrayList<ChainedDriver<?, ?>>();
 		this.eventualOutputs = new ArrayList<BufferWriter>();
-		this.output = initOutputs(this, this.userCodeClassLoader, this.config, this.chainedTasks, this.eventualOutputs);
+
+		ClassLoader userCodeClassLoader = getEnvironment().getUserClassLoader();
+
+		this.output = initOutputs(this, userCodeClassLoader, this.config, this.chainedTasks, this.eventualOutputs);
 	}
 
 	public RuntimeUDFContext createRuntimeContext(String taskName) {
@@ -1079,7 +1065,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 
 	@Override
 	public ClassLoader getUserCodeClassLoader() {
-		return this.userCodeClassLoader;
+		return getEnvironment().getUserClassLoader();
 	}
 
 	@Override

@@ -666,6 +666,11 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 		return accumulatorProtocolProxy;
 	}
 
+	@Override
+	public ClassLoader getUserClassLoader() {
+		return userCodeClassLoader;
+	}
+
 	public void addCopyTasksForCacheFile(Map<String, FutureTask<Path>> copyTasks) {
 		this.cacheCopyTasks.putAll(copyTasks);
 	}

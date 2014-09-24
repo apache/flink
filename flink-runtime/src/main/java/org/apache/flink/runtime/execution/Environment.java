@@ -206,6 +206,12 @@ public interface Environment {
 	AccumulatorProtocol getAccumulatorProtocolProxy();
 
 	/**
+	 * Returns the user code class loader
+	 * @return user code class loader
+	 */
+	ClassLoader getUserClassLoader();
+
+	/**
 	 * Returns the buffer provider for this environment.
 	 * <p/>
 	 * The returned buffer provider is used by the output side of the network stack.

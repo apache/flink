@@ -116,8 +116,9 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 		// add the outputs for the final solution
 		this.finalOutputWriters = new ArrayList<BufferWriter>();
 		final TaskConfig finalOutConfig = this.config.getIterationHeadFinalOutputConfig();
+		final ClassLoader userCodeClassLoader = getEnvironment().getUserClassLoader();
 		this.finalOutputCollector = RegularPactTask.getOutputCollector(this, finalOutConfig,
-			this.userCodeClassLoader, this.finalOutputWriters, finalOutConfig.getNumOutputs());
+			userCodeClassLoader, this.finalOutputWriters, finalOutConfig.getNumOutputs());
 
 		// sanity check the setup
 		final int writersIntoStepFunction = this.eventualOutputs.size();
@@ -159,6 +160,7 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 	private <BT> CompactingHashTable<BT> initCompactingHashTable() throws Exception {
 		// get some memory
 		double hashjoinMemorySize = config.getRelativeSolutionSetMemory();
+		final ClassLoader userCodeClassLoader = getEnvironment().getUserClassLoader();
 
 		TypeSerializerFactory<BT> solutionTypeSerializerFactory = config.getSolutionSetSerializer(userCodeClassLoader);
 		TypeComparatorFactory<BT> solutionTypeComparatorFactory = config.getSolutionSetComparator(userCodeClassLoader);
@@ -221,6 +223,8 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 	}
 
 	private SuperstepBarrier initSuperstepBarrier() {
+		final ClassLoader userCodeClassLoader = getEnvironment().getUserClassLoader();
+
 		SuperstepBarrier barrier = new SuperstepBarrier(userCodeClassLoader);
 		this.toSync.subscribeToEvent(barrier, AllWorkersDoneEvent.class);
 		this.toSync.subscribeToEvent(barrier, TerminationEvent.class);
@@ -258,7 +262,8 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 
 			if (isWorksetIteration) {
 				initialSolutionSetInput = config.getIterationHeadSolutionSetInputIndex();
-				TypeSerializerFactory<X> solutionTypeSerializerFactory = config.getSolutionSetSerializer(userCodeClassLoader);
+				TypeSerializerFactory<X> solutionTypeSerializerFactory = config
+						.getSolutionSetSerializer(getEnvironment().getUserClassLoader());
 				solutionTypeSerializer = solutionTypeSerializerFactory;
 
 				// setup the index for the solution set

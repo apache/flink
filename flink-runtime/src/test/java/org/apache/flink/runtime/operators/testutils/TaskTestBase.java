@@ -87,10 +87,6 @@ public abstract class TaskTestBase {
 		
 		task.setEnvironment(this.mockEnv);
 
-		if (task instanceof RegularPactTask<?, ?>) {
-			((RegularPactTask<?, ?>) task).setUserCodeClassLoader(getClass().getClassLoader());
-		}
-
 		task.registerInputOutput();
 	}
 
@@ -112,10 +108,6 @@ public abstract class TaskTestBase {
 		dsConfig.setStubWrapper(new UserCodeObjectWrapper<FileOutputFormat>(outputFormat));
 
 		outTask.setEnvironment(this.mockEnv);
-
-		if (outTask instanceof DataSinkTask<?>) {
-			((DataSinkTask<?>) outTask).setUserCodeClassLoader(getClass().getClassLoader());
-		}
 
 		outTask.registerInputOutput();
 	}
@@ -141,9 +133,6 @@ public abstract class TaskTestBase {
 
 		inTask.setEnvironment(this.mockEnv);
 
-		if (inTask instanceof DataSourceTask<?>) {
-			((DataSourceTask<?>) inTask).setUserCodeClassLoader(getClass().getClassLoader());
-		}
 		inTask.registerInputOutput();
 	}
 

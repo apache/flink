@@ -337,7 +337,8 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 	private TypeSerializer<OT> getOutputSerializer() {
 		TypeSerializerFactory<OT> serializerFactory;
 
-		if ((serializerFactory = getLastTasksConfig().getOutputSerializer(userCodeClassLoader)) == null) {
+		if ((serializerFactory = getLastTasksConfig().getOutputSerializer(getEnvironment().getUserClassLoader())) ==
+				null) {
 			throw new RuntimeException("Missing output serializer for workset update.");
 		}
 
