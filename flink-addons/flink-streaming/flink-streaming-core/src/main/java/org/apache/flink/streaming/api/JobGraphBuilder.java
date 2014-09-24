@@ -49,7 +49,8 @@ import org.slf4j.LoggerFactory;
 public class JobGraphBuilder {
 
 	private static final Logger LOG = LoggerFactory.getLogger(JobGraphBuilder.class);
-	private final JobGraph jobGraph;
+	private final static String DEAFULT_JOB_NAME = "Streaming Job";
+	private JobGraph jobGraph;
 
 	// Graph attributes
 	private Map<String, AbstractJobVertex> streamVertices;
@@ -87,9 +88,7 @@ public class JobGraphBuilder {
 	 * @param jobGraphName
 	 *            Name of the JobGraph
 	 */
-	public JobGraphBuilder(String jobGraphName) {
-
-		jobGraph = new JobGraph(jobGraphName);
+	public JobGraphBuilder() {
 
 		streamVertices = new HashMap<String, AbstractJobVertex>();
 		vertexParallelism = new HashMap<String, Integer>();
@@ -157,8 +156,8 @@ public class JobGraphBuilder {
 	 */
 	public <IN, OUT> void addStreamVertex(String vertexName,
 			StreamInvokable<IN, OUT> invokableObject, TypeWrapper<?> inTypeWrapper,
-			TypeWrapper<?> outTypeWrapper, String operatorName,
-			byte[] serializedFunction, int parallelism) {
+			TypeWrapper<?> outTypeWrapper, String operatorName, byte[] serializedFunction,
+			int parallelism) {
 
 		addVertex(vertexName, StreamVertex.class, invokableObject, operatorName,
 				serializedFunction, parallelism);
@@ -240,9 +239,8 @@ public class JobGraphBuilder {
 	}
 
 	public <IN1, IN2, OUT> void addCoTask(String vertexName,
-			CoInvokable<IN1, IN2, OUT> taskInvokableObject,
-			TypeWrapper<?> in1TypeWrapper, TypeWrapper<?> in2TypeWrapper,
-			TypeWrapper<?> outTypeWrapper, String operatorName,
+			CoInvokable<IN1, IN2, OUT> taskInvokableObject, TypeWrapper<?> in1TypeWrapper,
+			TypeWrapper<?> in2TypeWrapper, TypeWrapper<?> outTypeWrapper, String operatorName,
 			byte[] serializedFunction, int parallelism) {
 
 		addVertex(vertexName, CoStreamVertex.class, taskInvokableObject, operatorName,
@@ -290,9 +288,8 @@ public class JobGraphBuilder {
 		iterationTailCount.put(vertexName, 0);
 	}
 
-	private void addTypeWrappers(String vertexName, TypeWrapper<?> in1,
-			TypeWrapper<?> in2, TypeWrapper<?> out1,
-			TypeWrapper<?> out2) {
+	private void addTypeWrappers(String vertexName, TypeWrapper<?> in1, TypeWrapper<?> in2,
+			TypeWrapper<?> out1, TypeWrapper<?> out2) {
 		typeWrapperIn1.put(vertexName, in1);
 		typeWrapperIn2.put(vertexName, in2);
 		typeWrapperOut1.put(vertexName, out1);
@@ -539,11 +536,29 @@ public class JobGraphBuilder {
 	}
 
 	/**
+	 * Gets the assembled {@link JobGraph} and adds a default name for it.
+	 */
+	public JobGraph getJobGraph() {
+		return getJobGraph(DEAFULT_JOB_NAME);
+	}
+
+	/**
+	 * Gets the assembled {@link JobGraph} and adds a user specified name for
+	 * it.
+	 * 
+	 * @param jobGraphName name of the jobGraph
+	 */
+	public JobGraph getJobGraph(String jobGraphName) {
+		jobGraph = new JobGraph(jobGraphName);
+		buildJobGraph();
+		return jobGraph;
+	}
+
+	/**
 	 * Builds the {@link JobGraph} from the vertices with the edges and settings
 	 * provided.
 	 */
-	private void buildGraph() {
-
+	private void buildJobGraph() {
 		for (String vertexName : outEdgeList.keySet()) {
 			createVertex(vertexName);
 		}
@@ -571,16 +586,6 @@ public class JobGraphBuilder {
 		setSlotSharing();
 		setNumberOfJobInputs();
 		setNumberOfJobOutputs();
-	}
-
-	/**
-	 * Builds and returns the JobGraph
-	 * 
-	 * @return JobGraph object
-	 */
-	public JobGraph getJobGraph() {
-		buildGraph();
-		return jobGraph;
 	}
 
 }

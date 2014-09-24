@@ -71,7 +71,7 @@ public abstract class StreamExecutionEnvironment {
 	 * Constructor for creating StreamExecutionEnvironment
 	 */
 	protected StreamExecutionEnvironment() {
-		jobGraphBuilder = new JobGraphBuilder("jobGraph");
+		jobGraphBuilder = new JobGraphBuilder();
 	}
 
 	public int getExecutionParallelism() {
@@ -230,8 +230,9 @@ public abstract class StreamExecutionEnvironment {
 
 		try {
 			SourceFunction<OUT> function = new FromElementsFunction<OUT>(data);
-			jobGraphBuilder.addStreamVertex(returnStream.getId(), new SourceInvokable<OUT>(function),
-					null, outTypeWrapper, "source", SerializationUtils.serialize(function), 1);
+			jobGraphBuilder.addStreamVertex(returnStream.getId(),
+					new SourceInvokable<OUT>(function), null, outTypeWrapper, "source",
+					SerializationUtils.serialize(function), 1);
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize elements");
 		}
@@ -259,8 +260,7 @@ public abstract class StreamExecutionEnvironment {
 			throw new IllegalArgumentException("Collection must not be empty");
 		}
 
-		TypeWrapper<OUT> outTypeWrapper = new ObjectTypeWrapper<OUT>(data.iterator()
-				.next());
+		TypeWrapper<OUT> outTypeWrapper = new ObjectTypeWrapper<OUT>(data.iterator().next());
 		DataStreamSource<OUT> returnStream = new DataStreamSource<OUT>(this, "elements",
 				outTypeWrapper);
 
@@ -311,9 +311,9 @@ public abstract class StreamExecutionEnvironment {
 				outTypeWrapper);
 
 		try {
-			jobGraphBuilder.addStreamVertex(returnStream.getId(), new SourceInvokable<OUT>(function),
-					null, outTypeWrapper, "source", SerializationUtils.serialize(function),
-					parallelism);
+			jobGraphBuilder.addStreamVertex(returnStream.getId(),
+					new SourceInvokable<OUT>(function), null, outTypeWrapper, "source",
+					SerializationUtils.serialize(function), parallelism);
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize SourceFunction");
 		}
@@ -459,6 +459,20 @@ public abstract class StreamExecutionEnvironment {
 	 * @throws Exception
 	 **/
 	public abstract void execute() throws Exception;
+
+	/**
+	 * Triggers the program execution. The environment will execute all parts of
+	 * the program that have resulted in a "sink" operation. Sink operations are
+	 * for example printing results or forwarding them to a message queue.
+	 * <p>
+	 * The program execution will be logged and displayed with the provided
+	 * name
+	 * 
+	 * @param jobName Desired name of the job
+	 * 
+	 * @throws Exception
+	 **/
+	public abstract void execute(String jobName) throws Exception;
 
 	/**
 	 * Getter of the {@link JobGraphBuilder} of the streaming job.

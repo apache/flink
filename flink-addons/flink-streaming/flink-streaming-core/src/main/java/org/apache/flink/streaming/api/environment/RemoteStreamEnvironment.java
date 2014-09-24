@@ -70,11 +70,27 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 
 	@Override
 	public void execute() {
+		
+		JobGraph jobGraph = jobGraphBuilder.getJobGraph();
+		executeRemotely(jobGraph);
+	}
+	
+	@Override
+	public void execute(String jobName) {
+		
+		JobGraph jobGraph = jobGraphBuilder.getJobGraph(jobName);
+		executeRemotely(jobGraph);
+	}
+
+	/**
+	 * Executes the remote job.
+	 * 
+	 * @param jobGraph jobGraph to execute
+	 */
+	private void executeRemotely(JobGraph jobGraph) {
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Running remotely at {}:{}", host, port);
 		}
-
-		JobGraph jobGraph = jobGraphBuilder.getJobGraph();
 
 		for (int i = 0; i < jarFiles.length; i++) {
 			File file = new File(jarFiles[i]);

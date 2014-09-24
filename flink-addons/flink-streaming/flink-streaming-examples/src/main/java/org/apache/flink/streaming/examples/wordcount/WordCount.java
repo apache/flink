@@ -80,7 +80,7 @@ public class WordCount {
 		}
 
 		// execute program
-		env.execute();
+		env.execute("Streaming WordCount");
 	}
 
 	// *************************************************************************
