@@ -1103,3 +1103,37 @@ val unioned = vals1.union(vals2).union(vals3)
 </div>
 </div>
 
+### Rebalance (Java API Only)
+
+Evenly rebalances the parallel partitions of a DataSet to eliminate data skew.
+Only Map-like transformations may follow a rebalance transformation, i.e.,
+
+- Map
+- FlatMap
+- Filter
+- MapPartition
+
+~~~java
+DataSet<String> in = // [...]
+// rebalance DataSet and apply a Map transformation.
+DataSet<Tuple2<String, String>> out = in.rebalance()
+                                        .map(new Mapper());
+~~~
+
+### Hash-Partition (Java API Only)
+
+Hash-partitions a DataSet on a given key. 
+Keys can be specified as key-selector functions or field position keys (see [Reduce examples](#reduce-on-grouped-dataset) for how to specify keys).
+Only Map-like transformations may follow a hash-partition transformation, i.e.,
+
+- Map
+- FlatMap
+- Filter
+- MapPartition
+
+~~~java
+DataSet<Tuple2<String, Integer>> in = // [...]
+// hash-partition DataSet by String value and apply a MapPartition transformation.
+DataSet<Tuple2<String, String>> links = in.partitionByHash(0)
+                                          .mapPartition(new PartitionMapper());
+~~~

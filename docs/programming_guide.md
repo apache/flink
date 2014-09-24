@@ -594,6 +594,28 @@ DataSet<String> result = data1.union(data2);
 {% endhighlight %}
       </td>
     </tr>
+    <tr>
+      <td><strong>Rebalance</strong></td>
+      <td>
+        <p>Evenly rebalances the parallel partitions of a data set to eliminate data skew. Only Map-like transformations may follow a rebalance transformation. (Java API Only)</p>
+{% highlight java %}
+DataSet<String> in = // [...]
+DataSet<String> result = in.rebalance()
+                           .map(new Mapper())
+{% endhighlight %}
+      </td>
+    </tr>
+    <tr>
+      <td><strong>Hash-Partition</strong></td>
+      <td>
+        <p>Hash-partitions a data set on a given key. Keys can be specified as key-selector functions or field position keys. Only Map-like transformations may follow a hash-partition transformation. (Java API Only)</p>
+{% highlight java %}
+DataSet<Tuple2<String,Integer>> in = // [...]
+DataSet<Integer> result = in.partitionByHash(0)
+                            .mapPartition(new PartitionMapper())
+{% endhighlight %}
+      </td>
+    </tr>
   </tbody>
 </table>
 
