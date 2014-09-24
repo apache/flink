@@ -442,11 +442,12 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 		case FORWARD:
 			throw new CompilerException("Cannot use FORWARD strategy between operations " +
 					"with different number of parallel instances.");
-		case NONE: // excluded by sanity check. lust here for verification check completion
+		case NONE: // excluded by sanity check. left here for verification check completion
 		case BROADCAST:
 		case PARTITION_HASH:
 		case PARTITION_RANGE:
 		case PARTITION_RANDOM:
+		case PARTITION_FORCED_REBALANCE:
 			return;
 		}
 		throw new CompilerException("Unrecognized Ship Strategy Type: " + this.shipStrategy);
