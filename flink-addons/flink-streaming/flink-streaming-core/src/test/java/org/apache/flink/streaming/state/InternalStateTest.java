@@ -17,6 +17,12 @@
 
 package org.apache.flink.streaming.state;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+
+import java.util.HashSet;
+import java.util.Set;
+
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.junit.Test;
 
@@ -30,21 +36,25 @@ public class InternalStateTest {
 		state.put("state", "mutable");
 		state.put("streaming", "persist");
 		String s = state.get("streaming");
-		if (s == null) {
-			System.out.println("key does not exist!");
-		} else {
-			System.out.println("value=" + s);
-		}
+		assertEquals("persist", s);
+
 		s = state.get("null");
-		if (s == null) {
-			System.out.println("key does not exist!");
-		} else {
-			System.out.println("value=" + s);
-		}
+
+		assertNull(s);
+
 		TableStateIterator<String, String> iterator = state.getIterator();
+
+		Set<Tuple2<String, String>> expected = new HashSet<Tuple2<String, String>>();
+		expected.add(new Tuple2<String, String>("abc", "hello"));
+		expected.add(new Tuple2<String, String>("test", "world"));
+		expected.add(new Tuple2<String, String>("state", "mutable"));
+		expected.add(new Tuple2<String, String>("streaming", "persist"));
+
+		Set<Tuple2<String, String>> actual = new HashSet<Tuple2<String, String>>();
+
 		while (iterator.hasNext()) {
-			Tuple2<String, String> tuple = iterator.next();
-			System.out.println(tuple.getField(0) + ", " + tuple.getField(1));
+			actual.add(iterator.next());
 		}
+		assertEquals(expected, actual);
 	}
 }

@@ -165,7 +165,7 @@ public class StreamVertexTest {
 		fromStringElements.connect(generatedSequence).map(new CoMap()).addSink(new SetSink());
 
 		resultSet = new HashSet<String>();
-		env.execute();
+		env.executeTest(MEMORYSIZE);
 
 		HashSet<String> expectedSet = new HashSet<String>(Arrays.asList("aa", "bb", "cc", "0", "1",
 				"2", "3"));
