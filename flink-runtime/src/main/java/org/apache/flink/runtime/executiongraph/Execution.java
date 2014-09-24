@@ -268,8 +268,7 @@ public class Execution {
 				public void run() {
 					try {
 						Instance instance = slot.getInstance();
-						instance.checkLibraryAvailability(vertex.getJobId());
-						
+
 						TaskOperationResult result = instance.getTaskManagerProxy().submitTask(deployment);
 						if (result == null) {
 							markFailed(new Exception("Failed to deploy the task to slot " + slot + ": TaskOperationResult was null"));

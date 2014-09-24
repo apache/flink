@@ -164,5 +164,10 @@ public class LocalInstanceManagerTest {
 		public InstanceID registerTaskManager(InstanceConnectionInfo instanceConnectionInfo, HardwareDescription hardwareDescription, int numberOfSlots) {
 			return new InstanceID();
 		}
+
+		@Override
+		public int getBlobServerPort() {
+			return 0;
+		}
 	}
 }

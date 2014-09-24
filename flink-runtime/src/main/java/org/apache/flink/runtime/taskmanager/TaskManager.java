@@ -59,13 +59,13 @@ import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.protocols.VersionedProtocol;
 import org.apache.flink.runtime.ExecutionMode;
+import org.apache.flink.runtime.blob.BlobCache;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.RuntimeEnvironment;
+import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
+import org.apache.flink.runtime.execution.librarycache.FallbackLibraryCacheManager;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheProfileRequest;
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheProfileResponse;
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheUpdate;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.instance.Hardware;
@@ -138,6 +138,7 @@ public class TaskManager implements TaskOperationProtocol {
 	
 	private final AccumulatorProtocol accumulatorProtocolProxy;
 
+	private final LibraryCacheManager libraryCacheManager;
 	
 	private final Server taskManagerServer;
 
@@ -333,6 +334,22 @@ public class TaskManager implements TaskOperationProtocol {
 		
 		this.hardwareDescription = HardwareDescription.extractFromSystem(this.memoryManager.getMemorySize());
 
+		// Determine the port of the BLOB server and register it with the library cache manager
+		{
+			final int blobPort = this.jobManager.getBlobServerPort();
+
+			if (blobPort == -1) {
+				LOG.warn("Unable to determine BLOB server address: User library download will not be available");
+				this.libraryCacheManager = new FallbackLibraryCacheManager();
+			} else {
+				final InetSocketAddress blobServerAddress = new InetSocketAddress(
+					jobManagerAddress.getAddress(), blobPort);
+				LOG.info("Determined BLOB server address to be " + blobServerAddress);
+
+				this.libraryCacheManager = new BlobLibraryCacheManager(new BlobCache
+						(blobServerAddress), GlobalConfiguration.getConfiguration());
+			}
+		}
 		this.ioManager = new IOManager(tmpDirPaths);
 		
 		// start the heart beats
@@ -447,6 +464,14 @@ public class TaskManager implements TaskOperationProtocol {
 			this.memoryManager.shutdown();
 		}
 
+		if(libraryCacheManager != null){
+			try {
+				this.libraryCacheManager.shutdown();
+			} catch (IOException e) {
+				LOG.warn("Could not properly shutdown the library cache manager.", e);
+			}
+		}
+
 		this.fileCache.shutdown();
 
 		// Shut down the executor service
@@ -548,11 +573,13 @@ public class TaskManager implements TaskOperationProtocol {
 		boolean jarsRegistered = false;
 		
 		try {
+			// Now register data with the library manager
+			libraryCacheManager.register(jobID, tdd.getRequiredJarFiles());
+
 			// library and classloader issues first
-			LibraryCacheManager.register(jobID, tdd.getRequiredJarFiles());
 			jarsRegistered = true;
-			
-			final ClassLoader userCodeClassLoader = LibraryCacheManager.getClassLoader(jobID);
+
+			final ClassLoader userCodeClassLoader = libraryCacheManager.getClassLoader(jobID);
 			if (userCodeClassLoader == null) {
 				throw new Exception("No user code ClassLoader available.");
 			}
@@ -619,13 +646,7 @@ public class TaskManager implements TaskOperationProtocol {
 			LOG.error("Could not instantiate task", t);
 			
 			if (jarsRegistered) {
-				try {
-					LibraryCacheManager.unregister(jobID);
-				} catch (IOException e) {
-					if (LOG.isDebugEnabled()) {
-						LOG.debug("Unregistering the execution " + executionId + " caused an IOException");
-					}
-				}
+				libraryCacheManager.unregister(jobID);
 			}
 			
 			return new TaskOperationResult(executionId, false, ExceptionUtils.stringifyException(t));
@@ -664,14 +685,7 @@ public class TaskManager implements TaskOperationProtocol {
 		task.unregisterMemoryManager(this.memoryManager);
 
 		// Unregister task from library cache manager
-		try {
-			LibraryCacheManager.unregister(task.getJobID());
-		}
-		catch (Throwable t) {
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Unregistering the cached libraries caused an exception: ",  t);
-			}
-		}
+		libraryCacheManager.unregister(task.getJobID());
 	}
 
 	public void notifyExecutionStateChange(JobID jobID, ExecutionAttemptID executionId, ExecutionState newExecutionState, Throwable optionalError) {
@@ -710,34 +724,7 @@ public class TaskManager implements TaskOperationProtocol {
 			}
 		}
 	}
-	
-	// --------------------------------------------------------------------------------------------
-	//  Library caching
-	// --------------------------------------------------------------------------------------------
-	
-	@Override
-	public LibraryCacheProfileResponse getLibraryCacheProfile(LibraryCacheProfileRequest request) throws IOException {
 
-		LibraryCacheProfileResponse response = new LibraryCacheProfileResponse(request);
-		String[] requiredLibraries = request.getRequiredLibraries();
-
-		for (int i = 0; i < requiredLibraries.length; i++) {
-			if (LibraryCacheManager.contains(requiredLibraries[i]) == null) {
-				response.setCached(i, false);
-			} else {
-				response.setCached(i, true);
-			}
-		}
-
-		return response;
-	}
-	
-	@Override
-	public void updateLibraryCache(LibraryCacheUpdate update) throws IOException {
-		// Nothing to to here, because the libraries are added to the cache when the
-		// update is deserialized (WE SHOULD CHANGE THAT!!!)
-	}
-	
 	// --------------------------------------------------------------------------------------------
 	//  Heartbeats
 	// --------------------------------------------------------------------------------------------

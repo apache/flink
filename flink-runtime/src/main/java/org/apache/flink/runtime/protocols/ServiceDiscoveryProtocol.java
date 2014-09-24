@@ -18,23 +18,19 @@
 
 package org.apache.flink.runtime.protocols;
 
-import java.io.IOException;
-
 import org.apache.flink.core.protocols.VersionedProtocol;
-import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.taskmanager.TaskOperationResult;
 
 /**
- * The task submission protocol is implemented by the task manager and allows the job manager
- * to submit and cancel tasks, as well as to query the task manager for cached libraries and submit
- * these if necessary.
+ * The service discovery protocols enables different components of the Flink distributed runtime to query and discover
+ * the network location auxiliary services.
  */
-public interface TaskOperationProtocol extends VersionedProtocol {
+public interface ServiceDiscoveryProtocol extends VersionedProtocol {
 
-	TaskOperationResult submitTask(TaskDeploymentDescriptor task) throws IOException;
-
-	TaskOperationResult cancelTask(ExecutionAttemptID executionId) throws IOException;
-
-	
+	/**
+	 * Returns the network port of the job manager's BLOB server.
+	 * 
+	 * @return the port of the job manager's BLOB server or <code>-1</code> if the job manager does not run a BLOB
+	 *         server
+	 */
+	int getBlobServerPort();
 }

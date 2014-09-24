@@ -21,12 +21,14 @@ package org.apache.flink.runtime.deployment;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -63,16 +65,18 @@ public final class TaskDeploymentDescriptor implements IOReadableWritable {
 
 	/** The name of the class containing the task code to be executed. */
 	private String invokableClassName;
-
 	/** The list of output gate deployment descriptors. */
 	private List<GateDeploymentDescriptor> outputGates;
 
 	/** The list of input gate deployment descriptors. */
 	private List<GateDeploymentDescriptor> inputGates;
 	
-	private String[] requiredJarFiles;
-	
 	private int targetSlotNumber;
+
+	/**
+	 * The list of JAR files required to run this task.
+	 */
+	private final List<BlobKey> requiredJarFiles;
 
 	/**
 	 * Constructs a task deployment descriptor.
@@ -95,6 +99,8 @@ public final class TaskDeploymentDescriptor implements IOReadableWritable {
 	 *        the class containing the task code to be executed
 	 * @param outputGates
 	 *        list of output gate deployment descriptors
+	 * @param requiredJarFiles
+	 *        list of JAR files required to run this task
 	 */
 	public TaskDeploymentDescriptor(JobID jobID, JobVertexID vertexID, ExecutionAttemptID execuionId,
 			String taskName, int indexInSubtaskGroup, int currentNumberOfSubtasks, 
@@ -102,9 +108,7 @@ public final class TaskDeploymentDescriptor implements IOReadableWritable {
 			String invokableClassName,
 			List<GateDeploymentDescriptor> outputGates,
 			List<GateDeploymentDescriptor> inputGates,
-			String[] requiredJarFiles,
-			int targetSlotNumber)
-	{
+			final List<BlobKey> requiredJarFiles, int targetSlotNumber){
 		if (jobID == null || vertexID == null || execuionId == null || taskName == null || indexInSubtaskGroup < 0 ||
 				currentNumberOfSubtasks <= indexInSubtaskGroup || jobConfiguration == null ||
 				taskConfiguration == null || invokableClassName == null || outputGates == null || inputGates == null)
@@ -112,6 +116,10 @@ public final class TaskDeploymentDescriptor implements IOReadableWritable {
 			throw new IllegalArgumentException();
 		}
 		
+		if (requiredJarFiles == null) {
+			throw new IllegalArgumentException("Argument requiredJarFiles must not be null");
+		}
+
 		this.jobID = jobID;
 		this.vertexID = vertexID;
 		this.executionId = execuionId;
@@ -123,7 +131,7 @@ public final class TaskDeploymentDescriptor implements IOReadableWritable {
 		this.invokableClassName = invokableClassName;
 		this.outputGates = outputGates;
 		this.inputGates = inputGates;
-		this.requiredJarFiles = requiredJarFiles == null ? new String[0] : requiredJarFiles;
+		this.requiredJarFiles = requiredJarFiles;
 		this.targetSlotNumber = targetSlotNumber;
 	}
 
@@ -138,11 +146,8 @@ public final class TaskDeploymentDescriptor implements IOReadableWritable {
 		this.taskConfiguration = new Configuration();
 		this.outputGates = Collections.emptyList();
 		this.inputGates = Collections.emptyList();
-		this.requiredJarFiles = new String[0];
+		this.requiredJarFiles = new ArrayList<BlobKey>();
 	}
-
-
-
 
 	/**
 	 * Returns the ID of the job the tasks belongs to.
@@ -227,10 +232,8 @@ public final class TaskDeploymentDescriptor implements IOReadableWritable {
 	public List<GateDeploymentDescriptor> getInputGates() {
 		return inputGates;
 	}
-	
-	public String[] getRequiredJarFiles() {
-		return requiredJarFiles;
-	}
+
+	public List<BlobKey> getRequiredJarFiles() { return requiredJarFiles; }
 	
 	// --------------------------------------------------------------------------------------------
 	//  Serialization
@@ -241,10 +244,10 @@ public final class TaskDeploymentDescriptor implements IOReadableWritable {
 		jobID.write(out);
 		vertexID.write(out);
 		executionId.write(out);
-		
+
 		StringValue.writeString(taskName, out);
 		StringValue.writeString(invokableClassName, out);
-		
+
 		out.writeInt(indexInSubtaskGroup);
 		out.writeInt(currentNumberOfSubtasks);
 		out.writeInt(targetSlotNumber);
@@ -254,10 +257,12 @@ public final class TaskDeploymentDescriptor implements IOReadableWritable {
 
 		writeGateList(inputGates, out);
 		writeGateList(outputGates, out);
-				
-		out.writeInt(requiredJarFiles.length);
-		for (int i = 0; i < requiredJarFiles.length; i++) {
-			StringValue.writeString(requiredJarFiles[i], out);
+
+
+		// Write out the BLOB keys of the required JAR files
+		out.writeInt(this.requiredJarFiles.size());
+		for (final Iterator<BlobKey> it = this.requiredJarFiles.iterator(); it.hasNext(); ) {
+			it.next().write(out);
 		}
 	}
 
@@ -280,9 +285,12 @@ public final class TaskDeploymentDescriptor implements IOReadableWritable {
 		inputGates = readGateList(in);
 		outputGates = readGateList(in);
 
-		this.requiredJarFiles = new String[in.readInt()];
-		for (int i = 0; i < this.requiredJarFiles.length; i++) {
-			this.requiredJarFiles[i] = StringValue.readString(in);
+		// Read BLOB keys of required jar files
+		final int numberOfJarFiles = in.readInt();
+		for (int i = 0; i < numberOfJarFiles; ++i) {
+			final BlobKey key = new BlobKey();
+			key.read(in);
+			this.requiredJarFiles.add(key);
 		}
 	}
 	

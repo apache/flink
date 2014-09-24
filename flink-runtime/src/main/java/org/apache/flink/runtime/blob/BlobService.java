@@ -16,25 +16,38 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.protocols;
+package org.apache.flink.runtime.blob;
 
 import java.io.IOException;
+import java.net.URL;
 
-import org.apache.flink.core.protocols.VersionedProtocol;
-import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.taskmanager.TaskOperationResult;
+public interface BlobService {
+	/**
+	 * This method returns the URL of the file associated with the provided blob key.
+	 *
+	 * @param requiredBlob blob key associated with the requested file
+	 * @return URL of the file
+	 * @throws IOException
+	 */
+	URL getURL(final BlobKey requiredBlob) throws IOException;
 
-/**
- * The task submission protocol is implemented by the task manager and allows the job manager
- * to submit and cancel tasks, as well as to query the task manager for cached libraries and submit
- * these if necessary.
- */
-public interface TaskOperationProtocol extends VersionedProtocol {
+	/**
+	 * This method deletes the file associated with the provided blob key.
+	 *
+	 * @param blobKey associated with the file to be deleted
+	 * @throws IOException
+	 */
+	void delete(final BlobKey blobKey) throws IOException;
 
-	TaskOperationResult submitTask(TaskDeploymentDescriptor task) throws IOException;
+	/**
+	 * Returns the port of the blob service
+	 * @return the port of the blob service
+	 */
+	int getPort();
 
-	TaskOperationResult cancelTask(ExecutionAttemptID executionId) throws IOException;
-
-	
+	/**
+	 * Shutdown method which is called to terminate the blob service.
+	 * @throws IOException
+	 */
+	void shutdown() throws IOException;
 }

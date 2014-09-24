@@ -22,10 +22,12 @@ import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.*;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
+import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.JobID;
@@ -53,8 +55,6 @@ public class ExecutionStateProgressTest {
 			setGraphStatus(graph, JobStatus.RUNNING);
 			
 			ExecutionJobVertex ejv = graph.getJobVertex(vid);
-			
-			LibraryCacheManager.register(jid, new String[0]);
 			
 			// mock resources and mock taskmanager
 			TaskOperationProtocol taskManager = getSimpleAcknowledgingTaskmanager();

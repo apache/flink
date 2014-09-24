@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobgraph;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -32,7 +33,6 @@ import java.util.Map;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FSDataInputStream;
-import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.IOReadableWritable;
@@ -40,7 +40,8 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStream;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStream;
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
+import org.apache.flink.runtime.blob.BlobClient;
+import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.types.StringValue;
 
 /**
@@ -48,22 +49,21 @@ import org.apache.flink.types.StringValue;
  */
 public class JobGraph implements IOReadableWritable {
 
-	/** Size of the buffer to be allocated for transferring attached files. */
-	private static final int BUFFERSIZE = 8192;
-	
-	
 	// --------------------------------------------------------------------------------------------
 	// Members that define the structure / topology of the graph
 	// --------------------------------------------------------------------------------------------
-	
-	/** List of JAR files required to run this job. */
-	private final ArrayList<Path> userJars = new ArrayList<Path>();
 	
 	/** List of task vertices included in this job graph. */
 	private final Map<JobVertexID, AbstractJobVertex> taskVertices = new LinkedHashMap<JobVertexID, AbstractJobVertex>();
 
 	/** The job configuration attached to this job. */
 	private final Configuration jobConfiguration = new Configuration();
+
+	/** Set of JAR files required to run this job. */
+	private final transient List<Path> userJars = new ArrayList<Path>();
+
+	/** Set of blob keys identifying the JAR files required to run this job. */
+	private final List<BlobKey> userJarBlobKeys = new ArrayList<BlobKey>();
 	
 	/** ID of this job. */
 	private final JobID jobID;
@@ -336,7 +336,7 @@ public class JobGraph implements IOReadableWritable {
 		ois.close();
 
 		// Read required jar files
-		readRequiredJarFiles(in);
+		readJarBlobKeys(in);
 	}
 
 
@@ -359,8 +359,46 @@ public class JobGraph implements IOReadableWritable {
 		oos.close();
 		
 		// Write out all required jar files
-		writeRequiredJarFiles(out);
+		writeJarBlobKeys(out);
 	}
+
+	/**
+	 * Writes the BLOB keys of the jar files required to run this job to the given {@link org.apache.flink.core.memory.DataOutputView}.
+	 *
+	 * @param out
+	 *        the data output to write the BLOB keys to
+	 * @throws IOException
+	 *         thrown if an error occurs while writing to the data output
+	 */
+	private void writeJarBlobKeys(final DataOutputView out) throws IOException {
+
+		out.writeInt(this.userJarBlobKeys.size());
+
+		for (final Iterator<BlobKey> it = this.userJarBlobKeys.iterator(); it.hasNext();) {
+			it.next().write(out);
+		}
+	}
+
+	/**
+	 * Reads the BLOB keys for the JAR files required to run this job and registers them.
+	 *
+	 * @param in
+	 *        the data stream to read the BLOB keys from
+	 * @throws IOException
+	 *         thrown if an error occurs while reading the stream
+	 */
+	private void readJarBlobKeys(final DataInputView in) throws IOException {
+
+		// Do jar files follow;
+		final int numberOfBlobKeys = in.readInt();
+
+		for (int i = 0; i < numberOfBlobKeys; ++i) {
+			final BlobKey key = new BlobKey();
+			key.read(in);
+			this.userJarBlobKeys.add(key);
+		}
+	}
+
 
 	// --------------------------------------------------------------------------------------------
 	//  Handling of attached JAR files
@@ -383,89 +421,53 @@ public class JobGraph implements IOReadableWritable {
 	}
 
 	/**
-	 * Returns a (possibly empty) array of paths to JAR files which are required to run the job on a task manager.
-	 * 
-	 * @return a (possibly empty) array of paths to JAR files which are required to run the job on a task manager
+	 * Returns a set of BLOB keys referring to the JAR files required to run this job.
+	 *
+	 * @return set of BLOB keys referring to the JAR files required to run this job
 	 */
-	public Path[] getJars() {
-		return userJars.toArray(new Path[userJars.size()]);
+	public List<BlobKey> getUserJarBlobKeys() {
+
+		return this.userJarBlobKeys;
 	}
-	
+
 	/**
-	 * Reads required JAR files from an input stream and adds them to the
-	 * library cache manager.
-	 * 
-	 * @param in
-	 *        the data stream to read the JAR files from
+	 * Uploads the previously added user jar file to the job manager through the job manager's BLOB server.
+	 *
+	 * @param serverAddress
+	 *        the network address of the BLOB server
 	 * @throws IOException
-	 *         thrown if an error occurs while reading the stream
+	 *         thrown if an I/O error occurs during the upload
 	 */
-	private void readRequiredJarFiles(final DataInputView in) throws IOException {
+	public void uploadRequiredJarFiles(final InetSocketAddress serverAddress) throws IOException {
 
-		// Do jar files follow;
-		final int numJars = in.readInt();
-
-		if (numJars > 0) {
-
-			for (int i = 0; i < numJars; i++) {
-
-				final Path p = new Path();
-				p.read(in);
-				this.userJars.add(p);
-
-				// Read the size of the jar file
-				final long sizeOfJar = in.readLong();
-
-				// Add the jar to the library manager
-				LibraryCacheManager.addLibrary(this.jobID, p, sizeOfJar, in);
-			}
-
+		if (this.userJars.isEmpty()) {
+			return;
 		}
 
-		// Register this job with the library cache manager
-		LibraryCacheManager.register(this.jobID, this.userJars.toArray(new Path[0]));
-	}
-	
-	/**
-	 * Writes the JAR files of all vertices in array <code>jobVertices</code> to the specified output stream.
-	 * 
-	 * @param out
-	 *        the output stream to write the JAR files to
-	 * @throws IOException
-	 *         thrown if an error occurs while writing to the stream
-	 */
-	private void writeRequiredJarFiles(DataOutputView out) throws IOException {
+		BlobClient bc = null;
+		try {
 
-		// Now check if all the collected jar files really exist
-		final FileSystem fs = FileSystem.getLocalFileSystem();
+			bc = new BlobClient(serverAddress);
 
-		for (int i = 0; i < this.userJars.size(); i++) {
-			if (!fs.exists(this.userJars.get(i))) {
-				throw new IOException("Cannot find jar file " + this.userJars.get(i));
+			for (final Iterator<Path> it = this.userJars.iterator(); it.hasNext();) {
+
+				final Path jar = it.next();
+				final FileSystem fs = jar.getFileSystem();
+				FSDataInputStream is = null;
+				try {
+					is = fs.open(jar);
+					final BlobKey key = bc.put(is);
+					this.userJarBlobKeys.add(key);
+				} finally {
+					if (is != null) {
+						is.close();
+					}
+				}
 			}
-		}
 
-		// How many jar files follow?
-		out.writeInt(this.userJars.size());
-
-		for (int i = 0; i < this.userJars.size(); i++) {
-
-			final Path jar = this.userJars.get(i);
-
-			// Write out the actual path
-			jar.write(out);
-
-			// Write out the length of the file
-			final FileStatus file = fs.getFileStatus(jar);
-			out.writeLong(file.getLen());
-
-			// Now write the jar file
-			final FSDataInputStream inStream = fs.open(this.userJars.get(i));
-			final byte[] buf = new byte[BUFFERSIZE];
-			int read = inStream.read(buf, 0, buf.length);
-			while (read > 0) {
-				out.write(buf, 0, read);
-				read = inStream.read(buf, 0, buf.length);
+		} finally {
+			if (bc != null) {
+				bc.close();
 			}
 		}
 	}

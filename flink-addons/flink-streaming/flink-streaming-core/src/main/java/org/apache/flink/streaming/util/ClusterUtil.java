@@ -37,18 +37,19 @@ public class ClusterUtil {
 	 * 
 	 * @param jobGraph
 	 *            jobGraph
-	 * @param numberOfTaskTrackers
+	 * @param degreeOfPrallelism
 	 *            numberOfTaskTrackers
 	 * @param memorySize
 	 *            memorySize
 	 */
-	public static void runOnMiniCluster(JobGraph jobGraph, int numberOfTaskTrackers, long memorySize) throws Exception  {
+	public static void runOnMiniCluster(JobGraph jobGraph, int degreeOfPrallelism, long memorySize) throws Exception  {
 
 		Configuration configuration = jobGraph.getJobConfiguration();
 
 		NepheleMiniCluster exec = new NepheleMiniCluster();
 		exec.setMemorySize(memorySize);
-		exec.setNumTaskManager(numberOfTaskTrackers);
+		exec.setNumTaskManager(1);
+		exec.setTaskManagerNumSlots(degreeOfPrallelism);
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Running on mini cluster");
 		}

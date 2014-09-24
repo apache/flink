@@ -20,7 +20,6 @@ package org.apache.flink.runtime.protocols;
 
 import java.io.IOException;
 
-import org.apache.flink.core.protocols.VersionedProtocol;
 import org.apache.flink.runtime.client.JobCancelResult;
 import org.apache.flink.runtime.client.JobProgressResult;
 import org.apache.flink.runtime.client.JobSubmissionResult;
@@ -31,7 +30,7 @@ import org.apache.flink.runtime.types.IntegerRecord;
 /**
  * The JobManagementProtocol specifies methods required to manage jobs from a job client.
  */
-public interface JobManagementProtocol extends VersionedProtocol {
+public interface JobManagementProtocol extends ServiceDiscoveryProtocol {
 
 	/**
 	 * Submits the specified job to the job manager.

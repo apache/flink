@@ -27,6 +27,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import org.apache.flink.runtime.blob.BlobKey;
 import org.slf4j.Logger;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.deployment.GateDeploymentDescriptor;
@@ -384,7 +385,7 @@ public class ExecutionVertex {
 			}
 		}
 		
-		String[] jarFiles = getExecutionGraph().getUserCodeJarFiles();
+		List<BlobKey> jarFiles = getExecutionGraph().getRequiredJarFiles();
 		
 		return new TaskDeploymentDescriptor(getJobId(), getJobvertexId(), executionId, getTaskName(), 
 				subTaskIndex, getTotalNumberOfParallelSubtasks(), 

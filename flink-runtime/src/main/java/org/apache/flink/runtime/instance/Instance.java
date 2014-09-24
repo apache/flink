@@ -27,10 +27,6 @@ import java.util.List;
 import java.util.Queue;
 import java.util.Set;
 
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheProfileRequest;
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheProfileResponse;
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheUpdate;
 import org.apache.flink.runtime.ipc.RPC;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotAvailablilityListener;
@@ -190,30 +186,8 @@ public class Instance {
 		}
 	}
 	
-	public void checkLibraryAvailability(JobID jobID) throws IOException {
-		String[] requiredLibraries = LibraryCacheManager.getRequiredJarFiles(jobID);
 
-		if (requiredLibraries == null) {
-			throw new IOException("No entry of required libraries for job " + jobID);
-		}
 
-//		if (requiredLibraries.length > 0) {
-			LibraryCacheProfileRequest request = new LibraryCacheProfileRequest();
-			request.setRequiredLibraries(requiredLibraries);
-	
-			// Send the request
-			LibraryCacheProfileResponse response = getTaskManagerProxy().getLibraryCacheProfile(request);
-	
-			// Check response and transfer libraries if necessary
-			for (int k = 0; k < requiredLibraries.length; k++) {
-				if (!response.isCached(k)) {
-					LibraryCacheUpdate update = new LibraryCacheUpdate(requiredLibraries[k]);
-					getTaskManagerProxy().updateLibraryCache(update);
-				}
-			}
-//		}
-	}
-	
 	// --------------------------------------------------------------------------------------------
 	// Heartbeats
 	// --------------------------------------------------------------------------------------------

@@ -159,7 +159,7 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 	public RuntimeUDFContext createRuntimeContext(String taskName) {
 		Environment env = getEnvironment();
 		return new IterativeRuntimeUdfContext(taskName, env.getCurrentNumberOfSubtasks(),
-				env.getIndexInSubtaskGroup(), userCodeClassLoader);
+				env.getIndexInSubtaskGroup(), getUserCodeClassLoader());
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -337,7 +337,8 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 	private TypeSerializer<OT> getOutputSerializer() {
 		TypeSerializerFactory<OT> serializerFactory;
 
-		if ((serializerFactory = getLastTasksConfig().getOutputSerializer(userCodeClassLoader)) == null) {
+		if ((serializerFactory = getLastTasksConfig().getOutputSerializer(getUserCodeClassLoader())) ==
+				null) {
 			throw new RuntimeException("Missing output serializer for workset update.");
 		}
 

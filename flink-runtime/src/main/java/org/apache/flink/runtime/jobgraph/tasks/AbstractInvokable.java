@@ -22,7 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.execution.Environment;
 
 /**
- * Abstract base class for every task class in Nephele.
+ * Abstract base class for every task class in Flink.
  */
 public abstract class AbstractInvokable {
 
@@ -62,6 +62,15 @@ public abstract class AbstractInvokable {
 	 */
 	public Environment getEnvironment() {
 		return this.environment;
+	}
+
+	/**
+	 * Returns the user code class loader of this invokable.
+	 *
+	 * @return user code class loader of this invokable.
+	 */
+	public ClassLoader getUserCodeClassLoader() {
+		return getEnvironment().getUserClassLoader();
 	}
 
 
