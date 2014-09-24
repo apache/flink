@@ -601,7 +601,7 @@ DataSet<String> result = data1.union(data2);
 {% highlight java %}
 DataSet<String> in = // [...]
 DataSet<String> result = in.rebalance()
-                           .map(new Mapper())
+                           .map(new Mapper());
 {% endhighlight %}
       </td>
     </tr>
@@ -612,7 +612,25 @@ DataSet<String> result = in.rebalance()
 {% highlight java %}
 DataSet<Tuple2<String,Integer>> in = // [...]
 DataSet<Integer> result = in.partitionByHash(0)
-                            .mapPartition(new PartitionMapper())
+                            .mapPartition(new PartitionMapper());
+{% endhighlight %}
+      </td>
+    </tr>
+    <tr>
+      <td><strong>First-n</strong></td>
+      <td>
+        <p>Returns the first n (arbitrary) elements of a data set. First-n can be applied on a regular data set, a grouped data set, or a grouped-sorted data set. Grouping keys can be specified as key-selector functions or field position keys.</p>
+{% highlight java %}
+DataSet<Tuple2<String,Integer>> in = // [...]
+// regular data set
+DataSet<Tuple2<String,Integer>> result1 = in.first(3);
+// grouped data set
+DataSet<Tuple2<String,Integer>> result2 = in.groupBy(0)
+                                            .first(3);
+// grouped-sorted data set
+DataSet<Tuple2<String,Integer>> result3 = in.groupBy(0)
+                                            .sortGroup(1, Order.ASCENDING)
+                                            .first(3);
 {% endhighlight %}
       </td>
     </tr>

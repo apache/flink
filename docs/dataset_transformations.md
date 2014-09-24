@@ -1134,6 +1134,25 @@ Only Map-like transformations may follow a hash-partition transformation, i.e.,
 ~~~java
 DataSet<Tuple2<String, Integer>> in = // [...]
 // hash-partition DataSet by String value and apply a MapPartition transformation.
-DataSet<Tuple2<String, String>> links = in.partitionByHash(0)
-                                          .mapPartition(new PartitionMapper());
+DataSet<Tuple2<String, String>> out = in.partitionByHash(0)
+                                        .mapPartition(new PartitionMapper());
+~~~
+
+### First-n (Java API Only)
+
+Returns the first n (arbitrary) elements of a DataSet. First-n can be applied on a regular DataSet, a grouped DataSet, or a grouped-sorted DataSet. Grouping keys can be specified as key-selector functions or field position keys (see [Reduce examples](#reduce-on-grouped-dataset) for how to specify keys).
+
+~~~java
+DataSet<Tuple2<String, Integer>> in = // [...]
+// Return the first five (arbitrary) elements of the DataSet
+DataSet<Tuple2<String, Integer>> out1 = in.first(5);
+
+// Return the first two (arbitrary) elements of each String group
+DataSet<Tuple2<String, Integer>> out2 = in.groupBy(0)
+                                          .first(2);
+
+// Return the first three elements of each String group ordered by the Integer field
+DataSet<Tuple2<String, Integer>> out3 = in.groupBy(0)
+                                          .sortGroup(1, Order.ASCENDING)
+                                          .first(3);
 ~~~
