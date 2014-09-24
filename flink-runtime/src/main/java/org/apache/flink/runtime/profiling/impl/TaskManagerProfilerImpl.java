@@ -176,7 +176,7 @@ public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerPro
 	public void registerMainThreadForCPUProfiling(Environment environment, Thread thread, JobVertexID vertexId, int subtask, ExecutionAttemptID executionID) {
 
 		synchronized (this.monitoredThreads) {
-			LOG.debug("Registering thread " + thread.getName() + " for CPU monitoring");
+			LOG.debug("Registering thread {} for CPU monitoring", thread);
 			if (this.monitoredThreads.containsKey(environment)) {
 				LOG.error("There is already a main thread registered for environment object "
 					+ environment.getTaskName());
@@ -204,7 +204,7 @@ public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerPro
 	public void unregisterMainThreadFromCPUProfiling(Environment environment, Thread thread) {
 
 		synchronized (this.monitoredThreads) {
-			LOG.debug("Unregistering thread " + thread.getName() + " from CPU monitoring");
+			LOG.debug("Unregistering thread {} from CPU monitoring", thread);
 			final EnvironmentThreadSet environmentThreadSet = this.monitoredThreads.remove(environment);
 			if (environmentThreadSet != null) {
 

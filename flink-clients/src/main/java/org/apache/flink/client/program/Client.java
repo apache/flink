@@ -253,7 +253,7 @@ public class Client {
 						catch (Throwable t) {
 							LOG.error("The program execution failed.", t);
 						}
-					};
+					}
 				};
 				backGroundRunner.start();
 			}

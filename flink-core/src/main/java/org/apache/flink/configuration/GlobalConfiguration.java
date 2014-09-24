@@ -411,7 +411,7 @@ public final class GlobalConfiguration {
 						continue;
 					}
 
-					LOG.debug("Loading configuration property: " + key + ", " + value);
+					LOG.debug("Loading configuration property: {}, {}", key, value);
 
 					this.confData.put(key, value);
 				}
@@ -420,9 +420,11 @@ public final class GlobalConfiguration {
 			e.printStackTrace();
 		} finally {
 			try {
-				reader.close();
+				if(reader != null) {
+					reader.close();
+				}
 			} catch (IOException e) {
-				e.printStackTrace();
+				LOG.warn("Cannot to close reader with IOException.", e);
 			}
 		}
 	}
@@ -525,11 +527,10 @@ public final class GlobalConfiguration {
 
 					if (key != null && value != null) {
 						// Put key, value pair into the map
-						LOG.debug("Loading configuration property: " + key + ", " + value);
+						LOG.debug("Loading configuration property: {}, {}", key, value);
 						this.confData.put(key, value);
 					} else {
 						LOG.warn("Error while reading configuration: Cannot read property " + propNumber);
-						continue;
 					}
 				}
 			}

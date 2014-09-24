@@ -339,7 +339,7 @@ public class NettyConnectionManager implements NetworkConnectionManager {
 				handInChannel(new OutboundConnectionQueue(future.channel()));
 			}
 			else if (this.numRetries > 0) {
-				LOG.debug(String.format("Connection request did not succeed, retrying (%d attempts left)", this.numRetries));
+				LOG.debug("Connection request did not succeed, retrying ({} attempts left)", numRetries);
 
 				this.out.connect(this.receiver.getConnectionAddress()).addListener(this);
 				this.numRetries--;

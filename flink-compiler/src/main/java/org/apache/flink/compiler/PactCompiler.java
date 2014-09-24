@@ -1042,7 +1042,7 @@ public class PactCompiler {
 
 			node.computeUnclosedBranchStack();
 		}
-	};
+	}
 	
 	/**
 	 * Utility class that traverses a plan to collect all nodes and add them to the OptimizedPlan.

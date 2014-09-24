@@ -230,8 +230,11 @@ public class Utils {
 		}
 		DataOutputBuffer dob = new DataOutputBuffer();
 		credentials.writeTokenStorageToStream(dob);
-		LOG.debug("Wrote tokens. Credentials buffer length: "+dob.getLength());
-		
+
+		if(LOG.isDebugEnabled()) {
+			LOG.debug("Wrote tokens. Credentials buffer length: " + dob.getLength());
+		}
+
 		ByteBuffer securityTokens = ByteBuffer.wrap(dob.getData(), 0, dob.getLength());
 		amContainer.setTokens(securityTokens);
 	}
