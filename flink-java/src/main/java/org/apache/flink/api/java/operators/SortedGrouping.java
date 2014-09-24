@@ -95,10 +95,14 @@ public class SortedGrouping<T> extends Grouping<T> {
 	
 	/**
 	 * Returns a new set containing the first n elements in this grouped and sorted {@link DataSet}.<br/>
-	 * @param n The desired number of elements.
+	 * @param n The desired number of elements for each group.
 	 * @return A ReduceGroupOperator that represents the DataSet containing the elements.
 	*/
 	public GroupReduceOperator<T, T> first(int n) {
+		if(n < 1) {
+			throw new InvalidProgramException("Parameter n of first(n) must be at least 1.");
+		}
+		
 		return reduceGroup(new FirstReducer<T>(n));
 	}
 	
