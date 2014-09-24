@@ -415,6 +415,11 @@ public class PactCompiler {
 		// determine the default parallelization degree
 		this.defaultDegreeOfParallelism = config.getInteger(ConfigConstants.DEFAULT_PARALLELIZATION_DEGREE_KEY,
 			ConfigConstants.DEFAULT_PARALLELIZATION_DEGREE);
+		if (defaultDegreeOfParallelism < 1) {
+			LOG.warn("Config value " + defaultDegreeOfParallelism + " for option "
+					+ ConfigConstants.DEFAULT_PARALLELIZATION_DEGREE + " is invalid. Ignoring and using a value of 1.");
+			this.defaultDegreeOfParallelism = 1;
+		}
 	}
 	
 	// ------------------------------------------------------------------------
