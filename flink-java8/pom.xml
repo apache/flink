@@ -35,6 +35,10 @@ under the License.
 
 	<packaging>jar</packaging>
 
+	<properties>
+		<checkstyle.skip>true</checkstyle.skip>
+	</properties>
+
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
