@@ -114,14 +114,14 @@ public class TPCHQuery10 {
 				.project(0,1).types(Integer.class, Integer.class);
 
 		// lineitems filtered by flag: (orderkey, extendedprice, discount)
-		DataSet<Tuple3<Integer, Double, Double>> lineitemsFilteredByFlag = 
+		DataSet<Tuple3<Integer, Double, Double>> lineitemsFilteredByFlag =
 				// filter by flag
 				lineitems.filter(lineitem -> lineitem.f3.equals("R"))
 				// project fields out that are no longer required
 				.project(0,1,2).types(Integer.class, Double.class, Double.class);
 
 		// join orders with lineitems: (custkey, extendedprice, discount)
-		DataSet<Tuple3<Integer, Double, Double>> lineitemsOfCustomerKey = 
+		DataSet<Tuple3<Integer, Double, Double>> lineitemsOfCustomerKey =
 				ordersFilteredByYear.joinWithHuge(lineitemsFilteredByFlag)
 									.where(0).equalTo(0)
 									.projectFirst(1).projectSecond(1,2)
