@@ -53,7 +53,7 @@ public class Job {
 		 * 	.filter()
 		 * 	.flatMap()
 		 * 	.join()
-		 * 	.group()
+		 * 	.coGroup()
 		 * and many more.
 		 * Have a look at the programming guide for the Java API:
 		 *
