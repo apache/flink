@@ -61,22 +61,35 @@ under the License.
 		</dependency>
 	</dependencies>
 
-	<!-- We use the maven-jar-plugin to generate a runnable jar that you can 
-		submit to your Flink cluster. -->
+	<!-- We use the maven-assembly plugin to create a fat jar that contains all dependencies
+    except flink and it's transitive dependencies. The resulting fat-jar can be executed
+    on a cluster. Change the value of Program-Class if your program entry point changes. -->
 	<build>
 		<plugins>
 			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-jar-plugin</artifactId>
-				<version>2.4</version>
+				<artifactId>maven-assembly-plugin</artifactId>
+				<version>2.4.1</version>
 				<configuration>
+					<descriptors>
+						<descriptor>src/assembly/flink-fat-jar.xml</descriptor>
+					</descriptors>
 					<archive>
 						<manifestEntries>
-							<program-class>${package}.Job</program-class>
+							<Program-Class>${package}.Job</Program-Class>
 						</manifestEntries>
 					</archive>
 				</configuration>
+				<executions>
+					<execution>
+						<id>make-assembly</id>
+						<phase>package</phase>
+						<goals>
+							<goal>single</goal>
+						</goals>
+					</execution>
+				</executions>
 			</plugin>
+
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
