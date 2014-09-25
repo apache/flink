@@ -63,11 +63,9 @@ public class DefaultInputSplitAssigner implements InputSplitAssigner {
 		
 		if (LOG.isDebugEnabled()) {
 			if (next == null) {
-				LOG.debug("Assigning split " + next + " to " + host);
+				LOG.debug("No more input splits available");
 			} else {
-				if (LOG.isDebugEnabled()) {
-					LOG.debug("No more input splits available");
-				}
+				LOG.debug("Assigning split " + next + " to " + host);
 			}
 		}
 		return next;

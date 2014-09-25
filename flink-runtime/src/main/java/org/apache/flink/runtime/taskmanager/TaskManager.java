@@ -376,9 +376,10 @@ public class TaskManager implements TaskOperationProtocol {
 						while (!isShutDown()) {
 							Thread.sleep(logIntervalMs);
 
-							LOG.debug(getMemoryUsageStatsAsString(memoryMXBean));
-
-							LOG.debug(getGarbageCollectorStatsAsString(gcMXBeans));
+							if (LOG.isDebugEnabled()) {
+								LOG.debug(getMemoryUsageStatsAsString(memoryMXBean));
+								LOG.debug(getGarbageCollectorStatsAsString(gcMXBeans));
+							}
 						}
 					} catch (InterruptedException e) {
 						LOG.warn("Unexpected interruption of memory usage logger thread.");
@@ -1183,7 +1184,7 @@ public class TaskManager implements TaskOperationProtocol {
 				throw new RuntimeException("The TaskManager is unable to connect to the JobManager (Address: '"+jobManagerAddress+"').");
 			}
 			if (LOG.isDebugEnabled()) {
-				LOG.debug("Defaulting to detection strategy " + strategy);
+				LOG.debug("Defaulting to detection strategy {}", strategy);
 			}
 		}
 	}
@@ -1194,7 +1195,7 @@ public class TaskManager implements TaskOperationProtocol {
 	 * @return An available port.
 	 * @throws RuntimeException Thrown, if no free port was found.
 	 */
-	private static final int getAvailablePort() {
+	private static int getAvailablePort() {
 		for (int i = 0; i < 50; i++) {
 			ServerSocket serverSocket = null;
 			try {
@@ -1204,7 +1205,8 @@ public class TaskManager implements TaskOperationProtocol {
 					return port;
 				}
 			} catch (IOException e) {
-				LOG.debug("Unable to allocate port " + e.getMessage(), e);
+
+				LOG.debug("Unable to allocate port with exception {}", e);
 			} finally {
 				if (serverSocket != null) {
 					try { serverSocket.close(); } catch (Throwable t) {}

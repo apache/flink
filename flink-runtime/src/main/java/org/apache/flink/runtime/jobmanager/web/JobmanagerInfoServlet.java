@@ -493,7 +493,7 @@ public class JobmanagerInfoServlet extends HttpServlet {
 		}
 		catch (IOException ioe) { // Connection closed by client
 			String message = "Info server for jobmanager: Connection closed by client - " + ioe.getClass().getSimpleName();
-			
+
 			if (LOG.isDebugEnabled()) {
 				LOG.debug(message, ioe);
 			}

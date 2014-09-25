@@ -444,8 +444,10 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 
 		final ExecutionGraph eg = this.currentJobs.get(executionState.getJobID());
 		if (eg == null) {
-			LOG.debug("Orphaned execution task: UpdateTaskExecutionState call cannot find execution graph for ID " + executionState.getJobID() +
-					" to change state to " + executionState.getExecutionState());
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Orphaned execution task: UpdateTaskExecutionState call cannot find execution graph for ID " + executionState.getJobID() +
+						" to change state to " + executionState.getExecutionState());
+			}
 			return false;
 		}
 
