@@ -1,10 +1,9 @@
 ---
-title: "Java API with Java 8"
+title: "Java 8 Programming Guide"
 ---
 
-<section id="top">
-Java API with Java 8
------------------------
+* This will be replaced by the TOC
+{:toc}
 
 Java 8 introduces several new language features designed for faster and clearer coding. With the most important feature, 
 the so-called "Lambda Expressions", Java 8 opens the door to functional programming. Lambda Expressions allow for implementing and 
@@ -12,7 +11,7 @@ passing functions in a straightforward way without having to declare additional 
 
 The newest version of Flink supports the usage of Lambda Expressions for all operators of the Java API.
 This document shows how to use Lambda Expressions and describes current limitations. For a general introduction to the
-Flink Java API, please refer to the [API guide](java_api_guide.html)
+Flink API, please refer to the [Programming Guide](programming_guide.html)
 
 
 ### Examples
@@ -20,19 +19,19 @@ Flink Java API, please refer to the [API guide](java_api_guide.html)
 The following example illustrates how to implement a simple, inline `map()` function that squares its input using a Lambda Expression. 
 The types of input `i` and output parameters of the `map()` function need not to be declared as they are inferred by the Java 8 compiler.
 
-```java
+~~~java
 env.fromElements(1, 2, 3)
 // returns the squared i
 .map(i -> i*i)
 .print();
-```
+~~~
 
 The next two example show different implementations of a function that uses a `Collector` for output. 
 Functions, such as `flatMap()`, require a output type (in this case `String`) to be defined for the `Collector` in order to be type-safe. 
 If the `Collector` type can not be inferred from the surrounding context, it need to be declared in the Lambda Expression's parameter list manually. 
 Otherwise the output will be treated as type `Object` which can lead to undesired behaviour.
 
-```java
+~~~java
 DataSet<String> input = env.fromElements(1, 2, 3);
 
 // collector type must be declared
@@ -43,9 +42,9 @@ input.flatMap((Integer number, Collector<String> out) -> {
 })
 // returns "a", "a", "aa", "a", "aa" , "aaa"
 .print();
-```
+~~~
 
-```java
+~~~java
 DataSet<String> input = env.fromElements(1, 2, 3);
 
 // collector type must not be declared, it is inferred from the type of the dataset
@@ -57,11 +56,11 @@ DataSet<String> manyALetters = input.flatMap((number, out) -> {
 
 // returns "a", "a", "aa", "a", "aa" , "aaa"
 manyALetters.print();
-```
+~~~
 
 The following code demonstrates a word count which makes extensive use of Lambda Expressions.
 
-```java
+~~~java
 DataSet<String> input = env.fromElements("Please count", "the words", "but not this");
 		
 // filter out strings that contain "not"
@@ -76,7 +75,7 @@ input.filter(line -> !line.contains("not"))
 .groupBy(0).sum(1)
 // print
 .print();
-```
+~~~
 
 ### Compiler Limitations
 Currently, Flink only supports jobs containing Lambda Expressions completely if they are **compiled with the Eclipse JDT compiler**. 
@@ -96,7 +95,7 @@ If you are using a different IDE such as IntelliJ IDEA or you want to package yo
 
 Alternatively, you can manually insert the following lines to your Maven `pom.xml` file. Maven will then use the Eclipse JDT compiler for compilation.
 
-```xml
+~~~xml
 <!-- put these lines under "project/build/pluginManagement/plugins" of your pom.xml -->
 
 <plugin>
@@ -116,11 +115,11 @@ Alternatively, you can manually insert the following lines to your Maven `pom.xm
         </dependency>
     </dependencies>
 </plugin>
-```
+~~~
 
 If you are using Eclipse for development, the m2e plugin might complain about the inserted lines above and marks your `pom.xml` as invalid. If so, insert the following lines to your `pom.xml`.
 
-```xml
+~~~xml
 <!-- put these lines under "project/build/pluginManagement/plugins/plugin[groupId="org.eclipse.m2e", artifactId="lifecycle-mapping"]/configuration/lifecycleMappingMetadata/pluginExecutions" of your pom.xml -->
 
 <pluginExecution>
@@ -136,8 +135,4 @@ If you are using Eclipse for development, the m2e plugin might complain about th
         <ignore></ignore>
     </action>
 </pluginExecution>
-```
-
-
-
-[Back to top](#top)
+~~~
