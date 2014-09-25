@@ -42,7 +42,6 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStream;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.BlobKey;
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.types.StringValue;
 
 /**
@@ -337,7 +336,7 @@ public class JobGraph implements IOReadableWritable {
 		ois.close();
 
 		// Read required jar files
-		readAndRegisterJarBlobKeys(in);
+		readJarBlobKeys(in);
 	}
 
 
@@ -388,7 +387,7 @@ public class JobGraph implements IOReadableWritable {
 	 * @throws IOException
 	 *         thrown if an error occurs while reading the stream
 	 */
-	private void readAndRegisterJarBlobKeys(final DataInputView in) throws IOException {
+	private void readJarBlobKeys(final DataInputView in) throws IOException {
 
 		// Do jar files follow;
 		final int numberOfBlobKeys = in.readInt();
@@ -398,9 +397,6 @@ public class JobGraph implements IOReadableWritable {
 			key.read(in);
 			this.userJarBlobKeys.add(key);
 		}
-
-		// Register this job with the library cache manager
-		LibraryCacheManager.register(this.jobID, this.userJarBlobKeys);
 	}
 
 

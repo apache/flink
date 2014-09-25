@@ -29,7 +29,6 @@ import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.blob.BlobKey;
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -293,10 +292,6 @@ public final class TaskDeploymentDescriptor implements IOReadableWritable {
 			key.read(in);
 			this.requiredJarFiles.add(key);
 		}
-
-		// Now register data with the library manager
-		LibraryCacheManager.register(this.jobID, this.requiredJarFiles);
-
 	}
 	
 	private static final void writeGateList(List<GateDeploymentDescriptor> list, DataOutputView out) throws IOException {

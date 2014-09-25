@@ -19,8 +19,6 @@
 
 package org.apache.flink.api.scala.operators;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -34,6 +32,8 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import scala.Product;
 
 /**
@@ -46,7 +46,7 @@ public class ScalaCsvOutputFormat<T extends Product> extends FileOutputFormat<T>
 	private static final long serialVersionUID = 1L;
 
 	@SuppressWarnings("unused")
-	private static final Log LOG = LogFactory.getLog(ScalaCsvOutputFormat.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ScalaCsvOutputFormat.class);
 
 	// --------------------------------------------------------------------------------------------
 

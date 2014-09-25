@@ -23,13 +23,21 @@ import java.net.InetSocketAddress;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.Collection;
+import java.util.Iterator;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import io.netty.util.internal.ConcurrentSet;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.blob.BlobCache;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.jobgraph.JobID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * For each job graph that is submitted to the system the library cache manager maintains
@@ -39,7 +47,9 @@ import org.apache.flink.runtime.jobgraph.JobID;
  * <p>
  * This class is thread-safe.
  */
-public final class LibraryCacheManager {
+public final class LibraryCacheManager extends TimerTask {
+
+	private static Logger LOG = LoggerFactory.getLogger(LibraryCacheManager.class);
 
 	/**
 	 * The instance of the library cache manager accessible through a singleton pattern.
@@ -54,7 +64,8 @@ public final class LibraryCacheManager {
 	/**
 	 * Map to translate a job ID to the responsible class loaders.
 	 */
-	private final ConcurrentMap<JobID, ClassLoader> classLoaders = new ConcurrentHashMap<JobID, ClassLoader>();
+	private final ConcurrentMap<JobID, URLClassLoader> classLoaders = new
+			ConcurrentHashMap<JobID, URLClassLoader>();
 
 	/**
 	 * Map to store the number of references to a specific library manager entry.
@@ -62,31 +73,64 @@ public final class LibraryCacheManager {
 	private final ConcurrentMap<JobID, AtomicInteger> libraryReferenceCounter = new ConcurrentHashMap<JobID, AtomicInteger>();
 
 	/**
-	 * Map to guarantee atomicity of of register/unregister operations.
+	 * Map to guarantee atomicity of register/unregister operations.
 	 */
 	private final ConcurrentMap<JobID, Object> lockMap = new ConcurrentHashMap<JobID, Object>();
+
+	/**
+	 * Map to store the blob keys referenced by a specific job
+	 */
+	private final ConcurrentMap<JobID, Collection<BlobKey>> requiredJars = new
+			ConcurrentHashMap<JobID, Collection<BlobKey>>();
+
+	/**
+	 * Map to store the number of reference to a specific file
+	 */
+	private final ConcurrentMap<BlobKey, AtomicInteger> blobKeyReferenceCounter = new
+			ConcurrentHashMap<BlobKey, AtomicInteger>();
+
+	/**
+	 * Map to guarantee atomicity of register/unregister operations
+	 */
+	private final ConcurrentMap<BlobKey, Object> blobKeyLockMap = new ConcurrentHashMap<BlobKey,
+			Object>();
+
+	/**
+	 * All registered blobs
+	 */
+	private final ConcurrentSet<BlobKey> registeredBlobs = new ConcurrentSet<BlobKey>();
 
 	/**
 	 * Stores the socket address of the BLOB server to download required libraries.
 	 */
 	private volatile InetSocketAddress blobServerAddress = null;
 
+	public LibraryCacheManager(){
+		// Initializing the clean up task
+		Timer timer = new Timer();
+		long cleanupInterval = GlobalConfiguration.getLong(
+				ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL,
+				ConfigConstants.DEFAULT_LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL)*1000;
+		timer.schedule(this, cleanupInterval);
+	}
+
 	/**
-	 * Increments the reference counter for the library manager entry with the given job ID.
+	 * Increments the reference counter of the corrsponding map
 	 * 
-	 * @param jobID
-	 *        the job ID identifying the library manager entry
+	 * @param key
+	 *        the key identifying the counter to increment
 	 * @return the increased reference counter
 	 */
-	private int incrementReferenceCounter(final JobID jobID) {
+	private static <K> int incrementReferenceCounter(final K key, final ConcurrentMap<K,
+	AtomicInteger> map) {
 
 		while (true) {
 
-			AtomicInteger ai = this.libraryReferenceCounter.get(jobID);
+			AtomicInteger ai = map.get(key);
 			if (ai == null) {
 
 				ai = new AtomicInteger(1);
-				if (this.libraryReferenceCounter.putIfAbsent(jobID, ai) == null) {
+				if (map.putIfAbsent(key, ai) == null) {
 					return 1;
 				}
 
@@ -98,27 +142,60 @@ public final class LibraryCacheManager {
 	}
 
 	/**
-	 * Decrements the reference counter for the library manager entry with the given job ID.
+	 * Decrements the reference counter associated with the key
 	 * 
-	 * @param jobID
-	 *        the job ID identifying the library manager entry
+	 * @param key
+	 *        the key identifying the counter to decrement
 	 * @return the decremented reference counter
 	 */
-	private int decrementReferenceCounter(final JobID jobID) {
+	private static <K> int decrementReferenceCounter(final K key, final ConcurrentMap<K,
+			AtomicInteger> map) {
 
-		final AtomicInteger ai = this.libraryReferenceCounter.get(jobID);
+		final AtomicInteger ai = map.get(key);
 
 		if (ai == null) {
-			throw new IllegalStateException("Cannot find reference counter entry for job " + jobID);
+			throw new IllegalStateException("Cannot find reference counter entry for key " + key);
 		}
 
 		int retVal = ai.decrementAndGet();
 
 		if (retVal == 0) {
-			this.libraryReferenceCounter.remove(jobID);
+			map.remove(key);
 		}
 
 		return retVal;
+	}
+
+	/**
+	 * Obtains lock for key. If methods which only affect objects associated with the key obtain
+	 * the corresponding lock, then their operations are synchronized. By doing that,
+	 * the LibraryCacheManager supports multiple synchronized method calls.
+	 * @param key
+	 * @param lockMap
+	 * @param <K>
+	 */
+	private static <K> void obtainLock(final K key, final ConcurrentMap<K, Object> lockMap) {
+		synchronized (LOCK_OBJECT){
+			while(lockMap.putIfAbsent(key, LOCK_OBJECT) != null){
+				try {
+					LOCK_OBJECT.wait();
+				} catch (InterruptedException e) {}
+			}
+		}
+	}
+
+	/**
+	 * Releases the obtained lock for key and notifies all waiting threads to acquire the lock.
+	 * @param key
+	 * @param lockMap
+	 * @param <K>
+	 */
+	private static <K> void releaseLock(final K key, final ConcurrentMap<K, Object> lockMap){
+		lockMap.remove(key);
+
+		synchronized (LOCK_OBJECT) {
+			LOCK_OBJECT.notifyAll();
+		}
 	}
 
 	/**
@@ -151,28 +228,51 @@ public final class LibraryCacheManager {
 	 *         thrown if one of the requested libraries is not in the cache
 	 */
 	private void registerInternal(final JobID id, final Collection<BlobKey> requiredJarFiles) throws IOException {
-
-		// Use spin lock here
-		while (this.lockMap.putIfAbsent(id, LOCK_OBJECT) != null)
-			;
+		obtainLock(id, lockMap);
 
 		try {
-			if (incrementReferenceCounter(id) > 1) {
+			if (incrementReferenceCounter(id, libraryReferenceCounter) > 1) {
 				return;
 			}
 
 			// Check if library manager entry for this id already exists
 			if (this.classLoaders.containsKey(id)) {
-				throw new IllegalStateException("Library cache manager already contains entry for job ID " + id);
+				throw new IllegalStateException("Library cache manager already contains " +
+						"class loader entry for job ID " + id);
 			}
 
-			// Check if all the required jar files exist in the cache
-			final URL[] urls = BlobCache.getURLs(this.blobServerAddress, requiredJarFiles);
-			final ClassLoader classLoader = new URLClassLoader(urls);
-			this.classLoaders.put(id, classLoader);
+			if(requiredJars.putIfAbsent(id, requiredJarFiles) != null){
+				throw new IllegalStateException("Library cache manager already contains blob keys" +
+						" entry for job ID " + id);
+			}
 
+			URL[] urls = new URL[requiredJarFiles.size()];
+			int count = 0;
+
+			for(BlobKey blobKey: requiredJarFiles){
+				urls[count++] = registerBlobKeyAndGetURL(blobKey);
+			}
+
+			final URLClassLoader classLoader = new URLClassLoader(urls);
+			this.classLoaders.put(id, classLoader);
 		} finally {
-			this.lockMap.remove(id);
+			releaseLock(id, lockMap);
+		}
+	}
+
+	private URL registerBlobKeyAndGetURL(BlobKey key) throws IOException{
+		obtainLock(key, blobKeyLockMap);
+
+		try{
+			if(incrementReferenceCounter(key, blobKeyReferenceCounter) == 1){
+				// registration might happen even if the file is already stored locally
+				registeredBlobs.add(key);
+			}
+
+
+			return BlobCache.getURL(this.blobServerAddress, key);
+		}finally{
+			releaseLock(key, blobKeyLockMap);
 		}
 	}
 
@@ -196,16 +296,32 @@ public final class LibraryCacheManager {
 	 *        the job ID to unregister
 	 */
 	private void unregisterInternal(final JobID id) {
+		obtainLock(id, lockMap);
 
-		// Use spin lock here
-		while (this.lockMap.putIfAbsent(id, LOCK_OBJECT) != null)
-			;
+		if (decrementReferenceCounter(id, libraryReferenceCounter) == 0) {
+			URLClassLoader cl = this.classLoaders.remove(id);
 
-		if (decrementReferenceCounter(id) == 0) {
-			this.classLoaders.remove(id);
+			Collection<BlobKey> keys = requiredJars.get(id);
+
+			for(BlobKey key: keys){
+				unregisterBlobKey(key);
+			}
+
+			keys.remove(id);
 		}
 
-		this.lockMap.remove(id);
+		releaseLock(id, lockMap);
+	}
+
+
+	private void unregisterBlobKey(BlobKey key){
+		obtainLock(key, blobKeyLockMap);
+
+		try{
+			decrementReferenceCounter(key, blobKeyReferenceCounter);
+		}finally{
+			releaseLock(key, blobKeyLockMap);
+		}
 	}
 
 	/**
@@ -262,5 +378,30 @@ public final class LibraryCacheManager {
 	private void setBlobServerAddressInternal(final InetSocketAddress blobSocketAddress) {
 
 		this.blobServerAddress = blobSocketAddress;
+	}
+
+	/**
+	 * Cleans up blobs which are not referenced anymore
+	 */
+	@Override
+	public void run() {
+		Iterator<BlobKey> it = registeredBlobs.iterator();
+
+		while(it.hasNext()){
+			BlobKey key = it.next();
+
+			obtainLock(key, blobKeyLockMap);
+
+			try {
+				if(!blobKeyReferenceCounter.containsKey(key)){
+					BlobCache.delete(key);
+					it.remove();
+				}
+			}catch(IOException ioe){
+				LOG.warn("Could not delete file with blob key" + key, ioe);
+			}finally{
+				releaseLock(key, blobKeyLockMap);
+			}
+		}
 	}
 }

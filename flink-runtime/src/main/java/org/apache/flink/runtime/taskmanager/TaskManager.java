@@ -558,9 +558,12 @@ public class TaskManager implements TaskOperationProtocol {
 		boolean jarsRegistered = false;
 		
 		try {
+			// Now register data with the library manager
+			LibraryCacheManager.register(jobID, tdd.getRequiredJarFiles());
+
 			// library and classloader issues first
 			jarsRegistered = true;
-			
+
 			final ClassLoader userCodeClassLoader = LibraryCacheManager.getClassLoader(jobID);
 			if (userCodeClassLoader == null) {
 				throw new Exception("No user code ClassLoader available.");

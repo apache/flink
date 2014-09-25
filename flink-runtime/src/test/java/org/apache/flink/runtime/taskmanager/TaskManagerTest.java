@@ -77,8 +77,6 @@ public class TaskManagerTest {
 					Collections.<GateDeploymentDescriptor>emptyList(),
 					new ArrayList<BlobKey>(), 0);
 			
-			LibraryCacheManager.register(jid, new ArrayList<BlobKey>());
-			
 			TaskOperationResult result = tm.submitTask(tdd);
 			assertTrue(result.isSuccess());
 			assertEquals(eid, result.getExecutionId());
@@ -117,9 +115,6 @@ public class TaskManagerTest {
 					Collections.<GateDeploymentDescriptor>emptyList(),
 					new ArrayList<BlobKey>(), 0);
 
-			LibraryCacheManager.register(jid1, new ArrayList<BlobKey>());
-			LibraryCacheManager.register(jid2, new ArrayList<BlobKey>());
-			
 			TaskOperationResult result1 = tm.submitTask(tdd1);
 			TaskOperationResult result2 = tm.submitTask(tdd2);
 			
@@ -197,9 +192,6 @@ public class TaskManagerTest {
 					Collections.<GateDeploymentDescriptor>emptyList(),
 					new ArrayList<BlobKey>(), 0);
 
-			LibraryCacheManager.register(jid, new ArrayList<BlobKey>());
-			LibraryCacheManager.register(jid, new ArrayList<BlobKey>());
-			
 			assertFalse(tm.submitTask(tdd1).isSuccess());
 			assertFalse(tm.submitTask(tdd2).isSuccess());
 			
@@ -250,13 +242,10 @@ public class TaskManagerTest {
 					Collections.singletonList(new GateDeploymentDescriptor(Collections.singletonList(cdd))),
 					new ArrayList<BlobKey>(), 0);
 
-			// Register at LibraryCacheManager
-			LibraryCacheManager.register(jid, new ArrayList<BlobKey>());
-			
 			// deploy sender before receiver, so the target is online when the sender requests the connection info
 			TaskOperationResult result2 = tm.submitTask(tdd2);
 			TaskOperationResult result1 = tm.submitTask(tdd1);
-			
+
 			assertTrue(result1.isSuccess());
 			assertTrue(result2.isSuccess());
 			assertEquals(eid1, result1.getExecutionId());
@@ -332,11 +321,6 @@ public class TaskManagerTest {
 					Collections.<GateDeploymentDescriptor>emptyList(),
 					Collections.singletonList(new GateDeploymentDescriptor(Collections.singletonList(cdd))),
 					new ArrayList<BlobKey>(), 0);
-			
-			// register the job twice (for two tasks) at the lib cache
-			LibraryCacheManager.register(jid, new ArrayList<BlobKey>());
-			LibraryCacheManager.register(jid, new ArrayList<BlobKey>());
-			assertNotNull(LibraryCacheManager.getClassLoader(jid));
 			
 			// deploy sender before receiver, so the target is online when the sender requests the connection info
 			TaskOperationResult result2 = tm.submitTask(tdd2);

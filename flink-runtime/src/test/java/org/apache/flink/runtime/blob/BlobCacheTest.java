@@ -71,7 +71,11 @@ public class BlobCacheTest {
 			blobServer.shutDown();
 			blobServer = null;
 
-			final URL[] urls = BlobCache.getURLs(serverAddress, blobKeys);
+			final URL[] urls = new URL[blobKeys.size()];
+
+			for(int i = 0; i < blobKeys.size(); i++){
+				urls[i] = BlobCache.getURL(serverAddress, blobKeys.get(i));
+			}
 
 			// Verify the result
 			assertEquals(blobKeys.size(), urls.length);

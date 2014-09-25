@@ -138,8 +138,7 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 	
 	private final int recommendedClientPollingInterval;
 	// end: these will be consolidated / removed
-	
-	
+
 	private final AtomicBoolean isShutdownInProgress = new AtomicBoolean(false);
 	
 	private volatile boolean isShutDown;
@@ -299,6 +298,9 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 			if (LOG.isInfoEnabled()) {
 				LOG.info(String.format("Received job %s (%s)", job.getJobID(), job.getName()));
 			}
+
+			// Register this job with the library cache manager
+			LibraryCacheManager.register(job.getJobID(), job.getUserJarBlobKeys());
 			
 			// get the existing execution graph (if we attach), or construct a new empty one to attach
 			executionGraph = this.currentJobs.get(job.getJobID());

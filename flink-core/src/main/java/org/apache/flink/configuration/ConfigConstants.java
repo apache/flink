@@ -42,6 +42,12 @@ public final class ConfigConstants {
 	 * The config parameter defining the storage directory to be used by the blob server.
 	 */
 	public static final String BLOB_STORAGE_DIRECTORY_KEY = "blob.storage.directory";
+
+	/**
+	 * The config parameter defining the cleanup interval of the library cache manager.
+	 */
+	public static final String LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL = "library-cache-manager" +
+			".cleanup.interval";
 	
 	/**
 	 * The config parameter defining the network address to connect to
@@ -308,6 +314,11 @@ public final class ConfigConstants {
 	public static final int DEFAULT_PARALLELIZATION_DEGREE = 1;
 	
 	// ------------------------------ Runtime ---------------------------------
+
+	/**
+	 * The default library cache manager cleanup interval in seconds
+	 */
+	public static final long DEFAULT_LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL = 3600;
 	
 	/**
 	 * The default network port to connect to for communication with the job manager.

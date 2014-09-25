@@ -29,9 +29,9 @@ import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.security.MessageDigest;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.flink.runtime.jobgraph.JobID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A BLOB connection handles a series of requests from a particular BLOB client.
@@ -43,7 +43,7 @@ class BlobConnection extends Thread {
 	/**
 	 * The log object used for debugging.
 	 */
-	private static final Log LOG = LogFactory.getLog(BlobConnection.class);
+	private static final Logger LOG = LoggerFactory.getLogger(BlobConnection.class);
 
 	/**
 	 * The socket to communicate with the client.
@@ -104,7 +104,7 @@ class BlobConnection extends Thread {
 
 		} catch (IOException ioe) {
 			if (LOG.isErrorEnabled()) {
-				LOG.error(ioe);
+				LOG.error("Error while executing BLOB connection.", ioe);
 			}
 		} finally {
 			closeSilently(this.clientSocket);
@@ -239,11 +239,13 @@ class BlobConnection extends Thread {
 			if (contentAdressable == 0) {
 				final File storageFile = this.blobServer.getStorageLocation(jobID, key);
 				incomingFile.renameTo(storageFile);
+				incomingFile.deleteOnExit();
 				incomingFile = null;
 			} else {
 				final BlobKey blobKey = new BlobKey(md.digest());
 				final File storageFile = BlobServer.getStorageLocation(blobKey);
 				incomingFile.renameTo(storageFile);
+				incomingFile.deleteOnExit();
 				incomingFile = null;
 
 				// Return computed key to client for validation

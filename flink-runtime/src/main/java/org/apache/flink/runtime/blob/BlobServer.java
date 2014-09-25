@@ -34,13 +34,13 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.jobgraph.JobID;
 
 import com.google.common.io.BaseEncoding;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This class implements the BLOB server. The BLOB server is responsible for listening for incoming requests and
@@ -54,7 +54,7 @@ public final class BlobServer extends Thread {
 	/**
 	 * The log object used for debugging.
 	 */
-	private static final Log LOG = LogFactory.getLog(BlobServer.class);
+	private static final Logger LOG = LoggerFactory.getLogger(BlobServer.class);
 
 	/**
 	 * The prefix of all BLOB files stored by the BLOB server.
@@ -215,6 +215,7 @@ public final class BlobServer extends Thread {
 
 		// Create the storage directory
 		storageDirectory.mkdirs();
+		storageDirectory.deleteOnExit();
 		STORAGE_DIRECTORY = storageDirectory;
 
 		return storageDirectory;
@@ -244,6 +245,7 @@ public final class BlobServer extends Thread {
 		final File storageDirectory = getStorageDirectory();
 		final File incomingDirectory = new File(storageDirectory, "incoming");
 		incomingDirectory.mkdir();
+		incomingDirectory.deleteOnExit();
 		INCOMING_DIRECTORY = incomingDirectory;
 
 		return incomingDirectory;
@@ -263,6 +265,7 @@ public final class BlobServer extends Thread {
 		final File storageDirectory = getStorageDirectory();
 		final File cacheDirectory = new File(storageDirectory, "cache");
 		cacheDirectory.mkdir();
+		cacheDirectory.deleteOnExit();
 		CACHE_DIRECTORY = cacheDirectory;
 
 		return CACHE_DIRECTORY;
@@ -282,6 +285,7 @@ public final class BlobServer extends Thread {
 		final File jobDirectory = new File(getStorageDirectory(), JOB_DIR_PREFIX + jobID.toString());
 		if (create) {
 			if (jobDirectory.mkdirs()) {
+				jobDirectory.deleteOnExit();
 				this.createdJobDirectories.add(jobID);
 			}
 		}
@@ -340,7 +344,7 @@ public final class BlobServer extends Thread {
 
 		} catch (IOException ioe) {
 			if (!this.shutdownRequested && LOG.isErrorEnabled()) {
-				LOG.error(ioe);
+				LOG.error("Blob server stopped working.", ioe);
 			}
 		}
 	}
@@ -443,16 +447,12 @@ public final class BlobServer extends Thread {
 		try {
 			this.serverSocket.close();
 		} catch (IOException ioe) {
-			if (LOG.isDebugEnabled()) {
-				LOG.debug(ioe);
-			}
+				LOG.debug("Error while closing the server socket.", ioe);
 		}
 		try {
 			join();
 		} catch (InterruptedException ie) {
-			if (LOG.isDebugEnabled()) {
-				LOG.debug(ie);
-			}
+			LOG.debug("Error while waiting for this thread to die.", ie);
 		}
 
 		// Clean up the storage directory
