@@ -5,18 +5,18 @@
 #     {{ site.CONFIG_KEY }}
 #------------------------------------------------------------------------------
 
-FLINK_VERSION_STABLE: 0.6-incubating # this variable can point to a SNAPSHOT version in the git source.
-FLINK_VERSION_HADOOP_2_STABLE: 0.6-hadoop2-incubating
-FLINK_VERSION_SHORT: 0.6
+FLINK_VERSION_STABLE: 0.6.1-incubating # this variable can point to a SNAPSHOT version in the git source.
+FLINK_VERSION_HADOOP_2_STABLE: 0.6.1-hadoop2-incubating
+FLINK_VERSION_SHORT: 0.6.1
 FLINK_ISSUES_URL: https://issues.apache.org/jira/browse/FLINK
 FLINK_GITHUB_URL:  https://github.com/apache/incubator-flink
 
 FLINK_WEBSITE_URL: http://flink.incubator.apache.org
 FLINK_DOWNLOAD_URL: http://flink.incubator.apache.org/downloads.html
 
-FLINK_DOWNLOAD_URL_HADOOP_1_STABLE: http://www.apache.org/dyn/closer.cgi/incubator/flink/flink-0.6-incubating-bin-hadoop1.tgz
-FLINK_DOWNLOAD_URL_HADOOP_2_STABLE: http://www.apache.org/dyn/closer.cgi/incubator/flink/flink-0.6-incubating-bin-hadoop2.tgz
-FLINK_DOWNLOAD_URL_YARN_STABLE: http://www.apache.org/dyn/closer.cgi/incubator/flink/flink-0.6-incubating-bin-hadoop2-yarn.tgz
+FLINK_DOWNLOAD_URL_HADOOP_1_STABLE: http://www.apache.org/dyn/closer.cgi/incubator/flink/flink-0.6.1-incubating/flink-0.6.1-incubating-bin-hadoop1.tgz
+FLINK_DOWNLOAD_URL_HADOOP_2_STABLE: http://www.apache.org/dyn/closer.cgi/incubator/flink/flink-0.6.1-incubating/flink-0.6.1-incubating-bin-hadoop2.tgz
+FLINK_DOWNLOAD_URL_YARN_STABLE: http://www.apache.org/dyn/closer.cgi/incubator/flink/flink-0.6.1-incubating/flink-0.6.1-incubating-bin-hadoop2-yarn.tgz
 
 #------------------------------------------------------------------------------
 # BUILD CONFIG
