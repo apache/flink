@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.recordJobTests;
 
 import org.apache.flink.api.common.Plan;
@@ -181,7 +180,7 @@ public class TPCHQuery10ITCase extends RecordAPITestBase {
 	protected Plan getTestJob() {
 		TPCHQuery10 tpchq10 = new TPCHQuery10();
 		return tpchq10.getPlan(
-				config.getString("TPCHQuery10Test#NoSubtasks", "1"),
+				String.valueOf(config.getInteger("TPCHQuery10Test#NoSubtasks", 1)),
 				ordersPath,
 				lineitemsPath,
 				customersPath,

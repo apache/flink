@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators.chaining;
 
 import org.apache.flink.api.common.functions.RichFunction;
@@ -25,6 +24,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.RegularPactTask;
 
+@SuppressWarnings("deprecation")
 public class ChainedCollectorMapDriver<IT, OT> extends ChainedDriver<IT, OT> {
 
 	private GenericCollectorMap<IT, OT> mapper;

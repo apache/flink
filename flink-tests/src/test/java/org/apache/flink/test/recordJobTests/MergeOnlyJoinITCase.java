@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.recordJobTests;
 
 import org.apache.flink.api.common.Plan;
@@ -82,11 +81,11 @@ public class MergeOnlyJoinITCase extends RecordAPITestBase {
 	protected Plan getTestJob() {
 		MergeOnlyJoin mergeOnlyJoin = new MergeOnlyJoin();
 		return mergeOnlyJoin.getPlan(
-				config.getString("MergeOnlyJoinTest#NoSubtasks", "1"), 
+				String.valueOf(config.getInteger("MergeOnlyJoinTest#NoSubtasks", 1)), 
 				input1Path,
 				input2Path,
 				resultPath,
-				config.getString("MergeOnlyJoinTest#NoSubtasksInput2", "1"));
+				String.valueOf(config.getInteger("MergeOnlyJoinTest#NoSubtasksInput2", 1)));
 	}
 
 	@Override

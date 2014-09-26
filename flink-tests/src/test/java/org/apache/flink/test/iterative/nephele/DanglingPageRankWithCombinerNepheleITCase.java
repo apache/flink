@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.iterative.nephele;
 
 import org.apache.flink.runtime.jobgraph.JobGraph;

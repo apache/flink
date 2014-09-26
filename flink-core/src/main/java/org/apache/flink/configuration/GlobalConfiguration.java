@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.configuration;
 
 import java.io.BufferedReader;
@@ -25,72 +24,57 @@ import java.io.FileInputStream;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.apache.flink.util.StringUtils;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.w3c.dom.Text;
-import org.xml.sax.SAXException;
 
 /**
- * Global configuration object in Nephele. Similar to Java properties configuration
+ * Global configuration object for Flink. Similar to Java properties configuration
  * objects it includes key-value pairs which represent the framework's configuration.
- * <p>
- * This class is thread-safe.
  */
 public final class GlobalConfiguration {
 
-	/**
-	 * The log object used for debugging.
-	 */
+	/** The log object used for debugging. */
 	private static final Logger LOG = LoggerFactory.getLogger(GlobalConfiguration.class);
 
-	/**
-	 * The global configuration object accessible through a singleton pattern.
-	 */
-	private static GlobalConfiguration configuration = null;
+	/** The global configuration object accessible through a singleton pattern. */
+	private static GlobalConfiguration SINGLETON = null;
 
-	/**
-	 * The key to the directory this configuration was read from.
-	 */
-	private static final String CONFIGDIRKEY = "config.dir";
+	/** The internal map holding the key-value pairs the configuration consists of. */
+	private final Configuration config = new Configuration();
 
-	/**
-	 * The internal map holding the key-value pairs the configuration consists of.
-	 */
-	private final Map<String, String> confData = new HashMap<String, String>();
-
+	// --------------------------------------------------------------------------------------------
+	
 	/**
 	 * Retrieves the singleton object of the global configuration.
 	 * 
 	 * @return the global configuration object
 	 */
-	private static synchronized GlobalConfiguration get() {
-
-		if (configuration == null) {
-			configuration = new GlobalConfiguration();
+	private static GlobalConfiguration get() {
+		// lazy initialization currently only for testibility
+		synchronized (GlobalConfiguration.class) {
+			if (SINGLETON == null) {
+				SINGLETON = new GlobalConfiguration();
+			}
+			return SINGLETON;
 		}
-
-		return configuration;
 	}
 
 	/**
 	 * The constructor used to construct the singleton instance of the global configuration.
 	 */
-	private GlobalConfiguration() {
-	}
+	private GlobalConfiguration() {}
 
+	// --------------------------------------------------------------------------------------------
+	
 	/**
 	 * Returns the value associated with the given key as a string.
 	 * 
@@ -100,30 +84,8 @@ public final class GlobalConfiguration {
 	 *        the default value which is returned in case there is no value associated with the given key
 	 * @return the (default) value associated with the given key
 	 */
-	public static String getString(final String key, final String defaultValue) {
-
-		return get().getStringInternal(key, defaultValue);
-	}
-
-	/**
-	 * Returns the value associated with the given key as a string.
-	 * 
-	 * @param key
-	 *        key the key pointing to the associated value
-	 * @param defaultValue
-	 *        defaultValue the default value which is returned in case there is no value associated with the given key
-	 * @return the (default) value associated with the given key
-	 */
-	private String getStringInternal(final String key, final String defaultValue) {
-
-		synchronized (this.confData) {
-
-			if (!this.confData.containsKey(key)) {
-				return defaultValue;
-			}
-
-			return this.confData.get(key);
-		}
+	public static String getString(String key, String defaultValue) {
+		return get().config.getString(key, defaultValue);
 	}
 
 	/**
@@ -135,39 +97,8 @@ public final class GlobalConfiguration {
 	 *        the default value which is returned in case there is no value associated with the given key
 	 * @return the (default) value associated with the given key
 	 */
-	public static long getLong(final String key, final long defaultValue) {
-
-		return get().getLongInternal(key, defaultValue);
-	}
-
-	/**
-	 * Returns the value associated with the given key as a long integer.
-	 * 
-	 * @param key
-	 *        the key pointing to the associated value
-	 * @param defaultValue
-	 *        the default value which is returned in case there is no value associated with the given key
-	 * @return the (default) value associated with the given key
-	 */
-	private long getLongInternal(final String key, final long defaultValue) {
-
-		long retVal = defaultValue;
-
-		try {
-			synchronized (this.confData) {
-
-				if (this.confData.containsKey(key)) {
-					retVal = Long.parseLong(this.confData.get(key));
-				}
-			}
-		} catch (NumberFormatException e) {
-
-			if (LOG.isDebugEnabled()) {
-				LOG.debug(StringUtils.stringifyException(e));
-			}
-		}
-
-		return retVal;
+	public static long getLong(String key, long defaultValue) {
+		return get().config.getLong(key, defaultValue);
 	}
 
 	/**
@@ -179,39 +110,8 @@ public final class GlobalConfiguration {
 	 *        the default value which is returned in case there is no value associated with the given key
 	 * @return the (default) value associated with the given key
 	 */
-	public static int getInteger(final String key, final int defaultValue) {
-
-		return get().getIntegerInternal(key, defaultValue);
-	}
-
-	/**
-	 * Returns the value associated with the given key as an integer.
-	 * 
-	 * @param key
-	 *        the key pointing to the associated value
-	 * @param defaultValue
-	 *        the default value which is returned in case there is no value associated with the given key
-	 * @return the (default) value associated with the given key
-	 */
-	private int getIntegerInternal(final String key, final int defaultValue) {
-
-		int retVal = defaultValue;
-
-		try {
-			synchronized (this.confData) {
-
-				if (this.confData.containsKey(key)) {
-					retVal = Integer.parseInt(this.confData.get(key));
-				}
-			}
-		} catch (NumberFormatException e) {
-
-			if (LOG.isDebugEnabled()) {
-				LOG.debug(StringUtils.stringifyException(e));
-			}
-		}
-
-		return retVal;
+	public static int getInteger(String key, int defaultValue) {
+		return get().config.getInteger(key, defaultValue);
 	}
 	
 	/**
@@ -224,38 +124,7 @@ public final class GlobalConfiguration {
 	 * @return the (default) value associated with the given key
 	 */
 	public static float getFloat(String key, float defaultValue) {
-
-		return get().getFloatInternal(key, defaultValue);
-	}
-
-	/**
-	 * Returns the value associated with the given key as an integer.
-	 * 
-	 * @param key
-	 *        the key pointing to the associated value
-	 * @param defaultValue
-	 *        the default value which is returned in case there is no value associated with the given key
-	 * @return the (default) value associated with the given key
-	 */
-	private float getFloatInternal(String key, float defaultValue) {
-
-		float retVal = defaultValue;
-
-		try {
-			synchronized (this.confData) {
-
-				if (this.confData.containsKey(key)) {
-					retVal = Float.parseFloat(this.confData.get(key));
-				}
-			}
-		} catch (NumberFormatException e) {
-
-			if (LOG.isDebugEnabled()) {
-				LOG.debug(StringUtils.stringifyException(e));
-			}
-		}
-
-		return retVal;
+		return get().config.getFloat(key, defaultValue);
 	}
 
 	/**
@@ -267,33 +136,8 @@ public final class GlobalConfiguration {
 	 *        the default value which is returned in case there is no value associated with the given key
 	 * @return the (default) value associated with the given key
 	 */
-	public static boolean getBoolean(final String key, final boolean defaultValue) {
-
-		return get().getBooleanInternal(key, defaultValue);
-	}
-
-	/**
-	 * Returns the value associated with the given key as a boolean.
-	 * 
-	 * @param key
-	 *        the key pointing to the associated value
-	 * @param defaultValue
-	 *        the default value which is returned in case there is no value associated with the given key
-	 * @return the (default) value associated with the given key
-	 */
-	private boolean getBooleanInternal(final String key, final boolean defaultValue) {
-
-		boolean retVal = defaultValue;
-
-		synchronized (this.confData) {
-
-			final String value = this.confData.get(key);
-			if (value != null) {
-				retVal = Boolean.parseBoolean(value);
-			}
-		}
-
-		return retVal;
+	public static boolean getBoolean(String key, boolean defaultValue) {
+		return get().config.getBoolean(key, defaultValue);
 	}
 
 	/**
@@ -319,7 +163,7 @@ public final class GlobalConfiguration {
 			return;
 		}
 		
-		if(confDirFile.isFile()) {
+		if (confDirFile.isFile()) {
 			final File file = new File(configDir);
 			if(configDir.endsWith(".xml")) {
 				get().loadXMLResource( file );
@@ -329,7 +173,6 @@ public final class GlobalConfiguration {
 				LOG.warn("The given configuration has an unknown extension.");
 				return;
 			}
-			configuration.confData.put(CONFIGDIRKEY, file.getAbsolutePath() );
 			return;
 		}
 
@@ -351,11 +194,6 @@ public final class GlobalConfiguration {
 		// => if both XML and YAML files exist, the YAML config keys overwrite XML settings
 		for (File f : yamlFiles) {
 			get().loadYAMLResource(f);
-		}
-
-		// Store the path to the configuration directory itself
-		if (configuration != null) {
-			configuration.confData.put(CONFIGDIRKEY, configDir);
 		}
 	}
 
@@ -379,52 +217,57 @@ public final class GlobalConfiguration {
 	 * @param file the YAML file to read from
 	 * @see <a href="http://www.yaml.org/spec/1.2/spec.html">YAML 1.2 specification</a>
 	 */
-	private void loadYAMLResource(final File file) {
+	private void loadYAMLResource(File file) {
 
-		BufferedReader reader = null;
-		try {
-			reader = new BufferedReader(new InputStreamReader(new FileInputStream(file)));
+		synchronized (getClass()) {
 
-			String line = null;
-			while ((line = reader.readLine()) != null) {
-
-				// 1. check for comments
-				String[] comments = line.split("#", 2);
-				String conf = comments[0];
-
-				// 2. get key and value
-				if (conf.length() > 0) {
-					String[] kv = conf.split(": ", 2);
-
-					// skip line with no valid key-value pair
-					if (kv.length == 1) {
-						LOG.warn("Error while trying to split key and value in configuration file " + file + ": " + line);
-						continue;
+			BufferedReader reader = null;
+			try {
+				reader = new BufferedReader(new InputStreamReader(new FileInputStream(file)));
+	
+				String line = null;
+				while ((line = reader.readLine()) != null) {
+	
+					// 1. check for comments
+					String[] comments = line.split("#", 2);
+					String conf = comments[0];
+	
+					// 2. get key and value
+					if (conf.length() > 0) {
+						String[] kv = conf.split(": ", 2);
+	
+						// skip line with no valid key-value pair
+						if (kv.length == 1) {
+							LOG.warn("Error while trying to split key and value in configuration file " + file + ": " + line);
+							continue;
+						}
+	
+						String key = kv[0].trim();
+						String value = kv[1].trim();
+						
+						// sanity check
+						if (key.length() == 0 || value.length() == 0) {
+							LOG.warn("Error after splitting key and value in configuration file " + file + ": " + line);
+							continue;
+						}
+	
+						LOG.debug("Loading configuration property: {}, {}", key, value);
+	
+						this.config.setString(key, value);
 					}
-
-					String key = kv[0].trim();
-					String value = kv[1].trim();
-					
-					// sanity check
-					if (key.length() == 0 || value.length() == 0) {
-						LOG.warn("Error after splitting key and value in configuration file " + file + ": " + line);
-						continue;
-					}
-
-					LOG.debug("Loading configuration property: {}, {}", key, value);
-
-					this.confData.put(key, value);
 				}
 			}
-		} catch (IOException e) {
-			e.printStackTrace();
-		} finally {
-			try {
-				if(reader != null) {
-					reader.close();
+			catch (IOException e) {
+				LOG.error("Error parsing YAML configuration.", e);
+			}
+			finally {
+				try {
+					if(reader != null) {
+						reader.close();
+					}
+				} catch (IOException e) {
+					LOG.warn("Cannot to close reader with IOException.", e);
 				}
-			} catch (IOException e) {
-				LOG.warn("Cannot to close reader with IOException.", e);
 			}
 		}
 	}
@@ -435,7 +278,7 @@ public final class GlobalConfiguration {
 	 * @param file
 	 *        the XML document file
 	 */
-	private void loadXMLResource(final File file) {
+	private void loadXMLResource(File file) {
 
 		final DocumentBuilderFactory docBuilderFactory = DocumentBuilderFactory.newInstance();
 		// Ignore comments in the XML file
@@ -468,7 +311,7 @@ public final class GlobalConfiguration {
 			final NodeList props = root.getChildNodes();
 			int propNumber = -1;
 
-			synchronized (this.confData) {
+			synchronized (getClass()) {
 
 				for (int i = 0; i < props.getLength(); i++) {
 
@@ -528,85 +371,28 @@ public final class GlobalConfiguration {
 					if (key != null && value != null) {
 						// Put key, value pair into the map
 						LOG.debug("Loading configuration property: {}, {}", key, value);
-						this.confData.put(key, value);
+						this.config.setString(key, value);
 					} else {
 						LOG.warn("Error while reading configuration: Cannot read property " + propNumber);
 					}
 				}
 			}
 
-		} catch (ParserConfigurationException e) {
-			LOG.warn("Cannot load configuration: " + StringUtils.stringifyException(e));
-		} catch (IOException e) {
-			LOG.warn("Cannot load configuration: " + StringUtils.stringifyException(e));
-		} catch (SAXException e) {
-			LOG.warn("Cannot load configuration: " + StringUtils.stringifyException(e));
+		}
+		catch (Exception e) {
+			LOG.error("Cannot load configuration.", e);
 		}
 	}
 
 	/**
-	 * Copies the key/value pairs stored in the global configuration to
-	 * a {@link Configuration} object and returns it.
+	 * Gets a {@link Configuration} object with the values of this GlobalConfiguration
 	 * 
 	 * @return the {@link Configuration} object including the key/value pairs
 	 */
 	public static Configuration getConfiguration() {
-
-		return get().getConfigurationInternal(null);
-	}
-
-	/**
-	 * Copies a subset of the key/value pairs stored in the global configuration to
-	 * a {@link Configuration} object and returns it. The subset is defined by the
-	 * given array of keys. If <code>keys</code> is <code>null</code>, the entire
-	 * global configuration is copied.
-	 * 
-	 * @param keys
-	 *        array of keys specifying the subset of pairs to copy.
-	 * @return the {@link Configuration} object including the key/value pairs
-	 */
-	public static Configuration getConfiguration(final String[] keys) {
-
-		return get().getConfigurationInternal(keys);
-	}
-
-	/**
-	 * Internal non-static method to return configuration.
-	 * 
-	 * @param keys
-	 *        array of keys specifying the subset of pairs to copy.
-	 * @return the {@link Configuration} object including the key/value pairs
-	 */
-	private Configuration getConfigurationInternal(final String[] keys) {
-
-		Configuration conf = new Configuration();
-
-		synchronized (this.confData) {
-
-			final Iterator<String> it = this.confData.keySet().iterator();
-
-			while (it.hasNext()) {
-
-				final String key = it.next();
-				boolean found = false;
-				if (keys != null) {
-					for (int i = 0; i < keys.length; i++) {
-						if (key.equals(keys[i])) {
-							found = true;
-							break;
-						}
-					}
-
-					if (found) {
-						conf.setString(key, this.confData.get(key));
-					}
-				} else {
-					conf.setString(key, this.confData.get(key));
-				}
-			}
-		}
-
-		return conf;
+		Configuration copy = new Configuration();
+		copy.addAll(get().config);
+		return copy;
 	}
 
 	/**
@@ -618,8 +404,7 @@ public final class GlobalConfiguration {
 	 * @param conf
 	 *        the {@link Configuration} object to merge into the global configuration
 	 */
-	public static void includeConfiguration(final Configuration conf) {
-
+	public static void includeConfiguration(Configuration conf) {
 		get().includeConfigurationInternal(conf);
 	}
 
@@ -629,24 +414,14 @@ public final class GlobalConfiguration {
 	 * @param conf
 	 *        the {@link Configuration} object to merge into the global configuration
 	 */
-	private void includeConfigurationInternal(final Configuration conf) {
-
-		if (conf == null) {
-			LOG.error("Given configuration object is null, ignoring it...");
-			return;
-		}
-
-		synchronized (this.confData) {
-
-			final Iterator<String> it = conf.keySet().iterator();
-
-			while (it.hasNext()) {
-
-				final String key = it.next();
-				this.confData.put(key, conf.getString(key, ""));
-			}
+	private void includeConfigurationInternal(Configuration conf) {
+		// static synchronized
+		synchronized (getClass()) {
+			this.config.addAll(conf);
 		}
 	}
+	
+	// --------------------------------------------------------------------------------------------
 	
 	/**
 	 * Filters files in directory which have the specified suffix (e.g. ".xml").

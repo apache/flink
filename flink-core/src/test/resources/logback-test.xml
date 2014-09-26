@@ -30,4 +30,5 @@
     <logger name="org.apache.flink.api.common.io.DelimitedInputFormat" level="OFF"/>
     <logger name="org.apache.flink.api.common.io.FileInputFormat" level="OFF"/>
     <logger name="org.apache.flink.configuration.GlobalConfiguration" level="OFF"/>
+    <logger name="org.apache.flink.configuration.Configuration" level="OFF"/>
 </configuration>

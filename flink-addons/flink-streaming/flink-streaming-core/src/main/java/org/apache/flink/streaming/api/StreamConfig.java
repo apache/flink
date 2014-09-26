@@ -309,9 +309,13 @@ public class StreamConfig {
 		config.setClass("functionClass", functionClass);
 	}
 
-	@SuppressWarnings("unchecked")
-	public Class<? extends AbstractRichFunction> getFunctionClass() {
-		return (Class<? extends AbstractRichFunction>) config.getClass("functionClass", null);
+	public Class<? extends AbstractRichFunction> getFunctionClass(ClassLoader cl) {
+		try {
+			return config.getClass("functionClass", null, cl);
+		}
+		catch (ClassNotFoundException e) {
+			throw new RuntimeException("Could not load function class", e);
+		}
 	}
 
 	@SuppressWarnings("unchecked")

@@ -146,6 +146,11 @@ public abstract class WrappingFunction<T extends Function> extends AbstractRichF
 		public DistributedCache getDistributedCache() {
 			return context.getDistributedCache();
 		}
+		
+		@Override
+		public ClassLoader getUserCodeClassLoader() {
+			return context.getUserCodeClassLoader();
+		}
 	}
 	
 	private static class WrappingIterationRuntimeContext extends WrappingRuntimeContext implements IterationRuntimeContext {

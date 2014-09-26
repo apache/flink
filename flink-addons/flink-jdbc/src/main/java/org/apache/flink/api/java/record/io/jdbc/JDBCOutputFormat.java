@@ -98,15 +98,21 @@ public class JDBCOutputFormat implements OutputFormat<Record> {
 		@SuppressWarnings("unchecked")
 		Class<Value>[] classes = new Class[this.fieldCount];
 		this.fieldClasses = classes;
+		
+		ClassLoader cl = getClass().getClassLoader();
 
-		for (int i = 0; i < this.fieldCount; i++) {
-			@SuppressWarnings("unchecked")
-			Class<? extends Value> clazz = (Class<? extends Value>) parameters.getClass(FIELD_TYPE_KEY + i, null);
-			if (clazz == null) {
-				throw new IllegalArgumentException("Invalid configuration for JDBCOutputFormat: "
-						+ "No type class for parameter " + i);
+		try {
+			for (int i = 0; i < this.fieldCount; i++) {
+				Class<? extends Value> clazz = parameters.<Value>getClass(FIELD_TYPE_KEY + i, null, cl);
+				if (clazz == null) {
+					throw new IllegalArgumentException("Invalid configuration for JDBCOutputFormat: "
+							+ "No type class for parameter " + i);
+				}
+				this.fieldClasses[i] = clazz;
 			}
-			this.fieldClasses[i] = clazz;
+		}
+		catch (ClassNotFoundException e) {
+			throw new RuntimeException("Could not load data type classes.", e);
 		}
 	}
 

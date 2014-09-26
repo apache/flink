@@ -16,20 +16,12 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.iterative;
 
-import java.util.Collection;
-
 import org.apache.flink.api.common.Plan;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.recordJobs.graph.SimplePageRank;
 import org.apache.flink.test.util.RecordAPITestBase;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
 
-@RunWith(Parameterized.class)
 public class PageRankITCase extends RecordAPITestBase {
 	
 	private static final String VERTICES = "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n";
@@ -39,12 +31,6 @@ public class PageRankITCase extends RecordAPITestBase {
 	protected String pagesPath;
 	protected String edgesPath;
 	protected String resultPath;
-	
-	
-	public PageRankITCase(Configuration config) {
-		super(config);
-		setTaskManagerNumSlots(DOP);
-	}
 	
 	@Override
 	protected void preSubmit() throws Exception {
@@ -57,21 +43,12 @@ public class PageRankITCase extends RecordAPITestBase {
 	protected Plan getTestJob() {
 		SimplePageRank pr = new SimplePageRank();
 		Plan plan = pr.getPlan(
-			config.getString("NumSubtasks", "1"), 
+			String.valueOf(DOP), 
 			pagesPath,
 			edgesPath,
 			resultPath,
-			config.getString("NumIterations", "5"),	// max iterations
+			"5",	// max iterations
 			"10");	// num vertices
 		return plan;
-	}
-
-
-	@Parameters
-	public static Collection<Object[]> getConfigurations() {
-		Configuration config1 = new Configuration();
-		config1.setInteger("NumSubtasks", DOP);
-		config1.setString("NumIterations", "5");
-		return toParameterList(config1);
 	}
 }

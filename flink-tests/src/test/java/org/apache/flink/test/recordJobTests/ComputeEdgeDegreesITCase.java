@@ -52,7 +52,7 @@ public class ComputeEdgeDegreesITCase extends RecordAPITestBase {
 	@Override
 	protected Plan getTestJob() {
 		ComputeEdgeDegrees computeDegrees = new ComputeEdgeDegrees();
-		return computeDegrees.getPlan(config.getString("ComputeEdgeDegreesTest#NumSubtasks", "4"),
+		return computeDegrees.getPlan(String.valueOf(config.getInteger("NumSubtasks", 4)),
 				edgesPath, resultPath);
 	}
 
@@ -64,7 +64,7 @@ public class ComputeEdgeDegreesITCase extends RecordAPITestBase {
 	@Parameters
 	public static Collection<Object[]> getConfigurations() {
 		Configuration config = new Configuration();
-		config.setInteger("ComputeEdgeDegreesTest#NumSubtasks", DOP);
+		config.setInteger("NumSubtasks", DOP);
 		return toParameterList(config);
 	}
 }

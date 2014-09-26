@@ -296,7 +296,7 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 			}
 
 			// instantiate all aggregators and register them at the iteration global registry
-			aggregatorRegistry = new RuntimeAggregatorRegistry(config.getIterationAggregators());
+			aggregatorRegistry = new RuntimeAggregatorRegistry(config.getIterationAggregators(userCodeClassLoader));
 			IterationAggregatorBroker.instance().handIn(brokerKey, aggregatorRegistry);
 
 			DataInputView superstepResult = null;

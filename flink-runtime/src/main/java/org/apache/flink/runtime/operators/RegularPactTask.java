@@ -243,7 +243,6 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 
 		// obtain task configuration (including stub parameters)
 		Configuration taskConf = getTaskConfiguration();
-		taskConf.setClassLoader(this.userCodeClassLoader);
 		this.config = new TaskConfig(taskConf);
 
 		// now get the operator class which drives the operation
@@ -1066,7 +1065,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 
 	public RuntimeUDFContext createRuntimeContext(String taskName) {
 		Environment env = getEnvironment();
-		return new RuntimeUDFContext(taskName, env.getCurrentNumberOfSubtasks(), env.getIndexInSubtaskGroup(), env.getCopyTask());
+		return new RuntimeUDFContext(taskName, env.getCurrentNumberOfSubtasks(), env.getIndexInSubtaskGroup(), userCodeClassLoader, env.getCopyTask());
 	}
 
 	// --------------------------------------------------------------------------------------------
