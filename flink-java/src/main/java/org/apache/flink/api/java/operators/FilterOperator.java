@@ -33,8 +33,6 @@ import org.apache.flink.api.java.DataSet;
 public class FilterOperator<T> extends SingleInputUdfOperator<T, T, FilterOperator<T>> {
 	
 	protected final FilterFunction<T> function;
-	
-	protected PartitionedDataSet<T> partitionedDataSet;
 
 	public FilterOperator(DataSet<T> input, FilterFunction<T> function) {
 		super(input, input.getType());
@@ -43,19 +41,9 @@ public class FilterOperator<T> extends SingleInputUdfOperator<T, T, FilterOperat
 		extractSemanticAnnotationsFromUdf(function.getClass());
 	}
 	
-	public FilterOperator(PartitionedDataSet<T> input, FilterFunction<T> function) {
-		this(input.getDataSet(), function);
-		this.partitionedDataSet = input;
-	}
-	
 	@Override
 	protected org.apache.flink.api.common.operators.base.FilterOperatorBase<T, FlatMapFunction<T,T>> translateToDataFlow(Operator<T> input) {
-		
-		// inject partition operator if necessary
-		if(this.partitionedDataSet != null) {
-			input = this.partitionedDataSet.translateToDataFlow(input, this.getParallelism());
-		}
-		
+
 		String name = getName() != null ? getName() : function.getClass().getName();
 		// create operator
 		PlanFilterOperator<T> po = new PlanFilterOperator<T>(function, name, getInputType());

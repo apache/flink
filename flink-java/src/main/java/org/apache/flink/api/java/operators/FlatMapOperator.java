@@ -36,8 +36,6 @@ public class FlatMapOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT, Fl
 	
 	protected final FlatMapFunction<IN, OUT> function;
 	
-	protected PartitionedDataSet<IN> partitionedDataSet;
-	
 	public FlatMapOperator(DataSet<IN> input, TypeInformation<OUT> resultType, FlatMapFunction<IN, OUT> function) {
 		super(input, resultType);
 		
@@ -45,18 +43,8 @@ public class FlatMapOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT, Fl
 		extractSemanticAnnotationsFromUdf(function.getClass());
 	}
 	
-	public FlatMapOperator(PartitionedDataSet<IN> input, TypeInformation<OUT> resultType, FlatMapFunction<IN, OUT> function) {
-		this(input.getDataSet(), resultType, function);
-		this.partitionedDataSet = input;
-	}
-
 	@Override
 	protected org.apache.flink.api.common.operators.base.FlatMapOperatorBase<IN, OUT, FlatMapFunction<IN,OUT>> translateToDataFlow(Operator<IN> input) {
-		
-		// inject partition operator if necessary
-		if(this.partitionedDataSet != null) {
-			input = this.partitionedDataSet.translateToDataFlow(input, this.getParallelism());
-		}
 		
 		String name = getName() != null ? getName() : function.getClass().getName();
 		// create operator
