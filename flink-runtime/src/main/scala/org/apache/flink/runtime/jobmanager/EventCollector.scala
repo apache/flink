@@ -29,7 +29,7 @@ import org.apache.flink.runtime.jobgraph.{JobStatus, JobID}
 import org.apache.flink.runtime.messages.ArchiveMessages.{ArchiveExecutionGraph, ArchiveJobEvent,
 ArchiveEvent}
 import org.apache.flink.runtime.messages.EventCollectorMessages._
-import org.apache.flink.runtime.messages.ExecutionGraphMessages.{JobStatusFound, JobNotFound,
+import org.apache.flink.runtime.messages.ExecutionGraphMessages.{CurrentJobStatus, JobNotFound,
 JobStatusChanged, ExecutionStateChanged}
 import org.apache.flink.runtime.messages.JobManagerMessages.RequestJobStatus
 import org.apache.flink.runtime.messages.JobResult
@@ -114,6 +114,8 @@ ActorLogging with WrapAsScala {
       executionGraph.registerExecutionListener(self)
       executionGraph.registerJobStatusListener(self)
       jobInformation += jobID ->(executionGraph.getJobName, profilingAvailable, submissionTimestamp)
+
+      recentExecutionGraphs += jobID -> executionGraph
     }
     case ExecutionStateChanged(jobID, vertexID, subtask, executionID, newExecutionState,
     optionalMessage) => {
@@ -166,11 +168,11 @@ ActorLogging with WrapAsScala {
     }
     case RequestJobStatus(jobID) => {
       recentJobs.get(jobID) match {
-        case Some(recentJobEvent) => sender() ! JobStatusFound(jobID, recentJobEvent.getJobStatus)
+        case Some(recentJobEvent) => sender() ! CurrentJobStatus(jobID, recentJobEvent.getJobStatus)
         case None =>
           val responses = archiveListeners map { archivist => archivist ?
             RequestJobStatus(jobID) filter {
-              case _: JobStatusFound => true
+              case _: CurrentJobStatus => true
               case _ => false
             }
           }

@@ -20,7 +20,6 @@ package org.apache.flink.runtime.minicluster;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
-import akka.dispatch.ExecutionContexts;
 import akka.dispatch.Futures;
 import akka.pattern.Patterns;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -60,12 +59,21 @@ abstract public class FlinkMiniCluster {
 
 	ActorSystem startTaskManagerActorSystem(final Configuration configuration, int index){
 		int port = configuration.getInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY,
-				ConfigConstants.DEFAULT_TASK_MANAGER_IPC_PORT) + index;
+				ConfigConstants.DEFAULT_TASK_MANAGER_IPC_PORT);
+
+		if(port != 0){
+			port += index;
+		}
+
 		return AkkaUtils.createActorSystem(HOSTNAME, port, configuration);
 	}
 
 	public ActorRef getJobManager() {
 		return jobManagerActor;
+	}
+
+	public List<ActorRef> getTaskManagers() {
+		return taskManagerActors;
 	}
 
 	// ------------------------------------------------------------------------
@@ -123,7 +131,7 @@ abstract public class FlinkMiniCluster {
 		}
 
 		try {
-			Await.ready(Futures.sequence(responses, ExecutionContexts.global()), AkkaUtils.AWAIT_DURATION());
+			Await.ready(Futures.sequence(responses, AkkaUtils.globalExecutionContext()), AkkaUtils.AWAIT_DURATION());
 		}catch(Exception e){
 			throw new RuntimeException("Not all task managers could register at the job manager.", e);
 		}

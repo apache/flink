@@ -127,7 +127,7 @@ public class LocalFlinkMiniCluster extends FlinkMiniCluster {
 			config.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, dataPort + index);
 		}
 
-		return TaskManager.startActorWithConfiguration(HOSTNAME, config, system);
+		return TaskManager.startActorWithConfiguration(HOSTNAME, config, false, system);
 	}
 
 	private static void initializeIOFormatClasses() {

@@ -27,19 +27,14 @@ import java.util.Queue;
 import java.util.Set;
 
 import akka.actor.ActorRef;
-import akka.dispatch.ExecutionContexts;
-import akka.dispatch.Futures;
-import akka.dispatch.Mapper;
-import akka.pattern.Patterns;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotAvailabilityListener;
-import org.apache.flink.runtime.messages.TaskManagerMessages;
-import org.apache.flink.runtime.taskmanager.TaskOperationResult;
-import scala.concurrent.Await;
-import scala.concurrent.Future;
+import org.apache.flink.runtime.messages.TaskManagerMessages.TaskOperationResult;
+import org.apache.flink.runtime.messages.TaskManagerMessages.SubmitTask;
+import org.apache.flink.runtime.messages.TaskManagerMessages.CancelTask;
 
 /**
  * An taskManager represents a resource a {@link org.apache.flink.runtime.taskmanager.TaskManager} runs on.
@@ -173,62 +168,22 @@ public class Instance {
 			availableSlots.clear();
 		}
 	}
-	
-	public void checkLibraryAvailability(final JobID jobID) throws IOException {
-		final String[] requiredLibraries = LibraryCacheManager.getRequiredJarFiles(jobID);
 
-		if (requiredLibraries == null) {
-			throw new IOException("No entry of required libraries for job " + jobID);
-		}
-
-		LibraryCacheProfileRequest request = new LibraryCacheProfileRequest();
-		request.setRequiredLibraries(requiredLibraries);
-
-		Future<Object> futureResponse = Patterns.ask(taskManager, new TaskManagerMessages.RequestLibraryCacheProfile
-				(request), AkkaUtils.FUTURE_TIMEOUT());
-		
-
-		Future<Iterable<Object>> updateFuture = futureResponse.flatMap(new Mapper<Object, Future<Iterable<Object>>>() {
-			public Future<Iterable<Object>> apply(final Object o) {
-				LibraryCacheProfileResponse response = (LibraryCacheProfileResponse) o;
-
-				List<Future<Object>> futureAcks = new ArrayList<Future<Object>>();
-
-				for (int i = 0; i < requiredLibraries.length; i++) {
-					if (!response.isCached(i)) {
-						LibraryCacheUpdate update = new LibraryCacheUpdate(requiredLibraries[i]);
-						Future<Object> future = Patterns.ask(taskManager, update, AkkaUtils.FUTURE_TIMEOUT());
-						futureAcks.add(future);
-					}
-				}
-
-				return Futures.sequence(futureAcks, ExecutionContexts.global());
-			}
-		}, ExecutionContexts.global());
-
-		try {
-			Await.result(updateFuture, AkkaUtils.AWAIT_DURATION());
-		}catch(IOException ioe){
-			throw ioe;
-		}catch(Exception e){
-			throw new RuntimeException("Encountered exception while updating library cache.", e);
-		}
-
-	}
 
 	public TaskOperationResult submitTask(TaskDeploymentDescriptor tdd) throws IOException{
 		try{
-			return AkkaUtils.ask(taskManager, new TaskManagerMessages.SubmitTask(tdd));
+			return AkkaUtils.ask(taskManager, new SubmitTask(tdd));
 		}catch(IOException ioe) {
 			throw ioe;
 		}
 	}
-	public TaskOperationResult cancelTask(ExecutionAttemptID attemptID) throws IOException{
-		try{
-			return AkkaUtils.ask(taskManager, new TaskManagerMessages.CancelTask(attemptID));
-		}catch(IOException ioe){
+	public TaskOperationResult cancelTask(ExecutionAttemptID attemptID) throws IOException {
+		try {
+			return AkkaUtils.ask(taskManager, new CancelTask(attemptID));
+		} catch (IOException ioe) {
 			throw ioe;
 		}
+	}
 
 	// --------------------------------------------------------------------------------------------
 	// Heartbeats

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.akka
 
 import java.io.IOException
+import java.util.concurrent.Callable
 
 import akka.actor.{ActorSelection, ActorRef, ActorSystem}
 import akka.pattern.Patterns
@@ -27,7 +28,7 @@ import com.typesafe.config.ConfigFactory
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.core.io.IOReadableWritable
 import org.apache.flink.runtime.akka.serialization.IOReadableWritableSerializer
-import scala.concurrent.Await
+import scala.concurrent.{ExecutionContext, Future, Await}
 import scala.concurrent.duration._
 
 object AkkaUtils {
@@ -36,6 +37,8 @@ object AkkaUtils {
   implicit val FUTURE_TIMEOUT: Timeout = 1 minute
   implicit val AWAIT_DURATION: FiniteDuration = 1 minute
   implicit val FUTURE_DURATION: FiniteDuration = 1 minute
+
+  var globalExecutionContext: ExecutionContext = ExecutionContext.global
 
   def createActorSystem(host: String, port: Int, configuration: Configuration): ActorSystem = {
     val akkaConfig = ConfigFactory.parseString(AkkaUtils.getConfigString(host, port, configuration))
@@ -91,25 +94,16 @@ object AkkaUtils {
   }
 
   def getDefaultActorSystemConfigString: String = {
-    val ioRWSerializerClass = classOf[IOReadableWritableSerializer].getCanonicalName
-    val ioRWClass = classOf[IOReadableWritable].getCanonicalName
-
     s"""akka.daemonic = on
       |akka.loggers = ["akka.event.slf4j.Slf4jLogger"]
-      |akka.loglevel = "DEBUG"
+      |akka.loglevel = "INFO"
       |akka.logging-filter = "akka.event.slf4j.Slf4jLoggingFilter"
-      |akka.stdout-loglevel = "DEBUG"
+      |akka.stdout-loglevel = "INFO"
       |akka.jvm-exit-on-fata-error = off
       |akka.actor.provider = "akka.remote.RemoteActorRefProvider"
       |akka.remote.netty.tcp.transport-class = "akka.remote.transport.netty.NettyTransport"
       |akka.remote.netty.tcp.tcp-nodelay = on
-      |akka.log-config-on-start = on
-      |akka.actor.serializers {
-      | IOReadableWritable = "$ioRWSerializerClass"
-      |}
-      |akka.actor.serialization-bindings {
-      | "$ioRWClass" = IOReadableWritable
-      |}
+      |akka.log-config-on-start = off
     """.stripMargin
   }
 
@@ -131,5 +125,21 @@ object AkkaUtils {
   def ask[T](actor: ActorRef, msg: Any): T = {
     val future = Patterns.ask(actor, msg, FUTURE_TIMEOUT)
     Await.result(future, AWAIT_DURATION).asInstanceOf[T]
+  }
+
+  def retry[T](body: => T, tries: Int)(implicit executionContext: ExecutionContext): Future[T] = {
+    Future{ body }.recoverWith{
+      case t:Throwable =>
+        if(tries > 0){
+          retry(body, tries - 1)
+        }else{
+          Future.failed(t)
+        }
+    }
+  }
+
+  def retry[T](callable: Callable[T], tries: Int)(implicit executionContext: ExecutionContext):
+  Future[T] = {
+    retry(callable.call(), tries)
   }
 }

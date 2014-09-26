@@ -25,7 +25,7 @@ import org.apache.flink.runtime.jobgraph.{JobStatus, JobGraph, DistributionPatte
 AbstractJobVertex}
 import org.apache.flink.runtime.jobmanager.Tasks.{AgnosticBinaryReceiver, Receiver}
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup
-import org.apache.flink.runtime.messages.ExecutionGraphMessages.JobStatusFound
+import org.apache.flink.runtime.messages.ExecutionGraphMessages.CurrentJobStatus
 import org.apache.flink.runtime.messages.JobManagerMessages.{RequestJobStatusWhenTerminated,
 SubmitJob}
 import org.apache.flink.runtime.messages.JobResult
@@ -68,14 +68,12 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       val jm = cluster.getJobManager
 
       try {
-        LibraryCacheManager.register(jobGraph.getJobID, Array[String]())
-
         within(1 second) {
           jm ! SubmitJob(jobGraph)
           expectMsg(new JobSubmissionResult(JobResult.SUCCESS, null))
 
           jm ! RequestJobStatusWhenTerminated(jobGraph.getJobID)
-          expectMsg(JobStatusFound(jobGraph.getJobID, JobStatus.FINISHED))
+          expectMsg(CurrentJobStatus(jobGraph.getJobID, JobStatus.FINISHED))
         }
       } finally {
         cluster.stop()
@@ -114,14 +112,12 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       val cluster = TestingUtils.startTestingCluster(num_tasks)
       val jm = cluster.getJobManager
       try {
-        LibraryCacheManager.register(jobGraph.getJobID, Array[String]())
-
         within(1 second) {
           jm ! SubmitJob(jobGraph)
           expectMsg(JobSubmissionResult(JobResult.SUCCESS, null))
 
           jm ! RequestJobStatusWhenTerminated(jobGraph.getJobID)
-          expectMsg(JobStatusFound(jobGraph.getJobID, JobStatus.FINISHED))
+          expectMsg(CurrentJobStatus(jobGraph.getJobID, JobStatus.FINISHED))
         }
       } finally {
         cluster.stop()

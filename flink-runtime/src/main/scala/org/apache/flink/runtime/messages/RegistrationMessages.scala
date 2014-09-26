@@ -26,6 +26,6 @@ object RegistrationMessages {
                                  hardwareDescription: HardwareDescription,
                                  numberOfSlots: Int)
 
-  case class AcknowledgeRegistration(instanceID: InstanceID)
+  case class AcknowledgeRegistration(instanceID: InstanceID, blobPort: Int)
 
 }

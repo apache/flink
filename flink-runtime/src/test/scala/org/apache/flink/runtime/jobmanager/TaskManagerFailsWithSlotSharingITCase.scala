@@ -18,65 +18,74 @@
 
 package org.apache.flink.runtime.jobmanager
 
-import akka.actor.ActorSystem
+import akka.actor.{PoisonPill, ActorSystem}
 import akka.testkit.{ImplicitSender, TestKit}
 import org.apache.flink.runtime.jobgraph.{JobStatus, JobGraph, DistributionPattern,
 AbstractJobVertex}
-import org.apache.flink.runtime.jobmanager.Tasks.{Receiver, Sender}
+import org.apache.flink.runtime.jobmanager.Tasks.{Sender, BlockingReceiver}
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup
 import org.apache.flink.runtime.messages.ExecutionGraphMessages.CurrentJobStatus
 import org.apache.flink.runtime.messages.JobManagerMessages.{RequestJobStatusWhenTerminated,
 SubmitJob}
 import org.apache.flink.runtime.messages.JobResult
 import org.apache.flink.runtime.messages.JobResult.JobSubmissionResult
+import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.{AllVerticesRunning,
+WaitForAllVerticesToBeRunning}
 import org.apache.flink.runtime.testingUtils.TestingUtils
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
-import scala.collection.convert.WrapAsJava
+import org.scalatest.{BeforeAndAfterAll, WordSpecLike, Matchers}
+
 import scala.concurrent.duration._
 
-class CoLocationConstraintITCase(_system: ActorSystem) extends TestKit(_system) with
-ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll with WrapAsJava{
+class TaskManagerFailsWithSlotSharingITCase(_system: ActorSystem) extends TestKit(_system) with
+ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
+
   def this() = this(ActorSystem("TestingActorSystem", TestingUtils.testConfig))
 
-  /**
-   * This job runs in N slots with N senders and N receivers. Unless slot sharing is used,
-   * it cannot complete.
-   */
-  "The JobManager actor" must {
-    "support colocation constraints and slot sharing" in {
-      val num_tasks = 31
+  override def afterAll(): Unit = {
+    TestKit.shutdownActorSystem(system)
+  }
+
+  "The JobManager" should {
+    "handle task manager failures with slot sharing" in {
+      val num_tasks = 20
 
       val sender = new AbstractJobVertex("Sender")
       val receiver = new AbstractJobVertex("Receiver")
 
       sender.setInvokableClass(classOf[Sender])
-      receiver.setInvokableClass((classOf[Receiver]))
+      receiver.setInvokableClass(classOf[BlockingReceiver])
 
       sender.setParallelism(num_tasks)
       receiver.setParallelism(num_tasks)
-
       receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE)
 
-      val sharingGroup = new SlotSharingGroup(sender.getID, receiver.getID)
+      val sharingGroup = new SlotSharingGroup()
       sender.setSlotSharingGroup(sharingGroup)
       receiver.setSlotSharingGroup(sharingGroup)
 
-      receiver.setStrictlyCoLocatedWith(sender)
+      val jobGraph = new JobGraph("Pointwise Job", sender, receiver)
+      val jobID = jobGraph.getJobID
 
-      val jobGraph = new JobGraph("Pointwise job", sender, receiver)
-
-      val cluster = TestingUtils.startTestingCluster(num_tasks)
+      val cluster = TestingUtils.startTestingCluster(num_tasks/2, 2)
       val jm = cluster.getJobManager
+      val taskManagers = cluster.getTaskManagers
 
-      try {
+      try{
         within(1 second) {
           jm ! SubmitJob(jobGraph)
-          expectMsg(JobSubmissionResult(JobResult.SUCCESS, null))
+          expectMsg(new JobSubmissionResult(JobResult.SUCCESS, null))
+
+          jm ! WaitForAllVerticesToBeRunning(jobID)
+          expectMsg(AllVerticesRunning(jobID))
+
+          //kill task manager
+          taskManagers.get(0) ! PoisonPill
 
           jm ! RequestJobStatusWhenTerminated(jobGraph.getJobID)
-          expectMsg(CurrentJobStatus(jobGraph.getJobID, JobStatus.FINISHED))
+
+          expectMsg(CurrentJobStatus(jobID, JobStatus.FAILED))
         }
-      } finally {
+      }finally{
         cluster.stop()
       }
     }

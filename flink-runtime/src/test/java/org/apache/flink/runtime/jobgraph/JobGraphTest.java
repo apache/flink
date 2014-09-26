@@ -54,8 +54,8 @@ public class JobGraphTest {
 			}
 			
 			// de-/serialize and compare
-			JobGraph copy = CommonTestUtils.createCopyWritable(jg);
-			
+			JobGraph copy = CommonTestUtils.createCopySerializable(jg);
+
 			assertEquals(jg.getName(), copy.getName());
 			assertEquals(jg.getJobID(), copy.getJobID());
 			assertEquals(jg.getJobConfiguration(), copy.getJobConfiguration());

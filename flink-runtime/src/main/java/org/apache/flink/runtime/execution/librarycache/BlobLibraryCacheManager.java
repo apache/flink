@@ -32,8 +32,6 @@ import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.BlobService;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -73,14 +71,10 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public BlobLibraryCacheManager(BlobService blobService, Configuration configuration){
 		this.blobService = blobService;
 
 		// Initializing the clean up task
 		Timer timer = new Timer(true);
-		long cleanupInterval = configuration.getLong(
-				ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL,
-				ConfigConstants.DEFAULT_LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL)*1000;
 		timer.schedule(this, cleanupInterval);
 	}
 

@@ -18,11 +18,8 @@
 
 package org.apache.flink.runtime.deployment;
 
-import java.io.IOException;
+import java.io.Serializable;
 
-import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.executiongraph.ExecutionEdge;
 import org.apache.flink.runtime.io.network.channels.ChannelID;
 
@@ -30,7 +27,7 @@ import org.apache.flink.runtime.io.network.channels.ChannelID;
  * A channel deployment descriptor contains all the information necessary to deploy either an input or an output channel
  * as part of a task on a task manager.
  */
-public final class ChannelDeploymentDescriptor implements IOReadableWritable {
+public final class ChannelDeploymentDescriptor implements Serializable {
 
 	/** The ID of the output channel. */
 	private final ChannelID outputChannelID;
@@ -59,20 +56,6 @@ public final class ChannelDeploymentDescriptor implements IOReadableWritable {
 	public ChannelDeploymentDescriptor() {
 		this.outputChannelID = new ChannelID();
 		this.inputChannelID = new ChannelID();
-	}
-
-
-	@Override
-	public void write(DataOutputView out) throws IOException {
-		this.outputChannelID.write(out);
-		this.inputChannelID.write(out);
-	}
-
-
-	@Override
-	public void read(DataInputView in) throws IOException {
-		this.outputChannelID.read(in);
-		this.inputChannelID.read(in);
 	}
 
 	/**

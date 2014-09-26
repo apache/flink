@@ -56,7 +56,7 @@ public class TaskDeploymentDescriptorTest {
 				indexInSubtaskGroup, currentNumberOfSubtasks, jobConfiguration, taskConfiguration,
 				invokableClass.getName(), outputGates, inputGates, requiredJars, 47);
 	
-			final TaskDeploymentDescriptor copy = CommonTestUtils.createCopyWritable(orig);
+			final TaskDeploymentDescriptor copy = CommonTestUtils.createCopySerializable(orig);
 	
 			assertFalse(orig.getJobID() == copy.getJobID());
 			assertFalse(orig.getVertexID() == copy.getVertexID());

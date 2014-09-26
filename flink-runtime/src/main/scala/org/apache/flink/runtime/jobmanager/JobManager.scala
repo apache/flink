@@ -18,22 +18,24 @@
 
 package org.apache.flink.runtime.jobmanager
 
-import java.io.{FileNotFoundException, File}
+import java.io.File
 import java.net.{InetSocketAddress}
 
 import akka.actor._
+import akka.pattern.Patterns
 import com.google.common.base.Preconditions
 import org.apache.flink.configuration.{ConfigConstants, GlobalConfiguration, Configuration}
 import org.apache.flink.core.io.InputSplitAssigner
 import org.apache.flink.runtime.accumulators.AccumulatorEvent
+import org.apache.flink.runtime.blob.BlobServer
 import org.apache.flink.runtime.io.network.ConnectionInfoLookupResponse
-import org.apache.flink.runtime.messages.ExecutionGraphMessages.{JobStatusFound,
+import org.apache.flink.runtime.messages.ExecutionGraphMessages.{JobNotFound, CurrentJobStatus,
 JobStatusChanged}
 import org.apache.flink.runtime.messages.JobResult
 import org.apache.flink.runtime.messages.JobResult.{JobCancelResult, JobSubmissionResult}
 import org.apache.flink.runtime.{JobException, ActorLogMessages}
 import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager
+import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.executiongraph.{ExecutionJobVertex, ExecutionGraph}
 import org.apache.flink.runtime.instance.{InstanceManager}
 import org.apache.flink.runtime.jobgraph.{JobStatus, JobID}
@@ -49,9 +51,10 @@ import org.slf4j.LoggerFactory
 
 import scala.collection.convert.WrapAsScala
 import scala.concurrent.Future
+import scala.concurrent.duration._
 
 class JobManager(val archiveCount: Int, val profiling: Boolean, val recommendedPollingInterval:
-Int) extends Actor with ActorLogMessages with ActorLogging with WrapAsScala {
+Int, cleanupInterval: Long) extends Actor with ActorLogMessages with ActorLogging with WrapAsScala {
 
   import context._
 
@@ -73,6 +76,7 @@ Int) extends Actor with ActorLogMessages with ActorLogging with WrapAsScala {
   val accumulatorManager = new AccumulatorManager(Math.min(1, archiveCount))
   val instanceManager = new InstanceManager()
   val scheduler = new FlinkScheduler()
+  val libraryCacheManager = new BlobLibraryCacheManager(new BlobServer(), cleanupInterval)
   val webserver = null
 
   val currentJobs = scala.collection.concurrent.TrieMap[JobID, ExecutionGraph]()
@@ -88,6 +92,7 @@ Int) extends Actor with ActorLogMessages with ActorLogging with WrapAsScala {
     log.info(s"Stopping job manager ${self.path}.")
     instanceManager.shutdown()
     scheduler.shutdown()
+    libraryCacheManager.shutdown()
   }
 
   override def receiveWithLogMessages: Receive = {
@@ -96,7 +101,7 @@ Int) extends Actor with ActorLogMessages with ActorLogging with WrapAsScala {
       val instanceID = instanceManager.registerTaskManager(taskManager, connectionInfo,
         hardwareInformation, numberOfSlots)
       context.watch(taskManager);
-      taskManager ! AcknowledgeRegistration(instanceID)
+      taskManager ! AcknowledgeRegistration(instanceID, libraryCacheManager.getBlobServerPort)
     }
 
     case RequestNumberRegisteredTaskManager => {
@@ -108,7 +113,7 @@ Int) extends Actor with ActorLogMessages with ActorLogging with WrapAsScala {
     }
 
     case SubmitJob(jobGraph) => {
-      var success = false
+      var executionGraph: ExecutionGraph = null
 
       try {
         if (jobGraph == null) {
@@ -117,39 +122,30 @@ Int) extends Actor with ActorLogMessages with ActorLogging with WrapAsScala {
 
           log.info(s"Received job ${jobGraph.getJobID} (${jobGraph.getName}}).")
 
-          val executionGraph = currentJobs.getOrElseUpdate(jobGraph.getJobID(),
-            new ExecutionGraph(jobGraph.getJobID,
-            jobGraph.getName, jobGraph.getJobConfiguration))
+          // Create the user code class loader
+          libraryCacheManager.register(jobGraph.getJobID, jobGraph.getUserJarBlobKeys)
 
-          val userCodeLoader = LibraryCacheManager.getClassLoader(jobGraph.getJobID)
+          executionGraph = currentJobs.getOrElseUpdate(jobGraph.getJobID(),
+            new ExecutionGraph(jobGraph.getJobID,
+            jobGraph.getName, jobGraph.getJobConfiguration, jobGraph.getUserJarBlobKeys))
+
+          val userCodeLoader = libraryCacheManager.getClassLoader(jobGraph.getJobID)
 
           if (userCodeLoader == null) {
             throw new JobException("The user code class loader could not be initialized.")
           }
 
-          val jarFilesForJob = LibraryCacheManager.getRequiredJarFiles(jobGraph.getJobID)
-
-          jarFilesForJob foreach {
-            executionGraph.addUserCodeJarFile(_)
-          }
-
           log.debug(s"Running master initialization of job ${jobGraph.getJobID} (${jobGraph
             .getName}).")
 
-          try {
-            for (vertex <- jobGraph.getVertices) {
-              val executableClass = vertex.getInvokableClassName
-              if (executableClass == null || executableClass.length == 0) {
-                throw new JobException(s"The vertex ${vertex.getID} (${vertex.getName}) has no " +
-                  s"invokable class.")
-              }
-
-              vertex.initializeOnMaster(userCodeLoader)
+          for (vertex <- jobGraph.getVertices) {
+            val executableClass = vertex.getInvokableClassName
+            if (executableClass == null || executableClass.length == 0) {
+              throw new JobException(s"The vertex ${vertex.getID} (${vertex.getName}) has no " +
+                s"invokable class.")
             }
-          } catch {
-            case e: FileNotFoundException =>
-              log.error(s"File not found: ${e.getMessage}.")
-              JobSubmissionResult(JobResult.ERROR, e.getMessage)
+
+            vertex.initializeOnMaster(userCodeLoader)
           }
 
           // topological sorting of the job vertices
@@ -163,6 +159,10 @@ Int) extends Actor with ActorLogMessages with ActorLogging with WrapAsScala {
           log.debug(s"Successfully created execution graph from job graph ${jobGraph.getJobID} " +
             s"(${jobGraph.getName}).")
 
+          // should the job fail if a vertex cannot be deployed immediately (streams,
+          // closed iterations)
+          executionGraph.setQueuedSchedulingAllowed(jobGraph.getAllowQueuedScheduling)
+
           eventCollector ! RegisterJob(executionGraph, false, System.currentTimeMillis())
 
           executionGraph.registerJobStatusListener(self)
@@ -171,25 +171,25 @@ Int) extends Actor with ActorLogMessages with ActorLogging with WrapAsScala {
 
           executionGraph.scheduleForExecution(scheduler)
 
-          success = true
-          JobSubmissionResult(JobResult.SUCCESS, null)
+          sender() ! JobSubmissionResult(JobResult.SUCCESS, null)
         }
       } catch {
         case t: Throwable =>
           log.error(t, "Job submission failed.")
-          JobSubmissionResult(JobResult.ERROR, StringUtils.stringifyException(t))
-      } finally {
-        if (!success) {
-          this.currentJobs.remove(jobGraph.getJobID)
+          if(executionGraph != null){
+            executionGraph.fail(t)
 
-          try {
-            LibraryCacheManager.unregister(jobGraph.getJobID)
-          } catch {
-            case e: IllegalStateException =>
-            case t: Throwable =>
-              log.error(t, "Error while de-registering job at library cache manager.")
+            val status = Patterns.ask(self, RequestJobStatusWhenTerminated, 10 second)
+            status.onFailure{
+              case _: Throwable => self ! JobStatusChanged(executionGraph, JobStatus.FAILED,
+                s"Cleanup job ${jobGraph.getJobID}.")
+            }
+          }else {
+            libraryCacheManager.unregister(jobGraph.getJobID)
+            currentJobs.remove(jobGraph.getJobID)
           }
-        }
+
+          sender() ! JobSubmissionResult(JobResult.ERROR, StringUtils.stringifyException(t))
       }
     }
 
@@ -201,10 +201,10 @@ Int) extends Actor with ActorLogMessages with ActorLogging with WrapAsScala {
           Future {
             executionGraph.cancel()
           }
-          JobCancelResult(JobResult.SUCCESS, null)
+          sender() ! JobCancelResult(JobResult.SUCCESS, null)
         case None =>
           log.info(s"No job found with ID ${jobID}.")
-          JobCancelResult(JobResult.ERROR, s"Cannot find job with ID ${jobID}")
+          sender() ! JobCancelResult(JobResult.ERROR, s"Cannot find job with ID ${jobID}")
       }
     }
 
@@ -252,13 +252,13 @@ Int) extends Actor with ActorLogMessages with ActorLogging with WrapAsScala {
         jobTerminationListener.get(jobID) foreach {
           listeners =>
             listeners foreach {
-              _ ! JobStatusFound(jobID, newJobStatus)
+              _ ! CurrentJobStatus(jobID, newJobStatus)
             }
         }
         currentJobs.remove(jobID)
 
         try {
-          LibraryCacheManager.unregister(jobID)
+          libraryCacheManager.unregister(jobID)
         } catch {
           case t: Throwable =>
             log.error(t, s"Could not properly unregister job ${jobID} form the library cache.")
@@ -280,7 +280,7 @@ Int) extends Actor with ActorLogMessages with ActorLogging with WrapAsScala {
     case ReportAccumulatorResult(accumulatorEvent) => {
       accumulatorManager.processIncomingAccumulators(accumulatorEvent.getJobID,
         accumulatorEvent.getAccumulators
-        (LibraryCacheManager.getClassLoader(accumulatorEvent.getJobID)))
+        (libraryCacheManager.getClassLoader(accumulatorEvent.getJobID)))
     }
 
     case RequestAccumulatorResult(jobID) => {
@@ -291,8 +291,10 @@ Int) extends Actor with ActorLogMessages with ActorLogging with WrapAsScala {
       currentJobs.get(jobID) match {
         case Some(executionGraph) =>
           executionGraph.registerJobStatusListener(sender())
+          sender() ! CurrentJobStatus(jobID, executionGraph.getState)
         case None =>
           log.warning(s"There is no running job with job ID ${jobID}.")
+          sender() ! JobNotFound(jobID)
       }
     }
 
@@ -307,7 +309,7 @@ Int) extends Actor with ActorLogMessages with ActorLogging with WrapAsScala {
 
     case RequestJobStatus(jobID) => {
       currentJobs.get(jobID) match {
-        case Some(executionGraph) => sender() ! JobStatusFound(jobID, executionGraph.getState)
+        case Some(executionGraph) => sender() ! CurrentJobStatus(jobID, executionGraph.getState)
         case None => eventCollector.tell(RequestJobStatus(jobID), sender())
       }
     }
@@ -318,6 +320,14 @@ Int) extends Actor with ActorLogMessages with ActorLogging with WrapAsScala {
 
     case msg: RequestJobProgress => {
       eventCollector forward msg
+    }
+
+    case RequestBlobManagerPort => {
+      sender() ! libraryCacheManager.getBlobServerPort
+    }
+
+    case RequestPollingInterval => {
+      sender() ! recommendedPollingInterval
     }
 
     case Heartbeat(instanceID) => {
@@ -380,7 +390,7 @@ object JobManager {
     (actorSystem, (startActor _).tupled(parseConfiguration(configuration)))
   }
 
-  def parseConfiguration(configuration: Configuration): (Int, Boolean, Int) = {
+  def parseConfiguration(configuration: Configuration): (Int, Boolean, Int, Long) = {
     val archiveCount = configuration.getInteger(ConfigConstants.JOB_MANAGER_WEB_ARCHIVE_COUNT,
       ConfigConstants.DEFAULT_JOB_MANAGER_WEB_ARCHIVE_COUNT)
     val profilingEnabled = configuration.getBoolean(ProfilingUtils.PROFILE_JOB_KEY, true)
@@ -388,7 +398,11 @@ object JobManager {
       .JOBCLIENT_POLLING_INTERVAL_KEY,
       ConfigConstants.DEFAULT_JOBCLIENT_POLLING_INTERVAL)
 
-    (archiveCount, profilingEnabled, recommendedPollingInterval)
+    val cleanupInterval = configuration.getLong(ConfigConstants
+      .LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL,
+      ConfigConstants.DEFAULT_LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL) * 1000
+
+    (archiveCount, profilingEnabled, recommendedPollingInterval, cleanupInterval)
   }
 
   def startActorWithConfiguration(configuration: Configuration)(implicit actorSystem:
@@ -396,11 +410,12 @@ object JobManager {
     (startActor _).tupled(parseConfiguration(configuration))
   }
 
-  def startActor(archiveCount: Int, profilingEnabled: Boolean, recommendedPollingInterval: Int)
+  def startActor(archiveCount: Int, profilingEnabled: Boolean, recommendedPollingInterval: Int,
+                 cleanupInterval: Long)
                 (implicit actorSystem:
   ActorSystem): ActorRef = {
     actorSystem.actorOf(Props(classOf[JobManager], archiveCount, profilingEnabled,
-      recommendedPollingInterval),
+      recommendedPollingInterval, cleanupInterval),
       JOB_MANAGER_NAME)
   }
 

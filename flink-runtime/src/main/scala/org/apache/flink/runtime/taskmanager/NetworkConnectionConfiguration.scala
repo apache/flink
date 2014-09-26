@@ -18,5 +18,14 @@
 
 package org.apache.flink.runtime.taskmanager
 
-case class NetworkConnectionConfiguration(numBuffers: Int, bufferSize: Int, numInThreads: Int,
-                                          numOutThreads: Int, lowWaterMark: Int, highWaterMark: Int)
+sealed trait NetworkConnectionConfiguration{
+  def numBuffers: Int
+  def bufferSize: Int
+}
+
+case class LocalNetworkConfiguration(numBuffers: Int,
+                                     bufferSize: Int) extends NetworkConnectionConfiguration
+
+case class ClusterNetworkConfiguration(numBuffers: Int, bufferSize: Int, numInThreads: Int,
+                                       numOutThreads: Int, lowWaterMark: Int,
+                                       highWaterMark: Int) extends NetworkConnectionConfiguration

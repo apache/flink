@@ -38,6 +38,7 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Props;
 import akka.testkit.JavaTestKit;
+import akka.testkit.TestActorRef;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -49,7 +50,7 @@ import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.operators.RegularPactTask;
-import org.apache.flink.runtime.taskmanager.TaskOperationResult;
+import org.apache.flink.runtime.messages.TaskManagerMessages.TaskOperationResult;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -75,6 +76,7 @@ public class ExecutionGraphDeploymentTest {
 	@Test
 	public void testBuildDeploymentDescriptor() {
 		try {
+			TestingUtils.setCallingThreadDispatcher(system);
 			final JobID jobId = new JobID();
 			
 			final JobVertexID jid1 = new JobVertexID();
@@ -101,17 +103,8 @@ public class ExecutionGraphDeploymentTest {
 			v3.connectNewDataSetAsInput(v2, DistributionPattern.BIPARTITE);
 			v4.connectNewDataSetAsInput(v2, DistributionPattern.BIPARTITE);
 			
-			ExecutionGraph eg = spy(new ExecutionGraph(jobId, "some job", new Configuration()));
-			doAnswer(new Answer<Void>() {
-				@Override
-				public Void answer(InvocationOnMock invocation) {
-					final Runnable parameter = (Runnable) invocation.getArguments()[0];
-					parameter.run();
-					return null;
-				}
-				
-			}).when(eg).execute(Matchers.any(Runnable.class));
-			
+			ExecutionGraph eg = new ExecutionGraph(jobId, "some job", new Configuration());
+
 			List<AbstractJobVertex> ordered = Arrays.asList(v1, v2, v3, v4);
 			
 			eg.attachJobGraph(ordered);
@@ -121,8 +114,10 @@ public class ExecutionGraphDeploymentTest {
 			
 			// just some reference (needs not be atomic)
 			final AtomicReference<TaskDeploymentDescriptor> reference = new AtomicReference<TaskDeploymentDescriptor>();
-			
-			final ActorRef simpleTaskManager = system.actorOf(Props.create(ExecutionGraphTestUtils
+
+			// create synchronous task manager
+			final TestActorRef simpleTaskManager = TestActorRef.create(system,
+					Props.create(ExecutionGraphTestUtils
 					.SimpleAcknowledgingTaskManager.class));
 
 			final Instance instance = spy(getInstance(simpleTaskManager));
@@ -164,6 +159,8 @@ public class ExecutionGraphDeploymentTest {
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
+		}finally{
+			TestingUtils.setGlobalExecutionContext();
 		}
 	}
 	

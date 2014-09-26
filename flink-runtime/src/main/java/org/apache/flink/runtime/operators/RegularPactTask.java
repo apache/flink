@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.operators;
 
 import akka.actor.ActorRef;
+import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.accumulators.Accumulator;
@@ -583,7 +584,9 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		}
 
 		// Report accumulators to JobManager
-		env.getAccumulator().tell(new AccumulatorEvent(env.getJobID(), accumulators), ActorRef.noSender());
+		env.getAccumulator().tell(new JobManagerMessages.ReportAccumulatorResult(new
+				AccumulatorEvent(env.getJobID(), AccumulatorHelper.copy(accumulators))),
+				ActorRef.noSender());
 
 		// We also clear the accumulators, since stub instances might be reused
 		// (e.g. in iterations) and we don't want to count twice. This may not be

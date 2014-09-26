@@ -413,10 +413,6 @@ public class ExecutionVertex {
 	//  Utilities
 	// --------------------------------------------------------------------------------------------
 	
-	public void execute(Runnable action) {
-		this.jobVertex.execute(action);
-	}
-	
 	/**
 	 * Creates a simple name representation in the style 'taskname (x/y)', where
 	 * 'taskname' is the name as returned by {@link #getTaskName()}, 'x' is the parallel

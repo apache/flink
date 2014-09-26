@@ -24,6 +24,7 @@ import static org.mockito.Mockito.mock;
 
 import java.io.IOException;
 
+import akka.testkit.TestActorRef;
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Props;
@@ -33,15 +34,13 @@ import akka.japi.Creator;
 import akka.testkit.JavaTestKit;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheProfileResponse;
 import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
-import org.apache.flink.runtime.taskmanager.TaskOperationResult;
-
+import org.apache.flink.runtime.messages.TaskManagerMessages.TaskOperationResult;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -69,7 +68,7 @@ public class ExecutionVertexCancelTest {
 	public void testCancelFromCreated() {
 		try {
 			final JobVertexID jid = new JobVertexID();
-			final ExecutionJobVertex ejv = getJobVertexNotExecuting(jid);
+			final ExecutionJobVertex ejv = getExecutionVertex(jid);
 			
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
 			
@@ -95,7 +94,7 @@ public class ExecutionVertexCancelTest {
 	public void testCancelFromScheduled() {
 		try {
 			final JobVertexID jid = new JobVertexID();
-			final ExecutionJobVertex ejv = getJobVertexNotExecuting(jid);
+			final ExecutionJobVertex ejv = getExecutionVertex(jid);
 			
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
 			
@@ -125,7 +124,10 @@ public class ExecutionVertexCancelTest {
 				final JobVertexID jid = new JobVertexID();
 				final ActionQueue actions = new ActionQueue();
 
-				final ExecutionJobVertex ejv = getJobVertexExecutingTriggered(jid, actions);
+				TestingUtils.setExecutionContext(new TestingUtils.QueuedActionExecutionContext(
+						actions));
+
+				final ExecutionJobVertex ejv = getExecutionVertex(jid);
 
 				final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
 				final ExecutionAttemptID execId = vertex.getCurrentExecutionAttempt().getAttemptId();
@@ -140,6 +142,7 @@ public class ExecutionVertexCancelTest {
 				AllocatedSlot slot = instance.allocateSlot(new JobID());
 
 				vertex.deployToSlot(slot);
+
 
 				assertEquals(ExecutionState.DEPLOYING, vertex.getExecutionState());
 
@@ -178,6 +181,8 @@ public class ExecutionVertexCancelTest {
 			}catch(Exception e){
 				e.printStackTrace();
 				fail(e.getMessage());
+			}finally{
+				TestingUtils.setGlobalExecutionContext();
 			}
 		}};
 	}
@@ -190,7 +195,10 @@ public class ExecutionVertexCancelTest {
 					final JobVertexID jid = new JobVertexID();
 					final ActionQueue actions = new ActionQueue();
 
-					final ExecutionJobVertex ejv = getJobVertexExecutingTriggered(jid, actions);
+					TestingUtils.setExecutionContext(new TestingUtils
+							.QueuedActionExecutionContext(actions));
+
+					final ExecutionJobVertex ejv = getExecutionVertex(jid);
 
 					final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
 					final ExecutionAttemptID execId = vertex.getCurrentExecutionAttempt().getAttemptId();
@@ -247,6 +255,8 @@ public class ExecutionVertexCancelTest {
 				} catch (Exception e) {
 					e.printStackTrace();
 					fail(e.getMessage());
+				}finally{
+					TestingUtils.setGlobalExecutionContext();
 				}
 			}
 		};
@@ -257,14 +267,16 @@ public class ExecutionVertexCancelTest {
 		new JavaTestKit(system) {
 			{
 				try {
+					TestingUtils.setCallingThreadDispatcher(system);
 					final JobVertexID jid = new JobVertexID();
-					final ExecutionJobVertex ejv = getJobVertexExecutingSynchronously(jid);
+					final ExecutionJobVertex ejv = getExecutionVertex(jid);
 
 					final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
 					final ExecutionAttemptID execId = vertex.getCurrentExecutionAttempt().getAttemptId();
 
-					final ActorRef taskManager = system.actorOf(Props.create(new CancelSequenceTaskManagerCreator(new
-					TaskOperationResult(execId, true))));
+					final TestActorRef taskManager = TestActorRef.create(system,
+							Props.create(new CancelSequenceTaskManagerCreator(new
+									TaskOperationResult(execId, true))));
 
 					Instance instance = getInstance(taskManager);
 					AllocatedSlot slot = instance.allocateSlot(new JobID());
@@ -289,6 +301,8 @@ public class ExecutionVertexCancelTest {
 				} catch (Exception e) {
 					e.printStackTrace();
 					fail(e.getMessage());
+				}finally{
+					TestingUtils.setGlobalExecutionContext();
 				}
 			}
 		};
@@ -299,13 +313,16 @@ public class ExecutionVertexCancelTest {
 		new JavaTestKit(system) {
 			{
 				try {
+					TestingUtils.setCallingThreadDispatcher(system);
+
 					final JobVertexID jid = new JobVertexID();
-					final ExecutionJobVertex ejv = getJobVertexExecutingSynchronously(jid);
+					final ExecutionJobVertex ejv = getExecutionVertex(jid);
 
 					final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
 					final ExecutionAttemptID execId = vertex.getCurrentExecutionAttempt().getAttemptId();
 
-					final ActorRef taskManager = system.actorOf(Props.create(new CancelSequenceTaskManagerCreator(new
+					final ActorRef taskManager = TestActorRef.create(system, Props.create(new
+							CancelSequenceTaskManagerCreator(new
 							TaskOperationResult(execId, true))));
 
 					Instance instance = getInstance(taskManager);
@@ -339,6 +356,8 @@ public class ExecutionVertexCancelTest {
 				} catch (Exception e) {
 					e.printStackTrace();
 					fail(e.getMessage());
+				}finally{
+					TestingUtils.setGlobalExecutionContext();
 				}
 			}
 		};
@@ -350,13 +369,15 @@ public class ExecutionVertexCancelTest {
 		new JavaTestKit(system) {
 			{
 				try {
+					TestingUtils.setCallingThreadDispatcher(system);
 					final JobVertexID jid = new JobVertexID();
-					final ExecutionJobVertex ejv = getJobVertexExecutingSynchronously(jid);
+					final ExecutionJobVertex ejv = getExecutionVertex(jid);
 
 					final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
 					final ExecutionAttemptID execId = vertex.getCurrentExecutionAttempt().getAttemptId();
 
-					final ActorRef taskManager = system.actorOf(Props.create(new CancelSequenceTaskManagerCreator(new
+					final ActorRef taskManager = TestActorRef.create(system,Props.create(new
+							CancelSequenceTaskManagerCreator(new
 							TaskOperationResult(execId, false))));
 
 					Instance instance = getInstance(taskManager);
@@ -378,6 +399,8 @@ public class ExecutionVertexCancelTest {
 				} catch (Exception e) {
 					e.printStackTrace();
 					fail(e.getMessage());
+				}finally{
+					TestingUtils.setGlobalExecutionContext();
 				}
 			}
 		};
@@ -388,12 +411,14 @@ public class ExecutionVertexCancelTest {
 		new JavaTestKit(system) {
 			{
 				try {
+					TestingUtils.setCallingThreadDispatcher(system);
 					final JobVertexID jid = new JobVertexID();
-					final ExecutionJobVertex ejv = getJobVertexExecutingSynchronously(jid);
+					final ExecutionJobVertex ejv = getExecutionVertex(jid);
 
 					final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
 
-					final ActorRef taskManager = system.actorOf(Props.create(new CancelSequenceTaskManagerCreator()));
+					final ActorRef taskManager = TestActorRef.create(system, Props.create(new
+							CancelSequenceTaskManagerCreator()));
 
 					Instance instance = getInstance(taskManager);
 					AllocatedSlot slot = instance.allocateSlot(new JobID());
@@ -417,6 +442,8 @@ public class ExecutionVertexCancelTest {
 				} catch (Exception e) {
 					e.printStackTrace();
 					fail(e.getMessage());
+				}finally{
+					TestingUtils.setGlobalExecutionContext();
 				}
 			}
 		};
@@ -428,7 +455,7 @@ public class ExecutionVertexCancelTest {
 			{
 				try {
 					final JobVertexID jid = new JobVertexID();
-					final ExecutionJobVertex ejv = getJobVertexNotExecuting(jid);
+					final ExecutionJobVertex ejv = getExecutionVertex(jid);
 
 					final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
 					final ExecutionAttemptID execId = vertex.getCurrentExecutionAttempt().getAttemptId();
@@ -470,8 +497,8 @@ public class ExecutionVertexCancelTest {
 	public void testScheduleOrDeployAfterCancel() {
 		try {
 			final JobVertexID jid = new JobVertexID();
-			final ExecutionJobVertex ejv = getJobVertexNotExecuting(jid);
-			
+			final ExecutionJobVertex ejv = getExecutionVertex(jid);
+
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
 			setVertexState(vertex, ExecutionState.CANCELED);
 			
@@ -512,7 +539,7 @@ public class ExecutionVertexCancelTest {
 		
 		try {
 			final JobVertexID jid = new JobVertexID();
-			final ExecutionJobVertex ejv = getJobVertexNotExecuting(jid);
+			final ExecutionJobVertex ejv = getExecutionVertex(jid);
 			
 			// scheduling while canceling is an illegal state transition
 			try {
@@ -599,17 +626,6 @@ public class ExecutionVertexCancelTest {
 				}else {
 					getSender().tell(results[index], getSelf());
 				}
-			}else if(message instanceof TaskManagerMessages.RequestLibraryCacheProfile){
-				TaskManagerMessages.RequestLibraryCacheProfile request = (TaskManagerMessages
-						.RequestLibraryCacheProfile) message;
-
-				LibraryCacheProfileResponse response = new LibraryCacheProfileResponse(request.request());
-
-				for(int i = 0; i < request.request().getRequiredLibraries().length; i++){
-					response.setCached(i, true);
-				}
-
-				getSender().tell(response, getSelf());
 			}
 		}
 	}

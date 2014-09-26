@@ -20,17 +20,18 @@ package org.apache.flink.runtime.messages
 
 import org.apache.flink.core.io.InputSplit
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheProfileRequest
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
 import org.apache.flink.runtime.instance.InstanceID
-import org.apache.flink.runtime.jobgraph.JobVertexID
 
 object TaskManagerMessages {
-  case class RequestLibraryCacheProfile(request: LibraryCacheProfileRequest)
   case class CancelTask(attemptID: ExecutionAttemptID)
   case class SubmitTask(tasks: TaskDeploymentDescriptor)
   case class NextInputSplit(inputSplit: InputSplit)
   case class UnregisterTask(executionID: ExecutionAttemptID)
+  case class TaskOperationResult(executionID: ExecutionAttemptID, success: Boolean,
+                                 description: String = ""){
+    def this(executionID: ExecutionAttemptID, success: Boolean) = this(executionID, success, "")
+  }
 
   case class Heartbeat(instanceID: InstanceID)
 

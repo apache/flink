@@ -170,4 +170,17 @@ object Tasks {
       o.synchronized(o.wait())
     }
   }
+
+  class BlockingReceiver extends AbstractInvokable {
+    override def registerInputOutput(): Unit = {
+      new RecordReader[IntegerRecord](this, classOf[IntegerRecord])
+    }
+
+    override def invoke(): Unit = {
+      val o = new Object
+      o.synchronized(
+        o.wait()
+      )
+    }
+  }
 }

@@ -19,8 +19,7 @@
 package org.apache.flink.runtime.jobgraph;
 
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -36,19 +35,15 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataInputViewStream;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.core.memory.DataOutputViewStream;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.BlobKey;
-import org.apache.flink.types.StringValue;
 
 /**
  * A job graph represents an entire Flink runtime job.
  */
-public class JobGraph implements IOReadableWritable {
+public class JobGraph implements Serializable {
 
 	// --------------------------------------------------------------------------------------------
 	// Members that define the structure / topology of the graph
@@ -337,63 +332,9 @@ public class JobGraph implements IOReadableWritable {
 			}
 		}
 	}
-	
-	// --------------------------------------------------------------------------------------------
-	//  Serialization / Deserialization
-	// --------------------------------------------------------------------------------------------
-	
-	@Override
-	public void read(DataInputView in) throws IOException {
-		// write the simple fields
-		this.jobID.read(in);
-		this.jobName = StringValue.readString(in);
-		this.jobConfiguration.read(in);
+
 		this.numExecutionRetries = in.readInt();
-		this.allowQueuedScheduling = in.readBoolean();
-		
-		final int numVertices = in.readInt();
-		
-		@SuppressWarnings("resource")
-		ObjectInputStream ois = new ObjectInputStream(new DataInputViewStream(in));
-		for (int i = 0; i < numVertices; i++) {
-			try {
-				AbstractJobVertex vertex = (AbstractJobVertex) ois.readObject();
-				taskVertices.put(vertex.getID(), vertex);
-			}
-			catch (ClassNotFoundException e) {
-				throw new IOException(e);
-			}
-		}
-		ois.close();
-
-		// Read required jar files
-		readJarBlobKeys(in);
-	}
-
-
-	@Override
-	public void write(DataOutputView out) throws IOException {
-		
-		// write the simple fields
-		this.jobID.write(out);
-		StringValue.writeString(this.jobName, out);
-		this.jobConfiguration.write(out);
 		out.writeInt(numExecutionRetries);
-		out.writeBoolean(allowQueuedScheduling);
-		
-		// write the task vertices using java serialization (to resolve references in the object graph)
-		out.writeInt(taskVertices.size());
-		
-		ObjectOutputStream oos = new ObjectOutputStream(new DataOutputViewStream(out));
-		for (AbstractJobVertex vertex : this.taskVertices.values()) {
-			oos.writeObject(vertex);
-		}
-		oos.close();
-		
-		// Write out all required jar files
-		writeJarBlobKeys(out);
-	}
-
 	/**
 	 * Writes the BLOB keys of the jar files required to run this job to the given {@link org.apache.flink.core.memory.DataOutputView}.
 	 *

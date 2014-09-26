@@ -59,4 +59,6 @@ object JobManagerMessages {
 
   case object RequestPollingInterval
 
+  case object RequestBlobManagerPort
+
 }

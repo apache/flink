@@ -19,6 +19,8 @@
 package org.apache.flink.test.recordJobs.wordcount;
 
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.Iterator;
 import java.util.Set;
@@ -43,8 +45,8 @@ import org.apache.flink.api.java.record.operators.ReduceOperator;
 import org.apache.flink.api.java.record.operators.ReduceOperator.Combinable;
 import org.apache.flink.client.LocalExecutor;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.core.memory.InputViewObjectInputStreamWrapper;
+import org.apache.flink.core.memory.OutputViewObjectOutputStreamWrapper;
 import org.apache.flink.runtime.util.SerializableHashSet;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
@@ -87,7 +89,6 @@ public class WordCountAccumulators implements Program, ProgramDescription {
 			// You could also write to accumulators in open() or close()
 		}
 
-		
 		@Override
 		public void map(Record record, Collector<Record> collector) {
 			
@@ -221,13 +222,22 @@ public class WordCountAccumulators implements Program, ProgramDescription {
 		}
 
 		@Override
-		public void write(DataOutputView out) throws IOException {
-			this.set.write(out);
+		public void write(ObjectOutputStream out) throws IOException {
+			this.set.write(new OutputViewObjectOutputStreamWrapper(out));
 		}
 
 		@Override
-		public void read(DataInputView in) throws IOException {
-			this.set.read(in);
+		public void read(ObjectInputStream in) throws IOException {
+			this.set.read(new InputViewObjectInputStreamWrapper(in));
+		}
+
+		@Override
+		public Accumulator<T, Set<T>> clone() {
+			SetAccumulator<T> result = new SetAccumulator<T>();
+
+			result.set.addAll(set);
+
+			return result;
 		}
 	}
 }

@@ -20,11 +20,8 @@
 package org.apache.flink.api.common.accumulators;
 
 import java.io.IOException;
-
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
-
-
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 
 public class LongCounter implements SimpleAccumulator<Long> {
 
@@ -53,15 +50,23 @@ public class LongCounter implements SimpleAccumulator<Long> {
 	}
 
 	@Override
-	public void write(DataOutputView out) throws IOException {
+	public void write(ObjectOutputStream out) throws IOException {
 		out.writeLong(this.localValue);
 	}
 
 	@Override
-	public void read(DataInputView in) throws IOException {
+	public void read(ObjectInputStream in) throws IOException {
 		this.localValue = in.readLong();
 	}
-	
+
+	@Override
+	public Accumulator<Long, Long> clone() {
+		LongCounter result = new LongCounter();
+		result.localValue = localValue;
+
+		return result;
+	}
+
 	@Override
 	public String toString() {
 		return "LongCounter object. Local value: " + this.localValue;

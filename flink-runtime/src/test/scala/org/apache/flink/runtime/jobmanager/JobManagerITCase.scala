@@ -28,7 +28,7 @@ import Tasks._
 import org.apache.flink.runtime.testingUtils.{TestingUtils, TestingJobManagerMessages}
 import TestingJobManagerMessages.{ExecutionGraphNotFound, ExecutionGraphFound,
 ResponseExecutionGraph, RequestExecutionGraph}
-import org.apache.flink.runtime.messages.ExecutionGraphMessages.JobStatusFound
+import org.apache.flink.runtime.messages.ExecutionGraphMessages.CurrentJobStatus
 import org.apache.flink.runtime.messages.JobManagerMessages.{RequestJobStatusWhenTerminated,
 SubmitJob, RequestAvailableSlots}
 import org.apache.flink.runtime.messages.JobResult
@@ -59,14 +59,13 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
         val availableSlots = AkkaUtils.ask[Int](jm, RequestAvailableSlots)
         availableSlots should equal(1)
 
-        LibraryCacheManager.register(jobGraph.getJobID, Array[String]())
         val result = AkkaUtils.ask[JobSubmissionResult](jm, SubmitJob(jobGraph))
 
         result.returnCode should equal(JobResult.ERROR)
 
         within(1 second) {
-          jm ! RequestJobStatusWhenTerminated
-          expectMsg(JobStatusFound(jobGraph.getJobID, JobStatus.FINISHED))
+          jm ! RequestJobStatusWhenTerminated(jobGraph.getJobID)
+          expectMsg(CurrentJobStatus(jobGraph.getJobID, JobStatus.FAILED))
         }
 
         val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
@@ -97,15 +96,13 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
         val availableSlots = AkkaUtils.ask[Int](jm, RequestAvailableSlots)
         availableSlots should equal(num_tasks)
 
-        LibraryCacheManager.register(jobGraph.getJobID, Array[String]())
-
         val result = AkkaUtils.ask[JobSubmissionResult](jm, SubmitJob(jobGraph))
 
         result.returnCode should equal(JobResult.SUCCESS)
 
         within(1 second) {
-          jm ! RequestJobStatusWhenTerminated
-          expectMsg(JobStatusFound(jobGraph.getJobID, JobStatus.FINISHED))
+          jm ! RequestJobStatusWhenTerminated(jobGraph.getJobID)
+          expectMsg(CurrentJobStatus(jobGraph.getJobID, JobStatus.FINISHED))
         }
 
         val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
@@ -135,16 +132,14 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       val jm = cluster.getJobManager
 
       try {
-        LibraryCacheManager.register(jobGraph.getJobID, Array[String]())
-
         within(1 second) {
           jm ! SubmitJob(jobGraph)
 
           expectMsg(JobSubmissionResult(JobResult.SUCCESS, null))
 
-          jm ! RequestJobStatusWhenTerminated
+          jm ! RequestJobStatusWhenTerminated(jobGraph.getJobID)
 
-          expectMsg(JobStatusFound(jobGraph.getJobID, JobStatus.FINISHED))
+          expectMsg(CurrentJobStatus(jobGraph.getJobID, JobStatus.FINISHED))
         }
 
         val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
@@ -179,16 +174,14 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       val jm = cluster.getJobManager
 
       try {
-        LibraryCacheManager.register(jobGraph.getJobID, Array[String]())
-
         within(1 second) {
           jm ! SubmitJob(jobGraph)
 
           expectMsg(JobSubmissionResult(JobResult.SUCCESS, null))
 
-          jm ! RequestJobStatusWhenTerminated
+          jm ! RequestJobStatusWhenTerminated(jobGraph.getJobID)
 
-          expectMsg(JobStatusFound(jobGraph.getJobID, JobStatus.FINISHED))
+          expectMsg(CurrentJobStatus(jobGraph.getJobID, JobStatus.FINISHED))
         }
 
         val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
@@ -220,16 +213,14 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       val jm = cluster.getJobManager
 
       try {
-        LibraryCacheManager.register(jobGraph.getJobID, Array[String]())
-
         within(1 second) {
           jm ! SubmitJob(jobGraph)
 
           expectMsg(JobSubmissionResult(JobResult.SUCCESS, null))
 
-          jm ! RequestJobStatusWhenTerminated
+          jm ! RequestJobStatusWhenTerminated(jobGraph.getJobID)
 
-          expectMsg(JobStatusFound(jobGraph.getJobID, JobStatus.FINISHED))
+          expectMsg(CurrentJobStatus(jobGraph.getJobID, JobStatus.FINISHED))
         }
 
         val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
@@ -268,16 +259,14 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       val jm = cluster.getJobManager
 
       try {
-        LibraryCacheManager.register(jobGraph.getJobID, Array[String]())
-
         within(1 second) {
           jm ! SubmitJob(jobGraph)
 
           expectMsg(JobSubmissionResult(JobResult.SUCCESS, null))
 
-          jm ! RequestJobStatusWhenTerminated
+          jm ! RequestJobStatusWhenTerminated(jobGraph.getJobID)
 
-          expectMsg(JobStatusFound(jobGraph.getJobID, JobStatus.FAILED))
+          expectMsg(CurrentJobStatus(jobGraph.getJobID, JobStatus.FAILED))
         }
 
         val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
@@ -316,16 +305,16 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       val jm = cluster.getJobManager
 
       try {
-        LibraryCacheManager.register(jobGraph.getJobID, Array[String]())
-
         within(1 second) {
           jm ! SubmitJob(jobGraph)
 
           expectMsg(JobSubmissionResult(JobResult.SUCCESS, null))
+        }
 
-          jm ! RequestJobStatusWhenTerminated
+        within(5 second){
+          jm ! RequestJobStatusWhenTerminated(jobGraph.getJobID)
 
-          expectMsg(JobStatusFound(jobGraph.getJobID, JobStatus.FINISHED))
+          expectMsg(CurrentJobStatus(jobGraph.getJobID, JobStatus.FINISHED))
         }
 
         val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
@@ -365,14 +354,12 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
           expectMsg(num_tasks)
         }
 
-        LibraryCacheManager.register(jobGraph.getJobID, Array[String]())
-
         within(1 second) {
           jm ! SubmitJob(jobGraph)
           expectMsg(JobSubmissionResult(JobResult.SUCCESS, null))
 
-          jm ! RequestJobStatusWhenTerminated
-          expectMsg(JobStatusFound(jobGraph.getJobID, JobStatus.FAILED))
+          jm ! RequestJobStatusWhenTerminated(jobGraph.getJobID)
+          expectMsg(CurrentJobStatus(jobGraph.getJobID, JobStatus.FAILED))
         }
 
         val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
@@ -412,14 +399,12 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
           expectMsg(num_tasks)
         }
 
-        LibraryCacheManager.register(jobGraph.getJobID, Array[String]())
-
         within(1 second) {
           jm ! SubmitJob(jobGraph)
           expectMsg(JobSubmissionResult(JobResult.SUCCESS, null))
 
-          jm ! RequestJobStatusWhenTerminated
-          expectMsg(JobStatusFound(jobGraph.getJobID, JobStatus.FAILED))
+          jm ! RequestJobStatusWhenTerminated(jobGraph.getJobID)
+          expectMsg(CurrentJobStatus(jobGraph.getJobID, JobStatus.FAILED))
         }
 
         val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
@@ -454,14 +439,12 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       val jm = cluster.getJobManager
 
       try {
-        LibraryCacheManager.register(jobGraph.getJobID, Array[String]())
-
         within(1 second) {
           jm ! SubmitJob(jobGraph)
           expectMsg(JobSubmissionResult(JobResult.SUCCESS, null))
 
-          jm ! RequestJobStatusWhenTerminated
-          expectMsg(JobStatusFound(jobGraph.getJobID, JobStatus.FAILED))
+          jm ! RequestJobStatusWhenTerminated(jobGraph.getJobID)
+          expectMsg(CurrentJobStatus(jobGraph.getJobID, JobStatus.FAILED))
         }
 
         val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
@@ -501,14 +484,12 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
           expectMsg(num_tasks)
         }
 
-        LibraryCacheManager.register(jobGraph.getJobID, Array[String]())
-
         within(1 second) {
           jm ! SubmitJob(jobGraph)
           expectMsg(JobSubmissionResult(JobResult.SUCCESS, null))
 
-          jm ! RequestJobStatusWhenTerminated
-          expectMsg(JobStatusFound(jobGraph.getJobID, JobStatus.FAILED))
+          jm ! RequestJobStatusWhenTerminated(jobGraph.getJobID)
+          expectMsg(CurrentJobStatus(jobGraph.getJobID, JobStatus.FAILED))
         }
 
         val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
@@ -548,14 +529,12 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
           expectMsg(num_tasks)
         }
 
-        LibraryCacheManager.register(jobGraph.getJobID, Array[String]())
-
         within(1 second) {
           jm ! SubmitJob(jobGraph)
           expectMsg(JobSubmissionResult(JobResult.SUCCESS, null))
 
-          jm ! RequestJobStatusWhenTerminated
-          expectMsg(JobStatusFound(jobGraph.getJobID, JobStatus.FAILED))
+          jm ! RequestJobStatusWhenTerminated(jobGraph.getJobID)
+          expectMsg(CurrentJobStatus(jobGraph.getJobID, JobStatus.FAILED))
         }
 
         val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,

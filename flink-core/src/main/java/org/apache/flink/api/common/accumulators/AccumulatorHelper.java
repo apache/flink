@@ -115,4 +115,15 @@ public class AccumulatorHelper {
 		accumulators.clear();
 	}
 
+	public static Map<String, Accumulator<?, ?>> copy(final Map<String, Accumulator<?,
+			?>> accumulators) {
+		Map<String, Accumulator<?, ?>> result = new HashMap<String, Accumulator<?, ?>>();
+
+		for(Map.Entry<String, Accumulator<?, ?>> entry: accumulators.entrySet()){
+			result.put(entry.getKey(), entry.getValue().clone());
+		}
+
+		return result;
+	}
+
 }

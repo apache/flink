@@ -18,26 +18,21 @@
 
 package org.apache.flink.runtime.deployment;
 
-import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.types.StringValue;
 
 /**
  * A task deployment descriptor contains all the information necessary to deploy a task on a task manager.
  */
-public final class TaskDeploymentDescriptor implements IOReadableWritable {
+public final class TaskDeploymentDescriptor implements Serializable {
 
 	/** The ID of the job the tasks belongs to. */
 	private final JobID jobID;
@@ -234,83 +229,4 @@ public final class TaskDeploymentDescriptor implements IOReadableWritable {
 	}
 
 	public List<BlobKey> getRequiredJarFiles() { return requiredJarFiles; }
-	
-	// --------------------------------------------------------------------------------------------
-	//  Serialization
-	// --------------------------------------------------------------------------------------------
-	
-	@Override
-	public void write(final DataOutputView out) throws IOException {
-		jobID.write(out);
-		vertexID.write(out);
-		executionId.write(out);
-
-		StringValue.writeString(taskName, out);
-		StringValue.writeString(invokableClassName, out);
-
-		out.writeInt(indexInSubtaskGroup);
-		out.writeInt(currentNumberOfSubtasks);
-		out.writeInt(targetSlotNumber);
-
-		jobConfiguration.write(out);
-		taskConfiguration.write(out);
-
-		writeGateList(inputGates, out);
-		writeGateList(outputGates, out);
-
-
-		// Write out the BLOB keys of the required JAR files
-		out.writeInt(this.requiredJarFiles.size());
-		for (final Iterator<BlobKey> it = this.requiredJarFiles.iterator(); it.hasNext(); ) {
-			it.next().write(out);
-		}
-	}
-
-	@Override
-	public void read(DataInputView in) throws IOException {
-		jobID.read(in);
-		vertexID.read(in);
-		executionId.read(in);
-		
-		taskName = StringValue.readString(in);
-		invokableClassName = StringValue.readString(in);
-		
-		indexInSubtaskGroup = in.readInt();
-		currentNumberOfSubtasks = in.readInt();
-		targetSlotNumber = in.readInt();
-		
-		jobConfiguration.read(in);
-		taskConfiguration.read(in);
-
-		inputGates = readGateList(in);
-		outputGates = readGateList(in);
-
-		// Read BLOB keys of required jar files
-		final int numberOfJarFiles = in.readInt();
-		for (int i = 0; i < numberOfJarFiles; ++i) {
-			final BlobKey key = new BlobKey();
-			key.read(in);
-			this.requiredJarFiles.add(key);
-		}
-	}
-	
-	private static final void writeGateList(List<GateDeploymentDescriptor> list, DataOutputView out) throws IOException {
-		out.writeInt(list.size());
-		for (GateDeploymentDescriptor gdd : list) {
-			gdd.write(out);
-		}
-	}
-	
-	private static final List<GateDeploymentDescriptor> readGateList(DataInputView in) throws IOException {
-		final int len = in.readInt();
-		ArrayList<GateDeploymentDescriptor> list = new ArrayList<GateDeploymentDescriptor>(len);
-		
-		for (int i = 0; i < len; i++) {
-			GateDeploymentDescriptor gdd = new GateDeploymentDescriptor();
-			gdd.read(in);
-			list.add(gdd);
-		}
-		
-		return list;
-	}
 }

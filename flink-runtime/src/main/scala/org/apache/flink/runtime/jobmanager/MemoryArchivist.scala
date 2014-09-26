@@ -24,7 +24,7 @@ import org.apache.flink.runtime.event.job.{RecentJobEvent, AbstractEvent}
 import org.apache.flink.runtime.executiongraph.ExecutionGraph
 import org.apache.flink.runtime.jobgraph.JobID
 import org.apache.flink.runtime.messages.ArchiveMessages._
-import org.apache.flink.runtime.messages.ExecutionGraphMessages.{JobNotFound, JobStatusFound}
+import org.apache.flink.runtime.messages.ExecutionGraphMessages.{JobNotFound, CurrentJobStatus}
 import org.apache.flink.runtime.messages.JobManagerMessages.RequestJobStatus
 
 import scala.collection.convert.DecorateAsJava
@@ -71,7 +71,7 @@ ActorLogging with DecorateAsJava {
 
     case RequestJobStatus(jobID) => {
       val response = oldJobs get jobID match {
-        case Some(recentJobEvent) => JobStatusFound(jobID, recentJobEvent.getJobStatus)
+        case Some(recentJobEvent) => CurrentJobStatus(jobID, recentJobEvent.getJobStatus)
         case None => JobNotFound(jobID)
       }
 

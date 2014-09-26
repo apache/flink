@@ -24,6 +24,8 @@ import static org.mockito.Mockito.spy;
 
 import java.lang.reflect.Field;
 import java.net.InetAddress;
+import java.util.Deque;
+import java.util.LinkedList;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import akka.actor.ActorRef;
@@ -31,7 +33,6 @@ import akka.actor.UntypedActor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheProfileResponse;
 import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.Instance;
@@ -43,7 +44,7 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
-import org.apache.flink.runtime.taskmanager.TaskOperationResult;
+import org.apache.flink.runtime.messages.TaskManagerMessages.TaskOperationResult;
 import org.mockito.Matchers;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -107,83 +108,22 @@ public class ExecutionGraphTestUtils {
 		return new Instance(taskManager, connection, new InstanceID(), hardwareDescription, 1);
 	}
 
-	public static class SimpleAcknowledgingTaskManager extends UntypedActor{
+	public static class SimpleAcknowledgingTaskManager extends UntypedActor {
 
 		@Override
 		public void onReceive(Object msg) throws Exception {
-			if(msg instanceof TaskManagerMessages.SubmitTask){
-				TaskManagerMessages.SubmitTask submitTask = (TaskManagerMessages.SubmitTask)msg;
+			if (msg instanceof TaskManagerMessages.SubmitTask) {
+				TaskManagerMessages.SubmitTask submitTask = (TaskManagerMessages.SubmitTask) msg;
 
 				getSender().tell(new TaskOperationResult(submitTask.tasks().getExecutionId(), true), getSelf());
-			}else if(msg instanceof TaskManagerMessages.CancelTask){
-				TaskManagerMessages.CancelTask cancelTask = (TaskManagerMessages.CancelTask)msg;
+			} else if (msg instanceof TaskManagerMessages.CancelTask) {
+				TaskManagerMessages.CancelTask cancelTask = (TaskManagerMessages.CancelTask) msg;
 				getSender().tell(new TaskOperationResult(cancelTask.attemptID(), true), getSelf());
-			}else if(msg instanceof TaskManagerMessages.RequestLibraryCacheProfile){
-				getSender().tell(new LibraryCacheProfileResponse(), getSelf());
 			}
 		}
 	}
 	
-	public static ExecutionJobVertex getJobVertexNotExecuting(JobVertexID id) throws JobException {
-		ExecutionJobVertex ejv = getJobVertexBase(id);
-		
-		doAnswer(new Answer<Void>() {
-			@Override
-			public Void answer(InvocationOnMock invocation) {
-				return null;
-			}
-		}).when(ejv).execute(Matchers.any(Runnable.class));
-		
-		return ejv;
-	}
-	
-	public static ExecutionJobVertex getJobVertexExecutingSynchronously(JobVertexID id) throws JobException {
-		ExecutionJobVertex ejv = getJobVertexBase(id);
-		
-		doAnswer(new Answer<Void>() {
-			@Override
-			public Void answer(InvocationOnMock invocation) {
-				Runnable r = (Runnable) invocation.getArguments()[0];
-				r.run();
-				return null;
-			}
-		}).when(ejv).execute(Matchers.any(Runnable.class));
-		
-		return ejv;
-	}
-	
-	public static ExecutionJobVertex getJobVertexExecutingAsynchronously(JobVertexID id) throws JobException {
-		ExecutionJobVertex ejv = getJobVertexBase(id);
-		
-		doAnswer(new Answer<Void>() {
-			@Override
-			public Void answer(InvocationOnMock invocation) {
-				Runnable r = (Runnable) invocation.getArguments()[0];
-				new Thread(r).start();
-				return null;
-			}
-		}).when(ejv).execute(Matchers.any(Runnable.class));
-		
-		return ejv;
-	}
-	
-	public static ExecutionJobVertex getJobVertexExecutingTriggered(JobVertexID id, final ActionQueue queue) throws JobException {
-		ExecutionJobVertex ejv = getJobVertexBase(id);
-		
-		doAnswer(new Answer<Void>() {
-			@Override
-			public Void answer(InvocationOnMock invocation) {
-				
-				final Runnable action = (Runnable) invocation.getArguments()[0];
-				queue.queueAction(action);
-				return null;
-			}
-		}).when(ejv).execute(Matchers.any(Runnable.class));
-		
-		return ejv;
-	}
-	
-	private static ExecutionJobVertex getJobVertexBase(JobVertexID id) throws JobException {
+	public static ExecutionJobVertex getExecutionVertex(JobVertexID id) throws JobException {
 		AbstractJobVertex ajv = new AbstractJobVertex("TestVertex", id);
 		ajv.setInvokableClass(mock(AbstractInvokable.class).getClass());
 		
@@ -209,10 +149,15 @@ public class ExecutionGraphTestUtils {
 	
 	public static final class ActionQueue {
 		
-		private final LinkedBlockingQueue<Runnable> runnables = new LinkedBlockingQueue<Runnable>();
+		private final LinkedList<Runnable> runnables = new LinkedList<Runnable>();
 		
 		public void triggerNextAction() {
 			Runnable r = runnables.remove();
+			r.run();
+		}
+
+		public void triggerLatestAction(){
+			Runnable r = runnables.removeLast();
 			r.run();
 		}
 		
@@ -223,6 +168,10 @@ public class ExecutionGraphTestUtils {
 
 		public void queueAction(Runnable r) {
 			this.runnables.add(r);
+		}
+
+		public boolean isEmpty(){
+			return runnables.isEmpty();
 		}
 	}
 }

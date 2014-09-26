@@ -18,15 +18,23 @@
 
 package org.apache.flink.runtime.testingUtils
 
-import akka.actor.Props
+import akka.actor.{ActorRef, Props}
 import org.apache.flink.runtime.ActorLogMessages
+import org.apache.flink.runtime.execution.ExecutionState
+import org.apache.flink.runtime.jobgraph.JobID
 import org.apache.flink.runtime.jobmanager.{EventCollector, JobManager, MemoryArchivist}
-import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.{ExecutionGraphFound,
-RequestExecutionGraph}
+import org.apache.flink.runtime.messages.ExecutionGraphMessages.ExecutionStateChanged
+import org.apache.flink.runtime.messages.JobManagerMessages.UpdateTaskExecutionState
+import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.{AllVerticesRunning,
+WaitForAllVerticesToBeRunning, ExecutionGraphFound, RequestExecutionGraph}
+
+import scala.collection.convert.WrapAsScala
 
 
-trait TestingJobManager extends ActorLogMessages {
-  self: JobManager =>
+trait TestingJobManager extends ActorLogMessages with WrapAsScala {
+  that: JobManager =>
+
+  val waitForAllVerticesToBeRunning = scala.collection.mutable.HashMap[JobID, Set[ActorRef]]()
 
   override def archiveProps = Props(new MemoryArchivist(archiveCount) with TestingMemoryArchivist)
 
@@ -43,5 +51,38 @@ trait TestingJobManager extends ActorLogMessages {
         case Some(executionGraph) => sender() ! ExecutionGraphFound(jobID, executionGraph)
         case None => eventCollector.tell(RequestExecutionGraph(jobID), sender())
       }
+    case WaitForAllVerticesToBeRunning(jobID) =>
+      if(checkIfAllVerticesRunning(jobID)){
+        sender() ! AllVerticesRunning(jobID)
+      }else{
+        currentJobs.get(jobID) match {
+          case Some(eg) => eg.registerExecutionListener(self)
+          case None =>
+        }
+        val waiting = waitForAllVerticesToBeRunning.getOrElse(jobID, Set[ActorRef]())
+        waitForAllVerticesToBeRunning += jobID -> (waiting + sender())
+      }
+    case ExecutionStateChanged(jobID, _, _, _, _, _) =>
+      val cleanup = waitForAllVerticesToBeRunning.get(jobID) match {
+        case Some(listeners) if checkIfAllVerticesRunning(jobID) =>
+          for(listener <- listeners){
+            listener ! AllVerticesRunning(jobID)
+          }
+          true
+        case _ => false
+      }
+
+      if(cleanup){
+        waitForAllVerticesToBeRunning.remove(jobID)
+      }
+
+  }
+
+  def checkIfAllVerticesRunning(jobID: JobID): Boolean = {
+    currentJobs.get(jobID) match {
+      case Some(eg) =>
+        eg.getAllExecutionVertices.forall( _.getExecutionState == ExecutionState.RUNNING)
+      case None => false
+    }
   }
 }

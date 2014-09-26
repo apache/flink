@@ -20,8 +20,6 @@ package org.apache.flink.runtime.taskmanager;
 
 import static org.junit.Assert.*;
 
-import java.io.IOException;
-import java.sql.Blob;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Map;
@@ -43,7 +41,6 @@ import org.apache.flink.runtime.deployment.ChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.GateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.io.network.ConnectionInfoLookupResponse;
@@ -55,7 +52,10 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.RegistrationMessages;
-import org.apache.flink.runtime.messages.TaskManagerMessages;
+import org.apache.flink.runtime.messages.TaskManagerMessages.TaskOperationResult;
+import org.apache.flink.runtime.messages.TaskManagerMessages.SubmitTask;
+import org.apache.flink.runtime.messages.TaskManagerMessages.CancelTask;
+import org.apache.flink.runtime.messages.TaskManagerMessages.NotifyWhenRegisteredAtMaster$;
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.types.IntegerRecord;
@@ -105,7 +105,7 @@ public class TaskManagerTest {
 
 					@Override
 					protected void run() {
-						tm.tell(new TaskManagerMessages.SubmitTask(tdd), getRef());
+						tm.tell(new SubmitTask(tdd), getRef());
 						expectMsgEquals(new TaskOperationResult(eid, true));
 					}
 				};
@@ -153,8 +153,8 @@ public class TaskManagerTest {
 					@Override
 					protected void run() {
 						try {
-							tm.tell(new TaskManagerMessages.SubmitTask(tdd1), getRef());
-							tm.tell(new TaskManagerMessages.SubmitTask(tdd2), getRef());
+							tm.tell(new SubmitTask(tdd1), getRef());
+							tm.tell(new SubmitTask(tdd2), getRef());
 
 							expectMsgEquals(new TaskOperationResult(eid1, true));
 							expectMsgEquals(new TaskOperationResult(eid2, true));
@@ -173,7 +173,7 @@ public class TaskManagerTest {
 							assertEquals(ExecutionState.RUNNING, t1.getExecutionState());
 							assertEquals(ExecutionState.RUNNING, t2.getExecutionState());
 
-							tm.tell(new TaskManagerMessages.CancelTask(eid1), getRef());
+							tm.tell(new CancelTask(eid1), getRef());
 
 							expectMsgEquals(new TaskOperationResult(eid1, true));
 
@@ -189,11 +189,11 @@ public class TaskManagerTest {
 
 							assertEquals(1, runningTasks.size());
 
-							tm.tell(new TaskManagerMessages.CancelTask(eid1), getRef());
+							tm.tell(new CancelTask(eid1), getRef());
 							expectMsgEquals(new TaskOperationResult(eid1, false, "No task with that execution ID was " +
 									"found."));
 
-							tm.tell(new TaskManagerMessages.CancelTask(eid2), getRef());
+							tm.tell(new CancelTask(eid2), getRef());
 							expectMsgEquals(new TaskOperationResult(eid2, true));
 
 							response = Patterns.ask(tm, new TestingTaskManagerMessages.NotifyWhenTaskRemoved(eid2),
@@ -207,9 +207,6 @@ public class TaskManagerTest {
 									.ResponseRunningTasks.class).asJava();
 
 							assertEquals(0, runningTasks.size());
-
-							assertNull(LibraryCacheManager.getClassLoader(jid1));
-							assertNull(LibraryCacheManager.getClassLoader(jid2));
 						} catch (Exception e) {
 							e.printStackTrace();
 							fail(e.getMessage());
@@ -257,22 +254,21 @@ public class TaskManagerTest {
 					@Override
 					protected void run() {
 						try {
-							tm.tell(new TaskManagerMessages.SubmitTask(tdd1), getRef());
-							tm.tell(new TaskManagerMessages.SubmitTask(tdd2), getRef());
+							tm.tell(new SubmitTask(tdd1), getRef());
+							tm.tell(new SubmitTask(tdd2), getRef());
 							TaskOperationResult result = expectMsgClass(TaskOperationResult.class);
-							assertFalse(result.isSuccess());
-							assertEquals(eid1, result.getExecutionId());
+							assertFalse(result.success());
+							assertEquals(eid1, result.executionID());
 
 							result = expectMsgClass(TaskOperationResult.class);
-							assertFalse(result.isSuccess());
-							assertEquals(eid2, result.getExecutionId());
+							assertFalse(result.success());
+							assertEquals(eid2, result.executionID());
 
 							tm.tell(TestingTaskManagerMessages.RequestRunningTasks$.MODULE$, getRef());
 							Map<ExecutionAttemptID, Task> tasks = expectMsgClass(TestingTaskManagerMessages
 									.ResponseRunningTasks.class).asJava();
 
 							assertEquals(0, tasks.size());
-							assertNull(LibraryCacheManager.getClassLoader(jid));
 						}catch (Exception e) {
 							e.printStackTrace();
 							fail(e.getMessage());
@@ -324,9 +320,9 @@ public class TaskManagerTest {
 				@Override
 				protected void run() {
 					try {
-						tm.tell(new TaskManagerMessages.SubmitTask(tdd2), getRef());
+						tm.tell(new SubmitTask(tdd2), getRef());
 						expectMsgEquals(new TaskOperationResult(eid2, true));
-						tm.tell(new TaskManagerMessages.SubmitTask(tdd1), getRef());
+						tm.tell(new SubmitTask(tdd1), getRef());
 						expectMsgEquals(new TaskOperationResult(eid1, true));
 
 						tm.tell(TestingTaskManagerMessages.RequestRunningTasks$.MODULE$, getRef());
@@ -356,7 +352,6 @@ public class TaskManagerTest {
 								.class).asJava();
 
 						assertEquals(0, tasks.size());
-						assertNull(LibraryCacheManager.getClassLoader(jid));
 					}catch (Exception e) {
 						e.printStackTrace();
 						fail(e.getMessage());
@@ -411,8 +406,8 @@ public class TaskManagerTest {
 				protected void run() {
 					try {
 						// deploy sender before receiver, so the target is online when the sender requests the connection info
-						tm.tell(new TaskManagerMessages.SubmitTask(tdd2), getRef());
-						tm.tell(new TaskManagerMessages.SubmitTask(tdd1), getRef());
+						tm.tell(new SubmitTask(tdd2), getRef());
+						tm.tell(new SubmitTask(tdd1), getRef());
 
 						expectMsgEquals(new TaskOperationResult(eid2, true));
 						expectMsgEquals(new TaskOperationResult(eid1, true));
@@ -424,7 +419,7 @@ public class TaskManagerTest {
 						Task t1 = tasks.get(eid1);
 						Task t2 = tasks.get(eid2);
 
-						tm.tell(new TaskManagerMessages.CancelTask(eid2), getRef());
+						tm.tell(new CancelTask(eid2), getRef());
 						expectMsgEquals(new TaskOperationResult(eid2, true));
 
 						if (t2 != null) {
@@ -435,7 +430,7 @@ public class TaskManagerTest {
 
 						if (t1 != null) {
 							if (t1.getExecutionState() == ExecutionState.RUNNING) {
-								tm.tell(new TaskManagerMessages.CancelTask(eid1), getRef());
+								tm.tell(new CancelTask(eid1), getRef());
 								expectMsgEquals(new TaskOperationResult(eid1, true));
 							}
 							Future<Object> response = Patterns.ask(tm, new TestingTaskManagerMessages.NotifyWhenTaskRemoved(eid1),
@@ -465,7 +460,8 @@ public class TaskManagerTest {
 		public void onReceive(Object message) throws Exception {
 			if(message instanceof RegistrationMessages.RegisterTaskManager){
 				final InstanceID iid = new InstanceID();
-				getSender().tell(new RegistrationMessages.AcknowledgeRegistration(iid), getSelf());
+				getSender().tell(new RegistrationMessages.AcknowledgeRegistration(iid, -1),
+						getSelf());
 			}else if(message instanceof JobManagerMessages.UpdateTaskExecutionState){
 				getSender().tell(true, getSelf());
 			}
@@ -541,11 +537,11 @@ public class TaskManagerTest {
 
 		ActorRef taskManager = TestingUtils.startTestingTaskManagerWithConfiguration("localhost", cfg, system);
 
-		Future<Object> response = Patterns.ask(taskManager, TaskManagerMessages.NotifyWhenRegisteredAtMaster$.MODULE$,
+		Future<Object> response = Patterns.ask(taskManager, NotifyWhenRegisteredAtMaster$.MODULE$,
 				AkkaUtils.FUTURE_TIMEOUT());
 
 		try {
-			FiniteDuration d = new FiniteDuration(1, TimeUnit.SECONDS);
+			FiniteDuration d = new FiniteDuration(2, TimeUnit.SECONDS);
 			Await.ready(response, d);
 		}catch(Exception e){
 			throw new RuntimeException("Exception while waiting for the task manager registration.", e);

@@ -20,9 +20,8 @@
 package org.apache.flink.api.common.accumulators;
 
 import java.io.IOException;
-
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 
 public class IntCounter implements SimpleAccumulator<Integer> {
 
@@ -51,13 +50,21 @@ public class IntCounter implements SimpleAccumulator<Integer> {
 	}
 
 	@Override
-	public void write(DataOutputView out) throws IOException {
+	public void write(ObjectOutputStream out) throws IOException {
 		out.writeInt(localValue);
 	}
 
 	@Override
-	public void read(DataInputView in) throws IOException {
+	public void read(ObjectInputStream in) throws IOException {
 		localValue = in.readInt();
+	}
+
+	@Override
+	public Accumulator<Integer, Integer> clone() {
+		IntCounter result = new IntCounter();
+		result.localValue = localValue;
+
+		return result;
 	}
 
 	@Override

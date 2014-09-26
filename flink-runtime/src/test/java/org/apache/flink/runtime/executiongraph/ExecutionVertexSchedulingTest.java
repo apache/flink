@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getExecutionVertex;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getInstance;
-import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getJobVertexNotExecuting;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
@@ -50,7 +50,7 @@ public class ExecutionVertexSchedulingTest {
 			slot.cancel();
 			assertFalse(slot.isReleased());
 			
-			final ExecutionJobVertex ejv = getJobVertexNotExecuting(new JobVertexID());
+			final ExecutionJobVertex ejv = getExecutionVertex(new JobVertexID());
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
 			
 			Scheduler scheduler = mock(Scheduler.class);
@@ -82,7 +82,7 @@ public class ExecutionVertexSchedulingTest {
 			
 			final SlotAllocationFuture future = new SlotAllocationFuture();
 			
-			final ExecutionJobVertex ejv = getJobVertexNotExecuting(new JobVertexID());
+			final ExecutionJobVertex ejv = getExecutionVertex(new JobVertexID());
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
 			
 			Scheduler scheduler = mock(Scheduler.class);
@@ -114,7 +114,7 @@ public class ExecutionVertexSchedulingTest {
 			final Instance instance = getInstance(ActorRef.noSender());
 			final AllocatedSlot slot = instance.allocateSlot(new JobID());
 			
-			final ExecutionJobVertex ejv = getJobVertexNotExecuting(new JobVertexID());
+			final ExecutionJobVertex ejv = getExecutionVertex(new JobVertexID());
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
 			
 			Scheduler scheduler = mock(Scheduler.class);

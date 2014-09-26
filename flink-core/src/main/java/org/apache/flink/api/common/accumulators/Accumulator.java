@@ -19,9 +19,11 @@
 
 package org.apache.flink.api.common.accumulators;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.Serializable;
 
-import org.apache.flink.core.io.IOReadableWritable;
 
 /**
  * Interface for custom accumulator objects. Data are written to in a UDF and
@@ -39,7 +41,7 @@ import org.apache.flink.core.io.IOReadableWritable;
  *            Type of the accumulator result as it will be reported to the
  *            client
  */
-public interface Accumulator<V, R> extends IOReadableWritable, Serializable {
+public interface Accumulator<V, R> extends Serializable, Cloneable{
 
 	/**
 	 * @param value
@@ -65,4 +67,21 @@ public interface Accumulator<V, R> extends IOReadableWritable, Serializable {
 	 */
 	void merge(Accumulator<V, R> other);
 
+	/**
+	 * Serialization method of accumulators
+	 *
+	 * @param oos
+	 * @throws IOException
+	 */
+	void write(ObjectOutputStream oos) throws IOException;
+
+	/**
+	 * Deserialization method of accumulators
+	 *
+	 * @param ois
+	 * @throws IOException
+	 */
+	void read(ObjectInputStream ois) throws IOException;
+
+	Accumulator<V, R> clone();
 }

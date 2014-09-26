@@ -32,6 +32,10 @@ under the License.
 	<artifactId>flink-runtime</artifactId>
 	<name>flink-runtime</name>
 
+	<properties>
+		<akka.version>2.3.6</akka.version>
+	</properties>
+
 	<packaging>jar</packaging>
 
 	<dependencies>
@@ -106,25 +110,25 @@ under the License.
 		<dependency>
 			<groupId>com.typesafe.akka</groupId>
 			<artifactId>akka-actor_2.10</artifactId>
-			<version>2.3.5</version>
+			<version>${akka.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>com.typesafe.akka</groupId>
 			<artifactId>akka-remote_2.10</artifactId>
-			<version>2.3.5</version>
+			<version>${akka.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>com.typesafe.akka</groupId>
 			<artifactId>akka-slf4j_2.10</artifactId>
-			<version>2.3.5</version>
+			<version>${akka.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>com.typesafe.akka</groupId>
 			<artifactId>akka-testkit_2.10</artifactId>
-			<version>2.3.5</version>
+			<version>${akka.version}</version>
 			<scope>test</scope>
 		</dependency>
 

@@ -19,6 +19,8 @@
 package org.apache.flink.test.accumulators;
 
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.Map;
 import java.util.Set;
 
@@ -37,6 +39,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.core.memory.InputViewObjectInputStreamWrapper;
+import org.apache.flink.core.memory.OutputViewObjectOutputStreamWrapper;
 import org.apache.flink.runtime.util.SerializableHashSet;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.types.StringValue;
@@ -248,13 +252,22 @@ public class AccumulatorITCase extends JavaProgramTestBase {
 		}
 
 		@Override
-		public void write(DataOutputView out) throws IOException {
-			this.set.write(out);
+		public void write(ObjectOutputStream out) throws IOException {
+			this.set.write(new OutputViewObjectOutputStreamWrapper(out));
 		}
 
 		@Override
-		public void read(DataInputView in) throws IOException {
-			this.set.read(in);
+		public void read(ObjectInputStream in) throws IOException {
+			this.set.read(new InputViewObjectInputStreamWrapper(in));
+		}
+
+		@Override
+		public Accumulator<T, Set<T>> clone() {
+			SetAccumulator<T> result = new SetAccumulator<T>();
+
+			result.set.addAll(set);
+
+			return result;
 		}
 	}
 }

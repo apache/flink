@@ -31,15 +31,17 @@ import org.apache.flink.configuration.{GlobalConfiguration, ConfigConstants, Con
 import org.apache.flink.core.fs.Path
 import org.apache.flink.runtime.ActorLogMessages
 import org.apache.flink.runtime.akka.AkkaUtils
+import org.apache.flink.runtime.blob.BlobCache
 import org.apache.flink.runtime.execution.{ExecutionState, RuntimeEnvironment}
-import org.apache.flink.runtime.execution.librarycache.{LibraryCacheProfileResponse,
-LibraryCacheManager, LibraryCacheUpdate}
+import org.apache.flink.runtime.execution.librarycache.{BlobLibraryCacheManager,
+FallbackLibraryCacheManager, LibraryCacheManager}
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
 import org.apache.flink.runtime.filecache.FileCache
 import org.apache.flink.runtime.instance.{InstanceConnectionInfo, HardwareDescription, InstanceID}
 import org.apache.flink.runtime.io.disk.iomanager.IOManager
-import org.apache.flink.runtime.io.network.ChannelManager
 import org.apache.flink.runtime.io.network.netty.NettyConnectionManager
+import org.apache.flink.runtime.io.network.{NetworkConnectionManager, LocalConnectionManager,
+ChannelManager}
 import org.apache.flink.runtime.jobgraph.JobID
 import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager
@@ -58,12 +60,15 @@ import org.slf4j.LoggerFactory
 import scala.collection.convert.{WrapAsScala, DecorateAsScala}
 import scala.concurrent.Future
 import scala.concurrent.duration._
+import scala.util.Failure
+import scala.util.Success
 
 class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkkaURL: String,
                   val numberOfSlots: Int, val memorySize: Long, val pageSize: Int,
                   val tmpDirPaths: Array[String],
                   val networkConnectionConfig: NetworkConnectionConfiguration,
-                  memoryUsageLogging: MemoryUsageLogging, profilingInterval: Option[Long])
+                  memoryUsageLogging: MemoryUsageLogging, profilingInterval: Option[Long],
+                  cleanupInterval: Long)
   extends Actor with ActorLogMessages with ActorLogging with DecorateAsScala with WrapAsScala {
 
   import context._
@@ -88,6 +93,7 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
     case None => None
   }
 
+  var libraryCacheManager: LibraryCacheManager = null
   var channelManager: Option[ChannelManager] = None
   var registrationScheduler: Option[Cancellable] = None
   var registrationAttempts: Int = 0
@@ -116,6 +122,8 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
   override def postStop(): Unit = {
     log.info(s"Stopping task manager ${self.path}.")
 
+    cancelAndClearEverything(new Exception("Task Manager is shutting down."))
+
     heartbeatScheduler foreach {
       _.cancel()
     }
@@ -133,6 +141,10 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
     ioManager.shutdown()
     memoryManager.shutdown()
     fileCache.shutdown()
+
+    if(libraryCacheManager != null){
+      libraryCacheManager.shutdown()
+    }
   }
 
   def tryJobManagerRegistration(): Unit = {
@@ -163,7 +175,7 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
       }
     }
 
-    case AcknowledgeRegistration(id) => {
+    case AcknowledgeRegistration(id, blobPort) => {
       if (!registered) {
         registered = true
         currentJobManager = sender()
@@ -175,6 +187,7 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
         }.")
 
         setupChannelManager()
+        setupLibraryCacheManager(blobPort)
 
         heartbeatScheduler = Some(context.system.scheduler.schedule(HEARTBEAT_INTERVAL,
           HEARTBEAT_INTERVAL, self,
@@ -215,10 +228,10 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
       var jarsRegistered = false
 
       try {
-        LibraryCacheManager.register(jobID, tdd.getRequiredJarFiles());
+        libraryCacheManager.register(jobID, tdd.getRequiredJarFiles());
         jarsRegistered = true
 
-        val userCodeClassLoader = LibraryCacheManager.getClassLoader(jobID)
+        val userCodeClassLoader = libraryCacheManager.getClassLoader(jobID)
 
         if (userCodeClassLoader == null) {
           throw new RuntimeException("No user code Classloader available.")
@@ -270,7 +283,7 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
           }
 
           success = true
-          sender() ! new TaskOperationResult(executionID, true)
+          sender() ! TaskOperationResult(executionID, true)
         } finally {
           if (!success) {
             runningTasks.remove(executionID)
@@ -285,7 +298,7 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
 
           if (jarsRegistered) {
             try {
-              LibraryCacheManager.unregister(jobID)
+              libraryCacheManager.unregister(jobID)
             } catch {
               case ioe: IOException =>
                 log.debug(s"Unregistering the execution ${executionID} caused an IOException.")
@@ -297,24 +310,8 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
       }
     }
 
-    case RequestLibraryCacheProfile(request) => {
-      val response = new LibraryCacheProfileResponse(request)
-      val requiredLibraries = request.getRequiredLibraries
-
-      for ((library, id) <- requiredLibraries.zipWithIndex) {
-        response.setCached(id, LibraryCacheManager.contains(library) != null)
-      }
-
-      sender() ! response
-    }
-
     case SendHeartbeat => {
       currentJobManager ! Heartbeat(instanceID)
-    }
-
-    case x: LibraryCacheUpdate => {
-      log.info(s"Registered library ${x.getLibraryFileName}.")
-      sender() ! AcknowledgeLibraryCacheUpdate
     }
 
     case LogMemoryUsage => {
@@ -354,7 +351,7 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
           task.unregisterMemoryManager(memoryManager)
 
           try {
-            LibraryCacheManager.unregister(task.getJobID)
+            libraryCacheManager.unregister(task.getJobID)
           } catch {
             case ioe: IOException =>
               log.error(ioe, s"Unregistering the execution ${executionID} caused an IOException.")
@@ -370,17 +367,18 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
                                  optionalError: Throwable): Unit = {
     log.info(s"Update execution state to ${executionState}.")
     val futureResponse = currentJobManager ? UpdateTaskExecutionState(new TaskExecutionState
-    (jobID, executionID,
-        executionState, optionalError))
+    (jobID, executionID, executionState, optionalError))
+
+    val receiver = this.self
 
     futureResponse.mapTo[Boolean].onComplete {
-      success =>
-        if (!success.get || executionState == ExecutionState.FINISHED || executionState ==
-          ExecutionState.CANCELED ||
-          executionState ==
-            ExecutionState.FAILED) {
-          this.self ! UnregisterTask(executionID)
+      case Success(result) =>
+        if (!result || executionState == ExecutionState.FINISHED || executionState ==
+          ExecutionState.CANCELED || executionState == ExecutionState.FAILED) {
+          receiver ! UnregisterTask(executionID)
         }
+      case Failure(t) =>
+        log.error(t, "Execution state change notification failed.")
     }
   }
 
@@ -398,16 +396,43 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
     try {
       import networkConnectionConfig._
 
-      val networkConnectionManager = new NettyConnectionManager(connectionInfo.address(),
-        connectionInfo.dataPort(),
-        bufferSize, numInThreads, numOutThreads, lowWaterMark, highWaterMark)
+      val connectionManager: NetworkConnectionManager = networkConnectionConfig match {
+        case _: LocalNetworkConfiguration => new LocalConnectionManager
+        case ClusterNetworkConfiguration(numBuffers, bufferSize, numInThreads,
+        numOutThreads, lowWaterMark, highWaterMark) =>
+          new NettyConnectionManager(connectionInfo.address(),
+          connectionInfo.dataPort(), bufferSize, numInThreads, numOutThreads, lowWaterMark,
+          highWaterMark)
+      }
+
       channelManager = Some(new ChannelManager(currentJobManager, connectionInfo, numBuffers,
-        bufferSize,
-        networkConnectionManager))
+        bufferSize, connectionManager))
     } catch {
       case ioe: IOException =>
         log.error(ioe, "Failed to instantiate ChannelManager.")
         throw new RuntimeException("Failed to instantiate ChannelManager.", ioe)
+    }
+  }
+
+  def setupLibraryCacheManager(blobPort: Int): Unit = {
+    if(blobPort > 0){
+      val address = new InetSocketAddress(currentJobManager.path.address.host.get, blobPort)
+      libraryCacheManager = new BlobLibraryCacheManager(new BlobCache(address), cleanupInterval)
+    }else{
+      libraryCacheManager = new FallbackLibraryCacheManager
+    }
+  }
+
+  /**
+   * Removes all tasks from this TaskManager.
+   */
+  def cancelAndClearEverything(cause: Throwable) {
+    if (runningTasks.size > 0) {
+      log.info("Cancelling all computations and discarding all cached data.")
+      for (t <- runningTasks.values) {
+        t.failExternally(cause)
+        runningTasks.remove(t.getExecutionId)
+      }
     }
   }
 }
@@ -470,15 +495,17 @@ object TaskManager {
     }
   }
 
-  def startActorSystemAndActor(hostname: String, port: Int, configuration: Configuration):
-  (ActorSystem, ActorRef) = {
+  def startActorSystemAndActor(hostname: String, port: Int, configuration: Configuration,
+                               localExecution: Boolean = false): (ActorSystem, ActorRef) = {
     implicit val actorSystem = AkkaUtils.createActorSystem(hostname, port, configuration)
-    (actorSystem, (startActor _).tupled(parseConfiguration(hostname, configuration)))
+    (actorSystem, (startActor _).tupled(parseConfiguration(hostname, configuration,
+      localExecution)))
   }
 
-  def parseConfiguration(hostname: String, configuration: Configuration):
-  (InstanceConnectionInfo, String, Int, Long,
-    Int, Array[String], NetworkConnectionConfiguration, MemoryUsageLogging, Option[Long]) = {
+  def parseConfiguration(hostname: String, configuration: Configuration,
+                         localExecution: Boolean = false):
+  (InstanceConnectionInfo, String, Int, Long, Int, Array[String], NetworkConnectionConfiguration,
+    MemoryUsageLogging, Option[Long], Long) = {
     val dataport = configuration.getInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY,
       ConfigConstants.DEFAULT_TASK_MANAGER_DATA_PORT) match {
       case 0 => NetUtils.getAvailablePort
@@ -528,17 +555,26 @@ object TaskManager {
       ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_NUM_BUFFERS)
     val bufferSize = configuration.getInteger(ConfigConstants.TASK_MANAGER_NETWORK_BUFFER_SIZE_KEY,
       ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_BUFFER_SIZE)
-    val numInThreads = configuration.getInteger(ConfigConstants.TASK_MANAGER_NET_NUM_IN_THREADS_KEY,
-      ConfigConstants.DEFAULT_TASK_MANAGER_NET_NUM_IN_THREADS)
-    val numOutThreads = configuration.getInteger(ConfigConstants
-      .TASK_MANAGER_NET_NUM_OUT_THREADS_KEY,
-      ConfigConstants.DEFAULT_TASK_MANAGER_NET_NUM_OUT_THREADS)
-    val lowWaterMark = configuration.getInteger(ConfigConstants
-      .TASK_MANAGER_NET_NETTY_LOW_WATER_MARK,
-      ConfigConstants.DEFAULT_TASK_MANAGER_NET_NETTY_LOW_WATER_MARK)
-    val highWaterMark = configuration.getInteger(ConfigConstants
-      .TASK_MANAGER_NET_NETTY_HIGH_WATER_MARK,
-      ConfigConstants.DEFAULT_TASK_MANAGER_NET_NETTY_HIGH_WATER_MARK)
+
+    val networkConnectionConfiguration = if(localExecution){
+      LocalNetworkConfiguration(numBuffers, bufferSize)
+    }else{
+      val numInThreads = configuration.getInteger(ConfigConstants.TASK_MANAGER_NET_NUM_IN_THREADS_KEY,
+        ConfigConstants.DEFAULT_TASK_MANAGER_NET_NUM_IN_THREADS)
+      val numOutThreads = configuration.getInteger(ConfigConstants
+        .TASK_MANAGER_NET_NUM_OUT_THREADS_KEY,
+        ConfigConstants.DEFAULT_TASK_MANAGER_NET_NUM_OUT_THREADS)
+      val lowWaterMark = configuration.getInteger(ConfigConstants
+        .TASK_MANAGER_NET_NETTY_LOW_WATER_MARK,
+        ConfigConstants.DEFAULT_TASK_MANAGER_NET_NETTY_LOW_WATER_MARK)
+      val highWaterMark = configuration.getInteger(ConfigConstants
+        .TASK_MANAGER_NET_NETTY_HIGH_WATER_MARK,
+        ConfigConstants.DEFAULT_TASK_MANAGER_NET_NETTY_HIGH_WATER_MARK)
+
+      ClusterNetworkConfiguration(numBuffers, bufferSize, numInThreads, numOutThreads,
+        lowWaterMark, highWaterMark)
+    }
+
 
     val logIntervalMs = configuration.getBoolean(ConfigConstants
       .TASK_MANAGER_DEBUG_MEMORY_USAGE_START_LOG_THREAD,
@@ -557,27 +593,33 @@ object TaskManager {
       case false => None
     }
 
+    val cleanupInterval = configuration.getLong(ConfigConstants
+      .LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL,
+      ConfigConstants.DEFAULT_LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL) * 1000
+
+
+
     (connectionInfo, jobManagerURL, numberOfSlots, memorySize, pageSize, tmpDirs,
-      NetworkConnectionConfiguration(numBuffers, bufferSize, numInThreads, numOutThreads,
-        lowWaterMark,
-        highWaterMark), MemoryUsageLogging(logIntervalMs), profilingInterval)
+      networkConnectionConfiguration, MemoryUsageLogging(logIntervalMs), profilingInterval,
+      cleanupInterval)
   }
 
   def startActor(connectionInfo: InstanceConnectionInfo, jobManagerURL: String,
                  numberOfSlots: Int, memorySize: Long, pageSize: Int, tmpDirs: Array[String],
                  networkConnectionConfiguration: NetworkConnectionConfiguration,
-                 memoryUsageLogging: MemoryUsageLogging, profilingInterval: Option[Long])
+                 memoryUsageLogging: MemoryUsageLogging, profilingInterval: Option[Long],
+                 cleanupInterval: Long)
                 (implicit actorSystem:
                 ActorSystem): ActorRef = {
     actorSystem.actorOf(Props(classOf[TaskManager], connectionInfo, jobManagerURL, numberOfSlots,
-      memorySize, pageSize,
-      tmpDirs, networkConnectionConfiguration, memoryUsageLogging, profilingInterval),
-      TASK_MANAGER_NAME);
+      memorySize, pageSize, tmpDirs, networkConnectionConfiguration, memoryUsageLogging,
+      profilingInterval, cleanupInterval), TASK_MANAGER_NAME);
   }
 
-  def startActorWithConfiguration(hostname: String, configuration: Configuration)
+  def startActorWithConfiguration(hostname: String, configuration: Configuration,
+                                  localExecution: Boolean = false)
                                  (implicit system: ActorSystem) = {
-    (startActor _).tupled(parseConfiguration(hostname, configuration))
+    (startActor _).tupled(parseConfiguration(hostname, configuration, localExecution))
   }
 
   def startProfiler(instancePath: String, reportInterval: Long)(implicit system: ActorSystem):

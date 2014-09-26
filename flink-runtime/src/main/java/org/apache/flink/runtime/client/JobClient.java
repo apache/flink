@@ -131,29 +131,29 @@ public class JobClient {
 	 *         thrown in case of submission errors while transmitting the data to the job manager
 	 */
 	public JobSubmissionResult submitJob() throws IOException {
-			// Get port of BLOB server
-			final int port = this.jobSubmitClient.getBlobServerPort();
-			if (port == -1) {
-				throw new IOException("Unable to upload user jars: BLOB server not running");
-			}
+		// Get port of BLOB server
+		final int port = AkkaUtils.ask(jobManager, JobManagerMessages.RequestBlobManagerPort$
+				.MODULE$);
+		if (port == -1) {
+			throw new IOException("Unable to upload user jars: BLOB server not running");
+		}
 
-			// We submit the required files with the BLOB manager before the submission of the actual job graph
-			final String jobManagerAddress = configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
+		// We submit the required files with the BLOB manager before the submission of the actual job graph
+		final String jobManagerAddress = configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
 
-			if(jobManagerAddress == null){
-				throw new IOException("Unable to find job manager address from configuration.");
-			}
+		if(jobManagerAddress == null){
+			throw new IOException("Unable to find job manager address from configuration.");
+		}
 
-			final InetSocketAddress blobManagerAddress = new InetSocketAddress(jobManagerAddress,
-					port);
+		final InetSocketAddress blobManagerAddress = new InetSocketAddress(jobManagerAddress,
+				port);
 
-			this.jobGraph.uploadRequiredJarFiles(blobManagerAddress);
-			
-			try{
-				return AkkaUtils.ask(jobManager, new JobManagerMessages.SubmitJob(jobGraph));
-			}catch(IOException ioe) {
-				throw ioe;
-			}
+		this.jobGraph.uploadRequiredJarFiles(blobManagerAddress);
+
+		try{
+			return AkkaUtils.ask(jobManager, new JobManagerMessages.SubmitJob(jobGraph));
+		}catch(IOException ioe) {
+			throw ioe;
 		}
 	}
 

@@ -19,14 +19,11 @@
 
 package org.apache.flink.runtime.io.network;
 
-import java.io.IOException;
+import java.io.Serializable;
 
-import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.io.network.channels.ChannelID;
 
-public class ConnectionInfoLookupResponse implements IOReadableWritable {
+public class ConnectionInfoLookupResponse implements Serializable {
 
 	private enum ReturnCode {
 		NOT_FOUND, FOUND_AND_RECEIVER_READY, FOUND_BUT_RECEIVER_NOT_READY, JOB_IS_ABORTING
@@ -38,7 +35,6 @@ public class ConnectionInfoLookupResponse implements IOReadableWritable {
 	private RemoteReceiver remoteTarget;
 
 	private ChannelID localTarget;
-	
 	
 	public ConnectionInfoLookupResponse() {}
 
@@ -66,39 +62,6 @@ public class ConnectionInfoLookupResponse implements IOReadableWritable {
 
 	public ChannelID getLocalTarget() {
 		return this.localTarget;
-	}
-
-	@Override
-	public void read(DataInputView in) throws IOException {
-		this.returnCode = ReturnCode.values()[in.readInt()];
-		
-		if (in.readBoolean()) {
-			this.remoteTarget = new RemoteReceiver();
-			this.remoteTarget.read(in);
-		}
-		if (in.readBoolean()) {
-			this.localTarget = new ChannelID();
-			this.localTarget.read(in);
-		}
-	}
-
-	@Override
-	public void write(DataOutputView out) throws IOException {
-		out.writeInt(this.returnCode.ordinal());
-		
-		if (this.remoteTarget != null) {
-			out.writeBoolean(true);
-			this.remoteTarget.write(out);
-		} else {
-			out.writeBoolean(false);
-		}
-
-		if (this.localTarget != null) {
-			out.writeBoolean(true);
-			this.localTarget.write(out);
-		} else {
-			out.writeBoolean(false);
-		}
 	}
 
 	public boolean receiverNotFound() {

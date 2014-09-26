@@ -28,7 +28,6 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import akka.actor.ActorRef;
@@ -52,6 +51,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.messages.ExecutionGraphMessages;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
+import org.apache.flink.runtime.messages.ExecutionGraphMessages.JobStatusChanged;
 import org.apache.flink.util.ExceptionUtils;
 
 
@@ -89,14 +89,8 @@ public class ExecutionGraph {
 	/** The currently executed tasks, for callbacks */
 	private final ConcurrentHashMap<ExecutionAttemptID, Execution> currentExecutions;
 
-	
-	
 	private final Map<ChannelID, ExecutionEdge> edges = new HashMap<ChannelID, ExecutionEdge>();
 	
-	
-	/** An executor that can run long actions (involving remote calls) */
-	private final ExecutorService executor;
-
 	private final List<BlobKey> requiredJarFiles;
 	
 	private final List<JobStatusListener> jobStatusListeners;
@@ -129,16 +123,16 @@ public class ExecutionGraph {
 	
 	
 	public ExecutionGraph(JobID jobId, String jobName, Configuration jobConfig) {
-		this(jobId, jobName, jobConfig, new ArrayList<BlobKey>(), null);
+		this(jobId, jobName, jobConfig, new ArrayList<BlobKey>());
 	}
 	
 	public ExecutionGraph(JobID jobId, String jobName, Configuration jobConfig,
-						List<BlobKey> requiredJarFiles, ExecutorService executor) {
-		this(jobId, jobName, jobConfig, requiredJarFiles, Thread.currentThread().getContextClassLoader(), null);
+						List<BlobKey> requiredJarFiles) {
+		this(jobId, jobName, jobConfig, requiredJarFiles, Thread.currentThread().getContextClassLoader());
 	}
 	
 	public ExecutionGraph(JobID jobId, String jobName, Configuration jobConfig, 
-			List<BlobKey> requiredJarFiles, ClassLoader userClassLoader, ExecutorService executor) {
+			List<BlobKey> requiredJarFiles, ClassLoader userClassLoader) {
 		if (jobId == null || jobName == null || jobConfig == null || userClassLoader == null) {
 			throw new NullPointerException();
 		}
@@ -147,8 +141,7 @@ public class ExecutionGraph {
 		this.jobName = jobName;
 		this.jobConfiguration = jobConfig;
 		this.userClassLoader = userClassLoader;
-		this.executor = executor;
-		
+
 		this.tasks = new ConcurrentHashMap<JobVertexID, ExecutionJobVertex>();
 		this.intermediateResults = new ConcurrentHashMap<IntermediateDataSetID, IntermediateResult>();
 		this.verticesInCreationOrder = new ArrayList<ExecutionJobVertex>();
@@ -389,26 +382,8 @@ public class ExecutionGraph {
 			// no need to treat other states
 		}
 	}
-	
-	public void waitForJobEnd(long timeout) throws InterruptedException {
-		synchronized (progressLock) {
-			
-			long now = System.currentTimeMillis();
-			long deadline = timeout == 0 ? Long.MAX_VALUE : now + timeout;
-			
-			
-			while (now < deadline && !state.isTerminalState()) {
-				progressLock.wait(deadline - now);
-				now = System.currentTimeMillis();
-			}
-		}
-	}
-	
-	public void waitForJobEnd() throws InterruptedException {
-		waitForJobEnd(0);
-	}
-	
-	
+
+
 	private boolean transitionState(JobStatus current, JobStatus newState) {
 		return transitionState(current, newState, null);
 	}
@@ -670,6 +645,7 @@ public class ExecutionGraph {
 
 	public void registerJobStatusListener(ActorRef listener){
 		this.jobStatusListenerActors.add(listener);
+
 	}
 
 	public void registerExecutionListener(ActorRef listener){
@@ -700,7 +676,8 @@ public class ExecutionGraph {
 		if(jobStatusListenerActors.size() > 0){
 			String message = error == null ? null : ExceptionUtils.stringifyException(error);
 			for(ActorRef listener: jobStatusListenerActors){
-				listener.tell(new ExecutionGraphMessages.JobStatusChanged(this, newState, message), ActorRef.noSender());
+				listener.tell(new JobStatusChanged(this, newState, message),
+						ActorRef.noSender());
 			}
 		}
 
@@ -735,24 +712,11 @@ public class ExecutionGraph {
 			}
 		}
 
-
-
-		
 		// see what this means for us. currently, the first FAILED state means -> FAILED
 		if (newExecutionState == ExecutionState.FAILED) {
 			fail(error);
 		}
 	}
-
-	// --------------------------------------------------------------------------------------------
-	//  Miscellaneous
-	// --------------------------------------------------------------------------------------------
-	
-	public void execute(Runnable action) {
-		if (this.executor != null) {
-			this.executor.submit(action);
-		} else {
-			action.run();
 		}
 	}
 	
@@ -787,6 +751,4 @@ public class ExecutionGraph {
 		}
 		catch (Throwable t) {
 			fail(t);
-		}
-	}
 }

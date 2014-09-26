@@ -20,6 +20,7 @@ package org.apache.flink.runtime.testingUtils
 
 import akka.actor.{ActorSystem, Props}
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
+import org.apache.flink.runtime.instance.InstanceConnectionInfo
 import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.minicluster.FlinkMiniCluster
 import org.apache.flink.runtime.net.NetUtils
@@ -37,21 +38,22 @@ class TestingCluster extends FlinkMiniCluster {
   }
 
   override def startJobManager(system: ActorSystem, config: Configuration) = {
-    val (archiveCount, profiling, recommendedPollingInterval) =
+    val (archiveCount, profiling, recommendedPollingInterval, cleanupInterval) =
       JobManager.parseConfiguration(config)
 
-    system.actorOf(Props(new JobManager(archiveCount, profiling, recommendedPollingInterval) with
+    system.actorOf(Props(new JobManager(archiveCount, profiling, recommendedPollingInterval,
+      cleanupInterval) with
       TestingJobManager),
       JobManager.JOB_MANAGER_NAME)
   }
 
   override def startTaskManager(system: ActorSystem, config: Configuration, index: Int) = {
     val (connectionInfo, jobManagerURL, numberOfSlots, memorySize, pageSize, tmpDirPaths,
-    networkConnectionConfig, memoryUsageLogging, profilingInterval) =
-      TaskManager.parseConfiguration(FlinkMiniCluster.HOSTNAME, config)
+    networkConnectionConfig, memoryUsageLogging, profilingInterval, cleanupInterval) =
+      TaskManager.parseConfiguration(FlinkMiniCluster.HOSTNAME, config, true)
 
     system.actorOf(Props(new TaskManager(connectionInfo, jobManagerURL, numberOfSlots,
       memorySize, pageSize, tmpDirPaths, networkConnectionConfig, memoryUsageLogging,
-      profilingInterval)), TaskManager.TASK_MANAGER_NAME + index)
+      profilingInterval, cleanupInterval)), TaskManager.TASK_MANAGER_NAME + index)
   }
 }
