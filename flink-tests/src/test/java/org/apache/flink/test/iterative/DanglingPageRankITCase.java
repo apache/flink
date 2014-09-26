@@ -16,33 +16,18 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.iterative;
 
-import java.util.Collection;
-
 import org.apache.flink.api.common.Plan;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.iterative.nephele.DanglingPageRankNepheleITCase;
 import org.apache.flink.test.recordJobs.graph.DanglingPageRank;
 import org.apache.flink.test.util.RecordAPITestBase;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
 
-@RunWith(Parameterized.class)
 public class DanglingPageRankITCase extends RecordAPITestBase {
 
 	protected String pagesPath;
 	protected String edgesPath;
 	protected String resultPath;
-	
-	
-	public DanglingPageRankITCase(Configuration config) {
-		super(config);
-		setTaskManagerNumSlots(DOP);
-	}
-	
 	
 	@Override
 	protected void preSubmit() throws Exception {
@@ -55,22 +40,13 @@ public class DanglingPageRankITCase extends RecordAPITestBase {
 	protected Plan getTestJob() {
 		DanglingPageRank pr = new DanglingPageRank();
 		Plan plan = pr.getPlan(
-			config.getString("PageRankITCase#NoSubtasks", "1"), 
+			String.valueOf(DOP),
 			pagesPath,
 			edgesPath,
 			resultPath,
-			config.getString("PageRankITCase#NumIterations", "25"),	// max iterations
+			"25",	// max iterations
 			"5",	// num vertices
 			"1");	// num dangling vertices
 		return plan;
-	}
-
-
-	@Parameters
-	public static Collection<Object[]> getConfigurations() {
-		Configuration config1 = new Configuration();
-		config1.setInteger("PageRankITCase#NoSubtasks", DOP);
-		config1.setString("PageRankITCase#NumIterations", "25");
-		return toParameterList(config1);
 	}
 }

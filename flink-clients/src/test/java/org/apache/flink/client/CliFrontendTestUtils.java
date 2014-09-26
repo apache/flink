@@ -29,6 +29,7 @@ import java.net.MalformedURLException;
 import java.util.Map;
 
 import org.apache.flink.client.CliFrontend;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 
 public class CliFrontendTestUtils {
@@ -86,16 +87,19 @@ public class CliFrontendTestUtils {
 	
 	public static void clearGlobalConfiguration() {
 		try {
-			Field singletonInstanceField = GlobalConfiguration.class.getDeclaredField("configuration");
-			Field confDataMapField = GlobalConfiguration.class.getDeclaredField("confData");
+			Field singletonInstanceField = GlobalConfiguration.class.getDeclaredField("SINGLETON");
+			Field conf = GlobalConfiguration.class.getDeclaredField("config");
+			Field map = Configuration.class.getDeclaredField("confData");
 			
 			singletonInstanceField.setAccessible(true);
-			confDataMapField.setAccessible(true);
+			conf.setAccessible(true);
+			map.setAccessible(true);
 			
 			GlobalConfiguration gconf = (GlobalConfiguration) singletonInstanceField.get(null);
 			if (gconf != null) {
+				Configuration confObject = (Configuration) conf.get(gconf);
 				@SuppressWarnings("unchecked")
-				Map<String, String> confData = (Map<String, String>) confDataMapField.get(gconf);
+				Map<String, Object> confData = (Map<String, Object>) map.get(confObject);
 				confData.clear();
 			}
 		}

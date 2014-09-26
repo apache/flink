@@ -275,7 +275,6 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 		}
 		// obtain task configuration (including stub parameters)
 		Configuration taskConf = getTaskConfiguration();
-		taskConf.setClassLoader(this.userCodeClassLoader);
 		this.config = new TaskConfig(taskConf);
 
 		try {

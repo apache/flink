@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.recordJobTests;
 
 import java.util.Collection;
@@ -142,7 +141,7 @@ public class TPCHQuery3ITCase extends RecordAPITestBase {
 
 		TPCHQuery3 tpch3 = new TPCHQuery3();
 		return tpch3.getPlan(
-				config.getString("dop", "1"), 
+				String.valueOf(config.getInteger("dop", 1)), 
 				ordersPath,
 				lineitemsPath,
 				resultPath);

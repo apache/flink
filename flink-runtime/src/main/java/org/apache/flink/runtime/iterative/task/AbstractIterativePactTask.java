@@ -157,7 +157,8 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 	@Override
 	public RuntimeUDFContext createRuntimeContext(String taskName) {
 		Environment env = getEnvironment();
-		return new IterativeRuntimeUdfContext(taskName, env.getCurrentNumberOfSubtasks(), env.getIndexInSubtaskGroup());
+		return new IterativeRuntimeUdfContext(taskName, env.getCurrentNumberOfSubtasks(),
+				env.getIndexInSubtaskGroup(), userCodeClassLoader);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -343,8 +344,8 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 
 	private class IterativeRuntimeUdfContext extends RuntimeUDFContext implements IterationRuntimeContext {
 
-		public IterativeRuntimeUdfContext(String name, int numParallelSubtasks, int subtaskIndex) {
-			super(name, numParallelSubtasks, subtaskIndex);
+		public IterativeRuntimeUdfContext(String name, int numParallelSubtasks, int subtaskIndex, ClassLoader userCodeClassLoader) {
+			super(name, numParallelSubtasks, subtaskIndex, userCodeClassLoader);
 		}
 
 		@Override

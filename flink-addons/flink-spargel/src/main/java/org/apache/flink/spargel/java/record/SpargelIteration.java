@@ -189,16 +189,20 @@ public class SpargelIteration {
 		public void open(Configuration parameters) throws Exception {
 			// instantiate only the first time
 			if (vertexUpdateFunction == null) {
-				Class<K> vertexKeyClass = parameters.getClass(KEY_PARAM, null, Key.class);
-				Class<V> vertexValueClass = parameters.getClass(VALUE_PARAM, null, Value.class);
-				Class<M> messageClass = parameters.getClass(MESSAGE_PARAM, null, Value.class);
+				ClassLoader cl = getRuntimeContext().getUserCodeClassLoader();
+				
+				Class<K> vertexKeyClass = parameters.getClass(KEY_PARAM, null, cl);
+				Class<V> vertexValueClass = parameters.getClass(VALUE_PARAM, null, cl);
+				Class<M> messageClass = parameters.getClass(MESSAGE_PARAM, null, cl);
 				
 				vertexKey = InstantiationUtil.instantiate(vertexKeyClass, Key.class);
 				vertexValue = InstantiationUtil.instantiate(vertexValueClass, Value.class);
 				messageIter = new MessageIterator<M>(InstantiationUtil.instantiate(messageClass, Value.class));
 				
+				ClassLoader ucl = getRuntimeContext().getUserCodeClassLoader();
+				
 				try {
-					this.vertexUpdateFunction = (VertexUpdateFunction<K, V, M>) InstantiationUtil.readObjectFromConfig(parameters, UDF_PARAM, parameters.getClassLoader());
+					this.vertexUpdateFunction = (VertexUpdateFunction<K, V, M>) InstantiationUtil.readObjectFromConfig(parameters, UDF_PARAM, ucl);
 				} catch (Exception e) {
 					String message = e.getMessage() == null ? "." : ": " + e.getMessage();
 					throw new Exception("Could not instantiate VertexUpdateFunction" + message, e);
@@ -248,10 +252,12 @@ public class SpargelIteration {
 		public void open(Configuration parameters) throws Exception {
 			// instantiate only the first time
 			if (messagingFunction == null) {
-				Class<K> vertexKeyClass = parameters.getClass(KEY_PARAM, null, Key.class);
-				Class<V> vertexValueClass = parameters.getClass(VALUE_PARAM, null, Value.class);
+				ClassLoader cl = getRuntimeContext().getUserCodeClassLoader();
+				
+				Class<K> vertexKeyClass = parameters.getClass(KEY_PARAM, null, cl);
+				Class<V> vertexValueClass = parameters.getClass(VALUE_PARAM, null, cl);
 //				Class<M> messageClass = parameters.getClass(MESSAGE_PARAM, null, Value.class);
-				Class<E> edgeClass = parameters.getClass(EDGE_PARAM, null, Value.class);
+				Class<E> edgeClass = parameters.getClass(EDGE_PARAM, null, cl);
 				
 				vertexKey = InstantiationUtil.instantiate(vertexKeyClass, Key.class);
 				vertexValue = InstantiationUtil.instantiate(vertexValueClass, Value.class);
@@ -259,8 +265,10 @@ public class SpargelIteration {
 				K edgeKeyHolder = InstantiationUtil.instantiate(vertexKeyClass, Key.class);
 				E edgeValueHolder = InstantiationUtil.instantiate(edgeClass, Value.class);
 				
+				ClassLoader ucl = getRuntimeContext().getUserCodeClassLoader();
+				
 				try {
-					this.messagingFunction = (MessagingFunction<K, V, M, E>) InstantiationUtil.readObjectFromConfig(parameters, UDF_PARAM, parameters.getClassLoader());
+					this.messagingFunction = (MessagingFunction<K, V, M, E>) InstantiationUtil.readObjectFromConfig(parameters, UDF_PARAM, ucl);
 				} catch (Exception e) {
 					String message = e.getMessage() == null ? "." : ": " + e.getMessage();
 					throw new Exception("Could not instantiate MessagingFunction" + message, e);

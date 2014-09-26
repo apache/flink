@@ -44,22 +44,26 @@ public class RuntimeUDFContext implements RuntimeContext {
 
 	private final int subtaskIndex;
 
-	private DistributedCache distributedCache = new DistributedCache();
+	private final ClassLoader userCodeClassLoader;
+	
+	private final DistributedCache distributedCache = new DistributedCache();
 
-	private HashMap<String, Accumulator<?, ?>> accumulators = new HashMap<String, Accumulator<?, ?>>();
+	private final HashMap<String, Accumulator<?, ?>> accumulators = new HashMap<String, Accumulator<?, ?>>();
 
-	private HashMap<String, List<?>> broadcastVars = new HashMap<String, List<?>>();
+	private final HashMap<String, List<?>> broadcastVars = new HashMap<String, List<?>>();
 
-	public RuntimeUDFContext(String name, int numParallelSubtasks, int subtaskIndex) {
+	public RuntimeUDFContext(String name, int numParallelSubtasks, int subtaskIndex, ClassLoader userCodeClassLoader) {
 		this.name = name;
 		this.numParallelSubtasks = numParallelSubtasks;
 		this.subtaskIndex = subtaskIndex;
+		this.userCodeClassLoader = userCodeClassLoader;
 	}
 
-	public RuntimeUDFContext(String name, int numParallelSubtasks, int subtaskIndex, Map<String, FutureTask<Path>> cpTasks) {
+	public RuntimeUDFContext(String name, int numParallelSubtasks, int subtaskIndex, ClassLoader userCodeClassLoader, Map<String, FutureTask<Path>> cpTasks) {
 		this.name = name;
 		this.numParallelSubtasks = numParallelSubtasks;
 		this.subtaskIndex = subtaskIndex;
+		this.userCodeClassLoader = userCodeClassLoader;
 		this.distributedCache.setCopyTasks(cpTasks);
 	}
 	@Override
@@ -157,5 +161,10 @@ public class RuntimeUDFContext implements RuntimeContext {
 	@Override
 	public DistributedCache getDistributedCache() {
 		return this.distributedCache;
+	}
+	
+	@Override
+	public ClassLoader getUserCodeClassLoader() {
+		return this.userCodeClassLoader;
 	}
 }

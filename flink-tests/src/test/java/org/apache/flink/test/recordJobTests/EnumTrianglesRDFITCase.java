@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.recordJobTests;
 
 import org.apache.flink.api.common.Plan;
@@ -60,7 +59,7 @@ public class EnumTrianglesRDFITCase extends RecordAPITestBase {
 	protected Plan getTestJob() {
 		EnumTrianglesRdfFoaf enumTriangles = new EnumTrianglesRdfFoaf();
 		return enumTriangles.getPlan(
-				config.getString("EnumTrianglesTest#NoSubtasks", new Integer(DOP).toString()), edgesPath, resultPath);
+				String.valueOf(config.getInteger("NumSubtasks", DOP)), edgesPath, resultPath);
 	}
 
 	@Override
@@ -71,7 +70,7 @@ public class EnumTrianglesRDFITCase extends RecordAPITestBase {
 	@Parameters
 	public static Collection<Object[]> getConfigurations() {
 		Configuration config = new Configuration();
-		config.setInteger("EnumTrianglesTest#NoSubtasks", DOP);
+		config.setInteger("NumSubtasks", DOP);
 		return toParameterList(config);
 	}
 }

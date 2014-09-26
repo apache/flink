@@ -192,18 +192,25 @@ public class CsvInputFormat extends GenericCsvInputFormat<Record> {
 			Class<? extends Value>[] types = (Class<? extends Value>[]) new Class[maxTextPos+1];
 			int[] targetPos = new int[maxTextPos+1];
 			
+			ClassLoader cl = Thread.currentThread().getContextClassLoader();
+			
 			// set the fields
-			for (int i = 0; i < numConfigFields; i++) {
-				int pos = textPosIdx[i];
-				
-				Class<? extends Value> clazz = config.getClass(FIELD_TYPE_PARAMETER_PREFIX + i, null).asSubclass(Value.class);
-				if (clazz == null) {
-					throw new IllegalConfigurationException("Invalid configuration for CsvInputFormat: " +
-						"No field parser class for parameter " + i);
+			try {
+				for (int i = 0; i < numConfigFields; i++) {
+					int pos = textPosIdx[i];
+					
+					Class<? extends Value> clazz = config.getClass(FIELD_TYPE_PARAMETER_PREFIX + i, null, cl).asSubclass(Value.class);
+					if (clazz == null) {
+						throw new IllegalConfigurationException("Invalid configuration for CsvInputFormat: " +
+							"No field parser class for parameter " + i);
+					}
+					
+					types[pos] = clazz;
+					targetPos[pos] = i;
 				}
-				
-				types[pos] = clazz;
-				targetPos[pos] = i;
+			}
+			catch (ClassNotFoundException e) {
+				throw new RuntimeException("Could not resolve type classes", e);
 			}
 			
 			// update the field types

@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.recordJobTests;
 
 import java.util.Collection;
@@ -71,7 +70,8 @@ public class PairwiseSPITCase extends RecordAPITestBase {
 	@Override
 	protected Plan getTestJob() {
 		PairwiseSP a2aSP = new PairwiseSP();
-		return a2aSP.getPlan(config.getString("All2AllSPTest#NoSubtasks", new Integer(DOP).toString()),
+		return a2aSP.getPlan(
+				String.valueOf(config.getInteger("All2AllSPTest#NoSubtasks", DOP)),
 				rdfDataPath,
 				resultPath,
 				"true");

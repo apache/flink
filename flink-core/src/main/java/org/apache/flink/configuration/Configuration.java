@@ -16,140 +16,86 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.configuration;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
 import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.core.io.StringRecord;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-
-import com.google.common.io.BaseEncoding;
+import org.apache.flink.types.StringValue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * Lightweight configuration object which can store key/value pairs. Configuration objects
- * can be extracted from or integrated into the {@link GlobalConfiguration} object. They can
- * be transported via Nephele's IPC system to distribute configuration data at runtime.
- * This class is thread-safe.
- * 
+ * Lightweight configuration object which can store key/value pairs.
  */
 public class Configuration implements IOReadableWritable, java.io.Serializable {
 
 	private static final long serialVersionUID = 1L;
-
-	/**
-	 * Stores the concrete key/value pairs of this configuration object.
-	 */
-	private final Map<String, String> confData = new HashMap<String, String>();
-
-	/**
-	 * The class loader to be used for the <code>getClass</code> method.
-	 */
-	private transient ClassLoader classLoader;
-
-	/**
-	 * Constructs a new configuration object.
-	 */
-	public Configuration() {
-		this.classLoader = this.getClass().getClassLoader();
-	}
-
-	/**
-	 * Constructs a new configuration object.
-	 * 
-	 * @param classLoader
-	 *        the class loader to be use for the <code>getClass</code> method
-	 */
-	public Configuration(final ClassLoader classLoader) {
-		this.classLoader = classLoader;
-	}
 	
+	private static final byte TYPE_STRING = 0;
+	private static final byte TYPE_INT = 1;
+	private static final byte TYPE_LONG = 2;
+	private static final byte TYPE_BOOLEAN = 3;
+	private static final byte TYPE_FLOAT = 4;
+	private static final byte TYPE_DOUBLE = 5;
+	private static final byte TYPE_BYTES = 6;
 	
-	/**
-	 * @return the class loader that knows where to locate user classes
-	 */
-	public ClassLoader getClassLoader() {
-		return this.classLoader;
-	}
+	/** The log object used for debugging. */
+	private static final Logger LOG = LoggerFactory.getLogger(Configuration.class);
+	
 
-	/**
-	 * Sets the class loader that knows where to locate user classes
-	 * 
-	 * @param classLoader
-	 *        the class loader to be use for the <code>getClass</code> method
-	 */
-	public void setClassLoader(ClassLoader classLoader) {
-		this.classLoader = classLoader;
-	}
-
+	/** Stores the concrete key/value pairs of this configuration object. */
+	private final Map<String, Object> confData = new HashMap<String, Object>();
+	
 	// --------------------------------------------------------------------------------------------
-
+	
+	public Configuration() {}
+	
+	// --------------------------------------------------------------------------------------------
+	
 	/**
 	 * Returns the class associated with the given key as a string.
 	 * 
-	 * @param <T>
-	 *        the ancestor of both the default value and the potential value
-	 * @param key
-	 *        the key pointing to the associated value
-	 * @param defaultValue
-	 *        the optional default value returned if no entry exists
-	 * @param ancestor
-	 *        the ancestor of both the default value and the potential value
-	 * @return the (default) value associated with the given key
-	 * @throws IllegalStateException
-	 *         if the class identified by the associated value cannot be resolved
-	 * @see #setClass(String, Class)
+	 * @param <T> The type of the class to return.
+
+	 * @param key The key pointing to the associated value
+	 * @param defaultValue The optional default value returned if no entry exists
+	 * @param classLoader The class loader used to resolve the class.
+	 * 
+	 * @return The value associated with the given key, or the default value, if to entry for the key exists.
 	 */
 	@SuppressWarnings("unchecked")
-	public <T> Class<T> getClass(String key, Class<? extends T> defaultValue, Class<? super T> ancestor) {
-		String className = getStringInternal(key);
-		if (className == null) {
+	public <T> Class<T> getClass(String key, Class<? extends T> defaultValue, ClassLoader classLoader) throws ClassNotFoundException {
+		Object o = getRawValue(key);
+		if (o == null) {
 			return (Class<T>) defaultValue;
 		}
-
-		try {
-			return (Class<T>) Class.forName(className, true, this.classLoader);
-		} catch (ClassNotFoundException e) {
-			throw new IllegalStateException(e);
+		
+		if (o.getClass() == String.class) {
+			return (Class<T>) Class.forName((String) o, true, classLoader);
 		}
-	}
-
-	/**
-	 * Returns the class associated with the given key as a string.
-	 * 
-	 * @param key
-	 *        the key pointing to the associated value
-	 * @param defaultValue
-	 *        the default value which is returned in case there is no value associated with the given key
-	 * @return the (default) value associated with the given key
-	 * @throws IllegalStateException
-	 *         if the class identified by the associated value cannot be resolved
-	 * @see #setClass(String, Class)
-	 */
-	public Class<?> getClass(String key, Class<?> defaultValue) {
-		return getClass(key, defaultValue, Object.class);
+		
+		LOG.warn("Configuration cannot evaluate value " + o + " as a class name");
+		return (Class<T>) defaultValue;
 	}
 
 	/**
 	 * Adds the given key/value pair to the configuration object. The class can be retrieved by invoking
-	 * {@link #getClass(String, Class, Class)} if it is in the scope of the class loader on the caller.
+	 * {@link #getClass(String, Class, ClassLoader)} if it is in the scope of the class loader on the caller.
 	 * 
-	 * @param key
-	 *        the key of the pair to be added
-	 * @param klazz
-	 *        the value of the pair to be added
-	 * @see #getClass(String, Class)
-	 * @see #getClass(String, Class, Class)
+	 * @param key The key of the pair to be added
+	 * @param klazz The value of the pair to be added
+	 * @see #getClass(String, Class, ClassLoader)
 	 */
 	public void setClass(String key, Class<?> klazz) {
-		setStringInternal(key, klazz.getName());
+		setValueInternal(key, klazz.getName());
 	}
 
 	/**
@@ -162,8 +108,12 @@ public class Configuration implements IOReadableWritable, java.io.Serializable {
 	 * @return the (default) value associated with the given key
 	 */
 	public String getString(String key, String defaultValue) {
-		String val = getStringInternal(key);
-		return val == null ? defaultValue : val;
+		Object o = getRawValue(key);
+		if (o == null) {
+			return defaultValue;
+		} else {
+			return o.toString();
+		}
 	}
 	
 	/**
@@ -175,7 +125,7 @@ public class Configuration implements IOReadableWritable, java.io.Serializable {
 	 *        the value of the key/value pair to be added
 	 */
 	public void setString(String key, String value) {
-		setStringInternal(key, value);
+		setValueInternal(key, value);
 	}
 
 	/**
@@ -188,11 +138,31 @@ public class Configuration implements IOReadableWritable, java.io.Serializable {
 	 * @return the (default) value associated with the given key
 	 */
 	public int getInteger(String key, int defaultValue) {
-		String val = getStringInternal(key);
-		if (val == null) {
+		Object o = getRawValue(key);
+		if (o == null) {
 			return defaultValue;
-		} else {
-			return Integer.parseInt(val);
+		}
+		
+		if (o.getClass() == Integer.class) {
+			return (Integer) o;
+		}
+		else if (o.getClass() == Long.class) {
+			long value = ((Long) o).longValue();
+			if (value <= Integer.MAX_VALUE && value >= Integer.MIN_VALUE) {
+				return (int) value;
+			} else {
+				LOG.warn("Configuation value " + value + " overflows/underflows the integer type.");
+				return defaultValue;
+			}
+		}
+		else {
+			try {
+				return Integer.parseInt(o.toString());
+			}
+			catch (NumberFormatException e) {
+				LOG.warn("Configuration cannot evaluate value " + o + " as an integer number");
+				return defaultValue;
+			}
 		}
 	}
 
@@ -205,7 +175,7 @@ public class Configuration implements IOReadableWritable, java.io.Serializable {
 	 *        the value of the key/value pair to be added
 	 */
 	public void setInteger(String key, int value) {
-		setStringInternal(key, Integer.toString(value));
+		setValueInternal(key, value);
 	}
 
 	/**
@@ -218,11 +188,25 @@ public class Configuration implements IOReadableWritable, java.io.Serializable {
 	 * @return the (default) value associated with the given key
 	 */
 	public long getLong(String key, long defaultValue) {
-		String val = getStringInternal(key);
-		if (val == null) {
+		Object o = getRawValue(key);
+		if (o == null) {
 			return defaultValue;
-		} else {
-			return Long.parseLong(val);
+		}
+		
+		if (o.getClass() == Long.class) {
+			return (Long) o;
+		}
+		else if (o.getClass() == Integer.class) {
+			return ((Integer) o).longValue();
+		}
+		else {
+			try {
+				return Long.parseLong(o.toString());
+			}
+			catch (NumberFormatException e) {
+				LOG.warn("Configuration cannot evaluate value " + o + " as a long integer number");
+				return defaultValue;
+			}
 		}
 	}
 
@@ -235,7 +219,7 @@ public class Configuration implements IOReadableWritable, java.io.Serializable {
 	 *        the value of the key/value pair to be added
 	 */
 	public void setLong(String key, long value) {
-		setStringInternal(key, Long.toString(value));
+		setValueInternal(key, value);
 	}
 
 	/**
@@ -248,11 +232,16 @@ public class Configuration implements IOReadableWritable, java.io.Serializable {
 	 * @return the (default) value associated with the given key
 	 */
 	public boolean getBoolean(String key, boolean defaultValue) {
-		String val = getStringInternal(key);
-		if (val == null) {
+		Object o = getRawValue(key);
+		if (o == null) {
 			return defaultValue;
-		} else {
-			return Boolean.parseBoolean(val);
+		}
+		
+		if (o.getClass() == Boolean.class) {
+			return (Boolean) o;
+		}
+		else {
+			return Boolean.parseBoolean(o.toString());
 		}
 	}
 
@@ -264,8 +253,8 @@ public class Configuration implements IOReadableWritable, java.io.Serializable {
 	 * @param value
 	 *        the value of the key/value pair to be added
 	 */
-	public void setBoolean(final String key, final boolean value) {
-		setStringInternal(key, Boolean.toString(value));
+	public void setBoolean(String key, boolean value) {
+		setValueInternal(key, value);
 	}
 
 	/**
@@ -277,12 +266,32 @@ public class Configuration implements IOReadableWritable, java.io.Serializable {
 	 *        the default value which is returned in case there is no value associated with the given key
 	 * @return the (default) value associated with the given key
 	 */
-	public float getFloat(final String key, final float defaultValue) {
-		String val = getStringInternal(key);
-		if (val == null) {
+	public float getFloat(String key, float defaultValue) {
+		Object o = getRawValue(key);
+		if (o == null) {
 			return defaultValue;
-		} else {
-			return Float.parseFloat(val);
+		}
+		
+		if (o.getClass() == Float.class) {
+			return (Float) o;
+		}
+		else if (o.getClass() == Double.class) {
+			double value = ((Double) o);
+			if (value <= Float.MAX_VALUE && value >= Float.MIN_VALUE) {
+				return (float) value;
+			} else {
+				LOG.warn("Configuation value " + value + " overflows/underflows the float type.");
+				return defaultValue;
+			}
+		}
+		else {
+			try {
+				return Float.parseFloat(o.toString());
+			}
+			catch (NumberFormatException e) {
+				LOG.warn("Configuration cannot evaluate value " + o + " as a float value");
+				return defaultValue;
+			}
 		}
 	}
 
@@ -295,7 +304,7 @@ public class Configuration implements IOReadableWritable, java.io.Serializable {
 	 *        the value of the key/value pair to be added
 	 */
 	public void setFloat(String key, float value) {
-		setStringInternal(key, Float.toString(value));
+		setValueInternal(key, value);
 	}
 	
 	/**
@@ -308,11 +317,25 @@ public class Configuration implements IOReadableWritable, java.io.Serializable {
 	 * @return the (default) value associated with the given key
 	 */
 	public double getDouble(String key, double defaultValue) {
-		String val = getStringInternal(key);
-		if (val == null) {
+		Object o = getRawValue(key);
+		if (o == null) {
 			return defaultValue;
-		} else {
-			return Double.parseDouble(val);
+		}
+		
+		if (o.getClass() == Double.class) {
+			return (Double) o;
+		}
+		else if (o.getClass() == Float.class) {
+			return ((Float) o).doubleValue();
+		}
+		else {
+			try {
+				return Double.parseDouble(o.toString());
+			}
+			catch (NumberFormatException e) {
+				LOG.warn("Configuration cannot evaluate value " + o + " as a double value");
+				return defaultValue;
+			}
 		}
 	}
 
@@ -325,7 +348,7 @@ public class Configuration implements IOReadableWritable, java.io.Serializable {
 	 *        the value of the key/value pair to be added
 	 */
 	public void setDouble(String key, double value) {
-		setStringInternal(key, Double.toString(value));
+		setValueInternal(key, value);
 	}
 	
 	/**
@@ -338,11 +361,17 @@ public class Configuration implements IOReadableWritable, java.io.Serializable {
 	 * @return the (default) value associated with the given key.
 	 */
 	public byte[] getBytes(String key, byte[] defaultValue) {
-		final String encoded = getStringInternal(key);
-		if (encoded == null) {
+		
+		Object o = getRawValue(key);
+		if (o == null) {
 			return defaultValue;
-		} else {
-			return BaseEncoding.base64().decode(encoded);
+		}
+		else if (o.getClass() == byte[].class) {
+			return (byte[]) o;
+		}
+		else {
+			LOG.warn("Configuration cannot evaluate value " + o + " as a byte[] value");
+			return defaultValue;
 		}
 	}
 	
@@ -355,10 +384,11 @@ public class Configuration implements IOReadableWritable, java.io.Serializable {
 	 *        The bytes to be added.
 	 */
 	public void setBytes(String key, byte[] bytes) {
-		final String encoded = BaseEncoding.base64().encode(bytes);
-		setStringInternal(key, encoded);
+		setValueInternal(key, bytes);
 	}
 
+	// --------------------------------------------------------------------------------------------
+	
 	/**
 	 * Returns the keys of all key/value pairs stored inside this
 	 * configuration object.
@@ -366,19 +396,9 @@ public class Configuration implements IOReadableWritable, java.io.Serializable {
 	 * @return the keys of all key/value pairs stored inside this configuration object
 	 */
 	public Set<String> keySet() {
-
-		// Copy key set, so return value is independent from the object's internal data structure
-		final Set<String> retVal = new HashSet<String>();
-
 		synchronized (this.confData) {
-
-			final Iterator<String> it = this.confData.keySet().iterator();
-			while (it.hasNext()) {
-				retVal.add(it.next());
-			}
+			return new HashSet<String>(this.confData.keySet());
 		}
-
-		return retVal;
 	}
 
 	public void addAll(Configuration other) {
@@ -405,7 +425,7 @@ public class Configuration implements IOReadableWritable, java.io.Serializable {
 
 		synchronized (this.confData) {
 			synchronized (other.confData) {
-				for (Map.Entry<String, String> entry : other.confData.entrySet()) {
+				for (Map.Entry<String, Object> entry : other.confData.entrySet()) {
 					bld.setLength(pl);
 					bld.append(entry.getKey());
 					this.confData.put(bld.toString(), entry.getValue());
@@ -428,7 +448,20 @@ public class Configuration implements IOReadableWritable, java.io.Serializable {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	private String getStringInternal(String key) {
+	private <T> void setValueInternal(String key, T value) {
+		if (key == null) {
+			throw new NullPointerException("Key must not be null.");
+		}
+		if (value == null) {
+			throw new NullPointerException("Value must not be null.");
+		}
+		
+		synchronized (this.confData) {
+			this.confData.put(key, value);
+		}
+	}
+	
+	private Object getRawValue(String key) {
 		if (key == null) {
 			throw new NullPointerException("Key must not be null.");
 		}
@@ -438,83 +471,141 @@ public class Configuration implements IOReadableWritable, java.io.Serializable {
 		}
 	}
 	
-	private void setStringInternal(String key, String value) {
-		if (key == null) {
-			throw new NullPointerException("Key must not be null.");
-		}
-		if (value == null) {
-			throw new NullPointerException("Value must not be null.");
-		}
-			
-		
-		synchronized (this.confData) {
-			this.confData.put(key, value);
-		}
-	}
-	
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public void read(final DataInputView in) throws IOException {
-
+	public void read(DataInputView in) throws IOException {
 		synchronized (this.confData) {
-
 			final int numberOfProperties = in.readInt();
 
 			for (int i = 0; i < numberOfProperties; i++) {
-				final String key = StringRecord.readString(in);
-				final String value = StringRecord.readString(in);
+				String key = StringValue.readString(in);
+				Object value;
+				
+				byte type = in.readByte();
+				switch (type) {
+					case TYPE_STRING:
+						value = StringValue.readString(in);
+						break;
+					case TYPE_INT:
+						value = in.readInt();
+						break;
+					case TYPE_LONG:
+						value = in.readLong();
+						break;
+					case TYPE_FLOAT:
+						value = in.readFloat();
+						break;
+					case TYPE_DOUBLE:
+						value = in.readDouble();
+						break;
+					case TYPE_BOOLEAN:
+						value = in.readBoolean();
+						break;
+					case TYPE_BYTES:
+						byte[] bytes = new byte[in.readInt()];
+						in.readFully(bytes);
+						value = bytes;
+						break;
+					default:
+						throw new IOException("Unrecognized type: " + type);
+				}
+				
 				this.confData.put(key, value);
 			}
 		}
 	}
 
-
 	@Override
 	public void write(final DataOutputView out) throws IOException {
-
 		synchronized (this.confData) {
-
 			out.writeInt(this.confData.size());
-
-			final Iterator<String> it = this.confData.keySet().iterator();
-			while (it.hasNext()) {
-				final String key = it.next();
-				final String value = this.confData.get(key);
-				StringRecord.writeString(out, key);
-				StringRecord.writeString(out, value);
+			
+			for (Map.Entry<String, Object> entry : this.confData.entrySet()) {
+				String key = entry.getKey();
+				Object val = entry.getValue();
+						
+				StringValue.writeString(key, out);
+				Class<?> clazz = val.getClass();
+				
+				if (clazz == String.class) {
+					out.write(TYPE_STRING);
+					StringValue.writeString((String) val, out);
+				}
+				else if (clazz == Integer.class) {
+					out.write(TYPE_INT);
+					out.writeInt((Integer) val);
+				}
+				else if (clazz == Long.class) {
+					out.write(TYPE_LONG);
+					out.writeLong((Long) val);
+				}
+				else if (clazz == Float.class) {
+					out.write(TYPE_FLOAT);
+					out.writeFloat((Float) val);
+				}
+				else if (clazz == Double.class) {
+					out.write(TYPE_DOUBLE);
+					out.writeDouble((Double) val);
+				}
+				else if (clazz == byte[].class) {
+					out.write(TYPE_BYTES);
+					byte[] bytes = (byte[]) val;
+					out.writeInt(bytes.length);
+					out.write(bytes);
+				}
+				else if (clazz == Boolean.class) {
+					out.write(TYPE_BOOLEAN);
+					out.writeBoolean((Boolean) val);
+				}
+				else {
+					throw new IllegalArgumentException("Unrecognized type");
+				}
 			}
 		}
-	}
-	
-	private void readObject(java.io.ObjectInputStream s) throws java.io.IOException, ClassNotFoundException {
-		s.defaultReadObject();
-		this.classLoader = getClass().getClassLoader();
 	}
 	
 	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public int hashCode() {
-		final int prime = 31;
-		int result = 1;
-		result = prime * result + confData.hashCode();
-		return result;
+		int hash = 0;
+		for (String s : this.confData.keySet()) {
+			hash ^= s.hashCode();
+		}
+		return hash;
 	}
 
 	@Override
-	public boolean equals(final Object obj) {
+	public boolean equals(Object obj) {
 		if (this == obj) {
 			return true;
 		}
-		if (obj == null) {
+		else if (obj instanceof Configuration) {
+			Map<String, Object> otherConf = ((Configuration) obj).confData;
+			
+			for (Map.Entry<String, Object> e : this.confData.entrySet()) {
+				Object thisVal = e.getValue();
+				Object otherVal = otherConf.get(e.getKey());
+				
+				if (thisVal.getClass() != byte[].class) {
+					if (!thisVal.equals(otherVal)) {
+						return false;
+					}
+				} else if (otherVal.getClass() == byte[].class) {
+					if (!Arrays.equals((byte[]) thisVal, (byte[]) otherVal)) {
+						return false;
+					}
+				} else {
+					return false;
+				}
+			}
+			
+			return true;
+		}
+		else {
 			return false;
 		}
-		if (getClass() != obj.getClass()) {
-			return false;
-		}
-		final Configuration other = (Configuration) obj;
-		return confData.equals(other.confData);
 	}
 	
 	@Override
