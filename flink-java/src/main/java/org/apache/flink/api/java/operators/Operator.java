@@ -30,9 +30,9 @@ import org.apache.flink.api.java.ExecutionEnvironment;
  */
 public abstract class Operator<OUT, O extends Operator<OUT, O>> extends DataSet<OUT> {
 
-	private String name;
+	protected String name;
 	
-	private int dop = -1;
+	protected int dop = -1;
 
 	protected Operator(ExecutionEnvironment context, TypeInformation<OUT> resultType) {
 		super(context, resultType);

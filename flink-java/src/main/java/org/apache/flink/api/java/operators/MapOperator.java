@@ -37,10 +37,7 @@ import org.apache.flink.api.java.DataSet;
 public class MapOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT, MapOperator<IN, OUT>> {
 	
 	protected final MapFunction<IN, OUT> function;
-	
-	protected PartitionedDataSet<IN> partitionedDataSet;
-	
-	
+
 	public MapOperator(DataSet<IN> input, TypeInformation<OUT> resultType, MapFunction<IN, OUT> function) {
 
 		super(input, resultType);
@@ -49,18 +46,8 @@ public class MapOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT, MapOpe
 		extractSemanticAnnotationsFromUdf(function.getClass());
 	}
 	
-	public MapOperator(PartitionedDataSet<IN> input, TypeInformation<OUT> resultType, MapFunction<IN, OUT> function) {
-		this(input.getDataSet(), resultType, function);
-		this.partitionedDataSet = input;
-	}
-
 	@Override
 	protected org.apache.flink.api.common.operators.base.MapOperatorBase<IN, OUT, MapFunction<IN, OUT>> translateToDataFlow(Operator<IN> input) {
-		
-		// inject partition operator if necessary
-		if(this.partitionedDataSet != null) {
-			input = this.partitionedDataSet.translateToDataFlow(input, this.getParallelism());
-		}
 		
 		String name = getName() != null ? getName() : function.getClass().getName();
 		// create operator

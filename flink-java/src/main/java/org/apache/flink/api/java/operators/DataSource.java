@@ -22,7 +22,6 @@ import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.operators.OperatorInformation;
 import org.apache.flink.api.common.operators.base.GenericDataSourceBase;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 
 /**
@@ -32,13 +31,9 @@ import org.apache.flink.api.java.ExecutionEnvironment;
  * 
  * @param <OUT> The type of the elements produced by this data source.
  */
-public class DataSource<OUT> extends DataSet<OUT> {
+public class DataSource<OUT> extends Operator<OUT, DataSource<OUT>> {
 	
 	private final InputFormat<OUT, ?> inputFormat;
-	
-	private String name;
-	
-	private int dop = -1;
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -66,45 +61,6 @@ public class DataSource<OUT> extends DataSet<OUT> {
 	 */
 	public InputFormat<OUT, ?> getInputFormat() {
 		return this.inputFormat;
-	}
-	
-	// --------------------------------------------------------------------------------------------
-	
-	/**
-	 * Sets the name of the data source operation. The name will be used for logging and other
-	 * messages. The default name is a textual representation of the input format.
-	 * 
-	 * @param name The name for the data source.
-	 * @return The data source object itself, to allow for function call chaining.
-	 */
-	public DataSource<OUT> name(String name) {
-		this.name = name;
-		return this;
-	}
-	
-	/**
-	 * Returns the degree of parallelism of this data source.
-	 * 
-	 * @return The degree of parallelism of this data source.
-	 */
-	public int getParallelism() {
-		return this.dop;
-	}
-	
-	/**
-	 * Sets the degree of parallelism for this data source.
-	 * The degree must be 1 or more.
-	 * 
-	 * @param dop The degree of parallelism for this data source.
-	 * @return This data source with set degree of parallelism.
-	 */
-	public DataSource<OUT> setParallelism(int dop) {
-		if(dop < 1) {
-			throw new IllegalArgumentException("The parallelism of an operator must be at least 1.");
-		}
-		this.dop = dop;
-		
-		return this;
 	}
 	
 	// --------------------------------------------------------------------------------------------
