@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.operators;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -37,8 +38,13 @@ import org.apache.flink.api.common.functions.util.IterationRuntimeUDFContext;
 import org.apache.flink.api.common.functions.util.RuntimeUDFContext;
 import org.apache.flink.api.common.operators.base.BulkIterationBase;
 import org.apache.flink.api.common.operators.base.BulkIterationBase.PartialSolutionPlaceHolder;
+import org.apache.flink.api.common.operators.base.DeltaIterationBase;
 import org.apache.flink.api.common.operators.base.DeltaIterationBase.SolutionSetPlaceHolder;
 import org.apache.flink.api.common.operators.base.DeltaIterationBase.WorksetPlaceHolder;
+import org.apache.flink.api.common.operators.util.TypeComparable;
+import org.apache.flink.api.common.typeinfo.CompositeType;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.util.Visitor;
 
 /**
@@ -87,16 +93,19 @@ public class CollectionExecutor {
 		}
 		
 		if (operator instanceof BulkIterationBase) {
-			return executeBulkIteration((BulkIterationBase<?>) operator);
+			result = executeBulkIteration((BulkIterationBase<?>) operator);
+		}
+		else if (operator instanceof DeltaIterationBase) {
+			result = executeDeltaIteration((DeltaIterationBase<?, ?>) operator);
 		}
 		else if (operator instanceof SingleInputOperator) {
-			return executeUnaryOperator((SingleInputOperator<?, ?, ?>) operator, superStep);
+			result = executeUnaryOperator((SingleInputOperator<?, ?, ?>) operator, superStep);
 		}
 		else if (operator instanceof DualInputOperator) {
-			return executeBinaryOperator((DualInputOperator<?, ?, ?, ?>) operator, superStep);
+			result = executeBinaryOperator((DualInputOperator<?, ?, ?, ?>) operator, superStep);
 		}
 		else if (operator instanceof GenericDataSourceBase) {
-			return executeDataSource((GenericDataSourceBase<?, ?>) operator);
+			result = executeDataSource((GenericDataSourceBase<?, ?>) operator);
 		}
 		else if (operator instanceof GenericDataSinkBase) {
 			executeDataSink((GenericDataSinkBase<?>) operator);
@@ -217,7 +226,7 @@ public class CollectionExecutor {
 	private <T> List<T> executeBulkIteration(BulkIterationBase<?> iteration) throws Exception {
 		Operator<?> inputOp = iteration.getInput();
 		if (inputOp == null) {
-			throw new InvalidProgramException("The iteration " + iteration.getName() + " has input (initial partial solution).");
+			throw new InvalidProgramException("The iteration " + iteration.getName() + " has no input (initial partial solution).");
 		}
 		if (iteration.getNextPartialSolution() == null) {
 			throw new InvalidProgramException("The iteration " + iteration.getName() + " has no next partial solution defined (is not closed).");
@@ -244,8 +253,7 @@ public class CollectionExecutor {
 			
 			// grab the current iteration result
 			currentResult = (List<T>) execute(iteration.getNextPartialSolution(), superstep);
-			this.intermediateResults.put(iteration.getNextPartialSolution(), currentResult);
-			
+
 			// evaluate the termination criterion
 			if (iteration.getTerminationCriterion() != null) {
 				List<?> term = execute(((SingleInputOperator<?, ?, ?>) iteration.getTerminationCriterion()).getInput(), superstep);
@@ -261,6 +269,88 @@ public class CollectionExecutor {
 		}
 		
 		return currentResult;
+	}
+
+	@SuppressWarnings("unchecked")
+	private <T> List<T> executeDeltaIteration(DeltaIterationBase<?, ?> iteration) throws Exception {
+		Operator<?> solutionInput = iteration.getInitialSolutionSet();
+		Operator<?> worksetInput = iteration.getInitialWorkset();
+		if (solutionInput == null) {
+			throw new InvalidProgramException("The delta iteration " + iteration.getName() + " has no initial solution set.");
+		}
+		if (worksetInput == null) {
+			throw new InvalidProgramException("The delta iteration " + iteration.getName() + " has no initial workset.");
+		}
+		if (iteration.getSolutionSetDelta() == null) {
+			throw new InvalidProgramException("The iteration " + iteration.getName() + " has no solution set delta defined (is not closed).");
+		}
+		if (iteration.getNextWorkset() == null) {
+			throw new InvalidProgramException("The iteration " + iteration.getName() + " has no workset defined (is not closed).");
+		}
+
+
+		List<T> solutionInputData = (List<T>) execute(solutionInput);
+		List<T> worksetInputData = (List<T>) execute(worksetInput);
+
+		// get the operators that are iterative
+		Set<Operator<?>> dynamics = new LinkedHashSet<Operator<?>>();
+		DynamicPathCollector dynCollector = new DynamicPathCollector(dynamics);
+		iteration.getSolutionSetDelta().accept(dynCollector);
+		iteration.getNextWorkset().accept(dynCollector);
+
+		BinaryOperatorInformation<?, ?, ?> operatorInfo = iteration.getOperatorInfo();
+		TypeInformation<?> solutionType = operatorInfo.getFirstInputType();
+
+		int[] keyColumns = iteration.getSolutionSetKeyFields();
+		boolean[] inputOrderings = new boolean[keyColumns.length];
+		TypeComparator<T> inputComparator = ((CompositeType<T>) solutionType).createComparator(keyColumns, inputOrderings);
+
+		Map<TypeComparable<T>, T> solutionMap = new HashMap<TypeComparable<T>, T>(solutionInputData.size());
+		// fill the solution from the initial input
+		for (T delta: solutionInputData) {
+			TypeComparable<T> wrapper = new TypeComparable<T>(delta, inputComparator);
+			solutionMap.put(wrapper, delta);
+		}
+
+		List<?> currentWorkset = worksetInputData;
+
+
+		final int maxIterations = iteration.getMaximumNumberOfIterations();
+
+		for (int superstep = 1; superstep <= maxIterations; superstep++) {
+
+			List<T> currentSolution = new ArrayList<T>(solutionMap.size());
+			currentSolution.addAll(solutionMap.values());
+
+			// set the input to the current partial solution
+			this.intermediateResults.put(iteration.getSolutionSet(), currentSolution);
+			this.intermediateResults.put(iteration.getWorkset(), currentWorkset);
+
+			// grab the current iteration result
+			List<T> solutionSetDelta = (List<T>) execute(iteration.getSolutionSetDelta(), superstep);
+			this.intermediateResults.put(iteration.getSolutionSetDelta(), solutionSetDelta);
+
+			// update the solution
+			for (T delta: solutionSetDelta) {
+				TypeComparable<T> wrapper = new TypeComparable<T>(delta, inputComparator);
+				solutionMap.put(wrapper, delta);
+			}
+
+			currentWorkset = (List<?>) execute(iteration.getNextWorkset(), superstep);
+
+			if (currentWorkset.isEmpty()) {
+				break;
+			}
+
+			// clear the dynamic results
+			for (Operator<?> o : dynamics) {
+				intermediateResults.remove(o);
+			}
+		}
+
+		List<T> currentSolution = new ArrayList<T>(solutionMap.size());
+		currentSolution.addAll(solutionMap.values());
+		return currentSolution;
 	}
 	
 	// --------------------------------------------------------------------------------------------
