@@ -5,11 +5,11 @@
 #     {{ site.CONFIG_KEY }}
 #------------------------------------------------------------------------------
 
-FLINK_VERSION_STABLE: 0.7-incubating # this variable can point to a SNAPSHOT version in the git source.
-FLINK_VERSION_SHORT: 0.7
+FLINK_VERSION_STABLE: "0.7-incubating" # this variable can point to a SNAPSHOT version in the git source.
+FLINK_VERSION_SHORT: "0.7"
 FLINK_VERSION_HADOOP_2_STABLE: 0.7-hadoop2-incubating
-FLINK_SCALA_VERSION: 2.10.4
-FLINK_SCALA_VERSION_SHORT: 2.10
+FLINK_SCALA_VERSION: "2.10.4"
+FLINK_SCALA_VERSION_SHORT: "2.10"
 FLINK_ISSUES_URL: https://issues.apache.org/jira/browse/FLINK
 FLINK_GITHUB_URL:  https://github.com/apache/incubator-flink
 

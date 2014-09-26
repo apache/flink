@@ -19,5 +19,5 @@ when picking a version, there are different versions depending on the Hadoop and
 HDFS version that you want to use with Flink. Please refer to [building](building.html) if you
 want to build Flink yourself from the source.
 
-In Version {{ site.FLINK_VERSION}} the Scala API uses {{ site.SCALA_VERSION_SHORT}}. Please make
+In Version {{ site.FLINK_VERSION_STABLE}} the Scala API uses Scala {{ site.FLINK_SCALA_VERSION_SHORT }}. Please make
 sure to use a compatible version.
