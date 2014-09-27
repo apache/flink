@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 
 package org.apache.flink.test.iterative;
 
@@ -110,6 +109,7 @@ public class IterationTerminationWithTwoTails extends RecordAPITestBase {
 		public void reduce(Iterator<Record> it, Collector<Record> out) {
 			// Compute the sum
 			int sum = 0;
+			
 			while (it.hasNext()) {
 				sum += Integer.parseInt(it.next().getField(0, StringValue.class).getValue()) + 1;
 			}

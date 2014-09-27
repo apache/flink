@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,22 +16,20 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.iterative;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
-import org.apache.flink.api.java.functions.FlatMapFunction;
-import org.apache.flink.api.java.functions.GroupReduceFunction;
-import org.apache.flink.api.java.functions.JoinFunction;
+import org.apache.flink.api.common.functions.RichFlatMapFunction;
+import org.apache.flink.api.common.functions.RichGroupReduceFunction;
+import org.apache.flink.api.common.functions.RichJoinFunction;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.util.Collector;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.DeltaIteration;
+import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.ExecutionEnvironment;
 
 /**
@@ -92,8 +90,8 @@ public class DependencyConnectedComponentsITCase extends JavaProgramTestBase {
 		
 		resultPath = getTempDirPath("result");
 		
-		expectedResult = "(1, 1)\n" + "(2, 1)\n" + "(3, 1)\n" + "(4, 1)\n" +
-						"(5, 1)\n" + "(6, 1)\n" + "(7, 7)\n" + "(8, 7)\n" + "(9, 7)\n";
+		expectedResult = "(1,1)\n" + "(2,1)\n" + "(3,1)\n" + "(4,1)\n" +
+						"(5,1)\n" + "(6,1)\n" + "(7,7)\n" + "(8,7)\n" + "(9,7)\n";
 	}
 
 	@Override
@@ -153,8 +151,7 @@ public class DependencyConnectedComponentsITCase extends JavaProgramTestBase {
 		}
 	}
 	
-	public static final class FindCandidatesJoin extends JoinFunction
-		<Tuple2<Long, Long>, Tuple2<Long, Long>, Long> {
+	public static final class FindCandidatesJoin extends RichJoinFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Long> {
 		
 		private static final long serialVersionUID = 1L;
 		
@@ -166,18 +163,17 @@ public class DependencyConnectedComponentsITCase extends JavaProgramTestBase {
 		}
 	}
 	
-	public static final class RemoveDuplicatesReduce extends GroupReduceFunction<Long, Long> {
+	public static final class RemoveDuplicatesReduce extends RichGroupReduceFunction<Long, Long> {
 		
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void reduce(Iterator<Long> values, Collector<Long> out) throws Exception {
-				out.collect(values.next());
+		public void reduce(Iterable<Long> values, Collector<Long> out) {
+				out.collect(values.iterator().next());
 		}
 	}
 	
-	public static final class FindCandidatesDependenciesJoin extends JoinFunction
-		<Long, Tuple2<Long, Long>,Tuple2<Long, Long>> {
+	public static final class FindCandidatesDependenciesJoin extends RichJoinFunction<Long, Tuple2<Long, Long>,Tuple2<Long, Long>> {
 	
 		private static final long serialVersionUID = 1L;
 		
@@ -187,8 +183,7 @@ public class DependencyConnectedComponentsITCase extends JavaProgramTestBase {
 		}
 	}
 	
-	public static final class NeighborWithComponentIDJoin extends JoinFunction
-		<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
+	public static final class NeighborWithComponentIDJoin extends RichJoinFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
 	
 		private static final long serialVersionUID = 1L;
 		
@@ -201,43 +196,39 @@ public class DependencyConnectedComponentsITCase extends JavaProgramTestBase {
 		}
 	}
 	
-	public static final class MinimumReduce extends GroupReduceFunction
-		<Tuple2<Long, Long>, Tuple2<Long, Long>> {
+	public static final class MinimumReduce extends RichGroupReduceFunction<Tuple2<Long, Long>, Tuple2<Long, Long>> {
 		
 		private static final long serialVersionUID = 1L;
 		final Tuple2<Long, Long> resultVertex = new Tuple2<Long, Long>();
 		
 		@Override
-		public void reduce(Iterator<Tuple2<Long, Long>> values,
-				Collector<Tuple2<Long, Long>> out) throws Exception {
+		public void reduce(Iterable<Tuple2<Long, Long>> values, Collector<Tuple2<Long, Long>> out) {
+			Long vertexId = 0L;
+			Long minimumCompId = Long.MAX_VALUE;
 
-			final Tuple2<Long, Long> first = values.next();		
-			final Long vertexId = first.f0;
-			Long minimumCompId = first.f1;
-			
-			while ( values.hasNext() ) {
-				Long candidateCompId = values.next().f1;
-				if ( candidateCompId < minimumCompId ) {
+			for (Tuple2<Long, Long> value: values) {
+				vertexId = value.f0;
+				Long candidateCompId = value.f1;
+				if (candidateCompId < minimumCompId) {
 					minimumCompId = candidateCompId;
 				}
 			}
-			resultVertex.setField(vertexId, 0);
-			resultVertex.setField(minimumCompId, 1);
+			resultVertex.f0 = vertexId;
+			resultVertex.f1 = minimumCompId;
 
 			out.collect(resultVertex);
 		}
 	}
 
-	public static final class MinimumIdFilter extends FlatMapFunction
-		<Tuple2<Tuple2<Long, Long>, Tuple2<Long, Long>>, Tuple2<Long, Long>> {
+	public static final class MinimumIdFilter extends RichFlatMapFunction<Tuple2<Tuple2<Long, Long>, Tuple2<Long, Long>>, Tuple2<Long, Long>> {
 	
 		private static final long serialVersionUID = 1L;
 	
 		@Override
 		public void flatMap(
 				Tuple2<Tuple2<Long, Long>, Tuple2<Long, Long>> vertexWithNewAndOldId,
-				Collector<Tuple2<Long, Long>> out) throws Exception {
-						
+				Collector<Tuple2<Long, Long>> out)
+		{
 			if ( vertexWithNewAndOldId.f0.f1 < vertexWithNewAndOldId.f1.f1 ) {
 				out.collect(vertexWithNewAndOldId.f0);
 			}

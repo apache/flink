@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -26,19 +26,16 @@ import org.apache.flink.api.common.operators.base.GenericDataSinkBase;
 import org.apache.flink.api.common.operators.base.GenericDataSourceBase;
 import org.apache.flink.api.common.operators.base.MapOperatorBase;
 import org.apache.flink.api.common.operators.base.ReduceOperatorBase;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.functions.ReduceFunction;
-import org.apache.flink.api.java.operators.translation.KeyExtractingMapper;
-import org.apache.flink.api.java.operators.translation.PlanUnwrappingReduceOperator;
+import org.apache.flink.api.common.functions.RichReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.ValueTypeInfo;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.StringValue;
-import org.apache.flink.types.TypeInformation;
 import org.junit.Test;
-
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 
@@ -53,7 +50,7 @@ public class ReduceTranslationTests implements java.io.Serializable {
 			
 			DataSet<Tuple3<Double, StringValue, LongValue>> initialData = getSourceDataSet(env);
 			
-			initialData.reduce(new ReduceFunction<Tuple3<Double,StringValue,LongValue>>() {
+			initialData.reduce(new RichReduceFunction<Tuple3<Double,StringValue,LongValue>>() {
 				public Tuple3<Double, StringValue, LongValue> reduce(Tuple3<Double, StringValue, LongValue> value1, Tuple3<Double, StringValue, LongValue> value2) {
 					return value1;
 				}
@@ -94,7 +91,7 @@ public class ReduceTranslationTests implements java.io.Serializable {
 			
 			initialData
 				.groupBy(2)
-				.reduce(new ReduceFunction<Tuple3<Double,StringValue,LongValue>>() {
+				.reduce(new RichReduceFunction<Tuple3<Double,StringValue,LongValue>>() {
 					public Tuple3<Double, StringValue, LongValue> reduce(Tuple3<Double, StringValue, LongValue> value1, Tuple3<Double, StringValue, LongValue> value2) {
 						return value1;
 					}
@@ -141,7 +138,7 @@ public class ReduceTranslationTests implements java.io.Serializable {
 						return value.f1;
 					}
 				})
-				.reduce(new ReduceFunction<Tuple3<Double,StringValue,LongValue>>() {
+				.reduce(new RichReduceFunction<Tuple3<Double,StringValue,LongValue>>() {
 					public Tuple3<Double, StringValue, LongValue> reduce(Tuple3<Double, StringValue, LongValue> value1, Tuple3<Double, StringValue, LongValue> value2) {
 						return value1;
 					}

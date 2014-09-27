@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,20 +16,15 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators;
 
-import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import junit.framework.Assert;
-
-import org.apache.flink.api.common.functions.GenericCoGrouper;
-import org.apache.flink.api.java.record.functions.CoGroupFunction;
-import org.apache.flink.api.java.typeutils.runtime.record.RecordComparator;
-import org.apache.flink.api.java.typeutils.runtime.record.RecordPairComparatorFactory;
-import org.apache.flink.runtime.operators.CoGroupDriver;
-import org.apache.flink.runtime.operators.DriverStrategy;
+import org.junit.Assert;
+import org.apache.flink.api.common.functions.CoGroupFunction;
+import org.apache.flink.api.common.functions.RichCoGroupFunction;
+import org.apache.flink.api.common.typeutils.record.RecordComparator;
+import org.apache.flink.api.common.typeutils.record.RecordPairComparatorFactory;
 import org.apache.flink.runtime.operators.CoGroupTaskExternalITCase.MockCoGroupStub;
 import org.apache.flink.runtime.operators.testutils.DelayingInfinitiveInputIterator;
 import org.apache.flink.runtime.operators.testutils.DriverTestBase;
@@ -42,7 +37,7 @@ import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
 
-public class CoGroupTaskTest extends DriverTestBase<GenericCoGrouper<Record, Record, Record>>
+public class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Record, Record>>
 {
 	private static final long SORT_MEM = 3*1024*1024;
 	
@@ -73,8 +68,8 @@ public class CoGroupTaskTest extends DriverTestBase<GenericCoGrouper<Record, Rec
 			(keyCnt1 > keyCnt2 ? (keyCnt1 - keyCnt2) * valCnt1 : (keyCnt2 - keyCnt1) * valCnt2);
 		
 		setOutput(this.output);
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.CO_GROUP);
 		
@@ -104,8 +99,8 @@ public class CoGroupTaskTest extends DriverTestBase<GenericCoGrouper<Record, Rec
 			(keyCnt1 > keyCnt2 ? (keyCnt1 - keyCnt2) * valCnt1 : (keyCnt2 - keyCnt1) * valCnt2);
 		
 		setOutput(this.output);
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.CO_GROUP);
 		
@@ -135,8 +130,8 @@ public class CoGroupTaskTest extends DriverTestBase<GenericCoGrouper<Record, Rec
 			(keyCnt1 > keyCnt2 ? (keyCnt1 - keyCnt2) * valCnt1 : (keyCnt2 - keyCnt1) * valCnt2);
 		
 		setOutput(this.output);
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.CO_GROUP);
 		
@@ -166,8 +161,8 @@ public class CoGroupTaskTest extends DriverTestBase<GenericCoGrouper<Record, Rec
 			(keyCnt1 > keyCnt2 ? (keyCnt1 - keyCnt2) * valCnt1 : (keyCnt2 - keyCnt1) * valCnt2);
 		
 		setOutput(this.output);
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.CO_GROUP);
 		
@@ -200,8 +195,8 @@ public class CoGroupTaskTest extends DriverTestBase<GenericCoGrouper<Record, Rec
 		
 		addInput(new UniformRecordGenerator(keyCnt1, valCnt1, true));
 		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, true));
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.CO_GROUP);
@@ -230,8 +225,8 @@ public class CoGroupTaskTest extends DriverTestBase<GenericCoGrouper<Record, Rec
 		
 		addInput(new UniformRecordGenerator(keyCnt1, valCnt1, true));
 		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, true));
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.CO_GROUP);
@@ -256,8 +251,8 @@ public class CoGroupTaskTest extends DriverTestBase<GenericCoGrouper<Record, Rec
 		
 		setOutput(this.output);
 		
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.CO_GROUP);
@@ -307,8 +302,8 @@ public class CoGroupTaskTest extends DriverTestBase<GenericCoGrouper<Record, Rec
 		
 		setOutput(this.output);
 		
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.CO_GROUP);
@@ -359,8 +354,8 @@ public class CoGroupTaskTest extends DriverTestBase<GenericCoGrouper<Record, Rec
 		
 		setOutput(this.output);
 		
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.CO_GROUP);
@@ -403,24 +398,20 @@ public class CoGroupTaskTest extends DriverTestBase<GenericCoGrouper<Record, Rec
 		Assert.assertTrue("Test threw an exception even though it was properly canceled.", success.get());
 	}
 	
-	public static class MockFailingCoGroupStub extends CoGroupFunction {
+	public static class MockFailingCoGroupStub extends RichCoGroupFunction<Record, Record, Record> {
 		private static final long serialVersionUID = 1L;
 		
 		private int cnt = 0;
 		
 		@Override
-		public void coGroup(Iterator<Record> records1,
-				Iterator<Record> records2, Collector<Record> out) throws RuntimeException
-		{
+		public void coGroup(Iterable<Record> records1, Iterable<Record> records2, Collector<Record> out) {
 			int val1Cnt = 0;
 			
-			while (records1.hasNext()) {
+			for (@SuppressWarnings("unused") Record r : records1) { 
 				val1Cnt++;
-				records1.next();
 			}
 			
-			while (records2.hasNext()) {
-				Record record2 = records2.next();
+			for (Record record2 : records2) { 
 				if (val1Cnt == 0) {
 					
 					if(++this.cnt>=10) {
@@ -443,25 +434,23 @@ public class CoGroupTaskTest extends DriverTestBase<GenericCoGrouper<Record, Rec
 	
 	}
 	
-	public static final class MockDelayingCoGroupStub extends CoGroupFunction {
+	public static final class MockDelayingCoGroupStub extends RichCoGroupFunction<Record, Record, Record> {
 		private static final long serialVersionUID = 1L;
 		
+		@SuppressWarnings("unused")
 		@Override
-		public void coGroup(Iterator<Record> records1,
-				Iterator<Record> records2, Collector<Record> out) {
+		public void coGroup(Iterable<Record> records1, Iterable<Record> records2, Collector<Record> out) {
 			
-			while (records1.hasNext()) {
+			for (Record r : records1) { 
 				try {
 					Thread.sleep(100);
 				} catch (InterruptedException e) { }
-				records1.next();
 			}
 			
-			while (records2.hasNext()) {
+			for (Record r : records2) { 
 				try {
 					Thread.sleep(100);
 				} catch (InterruptedException e) { }
-				records2.next();
 			}
 		}
 	}

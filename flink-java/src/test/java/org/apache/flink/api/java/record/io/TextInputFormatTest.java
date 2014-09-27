@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -30,23 +30,13 @@ import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.OutputStreamWriter;
 
-import org.apache.flink.api.java.record.io.TextInputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.types.Record;
 import org.apache.flink.types.StringValue;
-import org.apache.flink.util.LogUtils;
-import org.apache.log4j.Level;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 public class TextInputFormatTest {
-		
-	@BeforeClass
-	public static void initialize() {
-		LogUtils.initializeDefaultConsoleLogger(Level.WARN);
-	}
-	
 	/**
 	 * The TextInputFormat seems to fail reading more than one record. I guess its
 	 * an off by one error.

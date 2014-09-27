@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -50,7 +50,7 @@ public class TypeTest {
 		assertEquals(orig.getDataBuffer().length, 2 * data.length);
 
 		try {
-			final FileRecord copy = (FileRecord) CommonTestUtils.createCopy(orig);
+			final FileRecord copy = (FileRecord) CommonTestUtils.createCopyWritable(orig);
 
 			assertEquals(orig.getFileName(), copy.getFileName());
 			assertEquals(orig, copy);
@@ -72,7 +72,7 @@ public class TypeTest {
 
 		try {
 
-			final IntegerRecord copy = (IntegerRecord) CommonTestUtils.createCopy(orig);
+			final IntegerRecord copy = (IntegerRecord) CommonTestUtils.createCopyWritable(orig);
 
 			assertEquals(orig.getValue(), copy.getValue());
 			assertEquals(orig, copy);

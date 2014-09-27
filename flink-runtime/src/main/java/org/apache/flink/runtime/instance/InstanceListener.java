@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,38 +16,25 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.instance;
 
-import java.util.List;
-
-import org.apache.flink.runtime.jobgraph.JobID;
-
 /**
- * Classes implementing the {@link InstanceListener} interface can be notified about
- * the availability or the unexpected failure of an instance.
- * 
+ * Classes implementing the InstanceListener interface can be notified about
+ * the availability disappearance of instances.
  */
 public interface InstanceListener {
 
 	/**
-	 * Called if one or more requested resources have become available.
+	 * Called when a new instance becomes available.
 	 * 
-	 * @param jobID
-	 *        the ID of the job the initial request has been triggered for
-	 * @param allocatedResources
-	 *        the resources which have been allocated as a response to the initial request
+	 * @param instance The instance that became available.
 	 */
-	void resourcesAllocated(JobID jobID, List<AllocatedResource> allocatedResources);
-
+	void newInstanceAvailable(Instance instance);
+	
 	/**
-	 * Called if one or more allocated resources assigned to at least one job have died unexpectedly.
+	 * Called when an instance died.
 	 * 
-	 * @param jobID
-	 *        the ID of the job the instance is used for
-	 * @param allocatedResource
-	 *        the allocated resources which are affected by the instance death
+	 * @param instance The instance that died.
 	 */
-	void allocatedResourcesDied(JobID jobID, List<AllocatedResource> allocatedResource);
-
+	void instanceDied(Instance instance);
 }

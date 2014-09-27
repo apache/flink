@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,15 +27,11 @@ import static org.junit.Assert.fail;
 import org.junit.Test;
 import org.apache.flink.api.common.aggregators.LongSumAggregator;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.DeltaIteration;
-import org.apache.flink.api.java.DeltaIterationResultSet;
+import org.apache.flink.api.java.operators.DeltaIteration;
+import org.apache.flink.api.java.operators.DeltaIterationResultSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.operators.TwoInputUdfOperator;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.spargel.java.MessageIterator;
-import org.apache.flink.spargel.java.MessagingFunction;
-import org.apache.flink.spargel.java.VertexCentricIteration;
-import org.apache.flink.spargel.java.VertexUpdateFunction;
 
 @SuppressWarnings("serial")
 public class SpargelTranslationTest {
@@ -104,8 +100,8 @@ public class SpargelTranslationTest {
 			
 			// validate that the semantic properties are set as they should
 			TwoInputUdfOperator<?, ?, ?, ?> solutionSetJoin = (TwoInputUdfOperator<?, ?, ?, ?>) resultSet.getNextWorkset();
-			assertTrue(solutionSetJoin.getSematicProperties().getForwardedField1(0).contains(0));
-			assertTrue(solutionSetJoin.getSematicProperties().getForwardedField2(0).contains(0));
+			assertTrue(solutionSetJoin.getSemanticProperties().getForwardedField1(0).contains(0));
+			assertTrue(solutionSetJoin.getSemanticProperties().getForwardedField2(0).contains(0));
 			
 			TwoInputUdfOperator<?, ?, ?, ?> edgesJoin = (TwoInputUdfOperator<?, ?, ?, ?>) solutionSetJoin.getInput1();
 			
@@ -183,8 +179,8 @@ public class SpargelTranslationTest {
 			
 			// validate that the semantic properties are set as they should
 			TwoInputUdfOperator<?, ?, ?, ?> solutionSetJoin = (TwoInputUdfOperator<?, ?, ?, ?>) resultSet.getNextWorkset();
-			assertTrue(solutionSetJoin.getSematicProperties().getForwardedField1(0).contains(0));
-			assertTrue(solutionSetJoin.getSematicProperties().getForwardedField2(0).contains(0));
+			assertTrue(solutionSetJoin.getSemanticProperties().getForwardedField1(0).contains(0));
+			assertTrue(solutionSetJoin.getSemanticProperties().getForwardedField2(0).contains(0));
 			
 			TwoInputUdfOperator<?, ?, ?, ?> edgesJoin = (TwoInputUdfOperator<?, ?, ?, ?>) solutionSetJoin.getInput1();
 			

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -80,20 +80,6 @@ public interface Environment {
 	 * @return the index of this subtask in the subtask group
 	 */
 	int getIndexInSubtaskGroup();
-
-	/**
-	 * Sends a notification that objects that a new user thread has been started to the execution observer.
-	 *
-	 * @param userThread the user thread which has been started
-	 */
-	void userThreadStarted(Thread userThread);
-
-	/**
-	 * Sends a notification that a user thread has finished to the execution observer.
-	 *
-	 * @param userThread the user thread which has finished
-	 */
-	void userThreadFinished(Thread userThread);
 
 	/**
 	 * Returns the input split provider assigned to this environment.

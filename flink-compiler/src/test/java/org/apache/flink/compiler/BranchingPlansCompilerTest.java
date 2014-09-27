@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -29,8 +29,8 @@ import org.junit.Test;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.IterativeDataSet;
-import org.apache.flink.api.java.functions.JoinFunction;
+import org.apache.flink.api.java.operators.IterativeDataSet;
+import org.apache.flink.api.common.functions.RichJoinFunction;
 import org.apache.flink.api.java.record.operators.BulkIteration;
 import org.apache.flink.api.java.record.operators.CoGroupOperator;
 import org.apache.flink.api.java.record.operators.CrossOperator;
@@ -40,7 +40,6 @@ import org.apache.flink.api.java.record.operators.FileDataSource;
 import org.apache.flink.api.java.record.operators.JoinOperator;
 import org.apache.flink.api.java.record.operators.MapOperator;
 import org.apache.flink.api.java.record.operators.ReduceOperator;
-import org.apache.flink.compiler.PactCompiler;
 import org.apache.flink.compiler.plan.OptimizedPlan;
 import org.apache.flink.compiler.plan.SinkPlanNode;
 import org.apache.flink.compiler.plantranslate.NepheleJobGraphGenerator;
@@ -959,7 +958,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 		result1.join(result2)
 				.where(new IdentityKeyExtractor<String>())
 				.equalTo(new IdentityKeyExtractor<String>())
-				.with(new JoinFunction<String, String, String>() {
+				.with(new RichJoinFunction<String, String, String>() {
 					@Override
 					public String join(String first, String second) {
 						return null;

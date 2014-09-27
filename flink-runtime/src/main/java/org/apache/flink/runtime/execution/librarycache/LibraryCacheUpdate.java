@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.execution.librarycache;
 
 import java.io.IOException;
@@ -26,15 +25,12 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
 /**
- * This class is used to encapsulate the transmission of a library file in a Nephele RPC call.
- * 
+ * This class is used to encapsulate the transmission of a library file in a RPC call.
  */
 public class LibraryCacheUpdate implements IOReadableWritable {
 
-	/**
-	 * The name of the library file that is transmitted with this object.
-	 */
-	private String libraryFileName = null;
+	/** The name of the library file that is transmitted with this object. */
+	private String libraryFileName;
 
 	/**
 	 * Constructs a new library cache update object.
@@ -42,32 +38,32 @@ public class LibraryCacheUpdate implements IOReadableWritable {
 	 * @param libraryFileName
 	 *        the name of the library that should be transported within this object.
 	 */
-	public LibraryCacheUpdate(final String libraryFileName) {
+	public LibraryCacheUpdate(String libraryFileName) {
+		if (libraryFileName == null) {
+			throw new IllegalArgumentException("libraryFileName must not be null");
+		}
+		
 		this.libraryFileName = libraryFileName;
 	}
 
 	/**
 	 * Constructor used to reconstruct the object at the receiver of the RPC call.
 	 */
-	public LibraryCacheUpdate() {
-	}
+	public LibraryCacheUpdate() {}
 
 
 	@Override
-	public void read(final DataInputView in) throws IOException {
-
+	public void read(DataInputView in) throws IOException {
 		LibraryCacheManager.readLibraryFromStream(in);
 	}
 
 
 	@Override
-	public void write(final DataOutputView out) throws IOException {
-
+	public void write(DataOutputView out) throws IOException {
 		if (this.libraryFileName == null) {
 			throw new IOException("libraryFileName is null");
 		}
 
 		LibraryCacheManager.writeLibraryToStream(this.libraryFileName, out);
 	}
-
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -107,7 +107,7 @@ public class AccumulatorITCase extends RecordAPITestBase {
 		
 		// Test histogram (words per line distribution)
 		Map<Integer, Integer> dist = Maps.newHashMap();
-		dist.put(1, 1); dist.put(2, 2); dist.put(3, 3);
+		dist.put(1, 1); dist.put(2, 1); dist.put(3, 1);
 		Assert.assertEquals(dist, res.getAccumulatorResult("words-per-line"));
 		
 		// Test distinct words (custom accumulator)
@@ -270,6 +270,7 @@ public class AccumulatorITCase extends RecordAPITestBase {
 		private void reduceInternal(Iterator<Record> records, Collector<Record> out) {
 			Record element = null;
 			int sum = 0;
+			
 			while (records.hasNext()) {
 				element = records.next();
 				IntValue i = element.getField(1, IntValue.class);

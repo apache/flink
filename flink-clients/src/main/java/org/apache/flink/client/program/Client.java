@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -26,9 +26,9 @@ import java.io.PrintStream;
 import java.net.InetSocketAddress;
 import java.util.List;
 
-import org.apache.commons.lang.StringEscapeUtils;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.apache.commons.lang3.StringEscapeUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.compiler.CompilerException;
@@ -58,12 +58,14 @@ import org.apache.flink.api.java.ExecutionEnvironment;
  */
 public class Client {
 	
-	private static final Log LOG = LogFactory.getLog(Client.class);
+	private static final Logger LOG = LoggerFactory.getLogger(Client.class);
 	
 	
 	private final Configuration configuration;	// the configuration describing the job manager address
 	
 	private final PactCompiler compiler;		// the compiler to compile the jobs
+	
+	private final ClassLoader userCodeClassLoader;
 
 	private boolean printStatusDuringExecution;
 	
@@ -77,12 +79,13 @@ public class Client {
 	 * 
 	 * @param jobManagerAddress Address and port of the job-manager.
 	 */
-	public Client(InetSocketAddress jobManagerAddress, Configuration config) {
+	public Client(InetSocketAddress jobManagerAddress, Configuration config, ClassLoader userCodeClassLoader) {
 		Preconditions.checkNotNull(config, "Configuration is null");
 		this.configuration = config;
 		configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, jobManagerAddress.getAddress().getHostAddress());
 		configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerAddress.getPort());
 		
+		this.userCodeClassLoader = userCodeClassLoader;
 		this.compiler = new PactCompiler(new DataStatistics(), new DefaultCostEstimator());
 	}
 
@@ -92,7 +95,7 @@ public class Client {
 	 * 
 	 * @param config The config used to obtain the job-manager's address.
 	 */
-	public Client(Configuration config) {
+	public Client(Configuration config, ClassLoader userCodeClassLoader) {
 		Preconditions.checkNotNull(config, "Configuration is null");
 		this.configuration = config;
 		
@@ -107,6 +110,7 @@ public class Client {
 			throw new CompilerException("Cannot find port to job manager's RPC service in the global configuration.");
 		}
 
+		this.userCodeClassLoader = userCodeClassLoader;
 		this.compiler = new PactCompiler(new DataStatistics(), new DefaultCostEstimator());
 	}
 	
@@ -174,8 +178,8 @@ public class Client {
 			
 			throw new ProgramInvocationException(
 					"The program plan could not be fetched. The program silently swallowed the control flow exceptions.\n"
-					+ "System.err: "+StringEscapeUtils.escapeHtml(baes.toString())+" \n"
-					+ "System.out: "+StringEscapeUtils.escapeHtml(baos.toString())+" \n" );
+					+ "System.err: "+StringEscapeUtils.escapeHtml4(baes.toString())+" \n"
+					+ "System.out: "+StringEscapeUtils.escapeHtml4(baos.toString())+" \n" );
 		}
 		else {
 			throw new RuntimeException();
@@ -249,7 +253,7 @@ public class Client {
 						catch (Throwable t) {
 							LOG.error("The program execution failed.", t);
 						}
-					};
+					}
 				};
 				backGroundRunner.start();
 			}
@@ -290,7 +294,7 @@ public class Client {
 	public JobExecutionResult run(JobGraph jobGraph, boolean wait) throws ProgramInvocationException {
 		JobClient client;
 		try {
-			client = new JobClient(jobGraph, configuration);
+			client = new JobClient(jobGraph, configuration, this.userCodeClassLoader);
 		}
 		catch (IOException e) {
 			throw new ProgramInvocationException("Could not open job manager: " + e.getMessage());

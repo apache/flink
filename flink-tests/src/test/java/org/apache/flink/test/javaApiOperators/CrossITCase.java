@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,7 +23,8 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.LinkedList;
 
-import org.apache.flink.api.java.functions.CrossFunction;
+import org.apache.flink.api.common.functions.CrossFunction;
+import org.apache.flink.api.common.functions.RichCrossFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
@@ -326,15 +327,15 @@ public class CrossITCase extends JavaProgramTestBase {
 				env.execute();
 				
 				// return expected result
-				return "(1, 1, Hi),(2, 2, 1, Hallo Welt, 2)\n" +
-						"(1, 1, Hi),(1, 1, 0, Hallo, 1)\n" +
-						"(1, 1, Hi),(2, 3, 2, Hallo Welt wie, 1)\n" +
-						"(2, 2, Hello),(2, 2, 1, Hallo Welt, 2)\n" +
-						"(2, 2, Hello),(1, 1, 0, Hallo, 1)\n" +
-						"(2, 2, Hello),(2, 3, 2, Hallo Welt wie, 1)\n" +
-						"(3, 2, Hello world),(2, 2, 1, Hallo Welt, 2)\n" +
-						"(3, 2, Hello world),(1, 1, 0, Hallo, 1)\n" +
-						"(3, 2, Hello world),(2, 3, 2, Hallo Welt wie, 1)\n";
+				return "(1,1,Hi),(2,2,1,Hallo Welt,2)\n" +
+						"(1,1,Hi),(1,1,0,Hallo,1)\n" +
+						"(1,1,Hi),(2,3,2,Hallo Welt wie,1)\n" +
+						"(2,2,Hello),(2,2,1,Hallo Welt,2)\n" +
+						"(2,2,Hello),(1,1,0,Hallo,1)\n" +
+						"(2,2,Hello),(2,3,2,Hallo Welt wie,1)\n" +
+						"(3,2,Hello world),(2,2,1,Hallo Welt,2)\n" +
+						"(3,2,Hello world),(1,1,0,Hallo,1)\n" +
+						"(3,2,Hello world),(2,3,2,Hallo Welt wie,1)\n";
 				
 			}
 
@@ -400,7 +401,7 @@ public class CrossITCase extends JavaProgramTestBase {
 	
 	}
 	
-	public static class Tuple5Cross extends CrossFunction<Tuple5<Integer, Long, Integer, String, Long>, Tuple5<Integer, Long, Integer, String, Long>, Tuple2<Integer, String>> {
+	public static class Tuple5Cross implements CrossFunction<Tuple5<Integer, Long, Integer, String, Long>, Tuple5<Integer, Long, Integer, String, Long>, Tuple2<Integer, String>> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -416,7 +417,7 @@ public class CrossITCase extends JavaProgramTestBase {
 
 	}
 	
-	public static class CustomTypeCross extends CrossFunction<CustomType, CustomType, CustomType> {
+	public static class CustomTypeCross implements CrossFunction<CustomType, CustomType, CustomType> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -429,7 +430,7 @@ public class CrossITCase extends JavaProgramTestBase {
 		
 	}
 	
-	public static class MixedCross extends CrossFunction<Tuple5<Integer, Long, Integer, String, Long>, CustomType, Tuple3<Integer, Long, String>> {
+	public static class MixedCross implements CrossFunction<Tuple5<Integer, Long, Integer, String, Long>, CustomType, Tuple3<Integer, Long, String>> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -444,7 +445,7 @@ public class CrossITCase extends JavaProgramTestBase {
 	}
 	
 	
-	public static class Tuple3ReturnLeft extends CrossFunction<Tuple3<Integer, Long, String>, Tuple5<Integer, Long, Integer, String, Long>, Tuple3<Integer, Long, String>> {
+	public static class Tuple3ReturnLeft implements CrossFunction<Tuple3<Integer, Long, String>, Tuple5<Integer, Long, Integer, String, Long>, Tuple3<Integer, Long, String>> {
 		
 		private static final long serialVersionUID = 1L;
 
@@ -457,7 +458,7 @@ public class CrossITCase extends JavaProgramTestBase {
 		}
 	}
 	
-	public static class Tuple5ReturnRight extends CrossFunction<Tuple3<Integer, Long, String>, Tuple5<Integer, Long, Integer, String, Long>, Tuple5<Integer, Long, Integer, String, Long>> {
+	public static class Tuple5ReturnRight implements CrossFunction<Tuple3<Integer, Long, String>, Tuple5<Integer, Long, Integer, String, Long>, Tuple5<Integer, Long, Integer, String, Long>> {
 		
 		private static final long serialVersionUID = 1L;
 
@@ -473,7 +474,7 @@ public class CrossITCase extends JavaProgramTestBase {
 
 	}
 	
-	public static class Tuple5CrossBC extends CrossFunction<Tuple5<Integer, Long, Integer, String, Long>, Tuple5<Integer, Long, Integer, String, Long>, Tuple3<Integer, Integer, Integer>> {
+	public static class Tuple5CrossBC extends RichCrossFunction<Tuple5<Integer, Long, Integer, String, Long>, Tuple5<Integer, Long, Integer, String, Long>, Tuple3<Integer, Integer, Integer>> {
 
 		private static final long serialVersionUID = 1L;
 		

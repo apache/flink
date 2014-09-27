@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -161,7 +161,7 @@ public class SpargelIteration {
 
 		@Override
 		public void coGroup(Iterator<Record> messages, Iterator<Record> vertex, Collector<Record> out) throws Exception {
-
+			
 			if (vertex.hasNext()) {
 				Record first = vertex.next();
 				first.getFieldInto(0, vertexKey);

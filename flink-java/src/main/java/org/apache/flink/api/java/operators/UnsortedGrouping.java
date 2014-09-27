@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,12 +18,18 @@
 
 package org.apache.flink.api.java.operators;
 
+import org.apache.flink.api.common.InvalidProgramException;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.operators.Order;
-import org.apache.flink.api.java.aggregation.Aggregations;
-import org.apache.flink.api.java.functions.GroupReduceFunction;
-import org.apache.flink.api.java.functions.ReduceFunction;
-
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.aggregation.Aggregations;
+import org.apache.flink.api.java.functions.FirstReducer;
+import org.apache.flink.api.java.functions.SelectByMaxFunction;
+import org.apache.flink.api.java.functions.SelectByMinFunction;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 
 public class UnsortedGrouping<T> extends Grouping<T> {
 
@@ -90,14 +96,14 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	
 	/**
 	 * Applies a Reduce transformation on a grouped {@link DataSet}.<br/>
-	 * For each group, the transformation consecutively calls a {@link ReduceFunction} 
+	 * For each group, the transformation consecutively calls a {@link org.apache.flink.api.common.functions.RichReduceFunction}
 	 *   until only a single element for each group remains. 
 	 * A ReduceFunction combines two elements into one new element of the same type.
 	 * 
 	 * @param reducer The ReduceFunction that is applied on each group of the DataSet.
 	 * @return A ReduceOperator that represents the reduced DataSet.
 	 * 
-	 * @see ReduceFunction
+	 * @see org.apache.flink.api.common.functions.RichReduceFunction
 	 * @see ReduceOperator
 	 * @see DataSet
 	 */
@@ -110,24 +116,80 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	
 	/**
 	 * Applies a GroupReduce transformation on a grouped {@link DataSet}.<br/>
-	 * The transformation calls a {@link GroupReduceFunction} for each group of the DataSet.
+	 * The transformation calls a {@link org.apache.flink.api.common.functions.RichGroupReduceFunction} for each group of the DataSet.
 	 * A GroupReduceFunction can iterate over all elements of a group and emit any
 	 *   number of output elements including none.
 	 * 
 	 * @param reducer The GroupReduceFunction that is applied on each group of the DataSet.
 	 * @return A GroupReduceOperator that represents the reduced DataSet.
 	 * 
-	 * @see GroupReduceFunction
-	 * @see ReduceGroupOperator
+	 * @see org.apache.flink.api.common.functions.RichGroupReduceFunction
+	 * @see GroupReduceOperator
 	 * @see DataSet
 	 */
-	public <R> ReduceGroupOperator<T, R> reduceGroup(GroupReduceFunction<T, R> reducer) {
+	public <R> GroupReduceOperator<T, R> reduceGroup(GroupReduceFunction<T, R> reducer) {
 		if (reducer == null) {
 			throw new NullPointerException("GroupReduce function must not be null.");
 		}
-		return new ReduceGroupOperator<T, R>(this, reducer);
+		TypeInformation<R> resultType = TypeExtractor.getGroupReduceReturnTypes(reducer, this.getDataSet().getType());
+
+		return new GroupReduceOperator<T, R>(this, resultType, reducer);
+	}
+	
+	/**
+	 * Returns a new set containing the first n elements in this grouped {@link DataSet}.<br/>
+	 * @param n The desired number of elements for each group.
+	 * @return A ReduceGroupOperator that represents the DataSet containing the elements.
+	*/
+	public GroupReduceOperator<T, T> first(int n) {
+		if(n < 1) {
+			throw new InvalidProgramException("Parameter n of first(n) must be at least 1.");
+		}
+		
+		return reduceGroup(new FirstReducer<T>(n));
 	}
 
+	/**
+	 * Applies a special case of a reduce transformation (minBy) on a grouped {@link DataSet}.<br/>
+	 * The transformation consecutively calls a {@link ReduceFunction} 
+	 * until only a single element remains which is the result of the transformation.
+	 * A ReduceFunction combines two elements into one new element of the same type.
+	 *  
+	 * @param fields Keys taken into account for finding the minimum.
+	 * @return A {@link ReduceOperator} representing the minimum.
+	 */
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	public ReduceOperator<T> minBy(int... fields)  {
+		
+		// Check for using a tuple
+		if(!this.dataSet.getType().isTupleType()) {
+			throw new InvalidProgramException("Method minBy(int) only works on tuples.");
+		}
+			
+		return new ReduceOperator<T>(this, new SelectByMinFunction(
+				(TupleTypeInfo) this.dataSet.getType(), fields));
+	}
+	
+	/**
+	 * Applies a special case of a reduce transformation (maxBy) on a grouped {@link DataSet}.<br/>
+	 * The transformation consecutively calls a {@link ReduceFunction} 
+	 * until only a single element remains which is the result of the transformation.
+	 * A ReduceFunction combines two elements into one new element of the same type.
+	 *  
+	 * @param fields Keys taken into account for finding the minimum.
+	 * @return A {@link ReduceOperator} representing the minimum.
+	 */
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	public ReduceOperator<T> maxBy(int... fields)  {
+		
+		// Check for using a tuple
+		if(!this.dataSet.getType().isTupleType()) {
+			throw new InvalidProgramException("Method maxBy(int) only works on tuples.");
+		}
+			
+		return new ReduceOperator<T>(this, new SelectByMaxFunction(
+				(TupleTypeInfo) this.dataSet.getType(), fields));
+	}
 	// --------------------------------------------------------------------------------------------
 	//  Group Operations
 	// --------------------------------------------------------------------------------------------

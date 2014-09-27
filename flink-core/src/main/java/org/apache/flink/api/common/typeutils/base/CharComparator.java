@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -35,7 +35,7 @@ public final class CharComparator extends BasicTypeComparator<Character> {
 	}
 
 	@Override
-	public int compare(DataInputView firstSource, DataInputView secondSource) throws IOException {
+	public int compareSerialized(DataInputView firstSource, DataInputView secondSource) throws IOException {
 		char c1 = firstSource.readChar();
 		char c2 = secondSource.readChar();
 		int comp = (c1 < c2 ? -1 : (c1 == c2 ? 0 : 1)); 

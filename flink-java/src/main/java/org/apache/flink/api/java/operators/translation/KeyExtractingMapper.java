@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,11 +19,11 @@
 package org.apache.flink.api.java.operators.translation;
 
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.functions.MapFunction;
+import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 
 
-public final class KeyExtractingMapper<T, K> extends MapFunction<T, Tuple2<K, T>> {
+public final class KeyExtractingMapper<T, K> extends RichMapFunction<T, Tuple2<K, T>> {
 	
 	private static final long serialVersionUID = 1L;
 	

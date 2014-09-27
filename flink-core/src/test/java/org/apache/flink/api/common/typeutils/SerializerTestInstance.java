@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,7 +22,8 @@ package org.apache.flink.api.common.typeutils;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 
-public class SerializerTestInstance<T> extends SerializerTestBase<T> {
+public class
+		SerializerTestInstance<T> extends SerializerTestBase<T> {
 
 	private final TypeSerializer<T> serializer;
 

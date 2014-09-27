@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,31 +23,45 @@ import java.io.IOException;
 
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobID;
-import org.apache.flink.runtime.managementgraph.ManagementVertexID;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 
 /**
  * This interface is a base interface for profiling data which
  * pertains to the execution of tasks.
- * 
  */
 public abstract class VertexProfilingEvent extends ProfilingEvent {
 
-	private ManagementVertexID vertexID;
+	private static final long serialVersionUID = -5364961557518174880L;
+
+	private final JobVertexID vertexId;
+	
+	private int subtask;
+	
+	private final ExecutionAttemptID executionId;
 
 	private int profilingInterval;
 
-	public VertexProfilingEvent(ManagementVertexID vertexID, int profilingInterval, JobID jobID, long timestamp,
-			long profilingTimestamp) {
+	
+	public VertexProfilingEvent(JobVertexID vertexId, int subtask, ExecutionAttemptID executionId,
+			int profilingInterval, JobID jobID, long timestamp, long profilingTimestamp)
+	{
 		super(jobID, timestamp, profilingTimestamp);
 
-		this.vertexID = vertexID;
+		this.vertexId = vertexId;
+		this.subtask = subtask;
+		this.executionId = executionId;
 		this.profilingInterval = profilingInterval;
 	}
 
 	public VertexProfilingEvent() {
 		super();
+		this.vertexId = new JobVertexID();
+		this.executionId = new ExecutionAttemptID();
 	}
+	
+	// --------------------------------------------------------------------------------------------
 
 	/**
 	 * Returns the ID of the vertex this profiling information
@@ -55,8 +69,8 @@ public abstract class VertexProfilingEvent extends ProfilingEvent {
 	 * 
 	 * @return the ID of the vertex this profiling information belongs to
 	 */
-	public ManagementVertexID getVertexID() {
-		return this.vertexID;
+	public JobVertexID getVertexID() {
+		return this.vertexId;
 	}
 
 	/**
@@ -68,15 +82,26 @@ public abstract class VertexProfilingEvent extends ProfilingEvent {
 	public int getProfilingInterval() {
 		return this.profilingInterval;
 	}
+	
+	public int getSubtask() {
+		return subtask;
+	}
+	
+	public ExecutionAttemptID getExecutionId() {
+		return executionId;
+	}
 
-
+	// --------------------------------------------------------------------------------------------
+	//  Serialization
+	// --------------------------------------------------------------------------------------------
+	
 	@Override
 	public void read(DataInputView in) throws IOException {
 		super.read(in);
 
-		this.vertexID = new ManagementVertexID();
-		this.vertexID.read(in);
-
+		this.vertexId.read(in);
+		this.executionId.read(in);
+		this.subtask = in.readInt();
 		this.profilingInterval = in.readInt();
 	}
 
@@ -85,32 +110,33 @@ public abstract class VertexProfilingEvent extends ProfilingEvent {
 	public void write(DataOutputView out) throws IOException {
 		super.write(out);
 
-		this.vertexID.write(out);
+		this.vertexId.write(out);
+		this.executionId.write(out);
+		out.writeInt(subtask);
 		out.writeInt(this.profilingInterval);
 	}
 
-
+	// --------------------------------------------------------------------------------------------
+	//  Utilities
+	// --------------------------------------------------------------------------------------------
+	
 	@Override
 	public boolean equals(Object obj) {
-
-		if (!super.equals(obj)) {
+		if (obj instanceof VertexProfilingEvent) {
+			final VertexProfilingEvent other = (VertexProfilingEvent) obj;
+			
+			return super.equals(other) && this.subtask == other.subtask &&
+					this.profilingInterval == other.profilingInterval &&
+					this.vertexId.equals(other.vertexId) &&
+					this.executionId.equals(other.executionId);
+		}
+		else {
 			return false;
 		}
-
-		if (!(obj instanceof VertexProfilingEvent)) {
-			return false;
-		}
-
-		final VertexProfilingEvent vertexProfilingEvent = (VertexProfilingEvent) obj;
-
-		if (!this.vertexID.equals(vertexProfilingEvent.getVertexID())) {
-			return false;
-		}
-
-		if (this.profilingInterval != vertexProfilingEvent.getProfilingInterval()) {
-			return false;
-		}
-
-		return true;
+	}
+	
+	@Override
+	public int hashCode() {
+		return super.hashCode() ^ vertexId.hashCode() ^ (31*subtask) ^ executionId.hashCode();
 	}
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,18 +25,17 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.FunctionAnnotation;
 import org.apache.flink.api.java.functions.SemanticPropUtil;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.types.TypeInformation;
-
 import org.apache.flink.api.java.DataSet;
 
 /**
  * The <tt>SingleInputUdfOperator</tt> is the base class of all unary operators that execute
  * user-defined functions (UDFs). The UDFs encapsulated by this operator are naturally UDFs that
- * have one input (such as {@link org.apache.flink.api.java.functions.MapFunction} or
- * {@link org.apache.flink.api.java.functions.ReduceFunction}).
+ * have one input (such as {@link org.apache.flink.api.common.functions.RichMapFunction} or
+ * {@link org.apache.flink.api.common.functions.RichReduceFunction}).
  * <p>
  * This class encapsulates utilities for the UDFs, such as broadcast variables, parameterization
  * through configuration objects, and semantic properties.
@@ -142,17 +141,17 @@ public abstract class SingleInputUdfOperator<IN, OUT, O extends SingleInputUdfOp
 	}
 
 	@Override
-	public SingleInputSemanticProperties getSematicProperties() {
+	public SingleInputSemanticProperties getSemanticProperties() {
 		return this.udfSemantics;
 	}
 
 	/**
 	 * Sets the semantic properties for the user-defined function (UDF). The semantic properties
 	 * define how fields of tuples and other objects are modified or preserved through this UDF.
-	 * The configured properties can be retrieved via {@link UdfOperator#getSematicProperties()}.
+	 * The configured properties can be retrieved via {@link UdfOperator#getSemanticProperties()}.
 	 *
 	 * @param properties The semantic properties for the UDF.
-	 * @see UdfOperator#getSematicProperties()
+	 * @see UdfOperator#getSemanticProperties()
 	 */
 	public void setSemanticProperties(SingleInputSemanticProperties properties) {
 		this.udfSemantics = properties;

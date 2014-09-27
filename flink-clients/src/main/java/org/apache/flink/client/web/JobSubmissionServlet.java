@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -35,8 +35,6 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.flink.client.program.Client;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
@@ -45,6 +43,8 @@ import org.apache.flink.compiler.plan.OptimizedPlan;
 import org.apache.flink.compiler.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 public class JobSubmissionServlet extends HttpServlet {
@@ -74,7 +74,7 @@ public class JobSubmissionServlet extends HttpServlet {
 
 	private static final String SUSPEND_PARAM_NAME = "suspend";
 
-	private static final Log LOG = LogFactory.getLog(JobSubmissionServlet.class);
+	private static final Logger LOG = LoggerFactory.getLogger(JobSubmissionServlet.class);
 
 	// ------------------------------------------------------------------------
 
@@ -84,13 +84,13 @@ public class JobSubmissionServlet extends HttpServlet {
 
 	private final Map<Long, JobGraph> submittedJobs;	// map from UIDs to the running jobs
 
-	private final Random rand;							// random number generator for UIDs
-
-	private final Client client;						// the client used to compile and submit jobs
+	private final Random rand;							// random number generator for UID
+	
+	private final Configuration nepheleConfig;
 
 
 	public JobSubmissionServlet(Configuration nepheleConfig, File jobDir, File planDir) {
-		this.client = new Client(nepheleConfig);
+		this.nepheleConfig = nepheleConfig;
 		this.jobStoreDirectory = jobDir;
 		this.planDumpDirectory = planDir;
 
@@ -155,6 +155,7 @@ public class JobSubmissionServlet extends HttpServlet {
 			String[] options = params.isEmpty() ? new String[0] : (String[]) params.toArray(new String[params.size()]);
 			PackagedProgram program;
 			OptimizedPlan optPlan;
+			Client client;
 			
 			try {
 				if (assemblerClass == null) {
@@ -162,6 +163,8 @@ public class JobSubmissionServlet extends HttpServlet {
 				} else {
 					program = new PackagedProgram(jarFile, assemblerClass, options);
 				}
+				
+				client = new Client(nepheleConfig, program.getUserCodeClassLoader());
 				
 				optPlan = client.getOptimizedPlan(program, -1);
 				
@@ -226,7 +229,7 @@ public class JobSubmissionServlet extends HttpServlet {
 				// submit the job only, if it should not be suspended
 				if (!suspend) {
 					try {
-						this.client.run(program, optPlan, false);
+						client.run(program, optPlan, false);
 					} catch (Throwable t) {
 						LOG.error("Error submitting job to the job-manager.", t);
 						showErrorPage(resp, t.getMessage());
@@ -236,7 +239,7 @@ public class JobSubmissionServlet extends HttpServlet {
 					}
 				} else {
 					try {
-						this.submittedJobs.put(uid, this.client.getJobGraph(program, optPlan));
+						this.submittedJobs.put(uid, client.getJobGraph(program, optPlan));
 					}
 					catch (ProgramInvocationException piex) {
 						LOG.error("Error creating JobGraph from optimized plan.", piex);
@@ -295,6 +298,7 @@ public class JobSubmissionServlet extends HttpServlet {
 
 			// submit the job
 			try {
+				Client client = new Client(nepheleConfig, getClass().getClassLoader());
 				client.run(job, false);
 			} catch (Exception ex) {
 				LOG.error("Error submitting job to the job-manager.", ex);

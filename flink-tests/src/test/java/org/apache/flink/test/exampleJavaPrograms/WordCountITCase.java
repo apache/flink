@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,7 @@
 
 package org.apache.flink.test.exampleJavaPrograms;
 
-import org.apache.flink.example.java.wordcount.WordCount;
+import org.apache.flink.examples.java.wordcount.WordCount;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
@@ -28,9 +28,9 @@ public class WordCountITCase extends JavaProgramTestBase {
 	protected String resultPath;
 
 	public WordCountITCase(){
-		setDegreeOfParallelism(4);
-		setNumTaskTracker(2);
-		setTaskManagerNumSlots(2);
+//		setDegreeOfParallelism(4);
+//		setNumTaskTracker(2);
+//		setTaskManagerNumSlots(2);
 	}
 
 	@Override

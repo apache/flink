@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -26,8 +26,8 @@ import java.util.Iterator;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.runtime.operators.hash.MutableHashTable;
 import org.apache.flink.runtime.operators.hash.MultiLevelHashTester.BucketBoundaries;
 import org.apache.flink.runtime.operators.hash.util.LastBitsToRange;
@@ -45,7 +45,7 @@ import org.junit.Test;
  */
 public class HashFunctionCollisionBenchmark {
 
-	private static final Log LOG = LogFactory.getLog(HashFunctionCollisionBenchmark.class);
+	private static final Logger LOG = LoggerFactory.getLogger(HashFunctionCollisionBenchmark.class);
 
 	private static final long SEED = 561349061987311L;
 
@@ -155,7 +155,7 @@ public class HashFunctionCollisionBenchmark {
 
 class MultiLevelHashTester {
 
-	private static final Log LOG = LogFactory.getLog(MultiLevelHashTester.class);
+	private static final Logger LOG = LoggerFactory.getLogger(MultiLevelHashTester.class);
 
 	private final int maxLevel;
 	private final Iterator<Integer> importIterator;
@@ -304,10 +304,10 @@ class MultiLevelHashTester {
 					formatter.format(" %10d | %10d", bucketSize, countForBucketSize);
 
 					if (levelMap.size() < 20 || i < 3 || i >= (levelMap.size() - 3)) {
-						LOG.debug(formatter.out());
+						LOG.debug(formatter.out().toString());
 					} else if (levelMap.size() / 2 == i) {
 						LOG.debug("         .. |         ..");
-						LOG.debug(formatter.out());
+						LOG.debug(formatter.out().toString());
 						LOG.debug("         .. |         ..");
 					}
 					i++;

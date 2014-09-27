@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,8 +28,7 @@ import org.apache.flink.util.Collector;
 /**
  * A {@link Collector} to update the solution set of a workset iteration.
  * <p/>
- * The records are written to a {@link org.apache.flink.runtime.operators.hash.MutableHashTable} hash table
- * to allow in-memory point updates.
+ * The records are written to a HashTable hash table to allow in-memory point updates.
  * <p/>
  * Records will only be collected, if there is a match after probing the hash table. If the build side iterator is
  * already positioned for the update, use {@link SolutionSetFastUpdateOutputCollector} to the save re-probing.

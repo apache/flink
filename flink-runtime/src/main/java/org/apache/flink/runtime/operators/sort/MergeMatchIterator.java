@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,16 +16,15 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators.sort;
 
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.apache.flink.api.common.functions.GenericJoiner;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -51,7 +50,7 @@ public class MergeMatchIterator<T1, T2, O> implements JoinTaskIterator<T1, T2, O
 	/**
 	 * The log used by this iterator to log messages.
 	 */
-	private static final Log LOG = LogFactory.getLog(MergeMatchIterator.class);
+	private static final Logger LOG = LoggerFactory.getLogger(MergeMatchIterator.class);
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -148,14 +147,14 @@ public class MergeMatchIterator<T1, T2, O> implements JoinTaskIterator<T1, T2, O
 	 * 
 	 * @throws Exception Forwards all exceptions from the user code and the I/O system.
 	 * 
-	 * @see org.apache.flink.runtime.operators.util.JoinTaskIterator#callWithNextKey()
+	 * @see org.apache.flink.runtime.operators.util.JoinTaskIterator#callWithNextKey(FlatJoinFunction, Collector)
 	 */
 	@Override
-	public boolean callWithNextKey(final GenericJoiner<T1, T2, O> matchFunction, final Collector<O> collector)
+	public boolean callWithNextKey(final FlatJoinFunction<T1, T2, O> matchFunction, final Collector<O> collector)
 	throws Exception
 	{
 		if (!this.iterator1.nextKey() || !this.iterator2.nextKey()) {
-			// consume all remanining keys (hack to prevent remaining inputs during iterations, lets get rid of this soon)
+			// consume all remaining keys (hack to prevent remaining inputs during iterations, lets get rid of this soon)
 			while (this.iterator1.nextKey());
 			while (this.iterator2.nextKey());
 			
@@ -234,7 +233,7 @@ public class MergeMatchIterator<T1, T2, O> implements JoinTaskIterator<T1, T2, O
 	 * @throws Exception Forwards all exceptions thrown by the stub.
 	 */
 	private void crossFirst1withNValues(final T1 val1, final T2 firstValN,
-			final Iterator<T2> valsN, final GenericJoiner<T1, T2, O> matchFunction, final Collector<O> collector)
+			final Iterator<T2> valsN, final FlatJoinFunction<T1, T2, O> matchFunction, final Collector<O> collector)
 	throws Exception
 	{
 		this.copy1 = this.serializer1.copy(val1, this.copy1);
@@ -267,7 +266,7 @@ public class MergeMatchIterator<T1, T2, O> implements JoinTaskIterator<T1, T2, O
 	 * @throws Exception Forwards all exceptions thrown by the stub.
 	 */
 	private void crossSecond1withNValues(T2 val1, T1 firstValN,
-			Iterator<T1> valsN, GenericJoiner<T1, T2, O> matchFunction, Collector<O> collector)
+			Iterator<T1> valsN, FlatJoinFunction<T1, T2, O> matchFunction, Collector<O> collector)
 	throws Exception
 	{
 		this.copy2 = this.serializer2.copy(val1, this.copy2);
@@ -280,7 +279,7 @@ public class MergeMatchIterator<T1, T2, O> implements JoinTaskIterator<T1, T2, O
 			
 			if (valsN.hasNext()) {
 				this.copy2 = this.serializer2.copy(val1, this.copy2);
-				matchFunction.join(nRec, this.copy2, collector);
+				matchFunction.join(nRec,this.copy2,collector);
 			} else {
 				matchFunction.join(nRec, val1, collector);
 				more = false;
@@ -297,7 +296,7 @@ public class MergeMatchIterator<T1, T2, O> implements JoinTaskIterator<T1, T2, O
 	 */
 	private void crossMwithNValues(final T1 firstV1, Iterator<T1> spillVals,
 			final T2 firstV2, final Iterator<T2> blockVals,
-			final GenericJoiner<T1, T2, O> matchFunction, final Collector<O> collector)
+			final FlatJoinFunction<T1, T2, O> matchFunction, final Collector<O> collector)
 	throws Exception
 	{
 		// ==================================================
@@ -411,7 +410,7 @@ public class MergeMatchIterator<T1, T2, O> implements JoinTaskIterator<T1, T2, O
 						// get instances of key and block value
 						final T2 nextBlockVal = this.blockIt.next();
 						this.copy1 = this.serializer1.copy(nextSpillVal, this.copy1);
-						matchFunction.join(this.copy1, nextBlockVal, collector);	
+						matchFunction.join(this.copy1, nextBlockVal, collector);
 					}
 					
 					// reset block iterator

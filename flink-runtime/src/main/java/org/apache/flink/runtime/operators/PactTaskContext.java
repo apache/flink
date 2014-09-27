@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -54,7 +54,7 @@ public interface PactTaskContext<S, OT> {
 	
 	<X> TypeSerializerFactory<X> getInputSerializer(int index);
 	
-	<X> TypeComparator<X> getInputComparator(int index);
+	<X> TypeComparator<X> getDriverComparator(int index);
 	
 	S getStub();
 	

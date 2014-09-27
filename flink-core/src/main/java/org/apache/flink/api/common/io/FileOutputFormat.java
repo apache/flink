@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,13 +16,12 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.io;
 
 import java.io.IOException;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.operators.base.FileDataSinkBase;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -83,7 +82,7 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT>, Initiali
 	/**
 	 * The LOG for logging messages in this class.
 	 */
-	private static final Log LOG = LogFactory.getLog(FileOutputFormat.class);
+	private static final Logger LOG = LoggerFactory.getLogger(FileOutputFormat.class);
 	
 	/**
 	 * The key under which the name of the target path is stored in the configuration. 

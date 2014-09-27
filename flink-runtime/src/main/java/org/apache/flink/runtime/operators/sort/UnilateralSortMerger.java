@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators.sort;
 
 import java.io.File;
@@ -31,8 +30,8 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
@@ -68,7 +67,7 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 	/**
 	 * Logging.
 	 */
-	private static final Log LOG = LogFactory.getLog(UnilateralSortMerger.class);
+	private static final Logger LOG = LoggerFactory.getLogger(UnilateralSortMerger.class);
 	
 	/**
 	 * Fix length records with a length below this threshold will be in-place sorted, if possible.
@@ -754,11 +753,6 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 		private final ExceptionHandler<IOException> exceptionHandler;
 
 		/**
-		 * The parent task at whom the thread needs to register.
-		 */
-		private final AbstractInvokable parentTask;
-
-		/**
 		 * The flag marking this thread as alive.
 		 */
 		private volatile boolean alive;
@@ -783,7 +777,6 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 			this.setUncaughtExceptionHandler(this);
 
 			this.queues = queues;
-			this.parentTask = parentTask;
 			this.alive = true;
 		}
 
@@ -792,9 +785,6 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 		 */
 		public void run() {
 			try {
-				if (this.parentTask != null) {
-					this.parentTask.userThreadStarted(this);
-				}
 				go();
 			}
 			catch (Throwable t) {
@@ -802,9 +792,6 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 					+ t.getMessage(), t));
 			}
 			finally {
-				if (this.parentTask != null) {
-					this.parentTask.userThreadFinished(this);
-				}
 			}
 		}
 
@@ -1450,6 +1437,15 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 			return new MergeIterator<E>(iterators, this.serializer, this.comparator);
 		}
 
+		/**
+		 * Merges the given sorted runs to a smaller number of sorted runs. 
+		 * 
+		 * @param channelIDs The IDs of the sorted runs that need to be merged.
+		 * @param writeBuffers The buffers to be used by the writers.
+
+		 * @return A list of the IDs of the merged channels.
+		 * @throws IOException Thrown, if the readers or writers encountered an I/O problem.
+		 */
 		protected final List<ChannelWithBlockCount> mergeChannelList(final List<ChannelWithBlockCount> channelIDs,
 					final List<MemorySegment> allReadBuffers, final List<MemorySegment> writeBuffers)
 		throws IOException

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,15 +16,15 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.profiling.impl.types;
 
 import java.io.IOException;
 
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.runtime.executiongraph.ExecutionVertexID;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 
 public class InternalExecutionVertexThreadProfilingData extends InternalExecutionVertexProfilingData {
 
@@ -38,10 +38,10 @@ public class InternalExecutionVertexThreadProfilingData extends InternalExecutio
 
 	private int waitedTime = 0;
 
-	public InternalExecutionVertexThreadProfilingData(JobID jobID, ExecutionVertexID executionVertexID,
-			int profilingInterval, int userTime, int systemTime, int blockedTime, int waitedTime) {
-
-		super(jobID, executionVertexID);
+	public InternalExecutionVertexThreadProfilingData(JobID jobID, JobVertexID vertexId, int subtask, ExecutionAttemptID executionId,
+			int profilingInterval, int userTime, int systemTime, int blockedTime, int waitedTime)
+	{
+		super(jobID, vertexId, subtask, executionId);
 
 		this.profilingInterval = profilingInterval;
 		this.userTime = userTime;
@@ -50,12 +50,10 @@ public class InternalExecutionVertexThreadProfilingData extends InternalExecutio
 		this.waitedTime = waitedTime;
 	}
 
-	public InternalExecutionVertexThreadProfilingData() {
-	}
+	public InternalExecutionVertexThreadProfilingData() {}
 
 	@Override
 	public void read(DataInputView in) throws IOException {
-
 		super.read(in);
 
 		this.profilingInterval = in.readInt();
@@ -67,7 +65,6 @@ public class InternalExecutionVertexThreadProfilingData extends InternalExecutio
 
 	@Override
 	public void write(DataOutputView out) throws IOException {
-
 		super.write(out);
 
 		out.writeInt(this.profilingInterval);
@@ -78,27 +75,22 @@ public class InternalExecutionVertexThreadProfilingData extends InternalExecutio
 	}
 
 	public int getBlockedTime() {
-
 		return this.blockedTime;
 	}
 
 	public int getProfilingInterval() {
-
 		return this.profilingInterval;
 	}
 
 	public int getSystemTime() {
-
 		return this.systemTime;
 	}
 
 	public int getUserTime() {
-
 		return this.userTime;
 	}
 
 	public int getWaitedTime() {
-
 		return this.waitedTime;
 	}
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,6 +21,7 @@ package org.apache.flink.runtime.operators.testutils.types;
 import java.io.IOException;
 
 import org.apache.flink.api.common.typeutils.TypeComparator;
+import org.apache.flink.api.common.typeutils.base.StringComparator;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
@@ -31,6 +32,10 @@ public class StringPairComparator extends TypeComparator<StringPair> {
 	private static final long serialVersionUID = 1L;
 	
 	private String reference;
+
+	private Comparable[] extractedKey = new Comparable[1];
+
+	private final TypeComparator[] comparators = new TypeComparator[] {new StringComparator(true)};
 
 	@Override
 	public int hash(StringPair record) {
@@ -58,7 +63,7 @@ public class StringPairComparator extends TypeComparator<StringPair> {
 	}
 
 	@Override
-	public int compare(DataInputView firstSource, DataInputView secondSource)
+	public int compareSerialized(DataInputView firstSource, DataInputView secondSource)
 			throws IOException {
 		return StringValue.readString(firstSource).compareTo(StringValue.readString(secondSource));
 	}
@@ -109,5 +114,15 @@ public class StringPairComparator extends TypeComparator<StringPair> {
 	@Override
 	public TypeComparator<StringPair> duplicate() {
 		return new StringPairComparator();
+	}
+
+	@Override
+	public Object[] extractKeys(StringPair record) {
+		extractedKey[0] = record.getKey();
+		return extractedKey;
+	}
+
+	@Override public TypeComparator[] getComparators() {
+		return comparators;
 	}
 }

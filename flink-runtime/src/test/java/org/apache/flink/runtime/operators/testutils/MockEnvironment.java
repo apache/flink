@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -247,16 +247,6 @@ public class MockEnvironment implements Environment, BufferProvider, LocalBuffer
 	@Override
 	public int getIndexInSubtaskGroup() {
 		return 0;
-	}
-
-	@Override
-	public void userThreadStarted(final Thread userThread) {
-		// Nothing to do here
-	}
-
-	@Override
-	public void userThreadFinished(final Thread userThread) {
-		// Nothing to do here
 	}
 
 	@Override

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,13 +19,14 @@
 
 package org.apache.flink.runtime.operators;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.distributions.DataDistribution;
+import org.apache.flink.api.common.functions.FlatCombineFunction;
 import org.apache.flink.api.common.functions.Function;
-import org.apache.flink.api.common.functions.GenericCombine;
+import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -79,7 +80,7 @@ import java.util.Map;
  */
 public class RegularPactTask<S extends Function, OT> extends AbstractInvokable implements PactTaskContext<S, OT> {
 
-	protected static final Log LOG = LogFactory.getLog(RegularPactTask.class);
+	protected static final Logger LOG = LoggerFactory.getLogger(RegularPactTask.class);
 
 	// --------------------------------------------------------------------------------------------
 
@@ -255,8 +256,8 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 			initInputReaders();
 			initBroadcastInputReaders();
 		} catch (Exception e) {
-			throw new RuntimeException("Initializing the input streams failed" +
-				e.getMessage() == null ? "." : ": " + e.getMessage(), e);
+			throw new RuntimeException("Initializing the input streams failed in Task " + getEnvironment().getTaskName() +
+					(e.getMessage() == null ? "." : ": " + e.getMessage()), e);
 		}
 
 		// initialize the writers. this is necessary for nephele to create the output gates.
@@ -298,9 +299,10 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 			// the local processing includes building the dams / caches
 			try {
 				int numInputs = driver.getNumberOfInputs();
+				int numComparators = driver.getNumberOfDriverComparators();
 				int numBroadcastInputs = this.config.getNumBroadcastInputs();
 				
-				initInputsSerializersAndComparators(numInputs);
+				initInputsSerializersAndComparators(numInputs, numComparators);
 				initBroadcastInputsSerializers(numBroadcastInputs);
 				
 				// set the iterative status for inputs and broadcast inputs
@@ -497,7 +499,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 			if (this.stub != null) {
 				try {
 					Configuration stubConfig = this.config.getStubParameters();
-					this.stub.open(stubConfig);
+					FunctionUtils.openFunction(this.stub, stubConfig);
 					stubOpen = true;
 				}
 				catch (Throwable t) {
@@ -510,7 +512,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 
 			// close. We close here such that a regular close throwing an exception marks a task as failed.
 			if (this.running && this.stub != null) {
-				this.stub.close();
+				FunctionUtils.closeFunction(this.stub);
 				stubOpen = false;
 			}
 
@@ -525,15 +527,17 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 			// modify accumulators.ll;
 			if (this.stub != null) {
 				// collect the counters from the stub
-				Map<String, Accumulator<?,?>> accumulators = this.stub.getRuntimeContext().getAllAccumulators();
-				RegularPactTask.reportAndClearAccumulators(getEnvironment(), accumulators, this.chainedTasks);
+				if (FunctionUtils.getFunctionRuntimeContext(this.stub, this.runtimeUdfContext) != null) {
+					Map<String, Accumulator<?, ?>> accumulators = FunctionUtils.getFunctionRuntimeContext(this.stub, this.runtimeUdfContext).getAllAccumulators();
+					RegularPactTask.reportAndClearAccumulators(getEnvironment(), accumulators, this.chainedTasks);
+				}
 			}
 		}
 		catch (Exception ex) {
 			// close the input, but do not report any exceptions, since we already have another root cause
 			if (stubOpen) {
 				try {
-					this.stub.close();
+					FunctionUtils.closeFunction(this.stub);
 				}
 				catch (Throwable t) {}
 			}
@@ -582,9 +586,12 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		// tasks. Type conflicts can occur here if counters with same name but
 		// different type were used.
 
+
 		for (ChainedDriver<?, ?> chainedTask : chainedTasks) {
-			Map<String, Accumulator<?, ?>> chainedAccumulators = chainedTask.getStub().getRuntimeContext().getAllAccumulators();
-			AccumulatorHelper.mergeInto(accumulators, chainedAccumulators);
+			if (FunctionUtils.getFunctionRuntimeContext(chainedTask.getStub(), null) != null) {
+				Map<String, Accumulator<?, ?>> chainedAccumulators = FunctionUtils.getFunctionRuntimeContext(chainedTask.getStub(), null).getAllAccumulators();
+				AccumulatorHelper.mergeInto(accumulators, chainedAccumulators);
+			}
 		}
 
 		// Don't report if the UDF didn't collect any accumulators
@@ -596,7 +603,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		synchronized (env.getAccumulatorProtocolProxy()) {
 			try {
 				env.getAccumulatorProtocolProxy().reportAccumulatorResult(
-						new AccumulatorEvent(env.getJobID(), accumulators, true));
+						new AccumulatorEvent(env.getJobID(), accumulators));
 			} catch (IOException e) {
 				throw new RuntimeException("Communication with JobManager is broken. Could not send accumulators.", e);
 			}
@@ -607,7 +614,9 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		// done before sending
 		AccumulatorHelper.resetAndClearAccumulators(accumulators);
 		for (ChainedDriver<?, ?> chainedTask : chainedTasks) {
-			AccumulatorHelper.resetAndClearAccumulators(chainedTask.getStub().getRuntimeContext().getAllAccumulators());
+			if (FunctionUtils.getFunctionRuntimeContext(chainedTask.getStub(), null) != null) {
+				AccumulatorHelper.resetAndClearAccumulators(FunctionUtils.getFunctionRuntimeContext(chainedTask.getStub(), null).getAllAccumulators());
+			}
 		}
 	}
 
@@ -689,11 +698,10 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 			S stub = config.<S>getStubWrapper(this.userCodeClassLoader).getUserCodeObject(stubSuperClass, this.userCodeClassLoader);
 			// check if the class is a subclass, if the check is required
 			if (stubSuperClass != null && !stubSuperClass.isAssignableFrom(stub.getClass())) {
-				Thread.dumpStack();
 				throw new RuntimeException("The class '" + stub.getClass().getName() + "' is not a subclass of '" + 
 						stubSuperClass.getName() + "' as is required.");
 			}
-			stub.setRuntimeContext(this.runtimeUdfContext);
+			FunctionUtils.setFunctionRuntimeContext(stub, this.runtimeUdfContext);
 			return stub;
 		}
 		catch (ClassCastException ccex) {
@@ -774,23 +782,27 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	/**
 	 * Creates all the serializers and comparators.
 	 */
-	protected void initInputsSerializersAndComparators(int numInputs) throws Exception {
+	protected void initInputsSerializersAndComparators(int numInputs, int numComparators) throws Exception {
 		this.inputSerializers = new TypeSerializerFactory<?>[numInputs];
-		this.inputComparators = this.driver.requiresComparatorOnInput() ? new TypeComparator[numInputs] : null;
+		this.inputComparators = numComparators > 0 ? new TypeComparator[numComparators] : null;
 		this.inputIterators = new MutableObjectIterator[numInputs];
 		
+		//  ---------------- create the input serializers  ---------------------
 		for (int i = 0; i < numInputs; i++) {
-			//  ---------------- create the serializer first ---------------------
+			
 			final TypeSerializerFactory<?> serializerFactory = this.config.getInputSerializer(i, this.userCodeClassLoader);
 			this.inputSerializers[i] = serializerFactory;
 			
-			//  ---------------- create the driver's comparator ---------------------
+			this.inputIterators[i] = createInputIterator(this.inputReaders[i], this.inputSerializers[i]);
+		}
+		
+		//  ---------------- create the driver's comparators ---------------------
+		for (int i = 0; i < numComparators; i++) {
+			
 			if (this.inputComparators != null) {
 				final TypeComparatorFactory<?> comparatorFactory = this.config.getDriverComparator(i, this.userCodeClassLoader);
 				this.inputComparators[i] = comparatorFactory.createComparator();
 			}
-
-			this.inputIterators[i] = createInputIterator(this.inputReaders[i], this.inputSerializers[i]);
 		}
 	}
 	
@@ -988,13 +1000,13 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 						e.getMessage() == null ? "." : ": " + e.getMessage(), e);
 				}
 				
-				if (!(localStub instanceof GenericCombine)) {
+				if (!(localStub instanceof FlatCombineFunction)) {
 					throw new IllegalStateException("Performing combining sort outside a reduce task!");
 				}
 
 				@SuppressWarnings({ "rawtypes", "unchecked" })
 				CombiningUnilateralSortMerger<?> cSorter = new CombiningUnilateralSortMerger(
-					(GenericCombine) localStub, getMemoryManager(), getIOManager(), this.inputIterators[inputNum], 
+					(FlatCombineFunction) localStub, getMemoryManager(), getIOManager(), this.inputIterators[inputNum],
 					this, this.inputSerializers[inputNum], getLocalStrategyComparator(inputNum),
 					this.config.getRelativeMemoryInput(inputNum), this.config.getFilehandlesInput(inputNum),
 					this.config.getSpillingThresholdInput(inputNum));
@@ -1150,11 +1162,11 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 
 
 	@Override
-	public <X> TypeComparator<X> getInputComparator(int index) {
+	public <X> TypeComparator<X> getDriverComparator(int index) {
 		if (this.inputComparators == null) {
 			throw new IllegalStateException("Comparators have not been created!");
 		}
-		else if (index < 0 || index >= this.driver.getNumberOfInputs()) {
+		else if (index < 0 || index >= this.driver.getNumberOfDriverComparators()) {
 			throw new IndexOutOfBoundsException();
 		}
 
@@ -1234,10 +1246,10 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	 * @return The OutputCollector that data produced in this task is submitted to.
 	 */
 	public static <T> Collector<T> getOutputCollector(AbstractInvokable task, TaskConfig config, ClassLoader cl, List<BufferWriter> eventualOutputs, int numOutputs)
-	throws Exception
+			throws Exception
 	{
-		if (numOutputs <= 0) {
-			throw new Exception("BUG: The task must have at least one output");
+		if (numOutputs == 0) {
+			return null;
 		}
 
 		// get the factory for the serializer
@@ -1375,7 +1387,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * Opens the given stub using its {@link Function#open(Configuration)} method. If the open call produces
+	 * Opens the given stub using its {@link org.apache.flink.api.common.functions.RichFunction#open(Configuration)} method. If the open call produces
 	 * an exception, a new exception with a standard error message is created, using the encountered exception
 	 * as its cause.
 	 * 
@@ -1386,14 +1398,14 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	 */
 	public static void openUserCode(Function stub, Configuration parameters) throws Exception {
 		try {
-			stub.open(parameters);
+			FunctionUtils.openFunction(stub, parameters);
 		} catch (Throwable t) {
 			throw new Exception("The user defined 'open(Configuration)' method in " + stub.getClass().toString() + " caused an exception: " + t.getMessage(), t);
 		}
 	}
 	
 	/**
-	 * Closes the given stub using its {@link Function#close()} method. If the close call produces
+	 * Closes the given stub using its {@link org.apache.flink.api.common.functions.RichFunction#close()} method. If the close call produces
 	 * an exception, a new exception with a standard error message is created, using the encountered exception
 	 * as its cause.
 	 * 
@@ -1403,7 +1415,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	 */
 	public static void closeUserCode(Function stub) throws Exception {
 		try {
-			stub.close();
+			FunctionUtils.closeFunction(stub);
 		} catch (Throwable t) {
 			throw new Exception("The user defined 'close()' method caused an exception: " + t.getMessage(), t);
 		}
@@ -1505,4 +1517,6 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		}
 		return a;
 	}
+
+
 }

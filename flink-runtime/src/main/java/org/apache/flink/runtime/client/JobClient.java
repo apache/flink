@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.client;
 
 import java.io.IOException;
@@ -25,8 +24,8 @@ import java.net.InetSocketAddress;
 import java.util.Iterator;
 import java.util.Map;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.configuration.ConfigConstants;
@@ -45,29 +44,19 @@ import org.apache.flink.util.StringUtils;
 
 /**
  * The job client is able to submit, control, and abort jobs.
- * <p>
- * This class is thread-safe.
  */
 public class JobClient {
 
-	/**
-	 * The logging object used for debugging.
-	 */
-	private static final Log LOG = LogFactory.getLog(JobClient.class);
+	/** The logging object used for debugging. */
+	private static final Logger LOG = LoggerFactory.getLogger(JobClient.class);
 
-	/**
-	 * The job management server stub.
-	 */
+	/** The job management server stub.*/
 	private final JobManagementProtocol jobSubmitClient;
 
-	/**
-	 * The accumulator protocol stub to request accumulators from JobManager
-	 */
+	/** The accumulator protocol stub to request accumulators from JobManager */
 	private AccumulatorProtocol accumulatorProtocolProxy;
 
-	/**
-	 * The job graph assigned with this job client.
-	 */
+	/** The job graph assigned with this job client. */
 	private final JobGraph jobGraph;
 
 	/**
@@ -79,6 +68,8 @@ public class JobClient {
 	 * The shutdown hook which is executed if the user interrupts the job the job execution.
 	 */
 	private final JobCleanUp jobCleanUp;
+	
+	private final ClassLoader userCodeClassLoader;
 
 	/**
 	 * The sequence number of the last processed event received from the job manager.
@@ -119,21 +110,20 @@ public class JobClient {
 
 	/**
 	 * Constructs a new job client object and instantiates a local
-	 * RPC proxy for the {@link JobManagementProtocol}.
+	 * RPC proxy for the JobSubmissionProtocol
 	 * 
 	 * @param jobGraph
 	 *        the job graph to run
 	 * @throws IOException
 	 *         thrown on error while initializing the RPC connection to the job manager
 	 */
-	public JobClient(final JobGraph jobGraph) throws IOException {
-
-		this(jobGraph, new Configuration());
+	public JobClient(JobGraph jobGraph, ClassLoader userCodeClassLoader) throws IOException {
+		this(jobGraph, new Configuration(), userCodeClassLoader);
 	}
 
 	/**
 	 * Constructs a new job client object and instantiates a local
-	 * RPC proxy for the {@link JobManagementProtocol}.
+	 * RPC proxy for the JobSubmissionProtocol
 	 * 
 	 * @param jobGraph
 	 *        the job graph to run
@@ -142,7 +132,7 @@ public class JobClient {
 	 * @throws IOException
 	 *         thrown on error while initializing the RPC connection to the job manager
 	 */
-	public JobClient(final JobGraph jobGraph, final Configuration configuration) throws IOException {
+	public JobClient(JobGraph jobGraph, Configuration configuration, ClassLoader userCodeClassLoader) throws IOException {
 
 		final String address = configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
 		final int port = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
@@ -154,11 +144,12 @@ public class JobClient {
 		this.jobGraph = jobGraph;
 		this.configuration = configuration;
 		this.jobCleanUp = new JobCleanUp(this);
+		this.userCodeClassLoader = userCodeClassLoader;
 	}
 
 	/**
 	 * Constructs a new job client object and instantiates a local
-	 * RPC proxy for the {@link JobManagementProtocol}.
+	 * RPC proxy for the JobSubmissionProtocol
 	 * 
 	 * @param jobGraph
 	 *        the job graph to run
@@ -169,14 +160,14 @@ public class JobClient {
 	 * @throws IOException
 	 *         thrown on error while initializing the RPC connection to the job manager
 	 */
-	public JobClient(final JobGraph jobGraph, final Configuration configuration,
-			final InetSocketAddress jobManagerAddress)
-			throws IOException {
-
+	public JobClient(JobGraph jobGraph, Configuration configuration, InetSocketAddress jobManagerAddress, ClassLoader userCodeClassLoader)
+			throws IOException
+	{
 		this.jobSubmitClient = RPC.getProxy(JobManagementProtocol.class, jobManagerAddress,	NetUtils.getSocketFactory());
 		this.jobGraph = jobGraph;
 		this.configuration = configuration;
 		this.jobCleanUp = new JobCleanUp(this);
+		this.userCodeClassLoader = userCodeClassLoader;
 	}
 
 	/**
@@ -333,7 +324,7 @@ public class JobClient {
 				if (event instanceof JobEvent) {
 					final JobEvent jobEvent = (JobEvent) event;
 					final JobStatus jobStatus = jobEvent.getCurrentJobStatus();
-					if (jobStatus == JobStatus.SCHEDULED) {
+					if (jobStatus == JobStatus.RUNNING) {
 						startTimestamp = jobEvent.getTimestamp();
 					}
 					if (jobStatus == JobStatus.FINISHED) {
@@ -343,7 +334,7 @@ public class JobClient {
 						// Request accumulators
 						Map<String, Object> accumulators = null;
 						try {
-							accumulators = AccumulatorHelper.toResultMap(getAccumulators().getAccumulators());
+							accumulators = AccumulatorHelper.toResultMap(getAccumulators().getAccumulators(this.userCodeClassLoader));
 						} catch (IOException ioe) {
 							Runtime.getRuntime().removeShutdownHook(this.jobCleanUp);
 							throw ioe;	// Rethrow error

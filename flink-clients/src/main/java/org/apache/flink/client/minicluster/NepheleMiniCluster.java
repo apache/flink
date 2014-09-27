@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,13 +16,12 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.client.minicluster;
 
 import java.lang.reflect.Method;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.configuration.ConfigConstants;
@@ -30,14 +29,14 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.ExecutionMode;
 import org.apache.flink.runtime.client.JobClient;
-import org.apache.flink.runtime.instance.HardwareDescriptionFactory;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.JobManager;
+import org.apache.flink.runtime.util.EnvironmentInformation;
 
 
 public class NepheleMiniCluster {
 	
-	private static final Log LOG = LogFactory.getLog(NepheleMiniCluster.class);
+	private static final Logger LOG = LoggerFactory.getLogger(NepheleMiniCluster.class);
 	
 	private static final int DEFAULT_JM_RPC_PORT = 6498;
 	
@@ -51,7 +50,7 @@ public class NepheleMiniCluster {
 
 	private static final boolean DEFAULT_LAZY_MEMORY_ALLOCATION = true;
 
-	private static final int DEFAULT_TASK_MANAGER_NUM_SLOTS = -1;
+	private static final int DEFAULT_TASK_MANAGER_NUM_SLOTS = 1;
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -63,7 +62,7 @@ public class NepheleMiniCluster {
 	
 	private int taskManagerDataPort = DEFAULT_TM_DATA_PORT;
 
-	private int numTaskTracker = DEFAULT_NUM_TASK_MANAGER;
+	private int numTaskManager = DEFAULT_NUM_TASK_MANAGER;
 
 	private int taskManagerNumSlots = DEFAULT_TASK_MANAGER_NUM_SLOTS;
 	
@@ -158,9 +157,9 @@ public class NepheleMiniCluster {
 		this.defaultAlwaysCreateDirectory = defaultAlwaysCreateDirectory;
 	}
 
-	public void setNumTaskTracker(int numTaskTracker) { this.numTaskTracker = numTaskTracker; }
+	public void setNumTaskManager(int numTaskManager) { this.numTaskManager = numTaskManager; }
 
-	public int getNumTaskTracker() { return numTaskTracker; }
+	public int getNumTaskManager() { return numTaskManager; }
 
 	public void setTaskManagerNumSlots(int taskManagerNumSlots) { this.taskManagerNumSlots = taskManagerNumSlots; }
 
@@ -174,10 +173,28 @@ public class NepheleMiniCluster {
 		Configuration configuration = jobGraph.getJobConfiguration();
 		configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");
 		configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerRpcPort);
-		return new JobClient(jobGraph, configuration);
+		return new JobClient(jobGraph, configuration, getClass().getClassLoader());
 	}
 
 	public void start() throws Exception {
+
+		String forkNumberString = System.getProperty("forkNumber");
+		int forkNumber = -1;
+		try {
+			forkNumber = Integer.parseInt(forkNumberString);
+		} catch (NumberFormatException e) {
+			// running inside and IDE, so the forkNumber property is not properly set
+			// just ignore
+		}
+		if (forkNumber != -1) {
+			// we are running inside a surefire/failsafe test, determine forkNumber and set
+			// ports accordingly so that we can have multiple parallel instances
+
+			jobManagerRpcPort = 1024 + forkNumber * 300;
+			taskManagerRpcPort = 1024 + forkNumber * 300 + 100;
+			taskManagerDataPort = 1024 + forkNumber * 300 + 200;
+		}
+
 		synchronized (startStopLock) {
 			// set up the global configuration
 			if (this.configDir != null) {
@@ -185,7 +202,7 @@ public class NepheleMiniCluster {
 			} else {
 				Configuration conf = getMiniclusterDefaultConfig(jobManagerRpcPort, taskManagerRpcPort,
 					taskManagerDataPort, memorySize, hdfsConfigFile, lazyMemoryAllocation, defaultOverwriteFiles,
-						defaultAlwaysCreateDirectory, taskManagerNumSlots, numTaskTracker);
+						defaultAlwaysCreateDirectory, taskManagerNumSlots, numTaskManager);
 				GlobalConfiguration.includeConfiguration(conf);
 			}
 
@@ -209,7 +226,7 @@ public class NepheleMiniCluster {
 			// start the job manager
 			jobManager = new JobManager(ExecutionMode.LOCAL);
 	
-			waitForJobManagerToBecomeReady(numTaskTracker);
+			waitForJobManagerToBecomeReady(taskManagerNumSlots * numTaskManager);
 		}
 	}
 
@@ -226,8 +243,13 @@ public class NepheleMiniCluster {
 	// Network utility methods
 	// ------------------------------------------------------------------------
 	
-	private void waitForJobManagerToBecomeReady(int numTaskManagers) throws InterruptedException {
-		while (jobManager.getNumberOfTaskTrackers() < numTaskManagers) {
+	private void waitForJobManagerToBecomeReady(int numSlots) throws InterruptedException {
+		if (numSlots < 0) {
+			// may happen due to miss-configuration. wait at least till the first slot.
+			numSlots = 1;
+		}
+		
+		while (jobManager.getNumberOfSlotsAvailableToScheduler() < numSlots) {
 			Thread.sleep(50);
 		}
 	}
@@ -278,7 +300,7 @@ public class NepheleMiniCluster {
 		config.setBoolean(ConfigConstants.FILESYSTEM_OUTPUT_ALWAYS_CREATE_DIRECTORY_KEY, defaultAlwaysCreateDirectory);
 
 		if (memorySize < 0){
-			memorySize = HardwareDescriptionFactory.extractFromSystem().getSizeOfFreeMemory();
+			memorySize = EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag();
 
 			// at this time, we need to scale down the memory, because we cannot dedicate all free memory to the
 			// memory manager. we have to account for the buffer pools as well, and the job manager#s data structures

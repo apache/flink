@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -26,12 +26,11 @@ import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.util.Random;
 
-import junit.framework.Assert;
 import junit.framework.TestCase;
 
 import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.distributions.UniformIntegerDistribution;
-import org.apache.flink.api.java.typeutils.runtime.record.RecordComparator;
+import org.apache.flink.api.common.typeutils.record.RecordComparator;
 import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
 import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
 import org.apache.flink.runtime.io.network.api.ChannelSelector;
@@ -44,6 +43,7 @@ import org.apache.flink.types.KeyFieldOutOfBoundsException;
 import org.apache.flink.types.NullKeyFieldException;
 import org.apache.flink.types.Record;
 import org.apache.flink.types.StringValue;
+import org.junit.Assert;
 import org.junit.Test;
 
 public class RecordOutputEmitterTest extends TestCase {

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -102,6 +102,12 @@ public final class RequestedGlobalProperties implements Cloneable {
 	
 	public void setFullyReplicated() {
 		this.partitioning = PartitioningProperty.FULL_REPLICATION;
+		this.partitioningFields = null;
+		this.ordering = null;
+	}
+	
+	public void setForceRebalancing() {
+		this.partitioning = PartitioningProperty.FORCED_REBALANCED;
 		this.partitioningFields = null;
 		this.ordering = null;
 	}
@@ -211,6 +217,8 @@ public final class RequestedGlobalProperties implements Cloneable {
 		} else if (this.partitioning == PartitioningProperty.RANGE_PARTITIONED) {
 			return props.getPartitioning() == PartitioningProperty.RANGE_PARTITIONED &&
 					props.matchesOrderedPartitioning(this.ordering);
+		} else if (this.partitioning == PartitioningProperty.FORCED_REBALANCED) {
+			return props.getPartitioning() == PartitioningProperty.FORCED_REBALANCED;
 		} else {
 			throw new CompilerException("Bug in properties matching logic.");
 		}
@@ -252,6 +260,9 @@ public final class RequestedGlobalProperties implements Cloneable {
 				if(this.dataDistribution != null) {
 					channel.setDataDistribution(this.dataDistribution);
 				}
+				break;
+			case FORCED_REBALANCED:
+				channel.setShipStrategy(ShipStrategyType.PARTITION_FORCED_REBALANCE);
 				break;
 			default:
 				throw new CompilerException();

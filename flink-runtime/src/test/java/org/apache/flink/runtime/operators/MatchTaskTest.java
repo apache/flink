@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,12 +23,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.apache.flink.api.common.functions.GenericJoiner;
+import org.apache.flink.api.common.functions.FlatJoinFunction;
+import org.apache.flink.api.common.typeutils.record.RecordComparator;
+import org.apache.flink.api.common.typeutils.record.RecordPairComparatorFactory;
 import org.apache.flink.api.java.record.functions.JoinFunction;
-import org.apache.flink.api.java.typeutils.runtime.record.RecordComparator;
-import org.apache.flink.api.java.typeutils.runtime.record.RecordPairComparatorFactory;
-import org.apache.flink.runtime.operators.DriverStrategy;
-import org.apache.flink.runtime.operators.MatchDriver;
 import org.apache.flink.runtime.operators.testutils.DelayingInfinitiveInputIterator;
 import org.apache.flink.runtime.operators.testutils.DriverTestBase;
 import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
@@ -42,7 +40,7 @@ import org.apache.flink.util.Collector;
 import org.junit.Assert;
 import org.junit.Test;
 
-public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, Record>>
+public class MatchTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record, Record>>
 {
 	private static final long HASH_MEM = 6*1024*1024;
 	
@@ -83,8 +81,8 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		final int valCnt2 = 2;
 		
 		setOutput(this.outList);
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
 		getTaskConfig().setRelativeMemoryDriver(bnljn_frac);
@@ -117,8 +115,8 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		int valCnt2 = 1;
 		
 		setOutput(this.outList);
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
 		getTaskConfig().setRelativeMemoryDriver(bnljn_frac);
@@ -153,8 +151,8 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		int valCnt2 = 20;
 		
 		setOutput(this.outList);
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
 		getTaskConfig().setRelativeMemoryDriver(bnljn_frac);
@@ -189,8 +187,8 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		int valCnt2 = 1;
 		
 		setOutput(this.outList);
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
 		getTaskConfig().setRelativeMemoryDriver(bnljn_frac);
@@ -225,8 +223,8 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		int valCnt2 = 20;
 		
 		setOutput(this.outList);
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
 		getTaskConfig().setRelativeMemoryDriver(bnljn_frac);
@@ -261,8 +259,8 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		int valCnt2 = 20;
 		
 		setOutput(this.outList);
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
 		getTaskConfig().setRelativeMemoryDriver(bnljn_frac);
@@ -297,8 +295,8 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		int valCnt2 = 20;
 		
 		setOutput(this.outList);
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
 		getTaskConfig().setRelativeMemoryDriver(bnljn_frac);
@@ -332,8 +330,8 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		int valCnt2 = 20;
 		
 		setOutput(this.outList);
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
 		getTaskConfig().setRelativeMemoryDriver(bnljn_frac);
@@ -368,8 +366,8 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		int valCnt2 = 20;
 		
 		setOutput(new NirvanaOutputList());
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
 		getTaskConfig().setRelativeMemoryDriver(bnljn_frac);
@@ -397,8 +395,8 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		int valCnt = 20;
 		
 		setOutput(new NirvanaOutputList());
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
 		getTaskConfig().setRelativeMemoryDriver(bnljn_frac);
@@ -448,8 +446,8 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		int valCnt = 20;
 		
 		setOutput(new NirvanaOutputList());
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
 		getTaskConfig().setRelativeMemoryDriver(bnljn_frac);
@@ -499,8 +497,8 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		int valCnt = 20;
 		
 		setOutput(new NirvanaOutputList());
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.MERGE);
 		getTaskConfig().setRelativeMemoryDriver(bnljn_frac);
@@ -549,8 +547,8 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 				
 		addInput(new UniformRecordGenerator(keyCnt1, valCnt1, false));
 		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, false));
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		setOutput(this.outList);
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_FIRST);
@@ -580,8 +578,8 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		
 		addInput(new UniformRecordGenerator(keyCnt1, valCnt1, false));
 		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, false));
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		setOutput(this.outList);
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_SECOND);
@@ -611,8 +609,8 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		
 		addInput(new UniformRecordGenerator(keyCnt1, valCnt1, false));
 		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, false));
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		setOutput(this.outList);
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_FIRST);
@@ -642,8 +640,8 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		
 		addInput(new UniformRecordGenerator(keyCnt1, valCnt1, false));
 		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, false));
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		setOutput(this.outList);
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_SECOND);
@@ -673,8 +671,8 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		
 		addInput(new UniformRecordGenerator(keyCnt1, valCnt1, false));
 		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, false));
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		setOutput(this.outList);
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_FIRST);
@@ -704,8 +702,8 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		
 		addInput(new UniformRecordGenerator(keyCnt1, valCnt1, false));
 		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, false));
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		setOutput(new NirvanaOutputList());
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_FIRST);
@@ -734,8 +732,8 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		
 		addInput(new UniformRecordGenerator(keyCnt1, valCnt1, false));
 		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, false));
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		setOutput(new NirvanaOutputList());
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_SECOND);
@@ -762,8 +760,8 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		addInput(new DelayingInfinitiveInputIterator(100));
 		addInput(new UniformRecordGenerator(keyCnt, valCnt, false));
 		
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		
@@ -809,8 +807,8 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		
 		addInput(new UniformRecordGenerator(keyCnt, valCnt, false));
 		addInput(new DelayingInfinitiveInputIterator(100));
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		setOutput(new NirvanaOutputList());
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_SECOND);
@@ -853,8 +851,8 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		
 		addInput(new UniformRecordGenerator(keyCnt, valCnt, false));
 		addInput(new UniformRecordGenerator(keyCnt, valCnt, false));
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		setOutput(new NirvanaOutputList());
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_FIRST);
@@ -897,8 +895,8 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		
 		addInput(new UniformRecordGenerator(keyCnt, valCnt, false));
 		addInput(new UniformRecordGenerator(keyCnt, valCnt, false));
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		setOutput(new NirvanaOutputList());
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_SECOND);
@@ -951,11 +949,10 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		private int cnt = 0;
 		
 		@Override
-		public void join(Record record1, Record record2, Collector<Record> out) {
+		public void join(Record record1, Record record2, Collector<Record> out) throws Exception {
 			if (++this.cnt >= 10) {
 				throw new ExpectedTestException();
 			}
-			
 			out.collect(record1);
 		}
 	}
@@ -964,10 +961,11 @@ public class MatchTaskTest extends DriverTestBase<GenericJoiner<Record, Record, 
 		private static final long serialVersionUID = 1L;
 		
 		@Override
-		public void join(Record record1, Record record2, Collector<Record> out) {
+		public void join(Record record1, Record record2, Collector<Record> out) throws Exception {
 			try {
 				Thread.sleep(100);
-			} catch (InterruptedException e) { }
+			} catch (InterruptedException e) {
+			}
 		}
 	}
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,8 +28,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 
@@ -47,9 +47,9 @@ public class DefaultMemoryManager implements MemoryManager {
 	public static final int MIN_PAGE_SIZE = 4 * 1024;
 	
 	/**
-	 * The Log.
+	 * The Logger.
 	 */
-	private static final Log LOG = LogFactory.getLog(DefaultMemoryManager.class);
+	private static final Logger LOG = LoggerFactory.getLogger(DefaultMemoryManager.class);
 	
 	// --------------------------------------------------------------------------------------------
 	

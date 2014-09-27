@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,15 +16,14 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.iterative.task;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
@@ -42,6 +41,8 @@ import org.apache.flink.runtime.iterative.concurrent.SolutionSetBroker;
 import org.apache.flink.runtime.iterative.concurrent.SolutionSetUpdateBarrier;
 import org.apache.flink.runtime.iterative.concurrent.SolutionSetUpdateBarrierBroker;
 import org.apache.flink.runtime.iterative.concurrent.SuperstepBarrier;
+import org.apache.flink.runtime.iterative.concurrent.SuperstepKickoffLatch;
+import org.apache.flink.runtime.iterative.concurrent.SuperstepKickoffLatchBroker;
 import org.apache.flink.runtime.iterative.event.AllWorkersDoneEvent;
 import org.apache.flink.runtime.iterative.event.TerminationEvent;
 import org.apache.flink.runtime.iterative.event.WorkerDoneEvent;
@@ -57,8 +58,8 @@ import org.apache.flink.util.MutableObjectIterator;
  * The head is responsible for coordinating an iteration and can run a
  * {@link org.apache.flink.runtime.operators.PactDriver} inside. It will read
  * the initial input and establish a {@link BlockingBackChannel} to the iteration's tail. After successfully processing
- * the input, it will send {@link org.apache.flink.runtime.io.network.channels.EndOfSuperstepEvent} events to its outputs.
- * It must also be connected to a synchronization task and after each superstep, it will wait
+ * the input, it will send EndOfSuperstep events to its outputs. It must also be connected to a
+ * synchronization task and after each superstep, it will wait
  * until it receives an {@link AllWorkersDoneEvent} from the sync, which signals that all other heads have also finished
  * their iteration. Starting with
  * the second iteration, the input for the head is the output of the tail, transmitted through the backchannel. Once the
@@ -77,7 +78,7 @@ import org.apache.flink.util.MutableObjectIterator;
  */
 public class IterationHeadPactTask<X, Y, S extends Function, OT> extends AbstractIterativePactTask<S, OT> {
 
-	private static final Log log = LogFactory.getLog(IterationHeadPactTask.class);
+	private static final Logger log = LoggerFactory.getLogger(IterationHeadPactTask.class);
 
 	private Collector<X> finalOutputCollector;
 
@@ -135,8 +136,7 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 	private BlockingBackChannel initBackChannel() throws Exception {
 
 		/* get the size of the memory available to the backchannel */
-		int backChannelMemoryPages = getMemoryManager().computeNumberOfPages(this.config.getRelativeBackChannelMemory
-				());
+		int backChannelMemoryPages = getMemoryManager().computeNumberOfPages(this.config.getRelativeBackChannelMemory());
 
 		/* allocate the memory available to the backchannel */
 		List<MemorySegment> segments = new ArrayList<MemorySegment>();
@@ -221,6 +221,9 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 
 		try {
 			/* used for receiving the current iteration result from iteration tail */
+			SuperstepKickoffLatch nextStepKickoff = new SuperstepKickoffLatch();
+			SuperstepKickoffLatchBroker.instance().handIn(brokerKey, nextStepKickoff);
+			
 			BlockingBackChannel backChannel = initBackChannel();
 			SuperstepBarrier barrier = initSuperstepBarrier();
 			SolutionSetUpdateBarrier solutionSetUpdateBarrier = null;
@@ -317,12 +320,15 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 							+ "]"));
 					}
 					requestTermination();
+					nextStepKickoff.signalTermination();
 				} else {
 					incrementIterationCounter();
 
 					String[] globalAggregateNames = barrier.getAggregatorNames();
 					Value[] globalAggregates = barrier.getAggregates();
 					aggregatorRegistry.updateGlobalAggregatesAndReset(globalAggregateNames, globalAggregates);
+					
+					nextStepKickoff.triggerNextSuperstep();
 				}
 			}
 
@@ -345,12 +351,10 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 			// - solution set index
 			IterationAggregatorBroker.instance().remove(brokerKey);
 			BlockingBackChannelBroker.instance().remove(brokerKey);
-			if (isWorksetIteration) {
-				SolutionSetBroker.instance().remove(brokerKey);
-				if (waitForSolutionSetUpdate) {
-					SolutionSetUpdateBarrierBroker.instance().remove(brokerKey);
-				}
-			}
+			SuperstepKickoffLatchBroker.instance().remove(brokerKey);
+			SolutionSetBroker.instance().remove(brokerKey);
+			SolutionSetUpdateBarrierBroker.instance().remove(brokerKey);
+
 			if (solutionSet != null) {
 				solutionSet.close();
 				solutionSet = null;

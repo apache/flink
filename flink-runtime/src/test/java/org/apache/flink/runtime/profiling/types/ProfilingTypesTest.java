@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,25 +16,24 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.profiling.types;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobID;
-import org.apache.flink.runtime.managementgraph.ManagementVertexID;
-import org.apache.flink.runtime.profiling.types.InputGateProfilingEvent;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.profiling.types.InstanceSummaryProfilingEvent;
-import org.apache.flink.runtime.profiling.types.OutputGateProfilingEvent;
 import org.apache.flink.runtime.profiling.types.SingleInstanceProfilingEvent;
 import org.apache.flink.runtime.profiling.types.ThreadProfilingEvent;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.ManagementTestUtils;
 import org.junit.Test;
 
 /**
  * This test checks the proper serialization and deserialization of profiling events.
- * 
  */
 public class ProfilingTypesTest {
 
@@ -71,12 +70,6 @@ public class ProfilingTypesTest {
 	private static final long PROFILING_TIMESTAMP = 100009L;
 
 	private static final String INSTANCE_NAME = "Test Instance";
-
-	private static final int GATE_INDEX = 7;
-
-	private static final int NO_RECORD_AVAILABLE_COUNTER = 999;
-
-	private static final int CHANNEL_CAPACITY_EXHAUSTED = 998;
 
 	private static final int USER_TIME = 17;
 
@@ -125,79 +118,40 @@ public class ProfilingTypesTest {
 	 */
 	@Test
 	public void testSingleInstanceProfilingEvent() {
+		try {
+			final SingleInstanceProfilingEvent orig = new SingleInstanceProfilingEvent(PROFILING_INTERVAL, IOWAIT_CPU,
+				IDLE_CPU, USER_CPU, SYSTEM_CPU, HARD_IRQ_CPU, SOFT_IRQ_CPU, TOTAL_MEMORY, FREE_MEMORY, BUFFERED_MEMORY,
+				CACHED_MEMORY, CACHED_SWAP_MEMORY, RECEIVED_BYTES, TRANSMITTED_BYTES, new JobID(), TIMESTAMP,
+				PROFILING_TIMESTAMP, INSTANCE_NAME);
+	
+			final SingleInstanceProfilingEvent copy = (SingleInstanceProfilingEvent) CommonTestUtils.createCopyWritable(orig);
+	
+			assertEquals(orig.getProfilingInterval(), copy.getProfilingInterval());
+			assertEquals(orig.getIOWaitCPU(), copy.getIOWaitCPU());
+			assertEquals(orig.getIdleCPU(), copy.getIdleCPU());
+			assertEquals(orig.getUserCPU(), copy.getUserCPU());
+			assertEquals(orig.getSystemCPU(), copy.getSystemCPU());
+			assertEquals(orig.getHardIrqCPU(), copy.getHardIrqCPU());
+			assertEquals(orig.getSoftIrqCPU(), copy.getSoftIrqCPU());
+			assertEquals(orig.getTotalMemory(), copy.getTotalMemory());
+			assertEquals(orig.getFreeMemory(), copy.getFreeMemory());
+			assertEquals(orig.getBufferedMemory(), copy.getBufferedMemory());
+			assertEquals(orig.getCachedMemory(), copy.getCachedMemory());
+			assertEquals(orig.getCachedSwapMemory(), copy.getCachedSwapMemory());
+			assertEquals(orig.getReceivedBytes(), copy.getReceivedBytes());
+			assertEquals(orig.getTransmittedBytes(), copy.getTransmittedBytes());
+			assertEquals(orig.getJobID(), copy.getJobID());
+			assertEquals(orig.getTimestamp(), copy.getTimestamp());
+			assertEquals(orig.getProfilingTimestamp(), copy.getProfilingTimestamp());
+			assertEquals(orig.getInstanceName(), copy.getInstanceName());
+			assertEquals(orig.hashCode(), copy.hashCode());
+			assertTrue(orig.equals(copy));
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
 
-		final SingleInstanceProfilingEvent orig = new SingleInstanceProfilingEvent(PROFILING_INTERVAL, IOWAIT_CPU,
-			IDLE_CPU, USER_CPU, SYSTEM_CPU, HARD_IRQ_CPU, SOFT_IRQ_CPU, TOTAL_MEMORY, FREE_MEMORY, BUFFERED_MEMORY,
-			CACHED_MEMORY, CACHED_SWAP_MEMORY, RECEIVED_BYTES, TRANSMITTED_BYTES, new JobID(), TIMESTAMP,
-			PROFILING_TIMESTAMP, INSTANCE_NAME);
-
-		final SingleInstanceProfilingEvent copy = (SingleInstanceProfilingEvent) ManagementTestUtils.createCopy(orig);
-
-		assertEquals(orig.getProfilingInterval(), copy.getProfilingInterval());
-		assertEquals(orig.getIOWaitCPU(), copy.getIOWaitCPU());
-		assertEquals(orig.getIdleCPU(), copy.getIdleCPU());
-		assertEquals(orig.getUserCPU(), copy.getUserCPU());
-		assertEquals(orig.getSystemCPU(), copy.getSystemCPU());
-		assertEquals(orig.getHardIrqCPU(), copy.getHardIrqCPU());
-		assertEquals(orig.getSoftIrqCPU(), copy.getSoftIrqCPU());
-		assertEquals(orig.getTotalMemory(), copy.getTotalMemory());
-		assertEquals(orig.getFreeMemory(), copy.getFreeMemory());
-		assertEquals(orig.getBufferedMemory(), copy.getBufferedMemory());
-		assertEquals(orig.getCachedMemory(), copy.getCachedMemory());
-		assertEquals(orig.getCachedSwapMemory(), copy.getCachedSwapMemory());
-		assertEquals(orig.getReceivedBytes(), copy.getReceivedBytes());
-		assertEquals(orig.getTransmittedBytes(), copy.getTransmittedBytes());
-		assertEquals(orig.getJobID(), copy.getJobID());
-		assertEquals(orig.getTimestamp(), copy.getTimestamp());
-		assertEquals(orig.getProfilingTimestamp(), copy.getProfilingTimestamp());
-		assertEquals(orig.getInstanceName(), copy.getInstanceName());
-		assertEquals(orig.hashCode(), copy.hashCode());
-		assertTrue(orig.equals(copy));
-
-	}
-
-	/**
-	 * Tests serialization/deserialization for {@link InputGateProfilingEvent}.
-	 */
-	@Test
-	public void testInputGateProfilingEvent() {
-
-		final InputGateProfilingEvent orig = new InputGateProfilingEvent(GATE_INDEX, NO_RECORD_AVAILABLE_COUNTER,
-			new ManagementVertexID(), PROFILING_INTERVAL, new JobID(), TIMESTAMP, PROFILING_TIMESTAMP);
-
-		final InputGateProfilingEvent copy = (InputGateProfilingEvent) ManagementTestUtils.createCopy(orig);
-
-		assertEquals(orig.getGateIndex(), copy.getGateIndex());
-		assertEquals(orig.getNoRecordsAvailableCounter(), copy.getNoRecordsAvailableCounter());
-		assertEquals(orig.getVertexID(), copy.getVertexID());
-		assertEquals(orig.getProfilingInterval(), copy.getProfilingInterval());
-		assertEquals(orig.getJobID(), copy.getJobID());
-		assertEquals(orig.getTimestamp(), copy.getTimestamp());
-		assertEquals(orig.getProfilingTimestamp(), copy.getProfilingTimestamp());
-		assertEquals(orig.hashCode(), copy.hashCode());
-		assertTrue(orig.equals(copy));
-	}
-
-	/**
-	 * Tests serialization/deserialization for {@link OutputGateProfilingEvent}.
-	 */
-	@Test
-	public void testOutputGateProfilingEvent() {
-
-		final OutputGateProfilingEvent orig = new OutputGateProfilingEvent(GATE_INDEX, CHANNEL_CAPACITY_EXHAUSTED,
-			new ManagementVertexID(), PROFILING_INTERVAL, new JobID(), TIMESTAMP, PROFILING_TIMESTAMP);
-
-		final OutputGateProfilingEvent copy = (OutputGateProfilingEvent) ManagementTestUtils.createCopy(orig);
-
-		assertEquals(orig.getGateIndex(), copy.getGateIndex());
-		assertEquals(orig.getChannelCapacityExhausted(), copy.getChannelCapacityExhausted());
-		assertEquals(orig.getVertexID(), copy.getVertexID());
-		assertEquals(orig.getProfilingInterval(), copy.getProfilingInterval());
-		assertEquals(orig.getJobID(), copy.getJobID());
-		assertEquals(orig.getTimestamp(), copy.getTimestamp());
-		assertEquals(orig.getProfilingTimestamp(), copy.getProfilingTimestamp());
-		assertEquals(orig.hashCode(), copy.hashCode());
-		assertTrue(orig.equals(copy));
 	}
 
 	/**
@@ -207,7 +161,7 @@ public class ProfilingTypesTest {
 	public void testThreadProfilingEvent() {
 
 		final ThreadProfilingEvent orig = new ThreadProfilingEvent(USER_TIME, SYSTEM_TIME, BLOCKED_TIME, WAITED_TIME,
-			new ManagementVertexID(), PROFILING_INTERVAL, new JobID(), TIMESTAMP, PROFILING_TIMESTAMP);
+			new JobVertexID(), 17, new ExecutionAttemptID(), PROFILING_INTERVAL, new JobID(), TIMESTAMP, PROFILING_TIMESTAMP);
 
 		final ThreadProfilingEvent copy = (ThreadProfilingEvent) ManagementTestUtils.createCopy(orig);
 

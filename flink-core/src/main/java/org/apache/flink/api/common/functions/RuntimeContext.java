@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,8 +18,8 @@
 
 package org.apache.flink.api.common.functions;
 
-import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.DoubleCounter;
@@ -34,7 +34,7 @@ import org.apache.flink.api.common.cache.DistributedCache;
  * the current degree of parallelism) and other constructs like accumulators and broadcast variables.
  * <p>
  * A function can, during runtime, obtain the RuntimeContext via a call to
- * {@link org.apache.flink.api.common.functions.AbstractFunction#getRuntimeContext()}.
+ * {@link AbstractRichFunction#getRuntimeContext()}.
  */
 public interface RuntimeContext {
 
@@ -105,34 +105,6 @@ public interface RuntimeContext {
 	 * Convenience function to create a counter object for histograms.
 	 */
 	Histogram getHistogram(String name);
-
-//	/**
-//	 * I propose to remove this and only keep the other more explicit functions
-//	 * (to add or get an accumulator object)
-//	 * 
-//	 * Get an existing or new named accumulator object. Use this function to get
-//	 * an counter for an custom accumulator type. For the integrated
-//	 * accumulators you better use convenience functions (e.g. getIntCounter).
-//	 * 
-//	 * There is no need to register accumulators - they will be created when a
-//	 * UDF asks the first time for a counter that does not exist yet locally.
-//	 * This implies that there can be conflicts when a counter is requested with
-//	 * the same name but with different types, either in the same UDF or in
-//	 * different. In the last case the conflict occurs during merging.
-//	 * 
-//	 * @param name
-//	 * @param accumulatorClass
-//	 *            If the accumulator was not created previously
-//	 * @return
-//	 */
-//	<V, A> Accumulator<V, A> getAccumulator(String name,
-//			Class<? extends Accumulator<V, A>> accumulatorClass);
-//
-//	/**
-//	 * See getAccumulable
-//	 */
-//	<T> SimpleAccumulator<T> getSimpleAccumulator(String name,
-//			Class<? extends SimpleAccumulator<T>> accumulatorClass);
 	
 	// --------------------------------------------------------------------------------------------
 
@@ -140,7 +112,7 @@ public interface RuntimeContext {
 	 * Returns the result bound to the broadcast variable identified by the 
 	 * given {@code name}.
 	 */
-	<RT> Collection<RT> getBroadcastVariable(String name);
+	<RT> List<RT> getBroadcastVariable(String name);
 
 	/**
 	 * Returns the distributed cache to get the local tmp file.

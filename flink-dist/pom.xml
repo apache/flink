@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>0.6-incubating-SNAPSHOT</version>
+		<version>0.7-incubating-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -94,6 +94,24 @@ under the License.
 			<artifactId>flink-scala-examples</artifactId>
 			<version>${project.version}</version>
 		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-streaming-core</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-streaming-connectors</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-streaming-examples</artifactId>
+			<version>${project.version}</version>
+		</dependency>
 	</dependencies>
 
 	<!-- See main pom.xml for explanation of profiles -->
@@ -110,7 +128,7 @@ under the License.
 				<!-- No extra dependencies: pact-hbase is currently not compatible with Hadoop v1 -->
 			</dependencies>
 		</profile>
-		
+
 		<profile>
 			<id>include-yarn</id>
 			<activation>
@@ -132,30 +150,46 @@ under the License.
 						<artifactId>maven-assembly-plugin</artifactId>
 						<version>2.4</version>
 						<executions>
+							<!--  Uber-jar -->
 							<execution>
-								<id>single-jar</id>
+								<id>uber-jar</id>
 								<phase>package</phase>
 								<goals>
 									<goal>single</goal>
 								</goals>
 								<configuration>
-					                <archiverConfig>
-					                	<!-- https://jira.codehaus.org/browse/MASSEMBLY-449 -->
-					                    <fileMode>420</fileMode> <!-- 420(dec) = 644(oct) -->
-								    	<directoryMode>493</directoryMode> <!-- 493(dec) = 755(oct) -->
+									<archiverConfig>
+										<!-- https://jira.codehaus.org/browse/MASSEMBLY-449 -->
+										<fileMode>420</fileMode> <!-- 420(dec) = 644(oct) -->
+										<directoryMode>493</directoryMode> <!-- 493(dec) = 755(oct) -->
 										<defaultDirectoryMode>493</defaultDirectoryMode>
-					                </archiverConfig>
+									</archiverConfig>
 									<archive>
 										<manifest>
 											<mainClass>org.apache.flink.yarn.Client</mainClass>
-											<addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>  
-											<addDefaultImplementationEntries>true</addDefaultImplementationEntries>  
+											<addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
+											<addDefaultImplementationEntries>true</addDefaultImplementationEntries>
 										</manifest>
 									</archive>
 									<descriptors>
 										<descriptor>src/main/assemblies/yarn-uberjar.xml</descriptor>
+									</descriptors>
+								</configuration>
+							</execution>
+
+							<!-- yarn bin directory -->
+							<execution>
+								<id>yarn-bin</id>
+								<phase>package</phase>
+								<goals>
+									<goal>single</goal>
+								</goals>
+								<configuration>
+									<descriptors>
 										<descriptor>src/main/assemblies/yarn.xml</descriptor>
 									</descriptors>
+									<finalName>flink-${project.version}-bin</finalName>
+									<appendAssemblyId>false</appendAssemblyId>
 								</configuration>
 							</execution>
 						</executions>
@@ -163,7 +197,7 @@ under the License.
 				</plugins>
 			</build>
 		</profile>
-		
+
 		<profile>
 			<id>hadoop-2</id>
 			<activation>
@@ -180,7 +214,7 @@ under the License.
 				</dependency>
 			</dependencies>
 		</profile>
-		
+
 		<profile>
 			<id>debian-package</id>
 			<build>
@@ -320,14 +354,16 @@ under the License.
 			</build>
 		</profile>
 	</profiles>
-	
+
+
+
 	<build>
 		<plugins>
 			<plugin>
 				<artifactId>maven-assembly-plugin</artifactId>
 				<executions>
 					<execution>
-						<id>generate-package</id>
+						<id>bin</id>
 						<phase>package</phase>
 						<goals>
 							<goal>single</goal>
@@ -336,6 +372,8 @@ under the License.
 							<descriptors>
 								<descriptor>src/main/assemblies/bin.xml</descriptor>
 							</descriptors>
+							<finalName>flink-${project.version}-bin</finalName>
+							<appendAssemblyId>false</appendAssemblyId>
 						</configuration>
 					</execution>
 				</executions>
@@ -348,7 +386,7 @@ under the License.
 					<skip>true</skip>
 				</configuration>
 			</plugin>
-			
+
 			<plugin>
 				<!-- Description: https://github.com/ktoso/maven-git-commit-id-plugin -->
 				<groupId>pl.project13.maven</groupId>

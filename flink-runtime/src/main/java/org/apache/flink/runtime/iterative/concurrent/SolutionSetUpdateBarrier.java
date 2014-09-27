@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,15 +16,15 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.iterative.concurrent;
 
 import java.util.concurrent.CountDownLatch;
 
 /**
- * Resettable barrier to synchronize {@link org.apache.flink.runtime.iterative.task.IterationHeadPactTask}
- * and {@link org.apache.flink.runtime.iterative.task.IterationTailPactTask} in case of iterations that
- * contain a separate solution set tail.
+ * Resettable barrier to synchronize the
+ * {@link org.apache.flink.runtime.iterative.task.IterationHeadPactTask} and
+ * the {@link org.apache.flink.runtime.iterative.task.IterationTailPactTask} in case of
+ * iterations that contain a separate solution set tail.
  */
 public class SolutionSetUpdateBarrier {
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -38,8 +38,8 @@ import java.nio.channels.spi.SelectorProvider;
 import java.util.Iterator;
 import java.util.LinkedList;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This supports input and output streams for a socket channels.
@@ -48,7 +48,7 @@ import org.apache.commons.logging.LogFactory;
 abstract class SocketIOWithTimeout {
 	// This is intentionally package private.
 
-	static final Log LOG = LogFactory.getLog(SocketIOWithTimeout.class);
+	static final Logger LOG = LoggerFactory.getLogger(SocketIOWithTimeout.class);
 
 	private SelectableChannel channel;
 

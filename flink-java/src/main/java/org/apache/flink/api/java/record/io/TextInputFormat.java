@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -26,8 +26,8 @@ import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 import java.util.Arrays;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.types.Record;
 import org.apache.flink.types.StringValue;
@@ -45,7 +45,7 @@ public class TextInputFormat extends DelimitedInputFormat {
 	
 	public static final String DEFAULT_CHARSET_NAME = "UTF-8";
 	
-	private static final Log LOG = LogFactory.getLog(TextInputFormat.class);
+	private static final Logger LOG = LoggerFactory.getLogger(TextInputFormat.class);
 	
 	
 	protected final StringValue theString = new StringValue();

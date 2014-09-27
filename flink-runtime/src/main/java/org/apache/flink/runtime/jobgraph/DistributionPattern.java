@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,15 +16,12 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.jobgraph;
 
 /**
  * A distribution pattern determines which subtasks of a producing Nephele task a wired to which
  * subtasks of a consuming subtask.
- * 
  */
-
 public enum DistributionPattern {
 
 	/**

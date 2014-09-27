@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,25 +16,22 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators.chaining;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 import org.apache.flink.api.common.functions.GenericCollectorMap;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
-import org.apache.flink.api.java.record.functions.ReduceFunction;
-import org.apache.flink.api.java.typeutils.runtime.record.RecordComparatorFactory;
-import org.apache.flink.api.java.typeutils.runtime.record.RecordSerializerFactory;
+import org.apache.flink.api.common.typeutils.record.RecordComparatorFactory;
+import org.apache.flink.api.common.typeutils.record.RecordSerializerFactory;
+import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.operators.CollectorMapDriver;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.RegularPactTask;
 import org.apache.flink.runtime.operators.MapTaskTest.MockMapStub;
 import org.apache.flink.runtime.operators.ReduceTaskTest.MockReduceStub;
-import org.apache.flink.runtime.operators.chaining.SynchronousChainedCombineDriver;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.testutils.TaskTestBase;
 import org.apache.flink.runtime.operators.testutils.UniformRecordGenerator;
@@ -42,12 +39,11 @@ import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.LogUtils;
-import org.apache.log4j.Level;
 import org.junit.Assert;
 import org.junit.Test;
 
 
+@SuppressWarnings("deprecation")
 public class ChainTaskTest extends TaskTestBase {
 	
 	private static final int MEMORY_MANAGER_SIZE = 1024 * 1024 * 3;
@@ -59,15 +55,6 @@ public class ChainTaskTest extends TaskTestBase {
 	@SuppressWarnings("unchecked")
 	private final RecordComparatorFactory compFact = new RecordComparatorFactory(new int[]{0}, new Class[]{IntValue.class}, new boolean[] {true});
 	private final RecordSerializerFactory serFact = RecordSerializerFactory.get();
-	
-	
-	
-	public ChainTaskTest() {
-		// suppress log output, as this class produces errors on purpose to test exception handling
-		LogUtils.initializeDefaultConsoleLogger(Level.OFF);
-	}
-	
-	
 	
 	@Test
 	public void testMapTask() {
@@ -98,6 +85,7 @@ public class ChainTaskTest extends TaskTestBase {
 				// driver
 				combineConfig.setDriverStrategy(DriverStrategy.SORTED_GROUP_COMBINE);
 				combineConfig.setDriverComparator(compFact, 0);
+				combineConfig.setDriverComparator(compFact, 1);
 				combineConfig.setRelativeMemoryDriver(memoryFraction);
 				
 				// udf
@@ -190,18 +178,19 @@ public class ChainTaskTest extends TaskTestBase {
 		}
 	}
 	
-	public static final class MockFailingCombineStub extends ReduceFunction {
+	public static final class MockFailingCombineStub extends RichGroupReduceFunction<Record, Record> {
 		private static final long serialVersionUID = 1L;
 		
 		private int cnt = 0;
 
 		@Override
-		public void reduce(Iterator<Record> records, Collector<Record> out) throws Exception {
+		public void reduce(Iterable<Record> records, Collector<Record> out) throws Exception {
 			if (++this.cnt >= 5) {
 				throw new RuntimeException("Expected Test Exception");
 			}
-			while(records.hasNext()) {
-				out.collect(records.next());
+			
+			for (Record r : records) {
+				out.collect(r);
 			}
 		}
 	}

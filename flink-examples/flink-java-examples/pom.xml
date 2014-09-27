@@ -24,7 +24,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-examples</artifactId>
-		<version>0.6-incubating-SNAPSHOT</version>
+		<version>0.7-incubating-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -61,7 +61,7 @@ under the License.
 
 							<archive>
 								<manifestEntries>
-									<program-class>org.apache.flink.example.java.clustering.KMeans</program-class>
+									<program-class>org.apache.flink.examples.java.clustering.KMeans</program-class>
 								</manifestEntries>
 							</archive>
 
@@ -86,7 +86,7 @@ under the License.
 				
 							<archive>
 								<manifestEntries>
-									<program-class>org.apache.flink.example.java.graph.TransitiveClosureNaive</program-class>
+									<program-class>org.apache.flink.examples.java.graph.TransitiveClosureNaive</program-class>
 								</manifestEntries>
 							</archive>
 				
@@ -110,7 +110,7 @@ under the License.
 
 							<archive>
 								<manifestEntries>
-									<program-class>org.apache.flink.example.java.graph.ConnectedComponents</program-class>
+									<program-class>org.apache.flink.examples.java.graph.ConnectedComponents</program-class>
 								</manifestEntries>
 							</archive>
 
@@ -134,7 +134,7 @@ under the License.
 
 							<archive>
 								<manifestEntries>
-									<program-class>org.apache.flink.example.java.graph.EnumTrianglesBasic</program-class>
+									<program-class>org.apache.flink.examples.java.graph.EnumTrianglesBasic</program-class>
 								</manifestEntries>
 							</archive>
 
@@ -160,7 +160,7 @@ under the License.
 
 							<archive>
 								<manifestEntries>
-									<program-class>org.apache.flink.example.java.graph.EnumTrianglesOpt</program-class>
+									<program-class>org.apache.flink.examples.java.graph.EnumTrianglesOpt</program-class>
 								</manifestEntries>
 							</archive>
 
@@ -186,7 +186,7 @@ under the License.
 
 							<archive>
 								<manifestEntries>
-									<program-class>org.apache.flink.example.java.graph.PageRankBasic</program-class>
+									<program-class>org.apache.flink.examples.java.graph.PageRankBasic</program-class>
 								</manifestEntries>
 							</archive>
 
@@ -198,7 +198,11 @@ under the License.
 						</configuration>
 					</execution>
 					
+					<!-- These queries are currently not self-contained -->
+
 					<!-- TPC-H Query 10 -->
+
+					<!--
 					<execution>
 						<id>TPCHQuery10</id>
 						<phase>package</phase>
@@ -210,7 +214,7 @@ under the License.
 
 							<archive>
 								<manifestEntries>
-									<program-class>org.apache.flink.example.java.relational.TPCHQuery10</program-class>
+									<program-class>org.apache.flink.examples.java.relational.TPCHQuery10</program-class>
 								</manifestEntries>
 							</archive>
 							<includes>
@@ -218,9 +222,10 @@ under the License.
 								<include>**/java/relational/TPCHQuery10$*.class</include>
 							</includes>
 						</configuration>
-					</execution>
+					</execution> -->
 				
 					<!-- TPC-H Query 3 -->
+					<!--
 					<execution>
 						<id>TPCHQuery3</id>
 						<phase>package</phase>
@@ -232,7 +237,7 @@ under the License.
 
 							<archive>
 								<manifestEntries>
-									<program-class>org.apache.flink.example.java.relational.TPCHQuery3</program-class>
+									<program-class>org.apache.flink.examples.java.relational.TPCHQuery3</program-class>
 								</manifestEntries>
 							</archive>
 							<includes>
@@ -240,7 +245,7 @@ under the License.
 								<include>**/java/relational/TPCHQuery3$*.class</include>
 							</includes>
 						</configuration>
-					</execution>
+					</execution> -->
 		
 					<!-- WebLogAnalysis -->
 					<execution>
@@ -254,7 +259,7 @@ under the License.
 
 							<archive>
 								<manifestEntries>
-									<program-class>org.apache.flink.example.java.relational.WebLogAnalysis</program-class>
+									<program-class>org.apache.flink.examples.java.relational.WebLogAnalysis</program-class>
 								</manifestEntries>
 							</archive>
 
@@ -279,7 +284,7 @@ under the License.
 
 							<archive>
 								<manifestEntries>
-									<program-class>org.apache.flink.example.java.wordcount.WordCount</program-class>
+									<program-class>org.apache.flink.examples.java.wordcount.WordCount</program-class>
 								</manifestEntries>
 							</archive>
 
@@ -291,33 +296,8 @@ under the License.
 						</configuration>
 					</execution>
 
-					<!-- WordCountPOJO -->
-					<execution>
-						<id>WordCountPOJO</id>
-						<phase>package</phase>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-						<configuration>
-							<classifier>WordCountPOJO</classifier>
-
-							<archive>
-								<manifestEntries>
-									<program-class>org.apache.flink.example.java.wordcount.WordCountPOJO</program-class>
-								</manifestEntries>
-							</archive>
-
-							<includes>
-								<include>**/java/wordcount/WordCountPOJO.class</include>
-								<include>**/java/wordcount/WordCountPOJO$*.class</include>
-								<include>**/java/wordcount/util/WordCountData.class</include>
-							</includes>
-						</configuration>
-					</execution>
-					
 				</executions>
 			</plugin>
-
 		</plugins>
 	</build>
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.io.network.netty;
 
 import io.netty.channel.Channel;
@@ -24,17 +23,16 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
-
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.flink.runtime.io.network.Envelope;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayDeque;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class OutboundConnectionQueue extends ChannelInboundHandlerAdapter implements ChannelFutureListener {
 
-	private static final Log LOG = LogFactory.getLog(OutboundConnectionQueue.class);
+	private static final Logger LOG = LoggerFactory.getLogger(OutboundConnectionQueue.class);
 
 	private final Channel channel;
 
@@ -109,7 +107,7 @@ public class OutboundConnectionQueue extends ChannelInboundHandlerAdapter implem
 	}
 
 	private void exceptionOccurred(Throwable t) throws Exception {
-		LOG.error(String.format("An exception occurred in Channel %s: %s", this.channel, t.getMessage()));
+		LOG.error("An exception occurred in Channel {}: {}", channel, t.getMessage());
 		throw new Exception(t);
 	}
 }

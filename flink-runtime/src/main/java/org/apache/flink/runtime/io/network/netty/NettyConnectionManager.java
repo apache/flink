@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.io.network.netty;
 
 import io.netty.bootstrap.Bootstrap;
@@ -31,9 +30,8 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
-
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.runtime.io.network.ChannelManager;
 import org.apache.flink.runtime.io.network.Envelope;
 import org.apache.flink.runtime.io.network.EnvelopeDispatcher;
@@ -50,7 +48,7 @@ import java.util.concurrent.ConcurrentMap;
 
 public class NettyConnectionManager implements NetworkConnectionManager {
 
-	private static final Log LOG = LogFactory.getLog(NettyConnectionManager.class);
+	private static final Logger LOG = LoggerFactory.getLogger(NettyConnectionManager.class);
 
 	private static final int DEBUG_PRINT_QUEUED_ENVELOPES_EVERY_MS = 10000;
 
@@ -341,7 +339,7 @@ public class NettyConnectionManager implements NetworkConnectionManager {
 				handInChannel(new OutboundConnectionQueue(future.channel()));
 			}
 			else if (this.numRetries > 0) {
-				LOG.debug(String.format("Connection request did not succeed, retrying (%d attempts left)", this.numRetries));
+				LOG.debug("Connection request did not succeed, retrying ({} attempts left)", numRetries);
 
 				this.out.connect(this.receiver.getConnectionAddress()).addListener(this);
 				this.numRetries--;

@@ -2,6 +2,10 @@
 title:  "Command-Line Interface"
 ---
 
+* This will be replaced by the TOC
+{:toc}
+
+
 Flink provides a command-line interface to run programs that are packaged
 as JAR files, and control their execution.  The command line interface is part
 of any Flink setup, available in local single node setups and in
@@ -20,7 +24,7 @@ The command line can be used to
 - provide information about a job, and
 - list running and waiting jobs.
 
-# Examples
+## Examples
 
 -   Run example program with no arguments.
 
@@ -61,11 +65,11 @@ The command line can be used to
 
         ./bin/flink cancel -i <jobID>
 
-# Usage
+## Usage
 
 The command line syntax is as follows:
 
-```
+~~~
 ./flink <ACTION> [OPTIONS] [ARGUMENTS]
 
 General options:
@@ -126,4 +130,4 @@ Action "cancel" cancels a submitted Flink program.
      -i,--jobid <jobID>             JobID of program to cancel
      
      -m,--jobmanager <host:port>    Option to connect to a different Flink master (JobManager).
-```
+~~~

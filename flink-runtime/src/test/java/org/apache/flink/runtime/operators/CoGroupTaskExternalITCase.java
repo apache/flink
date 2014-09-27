@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,19 +16,13 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators;
 
-import java.util.Iterator;
-
-import junit.framework.Assert;
-
-import org.apache.flink.api.common.functions.GenericCoGrouper;
-import org.apache.flink.api.java.record.functions.CoGroupFunction;
-import org.apache.flink.api.java.typeutils.runtime.record.RecordComparator;
-import org.apache.flink.api.java.typeutils.runtime.record.RecordPairComparatorFactory;
-import org.apache.flink.runtime.operators.CoGroupDriver;
-import org.apache.flink.runtime.operators.DriverStrategy;
+import org.junit.Assert;
+import org.apache.flink.api.common.functions.CoGroupFunction;
+import org.apache.flink.api.common.functions.RichCoGroupFunction;
+import org.apache.flink.api.common.typeutils.record.RecordComparator;
+import org.apache.flink.api.common.typeutils.record.RecordPairComparatorFactory;
 import org.apache.flink.runtime.operators.testutils.DriverTestBase;
 import org.apache.flink.runtime.operators.testutils.UniformRecordGenerator;
 import org.apache.flink.types.IntValue;
@@ -37,7 +31,7 @@ import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
 
-public class CoGroupTaskExternalITCase extends DriverTestBase<GenericCoGrouper<Record, Record, Record>>
+public class CoGroupTaskExternalITCase extends DriverTestBase<CoGroupFunction<Record, Record, Record>>
 {
 	private static final long SORT_MEM = 3*1024*1024;
 	
@@ -68,8 +62,8 @@ public class CoGroupTaskExternalITCase extends DriverTestBase<GenericCoGrouper<R
 			(keyCnt1 > keyCnt2 ? (keyCnt1 - keyCnt2) * valCnt1 : (keyCnt2 - keyCnt1) * valCnt2);
 		
 		setOutput(this.output);
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		getTaskConfig().setDriverStrategy(DriverStrategy.CO_GROUP);
 		
@@ -87,25 +81,23 @@ public class CoGroupTaskExternalITCase extends DriverTestBase<GenericCoGrouper<R
 		Assert.assertEquals("Wrong result set size.", expCnt, this.output.getNumberOfRecords());
 	}
 	
-	public static final class MockCoGroupStub extends CoGroupFunction {
+	public static final class MockCoGroupStub extends RichCoGroupFunction<Record, Record, Record> {
 		private static final long serialVersionUID = 1L;
 		
 		private final Record res = new Record();
 		
+		@SuppressWarnings("unused")
 		@Override
-		public void coGroup(Iterator<Record> records1, Iterator<Record> records2, Collector<Record> out)
-		{
+		public void coGroup(Iterable<Record> records1, Iterable<Record> records2, Collector<Record> out) {
 			int val1Cnt = 0;
 			int val2Cnt = 0;
 			
-			while (records1.hasNext()) {
+			for (Record r : records1) {
 				val1Cnt++;
-				records1.next();
 			}
 			
-			while (records2.hasNext()) {
+			for (Record r : records2) {
 				val2Cnt++;
-				records2.next();
 			}
 			
 			if (val1Cnt == 0) {

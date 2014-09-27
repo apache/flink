@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,11 +18,10 @@
 
 package org.apache.flink.api.java.operators;
 
-import org.apache.flink.api.common.functions.GenericFlatMap;
+import org.apache.flink.api.common.functions.FilterFunction;
+import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.operators.Operator;
-import org.apache.flink.api.java.functions.FilterFunction;
 import org.apache.flink.api.java.operators.translation.PlanFilterOperator;
-
 import org.apache.flink.api.java.DataSet;
 
 /**
@@ -35,7 +34,8 @@ public class FilterOperator<T> extends SingleInputUdfOperator<T, T, FilterOperat
 	
 	protected final FilterFunction<T> function;
 	
-	
+	protected PartitionedDataSet<T> partitionedDataSet;
+
 	public FilterOperator(DataSet<T> input, FilterFunction<T> function) {
 		super(input, input.getType());
 		
@@ -43,8 +43,18 @@ public class FilterOperator<T> extends SingleInputUdfOperator<T, T, FilterOperat
 		extractSemanticAnnotationsFromUdf(function.getClass());
 	}
 	
+	public FilterOperator(PartitionedDataSet<T> input, FilterFunction<T> function) {
+		this(input.getDataSet(), function);
+		this.partitionedDataSet = input;
+	}
+	
 	@Override
-	protected org.apache.flink.api.common.operators.base.FilterOperatorBase<T, GenericFlatMap<T,T>> translateToDataFlow(Operator<T> input) {
+	protected org.apache.flink.api.common.operators.base.FilterOperatorBase<T, FlatMapFunction<T,T>> translateToDataFlow(Operator<T> input) {
+		
+		// inject partition operator if necessary
+		if(this.partitionedDataSet != null) {
+			input = this.partitionedDataSet.translateToDataFlow(input, this.getParallelism());
+		}
 		
 		String name = getName() != null ? getName() : function.getClass().getName();
 		// create operator

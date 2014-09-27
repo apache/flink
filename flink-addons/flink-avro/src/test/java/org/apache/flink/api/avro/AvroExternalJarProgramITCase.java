@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,23 +25,16 @@ import org.apache.flink.client.minicluster.NepheleMiniCluster;
 import org.apache.flink.client.program.Client;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.util.LogUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
 
 public class AvroExternalJarProgramITCase {
 
-	private static final int TEST_JM_PORT = 43191;
-	
 	private static final String JAR_FILE = "target/maven-test-jar.jar";
 	
 	private static final String TEST_DATA_FILE = "/testdata.avro";
 
-	static {
-		LogUtils.initializeDefaultTestConsoleLogger();
-	}
-	
 	@Test
 	public void testExternalProgram() {
 		
@@ -49,7 +42,6 @@ public class AvroExternalJarProgramITCase {
 		
 		try {
 			testMiniCluster = new NepheleMiniCluster();
-			testMiniCluster.setJobManagerRpcPort(TEST_JM_PORT);
 			testMiniCluster.setTaskManagerNumSlots(4);
 			testMiniCluster.start();
 			
@@ -58,7 +50,7 @@ public class AvroExternalJarProgramITCase {
 			
 			PackagedProgram program = new PackagedProgram(new File(jarFile), new String[] { testData });
 						
-			Client c = new Client(new InetSocketAddress("localhost", TEST_JM_PORT), new Configuration());
+			Client c = new Client(new InetSocketAddress("localhost", testMiniCluster.getJobManagerRpcPort()), new Configuration(), program.getUserCodeClassLoader());
 			c.run(program, 4, true);
 		}
 		catch (Throwable t) {

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -26,8 +26,8 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A Servlet that displays the Configruation in the webinterface.
@@ -43,7 +43,7 @@ public class MenuServlet extends HttpServlet {
 	/**
 	 * The log for this class.
 	 */
-	private static final Log LOG = LogFactory.getLog(MenuServlet.class);
+	private static final Logger LOG = LoggerFactory.getLogger(MenuServlet.class);
 	
 	/**
 	 * Array of possible menu entries on the left
@@ -68,7 +68,7 @@ public class MenuServlet extends HttpServlet {
 	
 	public MenuServlet() {
 		if (names.length != entries.length || names.length != classes.length) {
-			LOG.fatal("The Arrays 'entries', 'classes' and 'names' differ in thier length. This is not allowed!");
+			LOG.error("The Arrays 'entries', 'classes' and 'names' differ in thier length. This is not allowed!");
 		}
 	}
 	

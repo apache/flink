@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.core.io;
 
 import java.io.IOException;
@@ -27,17 +26,19 @@ import org.apache.flink.core.memory.DataOutputView;
 /**
  * A generic input split that has only a partition number.
  */
-public class GenericInputSplit implements InputSplit {
+public class GenericInputSplit implements InputSplit, java.io.Serializable {
+
+	private static final long serialVersionUID = 1L;
 
 	/**
 	 * The number of this split.
 	 */
-	protected int partitionNumber;
+	private int partitionNumber;
 
 	/**
 	 * The total number of partitions
 	 */
-	protected int totalNumberOfPartitions;
+	private int totalNumberOfPartitions;
 	
 	// --------------------------------------------------------------------------------------------
 
@@ -60,18 +61,6 @@ public class GenericInputSplit implements InputSplit {
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public void write(DataOutputView out) throws IOException {
-		out.writeInt(this.partitionNumber);
-		out.writeInt(this.totalNumberOfPartitions);
-	}
-
-	@Override
-	public void read(final DataInputView in) throws IOException {
-		this.partitionNumber = in.readInt();
-		this.totalNumberOfPartitions = in.readInt();
-	}
-
-	@Override
 	public int getSplitNumber() {
 		return this.partitionNumber;
 	}
@@ -79,7 +68,39 @@ public class GenericInputSplit implements InputSplit {
 	public int getTotalNumberOfSplits() {
 		return this.totalNumberOfPartitions;
 	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	@Override
+	public void write(DataOutputView out) throws IOException {
+		out.writeInt(this.partitionNumber);
+		out.writeInt(this.totalNumberOfPartitions);
+	}
 
+	@Override
+	public void read(DataInputView in) throws IOException {
+		this.partitionNumber = in.readInt();
+		this.totalNumberOfPartitions = in.readInt();
+	}
+	
+	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public int hashCode() {
+		return this.partitionNumber ^ this.totalNumberOfPartitions;
+	}
+	
+	@Override
+	public boolean equals(Object obj) {
+		if (obj != null && obj instanceof GenericInputSplit) {
+			GenericInputSplit other = (GenericInputSplit) obj;
+			return this.partitionNumber == other.partitionNumber &&
+					this.totalNumberOfPartitions == other.totalNumberOfPartitions;
+		} else {
+			return false;
+		}
+	}
+	
 	public String toString() {
 		return "GenericSplit (" + this.partitionNumber + "/" + this.totalNumberOfPartitions + ")";
 	}

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,8 +25,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.BlockLocation;
@@ -50,7 +50,7 @@ public abstract class BinaryInputFormat<T extends IOReadableWritable> extends Fi
 	/**
 	 * The log.
 	 */
-	private static final Log LOG = LogFactory.getLog(BinaryInputFormat.class);
+	private static final Logger LOG = LoggerFactory.getLogger(BinaryInputFormat.class);
 
 	/**
 	 * The config parameter which defines the fixed length of a record.

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,22 +16,19 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.core.fs;
 
 import java.io.IOException;
 
 /**
- * A BlockLocation lists hosts, offset and length
- * of block.
- * 
+ * A BlockLocation lists hosts, offset and length of block.
  */
 public interface BlockLocation extends Comparable<BlockLocation> {
 
 	/**
 	 * Get the list of hosts (hostname) hosting this block.
 	 * 
-	 * @return a list of hosts (hostname) hosting this block
+	 * @return A list of hosts (hostname) hosting this block.
 	 * @throws IOException
 	 *         thrown if the list of hosts could not be retrieved
 	 */
@@ -40,7 +37,7 @@ public interface BlockLocation extends Comparable<BlockLocation> {
 	/**
 	 * Get the start offset of the file associated with this block.
 	 * 
-	 * @return the start offset of the file associated with this block
+	 * @return The start offset of the file associated with this block.
 	 */
 	long getOffset();
 
@@ -50,5 +47,4 @@ public interface BlockLocation extends Comparable<BlockLocation> {
 	 * @return the length of the block
 	 */
 	long getLength();
-
 }

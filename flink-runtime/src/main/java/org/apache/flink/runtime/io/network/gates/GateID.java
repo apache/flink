@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,15 +16,13 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.io.network.gates;
 
 import org.apache.flink.runtime.AbstractID;
 
 /**
  * A class for statistically unique gate IDs.
- * 
  */
 public final class GateID extends AbstractID {
-
+	private static final long serialVersionUID = 1L;
 }

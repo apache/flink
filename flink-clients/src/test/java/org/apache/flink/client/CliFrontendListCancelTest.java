@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.client;
 
 import static org.junit.Assert.assertTrue;
@@ -28,7 +27,6 @@ import java.util.List;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.flink.client.CliFrontend;
-import org.apache.flink.core.io.StringRecord;
 import org.apache.flink.runtime.client.JobCancelResult;
 import org.apache.flink.runtime.client.JobProgressResult;
 import org.apache.flink.runtime.client.JobSubmissionResult;
@@ -36,10 +34,7 @@ import org.apache.flink.runtime.event.job.AbstractEvent;
 import org.apache.flink.runtime.event.job.RecentJobEvent;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobID;
-import org.apache.flink.runtime.managementgraph.ManagementGraph;
-import org.apache.flink.runtime.managementgraph.ManagementVertexID;
 import org.apache.flink.runtime.protocols.ExtendedManagementProtocol;
-import org.apache.flink.runtime.topology.NetworkTopology;
 import org.apache.flink.runtime.types.IntegerRecord;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -178,11 +173,6 @@ public class CliFrontendListCancelTest {
 		}
 
 		@Override
-		public ManagementGraph getManagementGraph(JobID jobID) throws IOException {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
 		public List<RecentJobEvent> getRecentJobs() throws IOException {
 			return new ArrayList<RecentJobEvent>();
 		}
@@ -193,27 +183,12 @@ public class CliFrontendListCancelTest {
 		}
 
 		@Override
-		public void killTask(JobID jobID, ManagementVertexID id) throws IOException {
-			throw new UnsupportedOperationException();
+		public int getTotalNumberOfRegisteredSlots() {
+			return 1;
 		}
 
 		@Override
-		public void killInstance(StringRecord instanceName) throws IOException {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
-		public void logBufferUtilization(JobID jobID) throws IOException {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
-		public NetworkTopology getNetworkTopology(JobID jobID) throws IOException {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
-		public int getAvailableSlots() {
+		public int getNumberOfSlotsAvailableToScheduler() throws IOException {
 			return 1;
 		}
 	}

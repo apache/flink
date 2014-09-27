@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -86,6 +86,7 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 		case PARTITION_HASH:
 		case PARTITION_RANGE:
 		case PARTITION_RANDOM:
+		case PARTITION_FORCED_REBALANCE:
 		case BROADCAST:
 			break;
 		default:
@@ -106,6 +107,7 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 		switch (strategy) {
 		case FORWARD:
 		case PARTITION_RANDOM:
+		case PARTITION_FORCED_REBALANCE:
 			return robin(numberOfChannels);
 		case PARTITION_HASH:
 			return hashPartitionDefault(record.getInstance(), numberOfChannels);

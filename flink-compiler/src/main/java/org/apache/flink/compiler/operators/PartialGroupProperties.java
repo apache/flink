@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -51,8 +51,14 @@ public final class PartialGroupProperties extends OperatorDescriptorSingle {
 		GroupReduceNode combinerNode = new GroupReduceNode((GroupReduceOperatorBase<?, ?, ?>) node.getPactContract());
 		combinerNode.setDegreeOfParallelism(in.getSource().getDegreeOfParallelism());
 
-		return new SingleInputPlanNode(combinerNode, "Combine("+node.getPactContract().getName()+")", in,
-				DriverStrategy.SORTED_GROUP_COMBINE, this.keyList);
+		SingleInputPlanNode combiner = new SingleInputPlanNode(combinerNode, "Combine("+node.getPactContract().getName()+")", in,
+				DriverStrategy.SORTED_GROUP_COMBINE);
+		// sorting key info
+		combiner.setDriverKeyInfo(in.getLocalStrategyKeys(), in.getLocalStrategySortOrder(), 0);
+		// set grouping comparator key info
+		combiner.setDriverKeyInfo(this.keyList, 1);
+		
+		return combiner;
 	}
 
 	@Override

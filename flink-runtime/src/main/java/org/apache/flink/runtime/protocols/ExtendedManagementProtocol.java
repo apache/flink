@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,52 +16,22 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.protocols;
 
 import java.io.IOException;
 import java.util.List;
 
-import org.apache.flink.core.io.StringRecord;
 import org.apache.flink.runtime.event.job.AbstractEvent;
 import org.apache.flink.runtime.event.job.RecentJobEvent;
 import org.apache.flink.runtime.jobgraph.JobID;
-import org.apache.flink.runtime.managementgraph.ManagementGraph;
-import org.apache.flink.runtime.managementgraph.ManagementVertexID;
-import org.apache.flink.runtime.topology.NetworkTopology;
 
 /**
  * This protocol provides extended management capabilities beyond the
  * simple {@link JobManagementProtocol}. It can be used to retrieve
  * internal scheduling information, the network topology, or profiling
  * information about thread or instance utilization.
- * 
  */
 public interface ExtendedManagementProtocol extends JobManagementProtocol {
-
-	/**
-	 * Retrieves the management graph for the job
-	 * with the given ID.
-	 * 
-	 * @param jobID
-	 *        the ID identifying the job
-	 * @return the management graph for the job
-	 * @throws IOException
-	 *         thrown if an error occurs while retrieving the management graph
-	 */
-	ManagementGraph getManagementGraph(JobID jobID) throws IOException;
-
-	/**
-	 * Retrieves the current network topology for the job with
-	 * the given ID.
-	 * 
-	 * @param jobID
-	 *        the ID identifying the job
-	 * @return the network topology for the job
-	 * @throws IOException
-	 *         thrown if an error occurs while retrieving the network topology
-	 */
-	NetworkTopology getNetworkTopology(JobID jobID) throws IOException;
 
 	/**
 	 * Retrieves a list of jobs which have either running or have been started recently.
@@ -85,42 +55,11 @@ public interface ExtendedManagementProtocol extends JobManagementProtocol {
 	List<AbstractEvent> getEvents(JobID jobID) throws IOException;
 
 	/**
-	 * Kills the task with the given vertex ID.
-	 *
-	 * @param jobID
-	 *        the ID of the job the vertex to be killed belongs to
-	 * @param id
-	 *        the vertex ID which identified the task be killed
-	 * @throws IOException
-	 *         thrown if an error occurs while transmitting the kill request
-	 */
-	void killTask(JobID jobID, ManagementVertexID id) throws IOException;
-
-	/**
-	 * Kills the instance with the given name (i.e. shuts down its task manager).
-	 * 
-	 * @param instanceName
-	 *        the name of the instance to be killed
-	 * @throws IOException
-	 *         thrown if an error occurs while transmitting the kill request
-	 */
-	void killInstance(StringRecord instanceName) throws IOException;
-
-	/**
-	 * Triggers all task managers involved in processing the job with the given job ID to write the utilization of
-	 * their read and write buffers to their log files. This method is primarily for debugging purposes.
-	 * 
-	 * @param jobID
-	 *        the ID of the job to print the buffer distribution for
-	 * @throws IOException
-	 *         throws if an error occurs while transmitting the request
-	 */
-	void logBufferUtilization(JobID jobID) throws IOException;
-
-	/**
 	 * Returns the number of available slots among the registered task managers
 	 * @return number of available slots
 	 * @throws IOException
 	 */
-	int getAvailableSlots() throws IOException;
+	int getTotalNumberOfRegisteredSlots() throws IOException;
+	
+	int getNumberOfSlotsAvailableToScheduler() throws IOException;
 }

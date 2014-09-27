@@ -1,10 +1,32 @@
+/*!
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 /*
  * Document initialization.
  */
 $(document).ready(function () 
 {
-
-	
+	zoom = d3.behavior.zoom("#svg-main").on("zoom", function() {
+     		var ev = d3.event;
+     		d3.select("#svg-main g")
+     			.attr("transform", "translate(" + ev.translate + ") scale(" + ev.scale + ")");
+  		});
+  	zoom.scaleExtent([0.3, 3])
 });
 
 //The current JSON file
@@ -15,6 +37,12 @@ var iterationGraphs = new Array();
 var iterationWidths = new Array();
 var iterationHeights = new Array();
 
+//The zoom element
+var zoom;
+//informations about the enviroment
+var svgWidth;
+var svgHeight;
+
 //Renders and draws the graph
 function drawGraph(data, svgID){
 	JSONData = data;
@@ -24,7 +52,7 @@ function drawGraph(data, svgID){
 	//find all iterations
 	iterationNodes = searchForIterationNodes();
 	
-	//add the graphs and the sizes + Ids to the arrays
+	//add the graphs of iterations and their sizes + Ids to arrays
 	if (iterationNodes != null) {
 		for (var i in iterationNodes) {
 			var itNode = iterationNodes[i];
@@ -52,20 +80,17 @@ function drawGraph(data, svgID){
 	var layout = dagreD3.layout()
 	                    .nodeSep(20)
 	                    .rankDir("LR");
-	
-	//new solution (with selection of id)
 	var svgElement = d3.select(selector);
 	layout = renderer.layout(layout).run(g, svgElement);
+	
+	svgHeight = layout._value.height;
+	svgWidth = layout._value.width;
 	
 	 var svg = d3.select("#svg-main")
 	 	.attr("width", $(document).width() - 15)
 	 	.attr("height", $(document).height() - 15 - 110)
 //	 	.attr("viewBox", "0 0 "+ ($(document).width() - 150) +" "+($(document).height() - 15 - 110))
-	 	.call(d3.behavior.zoom("#svg-main").on("zoom", function() {
-     		var ev = d3.event;
-     		svg.select("#svg-main g")
-     			.attr("transform", "translate(" + ev.translate + ") scale(" + ev.scale + ")");
-  		}));
+	 	.call(zoom);
   		
 	// This should now draw the precomputed graphs in the svgs... . 
 	
@@ -94,61 +119,68 @@ function drawGraph(data, svgID){
 //Responsible for adding nodes and edges
 function loadJsonToDagre(data){
 	
-	//stores all nodes that are in right graph -> no edges out of iterations!
+	//stores all nodes that are in current graph -> no edges to nodes which are outside of current iterations!
 	var existingNodes = new Array;
 	
 	var g = new dagreD3.Digraph();
 	
+	//Find out whether we are in an iteration or in the normal json 
+	//Bulk variables
+	var partialSolution;
+	var nextPartialSolution;
+	//Workset variables
+	var workset;
+	var nextWorkset;
+	var solutionSet;
+	var solutionDelta;
+
 	if (data.nodes != null) {
-		console.log("Normal Json Data");
-		for (var i in data.nodes) {
-			var el = data.nodes[i];
-			g.addNode(el.id, { label: createLabelNode(el, ""), nodesWithoutEdges: ""} );
-			existingNodes.push(el.id);
-			if (el.predecessors != null) {
-				for (var j in el.predecessors) {
-					if (existingNodes.indexOf(el.predecessors[j].id) != -1) {
-						g.addEdge(null, el.predecessors[j].id, el.id, { label: createLabelEdge(el.predecessors[j]) });	
-					} else {
-						console.log("Edge to node not in graph yet: " + el.predecessors[j].id);
-						var nWE = g.node(el.id).nodesWithoutEdges;
-						if (nWE != "") {
-							nWE += ", "+el.predecessors[j].id;
-						} else {
-							nWE = el.predecessors[j].id;
-						}
-						
-						g.node(el.id, { label: createLabelNode(el, nWE), nodesWithoutEdges: nWE});
-					}
-				}
-			}
-		}
+		//This is the normal json data
+		var toIterate = data.nodes;
 	} else {
-		console.log("Iteration Json Data");
-		for (var i in data.step_function) {
-			var el = data.step_function[i];
-			g.addNode(el.id, { label: createLabelNode(el, ""), nodesWithoutEdges: ""} );
-			existingNodes.push(el.id);
-			if (el.predecessors != null) {
-				for (var j in el.predecessors) {
-					if (existingNodes.indexOf(el.predecessors[j].id) != -1) {
-						g.addEdge(null, el.predecessors[j].id, el.id, { label: createLabelEdge(el.predecessors[j]) });	
-					} else {
-						console.log("Edge to node not in graph yet: " + el.predecessors[j].id);
-						var nWE = g.node(el.id).nodesWithoutEdges;
-						if (nWE != "") {
-							nWE += ", "+el.predecessors[j].id;
-						} else {
-							nWE = el.predecessors[j].id;
-						}
-						
-						g.node(el.id, { label: createLabelNode(el, nWE), nodesWithoutEdges: nWE});
-					}
-				}
-			}
-		}
+		//This is an iteration, we now store special iteration nodes if possible
+		var toIterate = data.step_function;
+		partialSolution = data.partial_solution;
+		nextPartialSolution = data.next_partial_solution;
+		workset = data.workset;
+		nextWorkset = data.next_workset;
+		solutionSet = data.solution_set;
+		solutionDelta = data.solution_delta;
 	}
 	
+	for (var i in toIterate) {
+		var el = toIterate[i];
+		//create node, send additional informations about the node if it is a special one
+		if (el.id == partialSolution) {
+			g.addNode(el.id, { label: createLabelNode(el, "partialSolution"), nodesWithoutEdges: ""} );
+		} else if (el.id == nextPartialSolution) {
+			g.addNode(el.id, { label: createLabelNode(el, "nextPartialSolution"), nodesWithoutEdges: ""} );
+		} else if (el.id == workset) {
+			g.addNode(el.id, { label: createLabelNode(el, "workset"), nodesWithoutEdges: ""} );
+		} else if (el.id == nextWorkset) {
+			g.addNode(el.id, { label: createLabelNode(el, "nextWorkset"), nodesWithoutEdges: ""} );
+		} else if (el.id == solutionSet) {
+			g.addNode(el.id, { label: createLabelNode(el, "solutionSet"), nodesWithoutEdges: ""} );
+		} else if (el.id == solutionDelta) {
+			g.addNode(el.id, { label: createLabelNode(el, "solutionDelta"), nodesWithoutEdges: ""} );
+		} else {
+			g.addNode(el.id, { label: createLabelNode(el, ""), nodesWithoutEdges: ""} );
+		}
+		existingNodes.push(el.id);
+		
+		//create edgdes from predecessors to current node
+		if (el.predecessors != null) {
+			for (var j in el.predecessors) {
+				if (existingNodes.indexOf(el.predecessors[j].id) != -1) {
+					g.addEdge(null, el.predecessors[j].id, el.id, { label: createLabelEdge(el.predecessors[j]) });	
+				} else {
+					var missingNode = searchForNode(el.predecessors[j].id);
+					g.addNode(missingNode.id, {label: createLabelNode(missingNode, "mirror")});
+					g.addEdge(null, missingNode.id, el.id, { label: createLabelEdge(missingNode) });
+				}
+			}
+		}
+	}	
 	return g;
 }
 
@@ -160,7 +192,10 @@ function createLabelEdge(el) {
 		labelValue += "<div style=\"font-size: 100%; border:2px solid; padding:5px\">";
 		if (el.ship_strategy != null) {
 			labelValue += el.ship_strategy;
-		} 
+		}
+		if (el.temp_mode != undefined) {
+			labelValue += " (" + el.temp_mode + ")";
+		}
 		if (el.local_strategy != undefined) {
 			labelValue += ",<br>" + el.local_strategy;
 		}
@@ -170,21 +205,39 @@ function createLabelEdge(el) {
 	return labelValue;
 }
 
-//creates the label of a node, nWE are the NodesWithoutEdges
-function createLabelNode(el, nWE) {
+//creates the label of a node, in info is stored, whether it is a special node (like a mirror in an iteration)
+function createLabelNode(el, info) {
+//	if (info != "") {
+//		console.log("The node " + el.id + " is a " + info);	
+//	}
+	
+	//true, if the node is a special node from an iteration
+	var specialIterationNode = (info == "partialSolution" || info == "nextPartialSolution" || info == "workset" || info == "nextWorkset" || info == "solutionSet" || info == "solutionDelta" );
+	
 	var labelValue = "<div style=\"margin-top: 0\">";
 	//set color of panel
-	if (el.pact == "Data Source") {
-		labelValue += "<div style=\"border-color:#4ce199; border-width:4px; border-style:solid\">";
-	} else if (el.pact == "Data Sink") {
-		labelValue += "<div style=\"border-color:#e6ec8b; border-width:4px; border-style:solid\">";
+	if (info == "mirror") {
+		labelValue += "<div style=\"border-color:#a8a8a8; border-width:4px; border-style:solid\">";
+	} else if (specialIterationNode) {
+		labelValue += "<div style=\"border-color:#CD3333; border-width:4px; border-style:solid\">";
 	} else {
-		labelValue += "<div style=\"border-color:#3fb6d8; border-width:4px; border-style:solid\">";
+		//there is no info value, set normal color
+		if (el.pact == "Data Source") {
+			labelValue += "<div style=\"border-color:#4ce199; border-width:4px; border-style:solid\">";
+		} else if (el.pact == "Data Sink") {
+			labelValue += "<div style=\"border-color:#e6ec8b; border-width:4px; border-style:solid\">";
+		} else {
+			labelValue += "<div style=\"border-color:#3fb6d8; border-width:4px; border-style:solid\">";
+		}
 	}
 	//Nodename
-	//New Solution with overlay
-	labelValue += "<div><a nodeID=\""+el.id+"\" href=\"#\" rel=\"#propertyO\"><h3 style=\"text-align: center; font-size: 150%\">" + el.pact 
-				+ " (ID = "+el.id+")</h3></a>";
+	if (info == "mirror") {
+		labelValue += "<div><a nodeID=\""+el.id+"\" href=\"#\" rel=\"#propertyO\"><h3 style=\"text-align: center; "
+		+ "font-size: 150%\">Mirror of " + el.pact + " (ID = "+el.id+")</h3></a>";
+	} else {
+		labelValue += "<div><a nodeID=\""+el.id+"\" href=\"#\" rel=\"#propertyO\"><h3 style=\"text-align: center; "
+		+ "font-size: 150%\">" + el.pact + " (ID = "+el.id+")</h3></a>";
+	}
 	if (el.contents == "") {
 		labelValue += "</div>";
 	} else {
@@ -194,31 +247,30 @@ function createLabelNode(el, nWE) {
 	 	labelValue += "<h4 style=\"text-align: center; font-size: 130%\">" + stepName + "</h4></div>";
 	}
 	
-	//If this node is a "iteration" we need a different panel-body
+	//If this node is an "iteration" we need a different panel-body
 	if (el.step_function != null) {
 		labelValue += extendLabelNodeForIteration(el.id);
-		return labelValue;
-	}
+	} else {
+		//Otherwise add infos		
+		if (specialIterationNode) {
+			labelValue += "<h5 style=\"font-size:115%; text-align: center; color:#CD3333\">" + info + " Node</h5>";
+		}
+		
+		if (el.parallelism != "") {
+			labelValue += "<h5 style=\"font-size:115%\">Parallelism: " + el.parallelism + "</h5>";
+		}
 	
-	if (el.parallelism != "") {
-		labelValue += "<h5 style=\"font-size:115%\">Parallelism: " + el.parallelism + "</h5>";
+		if (el.driver_strategy != undefined) {
+			labelValue += "<h5 style=\"font-size:115%\">Driver Strategy: " + el.driver_strategy + "</h5";
+		}
+		
 	}
-
-	if (el.driver_strategy != undefined) {
-		labelValue += "<h5 style=\"font-size:115%\">Driver Strategy: " + el.driver_strategy + "</h5";
-	}
-	
-	//Nodes without edges
-	if (nWE != "") {
-		labelValue += "<h5 style=\"font-size:115%\">Additional Edge to Node: <span class=\"badge\" style=\"font-size:120%\">"+nWE+"</span></h5>";
-	}
-	
-	//close panel
+	//close divs
 	labelValue += "</div></div>";
 	return labelValue;
 }
 
-//Extends the label of a node with an additional svg Element to present the workset iteration.
+//Extends the label of a node with an additional svg Element to present the iteration.
 function extendLabelNodeForIteration(id) {
 	var svgID = "svg-" + id;
 
@@ -232,21 +284,21 @@ function extendLabelNodeForIteration(id) {
 	return labelValue;
 }
 
-//presents properties for a given nodeID in the propertyCanvas
+//presents properties for a given nodeID in the propertyCanvas overlay
 function showProperties(nodeID) {
 	$("#propertyCanvas").empty();
 	node = searchForNode(nodeID);
-	var phtml = "<div><h3>Properties of "+ shortenString(node.contents) + " - ID = " + nodeID + "</h3>";
+	var phtml = "<div style='overflow-y: scroll; max-height:490px; overflow-x:hidden'><h3>Properties of "+ shortenString(node.contents) + " - ID = " + nodeID + "</h3>";
 	phtml += "<div class=\"row\">";
 	
-	phtml += "<div class=\"col-md-4\"><h4>Pact Properties</h4>";
+	phtml += "<div class=\"col-sm-12\"><h4>Pact Properties</h4>";
 	phtml += "<table class=\"table\">";
 	phtml += tableRow("Operator", (node.driver_strategy == undefined ? "None" : node.driver_strategy));
 	phtml += tableRow("Parallelism", (node.parallelism == undefined ? "None" : node.parallelism));
 	phtml += tableRow("Subtasks-per-instance", (node.subtasks_per_instance == undefined ? "None" : node.subtasks_per_instance));
 	phtml += "</table></div>";
 	
-	phtml += "<div class=\"col-md-4\"><h4>Global Data Properties</h4>";
+	phtml += "<div class=\"col-sm-12\"><h4>Global Data Properties</h4>";
 	phtml += "<table class=\"table\">";
 	if (node.global_properties != null) {
 		for (var i = 0; i < node.global_properties.length; i++) {
@@ -258,7 +310,7 @@ function showProperties(nodeID) {
 	}
 	phtml += "</table></div>";
 
-	phtml += "<div class=\"col-md-4\"><h4>Local Data Properties</h4>";
+	phtml += "<div class=\"col-sm-12\"><h4>Local Data Properties</h4>";
 	phtml += "<table class=\"table\">";
 	if (node.local_properties != null) {
 		for (var i = 0; i < node.local_properties.length; i++) {
@@ -271,7 +323,7 @@ function showProperties(nodeID) {
 	phtml += "</table></div></div>";
 	
 	phtml += "<div class=\"row\">";
-	phtml += "<div class=\"col-md-6\"><h4>Size Estimates</h4>";
+	phtml += "<div class=\"col-sm-12\"><h4>Size Estimates</h4>";
 	phtml += "<table class=\"table\">";
 	if (node.estimates != null) {
 		for (var i = 0; i < node.estimates.length; i++) {
@@ -283,7 +335,7 @@ function showProperties(nodeID) {
 	}
 	phtml += "</table></div>";
 	
-	phtml += "<div class=\"col-md-6\"><h4>Cost Estimates</h4>";	
+	phtml += "<div class=\"col-sm-12\"><h4>Cost Estimates</h4>";	
 	phtml += "<table class=\"table\">";
 	if (node.costs != null) {
 		for (var i = 0; i < node.costs.length; i++) {
@@ -355,4 +407,38 @@ function shortenString(s) {
 		s = "..." + s.substring(s.length-30, s.length);
 	}
 	return s;
+}
+
+//activates the zoom buttons
+function activateZoomButtons() {
+	$("#zoomIn").click(function() {
+      	console.log("Clicked zoom in");
+      	  if (zoom.scale() < 2.99) { 	
+				var svg = d3.select("#svg-main");
+				//Calculate and store new values in zoom object
+				var translate = zoom.translate();
+				var v1 = translate[0] * (zoom.scale() + 0.1 / (zoom.scale()));
+				var v2 = translate[1] * (zoom.scale() + 0.1 / (zoom.scale()));
+				zoom.scale(zoom.scale() + 0.1);
+				zoom.translate([v1, v2]);
+				//Transform svg
+				svg.select("#svg-main g")
+	     			.attr("transform", "translate(" + v1 + ","+ v2 + ") scale(" + zoom.scale() + ")");
+      		}    	
+      });
+      
+      $("#zoomOut").click(function() {
+      		if (zoom.scale() > 0.31) { 	
+				var svg = d3.select("#svg-main");
+				//Calculate and store new values in zoom object
+				zoom.scale(zoom.scale() - 0.1);
+				var translate = zoom.translate();
+				var v1 = translate[0] * (zoom.scale() - 0.1 / (zoom.scale()));
+				var v2 = translate[1] * (zoom.scale() - 0.1 / (zoom.scale()));
+				zoom.translate([v1, v2]);
+				//Transform svg
+				svg.select("#svg-main g")
+	     			.attr("transform", "translate(" + v1 + ","+ v2 + ") scale(" + zoom.scale() + ")");
+      		}
+      });
 }

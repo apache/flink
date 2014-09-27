@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.jobgraph.tasks;
 
 import org.apache.flink.configuration.Configuration;
@@ -24,14 +23,13 @@ import org.apache.flink.runtime.execution.Environment;
 
 /**
  * Abstract base class for every task class in Nephele.
- * 
  */
 public abstract class AbstractInvokable {
 
 	/**
 	 * The environment assigned to this invokable.
 	 */
-	private volatile Environment environment = null;
+	private volatile Environment environment;
 
 	/**
 	 * Must be overwritten by the concrete task to instantiate the required record reader and record writer.
@@ -42,7 +40,7 @@ public abstract class AbstractInvokable {
 	 * Must be overwritten by the concrete task. This method is called by the task manager
 	 * when the actual execution of the task starts.
 	 * 
-	 * @throws Execution
+	 * @throws Exception
 	 *         thrown if any exception occurs during the execution of the tasks
 	 */
 	public abstract void invoke() throws Exception;
@@ -62,7 +60,6 @@ public abstract class AbstractInvokable {
 	 * 
 	 * @return the environment of this task or <code>null</code> if the environment has not yet been set
 	 */
-	// TODO: This method should be final
 	public Environment getEnvironment() {
 		return this.environment;
 	}
@@ -74,7 +71,6 @@ public abstract class AbstractInvokable {
 	 * @return the current number of subtasks the respective task is split into
 	 */
 	public final int getCurrentNumberOfSubtasks() {
-
 		return this.environment.getCurrentNumberOfSubtasks();
 	}
 
@@ -84,7 +80,6 @@ public abstract class AbstractInvokable {
 	 * @return the index of this subtask in the subtask group
 	 */
 	public final int getIndexInSubtaskGroup() {
-
 		return this.environment.getIndexInSubtaskGroup();
 	}
 
@@ -94,7 +89,6 @@ public abstract class AbstractInvokable {
 	 * @return the task configuration object which was attached to the original {@link org.apache.flink.runtime.jobgraph.AbstractJobVertex}
 	 */
 	public final Configuration getTaskConfiguration() {
-
 		return this.environment.getTaskConfiguration();
 	}
 
@@ -104,37 +98,7 @@ public abstract class AbstractInvokable {
 	 * @return the job configuration object which was attached to the original {@link org.apache.flink.runtime.jobgraph.JobGraph}
 	 */
 	public final Configuration getJobConfiguration() {
-
 		return this.environment.getJobConfiguration();
-	}
-
-	/**
-	 * This method should be called by the user code if a custom
-	 * user thread has been started.
-	 * 
-	 * @param userThread
-	 *        the user thread which has been started
-	 */
-	public final void userThreadStarted(Thread userThread) {
-
-		if (this.environment != null) {
-			this.environment.userThreadStarted(userThread);
-		}
-
-	}
-
-	/**
-	 * This method should be called by the user code if a custom
-	 * user thread has finished.
-	 * 
-	 * @param userThread
-	 *        the user thread which has finished
-	 */
-	public final void userThreadFinished(Thread userThread) {
-
-		if (this.environment != null) {
-			this.environment.userThreadFinished(userThread);
-		}
 	}
 
 	/**
@@ -145,7 +109,6 @@ public abstract class AbstractInvokable {
 	 *         thrown if any exception occurs during the execution of the user code
 	 */
 	public void cancel() throws Exception {
-
 		// The default implementation does nothing.
 	}
 }

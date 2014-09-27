@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,11 +20,7 @@
 package org.apache.flink.runtime.io.network.bufferprovider;
 
 import org.apache.flink.runtime.io.network.Buffer;
-import org.apache.flink.runtime.io.network.bufferprovider.BufferAvailabilityListener;
-import org.apache.flink.runtime.io.network.bufferprovider.GlobalBufferPool;
-import org.apache.flink.runtime.io.network.bufferprovider.LocalBufferPool;
 import org.apache.flink.runtime.io.network.bufferprovider.BufferProvider.BufferAvailabilityRegistration;
-import org.apache.flink.util.LogUtils;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -43,10 +39,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 public class LocalBufferPoolTest {
-	
-	static {
-		LogUtils.initializeDefaultTestConsoleLogger();
-	}
 
 	private final static int NUM_BUFFERS = 2048;
 

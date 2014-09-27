@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 
 package org.apache.flink.test.iterative.nephele.danglingpagerank;
 
@@ -102,7 +101,8 @@ public class CompensatableDotProductCoGroup extends CoGroupFunction {
 		long edges = 0;
 		double summedRank = 0;
 		while (partialRanks.hasNext()) {
-			summedRank += partialRanks.next().getField(1, doubleInstance).getValue();
+			Record pr = partialRanks.next();
+			summedRank += pr.getField(1, doubleInstance).getValue();
 			edges++;
 		}
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,357 +16,343 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.instance;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.Map;
-import java.util.HashMap;
-import java.util.List;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Queue;
 import java.util.Set;
-import java.util.Collection;
 
-import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheProfileRequest;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheProfileResponse;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheUpdate;
-import org.apache.flink.runtime.executiongraph.ExecutionVertexID;
-import org.apache.flink.runtime.io.network.channels.ChannelID;
 import org.apache.flink.runtime.ipc.RPC;
 import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotAvailablilityListener;
 import org.apache.flink.runtime.net.NetUtils;
 import org.apache.flink.runtime.protocols.TaskOperationProtocol;
-import org.apache.flink.runtime.taskmanager.TaskCancelResult;
-import org.apache.flink.runtime.taskmanager.TaskKillResult;
-import org.apache.flink.runtime.taskmanager.TaskSubmissionResult;
-import org.apache.flink.runtime.topology.NetworkNode;
-import org.apache.flink.runtime.topology.NetworkTopology;
+import org.eclipse.jetty.util.log.Log;
 
 /**
  * An instance represents a resource a {@link org.apache.flink.runtime.taskmanager.TaskManager} runs on.
- * 
  */
-public class Instance extends NetworkNode {
-	/**
-	 * The connection info identifying the instance.
-	 */
+public class Instance {
+	
+	/** The lock on which to synchronize allocations and failure state changes */
+	private final Object instanceLock = new Object();
+	
+	/** The connection info to connect to the task manager represented by this instance. */
 	private final InstanceConnectionInfo instanceConnectionInfo;
+	
+	/** A description of the resources of the task manager */
+	private final HardwareDescription resources;
+	
+	/** The ID identifying the instance. */
+	private final InstanceID instanceId;
 
-	/**
-	 * The hardware description as reported by the instance itself.
-	 */
-	private final HardwareDescription hardwareDescription;
-
-	/**
-	 * Number of slots available on the node
-	 */
+	/** The number of task slots available on the node */
 	private final int numberOfSlots;
 
-	/**
-	 * Allocated slots on this instance
-	 */
-	private final Map<AllocationID, AllocatedSlot> allocatedSlots = new HashMap<AllocationID, AllocatedSlot>();
+	/** A list of available slot positons */
+	private final Queue<Integer> availableSlots;
+	
+	/** Allocated slots on this instance */
+	private final Set<AllocatedSlot> allocatedSlots = new HashSet<AllocatedSlot>();
 
-	/**
-	 * Stores the RPC stub object for the instance's task manager.
-	 */
-	private TaskOperationProtocol taskManager = null;
+	
+	/** A listener to be notified upon new slot availability */
+	private SlotAvailablilityListener slotListener;
+	
+	
+	/** The RPC proxy to send calls to the task manager represented by this instance */
+	private volatile TaskOperationProtocol taskManager;
 
 	/**
 	 * Time when last heat beat has been received from the task manager running on this instance.
 	 */
-	private long lastReceivedHeartBeat = System.currentTimeMillis();
+	private volatile long lastReceivedHeartBeat = System.currentTimeMillis();
+	
+	private volatile boolean isDead;
 
+	// --------------------------------------------------------------------------------------------
+	
 	/**
 	 * Constructs an abstract instance object.
 	 * 
-	 * @param instanceConnectionInfo
-	 *        the connection info identifying the instance
-	 * @param parentNode
-	 *        the parent node in the network topology
-	 * @param networkTopology
-	 *        the network topology this node is a part of
-	 * @param hardwareDescription
-	 *        the hardware description provided by the instance itself
+	 * @param instanceConnectionInfo The connection info under which to reach the TaskManager instance.
+	 * @param id The id under which the instance is registered.
+	 * @param resources The resources available on the machine.
+	 * @param numberOfSlots The number of task slots offered by this instance.
 	 */
-	public Instance(final InstanceConnectionInfo instanceConnectionInfo,
-					final NetworkNode parentNode, final NetworkTopology networkTopology,
-					final HardwareDescription hardwareDescription, int numberOfSlots) {
-		super((instanceConnectionInfo == null) ? null : instanceConnectionInfo.toString(), parentNode, networkTopology);
+	public Instance(InstanceConnectionInfo instanceConnectionInfo, InstanceID id, HardwareDescription resources, int numberOfSlots) {
 		this.instanceConnectionInfo = instanceConnectionInfo;
-		this.hardwareDescription = hardwareDescription;
+		this.instanceId = id;
+		this.resources = resources;
 		this.numberOfSlots = numberOfSlots;
-	}
-
-	/**
-	 * Creates or returns the RPC stub object for the instance's task manager.
-	 * 
-	 * @return the RPC stub object for the instance's task manager
-	 * @throws IOException
-	 *         thrown if the RPC stub object for the task manager cannot be created
-	 */
-	private TaskOperationProtocol getTaskManagerProxy() throws IOException {
-
-		if (this.taskManager == null) {
-
-			this.taskManager = RPC.getProxy(TaskOperationProtocol.class,
-				new InetSocketAddress(getInstanceConnectionInfo().address(),
-					getInstanceConnectionInfo().ipcPort()), NetUtils.getSocketFactory());
-		}
-
-		return this.taskManager;
-	}
-
-	/**
-	 * Destroys and removes the RPC stub object for this instance's task manager.
-	 */
-	private void destroyTaskManagerProxy() {
-
-		if (this.taskManager != null) {
-			RPC.stopProxy(this.taskManager);
-			this.taskManager = null;
+		
+		this.availableSlots = new ArrayDeque<Integer>(numberOfSlots);
+		for (int i = 0; i < numberOfSlots; i++) {
+			this.availableSlots.add(i);
 		}
 	}
 
+	// --------------------------------------------------------------------------------------------
+	// Properties
+	// --------------------------------------------------------------------------------------------
+	
+	public InstanceID getId() {
+		return instanceId;
+	}
+	
+	public HardwareDescription getResources() {
+		return this.resources;
+	}
+	
+	public int getTotalNumberOfSlots() {
+		return numberOfSlots;
+	}
+	
 	/**
 	 * Returns the instance's connection information object.
 	 * 
 	 * @return the instance's connection information object
 	 */
-	public final InstanceConnectionInfo getInstanceConnectionInfo() {
+	public InstanceConnectionInfo getInstanceConnectionInfo() {
 		return this.instanceConnectionInfo;
 	}
-
-	/**
-	 * Returns the instance's hardware description as reported by the instance itself.
-	 * 
-	 * @return the instance's hardware description
-	 */
-	public HardwareDescription getHardwareDescription() {
-		return this.hardwareDescription;
+	
+	// --------------------------------------------------------------------------------------------
+	// Life and Death
+	// --------------------------------------------------------------------------------------------
+	
+	public boolean isAlive() {
+		return !isDead;
+	}
+	
+	public void markDead() {
+		if (isDead) {
+			return;
+		}
+		
+		isDead = true;
+		
+		synchronized (instanceLock) {
+			
+			// no more notifications for the slot releasing
+			this.slotListener = null;
+			
+			for (AllocatedSlot slot : allocatedSlots) {
+				slot.releaseSlot();
+			}
+			allocatedSlots.clear();
+			availableSlots.clear();
+		}
+		
+		destroyTaskManagerProxy();
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	//  Connection to the TaskManager
+	// --------------------------------------------------------------------------------------------
+	
+	public TaskOperationProtocol getTaskManagerProxy() throws IOException {
+		TaskOperationProtocol tm = this.taskManager;
+		
+		if (tm == null) {
+			synchronized (this) {
+				if (this.taskManager == null) {
+					this.taskManager = RPC.getProxy(TaskOperationProtocol.class,
+						new InetSocketAddress(getInstanceConnectionInfo().address(),
+							getInstanceConnectionInfo().ipcPort()), NetUtils.getSocketFactory());
+				}
+				tm = this.taskManager;
+			}
+		}
+		
+		return tm;
 	}
 
-	/**
-	 * Checks if all the libraries required to run the job with the given
-	 * job ID are available on this instance. Any libary that is missing
-	 * is transferred to the instance as a result of this call.
-	 * 
-	 * @param jobID
-	 *        the ID of the job whose libraries are to be checked for
-	 * @throws IOException
-	 *         thrown if an error occurs while checking for the libraries
-	 */
-	public synchronized void checkLibraryAvailability(final JobID jobID) throws IOException {
-
-		// Now distribute the required libraries for the job
+	/**  Destroys and removes the RPC stub object for this instance's task manager. */
+	private void destroyTaskManagerProxy() {
+		synchronized (this) {
+			if (this.taskManager != null) {
+				try {
+					RPC.stopProxy(this.taskManager);
+				} catch (Throwable t) {
+					Log.debug("Error shutting down RPC proxy.", t);
+				}
+			}
+		}
+	}
+	
+	public void checkLibraryAvailability(JobID jobID) throws IOException {
 		String[] requiredLibraries = LibraryCacheManager.getRequiredJarFiles(jobID);
 
 		if (requiredLibraries == null) {
 			throw new IOException("No entry of required libraries for job " + jobID);
 		}
 
-		LibraryCacheProfileRequest request = new LibraryCacheProfileRequest();
-		request.setRequiredLibraries(requiredLibraries);
-
-		// Send the request
-		LibraryCacheProfileResponse response = null;
-		response = getTaskManagerProxy().getLibraryCacheProfile(request);
-
-		// Check response and transfer libraries if necessary
-		for (int k = 0; k < requiredLibraries.length; k++) {
-			if (!response.isCached(k)) {
-				LibraryCacheUpdate update = new LibraryCacheUpdate(requiredLibraries[k]);
-				getTaskManagerProxy().updateLibraryCache(update);
+//		if (requiredLibraries.length > 0) {
+			LibraryCacheProfileRequest request = new LibraryCacheProfileRequest();
+			request.setRequiredLibraries(requiredLibraries);
+	
+			// Send the request
+			LibraryCacheProfileResponse response = getTaskManagerProxy().getLibraryCacheProfile(request);
+	
+			// Check response and transfer libraries if necessary
+			for (int k = 0; k < requiredLibraries.length; k++) {
+				if (!response.isCached(k)) {
+					LibraryCacheUpdate update = new LibraryCacheUpdate(requiredLibraries[k]);
+					getTaskManagerProxy().updateLibraryCache(update);
+				}
 			}
-		}
+//		}
 	}
-
+	
+	// --------------------------------------------------------------------------------------------
+	// Heartbeats
+	// --------------------------------------------------------------------------------------------
+	
 	/**
-	 * Submits a list of tasks to the instance's {@link org.apache.flink.runtime.taskmanager.TaskManager}.
+	 * Gets the timestamp of the last heartbeat.
 	 * 
-	 * @param tasks
-	 *        the list of tasks to be submitted
-	 * @return the result of the submission attempt
-	 * @throws IOException
-	 *         thrown if an error occurs while transmitting the task
+	 * @return The timestamp of the last heartbeat.
 	 */
-	public synchronized List<TaskSubmissionResult> submitTasks(final List<TaskDeploymentDescriptor> tasks)
-			throws IOException {
-
-		return getTaskManagerProxy().submitTasks(tasks);
+	public long getLastHeartBeat() {
+		return this.lastReceivedHeartBeat;
 	}
-
-	/**
-	 * Cancels the task identified by the given ID at the instance's
-	 * {@link org.apache.flink.runtime.taskmanager.TaskManager}.
-	 * 
-	 * @param id
-	 *        the ID identifying the task to be canceled
-	 * @throws IOException
-	 *         thrown if an error occurs while transmitting the request or receiving the response
-	 * @return the result of the cancel attempt
-	 */
-	public synchronized TaskCancelResult cancelTask(final ExecutionVertexID id) throws IOException {
-
-		return getTaskManagerProxy().cancelTask(id);
-	}
-
-	/**
-	 * Kills the task identified by the given ID at the instance's
-	 * {@link org.apache.flink.runtime.taskmanager.TaskManager}.
-	 * 
-	 * @param id
-	 *        the ID identifying the task to be killed
-	 * @throws IOException
-	 *         thrown if an error occurs while transmitting the request or receiving the response
-	 * @return the result of the kill attempt
-	 */
-	public synchronized TaskKillResult killTask(final ExecutionVertexID id) throws IOException {
-
-		return getTaskManagerProxy().killTask(id);
-	}
-
+	
 	/**
 	 * Updates the time of last received heart beat to the current system time.
 	 */
-	public synchronized void reportHeartBeat() {
+	public void reportHeartBeat() {
 		this.lastReceivedHeartBeat = System.currentTimeMillis();
 	}
 
 	/**
-	 * Returns whether the host is still alive.
-	 *
-	 * @param cleanUpInterval
-	 *        duration (in milliseconds) after which a host is
-	 *        considered dead if it has no received heat-beats.
-	 * @return <code>true</code> if the host has received a heat-beat before the <code>cleanUpInterval</code> duration
-	 *         has expired, <code>false</code> otherwise
+	 * Checks whether the last heartbeat occurred within the last {@code n} milliseconds
+	 * before the given timestamp {@code now}.
+	 *  
+	 * @param now The timestamp representing the current time.
+	 * @param cleanUpInterval The maximum time (in msecs) that the last heartbeat may lie in the past.
+	 * @return True, if this instance is considered alive, false otherwise.
 	 */
-	public synchronized boolean isStillAlive(final long cleanUpInterval) {
-
-		if (this.lastReceivedHeartBeat + cleanUpInterval < System.currentTimeMillis()) {
+	public boolean isStillAlive(long now, long cleanUpInterval) {
+		return this.lastReceivedHeartBeat + cleanUpInterval > now;
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	// Resource allocation
+	// --------------------------------------------------------------------------------------------
+	
+	public AllocatedSlot allocateSlot(JobID jobID) throws InstanceDiedException {
+		if (jobID == null) {
+			throw new IllegalArgumentException();
+		}
+		
+		synchronized (instanceLock) {
+			if (isDead) {
+				throw new InstanceDiedException(this);
+			}
+			
+			Integer nextSlot = availableSlots.poll();
+			if (nextSlot == null) {
+				return null;
+			} else {
+				AllocatedSlot slot = new AllocatedSlot(jobID, this, nextSlot);
+				allocatedSlots.add(slot);
+				return slot;
+			}
+		}
+	}
+	
+	public boolean returnAllocatedSlot(AllocatedSlot slot) {
+		// the slot needs to be in the returned to instance state
+		if (slot == null || slot.getInstance() != this) {
+			throw new IllegalArgumentException("Slot is null or belongs to the wrong instance.");
+		}
+		if (slot.isAlive()) {
+			throw new IllegalArgumentException("Slot is still alive");
+		}
+		
+		if (slot.markReleased()) { 
+			synchronized (instanceLock) {
+				if (isDead) {
+					return false;
+				}
+			
+				if (this.allocatedSlots.remove(slot)) {
+					this.availableSlots.add(slot.getSlotNumber());
+					
+					if (this.slotListener != null) {
+						this.slotListener.newSlotAvailable(this);
+					}
+					
+					return true;
+				} else {
+					throw new IllegalArgumentException("Slot was not allocated from the instance.");
+				}
+			}
+		} else {
 			return false;
 		}
-		return true;
 	}
-
-
+	
+	public void cancelAndReleaseAllSlots() {
+		synchronized (instanceLock) {
+			// we need to do this copy because of concurrent modification exceptions
+			List<AllocatedSlot> copy = new ArrayList<AllocatedSlot>(this.allocatedSlots);
+			
+			for (AllocatedSlot slot : copy) {
+				slot.releaseSlot();
+			}
+			allocatedSlots.clear();
+		}
+	}
+	
+	public int getNumberOfAvailableSlots() {
+		return this.availableSlots.size();
+	}
+	
+	public int getNumberOfAllocatedSlots() {
+		return this.allocatedSlots.size();
+	}
+	
+	public boolean hasResourcesAvailable() {
+		return !isDead && getNumberOfAvailableSlots() > 0;
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	// Listeners
+	// --------------------------------------------------------------------------------------------
+	
+	public void setSlotAvailabilityListener(SlotAvailablilityListener slotListener) {
+		synchronized (instanceLock) {
+			if (this.slotListener != null) {
+				throw new IllegalStateException("Instance has already a slot listener.");
+			} else {
+				this.slotListener = slotListener;
+			}
+		}
+	}
+	
+	public void removeSlotListener() {
+		synchronized (instanceLock) {
+			this.slotListener = null;
+		}
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	// Standard Utilities
+	// --------------------------------------------------------------------------------------------
+	
 	@Override
-	public boolean equals(final Object obj) {
-
-		// Fall back since dummy instances do not have a instanceConnectionInfo
-		if (this.instanceConnectionInfo == null) {
-			return super.equals(obj);
-		}
-
-		if (!(obj instanceof Instance)) {
-			return false;
-		}
-
-		final Instance abstractInstance = (Instance) obj;
-
-		return this.instanceConnectionInfo.equals(abstractInstance.getInstanceConnectionInfo());
-	}
-
-
-	@Override
-	public int hashCode() {
-
-		// Fall back since dummy instances do not have a instanceConnectionInfo
-		if (this.instanceConnectionInfo == null) {
-			return super.hashCode();
-		}
-
-		return this.instanceConnectionInfo.hashCode();
-	}
-
-	/**
-	 * Triggers the remote task manager to print out the current utilization of its read and write buffers to its logs.
-	 * 
-	 * @throws IOException
-	 *         thrown if an error occurs while transmitting the request
-	 */
-	public synchronized void logBufferUtilization() throws IOException {
-
-		getTaskManagerProxy().logBufferUtilization();
-	}
-
-	/**
-	 * Kills the task manager running on this instance. This method is mainly intended to test and debug Nephele's fault
-	 * tolerance mechanisms.
-	 * 
-	 * @throws IOException
-	 *         thrown if an error occurs while transmitting the request
-	 */
-	public synchronized void killTaskManager() throws IOException {
-
-		getTaskManagerProxy().killTaskManager();
-	}
-
-	/**
-	 * Invalidates the entries identified by the given channel IDs from the remote task manager's receiver lookup cache.
-	 * 
-	 * @param channelIDs
-	 *        the channel IDs identifying the cache entries to invalidate
-	 * @throws IOException
-	 *         thrown if an error occurs during this remote procedure call
-	 */
-	public synchronized void invalidateLookupCacheEntries(final Set<ChannelID> channelIDs) throws IOException {
-		getTaskManagerProxy().invalidateLookupCacheEntries(channelIDs);
-	}
-
-	/**
-	 * Destroys all RPC stub objects attached to this instance.
-	 */
-	public synchronized void destroyProxies() {
-
-		destroyTaskManagerProxy();
-
-	}
-
-	public int getNumberOfSlots() {
-		return numberOfSlots;
-	}
-
-	public int getNumberOfAvailableSlots() { return numberOfSlots - allocatedSlots.size(); }
-
-	public synchronized AllocatedResource allocateSlot(JobID jobID) throws InstanceException{
-		if(allocatedSlots.size() < numberOfSlots){
-			AllocatedSlot slot = new AllocatedSlot(jobID);
-
-			allocatedSlots.put(slot.getAllocationID(), slot);
-			return new AllocatedResource(this,slot.getAllocationID());
-		}else{
-			throw new InstanceException("Overbooking instance " + instanceConnectionInfo + ".");
-		}
-	}
-
-	public synchronized void releaseSlot(AllocationID allocationID) {
-		if(allocatedSlots.containsKey(allocationID)){
-			allocatedSlots.remove(allocationID);
-		}else{
-			throw new RuntimeException("There is no slot registered with allocation ID " + allocationID + ".");
-		}
-	}
-
-	public Collection<AllocatedSlot> getAllocatedSlots() {
-		return allocatedSlots.values();
-	}
-
-	public Collection<AllocatedSlot> removeAllocatedSlots() {
-		Collection<AllocatedSlot> slots = new ArrayList<AllocatedSlot>(this.allocatedSlots.values());
-
-		for(AllocatedSlot slot : slots){
-			releaseSlot(slot.getAllocationID());
-		}
-
-		return slots;
-	}
-
-	public long getLastHeartBeat() {
-		return this.lastReceivedHeartBeat;
+	public String toString() {
+		return instanceId + " @" + this.instanceConnectionInfo + ' ' + numberOfSlots + " slots";
 	}
 }

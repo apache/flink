@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,8 +28,8 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.client.program.PackagedProgram;
 
 
@@ -38,7 +38,7 @@ public class PactJobJSONServlet extends HttpServlet {
 	/** Serial UID for serialization interoperability. */
 	private static final long serialVersionUID = 558077298726449201L;
 	
-	private static final Log LOG = LogFactory.getLog(PactJobJSONServlet.class);
+	private static final Logger LOG = LoggerFactory.getLogger(PactJobJSONServlet.class);
 
 	// ------------------------------------------------------------------------
 

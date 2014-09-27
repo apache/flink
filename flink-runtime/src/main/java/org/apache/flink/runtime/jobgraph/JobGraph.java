@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,103 +16,137 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.jobgraph;
 
 import java.io.IOException;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
+import java.util.Collections;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
+import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.core.io.StringRecord;
 import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataInputViewStream;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.core.memory.DataOutputViewStream;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
-import org.apache.flink.util.ClassUtils;
+import org.apache.flink.types.StringValue;
 
 /**
- * A job graph represents an entire job in Nephele. A job graph must consists at least of one job vertex
- * and must be acyclic.
- * 
+ * A job graph represents an entire Flink runtime job.
  */
 public class JobGraph implements IOReadableWritable {
 
-	/**
-	 * List of input vertices included in this job graph.
-	 */
-	private Map<JobVertexID, AbstractJobInputVertex> inputVertices = new HashMap<JobVertexID, AbstractJobInputVertex>();
-
-	/**
-	 * List of output vertices included in this job graph.
-	 */
-	private Map<JobVertexID, AbstractJobOutputVertex> outputVertices = new HashMap<JobVertexID, AbstractJobOutputVertex>();
-
-	/**
-	 * List of task vertices included in this job graph.
-	 */
-	private Map<JobVertexID, JobTaskVertex> taskVertices = new HashMap<JobVertexID, JobTaskVertex>();
-
-	/**
-	 * ID of this job.
-	 */
-	private JobID jobID;
-
-	/**
-	 * Name of this job.
-	 */
-	private String jobName;
-
-	/**
-	 * The job configuration attached to this job.
-	 */
-	private Configuration jobConfiguration = new Configuration();
-
-	/**
-	 * List of JAR files required to run this job.
-	 */
-	private final ArrayList<Path> userJars = new ArrayList<Path>();
-
-	/**
-	 * Size of the buffer to be allocated for transferring attached files.
-	 */
+	/** Size of the buffer to be allocated for transferring attached files. */
 	private static final int BUFFERSIZE = 8192;
+	
+	
+	// --------------------------------------------------------------------------------------------
+	// Members that define the structure / topology of the graph
+	// --------------------------------------------------------------------------------------------
+	
+	/** List of JAR files required to run this job. */
+	private final ArrayList<Path> userJars = new ArrayList<Path>();
+	
+	/** List of task vertices included in this job graph. */
+	private final Map<JobVertexID, AbstractJobVertex> taskVertices = new LinkedHashMap<JobVertexID, AbstractJobVertex>();
 
-	/**
-	 * Buffer for array of reachable job vertices
-	 */
-	private volatile AbstractJobVertex[] bufferedAllReachableJobVertices = null;
+	/** The job configuration attached to this job. */
+	private final Configuration jobConfiguration = new Configuration();
+	
+	/** ID of this job. */
+	private final JobID jobID;
 
+	/** Name of this job. */
+	private String jobName;
+	
+	private boolean allowQueuedScheduling;
+	
+	// --------------------------------------------------------------------------------------------
+	
 	/**
-	 * Constructs a new job graph with a random job ID.
+	 * Constructs a new job graph with no name and a random job ID.
 	 */
 	public JobGraph() {
-		this.jobID = new JobID();
+		this((String) null);
 	}
 
 	/**
 	 * Constructs a new job graph with the given name and a random job ID.
 	 * 
-	 * @param jobName
-	 *        the name for this job graph
+	 * @param jobName The name of the job
 	 */
-	public JobGraph(final String jobName) {
-		this();
-		this.jobName = jobName;
+	public JobGraph(String jobName) {
+		this(null, jobName);
+	}
+	
+	/**
+	 * Constructs a new job graph with the given name and a random job ID.
+	 * 
+	 * @param jobId The id of the job
+	 * @param jobName The name of the job
+	 */
+	public JobGraph(JobID jobId, String jobName) {
+		this.jobID = jobId == null ? new JobID() : jobId;;
+		this.jobName = jobName == null ? "(unnamed job)" : jobName;
+	}
+	
+	/**
+	 * Constructs a new job graph with no name and a random job ID.
+	 * 
+	 * @param vertices The vertices to add to the graph.
+	 */
+	public JobGraph(AbstractJobVertex... vertices) {
+		this(null, vertices);
 	}
 
+	/**
+	 * Constructs a new job graph with the given name and a random job ID.
+	 * 
+	 * @param jobName The name of the job.
+	 * @param vertices The vertices to add to the graph.
+	 */
+	public JobGraph(String jobName, AbstractJobVertex... vertices) {
+		this(null, jobName, vertices);
+	}
+	
+	/**
+	 * Constructs a new job graph with the given name and a random job ID.
+	 * 
+	 * @param jobId The id of the job.
+	 * @param jobName The name of the job.
+	 * @param vertices The vertices to add to the graph.
+	 */
+	public JobGraph(JobID jobId, String jobName, AbstractJobVertex... vertices) {
+		this(jobId, jobName);
+		
+		for (AbstractJobVertex vertex : vertices) {
+			addVertex(vertex);
+		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * Returns the ID of the job.
+	 * 
+	 * @return the ID of the job
+	 */
+	public JobID getJobID() {
+		return this.jobID;
+	}
+	
 	/**
 	 * Returns the name assigned to the job graph.
 	 * 
@@ -128,206 +162,60 @@ public class JobGraph implements IOReadableWritable {
 	 * @return the configuration object for this job, or <code>null</code> if it is not set
 	 */
 	public Configuration getJobConfiguration() {
-
 		return this.jobConfiguration;
 	}
-
-	/**
-	 * Adds a new input vertex to the job graph if it is not already included.
-	 * 
-	 * @param inputVertex
-	 *        the new input vertex to be added
-	 */
-	public void addVertex(AbstractJobInputVertex inputVertex) {
-		if (!inputVertices.containsKey(inputVertex.getID())) {
-			inputVertices.put(inputVertex.getID(), inputVertex);
-		}
+	
+	public void setAllowQueuedScheduling(boolean allowQueuedScheduling) {
+		this.allowQueuedScheduling = allowQueuedScheduling;
+	}
+	
+	public boolean getAllowQueuedScheduling() {
+		return allowQueuedScheduling;
 	}
 
 	/**
 	 * Adds a new task vertex to the job graph if it is not already included.
 	 * 
-	 * @param taskVertex
+	 * @param vertex
 	 *        the new task vertex to be added
 	 */
-	public void addVertex(JobTaskVertex taskVertex) {
-		if (!taskVertices.containsKey(taskVertex.getID())) {
-			taskVertices.put(taskVertex.getID(), taskVertex);
+	public void addVertex(AbstractJobVertex vertex) {
+		final JobVertexID id = vertex.getID();
+		AbstractJobVertex previous = taskVertices.put(id, vertex);
+		
+		// if we had a prior association, restore and throw an exception
+		if (previous != null) {
+			taskVertices.put(id, previous);
+			throw new IllegalArgumentException("The JobGraph already contains a vertex with that id.");
 		}
 	}
 
 	/**
-	 * Adds a new output vertex to the job graph if it is not already included.
+	 * Returns an Iterable to iterate all vertices registered with the job graph.
 	 * 
-	 * @param outputVertex
-	 *        the new output vertex to be added
+	 * @return an Iterable to iterate all vertices registered with the job graph
 	 */
-	public void addVertex(AbstractJobOutputVertex outputVertex) {
-		if (!outputVertices.containsKey(outputVertex.getID())) {
-			outputVertices.put(outputVertex.getID(), outputVertex);
-		}
+	public Iterable<AbstractJobVertex> getVertices() {
+		return this.taskVertices.values();
 	}
-
-	/**
-	 * Returns the number of input vertices registered with the job graph.
-	 * 
-	 * @return the number of input vertices registered with the job graph
-	 */
-	public int getNumberOfInputVertices() {
-		return this.inputVertices.size();
-	}
-
-	/**
-	 * Returns the number of output vertices registered with the job graph.
-	 * 
-	 * @return the number of output vertices registered with the job graph
-	 */
-	public int getNumberOfOutputVertices() {
-		return this.outputVertices.size();
-	}
-
-	/**
-	 * Returns the number of task vertices registered with the job graph.
-	 * 
-	 * @return the number of task vertices registered with the job graph
-	 */
-	public int getNumberOfTaskVertices() {
-		return this.taskVertices.size();
-	}
-
-	/**
-	 * Returns an iterator to iterate all input vertices registered with the job graph.
-	 * 
-	 * @return an iterator to iterate all input vertices registered with the job graph
-	 */
-	public Iterator<AbstractJobInputVertex> getInputVertices() {
-
-		final Collection<AbstractJobInputVertex> coll = this.inputVertices.values();
-
-		return coll.iterator();
-	}
-
-	/**
-	 * Returns an iterator to iterate all output vertices registered with the job graph.
-	 * 
-	 * @return an iterator to iterate all output vertices registered with the job graph
-	 */
-	public Iterator<AbstractJobOutputVertex> getOutputVertices() {
-
-		final Collection<AbstractJobOutputVertex> coll = this.outputVertices.values();
-
-		return coll.iterator();
-	}
-
-	/**
-	 * Returns an iterator to iterate all task vertices registered with the job graph.
-	 * 
-	 * @return an iterator to iterate all task vertices registered with the job graph
-	 */
-	public Iterator<JobTaskVertex> getTaskVertices() {
-
-		final Collection<JobTaskVertex> coll = this.taskVertices.values();
-
-		return coll.iterator();
-	}
-
-	/**
-	 * Returns the number of all job vertices registered with this job graph.
-	 * 
-	 * @return the number of all job vertices registered with this job graph
-	 */
-	public int getNumberOfVertices() {
-
-		return this.inputVertices.size() + this.outputVertices.size() + this.taskVertices.size();
-	}
-
-	/**
-	 * Returns an array of all job vertices than can be reached when traversing the job graph from the input vertices.
-	 * Each job vertex is contained only one time.
-	 * 
-	 * @return an array of all job vertices than can be reached when traversing the job graph from the input vertices
-	 */
-	public AbstractJobVertex[] getAllReachableJobVertices() {
-		if(bufferedAllReachableJobVertices == null){
-			final List<AbstractJobVertex> collector = new ArrayList<AbstractJobVertex>();
-			final HashSet<JobVertexID> visited = new HashSet<JobVertexID>();
-
-			final Iterator<AbstractJobInputVertex> inputs = getInputVertices();
-
-			while(inputs.hasNext()){
-				AbstractJobVertex vertex = inputs.next();
-
-				if(!visited.contains(vertex.getID())){
-					collectVertices(vertex, visited, collector);
-				}
-			}
-
-			bufferedAllReachableJobVertices = collector.toArray(new AbstractJobVertex[0]);
-		}
-
-		return bufferedAllReachableJobVertices;
-	}
-
-	/**
-	 * Auxiliary method to collect all vertices which are reachable from the input vertices.
-	 *
-	 * @param jv
-	 *        the currently considered job vertex
-	 * @param collector
-	 *        a temporary list to store the vertices that have already been visisted
-	 */
-	private void collectVertices(final AbstractJobVertex jv, final HashSet<JobVertexID> visited, final
-			List<AbstractJobVertex> collector) {
-		visited.add(jv.getID());
-		collector.add(jv);
-
-		for(int i =0; i < jv.getNumberOfForwardConnections(); i++){
-			AbstractJobVertex vertex = jv.getForwardConnection(i).getConnectedVertex();
-
-			if(!visited.contains(vertex.getID())){
-				collectVertices(vertex, visited, collector);
-			}
-		}
-	}
-
+	
 	/**
 	 * Returns an array of all job vertices that are registered with the job graph. The order in which the vertices
 	 * appear in the list is not defined.
 	 * 
 	 * @return an array of all job vertices that are registered with the job graph
 	 */
-	public AbstractJobVertex[] getAllJobVertices() {
-
-		int i = 0;
-		final AbstractJobVertex[] vertices = new AbstractJobVertex[inputVertices.size() + outputVertices.size()
-			+ taskVertices.size()];
-
-		final Iterator<AbstractJobInputVertex> iv = getInputVertices();
-		while (iv.hasNext()) {
-			vertices[i++] = iv.next();
-		}
-
-		final Iterator<AbstractJobOutputVertex> ov = getOutputVertices();
-		while (ov.hasNext()) {
-			vertices[i++] = ov.next();
-		}
-
-		final Iterator<JobTaskVertex> tv = getTaskVertices();
-		while (tv.hasNext()) {
-			vertices[i++] = tv.next();
-		}
-
-		return vertices;
+	public AbstractJobVertex[] getVerticesAsArray() {
+		return this.taskVertices.values().toArray(new AbstractJobVertex[this.taskVertices.size()]);
 	}
 
-
 	/**
-	 * Returns the ID of the job.
+	 * Returns the number of all vertices.
 	 * 
-	 * @return the ID of the job
+	 * @return The number of all vertices.
 	 */
-	public JobID getJobID() {
-		return this.jobID;
+	public int getNumberOfVertices() {
+		return this.taskVertices.size();
 	}
 
 	/**
@@ -337,310 +225,172 @@ public class JobGraph implements IOReadableWritable {
 	 *        the ID of the vertex to search for
 	 * @return the vertex with the matching ID or <code>null</code> if no vertex with such ID could be found
 	 */
-	public AbstractJobVertex findVertexByID(final JobVertexID id) {
-
-		if (this.inputVertices.containsKey(id)) {
-			return this.inputVertices.get(id);
-		}
-
-		if (this.outputVertices.containsKey(id)) {
-			return this.outputVertices.get(id);
-		}
-
-		if (this.taskVertices.containsKey(id)) {
-			return this.taskVertices.get(id);
-		}
-
-		return null;
+	public AbstractJobVertex findVertexByID(JobVertexID id) {
+		return this.taskVertices.get(id);
 	}
+	
+	// --------------------------------------------------------------------------------------------
 
-	/**
-	 * Checks if the job graph is weakly connected.
-	 * 
-	 * @return <code>true</code> if the job graph is weakly connected, otherwise <code>false</code>
-	 */
-	public boolean isWeaklyConnected() {
-
-		final AbstractJobVertex[] reachable = getAllReachableJobVertices();
-		final AbstractJobVertex[] all = getAllJobVertices();
-
-		// Check if number if reachable vertices matches number of registered vertices
-		if (reachable.length != all.length) {
-			return false;
+	public List<AbstractJobVertex> getVerticesSortedTopologicallyFromSources() throws InvalidProgramException {
+		// early out on empty lists
+		if (this.taskVertices.isEmpty()) {
+			return Collections.emptyList();
 		}
-
-		return true;
-	}
-
-	/**
-	 * Checks if the job graph is acyclic.
-	 * 
-	 * @return <code>true</code> if the job graph is acyclic, <code>false</code> otherwise
-	 */
-	public boolean isAcyclic() {
-
-		final AbstractJobVertex[] reachable = getAllReachableJobVertices();
-
-		final HashSet<JobVertexID> temporarilyMarked = new HashSet<JobVertexID>();
-		final HashSet<JobVertexID> permanentlyMarked = new HashSet<JobVertexID>();
-
-		for(int i = 0; i < reachable.length; i++){
-			if(detectCycle(reachable[i], temporarilyMarked, permanentlyMarked)){
-				return false;
-			}
-		}
-
-		return true;
-	}
-
-	/**
-	 * Auxiliary method for cycle detection. Performs a depth-first traversal with vertex markings to detect a cycle.
-	 * If a node with a temporary marking is found, then there is a cycle. Once all children of a vertex have been
-	 * traversed the parent node cannot be part of another cycle and is thus permanently marked.
-	 *
-	 * @param jv current job vertex to check
-	 * @param temporarilyMarked set of temporarily marked nodes
-	 * @param permanentlyMarked set of permanently marked nodes
-	 * @return <code>true</code> if there is a cycle, <code>false</code> otherwise
-	 */
-	private boolean detectCycle(final AbstractJobVertex jv, final HashSet<JobVertexID> temporarilyMarked,
-								final HashSet<JobVertexID> permanentlyMarked){
-		JobVertexID vertexID = jv.getID();
-
-		if(permanentlyMarked.contains(vertexID)){
-			return false;
-		}else if(temporarilyMarked.contains(vertexID)){
-			return true;
-		}else{
-			temporarilyMarked.add(vertexID);
-
-			for(int i = 0; i < jv.getNumberOfForwardConnections(); i++){
-				if(detectCycle(jv.getForwardConnection(i).getConnectedVertex(), temporarilyMarked, permanentlyMarked)){
-					return true;
+		
+		ArrayList<AbstractJobVertex> sorted = new ArrayList<AbstractJobVertex>(this.taskVertices.size());
+		LinkedHashSet<AbstractJobVertex> remaining = new LinkedHashSet<AbstractJobVertex>(this.taskVertices.values());
+		
+		// start by finding the vertices with no input edges
+		// and the ones with disconnected inputs (that refer to some standalone data set)
+		{
+			Iterator<AbstractJobVertex> iter = remaining.iterator();
+			while (iter.hasNext()) {
+				AbstractJobVertex vertex = iter.next();
+				
+				if (vertex.hasNoConnectedInputs()) {
+					sorted.add(vertex);
+					iter.remove();
 				}
 			}
-
-			permanentlyMarked.add(vertexID);
-			return false;
+		}
+		
+		int startNodePos = 0;
+		
+		// traverse from the nodes that were added until we found all elements
+		while (!remaining.isEmpty()) {
+			
+			// first check if we have more candidates to start traversing from. if not, then the
+			// graph is cyclic, which is not permitted
+			if (startNodePos >= sorted.size()) {
+				throw new InvalidProgramException("The job graph is cyclic.");
+			}
+			
+			AbstractJobVertex current = sorted.get(startNodePos++);
+			addNodesThatHaveNoNewPredecessors(current, sorted, remaining);
+		}
+		
+		return sorted;
+	}
+	
+	private void addNodesThatHaveNoNewPredecessors(AbstractJobVertex start, ArrayList<AbstractJobVertex> target, LinkedHashSet<AbstractJobVertex> remaining) {
+		
+		// forward traverse over all produced data sets and all their consumers
+		for (IntermediateDataSet dataSet : start.getProducedDataSets()) {
+			for (JobEdge edge : dataSet.getConsumers()) {
+				
+				// a vertex can be added, if it has no predecessors that are still in the 'remaining' set
+				AbstractJobVertex v = edge.getTarget();
+				if (!remaining.contains(v)) {
+					continue;
+				}
+				
+				boolean hasNewPredecessors = false;
+				
+				for (JobEdge e : v.getInputs()) {
+					// skip the edge through which we came
+					if (e == edge) {
+						continue;
+					}
+					
+					IntermediateDataSet source = e.getSource();
+					if (remaining.contains(source.getProducer())) {
+						hasNewPredecessors = true;
+						break;
+					}
+				}
+				
+				if (!hasNewPredecessors) {
+					target.add(v);
+					remaining.remove(v);
+					addNodesThatHaveNoNewPredecessors(v, target, remaining);
+				}
+			}
 		}
 	}
-
-	/**
-	 * Checks for all registered job vertices if their in-/out-degree is correct.
-	 * 
-	 * @return <code>null</code> if the in-/out-degree of all vertices is correct or the first job vertex whose
-	 *         in-/out-degree is incorrect.
-	 */
-	public AbstractJobVertex areVertexDegreesCorrect() {
-
-		// Check input vertices
-		final Iterator<AbstractJobInputVertex> iter = getInputVertices();
-		while (iter.hasNext()) {
-
-			final AbstractJobVertex jv = iter.next();
-
-			if (jv.getNumberOfForwardConnections() < 1 || jv.getNumberOfBackwardConnections() > 0) {
-				return jv;
-			}
-		}
-
-		// Check task vertices
-		final Iterator<JobTaskVertex> iter2 = getTaskVertices();
-		while (iter2.hasNext()) {
-
-			final AbstractJobVertex jv = iter2.next();
-
-			if (jv.getNumberOfForwardConnections() < 1 || jv.getNumberOfBackwardConnections() < 1) {
-				return jv;
-			}
-		}
-
-		// Check output vertices
-		final Iterator<AbstractJobOutputVertex> iter3 = getOutputVertices();
-		while (iter3.hasNext()) {
-
-			final AbstractJobVertex jv = iter3.next();
-
-			if (jv.getNumberOfForwardConnections() > 0 || jv.getNumberOfBackwardConnections() < 1) {
-				return jv;
-			}
-		}
-
-		return null;
-	}
-
-
+	
+	// --------------------------------------------------------------------------------------------
+	//  Serialization / Deserialization
+	// --------------------------------------------------------------------------------------------
+	
 	@Override
-	public void read(final DataInputView in) throws IOException {
-
-		// Read job id
+	public void read(DataInputView in) throws IOException {
+		// write the simple fields
 		this.jobID.read(in);
-
-		// Read the job name
-		this.jobName = StringRecord.readString(in);
+		this.jobName = StringValue.readString(in);
+		this.jobConfiguration.read(in);
+		this.allowQueuedScheduling = in.readBoolean();
+		
+		final int numVertices = in.readInt();
+		
+		@SuppressWarnings("resource")
+		ObjectInputStream ois = new ObjectInputStream(new DataInputViewStream(in));
+		for (int i = 0; i < numVertices; i++) {
+			try {
+				AbstractJobVertex vertex = (AbstractJobVertex) ois.readObject();
+				taskVertices.put(vertex.getID(), vertex);
+			}
+			catch (ClassNotFoundException e) {
+				throw new IOException(e);
+			}
+		}
+		ois.close();
 
 		// Read required jar files
 		readRequiredJarFiles(in);
-
-		// First read total number of vertices;
-		final int numVertices = in.readInt();
-
-		// First, recreate each vertex and add it to reconstructionMap
-		for (int i = 0; i < numVertices; i++) {
-			final String className = StringRecord.readString(in);
-			final JobVertexID id = new JobVertexID();
-			id.read(in);
-			final String vertexName = StringRecord.readString(in);
-
-			Class<? extends IOReadableWritable> c;
-			try {
-				c = ClassUtils.getRecordByName(className);
-			} catch (ClassNotFoundException cnfe) {
-				throw new IOException(cnfe.toString());
-			}
-
-			// Find constructor
-			Constructor<? extends IOReadableWritable> cst;
-			try {
-				cst = c.getConstructor(String.class, JobVertexID.class, JobGraph.class);
-			} catch (SecurityException e1) {
-				throw new IOException(e1.toString());
-			} catch (NoSuchMethodException e1) {
-				throw new IOException(e1.toString());
-			}
-
-			try {
-				cst.newInstance(vertexName, id, this);
-			} catch (IllegalArgumentException e) {
-				throw new IOException(e.toString());
-			} catch (InstantiationException e) {
-				throw new IOException(e.toString());
-			} catch (IllegalAccessException e) {
-				throw new IOException(e.toString());
-			} catch (InvocationTargetException e) {
-				throw new IOException(e.toString());
-			}
-		}
-
-		final JobVertexID tmpID = new JobVertexID();
-		for (int i = 0; i < numVertices; i++) {
-
-			AbstractJobVertex jv;
-
-			tmpID.read(in);
-			if (inputVertices.containsKey(tmpID)) {
-				jv = inputVertices.get(tmpID);
-			} else {
-				if (outputVertices.containsKey(tmpID)) {
-					jv = outputVertices.get(tmpID);
-				} else {
-					if (taskVertices.containsKey(tmpID)) {
-						jv = taskVertices.get(tmpID);
-					} else {
-						throw new IOException("Cannot find vertex with ID " + tmpID + " in any vertex map.");
-					}
-				}
-			}
-
-			// Read the vertex data
-			jv.read(in);
-		}
-
-		// Find the class loader for the job
-		final ClassLoader cl = LibraryCacheManager.getClassLoader(this.jobID);
-		if (cl == null) {
-			throw new IOException("Cannot find class loader for job graph " + this.jobID);
-		}
-
-		// Re-instantiate the job configuration object and read the configuration
-		this.jobConfiguration = new Configuration(cl);
-		this.jobConfiguration.read(in);
 	}
 
 
 	@Override
-	public void write(final DataOutputView out) throws IOException {
-
-		// Write job ID
+	public void write(DataOutputView out) throws IOException {
+		
+		// write the simple fields
 		this.jobID.write(out);
-
-		// Write out job name
-		StringRecord.writeString(out, this.jobName);
-
-		final AbstractJobVertex[] allVertices = this.getAllJobVertices();
-
-		// Write out all required jar files
-		writeRequiredJarFiles(out, allVertices);
-
-		// Write total number of vertices
-		out.writeInt(allVertices.length);
-
-		// First write out class name and id for every vertex
-		for (int i = 0; i < allVertices.length; i++) {
-
-			final String className = allVertices[i].getClass().getName();
-			StringRecord.writeString(out, className);
-			allVertices[i].getID().write(out);
-			StringRecord.writeString(out, allVertices[i].getName());
-		}
-
-		// Now write out vertices themselves
-		for (int i = 0; i < allVertices.length; i++) {
-			allVertices[i].getID().write(out);
-			allVertices[i].write(out);
-		}
-
-		// Write out configuration objects
+		StringValue.writeString(this.jobName, out);
 		this.jobConfiguration.write(out);
+		out.writeBoolean(allowQueuedScheduling);
+		
+		// write the task vertices using java serialization (to resolve references in the object graph)
+		out.writeInt(taskVertices.size());
+		
+		ObjectOutputStream oos = new ObjectOutputStream(new DataOutputViewStream(out));
+		for (AbstractJobVertex vertex : this.taskVertices.values()) {
+			oos.writeObject(vertex);
+		}
+		oos.close();
+		
+		// Write out all required jar files
+		writeRequiredJarFiles(out);
+	}
+
+	// --------------------------------------------------------------------------------------------
+	//  Handling of attached JAR files
+	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * Adds the path of a JAR file required to run the job on a task manager.
+	 * 
+	 * @param jar
+	 *        path of the JAR file required to run the job on a task manager
+	 */
+	public void addJar(Path jar) {
+		if (jar == null) {
+			throw new IllegalArgumentException();
+		}
+
+		if (!userJars.contains(jar)) {
+			userJars.add(jar);
+		}
 	}
 
 	/**
-	 * Writes the JAR files of all vertices in array <code>jobVertices</code> to the specified output stream.
+	 * Returns a (possibly empty) array of paths to JAR files which are required to run the job on a task manager.
 	 * 
-	 * @param out
-	 *        the output stream to write the JAR files to
-	 * @param jobVertices
-	 *        array of job vertices whose required JAR file are to be written to the output stream
-	 * @throws IOException
-	 *         thrown if an error occurs while writing to the stream
+	 * @return a (possibly empty) array of paths to JAR files which are required to run the job on a task manager
 	 */
-	private void writeRequiredJarFiles(final DataOutputView out, final AbstractJobVertex[] jobVertices) throws
-			IOException {
-
-		// Now check if all the collected jar files really exist
-		final FileSystem fs = FileSystem.getLocalFileSystem();
-
-		for (int i = 0; i < this.userJars.size(); i++) {
-			if (!fs.exists(this.userJars.get(i))) {
-				throw new IOException("Cannot find jar file " + this.userJars.get(i));
-			}
-		}
-
-		// How many jar files follow?
-		out.writeInt(this.userJars.size());
-
-		for (int i = 0; i < this.userJars.size(); i++) {
-
-			final Path jar = this.userJars.get(i);
-
-			// Write out the actual path
-			jar.write(out);
-
-			// Write out the length of the file
-			final FileStatus file = fs.getFileStatus(jar);
-			out.writeLong(file.getLen());
-
-			// Now write the jar file
-			final FSDataInputStream inStream = fs.open(this.userJars.get(i));
-			final byte[] buf = new byte[BUFFERSIZE];
-			int read = inStream.read(buf, 0, buf.length);
-			while (read > 0) {
-				out.write(buf, 0, read);
-				read = inStream.read(buf, 0, buf.length);
-			}
-		}
+	public Path[] getJars() {
+		return userJars.toArray(new Path[userJars.size()]);
 	}
-
+	
 	/**
 	 * Reads required JAR files from an input stream and adds them to the
 	 * library cache manager.
@@ -675,98 +425,48 @@ public class JobGraph implements IOReadableWritable {
 		// Register this job with the library cache manager
 		LibraryCacheManager.register(this.jobID, this.userJars.toArray(new Path[0]));
 	}
-
+	
 	/**
-	 * Adds the path of a JAR file required to run the job on a task manager.
+	 * Writes the JAR files of all vertices in array <code>jobVertices</code> to the specified output stream.
 	 * 
-	 * @param jar
-	 *        path of the JAR file required to run the job on a task manager
+	 * @param out
+	 *        the output stream to write the JAR files to
+	 * @throws IOException
+	 *         thrown if an error occurs while writing to the stream
 	 */
-	public void addJar(final Path jar) {
+	private void writeRequiredJarFiles(DataOutputView out) throws IOException {
 
-		if (jar == null) {
-			return;
-		}
+		// Now check if all the collected jar files really exist
+		final FileSystem fs = FileSystem.getLocalFileSystem();
 
-		if (!userJars.contains(jar)) {
-			userJars.add(jar);
-		}
-	}
-
-	/**
-	 * Returns a (possibly empty) array of paths to JAR files which are required to run the job on a task manager.
-	 * 
-	 * @return a (possibly empty) array of paths to JAR files which are required to run the job on a task manager
-	 */
-	public Path[] getJars() {
-
-		return userJars.toArray(new Path[userJars.size()]);
-	}
-
-	/**
-	 * Checks if any vertex of this job graph has an outgoing edge which is set to <code>null</code>. If this is the
-	 * case the respective vertex is returned.
-	 * 
-	 * @return the vertex which has an outgoing edge set to <code>null</code> or <code>null</code> if no such vertex
-	 *         exists
-	 */
-	public AbstractJobVertex findVertexWithNullEdges() {
-
-		final AbstractJobVertex[] allVertices = getAllJobVertices();
-
-		for (int i = 0; i < allVertices.length; i++) {
-
-			for (int j = 0; j < allVertices[i].getNumberOfForwardConnections(); j++) {
-				if (allVertices[i].getForwardConnection(j) == null) {
-					return allVertices[i];
-				}
-			}
-
-			for (int j = 0; j < allVertices[i].getNumberOfBackwardConnections(); j++) {
-				if (allVertices[i].getBackwardConnection(j) == null) {
-					return allVertices[i];
-				}
+		for (int i = 0; i < this.userJars.size(); i++) {
+			if (!fs.exists(this.userJars.get(i))) {
+				throw new IOException("Cannot find jar file " + this.userJars.get(i));
 			}
 		}
 
-		return null;
-	}
+		// How many jar files follow?
+		out.writeInt(this.userJars.size());
 
-	/**
-	 * Checks if the instance dependency chain created with the <code>setVertexToShareInstancesWith</code> method is
-	 * acyclic.
-	 * 
-	 * @return <code>true</code> if the dependency chain is acyclic, <code>false</code> otherwise
-	 */
-	public boolean isInstanceDependencyChainAcyclic() {
+		for (int i = 0; i < this.userJars.size(); i++) {
 
-		final AbstractJobVertex[] allVertices = this.getAllJobVertices();
-		final Set<AbstractJobVertex> alreadyVisited = new HashSet<AbstractJobVertex>();
+			final Path jar = this.userJars.get(i);
 
-		for (AbstractJobVertex vertex : allVertices) {
+			// Write out the actual path
+			jar.write(out);
 
-			if (alreadyVisited.contains(vertex)) {
-				continue;
-			}
+			// Write out the length of the file
+			final FileStatus file = fs.getFileStatus(jar);
+			out.writeLong(file.getLen());
 
-			AbstractJobVertex vertexToShareInstancesWith = vertex.getVertexToShareInstancesWith();
-			if (vertexToShareInstancesWith != null) {
-
-				final Set<AbstractJobVertex> cycleMap = new HashSet<AbstractJobVertex>();
-
-				while (vertexToShareInstancesWith != null) {
-
-					if (cycleMap.contains(vertexToShareInstancesWith)) {
-						return false;
-					} else {
-						alreadyVisited.add(vertexToShareInstancesWith);
-						cycleMap.add(vertexToShareInstancesWith);
-						vertexToShareInstancesWith = vertexToShareInstancesWith.getVertexToShareInstancesWith();
-					}
-				}
+			// Now write the jar file
+			final FSDataInputStream inStream = fs.open(this.userJars.get(i));
+			final byte[] buf = new byte[BUFFERSIZE];
+			int read = inStream.read(buf, 0, buf.length);
+			while (read > 0) {
+				out.write(buf, 0, read);
+				read = inStream.read(buf, 0, buf.length);
 			}
 		}
-
-		return true;
 	}
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,25 +16,13 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.io.network.api;
 
 import java.io.IOException;
 
 import org.apache.flink.core.io.IOReadableWritable;
 
-/**
- * 
- */
 public interface MutableReader<T extends IOReadableWritable> extends ReaderBase {
-
-	/**
-	 * @param target
-	 *            the target object to store the next element in
-	 * @return <code>true</code> if the next element has been stored in target,
-	 *         <code>false</code> if there are no more elements
-	 * @throws IOException
-	 * @throws InterruptedException
-	 */
+	
 	boolean next(T target) throws IOException, InterruptedException;
 }

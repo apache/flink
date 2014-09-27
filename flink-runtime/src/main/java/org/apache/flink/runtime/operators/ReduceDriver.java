@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,9 +19,9 @@
 
 package org.apache.flink.runtime.operators;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.apache.flink.api.common.functions.GenericReduce;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.operators.util.TaskConfig;
@@ -36,13 +36,13 @@ import org.apache.flink.util.MutableObjectIterator;
  * The ReduceTask creates a iterator over all records from its input. The iterator returns all records grouped by their
  * key. The iterator is handed to the <code>reduce()</code> method of the ReduceFunction.
  * 
- * @see GenericReduce
+ * @see org.apache.flink.api.common.functions.ReduceFunction
  */
-public class ReduceDriver<T> implements PactDriver<GenericReduce<T>, T> {
+public class ReduceDriver<T> implements PactDriver<ReduceFunction<T>, T> {
 	
-	private static final Log LOG = LogFactory.getLog(ReduceDriver.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ReduceDriver.class);
 
-	private PactTaskContext<GenericReduce<T>, T> taskContext;
+	private PactTaskContext<ReduceFunction<T>, T> taskContext;
 	
 	private MutableObjectIterator<T> input;
 
@@ -55,7 +55,7 @@ public class ReduceDriver<T> implements PactDriver<GenericReduce<T>, T> {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void setup(PactTaskContext<GenericReduce<T>, T> context) {
+	public void setup(PactTaskContext<ReduceFunction<T>, T> context) {
 		this.taskContext = context;
 		this.running = true;
 	}
@@ -66,15 +66,15 @@ public class ReduceDriver<T> implements PactDriver<GenericReduce<T>, T> {
 	}
 
 	@Override
-	public Class<GenericReduce<T>> getStubType() {
+	public Class<ReduceFunction<T>> getStubType() {
 		@SuppressWarnings("unchecked")
-		final Class<GenericReduce<T>> clazz = (Class<GenericReduce<T>>) (Class<?>) GenericReduce.class;
+		final Class<ReduceFunction<T>> clazz = (Class<ReduceFunction<T>>) (Class<?>) ReduceFunction.class;
 		return clazz;
 	}
 
 	@Override
-	public boolean requiresComparatorOnInput() {
-		return true;
+	public int getNumberOfDriverComparators() {
+		return 1;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -86,7 +86,7 @@ public class ReduceDriver<T> implements PactDriver<GenericReduce<T>, T> {
 			throw new Exception("Unrecognized driver strategy for Reduce driver: " + config.getDriverStrategy().name());
 		}
 		this.serializer = this.taskContext.<T>getInputSerializer(0).getSerializer();
-		this.comparator = this.taskContext.getInputComparator(0);
+		this.comparator = this.taskContext.getDriverComparator(0);
 		this.input = this.taskContext.getInput(0);
 	}
 
@@ -101,7 +101,7 @@ public class ReduceDriver<T> implements PactDriver<GenericReduce<T>, T> {
 		final TypeSerializer<T> serializer = this.serializer;
 		final TypeComparator<T> comparator = this.comparator;
 		
-		final GenericReduce<T> function = this.taskContext.getStub();
+		final ReduceFunction<T> function = this.taskContext.getStub();
 		
 		final Collector<T> output = this.taskContext.getOutputCollector();
 		

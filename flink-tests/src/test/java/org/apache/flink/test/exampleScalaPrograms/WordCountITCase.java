@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,17 +16,36 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.exampleScalaPrograms;
 
-import org.apache.flink.api.common.Plan;
 import org.apache.flink.examples.scala.wordcount.WordCount;
+import org.apache.flink.test.testdata.WordCountData;
+import org.apache.flink.test.util.JavaProgramTestBase;
 
-public class WordCountITCase extends org.apache.flink.test.recordJobTests.WordCountITCase {
+public class WordCountITCase extends JavaProgramTestBase {
+
+	protected String textPath;
+	protected String resultPath;
+
+	public WordCountITCase(){
+		setDegreeOfParallelism(4);
+		setNumTaskManager(2);
+		setTaskManagerNumSlots(2);
+	}
 
 	@Override
-	protected Plan getTestJob() {
-		WordCount wc = new WordCount();
-		return wc.getScalaPlan(DOP, textPath, resultPath);
+	protected void preSubmit() throws Exception {
+		textPath = createTempFile("text.txt", WordCountData.TEXT);
+		resultPath = getTempDirPath("result");
+	}
+
+	@Override
+	protected void postSubmit() throws Exception {
+		compareResultsByLinesInMemory(WordCountData.COUNTS, resultPath);
+	}
+
+	@Override
+	protected void testProgram() throws Exception {
+		WordCount.main(new String[] { textPath, resultPath });
 	}
 }

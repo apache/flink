@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -32,8 +32,8 @@ import java.net.InetAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.core.fs.BlockLocation;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
@@ -64,7 +64,7 @@ public class LocalFileSystem extends FileSystem {
 	 */
 	private final String hostName;
 
-	private static final Log LOG = LogFactory.getLog(LocalFileSystem.class);
+	private static final Logger LOG = LoggerFactory.getLogger(LocalFileSystem.class);
 
 	/**
 	 * Constructs a new <code>LocalFileSystem</code> object.
@@ -77,7 +77,7 @@ public class LocalFileSystem extends FileSystem {
 		try {
 			tmp = InetAddress.getLocalHost().getHostName();
 		} catch (UnknownHostException e) {
-			LOG.error(e);
+			LOG.error("Could not resolve local host", e);
 		}
 
 		this.hostName = tmp;

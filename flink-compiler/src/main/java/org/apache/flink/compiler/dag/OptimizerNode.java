@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -411,7 +411,7 @@ public abstract class OptimizerNode implements Visitable<OptimizerNode>, Estimat
 	 */
 	public void setDegreeOfParallelism(int degreeOfParallelism) {
 		if (degreeOfParallelism < 1) {
-			throw new IllegalArgumentException();
+			throw new IllegalArgumentException("Degree of parallelism of " + degreeOfParallelism + " is invalid.");
 		}
 		this.degreeOfParallelism = degreeOfParallelism;
 	}

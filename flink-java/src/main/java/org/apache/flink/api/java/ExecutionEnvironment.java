@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -33,7 +33,10 @@ import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
+import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.io.CollectionInputFormat;
 import org.apache.flink.api.java.io.CsvReader;
 import org.apache.flink.api.java.io.IteratorInputFormat;
@@ -46,13 +49,11 @@ import org.apache.flink.api.java.operators.Operator;
 import org.apache.flink.api.java.operators.OperatorTranslation;
 import org.apache.flink.api.java.operators.translation.JavaPlan;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.BasicTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.ValueTypeInfo;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.StringValue;
-import org.apache.flink.types.TypeInformation;
 import org.apache.flink.util.NumberSequenceIterator;
 import org.apache.flink.util.SplittableIterator;
 
@@ -112,7 +113,7 @@ public abstract class ExecutionEnvironment {
 	 * individually override this value to use a specific degree of parallelism via
 	 * {@link Operator#setParallelism(int)}. Other operations may need to run with a different
 	 * degree of parallelism - for example calling
-	 * {@link DataSet#reduce(org.apache.flink.api.java.functions.ReduceFunction)} over the entire
+	 * {@link DataSet#reduce(org.apache.flink.api.common.functions.ReduceFunction)} over the entire
 	 * set will insert eventually an operation that runs non-parallel (degree of parallelism of one).
 	 * 
 	 * @return The degree of parallelism used by operations, unless they override that value. This method
@@ -252,6 +253,26 @@ public abstract class ExecutionEnvironment {
 	 */
 	public CsvReader readCsvFile(String filePath) {
 		return new CsvReader(filePath, this);
+	}
+
+	// ------------------------------------ File Input Format -----------------------------------------
+	
+	public <X> DataSource<X> readFile(FileInputFormat<X> inputFormat, String filePath) {
+		if (inputFormat == null) {
+			throw new IllegalArgumentException("InputFormat must not be null.");
+		}
+		if (filePath == null) {
+			throw new IllegalArgumentException("The file path must not be null.");
+		}
+		
+		inputFormat.setFilePath(new Path(filePath));
+		try {
+			return createInput(inputFormat, TypeExtractor.getInputFormatTypes(inputFormat));
+		}
+		catch (Exception e) {
+			throw new InvalidProgramException("The type returned by the input format could not be automatically determined. " +
+					"Please specify the TypeInformation of the produced type explicitly.");
+		}
 	}
 	
 	// ----------------------------------- Generic Input Format ---------------------------------------
@@ -550,7 +571,7 @@ public abstract class ExecutionEnvironment {
 	 * The runtime will copy the files temporarily to a local cache, if needed.
 	 * <p>
 	 * The {@link org.apache.flink.api.common.functions.RuntimeContext} can be obtained inside UDFs via
-	 * {@link org.apache.flink.api.common.functions.Function#getRuntimeContext()} and provides access 
+	 * {@link org.apache.flink.api.common.functions.RichFunction#getRuntimeContext()} and provides access
 	 * {@link org.apache.flink.api.common.cache.DistributedCache} via 
 	 * {@link org.apache.flink.api.common.functions.RuntimeContext#getDistributedCache()}.
 	 * 
@@ -568,7 +589,7 @@ public abstract class ExecutionEnvironment {
 	 * The runtime will copy the files temporarily to a local cache, if needed.
 	 * <p>
 	 * The {@link org.apache.flink.api.common.functions.RuntimeContext} can be obtained inside UDFs via
-	 * {@link org.apache.flink.api.common.functions.Function#getRuntimeContext()} and provides access 
+	 * {@link org.apache.flink.api.common.functions.RichFunction#getRuntimeContext()} and provides access
 	 * {@link org.apache.flink.api.common.cache.DistributedCache} via 
 	 * {@link org.apache.flink.api.common.functions.RuntimeContext#getDistributedCache()}.
 	 * 

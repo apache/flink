@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,12 +22,9 @@ package org.apache.flink.runtime.operators;
 import java.util.ArrayList;
 import java.util.HashMap;
 
-import junit.framework.Assert;
-
-import org.apache.flink.api.common.functions.GenericGroupReduce;
-import org.apache.flink.api.java.typeutils.runtime.record.RecordComparator;
-import org.apache.flink.runtime.operators.DriverStrategy;
-import org.apache.flink.runtime.operators.GroupReduceCombineDriver;
+import org.junit.Assert;
+import org.apache.flink.api.common.functions.RichGroupReduceFunction;
+import org.apache.flink.api.common.typeutils.record.RecordComparator;
 import org.apache.flink.runtime.operators.CombineTaskTest.MockCombiningReduceStub;
 import org.apache.flink.runtime.operators.testutils.DriverTestBase;
 import org.apache.flink.runtime.operators.testutils.UniformRecordGenerator;
@@ -37,7 +34,7 @@ import org.apache.flink.types.Record;
 import org.junit.Test;
 
 
-public class CombineTaskExternalITCase extends DriverTestBase<GenericGroupReduce<Record, ?>> {
+public class CombineTaskExternalITCase extends DriverTestBase<RichGroupReduceFunction<Record, ?>> {
 	
 	private static final long COMBINE_MEM = 3 * 1024 * 1024;
 
@@ -62,7 +59,8 @@ public class CombineTaskExternalITCase extends DriverTestBase<GenericGroupReduce
 		final int valCnt = 8;
 		
 		addInput(new UniformRecordGenerator(keyCnt, valCnt, false));
-		addInputComparator(this.comparator);
+		addDriverComparator(this.comparator);
+		addDriverComparator(this.comparator);
 		setOutput(this.outList);
 		
 		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP_COMBINE);
@@ -115,7 +113,8 @@ public class CombineTaskExternalITCase extends DriverTestBase<GenericGroupReduce
 		final int valCnt = 8;
 		
 		addInput(new UniformRecordGenerator(keyCnt, valCnt, false));
-		addInputComparator(this.comparator);
+		addDriverComparator(this.comparator);
+		addDriverComparator(this.comparator);
 		setOutput(this.outList);
 		
 		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP_COMBINE);

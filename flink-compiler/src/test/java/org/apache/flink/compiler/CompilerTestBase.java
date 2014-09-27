@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -33,17 +33,13 @@ import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.base.GenericDataSourceBase;
 import org.apache.flink.api.java.record.operators.BulkIteration;
 import org.apache.flink.api.java.record.operators.DeltaIteration;
-import org.apache.flink.compiler.DataStatistics;
-import org.apache.flink.compiler.PactCompiler;
 import org.apache.flink.compiler.costs.DefaultCostEstimator;
 import org.apache.flink.compiler.plan.OptimizedPlan;
 import org.apache.flink.compiler.plan.PlanNode;
 import org.apache.flink.compiler.plan.SingleInputPlanNode;
-import org.apache.flink.util.LogUtils;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.Visitor;
 import org.junit.Before;
-import org.junit.BeforeClass;
 
 /**
  *
@@ -73,11 +69,6 @@ public abstract class CompilerTestBase implements java.io.Serializable {
 	private transient int statCounter;
 	
 	// ------------------------------------------------------------------------	
-	
-	@BeforeClass
-	public static void initialize() {
-		LogUtils.initializeDefaultTestConsoleLogger();
-	}
 	
 	@Before
 	public void setup() {

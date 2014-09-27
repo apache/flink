@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.event.task;
 
 import org.apache.flink.core.io.IOReadableWritable;
@@ -24,10 +23,6 @@ import org.apache.flink.core.io.IOReadableWritable;
 /**
  * This type of event can be used to exchange notification messages between
  * different {@link org.apache.flink.runtime.taskmanager.TaskManager} objects
- * at runtime using the communication channels Nephele has established between
- * different tasks.
- * 
+ * at runtime using the communication channels.
  */
-public abstract class AbstractEvent implements IOReadableWritable {
-
-}
+public abstract class AbstractEvent implements IOReadableWritable {}

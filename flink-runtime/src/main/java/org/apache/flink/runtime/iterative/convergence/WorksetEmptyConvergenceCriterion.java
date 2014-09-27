@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,8 +19,8 @@
 
 package org.apache.flink.runtime.iterative.convergence;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
 import org.apache.flink.types.LongValue;
 
@@ -31,7 +31,7 @@ public class WorksetEmptyConvergenceCriterion implements ConvergenceCriterion<Lo
 
 	private static final long serialVersionUID = 1L;
 
-	private static final Log log = LogFactory.getLog(WorksetEmptyConvergenceCriterion.class);
+	private static final Logger log = LoggerFactory.getLogger(WorksetEmptyConvergenceCriterion.class);
 	
 	public static final String AGGREGATOR_NAME = "pact.runtime.workset-empty-aggregator";
 

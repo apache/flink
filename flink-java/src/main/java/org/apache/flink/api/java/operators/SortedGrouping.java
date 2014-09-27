@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,19 +18,22 @@
 
 package org.apache.flink.api.java.operators;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.functions.FirstReducer;
 import java.util.Arrays;
 
 import org.apache.flink.api.common.InvalidProgramException;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.operators.Order;
-import org.apache.flink.api.java.functions.GroupReduceFunction;
-
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
+
 
 /**
  * SortedGrouping is an intermediate step for a transformation on a grouped and sorted DataSet.<br/>
  * The following transformation can be applied on sorted groups:
  * <ul>
- * 	<li>{@link SortedGrouping#reduceGroup(GroupReduceFunction)},</li>
+ * 	<li>{@link SortedGrouping#reduceGroup(org.apache.flink.api.common.functions.GroupReduceFunction)},</li>
  * </ul>
  * 
  * @param <T> The type of the elements of the sorted and grouped DataSet.
@@ -65,22 +68,38 @@ public class SortedGrouping<T> extends Grouping<T> {
 
 	/**
 	 * Applies a GroupReduce transformation on a grouped and sorted {@link DataSet}.<br/>
-	 * The transformation calls a {@link GroupReduceFunction} for each group of the DataSet.
+	 * The transformation calls a {@link org.apache.flink.api.common.functions.RichGroupReduceFunction} for each group of the DataSet.
 	 * A GroupReduceFunction can iterate over all elements of a group and emit any
 	 *   number of output elements including none.
 	 * 
 	 * @param reducer The GroupReduceFunction that is applied on each group of the DataSet.
 	 * @return A GroupReduceOperator that represents the reduced DataSet.
 	 * 
-	 * @see GroupReduceFunction
-	 * @see ReduceGroupOperator
+	 * @see org.apache.flink.api.common.functions.RichGroupReduceFunction
+	 * @see GroupReduceOperator
 	 * @see DataSet
 	 */
-	public <R> ReduceGroupOperator<T, R> reduceGroup(GroupReduceFunction<T, R> reducer) {
+	public <R> GroupReduceOperator<T, R> reduceGroup(GroupReduceFunction<T, R> reducer) {
 		if (reducer == null) {
 			throw new NullPointerException("GroupReduce function must not be null.");
 		}
-		return new ReduceGroupOperator<T, R>(this, reducer);
+		TypeInformation<R> resultType = TypeExtractor.getGroupReduceReturnTypes(reducer,
+				this.getDataSet().getType());
+		return new GroupReduceOperator<T, R>(this, resultType, reducer);
+	}
+
+	
+	/**
+	 * Returns a new set containing the first n elements in this grouped and sorted {@link DataSet}.<br/>
+	 * @param n The desired number of elements for each group.
+	 * @return A ReduceGroupOperator that represents the DataSet containing the elements.
+	*/
+	public GroupReduceOperator<T, T> first(int n) {
+		if(n < 1) {
+			throw new InvalidProgramException("Parameter n of first(n) must be at least 1.");
+		}
+		
+		return reduceGroup(new FirstReducer<T>(n));
 	}
 	
 	// --------------------------------------------------------------------------------------------

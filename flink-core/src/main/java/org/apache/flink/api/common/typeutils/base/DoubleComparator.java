@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -35,7 +35,7 @@ public final class DoubleComparator extends BasicTypeComparator<Double> {
 	}
 
 	@Override 
-	public int compare(DataInputView firstSource, DataInputView secondSource) throws IOException { 
+	public int compareSerialized(DataInputView firstSource, DataInputView secondSource) throws IOException {
 		double l1 = firstSource.readDouble(); 
 		double l2 = secondSource.readDouble(); 
 		int comp = (l1 < l2 ? -1 : (l1 > l2 ? 1 : 0)); 

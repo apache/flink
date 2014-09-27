@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -62,8 +62,7 @@ public class HadoopDummyReporter implements Reporter {
 	public InputSplit getInputSplit() throws UnsupportedOperationException {
 		return null;
 	}
-
-	@Override
+	// There should be an @Override, but some CDH4 dependency does not contain this method
 	public float getProgress() {
 		return 0;
 	}

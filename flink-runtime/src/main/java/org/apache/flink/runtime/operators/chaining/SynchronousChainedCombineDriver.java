@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,8 +22,9 @@ package org.apache.flink.runtime.operators.chaining;
 import java.io.IOException;
 import java.util.List;
 
+import org.apache.flink.api.common.functions.FlatCombineFunction;
 import org.apache.flink.api.common.functions.Function;
-import org.apache.flink.api.common.functions.GenericCombine;
+import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -51,11 +52,13 @@ public class SynchronousChainedCombineDriver<T> extends ChainedDriver<T, T> {
 
 	private InMemorySorter<T> sorter;
 
-	private GenericCombine<T> combiner;
+	private FlatCombineFunction<T> combiner;
 
 	private TypeSerializer<T> serializer;
 
-	private TypeComparator<T> comparator;
+	private TypeComparator<T> sortingComparator;
+
+	private TypeComparator<T> groupingComparator;
 
 	private AbstractInvokable parent;
 
@@ -72,10 +75,10 @@ public class SynchronousChainedCombineDriver<T> extends ChainedDriver<T, T> {
 		this.parent = parent;
 
 		@SuppressWarnings("unchecked")
-		final GenericCombine<T> combiner =
-			RegularPactTask.instantiateUserCode(this.config, userCodeClassLoader, GenericCombine.class);
+		final FlatCombineFunction<T> combiner =
+			RegularPactTask.instantiateUserCode(this.config, userCodeClassLoader, FlatCombineFunction.class);
 		this.combiner = combiner;
-		combiner.setRuntimeContext(getUdfRuntimeContext());
+		FunctionUtils.setFunctionRuntimeContext(combiner, getUdfRuntimeContext());
 	}
 
 	@Override
@@ -91,19 +94,21 @@ public class SynchronousChainedCombineDriver<T> extends ChainedDriver<T, T> {
 
 		// instantiate the serializer / comparator
 		final TypeSerializerFactory<T> serializerFactory = this.config.getInputSerializer(0, this.userCodeClassLoader);
-		final TypeComparatorFactory<T> comparatorFactory = this.config.getDriverComparator(0, this.userCodeClassLoader);
+		final TypeComparatorFactory<T> sortingComparatorFactory = this.config.getDriverComparator(0, this.userCodeClassLoader);
+		final TypeComparatorFactory<T> groupingComparatorFactory = this.config.getDriverComparator(1, this.userCodeClassLoader);
 		this.serializer = serializerFactory.getSerializer();
-		this.comparator = comparatorFactory.createComparator();
+		this.sortingComparator = sortingComparatorFactory.createComparator();
+		this.groupingComparator = groupingComparatorFactory.createComparator();
 
 		final List<MemorySegment> memory = this.memManager.allocatePages(this.parent, numMemoryPages);
 
 		// instantiate a fix-length in-place sorter, if possible, otherwise the out-of-place sorter
-		if (this.comparator.supportsSerializationWithKeyNormalization() &&
+		if (this.sortingComparator.supportsSerializationWithKeyNormalization() &&
 			this.serializer.getLength() > 0 && this.serializer.getLength() <= THRESHOLD_FOR_IN_PLACE_SORTING)
 		{
-			this.sorter = new FixedLengthRecordSorter<T>(this.serializer, this.comparator, memory);
+			this.sorter = new FixedLengthRecordSorter<T>(this.serializer, this.sortingComparator, memory);
 		} else {
-			this.sorter = new NormalizedKeySorter<T>(this.serializer, this.comparator.duplicate(), memory);
+			this.sorter = new NormalizedKeySorter<T>(this.serializer, this.sortingComparator.duplicate(), memory);
 		}
 	}
 
@@ -182,10 +187,10 @@ public class SynchronousChainedCombineDriver<T> extends ChainedDriver<T, T> {
 			this.sortAlgo.sort(sorter);
 			// run the combiner
 			final KeyGroupedIterator<T> keyIter = new KeyGroupedIterator<T>(sorter.getIterator(), this.serializer,
-				this.comparator);
+				this.groupingComparator);
 
 			// cache references on the stack
-			final GenericCombine<T> stub = this.combiner;
+			final FlatCombineFunction<T> stub = this.combiner;
 			final Collector<T> output = this.outputCollector;
 
 			// run stub implementation

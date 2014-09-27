@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,6 +21,7 @@ package org.apache.flink.test.iterative.nephele.customdanglingpagerank.types;
 import java.io.IOException;
 
 import org.apache.flink.api.common.typeutils.TypeComparator;
+import org.apache.flink.api.common.typeutils.base.LongComparator;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
@@ -30,7 +31,11 @@ public final class VertexWithRankComparator extends TypeComparator<VertexWithRan
 	private static final long serialVersionUID = 1L;
 	
 	private long reference;
-	
+
+	private Comparable[] extractedKey = new Comparable[1];
+
+	private TypeComparator[] comparators = new TypeComparator[]{new LongComparator(true)};
+
 	@Override
 	public int hash(VertexWithRank record) {
 		final long value = record.getVertexID();
@@ -61,7 +66,7 @@ public final class VertexWithRankComparator extends TypeComparator<VertexWithRan
 	}
 
 	@Override
-	public int compare(DataInputView source1, DataInputView source2) throws IOException {
+	public int compareSerialized(DataInputView source1, DataInputView source2) throws IOException {
 		final long diff = source1.readLong() - source2.readLong();
 		return diff < 0 ? -1 : diff > 0 ? 1 : 0;
 	}
@@ -131,5 +136,16 @@ public final class VertexWithRankComparator extends TypeComparator<VertexWithRan
 	@Override
 	public VertexWithRankComparator duplicate() {
 		return new VertexWithRankComparator();
+	}
+
+	@Override
+	public Object[] extractKeys(VertexWithRank record) {
+		extractedKey[0] = record.getVertexID();
+		return extractedKey;
+	}
+
+	@Override
+	public TypeComparator[] getComparators() {
+		return comparators;
 	}
 }

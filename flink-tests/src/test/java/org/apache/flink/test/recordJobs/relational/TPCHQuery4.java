@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -45,7 +45,8 @@ import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.Collector;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Implementation of the TPC-H Query 4 as a Flink program.
@@ -53,7 +54,7 @@ import org.apache.log4j.Logger;
 @SuppressWarnings("serial")
 public class TPCHQuery4 implements Program, ProgramDescription {
 
-	private static Logger LOGGER = Logger.getLogger(TPCHQuery4.class);
+	private static Logger LOG = LoggerFactory.getLogger(TPCHQuery4.class);
 	
 	private int degreeOfParallelism = 1;
 	private String ordersInputPath;
@@ -206,7 +207,7 @@ public class TPCHQuery4 implements Program, ProgramDescription {
 		
 		if(args == null || args.length != 4)
 		{
-			LOGGER.warn("number of arguments do not match!");
+			LOG.warn("number of arguments do not match!");
 			this.ordersInputPath = "";
 			this.lineItemInputPath = "";
 			this.outputPath = "";

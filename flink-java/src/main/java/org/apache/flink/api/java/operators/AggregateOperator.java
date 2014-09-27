@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,22 +24,21 @@ import java.util.List;
 
 import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.common.InvalidProgramException;
-import org.apache.flink.api.common.functions.GenericGroupReduce;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.aggregation.AggregationFunction;
 import org.apache.flink.api.java.aggregation.AggregationFunctionFactory;
 import org.apache.flink.api.java.aggregation.Aggregations;
-import org.apache.flink.api.java.functions.GroupReduceFunction;
-import org.apache.flink.api.java.functions.GroupReduceFunction.Combinable;
+import org.apache.flink.api.common.functions.RichGroupReduceFunction;
+import org.apache.flink.api.common.functions.RichGroupReduceFunction.Combinable;
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
-
-import org.apache.flink.api.java.DataSet;
 
 /**
  * This operator represents the application of a "aggregate" operation on a data set, and the
@@ -68,7 +67,7 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 			throw new InvalidProgramException("Aggregating on field positions is only possible on tuple data types.");
 		}
 		
-		TupleTypeInfo<?> inType = (TupleTypeInfo<?>) input.getType();
+		TupleTypeInfoBase<?> inType = (TupleTypeInfoBase<?>) input.getType();
 		
 		if (field < 0 || field >= inType.getArity()) {
 			throw new IllegalArgumentException("Aggregation field position is out of range.");
@@ -100,7 +99,7 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 			throw new InvalidProgramException("Aggregating on field positions is only possible on tuple data types.");
 		}
 		
-		TupleTypeInfo<?> inType = (TupleTypeInfo<?>) input.getDataSet().getType();
+		TupleTypeInfoBase<?> inType = (TupleTypeInfoBase<?>) input.getDataSet().getType();
 		
 		if (field < 0 || field >= inType.getArity()) {
 			throw new IllegalArgumentException("Aggregation field position is out of range.");
@@ -119,7 +118,7 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 	public AggregateOperator<IN> and(Aggregations function, int field) {
 		Validate.notNull(function);
 		
-		TupleTypeInfo<?> inType = (TupleTypeInfo<?>) getType();
+		TupleTypeInfoBase<?> inType = (TupleTypeInfoBase<?>) getType();
 		
 		if (field < 0 || field >= inType.getArity()) {
 			throw new IllegalArgumentException("Aggregation field position is out of range.");
@@ -151,7 +150,7 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 
 	@SuppressWarnings("unchecked")
 	@Override
-	protected org.apache.flink.api.common.operators.base.GroupReduceOperatorBase<IN, IN, GenericGroupReduce<IN, IN>> translateToDataFlow(Operator<IN> input) {
+	protected org.apache.flink.api.common.operators.base.GroupReduceOperatorBase<IN, IN, GroupReduceFunction<IN, IN>> translateToDataFlow(Operator<IN> input) {
 		
 		// sanity check
 		if (this.aggregationFunctions.isEmpty() || this.aggregationFunctions.size() != this.fields.size()) {
@@ -174,7 +173,7 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 		
 		
 		@SuppressWarnings("rawtypes")
-		GroupReduceFunction<IN, IN> function = new AggregatingUdf(aggFunctions, fields);
+		RichGroupReduceFunction<IN, IN> function = new AggregatingUdf(aggFunctions, fields);
 		
 		
 		String name = getName() != null ? getName() : genName.toString();
@@ -183,8 +182,8 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 		if (this.grouping == null) {
 			// non grouped aggregation
 			UnaryOperatorInformation<IN, IN> operatorInfo = new UnaryOperatorInformation<IN, IN>(getInputType(), getResultType());
-			GroupReduceOperatorBase<IN, IN, GenericGroupReduce<IN, IN>> po =
-					new GroupReduceOperatorBase<IN, IN, GenericGroupReduce<IN, IN>>(function, operatorInfo, new int[0], name);
+			GroupReduceOperatorBase<IN, IN, GroupReduceFunction<IN, IN>> po =
+					new GroupReduceOperatorBase<IN, IN, GroupReduceFunction<IN, IN>>(function, operatorInfo, new int[0], name);
 			
 			po.setCombinable(true);
 			
@@ -200,8 +199,8 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 			// grouped aggregation
 			int[] logicalKeyPositions = this.grouping.getKeys().computeLogicalKeyPositions();
 			UnaryOperatorInformation<IN, IN> operatorInfo = new UnaryOperatorInformation<IN, IN>(getInputType(), getResultType());
-			GroupReduceOperatorBase<IN, IN, GenericGroupReduce<IN, IN>> po =
-					new GroupReduceOperatorBase<IN, IN, GenericGroupReduce<IN, IN>>(function, operatorInfo, logicalKeyPositions, name);
+			GroupReduceOperatorBase<IN, IN, GroupReduceFunction<IN, IN>> po =
+					new GroupReduceOperatorBase<IN, IN, GroupReduceFunction<IN, IN>>(function, operatorInfo, logicalKeyPositions, name);
 			
 			po.setCombinable(true);
 			
@@ -245,7 +244,7 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 	// --------------------------------------------------------------------------------------------
 	
 	@Combinable
-	public static final class AggregatingUdf<T extends Tuple> extends GroupReduceFunction<T, T> {
+	public static final class AggregatingUdf<T extends Tuple> extends RichGroupReduceFunction<T, T> {
 		private static final long serialVersionUID = 1L;
 		
 		private final int[] fieldPositions;
@@ -271,19 +270,20 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 		}
 		
 		@Override
-		public void reduce(Iterator<T> values, Collector<T> out) {
+		public void reduce(Iterable<T> records, Collector<T> out) {
 			final AggregationFunction<Object>[] aggFunctions = this.aggFunctions;
 			final int[] fieldPositions = this.fieldPositions;
 
 			// aggregators are initialized from before
 			
 			T current = null;
+			final Iterator<T> values = records.iterator();
 			while (values.hasNext()) {
 				current = values.next();
 				
 				for (int i = 0; i < fieldPositions.length; i++) {
-					Object val = current.getField(fieldPositions[i]);
-					aggFunctions[i].aggregate(val);
+						Object val = current.getFieldNotNull(fieldPositions[i]);
+						aggFunctions[i].aggregate(val);
 				}
 			}
 			

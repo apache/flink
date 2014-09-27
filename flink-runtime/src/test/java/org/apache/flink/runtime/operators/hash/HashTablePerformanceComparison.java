@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,10 +17,6 @@
  */
 
 package org.apache.flink.runtime.operators.hash;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -42,6 +38,8 @@ import org.apache.flink.runtime.operators.testutils.types.IntPairPairComparator;
 import org.apache.flink.runtime.operators.testutils.types.IntPairSerializer;
 import org.apache.flink.util.MutableObjectIterator;
 import org.junit.Test;
+
+import static org.junit.Assert.*;
 
 public class HashTablePerformanceComparison {
 		
@@ -96,7 +94,7 @@ public class HashTablePerformanceComparison {
 			AbstractHashTableProber<IntPair, IntPair> prober = table.getProber(comparator, pairComparator);
 			IntPair temp = new IntPair();
 			while(probeTester.next(target) != null) {
-				assertTrue(prober.getMatchFor(target, temp));
+				assertNotNull(prober.getMatchFor(target, temp));
 				assertEquals(temp.getValue(), target.getValue());
 			}
 			end = System.currentTimeMillis();
@@ -114,7 +112,7 @@ public class HashTablePerformanceComparison {
 			System.out.println("Starting second probing run...");
 			start = System.currentTimeMillis();
 			while (updateTester.next(target) != null) {
-				assertTrue(prober.getMatchFor(target, temp));
+				assertNotNull(prober.getMatchFor(target, temp));
 				assertEquals(target.getValue(), temp.getValue());
 			}
 			end = System.currentTimeMillis();

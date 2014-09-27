@@ -2,11 +2,14 @@
 title:  "Iterations"
 ---
 
+* This will be replaced by the TOC
+{:toc}
+
 Iterative algorithms occur in many domains of data analysis, such as *machine learning* or *graph analysis*. Such algorithms are crucial in order to realize the promise of Big Data to extract meaningful information out of your data. With increasing interest to run these kinds of algorithms on very large data sets, there is a need to execute iterations in a massively parallel fashion.
 
 Flink programs implement iterative algorithms by defining a **step function** and embedding it into a special iteration operator. There are two  variants of this operator: **Iterate** and **Delta Iterate**. Both operators repeatedly invoke the step function on the current iteration state until a certain termination condition is reached.
 
-Here, we provide background on both operator variants and outline their usage. The [programming guides](java_api_guide.html) explain how to implement the operators in both [Scala](scala_api_guide.html) and [Java](java_api_guide.html#iterations). We also provide a **vertex-centric graph processing API** called [Spargel](spargel_guide.html).
+Here, we provide background on both operator variants and outline their usage. The [programming guide](programming_guide.html) explain how to implement the operators in both Scala and Java. We also provide a **vertex-centric graph processing API** called [Spargel](spargel_guide.html).
 
 The following table provides an overview of both operators:
 
@@ -58,7 +61,6 @@ The following table provides an overview of both operators:
 	</tr>
 </table>
 
-<section id="iterate">
 Iterate Operator
 ----------------
 
@@ -80,7 +82,7 @@ There are multiple options to specify **termination conditions** for an iteratio
 
 You can also think about the iterate operator in pseudo-code:
 
-```java
+~~~java
 IterationState state = getInitialState();
 
 while (!terminationCriterion()) {
@@ -88,7 +90,7 @@ while (!terminationCriterion()) {
 }
 
 setFinalState(state);
-```
+~~~
 
 <div class="panel panel-default">
 	<div class="panel-body">
@@ -108,19 +110,18 @@ In the following example, we **iteratively incremenet a set numbers**:
   3. **Next Partial Solution**: The output of the step function will be the output of the map operator, i.e. records with incremented integers.
   4. **Iteration Result**: After ten iterations, the initial numbers will have been incremented ten times, resulting in integers `11` to `15`.
 
-```
+~~~
 // 1st           2nd                       10th
 map(1) -> 2      map(2) -> 3      ...      map(10) -> 11
 map(2) -> 3      map(3) -> 4      ...      map(11) -> 12
 map(3) -> 4      map(4) -> 5      ...      map(12) -> 13
 map(4) -> 5      map(5) -> 6      ...      map(13) -> 14
 map(5) -> 6      map(6) -> 7      ...      map(14) -> 15
-```
+~~~
 
 Note that **1**, **2**, and **4** can be arbitrary data flows.
-</section>
 
-<section id="delta_iterate">
+
 Delta Iterate Operator
 ----------------------
 
@@ -141,7 +142,7 @@ The default **termination condition** for delta iterations is specified by the *
 
 You can also think about the iterate operator in pseudo-code:
 
-```java
+~~~java
 IterationState workset = getInitialState();
 IterationState solution = getInitialSolution();
 
@@ -152,7 +153,7 @@ while (!terminationCriterion()) {
 }
 
 setFinalState(solution);
-```
+~~~
 
 <div class="panel panel-default">
 	<div class="panel-body">
@@ -176,9 +177,9 @@ In the lower subgraph **ID 5** (*cyan*) is the **minimum ID**. All vertices of t
 In the **2nd iteration**, the workset size has already decreased from seven to five elements (vertices 2, 3, 4, 6, and 7). These are part of the iteration and further propagate their current minimum IDs. After this iteration, the lower subgraph has already converged (**cold part** of the graph), as it has no elements in the workset, whereas the upper half needs a further iteration (**hot part** of the graph) for the two remaining workset elements (vertices 3 and 4).
 
 The iteration **terminates**, when the workset is empty after the **3rd iteration**.
-</section>
 
-<section id="supersteps">
+<a href="#supersteps"></a>
+
 Superstep Synchronization
 -------------------------
 
@@ -187,4 +188,3 @@ We referred to each execution of the step function of an iteration operator as *
 <p class="text-center">
     <img alt="Supersteps" width="50%" src="img/iterations_supersteps.png" />
 </p>
-</section>

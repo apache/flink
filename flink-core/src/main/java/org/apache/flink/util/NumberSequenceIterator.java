@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,13 +21,10 @@ package org.apache.flink.util;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-
-
 /**
- *
- */
-/**
- *
+ * The {@code NumberSequenceIterator} is an iterator that returns a sequence of numbers (as {@code Long})s.
+ * The iterator is splittable (as defined by {@link SplittableIterator}, i.e., it can be divided into multiple
+ * iterators that each return a subsequence of the number sequence.
  */
 public class NumberSequenceIterator implements SplittableIterator<Long> {
 	
@@ -38,7 +35,12 @@ public class NumberSequenceIterator implements SplittableIterator<Long> {
 	private long current;
 	
 	
-	
+	/**
+	 * Internal constructor to allow for empty iterators.
+	 * 
+	 * @param from The first number returned by the iterator.
+	 * @param to The last number returned by the iterator.
+	 */
 	public NumberSequenceIterator(long from, long to) {
 		if (from > to) {
 			throw new IllegalArgumentException("The 'to' value must not be smaller than the 'from' value.");
@@ -52,11 +54,11 @@ public class NumberSequenceIterator implements SplittableIterator<Long> {
 	/**
 	 * Internal constructor to allow for empty iterators.
 	 * 
-	 * @param from
-	 * @param to
-	 * @param mark
+	 * @param from The first number returned by the iterator.
+	 * @param to The last number returned by the iterator.
+	 * @param unused A dummy parameter to disambiguate the constructor.
 	 */
-	private NumberSequenceIterator(long from, long to, boolean mark) {
+	private NumberSequenceIterator(long from, long to, boolean unused) {
 		this.current = from;
 		this.to = to;
 	}

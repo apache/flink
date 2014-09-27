@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,14 +19,14 @@
 
 package org.apache.flink.runtime.io.network;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.AbstractID;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.RuntimeEnvironment;
-import org.apache.flink.runtime.executiongraph.ExecutionVertexID;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.io.network.bufferprovider.BufferProvider;
 import org.apache.flink.runtime.io.network.bufferprovider.BufferProviderBroker;
@@ -44,6 +44,7 @@ import org.apache.flink.runtime.io.network.gates.OutputGate;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.protocols.ChannelLookupProtocol;
 import org.apache.flink.runtime.taskmanager.Task;
+import org.apache.flink.util.ExceptionUtils;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -56,7 +57,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker {
 
-	private static final Log LOG = LogFactory.getLog(ChannelManager.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ChannelManager.class);
 
 	private final ChannelLookupProtocol channelLookupService;
 
@@ -110,6 +111,10 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 		this.globalBufferPool.destroy();
 	}
 
+	public GlobalBufferPool getGlobalBufferPool() {
+		return globalBufferPool;
+	}
+	
 	// -----------------------------------------------------------------------------------------------------------------
 	//                                               Task registration
 	// -----------------------------------------------------------------------------------------------------------------
@@ -124,7 +129,7 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 		// Check if we can safely run this task with the given buffers
 		ensureBufferAvailability(task);
 
-		RuntimeEnvironment environment = task.getRuntimeEnvironment();
+		RuntimeEnvironment environment = task.getEnvironment();
 
 		// -------------------------------------------------------------------------------------------------------------
 		//                                       Register output channels
@@ -132,8 +137,8 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 
 		environment.registerGlobalBufferPool(this.globalBufferPool);
 
-		if (this.localBuffersPools.containsKey(task.getVertexID())) {
-			throw new IllegalStateException("Vertex " + task.getVertexID() + " has a previous buffer pool owner");
+		if (this.localBuffersPools.containsKey(task.getExecutionId())) {
+			throw new IllegalStateException("Execution " + task.getExecutionId() + " has a previous buffer pool owner");
 		}
 
 		for (OutputGate gate : environment.outputGates()) {
@@ -155,7 +160,7 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 			}
 		}
 
-		this.localBuffersPools.put(task.getVertexID(), environment);
+		this.localBuffersPools.put(task.getExecutionId(), environment);
 
 		// -------------------------------------------------------------------------------------------------------------
 		//                                       Register input channels
@@ -187,10 +192,10 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 	/**
 	 * Unregisters the given task from the channel manager.
 	 *
-	 * @param vertexId the ID of the task to be unregistered
+	 * @param executionId the ID of the task to be unregistered
 	 * @param task the task to be unregistered
 	 */
-	public void unregister(ExecutionVertexID vertexId, Task task) {
+	public void unregister(ExecutionAttemptID executionId, Task task) {
 		final Environment environment = task.getEnvironment();
 
 		// destroy and remove OUTPUT channels from registered channels and cache
@@ -222,7 +227,7 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 		}
 
 		// clear and remove OUTPUT side buffer pool
-		LocalBufferPoolOwner bufferPool = this.localBuffersPools.remove(vertexId);
+		LocalBufferPoolOwner bufferPool = this.localBuffersPools.remove(executionId);
 		if (bufferPool != null) {
 			bufferPool.clearLocalBufferPool();
 		}
@@ -249,7 +254,7 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 		int numChannels = this.channels.size() + env.getNumberOfOutputChannels() + env.getNumberOfInputChannels();
 
 		// need at least one buffer per channel
-		if (numBuffers / numChannels < 1) {
+		if (numChannels > 0 && numBuffers / numChannels < 1) {
 			String msg = String.format("%s has not enough buffers to safely execute %s (%d buffers missing)",
 					this.connectionInfo.hostname(), env.getTaskName(), numChannels - numBuffers);
 
@@ -362,7 +367,7 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 			}
 			else if (lookupResponse.receiverNotReady()) {
 				try {
-					Thread.sleep(500);
+					Thread.sleep(100);
 				} catch (InterruptedException e) {
 					if (reportException) {
 						throw new IOException("Lookup was interrupted.");
@@ -582,10 +587,6 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 	/**
 	 * 
 	 * Upon an exception, this method frees the envelope.
-	 * 
-	 * @param envelope
-	 * @return the receiver list of the envelope
-	 * @throws IOException
 	 */
 	private final EnvelopeReceiverList getReceiverListForEnvelope(Envelope envelope, boolean reportException) throws IOException {
 		try {
@@ -596,6 +597,10 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 		} catch (CancelTaskException e) {
 			releaseEnvelope(envelope);
 			throw e;
+		} catch (Throwable t) {
+			releaseEnvelope(envelope);
+			ExceptionUtils.rethrow(t, "Error while requesting receiver list.");
+			return null; // silence the compiler
 		}
 	}
 	

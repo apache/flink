@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.client;
 
 import static org.junit.Assert.assertEquals;
@@ -25,10 +24,6 @@ import static org.junit.Assert.fail;
 
 import java.io.IOException;
 
-import org.apache.flink.runtime.client.AbstractJobResult;
-import org.apache.flink.runtime.client.JobCancelResult;
-import org.apache.flink.runtime.client.JobProgressResult;
-import org.apache.flink.runtime.client.JobSubmissionResult;
 import org.apache.flink.runtime.client.AbstractJobResult.ReturnCode;
 import org.apache.flink.runtime.event.job.AbstractEvent;
 import org.apache.flink.runtime.event.job.JobEvent;
@@ -39,7 +34,6 @@ import org.junit.Test;
 
 /**
  * This class contains test concerning all classes which are derived from {@link AbstractJobResult}.
- * 
  */
 public class JobResultTest {
 
@@ -58,7 +52,7 @@ public class JobResultTest {
 
 		try {
 
-			final JobCancelResult copy = (JobCancelResult) CommonTestUtils.createCopy(orig);
+			final JobCancelResult copy = (JobCancelResult) CommonTestUtils.createCopyWritable(orig);
 			assertEquals(orig.getReturnCode(), copy.getReturnCode());
 			assertEquals(orig.getDescription(), copy.getDescription());
 			assertEquals(orig.hashCode(), copy.hashCode());
@@ -81,7 +75,7 @@ public class JobResultTest {
 
 		try {
 
-			final JobProgressResult copy = (JobProgressResult) CommonTestUtils.createCopy(orig);
+			final JobProgressResult copy = (JobProgressResult) CommonTestUtils.createCopyWritable(orig);
 			assertEquals(orig.getReturnCode(), copy.getReturnCode());
 			assertEquals(orig.getDescription(), copy.getDescription());
 			assertEquals(orig.hashCode(), copy.hashCode());
@@ -102,7 +96,7 @@ public class JobResultTest {
 
 		try {
 
-			final JobSubmissionResult copy = (JobSubmissionResult) CommonTestUtils.createCopy(orig);
+			final JobSubmissionResult copy = (JobSubmissionResult) CommonTestUtils.createCopyWritable(orig);
 			assertEquals(orig.getReturnCode(), copy.getReturnCode());
 			assertEquals(orig.getDescription(), copy.getDescription());
 			assertEquals(orig.hashCode(), copy.hashCode());

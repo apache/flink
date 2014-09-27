@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,7 +24,6 @@ import java.io.FileWriter;
 import org.apache.flink.client.LocalExecutor;
 import org.apache.flink.test.recordJobs.wordcount.WordCount;
 import org.apache.flink.test.testdata.WordCountData;
-import org.apache.log4j.Level;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -50,7 +49,6 @@ public class LocalExecutorITCase {
 			WordCount wc = new WordCount();
 
 			LocalExecutor executor = new LocalExecutor();
-			LocalExecutor.setLoggingLevel(Level.WARN);
 			executor.setDefaultOverwriteFiles(true);
 			executor.setTaskManagerNumSlots(DOP);
 			executor.start();

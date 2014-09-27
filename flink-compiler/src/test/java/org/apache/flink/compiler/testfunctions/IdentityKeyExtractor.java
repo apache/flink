@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,12 +16,11 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.compiler.testfunctions;
 
 import org.apache.flink.api.java.functions.KeySelector;
 
-public class IdentityKeyExtractor<T> extends KeySelector<T, T> {
+public class IdentityKeyExtractor<T> implements KeySelector<T, T> {
 
 	private static final long serialVersionUID = 1L;
 

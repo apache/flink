@@ -26,7 +26,12 @@
 
 <body>
     <div class="mainHeading" style="min-width: 1225px;">
-      <h1 style="margin-top:0"><img src="img/FlinkLogo.png" width="326" height="100" alt="Flink Logo" />Flink Query Interface</h1>
+      <h1 style="margin-top:0"><img src="img/FlinkLogo.png" width="326" height="100" alt="Flink Logo" />Flink Query Interface
+      <div style="position:absolute; top:40px; right:110px;">
+		  <button id="zoomIn" type="button" class="btn btn-default">Zoom In</button>
+		  <button id="zoomOut" type="button" class="btn btn-default">Zoom Out</button>
+		</div>
+      </h1>
     </div>
 
     <!-- the main panel with the jobs list and the preview pane -->
@@ -41,7 +46,7 @@
     <div class="footer" style="min-width: 1225px;">
     
       <div class="boxed" style="float: left; width: 700px; height: 200px; position: relative;">
-        <h3>Show or launch selected PACT program...</h3>
+        <h3>Select program...</h3>
         <div style="margin-top: 30px;">
           <div>
           	<div id="planDescription"></div>
@@ -62,7 +67,7 @@
       </div>
       
       <div class="boxed" style="float: left; width: 500px; height: 150px; position: relative;">
-        <h3>Select a new PACT program to upload...</h3>
+        <h3>Select a new program to upload...</h3>
         <form id="upload_form" action="jobs" enctype="multipart/form-data" method="POST">
           <div style="position: relative; margin-top: 30px;">
              <input id="upload_file_name_text" type="text" name="file_name" disabled="disabled" style="position: absolute; top: 0px; right: 85px; width: 380px; z-index: 3;"/>

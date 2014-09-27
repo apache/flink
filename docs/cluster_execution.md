@@ -2,10 +2,13 @@
 title:  "Cluster Execution"
 ---
 
+* This will be replaced by the TOC
+{:toc}
+
 Flink programs can run distributed on clusters of many machines. There
 are two ways to send a program to a cluster for execution:
 
-# Command Line Interface
+## Command Line Interface
 
 The command line interface lets you submit packaged programs (JARs) to a cluster
 (or single machine setup).
@@ -13,30 +16,30 @@ The command line interface lets you submit packaged programs (JARs) to a cluster
 Please refer to the [Command Line Interface](cli.html) documentation for
 details.
 
-# Remote Environment
+## Remote Environment
 
 The remote environment lets you execute Flink Java programs on a cluster
 directly. The remote environment points to the cluster on which you want to
 execute the program.
 
-## Maven Dependency
+### Maven Dependency
 
 If you are developing your program as a Maven project, you have to add the
 `flink-clients` module using this dependency:
 
-```xml
+~~~xml
 <dependency>
   <groupId>org.apache.flink</groupId>
   <artifactId>flink-clients</artifactId>
   <version>{{ site.FLINK_VERSION_STABLE }}</version>
 </dependency>
-```
+~~~
 
-## Example
+### Example
 
 The following illustrates the use of the `RemoteEnvironment`:
 
-```java
+~~~java
 public static void main(String[] args) throws Exception {
     ExecutionEnvironment env = ExecutionEnvironment
         .createRemoteEnvironment("strato-master", "7661", "/home/user/udfs.jar");
@@ -53,36 +56,36 @@ public static void main(String[] args) throws Exception {
 
     env.execute();
 }
-```
+~~~
 
 Note that the program contains custom UDFs and hence requires a JAR file with
 the classes of the code attached. The constructor of the remote environment
 takes the path(s) to the JAR file(s).
 
-# Remote Executor
+## Remote Executor
 
 Similar to the RemoteEnvironment, the RemoteExecutor lets you execute
 Flink programs on a cluster directly. The remote executor accepts a
 *Plan* object, which describes the program as a single executable unit.
 
-## Maven Dependency
+### Maven Dependency
 
 If you are developing your program in a Maven project, you have to add the
 `flink-clients` module using this dependency:
 
-```xml
+~~~xml
 <dependency>
   <groupId>org.apache.flink</groupId>
   <artifactId>flink-clients</artifactId>
   <version>{{ site.FLINK_VERSION_STABLE }}</version>
 </dependency>
-```
+~~~
 
-## Example
+### Example
 
 The following illustrates the use of the `RemoteExecutor` with the Scala API:
 
-```scala
+~~~scala
 def main(args: Array[String]) {
     val input = TextFile("hdfs://path/to/file")
 
@@ -95,12 +98,12 @@ def main(args: Array[String]) {
     val executor = new RemoteExecutor("strato-master", 7881, "/path/to/jarfile.jar")
     executor.executePlan(p);
 }
-```
+~~~
 
 The following illustrates the use of the `RemoteExecutor` with the Java API (as
 an alternative to the RemoteEnvironment):
 
-```java
+~~~java
 public static void main(String[] args) throws Exception {
     ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -118,7 +121,7 @@ public static void main(String[] args) throws Exception {
     RemoteExecutor e = new RemoteExecutor("strato-master", 7881, "/path/to/jarfile.jar");
     e.executePlan(p);
 }
-```
+~~~
 
 Note that the program contains custom UDFs and hence requires a JAR file with
 the classes of the code attached. The constructor of the remote executor takes

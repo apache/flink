@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,8 +24,8 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.configuration.Configuration;
@@ -42,7 +42,7 @@ public class JDBCOutputFormat<OUT extends Tuple> implements OutputFormat<OUT> {
 	private static final long serialVersionUID = 1L;
 
 	@SuppressWarnings("unused")
-	private static final Log LOG = LogFactory.getLog(JDBCOutputFormat.class);
+	private static final Logger LOG = LoggerFactory.getLogger(JDBCOutputFormat.class);
 
 	private String username;
 	private String password;
@@ -117,10 +117,6 @@ public class JDBCOutputFormat<OUT extends Tuple> implements OutputFormat<OUT> {
 	@Override
 	public void writeRecord(OUT tuple) throws IOException {
 		try {
-			if (query.split("\\?,").length != tuple.getArity()) {
-				close();
-				throw new IOException("Tuple size does not match columncount");
-			}
 			if (types == null) {
 				extractTypes(tuple);
 			}

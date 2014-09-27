@@ -30,7 +30,7 @@ under the License.
 
 	<groupId>org.apache.flink</groupId>
 	<artifactId>flink-parent</artifactId>
-	<version>0.6-incubating-SNAPSHOT</version>
+	<version>0.7-incubating-SNAPSHOT</version>
 
 	<name>flink</name>
 	<packaging>pom</packaging>
@@ -71,37 +71,44 @@ under the License.
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<hadoop-one.version>1.2.1</hadoop-one.version>
 		<hadoop-two.version>2.2.0</hadoop-two.version>
+		<!-- Need to use a user property here because the surefire/failsafe
+			 forkCount is not exposed as a property. With this we can set
+			 it on the "mvn" commandline in travis. -->
+		<flink.forkCount>1.5C</flink.forkCount>
+		<flink.reuseForks>true</flink.reuseForks>
+		<slf4j.version>1.7.7</slf4j.version>
 	</properties>
 
 	<dependencies>
 		<dependency>
-			<groupId>commons-logging</groupId>
-			<artifactId>commons-logging</artifactId>
-			<version>1.1.1</version>
-			<type>jar</type>
-			<scope>compile</scope>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-lang3</artifactId>
+			<version>3.1</version>
+			</dependency>
+	
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-api</artifactId>
+			<version>${slf4j.version}</version>
+		</dependency>
+	
+		<dependency>
+			<groupId>ch.qos.logback</groupId>
+			<artifactId>logback-classic</artifactId>
+			<version>1.0.13</version>
+			<scope>runtime</scope>
 		</dependency>
 
 		<dependency>
-			<groupId>log4j</groupId>
-			<artifactId>log4j</artifactId>
-			<version>1.2.16</version>
-			<type>jar</type>
-			<scope>compile</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>commons-codec</groupId>
-			<artifactId>commons-codec</artifactId>
-			<version>1.3</version>
-			<type>jar</type>
-			<scope>compile</scope>
+			<groupId>org.slf4j</groupId>
+			<artifactId>log4j-over-slf4j</artifactId>
+			<version>${slf4j.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>com.google.guava</groupId>
 			<artifactId>guava</artifactId>
-			<version>14.0.1</version>
+			<version>17.0</version>
 			<type>jar</type>
 			<scope>compile</scope>
 		</dependency>
@@ -109,7 +116,7 @@ under the License.
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
-			<version>4.7</version>
+			<version>4.11</version>
 			<type>jar</type>
 			<scope>test</scope>
 		</dependency>
@@ -117,7 +124,7 @@ under the License.
 		<dependency>
 			<groupId>org.mockito</groupId>
 			<artifactId>mockito-all</artifactId>
-			<version>1.8.5</version>
+			<version>1.9.5</version>
 			<type>jar</type>
 			<scope>test</scope>
 		</dependency>
@@ -125,7 +132,7 @@ under the License.
 		<dependency>
 			<groupId>org.powermock</groupId>
 			<artifactId>powermock-module-junit4</artifactId>
-			<version>1.4.9</version>
+			<version>1.5.5</version>
 			<type>jar</type>
 			<scope>test</scope>
 		</dependency>
@@ -133,7 +140,7 @@ under the License.
 		<dependency>
 			<groupId>org.powermock</groupId>
 			<artifactId>powermock-api-mockito</artifactId>
-			<version>1.4.9</version>
+			<version>1.5.5</version>
 			<type>jar</type>
 			<scope>test</scope>
 		</dependency>
@@ -141,7 +148,7 @@ under the License.
 		<dependency>
 			<groupId>org.hamcrest</groupId>
 			<artifactId>hamcrest-all</artifactId>
-			<version>1.1</version>
+			<version>1.3</version>
 			<type>jar</type>
 			<scope>test</scope>
 		</dependency>
@@ -189,11 +196,38 @@ under the License.
 						<groupId>org.apache.hadoop</groupId>
 						<artifactId>hadoop-common</artifactId>
 						<version>${hadoop.version}</version>
+						<exclusions>
+							<exclusion>
+								<groupId>org.slf4j</groupId>
+								<artifactId>slf4j-log4j12</artifactId>
+							</exclusion>
+							<exclusion>
+								<groupId>log4j</groupId>
+								<artifactId>log4j</artifactId>
+							</exclusion>
+						</exclusions>
 					</dependency>
 					<dependency>
 						<groupId>org.apache.hadoop</groupId>
 						<artifactId>hadoop-hdfs</artifactId>
 						<version>${hadoop.version}</version>
+						<exclusions>
+							<exclusion>
+								<groupId>log4j</groupId>
+								<artifactId>log4j</artifactId>
+							</exclusion>
+						</exclusions>
+					</dependency>
+					<dependency>
+						<groupId>org.apache.hadoop</groupId>
+						<artifactId>hadoop-client</artifactId>
+						<version>${hadoop.version}</version>
+						<exclusions>
+							<exclusion>
+								<groupId>org.slf4j</groupId>
+								<artifactId>slf4j-log4j12</artifactId>
+							</exclusion>
+						</exclusions>
 					</dependency>
 				</dependencies>
 			</dependencyManagement>
@@ -242,6 +276,43 @@ under the License.
 		</profile>
 
 		<profile>
+			<!-- used for SNAPSHOT and regular releases -->
+			<id>docs-and-source</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-source-plugin</artifactId>
+						<version>2.2.1</version><!--$NO-MVN-MAN-VER$-->
+						<executions>
+							<execution>
+								<id>attach-sources</id>
+								<goals>
+									<goal>jar</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-javadoc-plugin</artifactId>
+						<version>2.9.1</version><!--$NO-MVN-MAN-VER$-->
+						<configuration>
+							<quiet>true</quiet>
+						</configuration>
+						<executions>
+							<execution>
+								<id>attach-javadocs</id>
+								<goals>
+									<goal>jar</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+		<profile>
 			<id>release</id>
 				<build>
 				<plugins>
@@ -282,12 +353,15 @@ under the License.
 					<activeByDefault>false</activeByDefault>
 					<jdk>1.8</jdk>
 				</activation>
+				<modules>
+					<module>flink-java8</module>
+				</modules>
 				<build>
 					<plugins>
 						<plugin>
 							<groupId>org.apache.maven.plugins</groupId>
 							<artifactId>maven-javadoc-plugin</artifactId>
-							<version>2.9.1</version>
+							<version>2.9.1</version><!--$NO-MVN-MAN-VER$-->
 							<configuration>
 								<quiet>true</quiet>
 							</configuration>
@@ -311,17 +385,34 @@ under the License.
 	<dependencyManagement>
 		<!-- this section defines the module versions that are used if nothing else is specified. -->
 		<dependencies>
+			<!-- Make sure we use a consistent jetty version throughout the project -->
+			<dependency>
+				<groupId>org.eclipse.jetty</groupId>
+				<artifactId>jetty-server</artifactId>
+				<version>8.0.0.M1</version>
+			</dependency>
+			<dependency>
+				<groupId>org.eclipse.jetty</groupId>
+				<artifactId>jetty-security</artifactId>
+				<version>8.0.0.M1</version>
+			</dependency>
+			<dependency>
+				<groupId>org.eclipse.jetty</groupId>
+				<artifactId>jetty-servlet</artifactId>
+				<version>8.0.0.M1</version>
+			</dependency>
+			<!-- Make sure we use a consistent avro version throughout the project -->
+			<dependency>
+				<groupId>org.apache.avro</groupId>
+				<artifactId>avro</artifactId>
+				<version>1.7.6</version>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.avro</groupId>
+				<artifactId>avro-mapred</artifactId>
+				<version>1.7.6</version>
+			</dependency>
 			<!-- Managed dependency required for HBase in pact-hbase  -->
-			<dependency>
-				<groupId>org.slf4j</groupId>
-				<artifactId>slf4j-api</artifactId>
-				<version>1.4.3</version>
-			</dependency>
-			<dependency>
-				<groupId>org.slf4j</groupId>
-				<artifactId>slf4j-log4j12</artifactId>
-				<version>1.4.3</version>
-			</dependency>
 			<dependency>
 				<groupId>org.javassist</groupId>
 				<artifactId>javassist</artifactId>
@@ -336,10 +427,7 @@ under the License.
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-report-plugin</artifactId>
-				<version>2.7</version>
-				<configuration>
-					<argLine>-Xmx1024m</argLine>
-				</configuration>
+				<version>2.17</version>
 			</plugin>
 
 			<!-- test coverage reports -->
@@ -387,7 +475,7 @@ under the License.
 					<excludeSubProjects>false</excludeSubProjects>
 					<numUnapprovedLicenses>0</numUnapprovedLicenses>
 					<licenses>
-						<!-- Enforce this license: 
+						<!-- Enforce this license:
 							Licensed to the Apache Software Foundation (ASF) under one
 							or more contributor license agreements.  See the NOTICE file
 							distributed with this work for additional information
@@ -429,15 +517,24 @@ under the License.
 						<exclude>**/flink-bin/conf/slaves</exclude>
 						<!-- Administrative files in the main trunk. -->
 						<exclude>**/README.md</exclude>
+						<exclude>tools/checkstyle.xml</exclude>
 						<exclude>CHANGELOG</exclude>
 						<exclude>**/*.creole</exclude>
 						<exclude>CONTRIBUTORS</exclude>
-						<!-- Build fiels -->
+						<exclude>DEPENDENCIES</exclude>
+						<!-- Build files -->
+						<exclude>tools/maven/checkstyle.xml</exclude>
+						<exclude>tools/maven/scalastyle-config.xml</exclude>
+						<exclude>**/scalastyle-output.xml</exclude>
+						<exclude>tools/maven/suppressions.xml</exclude>
+						<exclude>**/pom.xml</exclude>
+						<exclude>**/pom.hadoop2.xml</exclude>
 						<exclude>**/*.iml</exclude>
 						<!-- Generated content -->
 						<exclude>**/target/**</exclude>
 						<!-- Documentation -->
 						<exclude>**/docs/**</exclude>
+						<exclude>**/tools/*.md</exclude>
 					</excludes>
 				</configuration>
 			</plugin>
@@ -473,24 +570,8 @@ under the License.
 				</configuration>
 			</plugin>
 			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-javadoc-plugin</artifactId>
-				<version>2.9.1</version><!--$NO-MVN-MAN-VER$-->
-				<configuration>
-					<quiet>true</quiet>
-				</configuration>
-				<executions>
-					<execution>
-						<id>attach-javadocs</id>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
 				<artifactId>maven-failsafe-plugin</artifactId>
-				<version>2.7</version><!--$NO-MVN-MAN-VER$-->
+				<version>2.17</version><!--$NO-MVN-MAN-VER$-->
 				<executions>
 					<execution>
 						<goals>
@@ -500,15 +581,27 @@ under the License.
 					</execution>
 				</executions>
 				<configuration>
-					<argLine>-Xmx1024m</argLine>
+					<forkCount>${flink.forkCount}</forkCount>
+					<reuseForks>${flink.reuseForks}</reuseForks>
+					<systemPropertyVariables>
+						<!-- we need the "0" in front here because for some reason
+						  the property is null when we have just the variable-->
+						<forkNumber>0${surefire.forkNumber}</forkNumber>
+					</systemPropertyVariables>
+					<argLine>-Xmx800m</argLine>
 				</configuration>
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
-				<version>2.16</version><!--$NO-MVN-MAN-VER$-->
+				<version>2.17</version><!--$NO-MVN-MAN-VER$-->
 				<configuration>
-					<argLine>-Xmx1024m</argLine>
+					<forkCount>${flink.forkCount}</forkCount>
+					<reuseForks>${flink.reuseForks}</reuseForks>
+					<systemPropertyVariables>
+						<forkNumber>0${surefire.forkNumber}</forkNumber>
+					</systemPropertyVariables>
+					<argLine>-Xmx800m</argLine>
 				</configuration>
 			</plugin>
 			<plugin>
@@ -543,19 +636,6 @@ under the License.
 								</requireMavenVersion>
 							</rules>
 						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-source-plugin</artifactId>
-				<version>2.2.1</version><!--$NO-MVN-MAN-VER$-->
-				<executions>
-					<execution>
-						<id>attach-sources</id>
-						<goals>
-							<goal>jar</goal>
-						</goals>
 					</execution>
 				</executions>
 			</plugin>

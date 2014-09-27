@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,14 +25,14 @@ import java.io.IOException;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 
-import junit.framework.Assert;
 import junit.framework.TestCase;
 
-import org.apache.commons.lang.NotImplementedException;
+import org.apache.flink.api.common.typeutils.base.IntComparator;
+import org.junit.Assert;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
-import org.apache.flink.api.java.typeutils.runtime.record.RecordComparatorFactory;
-import org.apache.flink.api.java.typeutils.runtime.record.RecordSerializerFactory;
+import org.apache.flink.api.common.typeutils.record.RecordComparatorFactory;
+import org.apache.flink.api.common.typeutils.record.RecordSerializerFactory;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
@@ -382,6 +382,9 @@ public class OutputEmitterTest extends TestCase {
 	
 	@SuppressWarnings("serial")
 	private static class TestIntComparator extends TypeComparator<Integer> {
+		private final Comparable[] extractedKey = new Comparable[1];
+
+		private TypeComparator[] comparators = new TypeComparator[]{new IntComparator(true)};
 
 		@Override
 		public int hash(Integer record) {
@@ -389,57 +392,67 @@ public class OutputEmitterTest extends TestCase {
 		}
 
 		@Override
-		public void setReference(Integer toCompare) { throw new NotImplementedException(); }
+		public void setReference(Integer toCompare) { throw new UnsupportedOperationException(); }
 
 		@Override
-		public boolean equalToReference(Integer candidate) { throw new NotImplementedException(); }
+		public boolean equalToReference(Integer candidate) { throw new UnsupportedOperationException(); }
 
 		@Override
 		public int compareToReference( TypeComparator<Integer> referencedComparator) {
-			throw new NotImplementedException();
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
-		public int compare(Integer first, Integer second) { throw new NotImplementedException(); }
+		public int compare(Integer first, Integer second) { throw new UnsupportedOperationException(); }
 
 		@Override
-		public int compare(DataInputView firstSource, DataInputView secondSource) {
-			throw new NotImplementedException();
+		public int compareSerialized(DataInputView firstSource, DataInputView secondSource) {
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
-		public boolean supportsNormalizedKey() { throw new NotImplementedException(); }
+		public boolean supportsNormalizedKey() { throw new UnsupportedOperationException(); }
 
 		@Override
-		public boolean supportsSerializationWithKeyNormalization() { throw new NotImplementedException(); }
+		public boolean supportsSerializationWithKeyNormalization() { throw new UnsupportedOperationException(); }
 
 		@Override
-		public int getNormalizeKeyLen() { throw new NotImplementedException(); }
+		public int getNormalizeKeyLen() { throw new UnsupportedOperationException(); }
 
 		@Override
-		public boolean isNormalizedKeyPrefixOnly(int keyBytes) { throw new NotImplementedException(); }
+		public boolean isNormalizedKeyPrefixOnly(int keyBytes) { throw new UnsupportedOperationException(); }
 
 		@Override
 		public void putNormalizedKey(Integer record, MemorySegment target, int offset, int numBytes) {
-			throw new NotImplementedException();
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public void writeWithKeyNormalization(Integer record, DataOutputView target) throws IOException {
-			throw new NotImplementedException();
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public Integer readWithKeyDenormalization(Integer reuse, DataInputView source) throws IOException {
-			throw new NotImplementedException();
+			throw new UnsupportedOperationException();
 		}
 
 		@Override
-		public boolean invertNormalizedKey() { throw new NotImplementedException(); }
+		public boolean invertNormalizedKey() { throw new UnsupportedOperationException(); }
 
 		@Override
-		public TypeComparator<Integer> duplicate() { throw new NotImplementedException(); }
-		
+		public TypeComparator<Integer> duplicate() { throw new UnsupportedOperationException(); }
+
+		@Override
+		public Object[] extractKeys(Integer record) {
+			extractedKey[0] = record;
+			return extractedKey;
+		}
+
+		@Override
+		public TypeComparator[] getComparators() {
+			return comparators;
+		}
 	}
 	
 //	@Test

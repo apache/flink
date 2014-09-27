@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.profiling.types;
 
 import java.io.IOException;
@@ -28,11 +27,10 @@ import org.apache.flink.runtime.jobgraph.JobID;
 /**
  * Instance profiling events are a special subclass of profiling events. They contain profiling information about the
  * utilization of a particular instance during a job execution.
- * <p>
- * This class is not thread-safe.
- * 
  */
 public abstract class InstanceProfilingEvent extends ProfilingEvent {
+
+	private static final long serialVersionUID = 5964092674722506040L;
 
 	/**
 	 * The interval of time this profiling event covers in milliseconds.
@@ -176,6 +174,8 @@ public abstract class InstanceProfilingEvent extends ProfilingEvent {
 		super();
 	}
 
+	// --------------------------------------------------------------------------------------------
+	
 	/**
 	 * Returns the interval of time this profiling event covers in milliseconds.
 	 * 
@@ -304,7 +304,10 @@ public abstract class InstanceProfilingEvent extends ProfilingEvent {
 		return this.transmittedBytes;
 	}
 
-
+	// --------------------------------------------------------------------------------------------
+	//  Serialization
+	// --------------------------------------------------------------------------------------------
+	
 	@Override
 	public void read(final DataInputView in) throws IOException {
 		super.read(in);
@@ -353,87 +356,44 @@ public abstract class InstanceProfilingEvent extends ProfilingEvent {
 	}
 
 
+	// --------------------------------------------------------------------------------------------
+	//  Utilities
+	// --------------------------------------------------------------------------------------------
+	
 	@Override
 	public boolean equals(final Object obj) {
-
-		if (!super.equals(obj)) {
+		if (obj instanceof InstanceProfilingEvent) {
+			final InstanceProfilingEvent other = (InstanceProfilingEvent) obj;
+			
+			return super.equals(obj) &&
+					profilingInterval == other.profilingInterval &&
+					ioWaitCPU == other.ioWaitCPU &&
+					idleCPU == other.idleCPU &&
+					userCPU == other.userCPU &&
+					systemCPU == other.systemCPU &&
+					hardIrqCPU == other.hardIrqCPU &&
+					softIrqCPU == other.softIrqCPU &&
+					totalMemory == other.totalMemory &&
+					freeMemory == other.freeMemory  &&
+					bufferedMemory == other.bufferedMemory &&
+					cachedMemory == other.cachedMemory &&
+					cachedSwapMemory == other.cachedSwapMemory &&
+					receivedBytes == other.receivedBytes &&
+					transmittedBytes == other.transmittedBytes;
+		}
+		else {
 			return false;
 		}
-
-		if (!(obj instanceof InstanceProfilingEvent)) {
-			return false;
-		}
-
-		final InstanceProfilingEvent instanceProfilingEvent = (InstanceProfilingEvent) obj;
-
-		if (this.profilingInterval != instanceProfilingEvent.getProfilingInterval()) {
-			return false;
-		}
-
-		if (this.ioWaitCPU != instanceProfilingEvent.getIOWaitCPU()) {
-			return false;
-		}
-		if (this.idleCPU != instanceProfilingEvent.getIdleCPU()) {
-			return false;
-		}
-
-		if (this.userCPU != instanceProfilingEvent.getUserCPU()) {
-			return false;
-		}
-
-		if (this.systemCPU != instanceProfilingEvent.getSystemCPU()) {
-			return false;
-		}
-
-		if (this.hardIrqCPU != instanceProfilingEvent.getHardIrqCPU()) {
-			return false;
-		}
-
-		if (this.softIrqCPU != instanceProfilingEvent.getSoftIrqCPU()) {
-			return false;
-		}
-
-		if (this.totalMemory != instanceProfilingEvent.getTotalMemory()) {
-			return false;
-		}
-
-		if (this.freeMemory != instanceProfilingEvent.getFreeMemory()) {
-			return false;
-		}
-
-		if (this.bufferedMemory != instanceProfilingEvent.getBufferedMemory()) {
-			return false;
-		}
-
-		if (this.cachedMemory != instanceProfilingEvent.getCachedMemory()) {
-			return false;
-		}
-
-		if (this.cachedSwapMemory != instanceProfilingEvent.getCachedSwapMemory()) {
-			return false;
-		}
-
-		if (this.receivedBytes != instanceProfilingEvent.getReceivedBytes()) {
-			return false;
-		}
-
-		if (this.transmittedBytes != instanceProfilingEvent.getTransmittedBytes()) {
-			return false;
-		}
-
-		return true;
 	}
 
 
 	@Override
 	public int hashCode() {
-
 		long hashCode = getJobID().hashCode() + getTimestamp() + getProfilingTimestamp();
-		hashCode += (this.profilingInterval + this.ioWaitCPU + this.idleCPU + this.userCPU + this.systemCPU
-			+ this.hardIrqCPU + this.softIrqCPU);
+		hashCode += this.profilingInterval + this.ioWaitCPU + this.idleCPU + this.userCPU + this.systemCPU
+			+ this.hardIrqCPU + this.softIrqCPU;
 		hashCode += (this.totalMemory + this.freeMemory + this.bufferedMemory + this.cachedMemory + this.cachedSwapMemory);
-		hashCode -= Integer.MAX_VALUE;
-
-		return (int) (hashCode % Integer.MAX_VALUE);
+		hashCode ^= hashCode >>> 32;
+		return (int) hashCode;
 	}
 }

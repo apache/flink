@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -50,7 +50,6 @@ public abstract class GenericInputFormat<OT> implements InputFormat<OT, GenericI
 		return cachedStatistics;
 	}
 
-
 	@Override
 	public GenericInputSplit[] createInputSplits(int numSplits) throws IOException {
 		if (numSplits < 1) {
@@ -66,8 +65,8 @@ public abstract class GenericInputFormat<OT> implements InputFormat<OT, GenericI
 	}
 	
 	@Override
-	public Class<? extends GenericInputSplit> getInputSplitType() {
-		return GenericInputSplit.class;
+	public DefaultInputSplitAssigner getInputSplitAssigner(GenericInputSplit[] splits) {
+		return new DefaultInputSplitAssigner(splits);
 	}
 
 	// --------------------------------------------------------------------------------------------

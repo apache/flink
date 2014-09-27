@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,8 +19,8 @@
 
 package org.apache.flink.test.operators;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.record.functions.JoinFunction;
 import org.apache.flink.api.java.record.io.DelimitedInputFormat;
@@ -49,7 +49,7 @@ import java.util.LinkedList;
 @RunWith(Parameterized.class)
 public class JoinITCase extends RecordAPITestBase {
 
-	private static final Log LOG = LogFactory.getLog(JoinITCase.class);
+	private static final Logger LOG = LoggerFactory.getLogger(JoinITCase.class);
 
 	String leftInPath = null;
 	String rightInPath = null;

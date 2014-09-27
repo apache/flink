@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -30,6 +30,8 @@ import org.apache.flink.core.memory.DataOutputView;
  * references to row below refer to the key of the row.
  */
 public class TableInputSplit extends LocatableInputSplit {
+
+	private static final long serialVersionUID = 1L;
 
 	/**
 	 * The name of the table to retrieve data from

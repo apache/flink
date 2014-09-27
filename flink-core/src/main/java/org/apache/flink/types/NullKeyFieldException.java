@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -41,6 +41,17 @@ public class NullKeyFieldException extends RuntimeException
 		this.fieldNumber = -1;
 	}
 
+	/**
+	 * Constructs an {@code NullKeyFieldException} with a default message, referring to
+	 * the field number given in the {@code NullFieldException}.
+	 *
+	 * @param nfex The base exception.
+	 */
+	public NullKeyFieldException(NullFieldException nfex) {
+		super();
+		this.fieldNumber = nfex.getFieldPos();
+	}
+	
 	/**
 	 * Constructs an {@code NullKeyFieldException} with the specified detail message.
 	 *

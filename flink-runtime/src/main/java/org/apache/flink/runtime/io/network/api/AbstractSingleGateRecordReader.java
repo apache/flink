@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -69,7 +69,7 @@ public abstract class AbstractSingleGateRecordReader<T extends IOReadableWritabl
 		this.inputGate.publishEvent(event);
 	}
 
-	InputGate<T> getInputGate() {
+	public InputGate<T> getInputGate() {
 		return this.inputGate;
 	}
 }

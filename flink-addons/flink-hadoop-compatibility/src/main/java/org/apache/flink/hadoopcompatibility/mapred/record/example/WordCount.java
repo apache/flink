@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 
 package org.apache.flink.hadoopcompatibility.mapred.record.example;
 
@@ -103,6 +102,7 @@ public class WordCount implements Program, ProgramDescription {
 		public void reduce(Iterator<Record> records, Collector<Record> out) throws Exception {
 			Record element = null;
 			int sum = 0;
+			
 			while (records.hasNext()) {
 				element = records.next();
 				int cnt = element.getField(1, IntValue.class).getValue();

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -52,6 +52,7 @@ public final class PojoComparator<T> extends TypeComparator<T> implements java.i
 
 	private final Class<T> type;
 
+	private final Comparable[] extractedKeys;
 
 	@SuppressWarnings("unchecked")
 	public PojoComparator(Field[] keyFields, TypeComparator<?>[] comparators, TypeSerializer<T> serializer, Class<T> type) {
@@ -101,6 +102,8 @@ public final class PojoComparator<T> extends TypeComparator<T> implements java.i
 		this.numLeadingNormalizableKeys = nKeys;
 		this.normalizableKeyPrefixLen = nKeyLen;
 		this.invertNormKey = inverted;
+
+		extractedKeys = new Comparable[keyFields.length];
 	}
 
 	@SuppressWarnings("unchecked")
@@ -128,7 +131,7 @@ public final class PojoComparator<T> extends TypeComparator<T> implements java.i
 			throw new RuntimeException("Cannot copy serializer", e);
 		}
 
-
+		extractedKeys = new Comparable[keyFields.length];
 	}
 
 	private void writeObject(ObjectOutputStream out)
@@ -172,7 +175,7 @@ public final class PojoComparator<T> extends TypeComparator<T> implements java.i
 		return this.keyFields;
 	}
 
-	public TypeComparator<Object>[] getComparators() {
+	public TypeComparator[] getComparators() {
 		return this.comparators;
 	}
 
@@ -269,7 +272,7 @@ public final class PojoComparator<T> extends TypeComparator<T> implements java.i
 	}
 
 	@Override
-	public int compare(DataInputView firstSource, DataInputView secondSource) throws IOException {
+	public int compareSerialized(DataInputView firstSource, DataInputView secondSource) throws IOException {
 		T first = this.serializer.createInstance();
 		T second = this.serializer.createInstance();
 
@@ -341,6 +344,23 @@ public final class PojoComparator<T> extends TypeComparator<T> implements java.i
 	@Override
 	public PojoComparator<T> duplicate() {
 		return new PojoComparator<T>(this);
+	}
+
+	@Override
+	public Object[] extractKeys(T record) {
+		int i = 0;
+		try {
+			for (; i < keyFields.length; i++) {
+				extractedKeys[i] = (Comparable) keyFields[i].get(record);
+			}
+		}
+		catch (IllegalAccessException iaex) {
+			throw new RuntimeException("This should not happen since we call setAccesssible(true) in PojoTypeInfo.");
+		}
+		catch (NullPointerException npex) {
+			throw new NullKeyFieldException(this.keyFields[i].toString());
+		}
+		return extractedKeys;
 	}
 
 	// --------------------------------------------------------------------------------------------

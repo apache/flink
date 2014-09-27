@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -35,7 +35,7 @@ public final class ByteComparator extends BasicTypeComparator<Byte> {
 	}
 
 	@Override
-	public int compare(DataInputView firstSource, DataInputView secondSource) throws IOException {
+	public int compareSerialized(DataInputView firstSource, DataInputView secondSource) throws IOException {
 		byte b1 = firstSource.readByte();
 		byte b2 = secondSource.readByte();
 		int comp = (b1 < b2 ? -1 : (b1 == b2 ? 0 : 1)); 

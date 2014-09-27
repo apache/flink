@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,7 +27,7 @@ import java.util.NoSuchElementException;
  * 
  * @param <E> The generic type of the iterator.
  */
-public final class SingleElementIterator<E> implements Iterator<E> {
+public final class SingleElementIterator<E> implements Iterator<E>, Iterable<E> {
 		
 		private E current;
 		private boolean available = false;
@@ -60,5 +60,10 @@ public final class SingleElementIterator<E> implements Iterator<E> {
 		@Override
 		public void remove() {
 			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public Iterator<E> iterator() {
+			return this;
 		}
 	}

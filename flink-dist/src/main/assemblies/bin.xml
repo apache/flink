@@ -23,10 +23,6 @@ under the License.
 	<id>bin</id>
 	<formats>
 		<format>dir</format>
-		<!--
-		<format>tar.gz</format>
-		<format>zip</format>
-		-->
 	</formats>
 
 	<includeBaseDirectory>true</includeBaseDirectory>
@@ -114,6 +110,7 @@ under the License.
 				<include>*.txt</include>
 				<include>LICENSE*</include>
 				<include>NOTICE*</include>
+				<include>DISCLAIMER*</include>
 			</includes>
 		</fileSet>
 
@@ -185,7 +182,7 @@ under the License.
 
 		<fileSet>
 			<!-- copy java examples src -->
-			<directory>../flink-examples/flink-java-examples/src/main/java/org/apache/flink/example/java/record</directory>
+			<directory>../flink-examples/flink-java-examples/src/main/java/org/apache/flink/example/java</directory>
 			<outputDirectory>examples/java-src/</outputDirectory>
 			<fileMode>0644</fileMode>
 		</fileSet>

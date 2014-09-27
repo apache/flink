@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -290,8 +290,8 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 			
 			// local strategy keys
 			Assert.assertEquals(set01, reducer.getInput().getLocalStrategyKeys());
-			Assert.assertEquals(set01, reducer.getKeys());
-			Assert.assertTrue(Arrays.equals(reducer.getInput().getLocalStrategySortOrder(), reducer.getSortOrders()));
+			Assert.assertEquals(set01, reducer.getKeys(0));
+			Assert.assertTrue(Arrays.equals(reducer.getInput().getLocalStrategySortOrder(), reducer.getSortOrders(0)));
 			return true;
 		} else {
 			return false;
@@ -314,8 +314,8 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 			Assert.assertEquals(set0, join.getInput2().getLocalStrategyKeys());
 			Assert.assertTrue(Arrays.equals(join.getInput1().getLocalStrategySortOrder(), join.getInput2().getLocalStrategySortOrder()));
 			Assert.assertEquals(set01, reducer.getInput().getLocalStrategyKeys());
-			Assert.assertEquals(set01, reducer.getKeys());
-			Assert.assertTrue(Arrays.equals(reducer.getInput().getLocalStrategySortOrder(), reducer.getSortOrders()));
+			Assert.assertEquals(set01, reducer.getKeys(0));
+			Assert.assertTrue(Arrays.equals(reducer.getInput().getLocalStrategySortOrder(), reducer.getSortOrders(0)));
 			return true;
 		} else {
 			return false;
@@ -337,8 +337,8 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 			Assert.assertEquals(set01, join.getInput1().getLocalStrategyKeys());
 			Assert.assertEquals(set0, join.getInput2().getLocalStrategyKeys());
 			Assert.assertTrue(join.getInput1().getLocalStrategySortOrder()[0] == join.getInput2().getLocalStrategySortOrder()[0]);
-			Assert.assertEquals(set01, reducer.getKeys());
-			Assert.assertTrue(Arrays.equals(join.getInput1().getLocalStrategySortOrder(), reducer.getSortOrders()));
+			Assert.assertEquals(set01, reducer.getKeys(0));
+			Assert.assertTrue(Arrays.equals(join.getInput1().getLocalStrategySortOrder(), reducer.getSortOrders(0)));
 			return true;
 		} else {
 			return false;

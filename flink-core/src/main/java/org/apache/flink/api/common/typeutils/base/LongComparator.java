@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -35,7 +35,7 @@ public final class LongComparator extends BasicTypeComparator<Long> {
 	}
 
 	@Override
-	public int compare(DataInputView firstSource, DataInputView secondSource) throws IOException {
+	public int compareSerialized(DataInputView firstSource, DataInputView secondSource) throws IOException {
 		long l1 = firstSource.readLong();
 		long l2 = secondSource.readLong();
 		int comp = (l1 < l2 ? -1 : (l1 == l2 ? 0 : 1)); 

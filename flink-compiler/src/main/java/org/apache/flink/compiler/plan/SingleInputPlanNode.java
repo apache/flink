@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -29,6 +29,7 @@ import java.util.List;
 
 import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
+import org.apache.flink.compiler.CompilerException;
 import org.apache.flink.compiler.dag.OptimizerNode;
 import org.apache.flink.compiler.dag.SingleInputNode;
 import org.apache.flink.runtime.operators.DamBehavior;
@@ -43,11 +44,11 @@ public class SingleInputPlanNode extends PlanNode {
 	
 	protected final Channel input;
 	
-	protected final FieldList keys;
+	protected final FieldList[] driverKeys;
 	
-	protected final boolean[] sortOrders;
+	protected final boolean[][] driverSortOrders;
 	
-	private TypeComparatorFactory<?> comparator;
+	private TypeComparatorFactory<?>[] comparators;
 	
 	public Object postPassHelper;
 	
@@ -68,8 +69,15 @@ public class SingleInputPlanNode extends PlanNode {
 	{
 		super(template, nodeName, driverStrategy);
 		this.input = input;
-		this.keys = driverKeyFields;
-		this.sortOrders = driverSortOrders;
+		
+		this.comparators = new TypeComparatorFactory<?>[driverStrategy.getNumRequiredComparators()];
+		this.driverKeys = new FieldList[driverStrategy.getNumRequiredComparators()];
+		this.driverSortOrders = new boolean[driverStrategy.getNumRequiredComparators()][];
+		
+		if(driverStrategy.getNumRequiredComparators() > 0) {
+			this.driverKeys[0] = driverKeyFields;
+			this.driverSortOrders[0] = driverSortOrders;
+		}
 		
 		if (this.input.getShipStrategy() == ShipStrategyType.BROADCAST) {
 			this.input.setReplicationFactor(getDegreeOfParallelism());
@@ -81,6 +89,7 @@ public class SingleInputPlanNode extends PlanNode {
 		} else if (predNode.branchPlan != null) {
 			this.branchPlan.putAll(predNode.branchPlan);
 		}
+		
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -111,30 +120,71 @@ public class SingleInputPlanNode extends PlanNode {
 		return this.input.getSource();
 	}
 	
-	public FieldList getKeys() {
-		return this.keys;
-	}
-	
-	public boolean[] getSortOrders() {
-		return sortOrders;
-	}
-	
 	/**
-	 * Gets the comparator from this PlanNode.
-	 *
-	 * @return The comparator.
+	 * Sets the key field indexes for the specified driver comparator.
+	 * 
+	 * @param keys The key field indexes for the specified driver comparator.
+	 * @param id The ID of the driver comparator.
 	 */
-	public TypeComparatorFactory<?> getComparator() {
-		return comparator;
+	public void setDriverKeyInfo(FieldList keys, int id) {
+		this.setDriverKeyInfo(keys, getTrueArray(keys.size()), id);
 	}
 	
 	/**
-	 * Sets the comparator for this PlanNode.
+	 * Sets the key field information for the specified driver comparator.
+	 * 
+	 * @param keys The key field indexes for the specified driver comparator.
+	 * @param sortOrder The key sort order for the specified driver comparator.
+	 * @param id The ID of the driver comparator.
+	 */
+	public void setDriverKeyInfo(FieldList keys, boolean[] sortOrder, int id) {
+		if(id < 0 || id >= driverKeys.length) {
+			throw new CompilerException("Invalid id for driver key information. DriverStrategy requires only "
+											+super.getDriverStrategy().getNumRequiredComparators()+" comparators.");
+		}
+		this.driverKeys[id] = keys;
+		this.driverSortOrders[id] = sortOrder;
+	}
+	
+	/**
+	 * Gets the key field indexes for the specified driver comparator.
+	 * 
+	 * @param id The id of the driver comparator for which the key field indexes are requested.
+	 * @return The key field indexes of the specified driver comparator.
+	 */
+	public FieldList getKeys(int id) {
+		return this.driverKeys[id];
+	}
+	
+	/**
+	 * Gets the sort order for the specified driver comparator.
+	 * 
+	 * @param id The id of the driver comparator for which the sort order is requested.
+	 * @return The sort order of the specified driver comparator.
+	 */
+	public boolean[] getSortOrders(int id) {
+		return driverSortOrders[id];
+	}
+	
+	/**
+	 * Gets the specified comparator from this PlanNode.
+	 * 
+	 * @param id The ID of the requested comparator.
+	 *
+	 * @return The specified comparator.
+	 */
+	public TypeComparatorFactory<?> getComparator(int id) {
+		return comparators[id];
+	}
+	
+	/**
+	 * Sets the specified comparator for this PlanNode.
 	 *
 	 * @param comparator The comparator to set.
+	 * @param id The ID of the comparator to set.
 	 */
-	public void setComparator(TypeComparatorFactory<?> comparator) {
-		this.comparator = comparator;
+	public void setComparator(TypeComparatorFactory<?> comparator, int id) {
+		this.comparators[id] = comparator;
 	}
 	
 	// --------------------------------------------------------------------------------------------

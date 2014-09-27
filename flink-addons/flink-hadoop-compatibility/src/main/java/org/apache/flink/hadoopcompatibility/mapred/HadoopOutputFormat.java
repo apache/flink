@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -100,15 +100,17 @@ public class HadoopOutputFormat<K extends Writable,V extends Writable> implement
 				+ Integer.toString(taskNumber + 1) 
 				+ "_0");
 		
+		this.jobConf.set("mapred.task.id", taskAttemptID.toString());
+		this.jobConf.setInt("mapred.task.partition", taskNumber + 1);
+		// for hadoop 2.2
+		this.jobConf.set("mapreduce.task.attempt.id", taskAttemptID.toString());
+		this.jobConf.setInt("mapreduce.task.partition", taskNumber + 1);
+		
 		try {
 			this.context = HadoopUtils.instantiateTaskAttemptContext(this.jobConf, taskAttemptID);
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
-		
-		this.jobConf.set("mapred.task.id", taskAttemptID.toString());
-		// for hadoop 2.2
-		this.jobConf.set("mapreduce.task.attempt.id", taskAttemptID.toString());
 		
 		this.fileOutputCommitter = new FileOutputCommitter();
 		

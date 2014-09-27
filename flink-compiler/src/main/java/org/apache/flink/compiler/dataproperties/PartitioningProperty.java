@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -47,8 +47,13 @@ public enum PartitioningProperty {
 	/**
 	 * Constant indicating full replication of the data to each parallel instance.
 	 */
-	FULL_REPLICATION;
+	FULL_REPLICATION,
 
+	/**
+	 * Constant indicating a forced even rebalancing.
+	 */
+	FORCED_REBALANCED;
+	
 	/**
 	 * Checks, if this property represents in fact a partitioning. That is,
 	 * whether this property is not equal to <tt>PartitionProperty.FULL_REPLICATION</tt>.
@@ -57,7 +62,7 @@ public enum PartitioningProperty {
 	 *         false otherwise.
 	 */
 	public boolean isPartitioned() {
-		return this != FULL_REPLICATION;
+		return this != FULL_REPLICATION && this != FORCED_REBALANCED;
 	}
 	
 	/**

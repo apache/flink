@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.event.task;
 
 import static org.junit.Assert.assertEquals;
@@ -26,10 +25,6 @@ import static org.junit.Assert.fail;
 import java.io.IOException;
 import java.util.Iterator;
 
-import org.apache.flink.runtime.event.task.AbstractEvent;
-import org.apache.flink.runtime.event.task.EventList;
-import org.apache.flink.runtime.event.task.IntegerTaskEvent;
-import org.apache.flink.runtime.event.task.StringTaskEvent;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.junit.Test;
 
@@ -39,7 +34,6 @@ import org.junit.Test;
  * 
  */
 public class TaskEventTest {
-
 	/**
 	 * This test checks the serialization/deserialization of {@link IntegerTaskEvent} objects.
 	 */
@@ -48,7 +42,7 @@ public class TaskEventTest {
 
 		try {
 			final IntegerTaskEvent orig = new IntegerTaskEvent(11);
-			final IntegerTaskEvent copy = (IntegerTaskEvent) CommonTestUtils.createCopy(orig);
+			final IntegerTaskEvent copy = (IntegerTaskEvent) CommonTestUtils.createCopyWritable(orig);
 
 			assertEquals(orig.getInteger(), copy.getInteger());
 			assertEquals(orig.hashCode(), copy.hashCode());
@@ -68,7 +62,7 @@ public class TaskEventTest {
 		try {
 
 			final StringTaskEvent orig = new StringTaskEvent("Test");
-			final StringTaskEvent copy = (StringTaskEvent) CommonTestUtils.createCopy(orig);
+			final StringTaskEvent copy = (StringTaskEvent) CommonTestUtils.createCopyWritable(orig);
 
 			assertEquals(orig.getString(), copy.getString());
 			assertEquals(orig.hashCode(), copy.hashCode());
@@ -90,7 +84,7 @@ public class TaskEventTest {
 			final EventList orig = new EventList();
 			orig.add(new StringTaskEvent("Test 2"));
 			orig.add(new IntegerTaskEvent(70));
-			final EventList copy = (EventList) CommonTestUtils.createCopy(orig);
+			final EventList copy = (EventList) CommonTestUtils.createCopyWritable(orig);
 
 			assertEquals(orig.size(), copy.size());
 			final Iterator<AbstractEvent> origIt = orig.iterator();

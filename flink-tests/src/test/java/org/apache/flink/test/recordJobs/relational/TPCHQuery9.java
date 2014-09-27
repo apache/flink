@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -43,7 +43,8 @@ import org.apache.flink.test.recordJobs.relational.query9Util.SupplierMap;
 import org.apache.flink.test.recordJobs.relational.query9Util.SuppliersJoin;
 import org.apache.flink.test.recordJobs.util.IntTupleDataInFormat;
 import org.apache.flink.types.IntValue;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Quote from the TPC-H homepage:
@@ -83,7 +84,7 @@ import org.apache.log4j.Logger;
 public class TPCHQuery9 implements Program, ProgramDescription {
 	public final String ARGUMENTS = "dop partInputPath partSuppInputPath ordersInputPath lineItemInputPath supplierInputPath nationInputPath outputPath";
 
-	private static Logger LOGGER = Logger.getLogger(TPCHQuery9.class);
+	private static Logger LOG = LoggerFactory.getLogger(TPCHQuery9.class);
 
 	private int degreeOfParallelism = 1;
 
@@ -98,7 +99,7 @@ public class TPCHQuery9 implements Program, ProgramDescription {
 
 		if (args.length != 8)
 		{
-			LOGGER.warn("number of arguments do not match!");
+			LOG.warn("number of arguments do not match!");
 			
 			this.degreeOfParallelism = 1;
 			this.partInputPath = "";

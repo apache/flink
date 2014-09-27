@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,26 +19,17 @@
 
 package org.apache.flink.test.util;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 
 import org.apache.flink.client.minicluster.NepheleMiniCluster;
 import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.test.util.AbstractTestBase;
-import org.apache.flink.test.util.RecordAPITestBase;
-import org.apache.flink.util.LogUtils;
-import org.apache.log4j.Level;
 
 /**
  * Base class for integration tests which test whether the system recovers from failed executions.
  */
 public abstract class FailingTestBase extends RecordAPITestBase {
-
-	public FailingTestBase() {
-		LogUtils.initializeDefaultConsoleLogger(Level.OFF);
-	}
-	
 	/**
 	 * Returns the {@link JobGraph} of the failing job. 
 	 * 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,84 +16,50 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.profiling.impl;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.runtime.execution.ExecutionListener;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.RuntimeEnvironment;
-import org.apache.flink.runtime.executiongraph.ExecutionVertexID;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 
 public class EnvironmentListenerImpl implements ExecutionListener {
 
-	private static final Log LOG = LogFactory.getLog(EnvironmentListenerImpl.class);
+	private static final Logger LOG = LoggerFactory.getLogger(EnvironmentListenerImpl.class);
 
 	private final TaskManagerProfilerImpl taskManagerProfiler;
 
 	private final RuntimeEnvironment environment;
 
-	public EnvironmentListenerImpl(final TaskManagerProfilerImpl taskManagerProfiler,
-			final RuntimeEnvironment environment) {
-
+	
+	public EnvironmentListenerImpl(TaskManagerProfilerImpl taskManagerProfiler, RuntimeEnvironment environment) {
 		this.taskManagerProfiler = taskManagerProfiler;
 		this.environment = environment;
 	}
 
 
 	@Override
-	public void executionStateChanged(final JobID jobID, final ExecutionVertexID vertexID,
-			final ExecutionState newExecutionState, final String optionalMessage) {
+	public void executionStateChanged(JobID jobID, JobVertexID vertexId, int subtaskIndex, ExecutionAttemptID executionId, ExecutionState newExecutionState, String optionalMessage) {
 
 		switch (newExecutionState) {
 		case RUNNING:
-			this.taskManagerProfiler.registerMainThreadForCPUProfiling(this.environment,
-				this.environment.getExecutingThread(), vertexID);
+			this.taskManagerProfiler.registerMainThreadForCPUProfiling(this.environment, this.environment.getExecutingThread(), vertexId, subtaskIndex, executionId);
 			break;
-		case FINISHING:
+			
 		case FINISHED:
 		case CANCELING:
 		case CANCELED:
 		case FAILED:
-			this.taskManagerProfiler.unregisterMainThreadFromCPUProfiling(this.environment,
-				this.environment.getExecutingThread());
+			this.taskManagerProfiler.unregisterMainThreadFromCPUProfiling(this.environment, this.environment.getExecutingThread());
 			break;
+			
 		default:
-			LOG.error("Unexpected state transition to " + newExecutionState + " for vertex " + vertexID);
+			LOG.error(String.format("Unexpected state transition to %s for vertex %s (%d) attempt %s", newExecutionState, vertexId, subtaskIndex, executionId));
 			break;
 		}
-	}
-
-
-	@Override
-	public void userThreadFinished(final JobID jobID, final ExecutionVertexID vertexID, final Thread userThread) {
-
-		// Make sure the user thread is not the task's main thread
-		if (this.environment.getExecutingThread() == userThread) {
-			return;
-		}
-
-		this.taskManagerProfiler.unregisterUserThreadFromCPUProfiling(this.environment, userThread);
-	}
-
-
-	@Override
-	public void userThreadStarted(final JobID jobID, final ExecutionVertexID vertexID, final Thread userThread) {
-
-		// Make sure the user thread is not the task's main thread
-		if (this.environment.getExecutingThread() == userThread) {
-			return;
-		}
-
-		this.taskManagerProfiler.registerUserThreadForCPUProfiling(this.environment, userThread);
-	}
-
-
-	@Override
-	public int getPriority() {
-
-		return 1;
 	}
 }

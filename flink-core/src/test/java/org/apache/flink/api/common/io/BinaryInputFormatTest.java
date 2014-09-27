@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,16 +23,11 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
-import org.apache.flink.api.common.io.BinaryInputFormat;
-import org.apache.flink.api.common.io.BlockInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.types.Record;
-import org.apache.flink.util.LogUtils;
-import org.apache.log4j.Level;
 import org.junit.Assert;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 public class BinaryInputFormatTest {
@@ -47,11 +42,6 @@ public class BinaryInputFormatTest {
 		}
 	}
 	
-	@BeforeClass
-	public static void initialize() {
-		LogUtils.initializeDefaultConsoleLogger(Level.WARN);
-	}
-
 	@Test
 	public void testCreateInputSplitsWithOneFile() throws IOException {
 		// create temporary file with 3 blocks

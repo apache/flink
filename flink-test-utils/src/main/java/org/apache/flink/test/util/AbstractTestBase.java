@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -32,6 +32,7 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
@@ -39,9 +40,7 @@ import java.util.List;
 import org.apache.commons.io.FileUtils;
 import org.apache.flink.client.minicluster.NepheleMiniCluster;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.util.LogUtils;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.log4j.Level;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -56,7 +55,7 @@ public abstract class AbstractTestBase {
 
 	protected static final int DEFAULT_TASK_MANAGER_NUM_SLOTS = 1;
 
-	protected static final int DEFAULT_NUM_TASK_TRACKER = 1;
+	protected static final int DEFAULT_NUM_TASK_MANAGER = 1;
 
 	protected final Configuration config;
 	
@@ -66,14 +65,12 @@ public abstract class AbstractTestBase {
 
 	protected int taskManagerNumSlots = DEFAULT_TASK_MANAGER_NUM_SLOTS;
 
-	protected int numTaskTracker = DEFAULT_NUM_TASK_TRACKER;
+	protected int numTaskManager = DEFAULT_NUM_TASK_MANAGER;
 
 	public AbstractTestBase(Configuration config) {
 		verifyJvmOptions();
 		this.config = config;
 		this.tempFiles = new ArrayList<File>();
-
-		LogUtils.initializeDefaultConsoleLogger(Level.WARN);
 	}
 
 	private void verifyJvmOptions() {
@@ -92,7 +89,7 @@ public abstract class AbstractTestBase {
 		this.executor.setLazyMemoryAllocation(true);
 		this.executor.setMemorySize(TASK_MANAGER_MEMORY_SIZE);
 		this.executor.setTaskManagerNumSlots(taskManagerNumSlots);
-		this.executor.setNumTaskTracker(this.numTaskTracker);
+		this.executor.setNumTaskManager(this.numTaskManager);
 		this.executor.start();
 	}
 
@@ -118,9 +115,9 @@ public abstract class AbstractTestBase {
 
 	public void setTaskManagerNumSlots(int taskManagerNumSlots) { this.taskManagerNumSlots = taskManagerNumSlots; }
 
-	public int getNumTaskTracker() { return numTaskTracker; }
+	public int getNumTaskManager() { return numTaskManager; }
 
-	public void setNumTaskTracker(int numTaskTracker) { this.numTaskTracker = numTaskTracker; }
+	public void setNumTaskManager(int numTaskManager) { this.numTaskManager = numTaskManager; }
 
 	
 	// --------------------------------------------------------------------------------------------
@@ -145,7 +142,7 @@ public abstract class AbstractTestBase {
 	
 	public File createAndRegisterTempFile(String fileName) throws IOException {
 		File baseDir = new File(System.getProperty("java.io.tmpdir"));
-		File f = new File(baseDir, fileName);
+		File f = new File(baseDir, this.getClass().getName() + "-" + fileName);
 		
 		if (f.exists()) {
 			deleteRecursively(f);
@@ -290,6 +287,17 @@ public abstract class AbstractTestBase {
 			double resultPayLoad = Double.parseDouble(resultFields[1]);
 			
 			Assert.assertTrue("Values differ by more than the permissible delta", Math.abs(expectedPayLoad - resultPayLoad) < maxDelta);
+		}
+	}
+	
+	public static <X> void compareResultCollections(List<X> expected, List<X> actual, Comparator<X> comparator) {
+		Assert.assertEquals(expected.size(), actual.size());
+		
+		Collections.sort(expected, comparator);
+		Collections.sort(actual, comparator);
+		
+		for (int i = 0; i < expected.size(); i++) {
+			Assert.assertEquals(expected.get(i), actual.get(i));
 		}
 	}
 	

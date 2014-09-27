@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.instance;
 
 import java.io.IOException;
@@ -24,16 +23,16 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 
 import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.core.io.StringRecord;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.StringUtils;
 
 /**
  * This class encapsulates all connection information necessary to connect to the instance's task manager.
- * 
  */
-public class InstanceConnectionInfo implements IOReadableWritable, Comparable<InstanceConnectionInfo> {
+public class InstanceConnectionInfo implements IOReadableWritable, Comparable<InstanceConnectionInfo>, java.io.Serializable {
+
+	private static final long serialVersionUID = -8254407801276350716L;
 
 	/**
 	 * The network address the instance's task manager binds its sockets to.
@@ -55,14 +54,10 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 	 */
 	private String hostName;
 
-	/**
-	 * The domain name of the instance.
-	 */
-	private String domainName;
 
 	/**
 	 * Constructs a new instance connection info object. The constructor will attempt to retrieve the instance's
-	 * hostname and domain name through the operating system's lookup mechanisms.
+	 * host name and domain name through the operating system's lookup mechanisms.
 	 * 
 	 * @param inetAddress
 	 *        the network address the instance's task manager binds its sockets to
@@ -72,86 +67,26 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 	 *        the port instance's task manager expects to receive transfer envelopes on
 	 */
 	public InstanceConnectionInfo(InetAddress inetAddress, int ipcPort, int dataPort) {
-
 		if (inetAddress == null) {
 			throw new IllegalArgumentException("Argument inetAddress must not be null");
 		}
-
 		if (ipcPort <= 0) {
 			throw new IllegalArgumentException("Argument ipcPort must be greater than zero");
 		}
-
 		if (dataPort <= 0) {
 			throw new IllegalArgumentException("Argument dataPort must be greater than zero");
 		}
-
-		this.inetAddress = inetAddress;
-
-		final String hostAddStr = inetAddress.getHostAddress();
-		final String fqdn = inetAddress.getCanonicalHostName();
-
-		if (hostAddStr.equals(fqdn)) {
-			this.hostName = fqdn;
-			this.domainName = null;
-		} else {
-
-			// Look for the first dot in the FQDN
-			final int firstDot = fqdn.indexOf('.');
-			if (firstDot == -1) {
-				this.hostName = fqdn;
-				this.domainName = null;
-			} else {
-				this.hostName = fqdn.substring(0, firstDot);
-				this.domainName = fqdn.substring(firstDot + 1);
-			}
+		if (ipcPort == dataPort) {
+			throw new IllegalArgumentException("IPC and data port must be different");
 		}
 
 		this.ipcPort = ipcPort;
 		this.dataPort = dataPort;
-	}
-
-	/**
-	 * Constructs a new instance connection info object.
-	 * 
-	 * @param inetAddress
-	 *        the network address the instance's task manager binds its sockets to
-	 * @param hostName
-	 *        the host name of the instance
-	 * @param domainName
-	 *        the domain name of the instance
-	 * @param ipcPort
-	 *        the port instance's task manager runs its IPC service on
-	 * @param dataPort
-	 *        the port instance's task manager expects to receive transfer envelopes on.
-	 */
-	public InstanceConnectionInfo(final InetAddress inetAddress, final String hostName, final String domainName,
-			final int ipcPort, final int dataPort) {
-
-		if (inetAddress == null) {
-			throw new IllegalArgumentException("Argument inetAddress must not be null");
-		}
-
-		if (hostName == null) {
-			throw new IllegalArgumentException("Argument hostName must not be null");
-		}
-
-		if (ipcPort <= 0) {
-			throw new IllegalArgumentException("Argument ipcPort must be greater than zero");
-		}
-
-		if (dataPort <= 0) {
-			throw new IllegalArgumentException("Argument dataPort must be greater than zero");
-		}
-
 		this.inetAddress = inetAddress;
-		this.hostName = hostName;
-		this.domainName = domainName;
-		this.ipcPort = ipcPort;
-		this.dataPort = dataPort;
 	}
 
 	/**
-	 * Constructs an empty {@link InstanceConnectionInfo} object.
+	 * Constructs an empty object.
 	 */
 	public InstanceConnectionInfo() {}
 
@@ -161,7 +96,6 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 	 * @return the port instance's task manager runs its IPC service on
 	 */
 	public int ipcPort() {
-
 		return this.ipcPort;
 	}
 
@@ -171,7 +105,6 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 	 * @return the port instance's task manager expects to receive transfer envelopes on
 	 */
 	public int dataPort() {
-
 		return this.dataPort;
 	}
 
@@ -181,7 +114,6 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 	 * @return the network address the instance's task manager binds its sockets to
 	 */
 	public InetAddress address() {
-
 		return this.inetAddress;
 	}
 
@@ -192,110 +124,118 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 	 * @return the host name of the instance
 	 */
 	public String hostname() {
-
+		if (this.hostName == null) {
+			try {
+				this.hostName = this.inetAddress.getCanonicalHostName();
+			} catch (Throwable t) {
+				// could not determine host name, so take IP textual representation
+				this.hostName = inetAddress.getHostAddress();
+			}
+		}
 		return this.hostName;
 	}
 
-	/**
-	 * Returns the domain name of the instance.
-	 * 
-	 * @return the domain name of the instance or <code>null</code> if the domain name could not be determined
-	 */
-	public String domainName() {
-
-		return this.domainName;
-	}
 	
 	public String getInetAdress() {
 		return this.inetAddress.toString();
 	}
 
+	// --------------------------------------------------------------------------------------------
+	// Serialization
+	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public void read(final DataInputView in) throws IOException {
+	public void read(DataInputView in) throws IOException {
 
 		final int addr_length = in.readInt();
 		byte[] address = new byte[addr_length];
 		in.readFully(address);
-		this.hostName = StringRecord.readString(in);
-		this.domainName = StringRecord.readString(in);
+		
+		this.ipcPort = in.readInt();
+		this.dataPort = in.readInt();
+		
+		this.hostName = StringUtils.readNullableString(in);
 
 		try {
 			this.inetAddress = InetAddress.getByAddress(address);
-		} catch (UnknownHostException uhe) {
-			throw new IOException(StringUtils.stringifyException(uhe));
+		} catch (UnknownHostException e) {
+			throw new IOException("This lookup should never fail.", e);
 		}
-
-		this.ipcPort = in.readInt();
-		this.dataPort = in.readInt();
 	}
 
 
 	@Override
 	public void write(final DataOutputView out) throws IOException {
-
 		out.writeInt(this.inetAddress.getAddress().length);
 		out.write(this.inetAddress.getAddress());
-		StringRecord.writeString(out, this.hostName);
-		StringRecord.writeString(out, this.domainName);
+		
 		out.writeInt(this.ipcPort);
 		out.writeInt(this.dataPort);
+		
+		StringUtils.writeNullableString(hostName, out);
 	}
 
+	// --------------------------------------------------------------------------------------------
+	// Utilities
+	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public String toString() {
-
-		String iaString;
-		String portsString = " (ipcPort="+ipcPort+", dataPort="+dataPort+")";
-		if (this.hostName != null) {
-			iaString = this.hostName+portsString;
-		} else {
-			iaString = inetAddress.toString();
-			iaString = iaString.replace("/", "");
-			iaString += portsString;
-		}
-
-		return iaString;
+		return hostname() + " (ipcPort=" + ipcPort + ", dataPort=" + dataPort + ")";
 	}
-
 
 	@Override
-	public boolean equals(final Object obj) {
-
+	public boolean equals(Object obj) {
 		if (obj instanceof InstanceConnectionInfo) {
-
-			InstanceConnectionInfo ici = (InstanceConnectionInfo) obj;
-			if (!this.inetAddress.equals(ici.address())) {
-				return false;
-			}
-
-			if (this.ipcPort != ici.ipcPort()) {
-				return false;
-			}
-
-			if (this.dataPort != ici.dataPort()) {
-				return false;
-			}
-
-			return true;
+			InstanceConnectionInfo other = (InstanceConnectionInfo) obj;
+			return this.ipcPort == other.ipcPort &&
+					this.dataPort == other.dataPort &&
+					this.inetAddress.equals(other.inetAddress);
+		} else {
+			return false;
 		}
-
-		return false;
 	}
-
 
 	@Override
 	public int hashCode() {
-		return this.inetAddress.hashCode();
+		return this.inetAddress.hashCode() +
+				17*ipcPort +
+				23*dataPort;
 	}
-
 
 	@Override
-	public int compareTo(final InstanceConnectionInfo o) {
-
-		return this.address().getHostName()
-			.compareTo(((InstanceConnectionInfo) o).address().getHostName());
+	public int compareTo(InstanceConnectionInfo o) {
+		// decide based on address first
+		byte[] thisAddress = this.inetAddress.getAddress();
+		byte[] otherAddress = o.inetAddress.getAddress();
+		
+		if (thisAddress.length < otherAddress.length) {
+			return -1;
+		} else if (thisAddress.length > otherAddress.length) {
+			return 1;
+		} else {
+			for (int i = 0; i < thisAddress.length; i++) {
+				byte tb = thisAddress[i];
+				byte ob = otherAddress[i];
+				if (tb < ob) {
+					return -1;
+				} else if (tb > ob) {
+					return 1;
+				}
+			}
+		}
+		
+		// addresses are identical, decide based on ports.
+		if (this.ipcPort < o.ipcPort) {
+			return -1;
+		} else if (this.ipcPort > o.ipcPort) {
+			return 1;
+		} else if (this.dataPort < o.dataPort) {
+			return -1;
+		} else if (this.dataPort > o.dataPort) {
+			return 1;
+		} else {
+			return 0;
+		}
 	}
-
 }

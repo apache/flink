@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -112,7 +112,8 @@ public class PlanDisplayServlet extends GUIServletStub {
 		writer.println("    <script type=\"text/javascript\">\n" + "    <!--\n" + "      var maxColumnWidth = 350;\n"
 			+ "      var minColumnWidth = 150;\n\n" + "      $(document).ready(function() {\n");
 
-		writer.println("        // register the event handler for the 'run' button\n"
+		writer.println("        // register the event handler for the 'run' button and activate zoom Buttons\n"
+					+ " activateZoomButtons();"
 					+ "        $('#run_button').click(function () {\n" + "          $('#run_button').remove();\n"
 					+ "          $.ajax( {" + " url: '/runJob'," + " data: { action: 'runsubmitted', id: '" + uid + "' },"
 					+ " success: function () { alert('Job succesfully submitted');"

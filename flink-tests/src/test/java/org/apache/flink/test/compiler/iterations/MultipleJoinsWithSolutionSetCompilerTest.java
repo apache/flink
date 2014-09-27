@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,9 +23,9 @@ import static org.junit.Assert.fail;
 
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.aggregation.Aggregations;
-import org.apache.flink.api.java.functions.FlatMapFunction;
-import org.apache.flink.api.java.functions.JoinFunction;
-import org.apache.flink.api.java.functions.MapFunction;
+import org.apache.flink.api.common.functions.RichFlatMapFunction;
+import org.apache.flink.api.common.functions.RichJoinFunction;
+import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.runtime.operators.DriverStrategy;
@@ -34,7 +34,7 @@ import org.apache.flink.test.compiler.util.CompilerTestBase;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.DeltaIteration;
+import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.compiler.plan.DualInputPlanNode;
 import org.apache.flink.compiler.plan.OptimizedPlan;
@@ -106,7 +106,7 @@ public class MultipleJoinsWithSolutionSetCompilerTest extends CompilerTestBase {
 		return result;
 	}
 	
-	public static final class SummingJoin extends JoinFunction<Tuple2<Long, Double>, Tuple2<Long, Double>, Tuple2<Long, Double>> {
+	public static final class SummingJoin extends RichJoinFunction<Tuple2<Long, Double>, Tuple2<Long, Double>, Tuple2<Long, Double>> {
 
 		@Override
 		public Tuple2<Long, Double> join(Tuple2<Long, Double> first, Tuple2<Long, Double> second) {
@@ -114,7 +114,7 @@ public class MultipleJoinsWithSolutionSetCompilerTest extends CompilerTestBase {
 		}
 	}
 	
-	public static final class SummingJoinProject extends JoinFunction<Tuple3<Long, Double, Double>, Tuple2<Long, Double>, Tuple2<Long, Double>> {
+	public static final class SummingJoinProject extends RichJoinFunction<Tuple3<Long, Double, Double>, Tuple2<Long, Double>, Tuple2<Long, Double>> {
 
 		@Override
 		public Tuple2<Long, Double> join(Tuple3<Long, Double, Double> first, Tuple2<Long, Double> second) {
@@ -122,7 +122,7 @@ public class MultipleJoinsWithSolutionSetCompilerTest extends CompilerTestBase {
 		}
 	}
 	
-	public static final class Duplicator extends FlatMapFunction<Tuple2<Long, Double>, Tuple2<Long, Double>> {
+	public static final class Duplicator extends RichFlatMapFunction<Tuple2<Long, Double>, Tuple2<Long, Double>> {
 
 		@Override
 		public void flatMap(Tuple2<Long, Double> value, Collector<Tuple2<Long, Double>> out) {
@@ -131,7 +131,7 @@ public class MultipleJoinsWithSolutionSetCompilerTest extends CompilerTestBase {
 		}
 	}
 	
-	public static final class Expander extends MapFunction<Tuple2<Long, Double>, Tuple3<Long, Double, Double>> {
+	public static final class Expander extends RichMapFunction<Tuple2<Long, Double>, Tuple3<Long, Double, Double>> {
 
 		@Override
 		public Tuple3<Long, Double, Double> map(Tuple2<Long, Double> value) {

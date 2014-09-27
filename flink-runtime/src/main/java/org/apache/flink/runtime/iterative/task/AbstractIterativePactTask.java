@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,8 +19,8 @@
 
 package org.apache.flink.runtime.iterative.task;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.aggregators.LongSumAggregator;
 import org.apache.flink.api.common.functions.Function;
@@ -57,7 +57,7 @@ import java.io.IOException;
 public abstract class AbstractIterativePactTask<S extends Function, OT> extends RegularPactTask<S, OT>
 		implements Terminable
 {
-	private static final Log log = LogFactory.getLog(AbstractIterativePactTask.class);
+	private static final Logger log = LoggerFactory.getLogger(AbstractIterativePactTask.class);
 	
 	protected LongSumAggregator worksetAggregator;
 
@@ -210,28 +210,17 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 		return this.iterationAggregators;
 	}
 
-	protected void checkForTerminationAndResetEndOfSuperstepState() throws IOException {
+	protected void verifyEndOfSuperstepState() throws IOException {
 		// sanity check that there is at least one iterative input reader
 		if (this.iterativeInputs.length == 0 && this.iterativeBroadcastInputs.length == 0) {
-			throw new IllegalStateException();
+			throw new IllegalStateException("Error: Iterative task without a single iterative input.");
 		}
-
-		// check whether this step ended due to end-of-superstep, or proper close
-		boolean anyClosed = false;
-		boolean allClosed = true;
 
 		for (int inputNum : this.iterativeInputs) {
 			MutableReader<?> reader = this.inputReaders[inputNum];
 
-			if (reader.isInputClosed()) {
-				anyClosed = true;
-			}
-			else {
-				// check if reader has reached the end of superstep, or if the operation skipped out early
+			if (!reader.isInputClosed()) {
 				if (reader.hasReachedEndOfSuperstep()) {
-					allClosed = false;
-					
-					// also reset the end-of-superstep state
 					reader.startNextSuperstep();
 				}
 				else {
@@ -241,11 +230,7 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 					Object o = this.inputSerializers[inputNum].getSerializer().createInstance();
 					while ((o = inIter.next(o)) != null);
 					
-					if (reader.isInputClosed()) {
-						anyClosed = true;
-					} else {
-						allClosed = false;
-						
+					if (!reader.isInputClosed()) {
 						// also reset the end-of-superstep state
 						reader.startNextSuperstep();
 					}
@@ -256,27 +241,15 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 		for (int inputNum : this.iterativeBroadcastInputs) {
 			MutableReader<?> reader = this.broadcastInputReaders[inputNum];
 
-			if (reader.isInputClosed()) {
-				anyClosed = true;
-			}
-			else {
-				// sanity check that the BC input is at the end of teh superstep
+			if (!reader.isInputClosed()) {
+				
+				// sanity check that the BC input is at the end of the superstep
 				if (!reader.hasReachedEndOfSuperstep()) {
 					throw new IllegalStateException("An iterative broadcast input has not been fully consumed.");
 				}
 				
-				allClosed = false;
 				reader.startNextSuperstep();
 			}
-		}
-
-		// sanity check whether we saw the same state (end-of-superstep or termination) on all inputs
-		if (allClosed != anyClosed) {
-			throw new IllegalStateException("Inconsistent state: Iteration termination received on some, but not all inputs.");
-		}
-
-		if (allClosed) {
-			requestTermination();
 		}
 	}
 

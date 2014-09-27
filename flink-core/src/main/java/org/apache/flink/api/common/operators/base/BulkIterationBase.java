@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,13 +23,13 @@ import java.io.Serializable;
 import java.util.Collections;
 import java.util.Map;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.aggregators.AggregatorRegistry;
 import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
-import org.apache.flink.api.common.functions.AbstractFunction;
+import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.GenericCollectorMap;
 import org.apache.flink.api.common.operators.IterationOperator;
 import org.apache.flink.api.common.operators.Operator;
@@ -38,17 +38,18 @@ import org.apache.flink.api.common.operators.SingleInputOperator;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
+import org.apache.flink.api.common.typeinfo.NothingTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.Nothing;
-import org.apache.flink.types.NothingTypeInfo;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Visitor;
 
 /**
  * 
  */
-public class BulkIterationBase<T> extends SingleInputOperator<T, T, AbstractFunction> implements IterationOperator {
+@SuppressWarnings("deprecation")
+public class BulkIterationBase<T> extends SingleInputOperator<T, T, AbstractRichFunction> implements IterationOperator {
 	
 	private static String DEFAULT_NAME = "<Unnamed Bulk Iteration>";
 	
@@ -78,7 +79,7 @@ public class BulkIterationBase<T> extends SingleInputOperator<T, T, AbstractFunc
 	 * @param name
 	 */
 	public BulkIterationBase(UnaryOperatorInformation<T, T> operatorInfo, String name) {
-		super(new UserCodeClassWrapper<AbstractFunction>(AbstractFunction.class), operatorInfo, name);
+		super(new UserCodeClassWrapper<AbstractRichFunction>(AbstractRichFunction.class), operatorInfo, name);
 		inputPlaceHolder = new PartialSolutionPlaceHolder<T>(this, this.getOperatorInfo());
 	}
 
@@ -230,7 +231,7 @@ public class BulkIterationBase<T> extends SingleInputOperator<T, T, AbstractFunc
 	/**
 	 * Special Mapper that is added before a termination criterion and is only a container for an special aggregator
 	 */
-	public static class TerminationCriterionMapper<X> extends AbstractFunction implements Serializable, GenericCollectorMap<X, Nothing> {
+	public static class TerminationCriterionMapper<X> extends AbstractRichFunction implements Serializable, GenericCollectorMap<X, Nothing> {
 		private static final long serialVersionUID = 1L;
 		
 		private TerminationCriterionAggregator aggregator;
@@ -280,7 +281,7 @@ public class BulkIterationBase<T> extends SingleInputOperator<T, T, AbstractFunc
 	@SuppressWarnings("serial")
 	public static class TerminationCriterionAggregationConvergence implements ConvergenceCriterion<LongValue> {
 
-		private static final Log log = LogFactory.getLog(TerminationCriterionAggregationConvergence.class);
+		private static final Logger log = LoggerFactory.getLogger(TerminationCriterionAggregationConvergence.class);
 
 		@Override
 		public boolean isConverged(int iteration, LongValue countAggregate) {

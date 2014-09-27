@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,11 +18,7 @@
 
 package org.apache.flink.api.java.operators;
 
-import org.apache.flink.api.java.BulkIterationResultSet;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.DeltaIteration;
-import org.apache.flink.api.java.DeltaIterationResultSet;
-import org.apache.flink.api.java.IterativeDataSet;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -71,6 +67,7 @@ public class OperatorTranslation {
 	
 	
 	private <T> Operator<T> translate(DataSet<T> dataSet) {
+		
 		// check if we have already translated that data set (operation or source)
 		Operator<?> previous = (Operator<?>) this.translated.get(dataSet);
 		if (previous != null) {
@@ -132,7 +129,7 @@ public class OperatorTranslation {
 			}
 			
 			// set the semantic properties
-			dataFlowOp.setSemanticProperties(udfOp.getSematicProperties());
+			dataFlowOp.setSemanticProperties(udfOp.getSemanticProperties());
 		}
 		
 		return dataFlowOp;
@@ -164,7 +161,7 @@ public class OperatorTranslation {
 			}
 			
 			// set the semantic properties
-			dataFlowOp.setSemanticProperties(udfOp.getSematicProperties());
+			dataFlowOp.setSemanticProperties(udfOp.getSemanticProperties());
 		}
 		
 		return dataFlowOp;

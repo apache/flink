@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 
 package org.apache.flink.test.iterative;
 
@@ -104,7 +103,8 @@ public class CoGroupConnectedComponentsITCase extends RecordAPITestBase {
 			long minimumComponentID = Long.MAX_VALUE;
 
 			while (candidates.hasNext()) {
-				long candidateComponentID = candidates.next().getField(1, LongValue.class).getValue();
+				Record candidate = candidates.next();
+				long candidateComponentID = candidate.getField(1, LongValue.class).getValue();
 				if (candidateComponentID < minimumComponentID) {
 					minimumComponentID = candidateComponentID;
 				}

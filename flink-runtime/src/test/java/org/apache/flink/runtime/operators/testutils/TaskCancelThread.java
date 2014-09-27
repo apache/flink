@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,7 +21,7 @@ package org.apache.flink.runtime.operators.testutils;
 
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 
 public class TaskCancelThread extends Thread
 {

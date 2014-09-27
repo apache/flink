@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,6 +21,7 @@ package org.apache.flink.runtime.operators.testutils.types;
 import java.io.IOException;
 
 import org.apache.flink.api.common.typeutils.TypeComparator;
+import org.apache.flink.api.common.typeutils.base.IntComparator;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
@@ -30,6 +31,10 @@ public class IntListComparator extends TypeComparator<IntList> {
 	private static final long serialVersionUID = 1L;
 	
 	private int reference;
+
+	private Comparable[] extractedKey = new Comparable[1];
+
+	private final TypeComparator[] comparators = new TypeComparator[] {new IntComparator(true)};
 
 	@Override
 	public int hash(IntList record) {
@@ -58,7 +63,7 @@ public class IntListComparator extends TypeComparator<IntList> {
 	}
 
 	@Override
-	public int compare(DataInputView source1, DataInputView source2) throws IOException {
+	public int compareSerialized(DataInputView source1, DataInputView source2) throws IOException {
 		return source1.readInt() - source2.readInt();
 	}
 
@@ -134,4 +139,15 @@ public class IntListComparator extends TypeComparator<IntList> {
 	public TypeComparator<IntList> duplicate() {
 		return new IntListComparator();
 	}
+
+	@Override
+	public Object[] extractKeys(IntList record) {
+		extractedKey[0] = record.getKey();
+		return extractedKey;
+	}
+
+	@Override public TypeComparator[] getComparators() {
+		return comparators;
+	}
+
 }

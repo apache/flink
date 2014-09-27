@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,8 +25,8 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.io.NonParallelInput;
 import org.apache.flink.api.java.record.io.GenericInputFormat;
 import org.apache.flink.configuration.Configuration;
@@ -56,7 +56,7 @@ public class JDBCInputFormat extends GenericInputFormat implements NonParallelIn
 	private static final long serialVersionUID = 1L;
 	
 	@SuppressWarnings("unused")
-	private static final Log LOG = LogFactory.getLog(JDBCInputFormat.class);
+	private static final Logger LOG = LoggerFactory.getLogger(JDBCInputFormat.class);
 	
 
 	public final String DRIVER_KEY = "driver";

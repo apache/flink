@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -37,18 +37,13 @@ public abstract class AbstractJobResult implements IOReadableWritable {
 
 	/**
 	 * The possible return codes for a job operation.
-	 * 
 	 */
 	public enum ReturnCode {
 
-		/**
-		 * The success return code.
-		 */
+		/** The success return code. */
 		SUCCESS,
 
-		/**
-		 * The error return code.
-		 */
+		/** The error return code. */
 		ERROR
 	};
 
@@ -60,7 +55,7 @@ public abstract class AbstractJobResult implements IOReadableWritable {
 	/**
 	 * An optional description which can provide further information in case of an error.
 	 */
-	private String description = null;
+	private String description = "";
 
 	/**
 	 * Constructs a new abstract job result object and sets the description.
@@ -70,7 +65,7 @@ public abstract class AbstractJobResult implements IOReadableWritable {
 	 * @param description
 	 *        the optional error description
 	 */
-	public AbstractJobResult(final ReturnCode returnCode, final String description) {
+	public AbstractJobResult(ReturnCode returnCode, String description) {
 		this.returnCode = returnCode;
 		this.description = description;
 	}
@@ -79,8 +74,7 @@ public abstract class AbstractJobResult implements IOReadableWritable {
 	 * Construct a new abstract job result object. This constructor is required
 	 * for the deserialization process.
 	 */
-	public AbstractJobResult() {
-	}
+	public AbstractJobResult() {}
 
 
 	@Override

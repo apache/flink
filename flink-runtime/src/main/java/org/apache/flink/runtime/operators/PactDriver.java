@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -44,19 +44,19 @@ public interface PactDriver<S extends Function, OT> {
 	int getNumberOfInputs();
 	
 	/**
+	 * Gets the number of comparators required for this driver.
+	 * 
+	 * @return The number of comparators required for this driver.
+	 */
+	int getNumberOfDriverComparators();
+	
+	/**
 	 * Gets the class of the stub type that is run by this task. For example, a <tt>MapTask</tt> should return
 	 * <code>MapFunction.class</code>.   
 	 * 
 	 * @return The class of the stub type run by the task.
 	 */
 	Class<S> getStubType();
-	
-	/**
-	 * Flag indicating whether the inputs require always comparators or not.
-	 * 
-	 * @return True, if the initialization should look for and create comparators, false otherwise.
-	 */
-	boolean requiresComparatorOnInput();
 	
 	/**
 	 * This method is called before the user code is opened. An exception thrown by this method

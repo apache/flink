@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -31,18 +31,26 @@ import java.util.List;
 import java.util.Set;
 
 import org.apache.commons.lang3.Validate;
-import org.apache.flink.api.common.functions.GenericCoGrouper;
-import org.apache.flink.api.common.functions.GenericCrosser;
-import org.apache.flink.api.common.functions.GenericFlatMap;
-import org.apache.flink.api.common.functions.GenericGroupReduce;
-import org.apache.flink.api.common.functions.GenericJoiner;
-import org.apache.flink.api.common.functions.GenericMap;
+import org.apache.flink.api.common.functions.CoGroupFunction;
+import org.apache.flink.api.common.functions.CrossFunction;
+import org.apache.flink.api.common.functions.FlatJoinFunction;
+import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.InvalidTypesException;
+import org.apache.flink.api.common.functions.JoinFunction;
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.MapPartitionFunction;
+import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.io.InputFormat;
-import org.apache.flink.api.java.functions.InvalidTypesException;
+import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.types.TypeInformation;
 import org.apache.flink.types.Value;
+import org.apache.flink.util.Collector;
 import org.apache.hadoop.io.Writable;
 
 public class TypeExtractor {
@@ -59,74 +67,45 @@ public class TypeExtractor {
 	//  Function specific methods
 	// --------------------------------------------------------------------------------------------
 	
-	@SuppressWarnings("unchecked")
-	public static <IN, OUT> TypeInformation<OUT> getMapReturnTypes(GenericMap<IN, OUT> mapInterface, TypeInformation<IN> inType) {
-		validateInputType(GenericMap.class, mapInterface.getClass(), 0, inType);
-		if(mapInterface instanceof ResultTypeQueryable) {
-			return ((ResultTypeQueryable<OUT>) mapInterface).getProducedType();
-		}
-		return new TypeExtractor().privateCreateTypeInfo(GenericMap.class, mapInterface.getClass(), 1, inType, null);
+	public static <IN, OUT> TypeInformation<OUT> getMapReturnTypes(MapFunction<IN, OUT> mapInterface, TypeInformation<IN> inType) {
+		return getUnaryOperatorReturnType((Function) mapInterface, MapFunction.class, false, false, inType);
 	}
 	
-	@SuppressWarnings("unchecked")
-	public static <IN, OUT> TypeInformation<OUT> getFlatMapReturnTypes(GenericFlatMap<IN, OUT> flatMapInterface, TypeInformation<IN> inType) {
-		validateInputType(GenericFlatMap.class, flatMapInterface.getClass(), 0, inType);
-		if(flatMapInterface instanceof ResultTypeQueryable) {
-			return ((ResultTypeQueryable<OUT>) flatMapInterface).getProducedType();
-		}
-		return new TypeExtractor().privateCreateTypeInfo(GenericFlatMap.class, flatMapInterface.getClass(), 1, inType, null);
+	public static <IN, OUT> TypeInformation<OUT> getFlatMapReturnTypes(FlatMapFunction<IN, OUT> flatMapInterface, TypeInformation<IN> inType) {
+		return getUnaryOperatorReturnType((Function) flatMapInterface, FlatMapFunction.class, false, true, inType);
 	}
 	
-	@SuppressWarnings("unchecked")
-	public static <IN, OUT> TypeInformation<OUT> getGroupReduceReturnTypes(GenericGroupReduce<IN, OUT> groupReduceInterface,
+	public static <IN, OUT> TypeInformation<OUT> getMapPartitionReturnTypes(MapPartitionFunction<IN, OUT> mapPartitionInterface, TypeInformation<IN> inType) {
+		return getUnaryOperatorReturnType((Function) mapPartitionInterface, MapPartitionFunction.class, true, true, inType);
+	}
+	
+	public static <IN, OUT> TypeInformation<OUT> getGroupReduceReturnTypes(GroupReduceFunction<IN, OUT> groupReduceInterface,
 			TypeInformation<IN> inType) {
-		validateInputType(GenericGroupReduce.class, groupReduceInterface.getClass(), 0, inType);
-		if(groupReduceInterface instanceof ResultTypeQueryable) {
-			return ((ResultTypeQueryable<OUT>) groupReduceInterface).getProducedType();
-		}
-		return new TypeExtractor().privateCreateTypeInfo(GenericGroupReduce.class, groupReduceInterface.getClass(), 1, inType, null);
+		return getUnaryOperatorReturnType((Function) groupReduceInterface, GroupReduceFunction.class, true, true, inType);
 	}
 	
-	@SuppressWarnings("unchecked")
-	public static <IN1, IN2, OUT> TypeInformation<OUT> getJoinReturnTypes(GenericJoiner<IN1, IN2, OUT> joinInterface,
+	public static <IN1, IN2, OUT> TypeInformation<OUT> getFlatJoinReturnTypes(FlatJoinFunction<IN1, IN2, OUT> joinInterface,
 			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type) {
-		validateInputType(GenericJoiner.class, joinInterface.getClass(), 0, in1Type);
-		validateInputType(GenericJoiner.class, joinInterface.getClass(), 1, in2Type);
-		if(joinInterface instanceof ResultTypeQueryable) {
-			return ((ResultTypeQueryable<OUT>) joinInterface).getProducedType();
-		}
-		return new TypeExtractor().privateCreateTypeInfo(GenericJoiner.class, joinInterface.getClass(), 2, in1Type, in2Type);
+		return getBinaryOperatorReturnType((Function) joinInterface, FlatJoinFunction.class, false, true, in1Type, in2Type);
 	}
 	
-	@SuppressWarnings("unchecked")
-	public static <IN1, IN2, OUT> TypeInformation<OUT> getCoGroupReturnTypes(GenericCoGrouper<IN1, IN2, OUT> coGroupInterface,
+	public static <IN1, IN2, OUT> TypeInformation<OUT> getJoinReturnTypes(JoinFunction<IN1, IN2, OUT> joinInterface,
 			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type) {
-		validateInputType(GenericCoGrouper.class, coGroupInterface.getClass(), 0, in1Type);
-		validateInputType(GenericCoGrouper.class, coGroupInterface.getClass(), 1, in2Type);
-		if(coGroupInterface instanceof ResultTypeQueryable) {
-			return ((ResultTypeQueryable<OUT>) coGroupInterface).getProducedType();
-		}
-		return new TypeExtractor().privateCreateTypeInfo(GenericCoGrouper.class, coGroupInterface.getClass(), 2, in1Type, in2Type);
+		return getBinaryOperatorReturnType((Function) joinInterface, JoinFunction.class, false, false, in1Type, in2Type);
 	}
 	
-	@SuppressWarnings("unchecked")
-	public static <IN1, IN2, OUT> TypeInformation<OUT> getCrossReturnTypes(GenericCrosser<IN1, IN2, OUT> crossInterface,
+	public static <IN1, IN2, OUT> TypeInformation<OUT> getCoGroupReturnTypes(CoGroupFunction<IN1, IN2, OUT> coGroupInterface,
 			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type) {
-		validateInputType(GenericCrosser.class, crossInterface.getClass(), 0, in1Type);
-		validateInputType(GenericCrosser.class, crossInterface.getClass(), 1, in2Type);
-		if(crossInterface instanceof ResultTypeQueryable) {
-			return ((ResultTypeQueryable<OUT>) crossInterface).getProducedType();
-		}
-		return new TypeExtractor().privateCreateTypeInfo(GenericCrosser.class, crossInterface.getClass(), 2, in1Type, in2Type);
+		return getBinaryOperatorReturnType((Function) coGroupInterface, CoGroupFunction.class, true, true, in1Type, in2Type);
 	}
 	
-	@SuppressWarnings("unchecked")
+	public static <IN1, IN2, OUT> TypeInformation<OUT> getCrossReturnTypes(CrossFunction<IN1, IN2, OUT> crossInterface,
+			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type) {
+		return getBinaryOperatorReturnType((Function) crossInterface, CrossFunction.class, false, false, in1Type, in2Type);
+	}
+	
 	public static <IN, OUT> TypeInformation<OUT> getKeySelectorTypes(KeySelector<IN, OUT> selectorInterface, TypeInformation<IN> inType) {
-		validateInputType(KeySelector.class, selectorInterface.getClass(), 0, inType);
-		if(selectorInterface instanceof ResultTypeQueryable) {
-			return ((ResultTypeQueryable<OUT>) selectorInterface).getProducedType();
-		}
-		return new TypeExtractor().privateCreateTypeInfo(KeySelector.class, selectorInterface.getClass(), 1, inType, null);
+		return getUnaryOperatorReturnType((Function) selectorInterface, KeySelector.class, false, false, inType);
 	}
 	
 	@SuppressWarnings("unchecked")
@@ -137,6 +116,59 @@ public class TypeExtractor {
 		return new TypeExtractor().privateCreateTypeInfo(InputFormat.class, inputFormatInterface.getClass(), 0, null, null);
 	}
 	
+	@SuppressWarnings("unchecked")
+	private static <IN, OUT> TypeInformation<OUT> getUnaryOperatorReturnType(Function function, Class<?> baseClass, boolean hasIterable, boolean hasCollector, TypeInformation<IN> inType) {
+		final Method m = FunctionUtils.checkAndExtractLambdaMethod(function);
+		if (m != null) {
+			// check for lambda type erasure
+			validateLambdaGenericParameters(m);
+			
+			// parameters must be accessed from behind, since JVM can add additional parameters e.g. when using local variables inside lambda function
+			final int paramLen = m.getGenericParameterTypes().length - 1;
+			final Type input = (hasCollector)? m.getGenericParameterTypes()[paramLen - 1] : m.getGenericParameterTypes()[paramLen];
+			validateInputType((hasIterable)?removeGenericWrapper(input) : input, inType);
+			if(function instanceof ResultTypeQueryable) {
+				return ((ResultTypeQueryable<OUT>) function).getProducedType();
+			}
+			return new TypeExtractor().privateCreateTypeInfo((hasCollector)? removeGenericWrapper(m.getGenericParameterTypes()[paramLen]) : m.getGenericReturnType(), inType, null);
+		}
+		else {
+			validateInputType(baseClass, function.getClass(), 0, inType);
+			if(function instanceof ResultTypeQueryable) {
+				return ((ResultTypeQueryable<OUT>) function).getProducedType();
+			}
+			return new TypeExtractor().privateCreateTypeInfo(baseClass, function.getClass(), 1, inType, null);
+		}
+	}
+	
+	@SuppressWarnings("unchecked")
+	private static <IN1, IN2, OUT> TypeInformation<OUT> getBinaryOperatorReturnType(Function function, Class<?> baseClass, boolean hasIterables, boolean hasCollector, TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type) {
+		final Method m = FunctionUtils.checkAndExtractLambdaMethod(function);
+		if (m != null) {
+			// check for lambda type erasure
+			validateLambdaGenericParameters(m);
+			
+			// parameters must be accessed from behind, since JVM can add additional parameters e.g. when using local variables inside lambda function
+			final int paramLen = m.getGenericParameterTypes().length - 1;
+			final Type input1 = (hasCollector)? m.getGenericParameterTypes()[paramLen - 2] : m.getGenericParameterTypes()[paramLen - 1];
+			final Type input2 = (hasCollector)? m.getGenericParameterTypes()[paramLen - 1] : m.getGenericParameterTypes()[paramLen];
+			validateInputType((hasIterables)? removeGenericWrapper(input1) : input1, in1Type);
+			validateInputType((hasIterables)? removeGenericWrapper(input2) : input2, in2Type);
+			if(function instanceof ResultTypeQueryable) {
+				return ((ResultTypeQueryable<OUT>) function).getProducedType();
+			}
+			return new TypeExtractor().privateCreateTypeInfo((hasCollector)? removeGenericWrapper(m.getGenericParameterTypes()[paramLen]) : m.getGenericReturnType(), in1Type, in2Type);
+		}
+		else {
+			validateInputType(baseClass, function.getClass(), 0, in1Type);
+			validateInputType(baseClass, function.getClass(), 1, in2Type);
+			if(function instanceof ResultTypeQueryable) {
+				return ((ResultTypeQueryable<OUT>) function).getProducedType();
+			}
+			return new TypeExtractor().privateCreateTypeInfo(baseClass, function.getClass(), 2, in1Type, in2Type);
+		}
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	//  Create type information
 	// --------------------------------------------------------------------------------------------
@@ -145,17 +177,20 @@ public class TypeExtractor {
 		return new TypeExtractor().privateCreateTypeInfo(t);
 	}
 	
+	public static <IN1, IN2, OUT> TypeInformation<OUT> createTypeInfo(Class<?> baseClass, Class<?> clazz, int returnParamPos,
+			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type) {
+		return new TypeExtractor().privateCreateTypeInfo(baseClass, clazz, returnParamPos, in1Type, in2Type);
+	}
+	
+	// ----------------------------------- private methods ----------------------------------------
+	
 	private TypeInformation<?> privateCreateTypeInfo(Type t) {
 		ArrayList<Type> typeHierarchy = new ArrayList<Type>();
 		typeHierarchy.add(t);
 		return createTypeInfoWithTypeHierarchy(typeHierarchy, t, null, null);
 	}
 	
-	public static <IN1, IN2, OUT> TypeInformation<OUT> createTypeInfo(Class<?> baseClass, Class<?> clazz, int returnParamPos,
-			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type) {
-		return new TypeExtractor().privateCreateTypeInfo(baseClass, clazz, returnParamPos, in1Type, in2Type);
-	}
-	
+	// for (Rich)Functions
 	@SuppressWarnings("unchecked")
 	private <IN1, IN2, OUT> TypeInformation<OUT> privateCreateTypeInfo(Class<?> baseClass, Class<?> clazz, int returnParamPos,
 			TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type) {
@@ -172,6 +207,15 @@ public class TypeExtractor {
 				return typeInfo;
 			}
 		}
+		
+		// get info from hierarchy
+		return (TypeInformation<OUT>) createTypeInfoWithTypeHierarchy(typeHierarchy, returnType, in1Type, in2Type);
+	}
+	
+	// for LambdaFunctions
+	@SuppressWarnings("unchecked")
+	private <IN1, IN2, OUT> TypeInformation<OUT> privateCreateTypeInfo(Type returnType, TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type) {
+		ArrayList<Type> typeHierarchy = new ArrayList<Type>();
 		
 		// get info from hierarchy
 		return (TypeInformation<OUT>) createTypeInfoWithTypeHierarchy(typeHierarchy, returnType, in1Type, in2Type);
@@ -394,7 +438,8 @@ public class TypeExtractor {
 			return parameter;
 		}
 		
-		throw new IllegalArgumentException(baseClass.getName() + " must be implemented.");
+		throw new IllegalArgumentException("The types of the interface " + baseClass.getName() + " could not be inferred. " + 
+						"Support for synthetic interfaces, lambdas, and generic types is limited at this point.");
 	}
 	
 	private static Type getParameterTypeFromGenericType(Class<?> baseClass, ArrayList<Type> typeHierarchy, Type t, int pos) {
@@ -426,8 +471,18 @@ public class TypeExtractor {
 	//  Validate input
 	// --------------------------------------------------------------------------------------------
 	
+	private static void validateInputType(Type t, TypeInformation<?> inType) {
+		ArrayList<Type> typeHierarchy = new ArrayList<Type>();
+		try {
+			validateInfo(typeHierarchy, t, inType);
+		}
+		catch(InvalidTypesException e) {
+			throw new InvalidTypesException("Input mismatch: " + e.getMessage());
+		}
+	}
+	
 	private static void validateInputType(Class<?> baseClass, Class<?> clazz, int inputParamPos, TypeInformation<?> inType) {
-		ArrayList<Type> typeHierarchy = new ArrayList<Type>();		
+		ArrayList<Type> typeHierarchy = new ArrayList<Type>();
 		try {
 			validateInfo(typeHierarchy, getParameterType(baseClass, typeHierarchy, clazz, inputParamPos), inType);
 		}
@@ -612,7 +667,40 @@ public class TypeExtractor {
 	
 	// --------------------------------------------------------------------------------------------
 	//  Utility methods
-	// --------------------------------------------------------------------------------------------	
+	// --------------------------------------------------------------------------------------------
+	
+	private static Type removeGenericWrapper(Type t) {
+		if(t instanceof ParameterizedType 	&& 
+				(Collector.class.isAssignableFrom((Class<?>) ((ParameterizedType) t).getRawType())
+						|| Iterable.class.isAssignableFrom((Class<?>) ((ParameterizedType) t).getRawType()))) {
+			return ((ParameterizedType) t).getActualTypeArguments()[0];
+		}
+		return t;
+	}
+	
+	private static void validateLambdaGenericParameters(Method m) {
+		// check the arguments
+		for (Type t : m.getGenericParameterTypes()) {
+			validateLambdaGenericParameter(t);
+		}
+
+		// check the return type
+		validateLambdaGenericParameter(m.getGenericReturnType());
+	}
+
+	private static void validateLambdaGenericParameter(Type t) {
+		if(!(t instanceof Class)) {
+			return;
+		}
+		final Class<?> clazz = (Class<?>) t;
+
+		if(clazz.getTypeParameters().length > 0) {
+			throw new InvalidTypesException("The generic type parameters of '" + clazz.getSimpleName() + "' are missing. \n"
+					+ "It seems that your compiler has not stored them into the .class file. \n"
+					+ "Currently, only the Eclipse JDT compiler preserves the type information necessary to use the lambdas feature type-safely. \n"
+					+ "See the documentation for more information about how to compile jobs containing lambda expressions.");
+		}
+	}
 	
 	private static String encodePrimitiveClass(Class<?> primitiveClass) {
 		final String name = primitiveClass.getName();
@@ -773,11 +861,13 @@ public class TypeExtractor {
 			// special case handling for Class, this should not be handled by the POJO logic
 			return new GenericTypeInfo<X>(clazz);
 		}
-		TypeInformation<X> pojoType =  analyzePojo(clazz);
-		if (pojoType != null) {
-			return pojoType;
-		}
 
+//		Disable POJO types for now (see https://mail-archives.apache.org/mod_mbox/incubator-flink-dev/201407.mbox/%3C53D96049.1060509%40cse.uta.edu%3E)
+//
+//		TypeInformation<X> pojoType =  analyzePojo(clazz);
+//		if (pojoType != null) {
+//			return pojoType;
+//		}
 
 		// return a generic type
 		return new GenericTypeInfo<X>(clazz);

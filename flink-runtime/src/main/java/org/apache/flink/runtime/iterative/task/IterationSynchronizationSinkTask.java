@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,8 +24,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.aggregators.AggregatorWithName;
 import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
@@ -44,14 +44,14 @@ import org.apache.flink.types.Value;
 import com.google.common.base.Preconditions;
 
 /**
- * The task responsible for synchronizing all iteration heads, implemented as an {@link AbstractInvokable}. This task
+ * The task responsible for synchronizing all iteration heads, implemented as an output task. This task
  * will never see any data.
- * In each superstep, it simply waits until it has receiced a {@link WorkerDoneEvent} from each head and will send back
+ * In each superstep, it simply waits until it has received a {@link WorkerDoneEvent} from each head and will send back
  * an {@link AllWorkersDoneEvent} to signal that the next superstep can begin.
  */
 public class IterationSynchronizationSinkTask extends AbstractInvokable implements Terminable {
 
-	private static final Log log = LogFactory.getLog(IterationSynchronizationSinkTask.class);
+	private static final Logger log = LoggerFactory.getLogger(IterationSynchronizationSinkTask.class);
 
 	private MutableRecordReader<IntegerRecord> headEventReader;
 	

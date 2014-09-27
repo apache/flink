@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -52,6 +52,10 @@ public class GenericTypeComparator<T extends Comparable<T>> extends TypeComparat
 
 	private transient Kryo kryo;
 
+	private final Comparable[] extractedKey = new Comparable[1];
+
+	private final TypeComparator[] comparators = new TypeComparator[] {this};
+
 	// ------------------------------------------------------------------------
 
 	public GenericTypeComparator(boolean ascending, TypeSerializer<T> serializer, Class<T> type) {
@@ -100,7 +104,7 @@ public class GenericTypeComparator<T extends Comparable<T>> extends TypeComparat
 	}
 
 	@Override
-	public int compare(final DataInputView firstSource, final DataInputView secondSource) throws IOException {
+	public int compareSerialized(final DataInputView firstSource, final DataInputView secondSource) throws IOException {
 		if (this.serializer == null) {
 			this.serializer = this.serializerFactory.getSerializer();
 		}
@@ -162,6 +166,17 @@ public class GenericTypeComparator<T extends Comparable<T>> extends TypeComparat
 			this.kryo.setAsmEnabled(true);
 			this.kryo.register(this.type);
 		}
+	}
+
+	@Override
+	public Object[] extractKeys(T record) {
+		extractedKey[0] = record;
+		return extractedKey;
+	}
+
+	@Override
+	public TypeComparator[] getComparators() {
+		return comparators;
 	}
 
 	// ------------------------------------------------------------------------

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,136 +15,196 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-
-package org.apache.flink.examples.scala.relational;
-
-import org.apache.flink.client.LocalExecutor
-import org.apache.flink.api.common.Program
-import org.apache.flink.api.common.ProgramDescription
+package org.apache.flink.examples.scala.relational
 
 import org.apache.flink.api.scala._
-import org.apache.flink.api.scala.operators._
+import org.apache.flink.examples.java.relational.util.WebLogData
+import org.apache.flink.util.Collector
 
 /**
- * Implements the following relational OLAP query as PACT program:
- * 
- * <code><pre>
- * SELECT r.pageURL, r.pageRank, r.avgDuration
- * FROM Documents d JOIN Rankings r
- * 	ON d.url = r.url
+ * This program processes web logs and relational data.
+ * It implements the following relational query:
+ *
+ * {{{
+ * SELECT
+ *       r.pageURL,
+ *       r.pageRank,
+ *       r.avgDuration
+ * FROM documents d JOIN rankings r
+ *                  ON d.url = r.url
  * WHERE CONTAINS(d.text, [keywords])
- * 	AND r.rank > [rank]
- * 	AND NOT EXISTS (
- * 		SELECT * FROM Visits v
- * 		WHERE v.destUrl = d.url
- * 			AND v.visitDate < [date]); 
- *  * </pre></code> 
- * 
- * Table Schemas: <code><pre>
+ *       AND r.rank > [rank]
+ *       AND NOT EXISTS
+ *           (
+ *              SELECT * FROM Visits v
+ *              WHERE v.destUrl = d.url
+ *                    AND v.visitDate < [date]
+ *           );
+ * }}}
+ *
+ *
+ * Input files are plain text CSV files using the pipe character ('|') as field separator.
+ * The tables referenced in the query can be generated using the
+ * [org.apache.flink.examples.java.relational.util.WebLogDataGenerator]] and
+ * have the following schemas
+ *
+ * {{{
  * CREATE TABLE Documents (
- * 					url VARCHAR(100) PRIMARY KEY,
- * 					contents TEXT );
- * 
+ *                url VARCHAR(100) PRIMARY KEY,
+ *                contents TEXT );
+ *
  * CREATE TABLE Rankings (
- * 					pageRank INT,
- * 					pageURL VARCHAR(100) PRIMARY KEY,     
- * 					avgDuration INT );       
- * 
+ *                pageRank INT,
+ *                pageURL VARCHAR(100) PRIMARY KEY,
+ *                avgDuration INT );
+ *
  * CREATE TABLE Visits (
- * 					sourceIP VARCHAR(16),
- * 					destURL VARCHAR(100),
- * 					visitDate DATE,
- * 					adRevenue FLOAT,
- * 					userAgent VARCHAR(64),
- * 					countryCode VARCHAR(3),
- * 					languageCode VARCHAR(6),
- * 					searchWord VARCHAR(32),
- * 					duration INT );
- * </pre></code>
- * 
+ *                sourceIP VARCHAR(16),
+ *                destURL VARCHAR(100),
+ *                visitDate DATE,
+ *                adRevenue FLOAT,
+ *                userAgent VARCHAR(64),
+ *                countryCode VARCHAR(3),
+ *                languageCode VARCHAR(6),
+ *                searchWord VARCHAR(32),
+ *                duration INT );
+ * }}}
+ *
+ *
+ * Usage
+ * {{{
+ *   WebLogAnalysis <documents path> <ranks path> <visits path> <result path>
+ * }}}
+ *
+ * If no parameters are provided, the program is run with default data from
+ * [[org.apache.flink.examples.java.relational.util.WebLogData]].
+ *
+ * This example shows how to use:
+ *
+ *  - tuple data types
+ *  - projection and join projection
+ *  - the CoGroup transformation for an anti-join
+ *
  */
-class WebLogAnalysis extends Program with ProgramDescription with Serializable {
-  
-  override def getDescription() = {
-    "Parameters: [numSubStasks], [docs], [rankings], [visits], [output]"
-  }
-  
-  override def getPlan(args: String*) = {
-    getScalaPlan(args(0).toInt, args(1), args(2), args(3), args(4))
-  }
-  
-  // document tuple
-  case class Doc(url: String, text: String)
-  
-  // rank tuple
-  case class Rank(rank: Int, url: String, avgDuration: Int)
-  
-  // visit tuple
-  case class Visit(url: String, date: String)
-  
-  // format rank for output
-  def formatRank = (r: Rank) => "%d|%s|%d".format(r.rank, r.url, r.avgDuration)
+object WebLogAnalysis {
 
-  def getScalaPlan(numSubTasks: Int, docsInput: String, rankingsInput: String, visitsInput: String, ranksOutput: String) = {
-    
-    // read documents data
-    val docs = DataSource(docsInput, CsvInputFormat[Doc]("\n", '|'))
-    // read ranks data
-    val ranks = DataSource(rankingsInput, CsvInputFormat[Rank]("\n", '|'))
-    // read visits data and project to visits tuple afterwards
-    val visits = DataSource(visitsInput, CsvInputFormat[(String, String, String)]("\n", '|')) map (x => Visit(x._2, x._3))
-
-    // filter on documents that contain certain key words and project to URL
-    val filteredDocs = docs filter {d => d.text.contains(" editors ") && d.text.contains(" oscillations ") && d.text.contains(" convection ")} map { d => d.url }
-    filteredDocs.filterFactor(.15f)
-    filteredDocs.observes(d => (d.text))
-    filteredDocs.preserves({d => d.url}, {url => url} )
-    
-    // filter on ranks that have a certain minimum rank
-    val filteredRanks = ranks filter {r => r.rank > 50}
-    filteredRanks.filterFactor(.25f)
-    filteredRanks.observes(r => (r.rank))
-    filteredRanks.preserves({r => r}, {r => r} )
-    
-    // filter on visits of the year 2010 and project to URL
-    val filteredVisits = visits filter {v => v.date.substring(0,4).equals("2010")} map { v => v.url }
-    filteredVisits.filterFactor(.2f)
-    filteredVisits.observes(v => (v.date))
-    filteredVisits.preserves( {v => v.url}, {url => url} )
-    
-    // filter for ranks on documents that contain certain key words 
-    val ranksFilteredByDocs = filteredDocs join filteredRanks where {url => url} isEqualTo {r => r.url} map ((d,r) => r)
-    ranksFilteredByDocs.left.neglects( {d => d} )
-    ranksFilteredByDocs.right.preserves( {r => r}, {r => r} )
-    
-    // filter for ranks on documents that have not been visited in 2010
-    val ranksFilteredByDocsAndVisits = ranksFilteredByDocs cogroup filteredVisits where {r => r.url} isEqualTo {url => url} map ( (rs, vs) => if (vs.hasNext) Nil else rs.toList ) flatMap {rs => rs.iterator }
-    ranksFilteredByDocs.left.preserves( {r => r}, {r => r} )
-    ranksFilteredByDocs.right.neglects( {v => v} )
-    
-    // emit the resulting ranks
-    val output = ranksFilteredByDocsAndVisits.write(ranksOutput, DelimitedOutputFormat(formatRank))
-
-    val plan = new ScalaPlan(Seq(output), "WebLog Analysis")
-    plan.setDefaultParallelism(numSubTasks)
-    plan
-  }
-}
-
-
-/**
- * Entry point to make the example standalone runnable with the local executor
- */
-object RunWebLogAnalysis {
   def main(args: Array[String]) {
-    val webLogAnalysis = new WebLogAnalysis
-    if (args.size < 5) {
-      println(webLogAnalysis.getDescription)
+    if (!parseParameters(args)) {
       return
     }
-    val plan = webLogAnalysis.getScalaPlan(args(0).toInt, args(1), args(2), args(3), args(4))
-    LocalExecutor.execute(plan)
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    val documents = getDocumentsDataSet(env)
+    val ranks = getRanksDataSet(env)
+    val visits = getVisitsDataSet(env)
+
+    val filteredDocs = documents
+      .filter(doc => doc._2.contains(" editors ") && doc._2.contains(" oscillations "))
+
+    val filteredRanks = ranks
+      .filter(rank => rank._1 > 40)
+
+    val filteredVisits = visits
+      .filter(visit => visit._2.substring(0, 4).toInt == 2007)
+
+    val joinDocsRanks = filteredDocs.join(filteredRanks).where(0).equalTo(1) {
+      (doc, rank) => rank
+    }
+
+    val result = joinDocsRanks.coGroup(filteredVisits).where(1).equalTo(0) {
+      (ranks, visits, out: Collector[(Int, String, Int)]) =>
+        if (visits.isEmpty) for (rank <- ranks) out.collect(rank)
+    }
+
+
+
+
+    // emit result
+    if (fileOutput) {
+      result.writeAsCsv(outputPath, "\n", "|")
+    } else {
+      result.print()
+    }
+
+    env.execute("Scala WebLogAnalysis Example")
+  }
+
+  private var fileOutput: Boolean = false
+  private var documentsPath: String = null
+  private var ranksPath: String = null
+  private var visitsPath: String = null
+  private var outputPath: String = null
+
+  private def parseParameters(args: Array[String]): Boolean = {
+    if (args.length > 0) {
+      fileOutput = true
+      if (args.length == 4) {
+        documentsPath = args(0)
+        ranksPath = args(1)
+        visitsPath = args(2)
+        outputPath = args(3)
+      }
+      else {
+        System.err.println("Usage: WebLogAnalysis <documents path> <ranks path> <visits path> " +
+          "<result path>")
+        return false
+      }
+    }
+    else {
+      System.out.println("Executing WebLog Analysis example with built-in default data.")
+      System.out.println("  Provide parameters to read input data from files.")
+      System.out.println("  See the documentation for the correct format of input files.")
+      System.out.println("  We provide a data generator to create synthetic input files for this " +
+        "program.")
+      System.out.println("  Usage: WebLogAnalysis <documents path> <ranks path> <visits path> " +
+        "<result path>")
+    }
+    true
+  }
+
+  private def getDocumentsDataSet(env: ExecutionEnvironment): DataSet[(String, String)] = {
+    if (fileOutput) {
+      env.readCsvFile[(String, String)](
+        documentsPath,
+        fieldDelimiter = '|',
+        includedFields = Array(0, 1))
+    }
+    else {
+      val documents = WebLogData.DOCUMENTS map {
+        case Array(x, y) => (x.asInstanceOf[String], y.asInstanceOf[String])
+      }
+      env.fromCollection(documents)
+    }
+  }
+
+  private def getRanksDataSet(env: ExecutionEnvironment): DataSet[(Int, String, Int)] = {
+    if (fileOutput) {
+      env.readCsvFile[(Int, String, Int)](
+        ranksPath,
+        fieldDelimiter = '|',
+        includedFields = Array(0, 1, 2))
+    }
+    else {
+      val ranks = WebLogData.RANKS map {
+        case Array(x, y, z) => (x.asInstanceOf[Int], y.asInstanceOf[String], z.asInstanceOf[Int])
+      }
+      env.fromCollection(ranks)
+    }
+  }
+
+  private def getVisitsDataSet(env: ExecutionEnvironment): DataSet[(String, String)] = {
+    if (fileOutput) {
+      env.readCsvFile[(String, String)](
+        visitsPath,
+        fieldDelimiter = '|',
+        includedFields = Array(1, 2))
+    }
+    else {
+      val visits = WebLogData.VISITS map {
+        case Array(x, y) => (x.asInstanceOf[String], y.asInstanceOf[String])
+      }
+      env.fromCollection(visits)
+    }
   }
 }
-

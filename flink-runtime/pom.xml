@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>0.6-incubating-SNAPSHOT</version>
+		<version>0.7-incubating-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -51,31 +51,37 @@ under the License.
 		<dependency>
 			<groupId>org.eclipse.jetty</groupId>
 			<artifactId>jetty-server</artifactId>
-			<version>8.0.0.M1</version>
+			<!-- version is derived from base module -->
 		</dependency>
 
 		<dependency>
 			<groupId>org.eclipse.jetty</groupId>
 			<artifactId>jetty-security</artifactId>
-			<version>8.0.0.M1</version>
+			<!-- version is derived from base module -->
 		</dependency>
 
 		<dependency>
 			<groupId>org.eclipse.jetty</groupId>
 			<artifactId>jetty-servlet</artifactId>
-			<version>8.0.0.M1</version>
+			<!-- version is derived from base module -->
 		</dependency>
 
 		<dependency>
 			<groupId>com.amazonaws</groupId>
 			<artifactId>aws-java-sdk</artifactId>
-			<version>1.2.1</version>
+			<version>1.8.1</version>
 		</dependency>
 
 		<dependency>
 			<groupId>io.netty</groupId>
 			<artifactId>netty-all</artifactId>
-			<version>4.0.20.Final</version>
+			<version>4.0.21.Final</version>
+		</dependency>
+		
+		<dependency>
+			<groupId>org.codehaus.jettison</groupId>
+			<artifactId>jettison</artifactId>
+			<version>1.1</version>
 		</dependency>
 
 		<dependency>
@@ -84,6 +90,7 @@ under the License.
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
+		
 	</dependencies>
 
 	<build>
@@ -97,8 +104,6 @@ under the License.
 						<exclude>**/TestData.java</exclude>
 						<exclude>**/TestInstanceListener.java</exclude>
 					</excludes>
-					<forkMode>once</forkMode>
-					<argLine>-Xms512m -Xmx1024m</argLine>
 					<systemPropertyVariables>
 						<log.level>WARN</log.level>
 					</systemPropertyVariables>
@@ -111,8 +116,6 @@ under the License.
 					<excludes>
 						<exclude>**/TestData.java</exclude>
 					</excludes>
-					<forkMode>once</forkMode>
-					<argLine>-Xms512m -Xmx1024m</argLine>
 					<systemPropertyVariables>
 						<log.level>WARN</log.level>
 					</systemPropertyVariables>

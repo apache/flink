@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.io;
 
 import java.io.IOException;
@@ -25,6 +24,8 @@ import java.io.Serializable;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
+import org.apache.flink.core.io.InputSplitAssigner;
+import org.apache.flink.core.io.InputSplitSource;
 
 /**
  * The base interface for data sources that produces records.
@@ -59,7 +60,7 @@ import org.apache.flink.core.io.InputSplit;
  * @param <OT> The type of the produced records.
  * @param <T> The type of input split.
  */
-public interface InputFormat<OT, T extends InputSplit> extends Serializable {
+public interface InputFormat<OT, T extends InputSplit> extends InputSplitSource<T>, Serializable {
 	
 	/**
 	 * Configures this input format. Since input formats are instantiated generically and hence parameterless, 
@@ -95,6 +96,7 @@ public interface InputFormat<OT, T extends InputSplit> extends Serializable {
 	 * 
 	 * @throws IOException Thrown, when the creation of the splits was erroneous.
 	 */
+	@Override
 	T[] createInputSplits(int minNumSplits) throws IOException;
 	
 	/**
@@ -102,7 +104,8 @@ public interface InputFormat<OT, T extends InputSplit> extends Serializable {
 	 * 
 	 * @return The type of the input splits.
 	 */
-	Class<? extends T> getInputSplitType();
+	@Override
+	InputSplitAssigner getInputSplitAssigner(T[] inputSplits);
 	
 	// --------------------------------------------------------------------------------------------
 	

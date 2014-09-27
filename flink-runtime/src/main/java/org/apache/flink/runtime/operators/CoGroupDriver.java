@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,9 +19,9 @@
 
 package org.apache.flink.runtime.operators;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.apache.flink.api.common.functions.GenericCoGrouper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -41,12 +41,12 @@ import org.apache.flink.util.MutableObjectIterator;
  * 
  * @see org.apache.flink.api.java.record.functions.CoGroupFunction
  */
-public class CoGroupDriver<IT1, IT2, OT> implements PactDriver<GenericCoGrouper<IT1, IT2, OT>, OT> {
+public class CoGroupDriver<IT1, IT2, OT> implements PactDriver<CoGroupFunction<IT1, IT2, OT>, OT> {
 	
-	private static final Log LOG = LogFactory.getLog(CoGroupDriver.class);
+	private static final Logger LOG = LoggerFactory.getLogger(CoGroupDriver.class);
 	
 	
-	private PactTaskContext<GenericCoGrouper<IT1, IT2, OT>, OT> taskContext;
+	private PactTaskContext<CoGroupFunction<IT1, IT2, OT>, OT> taskContext;
 	
 	private CoGroupTaskIterator<IT1, IT2> coGroupIterator;				// the iterator that does the actual cogroup
 	
@@ -56,7 +56,7 @@ public class CoGroupDriver<IT1, IT2, OT> implements PactDriver<GenericCoGrouper<
 
 
 	@Override
-	public void setup(PactTaskContext<GenericCoGrouper<IT1, IT2, OT>, OT> context) {
+	public void setup(PactTaskContext<CoGroupFunction<IT1, IT2, OT>, OT> context) {
 		this.taskContext = context;
 		this.running = true;
 	}
@@ -69,16 +69,16 @@ public class CoGroupDriver<IT1, IT2, OT> implements PactDriver<GenericCoGrouper<
 	
 
 	@Override
-	public Class<GenericCoGrouper<IT1, IT2, OT>> getStubType() {
+	public Class<CoGroupFunction<IT1, IT2, OT>> getStubType() {
 		@SuppressWarnings("unchecked")
-		final Class<GenericCoGrouper<IT1, IT2, OT>> clazz = (Class<GenericCoGrouper<IT1, IT2, OT>>) (Class<?>) GenericCoGrouper.class;
+		final Class<CoGroupFunction<IT1, IT2, OT>> clazz = (Class<CoGroupFunction<IT1, IT2, OT>>) (Class<?>) CoGroupFunction.class;
 		return clazz;
 	}
 	
 
 	@Override
-	public boolean requiresComparatorOnInput() {
-		return true;
+	public int getNumberOfDriverComparators() {
+		return 2;
 	}
 	
 
@@ -96,8 +96,8 @@ public class CoGroupDriver<IT1, IT2, OT> implements PactDriver<GenericCoGrouper<
 		// get the key positions and types
 		final TypeSerializer<IT1> serializer1 = this.taskContext.<IT1>getInputSerializer(0).getSerializer();
 		final TypeSerializer<IT2> serializer2 = this.taskContext.<IT2>getInputSerializer(1).getSerializer();
-		final TypeComparator<IT1> groupComparator1 = this.taskContext.getInputComparator(0);
-		final TypeComparator<IT2> groupComparator2 = this.taskContext.getInputComparator(1);
+		final TypeComparator<IT1> groupComparator1 = this.taskContext.getDriverComparator(0);
+		final TypeComparator<IT2> groupComparator2 = this.taskContext.getDriverComparator(1);
 		
 		final TypePairComparatorFactory<IT1, IT2> pairComparatorFactory = config.getPairComparatorFactory(
 					this.taskContext.getUserCodeClassLoader());
@@ -122,7 +122,7 @@ public class CoGroupDriver<IT1, IT2, OT> implements PactDriver<GenericCoGrouper<
 	@Override
 	public void run() throws Exception
 	{
-		final GenericCoGrouper<IT1, IT2, OT> coGroupStub = this.taskContext.getStub();
+		final CoGroupFunction<IT1, IT2, OT> coGroupStub = this.taskContext.getStub();
 		final Collector<OT> collector = this.taskContext.getOutputCollector();
 		final CoGroupTaskIterator<IT1, IT2> coGroupIterator = this.coGroupIterator;
 		

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,8 +19,8 @@
 
 package org.apache.flink.runtime.io.network.channels;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.event.task.AbstractEvent;
 import org.apache.flink.runtime.event.task.AbstractTaskEvent;
@@ -56,7 +56,7 @@ public class InputChannel<T extends IOReadableWritable> extends Channel implemen
 	/**
 	 * The log object used to report warnings and errors.
 	 */
-	private static final Log LOG = LogFactory.getLog(InputChannel.class);
+	private static final Logger LOG = LoggerFactory.getLogger(InputChannel.class);
 
 	/**
 	 * The deserializer used to deserialize records.

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,11 +28,10 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 
 import org.apache.flink.api.java.record.io.DelimitedInputFormat;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.operators.DataSourceTask;
 import org.apache.flink.runtime.operators.testutils.NirvanaOutputList;
 import org.apache.flink.runtime.operators.testutils.TaskCancelThread;
 import org.apache.flink.runtime.operators.testutils.TaskTestBase;
@@ -51,7 +50,7 @@ public class DataSourceTaskTest extends TaskTestBase {
 
 	private List<Record> outList;
 	
-	private String tempTestPath = Path.constructTestPath("dst_test");
+	private String tempTestPath = Path.constructTestPath(DataSourceTaskTest.class, "dst_test");
 	
 	@After
 	public void cleanUp() {
@@ -138,13 +137,12 @@ public class DataSourceTaskTest extends TaskTestBase {
 		super.registerFileInputTask(testTask, MockFailingInputFormat.class, new File(tempTestPath).toURI().toString(), "\n");
 		
 		boolean stubFailed = false;
-		
+
 		try {
 			testTask.invoke();
 		} catch (Exception e) {
 			stubFailed = true;
 		}
-		
 		Assert.assertTrue("Function exception was not forwarded.", stubFailed);
 		
 		// assert that temp file was created

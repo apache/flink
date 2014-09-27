@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -89,7 +89,7 @@ public class TPCHQuery3 implements Program, ProgramDescription {
 		/**
 		 * Reads the filter literals from the configuration.
 		 * 
-		 * @see org.apache.flink.api.common.functions.Function#open(org.apache.flink.configuration.Configuration)
+		 * @see org.apache.flink.api.common.functions.RichFunction#open(org.apache.flink.configuration.Configuration)
 		 */
 		@Override
 		public void open(Configuration parameters) {

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,6 +20,7 @@
 package org.apache.flink.runtime.io.network.gates;
 
 import java.io.IOException;
+import java.util.List;
 
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.deployment.ChannelDeploymentDescriptor;
@@ -81,13 +82,13 @@ public class OutputGate extends Gate<IOReadableWritable> {
 	// -----------------------------------------------------------------------------------------------------------------
 
 	public void initializeChannels(GateDeploymentDescriptor descriptor) {
-		int numChannels = descriptor.getNumberOfChannelDescriptors();
+		List<ChannelDeploymentDescriptor> channelDescr = descriptor.getChannels();
+		
+		int numChannels = channelDescr.size();
 		this.channels = new OutputChannel[numChannels];
 
-		setChannelType(descriptor.getChannelType());
-
 		for (int i = 0; i < numChannels; i++) {
-			ChannelDeploymentDescriptor channelDescriptor = descriptor.getChannelDescriptor(i);
+			ChannelDeploymentDescriptor channelDescriptor = channelDescr.get(i);
 
 			ChannelID id = channelDescriptor.getOutputChannelID();
 			ChannelID connectedId = channelDescriptor.getInputChannelID();

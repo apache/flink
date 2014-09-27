@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,23 +25,20 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.core.memory.MemorySegment;
 
 /**
  * The facade for the provided I/O manager services.
- * 
  */
-public final class IOManager implements UncaughtExceptionHandler
-{
-	/**
-	 * Logging.
-	 */
-	private static final Log LOG = LogFactory.getLog(IOManager.class);
+public class IOManager implements UncaughtExceptionHandler {
+	
+	/** Logging */
+	private static final Logger LOG = LoggerFactory.getLogger(IOManager.class);
 
 	/**
-	 * The default temp paths for anonymous channels.
+	 * The default temp paths for anonymous Channels.
 	 */
 	private final String[] paths;
 
@@ -95,11 +92,9 @@ public final class IOManager implements UncaughtExceptionHandler
 	 * Constructs a new IOManager.
 	 * 
 	 * @param paths
-	 *        the basic directory paths for files underlying anonymous
-	 *        channels.
+	 *        the basic directory paths for files underlying anonymous channels.
 	 */
-	public IOManager(String[] paths)
-	{
+	public IOManager(String[] paths) {
 		this.paths = paths;
 		this.random = new Random();
 		this.nextPath = 0;
@@ -193,13 +188,10 @@ public final class IOManager implements UncaughtExceptionHandler
 		return this.isClosed && writersShutDown && readersShutDown;
 	}
 
-	/* (non-Javadoc)
-	 * @see java.lang.Thread.UncaughtExceptionHandler#uncaughtException(java.lang.Thread, java.lang.Throwable)
-	 */
+
 	@Override
-	public void uncaughtException(Thread t, Throwable e)
-	{
-		LOG.fatal("IO Thread '" + t.getName() + "' terminated due to an exception. Closing I/O Manager.", e);
+	public void uncaughtException(Thread t, Throwable e) {
+		LOG.error("IO Thread '" + t.getName() + "' terminated due to an exception. Closing I/O Manager.", e);
 		shutdown();	
 	}
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,13 +16,13 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.jobmanager.web;
 
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.Set;
@@ -32,35 +32,33 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.instance.Instance;
-import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.jobmanager.JobManager;
+
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
- * A Servlet that displays the Configruation in the webinterface.
- *
+ * A Servlet that displays the Configuration in the web interface.
  */
 public class SetupInfoServlet extends HttpServlet {
 
-	/**
-	 * Serial UID for serialization interoperability.
-	 */
+	/** Serial UID for serialization interoperability. */
 	private static final long serialVersionUID = 3704963598772630435L;
 	
-	/**
-	 * The log for this class.
-	 */
-	private static final Log LOG = LogFactory.getLog(SetupInfoServlet.class);
+	/** The log for this class. */
+	private static final Logger LOG = LoggerFactory.getLogger(SetupInfoServlet.class);
+	
 	
 	private Configuration globalC;
 	private JobManager jobmanager;
+	
 	
 	public SetupInfoServlet(JobManager jm) {
 		globalC = GlobalConfiguration.getConfiguration();
@@ -79,9 +77,6 @@ public class SetupInfoServlet extends HttpServlet {
 		} else if ("taskmanagers".equals(req.getParameter("get"))) {
 			writeTaskmanagers(resp);
 		}
-		
-
-
 	}
 	
 	private void writeGlobalConfiguration(HttpServletResponse resp) throws IOException {
@@ -101,35 +96,35 @@ public class SetupInfoServlet extends HttpServlet {
 		
 		PrintWriter w = resp.getWriter();
 		w.write(obj.toString());
-		
 	}
 	
 	private void writeTaskmanagers(HttpServletResponse resp) throws IOException {
 		
-		Set<InstanceConnectionInfo> keys = jobmanager.getInstances().keySet();
-		List<InstanceConnectionInfo> list = new ArrayList<InstanceConnectionInfo>(keys);
-		Collections.sort(list);
+		List<Instance> instances = new ArrayList<Instance>(jobmanager.getInstanceManager().getAllRegisteredInstances().values());
+		
+		Collections.sort(instances, INSTANCE_SORTER);
 				
 		JSONObject obj = new JSONObject();
 		JSONArray array = new JSONArray();
-		for (InstanceConnectionInfo k : list) {
+		for (Instance instance : instances) {
 			JSONObject objInner = new JSONObject();
-			
-			Instance instance = jobmanager.getInstances().get(k);	
+				
 			long time = new Date().getTime() - instance.getLastHeartBeat();
 	
 			try {
-				objInner.put("inetAdress", k.getInetAdress());
-				objInner.put("ipcPort", k.ipcPort());
-				objInner.put("dataPort", k.dataPort());
+				objInner.put("inetAdress", instance.getInstanceConnectionInfo().getInetAdress());
+				objInner.put("ipcPort", instance.getInstanceConnectionInfo().ipcPort());
+				objInner.put("dataPort", instance.getInstanceConnectionInfo().dataPort());
 				objInner.put("timeSinceLastHeartbeat", time / 1000);
-				objInner.put("slotsNumber", instance.getNumberOfSlots());
+				objInner.put("slotsNumber", instance.getTotalNumberOfSlots());
 				objInner.put("freeSlots", instance.getNumberOfAvailableSlots());
-				objInner.put("cpuCores", instance.getHardwareDescription().getNumberOfCPUCores());
-				objInner.put("physicalMemory", instance.getHardwareDescription().getSizeOfPhysicalMemory() / 1048576);
-				objInner.put("freeMemory", instance.getHardwareDescription().getSizeOfFreeMemory() / 1048576);
+				objInner.put("cpuCores", instance.getResources().getNumberOfCPUCores());
+				objInner.put("physicalMemory", instance.getResources().getSizeOfPhysicalMemory() >>> 20);
+				objInner.put("freeMemory", instance.getResources().getSizeOfJvmHeap() >>> 20);
+				objInner.put("managedMemory", instance.getResources().getSizeOfManagedMemory() >>> 20);
 				array.put(objInner);
-			} catch (JSONException e) {
+			}
+			catch (JSONException e) {
 				LOG.warn("Json object creation failed", e);
 			}
 			
@@ -144,4 +139,12 @@ public class SetupInfoServlet extends HttpServlet {
 		w.write(obj.toString());
 	}
 	
+	// --------------------------------------------------------------------------------------------
+	
+	private static final Comparator<Instance> INSTANCE_SORTER = new Comparator<Instance>() {
+		@Override
+		public int compare(Instance o1, Instance o2) {
+			return o1.getInstanceConnectionInfo().compareTo(o2.getInstanceConnectionInfo());
+		}
+	};
 }

@@ -24,7 +24,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>0.6-incubating-SNAPSHOT</version>
+		<version>0.7-incubating-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -50,5 +50,4 @@ under the License.
 		<module>flink-java-examples</module>
 		<module>flink-scala-examples</module>
 	</modules>
-
 </project>

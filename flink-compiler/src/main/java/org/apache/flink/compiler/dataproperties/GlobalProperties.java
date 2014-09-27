@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -93,6 +93,12 @@ public class GlobalProperties implements Cloneable {
 	
 	public void setFullyReplicated() {
 		this.partitioning = PartitioningProperty.FULL_REPLICATION;
+		this.partitioningFields = null;
+		this.ordering = null;
+	}
+	
+	public void setForcedRebalanced() {
+		this.partitioning = PartitioningProperty.FORCED_REBALANCED;
 		this.partitioningFields = null;
 		this.ordering = null;
 	}

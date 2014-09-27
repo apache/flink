@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>0.6-incubating-SNAPSHOT</version>
+		<version>0.7-incubating-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -34,6 +34,7 @@ under the License.
 	<name>flink-tests</name>
 
 	<packaging>jar</packaging>
+
 
 	<dependencies>
 		<dependency>
@@ -64,7 +65,7 @@ under the License.
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
-			<version>4.7</version>
+			<version>4.11</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -115,8 +116,6 @@ under the License.
 					<excludes>
 						<exclude>**/*TestBase*.class</exclude>
 					</excludes>
-					<forkMode>once</forkMode>
-					<argLine>-Xmx1024m</argLine>
 				</configuration>
 			</plugin>
 			<plugin>
@@ -125,9 +124,6 @@ under the License.
 					<systemPropertyVariables>
 						<log.level>WARN</log.level>
 					</systemPropertyVariables>
-					<forkMode>always</forkMode>
-					<threadCount>1</threadCount>
-					<perCoreThreadCount>false</perCoreThreadCount>
 				</configuration>
 			</plugin>
 			
@@ -184,7 +180,6 @@ under the License.
 					</execution>
 				</executions>
 			</plugin>
-
 		</plugins>
 		
 		<pluginManagement>

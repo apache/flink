@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,8 +24,8 @@ import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.URI;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.fs.BlockLocation;
@@ -43,7 +43,7 @@ import org.apache.hadoop.conf.Configuration;
  */
 public final class DistributedFileSystem extends FileSystem {
 	
-	private static final Log LOG = LogFactory.getLog(DistributedFileSystem.class);
+	private static final Logger LOG = LoggerFactory.getLogger(DistributedFileSystem.class);
 	
 	private static final String DEFAULT_HDFS_CLASS = "org.apache.hadoop.hdfs.DistributedFileSystem";
 	

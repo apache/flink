@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,19 +16,16 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.profiling.types;
 
 import org.apache.flink.runtime.jobgraph.JobID;
 
 /**
- * Instance summary profiling events summarize the profiling events of all instances involved in computing a Nephele
- * job.
- * <p>
- * This class is not thread-safe.
- * 
+ * Instance summary profiling events summarize the profiling events of all instances involved in computing a job.
  */
 public final class InstanceSummaryProfilingEvent extends InstanceProfilingEvent {
+
+	private static final long serialVersionUID = 1L;
 
 	/**
 	 * Constructs a new instance summary profiling event.
@@ -85,25 +82,8 @@ public final class InstanceSummaryProfilingEvent extends InstanceProfilingEvent 
 		super();
 	}
 
-
 	@Override
-	public boolean equals(final Object obj) {
-
-		if (!super.equals(obj)) {
-			return false;
-		}
-
-		if (!(obj instanceof InstanceSummaryProfilingEvent)) {
-			return false;
-		}
-
-		return true;
-	}
-
-
-	@Override
-	public int hashCode() {
-
-		return super.hashCode();
+	public boolean equals(Object obj) {
+		return (obj instanceof InstanceSummaryProfilingEvent) && super.equals(obj);
 	}
 }

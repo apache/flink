@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -124,11 +124,13 @@ public class AccumulatorIterativeITCase extends RecordAPITestBase {
 		}
 		
 		@Override
-		public void reduce(Iterator<Record> it, Collector<Record> out) {
+		public void reduce(Iterator<Record> records, Collector<Record> out) {
 			// Compute the sum
 			int sum = 0;
-			while (it.hasNext()) {
-				Integer value = Integer.parseInt(it.next().getField(0, StringValue.class).getValue());
+			
+			while (records.hasNext()) {
+				Record r = records.next();
+				Integer value = Integer.parseInt(r.getField(0, StringValue.class).getValue());
 				sum += value;
 				testCounter.add(value);
 			}

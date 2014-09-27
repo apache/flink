@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -32,6 +32,12 @@ public abstract class BasicTypeComparator<T extends Comparable<T>> extends TypeC
 	private transient T reference;
 	
 	protected final boolean ascendingComparison;
+
+	// This is used in extractKeys, so that we don't create a new array for every call.
+	private final Comparable[] extractedKey = new Comparable[1];
+
+	// For use by getComparators
+	private final TypeComparator[] comparators = new TypeComparator[] {this};
 	
 
 	protected BasicTypeComparator(boolean ascending) {
@@ -78,6 +84,17 @@ public abstract class BasicTypeComparator<T extends Comparable<T>> extends TypeC
 	@Override
 	public void writeWithKeyNormalization(T record, DataOutputView target) throws IOException {
 		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public Object[] extractKeys(T record) {
+		extractedKey[0] = record;
+		return extractedKey;
+	}
+
+	@Override
+	public TypeComparator[] getComparators() {
+		return comparators;
 	}
 
 	@Override

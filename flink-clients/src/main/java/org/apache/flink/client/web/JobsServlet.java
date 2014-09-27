@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -180,7 +180,6 @@ public class JobsServlet extends HttpServlet {
 		// parse the request
 		ServletFileUpload uploadHandler = new ServletFileUpload(fileItemFactory);
 		try {
-			@SuppressWarnings("unchecked")
 			Iterator<FileItem> itr = ((List<FileItem>) uploadHandler.parseRequest(req)).iterator();
 
 			// go over the form fields and look for our file

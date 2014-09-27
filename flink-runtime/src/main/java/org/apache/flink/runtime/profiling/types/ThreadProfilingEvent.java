@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,22 +16,23 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.profiling.types;
 
 import java.io.IOException;
 
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobID;
-import org.apache.flink.runtime.managementgraph.ManagementVertexID;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 
 /**
  * Through this interface it is possible to access profiling data about the CPU utilization
  * of the corresponding execution thread during its execution.
- * 
  */
 public class ThreadProfilingEvent extends VertexProfilingEvent {
+
+	private static final long serialVersionUID = -3006867830244444710L;
 
 	private int userTime;
 
@@ -42,8 +43,10 @@ public class ThreadProfilingEvent extends VertexProfilingEvent {
 	private int waitedTime;
 
 	public ThreadProfilingEvent(int userTime, int systemTime, int blockedTime, int waitedTime,
-			ManagementVertexID vertexID, int profilingInterval, JobID jobID, long timestamp, long profilingTimestamp) {
-		super(vertexID, profilingInterval, jobID, timestamp, profilingTimestamp);
+			JobVertexID vertexId, int subtask, ExecutionAttemptID executionId,
+			int profilingInterval, JobID jobID, long timestamp, long profilingTimestamp)
+	{
+		super(vertexId, subtask, executionId, profilingInterval, jobID, timestamp, profilingTimestamp);
 
 		this.userTime = userTime;
 		this.systemTime = systemTime;
@@ -54,6 +57,8 @@ public class ThreadProfilingEvent extends VertexProfilingEvent {
 	public ThreadProfilingEvent() {
 		super();
 	}
+	
+	// --------------------------------------------------------------------------------------------
 
 	/**
 	 * Returns the percentage of time the execution thread spent in
@@ -95,6 +100,9 @@ public class ThreadProfilingEvent extends VertexProfilingEvent {
 		return this.waitedTime;
 	}
 
+	// --------------------------------------------------------------------------------------------
+	//  Serialization
+	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public void read(DataInputView in) throws IOException {
@@ -118,42 +126,25 @@ public class ThreadProfilingEvent extends VertexProfilingEvent {
 	}
 
 
+	// --------------------------------------------------------------------------------------------
+	//  Utilities
+	// --------------------------------------------------------------------------------------------
+	
 	@Override
 	public boolean equals(Object obj) {
-
-		if (!super.equals(obj)) {
+		if (obj instanceof ThreadProfilingEvent) {
+			final ThreadProfilingEvent other = (ThreadProfilingEvent) obj;
+			
+			return this.userTime == other.userTime &&
+					this.systemTime == other.systemTime &&
+					this.blockedTime == other.blockedTime &&
+					this.waitedTime == other.waitedTime && 
+					super.equals(obj);
+		}
+		else {
 			return false;
 		}
-
-		if (!(obj instanceof ThreadProfilingEvent)) {
-			return false;
-		}
-
-		final ThreadProfilingEvent threadProfilingEvent = (ThreadProfilingEvent) obj;
-
-		if (this.userTime != threadProfilingEvent.getUserTime()) {
-			return false;
-		}
-
-		if (this.systemTime != threadProfilingEvent.getSystemTime()) {
-			return false;
-		}
-
-		if (this.blockedTime != threadProfilingEvent.getBlockedTime()) {
-			return false;
-		}
-
-		if (this.waitedTime != threadProfilingEvent.getWaitedTime()) {
-			return false;
-		}
-
-		return true;
 	}
-
-
-	@Override
-	public int hashCode() {
-
-		return super.hashCode();
-	}
+	
+	// hash code is inherited from the superclass
 }

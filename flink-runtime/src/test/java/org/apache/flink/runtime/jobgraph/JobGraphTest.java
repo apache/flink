@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,98 +18,257 @@
 
 package org.apache.flink.runtime.jobgraph;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
 
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.util.List;
 
+import org.apache.flink.api.common.InvalidProgramException;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobGraphDefinitionException;
-import org.apache.flink.runtime.jobgraph.JobTaskVertex;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
-/**
- * This class contains tests related to the JobGraph
- */
 public class JobGraphTest {
 
-	public JobGraphTest() {
-	}
-
-	@BeforeClass
-	public static void setUpClass() throws Exception {
-	}
-
-	@AfterClass
-	public static void tearDownClass() throws Exception {
-	}
-
-	@Before
-	public void setUp() {
-	}
-
-	@After
-	public void tearDown() {
-	}
-
 	@Test
-	/**
-	 * This test ensures that the JobGraph edges are correctly set (forward/backward edges)
-	 */
-	public void testJobGraph() {
-		// check if the backward edge really points to the preceding vertex
-		final JobGraph jg = new JobGraph();
-
-		final JobTaskVertex v1 = new JobTaskVertex(jg);
-		final JobTaskVertex v2 = new JobTaskVertex(jg);
-
+	public void testSerialization() {
 		try {
-			v1.connectTo(v2);
-		} catch (JobGraphDefinitionException ex) {
-			Logger.getLogger(JobGraphTest.class.getName()).log(Level.SEVERE, null, ex);
+			JobGraph jg = new JobGraph("The graph");
+			
+			// add some configuration values
+			{
+				jg.getJobConfiguration().setString("some key", "some value");
+				jg.getJobConfiguration().setDouble("Life of ", Math.PI);
+			}
+			
+			// add some vertices
+			{
+				AbstractJobVertex source1 = new AbstractJobVertex("source1");
+				AbstractJobVertex source2 = new AbstractJobVertex("source2");
+				AbstractJobVertex target = new AbstractJobVertex("target");
+				target.connectNewDataSetAsInput(source1, DistributionPattern.POINTWISE);
+				target.connectNewDataSetAsInput(source2, DistributionPattern.BIPARTITE);
+				
+				jg.addVertex(source1);
+				jg.addVertex(source2);
+				jg.addVertex(target);
+			}
+			
+			// de-/serialize and compare
+			JobGraph copy = CommonTestUtils.createCopyWritable(jg);
+			
+			assertEquals(jg.getName(), copy.getName());
+			assertEquals(jg.getJobID(), copy.getJobID());
+			assertEquals(jg.getJobConfiguration(), copy.getJobConfiguration());
+			assertEquals(jg.getNumberOfVertices(), copy.getNumberOfVertices());
+			
+			for (AbstractJobVertex vertex : copy.getVertices()) {
+				AbstractJobVertex original = jg.findVertexByID(vertex.getID());
+				assertNotNull(original);
+				assertEquals(original.getName(), vertex.getName());
+				assertEquals(original.getNumberOfInputs(), vertex.getNumberOfInputs());
+				assertEquals(original.getNumberOfProducedIntermediateDataSets(), vertex.getNumberOfProducedIntermediateDataSets());
+			}
 		}
-
-		assertEquals(v1, v2.getBackwardConnection(0).getConnectedVertex());
-
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
 	}
-
-	/**
-	 * In this test we construct a job graph and set the dependency chain for instance sharing in a way that a cycle is
-	 * created. The test is considered successful if the cycle is detected.
-	 */
+	
 	@Test
-	public void detectCycleInInstanceSharingDependencyChain() {
-
-		final JobGraph jg = new JobGraph();
-
-		final JobTaskVertex v1 = new JobTaskVertex("v1", jg);
-		final JobTaskVertex v2 = new JobTaskVertex("v2", jg);
-		final JobTaskVertex v3 = new JobTaskVertex("v3", jg);
-		final JobTaskVertex v4 = new JobTaskVertex("v4", jg);
-
+	public void testTopologicalSort1() {
 		try {
-			v1.connectTo(v2);
-			v2.connectTo(v3);
-			v3.connectTo(v4);
-		} catch (JobGraphDefinitionException ex) {
-			Logger.getLogger(JobGraphTest.class.getName()).log(Level.SEVERE, null, ex);
+			AbstractJobVertex source1 = new AbstractJobVertex("source1");
+			AbstractJobVertex source2 = new AbstractJobVertex("source2");
+			AbstractJobVertex target1 = new AbstractJobVertex("target1");
+			AbstractJobVertex target2 = new AbstractJobVertex("target2");
+			AbstractJobVertex intermediate1 = new AbstractJobVertex("intermediate1");
+			AbstractJobVertex intermediate2 = new AbstractJobVertex("intermediate2");
+			
+			target1.connectNewDataSetAsInput(source1, DistributionPattern.POINTWISE);
+			target2.connectNewDataSetAsInput(source1, DistributionPattern.POINTWISE);
+			target2.connectNewDataSetAsInput(intermediate2, DistributionPattern.POINTWISE);
+			intermediate2.connectNewDataSetAsInput(intermediate1, DistributionPattern.POINTWISE);
+			intermediate1.connectNewDataSetAsInput(source2, DistributionPattern.POINTWISE);
+			
+			JobGraph graph = new JobGraph("TestGraph", source1, source2, intermediate1, intermediate2, target1, target2);
+			List<AbstractJobVertex> sorted = graph.getVerticesSortedTopologicallyFromSources();
+			
+			assertEquals(6, sorted.size());
+			
+			assertBefore(source1, target1, sorted);
+			assertBefore(source1, target2, sorted);
+			assertBefore(source2, target2, sorted);
+			assertBefore(source2, intermediate1, sorted);
+			assertBefore(source2, intermediate2, sorted);
+			assertBefore(intermediate1, target2, sorted);
+			assertBefore(intermediate2, target2, sorted);
 		}
-
-		// Dependency chain is acyclic
-		v1.setVertexToShareInstancesWith(v2);
-		v3.setVertexToShareInstancesWith(v2);
-		v4.setVertexToShareInstancesWith(v1);
-
-		assertEquals(jg.isInstanceDependencyChainAcyclic(), true);
-
-		// Create a cycle v4 -> v1 -> v2 -> v4
-		v2.setVertexToShareInstancesWith(v4);
-
-		assertEquals(jg.isInstanceDependencyChainAcyclic(), false);
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
 	}
-
+	
+	@Test
+	public void testTopologicalSort2() {
+		try {
+			AbstractJobVertex source1 = new AbstractJobVertex("source1");
+			AbstractJobVertex source2 = new AbstractJobVertex("source2");
+			AbstractJobVertex root = new AbstractJobVertex("root");
+			AbstractJobVertex l11 = new AbstractJobVertex("layer 1 - 1");
+			AbstractJobVertex l12 = new AbstractJobVertex("layer 1 - 2");
+			AbstractJobVertex l13 = new AbstractJobVertex("layer 1 - 3");
+			AbstractJobVertex l2 = new AbstractJobVertex("layer 2");
+			
+			root.connectNewDataSetAsInput(l13, DistributionPattern.POINTWISE);
+			root.connectNewDataSetAsInput(source2, DistributionPattern.POINTWISE);
+			root.connectNewDataSetAsInput(l2, DistributionPattern.POINTWISE);
+			
+			l2.connectNewDataSetAsInput(l11, DistributionPattern.POINTWISE);
+			l2.connectNewDataSetAsInput(l12, DistributionPattern.POINTWISE);
+			
+			l11.connectNewDataSetAsInput(source1, DistributionPattern.POINTWISE);
+			
+			l12.connectNewDataSetAsInput(source1, DistributionPattern.POINTWISE);
+			l12.connectNewDataSetAsInput(source2, DistributionPattern.POINTWISE);
+			
+			l13.connectNewDataSetAsInput(source2, DistributionPattern.POINTWISE);
+			
+			JobGraph graph = new JobGraph("TestGraph", source1, source2, root, l11, l13, l12, l2);
+			List<AbstractJobVertex> sorted = graph.getVerticesSortedTopologicallyFromSources();
+			
+			assertEquals(7,  sorted.size());
+			
+			assertBefore(source1, root, sorted);
+			assertBefore(source2, root, sorted);
+			assertBefore(l11, root, sorted);
+			assertBefore(l12, root, sorted);
+			assertBefore(l13, root, sorted);
+			assertBefore(l2, root, sorted);
+			
+			assertBefore(l11, l2, sorted);
+			assertBefore(l12, l2, sorted);
+			assertBefore(l2, root, sorted);
+			
+			assertBefore(source1, l2, sorted);
+			assertBefore(source2, l2, sorted);
+			
+			assertBefore(source2, l13, sorted);
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testTopologicalSort3() {
+		//             --> op1 --
+		//            /         \
+		//  (source) -           +-> op2 -> op3
+		//            \         /
+		//             ---------
+		
+		try {
+			AbstractJobVertex source = new AbstractJobVertex("source");
+			AbstractJobVertex op1 = new AbstractJobVertex("op4");
+			AbstractJobVertex op2 = new AbstractJobVertex("op2");
+			AbstractJobVertex op3 = new AbstractJobVertex("op3");
+			
+			op1.connectNewDataSetAsInput(source, DistributionPattern.POINTWISE);
+			op2.connectNewDataSetAsInput(op1, DistributionPattern.POINTWISE);
+			op2.connectNewDataSetAsInput(source, DistributionPattern.POINTWISE);
+			op3.connectNewDataSetAsInput(op2, DistributionPattern.POINTWISE);
+			
+			JobGraph graph = new JobGraph("TestGraph", source, op1, op2, op3);
+			List<AbstractJobVertex> sorted = graph.getVerticesSortedTopologicallyFromSources();
+			
+			assertEquals(4,  sorted.size());
+			
+			assertBefore(source, op1, sorted);
+			assertBefore(source, op2, sorted);
+			assertBefore(op1, op2, sorted);
+			assertBefore(op2, op3, sorted);
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testTopoSortCyclicGraphNoSources() {
+		try {
+			AbstractJobVertex v1 = new AbstractJobVertex("1");
+			AbstractJobVertex v2 = new AbstractJobVertex("2");
+			AbstractJobVertex v3 = new AbstractJobVertex("3");
+			AbstractJobVertex v4 = new AbstractJobVertex("4");
+			
+			v1.connectNewDataSetAsInput(v4, DistributionPattern.POINTWISE);
+			v2.connectNewDataSetAsInput(v1, DistributionPattern.POINTWISE);
+			v3.connectNewDataSetAsInput(v2, DistributionPattern.POINTWISE);
+			v4.connectNewDataSetAsInput(v3, DistributionPattern.POINTWISE);
+			
+			JobGraph jg = new JobGraph("Cyclic Graph", v1, v2, v3, v4);
+			try {
+				jg.getVerticesSortedTopologicallyFromSources();
+				fail("Failed to raise error on topologically sorting cyclic graph.");
+			}
+			catch (InvalidProgramException e) {
+				// that what we wanted
+			}
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testTopoSortCyclicGraphIntermediateCycle() {
+		try{ 
+			AbstractJobVertex source = new AbstractJobVertex("source");
+			AbstractJobVertex v1 = new AbstractJobVertex("1");
+			AbstractJobVertex v2 = new AbstractJobVertex("2");
+			AbstractJobVertex v3 = new AbstractJobVertex("3");
+			AbstractJobVertex v4 = new AbstractJobVertex("4");
+			AbstractJobVertex target = new AbstractJobVertex("target");
+			
+			v1.connectNewDataSetAsInput(source, DistributionPattern.POINTWISE);
+			v1.connectNewDataSetAsInput(v4, DistributionPattern.POINTWISE);
+			v2.connectNewDataSetAsInput(v1, DistributionPattern.POINTWISE);
+			v3.connectNewDataSetAsInput(v2, DistributionPattern.POINTWISE);
+			v4.connectNewDataSetAsInput(v3, DistributionPattern.POINTWISE);
+			target.connectNewDataSetAsInput(v3, DistributionPattern.POINTWISE);
+			
+			JobGraph jg = new JobGraph("Cyclic Graph", v1, v2, v3, v4, source, target);
+			try {
+				jg.getVerticesSortedTopologicallyFromSources();
+				fail("Failed to raise error on topologically sorting cyclic graph.");
+			}
+			catch (InvalidProgramException e) {
+				// that what we wanted
+			}
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	private static final void assertBefore(AbstractJobVertex v1, AbstractJobVertex v2, List<AbstractJobVertex> list) {
+		boolean seenFirst = false;
+		for (AbstractJobVertex v : list) {
+			if (v == v1) {
+				seenFirst = true;
+			}
+			else if (v == v2) {
+				if (!seenFirst) {
+					fail("The first vertex (" + v1 + ") is not before the second vertex (" + v2 + ")");
+				}
+				break;
+			}
+		}
+	}
 }

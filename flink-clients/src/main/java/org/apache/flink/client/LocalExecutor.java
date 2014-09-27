@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,8 +28,6 @@ import org.apache.flink.api.common.PlanExecutor;
 import org.apache.flink.api.common.Program;
 import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.util.LogUtils;
-import org.apache.log4j.Level;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.client.minicluster.NepheleMiniCluster;
 import org.apache.flink.compiler.DataStatistics;
@@ -76,10 +74,6 @@ public class LocalExecutor extends PlanExecutor {
 	public LocalExecutor() {
 		if (!ExecutionEnvironment.localExecutionIsAllowed()) {
 			throw new InvalidProgramException("The LocalEnvironment cannot be used when submitting a program through a client.");
-		}
-		
-		if (System.getProperty("log4j.configuration") == null) {
-			setLoggingLevel(Level.INFO);
 		}
 	}
 
@@ -339,14 +333,7 @@ public class LocalExecutor extends PlanExecutor {
 		List<DataSinkNode> sinks = PactCompiler.createPreOptimizedPlan(plan);
 		return gen.getPactPlanAsJSON(sinks);
 	}
-	
-	/**
-	 * Utility method for logging
-	 */
-	public static void setLoggingLevel(Level lvl) {
-		LogUtils.initializeDefaultConsoleLogger(lvl);
-	}
-	
+
 	/**
 	 * By default, local environments do not overwrite existing files.
 	 * 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,49 +16,41 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.event.job;
 
 import java.io.IOException;
 
-import org.apache.flink.core.io.StringRecord;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
-import org.apache.flink.runtime.util.EnumUtils;
+import org.apache.flink.util.StringUtils;
+
+import com.google.common.base.Preconditions;
 
 /**
  * A {@link RecentJobEvent} provides a summary of a job which is either currently running or has been running recently.
- * 
  */
 public final class RecentJobEvent extends AbstractEvent implements ManagementEvent {
 
-	/**
-	 * The ID of the new job.
-	 */
+	private static final long serialVersionUID = -3361778351490181333L;
+
+	/** The ID of the new job. */
 	private JobID jobID;
 
-	/**
-	 * The name of the new job.
-	 */
+	/** The name of the new job. */
 	private String jobName;
 
-	/**
-	 * The last known status of the job.
-	 */
+	/** The last known status of the job. */
 	private JobStatus jobStatus;
 
-	/**
-	 * <code>true</code> if profiling is enabled for this job, <code>false</code> otherwise.
-	 */
+	/** <code>true</code> if profiling is enabled for this job, <code>false</code> otherwise. */
 	private boolean isProfilingEnabled;
 
-	/**
-	 * The time stamp of the job submission.
-	 */
+	/** The time stamp of the job submission. */
 	private long submissionTimestamp;
 
+	
 	/**
 	 * Constructs a new event.
 	 * 
@@ -75,13 +67,12 @@ public final class RecentJobEvent extends AbstractEvent implements ManagementEve
 	 * @param timestamp
 	 *        the time stamp of the event
 	 */
-	public RecentJobEvent(final JobID jobID, final String jobName, final JobStatus jobStatus,
-			final boolean isProfilingEnabled, final long submissionTimestamp, final long timestamp) {
+	public RecentJobEvent(JobID jobID, String jobName, JobStatus jobStatus,
+			boolean isProfilingEnabled, long submissionTimestamp, long timestamp) {
 		super(timestamp);
 
-		if (jobStatus == null) {
-			throw new IllegalArgumentException("job status must not be null");
-		}
+		Preconditions.checkNotNull(jobID);
+		Preconditions.checkNotNull(jobStatus);
 
 		this.jobID = jobID;
 		this.jobName = jobName;
@@ -95,8 +86,11 @@ public final class RecentJobEvent extends AbstractEvent implements ManagementEve
 	 */
 	public RecentJobEvent() {
 		super();
+		this.jobID = new JobID();
 	}
 
+	// --------------------------------------------------------------------------------------------
+	
 	/**
 	 * Returns the ID of the new job.
 	 * 
@@ -139,98 +133,62 @@ public final class RecentJobEvent extends AbstractEvent implements ManagementEve
 	 * @return the time stamp of the job submission
 	 */
 	public long getSubmissionTimestamp() {
-
 		return this.submissionTimestamp;
 	}
 
+	// --------------------------------------------------------------------------------------------
+	//  Serialization
+	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public void read(final DataInputView in) throws IOException {
 		super.read(in);
-
-		// Read the job ID
-		this.jobID = new JobID();
+		
 		this.jobID.read(in);
-
-		// Read the job name
-		this.jobName = StringRecord.readString(in);
-
-		// Read the job status
-		this.jobStatus = EnumUtils.readEnum(in, JobStatus.class);
-
-		// Read if profiling is enabled
+		this.jobName = StringUtils.readNullableString(in);
+		this.jobStatus = JobStatus.values()[in.readInt()];
 		this.isProfilingEnabled = in.readBoolean();
-
-		// Read the submission time stamp
 		this.submissionTimestamp = in.readLong();
 	}
-
 
 	@Override
 	public void write(final DataOutputView out) throws IOException {
 		super.write(out);
 
-		// Write the job ID
 		this.jobID.write(out);
-
-		// Write the job name
-		StringRecord.writeString(out, this.jobName);
-
-		// Writes the job status
-		EnumUtils.writeEnum(out, this.jobStatus);
-
-		// Write out if profiling is enabled
+		StringUtils.writeNullableString(jobName, out);
+		out.writeInt(jobStatus.ordinal());
 		out.writeBoolean(this.isProfilingEnabled);
-
-		// Write out the submission time stamp
 		out.writeLong(this.submissionTimestamp);
 	}
 
-
+	// --------------------------------------------------------------------------------------------
+	//  Utilities
+	// --------------------------------------------------------------------------------------------
+	
 	@Override
-	public boolean equals(final Object obj) {
-
-		if (!super.equals(obj)) {
+	public boolean equals(Object obj) {
+		if (obj instanceof RecentJobEvent) {
+			final RecentJobEvent other = (RecentJobEvent) obj;
+			return super.equals(other) && this.jobID.equals(other.jobID) && this.isProfilingEnabled == other.isProfilingEnabled &&
+					this.submissionTimestamp == other.submissionTimestamp &&
+					(this.jobName == null ? other.jobName == null : (other.jobName != null &&
+						this.jobName.equals(other.jobName)));
+		}
+		else {
 			return false;
 		}
-
-		if (!(obj instanceof RecentJobEvent)) {
-			return false;
-		}
-
-		final RecentJobEvent newJobEvent = (RecentJobEvent) obj;
-
-		if (!this.jobID.equals(newJobEvent.getJobID())) {
-			return false;
-		}
-
-		if (!this.jobName.equals(newJobEvent.getJobName())) {
-			return false;
-		}
-
-		if (this.isProfilingEnabled != newJobEvent.isProfilingAvailable()) {
-			return false;
-		}
-
-		if (this.submissionTimestamp != newJobEvent.getSubmissionTimestamp()) {
-			return false;
-		}
-
-		return true;
 	}
-
 
 	@Override
 	public int hashCode() {
-
-		if (this.jobID != null) {
-			return this.jobID.hashCode();
-		}
-
-		if (this.jobName != null) {
-			return this.jobName.hashCode();
-		}
-
-		return super.hashCode();
+		return super.hashCode() ^ jobID.hashCode() ^ jobStatus.ordinal();
+	}
+	
+	@Override
+	public String toString() {
+		return String.format("RecentJobEvent #%d at %s - jobId=%s, jobName=%s, status=%s, jobSubmission=%s, profiling=%s",
+				getSequenceNumber(), getTimestampString(), jobID, jobName, jobStatus, timestampToString(submissionTimestamp),
+				isProfilingEnabled);
 	}
 }
