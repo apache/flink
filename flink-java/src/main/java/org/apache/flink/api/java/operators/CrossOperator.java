@@ -152,7 +152,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		 * 					   The order of fields in the output tuple is defined by to the order of field indexes.
 		 * @return A CrossProjection that needs to be converted into a 
 		 *           {@link org.apache.flink.api.java.operators.CrossOperator.ProjectCross} to complete the
-		 *           Cross transformation by calling {@link CrossProjection#types()}.
+		 *           Cross transformation by calling {@link CrossProjection#types(Class)}.
 		 *
 		 * @see Tuple
 		 * @see DataSet
@@ -177,7 +177,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		 * 					   The order of fields in the output tuple is defined by to the order of field indexes.
 		 * @return A CrossProjection that needs to be converted into a
 		 *           {@link org.apache.flink.api.java.operators.CrossOperator.ProjectCross} to complete the
-		 *           Cross transformation by calling {@link CrossProjection#types()}.
+		 *           Cross transformation by calling {@link CrossProjection#types(Class)}.
 		 *
 		 * @see Tuple
 		 * @see DataSet
@@ -379,7 +379,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		 * 					   For a non-Tuple DataSet, do not provide parameters.
 		 * 					   The order of fields in the output tuple is defined by to the order of field indexes.
 		 * @return A CrossProjection that needs to be converted into a {@link ProjectOperator} to complete the
-		 *           ProjectCross transformation by calling {@link CrossProjection#types()}.
+		 *           ProjectCross transformation by calling {@link CrossProjection#types(Class)}.
 		 *
 		 * @see Tuple
 		 * @see DataSet
@@ -447,7 +447,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		 * 					   For a non-Tuple DataSet, do not provide parameters.
 		 * 					   The order of fields in the output tuple is defined by to the order of field indexes.
 		 * @return A CrossProjection that needs to be converted into a {@link ProjectOperator} to complete the
-		 *           ProjectCross transformation by calling {@link CrossProjection#types()}.
+		 *           ProjectCross transformation by calling {@link CrossProjection#types(Class)}.
 		 *
 		 * @see Tuple
 		 * @see DataSet

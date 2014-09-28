@@ -64,7 +64,6 @@ public class RemoteCollectorImpl<T> extends UnicastRemoteObject implements
 	 *            The consumer instance.
 	 * @param rmiId 
 	 * 	          An ID to register the collector in the RMI registry.
-	 * @return
 	 */
 	public static <T> void createAndBind(Integer port, RemoteCollectorConsumer<T> consumer, String rmiId) {
 		RemoteCollectorImpl<T> collectorInstance = null;
@@ -149,9 +148,8 @@ public class RemoteCollectorImpl<T> extends UnicastRemoteObject implements
 	 * implementation remotely called from the
 	 * {@link RemoteCollectorOutputFormat}.<br/>
 	 * 
-	 * @param local
-	 * @param port
-	 * @param collection
+	 * @param source the source data set
+	 * @param collection the local collection
 	 */
 	public static <T> void collectLocal(DataSet<T> source,
 			Collection<T> collection) {

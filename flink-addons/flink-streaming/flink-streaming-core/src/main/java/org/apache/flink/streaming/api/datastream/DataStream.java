@@ -222,13 +222,13 @@ public class DataStream<OUT> {
 	}
 
 	/**
-	 * Creates a new {@link MergedDataStream} by merging {@link DataStream}
+	 * Creates a new {@link DataStream} by merging {@link DataStream}
 	 * outputs of the same type with each other. The DataStreams merged using
 	 * this operator will be transformed simultaneously.
 	 * 
 	 * @param streams
 	 *            The DataStreams to merge output with.
-	 * @return The {@link MergedDataStream}.
+	 * @return The {@link DataStream}.
 	 */
 	public DataStream<OUT> merge(DataStream<OUT>... streams) {
 		DataStream<OUT> returnStream = this.copy();
@@ -391,7 +391,7 @@ public class DataStream<OUT> {
 	 * <b>Note: Only Tuple DataStreams can be projected.</b></br> The
 	 * transformation projects each Tuple of the DataSet onto a (sub)set of
 	 * fields.</br> This method returns a {@link StreamProjection} on which
-	 * {@link StreamProjection#types()} needs to be called to completed the
+	 * {@link StreamProjection#types(Class)} needs to be called to completed the
 	 * transformation.
 	 * 
 	 * @param fieldIndexes
@@ -400,7 +400,7 @@ public class DataStream<OUT> {
 	 *            of field indexes.
 	 * @return A StreamProjection that needs to be converted into a DataStream
 	 *         to complete the project transformation by calling
-	 *         {@link StreamProjection#types()}.
+	 *         {@link StreamProjection#types(Class)}.
 	 * 
 	 * @see Tuple
 	 * @see DataStream
@@ -1103,7 +1103,7 @@ public class DataStream<OUT> {
 
 	/**
 	 * Internal function for assembling the underlying
-	 * {@link org.apache.flink.nephele.jobgraph.JobGraph} of the job. Connects
+	 * {@link org.apache.flink.runtime.jobgraph.JobGraph} of the job. Connects
 	 * the outputs of the given input stream to the specified output stream
 	 * given by the outputID.
 	 * 

@@ -53,7 +53,7 @@ public abstract class Tuple implements java.io.Serializable {
 	 * Gets the field at the specified position, throws NullFieldException if the field is null. Used for comparing key fields.
 	 * 
 	 * @param pos The position of the field, zero indexed. 
-	 * @returnThe field at the specified position.
+	 * @return The field at the specified position.
 	 * @throws IndexOutOfBoundsException Thrown, if the position is negative, or equal to, or larger than the number of fields.
 	 * @throws NullFieldException Thrown, if the field at pos is null.
 	 */

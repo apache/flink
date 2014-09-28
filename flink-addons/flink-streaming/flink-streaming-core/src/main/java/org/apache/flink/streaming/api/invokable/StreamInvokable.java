@@ -56,7 +56,7 @@ public abstract class StreamInvokable<IN, OUT> implements Serializable {
 	}
 
 	/**
-	 * Initializes the {@link StreamOperatorInvokable} for input and output
+	 * Initializes the {@link StreamInvokable} for input and output
 	 * handling
 	 * 
 	 * @param collector

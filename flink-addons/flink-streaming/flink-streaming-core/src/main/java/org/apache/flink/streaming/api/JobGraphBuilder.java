@@ -83,10 +83,7 @@ public class JobGraphBuilder {
 
 	/**
 	 * Creates an new {@link JobGraph} with the given name. A JobGraph is a DAG
-	 * and consists of sources, tasks (intermediate vertices) and sinks. A
-	 * 
-	 * @param jobGraphName
-	 *            Name of the JobGraph
+	 * and consists of sources, tasks (intermediate vertices) and sinks.
 	 */
 	public JobGraphBuilder() {
 
