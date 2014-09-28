@@ -424,6 +424,33 @@ under the License.
 	<build>
 		<plugins>
 			<plugin>
+		        <groupId>org.apache.maven.plugins</groupId>
+		        <artifactId>maven-shade-plugin</artifactId>
+		        <version>2.3</version>
+		        <executions>
+		          <execution>
+		            <phase>package</phase>
+		            <goals>
+		              <goal>shade</goal>
+		            </goals>
+					</execution>
+		        </executions>
+		            <configuration>
+		            	<createDependencyReducedPom>false</createDependencyReducedPom>
+			            <artifactSet>
+			                <includes>
+			                    <include>com.google.guava:guava</include>
+			                </includes>
+			            </artifactSet>
+			              <relocations>
+			                <relocation>
+			                    <pattern>com.google</pattern>
+			                    <shadedPattern>org.apache.flink.shaded.com.google</shadedPattern>
+			                </relocation>
+			              </relocations>
+		            </configuration>
+		      </plugin>
+			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>
 				<version>2.4</version><!--$NO-MVN-MAN-VER$-->
