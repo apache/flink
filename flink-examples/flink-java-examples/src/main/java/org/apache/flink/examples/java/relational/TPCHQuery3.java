@@ -22,19 +22,15 @@ package org.apache.flink.examples.java.relational;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.Calendar;
 import java.util.Date;
 
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
-import org.apache.flink.api.java.aggregation.Aggregations;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.api.java.tuple.Tuple4;
-import org.apache.flink.api.java.tuple.Tuple5;
-
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.aggregation.Aggregations;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple4;
 
 /**
  * This program implements a modified version of the TPC-H query 3. The
@@ -102,93 +98,72 @@ public class TPCHQuery3 {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		// get input data
-		DataSet<Lineitem> li = getLineitemDataSet(env);
-		DataSet<Order> or = getOrdersDataSet(env);
-		DataSet<Customer> cust = getCustomerDataSet(env);
+		DataSet<Lineitem> lineitems = getLineitemDataSet(env);
+		DataSet<Order> orders = getOrdersDataSet(env);
+		DataSet<Customer> customers = getCustomerDataSet(env);
 		
 		// Filter market segment "AUTOMOBILE"
-		cust = cust.filter(
-							new FilterFunction<Customer>() {
-								@Override
-								public boolean filter(Customer value) {
-									return value.getMktsegment().equals("AUTOMOBILE");
-								}
-							});
+		customers = customers.filter(
+								new FilterFunction<Customer>() {
+									@Override
+									public boolean filter(Customer c) {
+										return c.getMktsegment().equals("AUTOMOBILE");
+									}
+								});
 
 		// Filter all Orders with o_orderdate < 12.03.1995
-		or = or.filter(
-						new FilterFunction<Order>() {
-							private DateFormat format = new SimpleDateFormat("yyyy-MM-dd");
-							private Date date;
-							
-							{	
-								Calendar cal = Calendar.getInstance();
-								cal.set(1995, 3, 12);
-								date = cal.getTime(); 
-							}
-							
-							@Override
-							public boolean filter(Order value) throws ParseException {
-								Date orderDate = format.parse(value.getOrderdate());
-								return orderDate.before(date);
-							}
-						});
+		orders = orders.filter(
+							new FilterFunction<Order>() {
+								private final DateFormat format = new SimpleDateFormat("yyyy-MM-dd");
+								private final Date date = format.parse("1995-03-12");
+								
+								@Override
+								public boolean filter(Order o) throws ParseException {
+									return format.parse(o.getOrderdate()).before(date);
+								}
+							});
 		
 		// Filter all Lineitems with l_shipdate > 12.03.1995
-		li = li.filter(
-						new FilterFunction<Lineitem>() {
-							private DateFormat format = new SimpleDateFormat("yyyy-MM-dd");
-							private Date date;
-							
-							{
-								Calendar cal = Calendar.getInstance();
-								cal.set(1995, 3, 12);
-								date = cal.getTime();
-							}
-							
-							@Override
-							public boolean filter(Lineitem value) throws ParseException {
-								Date shipDate = format.parse(value.getShipdate());
-								return shipDate.after(date);
-							}
-						});
+		lineitems = lineitems.filter(
+								new FilterFunction<Lineitem>() {
+									private final DateFormat format = new SimpleDateFormat("yyyy-MM-dd");
+									private final Date date = format.parse("1995-03-12");
+									
+									@Override
+									public boolean filter(Lineitem l) throws ParseException {
+										return format.parse(l.getShipdate()).after(date);
+									}
+								});
 
 		// Join customers with orders and package them into a ShippingPriorityItem
 		DataSet<ShippingPriorityItem> customerWithOrders = 
-				cust.join(or)
-					.where(0)
-					.equalTo(0)
-					.with(
-							new JoinFunction<Customer, Order, ShippingPriorityItem>() {
-								@Override
-								public ShippingPriorityItem join(Customer first, Order second) {
-									return new ShippingPriorityItem(0, 0.0, second.getOrderdate(),
-											second.getShippriority(), second.getOrderkey());
-								}
-							});
+				customers.join(orders).where(0).equalTo(1)
+							.with(
+								new JoinFunction<Customer, Order, ShippingPriorityItem>() {
+									@Override
+									public ShippingPriorityItem join(Customer c, Order o) {
+										return new ShippingPriorityItem(o.getOrderKey(), 0.0, o.getOrderdate(),
+												o.getShippriority());
+									}
+								});
 		
 		// Join the last join result with Lineitems
-		DataSet<ShippingPriorityItem> joined = 
-				customerWithOrders.join(li)
-									.where(4)
-									.equalTo(0)
+		DataSet<ShippingPriorityItem> result = 
+				customerWithOrders.join(lineitems).where(0).equalTo(0)
 									.with(
 											new JoinFunction<ShippingPriorityItem, Lineitem, ShippingPriorityItem>() {
 												@Override
-												public ShippingPriorityItem join(ShippingPriorityItem first, Lineitem second) {
-													first.setL_Orderkey(second.getOrderkey());
-													first.setRevenue(second.getExtendedprice() * (1 - second.getDiscount()));
-													return first;
+												public ShippingPriorityItem join(ShippingPriorityItem i, Lineitem l) {
+													i.setRevenue(l.getExtendedprice() * (1 - l.getDiscount()));
+													return i;
 												}
-											});
-		
-		// Group by l_orderkey, o_orderdate and o_shippriority and compute revenue sum
-		joined = joined
-				.groupBy(0, 2, 3)
-				.aggregate(Aggregations.SUM, 1);
+											})
+								// Group by l_orderkey, o_orderdate and o_shippriority and compute revenue sum
+								.groupBy(0, 2, 3)
+								.aggregate(Aggregations.SUM, 1);
 		
 		// emit result
-		joined.writeAsCsv(outputPath, "\n", "|");
+		result.writeAsCsv(outputPath, "\n", "|");
 		
 		// execute program
 		env.execute("TPCH Query 3 Example");
@@ -213,34 +188,33 @@ public class TPCHQuery3 {
 		public String getMktsegment() { return this.f1; }
 	}
 
-	public static class Order extends Tuple3<Integer, String, Integer> {
+	public static class Order extends Tuple4<Integer, Integer, String, Integer> {
 		
-		public Integer getOrderkey() { return this.f0; }
-		public String getOrderdate() { return this.f1; }
-		public Integer getShippriority() { return this.f2; }
+		public Integer getOrderKey() { return this.f0; }
+		public Integer getCustKey() { return this.f1; }
+		public String getOrderdate() { return this.f2; }
+		public Integer getShippriority() { return this.f3; }
 	}
 
-	public static class ShippingPriorityItem extends Tuple5<Integer, Double, String, Integer, Integer> {
+	public static class ShippingPriorityItem extends Tuple4<Integer, Double, String, Integer> {
 
 		public ShippingPriorityItem() { }
 
-		public ShippingPriorityItem(Integer l_orderkey, Double revenue,
-				String o_orderdate, Integer o_shippriority, Integer o_orderkey) {
-			this.f0 = l_orderkey;
+		public ShippingPriorityItem(Integer o_orderkey, Double revenue,
+				String o_orderdate, Integer o_shippriority) {
+			this.f0 = o_orderkey;
 			this.f1 = revenue;
 			this.f2 = o_orderdate;
 			this.f3 = o_shippriority;
-			this.f4 = o_orderkey;
 		}
 		
-		public Integer getL_Orderkey() { return this.f0; }
-		public void setL_Orderkey(Integer l_orderkey) { this.f0 = l_orderkey; }
+		public Integer getOrderkey() { return this.f0; }
+		public void setOrderkey(Integer orderkey) { this.f0 = orderkey; }
 		public Double getRevenue() { return this.f1; }
 		public void setRevenue(Double revenue) { this.f1 = revenue; }
 		
 		public String getOrderdate() { return this.f2; }
 		public Integer getShippriority() { return this.f3; }
-		public Integer getO_Orderkey() { return this.f4; }
 	}
 	
 	// *************************************************************************
@@ -291,7 +265,7 @@ public class TPCHQuery3 {
 	private static DataSet<Order> getOrdersDataSet(ExecutionEnvironment env) {
 		return env.readCsvFile(ordersPath)
 					.fieldDelimiter('|')
-					.includeFields("100010010")
+					.includeFields("110010010")
 					.tupleType(Order.class);
 	}
 

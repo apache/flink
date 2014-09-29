@@ -104,13 +104,10 @@ public class TPCHQuery10 {
 
 		// get customer data set: (custkey, name, address, nationkey, acctbal) 
 		DataSet<Tuple5<Integer, String, String, Integer, Double>> customers = getCustomerDataSet(env);
-
 		// get orders data set: (orderkey, custkey, orderdate)
 		DataSet<Tuple3<Integer, Integer, String>> orders = getOrdersDataSet(env);
-
 		// get lineitem data set: (orderkey, extendedprice, discount, returnflag)
 		DataSet<Tuple4<Integer, Double, Double, String>> lineitems = getLineitemDataSet(env);
-
 		// get nation data set: (nationkey, name)
 		DataSet<Tuple2<Integer, String>> nations = getNationsDataSet(env);
 
@@ -120,46 +117,38 @@ public class TPCHQuery10 {
 				orders.filter(
 								new FilterFunction<Tuple3<Integer,Integer, String>>() {
 									@Override
-									public boolean filter(Tuple3<Integer, Integer, String> t) {
-										int year = Integer.parseInt(t.f2.substring(0, 4));
-										return year > 1990;
+									public boolean filter(Tuple3<Integer, Integer, String> o) {
+										return Integer.parseInt(o.f2.substring(0, 4)) > 1990;
 									}
 								})
 				// project fields out that are no longer required
 				.project(0,1).types(Integer.class, Integer.class);
 
-		// lineitems filtered by flag: (orderkey, extendedprice, discount)
-		DataSet<Tuple3<Integer, Double, Double>> lineitemsFilteredByFlag = 
+		// lineitems filtered by flag: (orderkey, revenue)
+		DataSet<Tuple2<Integer, Double>> lineitemsFilteredByFlag = 
 				// filter by flag
 				lineitems.filter(new FilterFunction<Tuple4<Integer, Double, Double, String>>() {
 										@Override
-										public boolean filter(Tuple4<Integer, Double, Double, String> t)
-												throws Exception {
-											return t.f3.equals("R");
+										public boolean filter(Tuple4<Integer, Double, Double, String> l) {
+											return l.f3.equals("R");
 										}
 								})
-				// project fields out that are no longer required
-				.project(0,1,2).types(Integer.class, Double.class, Double.class);
+				// compute revenue and project out return flag
+				.map(new MapFunction<Tuple4<Integer, Double, Double, String>, Tuple2<Integer, Double>>() {
+							@Override
+							public Tuple2<Integer, Double> map(Tuple4<Integer, Double, Double, String> l) {
+								// revenue per item = l_extendedprice * (1 - l_discount)
+								return new Tuple2<Integer, Double>(l.f0, l.f1 * (1 - l.f2));
+							}
+					});
 
-		// join orders with lineitems: (custkey, extendedprice, discount)
-		DataSet<Tuple3<Integer, Double, Double>> lineitemsOfCustomerKey = 
+		// join orders with lineitems: (custkey, revenue)
+		DataSet<Tuple2<Integer, Double>> revenueByCustomer = 
 				ordersFilteredByYear.joinWithHuge(lineitemsFilteredByFlag)
 									.where(0).equalTo(0)
-									.projectFirst(1).projectSecond(1,2)
-									.types(Integer.class, Double.class, Double.class);
-
-		// aggregate for revenue: (custkey, revenue)
-		DataSet<Tuple2<Integer, Double>> revenueOfCustomerKey = lineitemsOfCustomerKey
-				// calculate the revenue for each item
-				.map(new MapFunction<Tuple3<Integer, Double, Double>, Tuple2<Integer, Double>>() {
-							@Override
-							public Tuple2<Integer, Double> map(Tuple3<Integer, Double, Double> t) {
-								// revenue per item = l_extendedprice * (1 - l_discount)
-								return new Tuple2<Integer, Double>(t.f0, t.f1 * (1 - t.f2));
-							}
-					})
-				// aggregate the revenues per item to revenue per customer
-				.groupBy(0).aggregate(Aggregations.SUM, 1);
+									.projectFirst(1).projectSecond(1)
+									.types(Integer.class, Double.class)
+									.groupBy(0).aggregate(Aggregations.SUM, 1);
 
 		// join customer with nation (custkey, name, address, nationname, acctbal)
 		DataSet<Tuple5<Integer, String, String, String, Double>> customerWithNation = customers
@@ -169,14 +158,14 @@ public class TPCHQuery10 {
 						.types(Integer.class, String.class, String.class, String.class, Double.class);
 
 		// join customer (with nation) with revenue (custkey, name, address, nationname, acctbal, revenue)
-		DataSet<Tuple6<Integer, String, String, String, Double, Double>> customerWithRevenue = 
-				customerWithNation.join(revenueOfCustomerKey)
+		DataSet<Tuple6<Integer, String, String, String, Double, Double>> result = 
+				customerWithNation.join(revenueByCustomer)
 				.where(0).equalTo(0)
 				.projectFirst(0,1,2,3,4).projectSecond(1)
 				.types(Integer.class, String.class, String.class, String.class, Double.class, Double.class);
 
 		// emit result
-		customerWithRevenue.writeAsCsv(outputPath);
+		result.writeAsCsv(outputPath, "\n", "|");
 		
 		// execute program
 		env.execute("TPCH Query 10 Example");
