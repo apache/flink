@@ -608,7 +608,7 @@ DataSet<String> result = in.rebalance()
     <tr>
       <td><strong>Hash-Partition</strong></td>
       <td>
-        <p>Hash-partitions a data set on a given key. Keys can be specified as key-selector functions or field position keys. Only Map-like transformations may follow a hash-partition transformation. (Java API Only)</p>
+        <p>Hash-partitions a data set on a given key. Keys can be specified as key-selector functions or field position keys.</p>
 {% highlight java %}
 DataSet<Tuple2<String,Integer>> in = // [...]
 DataSet<Integer> result = in.partitionByHash(0)
@@ -804,6 +804,33 @@ val result: DataSet[(Int, String)] = data1.cross(data2)
         <p>Produces the union of two data sets.</p>
 {% highlight scala %}
 data.union(data2)
+{% endhighlight %}
+      </td>
+    </tr>
+    <tr>
+      <td><strong>Hash-Partition</strong></td>
+      <td>
+        <p>Hash-partitions a data set on a given key. Keys can be specified as key-selector functions, tuple positions
+        or case class fields.</p>
+{% highlight scala %}
+val in: DataSet[(Int, String)] = // [...]
+val result = in.partitionByHash(0).mapPartition { ... }
+{% endhighlight %}
+      </td>
+    </tr>
+    <tr>
+      <td><strong>First-n</strong></td>
+      <td>
+        <p>Returns the first n (arbitrary) elements of a data set. First-n can be applied on a regular data set, a grouped data set, or a grouped-sorted data set. Grouping keys can be specified as key-selector functions,
+        tuple positions or case class fields.</p>
+{% highlight scala %}
+val in: DataSet[(Int, String)] = // [...]
+// regular data set
+val result1 = in.first(3)
+// grouped data set
+val result2 = in.groupBy(0).first(3)
+// grouped-sorted data set
+val result3 = in.groupBy(0).sortGroup(1, Order.ASCENDING).first(3)
 {% endhighlight %}
       </td>
     </tr>
