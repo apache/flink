@@ -41,37 +41,12 @@ under the License.
 			<excludes>
 				<exclude>org.apache.flink:flink-java-examples</exclude>
 				<exclude>org.apache.flink:flink-scala-examples</exclude>
+				<exclude>org.apache.flink:flink-streaming-examples</exclude>
 				<!--
 				<exclude>**/*javadoc*</exclude>
 				<exclude>**/*sources*</exclude>
 				-->
-				<!--
-				  This is a hardcoded exclude-list containing all libraries that are exclusively used in pact-clients.
-				  The previous command did not work because it also excludes libraries that should be in lib, such as commons-io.
-				-->
-				<exclude>commons-fileupload:commons-fileupload</exclude>
 			</excludes>
-		</dependencySet>
-		
-		<dependencySet>
-			<outputDirectory>lib_clients</outputDirectory>
-			<unpack>false</unpack>
-			<useTransitiveDependencies>true</useTransitiveDependencies>
-			<useProjectArtifact>false</useProjectArtifact>
-			<useProjectAttachments>false</useProjectAttachments>
-			<useTransitiveFiltering>true</useTransitiveFiltering>
-			
-			<includes>
-				<include>org.apache.flink:flink-clients:**</include>
-			</includes>
-			
-			<!--
-			<excludes>
-				<exclude>**/*examples*.jar</exclude>
-				<exclude>**/*javadoc*</exclude>
-				<exclude>**/*sources*</exclude>
-			</excludes>
-			-->
 		</dependencySet>
 	</dependencySets>
 

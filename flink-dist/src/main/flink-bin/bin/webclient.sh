@@ -30,8 +30,6 @@ if [ "$FLINK_IDENT_STRING" = "" ]; then
         FLINK_IDENT_STRING="$USER"
 fi
 
-FLINK_LIB_CLIENTS_DIR=$FLINK_ROOT_DIR/lib_clients
-
 JVM_ARGS="$JVM_ARGS -Xmx512m"
 
 # auxilliary function to construct the classpath for the webclient
@@ -43,10 +41,6 @@ constructWebclientClassPath() {
 		else
 			FLINK_WEBCLIENT_CLASSPATH=$FLINK_WEBCLIENT_CLASSPATH:$jarfile
 		fi
-	done
-	
-	for jarfile in "$FLINK_LIB_CLIENTS_DIR"/*.jar ; do
-		FLINK_WEBCLIENT_CLASSPATH=$FLINK_WEBCLIENT_CLASSPATH:$jarfile
 	done
 
 	echo $FLINK_WEBCLIENT_CLASSPATH
