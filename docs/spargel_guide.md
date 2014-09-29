@@ -17,14 +17,14 @@ This vertex-centric view makes it easy to express a large class of graph problem
 Spargel API
 -----------
 
-The Spargel API is part of the *addons* Maven project. All relevant classes are located in the *org.apache.flinkspargel.java* package.
+The Spargel API is part of the *addons* Maven project. All relevant classes are located in the *org.apache.flink.spargel.java* package.
 
 Add the following dependency to your `pom.xml` to use the Spargel.
 
 ~~~xml
 <dependency>
 	<groupId>org.apache.flink</groupId>
-	<artifactId>spargel</artifactId>
+	<artifactId>flink-spargel</artifactId>
 	<version>{{site.FLINK_VERSION_STABLE}}</version>
 </dependency>
 ~~~
