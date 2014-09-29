@@ -27,7 +27,7 @@ import static org.junit.Assert.fail;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.client.AbstractJobResult;
 import org.apache.flink.runtime.client.JobSubmissionResult;
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
+import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.instance.LocalInstanceManager;
 import org.apache.flink.runtime.io.network.api.RecordReader;
@@ -72,9 +72,6 @@ public class JobManagerITCase {
 			try {
 				
 				assertEquals(1, jm.getTotalNumberOfRegisteredSlots());
-				
-				// we need to register the job at the library cache manager (with no libraries)
-				LibraryCacheManager.register(jobGraph.getJobID(), new ArrayList<BlobKey>());
 				
 				JobSubmissionResult result = jm.submitJob(jobGraph);
 				assertEquals(AbstractJobResult.ReturnCode.ERROR, result.getReturnCode());
@@ -146,9 +143,6 @@ public class JobManagerITCase {
 				
 				assertEquals(NUM_TASKS, jm.getTotalNumberOfRegisteredSlots());
 				
-				// we need to register the job at the library cache manager (with no libraries)
-				LibraryCacheManager.register(jobGraph.getJobID(), new ArrayList<BlobKey>());
-				
 				JobSubmissionResult result = jm.submitJob(jobGraph);
 				
 				if (result.getReturnCode() != AbstractJobResult.ReturnCode.SUCCESS) {
@@ -219,10 +213,6 @@ public class JobManagerITCase {
 					.getTaskManagers()[0].getChannelManager().getGlobalBufferPool();
 			
 			try {
-				
-				// we need to register the job at the library cache manager (with no libraries)
-				LibraryCacheManager.register(jobGraph.getJobID(), new ArrayList<BlobKey>());
-				
 				JobSubmissionResult result = jm.submitJob(jobGraph);
 				
 				if (result.getReturnCode() != AbstractJobResult.ReturnCode.SUCCESS) {
@@ -282,9 +272,6 @@ public class JobManagerITCase {
 					.getTaskManagers()[0].getChannelManager().getGlobalBufferPool();
 			
 			try {
-				// we need to register the job at the library cache manager (with no libraries)
-				LibraryCacheManager.register(jobGraph.getJobID(), new ArrayList<BlobKey>());
-				
 				JobSubmissionResult result = jm.submitJob(jobGraph);
 
 				if (result.getReturnCode() != AbstractJobResult.ReturnCode.SUCCESS) {
@@ -344,9 +331,6 @@ public class JobManagerITCase {
 					.getTaskManagers()[0].getChannelManager().getGlobalBufferPool();
 			
 			try {
-				// we need to register the job at the library cache manager (with no libraries)
-				LibraryCacheManager.register(jobGraph.getJobID(), new ArrayList<BlobKey>());
-				
 				JobSubmissionResult result = jm.submitJob(jobGraph);
 
 				if (result.getReturnCode() != AbstractJobResult.ReturnCode.SUCCESS) {
@@ -410,9 +394,6 @@ public class JobManagerITCase {
 					.getTaskManagers()[0].getChannelManager().getGlobalBufferPool();
 			
 			try {
-				// we need to register the job at the library cache manager (with no libraries)
-				LibraryCacheManager.register(jobGraph.getJobID(), new ArrayList<BlobKey>());
-				
 				JobSubmissionResult result = jm.submitJob(jobGraph);
 
 				if (result.getReturnCode() != AbstractJobResult.ReturnCode.SUCCESS) {
@@ -476,9 +457,6 @@ public class JobManagerITCase {
 								.getTaskManagers()[0].getChannelManager().getGlobalBufferPool();
 			
 			try {
-				// we need to register the job at the library cache manager (with no libraries)
-				LibraryCacheManager.register(jobGraph.getJobID(), new ArrayList<BlobKey>());
-				
 				JobSubmissionResult result = jm.submitJob(jobGraph);
 
 				if (result.getReturnCode() != AbstractJobResult.ReturnCode.SUCCESS) {
@@ -539,9 +517,6 @@ public class JobManagerITCase {
 			
 			try {
 				assertEquals(NUM_TASKS, jm.getTotalNumberOfRegisteredSlots());
-				
-				// we need to register the job at the library cache manager (with no libraries)
-				LibraryCacheManager.register(jobGraph.getJobID(), new ArrayList<BlobKey>());
 				
 				JobSubmissionResult result = jm.submitJob(jobGraph);
 
@@ -604,9 +579,6 @@ public class JobManagerITCase {
 			try {
 				assertEquals(NUM_TASKS, jm.getTotalNumberOfRegisteredSlots());
 				
-				// we need to register the job at the library cache manager (with no libraries)
-				LibraryCacheManager.register(jobGraph.getJobID(), new ArrayList<BlobKey>());
-				
 				JobSubmissionResult result = jm.submitJob(jobGraph);
 
 				if (result.getReturnCode() != AbstractJobResult.ReturnCode.SUCCESS) {
@@ -664,10 +636,6 @@ public class JobManagerITCase {
 					.getTaskManagers()[0].getChannelManager().getGlobalBufferPool();
 			
 			try {
-				
-				// we need to register the job at the library cache manager (with no libraries)
-				LibraryCacheManager.register(jobGraph.getJobID(), new ArrayList<BlobKey>());
-				
 				JobSubmissionResult result = jm.submitJob(jobGraph);
 				
 				if (result.getReturnCode() != AbstractJobResult.ReturnCode.SUCCESS) {
@@ -732,9 +700,6 @@ public class JobManagerITCase {
 			try {
 				assertEquals(NUM_TASKS, jm.getTotalNumberOfRegisteredSlots());
 				
-				// we need to register the job at the library cache manager (with no libraries)
-				LibraryCacheManager.register(jobGraph.getJobID(), new ArrayList<BlobKey>());
-				
 				JobSubmissionResult result = jm.submitJob(jobGraph);
 
 				if (result.getReturnCode() != AbstractJobResult.ReturnCode.SUCCESS) {
@@ -798,9 +763,6 @@ public class JobManagerITCase {
 			
 			try {
 				assertEquals(2*NUM_TASKS, jm.getNumberOfSlotsAvailableToScheduler());
-				
-				// we need to register the job at the library cache manager (with no libraries)
-				LibraryCacheManager.register(jobGraph.getJobID(), new ArrayList<BlobKey>());
 				
 				JobSubmissionResult result = jm.submitJob(jobGraph);
 

@@ -23,7 +23,6 @@ import static org.mockito.Mockito.*;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.sql.Blob;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Map;
@@ -37,7 +36,7 @@ import org.apache.flink.runtime.deployment.ChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.GateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
+import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
@@ -62,10 +61,11 @@ public class TaskManagerTest {
 	
 	@Test
 	public void testSetupTaskManager() {
+		JobManager jobManager = null;
+		TaskManager tm = null;
 		try {
-			JobManager jobManager = getJobManagerMockBase();
-			
-			TaskManager tm = createTaskManager(jobManager);
+			jobManager = getJobManagerMockBase();
+			tm = createTaskManager(jobManager);
 
 			JobID jid = new JobID();
 			JobVertexID vid = new JobVertexID();
@@ -80,19 +80,31 @@ public class TaskManagerTest {
 			TaskOperationResult result = tm.submitTask(tdd);
 			assertTrue(result.isSuccess());
 			assertEquals(eid, result.getExecutionId());
+
+			jobManager.shutdown();
+			tm.shutdown();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
+		}finally{
+			if(jobManager != null){
+				jobManager.shutdown();
+			}
+
+			if(tm != null){
+				tm.shutdown();
+			}
 		}
 	}
 	
 	@Test
 	public void testJobSubmissionAndCanceling() {
+		JobManager jobManager = null;
+		TaskManager tm = null;
 		try {
-			JobManager jobManager = getJobManagerMockBase();
-			
-			TaskManager tm = createTaskManager(jobManager);
+			jobManager = getJobManagerMockBase();
+			tm = createTaskManager(jobManager);
 
 			JobID jid1 = new JobID();
 			JobID jid2 = new JobID();
@@ -153,24 +165,29 @@ public class TaskManagerTest {
 			tasks = tm.getAllRunningTasks();
 			assertEquals(0, tasks.size());
 			
-			// the class loaders should be de-registered
-			assertNull(LibraryCacheManager.getClassLoader(jid1));
-			assertNull(LibraryCacheManager.getClassLoader(jid2));
-			
 			assertNetworkResourcesReleased(tm);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
+		}finally{
+			if(jobManager != null){
+				jobManager.shutdown();
+			}
+
+			if(tm != null){
+				tm.shutdown();
+			}
 		}
 	}
 	
 	@Test
 	public void testGateChannelEdgeMismatch() {
+		JobManager jobManager = null;
+		TaskManager tm = null;
 		try {
-			JobManager jobManager = getJobManagerMockBase();
-			
-			TaskManager tm = createTaskManager(jobManager);
+			jobManager = getJobManagerMockBase();
+			tm = createTaskManager(jobManager);
 
 			JobID jid = new JobID();;
 			
@@ -198,18 +215,26 @@ public class TaskManagerTest {
 			Map<ExecutionAttemptID, Task> tasks = tm.getAllRunningTasks();
 			assertEquals(0, tasks.size());
 			assertNetworkResourcesReleased(tm);
-			
-			// the class loaders should be de-registered
-			assertNull(LibraryCacheManager.getClassLoader(jid));
 		}
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
+		}finally{
+			if(jobManager != null){
+				jobManager.shutdown();
+			}
+
+			if(tm != null){
+				tm.shutdown();
+			}
 		}
 	}
 	
 	@Test
 	public void testRunJobWithForwardChannel() {
+		JobManager jobManager = null;
+		TaskManager tm = null;
+
 		try {
 			JobID jid = new JobID();
 			
@@ -222,11 +247,11 @@ public class TaskManagerTest {
 			ChannelID senderId = new ChannelID();
 			ChannelID receiverId = new ChannelID();
 			
-			JobManager jobManager = getJobManagerMockBase();
+			jobManager = getJobManagerMockBase();
 			when(jobManager.lookupConnectionInfo(Matchers.any(InstanceConnectionInfo.class), Matchers.eq(jid), Matchers.eq(senderId)))
 				.thenReturn(ConnectionInfoLookupResponse.createReceiverFoundAndReady(receiverId));
 			
-			TaskManager tm = createTaskManager(jobManager);
+			tm = createTaskManager(jobManager);
 			
 			ChannelDeploymentDescriptor cdd = new ChannelDeploymentDescriptor(senderId, receiverId);
 			
@@ -270,15 +295,20 @@ public class TaskManagerTest {
 			tasks = tm.getAllRunningTasks();
 			assertEquals(0, tasks.size());
 			
-			// the class loaders should be de-registered
-			assertNull(LibraryCacheManager.getClassLoader(jid));
-			
 			// make sure that the global buffer pool has all buffers back
 			assertNetworkResourcesReleased(tm);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
+		}finally{
+			if(jobManager != null){
+				jobManager.shutdown();
+			}
+
+			if(tm != null){
+				tm.shutdown();
+			}
 		}
 	}
 	
@@ -288,7 +318,10 @@ public class TaskManagerTest {
 		// this tests creates two tasks. the sender sends data, and fails to send the
 		// state update back to the job manager
 		// the second one blocks to be canceled
-		
+
+		JobManager jobManager = null;
+		TaskManager tm = null;
+
 		try {
 			JobID jid = new JobID();
 			
@@ -301,12 +334,12 @@ public class TaskManagerTest {
 			ChannelID senderId = new ChannelID();
 			ChannelID receiverId = new ChannelID();
 			
-			JobManager jobManager = getJobManagerMockBase();
+			jobManager = getJobManagerMockBase();
 			when(jobManager.updateTaskExecutionState(any(TaskExecutionState.class))).thenReturn(false);
 			when(jobManager.lookupConnectionInfo(Matchers.any(InstanceConnectionInfo.class), Matchers.eq(jid), Matchers.eq(senderId)))
 				.thenReturn(ConnectionInfoLookupResponse.createReceiverFoundAndReady(receiverId));
 			
-			TaskManager tm = createTaskManager(jobManager);
+			tm = createTaskManager(jobManager);
 			
 			ChannelDeploymentDescriptor cdd = new ChannelDeploymentDescriptor(senderId, receiverId);
 			
@@ -356,6 +389,14 @@ public class TaskManagerTest {
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
+		}finally{
+			if(jobManager != null){
+				jobManager.shutdown();
+			}
+
+			if(tm != null){
+				tm.shutdown();
+			}
 		}
 	}
 	

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,17 +38,22 @@ import java.nio.file.Files;
  * <p>
  * This class is thread-safe.
  */
-public final class BlobCache {
+public final class BlobCache implements BlobService {
 
 	/**
 	 * The log object used for debugging.
 	 */
 	private static final Logger LOG = LoggerFactory.getLogger(BlobCache.class);
 
-	/**
-	 * Private constructor to prevent instantiation.
-	 */
-	private BlobCache() {
+	private final InetSocketAddress serverAddress;
+
+	private final File storageDir;
+
+
+	public BlobCache(InetSocketAddress serverAddress) {
+		this.serverAddress = serverAddress;
+
+		this.storageDir = BlobUtils.initStorageDirectory();
 	}
 
 	/**
@@ -55,16 +61,13 @@ public final class BlobCache {
 	 * the BLOB from its local cache. If one or more BLOB are not in the cache, the method will try to download them
 	 * from the BLOB server with the given address.
 	 * 
-	 * @param serverAddress
-	 *        the address of the BLOB server.
 	 * @param requiredBlob
 	 *        the key of the desired content-addressable BLOB
 	 * @return URL referring to the local storage location of the BLOB
 	 * @throws IOException
 	 *         thrown if an I/O error occurs while downloading the BLOBs from the BLOB server
 	 */
-	public static URL getURL(final InetSocketAddress serverAddress, final BlobKey requiredBlob)
-			throws IOException {
+	public URL getURL(final BlobKey requiredBlob) throws IOException {
 
 		if (requiredBlob == null) {
 			throw new IllegalArgumentException("Required BLOB cannot be null.");
@@ -75,7 +78,7 @@ public final class BlobCache {
 		URL url = null;
 
 		try {
-			final File localJarFile = BlobServer.getStorageLocation(requiredBlob);
+			final File localJarFile = BlobUtils.getStorageLocation(storageDir, requiredBlob);
 
 			if (!localJarFile.exists()) {
 
@@ -109,9 +112,6 @@ public final class BlobCache {
 
 						os.write(buf, 0, read);
 					}
-
-					localJarFile.deleteOnExit();
-
 				} finally {
 					if (is != null) {
 						is.close();
@@ -137,9 +137,19 @@ public final class BlobCache {
 	 * Deletes the file associated with the given key from the BLOB cache.
 	 * @param key referring to the file to be deleted
 	 */
-	public static void delete(BlobKey key) throws IOException{
-		final File localFile = BlobServer.getStorageLocation(key);
+	public void delete(BlobKey key) throws IOException{
+		final File localFile = BlobUtils.getStorageLocation(storageDir, key);
 
 		Files.delete(localFile.toPath());
+	}
+
+	@Override
+	public int getPort() {
+		return serverAddress.getPort();
+	}
+
+	@Override
+	public void shutdown() throws IOException{
+		FileUtils.deleteDirectory(storageDir);
 	}
 }

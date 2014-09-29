@@ -20,25 +20,17 @@ package org.apache.flink.runtime.blob;
 
 import java.io.EOFException;
 import java.io.File;
-import java.io.FileFilter;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.ServerSocket;
-import java.nio.charset.Charset;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
+import java.net.URL;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.commons.io.FileUtils;
 import org.apache.flink.runtime.jobgraph.JobID;
 
-import com.google.common.io.BaseEncoding;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,34 +41,12 @@ import org.slf4j.LoggerFactory;
  * <p>
  * This class is thread-safe.
  */
-public final class BlobServer extends Thread {
+public final class BlobServer extends Thread implements BlobService{
 
 	/**
 	 * The log object used for debugging.
 	 */
 	private static final Logger LOG = LoggerFactory.getLogger(BlobServer.class);
-
-	/**
-	 * The prefix of all BLOB files stored by the BLOB server.
-	 */
-	private static final String BLOB_FILE_PREFIX = "blob_";
-
-	/**
-	 * The prefix of all job-specific directories created by the BLOB server.
-	 */
-	private static final String JOB_DIR_PREFIX = "job_";
-
-	/**
-	 * A file filter to list all BLOB files in a directory.
-	 */
-	private static final FileFilter BLOB_FILE_FILTER = new FileFilter() {
-
-		@Override
-		public boolean accept(final File pathname) {
-
-			return (pathname.isFile() && pathname.getName().startsWith(BLOB_FILE_PREFIX));
-		}
-	};
 
 	/**
 	 * The buffer size in bytes for network transfers.
@@ -87,11 +57,6 @@ public final class BlobServer extends Thread {
 	 * The maximum key length allowed for storing BLOBs.
 	 */
 	static final int MAX_KEY_LENGTH = 64;
-
-	/**
-	 * The default character set to translate between characters and bytes.
-	 */
-	static final Charset DEFAULT_CHARSET = Charset.forName("utf-8");
 
 	/**
 	 * Internal code to identify a PUT operation.
@@ -109,29 +74,9 @@ public final class BlobServer extends Thread {
 	static final byte DELETE_OPERATION = 2;
 
 	/**
-	 * Algorithm to be used for calculating the BLOB keys.
-	 */
-	private static final String HASHING_ALGORITHM = "SHA-1";
-
-	/**
 	 * Counter to generate unique names for temporary files.
 	 */
-	private static final AtomicInteger TEMP_FILE_COUNTER = new AtomicInteger(0);
-
-	/**
-	 * Cache for the base storage directory.
-	 */
-	private static File STORAGE_DIRECTORY = null;
-
-	/**
-	 * Cache for the storage directory for incoming files.
-	 */
-	private static File INCOMING_DIRECTORY = null;
-
-	/**
-	 * Cache for the storage directory for cached files.
-	 */
-	private static File CACHE_DIRECTORY = null;
+	private final AtomicInteger tempFileCounter = new AtomicInteger(0);
 
 	/**
 	 * The server socket listening for incoming connections.
@@ -139,14 +84,14 @@ public final class BlobServer extends Thread {
 	private final ServerSocket serverSocket;
 
 	/**
-	 * Set of job-specific directories created by this BLOB server.
-	 */
-	private final Set<JobID> createdJobDirectories = Collections.newSetFromMap(new ConcurrentHashMap<JobID, Boolean>());
-
-	/**
 	 * Indicates whether a shutdown of server component has been requested.
 	 */
 	private volatile boolean shutdownRequested = false;
+
+	/**
+	 * Is the root directory for file storage
+	 */
+	private final File storageDir;
 
 	/**
 	 * Instantiates a new BLOB server and binds it to a free network port.
@@ -163,6 +108,8 @@ public final class BlobServer extends Thread {
 			LOG.info(String.format("Started BLOB server on port %d",
 				this.serverSocket.getLocalPort()));
 		}
+
+		this.storageDir = BlobUtils.initStorageDirectory();
 	}
 
 	/**
@@ -177,48 +124,35 @@ public final class BlobServer extends Thread {
 	}
 
 	/**
-	 * Creates a new instance of the message digest to use for the BLOB key computation.
-	 * 
-	 * @return a new instance of the message digest to use for the BLOB key computation
+	 * Returns a file handle to the file associated with the given blob key on the blob
+	 * server.
+	 *
+	 * @param key identifying the file
+	 * @return file handle to the file
 	 */
-	static MessageDigest createMessageDigest() {
-
-		try {
-			return MessageDigest.getInstance(HASHING_ALGORITHM);
-		} catch (NoSuchAlgorithmException e) {
-			throw new RuntimeException(e);
-		}
+	public File getStorageLocation(BlobKey key){
+		return BlobUtils.getStorageLocation(storageDir, key);
 	}
 
 	/**
-	 * Returns the storage directory used by the BLOB server. The directory is created if it did not exist so far.
-	 * 
-	 * @return the storage directory used by the BLOB server
+	 * Returns a file handle to the file identified by the given jobID and key.
+	 *
+	 * @param jobID to which the file is associated
+	 * @param key to identify the file within the job context
+	 * @return file handle to the file
 	 */
-	private static File getStorageDirectory() {
+	public File getStorageLocation(JobID jobID, String key){
+		return BlobUtils.getStorageLocation(storageDir, jobID, key);
+	}
 
-		if (STORAGE_DIRECTORY != null) {
-			return STORAGE_DIRECTORY;
-		}
-
-		File storageDirectory;
-		String sd = GlobalConfiguration.getString(
-			ConfigConstants.BLOB_STORAGE_DIRECTORY_KEY, null);
-		if (sd != null) {
-			storageDirectory = new File(sd);
-		} else {
-			storageDirectory = new File(System.getProperty("java.io.tmpdir"));
-		}
-
-		storageDirectory = new File(storageDirectory, String.format(
-			"blobStore-%s", System.getProperty("user.name")));
-
-		// Create the storage directory
-		storageDirectory.mkdirs();
-		storageDirectory.deleteOnExit();
-		STORAGE_DIRECTORY = storageDirectory;
-
-		return storageDirectory;
+	/**
+	 * Method which deletes all files associated with the given jobID.
+	 *
+	 * @param jobID all files associated to this jobID will be deleted
+	 * @throws IOException
+	 */
+	public void deleteJobDirectory(JobID jobID) throws IOException{
+		BlobUtils.deleteJobDirectory(storageDir, jobID);
 	}
 
 	/**
@@ -226,111 +160,9 @@ public final class BlobServer extends Thread {
 	 * 
 	 * @return a temporary file inside the BLOB server's incoming directory
 	 */
-	static File getTemporaryFilename() {
-
-		return new File(getIncomingDirectory(), String.format("temp-%08d", TEMP_FILE_COUNTER.getAndIncrement()));
-	}
-
-	/**
-	 * Returns the BLOB server's directory for incoming files. The directory is created if it did not exist so far.
-	 * 
-	 * @return the BLOB server's directory for incoming files
-	 */
-	private static File getIncomingDirectory() {
-
-		if (INCOMING_DIRECTORY != null) {
-			return INCOMING_DIRECTORY;
-		}
-
-		final File storageDirectory = getStorageDirectory();
-		final File incomingDirectory = new File(storageDirectory, "incoming");
-		incomingDirectory.mkdir();
-		incomingDirectory.deleteOnExit();
-		INCOMING_DIRECTORY = incomingDirectory;
-
-		return incomingDirectory;
-	}
-
-	/**
-	 * Returns the BLOB server's directory for cached files. The directory is created if it did not exist so far.
-	 * 
-	 * @return the BLOB server's directory for cached files
-	 */
-	private static File getCacheDirectory() {
-
-		if (CACHE_DIRECTORY != null) {
-			return CACHE_DIRECTORY;
-		}
-
-		final File storageDirectory = getStorageDirectory();
-		final File cacheDirectory = new File(storageDirectory, "cache");
-		cacheDirectory.mkdir();
-		cacheDirectory.deleteOnExit();
-		CACHE_DIRECTORY = cacheDirectory;
-
-		return CACHE_DIRECTORY;
-	}
-
-	/**
-	 * Returns the BLOB server's storage directory for BLOBs belonging to the job with the given ID.
-	 * 
-	 * @param jobID
-	 *        the ID of the job to return the storage directory for
-	 * @param create
-	 *        <code>true</code> to create the directory if it did not exist so far, <code>false</code> otherwise
-	 * @return the storage directory for BLOBs belonging to the job with the given ID
-	 */
-	private File getJobDirectory(final JobID jobID, final boolean create) {
-
-		final File jobDirectory = new File(getStorageDirectory(), JOB_DIR_PREFIX + jobID.toString());
-		if (create) {
-			if (jobDirectory.mkdirs()) {
-				jobDirectory.deleteOnExit();
-				this.createdJobDirectories.add(jobID);
-			}
-		}
-
-		return jobDirectory;
-	}
-
-	/**
-	 * Returns the (designated) physical storage location of the BLOB with the given key.
-	 * 
-	 * @param key
-	 *        the key identifying the BLOB
-	 * @return the (designated) physical storage location of the BLOB
-	 */
-	static File getStorageLocation(final BlobKey key) {
-
-		final File storageDirectory = getCacheDirectory();
-
-		return new File(storageDirectory, BLOB_FILE_PREFIX + key.toString());
-	}
-
-	/**
-	 * Returns the (designated) physical storage location of the BLOB with the given job ID and key.
-	 * 
-	 * @param jobID
-	 *        the ID of the job the BLOB belongs to
-	 * @param key
-	 *        the key of the BLOB
-	 * @return the (designated) physical storage location of the BLOB with the given job ID and key
-	 */
-	File getStorageLocation(final JobID jobID, final String key) {
-
-		return new File(getJobDirectory(jobID, true), BLOB_FILE_PREFIX + encodeKey(key));
-	}
-
-	/**
-	 * Translates the user's key for a BLOB into the internal name used by the BLOB server
-	 * 
-	 * @param key
-	 *        the user's key for a BLOB
-	 * @return the internal name for the BLOB as used by the BLOB server
-	 */
-	private static String encodeKey(final String key) {
-
-		return BaseEncoding.base64().encode(key.getBytes(DEFAULT_CHARSET));
+	File getTemporaryFilename() {
+		return new File(BlobUtils.getIncomingDirectory(storageDir), String.format("temp-%08d",
+				tempFileCounter.getAndIncrement()));
 	}
 
 	@Override
@@ -350,9 +182,84 @@ public final class BlobServer extends Thread {
 	}
 
 	/**
+	 * Shuts down the BLOB server.
+	 */
+	@Override
+	public void shutdown() throws IOException {
+
+		this.shutdownRequested = true;
+		try {
+			this.serverSocket.close();
+		} catch (IOException ioe) {
+				LOG.debug("Error while closing the server socket.", ioe);
+		}
+		try {
+			join();
+		} catch (InterruptedException ie) {
+			LOG.debug("Error while waiting for this thread to die.", ie);
+		}
+
+		// Clean up the storage directory
+		FileUtils.deleteDirectory(storageDir);
+
+		// TODO: Find/implement strategy to handle content-addressable BLOBs
+	}
+
+	/**
+	 * Method which retrieves the URL of a file associated with a blob key. The blob server looks
+	 * the blob key up in its local storage. If the file exists, then the URL is returned. If the
+	 * file does not exist, then a FileNotFoundException is thrown.
+	 *
+	 * @param requiredBlob blob key associated with the requested file
+	 * @return URL of the file
+	 * @throws IOException
+	 */
+	@Override
+	public URL getURL(BlobKey requiredBlob) throws IOException {
+		if(requiredBlob == null){
+			throw new IllegalArgumentException("Required BLOB cannot be null.");
+		}
+
+		final File localFile = BlobUtils.getStorageLocation(storageDir, requiredBlob);
+
+		if(!localFile.exists()){
+			throw new FileNotFoundException("File " + localFile.getCanonicalPath() + " does " +
+					"not exist.");
+		}else{
+			return localFile.toURI().toURL();
+		}
+	}
+
+	/**
+	 * This method deletes the file associated to the blob key if it exists in the local storage
+	 * of the blob server.
+	 *
+	 * @param blobKey associated with the file to be deleted
+	 * @throws IOException
+	 */
+	@Override
+	public void delete(BlobKey blobKey) throws IOException {
+		final File localFile = BlobUtils.getStorageLocation(storageDir, blobKey);
+
+		if(localFile.exists()){
+			localFile.delete();
+		}
+	}
+
+	/**
+	 * Returns the port on which the server is listening.
+	 *
+	 * @return port on which the server is listening
+	 */
+	@Override
+	public int getPort() {
+		return getServerPort();
+	}
+
+	/**
 	 * Auxiliary method to write the length of an upcoming data chunk to an
 	 * output stream.
-	 * 
+	 *
 	 * @param length
 	 *        the length of the upcoming data chunk in bytes
 	 * @param buf
@@ -364,7 +271,7 @@ public final class BlobServer extends Thread {
 	 *         stream
 	 */
 	static void writeLength(final int length, final byte[] buf,
-			final OutputStream outputStream) throws IOException {
+							final OutputStream outputStream) throws IOException {
 
 		buf[0] = (byte) (length & 0xff);
 		buf[1] = (byte) ((length >> 8) & 0xff);
@@ -377,7 +284,7 @@ public final class BlobServer extends Thread {
 	/**
 	 * Auxiliary method to read the length of an upcoming data chunk from an
 	 * input stream.
-	 * 
+	 *
 	 * @param buf
 	 *        the byte buffer to use for the integer deserialization
 	 * @param inputStream
@@ -411,7 +318,7 @@ public final class BlobServer extends Thread {
 	 * Auxiliary method to read a particular number of bytes from an input stream. This method blocks until the
 	 * requested number of bytes have been read from the stream. If the stream cannot offer enough data, an
 	 * {@link EOFException} is thrown.
-	 * 
+	 *
 	 * @param inputStream
 	 *        the input stream to read the data from
 	 * @param buf
@@ -424,78 +331,17 @@ public final class BlobServer extends Thread {
 	 *         thrown if I/O error occurs while reading from the stream or the stream cannot offer enough data
 	 */
 	static void readFully(final InputStream inputStream,
-			final byte[] buf, final int off, final int len) throws IOException {
+						final byte[] buf, final int off, final int len) throws IOException {
 
 		int bytesRead = 0;
 		while (bytesRead < len) {
 
 			final int read = inputStream.read(buf, off + bytesRead, len
-				- bytesRead);
+					- bytesRead);
 			if (read < 0) {
 				throw new EOFException();
 			}
 			bytesRead += read;
 		}
-	}
-
-	/**
-	 * Shuts down the BLOB server.
-	 */
-	public void shutDown() {
-
-		this.shutdownRequested = true;
-		try {
-			this.serverSocket.close();
-		} catch (IOException ioe) {
-				LOG.debug("Error while closing the server socket.", ioe);
-		}
-		try {
-			join();
-		} catch (InterruptedException ie) {
-			LOG.debug("Error while waiting for this thread to die.", ie);
-		}
-
-		// Clean up the storage directory
-		deleteAllJobDirectories();
-
-		// TODO: Find/implement strategy to handle content-addressable BLOBs
-	}
-
-	/**
-	 * Deletes all job-specific storage directories.
-	 */
-	private void deleteAllJobDirectories() {
-
-		if (STORAGE_DIRECTORY == null) {
-			return;
-		}
-
-		for (final Iterator<JobID> it = this.createdJobDirectories.iterator(); it.hasNext();) {
-			deleteJobDirectory(it.next());
-		}
-	}
-
-	/**
-	 * Deletes the storage directory for the job with the given ID.
-	 * 
-	 * @param jobId
-	 *        the job ID identifying the directory to delete
-	 */
-	void deleteJobDirectory(final JobID jobId) {
-
-		final File jobDirectory = getJobDirectory(jobId, false);
-
-		if (!jobDirectory.exists()) {
-			return;
-		}
-
-		final File[] blobFiles = jobDirectory.listFiles(BLOB_FILE_FILTER);
-
-		for (final File blobFile : blobFiles) {
-			blobFile.delete();
-		}
-
-		jobDirectory.delete();
-		this.createdJobDirectories.remove(jobId);
 	}
 }

@@ -90,7 +90,7 @@ public final class BlobClient implements Closeable {
 			outputStream.write(buf);
 
 			// Send the key
-			byte[] keyBytes = key.getBytes(BlobServer.DEFAULT_CHARSET);
+			byte[] keyBytes = key.getBytes(BlobUtils.DEFAULT_CHARSET);
 			BlobServer.writeLength(keyBytes.length, buf, outputStream);
 			outputStream.write(keyBytes);
 		}
@@ -281,7 +281,7 @@ public final class BlobClient implements Closeable {
 		} else {
 			os.write(1);
 			// Send the key
-			byte[] keyBytes = key.getBytes(BlobServer.DEFAULT_CHARSET);
+			byte[] keyBytes = key.getBytes(BlobUtils.DEFAULT_CHARSET);
 			BlobServer.writeLength(keyBytes.length, buf, os);
 			os.write(keyBytes);
 		}
@@ -311,7 +311,8 @@ public final class BlobClient implements Closeable {
 			throws IOException {
 
 		final OutputStream os = this.socket.getOutputStream();
-		final MessageDigest md = (jobId == null || key == null) ? BlobServer.createMessageDigest() : null;
+		final MessageDigest md = (jobId == null || key == null) ? BlobUtils.createMessageDigest() :
+				null;
 		final byte[] buf = new byte[AbstractID.SIZE];
 
 		// Send the PUT header
@@ -373,7 +374,8 @@ public final class BlobClient implements Closeable {
 			throws IOException {
 
 		final OutputStream os = this.socket.getOutputStream();
-		final MessageDigest md = (jobId == null || key == null) ? BlobServer.createMessageDigest() : null;
+		final MessageDigest md = (jobId == null || key == null) ? BlobUtils.createMessageDigest
+				() : null;
 		final byte[] buf = new byte[AbstractID.SIZE];
 		final byte[] xferBuf = new byte[BlobServer.BUFFER_SIZE];
 
@@ -496,7 +498,7 @@ public final class BlobClient implements Closeable {
 			outputStream.write(buf);
 
 			// Send the key
-			byte[] keyBytes = key.getBytes(BlobServer.DEFAULT_CHARSET);
+			byte[] keyBytes = key.getBytes(BlobUtils.DEFAULT_CHARSET);
 			BlobServer.writeLength(keyBytes.length, buf, outputStream);
 			outputStream.write(keyBytes);
 		}

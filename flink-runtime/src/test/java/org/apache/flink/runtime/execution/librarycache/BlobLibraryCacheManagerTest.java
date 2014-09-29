@@ -25,17 +25,19 @@ import org.apache.flink.runtime.blob.BlobCache;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.blob.BlobService;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 
-public class LibraryCacheManagerTest {
+public class BlobLibraryCacheManagerTest {
 
 	@Test
 	public void testLibraryCacheManagerCleanup(){
@@ -47,6 +49,7 @@ public class LibraryCacheManagerTest {
 		JobID jid = new JobID();
 		List<BlobKey> keys = new ArrayList<BlobKey>();
 		BlobServer server = null;
+		LibraryCacheManager libraryCacheManager = null;
 
 		final byte[] buf = new byte[128];
 
@@ -59,19 +62,19 @@ public class LibraryCacheManagerTest {
 			buf[0] += 1;
 			keys.add(bc.put(buf));
 
-			LibraryCacheManager.setBlobServerAddress(blobSocketAddress);
-			LibraryCacheManager.register(jid, keys);
+			libraryCacheManager = new BlobLibraryCacheManager(server, GlobalConfiguration.getConfiguration());
+			libraryCacheManager.register(jid, keys);
 
-			List<URL> urls = new ArrayList<URL>();
+			List<File> files = new ArrayList<File>();
 
 			for(BlobKey key: keys){
-				urls.add(BlobCache.getURL(blobSocketAddress, key));
+				files.add(libraryCacheManager.getFile(key));
 			}
 
-			assertEquals(2, urls.size());
-			urls.clear();
+			assertEquals(2, files.size());
+			files.clear();
 
-			LibraryCacheManager.unregister(jid);
+			libraryCacheManager.unregister(jid);
 
 			Thread.sleep(1500);
 
@@ -80,7 +83,7 @@ public class LibraryCacheManagerTest {
 			for (BlobKey key : keys) {
 				// the blob cache should no longer contain the files
 				try {
-					urls.add(BlobCache.getURL(blobSocketAddress, key));
+					files.add(libraryCacheManager.getFile(key));
 				} catch (IOException ioe) {
 					caughtExceptions++;
 				}
@@ -92,7 +95,19 @@ public class LibraryCacheManagerTest {
 			fail(e.getMessage());
 		}finally{
 			if(server != null){
-				server.shutDown();
+				try {
+					server.shutdown();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+
+			if(libraryCacheManager != null){
+				try {
+					libraryCacheManager.shutdown();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
 			}
 		}
 	}

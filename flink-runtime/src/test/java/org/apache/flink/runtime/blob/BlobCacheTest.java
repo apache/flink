@@ -46,6 +46,7 @@ public class BlobCacheTest {
 		final List<BlobKey> blobKeys = new ArrayList<BlobKey>(2);
 
 		BlobServer blobServer = null;
+		BlobCache blobCache = null;
 		try {
 
 			// Start the BLOB server
@@ -67,14 +68,20 @@ public class BlobCacheTest {
 				}
 			}
 
+			blobCache = new BlobCache(serverAddress);
+
+			for(int i = 0; i < blobKeys.size(); i++){
+				blobCache.getURL(blobKeys.get(i));
+			}
+
 			// Now, shut down the BLOB server, the BLOBs must still be accessible through the cache.
-			blobServer.shutDown();
+			blobServer.shutdown();
 			blobServer = null;
 
 			final URL[] urls = new URL[blobKeys.size()];
 
 			for(int i = 0; i < blobKeys.size(); i++){
-				urls[i] = BlobCache.getURL(serverAddress, blobKeys.get(i));
+				urls[i] = blobCache.getURL(blobKeys.get(i));
 			}
 
 			// Verify the result
@@ -102,7 +109,19 @@ public class BlobCacheTest {
 			fail(ioe.getMessage());
 		} finally {
 			if (blobServer != null) {
-				blobServer.shutDown();
+				try {
+					blobServer.shutdown();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+
+			if(blobCache != null){
+				try {
+					blobCache.shutdown();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
 			}
 		}
 	}

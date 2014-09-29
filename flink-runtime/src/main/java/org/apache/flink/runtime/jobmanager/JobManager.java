@@ -57,7 +57,7 @@ import org.apache.flink.runtime.client.JobProgressResult;
 import org.apache.flink.runtime.client.JobSubmissionResult;
 import org.apache.flink.runtime.event.job.AbstractEvent;
 import org.apache.flink.runtime.event.job.RecentJobEvent;
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
+import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
@@ -112,7 +112,8 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 	
 	
 	/** Executor service for asynchronous commands (to relieve the RPC threads of work) */
-	private final ExecutorService executorService = Executors.newFixedThreadPool(2 * Hardware.getNumberCPUCores(), ExecutorThreadFactory.INSTANCE);
+	private final ExecutorService executorService = Executors.newFixedThreadPool(3 * Hardware
+			.getNumberCPUCores(), ExecutorThreadFactory.INSTANCE);
 	
 
 	/** The RPC end point through which the JobManager gets its calls */
@@ -126,8 +127,6 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 	
 	/** The currently running jobs */
 	private final ConcurrentHashMap<JobID, ExecutionGraph> currentJobs;
-	
-	private final BlobServer blobServer;
 
 	// begin: these will be consolidated / removed 
 	private final EventCollector eventCollector;
@@ -144,6 +143,8 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 	private volatile boolean isShutDown;
 	
 	private WebInfoServer server;
+
+	private BlobLibraryCacheManager libraryCacheManager;
 	
 	
 	// --------------------------------------------------------------------------------------------
@@ -173,7 +174,8 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 		// Load the job progress collector
 		this.eventCollector = new EventCollector(this.recommendedClientPollingInterval);
 
-		this.blobServer = new BlobServer();
+		this.libraryCacheManager = new BlobLibraryCacheManager(new BlobServer(),
+				GlobalConfiguration.getConfiguration());
 		
 		// Register simple job archive
 		int archived_items = GlobalConfiguration.getInteger(
@@ -254,8 +256,12 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 		}
 
 		// Stop the BLOB server
-		if (this.blobServer != null) {
-			this.blobServer.shutDown();
+		if (this.libraryCacheManager != null) {
+			try {
+				this.libraryCacheManager.shutdown();
+			} catch (IOException e) {
+				LOG.warn("Could not properly shutdown the library cache manager.", e);
+			}
 		}
 
 		// Stop RPC server
@@ -292,15 +298,14 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 		}
 		
 		ExecutionGraph executionGraph = null;
-		boolean success = false;
-		
+
 		try {
 			if (LOG.isInfoEnabled()) {
 				LOG.info(String.format("Received job %s (%s)", job.getJobID(), job.getName()));
 			}
 
 			// Register this job with the library cache manager
-			LibraryCacheManager.register(job.getJobID(), job.getUserJarBlobKeys());
+			libraryCacheManager.register(job.getJobID(), job.getUserJarBlobKeys());
 			
 			// get the existing execution graph (if we attach), or construct a new empty one to attach
 			executionGraph = this.currentJobs.get(job.getJobID());
@@ -321,9 +326,12 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 					LOG.info(String.format("Found existing execution graph for id %s, attaching this job.", job.getJobID()));
 				}
 			}
+
+			// Register for updates on the job status
+			executionGraph.registerJobStatusListener(this);
 			
 			// grab the class loader for user-defined code
-			final ClassLoader userCodeLoader = LibraryCacheManager.getClassLoader(job.getJobID());
+			final ClassLoader userCodeLoader = libraryCacheManager.getClassLoader(job.getJobID());
 			if (userCodeLoader == null) {
 				throw new JobException("The user code class loader could not be initialized.");
 			}
@@ -332,25 +340,17 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 			if (LOG.isDebugEnabled()) {
 				LOG.debug(String.format("Running master initialization of job %s (%s)", job.getJobID(), job.getName()));
 			}
-			try {
-				for (AbstractJobVertex vertex : job.getVertices()) {
-					// check that the vertex has an executable class
-					String executableClass = vertex.getInvokableClassName();
-					if (executableClass == null || executableClass.length() == 0) {
-						throw new JobException(String.format("The vertex %s (%s) has no invokable class.", vertex.getID(), vertex.getName()));
-					}
-					
-					// master side initialization
-					vertex.initializeOnMaster(userCodeLoader);
+			for (AbstractJobVertex vertex : job.getVertices()) {
+				// check that the vertex has an executable class
+				String executableClass = vertex.getInvokableClassName();
+				if (executableClass == null || executableClass.length() == 0) {
+					throw new JobException(String.format("The vertex %s (%s) has no invokable class.", vertex.getID(), vertex.getName()));
 				}
+
+				// master side initialization
+				vertex.initializeOnMaster(userCodeLoader);
 			}
-			catch (FileNotFoundException e) {
-				String message = "File-not-Found: " + e.getMessage();
-				LOG.error(message);
-				executionGraph.fail(e);
-				return new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR, e.getMessage());
-			}
-			
+
 			// first topologically sort the job vertices to form the basis of creating the execution graph
 			List<AbstractJobVertex> topoSorted = job.getVerticesSortedTopologicallyFromSources();
 			
@@ -373,9 +373,6 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 				this.eventCollector.registerJob(executionGraph, false, System.currentTimeMillis());
 			}
 	
-			// Register for updates on the job status
-			executionGraph.registerJobStatusListener(this);
-	
 			// Schedule job
 			if (LOG.isInfoEnabled()) {
 				LOG.info("Scheduling job " + job.getName());
@@ -383,41 +380,27 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 	
 			executionGraph.scheduleForExecution(this.scheduler);
 	
-			// Return on success
-			success = true;
 			return new JobSubmissionResult(AbstractJobResult.ReturnCode.SUCCESS, null);
 		}
 		catch (Throwable t) {
 			LOG.error("Job submission failed.", t);
-			executionGraph.fail(t);
-			return new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR, StringUtils.stringifyException(t));
-		}
-		finally {
-			if (!success) {
-				if (executionGraph != null) {
-					if (executionGraph.getState() != JobStatus.FAILING && executionGraph.getState() != JobStatus.FAILED) {
-						executionGraph.fail(new Exception("Could not set up and start execution graph on JobManager"));
-					}
-					try {
-						executionGraph.waitForJobEnd(10000);
-					} catch (InterruptedException e) {
-						LOG.error("Interrupted while waiting for job to finish canceling.");
-					}
-				}
-				
-				this.currentJobs.remove(job.getJobID());
-				
+			if(executionGraph != null){
+				executionGraph.fail(t);
+
 				try {
-					LibraryCacheManager.unregister(job.getJobID());
-				}
-				catch (IllegalStateException e) {
-					// may happen if the job failed before being registered at the
-					// library cache manager
-				}
-				catch (Throwable t) {
-					LOG.error("Error while de-registering job at library cache manager.", t);
+					executionGraph.waitForJobEnd(10000);
+				}catch(InterruptedException e){
+					LOG.error("Interrupted while waiting for job to finish canceling.");
 				}
 			}
+
+			// job was not prperly removed by the fail call
+			if(currentJobs.contains(job.getJobID())){
+				currentJobs.remove(job.getJobID());
+				libraryCacheManager.unregister(job.getJobID());
+			}
+
+			return new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR, StringUtils.stringifyException(t));
 		}
 	}
 
@@ -502,7 +485,7 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 			this.currentJobs.remove(jid);
 			
 			try {
-				LibraryCacheManager.unregister(jid);
+				libraryCacheManager.unregister(jid);
 			}
 			catch (Throwable t) {
 				LOG.warn("Could not properly unregister job " + jid + " from the library cache.");
@@ -638,7 +621,9 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 
 	@Override
 	public void reportAccumulatorResult(AccumulatorEvent accumulatorEvent) throws IOException {
-		this.accumulatorManager.processIncomingAccumulators(accumulatorEvent.getJobID(), accumulatorEvent.getAccumulators(LibraryCacheManager.getClassLoader(accumulatorEvent.getJobID())));
+		this.accumulatorManager.processIncomingAccumulators(accumulatorEvent.getJobID(),
+				accumulatorEvent.getAccumulators(libraryCacheManager.getClassLoader(accumulatorEvent.getJobID()
+				)));
 	}
 
 	@Override
@@ -776,6 +761,6 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 
 	@Override
 	public int getBlobServerPort() {
-		return blobServer.getServerPort();
+		return libraryCacheManager.getBlobServerPort();
 	}
 }

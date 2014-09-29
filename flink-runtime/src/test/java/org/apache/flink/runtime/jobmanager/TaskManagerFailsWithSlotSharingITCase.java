@@ -26,7 +26,7 @@ import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.client.AbstractJobResult;
 import org.apache.flink.runtime.client.JobSubmissionResult;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
+import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.instance.LocalInstanceManager;
@@ -72,9 +72,6 @@ public class TaskManagerFailsWithSlotSharingITCase {
 			final GlobalBufferPool bp2 = tm2.getChannelManager().getGlobalBufferPool();
 			
 			try {
-				// we need to register the job at the library cache manager (with no libraries)
-				LibraryCacheManager.register(jobGraph.getJobID(), new ArrayList<BlobKey>());
-				
 				JobSubmissionResult result = jm.submitJob(jobGraph);
 
 				if (result.getReturnCode() != AbstractJobResult.ReturnCode.SUCCESS) {

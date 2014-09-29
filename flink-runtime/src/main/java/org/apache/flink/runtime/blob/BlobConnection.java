@@ -143,7 +143,7 @@ class BlobConnection extends Thread {
 			blob = this.blobServer.getStorageLocation(jobID, key);
 		} else {
 			final BlobKey key = BlobKey.readFromInputStream(inputStream);
-			blob = BlobServer.getStorageLocation(key);
+			blob = blobServer.getStorageLocation(key);
 		}
 
 		// Check if BLOB exists
@@ -204,14 +204,14 @@ class BlobConnection extends Thread {
 			// Receive the key
 			key = readKey(buf, inputStream);
 		} else {
-			md = BlobServer.createMessageDigest();
+			md = BlobUtils.createMessageDigest();
 		}
 
 		File incomingFile = null;
 		FileOutputStream fos = null;
 
 		try {
-			incomingFile = BlobServer.getTemporaryFilename();
+			incomingFile = blobServer.getTemporaryFilename();
 			fos = new FileOutputStream(incomingFile);
 
 			while (true) {
@@ -239,13 +239,11 @@ class BlobConnection extends Thread {
 			if (contentAdressable == 0) {
 				final File storageFile = this.blobServer.getStorageLocation(jobID, key);
 				incomingFile.renameTo(storageFile);
-				incomingFile.deleteOnExit();
 				incomingFile = null;
 			} else {
 				final BlobKey blobKey = new BlobKey(md.digest());
-				final File storageFile = BlobServer.getStorageLocation(blobKey);
+				final File storageFile = blobServer.getStorageLocation(blobKey);
 				incomingFile.renameTo(storageFile);
-				incomingFile.deleteOnExit();
 				incomingFile = null;
 
 				// Return computed key to client for validation
@@ -293,7 +291,7 @@ class BlobConnection extends Thread {
 
 		} else {
 			// Delete all BLOBs for this job
-			this.blobServer.deleteJobDirectory(jobID);
+			blobServer.deleteJobDirectory(jobID);
 		}
 	}
 
@@ -334,6 +332,6 @@ class BlobConnection extends Thread {
 
 		BlobServer.readFully(inputStream, buf, 0, keyLength);
 
-		return new String(buf, 0, keyLength, BlobServer.DEFAULT_CHARSET);
+		return new String(buf, 0, keyLength, BlobUtils.DEFAULT_CHARSET);
 	}
 }

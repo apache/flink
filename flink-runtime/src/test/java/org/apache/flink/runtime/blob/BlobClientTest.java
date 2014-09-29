@@ -73,7 +73,11 @@ public class BlobClientTest {
 	public static void stopServer() {
 
 		if (BLOB_SERVER != null) {
-			BLOB_SERVER.shutDown();
+			try {
+				BLOB_SERVER.shutdown();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
 		}
 	}
 
@@ -105,7 +109,7 @@ public class BlobClientTest {
 	 */
 	private static BlobKey prepareTestFile(final File file) throws IOException {
 
-		MessageDigest md = BlobServer.createMessageDigest();
+		MessageDigest md = BlobUtils.createMessageDigest();
 
 		final byte[] buf = new byte[TEST_BUFFER_SIZE];
 		for (int i = 0; i < buf.length; ++i) {
@@ -205,7 +209,7 @@ public class BlobClientTest {
 	public void testContentAddressableBuffer() {
 
 		final byte[] testBuffer = createTestBuffer();
-		final MessageDigest md = BlobServer.createMessageDigest();
+		final MessageDigest md = BlobUtils.createMessageDigest();
 		md.update(testBuffer);
 		final BlobKey origKey = new BlobKey(md.digest());
 

@@ -20,49 +20,36 @@ package org.apache.flink.runtime.execution.librarycache;
 
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.jobgraph.JobID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
 
-public interface LibraryCacheManager {
-	/**
-	 * Returns the user code class loader associated with id.
-	 *
-	 * @param id identifying the job
-	 * @return ClassLoader which can load the user code
-	 */
-	ClassLoader getClassLoader(final JobID id);
+public class FallbackLibraryCacheManager implements LibraryCacheManager {
+	private static Logger LOG = LoggerFactory.getLogger(FallbackLibraryCacheManager.class);
 
-	/**
-	 * Returns a file handle to the file identified by the blob key.
-	 *
-	 * @param blobKey identifying the requested file
-	 * @return File handle
-	 * @throws IOException
-	 */
-	File getFile(final BlobKey blobKey) throws IOException;
+	@Override
+	public ClassLoader getClassLoader(JobID id) {
+		return getClass().getClassLoader();
+	}
 
-	/**
-	 * Registers a job with its required jar files. The jar files are identified by their blob keys.
-	 *
-	 * @param id job ID
-	 * @param requiredJarFiles collection of blob keys identifying the required jar files
-	 * @throws IOException
-	 */
-	void register(final JobID id, final Collection<BlobKey> requiredJarFiles) throws IOException;
+	@Override
+	public File getFile(BlobKey blobKey) throws IOException {
+		throw new IOException("There is no file associated to the blob key " + blobKey);
+	}
 
-	/**
-	 * Unregisters a job from the library cache manager.
-	 *
-	 * @param id job ID
-	 */
-	void unregister(final JobID id);
+	@Override
+	public void register(JobID id, Collection<BlobKey> requiredJarFiles) throws IOException {
+		LOG.warn("FallbackLibraryCacheManager cannot download files associated with blob keys.");
+	}
 
-	/**
-	 * Shutdown method
-	 *
-	 * @throws IOException
-	 */
-	void shutdown() throws IOException;
+	@Override
+	public void unregister(JobID id) {
+		LOG.warn("FallbackLibraryCacheManager does not book keeping of job IDs.");
+	}
+
+	@Override
+	public void shutdown() {}
 }

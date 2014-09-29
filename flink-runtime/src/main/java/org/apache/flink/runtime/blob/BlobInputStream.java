@@ -77,7 +77,7 @@ final class BlobInputStream extends InputStream {
 			throw new FileNotFoundException();
 		}
 
-		this.md = (blobKey != null) ? BlobServer.createMessageDigest() : null;
+		this.md = (blobKey != null) ? BlobUtils.createMessageDigest() : null;
 	}
 
 	/**
