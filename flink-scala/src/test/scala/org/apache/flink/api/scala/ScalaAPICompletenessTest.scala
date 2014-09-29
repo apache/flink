@@ -65,17 +65,8 @@ class ScalaAPICompletenessTest {
       "org.apache.flink.api.java.DataSet.minBy",
       "org.apache.flink.api.java.DataSet.maxBy",
       "org.apache.flink.api.java.operators.UnsortedGrouping.minBy",
-      "org.apache.flink.api.java.operators.UnsortedGrouping.maxBy",
+      "org.apache.flink.api.java.operators.UnsortedGrouping.maxBy"
       
-      // Exclude first operator for now
-      "org.apache.flink.api.java.DataSet.first",
-      "org.apache.flink.api.java.operators.SortedGrouping.first",
-      "org.apache.flink.api.java.operators.UnsortedGrouping.first",
-      
-      // Exclude explicit rebalance and hashPartitionBy for now
-      "org.apache.flink.api.java.DataSet.partitionByHash",
-      "org.apache.flink.api.java.DataSet.rebalance"
-
     )
     val excludedPatterns = Seq(
       // We don't have project on tuples in the Scala API
