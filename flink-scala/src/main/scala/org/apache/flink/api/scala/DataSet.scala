@@ -18,11 +18,12 @@
 package org.apache.flink.api.scala
 
 import org.apache.commons.lang3.Validate
+import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.common.aggregators.Aggregator
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.common.io.{FileOutputFormat, OutputFormat}
 import org.apache.flink.api.java.aggregation.Aggregations
-import org.apache.flink.api.java.functions.KeySelector
+import org.apache.flink.api.java.functions.{FirstReducer, KeySelector}
 import org.apache.flink.api.java.io.{PrintingOutputFormat, TextOutputFormat}
 import org.apache.flink.api.java.operators.JoinOperator.JoinHint
 import org.apache.flink.api.java.operators.Keys.FieldPositionKeys
@@ -491,6 +492,17 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
       }
     }
     wrap(new GroupReduceOperator[T, R](set, implicitly[TypeInformation[R]], reducer))
+  }
+
+  /**
+   * Creates a new DataSet containing the first `n` elements of this DataSet.
+   */
+  def first(n: Int): DataSet[T] = {
+    if (n < 1) {
+      throw new InvalidProgramException("Parameter n of first(n) must be at least 1.")
+    }
+    // Normally reduceGroup expects implicit parameters, supply them manually here.
+    reduceGroup(new FirstReducer[T](n))(set.getType, implicitly[ClassTag[T]])
   }
 
   // --------------------------------------------------------------------------------------------
