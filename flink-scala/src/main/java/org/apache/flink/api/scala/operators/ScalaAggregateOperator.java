@@ -297,9 +297,10 @@ public class ScalaAggregateOperator<IN> extends SingleInputOperator<IN, IN, Scal
 			}
 
 			Object[] fields = new Object[serializer.getArity()];
+			int length = serializer.getArity();
 			// First copy all tuple fields, then overwrite the aggregated ones
-			for (int i = 0; i < fieldPositions.length; i++) {
-				fields[0] = current.productElement(i);
+			for (int i = 0; i < length; i++) {
+				fields[i] = current.productElement(i);
 			}
 			for (int i = 0; i < fieldPositions.length; i++) {
 				Object aggVal = aggFunctions[i].getAggregate();
