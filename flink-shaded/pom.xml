@@ -24,50 +24,55 @@ under the License.
 
 	<parent>
 		<groupId>org.apache.flink</groupId>
-		<artifactId>flink-streaming-parent</artifactId>
+		<artifactId>flink-parent</artifactId>
 		<version>0.7-incubating-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-streaming-examples</artifactId>
-	<name>flink-streaming-examples</name>
+	<artifactId>flink-shaded</artifactId>
+	<name>flink-shaded</name>
 
 	<packaging>jar</packaging>
 
 	<dependencies>
-
 		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-core</artifactId>
-			<version>${project.version}</version>
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava</artifactId>
+			<scope>compile</scope>
 		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-java-examples</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-connectors</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
 	</dependencies>
 
 	<build>
 		<plugins>
+			<!-- Relocate the entire Google Guava dependency into a different namespace -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-jar-plugin</artifactId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<version>2.3</version>
 				<executions>
 					<execution>
+						<phase>package</phase>
 						<goals>
-							<goal>test-jar</goal>
+							<goal>shade</goal>
 						</goals>
 					</execution>
 				</executions>
+				<configuration>
+					<shadedArtifactAttached>false</shadedArtifactAttached>
+					<createDependencyReducedPom>true</createDependencyReducedPom>
+					<dependencyReducedPomLocation>${project.basedir}/target/dependency-reduced-pom.xml</dependencyReducedPomLocation>
+					<artifactSet>
+						<includes>
+							<include>com.google.guava:guava</include>
+						</includes>
+					</artifactSet>
+					<relocations>
+						<relocation>
+							<pattern>com.google</pattern>
+							<shadedPattern>org.apache.flink.shaded.com.google</shadedPattern>
+						</relocation>
+					</relocations>
+				</configuration>
 			</plugin>
 		</plugins>
 	</build>

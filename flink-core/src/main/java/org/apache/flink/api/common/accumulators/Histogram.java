@@ -21,11 +21,10 @@ package org.apache.flink.api.common.accumulators;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.TreeMap;
 
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-
-import com.google.common.collect.Maps;
 
 /**
  * Histogram for discrete-data. Let's you populate a histogram distributedly.
@@ -39,7 +38,7 @@ public class Histogram implements Accumulator<Integer, Map<Integer, Integer>> {
 
 	private static final long serialVersionUID = 1L;
 
-	private Map<Integer, Integer> treeMap = Maps.newTreeMap();
+	private Map<Integer, Integer> treeMap = new TreeMap<Integer, Integer>();
 
 	@Override
 	public void add(Integer value) {
