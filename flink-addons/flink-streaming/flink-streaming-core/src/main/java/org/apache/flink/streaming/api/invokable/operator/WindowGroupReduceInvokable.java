@@ -17,46 +17,92 @@
 
 package org.apache.flink.streaming.api.invokable.operator;
 
-import java.io.IOException;
-
 import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.invokable.util.DefaultTimeStamp;
 import org.apache.flink.streaming.api.invokable.util.TimeStamp;
-import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
 public class WindowGroupReduceInvokable<IN, OUT> extends BatchGroupReduceInvokable<IN, OUT> {
+
 	private static final long serialVersionUID = 1L;
 	private long startTime;
-	private long nextRecordTime;
-	private TimeStamp<IN> timestamp;
+	protected long nextRecordTime;
+	protected TimeStamp<IN> timestamp;
+	protected StreamWindow window;
 
 	public WindowGroupReduceInvokable(GroupReduceFunction<IN, OUT> reduceFunction, long windowSize,
 			long slideInterval, TimeStamp<IN> timestamp) {
 		super(reduceFunction, windowSize, slideInterval);
 		this.timestamp = timestamp;
 		this.startTime = timestamp.getStartTime();
+		this.window = new StreamWindow();
+		this.batch = this.window;
 	}
 
 	@Override
-	protected StreamRecord<IN> getNextRecord() throws IOException {
-		reuse = recordIterator.next(reuse);
-		if (reuse != null) {
-			nextRecordTime = timestamp.getTimestamp(reuse.getObject());
-		}
-		return reuse;
-	}
-	
-	@Override
-	protected boolean batchNotFull() {
-		if (nextRecordTime < startTime + granularity) {
-			return true;
-		} else {
-			startTime += granularity;
-			return false;
+	public void open(Configuration config) throws Exception {
+		super.open(config);
+		if (timestamp instanceof DefaultTimeStamp) {
+			(new TimeCheck()).start();
 		}
 	}
 
-	protected void mutableInvoke() throws Exception {
-		throw new RuntimeException("Reducing mutable sliding window is not supported.");
+	protected class StreamWindow extends StreamBatch {
+
+		private static final long serialVersionUID = 1L;
+
+		public StreamWindow() {
+			super();
+		}
+
+		@Override
+		public void addToBuffer(IN nextValue) throws Exception {
+			checkWindowEnd(timestamp.getTimestamp(nextValue));
+			if (minibatchCounter >= 0) {
+				circularList.add(nextValue);
+			}
+		}
+
+		protected synchronized void checkWindowEnd(long timeStamp) {
+			nextRecordTime = timeStamp;
+
+			while (miniBatchEnd()) {
+				circularList.newSlide();
+				minibatchCounter++;
+				if (batchEnd()) {
+					reduceBatch();
+					circularList.shiftWindow(batchPerSlide);
+				}
+			}
+		}
+
+		@Override
+		protected boolean miniBatchEnd() {
+			if (nextRecordTime < startTime + granularity) {
+				return false;
+			} else {
+				startTime += granularity;
+				return true;
+			}
+		}
+
+	}
+
+	private class TimeCheck extends Thread {
+		@Override
+		public void run() {
+			while (true) {
+				try {
+					Thread.sleep(slideSize);
+				} catch (InterruptedException e) {
+				}
+				if (isRunning) {
+					window.checkWindowEnd(System.currentTimeMillis());
+				} else {
+					break;
+				}
+			}
+		}
 	}
 
 }

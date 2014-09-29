@@ -17,54 +17,44 @@
 
 package org.apache.flink.streaming.api.invokable.operator;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
-import org.apache.flink.streaming.state.MutableTableState;
 
 public class GroupedBatchGroupReduceInvokable<IN, OUT> extends BatchGroupReduceInvokable<IN, OUT> {
 
 	private static final long serialVersionUID = 1L;
 
 	int keyPosition;
-	private Iterator<StreamRecord<IN>> iterator;
-	private MutableTableState<Object, List<IN>> values;
+	Map<Object, StreamBatch> streamBatches;
+	
 
 	public GroupedBatchGroupReduceInvokable(GroupReduceFunction<IN, OUT> reduceFunction, long batchSize,
 			long slideSize, int keyPosition) {
 		super(reduceFunction, batchSize, slideSize);
 		this.keyPosition = keyPosition;
-		this.reducer = reduceFunction;
-		values = new MutableTableState<Object, List<IN>>();
+		this.streamBatches = new HashMap<Object, StreamBatch>();
 	}
-
-	private IN nextValue;
+	
+	@Override
+	protected StreamBatch getBatch(StreamRecord<IN> next) {
+		Object key = next.getField(keyPosition);
+		StreamBatch batch = streamBatches.get(key);
+		if(batch == null){
+			batch=new StreamBatch();
+			streamBatches.put(key, batch);
+		}
+		return batch;
+	}
 
 	@Override
-	protected void reduce() {
-		iterator = state.getStreamRecordIterator();
-		while (iterator.hasNext()) {
-			StreamRecord<IN> nextRecord = iterator.next();
-			Object key = nextRecord.getField(keyPosition);
-			nextValue = nextRecord.getObject();
-
-			List<IN> group = values.get(key);
-			if (group != null) {
-				group.add(nextValue);
-			} else {
-				group = new ArrayList<IN>();
-				group.add(nextValue);
-				values.put(key, group);
-			}
-		}
-		for (List<IN> group : values.values()) {
-			userIterable = group;
-			callUserFunctionAndLogException();
-		}
-		values.clear();
+	protected void reduceLastBatch() {
+		for(StreamBatch batch: streamBatches.values()){
+			batch.reduceLastBatch();
+		}		
 	}
+
 
 }

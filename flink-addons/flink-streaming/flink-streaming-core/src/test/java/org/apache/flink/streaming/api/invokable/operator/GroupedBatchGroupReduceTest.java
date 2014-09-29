@@ -72,10 +72,10 @@ public class GroupedBatchGroupReduceTest {
 	@Test
 	public void slidingBatchGroupReduceTest() {
 		GroupedBatchGroupReduceInvokable<Integer, String> invokable1 = new GroupedBatchGroupReduceInvokable<Integer, String>(
-				new MySlidingBatchReduce1(), 3, 2, 0);
+				new MySlidingBatchReduce1(), 2, 2, 0);
 
-		List<String> expected = Arrays.asList("1", "1", END_OF_GROUP, "2", END_OF_GROUP, "2",
-				END_OF_GROUP, "3", "3", END_OF_GROUP);
+		List<String> expected = Arrays.asList("1", "1", END_OF_GROUP, "3", "3", END_OF_GROUP, "2",
+				END_OF_GROUP);
 		List<String> actual = MockInvokable.createAndExecute(invokable1,
 				Arrays.asList(1, 1, 2, 3, 3));
 
@@ -84,11 +84,12 @@ public class GroupedBatchGroupReduceTest {
 		GroupedBatchGroupReduceInvokable<Tuple2<Integer, String>, String> invokable2 = new GroupedBatchGroupReduceInvokable<Tuple2<Integer, String>, String>(
 				new MySlidingBatchReduce2(), 2, 2, 1);
 
-		expected = Arrays.asList("open", "1", "2", END_OF_GROUP, "open", "3", END_OF_GROUP, "open",
-				"4", END_OF_GROUP);
+		expected = Arrays.asList("open", "1", "2", END_OF_GROUP, "open", "3", "3", END_OF_GROUP,
+				"open", "4", END_OF_GROUP);
 		actual = MockInvokable.createAndExecute(invokable2, Arrays.asList(
 				new Tuple2<Integer, String>(1, "a"), new Tuple2<Integer, String>(2, "a"),
-				new Tuple2<Integer, String>(3, "b"), new Tuple2<Integer, String>(4, "a")));
+				new Tuple2<Integer, String>(3, "b"), new Tuple2<Integer, String>(3, "b"),
+				new Tuple2<Integer, String>(4, "a")));
 
 		assertEquals(expected, actual);
 

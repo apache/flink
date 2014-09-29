@@ -80,15 +80,15 @@ public class WindowGroupReduceInvokableTest {
 		List<Long> timestamps = Arrays.asList(101L, 102L, 103L, 104L, 105L, 106L, 107L, 108L, 109L,
 				110L);
 		expectedResults.add(Arrays.asList("1", "2", "3", EOW, "3", "4", "5", EOW, "5", "6", "7",
-				EOW, "7", "8", "9", EOW, "8", "9", "10", EOW));
+				EOW, "7", "8", "9", EOW, "9", "10", EOW));
 		invokables.add(new WindowGroupReduceInvokable<Integer, String>(new MySlidingWindowReduce(),
 				windowSize, slideSize, new MyTimestamp(timestamps)));
 
 		windowSize = 10;
 		slideSize = 5;
 		timestamps = Arrays.asList(101L, 103L, 121L, 122L, 123L, 124L, 180L, 181L, 185L, 190L);
-		expectedResults.add(Arrays.asList("1", "2", EOW, EOW, EOW, "3", "4", "5", "6", EOW, "3",
-				"4", "5", "6", EOW, EOW, EOW, EOW, EOW, EOW, EOW, EOW, EOW, EOW, "7", EOW, "7",
+		expectedResults.add(Arrays.asList("1", "2", EOW, "3", "4", "5", "6", EOW, "3",
+				"4", "5", "6", EOW, "7", EOW, "7",
 				"8", "9", EOW, "8", "9", "10", EOW));
 		invokables.add(new WindowGroupReduceInvokable<Integer, String>(new MySlidingWindowReduce(),
 				windowSize, slideSize, new MyTimestamp(timestamps)));

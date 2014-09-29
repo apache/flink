@@ -22,8 +22,6 @@ import java.util.Iterator;
 
 import org.apache.commons.math.util.MathUtils;
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.state.NullableCircularBuffer;
@@ -32,7 +30,6 @@ public class BatchReduceInvokable<OUT> extends StreamInvokable<OUT, OUT> {
 
 	private static final long serialVersionUID = 1L;
 	protected ReduceFunction<OUT> reducer;
-	protected TypeSerializer<OUT> typeSerializer;
 
 	protected long slideSize;
 
@@ -58,13 +55,12 @@ public class BatchReduceInvokable<OUT> extends StreamInvokable<OUT, OUT> {
 	protected void immutableInvoke() throws Exception {
 		if ((reuse = recordIterator.next(reuse)) == null) {
 			throw new RuntimeException("DataStream must not be empty");
-
 		}
 
 		while (reuse != null) {		
 			StreamBatch batch = getBatch(reuse);
 
-			batch.reduceToBuffer(reuse);
+			batch.reduceToBuffer(reuse.getObject());
 
 			resetReuse();
 			reuse = recordIterator.next(reuse);
@@ -74,24 +70,23 @@ public class BatchReduceInvokable<OUT> extends StreamInvokable<OUT, OUT> {
 
 	}
 
-	protected void reduceLastBatch() throws Exception {
-		batch.reduceLastBatch();		
+	@Override
+	protected void mutableInvoke() throws Exception {
+		System.out.println("Immutable setting is used");
+		immutableInvoke();
 	}
 
 	protected StreamBatch getBatch(StreamRecord<OUT> next) {
 		return batch;
 	}
 
-	@Override
-	// TODO: implement mutableInvoke for reduce
-	protected void mutableInvoke() throws Exception {
-		System.out.println("Immutable setting is used");
-		immutableInvoke();
-	}
-
 	protected void reduce(StreamBatch batch) {
 		this.currentBatch = batch;
 		callUserFunctionAndLogException();
+	}
+
+	protected void reduceLastBatch() throws Exception {
+		batch.reduceLastBatch();		
 	}
 
 	@Override
@@ -114,12 +109,6 @@ public class BatchReduceInvokable<OUT> extends StreamInvokable<OUT, OUT> {
 		}
 	}
 
-	@Override
-	public void open(Configuration config) throws Exception {
-		super.open(config);
-		this.typeSerializer = inSerializer.getObjectSerializer();
-	}
-
 	protected class StreamBatch implements Serializable {
 
 		private static final long serialVersionUID = 1L;
@@ -137,8 +126,8 @@ public class BatchReduceInvokable<OUT> extends StreamInvokable<OUT, OUT> {
 
 		}
 
-		public void reduceToBuffer(StreamRecord<OUT> next) throws Exception {
-			OUT nextValue = next.getObject();
+		public void reduceToBuffer(OUT nextValue) throws Exception {
+
 			if (currentValue != null) {
 				currentValue = reducer.reduce(currentValue, nextValue);
 			} else {
@@ -163,12 +152,17 @@ public class BatchReduceInvokable<OUT> extends StreamInvokable<OUT, OUT> {
 		}
 
 		protected boolean miniBatchEnd() {
-			return (counter % granularity) == 0;
+			if( (counter % granularity) == 0){
+				counter = 0;
+				return true;
+			}else{
+				return false;
+			}
 		}
-
+		
+		
 		public boolean batchEnd() {
-			if (counter == batchSize) {
-				counter -= slideSize;
+			if (minibatchCounter == numberOfBatches) {
 				minibatchCounter -= batchPerSlide;
 				return true;
 			}
@@ -202,6 +196,11 @@ public class BatchReduceInvokable<OUT> extends StreamInvokable<OUT, OUT> {
 		@SuppressWarnings("unchecked")
 		public Iterator<OUT> getIterator() {
 			return circularBuffer.iterator();
+		}
+		
+		@Override
+		public String toString(){
+			return circularBuffer.toString();
 		}
 
 	}

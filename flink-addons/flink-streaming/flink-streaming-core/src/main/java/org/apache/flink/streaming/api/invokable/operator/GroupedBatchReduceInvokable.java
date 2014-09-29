@@ -37,13 +37,6 @@ public class GroupedBatchReduceInvokable<OUT> extends BatchReduceInvokable<OUT> 
 	}
 
 	@Override
-	protected void reduceLastBatch() throws Exception {
-		for(StreamBatch batch: streamBatches.values()){
-			batch.reduceLastBatch();
-		}		
-	}
-
-	@Override
 	protected StreamBatch getBatch(StreamRecord<OUT> next) {
 		Object key = next.getField(keyPosition);
 		StreamBatch batch = streamBatches.get(key);
@@ -52,6 +45,13 @@ public class GroupedBatchReduceInvokable<OUT> extends BatchReduceInvokable<OUT> 
 			streamBatches.put(key, batch);
 		}
 		return batch;
+	}
+
+	@Override
+	protected void reduceLastBatch() throws Exception {
+		for(StreamBatch batch: streamBatches.values()){
+			batch.reduceLastBatch();
+		}		
 	}
 
 }

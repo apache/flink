@@ -17,54 +17,102 @@
 
 package org.apache.flink.streaming.api.invokable.operator;
 
-import java.util.ArrayList;
-import java.util.Iterator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.streaming.api.invokable.util.TimeStamp;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
-import org.apache.flink.streaming.state.MutableTableState;
 
 public class GroupedWindowGroupReduceInvokable<IN, OUT> extends WindowGroupReduceInvokable<IN, OUT> {
 
+	private static final long serialVersionUID = 1L;
+	
 	int keyPosition;
-	private Iterator<StreamRecord<IN>> iterator;
-	private MutableTableState<Object, List<IN>> values;
+	Map<Object, StreamWindow> streamWindows;
+	List<Object> cleanList;
+	long currentMiniBatchCount = 0;
 
 	public GroupedWindowGroupReduceInvokable(GroupReduceFunction<IN, OUT> reduceFunction, long windowSize,
 			long slideInterval, int keyPosition, TimeStamp<IN> timestamp) {
 		super(reduceFunction, windowSize, slideInterval, timestamp);
 		this.keyPosition = keyPosition;
 		this.reducer = reduceFunction;
-		values = new MutableTableState<Object, List<IN>>();
+		this.streamWindows = new HashMap<Object, StreamWindow>();
 	}
-
-	private IN nextValue;
 
 	@Override
-	protected void reduce() {
-		iterator = state.getStreamRecordIterator();
-		while (iterator.hasNext()) {
-			StreamRecord<IN> nextRecord = iterator.next();
-			Object key = nextRecord.getField(keyPosition);
-			nextValue = nextRecord.getObject();
-
-			List<IN> group = values.get(key);
-			if (group != null) {
-				group.add(nextValue);
-			} else {
-				group = new ArrayList<IN>();
-				group.add(nextValue);
-				values.put(key, group);
-			}
+	protected StreamBatch getBatch(StreamRecord<IN> next) {
+		Object key = next.getField(keyPosition);
+		StreamWindow window = streamWindows.get(key);
+		if (window == null) {
+			window = new GroupedStreamWindow();
+			window.minibatchCounter = currentMiniBatchCount;
+			streamWindows.put(key, window);
 		}
-		for (List<IN> group : values.values()) {
-			userIterable = group;
-			callUserFunctionAndLogException();
-		}
-		values.clear();
+		this.window = window;
+		return window;
 	}
-	private static final long serialVersionUID = 1L;
+
+	@Override
+	protected void reduceLastBatch() {
+		for (StreamBatch window : streamWindows.values()) {
+			window.reduceLastBatch();
+		}
+	}
+
+	private void shiftGranularityAllWindows(){
+		for (StreamBatch window : streamWindows.values()) {
+			window.circularList.newSlide();
+			window.minibatchCounter+=1;
+		}
+	}
+
+	private void slideAllWindows(){
+		for (StreamBatch window : streamWindows.values()) {
+			window.circularList.shiftWindow(batchPerSlide);
+		}	
+	}
+
+	private void reduceAllWindows() {
+		for (StreamBatch window : streamWindows.values()) {
+			window.minibatchCounter -= batchPerSlide;
+			window.reduceBatch();
+		}
+	}
+	
+	protected class GroupedStreamWindow extends StreamWindow {
+
+		private static final long serialVersionUID = 1L;
+
+		public GroupedStreamWindow() {
+			super();
+		}
+
+		@Override
+		protected synchronized void checkWindowEnd(long timeStamp) {
+			nextRecordTime = timeStamp;
+			
+			while (miniBatchEnd()) {
+				shiftGranularityAllWindows();
+				if (batchEnd()) {
+					reduceAllWindows();
+					slideAllWindows();
+				}
+			}
+			currentMiniBatchCount = this.minibatchCounter;
+		}
+
+		@Override
+		public boolean batchEnd() {
+			if (minibatchCounter == numberOfBatches) {
+				return true;
+			}
+			return false;
+		}
+		
+
+	}
 
 }
