@@ -230,13 +230,13 @@ public abstract class DataSet<T> {
 	 * Initiates a Project transformation on a {@link Tuple} {@link DataSet}.<br/>
 	 * <b>Note: Only Tuple DataSets can be projected.</b></br>
 	 * The transformation projects each Tuple of the DataSet onto a (sub)set of fields.</br>
-	 * This method returns a {@link Projection} on which {@link Projection#types()} needs to
+	 * This method returns a {@link Projection} on which {@link Projection#types(Class)} needs to
 	 *   be called to completed the transformation.
 	 * 
 	 * @param fieldIndexes The field indexes of the input tuples that are retained.
 	 * 					   The order of fields in the output tuple corresponds to the order of field indexes.
 	 * @return A Projection that needs to be converted into a {@link org.apache.flink.api.java.operators.ProjectOperator} to complete the 
-	 *           Project transformation by calling {@link Projection#types()}.
+	 *           Project transformation by calling {@link Projection#types(Class)}.
 	 * 
 	 * @see Tuple
 	 * @see DataSet
@@ -542,7 +542,7 @@ public abstract class DataSet<T> {
 	 *   joining elements into one DataSet.</br>
 	 * 
 	 * This method returns a {@link JoinOperatorSets} on which 
-	 *   {@link JoinOperatorSets#where()} needs to be called to define the join key of the first 
+	 *   {@link JoinOperatorSets#where(int...)} needs to be called to define the join key of the first 
 	 *   joining (i.e., this) DataSet.
 	 *  
 	 * @param other The other DataSet with which this DataSet is joined.
@@ -563,7 +563,7 @@ public abstract class DataSet<T> {
 	 * This method also gives the hint to the optimizer that the second DataSet to join is much
 	 *   smaller than the first one.</br>
 	 * This method returns a {@link JoinOperatorSets} on which 
-	 *   {@link JoinOperatorSets#where()} needs to be called to define the join key of the first 
+	 *   {@link JoinOperatorSets#where(int...)} needs to be called to define the join key of the first 
 	 *   joining (i.e., this) DataSet.
 	 *  
 	 * @param other The other DataSet with which this DataSet is joined.
@@ -584,7 +584,7 @@ public abstract class DataSet<T> {
 	 * This method also gives the hint to the optimizer that the second DataSet to join is much
 	 *   larger than the first one.</br>
 	 * This method returns a {@link JoinOperatorSets JoinOperatorSet} on which 
-	 *   {@link JoinOperatorSets#where()} needs to be called to define the join key of the first 
+	 *   {@link JoinOperatorSets#where(int...)} needs to be called to define the join key of the first 
 	 *   joining (i.e., this) DataSet.
 	 *  
 	 * @param other The other DataSet with which this DataSet is joined.
@@ -611,7 +611,7 @@ public abstract class DataSet<T> {
 	 * The CoGroupFunction can iterate over the elements of both groups and return any number 
 	 *   of elements including none.</br>
 	 * This method returns a {@link CoGroupOperatorSets} on which 
-	 *   {@link CoGroupOperatorSets#where()} needs to be called to define the grouping key of the first 
+	 *   {@link CoGroupOperatorSets#where(int...)} needs to be called to define the grouping key of the first 
 	 *   (i.e., this) DataSet.
 	 * 
 	 * @param other The other DataSet of the CoGroup transformation.

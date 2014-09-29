@@ -157,8 +157,8 @@ public class ConnectedDataStream<IN1, IN2> {
 	/**
 	 * Applies a CoFlatMap transformation on a {@link ConnectedDataStream} and
 	 * maps the output to a common type. The transformation calls a
-	 * {@link CoFlatMapFunction#map1} for each element of the first input and
-	 * {@link CoFlatMapFunction#map2} for each element of the second input. Each
+	 * {@link CoFlatMapFunction#flatMap1} for each element of the first input and
+	 * {@link CoFlatMapFunction#flatMap2} for each element of the second input. Each
 	 * CoFlatMapFunction call returns any number of elements including none. The
 	 * user can also extend {@link RichFlatMapFunction} to gain access to other
 	 * features provided by the {@link RichFuntion} interface.

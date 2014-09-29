@@ -25,7 +25,7 @@ import java.util.NoSuchElementException;
  * An {@link Iterator} that contains only a single element. The element can be reset such that the iterator can be used
  * multiple times. Initially, the iterator is empty until an element is set via {@link #set(Object)}.
  * 
- * @param<E> The generic type of the iterator.
+ * @param <E> The generic type of the iterator.
  */
 public final class SingleElementIterator<E> implements Iterator<E>, Iterable<E> {
 		

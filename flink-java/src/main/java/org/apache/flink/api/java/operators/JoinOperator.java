@@ -144,7 +144,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * A Join transformation that applies a {@JoinFunction} on each pair of joining elements.<br/>
+	 * A Join transformation that applies a {@link JoinFunction} on each pair of joining elements.<br/>
 	 * It also represents the {@link DataSet} that is the result of a Join transformation. 
 	 * 
 	 * @param <I1> The type of the first input DataSet of the Join transformation.

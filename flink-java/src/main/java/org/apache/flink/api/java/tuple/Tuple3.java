@@ -160,7 +160,7 @@ public class Tuple3<T0, T1, T2> extends Tuple {
 
 	/**
 	* Shallow tuple copy.
-	* @returns A new Tuple with the same fields as this.
+	* @return A new Tuple with the same fields as this.
 	 */
 	public Tuple3<T0,T1,T2> copy(){ 
 		return new Tuple3<T0,T1,T2>(this.f0,

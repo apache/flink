@@ -270,8 +270,8 @@ public abstract class TupleComparatorBase<T> extends TypeComparator<T> implement
 	 * Based on some empirical evidence, we are using a 32-element subsequence of the  
 	 * OEIS sequence #A068652 (numbers such that every cyclic permutation is a prime).
 	 * 
-	 * @see: http://en.wikipedia.org/wiki/List_of_prime_numbers
-	 * @see: http://oeis.org/A068652
+	 * @see <a href="http://en.wikipedia.org/wiki/List_of_prime_numbers">http://en.wikipedia.org/wiki/List_of_prime_numbers</a>
+	 * @see <a href="http://oeis.org/A068652">http://oeis.org/A068652</a>
 	 */
 	public static final int[] HASH_SALT = new int[] {
 		73   , 79   , 97   , 113  , 131  , 197  , 199  , 311   , 
