@@ -18,6 +18,7 @@
 package org.apache.flink.api.scala
 
 import org.apache.flink.api.common.InvalidProgramException
+import org.apache.flink.api.java.functions.FirstReducer
 import org.apache.flink.api.scala.operators.ScalaAggregateOperator
 
 import scala.collection.JavaConverters._
@@ -140,6 +141,11 @@ trait GroupedDataSet[T] {
    * concatenation of the emitted values will form the resulting [[DataSet]].
    */
   def reduceGroup[R: TypeInformation: ClassTag](reducer: GroupReduceFunction[T, R]): DataSet[R]
+
+  /**
+   * Creates a new DataSet containing the first `n` elements of each group of this DataSet.
+   */
+  def first(n: Int): DataSet[T]
 }
 
 /**
@@ -273,5 +279,13 @@ private[flink] class GroupedDataSetImpl[T: ClassTag](
     wrap(
       new GroupReduceOperator[T, R](maybeCreateSortedGrouping(),
         implicitly[TypeInformation[R]], reducer))
+  }
+
+  def first(n: Int): DataSet[T] = {
+    if (n < 1) {
+      throw new InvalidProgramException("Parameter n of first(n) must be at least 1.")
+    }
+    // Normally reduceGroup expects implicit parameters, supply them manually here.
+    reduceGroup(new FirstReducer[T](n))(set.getType, implicitly[ClassTag[T]])
   }
 }
