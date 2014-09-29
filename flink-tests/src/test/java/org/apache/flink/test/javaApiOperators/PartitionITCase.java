@@ -209,7 +209,7 @@ public class PartitionITCase extends JavaProgramTestBase {
 				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 				DataSet<Long> uniqLongs = ds
 						.partitionByHash(1).setParallelism(4)
-						.mapPartition(new UniqueLongMapper()).setParallelism(4);
+						.mapPartition(new UniqueLongMapper());
 				uniqLongs.writeAsText(resultPath);
 				
 				env.execute();

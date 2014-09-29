@@ -22,12 +22,14 @@ import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.common.aggregators.Aggregator
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.common.io.{FileOutputFormat, OutputFormat}
+import org.apache.flink.api.common.operators.base.PartitionOperatorBase.PartitionMethod
 import org.apache.flink.api.java.aggregation.Aggregations
 import org.apache.flink.api.java.functions.{FirstReducer, KeySelector}
 import org.apache.flink.api.java.io.{PrintingOutputFormat, TextOutputFormat}
 import org.apache.flink.api.java.operators.JoinOperator.JoinHint
 import org.apache.flink.api.java.operators.Keys.FieldPositionKeys
 import org.apache.flink.api.java.operators._
+import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.api.java.{DataSet => JavaDataSet}
 import org.apache.flink.api.scala.operators.{ScalaCsvOutputFormat, ScalaAggregateOperator}
 import org.apache.flink.core.fs.FileSystem.WriteMode
@@ -871,6 +873,75 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
    * DataSet.
    */
   def union(other: DataSet[T]): DataSet[T] = wrap(new UnionOperator[T](set, other.set))
+
+  // --------------------------------------------------------------------------------------------
+  //  Partitioning
+  // --------------------------------------------------------------------------------------------
+
+  /**
+   * Hash-partitions a DataSet on the specified tuple field positions.
+   *
+   * '''important:''' This operation shuffles the whole DataSet over the network and can take
+   * significant amount of time.
+   */
+  def partitionByHash(fields: Int*): DataSet[T] = {
+    val op = new PartitionOperator[T](
+      set,
+      PartitionMethod.HASH,
+      new Keys.FieldPositionKeys[T](fields.toArray, set.getType, false))
+    wrap(op)
+  }
+
+  /**
+   * Hash-partitions a DataSet on the specified fields.
+   *
+   * '''important:''' This operation shuffles the whole DataSet over the network and can take
+   * significant amount of time.
+   */
+  def partitionByHash(firstField: String, otherFields: String*): DataSet[T] = {
+    val fieldIndices = fieldNames2Indices(set.getType, firstField +: otherFields.toArray)
+
+    val op = new PartitionOperator[T](
+      set,
+      PartitionMethod.HASH,
+      new Keys.FieldPositionKeys[T](fieldIndices, set.getType, false))
+    wrap(op)
+  }
+
+  /**
+   * Partitions a DataSet using the specified key selector function.
+   *
+   * '''Important:'''This operation shuffles the whole DataSet over the network and can take
+   * significant amount of time.
+   */
+  def partitionByHash[K: TypeInformation](fun: (T) => K): DataSet[T] = {
+    val keyExtractor = new KeySelector[T, K] {
+      def getKey(in: T) = fun(in)
+    }
+    val op = new PartitionOperator[T](
+      set,
+      PartitionMethod.HASH,
+      new Keys.SelectorFunctionKeys[T, K](
+        keyExtractor,
+        set.getType,
+        implicitly[TypeInformation[K]]))
+    wrap(op)
+  }
+
+  /**
+   * Enforces a rebalancing of the DataSet, i.e., the DataSet is evenly distributed over all
+   * parallel instances of the
+   * following task. This can help to improve performance in case of heavy data skew and compute
+   * intensive operations.
+   *
+   * '''Important:''' This operation shuffles the whole DataSet over the network and can take
+   * significant amount of time.
+   *
+   * @return The rebalanced DataSet.
+   */
+  def rebalance(): DataSet[T] = {
+    wrap(new PartitionOperator[T](set, PartitionMethod.REBALANCE))
+  }
 
   // --------------------------------------------------------------------------------------------
   //  Result writing
