@@ -440,6 +440,7 @@ under the License.
 				<groupId>org.apache.rat</groupId>
 				<artifactId>apache-rat-plugin</artifactId>
 				<version>0.10</version><!--$NO-MVN-MAN-VER$-->
+				<inherited>false</inherited>
 				<executions>
 					<execution>
 						<phase>verify</phase>
