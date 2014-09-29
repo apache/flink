@@ -284,7 +284,7 @@ When using Case Classes you can also specify the grouping key using the names of
 
 ~~~scala
 case class MyClass(val a: String, b: Int, c: Double)
-val tuples = DataSet[MyClass]] = // [...]
+val tuples = DataSet[MyClass] = // [...]
 // group on the first and second field
 val reducedTuples = tuples.groupBy("a", "b").reduce { ... }
 ~~~
@@ -1103,15 +1103,11 @@ val unioned = vals1.union(vals2).union(vals3)
 </div>
 </div>
 
-### Rebalance (Java API Only)
-
+### Rebalance
 Evenly rebalances the parallel partitions of a DataSet to eliminate data skew.
-Only Map-like transformations may follow a rebalance transformation, i.e.,
 
-- Map
-- FlatMap
-- Filter
-- MapPartition
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
 
 ~~~java
 DataSet<String> in = // [...]
@@ -1120,16 +1116,26 @@ DataSet<Tuple2<String, String>> out = in.rebalance()
                                         .map(new Mapper());
 ~~~
 
-### Hash-Partition (Java API Only)
+</div>
+<div data-lang="scala" markdown="1">
+
+~~~scala
+val in: DataSet[String] = // [...]
+// rebalance DataSet and apply a Map transformation.
+val out = in.rebalance().map { ... }
+~~~
+
+</div>
+</div>
+
+
+### Hash-Partition
 
 Hash-partitions a DataSet on a given key. 
 Keys can be specified as key-selector functions or field position keys (see [Reduce examples](#reduce-on-grouped-dataset) for how to specify keys).
-Only Map-like transformations may follow a hash-partition transformation, i.e.,
 
-- Map
-- FlatMap
-- Filter
-- MapPartition
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
 
 ~~~java
 DataSet<Tuple2<String, Integer>> in = // [...]
@@ -1138,9 +1144,24 @@ DataSet<Tuple2<String, String>> out = in.partitionByHash(0)
                                         .mapPartition(new PartitionMapper());
 ~~~
 
-### First-n (Java API Only)
+</div>
+<div data-lang="scala" markdown="1">
+
+~~~scala
+val in: DataSet[(String, Int)] = // [...]
+// hash-partition DataSet by String value and apply a MapPartition transformation.
+val out = in.partitionByHash(0).mapPartition { ... }
+~~~
+
+</div>
+</div>
+
+### First-n
 
 Returns the first n (arbitrary) elements of a DataSet. First-n can be applied on a regular DataSet, a grouped DataSet, or a grouped-sorted DataSet. Grouping keys can be specified as key-selector functions or field position keys (see [Reduce examples](#reduce-on-grouped-dataset) for how to specify keys).
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
 
 ~~~java
 DataSet<Tuple2<String, Integer>> in = // [...]
@@ -1156,3 +1177,21 @@ DataSet<Tuple2<String, Integer>> out3 = in.groupBy(0)
                                           .sortGroup(1, Order.ASCENDING)
                                           .first(3);
 ~~~
+
+</div>
+<div data-lang="scala" markdown="1">
+
+~~~scala
+val in: DataSet[(String, Int)] = // [...]
+// Return the first five (arbitrary) elements of the DataSet
+val out1 = in.first(5)
+
+// Return the first two (arbitrary) elements of each String group
+val out2 = in.groupBy(0).first(2)
+
+// Return the first three elements of each String group ordered by the Integer field
+val out3 = in.groupBy(0).sortGroup(1, Order.ASCENDING).first(3)
+~~~
+
+</div>
+</div>
