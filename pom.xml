@@ -535,6 +535,7 @@ under the License.
 						<!-- Additional files like .gitignore etc.-->
 						<exclude>**/.*</exclude>
 						<exclude>**/*.prefs</exclude>
+						<exclude>**/*.log</exclude>
 						<!-- Resource files which have values. -->
 						<exclude>**/resources/**</exclude>
 						<!-- Configuration Files. -->
