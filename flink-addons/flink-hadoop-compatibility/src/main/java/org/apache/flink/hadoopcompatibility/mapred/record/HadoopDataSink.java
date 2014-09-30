@@ -19,6 +19,7 @@
 
 package org.apache.flink.hadoopcompatibility.mapred.record;
 
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.flink.api.common.operators.Operator;
@@ -30,9 +31,6 @@ import org.apache.flink.types.Record;
 import org.apache.hadoop.mapred.FileOutputFormat;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.OutputFormat;
-
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
 
 /**
  * The HadoopDataSink is a generic wrapper for all Hadoop OutputFormats.
@@ -54,7 +52,7 @@ public class HadoopDataSink<K,V> extends GenericDataSink implements Validatable 
 	private JobConf jobConf;
 
 	public HadoopDataSink(OutputFormat<K,V> hadoopFormat, JobConf jobConf, String name, Operator<Record> input, FlinkTypeConverter<K,V> conv, Class<K> keyClass, Class<V> valueClass) {
-		this(hadoopFormat, jobConf, name, ImmutableList.<Operator<Record>>of(input), conv, keyClass, valueClass);
+		this(hadoopFormat, jobConf, name, Collections.<Operator<Record>>singletonList(input), conv, keyClass, valueClass);
 	}
 
 	public HadoopDataSink(OutputFormat<K,V> hadoopFormat, JobConf jobConf, String name, Operator<Record> input, Class<K> keyClass, Class<V> valueClass) {
@@ -74,8 +72,11 @@ public class HadoopDataSink<K,V> extends GenericDataSink implements Validatable 
 	@SuppressWarnings("deprecation")
 	public HadoopDataSink(OutputFormat<K,V> hadoopFormat, JobConf jobConf, String name, List<Operator<Record>> input, FlinkTypeConverter<K,V> conv, Class<K> keyClass, Class<V> valueClass) {
 		super(new HadoopRecordOutputFormat<K,V>(hadoopFormat, jobConf, conv),input, name);
-		Preconditions.checkNotNull(hadoopFormat);
-		Preconditions.checkNotNull(jobConf);
+		
+		if (hadoopFormat == null || jobConf == null) {
+			throw new NullPointerException();
+		}
+		
 		this.name = name;
 		this.jobConf = jobConf;
 		jobConf.setOutputKeyClass(keyClass);
@@ -101,7 +102,8 @@ public class HadoopDataSink<K,V> extends GenericDataSink implements Validatable 
 	@Override
 	public void check() {
 		// see for more details https://github.com/stratosphere/stratosphere/pull/531
-		Preconditions.checkNotNull(FileOutputFormat.getOutputPath(jobConf), "The HadoopDataSink currently expects a correct outputPath.");
+		if (FileOutputFormat.getOutputPath(jobConf) == null) {
+			throw new NullPointerException("The HadoopDataSink currently expects a correct outputPath.");
+		}
 	}
-
 }

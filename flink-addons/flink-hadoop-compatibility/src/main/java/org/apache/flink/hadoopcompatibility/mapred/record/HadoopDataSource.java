@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.hadoopcompatibility.mapred.record;
 
 
@@ -25,10 +24,6 @@ import org.apache.flink.hadoopcompatibility.mapred.record.datatypes.DefaultHadoo
 import org.apache.flink.hadoopcompatibility.mapred.record.datatypes.HadoopTypeConverter;
 import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.JobConf;
-
-import com.google.common.base.Preconditions;
-
-
 
 /**
  * The HadoopDataSource is a generic wrapper for all Hadoop InputFormats.
@@ -44,7 +39,6 @@ import com.google.common.base.Preconditions;
  * The HadoopDataSource provides two different standard converters:
  * * WritableWrapperConverter: Converts Hadoop Types to a record that contains a WritableComparableWrapper (key) and a WritableWrapper
  * * DefaultHadoopTypeConverter: Converts the standard hadoop types (longWritable, Text) to Flinks's {@link org.apache.flink.types.Value} types.
- *
  */
 public class HadoopDataSource<K,V> extends GenericDataSource<HadoopRecordInputFormat<K,V>> {
 
@@ -61,9 +55,11 @@ public class HadoopDataSource<K,V> extends GenericDataSource<HadoopRecordInputFo
 	 */
 	public HadoopDataSource(InputFormat<K,V> hadoopFormat, JobConf jobConf, String name, HadoopTypeConverter<K,V> conv) {
 		super(new HadoopRecordInputFormat<K,V>(hadoopFormat, jobConf, conv),name);
-		Preconditions.checkNotNull(hadoopFormat);
-		Preconditions.checkNotNull(jobConf);
-		Preconditions.checkNotNull(conv);
+		
+		if (hadoopFormat == null || jobConf == null || conv == null) {
+			throw new NullPointerException();
+		}
+		
 		this.name = name;
 		this.jobConf = jobConf;
 	}
