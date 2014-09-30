@@ -16,11 +16,11 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.operators.base;
 
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.functions.util.CopyingListCollector;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.functions.util.ListCollector;
 import org.apache.flink.api.common.operators.BinaryOperatorInformation;
@@ -34,6 +34,8 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.GenericPairComparator;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.util.Collector;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -60,7 +62,7 @@ public class JoinOperatorBase<IN1, IN2, OUT, FT extends FlatJoinFunction<IN1, IN
 
 	@SuppressWarnings("unchecked")
 	@Override
-	protected List<OUT> executeOnCollections(List<IN1> inputData1, List<IN2> inputData2, RuntimeContext runtimeContext) throws Exception {
+	protected List<OUT> executeOnCollections(List<IN1> inputData1, List<IN2> inputData2, RuntimeContext runtimeContext, boolean mutableObjectSafe) throws Exception {
 		FlatJoinFunction<IN1, IN2, OUT> function = userFunction.getUserCodeObject();
 
 		FunctionUtils.setFunctionRuntimeContext(function, runtimeContext);
@@ -68,13 +70,18 @@ public class JoinOperatorBase<IN1, IN2, OUT, FT extends FlatJoinFunction<IN1, IN
 
 		TypeInformation<IN1> leftInformation = getOperatorInfo().getFirstInputType();
 		TypeInformation<IN2> rightInformation = getOperatorInfo().getSecondInputType();
-
+		TypeInformation<OUT> outInformation = getOperatorInfo().getOutputType();
+		
+		TypeSerializer<IN1> leftSerializer = mutableObjectSafe ? leftInformation.createSerializer() : null;
+		TypeSerializer<IN2> rightSerializer = mutableObjectSafe ? rightInformation.createSerializer() : null;
+		
 		TypeComparator<IN1> leftComparator;
 		TypeComparator<IN2> rightComparator;
 
-		if(leftInformation instanceof AtomicType){
+		if (leftInformation instanceof AtomicType){
 			leftComparator = ((AtomicType<IN1>) leftInformation).createComparator(true);
-		}else if(leftInformation instanceof CompositeType){
+		}
+		else if(leftInformation instanceof CompositeType){
 			int[] keyPositions = getKeyColumns(0);
 			boolean[] orders = new boolean[keyPositions.length];
 			Arrays.fill(orders, true);
@@ -102,12 +109,13 @@ public class JoinOperatorBase<IN1, IN2, OUT, FT extends FlatJoinFunction<IN1, IN
 				rightComparator);
 
 		List<OUT> result = new ArrayList<OUT>();
-		ListCollector<OUT> collector = new ListCollector<OUT>(result);
+		Collector<OUT> collector = mutableObjectSafe ? new CopyingListCollector<OUT>(result, outInformation.createSerializer())
+														: new ListCollector<OUT>(result);
 
 		Map<Integer, List<IN2>> probeTable = new HashMap<Integer, List<IN2>>();
 
-		//Build probe table
-		for(IN2 element: inputData2){
+		//Build hash table
+		for (IN2 element: inputData2){
 			List<IN2> list = probeTable.get(rightComparator.hash(element));
 			if(list == null){
 				list = new ArrayList<IN2>();
@@ -118,15 +126,18 @@ public class JoinOperatorBase<IN1, IN2, OUT, FT extends FlatJoinFunction<IN1, IN
 		}
 
 		//Probing
-		for(IN1 left: inputData1){
+		for (IN1 left: inputData1) {
 			List<IN2> matchingHashes = probeTable.get(leftComparator.hash(left));
 
-			pairComparator.setReference(left);
-
-			if(matchingHashes != null){
-				for(IN2 right: matchingHashes){
-					if(pairComparator.equalToReference(right)){
-						function.join(left, right, collector);
+			if (matchingHashes != null) {
+				pairComparator.setReference(left);
+				for (IN2 right : matchingHashes){
+					if (pairComparator.equalToReference(right)) {
+						if (mutableObjectSafe) {
+							function.join(leftSerializer.copy(left), rightSerializer.copy(right), collector);
+						} else {
+							function.join(left, right, collector);
+						}
 					}
 				}
 			}

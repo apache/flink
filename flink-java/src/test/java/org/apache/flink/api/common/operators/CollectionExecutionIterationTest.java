@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,7 +20,6 @@ package org.apache.flink.api.common.operators;
 
 //CHECKSTYLE.OFF: AvoidStarImport - Needed for TupleGenerator
 import static org.junit.Assert.*;
-//CHECKSTYLE.ON: AvoidStarImport
 
 import java.util.ArrayList;
 import java.util.List;
@@ -102,11 +101,14 @@ public class CollectionExecutionIterationTest implements java.io.Serializable {
 		try {
 			ExecutionEnvironment env = new CollectionEnvironment();
 
+			@SuppressWarnings("unchecked")
 			DataSet<Tuple2<Integer, Integer>> solInput = env.fromElements(
 					new Tuple2<Integer, Integer>(1, 0),
 					new Tuple2<Integer, Integer>(2, 0),
 					new Tuple2<Integer, Integer>(3, 0),
 					new Tuple2<Integer, Integer>(4, 0));
+			
+			@SuppressWarnings("unchecked")
 			DataSet<Tuple1<Integer>> workInput = env.fromElements(
 					new Tuple1<Integer>(1),
 					new Tuple1<Integer>(2),

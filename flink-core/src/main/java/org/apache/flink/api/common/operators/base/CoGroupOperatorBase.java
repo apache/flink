@@ -21,6 +21,7 @@ package org.apache.flink.api.common.operators.base;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.functions.util.CopyingListCollector;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.functions.util.ListCollector;
 import org.apache.flink.api.common.operators.BinaryOperatorInformation;
@@ -35,6 +36,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.GenericPairComparator;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.util.Collector;
 
 import java.io.IOException;
@@ -177,7 +179,7 @@ public class CoGroupOperatorBase<IN1, IN2, OUT, FT extends CoGroupFunction<IN1, 
 	// ------------------------------------------------------------------------
 
 	@Override
-	protected List<OUT> executeOnCollections(List<IN1> input1, List<IN2> input2, RuntimeContext ctx) throws Exception {
+	protected List<OUT> executeOnCollections(List<IN1> input1, List<IN2> input2, RuntimeContext ctx, boolean mutableObjectSafe) throws Exception {
 		// --------------------------------------------------------------------
 		// Setup
 		// --------------------------------------------------------------------
@@ -193,11 +195,15 @@ public class CoGroupOperatorBase<IN1, IN2, OUT, FT extends CoGroupFunction<IN1, 
 		Arrays.fill(inputSortDirections1, true);
 		Arrays.fill(inputSortDirections2, true);
 
+		final TypeSerializer<IN1> inputSerializer1 = inputType1.createSerializer();
+		final TypeSerializer<IN2> inputSerializer2 = inputType2.createSerializer();
+		
 		final TypeComparator<IN1> inputComparator1 = getTypeComparator(inputType1, inputKeys1, inputSortDirections1);
 		final TypeComparator<IN2> inputComparator2 = getTypeComparator(inputType2, inputKeys2, inputSortDirections2);
 
 		CoGroupSortListIterator<IN1, IN2> coGroupIterator =
-				new CoGroupSortListIterator<IN1, IN2>(input1, inputComparator1, input2, inputComparator2);
+				new CoGroupSortListIterator<IN1, IN2>(input1, inputComparator1, inputSerializer1,
+						input2, inputComparator2, inputSerializer2, mutableObjectSafe);
 
 		// --------------------------------------------------------------------
 		// Run UDF
@@ -208,7 +214,9 @@ public class CoGroupOperatorBase<IN1, IN2, OUT, FT extends CoGroupFunction<IN1, 
 		FunctionUtils.openFunction(function, parameters);
 
 		List<OUT> result = new ArrayList<OUT>();
-		Collector<OUT> resultCollector = new ListCollector<OUT>(result);
+		Collector<OUT> resultCollector = mutableObjectSafe ?
+				new CopyingListCollector<OUT>(result, getOperatorInfo().getOutputType().createSerializer()) :
+				new ListCollector<OUT>(result);
 
 		while (coGroupIterator.next()) {
 			function.coGroup(coGroupIterator.getValues1(), coGroupIterator.getValues2(), resultCollector);
@@ -247,13 +255,14 @@ public class CoGroupOperatorBase<IN1, IN2, OUT, FT extends CoGroupFunction<IN1, 
 		private Iterable<IN2> secondReturn;
 
 		private CoGroupSortListIterator(
-				List<IN1> input1, final TypeComparator<IN1> inputComparator1,
-				List<IN2> input2, final TypeComparator<IN2> inputComparator2) {
-
+				List<IN1> input1, final TypeComparator<IN1> inputComparator1, TypeSerializer<IN1> serializer1,
+				List<IN2> input2, final TypeComparator<IN2> inputComparator2, TypeSerializer<IN2> serializer2,
+				boolean copyElements)
+		{
 			this.pairComparator = new GenericPairComparator<IN1, IN2>(inputComparator1, inputComparator2);
 
-			this.iterator1 = new ListKeyGroupedIterator<IN1>(input1, inputComparator1);
-			this.iterator2 = new ListKeyGroupedIterator<IN2>(input2, inputComparator2);
+			this.iterator1 = new ListKeyGroupedIterator<IN1>(input1, serializer1, inputComparator1, copyElements);
+			this.iterator2 = new ListKeyGroupedIterator<IN2>(input2, serializer2, inputComparator2, copyElements);
 
 			// ----------------------------------------------------------------
 			// Sort

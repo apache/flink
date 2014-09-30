@@ -50,7 +50,7 @@ public class FilterOperatorBase<T, FT extends FlatMapFunction<T, T>> extends Sin
 	}
 
 	@Override
-	protected List<T> executeOnCollections(List<T> inputData, RuntimeContext ctx) throws Exception {
+	protected List<T> executeOnCollections(List<T> inputData, RuntimeContext ctx, boolean mutableObjectSafeMode) throws Exception {
 		FlatMapFunction<T, T> function = this.userFunction.getUserCodeObject();
 		
 		FunctionUtils.openFunction(function, this.parameters);

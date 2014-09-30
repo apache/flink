@@ -52,7 +52,7 @@ public class CollectorMapOperatorBase<IN, OUT, FT extends GenericCollectorMap<IN
 	// --------------------------------------------------------------------------------------------
 	
 	@Override
-	protected List<OUT> executeOnCollections(List<IN> inputData, RuntimeContext ctx) {
+	protected List<OUT> executeOnCollections(List<IN> inputData, RuntimeContext ctx, boolean mutableObjectSafeMode) {
 		throw new UnsupportedOperationException();
 	}
 }

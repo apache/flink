@@ -52,13 +52,22 @@ import org.apache.flink.util.Visitor;
  */
 public class CollectionExecutor {
 	
+	private static final boolean DEFAULT_MUTABLE_OBJECT_SAFE_MODE = true;
+	
 	private final Map<Operator<?>, List<?>> intermediateResults;
 	
 	private final Map<String, Accumulator<?, ?>> accumulators;
 	
+	private final boolean mutableObjectSafeMode;
+	
 	// --------------------------------------------------------------------------------------------
 	
 	public CollectionExecutor() {
+		this(DEFAULT_MUTABLE_OBJECT_SAFE_MODE);
+	}
+		
+	public CollectionExecutor(boolean mutableObjectSafeMode) {
+		this.mutableObjectSafeMode = mutableObjectSafeMode;
 		this.intermediateResults = new HashMap<Operator<?>, List<?>>();
 		this.accumulators = new HashMap<String, Accumulator<?,?>>();
 	}
@@ -172,7 +181,7 @@ public class CollectionExecutor {
 			ctx = null;
 		}
 		
-		List<OUT> result = typedOp.executeOnCollections(inputData, ctx);
+		List<OUT> result = typedOp.executeOnCollections(inputData, ctx, mutableObjectSafeMode);
 		
 		if (ctx != null) {
 			AccumulatorHelper.mergeInto(this.accumulators, ctx.getAllAccumulators());
@@ -214,7 +223,7 @@ public class CollectionExecutor {
 			ctx = null;
 		}
 		
-		List<OUT> result = typedOp.executeOnCollections(inputData1, inputData2, ctx);
+		List<OUT> result = typedOp.executeOnCollections(inputData1, inputData2, ctx, mutableObjectSafeMode);
 		
 		if (ctx != null) {
 			AccumulatorHelper.mergeInto(this.accumulators, ctx.getAllAccumulators());

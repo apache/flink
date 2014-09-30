@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -30,8 +30,8 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 @SuppressWarnings("serial")
@@ -41,25 +41,34 @@ public class FlatMapOperatorCollectionTest implements Serializable {
 	public void testExecuteOnCollection() {
 		try {
 			IdRichFlatMap<String> udf = new IdRichFlatMap<String>();
-			testExecuteOnCollection(udf, Arrays.asList("f", "l", "i", "n", "k"));
+			testExecuteOnCollection(udf, Arrays.asList("f", "l", "i", "n", "k"), true);
 			Assert.assertTrue(udf.isClosed);
 
-			testExecuteOnCollection(new IdRichFlatMap<String>(), new ArrayList<String>());
-		} catch (Throwable t) {
-			Assert.fail(t.getMessage());
+			udf = new IdRichFlatMap<String>();
+			testExecuteOnCollection(udf, Arrays.asList("f", "l", "i", "n", "k"), false);
+			Assert.assertTrue(udf.isClosed);
+			
+			udf = new IdRichFlatMap<String>();
+			testExecuteOnCollection(udf, Collections.<String>emptyList(), true);
+			Assert.assertTrue(udf.isClosed);
+			
+			udf = new IdRichFlatMap<String>();
+			testExecuteOnCollection(udf, Collections.<String>emptyList(), false);
+			Assert.assertTrue(udf.isClosed);
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			Assert.fail(e.getMessage());
 		}
 	}
 
-	private void testExecuteOnCollection(FlatMapFunction<String, String> udf, List<String> input) throws Exception {
+	private void testExecuteOnCollection(FlatMapFunction<String, String> udf, List<String> input, boolean mutableSafe) throws Exception {
 		// run on collections
 		final List<String> result = getTestFlatMapOperator(udf)
-				.executeOnCollections(input, new RuntimeUDFContext("Test UDF", 4, 0));
+				.executeOnCollections(input, new RuntimeUDFContext("Test UDF", 4, 0), mutableSafe);
 
 		Assert.assertEquals(input.size(), result.size());
-
-		for (int i = 0; i < input.size(); i++) {
-			Assert.assertEquals(input.get(i), result.get(i));
-		}
+		Assert.assertEquals(input, result);
 	}
 
 

@@ -18,11 +18,11 @@
 
 package org.apache.flink.api.common.operators.base;
 
-
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.FlatCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.functions.util.CopyingListCollector;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.functions.util.ListCollector;
 import org.apache.flink.api.common.operators.Ordering;
@@ -35,6 +35,7 @@ import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeinfo.CompositeType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeComparator;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -131,20 +132,21 @@ public class GroupReduceOperatorBase<IN, OUT, FT extends GroupReduceFunction<IN,
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	protected List<OUT> executeOnCollections(List<IN> inputData, RuntimeContext ctx)
-			throws Exception {
+	protected List<OUT> executeOnCollections(List<IN> inputData, RuntimeContext ctx, boolean mutableObjectSafeMode) throws Exception {
 		GroupReduceFunction<IN, OUT> function = this.userFunction.getUserCodeObject();
 
 		UnaryOperatorInformation<IN, OUT> operatorInfo = getOperatorInfo();
 		TypeInformation<IN> inputType = operatorInfo.getInputType();
 
 		if (!(inputType instanceof CompositeType)) {
-			throw new InvalidProgramException("Input type of groupReduce operation must be" +
-					" composite type.");
+			throw new InvalidProgramException("Input type of groupReduce operation must be a composite type.");
 		}
 
 		int[] inputColumns = getKeyColumns(0);
 		boolean[] inputOrderings = new boolean[inputColumns.length];
+		
+		final TypeSerializer<IN> inputSerializer = inputType.createSerializer();
+				
 		@SuppressWarnings("unchecked")
 		final TypeComparator<IN> inputComparator =
 				((CompositeType<IN>) inputType).createComparator(inputColumns, inputOrderings);
@@ -152,26 +154,34 @@ public class GroupReduceOperatorBase<IN, OUT, FT extends GroupReduceFunction<IN,
 		FunctionUtils.setFunctionRuntimeContext(function, ctx);
 		FunctionUtils.openFunction(function, this.parameters);
 
-
-		ArrayList<OUT> result = new ArrayList<OUT>(inputData.size());
-		ListCollector<OUT> collector = new ListCollector<OUT>(result);
-
 		Collections.sort(inputData, new Comparator<IN>() {
 			@Override
 			public int compare(IN o1, IN o2) {
 				return inputComparator.compare(o2, o1);
 			}
 		});
-		ListKeyGroupedIterator<IN> keyedIterator =
-				new ListKeyGroupedIterator<IN>(inputData, inputComparator);
-
-		while (keyedIterator.nextKey()) {
-			function.reduce(keyedIterator.getValues(), collector);
+		
+		ListKeyGroupedIterator<IN> keyedIterator = new ListKeyGroupedIterator<IN>(
+				inputData, inputSerializer, inputComparator, mutableObjectSafeMode);
+		
+		ArrayList<OUT> result = new ArrayList<OUT>();
+		
+		if (mutableObjectSafeMode) {
+			TypeSerializer<OUT> outSerializer = getOperatorInfo().getOutputType().createSerializer();
+			CopyingListCollector<OUT> collector = new CopyingListCollector<OUT>(result, outSerializer);
+			
+			while (keyedIterator.nextKey()) {
+				function.reduce(keyedIterator.getValues(), collector);
+			}
+		}
+		else {
+			ListCollector<OUT> collector = new ListCollector<OUT>(result);
+			while (keyedIterator.nextKey()) {
+				function.reduce(keyedIterator.getValues(), collector);
+			}
 		}
 
 		FunctionUtils.closeFunction(function);
-
 		return result;
 	}
-
 }

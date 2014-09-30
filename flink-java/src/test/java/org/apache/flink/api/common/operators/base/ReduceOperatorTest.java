@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -68,15 +68,20 @@ public class ReduceOperatorTest implements java.io.Serializable {
 					Integer>("foo", 3), new Tuple2<String, Integer>("bar", 2), new Tuple2<String,
 					Integer>("bar", 4)));
 
-			List<Tuple2<String, Integer>> result = op.executeOnCollections(input, null);
-			Set<Tuple2<String, Integer>> resultSet = new HashSet<Tuple2<String, Integer>>(result);
+			List<Tuple2<String, Integer>> resultMutableSafe = op.executeOnCollections(input, null, true);
+			List<Tuple2<String, Integer>> resultRegular = op.executeOnCollections(input, null, false);
+			
+			Set<Tuple2<String, Integer>> resultSetMutableSafe = new HashSet<Tuple2<String, Integer>>(resultMutableSafe);
+			Set<Tuple2<String, Integer>> resultSetRegular = new HashSet<Tuple2<String, Integer>>(resultRegular);
 
 			Set<Tuple2<String, Integer>> expectedResult = new HashSet<Tuple2<String,
 					Integer>>(asList(new Tuple2<String, Integer>("foo", 4), new Tuple2<String,
 					Integer>("bar", 6)));
 
-			assertEquals(expectedResult, resultSet);
-		} catch (Exception e) {
+			assertEquals(expectedResult, resultSetMutableSafe);
+			assertEquals(expectedResult, resultSetRegular);
+		}
+		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
@@ -127,20 +132,23 @@ public class ReduceOperatorTest implements java.io.Serializable {
 					Integer>("foo", 3), new Tuple2<String, Integer>("bar", 2), new Tuple2<String,
 					Integer>("bar", 4)));
 
-			List<Tuple2<String, Integer>> result = op.executeOnCollections(input,
-					new RuntimeUDFContext(taskName, 1, 0));
+			List<Tuple2<String, Integer>> resultMutableSafe = op.executeOnCollections(input, new RuntimeUDFContext(taskName, 1, 0), true);
+			List<Tuple2<String, Integer>> resultRegular = op.executeOnCollections(input, new RuntimeUDFContext(taskName, 1, 0), false);
 
-			Set<Tuple2<String, Integer>> resultSet = new HashSet<Tuple2<String, Integer>>(result);
+			Set<Tuple2<String, Integer>> resultSetMutableSafe = new HashSet<Tuple2<String, Integer>>(resultMutableSafe);
+			Set<Tuple2<String, Integer>> resultSetRegular = new HashSet<Tuple2<String, Integer>>(resultRegular);
 
 			Set<Tuple2<String, Integer>> expectedResult = new HashSet<Tuple2<String,
 					Integer>>(asList(new Tuple2<String, Integer>("foo", 4), new Tuple2<String,
 					Integer>("bar", 6)));
 
-			assertEquals(expectedResult, resultSet);
+			assertEquals(expectedResult, resultSetMutableSafe);
+			assertEquals(expectedResult, resultSetRegular);
 
 			assertTrue(opened.get());
 			assertTrue(closed.get());
-		} catch (Exception e) {
+		}
+		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}

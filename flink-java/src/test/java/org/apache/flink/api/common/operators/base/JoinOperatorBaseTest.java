@@ -16,12 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.java.operators.base;
+package org.apache.flink.api.common.operators.base;
 
 import static org.junit.Assert.*;
 
 import org.apache.flink.api.common.functions.FlatJoinFunction;
-import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.functions.util.RuntimeUDFContext;
 import org.apache.flink.api.common.operators.BinaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -31,21 +31,23 @@ import org.apache.flink.util.Collector;
 import org.junit.Test;
 
 import java.io.Serializable;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+@SuppressWarnings({ "unchecked", "serial" })
 public class JoinOperatorBaseTest implements Serializable {
 
+	
 	@Test
 	public void testTupleBaseJoiner(){
-		final FlatJoinFunction<Tuple3<String, Double, Integer>, Tuple2<Integer,
-				String>, Tuple2<Double, String>> joiner = new FlatJoinFunction() {
+		final FlatJoinFunction<Tuple3<String, Double, Integer>, Tuple2<Integer, String>, Tuple2<Double, String>> joiner =
+					new FlatJoinFunction<Tuple3<String, Double, Integer>, Tuple2<Integer, String>, Tuple2<Double, String>>()
+		{
 			@Override
-			public void join(Object first, Object second, Collector out) throws Exception {
+			public void join(Tuple3<String, Double, Integer> first, Tuple2<Integer, String> second, Collector<Tuple2<Double, String>> out) {
 				Tuple3<String, Double, Integer> fst = (Tuple3<String, Double, Integer>)first;
 				Tuple2<Integer, String> snd = (Tuple2<Integer, String>)second;
 
@@ -99,18 +101,15 @@ public class JoinOperatorBaseTest implements Serializable {
 		));
 
 		try {
-			Method executeOnCollections = base.getClass().getDeclaredMethod("executeOnCollections", List.class,
-					List.class, RuntimeContext.class);
-			executeOnCollections.setAccessible(true);
+			List<Tuple2<Double, String>> resultSafe = base.executeOnCollections(inputData1, inputData2, new RuntimeUDFContext("op", 1, 0), true);
+			List<Tuple2<Double, String>> resultRegular = base.executeOnCollections(inputData1, inputData2, new RuntimeUDFContext("op", 1, 0), false);
 
-			Object result = executeOnCollections.invoke(base, inputData1, inputData2, null);
-
-			assertEquals(expected, new HashSet<Tuple2<Double, String>>((List<Tuple2<Double, String>>)result));
-
-		} catch (Exception e) {
+			assertEquals(expected, new HashSet<Tuple2<Double, String>>(resultSafe));
+			assertEquals(expected, new HashSet<Tuple2<Double, String>>(resultRegular));
+		}
+		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
-
 	}
 }

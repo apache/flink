@@ -286,5 +286,5 @@ public abstract class DualInputOperator<IN1, IN2, OUT, FT extends Function> exte
 	
 	// --------------------------------------------------------------------------------------------
 	
-	protected abstract List<OUT> executeOnCollections(List<IN1> inputData1, List<IN2> inputData2, RuntimeContext runtimeContext) throws Exception;
+	protected abstract List<OUT> executeOnCollections(List<IN1> inputData1, List<IN2> inputData2, RuntimeContext runtimeContext, boolean mutableObjectSafeMode) throws Exception;
 }

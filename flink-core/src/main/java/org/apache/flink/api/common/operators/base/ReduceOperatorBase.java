@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.operators.base;
 
 import org.apache.flink.api.common.InvalidProgramException;
@@ -32,12 +31,13 @@ import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeinfo.CompositeType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeComparator;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 
 /**
  * Base data flow operator for Reduce user-defined functions. Accepts reduce functions
@@ -123,20 +123,23 @@ public class ReduceOperatorBase<T, FT extends ReduceFunction<T>> extends SingleI
 		super(new UserCodeClassWrapper<FT>(udf), operatorInfo, name);
 	}
 
-// --------------------------------------------------------------------------------------------
+	// --------------------------------------------------------------------------------------------
 
 	@SuppressWarnings("unchecked")
 	@Override
-	protected List<T> executeOnCollections(List<T> inputData, RuntimeContext ctx)
-			throws Exception {
+	protected List<T> executeOnCollections(List<T> inputData, RuntimeContext ctx, boolean mutableObjectSafeMode) throws Exception {
+		// make sure we can handle empty inputs
+		if (inputData.isEmpty()) {
+			return Collections.emptyList();
+		}
+		
 		ReduceFunction<T> function = this.userFunction.getUserCodeObject();
 
 		UnaryOperatorInformation<T, T> operatorInfo = getOperatorInfo();
 		TypeInformation<T> inputType = operatorInfo.getInputType();
 
 		if (!(inputType instanceof CompositeType)) {
-			throw new InvalidProgramException("Input type of groupReduce operation must be" +
-					" composite type.");
+			throw new InvalidProgramException("Input type of groupReduce operation must be" + " composite type.");
 		}
 
 		FunctionUtils.setFunctionRuntimeContext(function, ctx);
@@ -161,22 +164,30 @@ public class ReduceOperatorBase<T, FT extends ReduceFunction<T>> extends SingleI
 				aggregateMap.put(wrapper, result);
 			}
 
-			List<T> result = new ArrayList<T>(aggregateMap.values().size());
-			result.addAll(aggregateMap.values());
-
 			FunctionUtils.closeFunction(function);
-			return result;
-		} else {
+			return new ArrayList<T>(aggregateMap.values());
+		}
+		else {
 			T aggregate = inputData.get(0);
-			for (int i = 1; i < inputData.size(); i++) {
-				aggregate = function.reduce(aggregate, inputData.get(i));
+			
+			if (mutableObjectSafeMode) {
+				TypeSerializer<T> serializer = getOperatorInfo().getInputType().createSerializer();
+				aggregate = serializer.copy(aggregate);
+				
+				for (int i = 1; i < inputData.size(); i++) {
+					T next = function.reduce(aggregate, serializer.copy(inputData.get(i)));
+					aggregate = serializer.copy(next);
+				}
 			}
-			List<T> result = new ArrayList<T>(1);
-			result.add(aggregate);
+			else {
+				for (int i = 1; i < inputData.size(); i++) {
+					aggregate = function.reduce(aggregate, inputData.get(i));
+				}
+			}
 
 			FunctionUtils.setFunctionRuntimeContext(function, ctx);
-			return result;
+			
+			return Collections.singletonList(aggregate);
 		}
-
 	}
 }

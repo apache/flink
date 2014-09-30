@@ -48,7 +48,7 @@ public class Union<T> extends DualInputOperator<T, T, T, AbstractRichFunction> {
 	}
 
 	@Override
-	protected List<T> executeOnCollections(List<T> inputData1, List<T> inputData2, RuntimeContext runtimeContext) {
+	protected List<T> executeOnCollections(List<T> inputData1, List<T> inputData2, RuntimeContext runtimeContext, boolean mutableObjectSafeMode) {
 		ArrayList<T> result = new ArrayList<T>(inputData1.size() + inputData2.size());
 		result.addAll(inputData1);
 		result.addAll(inputData2);
