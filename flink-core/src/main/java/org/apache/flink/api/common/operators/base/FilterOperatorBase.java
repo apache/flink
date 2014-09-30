@@ -53,8 +53,8 @@ public class FilterOperatorBase<T, FT extends FlatMapFunction<T, T>> extends Sin
 	protected List<T> executeOnCollections(List<T> inputData, RuntimeContext ctx, boolean mutableObjectSafeMode) throws Exception {
 		FlatMapFunction<T, T> function = this.userFunction.getUserCodeObject();
 		
-		FunctionUtils.openFunction(function, this.parameters);
 		FunctionUtils.setFunctionRuntimeContext(function, ctx);
+		FunctionUtils.openFunction(function, this.parameters);
 		
 		ArrayList<T> result = new ArrayList<T>(inputData.size());
 		ListCollector<T> collector = new ListCollector<T>(result);

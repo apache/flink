@@ -338,9 +338,6 @@ public class FilterITCase extends JavaProgramTestBase {
 			default: 
 				throw new IllegalArgumentException("Invalid program id");
 			}
-			
 		}
-	
 	}
-	
 }

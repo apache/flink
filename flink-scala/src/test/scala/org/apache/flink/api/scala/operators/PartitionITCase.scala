@@ -59,7 +59,7 @@ object PartitionProgs {
   )
 
 
-  def runProgram(progId: Int, resultPath: String): String = {
+  def runProgram(progId: Int, resultPath: String, onCollection: Boolean): String = {
     progId match {
       case 1 =>
         val env = ExecutionEnvironment.getExecutionEnvironment
@@ -101,7 +101,12 @@ object PartitionProgs {
         countsInPartition.writeAsText(resultPath)
         env.execute()
 
-        "(0,55)\n" + "(1,55)\n" + "(2,55)\n" + "(3,55)\n"
+        val numPerPartition : Int = 2220 / env.getDegreeOfParallelism / 10;
+        var result = "";
+        for (i <- 0 until env.getDegreeOfParallelism) {
+          result += "(" + i + "," + numPerPartition + ")\n"
+        }
+        result
 
       case 4 =>
         // Verify that mapPartition operation after repartition picks up correct
@@ -141,7 +146,7 @@ object PartitionProgs {
         count.writeAsText(resultPath)
         env.execute()
 
-        "(4)\n"
+        if (onCollection) "(1)\n" else "(4)\n"
 
       case 6 =>
         // Verify that filter operation after repartition picks up correct
@@ -168,7 +173,7 @@ object PartitionProgs {
         count.writeAsText(resultPath)
         env.execute()
 
-        "(4)\n"
+        if (onCollection) "(1)\n" else "(4)\n"
 
       case _ =>
         throw new IllegalArgumentException("Invalid program id")
@@ -189,7 +194,7 @@ class PartitionITCase(config: Configuration) extends JavaProgramTestBase(config)
   }
 
   protected def testProgram(): Unit = {
-    expectedResult = PartitionProgs.runProgram(curProgId, resultPath)
+    expectedResult = PartitionProgs.runProgram(curProgId, resultPath, isCollectionExecution)
   }
 
   protected override def postSubmit(): Unit = {

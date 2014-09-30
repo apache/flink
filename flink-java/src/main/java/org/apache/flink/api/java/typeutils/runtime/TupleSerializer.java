@@ -69,7 +69,12 @@ public final class TupleSerializer<T extends Tuple> extends TupleSerializerBase<
 
 	@Override
 	public T copy(T from) {
-		return copy(from, instantiateRaw());
+		T target = instantiateRaw();
+		for (int i = 0; i < arity; i++) {
+			Object copy = fieldSerializers[i].copy(from.getField(i));
+			target.setField(copy, i);
+		}
+		return target;
 	}
 	
 	@Override

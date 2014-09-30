@@ -33,6 +33,11 @@ public class CollectionEnvironment extends ExecutionEnvironment {
 	}
 	
 	@Override
+	public int getDegreeOfParallelism() {
+		return 1; // always serial
+	}
+	
+	@Override
 	public String getExecutionPlan() throws Exception {
 		throw new UnsupportedOperationException("Execution plans are not used for collection-based execution.");
 	}
