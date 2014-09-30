@@ -22,11 +22,11 @@
  * 
  * DO NOT EDIT DIRECTLY
  */
-package org.apache.flink.api.java.record.io.avro.generated;  
+package org.apache.flink.api.io.avro.generated;  
 @SuppressWarnings("all")
 @org.apache.avro.specific.AvroGenerated
 public class User extends org.apache.avro.specific.SpecificRecordBase implements org.apache.avro.specific.SpecificRecord {
-  public static final org.apache.avro.Schema SCHEMA$ = new org.apache.avro.Schema.Parser().parse("{\"type\":\"record\",\"name\":\"User\",\"namespace\":\"org.apache.flink.api.java.record.io.avro.generated\",\"fields\":[{\"name\":\"name\",\"type\":\"string\"},{\"name\":\"favorite_number\",\"type\":[\"int\",\"null\"]},{\"name\":\"favorite_color\",\"type\":[\"string\",\"null\"]},{\"name\":\"type_long_test\",\"type\":[\"long\",\"null\"]},{\"name\":\"type_double_test\",\"type\":[\"double\"]},{\"name\":\"type_null_test\",\"type\":[\"null\"]},{\"name\":\"type_bool_test\",\"type\":[\"boolean\"]},{\"name\":\"type_array_string\",\"type\":{\"type\":\"array\",\"items\":\"string\"}},{\"name\":\"type_array_boolean\",\"type\":{\"type\":\"array\",\"items\":\"boolean\"}},{\"name\":\"type_nullable_array\",\"type\":[\"null\",{\"type\":\"array\",\"items\":\"string\"}],\"default\":null},{\"name\":\"type_enum\",\"type\":{\"type\":\"enum\",\"name\":\"Colors\",\"symbols\":[\"RED\",\"GREEN\",\"BLUE\"]}},{\"name\":\"type_map\",\"type\":{\"type\":\"map\",\"values\":\"long\"}}]}");
+  public static final org.apache.avro.Schema SCHEMA$ = new org.apache.avro.Schema.Parser().parse("{\"type\":\"record\",\"name\":\"User\",\"namespace\":\"org.apache.flink.api.io.avro.generated\",\"fields\":[{\"name\":\"name\",\"type\":\"string\"},{\"name\":\"favorite_number\",\"type\":[\"int\",\"null\"]},{\"name\":\"favorite_color\",\"type\":[\"string\",\"null\"]},{\"name\":\"type_long_test\",\"type\":[\"long\",\"null\"]},{\"name\":\"type_double_test\",\"type\":[\"double\"]},{\"name\":\"type_null_test\",\"type\":[\"null\"]},{\"name\":\"type_bool_test\",\"type\":[\"boolean\"]},{\"name\":\"type_array_string\",\"type\":{\"type\":\"array\",\"items\":\"string\"}},{\"name\":\"type_array_boolean\",\"type\":{\"type\":\"array\",\"items\":\"boolean\"}},{\"name\":\"type_nullable_array\",\"type\":[\"null\",{\"type\":\"array\",\"items\":\"string\"}],\"default\":null},{\"name\":\"type_enum\",\"type\":{\"type\":\"enum\",\"name\":\"Colors\",\"symbols\":[\"RED\",\"GREEN\",\"BLUE\"]}},{\"name\":\"type_map\",\"type\":{\"type\":\"map\",\"values\":\"long\"}}]}");
   public static org.apache.avro.Schema getClassSchema() { return SCHEMA$; }
   @Deprecated public java.lang.CharSequence name;
   @Deprecated public java.lang.Integer favorite_number;
@@ -38,7 +38,7 @@ public class User extends org.apache.avro.specific.SpecificRecordBase implements
   @Deprecated public java.util.List<java.lang.CharSequence> type_array_string;
   @Deprecated public java.util.List<java.lang.Boolean> type_array_boolean;
   @Deprecated public java.util.List<java.lang.CharSequence> type_nullable_array;
-  @Deprecated public org.apache.flink.api.java.record.io.avro.generated.Colors type_enum;
+  @Deprecated public org.apache.flink.api.io.avro.generated.Colors type_enum;
   @Deprecated public java.util.Map<java.lang.CharSequence,java.lang.Long> type_map;
 
   /**
@@ -51,7 +51,7 @@ public class User extends org.apache.avro.specific.SpecificRecordBase implements
   /**
    * All-args constructor.
    */
-  public User(java.lang.CharSequence name, java.lang.Integer favorite_number, java.lang.CharSequence favorite_color, java.lang.Long type_long_test, java.lang.Object type_double_test, java.lang.Object type_null_test, java.lang.Object type_bool_test, java.util.List<java.lang.CharSequence> type_array_string, java.util.List<java.lang.Boolean> type_array_boolean, java.util.List<java.lang.CharSequence> type_nullable_array, org.apache.flink.api.java.record.io.avro.generated.Colors type_enum, java.util.Map<java.lang.CharSequence,java.lang.Long> type_map) {
+  public User(java.lang.CharSequence name, java.lang.Integer favorite_number, java.lang.CharSequence favorite_color, java.lang.Long type_long_test, java.lang.Object type_double_test, java.lang.Object type_null_test, java.lang.Object type_bool_test, java.util.List<java.lang.CharSequence> type_array_string, java.util.List<java.lang.Boolean> type_array_boolean, java.util.List<java.lang.CharSequence> type_nullable_array, org.apache.flink.api.io.avro.generated.Colors type_enum, java.util.Map<java.lang.CharSequence,java.lang.Long> type_map) {
     this.name = name;
     this.favorite_number = favorite_number;
     this.favorite_color = favorite_color;
@@ -99,7 +99,7 @@ public class User extends org.apache.avro.specific.SpecificRecordBase implements
     case 7: type_array_string = (java.util.List<java.lang.CharSequence>)value$; break;
     case 8: type_array_boolean = (java.util.List<java.lang.Boolean>)value$; break;
     case 9: type_nullable_array = (java.util.List<java.lang.CharSequence>)value$; break;
-    case 10: type_enum = (org.apache.flink.api.java.record.io.avro.generated.Colors)value$; break;
+    case 10: type_enum = (org.apache.flink.api.io.avro.generated.Colors)value$; break;
     case 11: type_map = (java.util.Map<java.lang.CharSequence,java.lang.Long>)value$; break;
     default: throw new org.apache.avro.AvroRuntimeException("Bad index");
     }
@@ -258,7 +258,7 @@ public class User extends org.apache.avro.specific.SpecificRecordBase implements
   /**
    * Gets the value of the 'type_enum' field.
    */
-  public org.apache.flink.api.java.record.io.avro.generated.Colors getTypeEnum() {
+  public org.apache.flink.api.io.avro.generated.Colors getTypeEnum() {
     return type_enum;
   }
 
@@ -266,7 +266,7 @@ public class User extends org.apache.avro.specific.SpecificRecordBase implements
    * Sets the value of the 'type_enum' field.
    * @param value the value to set.
    */
-  public void setTypeEnum(org.apache.flink.api.java.record.io.avro.generated.Colors value) {
+  public void setTypeEnum(org.apache.flink.api.io.avro.generated.Colors value) {
     this.type_enum = value;
   }
 
@@ -286,18 +286,18 @@ public class User extends org.apache.avro.specific.SpecificRecordBase implements
   }
 
   /** Creates a new User RecordBuilder */
-  public static org.apache.flink.api.java.record.io.avro.generated.User.Builder newBuilder() {
-    return new org.apache.flink.api.java.record.io.avro.generated.User.Builder();
+  public static org.apache.flink.api.io.avro.generated.User.Builder newBuilder() {
+    return new org.apache.flink.api.io.avro.generated.User.Builder();
   }
   
   /** Creates a new User RecordBuilder by copying an existing Builder */
-  public static org.apache.flink.api.java.record.io.avro.generated.User.Builder newBuilder(org.apache.flink.api.java.record.io.avro.generated.User.Builder other) {
-    return new org.apache.flink.api.java.record.io.avro.generated.User.Builder(other);
+  public static org.apache.flink.api.io.avro.generated.User.Builder newBuilder(org.apache.flink.api.io.avro.generated.User.Builder other) {
+    return new org.apache.flink.api.io.avro.generated.User.Builder(other);
   }
   
   /** Creates a new User RecordBuilder by copying an existing User instance */
-  public static org.apache.flink.api.java.record.io.avro.generated.User.Builder newBuilder(org.apache.flink.api.java.record.io.avro.generated.User other) {
-    return new org.apache.flink.api.java.record.io.avro.generated.User.Builder(other);
+  public static org.apache.flink.api.io.avro.generated.User.Builder newBuilder(org.apache.flink.api.io.avro.generated.User other) {
+    return new org.apache.flink.api.io.avro.generated.User.Builder(other);
   }
   
   /**
@@ -316,16 +316,16 @@ public class User extends org.apache.avro.specific.SpecificRecordBase implements
     private java.util.List<java.lang.CharSequence> type_array_string;
     private java.util.List<java.lang.Boolean> type_array_boolean;
     private java.util.List<java.lang.CharSequence> type_nullable_array;
-    private org.apache.flink.api.java.record.io.avro.generated.Colors type_enum;
+    private org.apache.flink.api.io.avro.generated.Colors type_enum;
     private java.util.Map<java.lang.CharSequence,java.lang.Long> type_map;
 
     /** Creates a new Builder */
     private Builder() {
-      super(org.apache.flink.api.java.record.io.avro.generated.User.SCHEMA$);
+      super(org.apache.flink.api.io.avro.generated.User.SCHEMA$);
     }
     
     /** Creates a Builder by copying an existing Builder */
-    private Builder(org.apache.flink.api.java.record.io.avro.generated.User.Builder other) {
+    private Builder(org.apache.flink.api.io.avro.generated.User.Builder other) {
       super(other);
       if (isValidValue(fields()[0], other.name)) {
         this.name = data().deepCopy(fields()[0].schema(), other.name);
@@ -378,8 +378,8 @@ public class User extends org.apache.avro.specific.SpecificRecordBase implements
     }
     
     /** Creates a Builder by copying an existing User instance */
-    private Builder(org.apache.flink.api.java.record.io.avro.generated.User other) {
-            super(org.apache.flink.api.java.record.io.avro.generated.User.SCHEMA$);
+    private Builder(org.apache.flink.api.io.avro.generated.User other) {
+            super(org.apache.flink.api.io.avro.generated.User.SCHEMA$);
       if (isValidValue(fields()[0], other.name)) {
         this.name = data().deepCopy(fields()[0].schema(), other.name);
         fieldSetFlags()[0] = true;
@@ -436,7 +436,7 @@ public class User extends org.apache.avro.specific.SpecificRecordBase implements
     }
     
     /** Sets the value of the 'name' field */
-    public org.apache.flink.api.java.record.io.avro.generated.User.Builder setName(java.lang.CharSequence value) {
+    public org.apache.flink.api.io.avro.generated.User.Builder setName(java.lang.CharSequence value) {
       validate(fields()[0], value);
       this.name = value;
       fieldSetFlags()[0] = true;
@@ -449,7 +449,7 @@ public class User extends org.apache.avro.specific.SpecificRecordBase implements
     }
     
     /** Clears the value of the 'name' field */
-    public org.apache.flink.api.java.record.io.avro.generated.User.Builder clearName() {
+    public org.apache.flink.api.io.avro.generated.User.Builder clearName() {
       name = null;
       fieldSetFlags()[0] = false;
       return this;
@@ -461,7 +461,7 @@ public class User extends org.apache.avro.specific.SpecificRecordBase implements
     }
     
     /** Sets the value of the 'favorite_number' field */
-    public org.apache.flink.api.java.record.io.avro.generated.User.Builder setFavoriteNumber(java.lang.Integer value) {
+    public org.apache.flink.api.io.avro.generated.User.Builder setFavoriteNumber(java.lang.Integer value) {
       validate(fields()[1], value);
       this.favorite_number = value;
       fieldSetFlags()[1] = true;
@@ -474,7 +474,7 @@ public class User extends org.apache.avro.specific.SpecificRecordBase implements
     }
     
     /** Clears the value of the 'favorite_number' field */
-    public org.apache.flink.api.java.record.io.avro.generated.User.Builder clearFavoriteNumber() {
+    public org.apache.flink.api.io.avro.generated.User.Builder clearFavoriteNumber() {
       favorite_number = null;
       fieldSetFlags()[1] = false;
       return this;
@@ -486,7 +486,7 @@ public class User extends org.apache.avro.specific.SpecificRecordBase implements
     }
     
     /** Sets the value of the 'favorite_color' field */
-    public org.apache.flink.api.java.record.io.avro.generated.User.Builder setFavoriteColor(java.lang.CharSequence value) {
+    public org.apache.flink.api.io.avro.generated.User.Builder setFavoriteColor(java.lang.CharSequence value) {
       validate(fields()[2], value);
       this.favorite_color = value;
       fieldSetFlags()[2] = true;
@@ -499,7 +499,7 @@ public class User extends org.apache.avro.specific.SpecificRecordBase implements
     }
     
     /** Clears the value of the 'favorite_color' field */
-    public org.apache.flink.api.java.record.io.avro.generated.User.Builder clearFavoriteColor() {
+    public org.apache.flink.api.io.avro.generated.User.Builder clearFavoriteColor() {
       favorite_color = null;
       fieldSetFlags()[2] = false;
       return this;
@@ -511,7 +511,7 @@ public class User extends org.apache.avro.specific.SpecificRecordBase implements
     }
     
     /** Sets the value of the 'type_long_test' field */
-    public org.apache.flink.api.java.record.io.avro.generated.User.Builder setTypeLongTest(java.lang.Long value) {
+    public org.apache.flink.api.io.avro.generated.User.Builder setTypeLongTest(java.lang.Long value) {
       validate(fields()[3], value);
       this.type_long_test = value;
       fieldSetFlags()[3] = true;
@@ -524,7 +524,7 @@ public class User extends org.apache.avro.specific.SpecificRecordBase implements
     }
     
     /** Clears the value of the 'type_long_test' field */
-    public org.apache.flink.api.java.record.io.avro.generated.User.Builder clearTypeLongTest() {
+    public org.apache.flink.api.io.avro.generated.User.Builder clearTypeLongTest() {
       type_long_test = null;
       fieldSetFlags()[3] = false;
       return this;
@@ -536,7 +536,7 @@ public class User extends org.apache.avro.specific.SpecificRecordBase implements
     }
     
     /** Sets the value of the 'type_double_test' field */
-    public org.apache.flink.api.java.record.io.avro.generated.User.Builder setTypeDoubleTest(java.lang.Object value) {
+    public org.apache.flink.api.io.avro.generated.User.Builder setTypeDoubleTest(java.lang.Object value) {
       validate(fields()[4], value);
       this.type_double_test = value;
       fieldSetFlags()[4] = true;
@@ -549,7 +549,7 @@ public class User extends org.apache.avro.specific.SpecificRecordBase implements
     }
     
     /** Clears the value of the 'type_double_test' field */
-    public org.apache.flink.api.java.record.io.avro.generated.User.Builder clearTypeDoubleTest() {
+    public org.apache.flink.api.io.avro.generated.User.Builder clearTypeDoubleTest() {
       type_double_test = null;
       fieldSetFlags()[4] = false;
       return this;
@@ -561,7 +561,7 @@ public class User extends org.apache.avro.specific.SpecificRecordBase implements
     }
     
     /** Sets the value of the 'type_null_test' field */
-    public org.apache.flink.api.java.record.io.avro.generated.User.Builder setTypeNullTest(java.lang.Object value) {
+    public org.apache.flink.api.io.avro.generated.User.Builder setTypeNullTest(java.lang.Object value) {
       validate(fields()[5], value);
       this.type_null_test = value;
       fieldSetFlags()[5] = true;
@@ -574,7 +574,7 @@ public class User extends org.apache.avro.specific.SpecificRecordBase implements
     }
     
     /** Clears the value of the 'type_null_test' field */
-    public org.apache.flink.api.java.record.io.avro.generated.User.Builder clearTypeNullTest() {
+    public org.apache.flink.api.io.avro.generated.User.Builder clearTypeNullTest() {
       type_null_test = null;
       fieldSetFlags()[5] = false;
       return this;
@@ -586,7 +586,7 @@ public class User extends org.apache.avro.specific.SpecificRecordBase implements
     }
     
     /** Sets the value of the 'type_bool_test' field */
-    public org.apache.flink.api.java.record.io.avro.generated.User.Builder setTypeBoolTest(java.lang.Object value) {
+    public org.apache.flink.api.io.avro.generated.User.Builder setTypeBoolTest(java.lang.Object value) {
       validate(fields()[6], value);
       this.type_bool_test = value;
       fieldSetFlags()[6] = true;
@@ -599,7 +599,7 @@ public class User extends org.apache.avro.specific.SpecificRecordBase implements
     }
     
     /** Clears the value of the 'type_bool_test' field */
-    public org.apache.flink.api.java.record.io.avro.generated.User.Builder clearTypeBoolTest() {
+    public org.apache.flink.api.io.avro.generated.User.Builder clearTypeBoolTest() {
       type_bool_test = null;
       fieldSetFlags()[6] = false;
       return this;
@@ -611,7 +611,7 @@ public class User extends org.apache.avro.specific.SpecificRecordBase implements
     }
     
     /** Sets the value of the 'type_array_string' field */
-    public org.apache.flink.api.java.record.io.avro.generated.User.Builder setTypeArrayString(java.util.List<java.lang.CharSequence> value) {
+    public org.apache.flink.api.io.avro.generated.User.Builder setTypeArrayString(java.util.List<java.lang.CharSequence> value) {
       validate(fields()[7], value);
       this.type_array_string = value;
       fieldSetFlags()[7] = true;
@@ -624,7 +624,7 @@ public class User extends org.apache.avro.specific.SpecificRecordBase implements
     }
     
     /** Clears the value of the 'type_array_string' field */
-    public org.apache.flink.api.java.record.io.avro.generated.User.Builder clearTypeArrayString() {
+    public org.apache.flink.api.io.avro.generated.User.Builder clearTypeArrayString() {
       type_array_string = null;
       fieldSetFlags()[7] = false;
       return this;
@@ -636,7 +636,7 @@ public class User extends org.apache.avro.specific.SpecificRecordBase implements
     }
     
     /** Sets the value of the 'type_array_boolean' field */
-    public org.apache.flink.api.java.record.io.avro.generated.User.Builder setTypeArrayBoolean(java.util.List<java.lang.Boolean> value) {
+    public org.apache.flink.api.io.avro.generated.User.Builder setTypeArrayBoolean(java.util.List<java.lang.Boolean> value) {
       validate(fields()[8], value);
       this.type_array_boolean = value;
       fieldSetFlags()[8] = true;
@@ -649,7 +649,7 @@ public class User extends org.apache.avro.specific.SpecificRecordBase implements
     }
     
     /** Clears the value of the 'type_array_boolean' field */
-    public org.apache.flink.api.java.record.io.avro.generated.User.Builder clearTypeArrayBoolean() {
+    public org.apache.flink.api.io.avro.generated.User.Builder clearTypeArrayBoolean() {
       type_array_boolean = null;
       fieldSetFlags()[8] = false;
       return this;
@@ -661,7 +661,7 @@ public class User extends org.apache.avro.specific.SpecificRecordBase implements
     }
     
     /** Sets the value of the 'type_nullable_array' field */
-    public org.apache.flink.api.java.record.io.avro.generated.User.Builder setTypeNullableArray(java.util.List<java.lang.CharSequence> value) {
+    public org.apache.flink.api.io.avro.generated.User.Builder setTypeNullableArray(java.util.List<java.lang.CharSequence> value) {
       validate(fields()[9], value);
       this.type_nullable_array = value;
       fieldSetFlags()[9] = true;
@@ -674,19 +674,19 @@ public class User extends org.apache.avro.specific.SpecificRecordBase implements
     }
     
     /** Clears the value of the 'type_nullable_array' field */
-    public org.apache.flink.api.java.record.io.avro.generated.User.Builder clearTypeNullableArray() {
+    public org.apache.flink.api.io.avro.generated.User.Builder clearTypeNullableArray() {
       type_nullable_array = null;
       fieldSetFlags()[9] = false;
       return this;
     }
 
     /** Gets the value of the 'type_enum' field */
-    public org.apache.flink.api.java.record.io.avro.generated.Colors getTypeEnum() {
+    public org.apache.flink.api.io.avro.generated.Colors getTypeEnum() {
       return type_enum;
     }
     
     /** Sets the value of the 'type_enum' field */
-    public org.apache.flink.api.java.record.io.avro.generated.User.Builder setTypeEnum(org.apache.flink.api.java.record.io.avro.generated.Colors value) {
+    public org.apache.flink.api.io.avro.generated.User.Builder setTypeEnum(org.apache.flink.api.io.avro.generated.Colors value) {
       validate(fields()[10], value);
       this.type_enum = value;
       fieldSetFlags()[10] = true;
@@ -699,7 +699,7 @@ public class User extends org.apache.avro.specific.SpecificRecordBase implements
     }
     
     /** Clears the value of the 'type_enum' field */
-    public org.apache.flink.api.java.record.io.avro.generated.User.Builder clearTypeEnum() {
+    public org.apache.flink.api.io.avro.generated.User.Builder clearTypeEnum() {
       type_enum = null;
       fieldSetFlags()[10] = false;
       return this;
@@ -711,7 +711,7 @@ public class User extends org.apache.avro.specific.SpecificRecordBase implements
     }
     
     /** Sets the value of the 'type_map' field */
-    public org.apache.flink.api.java.record.io.avro.generated.User.Builder setTypeMap(java.util.Map<java.lang.CharSequence,java.lang.Long> value) {
+    public org.apache.flink.api.io.avro.generated.User.Builder setTypeMap(java.util.Map<java.lang.CharSequence,java.lang.Long> value) {
       validate(fields()[11], value);
       this.type_map = value;
       fieldSetFlags()[11] = true;
@@ -724,7 +724,7 @@ public class User extends org.apache.avro.specific.SpecificRecordBase implements
     }
     
     /** Clears the value of the 'type_map' field */
-    public org.apache.flink.api.java.record.io.avro.generated.User.Builder clearTypeMap() {
+    public org.apache.flink.api.io.avro.generated.User.Builder clearTypeMap() {
       type_map = null;
       fieldSetFlags()[11] = false;
       return this;
@@ -744,7 +744,7 @@ public class User extends org.apache.avro.specific.SpecificRecordBase implements
         record.type_array_string = fieldSetFlags()[7] ? this.type_array_string : (java.util.List<java.lang.CharSequence>) defaultValue(fields()[7]);
         record.type_array_boolean = fieldSetFlags()[8] ? this.type_array_boolean : (java.util.List<java.lang.Boolean>) defaultValue(fields()[8]);
         record.type_nullable_array = fieldSetFlags()[9] ? this.type_nullable_array : (java.util.List<java.lang.CharSequence>) defaultValue(fields()[9]);
-        record.type_enum = fieldSetFlags()[10] ? this.type_enum : (org.apache.flink.api.java.record.io.avro.generated.Colors) defaultValue(fields()[10]);
+        record.type_enum = fieldSetFlags()[10] ? this.type_enum : (org.apache.flink.api.io.avro.generated.Colors) defaultValue(fields()[10]);
         record.type_map = fieldSetFlags()[11] ? this.type_map : (java.util.Map<java.lang.CharSequence,java.lang.Long>) defaultValue(fields()[11]);
         return record;
       } catch (Exception e) {

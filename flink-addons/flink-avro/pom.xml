@@ -54,10 +54,11 @@ under the License.
 			<!-- version is derived from base module -->
 		</dependency>
 		
+		<!--  guava needs to be in "provided" scope, so to not re-export the dependency -->
 		<dependency>
-			<groupId>org.apache.avro</groupId>
-			<artifactId>avro-mapred</artifactId>
-			<!-- version is derived from base module -->
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava</artifactId>
+			<scope>provided</scope>
 		</dependency>
 		
 		<dependency>
