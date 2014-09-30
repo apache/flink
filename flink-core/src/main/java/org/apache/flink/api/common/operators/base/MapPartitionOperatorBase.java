@@ -23,6 +23,8 @@ import java.util.List;
 
 import org.apache.flink.api.common.functions.MapPartitionFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.functions.util.CopyingIterator;
+import org.apache.flink.api.common.functions.util.CopyingListCollector;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.functions.util.ListCollector;
 import org.apache.flink.api.common.operators.SingleInputOperator;
@@ -30,6 +32,7 @@ import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 /**
  *
@@ -54,18 +57,28 @@ public class MapPartitionOperatorBase<IN, OUT, FT extends MapPartitionFunction<I
 	// --------------------------------------------------------------------------------------------
 	
 	@Override
-	protected List<OUT> executeOnCollections(List<IN> inputData, RuntimeContext ctx) throws Exception {
+	protected List<OUT> executeOnCollections(List<IN> inputData, RuntimeContext ctx, boolean mutableObjectSafeMode) throws Exception {
 		MapPartitionFunction<IN, OUT> function = this.userFunction.getUserCodeObject();
 		
 		FunctionUtils.setFunctionRuntimeContext(function, ctx);
 		FunctionUtils.openFunction(function, this.parameters);
 		
 		ArrayList<OUT> result = new ArrayList<OUT>(inputData.size() / 4);
-		ListCollector<OUT> resultCollector = new ListCollector<OUT>(result);
 		
-		function.mapPartition(inputData, resultCollector);
+		if (mutableObjectSafeMode) {
+			TypeSerializer<IN> inSerializer = getOperatorInfo().getInputType().createSerializer();
+			TypeSerializer<OUT> outSerializer = getOperatorInfo().getOutputType().createSerializer();
+			
+			CopyingIterator<IN> source = new CopyingIterator<IN>(inputData.iterator(), inSerializer);
+			CopyingListCollector<OUT> resultCollector = new CopyingListCollector<OUT>(result, outSerializer);
+			
+			function.mapPartition(source, resultCollector);
+		} else {
+			ListCollector<OUT> resultCollector = new ListCollector<OUT>(result);
+			function.mapPartition(inputData, resultCollector);
+		}
+
 		result.trimToSize();
-		
 		FunctionUtils.closeFunction(function);
 		return result;
 	}

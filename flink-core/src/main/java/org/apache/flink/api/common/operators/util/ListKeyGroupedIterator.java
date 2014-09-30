@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,6 +19,7 @@
 package org.apache.flink.api.common.operators.util;
 
 import org.apache.flink.api.common.typeutils.TypeComparator;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import java.io.IOException;
 import java.util.Iterator;
@@ -32,14 +33,16 @@ public final class ListKeyGroupedIterator<E> {
 
 	private final List<E> input;
 
+	private final TypeSerializer<E> serializer;  // != null if the elements should be copied
+	
 	private final TypeComparator<E> comparator;
 
 	private ValuesIterator valuesIterator;
 
 	private int currentPosition = 0;
 
-	private E lookahead = null;
-
+	private E lookahead;
+	
 	private boolean done;
 
 	/**
@@ -48,13 +51,13 @@ public final class ListKeyGroupedIterator<E> {
 	 * @param input The list with the input elements.
 	 * @param comparator The comparator for the data type iterated over.
 	 */
-	public ListKeyGroupedIterator(List<E> input, TypeComparator<E> comparator)
-	{
+	public ListKeyGroupedIterator(List<E> input, TypeSerializer<E> serializer, TypeComparator<E> comparator, boolean copy) {
 		if (input == null || comparator == null) {
 			throw new NullPointerException();
 		}
 
 		this.input = input;
+		this.serializer = copy ? serializer : null;
 		this.comparator = comparator;
 
 		this.done = input.isEmpty() ? true : false;
@@ -109,7 +112,7 @@ public final class ListKeyGroupedIterator<E> {
 			E first = input.get(currentPosition++);
 			if (first != null) {
 				this.comparator.setReference(first);
-				this.valuesIterator = new ValuesIterator(first);
+				this.valuesIterator = new ValuesIterator(first, serializer);
 				return true;
 			}
 			else {
@@ -155,9 +158,12 @@ public final class ListKeyGroupedIterator<E> {
 	public final class ValuesIterator implements Iterator<E>, Iterable<E> {
 
 		private E next;
+		
+		private final TypeSerializer<E> serializer;
 
-		private ValuesIterator(E first) {
+		private ValuesIterator(E first, TypeSerializer<E> serializer) {
 			this.next = first;
+			this.serializer = serializer;
 		}
 
 		@Override
@@ -170,7 +176,7 @@ public final class ListKeyGroupedIterator<E> {
 			if (this.next != null) {
 				E current = this.next;
 				this.next = ListKeyGroupedIterator.this.advanceToNext();
-				return current;
+				return serializer != null ? serializer.copy(current) : current;
 			} else {
 				throw new NoSuchElementException();
 			}

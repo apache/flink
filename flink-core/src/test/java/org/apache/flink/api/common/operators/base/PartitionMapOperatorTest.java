@@ -74,9 +74,12 @@ public class PartitionMapOperatorTest implements java.io.Serializable {
 					parser, new UnaryOperatorInformation<String, Integer>(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO), taskName);
 			
 			List<String> input = new ArrayList<String>(asList("1", "2", "3", "4", "5", "6"));
-			List<Integer> result = op.executeOnCollections(input, new RuntimeUDFContext(taskName, 1, 0));
 			
-			assertEquals(asList(1, 2, 3, 4, 5, 6), result);
+			List<Integer> resultMutableSafe = op.executeOnCollections(input, new RuntimeUDFContext(taskName, 1, 0), true);
+			List<Integer> resultRegular = op.executeOnCollections(input, new RuntimeUDFContext(taskName, 1, 0), false);
+			
+			assertEquals(asList(1, 2, 3, 4, 5, 6), resultMutableSafe);
+			assertEquals(asList(1, 2, 3, 4, 5, 6), resultRegular);
 			
 			assertTrue(opened.get());
 			assertTrue(closed.get());

@@ -303,7 +303,7 @@ public class BulkIterationBase<T> extends SingleInputOperator<T, T, AbstractRich
 	}
 
 	@Override
-	protected List<T> executeOnCollections(List<T> inputData, RuntimeContext runtimeContext) {
+	protected List<T> executeOnCollections(List<T> inputData, RuntimeContext runtimeContext, boolean mutableObjectSafeMode) {
 		throw new UnsupportedOperationException();
 	}
 }

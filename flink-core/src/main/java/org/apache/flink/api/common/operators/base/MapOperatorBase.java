@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.operators.base;
 
 import java.util.ArrayList;
@@ -30,7 +29,7 @@ import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
-
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 /**
  *
@@ -55,15 +54,27 @@ public class MapOperatorBase<IN, OUT, FT extends MapFunction<IN, OUT>> extends S
 	// --------------------------------------------------------------------------------------------
 	
 	@Override
-	protected List<OUT> executeOnCollections(List<IN> inputData, RuntimeContext ctx) throws Exception {
+	protected List<OUT> executeOnCollections(List<IN> inputData, RuntimeContext ctx, boolean mutableObjectSafeMode) throws Exception {
 		MapFunction<IN, OUT> function = this.userFunction.getUserCodeObject();
 		
 		FunctionUtils.setFunctionRuntimeContext(function, ctx);
 		FunctionUtils.openFunction(function, this.parameters);
 		
 		ArrayList<OUT> result = new ArrayList<OUT>(inputData.size());
-		for (IN element : inputData) {
-			result.add(function.map(element));
+		
+		if (mutableObjectSafeMode) {
+			TypeSerializer<IN> inSerializer = getOperatorInfo().getInputType().createSerializer();
+			TypeSerializer<OUT> outSerializer = getOperatorInfo().getOutputType().createSerializer();
+			
+			for (IN element : inputData) {
+				IN inCopy = inSerializer.copy(element);
+				OUT out = function.map(inCopy);
+				result.add(outSerializer.copy(out));
+			}
+		} else {
+			for (IN element : inputData) {
+				result.add(function.map(element));
+			}
 		}
 		
 		FunctionUtils.closeFunction(function);

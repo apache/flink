@@ -20,6 +20,7 @@ package org.apache.flink.api.common.operators.base;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.functions.util.CopyingListCollector;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.functions.util.ListCollector;
 import org.apache.flink.api.common.operators.SingleInputOperator;
@@ -27,6 +28,7 @@ import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -51,17 +53,29 @@ public class FlatMapOperatorBase<IN, OUT, FT extends FlatMapFunction<IN, OUT>> e
 	// ------------------------------------------------------------------------
 
 	@Override
-	protected List<OUT> executeOnCollections(List<IN> input, RuntimeContext ctx) throws Exception {
+	protected List<OUT> executeOnCollections(List<IN> input, RuntimeContext ctx, boolean mutableObjectSafeMode) throws Exception {
 		FlatMapFunction<IN, OUT> function = userFunction.getUserCodeObject();
-
+		
 		FunctionUtils.setFunctionRuntimeContext(function, ctx);
 		FunctionUtils.openFunction(function, parameters);
 
 		ArrayList<OUT> result = new ArrayList<OUT>(input.size());
-		ListCollector<OUT> resultCollector = new ListCollector<OUT>(result);
-
-		for (IN element : input) {
-			function.flatMap(element, resultCollector);
+		
+		if (mutableObjectSafeMode) {
+			TypeSerializer<IN> inSerializer = getOperatorInfo().getInputType().createSerializer();
+			TypeSerializer<OUT> outSerializer = getOperatorInfo().getOutputType().createSerializer();
+			
+			CopyingListCollector<OUT> resultCollector = new CopyingListCollector<OUT>(result, outSerializer);
+			
+			for (IN element : input) {
+				IN inCopy = inSerializer.copy(element);
+				function.flatMap(inCopy, resultCollector);
+			}
+		} else {
+			ListCollector<OUT> resultCollector = new ListCollector<OUT>(result);
+			for (IN element : input) {
+				function.flatMap(element, resultCollector);
+			}
 		}
 
 		FunctionUtils.closeFunction(function);

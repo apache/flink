@@ -18,6 +18,9 @@
 
 package org.apache.flink.api.common.operators.base;
 
+import java.util.List;
+
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.NoOpFunction;
 import org.apache.flink.api.common.operators.SingleInputOperator;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
@@ -51,4 +54,8 @@ public class PartitionOperatorBase<IN> extends SingleInputOperator<IN, IN, NoOpF
 		RANGE;
 	}
 
+	@Override
+	protected List<IN> executeOnCollections(List<IN> inputData, RuntimeContext runtimeContext, boolean mutableObjectSafeMode) {
+		return inputData;
+	}
 }

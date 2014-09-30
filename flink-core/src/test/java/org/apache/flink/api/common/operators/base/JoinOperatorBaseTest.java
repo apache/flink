@@ -60,10 +60,13 @@ public class JoinOperatorBaseTest implements Serializable {
 		List<Integer> expected = new ArrayList<Integer>(Arrays.asList(3, 3, 6 ,6));
 
 		try {
-			List<Integer> result = base.executeOnCollections(inputData1, inputData2, null);
+			List<Integer> resultSafe = base.executeOnCollections(inputData1, inputData2, null, true);
+			List<Integer> resultRegular = base.executeOnCollections(inputData1, inputData2, null, false);
 
-			assertEquals(expected, result);
-		} catch (Exception e) {
+			assertEquals(expected, resultSafe);
+			assertEquals(expected, resultRegular);
+		}
+		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
@@ -107,11 +110,13 @@ public class JoinOperatorBaseTest implements Serializable {
 
 
 		try {
-			List<Integer> result = base.executeOnCollections(inputData1, inputData2, new RuntimeUDFContext(taskName,
-					1, 0));
+			List<Integer> resultSafe = base.executeOnCollections(inputData1, inputData2, new RuntimeUDFContext(taskName, 1, 0), true);
+			List<Integer> resultRegular = base.executeOnCollections(inputData1, inputData2, new RuntimeUDFContext(taskName, 1, 0), false);
 
-			assertEquals(expected, result);
-		} catch (Exception e) {
+			assertEquals(expected, resultSafe);
+			assertEquals(expected, resultRegular);
+		}
+		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}

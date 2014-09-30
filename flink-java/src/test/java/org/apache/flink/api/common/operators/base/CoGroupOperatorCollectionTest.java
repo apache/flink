@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -38,6 +38,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+@SuppressWarnings("serial")
 public class CoGroupOperatorCollectionTest implements Serializable {
 
 	@Test
@@ -68,12 +69,17 @@ public class CoGroupOperatorCollectionTest implements Serializable {
 			final RuntimeContext ctx = new RuntimeUDFContext("Test UDF", 4, 0);
 
 			{
-				SumCoGroup udf = new SumCoGroup();
-				List<Tuple2<String, Integer>> result = getCoGroupOperator(udf)
-						.executeOnCollections(input1, input2, ctx);
+				SumCoGroup udf1 = new SumCoGroup();
+				SumCoGroup udf2 = new SumCoGroup();
+				
+				List<Tuple2<String, Integer>> resultSafe = getCoGroupOperator(udf1)
+						.executeOnCollections(input1, input2, ctx, true);
+				List<Tuple2<String, Integer>> resultRegular = getCoGroupOperator(udf2)
+						.executeOnCollections(input1, input2, ctx, false);
 
-				Assert.assertTrue(udf.isClosed);
-
+				Assert.assertTrue(udf1.isClosed);
+				Assert.assertTrue(udf2.isClosed);
+				
 				Set<Tuple2<String, Integer>> expected = new HashSet<Tuple2<String, Integer>>(
 						Arrays.asList(new Tuple2Builder<String, Integer>()
 										.add("foo", 8)
@@ -84,14 +90,21 @@ public class CoGroupOperatorCollectionTest implements Serializable {
 						)
 				);
 
-				Assert.assertEquals(expected, new HashSet(result));
+				Assert.assertEquals(expected, new HashSet<Tuple2<String, Integer>>(resultSafe));
+				Assert.assertEquals(expected, new HashSet<Tuple2<String, Integer>>(resultRegular));
 			}
 
 			{
-				List<Tuple2<String, Integer>> result = getCoGroupOperator(new SumCoGroup())
-						.executeOnCollections(Collections.EMPTY_LIST, Collections.EMPTY_LIST, ctx);
+				List<Tuple2<String, Integer>> resultSafe = getCoGroupOperator(new SumCoGroup())
+						.executeOnCollections(Collections.<Tuple2<String, Integer>>emptyList(),
+								Collections.<Tuple2<String, Integer>>emptyList(), ctx, true);
+				
+				List<Tuple2<String, Integer>> resultRegular = getCoGroupOperator(new SumCoGroup())
+						.executeOnCollections(Collections.<Tuple2<String, Integer>>emptyList(),
+								Collections.<Tuple2<String, Integer>>emptyList(), ctx, false);
 
-				Assert.assertEquals(0, result.size());
+				Assert.assertEquals(0, resultSafe.size());
+				Assert.assertEquals(0, resultRegular.size());
 			}
 		} catch (Throwable t) {
 			t.printStackTrace();

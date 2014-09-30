@@ -209,5 +209,5 @@ public abstract class SingleInputOperator<IN, OUT, FT extends Function> extends 
 	
 	// --------------------------------------------------------------------------------------------
 	
-	protected abstract List<OUT> executeOnCollections(List<IN> inputData, RuntimeContext runtimeContext) throws Exception;
+	protected abstract List<OUT> executeOnCollections(List<IN> inputData, RuntimeContext runtimeContext, boolean mutableObjectSafeMode) throws Exception;
 }
