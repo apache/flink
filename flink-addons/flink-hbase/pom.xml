@@ -85,6 +85,34 @@ under the License.
 					<groupId>asm</groupId>
 					<artifactId>asm</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>tomcat</groupId>
+					<artifactId>jasper-compiler</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>tomcat</groupId>
+					<artifactId>jasper-runtime</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.mortbay.jetty</groupId>
+					<artifactId>jetty</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.mortbay.jetty</groupId>
+					<artifactId>jsp-api-2.1</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.mortbay.jetty</groupId>
+					<artifactId>jsp-2.1</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.mortbay.jetty</groupId>
+					<artifactId>jetty-util</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.eclipse.jdt</groupId>
+					<artifactId>core</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 	</dependencies>
@@ -104,13 +132,4 @@ under the License.
 		to use profiles See ticket https://issues.apache.org/jira/browse/HADOOP-8009 
 		for description of hadoop-clients -->
 
-	<reporting>
-		<plugins>
-		</plugins>
-	</reporting>
-
-	<build>
-		<plugins>
-		</plugins>
-	</build>
 </project>

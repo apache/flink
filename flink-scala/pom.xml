@@ -90,6 +90,14 @@ under the License.
 			<artifactId>asm</artifactId>
 			<version>4.0</version>
 		</dependency>
+		
+		<!--  guava needs to be in "provided" scope, so to not re-export the dependency -->
+		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava</artifactId>
+			<version>${guava.version}</version>
+			<scope>provided</scope>
+		</dependency>
 
 		<dependency>
 			<groupId>org.scalatest</groupId>

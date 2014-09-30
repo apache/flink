@@ -87,6 +87,7 @@ under the License.
 			</includes>
 			<excludes>
 				<exclude>flink-java-examples-${project.version}.jar</exclude>
+				<exclude>original-flink-java-examples-${project.version}.jar</exclude>
 				<exclude>flink-java-examples-${project.version}-sources.jar</exclude>
 			</excludes>
 		</fileSet>
@@ -101,6 +102,7 @@ under the License.
 			</includes>
 			<excludes>
 				<exclude>flink-scala-examples-${project.version}.jar</exclude>
+				<exclude>original-flink-scala-examples-${project.version}.jar</exclude>
 				<exclude>flink-scala-examples-${project.version}-sources.jar</exclude>
 			</excludes>
 		</fileSet>

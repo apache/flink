@@ -36,9 +36,23 @@ under the License.
 
 	<dependencies>
 		<dependency>
-	                <groupId>org.apache.flink</groupId>
-	                <artifactId>flink-shaded</artifactId>
-	                <version>${project.version}</version>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded</artifactId>
+			<version>${project.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>com.google.guava</groupId>
+					<artifactId>guava</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		
+		<!--  guava needs to be in "provided" scope, so to not re-export the dependency -->
+		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava</artifactId>
+			<version>${guava.version}</version>
+			<scope>provided</scope>
 		</dependency>
 	</dependencies>
 
