@@ -20,7 +20,7 @@ package org.apache.flink.streaming.api.invokable.operator.co;
 import org.apache.flink.streaming.api.function.co.CoReduceFunction;
 import org.apache.flink.streaming.state.MutableTableState;
 
-public class CoGroupedReduceInvokable<IN1, IN2, OUT> extends CoStreamReduceInvokable<IN1, IN2, OUT> {
+public class CoGroupedReduceInvokable<IN1, IN2, OUT> extends CoReduceInvokable<IN1, IN2, OUT> {
 	private static final long serialVersionUID = 1L;
 
 	private int keyPosition1;

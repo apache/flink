@@ -28,14 +28,14 @@ import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 public class GroupedWindowGroupReduceInvokable<IN, OUT> extends WindowGroupReduceInvokable<IN, OUT> {
 
 	private static final long serialVersionUID = 1L;
-	
+
 	int keyPosition;
 	Map<Object, StreamWindow> streamWindows;
 	List<Object> cleanList;
 	long currentMiniBatchCount = 0;
 
-	public GroupedWindowGroupReduceInvokable(GroupReduceFunction<IN, OUT> reduceFunction, long windowSize,
-			long slideInterval, int keyPosition, TimeStamp<IN> timestamp) {
+	public GroupedWindowGroupReduceInvokable(GroupReduceFunction<IN, OUT> reduceFunction,
+			long windowSize, long slideInterval, int keyPosition, TimeStamp<IN> timestamp) {
 		super(reduceFunction, windowSize, slideInterval, timestamp);
 		this.keyPosition = keyPosition;
 		this.reducer = reduceFunction;
@@ -48,7 +48,6 @@ public class GroupedWindowGroupReduceInvokable<IN, OUT> extends WindowGroupReduc
 		StreamWindow window = streamWindows.get(key);
 		if (window == null) {
 			window = new GroupedStreamWindow();
-			window.minibatchCounter = currentMiniBatchCount;
 			streamWindows.put(key, window);
 		}
 		this.window = window;
@@ -62,26 +61,25 @@ public class GroupedWindowGroupReduceInvokable<IN, OUT> extends WindowGroupReduc
 		}
 	}
 
-	private void shiftGranularityAllWindows(){
+	private void shiftGranularityAllWindows() {
 		for (StreamBatch window : streamWindows.values()) {
 			window.circularList.newSlide();
-			window.minibatchCounter+=1;
 		}
 	}
 
-	private void slideAllWindows(){
+	private void slideAllWindows() {
+		currentMiniBatchCount -= batchPerSlide;
 		for (StreamBatch window : streamWindows.values()) {
 			window.circularList.shiftWindow(batchPerSlide);
-		}	
+		}
 	}
 
 	private void reduceAllWindows() {
 		for (StreamBatch window : streamWindows.values()) {
-			window.minibatchCounter -= batchPerSlide;
 			window.reduceBatch();
 		}
 	}
-	
+
 	protected class GroupedStreamWindow extends StreamWindow {
 
 		private static final long serialVersionUID = 1L;
@@ -91,27 +89,34 @@ public class GroupedWindowGroupReduceInvokable<IN, OUT> extends WindowGroupReduc
 		}
 
 		@Override
+		public void addToBuffer(IN nextValue) throws Exception {
+			checkWindowEnd(timestamp.getTimestamp(nextValue));
+			if (currentMiniBatchCount >= 0) {
+				circularList.add(nextValue);
+			}
+		}
+
+		@Override
 		protected synchronized void checkWindowEnd(long timeStamp) {
 			nextRecordTime = timeStamp;
-			
+
 			while (miniBatchEnd()) {
 				shiftGranularityAllWindows();
+				currentMiniBatchCount += 1;
 				if (batchEnd()) {
 					reduceAllWindows();
 					slideAllWindows();
 				}
 			}
-			currentMiniBatchCount = this.minibatchCounter;
 		}
 
 		@Override
 		public boolean batchEnd() {
-			if (minibatchCounter == numberOfBatches) {
+			if (currentMiniBatchCount == numberOfBatches) {
 				return true;
 			}
 			return false;
 		}
-		
 
 	}
 

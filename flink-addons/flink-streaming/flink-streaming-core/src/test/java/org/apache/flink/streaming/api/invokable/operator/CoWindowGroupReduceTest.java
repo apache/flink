@@ -20,237 +20,170 @@ package org.apache.flink.streaming.api.invokable.operator;
 import static org.junit.Assert.assertEquals;
 
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
+import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.streaming.api.function.co.CoGroupReduceFunction;
-import org.apache.flink.streaming.api.invokable.operator.co.CoWindowGroupReduceInvokable;
+import org.apache.flink.streaming.api.invokable.operator.co.CoGroupInvokable;
 import org.apache.flink.streaming.api.invokable.util.TimeStamp;
 import org.apache.flink.streaming.util.MockCoInvokable;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
 
-public class CoWindowGroupReduceTest {
+public class CoWindowGroupReduceTest{
 
-	
-	public static final class MyCoGroupReduceFunction1 implements
-			CoGroupReduceFunction<Long, Integer, String> {
+	public static final class MyCoGroup1 implements CoGroupFunction<Integer, Integer, Integer> {
+
 		private static final long serialVersionUID = 1L;
-
-		@Override
-		public void reduce1(Iterable<Long> values, Collector<String> out) throws Exception {
-			Long gather = 0L;
-			for (Long value : values) {
-				gather += value;
-			}
-			out.collect(gather.toString());
-		}
 
 		@SuppressWarnings("unused")
 		@Override
-		public void reduce2(Iterable<Integer> values, Collector<String> out) throws Exception {
-			Integer gather = 0;
-			for (Integer value : values) {
-				gather++;
+		public void coGroup(Iterable<Integer> first, Iterable<Integer> second,
+				Collector<Integer> out) throws Exception {
+			Integer count1 = 0;
+			for (Integer i : first) {
+				count1++;
 			}
-			out.collect(gather.toString());
+			Integer count2 = 0;
+			for (Integer i : second) {
+				count2++;
+			}
+			out.collect(count1);
+			out.collect(count2);
+
 		}
+
 	}
 
-	public static final class MyCoGroupReduceFunction2 implements
-			CoGroupReduceFunction<Tuple2<String, Integer>, Tuple2<Integer, Integer>, String> {
+	public static final class MyCoGroup2 implements
+			CoGroupFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>, Integer> {
+
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void reduce1(Iterable<Tuple2<String, Integer>> values, Collector<String> out)
-				throws Exception {
-			String gather = "";
-			for (Tuple2<String, Integer> value : values) {
-				gather += value.f0;
+		public void coGroup(Iterable<Tuple2<Integer, Integer>> first,
+				Iterable<Tuple2<Integer, Integer>> second, Collector<Integer> out) throws Exception {
+
+			Set<Integer> firstElements = new HashSet<Integer>();
+			for (Tuple2<Integer, Integer> value : first) {
+				firstElements.add(value.f1);
 			}
-			out.collect(gather);
+			for (Tuple2<Integer, Integer> value : second) {
+				if (firstElements.contains(value.f1)) {
+					out.collect(value.f1);
+				}
+			}
+
 		}
 
-		@Override
-		public void reduce2(Iterable<Tuple2<Integer, Integer>> values, Collector<String> out)
-				throws Exception {
-			Integer gather = 0;
-			for (Tuple2<Integer, Integer> value : values) {
-				gather += value.f0;
-			}
-			out.collect(gather.toString());
-		}
 	}
 
-	public static final class MyTimeStamp1 implements TimeStamp<Long> {
+	private static final class MyTS1 implements TimeStamp<Integer> {
+
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public long getTimestamp(Long value) {
+		public long getTimestamp(Integer value) {
 			return value;
 		}
 
 		@Override
 		public long getStartTime() {
-			return 0L;
+			return 1;
 		}
+
 	}
 
-	public static final class MyTimeStamp2 implements TimeStamp<Integer> {
-		private static final long serialVersionUID = 1L;
+	private static final class MyTS2 implements TimeStamp<Tuple2<Integer, Integer>> {
 
-		@Override
-		public long getTimestamp(Integer value) {
-			return value.longValue();
-		}
-
-		@Override
-		public long getStartTime() {
-			return 0L;
-		}
-	}
-
-	public static final class MyTimeStamp3 implements TimeStamp<Tuple2<String, Integer>> {
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public long getTimestamp(Tuple2<String, Integer> value) {
-			return value.f1.longValue();
-		}
-
-		@Override
-		public long getStartTime() {
-			return 0L;
-		}
-	}
-
-	public static final class MyTimeStamp4 implements TimeStamp<Tuple2<Integer, Integer>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
 		public long getTimestamp(Tuple2<Integer, Integer> value) {
-			return value.f1.longValue();
+			return value.f0;
 		}
 
 		@Override
 		public long getStartTime() {
-			return 0L;
+			return 1;
 		}
+
 	}
 
 	@Test
-	public void coWindowGroupReduceTest1() {
+	public void coWindowGroupReduceTest2() throws Exception {
 
-		List<Long> inputs1 = new ArrayList<Long>();
-		inputs1.add(0L);
-		inputs1.add(2L);
-		inputs1.add(2L);
-		inputs1.add(3L);
-		inputs1.add(4L);
-		inputs1.add(5L);
-		inputs1.add(6L);
-		inputs1.add(6L);
-		inputs1.add(6L);
-		inputs1.add(8L);
-		inputs1.add(14L);
-		inputs1.add(15L);
-		inputs1.add(15L);
+		CoGroupInvokable<Integer, Integer, Integer> invokable1 = new CoGroupInvokable<Integer, Integer, Integer>(
+				new MyCoGroup1(), 2, 1, new MyTS1(), new MyTS1());
 
-		List<Integer> inputs2 = new ArrayList<Integer>();
-		inputs2.add(0);
-		inputs2.add(0);
-		inputs2.add(5);
-		inputs2.add(7);
-		inputs2.add(7);
-		inputs2.add(7);
-		inputs2.add(8);
-		inputs2.add(8);
-		inputs2.add(8);
-		inputs2.add(14);
-		inputs2.add(14);
-		inputs2.add(15);
-		inputs2.add(16);
+		// Windowsize 2, slide 1
+		// 1,2|2,3|3,4|4,5
 
-		CoWindowGroupReduceInvokable<Long, Integer, String> invokable = new CoWindowGroupReduceInvokable<Long, Integer, String>(
-				new MyCoGroupReduceFunction1(), 3L, 4L, 2L, 2L, new MyTimeStamp1(),
-				new MyTimeStamp2());
+		List<Integer> input11 = new ArrayList<Integer>();
+		input11.add(1);
+		input11.add(1);
+		input11.add(2);
+		input11.add(3);
+		input11.add(3);
 
-		List<String> expected = new ArrayList<String>();
-		expected.add("4");
-		expected.add("11");
-		expected.add("27");
-		expected.add("26");
-		expected.add("8");
-		expected.add("0");
-		expected.add("14");
-		expected.add("2");
-		expected.add("1");
-		expected.add("4");
-		expected.add("6");
-		expected.add("3");
-		expected.add("0");
-		expected.add("3");
+		List<Integer> input12 = new ArrayList<Integer>();
+		input12.add(1);
+		input12.add(2);
+		input12.add(3);
+		input12.add(3);
+		input12.add(5);
 
-		List<String> actualList = MockCoInvokable.createAndExecute(invokable, inputs1, inputs2);
-		Collections.sort(expected);
-		Collections.sort(actualList);
+		// Windows: (1,1,2)(1,1,2)|(2,3,3)(2,3,3)|(3,3)(3,3)|(5)(5)
+		// expected output: 3,2|3,3|2,2|0,1
 
-		assertEquals(expected, actualList);
-	}
+		List<Integer> expected1 = new ArrayList<Integer>();
+		expected1.add(3);
+		expected1.add(2);
+		expected1.add(3);
+		expected1.add(3);
+		expected1.add(2);
+		expected1.add(2);
+		expected1.add(0);
+		expected1.add(1);
 
-	@Test
-	public void coWindowGroupReduceTest2() {
-
-		List<Tuple2<String, Integer>> inputs1 = new ArrayList<Tuple2<String, Integer>>();
-		inputs1.add(new Tuple2<String, Integer>("I", 1));
-		inputs1.add(new Tuple2<String, Integer>("t", 2));
-		inputs1.add(new Tuple2<String, Integer>("i", 4));
-		inputs1.add(new Tuple2<String, Integer>("s", 5));
-		inputs1.add(new Tuple2<String, Integer>("a", 7));
-		inputs1.add(new Tuple2<String, Integer>("l", 7));
-		inputs1.add(new Tuple2<String, Integer>("l", 8));
-		inputs1.add(new Tuple2<String, Integer>("o", 10));
-		inputs1.add(new Tuple2<String, Integer>("k", 11));
-		inputs1.add(new Tuple2<String, Integer>("a", 11));
-		inputs1.add(new Tuple2<String, Integer>("y", 11));
-		inputs1.add(new Tuple2<String, Integer>("!", 11));
-		inputs1.add(new Tuple2<String, Integer>(" ", 12));
-
-		List<Tuple2<Integer, Integer>> inputs2 = new ArrayList<Tuple2<Integer, Integer>>();
-		inputs2.add(new Tuple2<Integer, Integer>(10, 1));
-		inputs2.add(new Tuple2<Integer, Integer>(10, 2));
-		inputs2.add(new Tuple2<Integer, Integer>(20, 2));
-		inputs2.add(new Tuple2<Integer, Integer>(30, 2));
-		inputs2.add(new Tuple2<Integer, Integer>(10, 3));
-		inputs2.add(new Tuple2<Integer, Integer>(30, 4));
-		inputs2.add(new Tuple2<Integer, Integer>(40, 5));
-		inputs2.add(new Tuple2<Integer, Integer>(30, 6));
-		inputs2.add(new Tuple2<Integer, Integer>(20, 7));
-		inputs2.add(new Tuple2<Integer, Integer>(20, 7));
-		inputs2.add(new Tuple2<Integer, Integer>(10, 7));
-		inputs2.add(new Tuple2<Integer, Integer>(10, 8));
-		inputs2.add(new Tuple2<Integer, Integer>(30, 9));
-		inputs2.add(new Tuple2<Integer, Integer>(30, 10));
-
-		CoWindowGroupReduceInvokable<Tuple2<String, Integer>, Tuple2<Integer, Integer>, String> invokable = new CoWindowGroupReduceInvokable<Tuple2<String, Integer>, Tuple2<Integer, Integer>, String>(
-				new MyCoGroupReduceFunction2(), 3L, 3L, 3L, 2L, new MyTimeStamp3(),
-				new MyTimeStamp4());
-
-		List<String> expected = new ArrayList<String>();
-		expected.add("It");
-		expected.add("is");
-		expected.add("all");
-		expected.add("okay!");
-		expected.add("70");
-		expected.add("100");
-		expected.add("100");
-		expected.add("90");
-
-		List<String> actualList = MockCoInvokable.createAndExecute(invokable, inputs1, inputs2);
-		Collections.sort(expected);
-		Collections.sort(actualList);
-
-		assertEquals(expected, actualList);
+		List<Integer> actual1 = MockCoInvokable.createAndExecute(invokable1, input11, input12);
+		assertEquals(expected1, actual1);
+		
+		CoGroupInvokable<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>, Integer> invokable2 = new CoGroupInvokable<Tuple2<Integer,Integer>, Tuple2<Integer,Integer>, Integer>(new MyCoGroup2(), 2, 3, new MyTS2(),  new MyTS2());
+		
+		//WindowSize 2, slide 3
+		//1,2|4,5|7,8|
+		
+		List<Tuple2<Integer,Integer>> input21 = new ArrayList<Tuple2<Integer,Integer>>();
+		input21.add(new Tuple2<Integer, Integer>(1,1));
+		input21.add(new Tuple2<Integer, Integer>(1,2));
+		input21.add(new Tuple2<Integer, Integer>(2,3));
+		input21.add(new Tuple2<Integer, Integer>(3,4));
+		input21.add(new Tuple2<Integer, Integer>(3,5));
+		input21.add(new Tuple2<Integer, Integer>(4,6));
+		input21.add(new Tuple2<Integer, Integer>(4,7));
+		input21.add(new Tuple2<Integer, Integer>(5,8));
+		
+		List<Tuple2<Integer,Integer>> input22 = new ArrayList<Tuple2<Integer,Integer>>();
+		input22.add(new Tuple2<Integer, Integer>(1,1));
+		input22.add(new Tuple2<Integer, Integer>(2,0));
+		input22.add(new Tuple2<Integer, Integer>(2,2));
+		input22.add(new Tuple2<Integer, Integer>(3,9));
+		input22.add(new Tuple2<Integer, Integer>(3,4));
+		input22.add(new Tuple2<Integer, Integer>(4,10));
+		input22.add(new Tuple2<Integer, Integer>(5,8));
+		input22.add(new Tuple2<Integer, Integer>(5,7));
+		
+		
+		List<Integer> expected2 = new ArrayList<Integer>();
+		expected2.add(1);
+		expected2.add(2);
+		expected2.add(8);
+		expected2.add(7);
+		
+		List<Integer> actual2 = MockCoInvokable.createAndExecute(invokable2, input21, input22);
+		assertEquals(expected2, actual2);
 	}
 }

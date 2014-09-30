@@ -158,6 +158,7 @@ public class MockCoInvokable<IN1, IN2, OUT> {
 		try {
 			invokable.open(null);
 			invokable.invoke();
+			invokable.close();
 		} catch (Exception e) {
 			throw new RuntimeException("Cannot invoke invokable.", e);
 		}

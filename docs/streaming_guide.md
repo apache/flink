@@ -254,7 +254,7 @@ With `minBy` and `maxBy` the output of the operator is the element with the curr
 
 ### Window/Batch operators
 
-Window and batch operators allow the user to execute function on slices or windows of the DataStream in a sliding fashion. If the stepsize for the slide is not defined then the window/batchsize is used as stepsize by default.
+Window and batch operators allow the user to execute function on slices or windows of the DataStream in a sliding fashion. If the stepsize for the slide is not defined then the window/batchsize is used as stepsize by default. The user can also use user defined timestamps for calculating time windows.
 
 When applied to grouped data streams the data stream is batched/windowed for different key values separately. 
 
@@ -325,6 +325,27 @@ dataStream1.connect(dataStream2)
             }
         })
 ~~~
+
+#### winddowReduceGroup on ConnectedDataStream
+The windowReduceGroup operator applies a user defined `CoGroupFunction` to time aligned windows of the two data streams and return zero or more elements of an arbitrary type. The user can define the window and slide intervals and can also implement custom timestamps to be used for calculating windows.
+
+~~~java
+DataStream<Integer> dataStream1 = ...
+DataStream<String> dataStream2 = ...
+
+dataStream1.connect(dataStream2)
+    .windowReduceGroup(new CoGroupFunction<Integer, String, String>() {
+
+        @Override
+        public void coGroup(Iterable<Integer> first, Iterable<String> second,
+            Collector<String> out) throws Exception {
+
+            //Do something here
+
+        }
+    }, 10000, 5000);
+~~~
+
 
 #### Reduce on ConnectedDataStream
 The Reduce operator for the `ConnectedDataStream` applies a simple reduce transformation on the joined data streams and then maps the reduced elements to a common output type.

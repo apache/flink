@@ -82,7 +82,9 @@ public class CircularFifoList<T> implements Serializable {
 		return iterable;
 	}
 
-	private class ListIterable implements Iterable<T> {
+	private class ListIterable implements Iterable<T>, Serializable {
+		
+		private static final long serialVersionUID = 1L;
 
 		@Override
 		public Iterator<T> iterator() {

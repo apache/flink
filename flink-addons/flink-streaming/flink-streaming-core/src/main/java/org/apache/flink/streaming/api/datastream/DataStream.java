@@ -260,7 +260,7 @@ public class DataStream<OUT> {
 	 * @return The {@link ConnectedDataStream}.
 	 */
 	public <R> ConnectedDataStream<OUT, R> connect(DataStream<R> dataStream) {
-		return new ConnectedDataStream<OUT, R>(environment, jobGraphBuilder, this, dataStream);
+		return new ConnectedDataStream<OUT, R>(this, dataStream);
 	}
 
 	/**
