@@ -33,7 +33,7 @@ import org.junit.Test;
 
 public class CoWindowReduceTest {
 
-	private static class MyCoReduceFunction implements CoReduceFunction<Integer, Integer, String> {
+	private static class MyCoReduceFunction implements CoReduceFunction<Integer, String, String> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -42,7 +42,7 @@ public class CoWindowReduceTest {
 		}
 
 		@Override
-		public Integer reduce2(Integer value1, Integer value2) {
+		public String reduce2(String value1, String value2) {
 			return value1 + value2;
 		}
 
@@ -52,8 +52,8 @@ public class CoWindowReduceTest {
 		}
 
 		@Override
-		public String map2(Integer value) {
-			return value.toString();
+		public String map2(String value) {
+			return value;
 		}
 	}
 
@@ -80,36 +80,85 @@ public class CoWindowReduceTest {
 		}
 	}
 
-	List<Long> timestamps1 = Arrays.asList(0L, 1L, 1L, 1L, 2L, 2L, 2L, 3L, 8L, 10L);
-
-	List<Long> timestamps2 = Arrays.asList(0L, 5L, 5L, 6L, 6L);
-
 	@Test
-	public void coWindowReduceTest() {
+	public void coWindowReduceTest1() {
 
 		List<Integer> inputs = new ArrayList<Integer>();
 		for (Integer i = 1; i <= 10; i++) {
 			inputs.add(i);
 		}
 
-		List<Integer> inputs2 = new ArrayList<Integer>();
-		inputs2.add(1);
-		inputs2.add(2);
-		inputs2.add(-1);
-		inputs2.add(-3);
-		inputs2.add(-4);
+		List<String> inputs2 = new ArrayList<String>();
+		inputs2.add("a");
+		inputs2.add("b");
+		inputs2.add("c");
+		inputs2.add("d");
+		inputs2.add("e");
+		inputs2.add("f");
+		inputs2.add("g");
+		inputs2.add("h");
+		inputs2.add("i");
 
-		CoWindowReduceInvokable<Integer, Integer, String> invokable = new CoWindowReduceInvokable<Integer, Integer, String>(
-				new MyCoReduceFunction(), 3L, 3L, 2L, 2L, new MyTimeStamp<Integer>(timestamps1),
-				new MyTimeStamp<Integer>(timestamps2));
+		List<Long> timestamps1 = Arrays.asList(0L, 2L, 3L, 5L, 7L, 9L, 10L, 11L, 11L, 13L);
+		List<Long> timestamps2 = Arrays.asList(0L, 1L, 1L, 2L, 2L, 3L, 3L, 4L, 4L);
+
+		CoWindowReduceInvokable<Integer, String, String> invokable = new CoWindowReduceInvokable<Integer, String, String>(
+				new MyCoReduceFunction(), 4L, 3L, 4L, 3L, new MyTimeStamp<Integer>(timestamps1),
+				new MyTimeStamp<String>(timestamps2));
+
+		List<String> expected = new ArrayList<String>();
+		expected.add("6");
+		expected.add("9");
+		expected.add("30");
+		expected.add("10");
+		expected.add("abcde");
+		expected.add("fghi");
+
+		List<String> result = MockCoInvokable.createAndExecute(invokable, inputs, inputs2);
+
+		Collections.sort(result);
+		Collections.sort(expected);
+		assertEquals(expected, result);
+
+	}
+
+	@Test
+	public void coWindowReduceTest2() {
+
+		List<Integer> inputs = new ArrayList<Integer>();
+		for (Integer i = 1; i <= 10; i++) {
+			inputs.add(i);
+		}
+
+		List<String> inputs2 = new ArrayList<String>();
+		inputs2.add("a");
+		inputs2.add("b");
+		inputs2.add("c");
+		inputs2.add("d");
+		inputs2.add("e");
+		inputs2.add("f");
+		inputs2.add("g");
+		inputs2.add("h");
+		inputs2.add("i");
+
+		List<Long> timestamps1 = Arrays.asList(0L, 1L, 1L, 1L, 2L, 2L, 3L, 8L, 10L, 11L);
+		List<Long> timestamps2 = Arrays.asList(1L, 2L, 4L, 5L, 6L, 9L, 10L, 11L, 13L);
+
+		CoWindowReduceInvokable<Integer, String, String> invokable = new CoWindowReduceInvokable<Integer, String, String>(
+				new MyCoReduceFunction(), 4L, 3L, 2L, 2L, new MyTimeStamp<Integer>(timestamps1),
+				new MyTimeStamp<String>(timestamps2));
 
 		List<String> expected = new ArrayList<String>();
 		expected.add("28");
-		expected.add("26");
-		expected.add("9");
-		expected.add("19");
-		expected.add("1");
-		expected.add("-6");
+		expected.add("18");
+		expected.add("8");
+		expected.add("27");
+		expected.add("ab");
+		expected.add("cd");
+		expected.add("de");
+		expected.add("f");
+		expected.add("fgh");
+		expected.add("hi");
 
 		List<String> result = MockCoInvokable.createAndExecute(invokable, inputs, inputs2);
 
