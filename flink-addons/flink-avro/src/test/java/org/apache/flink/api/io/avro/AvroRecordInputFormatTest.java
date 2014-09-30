@@ -16,32 +16,30 @@
  * limitations under the License.
  */
 
+package org.apache.flink.api.io.avro;
 
-package org.apache.flink.api.java.record.io.avro;
+import static org.junit.Assert.*;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
-
-import org.junit.Assert;
+import java.util.List;
+import java.util.Map;
 
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.specific.SpecificDatumWriter;
-import org.apache.flink.api.java.record.io.avro.AvroRecordInputFormat.BooleanListValue;
-import org.apache.flink.api.java.record.io.avro.AvroRecordInputFormat.LongMapValue;
-import org.apache.flink.api.java.record.io.avro.AvroRecordInputFormat.StringListValue;
-import org.apache.flink.api.java.record.io.avro.generated.Colors;
-import org.apache.flink.api.java.record.io.avro.generated.User;
+import org.apache.avro.util.Utf8;
+import org.apache.flink.api.io.avro.generated.Colors;
+import org.apache.flink.api.io.avro.generated.User;
+import org.apache.flink.api.java.io.AvroInputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
-import org.apache.flink.types.Record;
-import org.apache.flink.types.StringValue;
+import org.apache.flink.core.fs.Path;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-
 
 /**
  * Test the avro input format.
@@ -52,7 +50,6 @@ public class AvroRecordInputFormatTest {
 	
 	private File testFile;
 	
-	private final AvroRecordInputFormat format = new AvroRecordInputFormat();
 	final static String TEST_NAME = "Alyssa";
 	
 	final static String TEST_ARRAY_STRING_1 = "ELEMENT 1";
@@ -63,9 +60,9 @@ public class AvroRecordInputFormatTest {
 	
 	final static Colors TEST_ENUM_COLOR = Colors.GREEN;
 	
-	final static CharSequence TEST_MAP_KEY1 = "KEY 1";
+	final static String TEST_MAP_KEY1 = "KEY 1";
 	final static long TEST_MAP_VALUE1 = 8546456L;
-	final static CharSequence TEST_MAP_KEY2 = "KEY 2";
+	final static String TEST_MAP_KEY2 = "KEY 2";
 	final static long TEST_MAP_VALUE2 = 17554L;
 
 	@Before
@@ -94,7 +91,7 @@ public class AvroRecordInputFormatTest {
 		user1.setTypeArrayBoolean(booleanArray);
 		user1.setTypeEnum(TEST_ENUM_COLOR);
 		user1.setTypeMap(longMap);
-	     
+		
 		// Construct via builder
 		User user2 = User.newBuilder()
 		             .setName("Charlie")
@@ -121,41 +118,44 @@ public class AvroRecordInputFormatTest {
 	@Test
 	public void testDeserialisation() throws IOException {
 		Configuration parameters = new Configuration();
-		format.setFilePath(testFile.toURI().toString());
+		
+		AvroInputFormat<User> format = new AvroInputFormat<User>(new Path(testFile.getAbsolutePath()), User.class);
+		
 		format.configure(parameters);
 		FileInputSplit[] splits = format.createInputSplits(1);
-		Assert.assertEquals(splits.length, 1);
+		assertEquals(splits.length, 1);
 		format.open(splits[0]);
-		Record record = new Record();
-		Assert.assertNotNull(format.nextRecord(record));
-		StringValue name = record.getField(0, StringValue.class);
-		Assert.assertNotNull("empty record", name);
-		Assert.assertEquals("name not equal",name.getValue(), TEST_NAME);
+		
+		User u = format.nextRecord(null);
+		assertNotNull(u);
+		
+		String name = u.getName().toString();
+		assertNotNull("empty record", name);
+		assertEquals("name not equal", TEST_NAME, name);
 		
 		// check arrays
-		StringListValue sl = record.getField(7, AvroRecordInputFormat.StringListValue.class);
-		Assert.assertEquals("element 0 not equal", sl.get(0).getValue(), TEST_ARRAY_STRING_1);
-		Assert.assertEquals("element 1 not equal", sl.get(1).getValue(), TEST_ARRAY_STRING_2);
+		List<CharSequence> sl = u.getTypeArrayString();
+		assertEquals("element 0 not equal", TEST_ARRAY_STRING_1, sl.get(0).toString());
+		assertEquals("element 1 not equal", TEST_ARRAY_STRING_2, sl.get(1).toString());
 		
-		BooleanListValue bl = record.getField(8, AvroRecordInputFormat.BooleanListValue.class);
-		Assert.assertEquals("element 0 not equal", bl.get(0).getValue(), TEST_ARRAY_BOOLEAN_1);
-		Assert.assertEquals("element 1 not equal", bl.get(1).getValue(), TEST_ARRAY_BOOLEAN_2);
+		List<Boolean> bl = u.getTypeArrayBoolean();
+		assertEquals("element 0 not equal", TEST_ARRAY_BOOLEAN_1, bl.get(0));
+		assertEquals("element 1 not equal", TEST_ARRAY_BOOLEAN_2, bl.get(1));
 		
 		// check enums
-		StringValue enumValue = record.getField(10, StringValue.class);
-		Assert.assertEquals("string representation of enum not equal", enumValue.getValue(), TEST_ENUM_COLOR.toString()); 
+		Colors enumValue = u.getTypeEnum();
+		assertEquals("enum not equal", TEST_ENUM_COLOR, enumValue);
 		
 		// check maps
-		LongMapValue lm = record.getField(11, AvroRecordInputFormat.LongMapValue.class);
-		Assert.assertEquals("map value of key 1 not equal", lm.get(new StringValue(TEST_MAP_KEY1)).getValue(), TEST_MAP_VALUE1);
-		Assert.assertEquals("map value of key 2 not equal", lm.get(new StringValue(TEST_MAP_KEY2)).getValue(), TEST_MAP_VALUE2);
+		Map<CharSequence, Long> lm = u.getTypeMap();
+		assertEquals("map value of key 1 not equal", TEST_MAP_VALUE1, lm.get(new Utf8(TEST_MAP_KEY1)).longValue());
+		assertEquals("map value of key 2 not equal", TEST_MAP_VALUE2, lm.get(new Utf8(TEST_MAP_KEY2)).longValue());
 		
+		assertFalse("expecting second element", format.reachedEnd());
+		assertNotNull("expecting second element", format.nextRecord(u));
 		
-		Assert.assertFalse("expecting second element", format.reachedEnd());
-		Assert.assertNotNull("expecting second element", format.nextRecord(record));
-		
-		Assert.assertNull(format.nextRecord(record));
-		Assert.assertTrue(format.reachedEnd());
+		assertNull(format.nextRecord(u));
+		assertTrue(format.reachedEnd());
 		
 		format.close();
 	}
