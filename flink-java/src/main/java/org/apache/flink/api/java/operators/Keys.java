@@ -223,17 +223,17 @@ public abstract class Keys<T> {
 			} else {
 				groupingFields = rangeCheckFields(groupingFields, type.getArity() -1);
 			}
-			TupleTypeInfoBase<?> tupleType = (TupleTypeInfoBase<?>)type;
+			CompositeType<?> compositeType = (CompositeType<?>) type;
 			Preconditions.checkArgument(groupingFields.length > 0, "Grouping fields can not be empty at this point");
 			
 			keyFields = new ArrayList<FlatFieldDescriptor>(type.getTotalFields());
 			// for each key, find the field:
 			for(int j = 0; j < groupingFields.length; j++) {
 				for(int i = 0; i < type.getArity(); i++) {
-					TypeInformation<?> fieldType = tupleType.getTypeAt(i);
+					TypeInformation<?> fieldType = compositeType.getTypeAt(i);
 					
 					if(groupingFields[j] == i) { // check if user set the key
-						int keyId = countNestedElementsBefore(tupleType, i) + i;
+						int keyId = countNestedElementsBefore(compositeType, i) + i;
 						if(fieldType instanceof TupleTypeInfoBase) {
 							TupleTypeInfoBase<?> tupleFieldType = (TupleTypeInfoBase<?>) fieldType;
 							tupleFieldType.addAllFields(keyId, keyFields);
@@ -248,13 +248,13 @@ public abstract class Keys<T> {
 			keyFields = removeNullElementsFromList(keyFields);
 		}
 		
-		private static int countNestedElementsBefore(TupleTypeInfoBase<?> tupleType, int pos) {
+		private static int countNestedElementsBefore(CompositeType<?> compositeType, int pos) {
 			if( pos == 0) {
 				return 0;
 			}
 			int ret = 0;
 			for (int i = 0; i < pos; i++) {
-				TypeInformation<?> fieldType = tupleType.getTypeAt(i);
+				TypeInformation<?> fieldType = compositeType.getTypeAt(i);
 				ret += fieldType.getTotalFields() -1;
 			}
 			return ret;
@@ -389,7 +389,7 @@ public abstract class Keys<T> {
 		int last = fields[0];
 
 		if (last < 0 || last > maxAllowedField) {
-			throw new IllegalArgumentException("Tuple position is out of range.");
+			throw new IllegalArgumentException("Tuple position is out of range: " + last);
 		}
 
 		for (; i < fields.length; i++) {

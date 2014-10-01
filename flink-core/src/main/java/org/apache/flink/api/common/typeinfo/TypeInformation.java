@@ -22,6 +22,8 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import java.io.Serializable;
+import java.util.LinkedList;
+import java.util.List;
 
 /**
  * TypeInformation is the core class of Flink's type system. Flink requires a type information
@@ -112,6 +114,16 @@ public abstract class TypeInformation<T> implements Serializable {
 	 * @return The class of the type represented by this type information.
 	 */
 	public abstract Class<T> getTypeClass();
+
+	/**
+	 * Returns the generic parameters of this type.
+	 *
+	 * @return The list of generic parameters. This list can be empty.
+	 */
+	public List<TypeInformation<?>> getGenericParameters() {
+		// Return an empty list as the default implementation
+		return new LinkedList<TypeInformation<?>>();
+	}
 
 	/**
 	 * Checks whether this type can be used as a key. As a bare minimum, types have

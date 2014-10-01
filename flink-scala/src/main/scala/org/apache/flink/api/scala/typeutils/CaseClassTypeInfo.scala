@@ -30,6 +30,8 @@ import org.apache.flink.api.java.operators.Keys.ExpressionKeys
 import org.apache.flink.api.java.typeutils.{TupleTypeInfoBase, PojoTypeInfo}
 import PojoTypeInfo.NamedFlatFieldDescriptor
 
+import scala.collection.JavaConverters._
+
 /**
  * TypeInformation for Case Classes. Creation and access is different from
  * our Java Tuples so we have to treat them differently.
@@ -41,7 +43,10 @@ abstract class CaseClassTypeInfo[T <: Product](
     val fieldNames: Seq[String])
   extends TupleTypeInfoBase[T](clazz, fieldTypes: _*) {
 
-  def getGenericParameters = typeParamTypeInfos
+  override def getGenericParameters: java.util.List[TypeInformation[_]] = {
+    typeParamTypeInfos.toList.asJava
+  }
+
   private val REGEX_INT_FIELD: String = "[0-9]+"
   private val REGEX_STR_FIELD: String = "[\\p{L}_\\$][\\p{L}\\p{Digit}_\\$]*"
   private val REGEX_FIELD: String = REGEX_STR_FIELD + "|" + REGEX_INT_FIELD
@@ -209,10 +214,6 @@ abstract class CaseClassTypeInfo[T <: Product](
       "\" in type " + this + ".")
   }
 
-  def getFieldIndices(fields: Array[String]): Array[Int] = {
-    fields map { x => fieldNames.indexOf(x) }
-  }
-
   override def getFieldNames: Array[String] = fieldNames.toArray
 
   override def getFieldIndex(fieldName: String): Int = {
@@ -224,7 +225,7 @@ abstract class CaseClassTypeInfo[T <: Product](
     }
   }
 
-  override def toString = clazz.getSimpleName + "(" + fieldNames.zip(types).map {
+  override def toString = clazz.getName + "(" + fieldNames.zip(types).map {
     case (n, t) => n + ": " + t}
     .mkString(", ") + ")"
 }

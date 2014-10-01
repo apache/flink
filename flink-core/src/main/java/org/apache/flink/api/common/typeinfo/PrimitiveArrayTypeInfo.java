@@ -117,6 +117,15 @@ public class PrimitiveArrayTypeInfo<T> extends TypeInformation<T> {
 	public String toString() {
 		return arrayClass.getComponentType().getName() + "[]";
 	}
+
+	@Override
+	public boolean equals(Object other) {
+		if (other instanceof PrimitiveArrayTypeInfo) {
+			PrimitiveArrayTypeInfo otherArray = (PrimitiveArrayTypeInfo) other;
+			return otherArray.arrayClass == arrayClass;
+		}
+		return false;
+	}
 	
 	// --------------------------------------------------------------------------------------------
 
