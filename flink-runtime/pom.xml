@@ -46,14 +46,6 @@ under the License.
 			<artifactId>commons-cli</artifactId>
 		</dependency>
 		
-		<!--  guava needs to be in "provided" scope, so to not re-export the dependency -->
-		<dependency>
-			<groupId>com.google.guava</groupId>
-			<artifactId>guava</artifactId>
-			<version>${guava.version}</version>
-			<scope>provided</scope>
-		</dependency>
-		
 		<dependency>
 			<groupId>org.eclipse.jetty</groupId>
 			<artifactId>jetty-server</artifactId>
@@ -88,6 +80,14 @@ under the License.
 			<groupId>org.codehaus.jettison</groupId>
 			<artifactId>jettison</artifactId>
 			<version>1.1</version>
+		</dependency>
+		
+		<!--  guava needs to be in "provided" scope, to make sure it is not included into the jars by the shading -->
+		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava</artifactId>
+			<version>${guava.version}</version>
+			<scope>provided</scope>
 		</dependency>
 
 		<dependency>

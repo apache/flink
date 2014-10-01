@@ -38,6 +38,12 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		
+		<dependency>
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-streaming-core</artifactId>
 			<version>${project.version}</version>
 		</dependency>
@@ -126,7 +132,7 @@ under the License.
 				</executions>
 			</plugin>
 			
-						<!-- Relocate the entire Google Guava dependency into a different namespace -->
+			<!-- Relocate the entire Google Guava dependency into a different namespace -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>

@@ -35,7 +35,6 @@ under the License.
 
 	<packaging>jar</packaging>
 
-
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -92,7 +91,7 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 		
-		<!--  guava needs to be in "provided" scope, so to not re-export the dependency -->
+		<!--  guava needs to be in "provided" scope, to make sure it is not included into the jars by the shading -->
 		<dependency>
 			<groupId>com.google.guava</groupId>
 			<artifactId>guava</artifactId>
