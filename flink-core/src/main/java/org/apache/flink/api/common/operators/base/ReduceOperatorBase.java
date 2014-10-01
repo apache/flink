@@ -138,14 +138,17 @@ public class ReduceOperatorBase<T, FT extends ReduceFunction<T>> extends SingleI
 		UnaryOperatorInformation<T, T> operatorInfo = getOperatorInfo();
 		TypeInformation<T> inputType = operatorInfo.getInputType();
 
-		if (!(inputType instanceof CompositeType)) {
-			throw new InvalidProgramException("Input type of groupReduce operation must be" + " composite type.");
+		int[] inputColumns = getKeyColumns(0);
+
+		if (!(inputType instanceof CompositeType) && inputColumns.length > 0) {
+			throw new InvalidProgramException("Grouping is only possible on composite types.");
 		}
 
 		FunctionUtils.setFunctionRuntimeContext(function, ctx);
 		FunctionUtils.openFunction(function, this.parameters);
 
-		int[] inputColumns = getKeyColumns(0);
+		TypeSerializer<T> serializer = getOperatorInfo().getInputType().createSerializer();
+
 		if (inputColumns.length > 0) {
 			boolean[] inputOrderings = new boolean[inputColumns.length];
 			TypeComparator<T> inputComparator = ((CompositeType<T>) inputType).createComparator(inputColumns, inputOrderings);
@@ -154,14 +157,28 @@ public class ReduceOperatorBase<T, FT extends ReduceFunction<T>> extends SingleI
 
 			for (T next : inputData) {
 				TypeComparable<T> wrapper = new TypeComparable<T>(next, inputComparator);
+
 				T existing = aggregateMap.get(wrapper);
 				T result;
-				if (existing != null) {
-					result = function.reduce(existing, next);
+
+				if (mutableObjectSafeMode) {
+					if (existing != null) {
+						result = function.reduce(existing, serializer.copy(next));
+					} else {
+						result = next;
+					}
+
+					result = serializer.copy(result);
 				} else {
-					result = next;
+					if (existing != null) {
+						result = function.reduce(existing, next);
+					} else {
+						result = next;
+					}
 				}
+
 				aggregateMap.put(wrapper, result);
+
 			}
 
 			FunctionUtils.closeFunction(function);
@@ -171,7 +188,6 @@ public class ReduceOperatorBase<T, FT extends ReduceFunction<T>> extends SingleI
 			T aggregate = inputData.get(0);
 			
 			if (mutableObjectSafeMode) {
-				TypeSerializer<T> serializer = getOperatorInfo().getInputType().createSerializer();
 				aggregate = serializer.copy(aggregate);
 				
 				for (int i = 1; i < inputData.size(); i++) {

@@ -65,12 +65,14 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 
 	@Override
 	protected void testProgram() throws Exception {
-		expectedResult = GroupReduceProgs.runProgram(curProgId, resultPath);
+		expectedResult = GroupReduceProgs.runProgram(curProgId, resultPath, isCollectionExecution());
 	}
 	
 	@Override
 	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(expectedResult, resultPath);
+		if (expectedResult != null) {
+			compareResultsByLinesInMemory(expectedResult, resultPath);
+		}
 	}
 	
 	@Parameters
@@ -89,7 +91,7 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 	
 	private static class GroupReduceProgs {
 		
-		public static String runProgram(int progId, String resultPath) throws Exception {
+		public static String runProgram(int progId, String resultPath, boolean collectionExecution) throws Exception {
 
 			switch (progId) {
 				case 1: {
@@ -331,12 +333,17 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 					env.execute();
 
 					// return expected result
-					return "1,0,test1\n" +
-							"2,3,test2\n" +
-							"3,12,test3\n" +
-							"4,30,test4\n" +
-							"5,60,test5\n" +
-							"6,105,test6\n";
+					if (collectionExecution) {
+						return null;
+
+					} else {
+						return "1,0,test1\n" +
+								"2,3,test2\n" +
+								"3,12,test3\n" +
+								"4,30,test4\n" +
+								"5,60,test5\n" +
+								"6,105,test6\n";
+					}
 				}
 				case 11: {
 				
@@ -355,12 +362,17 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 					env.execute();
 
 					// return expected result
-					return "1,test1\n" +
-							"5,test2\n" +
-							"15,test3\n" +
-							"34,test4\n" +
-							"65,test5\n" +
-							"111,test6\n";
+					if (collectionExecution) {
+						return null;
+
+					} else {
+						return "1,test1\n" +
+								"5,test2\n" +
+								"15,test3\n" +
+								"34,test4\n" +
+								"65,test5\n" +
+								"111,test6\n";
+					}
 				}
 				// all-groupreduce with combine
 				case 12: {
@@ -383,7 +395,11 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 					env.execute();
 
 					// return expected result
-					return "322,testtesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttest\n";
+					if (collectionExecution) {
+						return null;
+					} else {
+						return "322,testtesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttest\n";
+					}
 				}
 				case 13: {
 				

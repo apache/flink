@@ -69,7 +69,7 @@ public class ReduceITCase extends JavaProgramTestBase {
 				BasicTypeInfo.LONG_TYPE_INFO,
 				BasicTypeInfo.INT_TYPE_INFO,
 				BasicTypeInfo.STRING_TYPE_INFO,
-				BasicTypeInfo<T>.LONG_TYPE_INFO
+				BasicTypeInfo.LONG_TYPE_INFO
 		);
 
 		return env.fromCollection(data, type);

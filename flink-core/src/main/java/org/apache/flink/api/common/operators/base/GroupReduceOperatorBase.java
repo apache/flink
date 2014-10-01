@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.operators.base;
 
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.FlatCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
@@ -138,46 +139,71 @@ public class GroupReduceOperatorBase<IN, OUT, FT extends GroupReduceFunction<IN,
 		UnaryOperatorInformation<IN, OUT> operatorInfo = getOperatorInfo();
 		TypeInformation<IN> inputType = operatorInfo.getInputType();
 
-		if (!(inputType instanceof CompositeType)) {
-			throw new InvalidProgramException("Input type of groupReduce operation must be a composite type.");
+		int[] keyColumns = getKeyColumns(0);
+
+		if (!(inputType instanceof CompositeType) && (keyColumns.length > 0 || groupOrder != null)) {
+			throw new InvalidProgramException("Grouping or group-sorting is only possible on composite type.");
 		}
 
-		int[] inputColumns = getKeyColumns(0);
-		boolean[] inputOrderings = new boolean[inputColumns.length];
-		
-		final TypeSerializer<IN> inputSerializer = inputType.createSerializer();
-				
-		@SuppressWarnings("unchecked")
-		final TypeComparator<IN> inputComparator =
-				((CompositeType<IN>) inputType).createComparator(inputColumns, inputOrderings);
+		int[] sortColumns = keyColumns;
+		boolean[] sortOrderings = new boolean[sortColumns.length];
+
+		if (groupOrder != null) {
+			sortColumns = ArrayUtils.addAll(sortColumns, groupOrder.getFieldPositions());
+			sortOrderings = ArrayUtils.addAll(sortOrderings, groupOrder.getFieldSortDirections());
+		}
+
+		if (inputType instanceof CompositeType) {
+			@SuppressWarnings("unchecked")
+			final TypeComparator<IN> sortComparator = ((CompositeType<IN>) inputType).createComparator(sortColumns, sortOrderings);
+
+			Collections.sort(inputData, new Comparator<IN>() {
+				@Override
+				public int compare(IN o1, IN o2) {
+					return sortComparator.compare(o1, o2);
+				}
+			});
+		}
 
 		FunctionUtils.setFunctionRuntimeContext(function, ctx);
 		FunctionUtils.openFunction(function, this.parameters);
-
-		Collections.sort(inputData, new Comparator<IN>() {
-			@Override
-			public int compare(IN o1, IN o2) {
-				return inputComparator.compare(o2, o1);
-			}
-		});
-		
-		ListKeyGroupedIterator<IN> keyedIterator = new ListKeyGroupedIterator<IN>(
-				inputData, inputSerializer, inputComparator, mutableObjectSafeMode);
 		
 		ArrayList<OUT> result = new ArrayList<OUT>();
-		
-		if (mutableObjectSafeMode) {
-			TypeSerializer<OUT> outSerializer = getOperatorInfo().getOutputType().createSerializer();
-			CopyingListCollector<OUT> collector = new CopyingListCollector<OUT>(result, outSerializer);
-			
-			while (keyedIterator.nextKey()) {
-				function.reduce(keyedIterator.getValues(), collector);
+
+		if (keyColumns.length == 0) {
+			if (mutableObjectSafeMode) {
+				final TypeSerializer<IN> inputSerializer = inputType.createSerializer();
+				TypeSerializer<OUT> outSerializer = getOperatorInfo().getOutputType().createSerializer();
+				List<IN> inputDataCopy = new ArrayList<IN>(inputData.size());
+				for (IN in: inputData) {
+					inputDataCopy.add(inputSerializer.copy(in));
+				}
+				CopyingListCollector<OUT> collector = new CopyingListCollector<OUT>(result, outSerializer);
+
+				function.reduce(inputDataCopy, collector);
+			} else {
+				ListCollector<OUT> collector = new ListCollector<OUT>(result);
+				function.reduce(inputData, collector);
 			}
-		}
-		else {
-			ListCollector<OUT> collector = new ListCollector<OUT>(result);
-			while (keyedIterator.nextKey()) {
-				function.reduce(keyedIterator.getValues(), collector);
+		} else {
+			final TypeSerializer<IN> inputSerializer = inputType.createSerializer();
+			boolean[] keyOrderings = new boolean[keyColumns.length];
+			final TypeComparator<IN> comparator = ((CompositeType<IN>) inputType).createComparator(keyColumns, keyOrderings);
+
+			ListKeyGroupedIterator<IN> keyedIterator = new ListKeyGroupedIterator<IN>(inputData, inputSerializer, comparator, mutableObjectSafeMode);
+
+			if (mutableObjectSafeMode) {
+				TypeSerializer<OUT> outSerializer = getOperatorInfo().getOutputType().createSerializer();
+				CopyingListCollector<OUT> collector = new CopyingListCollector<OUT>(result, outSerializer);
+
+				while (keyedIterator.nextKey()) {
+					function.reduce(keyedIterator.getValues(), collector);
+				}
+			} else {
+				ListCollector<OUT> collector = new ListCollector<OUT>(result);
+				while (keyedIterator.nextKey()) {
+					function.reduce(keyedIterator.getValues(), collector);
+				}
 			}
 		}
 
