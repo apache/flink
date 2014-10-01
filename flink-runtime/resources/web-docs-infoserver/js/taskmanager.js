@@ -32,7 +32,7 @@ function loadTaskmanagers(json) {
 	for (var i = 0; i < json.taskmanagers.length; i++) {
 		var tm = json.taskmanagers[i]
 		table += "<tr><td>"+tm.inetAdress+"</td><td>"+tm.ipcPort+"</td><td>"+tm.dataPort+"</td><td>"+tm.timeSinceLastHeartbeat+"</td>" +
-				"<td>"+tm.slotsNumber+"</td><td>"+tm.freeSlots+"</td><td>"+tm.cpuCores+"</td><td>"+tm.physicalMemory+"</td><td>"+tm.freeMemory+"</td><<td>"+tm.managedMemory+"</td></tr>";
+				"<td>"+tm.slotsNumber+"</td><td>"+tm.freeSlots+"</td><td>"+tm.cpuCores+"</td><td>"+tm.physicalMemory+"</td><td>"+tm.freeMemory+"</td><td>"+tm.managedMemory+"</td></tr>";
 	}
 	table += "</table>";
 	$("#taskmanagerTable").append(table);
