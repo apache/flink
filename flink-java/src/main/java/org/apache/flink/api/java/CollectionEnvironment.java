@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,11 +24,13 @@ import org.apache.flink.api.common.operators.CollectionExecutor;
 
 public class CollectionEnvironment extends ExecutionEnvironment {
 
+	private boolean mutableObjectSafeMode = true;
+	
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
 		Plan p = createProgramPlan(jobName);
 		
-		CollectionExecutor exec = new CollectionExecutor();
+		CollectionExecutor exec = new CollectionExecutor(mutableObjectSafeMode);
 		return exec.execute(p);
 	}
 	

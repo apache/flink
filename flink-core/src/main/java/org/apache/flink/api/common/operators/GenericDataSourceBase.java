@@ -176,7 +176,7 @@ public class GenericDataSourceBase<OUT, T extends InputFormat<OUT, ?>> extends O
 	
 	// --------------------------------------------------------------------------------------------
 	
-	protected List<OUT> executeOnCollections() throws Exception {
+	protected List<OUT> executeOnCollections(boolean mutableObjectSafe) throws Exception {
 		@SuppressWarnings("unchecked")
 		InputFormat<OUT, InputSplit> inputFormat = (InputFormat<OUT, InputSplit>) this.formatWrapper.getUserCodeObject();
 		inputFormat.configure(this.parameters);
@@ -193,7 +193,7 @@ public class GenericDataSourceBase<OUT, T extends InputFormat<OUT, ?>> extends O
 			while (!inputFormat.reachedEnd()) {
 				OUT next = inputFormat.nextRecord(serializer.createInstance());
 				if (next != null) {
-					result.add(next);
+					result.add(mutableObjectSafe ? serializer.copy(next) : next);
 				}
 			}
 			
