@@ -1470,4 +1470,24 @@ public class TypeExtractorTest {
 		Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, tti.getTypeAt(0));
 		Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, tti.getTypeAt(1));
 	}
+	
+	public static class DuplicateValueNested<T> implements MapFunction<Tuple1<Tuple1<T>>, Tuple2<T, T>> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public Tuple2<T, T> map(Tuple1<Tuple1<T>> vertex) {
+			return new Tuple2<T, T>(null, null);
+		}
+	}
+	
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	@Test
+	public void testDuplicateValueNested() {
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes((MapFunction) new DuplicateValueNested<String>(), TypeInfoParser.parse("Tuple1<Tuple1<String>>"));
+		Assert.assertTrue(ti.isTupleType());
+		Assert.assertEquals(2, ti.getArity());
+		TupleTypeInfo<?> tti = (TupleTypeInfo<?>) ti;
+		Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, tti.getTypeAt(0));
+		Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, tti.getTypeAt(1));
+	}
 }
