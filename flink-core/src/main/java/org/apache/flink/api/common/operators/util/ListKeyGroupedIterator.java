@@ -89,7 +89,7 @@ public final class ListKeyGroupedIterator<E> {
 			// Required if user code / reduce() method did not read the whole value iterator.
 			E next;
 			while (true) {
-				if ((next = this.input.get(currentPosition++)) != null) {
+				if (currentPosition < input.size() && (next = this.input.get(currentPosition++)) != null) {
 					if (!this.comparator.equalToReference(next)) {
 						// the keys do not match, so we have a new group. store the current key
 						this.comparator.setReference(next);
