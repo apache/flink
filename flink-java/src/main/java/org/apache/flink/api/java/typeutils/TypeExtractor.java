@@ -201,7 +201,7 @@ public class TypeExtractor {
 		
 		// return type is a variable -> try to get the type info from the input directly
 		if (returnType instanceof TypeVariable<?>) {
-			typeInfo = (TypeInformation<OUT>) createTypeInfoFromInput((TypeVariable<?>) returnType, typeHierarchy, in1Type, in2Type);
+			typeInfo = (TypeInformation<OUT>) createTypeInfoFromInputs((TypeVariable<?>) returnType, typeHierarchy, in1Type, in2Type);
 			
 			if (typeInfo != null) {
 				return typeInfo;
@@ -280,7 +280,7 @@ public class TypeExtractor {
 				// sub type could not be determined with materializing
 				// try to derive the type info of the TypeVariable from the immediate base child input as a last attempt
 				if (subtypes[i] instanceof TypeVariable<?>) {
-					tupleSubTypes[i] = createTypeInfoFromInput((TypeVariable<?>) subtypes[i], typeHierarchy, in1Type, in2Type);
+					tupleSubTypes[i] = createTypeInfoFromInputs((TypeVariable<?>) subtypes[i], typeHierarchy, in1Type, in2Type);
 					
 					// variable could not be determined
 					if (tupleSubTypes[i] == null) {
@@ -315,7 +315,7 @@ public class TypeExtractor {
 			}
 			// try to derive the type info of the TypeVariable from the immediate base child input as a last attempt
 			else {
-				TypeInformation<OUT> typeInfo = (TypeInformation<OUT>) createTypeInfoFromInput((TypeVariable<?>) t, typeHierarchy, in1Type, in2Type);
+				TypeInformation<OUT> typeInfo = (TypeInformation<OUT>) createTypeInfoFromInputs((TypeVariable<?>) t, typeHierarchy, in1Type, in2Type);
 				if (typeInfo != null) {
 					return typeInfo;
 				} else {
@@ -371,11 +371,11 @@ public class TypeExtractor {
 		throw new InvalidTypesException("Type Information could not be created.");
 	}
 	
-	private <IN1, IN2> TypeInformation<?> createTypeInfoFromInput(TypeVariable<?> returnTypeVar, ArrayList<Type> returnTypeHierarchy, 
+	private <IN1, IN2> TypeInformation<?> createTypeInfoFromInputs(TypeVariable<?> returnTypeVar, ArrayList<Type> returnTypeHierarchy, 
 			TypeInformation<IN1> in1TypeInfo, TypeInformation<IN2> in2TypeInfo) {
-		
+
 		Type matReturnTypeVar = materializeTypeVariable(returnTypeHierarchy, returnTypeVar);
-		
+
 		// variable could be resolved
 		if (!(matReturnTypeVar instanceof TypeVariable)) {
 			return createTypeInfoWithTypeHierarchy(returnTypeHierarchy, matReturnTypeVar, in1TypeInfo, in2TypeInfo);
@@ -383,33 +383,54 @@ public class TypeExtractor {
 		else {
 			returnTypeVar = (TypeVariable<?>) matReturnTypeVar;
 		}
-		
+
 		TypeInformation<?> info = null;
 		if (in1TypeInfo != null) {
 			// find the deepest type variable that describes the type of input 1
-			ParameterizedType baseClass = (ParameterizedType) returnTypeHierarchy.get(returnTypeHierarchy.size() - 1 );
+			ParameterizedType baseClass = (ParameterizedType) returnTypeHierarchy.get(returnTypeHierarchy.size() - 1);
 			Type in1Type = baseClass.getActualTypeArguments()[0];
-			if (in1Type instanceof TypeVariable) {
-				in1Type = materializeTypeVariable(returnTypeHierarchy, (TypeVariable<?>) in1Type);
-				info = findCorrespondingInfo(returnTypeVar, in1Type, in1TypeInfo);
-			}
+
+			info = createTypeInfoFromInput(returnTypeVar, returnTypeHierarchy, in1Type, in1TypeInfo);
 		}
-		
+
 		if (info == null && in2TypeInfo != null) {
 			// find the deepest type variable that describes the type of input 2
-			ParameterizedType baseClass = (ParameterizedType) returnTypeHierarchy.get(returnTypeHierarchy.size() - 1 );
+			ParameterizedType baseClass = (ParameterizedType) returnTypeHierarchy.get(returnTypeHierarchy.size() - 1);
 			Type in2Type = baseClass.getActualTypeArguments()[1];
-			if (in2Type instanceof TypeVariable) {
-				in2Type = materializeTypeVariable(returnTypeHierarchy, (TypeVariable<?>) in2Type);
-				info = findCorrespondingInfo(returnTypeVar, in2Type, in2TypeInfo);
-			}
+
+			info = createTypeInfoFromInput(returnTypeVar, returnTypeHierarchy, in2Type, in2TypeInfo);
 		}
-		
+
 		if (info != null) {
 			return info;
 		}
-		
+
 		return null;
+	}
+	
+	private <IN1> TypeInformation<?> createTypeInfoFromInput(TypeVariable<?> returnTypeVar, ArrayList<Type> returnTypeHierarchy, 
+			Type inType, TypeInformation<IN1> inTypeInfo) {
+		TypeInformation<?> info = null;
+		// the input is a type variable
+		if (inType instanceof TypeVariable) {
+			inType = materializeTypeVariable(returnTypeHierarchy, (TypeVariable<?>) inType);
+			info = findCorrespondingInfo(returnTypeVar, inType, inTypeInfo);
+		}
+		// the input is a tuple that may contains type variables
+		else if (inType instanceof ParameterizedType && Tuple.class.isAssignableFrom(((Class<?>)((ParameterizedType) inType).getRawType()))) {
+			Type[] tupleElements = ((ParameterizedType) inType).getActualTypeArguments();
+			// go thru all tuple elements and search for type variables
+			for(int i = 0; i < tupleElements.length; i++) {
+				if(tupleElements[i] instanceof TypeVariable) {
+					inType = materializeTypeVariable(returnTypeHierarchy, (TypeVariable<?>) tupleElements[i]);
+					info = findCorrespondingInfo(returnTypeVar, inType, ((TupleTypeInfo<?>) inTypeInfo).getTypeAt(i));
+					if(info != null) {
+						break;
+					}
+				}
+			}
+		}
+		return info;
 	}
 	
 	// --------------------------------------------------------------------------------------------
