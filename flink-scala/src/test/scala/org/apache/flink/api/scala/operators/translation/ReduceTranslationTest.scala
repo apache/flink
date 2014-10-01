@@ -48,8 +48,8 @@ class ReduceTranslationTest {
       val sink: GenericDataSinkBase[_] = p.getDataSinks.iterator.next
       val reducer: ReduceOperatorBase[_, _] = sink.getInput.asInstanceOf[ReduceOperatorBase[_, _]]
 
-      assertEquals(initialData.set.getType, reducer.getOperatorInfo.getInputType)
-      assertEquals(initialData.set.getType, reducer.getOperatorInfo.getOutputType)
+      assertEquals(initialData.javaSet.getType, reducer.getOperatorInfo.getInputType)
+      assertEquals(initialData.javaSet.getType, reducer.getOperatorInfo.getOutputType)
       assertTrue(reducer.getKeyColumns(0) == null || reducer.getKeyColumns(0).length == 0)
       assertTrue(reducer.getDegreeOfParallelism == 1 || reducer.getDegreeOfParallelism == -1)
       assertTrue(reducer.getInput.isInstanceOf[GenericDataSourceBase[_, _]])
@@ -77,8 +77,8 @@ class ReduceTranslationTest {
 
       val sink: GenericDataSinkBase[_] = p.getDataSinks.iterator.next
       val reducer: ReduceOperatorBase[_, _] = sink.getInput.asInstanceOf[ReduceOperatorBase[_, _]]
-      assertEquals(initialData.set.getType, reducer.getOperatorInfo.getInputType)
-      assertEquals(initialData.set.getType, reducer.getOperatorInfo.getOutputType)
+      assertEquals(initialData.javaSet.getType, reducer.getOperatorInfo.getInputType)
+      assertEquals(initialData.javaSet.getType, reducer.getOperatorInfo.getOutputType)
       assertTrue(reducer.getDegreeOfParallelism == DOP || reducer.getDegreeOfParallelism == -1)
       assertArrayEquals(Array[Int](2), reducer.getKeyColumns(0))
       assertTrue(reducer.getInput.isInstanceOf[GenericDataSourceBase[_, _]])
@@ -116,12 +116,12 @@ class ReduceTranslationTest {
       val keyValueInfo = new TupleTypeInfo(
         BasicTypeInfo.STRING_TYPE_INFO,
         createTypeInformation[(Double, String, Long)])
-      assertEquals(initialData.set.getType, keyExtractor.getOperatorInfo.getInputType)
+      assertEquals(initialData.javaSet.getType, keyExtractor.getOperatorInfo.getInputType)
       assertEquals(keyValueInfo, keyExtractor.getOperatorInfo.getOutputType)
       assertEquals(keyValueInfo, reducer.getOperatorInfo.getInputType)
       assertEquals(keyValueInfo, reducer.getOperatorInfo.getOutputType)
       assertEquals(keyValueInfo, keyProjector.getOperatorInfo.getInputType)
-      assertEquals(initialData.set.getType, keyProjector.getOperatorInfo.getOutputType)
+      assertEquals(initialData.javaSet.getType, keyProjector.getOperatorInfo.getOutputType)
       assertEquals(
         classOf[KeyExtractingMapper[_, _]],
         keyExtractor.getUserCodeWrapper.getUserCodeClass)

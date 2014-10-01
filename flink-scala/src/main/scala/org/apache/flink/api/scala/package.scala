@@ -49,7 +49,14 @@ package object scala {
       fields: Array[String]): Array[Int] = {
     typeInfo match {
       case ti: CaseClassTypeInfo[_] =>
-        ti.getFieldIndices(fields)
+        val result = ti.getFieldIndices(fields)
+
+        if (result.contains(-1)) {
+          throw new IllegalArgumentException("Fields '" + fields.mkString(", ") +
+            "' are not valid for '" + ti.toString + "'.")
+        }
+
+        result
 
       case _ =>
         throw new UnsupportedOperationException("Specifying fields by name is only" +

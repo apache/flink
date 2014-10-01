@@ -19,12 +19,10 @@
 package org.apache.flink.api.scala
 
 import org.apache.flink.api.common.InvalidProgramException
-import org.apache.flink.api.java.{DataSet => JavaDataSet}
 
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.operators.Keys
 import org.apache.flink.api.java.operators.Keys.FieldPositionKeys
-import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.api.common.typeinfo.TypeInformation
 
 /**
@@ -35,19 +33,19 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
  * This way, we have a central point where all the key-providing happens and don't need to change
  * the specific operations if the supported key types change.
  *
- * We use the type parameter `R` to specify the type of the resulting operation. For join
- * this would be `JoinDataSet[T, O]` and for coGroup it would be `CoGroupDataSet[T, O]`. This
+ * We use the type parameter `O` to specify the type of the resulting operation. For join
+ * this would be `JoinDataSet[L, R]` and for coGroup it would be `CoGroupDataSet[L, R]`. This
  * way the user gets the correct type for the finished operation.
  *
- * @tparam T Type of the left input [[DataSet]].
- * @tparam O Type of the right input [[DataSet]].
- * @tparam R The type of the resulting Operation.
+ * @tparam L Type of the left input [[DataSet]].
+ * @tparam R Type of the right input [[DataSet]].
+ * @tparam O The type of the resulting Operation.
  */
-private[flink] abstract class UnfinishedKeyPairOperation[T, O, R](
-    private[flink] val leftSet: DataSet[T],
-    private[flink] val rightSet: DataSet[O]) {
+private[flink] abstract class UnfinishedKeyPairOperation[L, R, O](
+    private[flink] val leftInput: DataSet[L],
+    private[flink] val rightInput: DataSet[R]) {
 
-  private[flink] def finish(leftKey: Keys[T], rightKey: Keys[O]): R
+  private[flink] def finish(leftKey: Keys[L], rightKey: Keys[R]): O
 
   /**
    * Specify the key fields for the left side of the key based operation. This returns
@@ -58,8 +56,8 @@ private[flink] abstract class UnfinishedKeyPairOperation[T, O, R](
    * This only works on Tuple [[DataSet]].
    */
   def where(leftKeys: Int*) = {
-    val leftKey = new FieldPositionKeys[T](leftKeys.toArray, leftSet.set.getType)
-    new HalfUnfinishedKeyPairOperation[T, O, R](this, leftKey)
+    val leftKey = new FieldPositionKeys[L](leftKeys.toArray, leftInput.getType)
+    new HalfUnfinishedKeyPairOperation[L, R, O](this, leftKey)
   }
 
   /**
@@ -72,11 +70,11 @@ private[flink] abstract class UnfinishedKeyPairOperation[T, O, R](
    */
   def where(firstLeftField: String, otherLeftFields: String*) = {
     val fieldIndices = fieldNames2Indices(
-      leftSet.set.getType,
+      leftInput.getType,
       firstLeftField +: otherLeftFields.toArray)
 
-    val leftKey = new FieldPositionKeys[T](fieldIndices, leftSet.set.getType)
-    new HalfUnfinishedKeyPairOperation[T, O, R](this, leftKey)
+    val leftKey = new FieldPositionKeys[L](fieldIndices, leftInput.getType)
+    new HalfUnfinishedKeyPairOperation[L, R, O](this, leftKey)
   }
 
   /**
@@ -85,18 +83,18 @@ private[flink] abstract class UnfinishedKeyPairOperation[T, O, R](
    * key for the right side. The result after specifying the right side key is the finished
    * operation.
    */
-  def where[K: TypeInformation](fun: (T) => K) = {
+  def where[K: TypeInformation](fun: (L) => K) = {
     val keyType = implicitly[TypeInformation[K]]
-    val keyExtractor = new KeySelector[T, K] {
-      def getKey(in: T) = fun(in)
+    val keyExtractor = new KeySelector[L, K] {
+      def getKey(in: L) = fun(in)
     }
-    val leftKey = new Keys.SelectorFunctionKeys[T, K](keyExtractor, leftSet.set.getType, keyType)
-    new HalfUnfinishedKeyPairOperation[T, O, R](this, leftKey)
+    val leftKey = new Keys.SelectorFunctionKeys[L, K](keyExtractor, leftInput.getType, keyType)
+    new HalfUnfinishedKeyPairOperation[L, R, O](this, leftKey)
   }
 }
 
-private[flink] class HalfUnfinishedKeyPairOperation[T, O, R](
-    unfinished: UnfinishedKeyPairOperation[T, O, R], leftKey: Keys[T]) {
+private[flink] class HalfUnfinishedKeyPairOperation[L, R, O](
+    unfinished: UnfinishedKeyPairOperation[L, R, O], leftKey: Keys[L]) {
 
   /**
    * Specify the key fields for the right side of the key based operation. This returns
@@ -104,8 +102,8 @@ private[flink] class HalfUnfinishedKeyPairOperation[T, O, R](
    *
    * This only works on a Tuple [[DataSet]].
    */
-  def equalTo(rightKeys: Int*): R = {
-    val rightKey = new FieldPositionKeys[O](rightKeys.toArray, unfinished.rightSet.set.getType)
+  def equalTo(rightKeys: Int*): O = {
+    val rightKey = new FieldPositionKeys[R](rightKeys.toArray, unfinished.rightInput.getType)
     if (!leftKey.areCompatibale(rightKey)) {
       throw new InvalidProgramException("The types of the key fields do not match. Left: " +
         leftKey + " Right: " + rightKey)
@@ -119,12 +117,12 @@ private[flink] class HalfUnfinishedKeyPairOperation[T, O, R](
    *
    * This only works on a CaseClass [[DataSet]].
    */
-  def equalTo(firstRightField: String, otherRightFields: String*): R = {
+  def equalTo(firstRightField: String, otherRightFields: String*): O = {
     val fieldIndices = fieldNames2Indices(
-      unfinished.rightSet.set.getType,
+      unfinished.rightInput.getType,
       firstRightField +: otherRightFields.toArray)
 
-    val rightKey = new FieldPositionKeys[O](fieldIndices, unfinished.rightSet.set.getType)
+    val rightKey = new FieldPositionKeys[R](fieldIndices, unfinished.rightInput.getType)
     if (!leftKey.areCompatibale(rightKey)) {
       throw new InvalidProgramException("The types of the key fields do not match. Left: " +
         leftKey + " Right: " + rightKey)
@@ -137,13 +135,16 @@ private[flink] class HalfUnfinishedKeyPairOperation[T, O, R](
    * Specify the key selector function for the right side of the key based operation. This returns
    * the finished operation.
    */
-  def equalTo[K: TypeInformation](fun: (O) => K) = {
+  def equalTo[K: TypeInformation](fun: (R) => K) = {
     val keyType = implicitly[TypeInformation[K]]
-    val keyExtractor = new KeySelector[O, K] {
-      def getKey(in: O) = fun(in)
+    val keyExtractor = new KeySelector[R, K] {
+      def getKey(in: R) = fun(in)
     }
-    val rightKey =
-      new Keys.SelectorFunctionKeys[O, K](keyExtractor, unfinished.rightSet.set.getType, keyType)
+    val rightKey = new Keys.SelectorFunctionKeys[R, K](
+      keyExtractor,
+      unfinished.rightInput.getType,
+      keyType)
+    
     if (!leftKey.areCompatibale(rightKey)) {
       throw new InvalidProgramException("The types of the key fields do not match. Left: " +
         leftKey + " Right: " + rightKey)

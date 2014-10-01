@@ -24,7 +24,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.java.operators.JoinOperator.DefaultJoin.WrappingFlatJoinFunction
 import org.apache.flink.api.java.operators.JoinOperator.{EquiJoin, JoinHint}
 import org.apache.flink.api.java.operators._
-import org.apache.flink.api.java.{DataSet => JavaDataSet}
 import org.apache.flink.api.scala.typeutils.{CaseClassSerializer, CaseClassTypeInfo}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.util.Collector
@@ -55,23 +54,63 @@ import scala.reflect.ClassTag
  *   }
  * }}}
  *
- * @tparam T Type of the left input of the join.
- * @tparam O Type of the right input of the join.
+ * @tparam L Type of the left input of the join.
+ * @tparam R Type of the right input of the join.
  */
-trait JoinDataSet[T, O] extends DataSet[(T, O)] {
+class JoinDataSet[L, R](
+    defaultJoin: EquiJoin[L, R, (L, R)],
+    leftInput: DataSet[L],
+    rightInput: DataSet[R],
+    leftKeys: Keys[L],
+    rightKeys: Keys[R])
+  extends DataSet(defaultJoin) {
 
   /**
    * Creates a new [[DataSet]] where the result for each pair of joined elements is the result
    * of the given function.
    */
-  def apply[R: TypeInformation: ClassTag](fun: (T, O) => R): DataSet[R]
+  def apply[O: TypeInformation: ClassTag](fun: (L, R) => O): DataSet[O] = {
+    Validate.notNull(fun, "Join function must not be null.")
+    val joiner = new FlatJoinFunction[L, R, O] {
+      def join(left: L, right: R, out: Collector[O]) = {
+        out.collect(fun(left, right))
+      }
+    }
+    val joinOperator = new EquiJoin[L, R, O](
+      leftInput.javaSet,
+      rightInput.javaSet,
+      leftKeys,
+      rightKeys,
+      joiner,
+      implicitly[TypeInformation[O]],
+      defaultJoin.getJoinHint)
+
+    wrap(joinOperator)
+  }
 
   /**
    * Creates a new [[DataSet]] by passing each pair of joined values to the given function.
    * The function can output zero or more elements using the [[Collector]] which will form the
    * result.
    */
-  def apply[R: TypeInformation: ClassTag](fun: (T, O, Collector[R]) => Unit): DataSet[R]
+  def apply[O: TypeInformation: ClassTag](fun: (L, R, Collector[O]) => Unit): DataSet[O] = {
+    Validate.notNull(fun, "Join function must not be null.")
+    val joiner = new FlatJoinFunction[L, R, O] {
+      def join(left: L, right: R, out: Collector[O]) = {
+        fun(left, right, out)
+      }
+    }
+    val joinOperator = new EquiJoin[L, R, O](
+      leftInput.javaSet,
+      rightInput.javaSet,
+      leftKeys,
+      rightKeys,
+      joiner,
+      implicitly[TypeInformation[O]],
+      defaultJoin.getJoinHint)
+
+    wrap(joinOperator)
+  }
 
   /**
    * Creates a new [[DataSet]] by passing each pair of joined values to the given function.
@@ -81,7 +120,20 @@ trait JoinDataSet[T, O] extends DataSet[(T, O)] {
    * A [[RichFlatJoinFunction]] can be used to access the
    * broadcast variables and the [[org.apache.flink.api.common.functions.RuntimeContext]].
    */
-  def apply[R: TypeInformation: ClassTag](joiner: FlatJoinFunction[T, O, R]): DataSet[R]
+  def apply[O: TypeInformation: ClassTag](joiner: FlatJoinFunction[L, R, O]): DataSet[O] = {
+    Validate.notNull(joiner, "Join function must not be null.")
+
+    val joinOperator = new EquiJoin[L, R, O](
+      leftInput.javaSet,
+      rightInput.javaSet,
+      leftKeys,
+      rightKeys,
+      joiner,
+      implicitly[TypeInformation[O]],
+      defaultJoin.getJoinHint)
+
+    wrap(joinOperator)
+  }
 
   /**
    * Creates a new [[DataSet]] by passing each pair of joined values to the given function.
@@ -90,60 +142,20 @@ trait JoinDataSet[T, O] extends DataSet[(T, O)] {
    * A [[org.apache.flink.api.common.functions.RichJoinFunction]] can be used to access the
    * broadcast variables and the [[org.apache.flink.api.common.functions.RuntimeContext]].
    */
-  def apply[R: TypeInformation: ClassTag](joiner: JoinFunction[T, O, R]): DataSet[R]
-}
-
-/**
- * Private implementation for [[JoinDataSet]] to keep the implementation details, i.e. the
- * parameters of the constructor, hidden.
- */
-private[flink] class JoinDataSetImpl[T, O](
-    joinOperator: EquiJoin[T, O, (T, O)],
-    thisSet: JavaDataSet[T],
-    otherSet: JavaDataSet[O],
-    thisKeys: Keys[T],
-    otherKeys: Keys[O])
-  extends DataSet(joinOperator)
-  with JoinDataSet[T, O] {
-
-  def apply[R: TypeInformation: ClassTag](fun: (T, O) => R): DataSet[R] = {
-    Validate.notNull(fun, "Join function must not be null.")
-    val joiner = new FlatJoinFunction[T, O, R] {
-      def join(left: T, right: O, out: Collector[R]) = {
-        out.collect(fun(left, right))
-      }
-    }
-    val joinOperator = new EquiJoin[T, O, R](thisSet, otherSet, thisKeys,
-      otherKeys, joiner, implicitly[TypeInformation[R]], JoinHint.OPTIMIZER_CHOOSES)
-    wrap(joinOperator)
-  }
-
-  def apply[R: TypeInformation: ClassTag](fun: (T, O, Collector[R]) => Unit): DataSet[R] = {
-    Validate.notNull(fun, "Join function must not be null.")
-    val joiner = new FlatJoinFunction[T, O, R] {
-      def join(left: T, right: O, out: Collector[R]) = {
-        fun(left, right, out)
-      }
-    }
-    val joinOperator = new EquiJoin[T, O, R](thisSet, otherSet, thisKeys,
-      otherKeys, joiner, implicitly[TypeInformation[R]], JoinHint.OPTIMIZER_CHOOSES)
-    wrap(joinOperator)
-  }
-
-  def apply[R: TypeInformation: ClassTag](joiner: FlatJoinFunction[T, O, R]): DataSet[R] = {
-    Validate.notNull(joiner, "Join function must not be null.")
-    val joinOperator = new EquiJoin[T, O, R](thisSet, otherSet, thisKeys,
-      otherKeys, joiner, implicitly[TypeInformation[R]], JoinHint.OPTIMIZER_CHOOSES)
-    wrap(joinOperator)
-  }
-
-  def apply[R: TypeInformation: ClassTag](fun: JoinFunction[T, O, R]): DataSet[R] = {
+  def apply[O: TypeInformation: ClassTag](fun: JoinFunction[L, R, O]): DataSet[O] = {
     Validate.notNull(fun, "Join function must not be null.")
 
-    val generatedFunction: FlatJoinFunction[T, O, R] = new WrappingFlatJoinFunction[T, O, R](fun)
+    val generatedFunction: FlatJoinFunction[L, R, O] = new WrappingFlatJoinFunction[L, R, O](fun)
 
-    val joinOperator = new EquiJoin[T, O, R](thisSet, otherSet, thisKeys,
-      otherKeys, generatedFunction, fun, implicitly[TypeInformation[R]], JoinHint.OPTIMIZER_CHOOSES)
+    val joinOperator = new EquiJoin[L, R, O](
+      leftInput.javaSet,
+      rightInput.javaSet,
+      leftKeys,
+      rightKeys,
+      generatedFunction, fun,
+      implicitly[TypeInformation[O]],
+      defaultJoin.getJoinHint)
+
     wrap(joinOperator)
   }
 }
@@ -157,49 +169,59 @@ private[flink] class JoinDataSetImpl[T, O](
  *   val right = ...
  *   val joinResult = left.join(right).where(...).isEqualTo(...)
  * }}}
- * @tparam T The type of the left input of the join.
- * @tparam O The type of the right input of the join.
+ * @tparam L The type of the left input of the join.
+ * @tparam R The type of the right input of the join.
  */
-trait UnfinishedJoinOperation[T, O] extends UnfinishedKeyPairOperation[T, O, JoinDataSet[T, O]]
+class UnfinishedJoinOperation[L, R](
+    leftSet: DataSet[L],
+    rightSet: DataSet[R],
+    val joinHint: JoinHint)
+  extends UnfinishedKeyPairOperation[L, R, JoinDataSet[L, R]](leftSet, rightSet) {
 
-/**
- * Private implementation for [[UnfinishedJoinOperation]] to keep the implementation details,
- * i.e. the parameters of the constructor, hidden.
- */
-private[flink] class UnfinishedJoinOperationImpl[T, O](
-    leftSet: DataSet[T],
-    rightSet: DataSet[O],
-    joinHint: JoinHint)
-  extends UnfinishedKeyPairOperation[T, O, JoinDataSet[T, O]](leftSet, rightSet)
-  with UnfinishedJoinOperation[T, O] {
-
-  private[flink] def finish(leftKey: Keys[T], rightKey: Keys[O]) = {
-    val joiner = new FlatJoinFunction[T, O, (T, O)] {
-      def join(left: T, right: O, out: Collector[(T, O)]) = {
+  private[flink] def finish(leftKey: Keys[L], rightKey: Keys[R]) = {
+    val joiner = new FlatJoinFunction[L, R, (L, R)] {
+      def join(left: L, right: R, out: Collector[(L, R)]) = {
         out.collect((left, right))
       }
     }
-    val returnType = new CaseClassTypeInfo[(T, O)](
-      classOf[(T, O)], Seq(leftSet.set.getType, rightSet.set.getType), Array("_1", "_2")) {
+    val returnType = new CaseClassTypeInfo[(L, R)](
+      classOf[(L, R)], Seq(leftSet.getType, rightSet.getType), Array("_1", "_2")) {
 
-      override def createSerializer: TypeSerializer[(T, O)] = {
+      override def createSerializer: TypeSerializer[(L, R)] = {
         val fieldSerializers: Array[TypeSerializer[_]] = new Array[TypeSerializer[_]](getArity)
-        for (i <- 0 until getArity()) {
+        for (i <- 0 until getArity) {
           fieldSerializers(i) = types(i).createSerializer
         }
 
-        new CaseClassSerializer[(T, O)](classOf[(T, O)], fieldSerializers) {
+        new CaseClassSerializer[(L, R)](classOf[(L, R)], fieldSerializers) {
           override def createInstance(fields: Array[AnyRef]) = {
-            (fields(0).asInstanceOf[T], fields(1).asInstanceOf[O])
+            (fields(0).asInstanceOf[L], fields(1).asInstanceOf[R])
           }
         }
       }
     }
-    val joinOperator = new EquiJoin[T, O, (T, O)](
-      leftSet.set, rightSet.set, leftKey, rightKey, joiner, returnType, joinHint)
+    val joinOperator = new EquiJoin[L, R, (L, R)](
+      leftSet.javaSet, rightSet.javaSet, leftKey, rightKey, joiner, returnType, joinHint)
 
+    DeltaIterationSanityCheck(leftSet, rightSet, leftKey, rightKey)
+
+    new JoinDataSet(joinOperator, leftSet, rightSet, leftKey, rightKey)
+  }
+
+}
+
+/**
+ * This checks whether joining/coGrouping with the DeltaIteration SolutionSet uses the
+ * same key given when creating the DeltaIteration.
+ */
+private[flink] object DeltaIterationSanityCheck {
+  def apply[L, R](
+      leftSet: DataSet[L],
+      rightSet: DataSet[R],
+      leftKey: Keys[L],
+      rightKey: Keys[R]) = {
     // sanity check solution set key mismatches
-    leftSet.set match {
+    leftSet.javaSet match {
       case solutionSet: DeltaIteration.SolutionSetPlaceHolder[_] =>
         leftKey match {
           case keyFields: Keys.FieldPositionKeys[_] =>
@@ -212,7 +234,7 @@ private[flink] class UnfinishedJoinOperationImpl[T, O](
         }
       case _ =>
     }
-    rightSet.set match {
+    rightSet.javaSet match {
       case solutionSet: DeltaIteration.SolutionSetPlaceHolder[_] =>
         rightKey match {
           case keyFields: Keys.FieldPositionKeys[_] =>
@@ -225,7 +247,5 @@ private[flink] class UnfinishedJoinOperationImpl[T, O](
         }
       case _ =>
     }
-
-    new JoinDataSetImpl(joinOperator, leftSet.set, rightSet.set, leftKey, rightKey)
   }
 }

@@ -29,7 +29,6 @@ import org.apache.flink.api.java.io.{PrintingOutputFormat, TextOutputFormat}
 import org.apache.flink.api.java.operators.JoinOperator.JoinHint
 import org.apache.flink.api.java.operators.Keys.FieldPositionKeys
 import org.apache.flink.api.java.operators._
-import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.api.java.{DataSet => JavaDataSet}
 import org.apache.flink.api.scala.operators.{ScalaCsvOutputFormat, ScalaAggregateOperator}
 import org.apache.flink.core.fs.FileSystem.WriteMode
@@ -80,8 +79,18 @@ import scala.reflect.ClassTag
  *
  * @tparam T The type of the DataSet, i.e., the type of the elements of the DataSet.
  */
-class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
+class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   Validate.notNull(set, "Java DataSet must not be null.")
+
+  /**
+   * Returns the TypeInformation for the elements of this DataSet.
+   */
+  private[flink] def getType: TypeInformation[T] = set.getType
+
+  /**
+   * Returns the underlying Java DataSet.
+   */
+  private[flink] def javaSet: JavaDataSet[T] = set
 
   // --------------------------------------------------------------------------------------------
   //  General methods
@@ -94,12 +103,13 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
    * representations of the execution graph.
    */
   def name(name: String) = {
-    set match {
+    javaSet match {
       case ds: DataSource[_] => ds.name(name)
       case op: Operator[_, _] => op.name(name)
       case di: DeltaIterationResultSet[_, _] => di.getIterationHead.name(name)
       case _ =>
-        throw new UnsupportedOperationException("Operator " + set.toString + " cannot have a name.")
+        throw new UnsupportedOperationException("Operator " + javaSet.toString +
+          " cannot have a name.")
     }
     // return this for chaining methods calls
     this
@@ -109,12 +119,12 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
    * Sets the degree of parallelism of this operation. This must be greater than 1.
    */
   def setParallelism(dop: Int) = {
-    set match {
+    javaSet match {
       case ds: DataSource[_] => ds.setParallelism(dop)
       case op: Operator[_, _] => op.setParallelism(dop)
       case di: DeltaIterationResultSet[_, _] => di.getIterationHead.parallelism(dop)
       case _ =>
-        throw new UnsupportedOperationException("Operator " + set.toString + " cannot have " +
+        throw new UnsupportedOperationException("Operator " + javaSet.toString + " cannot have " +
           "parallelism.")
     }
     this
@@ -123,11 +133,11 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
   /**
    * Returns the degree of parallelism of this operation.
    */
-  def getParallelism: Int = set match {
+  def getParallelism: Int = javaSet match {
     case ds: DataSource[_] => ds.getParallelism
     case op: Operator[_, _] => op.getParallelism
     case _ =>
-      throw new UnsupportedOperationException("Operator " + set.toString + " does not have " +
+      throw new UnsupportedOperationException("Operator " + javaSet.toString + " does not have " +
         "parallelism.")
   }
 
@@ -146,11 +156,11 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
    * @param aggregator The aggregator class.
    */
   def registerAggregator(name: String, aggregator: Aggregator[_]): DataSet[T] = {
-    set match {
+    javaSet match {
       case di: DeltaIterationResultSet[_, _] =>
         di.getIterationHead.registerAggregator(name, aggregator)
       case _ =>
-        throw new UnsupportedOperationException("Operator " + set.toString + " cannot have " +
+        throw new UnsupportedOperationException("Operator " + javaSet.toString + " cannot have " +
           "aggregators.")
     }
     this
@@ -172,41 +182,41 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
    * @return The operator itself, to allow chaining function calls.
    */
   def withBroadcastSet(data: DataSet[_], name: String) = {
-    set match {
-      case udfOp: UdfOperator[_] => udfOp.withBroadcastSet(data.set, name)
+    javaSet match {
+      case udfOp: UdfOperator[_] => udfOp.withBroadcastSet(data.javaSet, name)
       case _ =>
-        throw new UnsupportedOperationException("Operator " + set.toString + " cannot have " +
+        throw new UnsupportedOperationException("Operator " + javaSet.toString + " cannot have " +
           "broadcast variables.")
     }
     this
   }
 
   def withConstantSet(constantSets: String*) = {
-    set match {
+    javaSet match {
       case op: SingleInputUdfOperator[_, _, _] => op.withConstantSet(constantSets: _*)
       case _ =>
         throw new UnsupportedOperationException("Cannot specify constant sets on Operator " +
-          set.toString + ".")
+          javaSet.toString + ".")
     }
     this
   }
 
   def withConstantSetFirst(constantSets: String*) = {
-    set match {
+    javaSet match {
       case op: TwoInputUdfOperator[_, _, _, _] => op.withConstantSetFirst(constantSets: _*)
       case _ =>
-        throw new UnsupportedOperationException("Cannot specify constant sets on Operator " + set
-          .toString + ".")
+        throw new UnsupportedOperationException("Cannot specify constant sets on Operator " +
+          javaSet.toString + ".")
     }
     this
   }
 
   def withConstantSetSecond(constantSets: String*) = {
-    set match {
+    javaSet match {
       case op: TwoInputUdfOperator[_, _, _, _] => op.withConstantSetSecond(constantSets: _*)
       case _ =>
-        throw new UnsupportedOperationException("Cannot specify constant sets on Operator " + set
-          .toString + ".")
+        throw new UnsupportedOperationException("Cannot specify constant sets on Operator " +
+          javaSet.toString + ".")
     }
     this
   }
@@ -222,7 +232,7 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
     if (mapper == null) {
       throw new NullPointerException("Map function must not be null.")
     }
-    wrap(new MapOperator[T, R](set, implicitly[TypeInformation[R]], mapper))
+    wrap(new MapOperator[T, R](javaSet, implicitly[TypeInformation[R]], mapper))
   }
 
   /**
@@ -235,7 +245,7 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
     val mapper = new MapFunction[T, R] {
       def map(in: T): R = fun(in)
     }
-    wrap(new MapOperator[T, R](set, implicitly[TypeInformation[R]], mapper))
+    wrap(new MapOperator[T, R](javaSet, implicitly[TypeInformation[R]], mapper))
   }
 
   /**
@@ -251,7 +261,7 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
     if (partitionMapper == null) {
       throw new NullPointerException("MapPartition function must not be null.")
     }
-    wrap(new MapPartitionOperator[T, R](set, implicitly[TypeInformation[R]], partitionMapper))
+    wrap(new MapPartitionOperator[T, R](javaSet, implicitly[TypeInformation[R]], partitionMapper))
   }
 
   /**
@@ -272,7 +282,7 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
         fun(in.iterator().asScala, out)
       }
     }
-    wrap(new MapPartitionOperator[T, R](set, implicitly[TypeInformation[R]], partitionMapper))
+    wrap(new MapPartitionOperator[T, R](javaSet, implicitly[TypeInformation[R]], partitionMapper))
   }
 
   /**
@@ -293,7 +303,7 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
         fun(in.iterator().asScala) foreach out.collect
       }
     }
-    wrap(new MapPartitionOperator[T, R](set, implicitly[TypeInformation[R]], partitionMapper))
+    wrap(new MapPartitionOperator[T, R](javaSet, implicitly[TypeInformation[R]], partitionMapper))
   }
 
   /**
@@ -304,7 +314,7 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
     if (flatMapper == null) {
       throw new NullPointerException("FlatMap function must not be null.")
     }
-    wrap(new FlatMapOperator[T, R](set, implicitly[TypeInformation[R]], flatMapper))
+    wrap(new FlatMapOperator[T, R](javaSet, implicitly[TypeInformation[R]], flatMapper))
   }
 
   /**
@@ -318,7 +328,7 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
     val flatMapper = new FlatMapFunction[T, R] {
       def flatMap(in: T, out: Collector[R]) { fun(in, out) }
     }
-    wrap(new FlatMapOperator[T, R](set, implicitly[TypeInformation[R]], flatMapper))
+    wrap(new FlatMapOperator[T, R](javaSet, implicitly[TypeInformation[R]], flatMapper))
   }
 
   /**
@@ -332,7 +342,7 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
     val flatMapper = new FlatMapFunction[T, R] {
       def flatMap(in: T, out: Collector[R]) { fun(in) foreach out.collect }
     }
-    wrap(new FlatMapOperator[T, R](set, implicitly[TypeInformation[R]], flatMapper))
+    wrap(new FlatMapOperator[T, R](javaSet, implicitly[TypeInformation[R]], flatMapper))
   }
 
   /**
@@ -342,7 +352,7 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
     if (filter == null) {
       throw new NullPointerException("Filter function must not be null.")
     }
-    wrap(new FilterOperator[T](set, filter))
+    wrap(new FilterOperator[T](javaSet, filter))
   }
 
   /**
@@ -355,7 +365,7 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
     val filter = new FilterFunction[T] {
       def filter(in: T) = fun(in)
     }
-    wrap(new FilterOperator[T](set, filter))
+    wrap(new FilterOperator[T](javaSet, filter))
   }
 
   // --------------------------------------------------------------------------------------------
@@ -370,7 +380,7 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
    * This only works on Tuple DataSets.
    */
   def aggregate(agg: Aggregations, field: Int): AggregateDataSet[T] = {
-    new AggregateDataSet(new ScalaAggregateOperator[T](set, agg, field))
+    new AggregateDataSet(new ScalaAggregateOperator[T](javaSet, agg, field))
   }
 
   /**
@@ -381,9 +391,9 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
    * This only works on CaseClass DataSets.
    */
   def aggregate(agg: Aggregations, field: String): AggregateDataSet[T] = {
-    val fieldIndex = fieldNames2Indices(set.getType, Array(field))(0)
+    val fieldIndex = fieldNames2Indices(javaSet.getType, Array(field))(0)
 
-    new AggregateDataSet(new ScalaAggregateOperator[T](set, agg, fieldIndex))
+    new AggregateDataSet(new ScalaAggregateOperator[T](javaSet, agg, fieldIndex))
   }
 
   /**
@@ -436,7 +446,7 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
     if (reducer == null) {
       throw new NullPointerException("Reduce function must not be null.")
     }
-    wrap(new ReduceOperator[T](set, reducer))
+    wrap(new ReduceOperator[T](javaSet, reducer))
   }
 
   /**
@@ -450,7 +460,7 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
     val reducer = new ReduceFunction[T] {
       def reduce(v1: T, v2: T) = { fun(v1, v2) }
     }
-    wrap(new ReduceOperator[T](set, reducer))
+    wrap(new ReduceOperator[T](javaSet, reducer))
   }
 
   /**
@@ -462,7 +472,7 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
     if (reducer == null) {
       throw new NullPointerException("GroupReduce function must not be null.")
     }
-    wrap(new GroupReduceOperator[T, R](set, implicitly[TypeInformation[R]], reducer))
+    wrap(new GroupReduceOperator[T, R](javaSet, implicitly[TypeInformation[R]], reducer))
   }
 
   /**
@@ -478,7 +488,7 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
     val reducer = new GroupReduceFunction[T, R] {
       def reduce(in: java.lang.Iterable[T], out: Collector[R]) { fun(in.iterator().asScala, out) }
     }
-    wrap(new GroupReduceOperator[T, R](set, implicitly[TypeInformation[R]], reducer))
+    wrap(new GroupReduceOperator[T, R](javaSet, implicitly[TypeInformation[R]], reducer))
   }
 
   /**
@@ -493,7 +503,7 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
         out.collect(fun(in.iterator().asScala))
       }
     }
-    wrap(new GroupReduceOperator[T, R](set, implicitly[TypeInformation[R]], reducer))
+    wrap(new GroupReduceOperator[T, R](javaSet, implicitly[TypeInformation[R]], reducer))
   }
 
   /**
@@ -504,7 +514,7 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
       throw new InvalidProgramException("Parameter n of first(n) must be at least 1.")
     }
     // Normally reduceGroup expects implicit parameters, supply them manually here.
-    reduceGroup(new FirstReducer[T](n))(set.getType, implicitly[ClassTag[T]])
+    reduceGroup(new FirstReducer[T](n))(javaSet.getType, implicitly[ClassTag[T]])
   }
 
   // --------------------------------------------------------------------------------------------
@@ -520,9 +530,9 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
       def getKey(in: T) = fun(in)
     }
     wrap(new DistinctOperator[T](
-      set,
+      javaSet,
       new Keys.SelectorFunctionKeys[T, K](
-        keyExtractor, set.getType, implicitly[TypeInformation[K]])))
+        keyExtractor, javaSet.getType, implicitly[TypeInformation[K]])))
   }
 
   /**
@@ -533,8 +543,8 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
    */
   def distinct(fields: Int*): DataSet[T] = {
     wrap(new DistinctOperator[T](
-      set,
-      new Keys.FieldPositionKeys[T](fields.toArray, set.getType, true)))
+      javaSet,
+      new Keys.FieldPositionKeys[T](fields.toArray, javaSet.getType, true)))
   }
 
   /**
@@ -544,10 +554,10 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
    * This only works on CaseClass DataSets
    */
   def distinct(firstField: String, otherFields: String*): DataSet[T] = {
-    val fieldIndices = fieldNames2Indices(set.getType, firstField +: otherFields.toArray)
+    val fieldIndices = fieldNames2Indices(javaSet.getType, firstField +: otherFields.toArray)
     wrap(new DistinctOperator[T](
-      set,
-      new Keys.FieldPositionKeys[T](fieldIndices, set.getType, true)))
+      javaSet,
+      new Keys.FieldPositionKeys[T](fieldIndices, javaSet.getType, true)))
   }
 
   /**
@@ -557,7 +567,7 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
    * This only works if this DataSet contains Tuples.
    */
   def distinct: DataSet[T] = {
-    wrap(new DistinctOperator[T](set, null))
+    wrap(new DistinctOperator[T](javaSet, null))
   }
 
   // --------------------------------------------------------------------------------------------
@@ -576,8 +586,8 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
     val keyExtractor = new KeySelector[T, K] {
       def getKey(in: T) = fun(in)
     }
-    new GroupedDataSetImpl[T](set,
-      new Keys.SelectorFunctionKeys[T, K](keyExtractor, set.getType, keyType))
+    new GroupedDataSet[T](this,
+      new Keys.SelectorFunctionKeys[T, K](keyExtractor, javaSet.getType, keyType))
   }
 
   /**
@@ -590,9 +600,9 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
    * This only works on Tuple DataSets.
    */
   def groupBy(fields: Int*): GroupedDataSet[T] = {
-    new GroupedDataSetImpl[T](
-      set,
-      new Keys.FieldPositionKeys[T](fields.toArray, set.getType,false))
+    new GroupedDataSet[T](
+      this,
+      new Keys.FieldPositionKeys[T](fields.toArray, javaSet.getType,false))
   }
 
   /**
@@ -605,11 +615,11 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
    * This only works on CaseClass DataSets.
    */
   def groupBy(firstField: String, otherFields: String*): GroupedDataSet[T] = {
-    val fieldIndices = fieldNames2Indices(set.getType, firstField +: otherFields.toArray)
+    val fieldIndices = fieldNames2Indices(javaSet.getType, firstField +: otherFields.toArray)
 
-    new GroupedDataSetImpl[T](
-      set,
-      new Keys.FieldPositionKeys[T](fieldIndices, set.getType,false))
+    new GroupedDataSet[T](
+      this,
+      new Keys.FieldPositionKeys[T](fieldIndices, javaSet.getType,false))
   }
 
   //  public UnsortedGrouping<T> groupBy(String... fields) {
@@ -658,21 +668,21 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
    * }}}
    */
   def join[O](other: DataSet[O]): UnfinishedJoinOperation[T, O] =
-    new UnfinishedJoinOperationImpl(this, other, JoinHint.OPTIMIZER_CHOOSES)
+    new UnfinishedJoinOperation(this, other, JoinHint.OPTIMIZER_CHOOSES)
 
   /**
    * Special [[join]] operation for explicitly telling the system that the right side is assumed
    * to be a lot smaller than the left side of the join.
    */
   def joinWithTiny[O](other: DataSet[O]): UnfinishedJoinOperation[T, O] =
-    new UnfinishedJoinOperationImpl(this, other, JoinHint.BROADCAST_HASH_SECOND)
+    new UnfinishedJoinOperation(this, other, JoinHint.BROADCAST_HASH_SECOND)
 
   /**
    * Special [[join]] operation for explicitly telling the system that the left side is assumed
    * to be a lot smaller than the right side of the join.
    */
   def joinWithHuge[O](other: DataSet[O]): UnfinishedJoinOperation[T, O] =
-    new UnfinishedJoinOperationImpl(this, other, JoinHint.BROADCAST_HASH_FIRST)
+    new UnfinishedJoinOperation(this, other, JoinHint.BROADCAST_HASH_FIRST)
 
   // --------------------------------------------------------------------------------------------
   //  Co-Group
@@ -713,7 +723,7 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
    * }}}
    */
   def coGroup[O: ClassTag](other: DataSet[O]): UnfinishedCoGroupOperation[T, O] =
-    new UnfinishedCoGroupOperationImpl(this, other)
+    new UnfinishedCoGroupOperation(this, other)
 
   // --------------------------------------------------------------------------------------------
   //  Cross
@@ -734,21 +744,21 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
    * }}}
    */
   def cross[O](other: DataSet[O]): CrossDataSet[T, O] =
-    CrossDataSetImpl.createCrossOperator(this.set, other.set)
+    CrossDataSet.createCrossOperator(this, other)
 
   /**
    * Special [[cross]] operation for explicitly telling the system that the right side is assumed
    * to be a lot smaller than the left side of the cartesian product.
    */
   def crossWithTiny[O](other: DataSet[O]): CrossDataSet[T, O] =
-    CrossDataSetImpl.createCrossOperator(this.set, other.set)
+    CrossDataSet.createCrossOperator(this, other)
 
   /**
    * Special [[cross]] operation for explicitly telling the system that the left side is assumed
    * to be a lot smaller than the right side of the cartesian product.
    */
   def crossWithHuge[O](other: DataSet[O]): CrossDataSet[T, O] =
-    CrossDataSetImpl.createCrossOperator(this.set, other.set)
+    CrossDataSet.createCrossOperator(this, other)
 
   // --------------------------------------------------------------------------------------------
   //  Iterations
@@ -771,10 +781,14 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
    */
   def iterate(maxIterations: Int)(stepFunction: (DataSet[T]) => DataSet[T]): DataSet[T] = {
     val iterativeSet =
-      new IterativeDataSet[T](set.getExecutionEnvironment, set.getType, set,maxIterations)
+      new IterativeDataSet[T](
+        javaSet.getExecutionEnvironment,
+        javaSet.getType,
+        javaSet,
+        maxIterations)
 
     val resultSet = stepFunction(wrap(iterativeSet))
-    val result = iterativeSet.closeWith(resultSet.set)
+    val result = iterativeSet.closeWith(resultSet.javaSet)
     wrap(result)
   }
 
@@ -800,10 +814,14 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
   def iterateWithTermination(maxIterations: Int)(
     stepFunction: (DataSet[T]) => (DataSet[T], DataSet[_])): DataSet[T] = {
     val iterativeSet =
-      new IterativeDataSet[T](set.getExecutionEnvironment, set.getType, set,maxIterations)
+      new IterativeDataSet[T](
+        javaSet.getExecutionEnvironment,
+        javaSet.getType,
+        javaSet,
+        maxIterations)
 
     val (resultSet, terminationCriterion) = stepFunction(wrap(iterativeSet))
-    val result = iterativeSet.closeWith(resultSet.set, terminationCriterion.set)
+    val result = iterativeSet.closeWith(resultSet.javaSet, terminationCriterion.javaSet)
     wrap(result)
   }
 
@@ -817,13 +835,20 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
    */
   def iterateDelta[R: ClassTag](workset: DataSet[R], maxIterations: Int, keyFields: Array[Int])(
       stepFunction: (DataSet[T], DataSet[R]) => (DataSet[T], DataSet[R])) = {
-    val key = new FieldPositionKeys[T](keyFields, set.getType, false)
+    val key = new FieldPositionKeys[T](keyFields, javaSet.getType, false)
+
     val iterativeSet = new DeltaIteration[T, R](
-      set.getExecutionEnvironment, set.getType, set, workset.set, key, maxIterations)
+      javaSet.getExecutionEnvironment,
+      javaSet.getType,
+      javaSet,
+      workset.javaSet,
+      key,
+      maxIterations)
+
     val (newSolution, newWorkset) = stepFunction(
       wrap(iterativeSet.getSolutionSet),
       wrap(iterativeSet.getWorkset))
-    val result = iterativeSet.closeWith(newSolution.set, newWorkset.set)
+    val result = iterativeSet.closeWith(newSolution.javaSet, newWorkset.javaSet)
     wrap(result)
   }
 
@@ -837,15 +862,22 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
    */
   def iterateDelta[R: ClassTag](workset: DataSet[R], maxIterations: Int, keyFields: Array[String])(
     stepFunction: (DataSet[T], DataSet[R]) => (DataSet[T], DataSet[R])) = {
-    val fieldIndices = fieldNames2Indices(set.getType, keyFields)
+    val fieldIndices = fieldNames2Indices(javaSet.getType, keyFields)
 
-    val key = new FieldPositionKeys[T](fieldIndices, set.getType, false)
+    val key = new FieldPositionKeys[T](fieldIndices, javaSet.getType, false)
+
     val iterativeSet = new DeltaIteration[T, R](
-      set.getExecutionEnvironment, set.getType, set, workset.set, key, maxIterations)
+      javaSet.getExecutionEnvironment,
+      javaSet.getType,
+      javaSet,
+      workset.javaSet,
+      key,
+      maxIterations)
+
     val (newSolution, newWorkset) = stepFunction(
       wrap(iterativeSet.getSolutionSet),
       wrap(iterativeSet.getWorkset))
-    val result = iterativeSet.closeWith(newSolution.set, newWorkset.set)
+    val result = iterativeSet.closeWith(newSolution.javaSet, newWorkset.javaSet)
     wrap(result)
   }
 
@@ -872,7 +904,7 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
    * Creates a new DataSet containing the elements from both `this` DataSet and the `other`
    * DataSet.
    */
-  def union(other: DataSet[T]): DataSet[T] = wrap(new UnionOperator[T](set, other.set))
+  def union(other: DataSet[T]): DataSet[T] = wrap(new UnionOperator[T](javaSet, other.javaSet))
 
   // --------------------------------------------------------------------------------------------
   //  Partitioning
@@ -886,9 +918,9 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
    */
   def partitionByHash(fields: Int*): DataSet[T] = {
     val op = new PartitionOperator[T](
-      set,
+      javaSet,
       PartitionMethod.HASH,
-      new Keys.FieldPositionKeys[T](fields.toArray, set.getType, false))
+      new Keys.FieldPositionKeys[T](fields.toArray, javaSet.getType, false))
     wrap(op)
   }
 
@@ -899,12 +931,12 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
    * significant amount of time.
    */
   def partitionByHash(firstField: String, otherFields: String*): DataSet[T] = {
-    val fieldIndices = fieldNames2Indices(set.getType, firstField +: otherFields.toArray)
+    val fieldIndices = fieldNames2Indices(javaSet.getType, firstField +: otherFields.toArray)
 
     val op = new PartitionOperator[T](
-      set,
+      javaSet,
       PartitionMethod.HASH,
-      new Keys.FieldPositionKeys[T](fieldIndices, set.getType, false))
+      new Keys.FieldPositionKeys[T](fieldIndices, javaSet.getType, false))
     wrap(op)
   }
 
@@ -919,11 +951,11 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
       def getKey(in: T) = fun(in)
     }
     val op = new PartitionOperator[T](
-      set,
+      javaSet,
       PartitionMethod.HASH,
       new Keys.SelectorFunctionKeys[T, K](
         keyExtractor,
-        set.getType,
+        javaSet.getType,
         implicitly[TypeInformation[K]]))
     wrap(op)
   }
@@ -940,7 +972,7 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
    * @return The rebalanced DataSet.
    */
   def rebalance(): DataSet[T] = {
-    wrap(new PartitionOperator[T](set, PartitionMethod.REBALANCE))
+    wrap(new PartitionOperator[T](javaSet, PartitionMethod.REBALANCE))
   }
 
   // --------------------------------------------------------------------------------------------
@@ -969,7 +1001,7 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
       rowDelimiter: String = ScalaCsvOutputFormat.DEFAULT_LINE_DELIMITER,
       fieldDelimiter: String = ScalaCsvOutputFormat.DEFAULT_FIELD_DELIMITER,
       writeMode: FileSystem.WriteMode = WriteMode.NO_OVERWRITE): DataSink[T] = {
-    Validate.isTrue(set.getType.isTupleType, "CSV output can only be used with Tuple DataSets.")
+    Validate.isTrue(javaSet.getType.isTupleType, "CSV output can only be used with Tuple DataSets.")
     val of = new ScalaCsvOutputFormat[Product](new Path(filePath), rowDelimiter, fieldDelimiter)
     of.setWriteMode(writeMode)
     output(of.asInstanceOf[OutputFormat[T]])
@@ -994,7 +1026,7 @@ class DataSet[T: ClassTag](private[flink] val set: JavaDataSet[T]) {
    * Emits `this` DataSet using a custom [[org.apache.flink.api.common.io.OutputFormat]].
    */
   def output(outputFormat: OutputFormat[T]): DataSink[T] = {
-    set.output(outputFormat)
+    javaSet.output(outputFormat)
   }
 
   /**

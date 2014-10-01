@@ -22,6 +22,12 @@ import org.apache.flink.api.scala.operators.ScalaAggregateOperator
 
 import scala.reflect.ClassTag
 
+/**
+ * The result of [[DataSet.aggregate]]. This can be used to chain more aggregations to the
+ * one aggregate operator.
+ *
+ * @tparam T The type of the DataSet, i.e., the type of the elements of the DataSet.
+ */
 class AggregateDataSet[T: ClassTag](set: ScalaAggregateOperator[T])
   extends DataSet[T](set) {
 

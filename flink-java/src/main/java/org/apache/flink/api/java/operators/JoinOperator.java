@@ -135,7 +135,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		return this.keys2;
 	}
 	
-	protected JoinHint getJoinHint() {
+	public JoinHint getJoinHint() {
 		return this.joinHint;
 	}
 	

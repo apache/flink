@@ -43,16 +43,33 @@ import scala.reflect.ClassTag
  *   }
  * }}}
  *
- * @tparam T Type of the left input of the cross.
- * @tparam O Type of the right input of the cross.
+ * @tparam L Type of the left input of the cross.
+ * @tparam R Type of the right input of the cross.
  */
-trait CrossDataSet[T, O] extends DataSet[(T, O)] {
+class CrossDataSet[L, R](
+    defaultCross: CrossOperator[L, R, (L, R)],
+    leftInput: DataSet[L],
+    rightInput: DataSet[R])
+  extends DataSet(defaultCross) {
 
   /**
    * Creates a new [[DataSet]] where the result for each pair of elements is the result
    * of the given function.
    */
-  def apply[R: TypeInformation: ClassTag](fun: (T, O) => R): DataSet[R]
+  def apply[O: TypeInformation: ClassTag](fun: (L, R) => O): DataSet[O] = {
+    Validate.notNull(fun, "Cross function must not be null.")
+    val crosser = new CrossFunction[L, R, O] {
+      def cross(left: L, right: R): O = {
+        fun(left, right)
+      }
+    }
+    val crossOperator = new CrossOperator[L, R, O](
+      leftInput.javaSet,
+      rightInput.javaSet,
+      crosser,
+      implicitly[TypeInformation[O]])
+    wrap(crossOperator)
+  }
 
   /**
    * Creates a new [[DataSet]] by passing each pair of values to the given function.
@@ -62,71 +79,50 @@ trait CrossDataSet[T, O] extends DataSet[(T, O)] {
    * A [[RichCrossFunction]] can be used to access the
    * broadcast variables and the [[org.apache.flink.api.common.functions.RuntimeContext]].
    */
-  def apply[R: TypeInformation: ClassTag](joiner: CrossFunction[T, O, R]): DataSet[R]
-}
-
-/**
- * Private implementation for [[CrossDataSet]] to keep the implementation details, i.e. the
- * parameters of the constructor, hidden.
- */
-private[flink] class CrossDataSetImpl[T, O](
-    crossOperator: CrossOperator[T, O, (T, O)],
-    thisSet: JavaDataSet[T],
-    otherSet: JavaDataSet[O])
-  extends DataSet(crossOperator)
-  with CrossDataSet[T, O] {
-
-  def apply[R: TypeInformation: ClassTag](fun: (T, O) => R): DataSet[R] = {
-    Validate.notNull(fun, "Cross function must not be null.")
-    val crosser = new CrossFunction[T, O, R] {
-      def cross(left: T, right: O): R = {
-        fun(left, right)
-      }
-    }
-    val crossOperator = new CrossOperator[T, O, R](
-      thisSet,
-      otherSet,
-      crosser,
-      implicitly[TypeInformation[R]])
-    wrap(crossOperator)
-  }
-
-  def apply[R: TypeInformation: ClassTag](crosser: CrossFunction[T, O, R]): DataSet[R] = {
+  def apply[O: TypeInformation: ClassTag](crosser: CrossFunction[L, R, O]): DataSet[O] = {
     Validate.notNull(crosser, "Cross function must not be null.")
-    val crossOperator = new CrossOperator[T, O, R](
-      thisSet,
-      otherSet,
+    val crossOperator = new CrossOperator[L, R, O](
+      leftInput.javaSet,
+      rightInput.javaSet,
       crosser,
-      implicitly[TypeInformation[R]])
+      implicitly[TypeInformation[O]])
     wrap(crossOperator)
   }
 }
 
-private[flink] object CrossDataSetImpl {
-  def createCrossOperator[T, O](leftSet: JavaDataSet[T], rightSet: JavaDataSet[O]) = {
-    val crosser = new CrossFunction[T, O, (T, O)] {
-      def cross(left: T, right: O) = {
+private[flink] object CrossDataSet {
+
+  /**
+   * Creates a default cross operation with Tuple2 as result.
+   */
+  def createCrossOperator[L, R](leftInput: DataSet[L], rightInput: DataSet[R]) = {
+    val crosser = new CrossFunction[L, R, (L, R)] {
+      def cross(left: L, right: R) = {
         (left, right)
       }
     }
-    val returnType = new CaseClassTypeInfo[(T, O)](
-      classOf[(T, O)], Seq(leftSet.getType, rightSet.getType), Array("_1", "_2")) {
+    val returnType = new CaseClassTypeInfo[(L, R)](
+      classOf[(L, R)], Seq(leftInput.getType, rightInput.getType), Array("_1", "_2")) {
 
-      override def createSerializer: TypeSerializer[(T, O)] = {
+      override def createSerializer: TypeSerializer[(L, R)] = {
         val fieldSerializers: Array[TypeSerializer[_]] = new Array[TypeSerializer[_]](getArity)
         for (i <- 0 until getArity) {
           fieldSerializers(i) = types(i).createSerializer
         }
 
-        new CaseClassSerializer[(T, O)](classOf[(T, O)], fieldSerializers) {
+        new CaseClassSerializer[(L, R)](classOf[(L, R)], fieldSerializers) {
           override def createInstance(fields: Array[AnyRef]) = {
-            (fields(0).asInstanceOf[T], fields(1).asInstanceOf[O])
+            (fields(0).asInstanceOf[L], fields(1).asInstanceOf[R])
           }
         }
       }
     }
-    val crossOperator = new CrossOperator[T, O, (T, O)](leftSet, rightSet, crosser, returnType)
+    val crossOperator = new CrossOperator[L, R, (L, R)](
+      leftInput.javaSet,
+      rightInput.javaSet,
+      crosser,
+      returnType)
 
-    new CrossDataSetImpl(crossOperator, leftSet, rightSet)
+    new CrossDataSet(crossOperator, leftInput, rightInput)
   }
 }

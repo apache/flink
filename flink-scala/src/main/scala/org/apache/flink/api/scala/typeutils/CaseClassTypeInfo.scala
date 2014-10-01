@@ -77,13 +77,10 @@ abstract class CaseClassTypeInfo[T <: Product](
   }
 
   def getFieldIndices(fields: Array[String]): Array[Int] = {
-    val result = fields map { x => fieldNames.indexOf(x) }
-    if (result.contains(-1)) {
-      throw new IllegalArgumentException("Fields '" + fields.mkString(", ") +
-        "' are not valid for " + clazz + " with fields '" + fieldNames.mkString(", ") + "'.")
-    }
-    result
+    fields map { x => fieldNames.indexOf(x) }
   }
 
-  override def toString = "Scala " + super.toString
+  override def toString = clazz.getSimpleName + "(" + fieldNames.zip(types).map {
+    case (n, t) => n + ": " + t}
+    .mkString(", ") + ")"
 }
