@@ -18,26 +18,11 @@
 package org.apache.flink.streaming.examples.basictopology;
 
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.examples.java.wordcount.util.WordCountData;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.function.source.SourceFunction;
-import org.apache.flink.util.Collector;
 
 public class BasicTopology {
-
-	public static class BasicSource implements SourceFunction<String> {
-
-		private static final long serialVersionUID = 1L;
-		String str = new String("streaming");
-
-		@Override
-		public void invoke(Collector<String> out) throws Exception {
-			// continuous emit
-			while (true) {
-				out.collect(str);
-			}
-		}
-	}
 
 	public static class IdentityMap implements MapFunction<String, String> {
 		private static final long serialVersionUID = 1L;
@@ -50,14 +35,12 @@ public class BasicTopology {
 	}
 
 	private static final int PARALLELISM = 1;
-	private static final int SOURCE_PARALLELISM = 1;
 
 	public static void main(String[] args) throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment
 				.createLocalEnvironment(PARALLELISM);
 
-		DataStream<String> stream = env.addSource(new BasicSource(), SOURCE_PARALLELISM)
-				.map(new IdentityMap());
+		DataStream<String> stream = env.fromElements(WordCountData.WORDS).map(new IdentityMap());
 
 		stream.print();
 
