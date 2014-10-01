@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.iterative.task;
 
 import org.slf4j.Logger;
@@ -25,6 +24,7 @@ import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.aggregators.LongSumAggregator;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
+import org.apache.flink.api.common.operators.util.JoinHashMap;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.core.memory.DataOutputView;
@@ -36,6 +36,7 @@ import org.apache.flink.runtime.iterative.concurrent.Broker;
 import org.apache.flink.runtime.iterative.concurrent.IterationAggregatorBroker;
 import org.apache.flink.runtime.iterative.concurrent.SolutionSetBroker;
 import org.apache.flink.runtime.iterative.convergence.WorksetEmptyConvergenceCriterion;
+import org.apache.flink.runtime.iterative.io.SolutionSetObjectsUpdateOutputCollector;
 import org.apache.flink.runtime.iterative.io.SolutionSetUpdateOutputCollector;
 import org.apache.flink.runtime.iterative.io.WorksetUpdateOutputCollector;
 import org.apache.flink.runtime.operators.PactDriver;
@@ -311,19 +312,22 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 	 * {@link SolutionSetUpdateOutputCollector}
 	 */
 	protected Collector<OT> createSolutionSetUpdateOutputCollector(Collector<OT> delegate) {
-		Broker<CompactingHashTable<?>> solutionSetBroker = SolutionSetBroker.instance();
-
-		/*if (config.getIsSolutionSetUpdateWithoutReprobe()) {
+		Broker<Object> solutionSetBroker = SolutionSetBroker.instance();
+		
+		Object ss = solutionSetBroker.get(brokerKey());
+		if (ss instanceof CompactingHashTable) {
 			@SuppressWarnings("unchecked")
-			MutableHashTable<OT, ?> solutionSet = (MutableHashTable<OT, ?>) solutionSetBroker.get(brokerKey());
-
-			return new SolutionSetFastUpdateOutputCollector<OT>(solutionSet, delegate);
-		} else {*/
-			@SuppressWarnings("unchecked")
-			CompactingHashTable<OT> solutionSet = (CompactingHashTable<OT>) solutionSetBroker.get(brokerKey());
+			CompactingHashTable<OT> solutionSet = (CompactingHashTable<OT>) ss;
 			TypeSerializer<OT> serializer = getOutputSerializer();
 			return new SolutionSetUpdateOutputCollector<OT>(solutionSet, serializer, delegate);
-		//}
+		}
+		else if (ss instanceof JoinHashMap) {
+			@SuppressWarnings("unchecked")
+			JoinHashMap<OT> map = (JoinHashMap<OT>) ss;
+			return new SolutionSetObjectsUpdateOutputCollector<OT>(map, delegate);
+		} else {
+			throw new RuntimeException("Unrecognized solution set handle: " + ss);
+		}
 	}
 
 	/**

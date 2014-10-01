@@ -192,6 +192,13 @@ under the License.
 				<version>1.2</version>
 			</dependency>
 			
+			<!-- common-collections is used by us and by hadoop, so we need to define a common version -->
+			<dependency>
+				<groupId>commons-collections</groupId>
+				<artifactId>commons-collections</artifactId>
+				<version>3.2.1</version>
+			</dependency>
+			
 			<!-- Managed dependency required for HBase in flink-hbase  -->
 			<dependency>
 				<groupId>org.javassist</groupId>

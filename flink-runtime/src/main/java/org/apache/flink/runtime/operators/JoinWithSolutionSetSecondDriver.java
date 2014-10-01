@@ -16,10 +16,10 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators;
 
 import org.apache.flink.api.common.functions.FlatJoinFunction;
+import org.apache.flink.api.common.operators.util.JoinHashMap;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
@@ -37,6 +37,8 @@ public class JoinWithSolutionSetSecondDriver<IT1, IT2, OT> implements Resettable
 	private PactTaskContext<FlatJoinFunction<IT1, IT2, OT>, OT> taskContext;
 	
 	private CompactingHashTable<IT2> hashTable;
+	
+	private JoinHashMap<IT2> objectMap;
 	
 	private TypeComparator<IT1> probeSideComparator;
 	
@@ -90,23 +92,40 @@ public class JoinWithSolutionSetSecondDriver<IT1, IT2, OT> implements Resettable
 	@SuppressWarnings("unchecked")
 	public void initialize() throws Exception {
 		
+		final TypeSerializer<IT2> solutionSetSerializer;
+		final TypeComparator<IT2> solutionSetComparator;
+		
 		// grab a handle to the hash table from the iteration broker
 		if (taskContext instanceof AbstractIterativePactTask) {
 			AbstractIterativePactTask<?, ?> iterativeTaskContext = (AbstractIterativePactTask<?, ?>) taskContext;
 			String identifier = iterativeTaskContext.brokerKey();
-			this.hashTable = (CompactingHashTable<IT2>) SolutionSetBroker.instance().get(identifier);
-		} else {
+			Object table = SolutionSetBroker.instance().get(identifier);
+			
+			if (table instanceof CompactingHashTable) {
+				this.hashTable = (CompactingHashTable<IT2>) table;
+				solutionSetSerializer = this.hashTable.getBuildSideSerializer();
+				solutionSetComparator = this.hashTable.getBuildSideComparator().duplicate();
+			}
+			else if (table instanceof JoinHashMap) {
+				this.objectMap = (JoinHashMap<IT2>) table;
+				solutionSetSerializer = this.objectMap.getBuildSerializer();
+				solutionSetComparator = this.objectMap.getBuildComparator().duplicate();
+			}
+			else {
+				throw new RuntimeException("Unrecognized solution set index: " + table);
+			}
+		}
+		else {
 			throw new Exception("The task context of this driver is no iterative task context.");
 		}
 		
 		TaskConfig config = taskContext.getTaskConfig();
 		ClassLoader classLoader = taskContext.getUserCodeClassLoader();
 		
-		TypeSerializer<IT2> solutionSetSerializer = this.hashTable.getBuildSideSerializer();
 		TypeSerializer<IT1> probeSideSerializer = taskContext.<IT1>getInputSerializer(0).getSerializer();
 		
-		TypeComparatorFactory<IT1> probeSideComparatorFactory = config.getDriverComparator(0, classLoader);
-		TypeComparator<IT2> solutionSetComparator = this.hashTable.getBuildSideComparator().duplicate();
+		TypeComparatorFactory<IT1> probeSideComparatorFactory = config.getDriverComparator(0, classLoader); 
+		
 		this.probeSideComparator = probeSideComparatorFactory.createComparator();
 		
 		solutionSideRecord = solutionSetSerializer.createInstance();
@@ -128,17 +147,33 @@ public class JoinWithSolutionSetSecondDriver<IT1, IT2, OT> implements Resettable
 
 		final FlatJoinFunction<IT1, IT2, OT> joinFunction = taskContext.getStub();
 		final Collector<OT> collector = taskContext.getOutputCollector();
-		
-		IT2 buildSideRecord = this.solutionSideRecord;
-		IT1 probeSideRecord = this.probeSideRecord;
-			
-		final CompactingHashTable<IT2> join = hashTable;
 		final MutableObjectIterator<IT1> probeSideInput = taskContext.getInput(0);
+		
+		IT1 probeSideRecord = this.probeSideRecord;
+		
+		if (hashTable != null) {
+			final CompactingHashTable<IT2> join = hashTable;
+			final CompactingHashTable<IT2>.HashTableProber<IT1> prober = join.getProber(probeSideComparator, pairComparator);
 			
-		final CompactingHashTable<IT2>.HashTableProber<IT1> prober = join.getProber(probeSideComparator, pairComparator);
-		while (this.running && ((probeSideRecord = probeSideInput.next(probeSideRecord)) != null)) {
-			buildSideRecord = prober.getMatchFor(probeSideRecord, buildSideRecord);
-			joinFunction.join(probeSideRecord, buildSideRecord, collector);
+			IT2 buildSideRecord = this.solutionSideRecord;
+		
+			while (this.running && ((probeSideRecord = probeSideInput.next(probeSideRecord)) != null)) {
+				buildSideRecord = prober.getMatchFor(probeSideRecord, buildSideRecord);
+				joinFunction.join(probeSideRecord, buildSideRecord, collector);
+			}
+		}
+		else if (objectMap != null) {
+			final JoinHashMap<IT2> hashTable = this.objectMap;
+			final JoinHashMap<IT2>.Prober<IT1> prober = this.objectMap.createProber(probeSideComparator, pairComparator);
+			final TypeSerializer<IT2> buildSerializer = hashTable.getBuildSerializer();
+			
+			while (this.running && ((probeSideRecord = probeSideInput.next(probeSideRecord)) != null)) {
+				IT2 match = prober.lookupMatch(probeSideRecord);
+				joinFunction.join(probeSideRecord, buildSerializer.copy(match), collector);
+			}
+		}
+		else {
+			throw new RuntimeException();
 		}
 	}
 

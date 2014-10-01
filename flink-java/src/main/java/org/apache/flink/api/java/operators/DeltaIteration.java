@@ -56,6 +56,9 @@ public class DeltaIteration<ST, WT> {
 	
 	private int parallelism = -1;
 	
+	private boolean solutionSetUnManaged;
+	
+	
 	public DeltaIteration(ExecutionEnvironment context, TypeInformation<ST> type, DataSet<ST> solutionSet, DataSet<WT> workset, Keys<ST> keys, int maxIterations) {
 		initialSolutionSet = solutionSet;
 		initialWorkset = workset;
@@ -209,6 +212,31 @@ public class DeltaIteration<ST, WT> {
 	public AggregatorRegistry getAggregators() {
 		return this.aggregators;
 	}
+	
+	/**
+	 * Sets whether to keep the solution set in managed memory (safe against heap exhaustion) or unmanaged memory
+	 * (objects on heap).
+	 * 
+	 * @param solutionSetUnManaged True to keep the solution set in unmanaged memory, false to keep it in managed memory.
+	 * 
+	 * @see #isSolutionSetUnManaged()
+	 */
+	public void setSolutionSetUnManaged(boolean solutionSetUnManaged) {
+		this.solutionSetUnManaged = solutionSetUnManaged;
+	}
+	
+	/**
+	 * gets whether the solution set is in managed or unmanaged memory.
+	 * 
+	 * @return True, if the solution set is in unmanaged memory (object heap), false if in managed memory.
+	 * 
+	 * @see #setSolutionSetUnManaged(boolean)
+	 */
+	public boolean isSolutionSetUnManaged() {
+		return solutionSetUnManaged;
+	}
+	
+	// --------------------------------------------------------------------------------------------
 	
 	/**
 	 * A {@link DataSet} that acts as a placeholder for the solution set during the iteration.

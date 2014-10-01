@@ -226,6 +226,8 @@ public class OperatorTranslation {
 		// register all aggregators
 		iterationOperator.getAggregators().addAll(iterationHead.getAggregators());
 		
+		iterationOperator.setSolutionSetUnManaged(iterationHead.isSolutionSetUnManaged());
+		
 		return iterationOperator;
 	}
 	

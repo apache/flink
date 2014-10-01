@@ -52,7 +52,7 @@ import org.apache.flink.util.Visitor;
  * workset is considered the second input.
  */
 public class DeltaIterationBase<ST, WT> extends DualInputOperator<ST, WT, ST, AbstractRichFunction> implements IterationOperator {
-
+	
 	private final Operator<ST> solutionSetPlaceholder;
 
 	private final Operator<WT> worksetPlaceholder;
@@ -72,6 +72,8 @@ public class DeltaIterationBase<ST, WT> extends DualInputOperator<ST, WT, ST, Ab
 	private int maxNumberOfIterations = -1;
 
 	private final AggregatorRegistry aggregators = new AggregatorRegistry();
+	
+	private boolean solutionSetUnManaged;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -241,6 +243,29 @@ public class DeltaIterationBase<ST, WT> extends DualInputOperator<ST, WT, ST, Ab
 	 */
 	public <X> void setBroadcastVariables(Map<String, Operator<X>> inputs) {
 		throw new UnsupportedOperationException("The DeltaIteration meta operator cannot have broadcast inputs.");
+	}
+	
+	/**
+	 * Sets whether to keep the solution set in managed memory (safe against heap exhaustion) or unmanaged memory
+	 * (objects on heap).
+	 * 
+	 * @param solutionSetUnManaged True to keep the solution set in unmanaged memory, false to keep it in managed memory.
+	 * 
+	 * @see #isSolutionSetUnManaged()
+	 */
+	public void setSolutionSetUnManaged(boolean solutionSetUnManaged) {
+		this.solutionSetUnManaged = solutionSetUnManaged;
+	}
+	
+	/**
+	 * gets whether the solution set is in managed or unmanaged memory.
+	 * 
+	 * @return True, if the solution set is in unmanaged memory (object heap), false if in managed memory.
+	 * 
+	 * @see #setSolutionSetUnManaged(boolean)
+	 */
+	public boolean isSolutionSetUnManaged() {
+		return solutionSetUnManaged;
 	}
 	
 	// --------------------------------------------------------------------------------------------
