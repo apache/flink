@@ -22,14 +22,19 @@ import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.ServerSocket;
+import java.rmi.AccessException;
 import java.rmi.AlreadyBoundException;
+import java.rmi.NotBoundException;
+import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
+import java.util.List;
 import java.util.UUID;
 
 import org.apache.flink.api.common.io.OutputFormat;
@@ -52,6 +57,12 @@ public class RemoteCollectorImpl<T> extends UnicastRemoteObject implements
 	 */
 
 	private RemoteCollectorConsumer<T> consumer;
+	
+        /**
+         * This map saves all the mappings of open registries to their bind remote
+         * objects. We need to store this for the shutdown phase to unbind.
+         */
+	private static List<Registry> registries = new ArrayList<Registry>();
 
 	/**
 	 * This factory method creates an instance of the
@@ -75,6 +86,8 @@ public class RemoteCollectorImpl<T> extends UnicastRemoteObject implements
 
 			registry = LocateRegistry.createRegistry(port);
 			registry.bind(rmiId, collectorInstance);
+			
+			registries.add(registry);
 		} catch (RemoteException e) {
 			e.printStackTrace();
 		} catch (AlreadyBoundException e) {
@@ -189,4 +202,21 @@ public class RemoteCollectorImpl<T> extends UnicastRemoteObject implements
 	public void setConsumer(RemoteCollectorConsumer<T> consumer) {
 		this.consumer = consumer;
 	}
+
+	/**
+	 * This method unbinds and unexports all exposed {@link Remote} objects
+	 * @throws AccessException
+	 * @throws RemoteException
+	 * @throws NotBoundException
+	 */
+        public static void shutdownAll() throws AccessException, RemoteException, NotBoundException {
+        	for (Registry registry : registries) {
+        	    for (String id : registry.list()) {
+        		Remote remote = registry.lookup(id);
+        		registry.unbind(id);
+        		UnicastRemoteObject.unexportObject(remote, true);
+        	    }
+		
+        	}
+        }
 }
