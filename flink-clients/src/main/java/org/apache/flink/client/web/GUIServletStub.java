@@ -143,7 +143,6 @@ public abstract class GUIServletStub extends HttpServlet {
 				+ "</div></h1>");
 		writer.println("  </div>");
 
-		@SuppressWarnings("unchecked")
 		Map<String, String[]> m = (Map<String, String[]>) req.getParameterMap();
 
 		// let the content be printed by the child class

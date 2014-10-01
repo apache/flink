@@ -26,6 +26,7 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
 
+@SuppressWarnings("rawtypes")
 public class IntListComparator extends TypeComparator<IntList> {
 	
 	private static final long serialVersionUID = 1L;

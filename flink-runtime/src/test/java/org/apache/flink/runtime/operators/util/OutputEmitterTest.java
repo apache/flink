@@ -380,7 +380,7 @@ public class OutputEmitterTest extends TestCase {
 		Assert.fail("Expected a NullKeyFieldException.");
 	}
 	
-	@SuppressWarnings("serial")
+	@SuppressWarnings({"serial", "rawtypes"})
 	private static class TestIntComparator extends TypeComparator<Integer> {
 		private final Comparable[] extractedKey = new Comparable[1];
 

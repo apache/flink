@@ -873,6 +873,7 @@ public class TypeExtractor {
 		return new GenericTypeInfo<X>(clazz);
 	}
 
+	@SuppressWarnings("unused")
 	private <X> TypeInformation<X> analyzePojo(Class<X> clazz) {
 		List<Field> fields = getAllDeclaredFields(clazz);
 		List<PojoField> pojoFields = new ArrayList<PojoField>();

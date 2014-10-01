@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators.testutils.types;
 
 import java.io.IOException;
@@ -27,7 +26,7 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
 
-
+@SuppressWarnings("rawtypes")
 public class IntPairComparator extends TypeComparator<IntPair> {
 
 	private static final long serialVersionUID = 1L;

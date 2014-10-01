@@ -653,7 +653,8 @@ public abstract class DataSet<T> {
 	 * second input being the second field of the tuple.
 	 * 
 	 * <p>
-	 * Call {@link org.apache.flink.api.java.operators.CrossOperator.DefaultCross#with(org.apache.flink.api.common.functions.CrossFunction)} to define a {@link CrossFunction} which is called for
+	 * Call {@link org.apache.flink.api.java.operators.CrossOperator.DefaultCross#with(org.apache.flink.api.common.functions.CrossFunction)} to define a
+	 * {@link org.apache.flink.api.common.functions.CrossFunction} which is called for
 	 * each pair of crossed elements. The CrossFunction returns a exactly one element for each pair of input elements.</br>
 	 * 
 	 * @param other The other DataSet with which this DataSet is crossed. 

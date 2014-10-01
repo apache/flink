@@ -27,6 +27,7 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.types.StringValue;
 
+@SuppressWarnings("rawtypes")
 public class StringPairComparator extends TypeComparator<StringPair> {
 	
 	private static final long serialVersionUID = 1L;
