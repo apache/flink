@@ -46,9 +46,8 @@ public class RemoteCollectorOutputFormatExample {
 		 * use you should consider using the {@link LocalCollectionOutputFormat
 		 * <T>}.
 		 */
-		final ExecutionEnvironment env = ExecutionEnvironment
-				.createRemoteEnvironment("<remote>", 6124,
-						"/path/to/your/file.jar");
+		final ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment("<remote>", 6124,
+				"/path/to/your/file.jar");
 
 		// get input data
 		DataSet<String> text = env.fromElements(
@@ -82,6 +81,8 @@ public class RemoteCollectorOutputFormatExample {
 		env.execute("WordCount Example with RemoteCollectorOutputFormat");
 
 		System.out.println(collection);
+		
+		RemoteCollectorImpl.shutdownAll();
 	}
 
 	//
