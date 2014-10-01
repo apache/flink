@@ -16,49 +16,32 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.accumulators;
 
 import java.io.IOException;
-import java.io.Serializable;
-import java.util.Collection;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.accumulators.DoubleCounter;
 import org.apache.flink.api.common.accumulators.Histogram;
 import org.apache.flink.api.common.accumulators.IntCounter;
-import org.apache.flink.api.java.record.functions.MapFunction;
-import org.apache.flink.api.java.record.functions.ReduceFunction;
-import org.apache.flink.api.java.record.functions.FunctionAnnotation.ConstantFields;
-import org.apache.flink.api.java.record.io.CsvOutputFormat;
-import org.apache.flink.api.java.record.io.TextInputFormat;
-import org.apache.flink.api.java.record.operators.FileDataSink;
-import org.apache.flink.api.java.record.operators.FileDataSource;
-import org.apache.flink.api.java.record.operators.MapOperator;
-import org.apache.flink.api.java.record.operators.ReduceOperator;
-import org.apache.flink.api.java.record.operators.ReduceOperator.Combinable;
+import org.apache.flink.api.common.functions.RichFlatMapFunction;
+import org.apache.flink.api.common.functions.RichGroupReduceFunction;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.core.io.StringRecord;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.util.SerializableHashSet;
-import org.apache.flink.test.util.RecordAPITestBase;
-import org.apache.flink.types.IntValue;
-import org.apache.flink.types.Record;
+import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.SimpleStringUtils;
 import org.junit.Assert;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
 
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -70,22 +53,17 @@ import com.google.common.collect.Sets;
  * TODO Test conflict when different UDFs write to accumulator with same name
  * but with different type. The conflict will occur in JobManager while merging.
  */
-@RunWith(Parameterized.class)
-public class AccumulatorITCase extends RecordAPITestBase {
+@SuppressWarnings("serial")
+public class AccumulatorITCase extends JavaProgramTestBase {
 
 	private static final String INPUT = "one\n" + "two two\n" + "three three three\n";
 	private static final String EXPECTED = "one 1\ntwo 2\nthree 3\n";
-	
-	private static final int DOP = 2;
 
-	protected String dataPath;
-	protected String resultPath;
-	
-	public AccumulatorITCase(Configuration config) {
-		super(config);
-		setTaskManagerNumSlots(DOP);
-	}
+	private String dataPath;
+	private String resultPath;
 
+	private JobExecutionResult result;
+	
 	@Override
 	protected void preSubmit() throws Exception {
 		dataPath = createTempFile("datapoints.txt", INPUT);
@@ -98,12 +76,12 @@ public class AccumulatorITCase extends RecordAPITestBase {
 		
 		// Test accumulator results
 		System.out.println("Accumulator results:");
-		JobExecutionResult res = getJobExecutionResult();
+		JobExecutionResult res = this.result;
 		System.out.println(AccumulatorHelper.getResultsFormated(res.getAllAccumulatorResults()));
 		
 		Assert.assertEquals(new Integer(3), (Integer) res.getAccumulatorResult("num-lines"));
 
-		Assert.assertEquals(new Double(DOP), (Double)res.getAccumulatorResult("open-close-counter"));
+		Assert.assertEquals(new Double(getDegreeOfParallelism()), (Double)res.getAccumulatorResult("open-close-counter"));
 		
 		// Test histogram (words per line distribution)
 		Map<Integer, Integer> dist = Maps.newHashMap();
@@ -111,65 +89,40 @@ public class AccumulatorITCase extends RecordAPITestBase {
 		Assert.assertEquals(dist, res.getAccumulatorResult("words-per-line"));
 		
 		// Test distinct words (custom accumulator)
-		Set<StringRecord> distinctWords = Sets.newHashSet();
-		distinctWords.add(new StringRecord("one"));
-		distinctWords.add(new StringRecord("two"));
-		distinctWords.add(new StringRecord("three"));
+		Set<StringValue> distinctWords = Sets.newHashSet();
+		distinctWords.add(new StringValue("one"));
+		distinctWords.add(new StringValue("two"));
+		distinctWords.add(new StringValue("three"));
 		Assert.assertEquals(distinctWords, res.getAccumulatorResult("distinct-words"));
 	}
 
 	@Override
-	protected Plan getTestJob() {
-		Plan plan = getTestPlanPlan(config.getInteger("IterationAllReducer#NoSubtasks", 1), dataPath, resultPath);
-		return plan;
-	}
-
-	@Parameters
-	public static Collection<Object[]> getConfigurations() {
-		Configuration config1 = new Configuration();
-		config1.setInteger("IterationAllReducer#NoSubtasks", DOP);
-		return toParameterList(config1);
+	protected void testProgram() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		
+		DataSet<String> input = env.readTextFile(dataPath); 
+		
+		input.flatMap(new TokenizeLine())
+			.groupBy(0)
+			.reduceGroup(new CountWords())
+			.writeAsCsv(resultPath, "\n", " ");
+		
+		this.result = env.execute();
 	}
 	
-	static Plan getTestPlanPlan(int numSubTasks, String input, String output) {
-		
-		FileDataSource source = new FileDataSource(new TextInputFormat(), input, "Input Lines");
-		source.setParameter(TextInputFormat.CHARSET_NAME, "ASCII");
-		MapOperator mapper = MapOperator.builder(new TokenizeLine())
-			.input(source)
-			.name("Tokenize Lines")
-			.build();
-		ReduceOperator reducer = ReduceOperator.builder(CountWords.class, StringValue.class, 0)
-			.input(mapper)
-			.name("Count Words")
-			.build();
-		@SuppressWarnings("unchecked")
-		FileDataSink out = new FileDataSink(new CsvOutputFormat("\n"," ", StringValue.class, IntValue.class), output, reducer, "Word Counts");
-
-		Plan plan = new Plan(out, "WordCount Example");
-		plan.setDefaultParallelism(numSubTasks);
-		
-		return plan;
-	}
-	
-	public static class TokenizeLine extends MapFunction implements Serializable {
-		private static final long serialVersionUID = 1L;
-		private final Record outputRecord = new Record();
-		private StringValue word;
-		private final IntValue one = new IntValue(1);
-		private final SimpleStringUtils.WhitespaceTokenizer tokenizer = new SimpleStringUtils.WhitespaceTokenizer();
+	public static class TokenizeLine extends RichFlatMapFunction<String, Tuple2<String, Integer>> {
 
 		// Needs to be instantiated later since the runtime context is not yet
 		// initialized at this place
-		IntCounter cntNumLines = null;
-		Histogram wordsPerLineDistribution = null;
+		private IntCounter cntNumLines;
+		private Histogram wordsPerLineDistribution;
 
 		// This counter will be added without convenience functions
-		DoubleCounter openCloseCounter = new DoubleCounter();
-		private SetAccumulator<StringRecord> distinctWords = null;
-    
+		private DoubleCounter openCloseCounter = new DoubleCounter();
+		private SetAccumulator<StringValue> distinctWords;
+
 		@Override
-		public void open(Configuration parameters) throws Exception {
+		public void open(Configuration parameters) {
 		  
 			// Add counters using convenience functions
 			this.cntNumLines = getRuntimeContext().getIntCounter("num-lines");
@@ -180,7 +133,7 @@ public class AccumulatorITCase extends RecordAPITestBase {
 
 			// Add custom counter. Didn't find a way to do this with
 			// getAccumulator()
-			this.distinctWords = new SetAccumulator<StringRecord>();
+			this.distinctWords = new SetAccumulator<StringValue>();
 			this.getRuntimeContext().addAccumulator("distinct-words", distinctWords);
 
 			// Create counter and test increment
@@ -208,23 +161,13 @@ public class AccumulatorITCase extends RecordAPITestBase {
 		}
 		
 		@Override
-		public void map(Record record, Collector<Record> collector) {
+		public void flatMap(String value, Collector<Tuple2<String, Integer>> out) {
 			this.cntNumLines.add(1);
-			
-			StringValue line = record.getField(0, StringValue.class);
-			SimpleStringUtils.replaceNonWordChars(line, ' ');
-			SimpleStringUtils.toLowerCase(line);
-			this.tokenizer.setStringToTokenize(line);
 			int wordsPerLine = 0;
-			this.word = new StringValue();
-			while (tokenizer.next(this.word))
-			{
-				// Use custom counter
-				distinctWords.add(new StringRecord(this.word.getValue()));
-  
-				this.outputRecord.setField(0, this.word);
-				this.outputRecord.setField(1, this.one);
-				collector.collect(this.outputRecord);
+			
+			for (String token : value.toLowerCase().split("\\W+")) {
+				distinctWords.add(new StringValue(token));
+				out.collect(new Tuple2<String, Integer>(token, 1));
 				++ wordsPerLine;
 			}
 			wordsPerLineDistribution.add(wordsPerLine);
@@ -238,48 +181,39 @@ public class AccumulatorITCase extends RecordAPITestBase {
 		}
 	}
 
-	@Combinable
-	@ConstantFields(0)
-	public static class CountWords extends ReduceFunction implements Serializable {
+	
+	public static class CountWords extends RichGroupReduceFunction<Tuple2<String, Integer>, Tuple2<String, Integer>> {
 		
-		private static final long serialVersionUID = 1L;
-		
-		private final IntValue cnt = new IntValue();
-		
-		private IntCounter reduceCalls = null;
-		private IntCounter combineCalls = null;
+		private IntCounter reduceCalls;
+		private IntCounter combineCalls;
 		
 		@Override
-		public void open(Configuration parameters) throws Exception {
+		public void open(Configuration parameters) {
 			this.reduceCalls = getRuntimeContext().getIntCounter("reduce-calls");
 			this.combineCalls = getRuntimeContext().getIntCounter("combine-calls");
 		}
 		
 		@Override
-		public void reduce(Iterator<Record> records, Collector<Record> out) throws Exception {
+		public void reduce(Iterable<Tuple2<String, Integer>> values, Collector<Tuple2<String, Integer>> out) {
 			reduceCalls.add(1);
-			reduceInternal(records, out);
+			reduceInternal(values, out);
 		}
 		
 		@Override
-		public void combine(Iterator<Record> records, Collector<Record> out) throws Exception {
+		public void combine(Iterable<Tuple2<String, Integer>> values, Collector<Tuple2<String, Integer>> out) {
 			combineCalls.add(1);
-			reduceInternal(records, out);
+			reduceInternal(values, out);
 		}
 		
-		private void reduceInternal(Iterator<Record> records, Collector<Record> out) {
-			Record element = null;
+		private void reduceInternal(Iterable<Tuple2<String, Integer>> values, Collector<Tuple2<String, Integer>> out) {
 			int sum = 0;
+			String key = null;
 			
-			while (records.hasNext()) {
-				element = records.next();
-				IntValue i = element.getField(1, IntValue.class);
-				sum += i.getValue();
+			for (Tuple2<String, Integer> e : values) {
+				key = e.f0;
+				sum += e.f1;
 			}
-
-			this.cnt.setValue(sum);
-			element.setField(1, this.cnt);
-			out.collect(element);
+			out.collect(new Tuple2<String, Integer>(key, sum));
 		}
 	}
 	

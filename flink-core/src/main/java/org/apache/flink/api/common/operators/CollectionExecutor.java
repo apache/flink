@@ -33,8 +33,11 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
+import org.apache.flink.api.common.aggregators.Aggregator;
+import org.apache.flink.api.common.aggregators.AggregatorWithName;
+import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
+import org.apache.flink.api.common.functions.IterationRuntimeContext;
 import org.apache.flink.api.common.functions.RichFunction;
-import org.apache.flink.api.common.functions.util.IterationRuntimeUDFContext;
 import org.apache.flink.api.common.functions.util.RuntimeUDFContext;
 import org.apache.flink.api.common.operators.base.BulkIterationBase;
 import org.apache.flink.api.common.operators.base.BulkIterationBase.PartialSolutionPlaceHolder;
@@ -45,6 +48,7 @@ import org.apache.flink.api.common.operators.util.TypeComparable;
 import org.apache.flink.api.common.typeinfo.CompositeType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeComparator;
+import org.apache.flink.types.Value;
 import org.apache.flink.util.Visitor;
 
 /**
@@ -58,6 +62,10 @@ public class CollectionExecutor {
 	
 	private final Map<String, Accumulator<?, ?>> accumulators;
 	
+	private final Map<String, Value> previousAggregates;
+	
+	private final Map<String, Aggregator<?>> aggregators;
+	
 	private final boolean mutableObjectSafeMode;
 	
 	// --------------------------------------------------------------------------------------------
@@ -68,8 +76,11 @@ public class CollectionExecutor {
 		
 	public CollectionExecutor(boolean mutableObjectSafeMode) {
 		this.mutableObjectSafeMode = mutableObjectSafeMode;
+		
 		this.intermediateResults = new HashMap<Operator<?>, List<?>>();
 		this.accumulators = new HashMap<String, Accumulator<?,?>>();
+		this.previousAggregates = new HashMap<String, Value>();
+		this.aggregators = new HashMap<String, Aggregator<?>>();
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -251,6 +262,14 @@ public class CollectionExecutor {
 			iteration.getTerminationCriterion().accept(dynCollector);
 		}
 		
+		// register the aggregators
+		for (AggregatorWithName<?> a : iteration.getAggregators().getAllRegisteredAggregators()) {
+			aggregators.put(a.getName(), a.getAggregator());
+		}
+		
+		String convCriterionAggName = iteration.getAggregators().getConvergenceCriterionAggregatorName();
+		ConvergenceCriterion<Value> convCriterion = (ConvergenceCriterion<Value>) iteration.getAggregators().getConvergenceCriterion();
+		
 		List<T> currentResult = inputData;
 		
 		final int maxIterations = iteration.getMaximumNumberOfIterations();
@@ -265,8 +284,13 @@ public class CollectionExecutor {
 
 			// evaluate the termination criterion
 			if (iteration.getTerminationCriterion() != null) {
-				List<?> term = execute(((SingleInputOperator<?, ?, ?>) iteration.getTerminationCriterion()).getInput(), superstep);
-				if (term.isEmpty()) {
+				execute(iteration.getTerminationCriterion(), superstep);
+			}
+			
+			// evaluate the aggregator convergence criterion
+			if (convCriterion != null && convCriterionAggName != null) {
+				Value v = aggregators.get(convCriterionAggName).getAggregate();
+				if (convCriterion.isConverged(superstep, v)) {
 					break;
 				}
 			}
@@ -275,7 +299,16 @@ public class CollectionExecutor {
 			for (Operator<?> o : dynamics) {
 				intermediateResults.remove(o);
 			}
+			
+			// set the previous iteration's aggregates and reset the aggregators
+			for (Map.Entry<String, Aggregator<?>> e : aggregators.entrySet()) {
+				previousAggregates.put(e.getKey(), e.getValue().getAggregate());
+				e.getValue().reset();
+			}
 		}
+		
+		previousAggregates.clear();
+		aggregators.clear();
 		
 		return currentResult;
 	}
@@ -323,6 +356,10 @@ public class CollectionExecutor {
 
 		List<?> currentWorkset = worksetInputData;
 
+		// register the aggregators
+		for (AggregatorWithName<?> a : iteration.getAggregators().getAllRegisteredAggregators()) {
+			aggregators.put(a.getName(), a.getAggregator());
+		}
 
 		final int maxIterations = iteration.getMaximumNumberOfIterations();
 
@@ -355,7 +392,16 @@ public class CollectionExecutor {
 			for (Operator<?> o : dynamics) {
 				intermediateResults.remove(o);
 			}
+			
+			// set the previous iteration's aggregates and reset the aggregators
+			for (Map.Entry<String, Aggregator<?>> e : aggregators.entrySet()) {
+				previousAggregates.put(e.getKey(), e.getValue().getAggregate());
+				e.getValue().reset();
+			}
 		}
+		
+		previousAggregates.clear();
+		aggregators.clear();
 
 		List<T> currentSolution = new ArrayList<T>(solutionMap.size());
 		currentSolution.addAll(solutionMap.values());
@@ -425,6 +471,33 @@ public class CollectionExecutor {
 			else {
 				throw new RuntimeException("Cannot handle operator type " + op.getClass().getName());
 			}
+		}
+	}
+	
+	private class IterationRuntimeUDFContext extends RuntimeUDFContext implements IterationRuntimeContext {
+
+		private final int superstep;
+
+		public IterationRuntimeUDFContext(String name, int numParallelSubtasks, int subtaskIndex, int superstep) {
+			super(name, numParallelSubtasks, subtaskIndex);
+			this.superstep = superstep;
+		}
+
+		@Override
+		public int getSuperstepNumber() {
+			return superstep;
+		}
+
+		@SuppressWarnings("unchecked")
+		@Override
+		public <T extends Aggregator<?>> T getIterationAggregator(String name) {
+			return (T) aggregators.get(name);
+		}
+
+		@SuppressWarnings("unchecked")
+		@Override
+		public <T extends Value> T getPreviousIterationAggregate(String name) {
+			return (T) previousAggregates.get(name);
 		}
 	}
 }

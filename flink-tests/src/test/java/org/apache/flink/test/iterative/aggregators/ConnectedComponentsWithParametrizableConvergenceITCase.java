@@ -54,6 +54,7 @@ public class ConnectedComponentsWithParametrizableConvergenceITCase extends Java
 	@Override
 	protected void preSubmit() throws Exception {
 		// vertices input
+		verticesInput.clear();
 		verticesInput.add(new Tuple2<Long, Long>(1l,1l));
 		verticesInput.add(new Tuple2<Long, Long>(2l,2l));
 		verticesInput.add(new Tuple2<Long, Long>(3l,3l));
@@ -65,6 +66,7 @@ public class ConnectedComponentsWithParametrizableConvergenceITCase extends Java
 		verticesInput.add(new Tuple2<Long, Long>(9l,9l));
 
 		// vertices input
+		edgesInput.clear();
 		edgesInput.add(new Tuple2<Long, Long>(1l,2l));
 		edgesInput.add(new Tuple2<Long, Long>(1l,3l));
 		edgesInput.add(new Tuple2<Long, Long>(2l,3l));

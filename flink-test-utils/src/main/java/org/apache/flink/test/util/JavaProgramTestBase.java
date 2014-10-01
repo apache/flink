@@ -64,6 +64,10 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
 		setTaskManagerNumSlots(degreeOfParallelism);
 	}
 	
+	public int getDegreeOfParallelism() {
+		return isCollectionExecution ? 1 : degreeOfParallelism;
+	}
+	
 	public JobExecutionResult getLatestExecutionResult() {
 		return this.latestExecutionResult;
 	}

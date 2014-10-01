@@ -16,20 +16,13 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.iterative;
 
-import java.util.Collection;
-
 import org.apache.flink.api.common.Plan;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.recordJobs.graph.WorksetConnectedComponents;
 import org.apache.flink.test.util.RecordAPITestBase;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
 
-@RunWith(Parameterized.class)
+
 public class DeltaPageRankITCase extends RecordAPITestBase {
 	
 	protected String verticesPath;
@@ -37,12 +30,6 @@ public class DeltaPageRankITCase extends RecordAPITestBase {
 	protected String deltasPath;
 	
 	protected String resultPath;
-	
-	
-	public DeltaPageRankITCase(Configuration config) {
-		super(config);
-		setTaskManagerNumSlots(DOP);
-	}
 	
 	@Override
 	protected void preSubmit() throws Exception {
@@ -55,10 +42,7 @@ public class DeltaPageRankITCase extends RecordAPITestBase {
 	
 	@Override
 	protected Plan getTestJob() {
-		int dop = config.getInteger("NumSubtasks", 1);
-		int maxIterations = config.getInteger("NumIterations", 1);
-		
-		String[] params = { String.valueOf(dop) , verticesPath, edgesPath, resultPath, String.valueOf(maxIterations) };
+		String[] params = { String.valueOf(DOP) , verticesPath, edgesPath, resultPath, "3" };
 		
 		WorksetConnectedComponents cc = new WorksetConnectedComponents();
 		return cc.getPlan(params);
@@ -67,14 +51,6 @@ public class DeltaPageRankITCase extends RecordAPITestBase {
 	@Override
 	protected void postSubmit() throws Exception {
 //		compareResultsByLinesInMemory(RESULT_RANKS, resultPath);
-	}
-
-	@Parameters
-	public static Collection<Object[]> getConfigurations() {
-		Configuration config1 = new Configuration();
-		config1.setInteger("NumSubtasks", DOP);
-		config1.setInteger("NumIterations", 3);
-		return toParameterList(config1);
 	}
 	
 	

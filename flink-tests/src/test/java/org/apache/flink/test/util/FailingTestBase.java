@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.util;
 
 import org.junit.Assert;
@@ -56,57 +55,63 @@ public abstract class FailingTestBase extends RecordAPITestBase {
 	
 	/**
 	 * Tests that both jobs, the failing and the working one, are handled correctly.
-	 * The first (failing) job must be canceled and the Nephele client must report the failure.
+	 * The first (failing) job must be canceled and the client must report the failure.
 	 * The second (working) job must finish successfully and compute the correct result.
-	 * A timeout waits for the successful return for the Nephele client. In case of a deadlock 
+	 * A timeout waits for the successful return for the client. In case of a deadlock 
 	 * (or too small value for timeout) the time runs out and this test fails. 
 	 * 
 	 */
 	@Override
 	public void testJob() throws Exception {
-		// pre-submit
+		startCluster();
 		try {
-			preSubmit();
+			// pre-submit
+			try {
+				preSubmit();
+			}
+			catch (Exception e) {
+				System.err.println(e.getMessage());
+				e.printStackTrace();
+				Assert.fail("Pre-submit work caused an error: " + e.getMessage());
+			}
+			
+			// init submission thread
+			SubmissionThread st = new SubmissionThread(Thread.currentThread(), this.executor, getFailingJobGraph(), getJobGraph());
+			// start submission thread
+			st.start();
+			
+			try {
+				// wait for timeout
+				Thread.sleep(getTimeout()*1000);
+				Assert.fail("Failing job and successful job did not fail.");
+			} catch(InterruptedException ie) {
+				// will have happened if all works fine
+			}
+			
+			Exception cte = st.error;
+			if (cte != null) {
+				cte.printStackTrace();
+				Assert.fail("Task Canceling failed: " + cte.getMessage());
+			}
+			
+			// post-submit
+			try {
+				postSubmit();
+			}
+			catch (Exception e) {
+				System.err.println(e.getMessage());
+				e.printStackTrace();
+				Assert.fail("Post-submit work caused an error: " + e.getMessage());
+			}
 		}
-		catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			Assert.fail("Pre-submit work caused an error: " + e.getMessage());
-		}
-		
-		// init submission thread
-		SubmissionThread st = new SubmissionThread(Thread.currentThread(), this.executor, getFailingJobGraph(), getJobGraph());
-		// start submission thread
-		st.start();
-		
-		try {
-			// wait for timeout
-			Thread.sleep(getTimeout()*1000);
-			Assert.fail("Failing job and successful job did not fail.");
-		} catch(InterruptedException ie) {
-			// will have happened if all works fine
-		}
-		
-		Exception cte = st.error;
-		if (cte != null) {
-			cte.printStackTrace();
-			Assert.fail("Task Canceling failed: " + cte.getMessage());
-		}
-		
-		// post-submit
-		try {
-			postSubmit();
-		}
-		catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			Assert.fail("Post-submit work caused an error: " + e.getMessage());
+		finally {
+			stopCluster();
 		}
 	}
 	
 	/**
 	 * Thread for submitting both jobs sequentially to the test cluster.
-	 * First, the failing job is submitted. The working job is submitted after the Nephele client returns 
+	 * First, the failing job is submitted. The working job is submitted after the client returns 
 	 * from the call of its submitJobAndWait() method. 
 	 */
 	private class SubmissionThread extends Thread {
