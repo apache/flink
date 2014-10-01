@@ -59,8 +59,9 @@ public class RemoteCollectorImpl<T> extends UnicastRemoteObject implements
 	private RemoteCollectorConsumer<T> consumer;
 	
         /**
-         * This map saves all the mappings of open registries to their bind remote
-         * objects. We need to store this for the shutdown phase to unbind.
+         * This list stores all created {@link Registry}s to unbind and unexport all
+         * exposed {@link Remote} objects ({@link RemoteCollectorConsumer} in our
+         * case) in the shutdown phase.
          */
 	private static List<Registry> registries = new ArrayList<Registry>();
 
