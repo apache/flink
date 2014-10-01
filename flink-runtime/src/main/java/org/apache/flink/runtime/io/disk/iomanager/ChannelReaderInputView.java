@@ -110,7 +110,7 @@ public class ChannelReaderInputView extends AbstractPagedInputView {
 	 *                  given, the reader avoids issuing pre-fetch requests for blocks
 	 *                  beyond the channel size.
 	 * @param headerLen The length of the header assumed at the beginning of the block. Note that the
-	 *                  {@link #nextSegment(MemorySegment)} method assumes the default header length,
+	 *                  {@link #nextSegment(org.apache.flink.core.memory.MemorySegment)} method assumes the default header length,
 	 *                  so any subclass changing the header length should override that methods as well.
 	 * @param waitForFirstBlock A flag indicating weather this constructor call should block
 	 *                          until the first block has returned from the asynchronous I/O reader.

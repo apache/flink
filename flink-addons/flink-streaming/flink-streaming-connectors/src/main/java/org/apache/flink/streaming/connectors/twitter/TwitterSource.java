@@ -246,7 +246,7 @@ public class TwitterSource extends RichSourceFunction<String> {
 	/**
 	 * Get the size of the queue in which the tweets are contained temporarily.
 	 * 
-	 * @return
+	 * @return the size of the queue in which the tweets are contained temporarily
 	 */
 	public int getQueueSize() {
 		return queueSize;

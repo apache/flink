@@ -26,7 +26,7 @@ import redis.clients.jedis.Jedis;
 /**
  * Interface to a Redis key-value cache. It needs a running instance of Redis.
  * 
- * See {@linktourl http://redis.io/}
+ * @see <a href="http://redis.io/">http://redis.io/</a>
  * 
  * @param <K>
  *            Type of key

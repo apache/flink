@@ -90,24 +90,18 @@ public interface CoReduceFunction<IN1, IN2, OUT> extends Function, Serializable 
 	/**
 	 * Maps the reduced first input to the output type.
 	 * 
-	 * @param <IN1>
+	 * @param value
 	 *            Type of the first input.
-	 * @param <IN2>
-	 *            Type of the second input.
-	 * @param <OUT>
-	 *            Output type.
+	 * @return the output type.
 	 */
 	public OUT map1(IN1 value);
 
 	/**
 	 * Maps the reduced second input to the output type.
 	 * 
-	 * @param <IN1>
-	 *            Type of the first input.
-	 * @param <IN2>
+	 * @param value
 	 *            Type of the second input.
-	 * @param <OUT>
-	 *            Output type.
+	 * @return the output type.
 	 */
 	public OUT map2(IN2 value);
 }

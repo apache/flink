@@ -59,12 +59,6 @@ public class ReOpenableHashPartition<BT, PT> extends HashPartition<BT, PT> {
 				initialBuffer, memSource, segmentSize);
 	}
 
-	/**
-	* This method is used if the HashTable is setup for multiple probe phases.
-	* We can drop probe related files but not build files (or memory)
-	* @param furtherPartitioning Set to true if additional partitioning steps are required -> release as much memory as possible! (Memory contents are stored on disk)
-	* @throws IOException 
-	*/
 	@Override
 	public int finalizeProbePhase(List<MemorySegment> freeMemory,
 			List<HashPartition<BT, PT>> spilledPartitions) throws IOException {

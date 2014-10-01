@@ -25,10 +25,8 @@ import net.spy.memcached.MemcachedClient;
 /**
  * Interface to a Memcached key-value cache. It needs a running instance of Memcached.
  * 
- * See {@linktourl http://memcached.org/}
+ * @see <a href="http://memcached.org/">http://memcached.org</a>
  * 
- * @param <K>
- *            Type of key
  * @param <V>
  *            Type of value
  */

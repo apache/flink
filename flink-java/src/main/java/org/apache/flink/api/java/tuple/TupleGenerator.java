@@ -722,7 +722,7 @@ class TupleGenerator {
 		w.println();
 		w.println("\t/**");
 		w.println("\t* Shallow tuple copy.");
-		w.println("\t* @returns A new Tuple with the same fields as this.");
+		w.println("\t* @return A new Tuple with the same fields as this.");
 		w.println("\t */");
 		w.println("\tpublic " + className + tupleTypes + " copy(){ ");
 
