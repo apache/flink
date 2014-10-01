@@ -29,7 +29,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.URL;
-import java.nio.file.Files;
 
 /**
  * The BLOB cache implements a local cache for content-addressable BLOBs. When requesting BLOBs through the
@@ -140,7 +139,9 @@ public final class BlobCache implements BlobService {
 	public void delete(BlobKey key) throws IOException{
 		final File localFile = BlobUtils.getStorageLocation(storageDir, key);
 
-		Files.delete(localFile.toPath());
+		if(localFile.exists()) {
+			localFile.delete();
+		}
 	}
 
 	@Override
