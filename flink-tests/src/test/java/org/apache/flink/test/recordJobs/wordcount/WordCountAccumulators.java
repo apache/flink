@@ -194,7 +194,7 @@ public class WordCountAccumulators implements Program, ProgramDescription {
 	/**
 	 * Custom accumulator
 	 */
-	public static class SetAccumulator<T extends Value> implements Accumulator<T, Set<T>> {
+	public static class SetAccumulator<T extends Value> implements Accumulator<T, SerializableHashSet<T>> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -206,7 +206,7 @@ public class WordCountAccumulators implements Program, ProgramDescription {
 		}
 
 		@Override
-		public Set<T> getLocalValue() {
+		public SerializableHashSet<T> getLocalValue() {
 			return this.set;
 		}
 
@@ -216,7 +216,7 @@ public class WordCountAccumulators implements Program, ProgramDescription {
 		}
 
 		@Override
-		public void merge(Accumulator<T, Set<T>> other) {
+		public void merge(Accumulator<T, SerializableHashSet<T>> other) {
 			// build union
 			this.set.addAll(((SetAccumulator<T>) other).getLocalValue());
 		}
@@ -232,7 +232,7 @@ public class WordCountAccumulators implements Program, ProgramDescription {
 		}
 
 		@Override
-		public Accumulator<T, Set<T>> clone() {
+		public Accumulator<T, SerializableHashSet<T>> clone() {
 			SetAccumulator<T> result = new SetAccumulator<T>();
 
 			result.set.addAll(set);

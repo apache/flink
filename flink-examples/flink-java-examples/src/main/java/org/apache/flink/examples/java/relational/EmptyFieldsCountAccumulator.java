@@ -189,16 +189,16 @@ public class EmptyFieldsCountAccumulator {
 	 * increase the <i>n</i>-th vector component by 1, whereat <i>n</i> is the methods parameter. The size of the vector
 	 * is automatically managed.
 	 */
-	public static class VectorAccumulator implements Accumulator<Integer, List<Integer>> {
+	public static class VectorAccumulator implements Accumulator<Integer, ArrayList<Integer>> {
 
 		/** Stores the accumulated vector components. */
-		private final List<Integer> resultVector;
+		private final ArrayList<Integer> resultVector;
 
 		public VectorAccumulator(){
 			this(new ArrayList<Integer>());
 		}
 
-		public VectorAccumulator(List<Integer> resultVector){
+		public VectorAccumulator(ArrayList<Integer> resultVector){
 			this.resultVector = resultVector;
 		}
 
@@ -225,7 +225,7 @@ public class EmptyFieldsCountAccumulator {
 		}
 
 		@Override
-		public List<Integer> getLocalValue() {
+		public ArrayList<Integer> getLocalValue() {
 			return this.resultVector;
 		}
 
@@ -236,7 +236,7 @@ public class EmptyFieldsCountAccumulator {
 		}
 
 		@Override
-		public void merge(final Accumulator<Integer, List<Integer>> other) {
+		public void merge(final Accumulator<Integer, ArrayList<Integer>> other) {
 			// merge two vector accumulators by adding their up their vector components
 			final List<Integer> otherVector = other.getLocalValue();
 			for (int index = 0; index < otherVector.size(); index++) {
@@ -265,7 +265,7 @@ public class EmptyFieldsCountAccumulator {
 		}
 
 		@Override
-		public Accumulator<Integer, List<Integer>> clone() {
+		public Accumulator<Integer, ArrayList<Integer>> clone() {
 			VectorAccumulator result = new VectorAccumulator(new ArrayList<Integer>(resultVector));
 
 			return result;

@@ -411,7 +411,8 @@ public final class Task {
 
 		for(ActorRef listener: executionListenerActors){
 			listener.tell(new ExecutionGraphMessages.ExecutionStateChanged(jobId, vertexId, subtaskIndex,
-					executionId, newState, message), ActorRef.noSender());
+					executionId, newState, System.currentTimeMillis(), message),
+					ActorRef.noSender());
 		}
 	}
 	

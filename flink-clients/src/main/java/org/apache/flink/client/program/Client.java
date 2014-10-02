@@ -25,6 +25,10 @@ import java.io.PrintStream;
 import java.net.InetSocketAddress;
 import java.util.List;
 
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import org.apache.flink.runtime.messages.JobManagerMessages.SubmissionFailure;
+import org.apache.flink.runtime.messages.JobManagerMessages.SubmissionResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.JobExecutionResult;
@@ -44,8 +48,6 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.messages.JobResult;
-import org.apache.flink.runtime.messages.JobResult.JobSubmissionResult;
 
 import com.google.common.base.Preconditions;
 
@@ -64,8 +66,6 @@ public class Client {
 	
 	private final PactCompiler compiler;		// the compiler to compile the jobs
 	
-	private final ClassLoader userCodeClassLoader;
-
 	private boolean printStatusDuringExecution;
 	
 	// ------------------------------------------------------------------------
@@ -81,10 +81,10 @@ public class Client {
 	public Client(InetSocketAddress jobManagerAddress, Configuration config, ClassLoader userCodeClassLoader) {
 		Preconditions.checkNotNull(config, "Configuration is null");
 		this.configuration = config;
-		configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, jobManagerAddress.getAddress().getHostAddress());
+		configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY,
+				jobManagerAddress.getAddress().getCanonicalHostName());
 		configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerAddress.getPort());
 		
-		this.userCodeClassLoader = userCodeClassLoader;
 		this.compiler = new PactCompiler(new DataStatistics(), new DefaultCostEstimator());
 	}
 
@@ -109,7 +109,6 @@ public class Client {
 			throw new CompilerException("Cannot find port to job manager's RPC service in the global configuration.");
 		}
 
-		this.userCodeClassLoader = userCodeClassLoader;
 		this.compiler = new PactCompiler(new DataStatistics(), new DefaultCostEstimator());
 	}
 	
@@ -295,31 +294,38 @@ public class Client {
 	}
 
 	public JobExecutionResult run(JobGraph jobGraph, boolean wait) throws ProgramInvocationException {
-		JobClient client;
-		try {
-			client = new JobClient(jobGraph, configuration, this.userCodeClassLoader);
+		Tuple2<ActorSystem, ActorRef> pair = JobClient.startActorSystemAndActor(configuration);
+
+		ActorRef client = pair._2();
+
+		String hostname = configuration.getString(ConfigConstants
+				.JOB_MANAGER_IPC_ADDRESS_KEY, null);
+
+		if(hostname == null){
+			throw new ProgramInvocationException("Could not find hostname of job manager.");
 		}
-		catch (IOException e) {
-			throw new ProgramInvocationException("Could not open job manager: " + e.getMessage());
-		}
-		
-		client.setConsoleStreamForReporting(this.printStatusDuringExecution ? System.out : null);
 
 		try {
+			JobClient.uploadJarFiles(jobGraph, hostname, client);
+		}catch(IOException e){
+			throw new ProgramInvocationException("Could not upload blobs.", e);
+		}
+
+		try {
+
 			if (wait) {
-				return client.submitJobAndWait();
+				return JobClient.submitJobAndWait(jobGraph, printStatusDuringExecution, client);
 			}
 			else {
-				JobSubmissionResult result = client.submitJob();
-				
-				if (result.returnCode() != JobResult.SUCCESS()) {
-					throw new ProgramInvocationException("The job was not successfully submitted to the nephele job manager"
-						+ (result.description() == null ? "." : ": " + result.description()));
+				SubmissionResponse response =JobClient.submitJobDetached(jobGraph,
+						printStatusDuringExecution, client);
+
+				if(response instanceof SubmissionFailure){
+					SubmissionFailure failure = (SubmissionFailure) response;
+					throw new ProgramInvocationException("The job was not successfully submitted " +
+							"to the flink job manager", failure.cause());
 				}
 			}
-		}
-		catch (IOException e) {
-			throw new ProgramInvocationException("Could not submit job to job manager: " + e.getMessage());
 		}
 		catch (JobExecutionException jex) {
 			if(jex.isJobCanceledByUser()) {
@@ -327,7 +333,11 @@ public class Client {
 			} else {
 				throw new ProgramInvocationException("The program execution failed: " + jex.getMessage());
 			}
+		}finally{
+			pair._1().shutdown();
+			pair._1().awaitTermination();
 		}
+
 		return new JobExecutionResult(-1, null);
 	}
 	

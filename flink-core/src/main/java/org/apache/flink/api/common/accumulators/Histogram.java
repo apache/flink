@@ -33,11 +33,11 @@ import java.util.TreeMap;
  * Could be extended to continuous values later, but then we need to dynamically
  * decide about the bin size in an online algorithm (or ask the user)
  */
-public class Histogram implements Accumulator<Integer, Map<Integer, Integer>> {
+public class Histogram implements Accumulator<Integer, TreeMap<Integer, Integer>> {
 
 	private static final long serialVersionUID = 1L;
 
-	private Map<Integer, Integer> treeMap = new TreeMap<Integer, Integer>();
+	private TreeMap<Integer, Integer> treeMap = new TreeMap<Integer, Integer>();
 
 	@Override
 	public void add(Integer value) {
@@ -47,12 +47,12 @@ public class Histogram implements Accumulator<Integer, Map<Integer, Integer>> {
 	}
 
 	@Override
-	public Map<Integer, Integer> getLocalValue() {
+	public TreeMap<Integer, Integer> getLocalValue() {
 		return this.treeMap;
 	}
 
 	@Override
-	public void merge(Accumulator<Integer, Map<Integer, Integer>> other) {
+	public void merge(Accumulator<Integer, TreeMap<Integer, Integer>> other) {
 		// Merge the values into this map
 		for (Map.Entry<Integer, Integer> entryFromOther : ((Histogram) other).getLocalValue()
 				.entrySet()) {
@@ -93,7 +93,7 @@ public class Histogram implements Accumulator<Integer, Map<Integer, Integer>> {
 	}
 
 	@Override
-	public Accumulator<Integer, Map<Integer, Integer>> clone() {
+	public Accumulator<Integer, TreeMap<Integer, Integer>> clone() {
 		Histogram result = new Histogram();
 
 		result.treeMap = new TreeMap<Integer, Integer>(treeMap);

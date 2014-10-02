@@ -21,11 +21,13 @@ package org.apache.flink.client;
 
 import java.util.List;
 
+import akka.actor.ActorRef;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.PlanExecutor;
 import org.apache.flink.api.common.Program;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -54,22 +56,13 @@ public class LocalExecutor extends PlanExecutor {
 
 	// ---------------------------------- config options ------------------------------------------
 	
-	private int jobManagerRpcPort = -1;
-	
-	private int taskManagerRpcPort = -1;
-	
-	private int taskManagerDataPort = -1;
 
 	private int taskManagerNumSlots = DEFAULT_TASK_MANAGER_NUM_SLOTS;
 
 	private String configDir;
 
-	private String hdfsConfigFile;
-	
 	private boolean defaultOverwriteFiles = DEFAULT_OVERWRITE;
 	
-	private boolean defaultAlwaysCreateDirectory = false;
-
 	// --------------------------------------------------------------------------------------------
 	
 	public LocalExecutor() {
@@ -78,45 +71,7 @@ public class LocalExecutor extends PlanExecutor {
 		}
 	}
 
-	public int getJobManagerRpcPort() {
-		return jobManagerRpcPort;
-	}
-	
-	public void setJobManagerRpcPort(int jobManagerRpcPort) {
-		this.jobManagerRpcPort = jobManagerRpcPort;
-	}
 
-	public int getTaskManagerRpcPort() {
-		return taskManagerRpcPort;
-	}
-
-	public void setTaskManagerRpcPort(int taskManagerRpcPort) {
-		this.taskManagerRpcPort = taskManagerRpcPort;
-	}
-
-	public int getTaskManagerDataPort() {
-		return taskManagerDataPort;
-	}
-
-	public void setTaskManagerDataPort(int taskManagerDataPort) {
-		this.taskManagerDataPort = taskManagerDataPort;
-	}
-	
-	public String getConfigDir() {
-		return configDir;
-	}
-
-	public void setConfigDir(String configDir) {
-		this.configDir = configDir;
-	}
-
-	public String getHdfsConfig() {
-		return hdfsConfigFile;
-	}
-	
-	public void setHdfsConfig(String hdfsConfig) {
-		this.hdfsConfigFile = hdfsConfig;
-	}
 	
 	public boolean isDefaultOverwriteFiles() {
 		return defaultOverwriteFiles;
@@ -126,14 +81,6 @@ public class LocalExecutor extends PlanExecutor {
 		this.defaultOverwriteFiles = defaultOverwriteFiles;
 	}
 	
-	public boolean isDefaultAlwaysCreateDirectory() {
-		return defaultAlwaysCreateDirectory;
-	}
-	
-	public void setDefaultAlwaysCreateDirectory(boolean defaultAlwaysCreateDirectory) {
-		this.defaultAlwaysCreateDirectory = defaultAlwaysCreateDirectory;
-	}
-
 	public void setTaskManagerNumSlots(int taskManagerNumSlots) { this.taskManagerNumSlots = taskManagerNumSlots; }
 
 	public int getTaskManagerNumSlots() { return this.taskManagerNumSlots; }
@@ -147,7 +94,8 @@ public class LocalExecutor extends PlanExecutor {
 				// create the embedded runtime
 				this.flink = new LocalFlinkMiniCluster(configDir);
 				Configuration configuration = new Configuration();
-				
+				configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, getTaskManagerNumSlots());
+				configuration.setBoolean(ConfigConstants.FILESYSTEM_DEFAULT_OVERWRITE_KEY, isDefaultOverwriteFiles());
 				// start it up
 				this.flink.start(configuration);
 			} else {
@@ -216,10 +164,10 @@ public class LocalExecutor extends PlanExecutor {
 				
 				NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
 				JobGraph jobGraph = jgg.compileJobGraph(op);
-				
-				JobClient jobClient = this.flink.getJobClient(jobGraph);
-				JobExecutionResult result = jobClient.submitJobAndWait();
-				return result;
+
+				ActorRef jobClient = flink.getJobClient();
+
+				return JobClient.submitJobAndWait(jobGraph, true, jobClient);
 			}
 			finally {
 				if (shutDownAtEnd) {

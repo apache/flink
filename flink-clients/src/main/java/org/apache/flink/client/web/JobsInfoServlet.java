@@ -31,12 +31,12 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.event.job.RecentJobEvent;
 import org.apache.flink.runtime.jobmanager.JobManager;
-import org.apache.flink.runtime.messages.EventCollectorMessages;
 
 
 public class JobsInfoServlet extends HttpServlet {
@@ -48,9 +48,13 @@ public class JobsInfoServlet extends HttpServlet {
 	// ------------------------------------------------------------------------
 
 	private final Configuration config;
+
+	private final ActorSystem system;
 	
 	public JobsInfoServlet(Configuration nepheleConfig) {
 		this.config = nepheleConfig;
+		system = ActorSystem.create("JobsInfoServletActorSystem",
+				AkkaUtils.getDefaultActorSystemConfig());
 	}
 
 	@Override
@@ -62,10 +66,10 @@ public class JobsInfoServlet extends HttpServlet {
 			int jmPort = config.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
 					ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
 
-			ActorRef jm = JobManager.getJobManager(new InetSocketAddress(jmHost, jmPort));
+			ActorRef jm = JobManager.getJobManager(new InetSocketAddress(jmHost, jmPort), system);
 
-			List<RecentJobEvent> recentJobs = AkkaUtils.<EventCollectorMessages.RecentJobs>ask(jm,
-					EventCollectorMessages.RequestRecentJobEvents$.MODULE$).asJavaList();
+			// TODO: fix
+			List<RecentJobEvent> recentJobs = null;
 
 			ArrayList<RecentJobEvent> jobs = new ArrayList<RecentJobEvent>(recentJobs);
 			

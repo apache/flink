@@ -19,16 +19,13 @@
 package org.apache.flink.runtime.jobmanager
 
 import akka.actor.ActorSystem
+import akka.actor.Status.Success
 import akka.testkit.{ImplicitSender, TestKit}
-import org.apache.flink.runtime.jobgraph.{JobStatus, JobGraph, DistributionPattern,
+import org.apache.flink.runtime.jobgraph.{JobGraph, DistributionPattern,
 AbstractJobVertex}
 import org.apache.flink.runtime.jobmanager.Tasks.{Receiver, Sender}
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup
-import org.apache.flink.runtime.messages.ExecutionGraphMessages.CurrentJobStatus
-import org.apache.flink.runtime.messages.JobManagerMessages.{RequestJobStatusWhenTerminated,
-SubmitJob}
-import org.apache.flink.runtime.messages.JobResult
-import org.apache.flink.runtime.messages.JobResult.JobSubmissionResult
+import org.apache.flink.runtime.messages.JobManagerMessages.SubmitJob
 import org.apache.flink.runtime.testingUtils.TestingUtils
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import scala.collection.convert.WrapAsJava
@@ -71,10 +68,8 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll with WrapA
       try {
         within(1 second) {
           jm ! SubmitJob(jobGraph)
-          expectMsg(JobSubmissionResult(JobResult.SUCCESS, null))
-
-          jm ! RequestJobStatusWhenTerminated(jobGraph.getJobID)
-          expectMsg(CurrentJobStatus(jobGraph.getJobID, JobStatus.FINISHED))
+          expectMsg(Success(_))
+          expectMsg()
         }
       } finally {
         cluster.stop()

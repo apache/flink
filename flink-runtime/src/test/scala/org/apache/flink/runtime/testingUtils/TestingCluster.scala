@@ -27,7 +27,7 @@ import org.apache.flink.runtime.net.NetUtils
 import org.apache.flink.runtime.taskmanager.TaskManager
 
 class TestingCluster extends FlinkMiniCluster {
-  override def getConfiguration(userConfig: Configuration): Configuration = {
+  override def generateConfiguration(userConfig: Configuration): Configuration = {
     val cfg = new Configuration()
     cfg.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost")
     cfg.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, NetUtils.getAvailablePort)
@@ -38,11 +38,9 @@ class TestingCluster extends FlinkMiniCluster {
   }
 
   override def startJobManager(system: ActorSystem, config: Configuration) = {
-    val (archiveCount, profiling, recommendedPollingInterval, cleanupInterval) =
-      JobManager.parseConfiguration(config)
+    val (archiveCount, profiling, cleanupInterval) = JobManager.parseConfiguration(config)
 
-    system.actorOf(Props(new JobManager(archiveCount, profiling, recommendedPollingInterval,
-      cleanupInterval) with
+    system.actorOf(Props(new JobManager(archiveCount, profiling, cleanupInterval) with
       TestingJobManager),
       JobManager.JOB_MANAGER_NAME)
   }

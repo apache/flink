@@ -23,20 +23,20 @@
         </encoder>
     </appender>
 
-    <root level="DEBUG">
+    <root level="WARN">
         <appender-ref ref="STDOUT"/>
     </root>
 
     <!-- The following loggers are disabled during tests, because many tests deliberately
          throw error to test failing scenarios. Logging those would overflow the log. -->
          <!---->
-    <!--<logger name="org.apache.flink.runtime.operators.DataSinkTask" level="OFF"/>-->
-    <!--<logger name="org.apache.flink.runtime.operators.RegularPactTask" level="OFF"/>-->
-    <!--<logger name="org.apache.flink.runtime.client.JobClient" level="OFF"/>-->
-    <!--<logger name="org.apache.flink.runtime.taskmanager.Task" level="OFF"/>-->
-    <!--<logger name="org.apache.flink.runtime.jobmanager.JobManager" level="OFF"/>-->
-    <!--<logger name="org.apache.flink.runtime.testingUtils" level="OFF"/>-->
-    <!--<logger name="org.apache.flink.runtime.executiongraph.ExecutionGraph" level="OFF"/>-->
-    <!--<logger name="org.apache.flink.runtime.jobmanager.EventCollector" level="OFF"/>-->
-    <!--<logger name="org.apache.flink.runtime.instance.InstanceManager" level="OFF"/>-->
+    <logger name="org.apache.flink.runtime.operators.DataSinkTask" level="OFF"/>
+    <logger name="org.apache.flink.runtime.operators.RegularPactTask" level="OFF"/>
+    <logger name="org.apache.flink.runtime.client.JobClient" level="OFF"/>
+    <logger name="org.apache.flink.runtime.taskmanager.Task" level="OFF"/>
+    <logger name="org.apache.flink.runtime.jobmanager.JobManager" level="OFF"/>
+    <logger name="org.apache.flink.runtime.testingUtils" level="OFF"/>
+    <logger name="org.apache.flink.runtime.executiongraph.ExecutionGraph" level="OFF"/>
+    <logger name="org.apache.flink.runtime.jobmanager.EventCollector" level="OFF"/>
+    <logger name="org.apache.flink.runtime.instance.InstanceManager" level="OFF"/>
 </configuration>

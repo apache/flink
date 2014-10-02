@@ -21,18 +21,14 @@ package org.apache.flink.runtime.jobmanager
 import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestKit}
 import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager
-import org.apache.flink.runtime.jobgraph.{DistributionPattern, JobStatus, JobGraph,
+import org.apache.flink.runtime.jobgraph.{DistributionPattern, JobGraph,
 AbstractJobVertex}
 import Tasks._
+import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException
 import org.apache.flink.runtime.testingUtils.{TestingUtils, TestingJobManagerMessages}
 import TestingJobManagerMessages.{ExecutionGraphNotFound, ExecutionGraphFound,
 ResponseExecutionGraph, RequestExecutionGraph}
-import org.apache.flink.runtime.messages.ExecutionGraphMessages.CurrentJobStatus
-import org.apache.flink.runtime.messages.JobManagerMessages.{RequestJobStatusWhenTerminated,
-SubmitJob, RequestAvailableSlots}
-import org.apache.flink.runtime.messages.JobResult
-import org.apache.flink.runtime.messages.JobResult.JobSubmissionResult
+import org.apache.flink.runtime.messages.JobManagerMessages._
 import org.scalatest.{Matchers, WordSpecLike, BeforeAndAfterAll}
 import scala.concurrent.duration._
 
@@ -59,13 +55,12 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
         val availableSlots = AkkaUtils.ask[Int](jm, RequestAvailableSlots)
         availableSlots should equal(1)
 
-        val result = AkkaUtils.ask[JobSubmissionResult](jm, SubmitJob(jobGraph))
-
-        result.returnCode should equal(JobResult.ERROR)
-
         within(1 second) {
-          jm ! RequestJobStatusWhenTerminated(jobGraph.getJobID)
-          expectMsg(CurrentJobStatus(jobGraph.getJobID, JobStatus.FAILED))
+          jm ! SubmitJob(jobGraph)
+
+          expectMsg(SubmissionFailure(jobGraph.getJobID, new NoResourceAvailableException(1,1)))
+
+          expectNoMsg()
         }
 
         val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
@@ -81,473 +76,460 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       }
     }
 
-    "support immediate scheduling of a single vertex" in {
-      val num_tasks = 133
-      val vertex = new AbstractJobVertex("Test Vertex")
-      vertex.setParallelism(num_tasks)
-      vertex.setInvokableClass(classOf[NoOpInvokable])
+        "support immediate scheduling of a single vertex" in {
+          val num_tasks = 133
+          val vertex = new AbstractJobVertex("Test Vertex")
+          vertex.setParallelism(num_tasks)
+          vertex.setInvokableClass(classOf[NoOpInvokable])
 
-      val jobGraph = new JobGraph("Test Job", vertex)
+          val jobGraph = new JobGraph("Test Job", vertex)
 
-      val cluster = TestingUtils.startTestingCluster(num_tasks)
-      val jm = cluster.getJobManager
+          val cluster = TestingUtils.startTestingCluster(num_tasks)
+          val jm = cluster.getJobManager
 
-      try {
-        val availableSlots = AkkaUtils.ask[Int](jm, RequestAvailableSlots)
-        availableSlots should equal(num_tasks)
+          try {
+            val availableSlots = AkkaUtils.ask[Int](jm, RequestAvailableSlots)
+            availableSlots should equal(num_tasks)
 
-        val result = AkkaUtils.ask[JobSubmissionResult](jm, SubmitJob(jobGraph))
+            within(1 second) {
+              jm ! SubmitJob(jobGraph)
 
-        result.returnCode should equal(JobResult.SUCCESS)
+              expectMsg(SubmissionSuccess(jobGraph.getJobID))
+              val result = expectMsgType[JobResultSuccess]
 
-        within(1 second) {
-          jm ! RequestJobStatusWhenTerminated(jobGraph.getJobID)
-          expectMsg(CurrentJobStatus(jobGraph.getJobID, JobStatus.FINISHED))
+              result.jobID should equal(jobGraph.getJobID)
+
+              expectNoMsg()
+            }
+
+            val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
+              RequestExecutionGraph(jobGraph.getJobID)) match {
+              case ExecutionGraphFound(_, eg) => eg
+              case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} " +
+                s"was not retrievable.")
+            }
+
+            executionGraph.getRegisteredExecutions.size should equal(0)
+          } finally {
+            cluster.stop()
+          }
         }
 
-        val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
-          RequestExecutionGraph(jobGraph.getJobID)) match {
-          case ExecutionGraphFound(_, eg) => eg
-          case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} " +
-            s"was not retrievable.")
+        "support queued scheduling of a single vertex" in {
+          val num_tasks = 111
+
+          val vertex = new AbstractJobVertex("Test Vertex")
+          vertex.setParallelism(num_tasks)
+          vertex.setInvokableClass(classOf[NoOpInvokable])
+
+          val jobGraph = new JobGraph("Test job", vertex)
+          jobGraph.setAllowQueuedScheduling(true)
+
+          val cluster = TestingUtils.startTestingCluster(10)
+          val jm = cluster.getJobManager
+
+          try {
+            within(1 second) {
+              jm ! SubmitJob(jobGraph)
+
+              expectMsg(SubmissionSuccess(jobGraph.getJobID))
+
+              val result = expectMsgType[JobResultSuccess]
+
+              result.jobID should equal(jobGraph.getJobID)
+
+              expectNoMsg()
+            }
+
+            val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
+              RequestExecutionGraph(jobGraph.getJobID)) match {
+              case ExecutionGraphFound(_, eg) => eg
+              case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} " +
+                s"was not retrievable.")
+            }
+
+            executionGraph.getRegisteredExecutions.size should equal(0)
+          } finally {
+            cluster.stop()
+          }
         }
 
-        executionGraph.getRegisteredExecutions.size should equal(0)
-      } finally {
-        cluster.stop()
-      }
-    }
+        "support forward jobs" in {
+          val num_tasks = 31
+          val sender = new AbstractJobVertex("Sender")
+          val receiver = new AbstractJobVertex("Receiver")
 
-    "support queued scheduling of a single vertex" in {
-      val num_tasks = 111
+          sender.setInvokableClass(classOf[Sender])
+          receiver.setInvokableClass(classOf[Receiver])
 
-      val vertex = new AbstractJobVertex("Test Vertex")
-      vertex.setParallelism(num_tasks)
-      vertex.setInvokableClass(classOf[NoOpInvokable])
+          sender.setParallelism(num_tasks)
+          receiver.setParallelism(num_tasks)
 
-      val jobGraph = new JobGraph("Test job", vertex)
-      jobGraph.setAllowQueuedScheduling(true)
+          receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE)
 
-      val cluster = TestingUtils.startTestingCluster(10)
-      val jm = cluster.getJobManager
+          val jobGraph = new JobGraph("Pointwise Job", sender, receiver)
 
-      try {
-        within(1 second) {
-          jm ! SubmitJob(jobGraph)
+          val cluster = TestingUtils.startTestingCluster(2 * num_tasks)
+          val jm = cluster.getJobManager
 
-          expectMsg(JobSubmissionResult(JobResult.SUCCESS, null))
+          try {
+            within(1 second) {
+              jm ! SubmitJob(jobGraph)
 
-          jm ! RequestJobStatusWhenTerminated(jobGraph.getJobID)
+              expectMsg(SubmissionSuccess(jobGraph.getJobID))
 
-          expectMsg(CurrentJobStatus(jobGraph.getJobID, JobStatus.FINISHED))
+              val result = expectMsgType[JobResultSuccess]
+
+              result.jobID should equal(jobGraph.getJobID)
+
+              expectNoMsg()
+            }
+
+            val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
+              RequestExecutionGraph(jobGraph.getJobID)) match {
+              case ExecutionGraphFound(_, eg) => eg
+              case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} " +
+                s"was not retrievable.")
+            }
+
+            executionGraph.getRegisteredExecutions.size should equal(0)
+          } finally {
+            cluster.stop()
+          }
         }
 
-        val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
-          RequestExecutionGraph(jobGraph.getJobID)) match {
-          case ExecutionGraphFound(_, eg) => eg
-          case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} " +
-            s"was not retrievable.")
+        "support bipartite job" in {
+          val num_tasks = 31
+          val sender = new AbstractJobVertex("Sender")
+          val receiver = new AbstractJobVertex("Receiver")
+
+          sender.setInvokableClass(classOf[Sender])
+          receiver.setInvokableClass(classOf[AgnosticReceiver])
+
+          receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE)
+
+          val jobGraph = new JobGraph("Bipartite Job", sender, receiver)
+
+          val cluster = TestingUtils.startTestingCluster(2 * num_tasks)
+          val jm = cluster.getJobManager
+
+          try {
+            within(1 second) {
+              jm ! SubmitJob(jobGraph)
+
+              expectMsg(SubmissionSuccess(jobGraph.getJobID))
+              expectMsgType[JobResultSuccess]
+              expectNoMsg()
+            }
+
+            val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
+              RequestExecutionGraph(jobGraph.getJobID)) match {
+              case ExecutionGraphFound(_, eg) => eg
+              case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} " +
+                s"was not retrievable.")
+            }
+
+            executionGraph.getRegisteredExecutions.size should equal(0)
+          } finally {
+            cluster.stop()
+          }
         }
 
-        executionGraph.getRegisteredExecutions.size should equal(0)
-      } finally {
-        cluster.stop()
-      }
-    }
+        "support two input job failing edge mismatch" in {
+          val num_tasks = 11
+          val sender1 = new AbstractJobVertex("Sender1")
+          val sender2 = new AbstractJobVertex("Sender2")
+          val receiver = new AbstractJobVertex("Receiver")
 
-    "support forward jobs" in {
-      val num_tasks = 31
-      val sender = new AbstractJobVertex("Sender")
-      val receiver = new AbstractJobVertex("Receiver")
+          sender1.setInvokableClass(classOf[Sender])
+          sender2.setInvokableClass(classOf[Sender])
+          receiver.setInvokableClass(classOf[AgnosticReceiver])
 
-      sender.setInvokableClass(classOf[Sender])
-      receiver.setInvokableClass(classOf[Receiver])
+          sender1.setParallelism(num_tasks)
+          sender2.setParallelism(2 * num_tasks)
+          receiver.setParallelism(3 * num_tasks)
 
-      sender.setParallelism(num_tasks)
-      receiver.setParallelism(num_tasks)
+          receiver.connectNewDataSetAsInput(sender1, DistributionPattern.POINTWISE)
+          receiver.connectNewDataSetAsInput(sender2, DistributionPattern.BIPARTITE)
 
-      receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE)
+          val jobGraph = new JobGraph("Bipartite Job", sender1, receiver, sender2)
 
-      val jobGraph = new JobGraph("Pointwise Job", sender, receiver)
+          val cluster = TestingUtils.startTestingCluster(6 * num_tasks)
+          val jm = cluster.getJobManager
 
-      val cluster = TestingUtils.startTestingCluster(2 * num_tasks)
-      val jm = cluster.getJobManager
+          try {
+            within(1 second) {
+              jm ! SubmitJob(jobGraph)
 
-      try {
-        within(1 second) {
-          jm ! SubmitJob(jobGraph)
+              expectMsg(SubmissionSuccess(jobGraph.getJobID))
+              expectMsgType[JobResultFailed]
 
-          expectMsg(JobSubmissionResult(JobResult.SUCCESS, null))
+              expectNoMsg()
+            }
 
-          jm ! RequestJobStatusWhenTerminated(jobGraph.getJobID)
+            val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
+              RequestExecutionGraph(jobGraph.getJobID)) match {
+              case ExecutionGraphFound(_, eg) => eg
+              case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} " +
+                s"was not retrievable.")
+            }
 
-          expectMsg(CurrentJobStatus(jobGraph.getJobID, JobStatus.FINISHED))
+            executionGraph.getRegisteredExecutions.size should equal(0)
+          } finally {
+            cluster.stop()
+          }
         }
 
-        val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
-          RequestExecutionGraph(jobGraph.getJobID)) match {
-          case ExecutionGraphFound(_, eg) => eg
-          case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} " +
-            s"was not retrievable.")
+        "support two input job" in {
+          val num_tasks = 11
+          val sender1 = new AbstractJobVertex("Sender1")
+          val sender2 = new AbstractJobVertex("Sender2")
+          val receiver = new AbstractJobVertex("Receiver")
+
+          sender1.setInvokableClass(classOf[Sender])
+          sender2.setInvokableClass(classOf[Sender])
+          receiver.setInvokableClass(classOf[AgnosticBinaryReceiver])
+
+          sender1.setParallelism(num_tasks)
+          sender2.setParallelism(2 * num_tasks)
+          receiver.setParallelism(3 * num_tasks)
+
+          receiver.connectNewDataSetAsInput(sender1, DistributionPattern.POINTWISE)
+          receiver.connectNewDataSetAsInput(sender2, DistributionPattern.BIPARTITE)
+
+          val jobGraph = new JobGraph("Bipartite Job", sender1, receiver, sender2)
+
+          val cluster = TestingUtils.startTestingCluster(6 * num_tasks)
+          val jm = cluster.getJobManager
+
+          try {
+            within(5 second) {
+              jm ! SubmitJob(jobGraph)
+              expectMsg(SubmissionSuccess(jobGraph.getJobID))
+
+              expectMsgType[JobResultSuccess]
+            }
+
+            val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
+              RequestExecutionGraph(jobGraph.getJobID)) match {
+              case ExecutionGraphFound(_, eg) => eg
+              case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} " +
+                s"was not retrievable.")
+            }
+
+            executionGraph.getRegisteredExecutions.size should equal(0)
+          } finally {
+            cluster.stop()
+          }
         }
 
-        executionGraph.getRegisteredExecutions.size should equal(0)
-      } finally {
-        cluster.stop()
-      }
-    }
+        "handle job with a failing sender vertex" in {
+          val num_tasks = 100
+          val sender = new AbstractJobVertex("Sender")
+          val receiver = new AbstractJobVertex("Receiver")
 
-    "support bipartite job" in {
-      val num_tasks = 31
-      val sender = new AbstractJobVertex("Sender")
-      val receiver = new AbstractJobVertex("Receiver")
+          sender.setInvokableClass(classOf[ExceptionSender])
+          receiver.setInvokableClass(classOf[Receiver])
 
-      sender.setInvokableClass(classOf[Sender])
-      receiver.setInvokableClass(classOf[AgnosticReceiver])
+          sender.setParallelism(num_tasks)
+          receiver.setParallelism(num_tasks)
 
-      receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE)
+          receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE)
 
-      val jobGraph = new JobGraph("Bipartite Job", sender, receiver)
+          val jobGraph = new JobGraph("Pointwise Job", sender, receiver)
 
-      val cluster = TestingUtils.startTestingCluster(2 * num_tasks)
-      val jm = cluster.getJobManager
+          val cluster = TestingUtils.startTestingCluster(num_tasks)
+          val jm = cluster.getJobManager
 
-      try {
-        within(1 second) {
-          jm ! SubmitJob(jobGraph)
+          try {
+            within(1 second) {
+              jm ! RequestAvailableSlots
+              expectMsg(num_tasks)
+            }
 
-          expectMsg(JobSubmissionResult(JobResult.SUCCESS, null))
+            within(1 second) {
+              jm ! SubmitJob(jobGraph)
+              expectMsg(SubmissionSuccess(jobGraph.getJobID))
+              expectMsgType[JobResultFailed]
+              expectNoMsg()
+            }
 
-          jm ! RequestJobStatusWhenTerminated(jobGraph.getJobID)
+            val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
+              RequestExecutionGraph(jobGraph.getJobID)) match {
+              case ExecutionGraphFound(_, eg) => eg
+              case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} " +
+                s"was not retrievable.")
+            }
 
-          expectMsg(CurrentJobStatus(jobGraph.getJobID, JobStatus.FINISHED))
+            executionGraph.getRegisteredExecutions.size should equal(0)
+          } finally {
+            cluster.stop()
+          }
         }
 
-        val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
-          RequestExecutionGraph(jobGraph.getJobID)) match {
-          case ExecutionGraphFound(_, eg) => eg
-          case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} " +
-            s"was not retrievable.")
+        "handle job with an occasionally failing sender vertex" in {
+          val num_tasks = 100
+          val sender = new AbstractJobVertex("Sender")
+          val receiver = new AbstractJobVertex("Receiver")
+
+          sender.setInvokableClass(classOf[SometimesExceptionSender])
+          receiver.setInvokableClass(classOf[Receiver])
+
+          sender.setParallelism(num_tasks)
+          receiver.setParallelism(num_tasks)
+
+          receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE)
+
+          val jobGraph = new JobGraph("Pointwise Job", sender, receiver)
+
+          val cluster = TestingUtils.startTestingCluster(num_tasks)
+          val jm = cluster.getJobManager
+
+          try {
+            within(1 second) {
+              jm ! RequestAvailableSlots
+              expectMsg(num_tasks)
+            }
+
+            within(1 second) {
+              jm ! SubmitJob(jobGraph)
+              expectMsg(SubmissionSuccess(jobGraph.getJobID))
+              expectMsgType[JobResultFailed]
+              expectNoMsg()
+            }
+
+            val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
+              RequestExecutionGraph(jobGraph.getJobID)) match {
+              case ExecutionGraphFound(_, eg) => eg
+              case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} " +
+                s"was not retrievable.")
+            }
+
+            executionGraph.getRegisteredExecutions.size should equal(0)
+          } finally {
+            cluster.stop()
+          }
         }
 
-        executionGraph.getRegisteredExecutions.size should equal(0)
-      } finally {
-        cluster.stop()
-      }
-    }
+        "handle job with a failing receiver vertex" in {
+          val num_tasks = 200
+          val sender = new AbstractJobVertex("Sender")
+          val receiver = new AbstractJobVertex("Receiver")
 
-    "support two input job failing edge mismatch" in {
-      val num_tasks = 11
-      val sender1 = new AbstractJobVertex("Sender1")
-      val sender2 = new AbstractJobVertex("Sender2")
-      val receiver = new AbstractJobVertex("Receiver")
+          sender.setInvokableClass(classOf[Sender])
+          receiver.setInvokableClass(classOf[ExceptionReceiver])
 
-      sender1.setInvokableClass(classOf[Sender])
-      sender2.setInvokableClass(classOf[Sender])
-      receiver.setInvokableClass(classOf[AgnosticReceiver])
+          sender.setParallelism(num_tasks)
+          receiver.setParallelism(num_tasks)
 
-      sender1.setParallelism(num_tasks)
-      sender2.setParallelism(2 * num_tasks)
-      receiver.setParallelism(3 * num_tasks)
+          receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE)
 
-      receiver.connectNewDataSetAsInput(sender1, DistributionPattern.POINTWISE)
-      receiver.connectNewDataSetAsInput(sender2, DistributionPattern.BIPARTITE)
+          val jobGraph = new JobGraph("Pointwise job", sender, receiver)
 
-      val jobGraph = new JobGraph("Bipartite Job", sender1, receiver, sender2)
+          val cluster = TestingUtils.startTestingCluster(2 * num_tasks)
+          val jm = cluster.getJobManager
 
-      val cluster = TestingUtils.startTestingCluster(6 * num_tasks)
-      val jm = cluster.getJobManager
+          try {
+            within(1 second) {
+              jm ! SubmitJob(jobGraph)
+              expectMsg(SubmissionSuccess(jobGraph.getJobID))
+              expectMsgType[JobResultFailed]
+              expectNoMsg()
+            }
 
-      try {
-        within(1 second) {
-          jm ! SubmitJob(jobGraph)
+            val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
+              RequestExecutionGraph(jobGraph.getJobID)) match {
+              case ExecutionGraphFound(_, eg) => eg
+              case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} " +
+                s"was not retrievable.")
+            }
 
-          expectMsg(JobSubmissionResult(JobResult.SUCCESS, null))
-
-          jm ! RequestJobStatusWhenTerminated(jobGraph.getJobID)
-
-          expectMsg(CurrentJobStatus(jobGraph.getJobID, JobStatus.FAILED))
+            executionGraph.getRegisteredExecutions.size should equal(0)
+          } finally {
+            cluster.stop()
+          }
         }
 
-        val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
-          RequestExecutionGraph(jobGraph.getJobID)) match {
-          case ExecutionGraphFound(_, eg) => eg
-          case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} " +
-            s"was not retrievable.")
+        "handle job with all vertices failing during instantiation" in {
+          val num_tasks = 200
+          val sender = new AbstractJobVertex("Sender")
+          val receiver = new AbstractJobVertex("Receiver")
+
+          sender.setInvokableClass(classOf[InstantiationErrorSender])
+          receiver.setInvokableClass(classOf[Receiver])
+
+          sender.setParallelism(num_tasks)
+          receiver.setParallelism(num_tasks)
+
+          receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE)
+
+          val jobGraph = new JobGraph("Pointwise job", sender, receiver)
+
+          val cluster = TestingUtils.startTestingCluster(num_tasks)
+          val jm = cluster.getJobManager
+
+          try {
+            within(2 second) {
+              jm ! RequestAvailableSlots
+              expectMsg(num_tasks)
+
+              jm ! SubmitJob(jobGraph)
+              expectMsg(SubmissionSuccess(jobGraph.getJobID))
+              expectMsgType[JobResultFailed]
+            }
+
+            val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
+              RequestExecutionGraph(jobGraph.getJobID)) match {
+              case ExecutionGraphFound(_, eg) => eg
+              case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} " +
+                s"was not retrievable.")
+            }
+
+            executionGraph.getRegisteredExecutions.size should equal(0)
+          } finally {
+            cluster.stop()
+          }
         }
 
-        executionGraph.getRegisteredExecutions.size should equal(0)
-      } finally {
-        cluster.stop()
-      }
-    }
+        "handle job with some vertices failing during instantiation" in {
+          val num_tasks = 200
+          val sender = new AbstractJobVertex("Sender")
+          val receiver = new AbstractJobVertex("Receiver")
 
-    "support two input job" in {
-      val num_tasks = 11
-      val sender1 = new AbstractJobVertex("Sender1")
-      val sender2 = new AbstractJobVertex("Sender2")
-      val receiver = new AbstractJobVertex("Receiver")
+          sender.setInvokableClass(classOf[SometimesInstantiationErrorSender])
+          receiver.setInvokableClass(classOf[Receiver])
 
-      sender1.setInvokableClass(classOf[Sender])
-      sender2.setInvokableClass(classOf[Sender])
-      receiver.setInvokableClass(classOf[AgnosticBinaryReceiver])
+          sender.setParallelism(num_tasks)
+          receiver.setParallelism(num_tasks)
 
-      sender1.setParallelism(num_tasks)
-      sender2.setParallelism(2 * num_tasks)
-      receiver.setParallelism(3 * num_tasks)
+          receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE)
 
-      receiver.connectNewDataSetAsInput(sender1, DistributionPattern.POINTWISE)
-      receiver.connectNewDataSetAsInput(sender2, DistributionPattern.BIPARTITE)
+          val jobGraph = new JobGraph("Pointwise job", sender, receiver)
 
-      val jobGraph = new JobGraph("Bipartite Job", sender1, receiver, sender2)
+          val cluster = TestingUtils.startTestingCluster(num_tasks)
+          val jm = cluster.getJobManager
 
-      val cluster = TestingUtils.startTestingCluster(6 * num_tasks)
-      val jm = cluster.getJobManager
+          try {
+            within(1 second) {
+              jm ! RequestAvailableSlots
+              expectMsg(num_tasks)
 
-      try {
-        within(1 second) {
-          jm ! SubmitJob(jobGraph)
+              jm ! SubmitJob(jobGraph)
+              expectMsg(SubmissionSuccess(jobGraph.getJobID))
+              expectMsgType[JobResultFailed]
+            }
 
-          expectMsg(JobSubmissionResult(JobResult.SUCCESS, null))
+            val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
+              RequestExecutionGraph(jobGraph.getJobID)) match {
+              case ExecutionGraphFound(_, eg) => eg
+              case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} " +
+                s"was not retrievable.")
+            }
+
+            executionGraph.getRegisteredExecutions.size should equal(0)
+          } finally {
+            cluster.stop()
+          }
         }
-
-        within(5 second){
-          jm ! RequestJobStatusWhenTerminated(jobGraph.getJobID)
-
-          expectMsg(CurrentJobStatus(jobGraph.getJobID, JobStatus.FINISHED))
-        }
-
-        val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
-          RequestExecutionGraph(jobGraph.getJobID)) match {
-          case ExecutionGraphFound(_, eg) => eg
-          case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} " +
-            s"was not retrievable.")
-        }
-
-        executionGraph.getRegisteredExecutions.size should equal(0)
-      } finally {
-        cluster.stop()
-      }
-    }
-
-    "handle job with a failing sender vertex" in {
-      val num_tasks = 100
-      val sender = new AbstractJobVertex("Sender")
-      val receiver = new AbstractJobVertex("Receiver")
-
-      sender.setInvokableClass(classOf[ExceptionSender])
-      receiver.setInvokableClass(classOf[Receiver])
-
-      sender.setParallelism(num_tasks)
-      receiver.setParallelism(num_tasks)
-
-      receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE)
-
-      val jobGraph = new JobGraph("Pointwise Job", sender, receiver)
-
-      val cluster = TestingUtils.startTestingCluster(num_tasks)
-      val jm = cluster.getJobManager
-
-      try {
-        within(1 second) {
-          jm ! RequestAvailableSlots
-          expectMsg(num_tasks)
-        }
-
-        within(1 second) {
-          jm ! SubmitJob(jobGraph)
-          expectMsg(JobSubmissionResult(JobResult.SUCCESS, null))
-
-          jm ! RequestJobStatusWhenTerminated(jobGraph.getJobID)
-          expectMsg(CurrentJobStatus(jobGraph.getJobID, JobStatus.FAILED))
-        }
-
-        val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
-          RequestExecutionGraph(jobGraph.getJobID)) match {
-          case ExecutionGraphFound(_, eg) => eg
-          case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} " +
-            s"was not retrievable.")
-        }
-
-        executionGraph.getRegisteredExecutions.size should equal(0)
-      } finally {
-        cluster.stop()
-      }
-    }
-
-    "handle job with an occasionally failing sender vertex" in {
-      val num_tasks = 100
-      val sender = new AbstractJobVertex("Sender")
-      val receiver = new AbstractJobVertex("Receiver")
-
-      sender.setInvokableClass(classOf[SometimesExceptionSender])
-      receiver.setInvokableClass(classOf[Receiver])
-
-      sender.setParallelism(num_tasks)
-      receiver.setParallelism(num_tasks)
-
-      receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE)
-
-      val jobGraph = new JobGraph("Pointwise Job", sender, receiver)
-
-      val cluster = TestingUtils.startTestingCluster(num_tasks)
-      val jm = cluster.getJobManager
-
-      try {
-        within(1 second) {
-          jm ! RequestAvailableSlots
-          expectMsg(num_tasks)
-        }
-
-        within(1 second) {
-          jm ! SubmitJob(jobGraph)
-          expectMsg(JobSubmissionResult(JobResult.SUCCESS, null))
-
-          jm ! RequestJobStatusWhenTerminated(jobGraph.getJobID)
-          expectMsg(CurrentJobStatus(jobGraph.getJobID, JobStatus.FAILED))
-        }
-
-        val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
-          RequestExecutionGraph(jobGraph.getJobID)) match {
-          case ExecutionGraphFound(_, eg) => eg
-          case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} " +
-            s"was not retrievable.")
-        }
-
-        executionGraph.getRegisteredExecutions.size should equal(0)
-      } finally {
-        cluster.stop()
-      }
-    }
-
-    "handle job with a failing receiver vertex" in {
-      val num_tasks = 200
-      val sender = new AbstractJobVertex("Sender")
-      val receiver = new AbstractJobVertex("Receiver")
-
-      sender.setInvokableClass(classOf[Sender])
-      receiver.setInvokableClass(classOf[ExceptionReceiver])
-
-      sender.setParallelism(num_tasks)
-      receiver.setParallelism(num_tasks)
-
-      receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE)
-
-      val jobGraph = new JobGraph("Pointwise job", sender, receiver)
-
-      val cluster = TestingUtils.startTestingCluster(2 * num_tasks)
-      val jm = cluster.getJobManager
-
-      try {
-        within(1 second) {
-          jm ! SubmitJob(jobGraph)
-          expectMsg(JobSubmissionResult(JobResult.SUCCESS, null))
-
-          jm ! RequestJobStatusWhenTerminated(jobGraph.getJobID)
-          expectMsg(CurrentJobStatus(jobGraph.getJobID, JobStatus.FAILED))
-        }
-
-        val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
-          RequestExecutionGraph(jobGraph.getJobID)) match {
-          case ExecutionGraphFound(_, eg) => eg
-          case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} " +
-            s"was not retrievable.")
-        }
-
-        executionGraph.getRegisteredExecutions.size should equal(0)
-      } finally {
-        cluster.stop()
-      }
-    }
-
-    "handle job with all vertices failing during instantiation" in {
-      val num_tasks = 200
-      val sender = new AbstractJobVertex("Sender")
-      val receiver = new AbstractJobVertex("Receiver")
-
-      sender.setInvokableClass(classOf[InstantiationErrorSender])
-      receiver.setInvokableClass(classOf[Receiver])
-
-      sender.setParallelism(num_tasks)
-      receiver.setParallelism(num_tasks)
-
-      receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE)
-
-      val jobGraph = new JobGraph("Pointwise job", sender, receiver)
-
-      val cluster = TestingUtils.startTestingCluster(num_tasks)
-      val jm = cluster.getJobManager
-
-      try {
-        within(1 second) {
-          jm ! RequestAvailableSlots
-          expectMsg(num_tasks)
-        }
-
-        within(1 second) {
-          jm ! SubmitJob(jobGraph)
-          expectMsg(JobSubmissionResult(JobResult.SUCCESS, null))
-
-          jm ! RequestJobStatusWhenTerminated(jobGraph.getJobID)
-          expectMsg(CurrentJobStatus(jobGraph.getJobID, JobStatus.FAILED))
-        }
-
-        val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
-          RequestExecutionGraph(jobGraph.getJobID)) match {
-          case ExecutionGraphFound(_, eg) => eg
-          case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} " +
-            s"was not retrievable.")
-        }
-
-        executionGraph.getRegisteredExecutions.size should equal(0)
-      } finally {
-        cluster.stop()
-      }
-    }
-
-    "handle job with some vertices failing during instantiation" in {
-      val num_tasks = 200
-      val sender = new AbstractJobVertex("Sender")
-      val receiver = new AbstractJobVertex("Receiver")
-
-      sender.setInvokableClass(classOf[SometimesInstantiationErrorSender])
-      receiver.setInvokableClass(classOf[Receiver])
-
-      sender.setParallelism(num_tasks)
-      receiver.setParallelism(num_tasks)
-
-      receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE)
-
-      val jobGraph = new JobGraph("Pointwise job", sender, receiver)
-
-      val cluster = TestingUtils.startTestingCluster(num_tasks)
-      val jm = cluster.getJobManager
-
-      try {
-        within(1 second) {
-          jm ! RequestAvailableSlots
-          expectMsg(num_tasks)
-        }
-
-        within(1 second) {
-          jm ! SubmitJob(jobGraph)
-          expectMsg(JobSubmissionResult(JobResult.SUCCESS, null))
-
-          jm ! RequestJobStatusWhenTerminated(jobGraph.getJobID)
-          expectMsg(CurrentJobStatus(jobGraph.getJobID, JobStatus.FAILED))
-        }
-
-        val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
-          RequestExecutionGraph(jobGraph.getJobID)) match {
-          case ExecutionGraphFound(_, eg) => eg
-          case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} " +
-            s"was not retrievable.")
-        }
-
-        executionGraph.getRegisteredExecutions.size should equal(0)
-      } finally {
-        cluster.stop()
-      }
-    }
   }
 }

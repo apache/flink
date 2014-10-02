@@ -70,16 +70,19 @@ public class AccumulatorManager {
 		}
 	}
 
-	/**
-	 * Returns all collected accumulators for the job. For efficiency the
-	 * internal accumulator is returned, so please use it read-only.
-	 */
-	public Map<String, Accumulator<?, ?>> getJobAccumulators(JobID jobID) {
-		JobAccumulators jobAccumulators = this.jobAccumulators.get(jobID);
-		if (jobAccumulators == null) {
-			return new HashMap<String, Accumulator<?, ?>>();
+	public Map<String, Object> getJobAccumulatorResults(JobID jobID) {
+		Map<String, Object> result = new HashMap<String, Object>();
+
+		JobAccumulators jobAccumulator = jobAccumulators.get(jobID);
+
+		if(jobAccumulator != null) {
+			for (Map.Entry<String, Accumulator<?, ?>> entry : jobAccumulators.get(jobID)
+					.getAccumulators().entrySet()) {
+				result.put(entry.getKey(), entry.getValue().getLocalValue());
+			}
 		}
-		return jobAccumulators.getAccumulators();
+
+		return result;
 	}
 
 	/**

@@ -19,14 +19,19 @@
 
 package org.apache.flink.test.cancelling;
 
-import java.util.Iterator;
+import java.util.concurrent.TimeUnit;
 
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import akka.dispatch.ExecutionContexts;
+import akka.pattern.Patterns;
+import com.amazonaws.http.ExecutionContext;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.messages.JobResult;
-import org.apache.flink.runtime.messages.JobResult.JobProgressResult;
-import org.apache.flink.runtime.messages.JobResult.JobSubmissionResult;
-import org.apache.flink.runtime.messages.JobResult.JobCancelResult;
+import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.messages.JobClientMessages;
+import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.junit.Assert;
 
@@ -37,15 +42,14 @@ import org.apache.flink.compiler.DataStatistics;
 import org.apache.flink.compiler.PactCompiler;
 import org.apache.flink.compiler.plan.OptimizedPlan;
 import org.apache.flink.compiler.plantranslate.NepheleJobGraphGenerator;
-import org.apache.flink.runtime.client.JobClient;
-import org.apache.flink.runtime.event.job.AbstractEvent;
-import org.apache.flink.runtime.event.job.JobEvent;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.util.StringUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.junit.After;
 import org.junit.Before;
+import scala.concurrent.Await;
+import scala.concurrent.Future;
+import scala.concurrent.duration.FiniteDuration;
 
 /**
  * 
@@ -108,124 +112,37 @@ public abstract class CancellingTestBase {
 		try {
 			// submit job
 			final JobGraph jobGraph = getJobGraph(plan);
+			final ActorRef client = this.executor.getJobClient();
+			final ActorSystem actorSystem = executor.getJobClientActorSystem();
+			boolean jobSuccessfullyCancelled = false;
 
-			final long startingTime = System.currentTimeMillis();
-			long cancelTime = -1L;
-			final JobClient client = this.executor.getJobClient(jobGraph);
-			final JobSubmissionResult submissionResult = client.submitJob();
-			if (submissionResult.returnCode() != JobResult.SUCCESS()) {
-				throw new IllegalStateException(submissionResult.description());
-			}
+			Future<Object> result = Patterns.ask(client, new JobClientMessages.SubmitJobAndWait
+					(jobGraph, false), AkkaUtils.FUTURE_TIMEOUT());
 
-
-			final int interval = client.getRecommendedPollingInterval();
-			final long sleep = interval * 1000L;
-
-			Thread.sleep(sleep / 2);
-
-			long lastProcessedEventSequenceNumber = -1L;
-
-			while (true) {
-
-				if (Thread.interrupted()) {
-					throw new IllegalStateException("Job client has been interrupted");
-				}
-
-				final long now = System.currentTimeMillis();
-
-				if (cancelTime < 0L) {
-
-					// Cancel job
-					if (startingTime + msecsTillCanceling < now) {
-
-						LOG.info("Issuing cancel request");
-
-						final JobCancelResult jcr = client.cancelJob();
-
-						if (jcr == null) {
-							throw new IllegalStateException("Return value of cancelJob is null!");
-						}
-
-						if (jcr.returnCode() != JobResult.SUCCESS()) {
-							throw new IllegalStateException(jcr.description());
-						}
-
-						// Save when the cancel request has been issued
-						cancelTime = now;
-					}
-				} else {
-
-					// Job has already been canceled
-					if (cancelTime + maxTimeTillCanceled < now) {
-						throw new IllegalStateException("Cancelling of job took " + (now - cancelTime)
-							+ " milliseconds, only " + maxTimeTillCanceled + " milliseconds are allowed");
-					}
-				}
-
-				final JobProgressResult jobProgressResult = client.getJobProgress();
-
-				if (jobProgressResult == null) {
-					throw new IllegalStateException("Returned job progress is unexpectedly null!");
-				}
-
-				if (jobProgressResult.returnCode() == JobResult.ERROR()) {
-					throw new IllegalStateException("Could not retrieve job progress: "
-						+ jobProgressResult.description());
-				}
-
-				boolean exitLoop = false;
-
-				final Iterator<AbstractEvent> it = jobProgressResult.asJavaList().iterator();
-				while (it.hasNext()) {
-
-					final AbstractEvent event = it.next();
-
-					// Did we already process that event?
-					if (lastProcessedEventSequenceNumber >= event.getSequenceNumber()) {
-						continue;
-					}
-
-					lastProcessedEventSequenceNumber = event.getSequenceNumber();
-
-					// Check if we can exit the loop
-					if (event instanceof JobEvent) {
-						final JobEvent jobEvent = (JobEvent) event;
-						final JobStatus jobStatus = jobEvent.getCurrentJobStatus();
-
-						switch (jobStatus) {
-						case FINISHED:
-							throw new IllegalStateException("Job finished successfully");
-						case FAILED:
-							throw new IllegalStateException("Job failed");
-						case CANCELED:
-							exitLoop = true;
-							break;
-						case RUNNING:
-						case CANCELLING:
-						case FAILING:
-						case CREATED:
-							break;
+			actorSystem.scheduler().scheduleOnce(new FiniteDuration(msecsTillCanceling,
+							TimeUnit.MILLISECONDS), client, new JobManagerMessages.CancelJob(jobGraph.getJobID()),
+					actorSystem.dispatcher(), ActorRef.noSender());
 						case RESTARTING:
 							throw new IllegalStateException("Job restarted");
-						}
-					}
 
-					if (exitLoop) {
-						break;
-					}
+			try {
+				Await.result(result, AkkaUtils.AWAIT_DURATION());
+			} catch (JobExecutionException exception) {
+				if (!exception.isJobCanceledByUser()) {
+					throw new IllegalStateException("Job Failed.");
 				}
 
-				if (exitLoop) {
-					break;
-				}
-
-				Thread.sleep(sleep);
+				jobSuccessfullyCancelled = true;
 			}
 
-		} catch (Exception e) {
-			LOG.error("Exception while running runAndCancelJob.", e);
+			if (!jobSuccessfullyCancelled) {
+				throw new IllegalStateException("Job was not successfully cancelled.");
+			}
+		}catch(Exception e){
+			LOG.error("Exception found in runAndCancelJob.", e);
 			Assert.fail(StringUtils.stringifyException(e));
 		}
+
 	}
 
 	private JobGraph getJobGraph(final Plan plan) throws Exception {

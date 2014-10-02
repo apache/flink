@@ -19,6 +19,7 @@
 
 package org.apache.flink.test.util;
 
+import akka.actor.ActorRef;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.compiler.DataStatistics;
@@ -119,9 +120,8 @@ public abstract class RecordAPITestBase extends AbstractTestBase {
 			Assert.assertNotNull("Obtained null JobGraph", jobGraph);
 			
 			try {
-				JobClient client = this.executor.getJobClient(jobGraph);
-				client.setConsoleStreamForReporting(getNullPrintStream());
-				this.jobExecutionResult = client.submitJobAndWait();
+			ActorRef client = this.executor.getJobClient();
+			this.jobExecutionResult = JobClient.submitJobAndWait(jobGraph, false, client);
 			}
 			catch(Exception e) {
 				System.err.println(e.getMessage());

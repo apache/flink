@@ -20,6 +20,8 @@
 package org.apache.flink.hadoopcompatibility.mapreduce.wrapper;
 
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.memory.DataInputView;
@@ -70,6 +72,31 @@ public class HadoopInputSplit implements InputSplit {
 		if(this.mapreduceInputSplit == null) {
 			try {
 				Class<? extends org.apache.hadoop.io.Writable> inputSplit = 
+						Class.forName(className).asSubclass(org.apache.hadoop.io.Writable.class);
+				this.mapreduceInputSplit = (org.apache.hadoop.mapreduce.InputSplit) WritableFactories.newInstance(inputSplit);
+			} catch (Exception e) {
+				throw new RuntimeException("Unable to create InputSplit", e);
+			}
+		}
+		((Writable)this.mapreduceInputSplit).readFields(in);
+	}
+
+	private void writeObject(ObjectOutputStream out) throws IOException {
+		out.writeInt(this.splitNumber);
+		out.writeUTF(this.mapreduceInputSplit.getClass().getName());
+		Writable w = (Writable) this.mapreduceInputSplit;
+		w.write(out);
+
+	}
+
+	@SuppressWarnings("unchecked")
+	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+		this.splitNumber=in.readInt();
+		String className = in.readUTF();
+
+		if(this.mapreduceInputSplit == null) {
+			try {
+				Class<? extends org.apache.hadoop.io.Writable> inputSplit =
 						Class.forName(className).asSubclass(org.apache.hadoop.io.Writable.class);
 				this.mapreduceInputSplit = (org.apache.hadoop.mapreduce.InputSplit) WritableFactories.newInstance(inputSplit);
 			} catch (Exception e) {

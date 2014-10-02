@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
@@ -29,7 +30,7 @@ import org.apache.flink.core.memory.DataOutputView;
 /**
  * Objects of this class uniquely identify a connection to a remote {@link org.apache.flink.runtime.taskmanager.TaskManager}.
  */
-public final class RemoteReceiver implements IOReadableWritable {
+public final class RemoteReceiver implements IOReadableWritable, Serializable {
 
 	/**
 	 * The address of the connection to the remote TaskManager.

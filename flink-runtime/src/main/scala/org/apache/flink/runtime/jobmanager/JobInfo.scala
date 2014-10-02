@@ -16,9 +16,23 @@
  * limitations under the License.
  */
 
+package org.apache.flink.runtime.jobmanager
 
-package org.apache.flink.runtime;
+import akka.actor.ActorRef
 
-public enum ExecutionMode {
-	LOCAL, CLUSTER
+class JobInfo(val client: ActorRef,val start: Long){
+  var end: Long = -1
+  var detach: Boolean = false
+
+  def duration: Long = {
+    if(end != -1){
+      (end - start)/1000
+    }else{
+      -1
+    }
+  }
+}
+
+object JobInfo{
+  def apply(client: ActorRef, start: Long) = new JobInfo(client, start)
 }

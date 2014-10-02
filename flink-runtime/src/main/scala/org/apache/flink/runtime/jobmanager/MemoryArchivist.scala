@@ -33,17 +33,6 @@ import scala.collection.mutable.ListBuffer
 class MemoryArchivist(private val max_entries: Int) extends Actor with ActorLogMessages with
 ActorLogging with DecorateAsJava {
   /**
-   * The map which stores all collected events until they are either
-   * fetched by the client or discarded.
-   */
-  val collectedEvents = collection.mutable.HashMap[JobID, ListBuffer[AbstractEvent]]()
-
-  /**
-   * Map of recently started jobs with the time stamp of the last received job event.
-   */
-  val oldJobs = collection.mutable.HashMap[JobID, RecentJobEvent]()
-
-  /**
    * Map of execution graphs belonging to recently started jobs with the time stamp of the last
    * received job event.
    */
@@ -53,29 +42,9 @@ ActorLogging with DecorateAsJava {
   val lru = collection.mutable.Queue[JobID]()
 
   override def receiveWithLogMessages: Receive = {
-    case ArchiveEvent(jobID, event) => {
-      val list = collectedEvents.getOrElseUpdate(jobID, ListBuffer())
-      list += event
-      cleanup(jobID)
-    }
-
-    case ArchiveJobEvent(jobID, event) => {
-      oldJobs.update(jobID, event)
-      cleanup(jobID)
-    }
-
     case ArchiveExecutionGraph(jobID, graph) => {
       graphs.update(jobID, graph)
       cleanup(jobID)
-    }
-
-    case RequestJobStatus(jobID) => {
-      val response = oldJobs get jobID match {
-        case Some(recentJobEvent) => CurrentJobStatus(jobID, recentJobEvent.getJobStatus)
-        case None => JobNotFound(jobID)
-      }
-
-      sender() ! response
     }
   }
 
@@ -86,8 +55,6 @@ ActorLogging with DecorateAsJava {
 
     while (lru.size > max_entries) {
       val removedJobID = lru.dequeue()
-      collectedEvents.remove(removedJobID)
-      oldJobs.remove(removedJobID)
       graphs.remove(removedJobID)
     }
   }

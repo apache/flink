@@ -18,6 +18,8 @@
 
 package org.apache.flink.client.program;
 
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.Plan;
@@ -28,10 +30,9 @@ import org.apache.flink.compiler.plan.OptimizedPlan;
 import org.apache.flink.compiler.plantranslate.NepheleJobGraphGenerator;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.client.JobClient;
+import org.apache.flink.runtime.client.JobClient$;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.messages.JobResult;
-import org.apache.flink.runtime.messages.JobResult.JobSubmissionResult;
+import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -40,6 +41,8 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
+import org.powermock.reflect.Whitebox;
+import scala.Tuple2;
 
 import java.io.IOException;
 
@@ -57,7 +60,7 @@ import static org.powermock.api.mockito.PowerMockito.whenNew;
  * Simple and maybe stupid test to check the {@link Client} class.
  */
 @RunWith(PowerMockRunner.class)
-@PrepareForTest(Client.class)
+@PrepareForTest({Client.class, JobClient$.class})
 public class ClientTest {
 
 	@Mock Configuration configMock;
@@ -68,8 +71,11 @@ public class ClientTest {
 	@Mock OptimizedPlan optimizedPlanMock;
 	@Mock NepheleJobGraphGenerator generatorMock;
 	@Mock JobGraph jobGraphMock;
-	@Mock JobClient jobClientMock;
-	@Mock JobSubmissionResult jobSubmissionResultMock;
+	@Mock ActorSystem mockSystem;
+	@Mock JobClient$ mockJobClient;
+	@Mock JobManagerMessages.SubmissionSuccess mockSubmissionSuccess;
+	@Mock JobManagerMessages.SubmissionFailure mockSubmissionFailure;
+	@Mock ActorRef mockJobClientActor;
 
 	@Before
 	public void setUp() throws Exception {
@@ -90,14 +96,16 @@ public class ClientTest {
 		whenNew(NepheleJobGraphGenerator.class).withNoArguments().thenReturn(generatorMock);
 		when(generatorMock.compileJobGraph(optimizedPlanMock)).thenReturn(jobGraphMock);
 
-		whenNew(JobClient.class).withArguments(any(JobGraph.class), any(Configuration.class), any(ClassLoader.class)).thenReturn(this.jobClientMock);
+		Whitebox.setInternalState(JobClient$.class, mockJobClient);
 
-		when(this.jobClientMock.submitJob()).thenReturn(jobSubmissionResultMock);
+		when(mockJobClient.startActorSystemAndActor(configMock)).thenReturn(new Tuple2<ActorSystem,
+				ActorRef>(mockSystem, mockJobClientActor));
 	}
 
 	@Test
 	public void shouldSubmitToJobClient() throws ProgramInvocationException, IOException {
-		when(jobSubmissionResultMock.returnCode()).thenReturn(JobResult.SUCCESS());
+		when(mockJobClient.submitJobDetached(any(JobGraph.class), any(boolean.class),
+				any(ActorRef.class))).thenReturn(mockSubmissionSuccess);
 
 		Client out = new Client(configMock, getClass().getClassLoader());
 		out.run(program.getPlanWithJars(), -1, false);
@@ -105,18 +113,16 @@ public class ClientTest {
 
 		verify(this.compilerMock, times(1)).compile(planMock);
 		verify(this.generatorMock, times(1)).compileJobGraph(optimizedPlanMock);
-		verify(this.jobClientMock, times(1)).submitJob();
 	}
 
 	@Test(expected = ProgramInvocationException.class)
 	public void shouldThrowException() throws Exception {
-		when(jobSubmissionResultMock.returnCode()).thenReturn(JobResult.ERROR());
+		when(mockJobClient.submitJobDetached(any(JobGraph.class), any(boolean.class),
+				any(ActorRef.class))).thenReturn(mockSubmissionFailure);
 
 		Client out = new Client(configMock, getClass().getClassLoader());
 		out.run(program.getPlanWithJars(), -1, false);
 		program.deleteExtractedLibraries();
-
-		verify(this.jobClientMock).submitJob();
 	}
 
 	@Test(expected = InvalidProgramException.class)

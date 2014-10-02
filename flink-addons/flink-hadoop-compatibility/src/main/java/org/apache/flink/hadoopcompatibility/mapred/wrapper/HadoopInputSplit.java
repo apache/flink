@@ -20,6 +20,8 @@
 package org.apache.flink.hadoopcompatibility.mapred.wrapper;
 
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.memory.DataInputView;
@@ -85,6 +87,30 @@ public class HadoopInputSplit implements InputSplit {
 		}
 		this.hadoopInputSplit.readFields(in);
 
+	}
+
+	private void writeObject(ObjectOutputStream out) throws IOException {
+		out.writeInt(splitNumber);
+		out.writeUTF(hadoopInputSplitTypeName);
+		hadoopInputSplit.write(out);
+
+	}
+
+	@SuppressWarnings("unchecked")
+	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+		this.splitNumber=in.readInt();
+		this.hadoopInputSplitTypeName = in.readUTF();
+		if(hadoopInputSplit == null) {
+			try {
+				Class<? extends org.apache.hadoop.io.Writable> inputSplit =
+						Class.forName(hadoopInputSplitTypeName).asSubclass(org.apache.hadoop.io.Writable.class);
+				this.hadoopInputSplit = (org.apache.hadoop.mapred.InputSplit) WritableFactories.newInstance( inputSplit );
+			}
+			catch (Exception e) {
+				throw new RuntimeException("Unable to create InputSplit", e);
+			}
+		}
+		this.hadoopInputSplit.readFields(in);
 	}
 
 	@Override

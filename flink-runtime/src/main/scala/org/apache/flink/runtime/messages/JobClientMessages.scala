@@ -16,13 +16,11 @@
  * limitations under the License.
  */
 
+package org.apache.flink.runtime.messages
 
-package org.apache.flink.api.common.accumulators;
+import org.apache.flink.runtime.jobgraph.JobGraph
 
-import java.io.Serializable;
-
-/**
- * Similar to Accumulator, but the type of items to add and the result value
- * must be the same.
- */
-public interface SimpleAccumulator<T extends Serializable> extends Accumulator<T,T> {}
+object JobClientMessages {
+  case class SubmitJobAndWait(jobGraph: JobGraph, listenToEvents: Boolean = false)
+  case class SubmitJobDetached(jobGraph: JobGraph, listenToEvents: Boolean = false)
+}

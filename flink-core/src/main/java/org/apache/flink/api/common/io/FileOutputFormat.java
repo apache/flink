@@ -62,20 +62,22 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT>, Initiali
 	private static OutputDirectoryMode DEFAULT_OUTPUT_DIRECTORY_MODE;
 	
 	
-	private static final void initDefaultsFromConfiguration() {
-		final boolean overwrite = GlobalConfiguration.getBoolean(ConfigConstants.FILESYSTEM_DEFAULT_OVERWRITE_KEY,
-			ConfigConstants.DEFAULT_FILESYSTEM_OVERWRITE);
+	private static final void initDefaultsFromConfiguration(Configuration configuration) {
+		final boolean overwrite = configuration.getBoolean(ConfigConstants
+						.FILESYSTEM_DEFAULT_OVERWRITE_KEY,
+				ConfigConstants.DEFAULT_FILESYSTEM_OVERWRITE);
 	
 		DEFAULT_WRITE_MODE = overwrite ? WriteMode.OVERWRITE : WriteMode.NO_OVERWRITE;
 		
-		final boolean alwaysCreateDirectory = GlobalConfiguration.getBoolean(ConfigConstants.FILESYSTEM_OUTPUT_ALWAYS_CREATE_DIRECTORY_KEY,
+		final boolean alwaysCreateDirectory = configuration.getBoolean(ConfigConstants
+						.FILESYSTEM_OUTPUT_ALWAYS_CREATE_DIRECTORY_KEY,
 			ConfigConstants.DEFAULT_FILESYSTEM_ALWAYS_CREATE_DIRECTORY);
 	
 		DEFAULT_OUTPUT_DIRECTORY_MODE = alwaysCreateDirectory ? OutputDirectoryMode.ALWAYS : OutputDirectoryMode.PARONLY;
 	}
 	
 	static {
-		initDefaultsFromConfiguration();
+		initDefaultsFromConfiguration(GlobalConfiguration.getConfiguration());
 	}
 	
 	// --------------------------------------------------------------------------------------------	

@@ -44,7 +44,7 @@ abstract public class FlinkMiniCluster {
 	protected List<ActorSystem> taskManagerActorSystems = new ArrayList<ActorSystem>();
 	protected List<ActorRef> taskManagerActors = new ArrayList<ActorRef>();
 
-	public abstract Configuration getConfiguration(final Configuration userConfiguration);
+	protected abstract Configuration generateConfiguration(final Configuration userConfiguration);
 
 	public abstract ActorRef startJobManager(final ActorSystem system, final Configuration configuration);
 	public abstract ActorRef startTaskManager(final ActorSystem system, final Configuration configuration,
@@ -81,9 +81,9 @@ abstract public class FlinkMiniCluster {
 	// ------------------------------------------------------------------------
 
 
-	public void start(final Configuration configuration) throws Exception {
+	public void start(final Configuration configuration) {
 
-		Configuration clusterConfiguration = getConfiguration(configuration);
+		Configuration clusterConfiguration = generateConfiguration(configuration);
 
 		jobManagerActorSystem = startJobManagerActorSystem(clusterConfiguration);
 		jobManagerActor = startJobManager(jobManagerActorSystem, clusterConfiguration);
@@ -101,21 +101,31 @@ abstract public class FlinkMiniCluster {
 		waitForTaskManagersToBeRegistered();
 	}
 
-	public void stop() throws Exception {
+	public void stop() {
 		LOG.info("Stopping FlinkMiniCluster.");
-		for(ActorSystem system: taskManagerActorSystems){
-			system.shutdown();
-		}
-		jobManagerActorSystem.shutdown();
+		shutdown();
 
-		for(ActorSystem system: taskManagerActorSystems){
-			system.awaitTermination();
-		}
-		jobManagerActorSystem.awaitTermination();
+		awaitTermination();
 
 		taskManagerActorSystems.clear();
 		taskManagerActors.clear();
 	}
+
+	protected void shutdown() {
+		for(ActorSystem system: taskManagerActorSystems){
+			system.shutdown();
+		}
+		jobManagerActorSystem.shutdown();
+	}
+
+	protected void awaitTermination() {
+		for(ActorSystem system: taskManagerActorSystems){
+			system.awaitTermination();
+		}
+		jobManagerActorSystem.awaitTermination();
+	}
+
+
 
 	// ------------------------------------------------------------------------
 	// Network utility methods

@@ -16,26 +16,8 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.messages
+package org.apache.flink.runtime.jobmanager
 
-import org.apache.flink.runtime.event.job.AbstractEvent
+import org.apache.flink.runtime.jobgraph.{JobID, JobStatus}
 
-import scala.collection.convert.DecorateAsJava
-
-
-object JobResult extends Enumeration with DecorateAsJava {
-  type JobResult = Value
-  val SUCCESS, ERROR = Value
-
-  case class JobProgressResult(returnCode: JobResult, description: String,
-                               events: List[AbstractEvent]) {
-    def asJavaList: java.util.List[AbstractEvent] = {
-      events.asJava
-    }
-  }
-
-  case class JobCancelResult(returnCode: JobResult, description: String)
-
-  case class JobSubmissionResult(returnCode: JobResult, description: String)
-
-}
+case class RunningJob(jobID: JobID, jobStatus: JobStatus, timestamp: Long, jobName: String)

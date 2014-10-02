@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.util;
 
+import akka.actor.ActorRef;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.junit.Assert;
 
@@ -142,11 +143,11 @@ public abstract class FailingTestBase extends RecordAPITestBase {
 		 */
 		@Override
 		public void run() {
+			ActorRef client = this.executor.getJobClient();
+
 			try {
 				// submit failing job
-				JobClient client = this.executor.getJobClient(this.failingJob);
-				client.setConsoleStreamForReporting(AbstractTestBase.getNullPrintStream());
-				client.submitJobAndWait();
+				JobClient.submitJobAndWait(this.failingJob, false, client);
 				
 				this.error = new Exception("The job did not fail.");
 			} catch(JobExecutionException jee) {
@@ -158,9 +159,7 @@ public abstract class FailingTestBase extends RecordAPITestBase {
 			
 			try {
 				// submit working job
-				JobClient client = this.executor.getJobClient(this.job);
-				client.setConsoleStreamForReporting(AbstractTestBase.getNullPrintStream());
-				client.submitJobAndWait();
+				JobClient.submitJobAndWait(this.job, false, client);
 			} catch (Exception e) {
 				this.error = e;
 			}

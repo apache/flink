@@ -676,8 +676,8 @@ public class ExecutionGraph {
 		if(jobStatusListenerActors.size() > 0){
 			String message = error == null ? null : ExceptionUtils.stringifyException(error);
 			for(ActorRef listener: jobStatusListenerActors){
-				listener.tell(new JobStatusChanged(this, newState, message),
-						ActorRef.noSender());
+				listener.tell(new JobStatusChanged(jobID, newState, System.currentTimeMillis(),
+								message), ActorRef.noSender());
 			}
 		}
 
@@ -708,7 +708,8 @@ public class ExecutionGraph {
 			String message = error == null ? null : ExceptionUtils.stringifyException(error);
 			for(ActorRef listener : executionListenerActors){
 				listener.tell(new ExecutionGraphMessages.ExecutionStateChanged(jobID, vertexId, subtask, executionID,
-						newExecutionState, message), ActorRef.noSender());
+						newExecutionState, System.currentTimeMillis(), message),
+						ActorRef.noSender());
 			}
 		}
 

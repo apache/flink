@@ -41,7 +41,7 @@ import java.io.Serializable;
  *            Type of the accumulator result as it will be reported to the
  *            client
  */
-public interface Accumulator<V, R> extends Serializable, Cloneable{
+public interface Accumulator<V, R extends Serializable> extends Serializable, Cloneable{
 
 	/**
 	 * @param value

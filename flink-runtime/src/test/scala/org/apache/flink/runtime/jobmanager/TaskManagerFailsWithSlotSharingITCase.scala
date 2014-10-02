@@ -1,34 +1,31 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*     http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*/
 
 package org.apache.flink.runtime.jobmanager
 
 import akka.actor.{PoisonPill, ActorSystem}
 import akka.testkit.{ImplicitSender, TestKit}
-import org.apache.flink.runtime.jobgraph.{JobStatus, JobGraph, DistributionPattern,
+import org.apache.flink.runtime.jobgraph.{JobGraph, DistributionPattern,
 AbstractJobVertex}
 import org.apache.flink.runtime.jobmanager.Tasks.{Sender, BlockingReceiver}
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup
-import org.apache.flink.runtime.messages.ExecutionGraphMessages.CurrentJobStatus
-import org.apache.flink.runtime.messages.JobManagerMessages.{RequestJobStatusWhenTerminated,
+import org.apache.flink.runtime.messages.JobManagerMessages.{JobResultFailed, SubmissionSuccess,
 SubmitJob}
-import org.apache.flink.runtime.messages.JobResult
-import org.apache.flink.runtime.messages.JobResult.JobSubmissionResult
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.{AllVerticesRunning,
 WaitForAllVerticesToBeRunning}
 import org.apache.flink.runtime.testingUtils.TestingUtils
@@ -73,7 +70,7 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
       try{
         within(1 second) {
           jm ! SubmitJob(jobGraph)
-          expectMsg(new JobSubmissionResult(JobResult.SUCCESS, null))
+          expectMsg(SubmissionSuccess(jobGraph.getJobID))
 
           jm ! WaitForAllVerticesToBeRunning(jobID)
           expectMsg(AllVerticesRunning(jobID))
@@ -81,9 +78,9 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
           //kill task manager
           taskManagers.get(0) ! PoisonPill
 
-          jm ! RequestJobStatusWhenTerminated(jobGraph.getJobID)
+          expectMsgType[JobResultFailed]
 
-          expectMsg(CurrentJobStatus(jobID, JobStatus.FAILED))
+          expectNoMsg()
         }
       }finally{
         cluster.stop()

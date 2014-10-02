@@ -25,19 +25,17 @@ import static org.junit.Assert.fail;
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Props;
+import akka.actor.Status;
 import akka.actor.UntypedActor;
 import akka.testkit.JavaTestKit;
 import org.apache.commons.cli.CommandLine;
-import org.apache.flink.runtime.event.job.RecentJobEvent;
+import org.apache.flink.runtime.jobmanager.RunningJob;
 import org.apache.flink.runtime.jobgraph.JobID;
-import org.apache.flink.runtime.messages.EventCollectorMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages;
-import org.apache.flink.runtime.messages.JobResult;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-
-import java.util.ArrayList;
+import scala.collection.Seq;
 
 //TODO: Update test case
 public class CliFrontendListCancelTest {
@@ -162,12 +160,13 @@ public class CliFrontendListCancelTest {
 		public void onReceive(Object message) throws Exception {
 			if(message instanceof JobManagerMessages.RequestAvailableSlots$){
 				getSender().tell(1, getSelf());
-			}else if(message instanceof EventCollectorMessages.RequestRecentJobEvents$) {
-				getSender().tell(new EventCollectorMessages.RecentJobs(new ArrayList<RecentJobEvent>()), getSelf());
 			}else if(message instanceof JobManagerMessages.CancelJob){
 				JobManagerMessages.CancelJob cancelJob = (JobManagerMessages.CancelJob) message;
 				assertEquals(jobID, cancelJob.jobID());
-				getSender().tell(new JobResult.JobCancelResult(JobResult.SUCCESS(), null), getSelf());
+				getSender().tell(new Status.Success(new Object()), getSelf());
+			}else if(message instanceof  JobManagerMessages.RequestRunningJobs$){
+				getSender().tell(new JobManagerMessages.RunningJobsResponse(),
+						getSelf());
 			}
 		}
 	}

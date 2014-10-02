@@ -35,6 +35,7 @@ import java.util.Map;
 import java.util.Properties;
 
 import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.HelpFormatter;
@@ -54,12 +55,13 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.event.job.RecentJobEvent;
+import org.apache.flink.runtime.jobmanager.RunningJob;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmanager.JobManager;
-import org.apache.flink.runtime.messages.EventCollectorMessages;
-import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.runtime.messages.JobManagerMessages.CancelJob;
+import org.apache.flink.runtime.messages.JobManagerMessages.RequestRunningJobs$;
+import org.apache.flink.runtime.messages.JobManagerMessages.RunningJobsResponse;
 import org.apache.flink.util.StringUtils;
 
 /**
@@ -508,34 +510,34 @@ public class CliFrontend {
 				return 1;
 			}
 
-			List<RecentJobEvent> recentJobs = AkkaUtils.<EventCollectorMessages.RecentJobs>ask(jobManager,
-					EventCollectorMessages.RequestRecentJobEvents$.MODULE$).asJavaList();
+			List<RunningJob> jobs = AkkaUtils.<RunningJobsResponse>ask(jobManager,
+					RequestRunningJobs$.MODULE$).asJavaList();
 
-			ArrayList<RecentJobEvent> runningJobs = null;
-			ArrayList<RecentJobEvent> scheduledJobs = null;
+			ArrayList<RunningJob> runningJobs = null;
+			ArrayList<RunningJob> scheduledJobs = null;
 			if (running) {
-				runningJobs = new ArrayList<RecentJobEvent>();
+				runningJobs = new ArrayList<RunningJob>();
 			}
 			if (scheduled) {
-				scheduledJobs = new ArrayList<RecentJobEvent>();
+				scheduledJobs = new ArrayList<RunningJob>();
 			}
 			
-			for (RecentJobEvent rje : recentJobs) {
+			for (RunningJob rj : jobs) {
 				
-				if (running && rje.getJobStatus().equals(JobStatus.RUNNING)) {
-					runningJobs.add(rje);
+				if (running && rj.jobStatus().equals(JobStatus.RUNNING)) {
+					runningJobs.add(rj);
 				}
-				if (scheduled && rje.getJobStatus().equals(JobStatus.CREATED)) {
-					scheduledJobs.add(rje);
+				if (scheduled && rj.jobStatus().equals(JobStatus.CREATED)) {
+					scheduledJobs.add(rj);
 				}
 			}
 			
 			SimpleDateFormat df = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss");
-			Comparator<RecentJobEvent> njec = new Comparator<RecentJobEvent>(){
+			Comparator<RunningJob> njec = new Comparator<RunningJob>(){
 				
 				@Override
-				public int compare(RecentJobEvent o1, RecentJobEvent o2) {
-					return (int)(o1.getTimestamp()-o2.getTimestamp());
+				public int compare(RunningJob o1, RunningJob o2) {
+					return (int)(o1.timestamp()-o2.timestamp());
 				}
 			};
 			
@@ -546,8 +548,9 @@ public class CliFrontend {
 					Collections.sort(runningJobs, njec);
 					
 					System.out.println("------------------------ Running Jobs ------------------------");
-					for(RecentJobEvent je : runningJobs) {
-						System.out.println(df.format(new Date(je.getTimestamp()))+" : "+je.getJobID().toString()+" : "+je.getJobName());
+					for(RunningJob rj : runningJobs) {
+						System.out.println(df.format(new Date(rj.timestamp()))+" : "+rj
+								.jobID().toString()+" : "+rj.jobName());
 					}
 					System.out.println("--------------------------------------------------------------");
 				}
@@ -559,8 +562,9 @@ public class CliFrontend {
 					Collections.sort(scheduledJobs, njec);
 					
 					System.out.println("----------------------- Scheduled Jobs -----------------------");
-					for(RecentJobEvent je : scheduledJobs) {
-						System.out.println(df.format(new Date(je.getTimestamp()))+" : "+je.getJobID().toString()+" : "+je.getJobName());
+					for(RunningJob rj : scheduledJobs) {
+						System.out.println(df.format(new Date(rj.timestamp()))+" : "+rj.jobID()
+								.toString()+" : "+rj.jobName());
 					}
 					System.out.println("--------------------------------------------------------------");
 				}
@@ -627,7 +631,7 @@ public class CliFrontend {
 				return 1;
 			}
 
-			AkkaUtils.ask(jobManager, new JobManagerMessages.CancelJob(jobId));
+			AkkaUtils.ask(jobManager, new CancelJob(jobId));
 			return 0;
 		}
 		catch (Throwable t) {
@@ -750,7 +754,8 @@ public class CliFrontend {
 			return null;
 		}
 
-		return JobManager.getJobManager(jobManagerAddress);
+		return JobManager.getJobManager(jobManagerAddress,
+				ActorSystem.create("CliFrontendActorSystem", AkkaUtils.getDefaultActorSystemConfig()));
 	}
 	
 	

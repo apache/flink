@@ -60,7 +60,7 @@ public abstract class AbstractTestBase {
 	protected final Configuration config;
 	
 	protected LocalFlinkMiniCluster executor;
-	
+
 	private final List<File> tempFiles;
 
 	protected int taskManagerNumSlots = DEFAULT_TASK_MANAGER_NUM_SLOTS;
@@ -83,6 +83,7 @@ public abstract class AbstractTestBase {
 	// --------------------------------------------------------------------------------------------
 	
 	public void startCluster() throws Exception {
+		Thread.sleep(250);
 		this.executor = new LocalFlinkMiniCluster(null);
 		Configuration config = new Configuration();
 		config.setBoolean(ConfigConstants.FILESYSTEM_DEFAULT_OVERWRITE_KEY, true);

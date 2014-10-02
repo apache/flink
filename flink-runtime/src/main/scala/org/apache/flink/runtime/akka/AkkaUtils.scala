@@ -27,13 +27,13 @@ import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.core.io.IOReadableWritable
-import org.apache.flink.runtime.akka.serialization.IOReadableWritableSerializer
+import org.apache.flink.runtime.akka.serialization.{WritableSerializer,
+IOReadableWritableSerializer}
+import org.apache.hadoop.io.Writable
 import scala.concurrent.{ExecutionContext, Future, Await}
 import scala.concurrent.duration._
 
 object AkkaUtils {
-  lazy val defaultActorSystem = ActorSystem.create("DefaultActorSystem",
-    ConfigFactory.parseString(getDefaultActorSystemConfigString))
   implicit val FUTURE_TIMEOUT: Timeout = 1 minute
   implicit val AWAIT_DURATION: FiniteDuration = 1 minute
   implicit val FUTURE_DURATION: FiniteDuration = 1 minute
@@ -45,6 +45,10 @@ object AkkaUtils {
     val actorSystem = ActorSystem.create("flink", akkaConfig)
 
     actorSystem
+  }
+
+  def createActorSystem(): ActorSystem = {
+    ActorSystem.create("default", getDefaultActorSystemConfig)
   }
 
   def getConfigString(host: String, port: Int, configuration: Configuration): String = {
@@ -96,23 +100,29 @@ object AkkaUtils {
   def getDefaultActorSystemConfigString: String = {
     s"""akka.daemonic = on
       |akka.loggers = ["akka.event.slf4j.Slf4jLogger"]
-      |akka.loglevel = "INFO"
+      |akka.loglevel = "WARNING"
       |akka.logging-filter = "akka.event.slf4j.Slf4jLoggingFilter"
-      |akka.stdout-loglevel = "INFO"
+      |akka.stdout-loglevel = "WARNING"
       |akka.jvm-exit-on-fata-error = off
       |akka.actor.provider = "akka.remote.RemoteActorRefProvider"
       |akka.remote.netty.tcp.transport-class = "akka.remote.transport.netty.NettyTransport"
       |akka.remote.netty.tcp.tcp-nodelay = on
       |akka.log-config-on-start = off
+      |akka.remote.netty.tcp.port = 0
+      |akka.remote.netty.tcp.maximum-frame-size = 1MB
     """.stripMargin
+  }
+
+  def getDefaultActorSystemConfig = {
+    ConfigFactory.parseString(getDefaultActorSystemConfigString)
   }
 
   def getChild(parent: ActorRef, child: String)(implicit system: ActorSystem): ActorRef = {
     Await.result(system.actorSelection(parent.path / child).resolveOne(), AWAIT_DURATION)
   }
 
-  def getReference(path: String): ActorRef = {
-    Await.result(defaultActorSystem.actorSelection(path).resolveOne(), AWAIT_DURATION)
+  def getReference(path: String)(implicit system: ActorSystem): ActorRef = {
+    Await.result(system.actorSelection(path).resolveOne(), AWAIT_DURATION)
   }
 
   @throws(classOf[IOException])

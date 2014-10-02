@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.functions;
 
+import java.io.Serializable;
 import java.util.HashMap;
 import java.util.List;
 
@@ -77,7 +78,7 @@ public interface RuntimeContext {
 	 * This is only needed to support generic accumulators (e.g. for
 	 * Set<String>). Didn't find a way to get this work with getAccumulator.
 	 */
-	<V, A> void addAccumulator(String name, Accumulator<V, A> accumulator);
+	<V, A extends Serializable> void addAccumulator(String name, Accumulator<V, A> accumulator);
 
 	/**
 	 * Get an existing accumulator object. The accumulator must have been added
@@ -86,7 +87,7 @@ public interface RuntimeContext {
 	 * Throws an exception if the accumulator does not exist or if the
 	 * accumulator exists, but with different type.
 	 */
-	<V, A> Accumulator<V, A> getAccumulator(String name);
+	<V, A extends Serializable> Accumulator<V, A> getAccumulator(String name);
 
 	/**
 	 * For system internal usage only. Use getAccumulator(...) to obtain a

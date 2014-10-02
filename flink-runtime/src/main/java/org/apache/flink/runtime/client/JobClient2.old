@@ -24,7 +24,20 @@ import java.net.InetSocketAddress;
 import java.util.Iterator;
 import java.util.Map;
 
+import akka.actor.ActorPath;
 import akka.actor.ActorRef;
+import akka.actor.ActorRefProvider;
+import akka.actor.ActorSystem;
+import akka.actor.ActorSystemImpl;
+import akka.actor.Extension;
+import akka.actor.ExtensionId;
+import akka.actor.InternalActorRef;
+import akka.actor.Props;
+import akka.actor.Scheduler;
+import akka.dispatch.Dispatchers;
+import akka.dispatch.Mailboxes;
+import akka.event.EventStream;
+import akka.event.LoggingAdapter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.JobExecutionResult;
@@ -45,6 +58,9 @@ import org.apache.flink.runtime.messages.JobResult.JobCancelResult;
 import org.apache.flink.runtime.messages.JobResult.JobSubmissionResult;
 import org.apache.flink.runtime.messages.JobResult.JobProgressResult;
 import org.apache.flink.util.StringUtils;
+import scala.Function0;
+import scala.concurrent.ExecutionContextExecutor;
+import scala.concurrent.duration.Duration;
 
 /**
  * The job client is able to submit, control, and abort jobs.
@@ -107,7 +123,9 @@ public class JobClient {
 			ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
 
 		final InetSocketAddress inetaddr = new InetSocketAddress(address, port);
-		this.jobManager = JobManager.getJobManager(inetaddr);
+		ActorSystem system = ActorSystem.create("JobClientActorSystem",
+				AkkaUtils.getDefaultActorSystemConfig());
+		this.jobManager = JobManager.getJobManager(inetaddr, system);
 		this.jobGraph = jobGraph;
 		this.configuration = configuration;
 		this.userCodeClassLoader = userCodeClassLoader;
@@ -222,7 +240,9 @@ public class JobClient {
 			}
 
 			JobResult.JobProgressResult jobProgressResult = null;
+			LOG.info("Request job progress.");
 			jobProgressResult = getJobProgress();
+			LOG.info("Requested job progress.");
 
 			if (jobProgressResult == null) {
 				logErrorAndRethrow("Returned job progress is unexpectedly null!");
@@ -231,6 +251,7 @@ public class JobClient {
 			if (jobProgressResult.returnCode() == JobResult.ERROR()) {
 				logErrorAndRethrow("Could not retrieve job progress: " + jobProgressResult.description());
 			}
+
 
 			final Iterator<AbstractEvent> it = jobProgressResult.asJavaList().iterator();
 			while (it.hasNext()) {

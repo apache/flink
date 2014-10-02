@@ -23,12 +23,15 @@ import org.apache.flink.runtime.instance.InstanceConnectionInfo
 import org.apache.flink.runtime.io.network.ConnectionInfoLookupResponse
 import org.apache.flink.runtime.io.network.channels.ChannelID
 import org.apache.flink.runtime.jobgraph.{JobVertexID, JobID, JobGraph}
-import org.apache.flink.runtime.profiling.impl.types.ProfilingDataContainer
+import org.apache.flink.runtime.jobmanager.RunningJob
 import org.apache.flink.runtime.taskmanager.TaskExecutionState
+
+import scala.collection.convert.{WrapAsScala, WrapAsJava}
 
 object JobManagerMessages {
 
-  case class SubmitJob(jobGraph: JobGraph)
+  case class SubmitJob(jobGraph: JobGraph, listenToEvents: Boolean = false,
+                       detach: Boolean = false)
 
   case class CancelJob(jobID: JobID)
 
@@ -43,12 +46,6 @@ object JobManagerMessages {
 
   case class ReportAccumulatorResult(accumulatorEvent: AccumulatorEvent)
 
-  case class RequestAccumulatorResult(jobID: JobID)
-
-  case class RegisterJobStatusListener(jobID: JobID)
-
-  case class RequestJobStatusWhenTerminated(jobID: JobID)
-
   case class RequestJobStatus(jobID: JobID)
 
   case object RequestInstances
@@ -57,8 +54,43 @@ object JobManagerMessages {
 
   case object RequestAvailableSlots
 
-  case object RequestPollingInterval
-
   case object RequestBlobManagerPort
+
+  case class RequestFinalJobStatus(jobID: JobID)
+
+  sealed trait JobResult{
+    def jobID: JobID
+  }
+
+  case class JobResultSuccess(jobID: JobID, runtime: Long, accumulatorResults: java.util.Map[String,
+    AnyRef]) extends JobResult {}
+
+  case class JobResultCanceled(jobID: JobID, msg: String)
+
+  case class JobResultFailed(jobID: JobID, msg:String)
+
+  sealed trait SubmissionResponse{
+    def jobID: JobID
+  }
+
+  case class SubmissionSuccess(jobID: JobID) extends SubmissionResponse
+  case class SubmissionFailure(jobID: JobID, cause: Throwable) extends SubmissionResponse
+
+  sealed trait CancellationResponse{
+    def jobID: JobID
+  }
+
+  case class CancellationSuccess(jobID: JobID) extends CancellationResponse
+  case class CancellationFailure(jobID: JobID, cause: Throwable) extends CancellationResponse
+
+  case object RequestRunningJobs
+
+  case class RunningJobsResponse(runningJobs: Seq[RunningJob]) {
+    def this() = this(Seq())
+    def asJavaList: java.util.List[RunningJob] = {
+      import scala.collection.JavaConversions.seqAsJavaList
+      seqAsJavaList(runningJobs)
+    }
+  }
 
 }

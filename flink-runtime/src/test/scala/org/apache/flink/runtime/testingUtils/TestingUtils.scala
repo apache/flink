@@ -40,9 +40,9 @@ object TestingUtils {
 
     s"""akka.daemonic = on
       |akka.loggers = ["akka.event.slf4j.Slf4jLogger"]
-      |akka.loglevel = "INFO"
+      |akka.loglevel = "WARNING"
       |akka.logging-filter = "akka.event.slf4j.Slf4jLoggingFilter"
-      |akka.stdout-loglevel = "INFO"
+      |akka.stdout-loglevel = "WARNING"
       |akka.jvm-exit-on-fata-error = off
       |akka.log-config-on-start = off
       |akka.actor.serializers {

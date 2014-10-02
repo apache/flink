@@ -36,7 +36,7 @@ public class NoResourceAvailableException extends JobException {
 				+ ". You can decrease the operator parallelism or increase the number of slots per TaskManager in the configuration.");
 	}
 	
-	NoResourceAvailableException(int numInstances, int numSlotsTotal) {
+	public NoResourceAvailableException(int numInstances, int numSlotsTotal) {
 		super(String.format("%s Resources available to scheduler: Number of instances=%d, total number of slots=%d", 
 				BASE_MESSAGE, numInstances, numSlotsTotal));
 	}
@@ -48,5 +48,18 @@ public class NoResourceAvailableException extends JobException {
 
 	public NoResourceAvailableException(String message) {
 		super(message);
+	}
+
+	@Override
+	public boolean equals(Object obj){
+		if(obj == null){
+			return false;
+		}
+
+		if(!(obj instanceof NoResourceAvailableException)){
+			return false;
+		}else{
+			return getMessage().equals(((NoResourceAvailableException)obj).getMessage());
+		}
 	}
 }

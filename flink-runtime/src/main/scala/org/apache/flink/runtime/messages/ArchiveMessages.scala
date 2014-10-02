@@ -23,7 +23,5 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraph
 import org.apache.flink.runtime.jobgraph.JobID
 
 object ArchiveMessages {
-  case class ArchiveEvent(jobID: JobID, event: AbstractEvent)
-  case class ArchiveJobEvent(jobID: JobID, event: RecentJobEvent)
   case class ArchiveExecutionGraph(jobID: JobID, graph: ExecutionGraph)
 }

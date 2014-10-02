@@ -20,13 +20,12 @@ package org.apache.flink.runtime.minicluster;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
-import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobClient;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.util.EnvironmentInformation;
@@ -40,6 +39,7 @@ public class LocalFlinkMiniCluster extends FlinkMiniCluster {
 
 	private Configuration configuration;
 	private final String configDir;
+	private ActorSystem actorSystem;
 
 	public LocalFlinkMiniCluster(String configDir){
 		this.configDir = configDir;
@@ -50,23 +50,53 @@ public class LocalFlinkMiniCluster extends FlinkMiniCluster {
 	// Life cycle and Job Submission
 	// ------------------------------------------------------------------------
 
-	public JobClient getJobClient(JobGraph jobGraph) throws Exception {
-		if(configuration == null){
-			throw new RuntimeException("The cluster has not been started yet.");
+	public ActorRef getJobClient() {
+		Configuration config = new Configuration();
+
+		config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, HOSTNAME);
+		config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, getJobManagerRPCPort());
+
+		return JobClient.startActorWithConfiguration(config, actorSystem);
+	}
+
+	public ActorSystem getJobClientActorSystem(){
+		return actorSystem;
+	}
+
+	@Override
+	public void start(Configuration configuration){
+		super.start(configuration);
+
+		actorSystem = AkkaUtils.createActorSystem();
+	}
+
+	@Override
+	protected void shutdown() {
+		super.shutdown();
+
+		if(actorSystem != null){
+			actorSystem.shutdown();
+		}
+	}
+
+	@Override
+	protected void awaitTermination() {
+		if(actorSystem != null){
+			actorSystem.awaitTermination();
 		}
 
-		Configuration jobConfiguration = jobGraph.getJobConfiguration();
-		int jobManagerRPCPort = getJobManagerRPCPort();
-		jobConfiguration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, HOSTNAME);
-		jobConfiguration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerRPCPort);
-		return new JobClient(jobGraph, jobConfiguration, getClass().getClassLoader());
+		super.awaitTermination();
 	}
 
 	public int getJobManagerRPCPort() {
+		if(configuration == null){
+			throw new RuntimeException("Configuration has not been set.");
+		}
+
 		return configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, -1);
 	}
 
-	public Configuration getConfiguration(final Configuration userConfiguration) {
+	protected Configuration generateConfiguration(final Configuration userConfiguration) {
 		if(configuration == null){
 			String forkNumberString = System.getProperty("forkNumber");
 			int forkNumber = -1;
@@ -97,7 +127,7 @@ public class LocalFlinkMiniCluster extends FlinkMiniCluster {
 				configuration.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, taskManagerDATA);
 			}
 
-			initializeIOFormatClasses();
+			initializeIOFormatClasses(configuration);
 		}
 
 		return configuration;
@@ -130,15 +160,12 @@ public class LocalFlinkMiniCluster extends FlinkMiniCluster {
 		return TaskManager.startActorWithConfiguration(HOSTNAME, config, false, system);
 	}
 
-	private static void initializeIOFormatClasses() {
+	private static void initializeIOFormatClasses(Configuration configuration) {
 		try {
-			Method im = FileInputFormat.class.getDeclaredMethod("initDefaultsFromConfiguration");
-			im.setAccessible(true);
-			im.invoke(null);
-
-			Method om = FileOutputFormat.class.getDeclaredMethod("initDefaultsFromConfiguration");
+			Method om = FileOutputFormat.class.getDeclaredMethod("initDefaultsFromConfiguration",
+					Configuration.class);
 			om.setAccessible(true);
-			om.invoke(null);
+			om.invoke(null, configuration);
 		}
 		catch (Exception e) {
 			LOG.error("Cannot (re) initialize the globally loaded defaults. Some classes might mot follow the specified default behavior.");

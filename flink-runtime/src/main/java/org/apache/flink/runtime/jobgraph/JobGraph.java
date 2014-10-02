@@ -35,8 +35,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.BlobKey;
 
@@ -335,44 +333,6 @@ public class JobGraph implements Serializable {
 
 		this.numExecutionRetries = in.readInt();
 		out.writeInt(numExecutionRetries);
-	/**
-	 * Writes the BLOB keys of the jar files required to run this job to the given {@link org.apache.flink.core.memory.DataOutputView}.
-	 *
-	 * @param out
-	 *        the data output to write the BLOB keys to
-	 * @throws IOException
-	 *         thrown if an error occurs while writing to the data output
-	 */
-	private void writeJarBlobKeys(final DataOutputView out) throws IOException {
-
-		out.writeInt(this.userJarBlobKeys.size());
-
-		for (BlobKey userJarBlobKey : this.userJarBlobKeys) {
-			userJarBlobKey.write(out);
-		}
-	}
-
-	/**
-	 * Reads the BLOB keys for the JAR files required to run this job and registers them.
-	 *
-	 * @param in
-	 *        the data stream to read the BLOB keys from
-	 * @throws IOException
-	 *         thrown if an error occurs while reading the stream
-	 */
-	private void readJarBlobKeys(final DataInputView in) throws IOException {
-
-		// Do jar files follow;
-		final int numberOfBlobKeys = in.readInt();
-
-		for (int i = 0; i < numberOfBlobKeys; ++i) {
-			final BlobKey key = new BlobKey();
-			key.read(in);
-			this.userJarBlobKeys.add(key);
-		}
-	}
-
-
 	// --------------------------------------------------------------------------------------------
 	//  Handling of attached JAR files
 	// --------------------------------------------------------------------------------------------

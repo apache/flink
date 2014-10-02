@@ -224,7 +224,7 @@ public class AccumulatorITCase extends JavaProgramTestBase {
 	/**
 	 * Custom accumulator
 	 */
-	public static class SetAccumulator<T extends IOReadableWritable> implements Accumulator<T, Set<T>> {
+	public static class SetAccumulator<T extends IOReadableWritable> implements Accumulator<T, SerializableHashSet<T>> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -236,7 +236,7 @@ public class AccumulatorITCase extends JavaProgramTestBase {
 		}
 
 		@Override
-		public Set<T> getLocalValue() {
+		public SerializableHashSet<T> getLocalValue() {
 			return this.set;
 		}
 
@@ -246,7 +246,7 @@ public class AccumulatorITCase extends JavaProgramTestBase {
 		}
 
 		@Override
-		public void merge(Accumulator<T, Set<T>> other) {
+		public void merge(Accumulator<T, SerializableHashSet<T>> other) {
 			// build union
 			this.set.addAll(((SetAccumulator<T>) other).getLocalValue());
 		}
@@ -262,7 +262,7 @@ public class AccumulatorITCase extends JavaProgramTestBase {
 		}
 
 		@Override
-		public Accumulator<T, Set<T>> clone() {
+		public Accumulator<T, SerializableHashSet<T>> clone() {
 			SetAccumulator<T> result = new SetAccumulator<T>();
 
 			result.set.addAll(set);

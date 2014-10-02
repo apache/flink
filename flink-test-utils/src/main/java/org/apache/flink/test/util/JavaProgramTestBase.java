@@ -20,6 +20,7 @@ package org.apache.flink.test.util;
 
 import java.util.Comparator;
 
+import akka.actor.ActorRef;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.compiler.DataStatistics;
@@ -194,7 +195,7 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
 	private static final class TestEnvironment extends ExecutionEnvironment {
 
 		private final LocalFlinkMiniCluster executor;
-		
+
 		private JobExecutionResult latestResult;
 		
 		
@@ -211,10 +212,9 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
 				NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
 				JobGraph jobGraph = jgg.compileJobGraph(op);
 
-				JobClient client = this.executor.getJobClient(jobGraph);
-				client.setConsoleStreamForReporting(AbstractTestBase.getNullPrintStream());
-				JobExecutionResult result = client.submitJobAndWait();
-				
+				ActorRef client = this.executor.getJobClient();
+				JobExecutionResult result = JobClient.submitJobAndWait(jobGraph, false, client);
+
 				this.latestResult = result;
 				return result;
 			}

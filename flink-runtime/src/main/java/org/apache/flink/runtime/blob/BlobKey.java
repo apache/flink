@@ -23,17 +23,14 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.Serializable;
 import java.security.MessageDigest;
 import java.util.Arrays;
-
-import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
 
 /**
  * A BLOB key uniquely identifies a BLOB.
  */
-public final class BlobKey implements IOReadableWritable, Comparable<BlobKey> {
+public final class BlobKey implements Serializable, Comparable<BlobKey> {
 
 	/**
 	 * Array of hex characters to facilitate fast toString() method.
@@ -70,22 +67,6 @@ public final class BlobKey implements IOReadableWritable, Comparable<BlobKey> {
 		}
 
 		this.key = key;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void write(final DataOutputView out) throws IOException {
-		out.write(this.key);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void read(final DataInputView in) throws IOException {
-		in.readFully(this.key);
 	}
 
 	/**

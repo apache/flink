@@ -45,12 +45,6 @@ public class JobGraphUtils {
 
 	private JobGraphUtils() {}
 	
-
-	public static void submit(JobGraph graph, Configuration nepheleConfig) throws IOException, JobExecutionException {
-		JobClient client = new JobClient(graph, nepheleConfig, JobGraphUtils.class.getClassLoader());
-		client.submitJobAndWait();
-	}
-	
 	public static <T extends FileInputFormat<?>> InputFormatVertex createInput(T stub, String path, String name, JobGraph graph,
 			int degreeOfParallelism)
 	{

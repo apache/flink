@@ -27,6 +27,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
+import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.ServerTestUtils;
 import org.apache.flink.util.StringUtils;
 import org.junit.Test;
@@ -55,14 +56,14 @@ public final class BlobKeyTest {
 	}
 
 	/**
-	 * Tests the serialization/deserialization of BLOB keys using the regular {@link org.apache.flink.core.io.IOReadableWritable} API.
+	 * Tests the serialization/deserialization of BLOB keys
 	 */
 	@Test
 	public void testSerialization() {
 		final BlobKey k1 = new BlobKey(KEY_ARRAY_1);
 		final BlobKey k2;
 		try {
-			k2 = ServerTestUtils.createCopy(k1);
+			k2 = CommonTestUtils.createCopySerializable(k1);
 		} catch (IOException ioe) {
 			fail(StringUtils.stringifyException(ioe));
 			return;

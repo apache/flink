@@ -26,7 +26,8 @@ object ExecutionGraphMessages {
 
   case class ExecutionStateChanged(jobID: JobID, vertexID: JobVertexID, subtask: Int,
                                    executionID: ExecutionAttemptID,
-                                   newExecutionState: ExecutionState, optionalMessage: String)
+                                   newExecutionState: ExecutionState,
+                                   timestamp: Long, optionalMessage: String)
 
 
   sealed trait JobStatusResponse {
@@ -35,9 +36,7 @@ object ExecutionGraphMessages {
 
   case class CurrentJobStatus(jobID: JobID, status: JobStatus) extends JobStatusResponse
   case class JobNotFound(jobID: JobID) extends JobStatusResponse
-  case class JobStatusChanged(executionGraph: ExecutionGraph, newJobStatus: JobStatus,
-                              optionalMessage: String){
-    def jobID = executionGraph.getJobID
-  }
+  case class JobStatusChanged(jobID: JobID, newJobStatus: JobStatus, timestamp: Long,
+                              optionalMessage: String)
 
 }
