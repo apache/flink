@@ -206,18 +206,19 @@ public class RemoteCollectorImpl<T> extends UnicastRemoteObject implements
 
 	/**
 	 * This method unbinds and unexports all exposed {@link Remote} objects
+	 * 
 	 * @throws AccessException
 	 * @throws RemoteException
 	 * @throws NotBoundException
 	 */
-        public static void shutdownAll() throws AccessException, RemoteException, NotBoundException {
-        	for (Registry registry : registries) {
-        	    for (String id : registry.list()) {
-        		Remote remote = registry.lookup(id);
-        		registry.unbind(id);
-        		UnicastRemoteObject.unexportObject(remote, true);
-        	    }
-		
-        	}
-        }
+	public static void shutdownAll() throws AccessException, RemoteException, NotBoundException {
+		for (Registry registry : registries) {
+			for (String id : registry.list()) {
+				Remote remote = registry.lookup(id);
+				registry.unbind(id);
+				UnicastRemoteObject.unexportObject(remote, true);
+			}
+
+		}
+	}
 }
