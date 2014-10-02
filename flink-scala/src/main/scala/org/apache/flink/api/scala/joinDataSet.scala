@@ -203,49 +203,7 @@ class UnfinishedJoinOperation[L, R](
     val joinOperator = new EquiJoin[L, R, (L, R)](
       leftSet.javaSet, rightSet.javaSet, leftKey, rightKey, joiner, returnType, joinHint)
 
-    DeltaIterationSanityCheck(leftSet, rightSet, leftKey, rightKey)
-
     new JoinDataSet(joinOperator, leftSet, rightSet, leftKey, rightKey)
   }
 
-}
-
-/**
- * This checks whether joining/coGrouping with the DeltaIteration SolutionSet uses the
- * same key given when creating the DeltaIteration.
- */
-private[flink] object DeltaIterationSanityCheck {
-  def apply[L, R](
-      leftSet: DataSet[L],
-      rightSet: DataSet[R],
-      leftKey: Keys[L],
-      rightKey: Keys[R]) = {
-    // sanity check solution set key mismatches
-    leftSet.javaSet match {
-      case solutionSet: DeltaIteration.SolutionSetPlaceHolder[_] =>
-        leftKey match {
-          case keyFields: Keys.FieldPositionKeys[_] =>
-            val positions: Array[Int] = keyFields.computeLogicalKeyPositions
-            solutionSet.checkJoinKeyFields(positions)
-          case _ =>
-            throw new InvalidProgramException("Currently, the solution set may only be joined " +
-              "with " +
-              "using tuple field positions.")
-        }
-      case _ =>
-    }
-    rightSet.javaSet match {
-      case solutionSet: DeltaIteration.SolutionSetPlaceHolder[_] =>
-        rightKey match {
-          case keyFields: Keys.FieldPositionKeys[_] =>
-            val positions: Array[Int] = keyFields.computeLogicalKeyPositions
-            solutionSet.checkJoinKeyFields(positions)
-          case _ =>
-            throw new InvalidProgramException("Currently, the solution set may only be joined " +
-              "with " +
-              "using tuple field positions.")
-        }
-      case _ =>
-    }
-  }
 }

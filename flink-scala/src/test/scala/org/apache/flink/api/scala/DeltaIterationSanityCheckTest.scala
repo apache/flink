@@ -21,9 +21,6 @@ package org.apache.flink.api.scala
 import org.junit.Test
 import org.apache.flink.api.common.InvalidProgramException
 
-import org.apache.flink.api.scala._
-import org.scalatest.junit.AssertionsForJUnit
-
 // Verify that the sanity checking in delta iterations works. We just
 // have a dummy job that is not meant to be executed. Only verify that
 // the join/coGroup inside the iteration is checked.
@@ -40,7 +37,7 @@ class DeltaIterationSanityCheckTest extends Serializable {
       (result, ws)
     }
 
-    val output = iteration.print()
+    iteration.print()
   }
 
   @Test
@@ -54,7 +51,7 @@ class DeltaIterationSanityCheckTest extends Serializable {
       (result, ws)
     }
 
-    val output = iteration.print()
+    iteration.print()
   }
 
   @Test(expected = classOf[InvalidProgramException])
@@ -68,7 +65,7 @@ class DeltaIterationSanityCheckTest extends Serializable {
       (result, ws)
     }
 
-    val output = iteration.print()
+    iteration.print()
   }
 
   @Test(expected = classOf[InvalidProgramException])
@@ -82,7 +79,7 @@ class DeltaIterationSanityCheckTest extends Serializable {
       (result, ws)
     }
 
-    val output = iteration.print()  }
+    iteration.print()  }
 
   @Test(expected = classOf[InvalidProgramException])
   def testIncorrectJoinWithSolution3(): Unit = {
@@ -95,7 +92,7 @@ class DeltaIterationSanityCheckTest extends Serializable {
       (result, ws)
     }
 
-    val output = iteration.print()
+    iteration.print()
    }
 
   @Test
@@ -109,7 +106,7 @@ class DeltaIterationSanityCheckTest extends Serializable {
       (result, ws)
     }
 
-    val output = iteration.print()
+    iteration.print()
   }
 
   @Test
@@ -123,7 +120,7 @@ class DeltaIterationSanityCheckTest extends Serializable {
       (result, ws)
     }
 
-    val output = iteration.print()
+    iteration.print()
   }
 
   @Test(expected = classOf[InvalidProgramException])
@@ -137,7 +134,7 @@ class DeltaIterationSanityCheckTest extends Serializable {
       (result, ws)
     }
 
-    val output = iteration.print()
+    iteration.print()
   }
 
   @Test(expected = classOf[InvalidProgramException])
@@ -151,7 +148,7 @@ class DeltaIterationSanityCheckTest extends Serializable {
       (result, ws)
     }
 
-    val output = iteration.print()  }
+    iteration.print()  }
 
   @Test(expected = classOf[InvalidProgramException])
   def testIncorrectCoGroupWithSolution3(): Unit = {
@@ -164,6 +161,6 @@ class DeltaIterationSanityCheckTest extends Serializable {
       (result, ws)
     }
 
-    val output = iteration.print()
+    iteration.print()
   }
 }

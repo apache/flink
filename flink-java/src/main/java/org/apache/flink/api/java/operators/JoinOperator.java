@@ -121,7 +121,25 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		if (keys1 == null || keys2 == null) {
 			throw new NullPointerException();
 		}
-		
+
+		// sanity check solution set key mismatches
+		if (input1 instanceof SolutionSetPlaceHolder) {
+			if (keys1 instanceof FieldPositionKeys) {
+				int[] positions = ((FieldPositionKeys<?>) keys1).computeLogicalKeyPositions();
+				((SolutionSetPlaceHolder<?>) input1).checkJoinKeyFields(positions);
+			} else {
+				throw new InvalidProgramException("Currently, the solution set may only be joined with using tuple field positions.");
+			}
+		}
+		if (input2 instanceof SolutionSetPlaceHolder) {
+			if (keys2 instanceof FieldPositionKeys) {
+				int[] positions = ((FieldPositionKeys<?>) keys2).computeLogicalKeyPositions();
+				((SolutionSetPlaceHolder<?>) input2).checkJoinKeyFields(positions);
+			} else {
+				throw new InvalidProgramException("Currently, the solution set may only be joined with using tuple field positions.");
+			}
+		}
+
 		this.keys1 = keys1;
 		this.keys2 = keys2;
 		this.joinHint = hint;
@@ -872,27 +890,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 				if (!keys1.areCompatibale(keys2)) {
 					throw new InvalidProgramException("The pair of join keys are not compatible with each other.");
 				}
-				
-				
-				// sanity check solution set key mismatches
-				if (input1 instanceof SolutionSetPlaceHolder) {
-					if (keys1 instanceof FieldPositionKeys) {
-						int[] positions = ((FieldPositionKeys<?>) keys1).computeLogicalKeyPositions();
-						((SolutionSetPlaceHolder<?>) input1).checkJoinKeyFields(positions);
-					} else {
-						throw new InvalidProgramException("Currently, the solution set may only be joined with using tuple field positions.");
-					}
-				}
-				if (input2 instanceof SolutionSetPlaceHolder) {
-					if (keys2 instanceof FieldPositionKeys) {
-						int[] positions = ((FieldPositionKeys<?>) keys2).computeLogicalKeyPositions();
-						((SolutionSetPlaceHolder<?>) input2).checkJoinKeyFields(positions);
-					} else {
-						throw new InvalidProgramException("Currently, the solution set may only be joined with using tuple field positions.");
-					}
-				}
-				
-				
+
 				return new DefaultJoin<I1, I2>(input1, input2, keys1, keys2, joinHint);
 			}
 		}

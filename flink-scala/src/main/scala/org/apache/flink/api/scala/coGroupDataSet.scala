@@ -192,8 +192,6 @@ class UnfinishedCoGroupOperation[L: ClassTag, R: ClassTag](
     val coGroupOperator = new CoGroupOperator[L, R, (Array[L], Array[R])](
       leftInput.javaSet, rightInput.javaSet, leftKey, rightKey, coGrouper, returnType)
 
-    DeltaIterationSanityCheck(leftInput, rightInput, leftKey, rightKey)
-
     new CoGroupDataSet(coGroupOperator, leftInput, rightInput, leftKey, rightKey)
   }
 }
