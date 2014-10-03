@@ -16,10 +16,10 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.operators.base;
 
 import org.apache.flink.api.common.io.FileOutputFormat;
+import org.apache.flink.api.common.operators.GenericDataSinkBase;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.types.Nothing;
@@ -71,8 +71,7 @@ public class FileDataSinkBase<IN> extends GenericDataSinkBase<IN> {
 	 * 
 	 * @return The path to which the output shall be written.
 	 */
-	public String getFilePath()
-	{
+	public String getFilePath() {
 		return this.filePath;
 	}
 	
@@ -81,5 +80,4 @@ public class FileDataSinkBase<IN> extends GenericDataSinkBase<IN> {
 	public String toString() {
 		return this.filePath;
 	}
-	
 }

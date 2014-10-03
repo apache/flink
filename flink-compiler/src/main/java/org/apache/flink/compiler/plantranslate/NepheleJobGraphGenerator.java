@@ -961,6 +961,8 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			toReturn = headVertex;
 		}
 		
+		headConfig.setSolutionSetUnmanaged(iteration.getIterationNode().getIterationContract().isSolutionSetUnManaged());
+		
 		// create the iteration descriptor and the iteration to it
 		IterationDescriptor descr = this.iterations.get(iteration);
 		if (descr == null) {

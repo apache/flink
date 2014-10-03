@@ -20,6 +20,7 @@
 package org.apache.flink.api.common.operators.base;
 
 import org.apache.flink.api.common.io.FileInputFormat;
+import org.apache.flink.api.common.operators.GenericDataSourceBase;
 import org.apache.flink.api.common.operators.OperatorInformation;
 
 import com.google.common.base.Preconditions;

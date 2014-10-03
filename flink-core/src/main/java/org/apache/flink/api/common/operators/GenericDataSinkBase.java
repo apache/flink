@@ -17,15 +17,12 @@
  */
 
 
-package org.apache.flink.api.common.operators.base;
+package org.apache.flink.api.common.operators;
 
 import java.util.List;
 
 import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.io.OutputFormat;
-import org.apache.flink.api.common.operators.Operator;
-import org.apache.flink.api.common.operators.Ordering;
-import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.types.Nothing;
@@ -269,7 +266,7 @@ public class GenericDataSinkBase<IN> extends Operator<Nothing> {
 	public UserCodeWrapper<? extends OutputFormat<IN>> getUserCodeWrapper() {
 		return this.formatWrapper;
 	}
-
+	
 	// --------------------------------------------------------------------------------------------
 	
 	/**
@@ -289,6 +286,19 @@ public class GenericDataSinkBase<IN> extends Operator<Nothing> {
 			this.input.accept(visitor);
 			visitor.postVisit(this);
 		}
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	protected void executeOnCollections(List<IN> inputData) throws Exception {
+		OutputFormat<IN> format = this.formatWrapper.getUserCodeObject();
+		format.configure(this.parameters);
+		
+		format.open(0, 1);
+		for (IN element : inputData) {
+			format.writeRecord(element);
+		}
+		format.close();
 	}
 	
 	// --------------------------------------------------------------------------------------------

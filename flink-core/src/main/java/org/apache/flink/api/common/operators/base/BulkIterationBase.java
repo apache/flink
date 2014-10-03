@@ -16,11 +16,10 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.operators.base;
 
-import java.io.Serializable;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 import org.slf4j.Logger;
@@ -30,7 +29,8 @@ import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.aggregators.AggregatorRegistry;
 import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
-import org.apache.flink.api.common.functions.GenericCollectorMap;
+import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.operators.IterationOperator;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.OperatorInformation;
@@ -38,17 +38,15 @@ import org.apache.flink.api.common.operators.SingleInputOperator;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
-import org.apache.flink.api.common.typeinfo.NothingTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.types.LongValue;
-import org.apache.flink.types.Nothing;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Visitor;
 
 /**
  * 
  */
-@SuppressWarnings("deprecation")
 public class BulkIterationBase<T> extends SingleInputOperator<T, T, AbstractRichFunction> implements IterationOperator {
 	
 	private static String DEFAULT_NAME = "<Unnamed Bulk Iteration>";
@@ -120,10 +118,13 @@ public class BulkIterationBase<T> extends SingleInputOperator<T, T, AbstractRich
 	 * @param criterion
 	 */
 	public <X> void setTerminationCriterion(Operator<X> criterion) {
-		CollectorMapOperatorBase<X, Nothing, TerminationCriterionMapper<X>> mapper =
-				new CollectorMapOperatorBase<X, Nothing, TerminationCriterionMapper<X>>(
+		
+		TypeInformation<X> type = criterion.getOperatorInfo().getOutputType();
+		
+		FlatMapOperatorBase<X, X, TerminationCriterionMapper<X>> mapper =
+				new FlatMapOperatorBase<X, X, TerminationCriterionMapper<X>>(
 						new TerminationCriterionMapper<X>(),
-						new UnaryOperatorInformation<X, Nothing>(criterion.getOperatorInfo().getOutputType(), new NothingTypeInfo()),
+						new UnaryOperatorInformation<X, X>(type, type),
 						"Termination Criterion Aggregation Wrapper");
 		mapper.setInput(criterion);
 		
@@ -231,7 +232,7 @@ public class BulkIterationBase<T> extends SingleInputOperator<T, T, AbstractRich
 	/**
 	 * Special Mapper that is added before a termination criterion and is only a container for an special aggregator
 	 */
-	public static class TerminationCriterionMapper<X> extends AbstractRichFunction implements Serializable, GenericCollectorMap<X, Nothing> {
+	public static class TerminationCriterionMapper<X> extends AbstractRichFunction implements FlatMapFunction<X, X> {
 		private static final long serialVersionUID = 1L;
 		
 		private TerminationCriterionAggregator aggregator;
@@ -242,7 +243,7 @@ public class BulkIterationBase<T> extends SingleInputOperator<T, T, AbstractRich
 		}
 		
 		@Override
-		public void map(X in, Collector<Nothing> out) {
+		public void flatMap(X in, Collector<X> out) {
 			aggregator.aggregate(1L);
 		}
 	}
@@ -278,9 +279,10 @@ public class BulkIterationBase<T> extends SingleInputOperator<T, T, AbstractRich
 	/**
 	 * Convergence for the termination criterion is reached if no tuple is output at current iteration for the termination criterion branch
 	 */
-	@SuppressWarnings("serial")
 	public static class TerminationCriterionAggregationConvergence implements ConvergenceCriterion<LongValue> {
 
+		private static final long serialVersionUID = 1L;
+		
 		private static final Logger log = LoggerFactory.getLogger(TerminationCriterionAggregationConvergence.class);
 
 		@Override
@@ -291,12 +293,12 @@ public class BulkIterationBase<T> extends SingleInputOperator<T, T, AbstractRich
 				log.info("Termination criterion stats in iteration [" + iteration + "]: " + count);
 			}
 
-			if(count == 0) {
-				return true;
-			}
-			else {
-				return false;
-			}
+			return count == 0;
 		}
+	}
+
+	@Override
+	protected List<T> executeOnCollections(List<T> inputData, RuntimeContext runtimeContext, boolean mutableObjectSafeMode) {
+		throw new UnsupportedOperationException();
 	}
 }

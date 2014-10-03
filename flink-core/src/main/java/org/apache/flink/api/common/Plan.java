@@ -36,8 +36,8 @@ import java.net.URI;
 import java.net.URISyntaxException;
 
 import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
+import org.apache.flink.api.common.operators.GenericDataSinkBase;
 import org.apache.flink.api.common.operators.Operator;
-import org.apache.flink.api.common.operators.base.GenericDataSinkBase;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.Visitable;

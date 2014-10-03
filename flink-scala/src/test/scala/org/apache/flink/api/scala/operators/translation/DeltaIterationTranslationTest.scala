@@ -19,6 +19,7 @@ package org.apache.flink.api.scala.operators.translation
 
 import org.apache.flink.api.common.functions.{RichCoGroupFunction, RichMapFunction,
 RichJoinFunction}
+import org.apache.flink.api.common.operators.GenericDataSinkBase
 import org.apache.flink.api.java.operators.translation.WrappingFunction
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
@@ -26,7 +27,6 @@ import org.junit.Assert.fail
 import org.apache.flink.api.common.{InvalidProgramException, Plan}
 import org.apache.flink.api.common.aggregators.LongSumAggregator
 import org.apache.flink.api.common.operators.base.DeltaIterationBase
-import org.apache.flink.api.common.operators.base.GenericDataSinkBase
 import org.apache.flink.api.common.operators.base.JoinOperatorBase
 import org.apache.flink.api.common.operators.base.MapOperatorBase
 import org.junit.Test

@@ -22,6 +22,7 @@ package org.apache.flink.api.common.operators;
 import java.util.List;
 
 import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.util.Visitor;
 
@@ -205,4 +206,8 @@ public abstract class SingleInputOperator<IN, OUT, FT extends Function> extends 
 			visitor.postVisit(this);
 		}
 	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	protected abstract List<OUT> executeOnCollections(List<IN> inputData, RuntimeContext runtimeContext, boolean mutableObjectSafeMode) throws Exception;
 }

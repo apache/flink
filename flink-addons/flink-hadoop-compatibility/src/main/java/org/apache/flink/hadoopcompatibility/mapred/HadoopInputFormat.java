@@ -78,6 +78,7 @@ public class HadoopInputFormat<K extends Writable, V extends Writable> implement
 		this.valueClass = value;
 		HadoopUtils.mergeHadoopConf(job);
 		this.jobConf = job;
+		ReflectionUtils.setConf(mapredInputFormat, jobConf);
 	}
 	
 	public void setJobConf(JobConf job) {

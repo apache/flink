@@ -214,6 +214,8 @@ public class TaskConfig {
 	private static final String ITERATION_SOLUTION_SET_UPDATE_WAIT = "iterative.ss-wait";
 
 	private static final String ITERATION_WORKSET_UPDATE = "iterative.ws-update";
+	
+	private static final String SOLUTION_SET_OBJECTS = "itertive.ss.obj";
 
 	// ---------------------------------- Miscellaneous -------------------------------------------
 	
@@ -1111,6 +1113,14 @@ public class TaskConfig {
 		}
 		
 		return factory;
+	}
+	
+	public void setSolutionSetUnmanaged(boolean unmanaged) {
+		config.setBoolean(SOLUTION_SET_OBJECTS, unmanaged);
+	}
+	
+	public boolean isSolutionSetUnmanaged() {
+		return config.getBoolean(SOLUTION_SET_OBJECTS, false);
 	}
 	
 	// --------------------------------------------------------------------------------------------

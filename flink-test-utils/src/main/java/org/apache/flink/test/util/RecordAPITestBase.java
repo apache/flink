@@ -92,48 +92,54 @@ public abstract class RecordAPITestBase extends AbstractTestBase {
 	
 	@Test
 	public void testJob() throws Exception {
-		// pre-submit
-		try {
-			preSubmit();
-		}
-		catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			Assert.fail("Pre-submit work caused an error: " + e.getMessage());
-		}
-		
-		// submit job
-		JobGraph jobGraph = null;
-		try {
-			jobGraph = getJobGraph();
-		}
-		catch(Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			Assert.fail("Failed to obtain JobGraph!");
-		}
-		
-		Assert.assertNotNull("Obtained null JobGraph", jobGraph);
+		startCluster();
 		
 		try {
-			JobClient client = this.executor.getJobClient(jobGraph);
-			client.setConsoleStreamForReporting(getNullPrintStream());
-			this.jobExecutionResult = client.submitJobAndWait();
-		}
-		catch(Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			Assert.fail("Job execution failed!");
-		}
-		
-		// post-submit
-		try {
-			postSubmit();
-		}
-		catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			Assert.fail("Post-submit work caused an error: " + e.getMessage());
+			// pre-submit
+			try {
+				preSubmit();
+			}
+			catch (Exception e) {
+				System.err.println(e.getMessage());
+				e.printStackTrace();
+				Assert.fail("Pre-submit work caused an error: " + e.getMessage());
+			}
+			
+			// submit job
+			JobGraph jobGraph = null;
+			try {
+				jobGraph = getJobGraph();
+			}
+			catch(Exception e) {
+				System.err.println(e.getMessage());
+				e.printStackTrace();
+				Assert.fail("Failed to obtain JobGraph!");
+			}
+			
+			Assert.assertNotNull("Obtained null JobGraph", jobGraph);
+			
+			try {
+				JobClient client = this.executor.getJobClient(jobGraph);
+				client.setConsoleStreamForReporting(getNullPrintStream());
+				this.jobExecutionResult = client.submitJobAndWait();
+			}
+			catch(Exception e) {
+				System.err.println(e.getMessage());
+				e.printStackTrace();
+				Assert.fail("Job execution failed!");
+			}
+			
+			// post-submit
+			try {
+				postSubmit();
+			}
+			catch (Exception e) {
+				System.err.println(e.getMessage());
+				e.printStackTrace();
+				Assert.fail("Post-submit work caused an error: " + e.getMessage());
+			}
+		} finally {
+			stopCluster();
 		}
 	}
 }

@@ -25,7 +25,7 @@ import java.util.Iterator;
 import java.util.List;
 
 import org.apache.flink.api.common.io.GenericInputFormat;
-import org.apache.flink.api.common.operators.base.GenericDataSourceBase;
+import org.apache.flink.api.common.operators.GenericDataSourceBase;
 import org.apache.flink.api.java.record.io.CollectionInputFormat;
 import org.apache.flink.types.Record;
 

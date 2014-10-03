@@ -18,6 +18,9 @@
 
 package org.apache.flink.compiler.util;
 
+import java.util.List;
+
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.NoOpFunction;
 import org.apache.flink.api.common.operators.RecordOperator;
 import org.apache.flink.api.common.operators.SingleInputOperator;
@@ -48,6 +51,11 @@ public class NoOpUnaryUdfOp<OUT> extends SingleInputOperator<OUT, OUT, NoOpFunct
 	public UnaryOperatorInformation<OUT, OUT> getOperatorInfo() {
 		TypeInformation<OUT> previousOut = input.getOperatorInfo().getOutputType();
 		return new UnaryOperatorInformation<OUT, OUT>(previousOut, previousOut);
+	}
+
+	@Override
+	protected List<OUT> executeOnCollections(List<OUT> inputData, RuntimeContext runtimeContext, boolean mutables) {
+		return inputData;
 	}
 }
 

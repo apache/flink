@@ -22,6 +22,7 @@ package org.apache.flink.api.common.operators;
 import java.util.List;
 
 import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.util.Visitor;
 
@@ -270,7 +271,6 @@ public abstract class DualInputOperator<IN1, IN2, OUT, FT extends Function> exte
 	
 	// --------------------------------------------------------------------------------------------
 	
-
 	@Override
 	public void accept(Visitor<Operator<?>> visitor) {
 		boolean descend = visitor.preVisit(this);
@@ -283,4 +283,8 @@ public abstract class DualInputOperator<IN1, IN2, OUT, FT extends Function> exte
 			visitor.postVisit(this);
 		}
 	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	protected abstract List<OUT> executeOnCollections(List<IN1> inputData1, List<IN2> inputData2, RuntimeContext runtimeContext, boolean mutableObjectSafeMode) throws Exception;
 }

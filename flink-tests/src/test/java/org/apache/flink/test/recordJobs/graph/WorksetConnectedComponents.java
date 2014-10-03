@@ -189,7 +189,6 @@ public class WorksetConnectedComponents implements Program, ProgramDescription {
 			.field(LongValue.class, 0)
 			.field(LongValue.class, 1);
 
-		// return the PACT plan
 		Plan plan = new Plan(result, "Workset Connected Components");
 		plan.setDefaultParallelism(numSubTasks);
 		return plan;

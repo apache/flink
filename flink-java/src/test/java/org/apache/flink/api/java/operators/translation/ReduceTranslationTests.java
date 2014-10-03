@@ -22,8 +22,8 @@ package org.apache.flink.api.java.operators.translation;
 import static org.junit.Assert.*;
 
 import org.apache.flink.api.common.Plan;
-import org.apache.flink.api.common.operators.base.GenericDataSinkBase;
-import org.apache.flink.api.common.operators.base.GenericDataSourceBase;
+import org.apache.flink.api.common.operators.GenericDataSinkBase;
+import org.apache.flink.api.common.operators.GenericDataSourceBase;
 import org.apache.flink.api.common.operators.base.MapOperatorBase;
 import org.apache.flink.api.common.operators.base.ReduceOperatorBase;
 import org.apache.flink.api.common.typeinfo.TypeInformation;

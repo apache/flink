@@ -21,7 +21,7 @@ package org.apache.flink.api.java.operators.translation;
 import java.util.List;
 
 import org.apache.flink.api.common.Plan;
-import org.apache.flink.api.common.operators.base.GenericDataSinkBase;
+import org.apache.flink.api.common.operators.GenericDataSinkBase;
 
 /**
  * {@link Plan} subclass for the main Java api.

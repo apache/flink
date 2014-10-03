@@ -45,7 +45,7 @@ import org.junit.runners.Parameterized.Parameters;
 @RunWith(Parameterized.class)
 public class PartitionITCase extends JavaProgramTestBase {
 	
-	private static int NUM_PROGRAMS = 4;
+	private static int NUM_PROGRAMS = 1;
 	
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -89,7 +89,7 @@ public class PartitionITCase extends JavaProgramTestBase {
 		public static String runProgram(int progId, String resultPath) throws Exception {
 			
 			switch(progId) {
-			case 1: {
+			case 0: {
 				/*
 				 * Test hash partition by key field
 				 */
@@ -141,7 +141,7 @@ public class PartitionITCase extends JavaProgramTestBase {
 						"5\n" +
 						"6\n";
 			}
-			case 3: {
+			case 1: {
 				/*
 				 * Test forced rebalancing
 				 */
@@ -192,11 +192,13 @@ public class PartitionITCase extends JavaProgramTestBase {
 				
 				env.execute();
 				
+				StringBuilder result = new StringBuilder();
+				int numPerPartition = 2220 / env.getDegreeOfParallelism() / 10;
+				for (int i = 0; i < env.getDegreeOfParallelism(); i++) {
+					result.append('(').append(i).append(',').append(numPerPartition).append(")\n");
+				}
 				// return expected result
-				return 	"(0,55)\n" +
-						"(1,55)\n" +
-						"(2,55)\n" +
-						"(3,55)\n";
+				return result.toString();
 			}
 			case 4: {
 				/*
@@ -226,9 +228,7 @@ public class PartitionITCase extends JavaProgramTestBase {
 			default: 
 				throw new IllegalArgumentException("Invalid program id");
 			}
-			
 		}
-	
 	}
 	
 	public static class UniqueLongMapper implements MapPartitionFunction<Tuple3<Integer,Long,String>, Long> {
@@ -253,7 +253,5 @@ public class PartitionITCase extends JavaProgramTestBase {
 		public Tuple2<Integer, Integer> map(Long value) throws Exception {
 			return new Tuple2<Integer, Integer>(this.getRuntimeContext().getIndexOfThisSubtask(), 1);
 		}
-		
 	}
-	
 }

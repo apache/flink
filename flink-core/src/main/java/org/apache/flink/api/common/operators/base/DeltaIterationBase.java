@@ -16,14 +16,15 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.operators.base;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.flink.api.common.aggregators.AggregatorRegistry;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.operators.BinaryOperatorInformation;
 import org.apache.flink.api.common.operators.DualInputOperator;
 import org.apache.flink.api.common.operators.IterationOperator;
@@ -52,7 +53,7 @@ import org.apache.flink.util.Visitor;
  * workset is considered the second input.
  */
 public class DeltaIterationBase<ST, WT> extends DualInputOperator<ST, WT, ST, AbstractRichFunction> implements IterationOperator {
-
+	
 	private final Operator<ST> solutionSetPlaceholder;
 
 	private final Operator<WT> worksetPlaceholder;
@@ -72,6 +73,8 @@ public class DeltaIterationBase<ST, WT> extends DualInputOperator<ST, WT, ST, Ab
 	private int maxNumberOfIterations = -1;
 
 	private final AggregatorRegistry aggregators = new AggregatorRegistry();
+	
+	private boolean solutionSetUnManaged;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -243,6 +246,29 @@ public class DeltaIterationBase<ST, WT> extends DualInputOperator<ST, WT, ST, Ab
 		throw new UnsupportedOperationException("The DeltaIteration meta operator cannot have broadcast inputs.");
 	}
 	
+	/**
+	 * Sets whether to keep the solution set in managed memory (safe against heap exhaustion) or unmanaged memory
+	 * (objects on heap).
+	 * 
+	 * @param solutionSetUnManaged True to keep the solution set in unmanaged memory, false to keep it in managed memory.
+	 * 
+	 * @see #isSolutionSetUnManaged()
+	 */
+	public void setSolutionSetUnManaged(boolean solutionSetUnManaged) {
+		this.solutionSetUnManaged = solutionSetUnManaged;
+	}
+	
+	/**
+	 * gets whether the solution set is in managed or unmanaged memory.
+	 * 
+	 * @return True, if the solution set is in unmanaged memory (object heap), false if in managed memory.
+	 * 
+	 * @see #setSolutionSetUnManaged(boolean)
+	 */
+	public boolean isSolutionSetUnManaged() {
+		return solutionSetUnManaged;
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	// Place-holder Operators
 	// --------------------------------------------------------------------------------------------
@@ -303,5 +329,10 @@ public class DeltaIterationBase<ST, WT> extends DualInputOperator<ST, WT, ST, Ab
 		public UserCodeWrapper<?> getUserCodeWrapper() {
 			return null;
 		}
+	}
+
+	@Override
+	protected List<ST> executeOnCollections(List<ST> inputData1, List<WT> inputData2, RuntimeContext runtimeContext, boolean mutableObjectSafeMode) {
+		throw new UnsupportedOperationException();
 	}
 }

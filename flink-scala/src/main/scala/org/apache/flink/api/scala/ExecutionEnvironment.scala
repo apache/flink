@@ -28,7 +28,7 @@ import org.apache.flink.api.java.typeutils.{ValueTypeInfo, TupleTypeInfoBase}
 import org.apache.flink.api.scala.operators.ScalaCsvInputFormat
 import org.apache.flink.core.fs.Path
 
-import org.apache.flink.api.java.{ExecutionEnvironment => JavaEnv}
+import org.apache.flink.api.java.{ExecutionEnvironment => JavaEnv, CollectionEnvironment}
 import org.apache.flink.api.common.io.{InputFormat, FileInputFormat}
 
 import org.apache.flink.api.java.operators.DataSource
@@ -389,6 +389,16 @@ object ExecutionEnvironment {
     val javaEnv = JavaEnv.createLocalEnvironment()
     javaEnv.setDegreeOfParallelism(degreeOfParallelism)
     new ExecutionEnvironment(javaEnv)
+  }
+
+  /**
+   * Createa an execution environment that uses Java Collections underneath. This will execute in a
+   * single thread in the current JVM. It is very fast but will fail if the data does not fit into
+   * memory. This is useful during implementation and for debugging.
+   * @return
+   */
+  def createCollectionsEnvironment: ExecutionEnvironment = {
+    new ExecutionEnvironment(new CollectionEnvironment)
   }
 
   /**

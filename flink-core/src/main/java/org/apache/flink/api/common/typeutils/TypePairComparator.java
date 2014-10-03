@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.typeutils;
 
 /**
@@ -32,8 +31,8 @@ package org.apache.flink.api.common.typeutils;
  * @param <T1> The class of the first data type.
  * @param <T2> The class of the second data type. 
  */
-public abstract class TypePairComparator<T1, T2>
-{
+public abstract class TypePairComparator<T1, T2> {
+	
 	/**
 	 * Sets the reference for comparisons.
 	 * 

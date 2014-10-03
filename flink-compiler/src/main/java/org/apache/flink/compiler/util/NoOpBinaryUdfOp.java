@@ -18,6 +18,9 @@
 
 package org.apache.flink.compiler.util;
 
+import java.util.List;
+
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.NoOpFunction;
 import org.apache.flink.api.common.operators.BinaryOperatorInformation;
 import org.apache.flink.api.common.operators.DualInputOperator;
@@ -37,6 +40,11 @@ public class NoOpBinaryUdfOp<OUT> extends DualInputOperator<OUT, OUT, OUT, NoOpF
 	@Override
 	public Class<? extends Key<?>>[] getKeyClasses() {
 		return (Class<? extends Key<?>>[]) new Class[0];
+	}
+
+	@Override
+	protected List<OUT> executeOnCollections(List<OUT> inputData1, List<OUT> inputData2, RuntimeContext runtimeContext, boolean mutables) {
+		throw new UnsupportedOperationException();
 	}
 }
 

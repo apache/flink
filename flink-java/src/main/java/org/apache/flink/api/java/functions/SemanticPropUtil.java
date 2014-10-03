@@ -325,9 +325,13 @@ public class SemanticPropUtil {
 
 		while (matcher.find()) {
 			int field = Integer.valueOf(matcher.group());
-			if (!isValidField(outType, field) || !isValidField(inType, field)) {
+			if (!isValidField(outType, field)) {
 				throw new IndexOutOfBoundsException("Annotation: Field " + field + " not available in the output tuple.");
 			}
+			if (!isValidField(inType, field)) {
+				throw new IndexOutOfBoundsException("Annotation: Field " + field + " not available in the input tuple.");
+			}
+			
 			fs = fs.addField(field);
 		}
 		return fs;

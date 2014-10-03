@@ -18,13 +18,15 @@
 
 package org.apache.flink.api.common.operators.base;
 
+import java.util.List;
+
 import org.apache.flink.api.common.functions.GenericCollectorMap;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.operators.SingleInputOperator;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
-
 
 /**
  * The CollectorMap is the old version of the Map operator. It is effectively a "flatMap", where the
@@ -45,5 +47,12 @@ public class CollectorMapOperatorBase<IN, OUT, FT extends GenericCollectorMap<IN
 	
 	public CollectorMapOperatorBase(Class<? extends FT> udf, UnaryOperatorInformation<IN, OUT> operatorInfo, String name) {
 		super(new UserCodeClassWrapper<FT>(udf), operatorInfo, name);
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	@Override
+	protected List<OUT> executeOnCollections(List<IN> inputData, RuntimeContext ctx, boolean mutableObjectSafeMode) {
+		throw new UnsupportedOperationException();
 	}
 }

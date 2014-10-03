@@ -16,16 +16,22 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.operators.base;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.functions.util.CopyingListCollector;
+import org.apache.flink.api.common.functions.util.FunctionUtils;
+import org.apache.flink.api.common.functions.util.ListCollector;
 import org.apache.flink.api.common.operators.SingleInputOperator;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * @see org.apache.flink.api.common.functions.FlatMapFunction
@@ -35,12 +41,45 @@ public class FlatMapOperatorBase<IN, OUT, FT extends FlatMapFunction<IN, OUT>> e
 	public FlatMapOperatorBase(UserCodeWrapper<FT> udf, UnaryOperatorInformation<IN, OUT> operatorInfo, String name) {
 		super(udf, operatorInfo, name);
 	}
-	
+
 	public FlatMapOperatorBase(FT udf, UnaryOperatorInformation<IN, OUT> operatorInfo, String name) {
 		super(new UserCodeObjectWrapper<FT>(udf), operatorInfo, name);
 	}
-	
+
 	public FlatMapOperatorBase(Class<? extends FT> udf, UnaryOperatorInformation<IN, OUT> operatorInfo, String name) {
 		super(new UserCodeClassWrapper<FT>(udf), operatorInfo, name);
+	}
+
+	// ------------------------------------------------------------------------
+
+	@Override
+	protected List<OUT> executeOnCollections(List<IN> input, RuntimeContext ctx, boolean mutableObjectSafeMode) throws Exception {
+		FlatMapFunction<IN, OUT> function = userFunction.getUserCodeObject();
+		
+		FunctionUtils.setFunctionRuntimeContext(function, ctx);
+		FunctionUtils.openFunction(function, parameters);
+
+		ArrayList<OUT> result = new ArrayList<OUT>(input.size());
+		
+		if (mutableObjectSafeMode) {
+			TypeSerializer<IN> inSerializer = getOperatorInfo().getInputType().createSerializer();
+			TypeSerializer<OUT> outSerializer = getOperatorInfo().getOutputType().createSerializer();
+			
+			CopyingListCollector<OUT> resultCollector = new CopyingListCollector<OUT>(result, outSerializer);
+			
+			for (IN element : input) {
+				IN inCopy = inSerializer.copy(element);
+				function.flatMap(inCopy, resultCollector);
+			}
+		} else {
+			ListCollector<OUT> resultCollector = new ListCollector<OUT>(result);
+			for (IN element : input) {
+				function.flatMap(element, resultCollector);
+			}
+		}
+
+		FunctionUtils.closeFunction(function);
+
+		return result;
 	}
 }

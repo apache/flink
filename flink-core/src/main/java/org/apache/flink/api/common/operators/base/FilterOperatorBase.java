@@ -16,10 +16,15 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.operators.base;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.functions.util.FunctionUtils;
+import org.apache.flink.api.common.functions.util.ListCollector;
 import org.apache.flink.api.common.operators.SingleInputOperator;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
@@ -42,5 +47,24 @@ public class FilterOperatorBase<T, FT extends FlatMapFunction<T, T>> extends Sin
 	
 	public FilterOperatorBase(Class<? extends FT> udf, UnaryOperatorInformation<T, T> operatorInfo, String name) {
 		super(new UserCodeClassWrapper<FT>(udf), operatorInfo, name);
+	}
+
+	@Override
+	protected List<T> executeOnCollections(List<T> inputData, RuntimeContext ctx, boolean mutableObjectSafeMode) throws Exception {
+		FlatMapFunction<T, T> function = this.userFunction.getUserCodeObject();
+		
+		FunctionUtils.setFunctionRuntimeContext(function, ctx);
+		FunctionUtils.openFunction(function, this.parameters);
+		
+		ArrayList<T> result = new ArrayList<T>(inputData.size());
+		ListCollector<T> collector = new ListCollector<T>(result);
+		
+		for (T element : inputData) {
+			function.flatMap(element, collector);
+		}
+		
+		FunctionUtils.closeFunction(function);
+		
+		return result;
 	}
 }
