@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -31,8 +31,6 @@ public class CoBatchReduceInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2,
 
 	private static final long serialVersionUID = 1L;
 	protected CoReduceFunction<IN1, IN2, OUT> coReducer;
-	protected TypeSerializer<IN1> typeSerializer1;
-	protected TypeSerializer<IN2> typeSerializer2;
 
 	protected long slideSize1;
 	protected long slideSize2;
@@ -48,6 +46,8 @@ public class CoBatchReduceInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2,
 	protected StreamBatch<IN2> batch2;
 	protected StreamBatch<IN1> currentBatch1;
 	protected StreamBatch<IN2> currentBatch2;
+	protected TypeSerializer<IN1> serializer1;
+	protected TypeSerializer<IN2> serializer2;
 
 	public CoBatchReduceInvokable(CoReduceFunction<IN1, IN2, OUT> coReducer, long batchSize1,
 			long batchSize2, long slideSize1, long slideSize2) {
@@ -63,8 +63,6 @@ public class CoBatchReduceInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2,
 		this.batchPerSlide2 = slideSize2 / granularity2;
 		this.numberOfBatches1 = batchSize1 / granularity1;
 		this.numberOfBatches2 = batchSize2 / granularity2;
-		this.batch1 = new StreamBatch<IN1>(batchSize1, slideSize1);
-		this.batch2 = new StreamBatch<IN2>(batchSize2, slideSize2);
 	}
 
 	@Override
@@ -142,11 +140,11 @@ public class CoBatchReduceInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2,
 		while (reducedIterator.hasNext()) {
 			IN1 next = reducedIterator.next();
 			if (next != null) {
-				reduced = coReducer.reduce1(reduced, next);
+				reduced = coReducer.reduce1(serializer1.copy(reduced), serializer1.copy(next));
 			}
 		}
 		if (reduced != null) {
-			collector.collect(coReducer.map1(reduced));
+			collector.collect(coReducer.map1(serializer1.copy(reduced)));
 		}
 	}
 
@@ -162,26 +160,29 @@ public class CoBatchReduceInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2,
 		while (reducedIterator.hasNext()) {
 			IN2 next = reducedIterator.next();
 			if (next != null) {
-				reduced = coReducer.reduce2(reduced, next);
+				reduced = coReducer.reduce2(serializer2.copy(reduced), serializer2.copy(next));
 			}
 		}
 		if (reduced != null) {
-			collector.collect(coReducer.map2(reduced));
+			collector.collect(coReducer.map2(serializer2.copy(reduced)));
 		}
 	}
 
 	@Override
 	public void open(Configuration config) throws Exception {
 		super.open(config);
-		this.typeSerializer1 = serializer1.getObjectSerializer();
-		this.typeSerializer2 = serializer2.getObjectSerializer();
+		this.batch1 = new StreamBatch<IN1>(batchSize1, slideSize1);
+		this.batch2 = new StreamBatch<IN2>(batchSize2, slideSize2);
+		this.serializer1 = srSerializer1.getObjectSerializer();
+		this.serializer2 = srSerializer2.getObjectSerializer();
 	}
 
 	public void reduceToBuffer1(StreamRecord<IN1> next, StreamBatch<IN1> streamBatch)
 			throws Exception {
 		IN1 nextValue = next.getObject();
 		if (streamBatch.currentValue != null) {
-			streamBatch.currentValue = coReducer.reduce1(streamBatch.currentValue, nextValue);
+			streamBatch.currentValue = coReducer.reduce1(
+					serializer1.copy(streamBatch.currentValue), serializer1.copy(nextValue));
 		} else {
 			streamBatch.currentValue = nextValue;
 		}
@@ -200,7 +201,8 @@ public class CoBatchReduceInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2,
 			throws Exception {
 		IN2 nextValue = next.getObject();
 		if (streamBatch.currentValue != null) {
-			streamBatch.currentValue = coReducer.reduce2(streamBatch.currentValue, nextValue);
+			streamBatch.currentValue = coReducer.reduce2(
+					serializer2.copy(streamBatch.currentValue), serializer2.copy(nextValue));
 		} else {
 			streamBatch.currentValue = nextValue;
 		}
@@ -220,9 +222,13 @@ public class CoBatchReduceInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2,
 			streamBatch.addToBuffer();
 		}
 
-		if (streamBatch.minibatchCounter >= 0) {
-			for (long i = 0; i < (numberOfBatches1 - streamBatch.minibatchCounter); i++) {
-				streamBatch.circularBuffer.remove();
+		if (streamBatch.changed == true && streamBatch.minibatchCounter >= 0) {
+			if (streamBatch.circularBuffer.isFull()) {
+				for (long i = 0; i < (numberOfBatches1 - streamBatch.minibatchCounter); i++) {
+					if (!streamBatch.circularBuffer.isEmpty()) {
+						streamBatch.circularBuffer.remove();
+					}
+				}
 			}
 			if (!streamBatch.circularBuffer.isEmpty()) {
 				reduce1(streamBatch);
@@ -236,9 +242,11 @@ public class CoBatchReduceInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2,
 			streamBatch.addToBuffer();
 		}
 
-		if (streamBatch.minibatchCounter >= 0) {
+		if (streamBatch.changed == true && streamBatch.minibatchCounter >= 0) {
 			for (long i = 0; i < (numberOfBatches2 - streamBatch.minibatchCounter); i++) {
-				streamBatch.circularBuffer.remove();
+				if (!streamBatch.circularBuffer.isEmpty()) {
+					streamBatch.circularBuffer.remove();
+				}
 			}
 			if (!streamBatch.circularBuffer.isEmpty()) {
 				reduce2(streamBatch);
@@ -249,10 +257,12 @@ public class CoBatchReduceInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2,
 
 	public void reduceBatch1(StreamBatch<IN1> streamBatch) {
 		reduce1(streamBatch);
+		streamBatch.changed = false;
 	}
 
 	public void reduceBatch2(StreamBatch<IN2> streamBatch) {
 		reduce2(streamBatch);
+		streamBatch.changed = false;
 	}
 
 	protected class StreamBatch<IN> implements Serializable {
@@ -266,6 +276,7 @@ public class CoBatchReduceInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2,
 		protected long granularity;
 		protected long batchPerSlide;
 		protected long numberOfBatches;
+		boolean changed;
 
 		protected NullableCircularBuffer circularBuffer;
 
@@ -279,10 +290,13 @@ public class CoBatchReduceInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2,
 			this.minibatchCounter = 0;
 			this.currentValue = null;
 			this.numberOfBatches = batchSize / granularity;
+			this.changed = false;
+
 		}
 
 		protected void addToBuffer() {
 			circularBuffer.add(currentValue);
+			changed = true;
 			minibatchCounter++;
 			currentValue = null;
 		}

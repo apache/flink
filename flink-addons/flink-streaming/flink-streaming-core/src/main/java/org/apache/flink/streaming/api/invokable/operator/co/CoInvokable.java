@@ -39,8 +39,8 @@ public abstract class CoInvokable<IN1, IN2, OUT> extends StreamInvokable<IN1, OU
 	protected CoReaderIterator<StreamRecord<IN1>, StreamRecord<IN2>> recordIterator;
 	protected StreamRecord<IN1> reuse1;
 	protected StreamRecord<IN2> reuse2;
-	protected StreamRecordSerializer<IN1> serializer1;
-	protected StreamRecordSerializer<IN2> serializer2;
+	protected StreamRecordSerializer<IN1> srSerializer1;
+	protected StreamRecordSerializer<IN2> srSerializer2;
 
 	public void initialize(Collector<OUT> collector,
 			CoReaderIterator<StreamRecord<IN1>, StreamRecord<IN2>> recordIterator,
@@ -52,22 +52,22 @@ public abstract class CoInvokable<IN1, IN2, OUT> extends StreamInvokable<IN1, OU
 		this.reuse1 = serializer1.createInstance();
 		this.reuse2 = serializer2.createInstance();
 
-		this.serializer1 = serializer1;
-		this.serializer2 = serializer2;
+		this.srSerializer1 = serializer1;
+		this.srSerializer2 = serializer2;
 		this.isMutable = isMutable;
 	}
 
 	protected void resetReuseAll() {
-		this.reuse1 = serializer1.createInstance();
-		this.reuse2 = serializer2.createInstance();
+		this.reuse1 = srSerializer1.createInstance();
+		this.reuse2 = srSerializer2.createInstance();
 	}
 
 	protected void resetReuse1() {
-		this.reuse1 = serializer1.createInstance();
+		this.reuse1 = srSerializer1.createInstance();
 	}
 
 	protected void resetReuse2() {
-		this.reuse2 = serializer2.createInstance();
+		this.reuse2 = srSerializer2.createInstance();
 	}
 
 	@Override

@@ -50,8 +50,6 @@ public class GroupedBatchReduceTest {
 		expected.add(3);
 		expected.add(3);
 		expected.add(15);
-		expected.add(1);
-		expected.add(5);
 
 
 		GroupedBatchReduceInvokable<Integer> invokable = new GroupedBatchReduceInvokable<Integer>(

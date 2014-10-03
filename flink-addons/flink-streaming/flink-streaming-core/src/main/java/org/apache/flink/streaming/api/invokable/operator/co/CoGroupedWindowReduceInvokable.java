@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -22,6 +22,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.function.co.CoReduceFunction;
 import org.apache.flink.streaming.api.invokable.util.TimeStamp;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
@@ -38,10 +39,6 @@ public class CoGroupedWindowReduceInvokable<IN1, IN2, OUT> extends
 		super(coReducer, windowSize1, windowSize2, slideInterval1, slideInterval2, timestamp1,
 				timestamp2);
 		this.keyPosition1 = keyPosition1;
-		this.batch1 = new GroupedStreamWindow<IN1>(windowSize1, slideInterval1);
-		this.batch2 = new GroupedStreamWindow<IN2>(windowSize2, slideInterval2);
-		// this.batch1 = this.window1;
-		// this.batch2 = this.window2;
 	}
 
 	@Override
@@ -128,6 +125,13 @@ public class CoGroupedWindowReduceInvokable<IN1, IN2, OUT> extends
 
 	}
 
+	@Override
+	public void open(Configuration config) throws Exception {
+		super.open(config);
+		this.batch1 = new GroupedStreamWindow<IN1>(batchSize1, slideSize1);
+		this.batch2 = new GroupedStreamWindow<IN2>(batchSize2, slideSize2);
+	}
+
 	protected class GroupedStreamWindow<IN> extends StreamWindow<IN> {
 
 		private static final long serialVersionUID = 1L;
@@ -156,6 +160,7 @@ public class CoGroupedWindowReduceInvokable<IN1, IN2, OUT> extends
 			}
 
 			circularBuffer.add(currentValues);
+			changed = true;
 			minibatchCounter++;
 			currentValues = reuseMap;
 		}

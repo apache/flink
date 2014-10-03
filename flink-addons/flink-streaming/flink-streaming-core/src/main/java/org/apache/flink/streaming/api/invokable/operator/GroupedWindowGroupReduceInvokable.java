@@ -48,6 +48,9 @@ public class GroupedWindowGroupReduceInvokable<IN, OUT> extends WindowGroupReduc
 		StreamWindow window = streamWindows.get(key);
 		if (window == null) {
 			window = new GroupedStreamWindow();
+			for (int i = 0; i < currentMiniBatchCount; i++) {
+				window.circularList.newSlide();
+			}
 			streamWindows.put(key, window);
 		}
 		this.window = window;

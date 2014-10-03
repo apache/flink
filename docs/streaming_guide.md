@@ -416,8 +416,8 @@ To use this function the user needs to call, the `iteration.setMaxWaitTime(milli
 The usage of rich functions are essentially the same as in the core Flink API. All transformations that take as argument a user-defined function can instead take a rich function as argument:
 
 ~~~java
-dataStream.map(new RichMapFunction<String, Integer>() {
-  public Integer map(String value) { return value.toString(); }
+dataStream.map(new RichMapFunction<Integer, String>() {
+  public String map(Integer value) { return value.toString(); }
 });
 ~~~
 
@@ -549,7 +549,7 @@ The API provided is the [same](#kafka_source_close) as the one for `KafkaSource`
 #### Building A Topology
 To use a Kafka connector as a source in Flink call the `addSource()` function with a new instance of the class which extends `KafkaSource` as parameter:
 
-```java
+~~~java
 DataStream<String> stream1 = env.
     addSource(new MyKafkaSource("localhost:2181", "group", "test", 1), SOURCE_PARALELISM)
     .print();
@@ -564,7 +564,7 @@ The followings have to be provided for the `MyKafkaSource()` constructor in orde
 
 Similarly to use a Kafka connector as a sink in Flink call the `addSink()` function with a new instance of the class which extends `KafkaSink`:
 
-```java
+~~~java
 DataStream<String> stream2 = env
     .addSource(new MySource())
     .addSink(new MyKafkaSink("test", "localhost:9092"));
@@ -668,7 +668,7 @@ The API provided is the [same](#flume_source_close) as the one for `FlumeSource`
 #### Building A Topology
 To use a Flume connector as a source in Flink call the `addSource()` function with a new instance of the class which extends `FlumeSource` as parameter:
 
-```java
+~~~java
 DataStream<String> dataStream1 = env
     .addSource(new MyFlumeSource("localhost", 41414))
     .print();
@@ -681,7 +681,7 @@ The followings have to be provided for the `MyFlumeSource()` constructor in orde
 
 Similarly to use a Flume connector as a sink in Flink call the `addSink()` function with a new instance of the class which extends `FlumeSink`
 
-```java
+~~~java
 DataStream<String> dataStream2 = env
     .fromElements("one", "two", "three", "four", "five", "q")
     .addSink(new MyFlumeSink("localhost", 42424));
@@ -824,7 +824,7 @@ The followings have to be provided for the `MyRabbitMQSource()` constructor in o
 
 Similarly to use a RabbitMQ connector as a sink in Flink call the `addSink()` function with a new instance of the class which extends `RabbitMQSink`
 
-```java
+~~~java
 DataStream<String> dataStream2 = env
     .fromElements("one", "two", "three", "four", "five", "q")
     .addSink(new MyRMQSink("localhost", "hello"));
@@ -847,7 +847,7 @@ Twitter Streaming API provides opportunity to connect to the stream of tweets ma
 In order to connect to Twitter stream the user has to register their program and acquire the necessary information for the authentication. The process is described below.
 
 #### Acquiring the authentication information
-First of all, a Twitter account is needed. Sign up for free at [twitter.com/signup](https://twitter.com/signup) or sing in at Twitter's [Application Management](https://apps.twitter.com/) and register the application by clicking on the "Create New App" button. Fill out a form about your program and accept the Terms and Conditions. 
+First of all, a Twitter account is needed. Sign up for free at [twitter.com/signup](https://twitter.com/signup) or sign in at Twitter's [Application Management](https://apps.twitter.com/) and register the application by clicking on the "Create New App" button. Fill out a form about your program and accept the Terms and Conditions. 
 After selecting the application you the API key and API secret (called `consumerKey` and `sonsumerSecret` in `TwitterSource` respectively) is located on the "API Keys" tab. The necessary access token data (`token` and `secret`) can be acquired here. 
 Remember to keep these pieces of information a secret and do not push them to public repositories.
 

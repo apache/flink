@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -32,9 +32,6 @@ public class CoWindowReduceInvokable<IN1, IN2, OUT> extends CoBatchReduceInvokab
 	protected TimeStamp<IN1> timestamp1;
 	protected TimeStamp<IN2> timestamp2;
 
-	// protected StreamWindow<IN1> window1;
-	// protected StreamWindow<IN2> window2;
-
 	public CoWindowReduceInvokable(CoReduceFunction<IN1, IN2, OUT> coReducer, long windowSize1,
 			long windowSize2, long slideInterval1, long slideInterval2, TimeStamp<IN1> timestamp1,
 			TimeStamp<IN2> timestamp2) {
@@ -43,10 +40,7 @@ public class CoWindowReduceInvokable<IN1, IN2, OUT> extends CoBatchReduceInvokab
 		this.timestamp2 = timestamp2;
 		this.startTime1 = timestamp1.getStartTime();
 		this.startTime2 = timestamp2.getStartTime();
-		this.batch1 = new StreamWindow<IN1>(windowSize1, slideInterval1);
-		this.batch2 = new StreamWindow<IN2>(windowSize2, slideInterval2);
-		// this.batch1 = this.window1;
-		// this.batch2 = this.window2;
+
 	}
 
 	@Override
@@ -57,7 +51,8 @@ public class CoWindowReduceInvokable<IN1, IN2, OUT> extends CoBatchReduceInvokab
 		checkBatchEnd1(timestamp1.getTimestamp(nextValue), streamWindow);
 
 		if (streamWindow.currentValue != null) {
-			streamWindow.currentValue = coReducer.reduce1(streamWindow.currentValue, nextValue);
+			streamWindow.currentValue = coReducer.reduce1(
+					serializer1.copy(streamWindow.currentValue), serializer1.copy(nextValue));
 		} else {
 			streamWindow.currentValue = nextValue;
 		}
@@ -71,7 +66,8 @@ public class CoWindowReduceInvokable<IN1, IN2, OUT> extends CoBatchReduceInvokab
 		checkBatchEnd2(timestamp2.getTimestamp(nextValue), streamWindow);
 
 		if (streamWindow.currentValue != null) {
-			streamWindow.currentValue = coReducer.reduce2(streamWindow.currentValue, nextValue);
+			streamWindow.currentValue = coReducer.reduce2(
+					serializer2.copy(streamWindow.currentValue), serializer2.copy(nextValue));
 		} else {
 			streamWindow.currentValue = nextValue;
 		}
@@ -138,6 +134,8 @@ public class CoWindowReduceInvokable<IN1, IN2, OUT> extends CoBatchReduceInvokab
 	@Override
 	public void open(Configuration config) throws Exception {
 		super.open(config);
+		this.batch1 = new StreamWindow<IN1>(batchSize1, slideSize1);
+		this.batch2 = new StreamWindow<IN2>(batchSize2, slideSize2);
 		if (timestamp1 instanceof DefaultTimeStamp) {
 			(new TimeCheck1()).start();
 		}

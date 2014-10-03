@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.api.invokable.operator;
 
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
@@ -71,29 +70,6 @@ public class GroupedWindowReduceInvokable<OUT> extends WindowReduceInvokable<OUT
 			window.reduceLastBatch();
 		}
 	}
-	
-	@Override
-	protected void callUserFunction() throws Exception {
-		Iterator<OUT> reducedIterator = currentBatch.getIterator();
-		OUT reduced = null;
-
-		while (reducedIterator.hasNext() && reduced == null) {
-			reduced = reducedIterator.next();
-		}
-
-		while (reducedIterator.hasNext()) {
-			OUT next = reducedIterator.next();
-			if (next != null) {
-				reduced = reducer.reduce(reduced, next);
-			}
-		}
-		if (reduced != null) {
-			collector.collect(reduced);
-		}else{
-			//remove window if no value received
-			streamWindows.remove(currentBatch);
-		}
-	}
 
 	protected class GroupedStreamWindow extends StreamWindow {
 
@@ -123,7 +99,6 @@ public class GroupedWindowReduceInvokable<OUT> extends WindowReduceInvokable<OUT
 			}
 			return false;
 		}
-		
 
 	}
 

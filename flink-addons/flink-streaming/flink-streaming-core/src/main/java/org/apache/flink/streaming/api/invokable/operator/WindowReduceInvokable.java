@@ -34,13 +34,13 @@ public class WindowReduceInvokable<OUT> extends BatchReduceInvokable<OUT> {
 		super(reduceFunction, windowSize, slideInterval);
 		this.timestamp = timestamp;
 		this.startTime = timestamp.getStartTime();
-		this.window = new StreamWindow();
-		this.batch = this.window;
 	}
 
 	@Override
 	public void open(Configuration config) throws Exception {
 		super.open(config);
+		this.window = new StreamWindow();
+		this.batch = this.window;
 		if (timestamp instanceof DefaultTimeStamp) {
 			(new TimeCheck()).start();
 		}
@@ -61,7 +61,7 @@ public class WindowReduceInvokable<OUT> extends BatchReduceInvokable<OUT> {
 			checkWindowEnd(timestamp.getTimestamp(nextValue));
 
 			if (currentValue != null) {
-				currentValue = reducer.reduce(currentValue, nextValue);
+				currentValue = reducer.reduce(serializer.copy(currentValue), serializer.copy(nextValue));
 			} else {
 				currentValue = nextValue;
 			}

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -120,12 +120,10 @@ public class CoBatchReduceTest {
 		expected.add("18");
 		expected.add("26");
 		expected.add("34");
-		expected.add("19");
 		expected.add("abc");
 		expected.add("cde");
 		expected.add("efg");
 		expected.add("ghi");
-		expected.add("i");
 
 		List<String> result = MockCoInvokable.createAndExecute(invokable, inputs, inputs2);
 
