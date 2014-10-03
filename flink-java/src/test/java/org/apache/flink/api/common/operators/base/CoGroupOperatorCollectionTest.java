@@ -66,7 +66,7 @@ public class CoGroupOperatorCollectionTest implements Serializable {
 							.build()
 			);
 
-			final RuntimeContext ctx = new RuntimeUDFContext("Test UDF", 4, 0);
+			final RuntimeContext ctx = new RuntimeUDFContext("Test UDF", 4, 0, null);
 
 			{
 				SumCoGroup udf1 = new SumCoGroup();

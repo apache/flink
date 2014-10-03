@@ -65,7 +65,7 @@ public class FlatMapOperatorCollectionTest implements Serializable {
 	private void testExecuteOnCollection(FlatMapFunction<String, String> udf, List<String> input, boolean mutableSafe) throws Exception {
 		// run on collections
 		final List<String> result = getTestFlatMapOperator(udf)
-				.executeOnCollections(input, new RuntimeUDFContext("Test UDF", 4, 0), mutableSafe);
+				.executeOnCollections(input, new RuntimeUDFContext("Test UDF", 4, 0, null), mutableSafe);
 
 		Assert.assertEquals(input.size(), result.size());
 		Assert.assertEquals(input, result);

@@ -66,6 +66,8 @@ public class CollectionExecutor {
 	
 	private final Map<String, Aggregator<?>> aggregators;
 	
+	private final ClassLoader classLoader;
+	
 	private final boolean mutableObjectSafeMode;
 	
 	// --------------------------------------------------------------------------------------------
@@ -81,6 +83,8 @@ public class CollectionExecutor {
 		this.accumulators = new HashMap<String, Accumulator<?,?>>();
 		this.previousAggregates = new HashMap<String, Value>();
 		this.aggregators = new HashMap<String, Aggregator<?>>();
+		
+		this.classLoader = getClass().getClassLoader();
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -181,8 +185,8 @@ public class CollectionExecutor {
 		// build the runtime context and compute broadcast variables, if necessary
 		RuntimeUDFContext ctx;
 		if (RichFunction.class.isAssignableFrom(typedOp.getUserCodeWrapper().getUserCodeClass())) {
-			ctx = superStep == 0 ? new RuntimeUDFContext(operator.getName(), 1, 0) :
-					new IterationRuntimeUDFContext(operator.getName(), 1, 0, superStep);
+			ctx = superStep == 0 ? new RuntimeUDFContext(operator.getName(), 1, 0, getClass().getClassLoader()) :
+					new IterationRuntimeUDFContext(operator.getName(), 1, 0, superStep, classLoader);
 			
 			for (Map.Entry<String, Operator<?>> bcInputs : operator.getBroadcastInputs().entrySet()) {
 				List<?> bcData = execute(bcInputs.getValue());
@@ -223,8 +227,8 @@ public class CollectionExecutor {
 		// build the runtime context and compute broadcast variables, if necessary
 		RuntimeUDFContext ctx;
 		if (RichFunction.class.isAssignableFrom(typedOp.getUserCodeWrapper().getUserCodeClass())) {
-			ctx = superStep == 0 ? new RuntimeUDFContext(operator.getName(), 1, 0) :
-				new IterationRuntimeUDFContext(operator.getName(), 1, 0, superStep);
+			ctx = superStep == 0 ? new RuntimeUDFContext(operator.getName(), 1, 0, classLoader) :
+				new IterationRuntimeUDFContext(operator.getName(), 1, 0, superStep, classLoader);
 			
 			for (Map.Entry<String, Operator<?>> bcInputs : operator.getBroadcastInputs().entrySet()) {
 				List<?> bcData = execute(bcInputs.getValue());
@@ -478,8 +482,8 @@ public class CollectionExecutor {
 
 		private final int superstep;
 
-		public IterationRuntimeUDFContext(String name, int numParallelSubtasks, int subtaskIndex, int superstep) {
-			super(name, numParallelSubtasks, subtaskIndex);
+		public IterationRuntimeUDFContext(String name, int numParallelSubtasks, int subtaskIndex, int superstep, ClassLoader classloader) {
+			super(name, numParallelSubtasks, subtaskIndex, classloader);
 			this.superstep = superstep;
 		}
 
