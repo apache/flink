@@ -62,7 +62,7 @@ public abstract class SingleInputOperator<IN, OUT, O extends SingleInputOperator
 	 * @param input The data flow operator that produces this operation's input data.
 	 * @return The translated data flow operator.
 	 */
-	protected abstract org.apache.flink.api.common.operators.SingleInputOperator<?, OUT, ?> translateToDataFlow(
+	protected abstract org.apache.flink.api.common.operators.Operator<OUT> translateToDataFlow(
 			org.apache.flink.api.common.operators.Operator<IN> input);
 	
 }
