@@ -22,10 +22,8 @@ import static org.apache.flink.runtime.jobgraph.JobManagerTestUtils.*;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.client.AbstractJobResult;
 import org.apache.flink.runtime.client.JobSubmissionResult;
-import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.instance.LocalInstanceManager;
 import org.apache.flink.runtime.io.network.bufferprovider.GlobalBufferPool;
@@ -37,8 +35,6 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmanager.tasks.Receiver;
 import org.apache.flink.runtime.jobmanager.tasks.Sender;
 import org.junit.Test;
-
-import java.util.ArrayList;
 
 public class CoLocationConstraintITCase {
 	

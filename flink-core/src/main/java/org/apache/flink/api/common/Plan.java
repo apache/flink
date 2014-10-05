@@ -67,6 +67,11 @@ public class Plan implements Visitable<Operator<?>> {
 	 * The default parallelism to use for nodes that have no explicitly specified parallelism.
 	 */
 	protected int defaultParallelism = DEFAULT_PARALELLISM;
+	
+	/**
+	 * The number of times failed tasks are re-executed.
+	 */
+	protected int numberOfExecutionRetries;
 
 	/**
 	 * Hash map for files in the distributed cache: registered name to cache entry.
@@ -256,6 +261,31 @@ public class Plan implements Visitable<Operator<?>> {
 			"The default degree of parallelism must be positive, or -1 if the system should use the globally comfigured default.");
 		
 		this.defaultParallelism = defaultParallelism;
+	}
+	
+	/**
+	 * Sets the number of times that failed tasks are re-executed. A value of zero
+	 * effectively disables fault tolerance. A value of {@code -1} indicates that the system
+	 * default value (as defined in the configuration) should be used.
+	 * 
+	 * @param numberOfExecutionRetries The number of times the system will try to re-execute failed tasks.
+	 */
+	public void setNumberOfExecutionRetries(int numberOfExecutionRetries) {
+		if (numberOfExecutionRetries < -1) {
+			throw new IllegalArgumentException("The number of execution retries must be non-negative, or -1 (use system default)");
+		}
+		this.numberOfExecutionRetries = numberOfExecutionRetries;
+	}
+	
+	/**
+	 * Gets the number of times the system will try to re-execute failed tasks. A value
+	 * of {@code -1} indicates that the system default value (as defined in the configuration)
+	 * should be used.
+	 * 
+	 * @return The number of times the system will try to re-execute failed tasks.
+	 */
+	public int getNumberOfExecutionRetries() {
+		return numberOfExecutionRetries;
 	}
 	
 	/**

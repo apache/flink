@@ -75,6 +75,22 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * value can be overridden by individual operations using [[DataSet.setParallelism]]
    */
   def getDegreeOfParallelism = javaEnv.getDegreeOfParallelism
+  
+  /**
+   * Sets the number of times that failed tasks are re-executed. A value of zero
+   * effectively disables fault tolerance. A value of "-1" indicates that the system
+   * default value (as defined in the configuration) should be used.
+   */
+  def setNumberOfExecutionRetries(numRetries: Int): Unit = {
+    javaEnv.setNumberOfExecutionRetries(numRetries)
+  }
+
+  /**
+   * Gets the number of times the system will try to re-execute failed tasks. A value
+   * of "-1" indicates that the system default value (as defined in the configuration)
+   * should be used.
+   */
+  def getNumberOfExecutionRetries = javaEnv.getNumberOfExecutionRetries
 
   /**
    * Gets the UUID by which this environment is identified. The UUID sets the execution context

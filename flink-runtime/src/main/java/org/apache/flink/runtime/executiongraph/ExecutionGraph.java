@@ -33,7 +33,6 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.blob.BlobKey;
@@ -106,6 +105,8 @@ public class ExecutionGraph {
 	
 	private int nextVertexToFinish;
 	
+	private int numberOfRetriesLeft;
+	
 	private volatile JobStatus state = JobStatus.CREATED;
 	
 	private volatile Throwable failureCause;
@@ -146,6 +147,17 @@ public class ExecutionGraph {
 	}
 
 	// --------------------------------------------------------------------------------------------
+	
+	public void setNumberOfRetriesLeft(int numberOfRetriesLeft) {
+		if (numberOfRetriesLeft < -1) {
+			throw new IllegalArgumentException();
+		}
+		this.numberOfRetriesLeft = numberOfRetriesLeft;
+	}
+	
+	public int getNumberOfRetriesLeft() {
+		return numberOfRetriesLeft;
+	}
 	
 	public void attachJobGraph(List<AbstractJobVertex> topologiallySorted) throws JobException {
 		if (LOG.isDebugEnabled()) {
@@ -344,8 +356,14 @@ public class ExecutionGraph {
 	
 	public void waitForJobEnd(long timeout) throws InterruptedException {
 		synchronized (progressLock) {
-			while (nextVertexToFinish < verticesInCreationOrder.size()) {
-				progressLock.wait(timeout);
+			
+			long now = System.currentTimeMillis();
+			long deadline = timeout == 0 ? Long.MAX_VALUE : now + timeout;
+			
+			
+			while (now < deadline && !state.isTerminalState()) {
+				progressLock.wait(deadline - now);
+				now = System.currentTimeMillis();
 			}
 		}
 	}
@@ -403,8 +421,21 @@ public class ExecutionGraph {
 						if (current == JobStatus.CANCELLING && transitionState(current, JobStatus.CANCELED)) {
 							break;
 						}
-						if (current == JobStatus.FAILING && transitionState(current, JobStatus.FAILED, failureCause)) {
-							break;
+						if (current == JobStatus.FAILING) {
+							if (numberOfRetriesLeft > 0 && transitionState(current, JobStatus.RESTARTING)) {
+								numberOfRetriesLeft--;
+								
+								execute(new Runnable() {
+									@Override
+									public void run() {
+										restart();
+									}
+								});
+								break;
+							}
+							else if (numberOfRetriesLeft <= 0 && transitionState(current, JobStatus.FAILED, failureCause)) {
+								break;
+							}
 						}
 						if (current == JobStatus.CANCELED || current == JobStatus.CREATED || current == JobStatus.FINISHED) {
 							fail(new Exception("ExecutionGraph went into final state from state " + current));
@@ -657,6 +688,40 @@ public class ExecutionGraph {
 			this.executor.submit(action);
 		} else {
 			action.run();
+		}
+	}
+	
+	public void restart() {
+		try {
+			if (state == JobStatus.FAILED) {
+				transitionState(JobStatus.FAILED, JobStatus.RESTARTING);
+			}
+			synchronized (progressLock) {
+				if (state != JobStatus.RESTARTING) {
+					throw new IllegalStateException("Can only restart job from state restarting.");
+				}
+				if (scheduler == null) {
+					throw new IllegalStateException("The execution graph has not been schedudled before - scheduler is null.");
+				}
+				
+				this.currentExecutions.clear();
+				this.edges.clear();
+				
+				for (ExecutionJobVertex jv : this.verticesInCreationOrder) {
+					jv.resetForNewExecution();
+				}
+				
+				for (int i = 0; i < stateTimestamps.length; i++) {
+					stateTimestamps[i] = 0;
+				}
+				nextVertexToFinish = 0;
+				transitionState(JobStatus.RESTARTING, JobStatus.CREATED);
+			}
+			
+			scheduleForExecution(scheduler);
+		}
+		catch (Throwable t) {
+			fail(t);
 		}
 	}
 }
