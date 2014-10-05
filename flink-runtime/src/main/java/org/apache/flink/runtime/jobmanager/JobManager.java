@@ -115,8 +115,7 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 	
 	
 	/** Executor service for asynchronous commands (to relieve the RPC threads of work) */
-	private final ExecutorService executorService = Executors.newFixedThreadPool(2 * Hardware
-			.getNumberCPUCores(), ExecutorThreadFactory.INSTANCE);
+	private final ExecutorService executorService = Executors.newFixedThreadPool(2 * Hardware.getNumberCPUCores(), ExecutorThreadFactory.INSTANCE);
 	
 
 	/** The RPC end point through which the JobManager gets its calls */
@@ -140,7 +139,9 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 	
 	private final int recommendedClientPollingInterval;
 	// end: these will be consolidated / removed
-
+	
+	private final int defaultExecutionRetries;
+	
 	private final AtomicBoolean isShutdownInProgress = new AtomicBoolean(false);
 	
 	private volatile boolean isShutDown;
@@ -173,6 +174,10 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 		// Read the suggested client polling interval
 		this.recommendedClientPollingInterval = GlobalConfiguration.getInteger(
 			ConfigConstants.JOBCLIENT_POLLING_INTERVAL_KEY, ConfigConstants.DEFAULT_JOBCLIENT_POLLING_INTERVAL);
+		
+		// read the default number of times that failed tasks should be re-executed
+		this.defaultExecutionRetries = GlobalConfiguration.getInteger(
+			ConfigConstants.DEFAULT_EXECUTION_RETRIES_KEY, ConfigConstants.DEFAULT_EXECUTION_RETRIES);
 
 		// Load the job progress collector
 		this.eventCollector = new EventCollector(this.recommendedClientPollingInterval);
@@ -326,6 +331,10 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 				
 				executionGraph = new ExecutionGraph(job.getJobID(), job.getName(),
 						job.getJobConfiguration(), job.getUserJarBlobKeys(), this.executorService);
+
+				executionGraph.setNumberOfRetriesLeft(job.getNumberOfExecutionRetries() >= 0 ?
+						job.getNumberOfExecutionRetries() : this.defaultExecutionRetries);
+
 				ExecutionGraph previous = this.currentJobs.putIfAbsent(job.getJobID(), executionGraph);
 				if (previous != null) {
 					throw new JobException("Concurrent submission of a job with the same jobId: " + job.getJobID());

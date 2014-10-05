@@ -71,6 +71,10 @@ public class JobGraph implements IOReadableWritable {
 	/** Name of this job. */
 	private String jobName;
 	
+	/** The number of times that failed tasks should be re-executed */
+	private int numExecutionRetries;
+	
+	/** flag to enable queued scheduling */
 	private boolean allowQueuedScheduling;
 	
 	// --------------------------------------------------------------------------------------------
@@ -163,6 +167,31 @@ public class JobGraph implements IOReadableWritable {
 	 */
 	public Configuration getJobConfiguration() {
 		return this.jobConfiguration;
+	}
+	
+	/**
+	 * Sets the number of times that failed tasks are re-executed. A value of zero
+	 * effectively disables fault tolerance. A value of {@code -1} indicates that the system
+	 * default value (as defined in the configuration) should be used.
+	 * 
+	 * @param numberOfExecutionRetries The number of times the system will try to re-execute failed tasks.
+	 */
+	public void setNumberOfExecutionRetries(int numberOfExecutionRetries) {
+		if (numberOfExecutionRetries < -1) {
+			throw new IllegalArgumentException("The number of execution retries must be non-negative, or -1 (use system default)");
+		}
+		this.numExecutionRetries = numberOfExecutionRetries;
+	}
+	
+	/**
+	 * Gets the number of times the system will try to re-execute failed tasks. A value
+	 * of {@code -1} indicates that the system default value (as defined in the configuration)
+	 * should be used.
+	 * 
+	 * @return The number of times the system will try to re-execute failed tasks.
+	 */
+	public int getNumberOfExecutionRetries() {
+		return numExecutionRetries;
 	}
 	
 	public void setAllowQueuedScheduling(boolean allowQueuedScheduling) {
@@ -318,6 +347,7 @@ public class JobGraph implements IOReadableWritable {
 		this.jobID.read(in);
 		this.jobName = StringValue.readString(in);
 		this.jobConfiguration.read(in);
+		this.numExecutionRetries = in.readInt();
 		this.allowQueuedScheduling = in.readBoolean();
 		
 		final int numVertices = in.readInt();
@@ -347,6 +377,7 @@ public class JobGraph implements IOReadableWritable {
 		this.jobID.write(out);
 		StringValue.writeString(this.jobName, out);
 		this.jobConfiguration.write(out);
+		out.writeInt(numExecutionRetries);
 		out.writeBoolean(allowQueuedScheduling);
 		
 		// write the task vertices using java serialization (to resolve references in the object graph)

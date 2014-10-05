@@ -63,7 +63,13 @@ public class CoLocationConstraint {
 		return this.sharedSlot == null;
 	}
 	
+	public boolean isUnassignedOrDisposed() {
+		return this.sharedSlot == null || this.sharedSlot.isDisposed();
+	}
+	
 	public AbstractID getGroupId() {
 		return this.group.getId();
 	}
+	
+
 }

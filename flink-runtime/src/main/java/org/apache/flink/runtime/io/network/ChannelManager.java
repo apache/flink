@@ -396,7 +396,9 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 			}
 		}
 
-		this.receiverCache.put(sourceChannelID, receiverList);
+		if (channels.containsKey(sourceChannelID)) {
+			this.receiverCache.put(sourceChannelID, receiverList);
+		}
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug(String.format("Receiver for %s: %s [%s])",
@@ -657,6 +659,18 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 			if (channel.isInputChannel()) {
 				((InputChannel<?>) channel).logQueuedEnvelopes();
 			}
+		}
+	}
+	
+	public void verifyAllCachesEmpty() {
+		if (!channels.isEmpty()) {
+			throw new IllegalStateException("Channel manager caches not empty: There are still registered channels.");
+		}
+		if (!localBuffersPools.isEmpty()) {
+			throw new IllegalStateException("Channel manager caches not empty: There are still local buffer pools.");
+		}
+		if (!receiverCache.isEmpty()) {
+			throw new IllegalStateException("Channel manager caches not empty: There are still entries in the receiver cache.");
 		}
 	}
 }

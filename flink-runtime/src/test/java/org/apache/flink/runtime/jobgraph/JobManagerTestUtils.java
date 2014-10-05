@@ -36,12 +36,20 @@ public class JobManagerTestUtils {
 	}
 	
 	public static final JobManager startJobManager(int numTaskManagers, int numSlotsPerTaskManager) throws Exception {
+		return startJobManager(numTaskManagers, numSlotsPerTaskManager, null);
+	}
+	
+	public static final JobManager startJobManager(int numTaskManagers, int numSlotsPerTaskManager, Configuration additionalParams) throws Exception {
 		Configuration cfg = new Configuration();
 		cfg.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost");
 		cfg.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, getAvailablePort());
 		cfg.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 10);
 		cfg.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlotsPerTaskManager);
 		cfg.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, numTaskManagers);
+		
+		if (additionalParams != null) {
+			cfg.addAll(additionalParams);
+		}
 		
 		GlobalConfiguration.includeConfiguration(cfg);
 		

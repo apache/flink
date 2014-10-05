@@ -157,6 +157,10 @@ public class Instance {
 	// --------------------------------------------------------------------------------------------
 	
 	public TaskOperationProtocol getTaskManagerProxy() throws IOException {
+		if (isDead) {
+			throw new IOException("Instance has died");
+		}
+		
 		TaskOperationProtocol tm = this.taskManager;
 		
 		if (tm == null) {

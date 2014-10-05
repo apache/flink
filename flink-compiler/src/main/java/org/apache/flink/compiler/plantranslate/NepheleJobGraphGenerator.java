@@ -183,6 +183,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		
 		// create the jobgraph object
 		JobGraph graph = new JobGraph(program.getJobName());
+		graph.setNumberOfExecutionRetries(program.getOriginalPactPlan().getNumberOfExecutionRetries());
 		graph.setAllowQueuedScheduling(false);
 		
 		// add vertices to the graph

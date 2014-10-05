@@ -67,7 +67,7 @@ public class ExecutionVertex {
 	
 	private final List<Execution> priorExecutions;
 	
-	private final CoLocationConstraint locationConstraint;
+	private volatile CoLocationConstraint locationConstraint;
 	
 	private volatile Execution currentExecution;	// this field must never be null
 	
@@ -316,6 +316,21 @@ public class ExecutionVertex {
 			if (state == FINISHED || state == CANCELED || state == FAILED) {
 				priorExecutions.add(execution);
 				currentExecution = new Execution(this, execution.getAttemptNumber()+1, System.currentTimeMillis());
+				
+				CoLocationGroup grp = jobVertex.getCoLocationGroup();
+				if (grp != null) {
+					this.locationConstraint = grp.getLocationConstraint(subTaskIndex);
+				}
+				
+				// temp: assign new channel IDs.
+				ExecutionGraph graph = getExecutionGraph();
+				
+				for (ExecutionEdge[] input : this.inputEdges) {
+					for (ExecutionEdge e : input) {
+						e.assignNewChannelIDs();
+						graph.registerExecutionEdge(e);
+					}
+				}
 			}
 			else {
 				throw new IllegalStateException("Cannot reset a vertex that is in state " + state);

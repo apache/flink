@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.configuration;
 
 /**
@@ -35,6 +34,12 @@ public final class ConfigConstants {
 	 * The config parameter defining the default degree of parallelism for jobs.
 	 */
 	public static final String DEFAULT_PARALLELIZATION_DEGREE_KEY = "parallelization.degree.default";
+	
+	/**
+	 * Config parameter for the number of re-tries for failed tasks. Setting this
+	 * value to 0 effectively disables fault tolerance.
+	 */
+	public static final String DEFAULT_EXECUTION_RETRIES_KEY = "execution-retries.default";
 	
 	// -------------------------------- Runtime -------------------------------
 
@@ -312,6 +317,11 @@ public final class ConfigConstants {
 	 * The default degree of parallelism for operations.
 	 */
 	public static final int DEFAULT_PARALLELIZATION_DEGREE = 1;
+	
+	/**
+	 * The default number of execution retries.
+	 */
+	public static final int DEFAULT_EXECUTION_RETRIES = 0;
 	
 	// ------------------------------ Runtime ---------------------------------
 

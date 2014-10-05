@@ -28,9 +28,9 @@ public class ExecutionEdge {
 	
 	private final int inputNum;
 
-	private final ChannelID inputChannelId;
+	private ChannelID inputChannelId;
 	
-	private final ChannelID outputChannelId;
+	private ChannelID outputChannelId;
 	
 	
 	public ExecutionEdge(IntermediateResultPartition source, ExecutionVertex target, int inputNum) {
@@ -40,15 +40,6 @@ public class ExecutionEdge {
 		
 		this.inputChannelId = new ChannelID();
 		this.outputChannelId = new ChannelID();
-	}
-	
-	public ExecutionEdge(IntermediateResultPartition source, ExecutionVertex target, int inputNum, ChannelID inputChannelId, ChannelID outputChannelId) {
-		this.source = source;
-		this.target = target;
-		this.inputNum = inputNum;
-		
-		this.inputChannelId = inputChannelId;
-		this.outputChannelId = outputChannelId;
 	}
 	
 	
@@ -70,5 +61,10 @@ public class ExecutionEdge {
 	
 	public ChannelID getOutputChannelId() {
 		return outputChannelId;
+	}
+	
+	public void assignNewChannelIDs() {
+		inputChannelId = new ChannelID();
+		outputChannelId = new ChannelID();
 	}
 }
