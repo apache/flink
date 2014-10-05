@@ -278,6 +278,19 @@ public class CollectionDataSets {
 		return env.fromCollection(data);
 	}
 	
+	public static DataSet<POJO> getDuplicatePojoDataSet(ExecutionEnvironment env) {
+		List<POJO> data = new ArrayList<POJO>();
+		data.add(new POJO(1, "First",10, 100, 1000L, "One", 10000L)); // 5x
+		data.add(new POJO(1, "First",10, 100, 1000L, "One", 10000L));
+		data.add(new POJO(1, "First",10, 100, 1000L, "One", 10000L));
+		data.add(new POJO(1, "First",10, 100, 1000L, "One", 10000L));
+		data.add(new POJO(1, "First",10, 100, 1000L, "One", 10000L));
+		data.add(new POJO(2, "Second",20, 200, 2000L, "Two", 20000L));
+		data.add(new POJO(3, "Third",30, 300, 3000L, "Three", 30000L)); // 2x
+		data.add(new POJO(3, "Third",30, 300, 3000L, "Three", 30000L));
+		return env.fromCollection(data);
+	}
+	
 	public static class POJO {
 		public int number;
 		public String str;

@@ -25,6 +25,7 @@ import org.apache.flink.api.common.operators.base.MapOperatorBase;
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase;
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase.PartitionMethod;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.operators.translation.KeyExtractingMapper;
 import org.apache.flink.api.java.operators.translation.KeyRemovingMapper;
@@ -50,8 +51,8 @@ public class PartitionOperator<T> extends SingleInputUdfOperator<T, T, Partition
 			throw new UnsupportedOperationException("Range Partitioning not yet supported");
 		}
 		
-		if(pKeys instanceof Keys.ExpressionKeys<?> && !input.getType().isTupleType()) {
-			throw new IllegalArgumentException("Hash Partitioning with key fields only possible on Tuple DataSets");
+		if(pKeys instanceof Keys.ExpressionKeys<?> && !(input.getType() instanceof CompositeType) ) {
+			throw new IllegalArgumentException("Hash Partitioning with key fields only possible on Composite-type DataSets");
 		}
 		
 		this.pMethod = pMethod;

@@ -15,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.java;
+package org.apache.flink.api.java.typeutils.runtime;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
 import java.lang.reflect.Field;
 
-public class SerializationSpeedTest {
+public class FieldAccessMinibenchmark {
 
 	static Field wordDescField;
 	static Field wordField;
