@@ -36,6 +36,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
+import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.POJO;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.util.Collector;
 import org.junit.runner.RunWith;
@@ -45,7 +46,7 @@ import org.junit.runners.Parameterized.Parameters;
 @RunWith(Parameterized.class)
 public class PartitionITCase extends JavaProgramTestBase {
 	
-	private static int NUM_PROGRAMS = 3;
+	private static int NUM_PROGRAMS = 4;
 	
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -224,6 +225,29 @@ public class PartitionITCase extends JavaProgramTestBase {
 						"5\n" +
 						"6\n";
 			}
+			case 4: {
+				/*
+				 * Test hash partition with key expression
+				 */
+		
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				env.setDegreeOfParallelism(3);
+				
+				DataSet<POJO> ds = CollectionDataSets.getDuplicatePojoDataSet(env);
+				DataSet<Long> uniqLongs = ds
+						.partitionByHash("nestedPojo.longNumber").setParallelism(4)
+						.mapPartition(new UniqueNestedPojoLongMapper());
+				uniqLongs.writeAsText(resultPath);
+				
+				env.execute();
+				
+				// return expected result
+				return 	"10000\n" +
+						"20000\n" +
+						"30000\n";
+			}
+			
+			
 			
 			default: 
 				throw new IllegalArgumentException("Invalid program id");
@@ -239,6 +263,21 @@ public class PartitionITCase extends JavaProgramTestBase {
 			HashSet<Long> uniq = new HashSet<Long>();
 			for(Tuple3<Integer,Long,String> t : records) {
 				uniq.add(t.f1);
+			}
+			for(Long l : uniq) {
+				out.collect(l);
+			}
+		}
+	}
+	
+	public static class UniqueNestedPojoLongMapper implements MapPartitionFunction<POJO, Long> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public void mapPartition(Iterable<POJO> records, Collector<Long> out) throws Exception {
+			HashSet<Long> uniq = new HashSet<Long>();
+			for(POJO t : records) {
+				uniq.add(t.nestedPojo.longNumber);
 			}
 			for(Long l : uniq) {
 				out.collect(l);

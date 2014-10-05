@@ -399,8 +399,7 @@ public class TypeExtractor {
 		}
 		// objects with generics are treated as raw type
 		else if (t instanceof ParameterizedType) {
-			return privateGetForClass((Class<OUT>) ((ParameterizedType) t).getRawType(), new ArrayList<Type>()); // pass new type hierarchies here because
-			// while creating the TH here, we assumed a tuple type.
+			return privateGetForClass((Class<OUT>) ((ParameterizedType) t).getRawType(), typeHierarchy);
 		}
 		// no tuple, no TypeVariable, no generic type
 		else if (t instanceof Class) {

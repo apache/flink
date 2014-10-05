@@ -25,6 +25,7 @@ import java.util.LinkedList;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -33,6 +34,7 @@ import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.CustomType;
+import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.POJO;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -42,7 +44,7 @@ import org.junit.runners.Parameterized.Parameters;
 @RunWith(Parameterized.class)
 public class DistinctITCase extends JavaProgramTestBase {
 	
-	private static int NUM_PROGRAMS = 6;
+	private static int NUM_PROGRAMS = 8;
 	
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -236,6 +238,49 @@ public class DistinctITCase extends JavaProgramTestBase {
 						"5,1\n" +
 						"5,2\n" +
 						"5,3\n";
+			}
+			case 7: {
+				
+				/*
+				 * check correctness of distinct on tuples with field expressions
+				 */
+				
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				
+				DataSet<Tuple5<Integer, Long,  Integer, String, Long>> ds = CollectionDataSets.getSmall5TupleDataSet(env);
+				DataSet<Tuple1<Integer>> reduceDs = ds.union(ds)
+						.distinct("f0").project(0).types(Integer.class);
+				
+				reduceDs.writeAsCsv(resultPath);
+				env.execute();
+				
+				// return expected result
+				return "1\n" +
+						"2\n";
+								
+			}
+			case 8: {
+				
+				/*
+				 * check correctness of distinct on Pojos
+				 */
+				
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				
+				DataSet<POJO> ds = CollectionDataSets.getDuplicatePojoDataSet(env);
+				DataSet<Integer> reduceDs = ds.distinct("nestedPojo.longNumber").map(new MapFunction<CollectionDataSets.POJO, Integer>() {
+					@Override
+					public Integer map(POJO value) throws Exception {
+						return (int) value.nestedPojo.longNumber;
+					}
+				});
+				
+				reduceDs.writeAsText(resultPath);
+				env.execute();
+				
+				// return expected result
+				return "10000\n20000\n30000\n";
+								
 			}
 			default: 
 				throw new IllegalArgumentException("Invalid program id");

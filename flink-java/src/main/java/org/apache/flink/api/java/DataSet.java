@@ -434,6 +434,20 @@ public abstract class DataSet<T> {
 	}
 	
 	/**
+	 * Returns a distinct set of a {@link Tuple} {@link DataSet} using expression keys.
+	 * <p/>
+	 * The field position keys specify the fields of Tuples or Pojos on which the decision is made if two elements are distinct or
+	 * not.
+	 * <p/>
+	 *
+	 * @param fields One or more field positions on which the distinction of the DataSet is decided. 
+	 * @return A DistinctOperator that represents the distinct DataSet.
+	 */
+	public DistinctOperator<T> distinct(String... fields) {
+		return new DistinctOperator<T>(this, new Keys.ExpressionKeys<T>(fields, getType()));
+	}
+	
+	/**
 	 * Returns a distinct set of a {@link Tuple} {@link DataSet} using all fields of the tuple.
 	 * <p/>
 	 * Note: This operator can only be applied to Tuple DataSets.
@@ -864,6 +878,18 @@ public abstract class DataSet<T> {
 	 */
 	public PartitionOperator<T> partitionByHash(int... fields) {
 		return new PartitionOperator<T>(this, PartitionMethod.HASH, new Keys.ExpressionKeys<T>(fields, getType(), false));
+	}
+	
+	/**
+	 * Hash-partitions a DataSet on the specified key fields.
+	 * <p>
+	 * <b>Important:</b>This operation shuffles the whole DataSet over the network and can take significant amount of time.
+	 * 
+	 * @param fields The field expressions on which the DataSet is hash-partitioned.
+	 * @return The partitioned DataSet.
+	 */
+	public PartitionOperator<T> partitionByHash(String... fields) {
+		return new PartitionOperator<T>(this, PartitionMethod.HASH, new Keys.ExpressionKeys<T>(fields, getType()));
 	}
 	
 	/**
