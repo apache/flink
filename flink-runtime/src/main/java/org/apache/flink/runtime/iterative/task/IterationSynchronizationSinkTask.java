@@ -82,13 +82,13 @@ public class IterationSynchronizationSinkTask extends AbstractInvokable implemen
 		
 		// store all aggregators
 		this.aggregators = new HashMap<String, Aggregator<?>>();
-		for (AggregatorWithName<?> aggWithName : taskConfig.getIterationAggregators(userCodeClassLoader)) {
+		for (AggregatorWithName<?> aggWithName : taskConfig.getIterationAggregators(getUserCodeClassLoader())) {
 			aggregators.put(aggWithName.getName(), aggWithName.getAggregator());
 		}
 		
 		// store the aggregator convergence criterion
 		if (taskConfig.usesConvergenceCriterion()) {
-			convergenceCriterion = taskConfig.getConvergenceCriterion(userCodeClassLoader);
+			convergenceCriterion = taskConfig.getConvergenceCriterion(getUserCodeClassLoader());
 			convergenceAggregatorName = taskConfig.getConvergenceCriterionAggregatorName();
 			Preconditions.checkNotNull(convergenceAggregatorName);
 		}

@@ -225,11 +225,8 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 			LOG.debug(formatLogString("Start registering input and output."));
 		}
 
-		ClassLoader userCodeClassLoader = getEnvironment().getUserClassLoader();
-
 		// obtain task configuration (including stub parameters)
 		Configuration taskConf = getTaskConfiguration();
-		taskConf.setClassLoader(userCodeClassLoader);
 		this.config = new TaskConfig(taskConf);
 
 		// now get the operator class which drives the operation
@@ -671,7 +668,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 
 	protected S initStub(Class<? super S> stubSuperClass) throws Exception {
 		try {
-			ClassLoader userCodeClassLoader = getEnvironment().getUserClassLoader();
+			ClassLoader userCodeClassLoader = getUserCodeClassLoader();
 			S stub = config.<S>getStubWrapper(userCodeClassLoader).getUserCodeObject(stubSuperClass, userCodeClassLoader);
 			// check if the class is a subclass, if the check is required
 			if (stubSuperClass != null && !stubSuperClass.isAssignableFrom(stub.getClass())) {
@@ -764,7 +761,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		this.inputComparators = numComparators > 0 ? new TypeComparator[numComparators] : null;
 		this.inputIterators = new MutableObjectIterator[numInputs];
 
-		ClassLoader userCodeClassLoader = getEnvironment().getUserClassLoader();
+		ClassLoader userCodeClassLoader = getUserCodeClassLoader();
 		
 		for (int i = 0; i < numInputs; i++) {
 			
@@ -791,7 +788,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		this.broadcastInputSerializers = new TypeSerializerFactory[numBroadcastInputs];
 		this.broadcastInputIterators = new MutableObjectIterator[numBroadcastInputs];
 
-		ClassLoader userCodeClassLoader = getEnvironment().getUserClassLoader();
+		ClassLoader userCodeClassLoader = getUserCodeClassLoader();
 
 		for (int i = 0; i < numBroadcastInputs; i++) {
 			//  ---------------- create the serializer first ---------------------
@@ -1006,9 +1003,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	}
 
 	private <T> TypeComparator<T> getLocalStrategyComparator(int inputNum) throws Exception {
-		ClassLoader userCodeClassLoader = getEnvironment().getUserClassLoader();
-
-		TypeComparatorFactory<T> compFact = this.config.getInputComparator(inputNum, userCodeClassLoader);
+		TypeComparatorFactory<T> compFact = this.config.getInputComparator(inputNum, getUserCodeClassLoader());
 		if (compFact == null) {
 			throw new Exception("Missing comparator factory for local strategy on input " + inputNum);
 		}
@@ -1044,14 +1039,15 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		this.chainedTasks = new ArrayList<ChainedDriver<?, ?>>();
 		this.eventualOutputs = new ArrayList<BufferWriter>();
 
-		ClassLoader userCodeClassLoader = getEnvironment().getUserClassLoader();
+		ClassLoader userCodeClassLoader = getUserCodeClassLoader();
 
 		this.output = initOutputs(this, userCodeClassLoader, this.config, this.chainedTasks, this.eventualOutputs);
 	}
 
 	public RuntimeUDFContext createRuntimeContext(String taskName) {
 		Environment env = getEnvironment();
-		return new RuntimeUDFContext(taskName, env.getCurrentNumberOfSubtasks(), env.getIndexInSubtaskGroup(), userCodeClassLoader, env.getCopyTask());
+		return new RuntimeUDFContext(taskName, env.getCurrentNumberOfSubtasks(),
+				env.getIndexInSubtaskGroup(), getUserCodeClassLoader(), env.getCopyTask());
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -1061,11 +1057,6 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	@Override
 	public TaskConfig getTaskConfig() {
 		return this.config;
-	}
-
-	@Override
-	public ClassLoader getUserCodeClassLoader() {
-		return getEnvironment().getUserClassLoader();
 	}
 
 	@Override

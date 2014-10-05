@@ -116,7 +116,7 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 		// add the outputs for the final solution
 		this.finalOutputWriters = new ArrayList<BufferWriter>();
 		final TaskConfig finalOutConfig = this.config.getIterationHeadFinalOutputConfig();
-		final ClassLoader userCodeClassLoader = getEnvironment().getUserClassLoader();
+		final ClassLoader userCodeClassLoader = getUserCodeClassLoader();
 		this.finalOutputCollector = RegularPactTask.getOutputCollector(this, finalOutConfig,
 			userCodeClassLoader, this.finalOutputWriters, finalOutConfig.getNumOutputs());
 
@@ -160,7 +160,7 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 	private <BT> CompactingHashTable<BT> initCompactingHashTable() throws Exception {
 		// get some memory
 		double hashjoinMemorySize = config.getRelativeSolutionSetMemory();
-		final ClassLoader userCodeClassLoader = getEnvironment().getUserClassLoader();
+		final ClassLoader userCodeClassLoader = getUserCodeClassLoader();
 
 		TypeSerializerFactory<BT> solutionTypeSerializerFactory = config.getSolutionSetSerializer(userCodeClassLoader);
 		TypeComparatorFactory<BT> solutionTypeComparatorFactory = config.getSolutionSetComparator(userCodeClassLoader);
@@ -198,8 +198,10 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 	}
 	
 	private <BT> JoinHashMap<BT> initJoinHashMap() {
-		TypeSerializerFactory<BT> solutionTypeSerializerFactory = config.getSolutionSetSerializer(userCodeClassLoader);
-		TypeComparatorFactory<BT> solutionTypeComparatorFactory = config.getSolutionSetComparator(userCodeClassLoader);
+		TypeSerializerFactory<BT> solutionTypeSerializerFactory = config.getSolutionSetSerializer
+				(getUserCodeClassLoader());
+		TypeComparatorFactory<BT> solutionTypeComparatorFactory = config.getSolutionSetComparator
+				(getUserCodeClassLoader());
 	
 		TypeSerializer<BT> solutionTypeSerializer = solutionTypeSerializerFactory.getSerializer();
 		TypeComparator<BT> solutionTypeComparator = solutionTypeComparatorFactory.createComparator();
@@ -223,9 +225,7 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 	}
 
 	private SuperstepBarrier initSuperstepBarrier() {
-		final ClassLoader userCodeClassLoader = getEnvironment().getUserClassLoader();
-
-		SuperstepBarrier barrier = new SuperstepBarrier(userCodeClassLoader);
+		SuperstepBarrier barrier = new SuperstepBarrier(getUserCodeClassLoader());
 		this.toSync.subscribeToEvent(barrier, AllWorkersDoneEvent.class);
 		this.toSync.subscribeToEvent(barrier, TerminationEvent.class);
 		return barrier;
@@ -263,7 +263,7 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 			if (isWorksetIteration) {
 				initialSolutionSetInput = config.getIterationHeadSolutionSetInputIndex();
 				TypeSerializerFactory<X> solutionTypeSerializerFactory = config
-						.getSolutionSetSerializer(getEnvironment().getUserClassLoader());
+						.getSolutionSetSerializer(getUserCodeClassLoader());
 				solutionTypeSerializer = solutionTypeSerializerFactory;
 
 				// setup the index for the solution set
@@ -301,7 +301,8 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 			}
 
 			// instantiate all aggregators and register them at the iteration global registry
-			aggregatorRegistry = new RuntimeAggregatorRegistry(config.getIterationAggregators(userCodeClassLoader));
+			aggregatorRegistry = new RuntimeAggregatorRegistry(config.getIterationAggregators
+					(getUserCodeClassLoader()));
 			IterationAggregatorBroker.instance().handIn(brokerKey, aggregatorRegistry);
 
 			DataInputView superstepResult = null;

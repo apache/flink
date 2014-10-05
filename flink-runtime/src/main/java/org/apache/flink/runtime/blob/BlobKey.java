@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -116,7 +116,7 @@ public final class BlobKey implements IOReadableWritable, Comparable<BlobKey> {
 	 */
 	@Override
 	public String toString() {
-
+		// from http://stackoverflow.com/questions/9655181/convert-from-byte-array-to-hex-string-in-java
 		final char[] hexChars = new char[SIZE * 2];
 		for (int i = 0; i < SIZE; ++i) {
 			int v = this.key[i] & 0xff;

@@ -23,14 +23,16 @@ import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.atomic.AtomicInteger;
 
-import io.netty.util.internal.ConcurrentSet;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobKey;
@@ -54,7 +56,7 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 	/**
 	 * Dummy object used in the lock map.
 	 */
-	private final Object LOCK_OBJECT = new Object();
+	private final Object lockObject = new Object();
 
 	/**
 	 * Map to translate a job ID to the responsible class loaders.
@@ -65,35 +67,26 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 	/**
 	 * Map to store the number of references to a specific library manager entry.
 	 */
-	private final ConcurrentMap<JobID, AtomicInteger> libraryReferenceCounter = new ConcurrentHashMap<JobID, AtomicInteger>();
-
-	/**
-	 * Map to guarantee atomicity of register/unregister operations.
-	 */
-	private final ConcurrentMap<JobID, Object> lockMap = new ConcurrentHashMap<JobID, Object>();
+	private final Map<JobID, Integer> libraryReferenceCounter = new HashMap<JobID,
+			Integer>();
 
 	/**
 	 * Map to store the blob keys referenced by a specific job
 	 */
-	private final ConcurrentMap<JobID, Collection<BlobKey>> requiredJars = new
-			ConcurrentHashMap<JobID, Collection<BlobKey>>();
+	private final Map<JobID, Collection<BlobKey>> requiredJars = new
+			HashMap<JobID, Collection<BlobKey>>();
 
 	/**
 	 * Map to store the number of reference to a specific file
 	 */
-	private final ConcurrentMap<BlobKey, AtomicInteger> blobKeyReferenceCounter = new
-			ConcurrentHashMap<BlobKey, AtomicInteger>();
+	private final Map<BlobKey, Integer> blobKeyReferenceCounter = new
+			HashMap<BlobKey, Integer>();
 
-	/**
-	 * Map to guarantee atomicity of register/unregister operations
-	 */
-	private final ConcurrentMap<BlobKey, Object> blobKeyLockMap = new ConcurrentHashMap<BlobKey,
-			Object>();
 
 	/**
 	 * All registered blobs
 	 */
-	private final ConcurrentSet<BlobKey> registeredBlobs = new ConcurrentSet<BlobKey>();
+	private final Set<BlobKey> registeredBlobs = new HashSet<BlobKey>();
 
 	private final BlobService blobService;
 
@@ -110,88 +103,50 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 
 	/**
 	 * Increments the reference counter of the corrsponding map
-	 * 
+	 *
 	 * @param key
 	 *        the key identifying the counter to increment
 	 * @return the increased reference counter
 	 */
-	private <K> int incrementReferenceCounter(final K key, final ConcurrentMap<K,
-	AtomicInteger> map) {
+	private <K> int incrementReferenceCounter(final K key, final Map<K,
+	Integer> map) {
 
-		while (true) {
+		if(!map.containsKey(key)){
+			map.put(key, 1);
 
-			AtomicInteger ai = map.get(key);
-			if (ai == null) {
+			return 1;
+		}else{
+			int counter = map.get(key) + 1;
+			map.put(key, counter);
 
-				ai = new AtomicInteger(1);
-				if (map.putIfAbsent(key, ai) == null) {
-					return 1;
-				}
-
-				// We had a race, try again
-			} else {
-				return ai.incrementAndGet();
-			}
+			return counter;
 		}
 	}
 
 	/**
 	 * Decrements the reference counter associated with the key
-	 * 
+	 *
 	 * @param key
 	 *        the key identifying the counter to decrement
 	 * @return the decremented reference counter
 	 */
-	private <K> int decrementReferenceCounter(final K key, final ConcurrentMap<K,
-			AtomicInteger> map) {
+	private <K> int decrementReferenceCounter(final K key, final Map<K,
+			Integer> map) {
 
-		final AtomicInteger ai = map.get(key);
-
-		if (ai == null) {
+		if (!map.containsKey(key)) {
 			throw new IllegalStateException("Cannot find reference counter entry for key " + key);
-		}
+		}else{
+			int counter = map.get(key) -1;
 
-		int retVal = ai.decrementAndGet();
-
-		if (retVal == 0) {
-			map.remove(key);
-		}
-
-		return retVal;
-	}
-
-	/**
-	 * Obtains lock for key. If methods which only affect objects associated with the key obtain
-	 * the corresponding lock, then their operations are synchronized. By doing that,
-	 * the LibraryCacheManager supports multiple synchronized method calls.
-	 * @param key
-	 * @param lockMap
-	 * @param <K>
-	 */
-	private <K> void obtainLock(final K key, final ConcurrentMap<K, Object> lockMap) {
-		synchronized (LOCK_OBJECT){
-			while(lockMap.putIfAbsent(key, LOCK_OBJECT) != null){
-				try {
-					LOCK_OBJECT.wait();
-				} catch (InterruptedException e) {}
+			if(counter == 0){
+				map.remove(key);
+			}else{
+				map.put(key, counter);
 			}
+
+			return counter;
 		}
 	}
-
-	/**
-	 * Releases the obtained lock for key and notifies all waiting threads to acquire the lock.
-	 * @param key
-	 * @param lockMap
-	 * @param <K>
-	 */
-	private <K> void releaseLock(final K key, final ConcurrentMap<K, Object> lockMap){
-		lockMap.remove(key);
-
-		synchronized (LOCK_OBJECT) {
-			LOCK_OBJECT.notifyAll();
-		}
-	}
-
 
 	/**
 	 * Registers a job ID with a set of library paths that are required to run the job. For every registered
@@ -208,9 +163,8 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 	@Override
 	public void register(final JobID id, final Collection<BlobKey> requiredJarFiles) throws
 			IOException {
-		obtainLock(id, lockMap);
 
-		try {
+		synchronized (lockObject) {
 			if (incrementReferenceCounter(id, libraryReferenceCounter) > 1) {
 				return;
 			}
@@ -221,38 +175,32 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 						"class loader entry for job ID " + id);
 			}
 
-			if(requiredJars.putIfAbsent(id, requiredJarFiles) != null){
+			if (requiredJars.containsKey(id)) {
 				throw new IllegalStateException("Library cache manager already contains blob keys" +
 						" entry for job ID " + id);
 			}
 
+			requiredJars.put(id, requiredJarFiles);
+
 			URL[] urls = new URL[requiredJarFiles.size()];
 			int count = 0;
 
-			for(BlobKey blobKey: requiredJarFiles){
+			for (BlobKey blobKey : requiredJarFiles) {
 				urls[count++] = registerBlobKeyAndGetURL(blobKey);
 			}
 
 			final URLClassLoader classLoader = new URLClassLoader(urls);
 			this.classLoaders.put(id, classLoader);
-		} finally {
-			releaseLock(id, lockMap);
 		}
 	}
 
 	private URL registerBlobKeyAndGetURL(BlobKey key) throws IOException{
-		obtainLock(key, blobKeyLockMap);
-
-		try{
-			if(incrementReferenceCounter(key, blobKeyReferenceCounter) == 1){
-				// registration might happen even if the file is already stored locally
-				registeredBlobs.add(key);
-			}
-
-			return blobService.getURL(key);
-		}finally{
-			releaseLock(key, blobKeyLockMap);
+		if(incrementReferenceCounter(key, blobKeyReferenceCounter) == 1){
+			// registration might happen even if the file is already stored locally
+			registeredBlobs.add(key);
 		}
+
+		return blobService.getURL(key);
 	}
 
 	/**
@@ -263,32 +211,20 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 	 */
 	@Override
 	public void unregister(final JobID id) {
-		obtainLock(id, lockMap);
+		synchronized (lockObject) {
+			if (decrementReferenceCounter(id, libraryReferenceCounter) == 0) {
+				this.classLoaders.remove(id);
 
-		if (decrementReferenceCounter(id, libraryReferenceCounter) == 0) {
-			URLClassLoader cl = this.classLoaders.remove(id);
+				Collection<BlobKey> keys = requiredJars.get(id);
 
-			Collection<BlobKey> keys = requiredJars.get(id);
+				for (BlobKey key : keys) {
+					decrementReferenceCounter(key, blobKeyReferenceCounter);
+				}
 
-			for(BlobKey key: keys){
-				unregisterBlobKey(key);
+				requiredJars.remove(id);
 			}
-
-			requiredJars.remove(id);
 		}
 
-		releaseLock(id, lockMap);
-	}
-
-
-	private void unregisterBlobKey(BlobKey key){
-		obtainLock(key, blobKeyLockMap);
-
-		try{
-			decrementReferenceCounter(key, blobKeyReferenceCounter);
-		}finally{
-			releaseLock(key, blobKeyLockMap);
-		}
 	}
 
 	/**
@@ -323,22 +259,20 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 	 */
 	@Override
 	public void run() {
-		Iterator<BlobKey> it = registeredBlobs.iterator();
+		synchronized (lockObject) {
+			Iterator<BlobKey> it = registeredBlobs.iterator();
 
-		while(it.hasNext()){
-			BlobKey key = it.next();
+			while (it.hasNext()) {
+				BlobKey key = it.next();
 
-			obtainLock(key, blobKeyLockMap);
-
-			try {
-				if(!blobKeyReferenceCounter.containsKey(key)){
-					blobService.delete(key);
-					it.remove();
+				try {
+					if (!blobKeyReferenceCounter.containsKey(key)) {
+						blobService.delete(key);
+						it.remove();
+					}
+				} catch (IOException ioe) {
+					LOG.warn("Could not delete file with blob key" + key, ioe);
 				}
-			}catch(IOException ioe){
-				LOG.warn("Could not delete file with blob key" + key, ioe);
-			}finally{
-				releaseLock(key, blobKeyLockMap);
 			}
 		}
 	}

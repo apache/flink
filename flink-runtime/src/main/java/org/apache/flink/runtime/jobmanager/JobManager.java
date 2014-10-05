@@ -112,7 +112,7 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 	
 	
 	/** Executor service for asynchronous commands (to relieve the RPC threads of work) */
-	private final ExecutorService executorService = Executors.newFixedThreadPool(3 * Hardware
+	private final ExecutorService executorService = Executors.newFixedThreadPool(2 * Hardware
 			.getNumberCPUCores(), ExecutorThreadFactory.INSTANCE);
 	
 
@@ -340,6 +340,7 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 			if (LOG.isDebugEnabled()) {
 				LOG.debug(String.format("Running master initialization of job %s (%s)", job.getJobID(), job.getName()));
 			}
+
 			for (AbstractJobVertex vertex : job.getVertices()) {
 				// check that the vertex has an executable class
 				String executableClass = vertex.getInvokableClassName();

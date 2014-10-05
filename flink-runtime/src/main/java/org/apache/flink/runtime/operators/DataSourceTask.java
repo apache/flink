@@ -87,7 +87,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 		}
 
 		try {
-			initOutputs(getEnvironment().getUserClassLoader());
+			initOutputs(getUserCodeClassLoader());
 		} catch (Exception ex) {
 			throw new RuntimeException("The initialization of the DataSource's outputs caused an error: " + 
 				ex.getMessage(), ex);
@@ -285,10 +285,9 @@ l	 *
 	 *         obtained.
 	 */
 	private void initInputFormat() {
-		ClassLoader userCodeClassLoader = getEnvironment().getUserClassLoader();
+		ClassLoader userCodeClassLoader = getUserCodeClassLoader();
 		// obtain task configuration (including stub parameters)
 		Configuration taskConf = getTaskConfiguration();
-		taskConf.setClassLoader(userCodeClassLoader);
 		this.config = new TaskConfig(taskConf);
 
 		try {

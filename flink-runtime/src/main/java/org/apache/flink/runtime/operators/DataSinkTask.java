@@ -43,7 +43,7 @@ import org.apache.flink.types.Record;
 import org.apache.flink.util.MutableObjectIterator;
 
 /**
- * DataSinkTask which is executed by a Nephele task manager.
+ * DataSinkTask which is executed by a Flink task manager.
  * The task hands the data to an output format.
  * 
  * @see OutputFormat
@@ -123,7 +123,7 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 				try {
 					// get type comparator
 					TypeComparatorFactory<IT> compFact = this.config.getInputComparator(0,
-							getEnvironment().getUserClassLoader());
+							getUserCodeClassLoader());
 					if (compFact == null) {
 						throw new Exception("Missing comparator factory for local strategy on input " + 0);
 					}
@@ -252,10 +252,9 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 	 *         obtained.
 	 */
 	private void initOutputFormat() {
-		ClassLoader userCodeClassLoader = getEnvironment().getUserClassLoader();
+		ClassLoader userCodeClassLoader = getUserCodeClassLoader();
 		// obtain task configuration (including stub parameters)
 		Configuration taskConf = getTaskConfiguration();
-		taskConf.setClassLoader(userCodeClassLoader);
 		this.config = new TaskConfig(taskConf);
 
 		try {
@@ -312,7 +311,7 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 			throw new Exception("Illegal input group size in task configuration: " + groupSize);
 		}
 		
-		this.inputTypeSerializerFactory = this.config.getInputSerializer(0, getEnvironment().getUserClassLoader());
+		this.inputTypeSerializerFactory = this.config.getInputSerializer(0, getUserCodeClassLoader());
 		
 		if (this.inputTypeSerializerFactory.getDataType() == Record.class) {
 			// record specific deserialization
