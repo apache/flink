@@ -108,7 +108,7 @@ public class WebInfoServer {
 			LOG.info("Setting up web info server, using web-root directory '" + webDir.getAbsolutePath() + "'.");
 			//LOG.info("Web info server will store temporary files in '" + tmpDir.getAbsolutePath());
 
-			LOG.info("Web info server will display information about nephele job-manager on "
+			LOG.info("Web info server will display information about flink job-manager on "
 				+ config.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null) + ", port "
 				+ port
 				+ ".");

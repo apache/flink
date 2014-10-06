@@ -29,6 +29,7 @@ import org.apache.flink.core.io.InputSplitAssigner
 import org.apache.flink.runtime.blob.BlobServer
 import org.apache.flink.runtime.executiongraph.{ExecutionJobVertex, ExecutionGraph}
 import org.apache.flink.runtime.io.network.ConnectionInfoLookupResponse
+import org.apache.flink.runtime.jobmanager.web.WebInfoServer
 import org.apache.flink.runtime.messages.ArchiveMessages.ArchiveExecutionGraph
 import org.apache.flink.runtime.messages.ExecutionGraphMessages.{CurrentJobStatus,
 JobStatusChanged}
@@ -70,7 +71,6 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
   val instanceManager = new InstanceManager()
   val scheduler = new FlinkScheduler()
   val libraryCacheManager = new BlobLibraryCacheManager(new BlobServer(), cleanupInterval)
-  val webserver = null
 
   val currentJobs = scala.collection.mutable.HashMap[JobID, (ExecutionGraph, JobInfo)]()
   val finalJobStatusListener = scala.collection.mutable.HashMap[JobID, Set[ActorRef]]()
@@ -429,8 +429,7 @@ object JobManager {
   }
 
   def startActor(archiveCount: Int, profilingEnabled: Boolean, cleanupInterval: Long)
-                (implicit actorSystem:
-  ActorSystem): ActorRef = {
+                (implicit actorSystem: ActorSystem): ActorRef = {
     actorSystem.actorOf(Props(classOf[JobManager], archiveCount, profilingEnabled, cleanupInterval),
       JOB_MANAGER_NAME)
   }
