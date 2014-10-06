@@ -117,7 +117,7 @@ public abstract class TypeSerializer<T> implements Serializable {
 	 * De-serializes a record from the given source input view.
 	 * 
 	 * @param source The input view from which to read the data.
-	 * @result The deserialized element.
+	 * @return The deserialized element.
 	 * 
 	 * @throws IOException Thrown, if the de-serialization encountered an I/O related error. Typically raised by the
 	 *                     input view, which may have an underlying I/O channel from which it reads.
@@ -129,7 +129,7 @@ public abstract class TypeSerializer<T> implements Serializable {
 	 * 
 	 * @param reuse The record instance into which to de-serialize the data.
 	 * @param source The input view from which to read the data.
-	 * @result The deserialized element.
+	 * @return The deserialized element.
 	 * 
 	 * @throws IOException Thrown, if the de-serialization encountered an I/O related error. Typically raised by the
 	 *                     input view, which may have an underlying I/O channel from which it reads.

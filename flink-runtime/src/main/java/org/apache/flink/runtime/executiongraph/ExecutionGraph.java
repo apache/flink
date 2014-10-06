@@ -107,6 +107,8 @@ public class ExecutionGraph {
 	
 	private int numberOfRetriesLeft;
 	
+	private long delayBeforeRetrying;
+	
 	private volatile JobStatus state = JobStatus.CREATED;
 	
 	private volatile Throwable failureCause;
@@ -157,6 +159,17 @@ public class ExecutionGraph {
 	
 	public int getNumberOfRetriesLeft() {
 		return numberOfRetriesLeft;
+	}
+	
+	public void setDelayBeforeRetrying(long delayBeforeRetrying) {
+		if (delayBeforeRetrying < 0) {
+			throw new IllegalArgumentException("Delay before retry must be non-negative.");
+		}
+		this.delayBeforeRetrying = delayBeforeRetrying;
+	}
+	
+	public long getDelayBeforeRetrying() {
+		return delayBeforeRetrying;
 	}
 	
 	public void attachJobGraph(List<AbstractJobVertex> topologiallySorted) throws JobException {
@@ -428,6 +441,11 @@ public class ExecutionGraph {
 								execute(new Runnable() {
 									@Override
 									public void run() {
+										try {
+											Thread.sleep(delayBeforeRetrying);
+										} catch (InterruptedException e) {
+											// should only happen on shutdown
+										}
 										restart();
 									}
 								});

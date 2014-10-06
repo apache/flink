@@ -43,6 +43,10 @@ public class InstanceManagerTest {
 		try {
 			InstanceManager cm = new InstanceManager();
 			
+			// catches error that some parts assumed config values in seconds, others in
+			// milliseconds by verifying that the timeout is not larger than 2 minutes.
+			assertTrue(cm.getHeartbeatTimeout() < 2 * 60 * 1000);
+			
 			final int ipcPort = 10000;
 			final int dataPort = 20000;
 
@@ -182,13 +186,7 @@ public class InstanceManagerTest {
 				// expected
 			}
 			
-			try {
-				cm.reportHeartBeat(new InstanceID());
-				fail("Should raise exception in shutdown state");
-			}
-			catch (IllegalStateException e) {
-				// expected
-			}
+			assertFalse(cm.reportHeartBeat(new InstanceID()));
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());

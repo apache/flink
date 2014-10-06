@@ -200,8 +200,8 @@ public class RecoveryITCase {
 			
 			// make sure we have fast heartbeats and failure detection
 			Configuration cfg = new Configuration();
-			cfg.setInteger(ConfigConstants.JOB_MANAGER_DEAD_TASKMANAGER_TIMEOUT_KEY, 2000);
-			cfg.setInteger(ConfigConstants.TASK_MANAGER_HEARTBEAT_INTERVAL_KEY, 500);
+			cfg.setInteger(ConfigConstants.JOB_MANAGER_DEAD_TASKMANAGER_TIMEOUT_KEY, 3000);
+			cfg.setInteger(ConfigConstants.TASK_MANAGER_HEARTBEAT_INTERVAL_KEY, 1000);
 			
 			jm = startJobManager(2, NUM_TASKS, cfg);
 			
