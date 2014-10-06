@@ -95,7 +95,7 @@ public abstract class TupleTypeInfoBase<T> extends CompositeType<T> {
 	@Override
 	public void getKey(String fieldExpression, int offset, List<FlatFieldDescriptor> result) {
 		// handle 'select all'
-		if(fieldExpression.equals(ExpressionKeys.SELECT_ALL_CHAR)) {
+		if(fieldExpression.equals(ExpressionKeys.SELECT_ALL_CHAR) || fieldExpression.equals(ExpressionKeys.SELECT_ALL_CHAR_SCALA)) {
 			int keyPosition = 0;
 			for(TypeInformation<?> type : types) {
 				if(type instanceof AtomicType) {
@@ -157,7 +157,10 @@ public abstract class TupleTypeInfoBase<T> extends CompositeType<T> {
 		for(int i = 0; i < pos; i++) {
 			offset += types[i].getTotalFields() - 1; // this adds only something to offset if its a composite type.
 		}
-		
+		if(types[pos] instanceof CompositeType) {
+			throw new IllegalArgumentException("The specified field '"+fieldExpression+"' is refering to a composite type.\n"
+					+ "Either select all elements in this type with the '"+ExpressionKeys.SELECT_ALL_CHAR+"' operator or specify a field in the sub-type");
+		}
 		result.add(new FlatFieldDescriptor(offset + pos, types[pos]));
 	}
 	

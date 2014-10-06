@@ -160,6 +160,7 @@ public abstract class Keys<T> {
 	public static class ExpressionKeys<T> extends Keys<T> {
 		
 		public static final String SELECT_ALL_CHAR = "*";
+		public static final String SELECT_ALL_CHAR_SCALA = "_";
 		
 		/**
 		 * Flattened fields representing keys fields
@@ -245,7 +246,9 @@ public abstract class Keys<T> {
 		 */
 		public ExpressionKeys(String[] expressionsIn, TypeInformation<T> type) {
 			if(!(type instanceof CompositeType<?>)) {
-				throw new IllegalArgumentException("Type "+type+" is not a composite type. Key expressions are not supported.");
+				throw new IllegalArgumentException("Type "+type+" is not a composite type. "
+						+ "Key expressions are only supported on POJO types and Tuples. "
+						+ "A type is considered a POJO if all its fields are public, or have both getters and setters defined");
 			}
 			CompositeType<T> cType = (CompositeType<T>) type;
 			
@@ -259,7 +262,7 @@ public abstract class Keys<T> {
 				List<FlatFieldDescriptor> keys = new ArrayList<FlatFieldDescriptor>(); // use separate list to do a size check
 				cType.getKey(expressions[i], 0, keys);
 				if(keys.size() == 0) {
-					throw new IllegalArgumentException("Unable to extract key from expression "+expressions[i]+" on key "+cType);
+					throw new IllegalArgumentException("Unable to extract key from expression '"+expressions[i]+"' on key "+cType);
 				}
 				keyFields.addAll(keys);
 			}

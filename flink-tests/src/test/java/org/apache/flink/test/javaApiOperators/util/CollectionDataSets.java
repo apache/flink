@@ -155,6 +155,26 @@ public class CollectionDataSets {
 		return env.fromCollection(data, type);
 	}
 	
+	public static DataSet<Tuple2<Tuple2<Integer, Integer>, String>> getGroupSortedNestedTupleDataSet(ExecutionEnvironment env) {
+		
+		List<Tuple2<Tuple2<Integer, Integer>, String>> data = new ArrayList<Tuple2<Tuple2<Integer, Integer>, String>>();
+		data.add(new Tuple2<Tuple2<Integer,Integer>, String>(new Tuple2<Integer, Integer>(1,3), "a"));
+		data.add(new Tuple2<Tuple2<Integer,Integer>, String>(new Tuple2<Integer, Integer>(1,2), "a"));
+		data.add(new Tuple2<Tuple2<Integer,Integer>, String>(new Tuple2<Integer, Integer>(2,1), "a"));
+		data.add(new Tuple2<Tuple2<Integer,Integer>, String>(new Tuple2<Integer, Integer>(2,2), "b"));
+		data.add(new Tuple2<Tuple2<Integer,Integer>, String>(new Tuple2<Integer, Integer>(3,3), "c"));
+		data.add(new Tuple2<Tuple2<Integer,Integer>, String>(new Tuple2<Integer, Integer>(3,6), "c"));
+		data.add(new Tuple2<Tuple2<Integer,Integer>, String>(new Tuple2<Integer, Integer>(4,9), "c"));
+		
+		TupleTypeInfo<Tuple2<Tuple2<Integer, Integer>, String>> type = new 
+				TupleTypeInfo<Tuple2<Tuple2<Integer, Integer>, String>>(
+						new TupleTypeInfo<Tuple2<Integer, Integer>>(BasicTypeInfo.INT_TYPE_INFO,BasicTypeInfo.INT_TYPE_INFO),
+						BasicTypeInfo.STRING_TYPE_INFO
+				);
+		
+		return env.fromCollection(data, type);
+	}
+	
 	public static DataSet<String> getStringDataSet(ExecutionEnvironment env) {
 		
 		List<String> data = new ArrayList<String>();
@@ -416,6 +436,38 @@ public class CollectionDataSets {
 		data.add(new Tuple3<Integer,CrazyNested, POJO>(1, new CrazyNested("one", "uno", 1L), new POJO(1, "First",10, 100, 1000L, "One", 10000L) ));
 		// POJO is not initialized according to the first two fields.
 		data.add(new Tuple3<Integer,CrazyNested, POJO>(2, new CrazyNested("two", "duo", 2L), new POJO(1, "First",10, 100, 1000L, "One", 10000L) )); // 1x
+		return env.fromCollection(data);
+	}
+
+	public static class Pojo1 {
+		public String a;
+		public String b;
+	}
+	public static class Pojo2 {
+		public String a2;
+		public String b2;
+	}
+	public static class PojoWithMultiplePojos {
+		public Pojo1 p1;
+		public Pojo2 p2;
+		public Integer i0;
+		public PojoWithMultiplePojos() {}
+		public PojoWithMultiplePojos(String a, String b, String a1, String b1, Integer i0) {
+			p1 = new Pojo1();
+			p1.a = a;
+			p1.b = b;
+			p2 = new Pojo2();
+			p2.a2 = a1;
+			p2.a2 = b1;
+			this.i0 = i0;
+		}
+	}
+	
+	public static DataSet<PojoWithMultiplePojos> getPojoWithMultiplePojos(ExecutionEnvironment env) {
+		List<PojoWithMultiplePojos> data = new ArrayList<PojoWithMultiplePojos>();
+		data.add(new PojoWithMultiplePojos("a","aa","b","bb", 1));
+		data.add(new PojoWithMultiplePojos("b","bb","c","cc", 2));
+		data.add(new PojoWithMultiplePojos("d","dd","e","ee", 3));
 		return env.fromCollection(data);
 	}
 	

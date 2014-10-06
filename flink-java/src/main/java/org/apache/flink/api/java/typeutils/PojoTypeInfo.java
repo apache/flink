@@ -118,7 +118,7 @@ public class PojoTypeInfo<T> extends CompositeType<T>{
 	@Override
 	public void getKey(String fieldExpression, int offset, List<FlatFieldDescriptor> result) {
 		// handle 'select all' first
-		if(fieldExpression.equals(ExpressionKeys.SELECT_ALL_CHAR)) {
+		if(fieldExpression.equals(ExpressionKeys.SELECT_ALL_CHAR) || fieldExpression.equals(ExpressionKeys.SELECT_ALL_CHAR_SCALA)) {
 			int keyPosition = 0;
 			for(PojoField field : fields) {
 				if(field.type instanceof AtomicType) {
@@ -145,6 +145,10 @@ public class PojoTypeInfo<T> extends CompositeType<T>{
 					fieldId += fields[i].type.getTotalFields()-1;
 				}
 				if (fields[i].field.getName().equals(fieldExpression)) {
+					if(fields[i].type instanceof CompositeType) {
+						throw new IllegalArgumentException("The specified field '"+fieldExpression+"' is refering to a composite type.\n"
+								+ "Either select all elements in this type with the '"+ExpressionKeys.SELECT_ALL_CHAR+"' operator or specify a field in the sub-type");
+					}
 					result.add(new FlatFieldDescriptor(offset + fieldId, fields[i].type));
 					return;
 				}
@@ -158,13 +162,13 @@ public class PojoTypeInfo<T> extends CompositeType<T>{
 			for (int i = 0; i < fields.length; i++) {
 				if (fields[i].field.getName().equals(firstField)) {
 					if (!(fields[i].type instanceof CompositeType<?>)) {
-						throw new RuntimeException("Field "+fields[i].type+" is not composite type");
+						throw new RuntimeException("Field "+fields[i].type+" (specified by '"+fieldExpression+"') is not a composite type");
 					}
 					CompositeType<?> cType = (CompositeType<?>) fields[i].type;
 					cType.getKey(rest, offset + fieldId, result); // recurse
 					return;
 				}
-				fieldId++;
+				fieldId += fields[i].type.getTotalFields();
 			}
 			throw new RuntimeException("Unable to find field "+fieldExpression+" in type "+this+" (looking for '"+firstField+"')");
 		}

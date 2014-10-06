@@ -50,6 +50,14 @@ import com.google.common.collect.HashMultiset;
  */
 public class PojoTypeExtractionTest {
 
+	public static class HasDuplicateField extends WC {
+		private int count; // duplicate
+	}
+	
+	@Test(expected=RuntimeException.class)
+	public void testDuplicateFieldException() {
+		TypeExtractor.createTypeInfo(HasDuplicateField.class);
+	}
 	
 	// test with correct pojo types
 	public static class WC { // is a pojo
@@ -210,6 +218,10 @@ public class PojoTypeExtractionTest {
 		}
 		ffd.clear();
 		
+		// scala style full tuple selection for pojos
+		pojoType.getKey("complex.word._", 0, ffd);
+		Assert.assertEquals(3, ffd.size());
+		ffd.clear();
 		
 		pojoType.getKey("complex.*", 0, ffd);
 		Assert.assertEquals(8, ffd.size());
