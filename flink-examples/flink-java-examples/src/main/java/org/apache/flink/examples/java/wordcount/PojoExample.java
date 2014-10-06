@@ -35,7 +35,7 @@ import org.apache.flink.util.Collector;
 public class PojoExample {
 	
 	/**
-	 * This is the POJO (Plain Old Java Object) that is bein used
+	 * This is the POJO (Plain Old Java Object) that is being used
 	 * for all the operations.
 	 * As long as all fields are public or have a getter/setter, the system can handle them
 	 */

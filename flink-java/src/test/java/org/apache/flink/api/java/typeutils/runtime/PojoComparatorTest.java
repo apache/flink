@@ -28,10 +28,8 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.operators.Keys.ExpressionKeys;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.junit.Assert;
-import org.junit.Ignore;
 
 
-//@Ignore // TODO
 public class PojoComparatorTest extends ComparatorTestBase<PojoContainingTuple> {
 	TypeInformation<PojoContainingTuple> type = TypeExtractor.getForClass(PojoContainingTuple.class);
 	
@@ -39,7 +37,7 @@ public class PojoComparatorTest extends ComparatorTestBase<PojoContainingTuple> 
 		new PojoContainingTuple(1, 1L, 1L),
 		new PojoContainingTuple(2, 2L, 2L),
 		new PojoContainingTuple(8519, 85190L, 85190L),
-		new PojoContainingTuple(-51498, 85191L, 85191L),
+		new PojoContainingTuple(8520, 85191L, 85191L),
 	};
 
 	@Override
@@ -48,7 +46,7 @@ public class PojoComparatorTest extends ComparatorTestBase<PojoContainingTuple> 
 		CompositeType<PojoContainingTuple> cType = (CompositeType<PojoContainingTuple>) type;
 		ExpressionKeys<PojoContainingTuple> keys = new ExpressionKeys<PojoContainingTuple>(new String[] {"theTuple.*"}, cType);
 		boolean[] orders = new boolean[keys.getNumberOfKeyFields()];
-		Arrays.fill(orders, true);
+		Arrays.fill(orders, ascending);
 		return cType.createComparator(keys.computeLogicalKeyPositions(), orders, 0);
 	}
 

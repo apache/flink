@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.api.java.operators;
 
 import java.lang.reflect.InvocationTargetException;
@@ -24,10 +23,13 @@ import java.util.Arrays;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.operators.Keys.ExpressionKeys;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple7;
+import org.apache.flink.api.java.type.extractor.PojoTypeExtractionTest.ComplexNestedClass;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -93,7 +95,7 @@ public class KeysTest {
 	}
 	
 	@Test 
-	public void testInvalid() throws Throwable {
+	public void testInvalidTuple() throws Throwable {
 		TupleTypeInfo<Tuple3<String, Tuple3<String, String, String>, String>> typeInfo = new TupleTypeInfo<Tuple3<String,Tuple3<String,String,String>,String>>(
 				BasicTypeInfo.STRING_TYPE_INFO,
 				new TupleTypeInfo<Tuple3<String, String, String>>(BasicTypeInfo.STRING_TYPE_INFO,BasicTypeInfo.STRING_TYPE_INFO,BasicTypeInfo.STRING_TYPE_INFO),
@@ -101,12 +103,39 @@ public class KeysTest {
 		ExpressionKeys<Tuple3<String, Tuple3<String, String, String>, String>> fpk;
 		
 		String[][] tests = new String[][] {
-				new String[] {"f11"},new String[] {"f-35"}, new String[] {"f0.f33"}, new String[] {"f1.f33"}
+				new String[] {"f0.f1"}, // nesting into unnested
+				new String[] {"f11"},
+				new String[] {"f-35"},
+				new String[] {"f0.f33"},
+				new String[] {"f1.f33"},
+				new String[] {"f1"} // select full tuple without saying "f1.*"
 		};
 		for(int i = 0; i < tests.length; i++) {
 			Throwable e = null;
 			try {
 				fpk = new ExpressionKeys<Tuple3<String, Tuple3<String, String, String>, String>>(tests[i], typeInfo);
+			} catch(Throwable t) {
+				// System.err.println("Message: "+t.getMessage()); t.printStackTrace();
+				e = t;	
+			}
+			Assert.assertNotNull(e);
+		}
+	}
+	
+	@Test 
+	public void testInvalidPojo() throws Throwable {
+		TypeInformation<ComplexNestedClass> ti = TypeExtractor.getForClass(ComplexNestedClass.class);
+		ExpressionKeys<ComplexNestedClass> ek;
+		
+		String[][] tests = new String[][] {
+				new String[] {"nonexistent"},
+				new String[] {"date.abc"}, // nesting into unnested
+				new String[] {"word"} // select full tuple without saying "f1.*"
+		};
+		for(int i = 0; i < tests.length; i++) {
+			Throwable e = null;
+			try {
+				ek = new ExpressionKeys<ComplexNestedClass>(tests[i], ti);
 			} catch(Throwable t) {
 				// System.err.println("Message: "+t.getMessage()); t.printStackTrace();
 				e = t;	
@@ -144,6 +173,10 @@ public class KeysTest {
 		fpk = new ExpressionKeys<Tuple3<String, Tuple3<String, String, String>, String>>(new String[] {"*"}, typeInfo);
 		Assert.assertArrayEquals(new int[] {0,1,2,3,4}, fpk.computeLogicalKeyPositions());
 		
+		// scala style "select all"
+		fpk = new ExpressionKeys<Tuple3<String, Tuple3<String, String, String>, String>>(new String[] {"_"}, typeInfo);
+		Assert.assertArrayEquals(new int[] {0,1,2,3,4}, fpk.computeLogicalKeyPositions());
+		
 		// this was a bug:
 		fpk = new ExpressionKeys<Tuple3<String, Tuple3<String, String, String>, String>>(new String[] {"f2"}, typeInfo);
 		Assert.assertArrayEquals(new int[] {4}, fpk.computeLogicalKeyPositions());
@@ -177,10 +210,45 @@ public class KeysTest {
 		complexFpk = new ExpressionKeys<Tuple3<String, Tuple3<Tuple3<String, String, String>, String, String>, String>>(new String[] {"*"}, complexTypeInfo);
 		Assert.assertArrayEquals(new int[] {0,1,2,3,4,5,6}, complexFpk.computeLogicalKeyPositions());
 		
+		// scala style select all
+		complexFpk = new ExpressionKeys<Tuple3<String, Tuple3<Tuple3<String, String, String>, String, String>, String>>(new String[] {"_"}, complexTypeInfo);
+		Assert.assertArrayEquals(new int[] {0,1,2,3,4,5,6}, complexFpk.computeLogicalKeyPositions());
+		
 		complexFpk = new ExpressionKeys<Tuple3<String, Tuple3<Tuple3<String, String, String>, String, String>, String>>(new String[] {"f1.f0.*"}, complexTypeInfo);
 		Assert.assertArrayEquals(new int[] {1,2,3}, complexFpk.computeLogicalKeyPositions());
 		
 		complexFpk = new ExpressionKeys<Tuple3<String, Tuple3<Tuple3<String, String, String>, String, String>, String>>(new String[] {"f2"}, complexTypeInfo);
 		Assert.assertArrayEquals(new int[] {6}, complexFpk.computeLogicalKeyPositions());
+	}
+
+	public static class Pojo1 {
+		public String a;
+		public String b;
+	}
+	public static class Pojo2 {
+		public String a2;
+		public String b2;
+	}
+	public static class PojoWithMultiplePojos {
+		public Pojo1 p1;
+		public Pojo2 p2;
+		public Integer i0;
+	}
+
+	@Test
+	public void testPojoKeys() {
+		TypeInformation<PojoWithMultiplePojos> ti = TypeExtractor.getForClass(PojoWithMultiplePojos.class);
+		ExpressionKeys<PojoWithMultiplePojos> ek;
+		ek = new ExpressionKeys<PojoWithMultiplePojos>(new String[]{"*"}, ti);
+		Assert.assertArrayEquals(new int[] {0,1,2,3,4}, ek.computeLogicalKeyPositions());
+
+		ek = new ExpressionKeys<PojoWithMultiplePojos>(new String[]{"p1.*"}, ti);
+		Assert.assertArrayEquals(new int[] {1,2}, ek.computeLogicalKeyPositions());
+
+		ek = new ExpressionKeys<PojoWithMultiplePojos>(new String[]{"p2.*"}, ti);
+		Assert.assertArrayEquals(new int[] {3,4}, ek.computeLogicalKeyPositions());
+
+		ek = new ExpressionKeys<PojoWithMultiplePojos>(new String[]{"i0"}, ti);
+		Assert.assertArrayEquals(new int[] {0}, ek.computeLogicalKeyPositions());
 	}
 }
