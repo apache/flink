@@ -326,6 +326,15 @@ public class ExecutionJobVertex {
 				numSubtasksInFinalState++;
 				
 				if (numSubtasksInFinalState == parallelism) {
+					
+					// call finalizeOnMaster hook
+					try {
+						getJobVertex().finalizeOnMaster(getGraph().getUserClassLoader());
+					}
+					catch (Throwable t) {
+						getGraph().fail(t);
+					}
+					
 					// we are in our final state
 					stateMonitor.notifyAll();
 					

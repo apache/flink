@@ -72,6 +72,9 @@ public class ExecutionGraph {
 	/** The job configuration that was originally attached to the JobGraph. */
 	private final Configuration jobConfiguration;
 	
+	/** The classloader of the user code. */
+	private final ClassLoader userClassLoader;
+	
 	/** All job vertices that are part of this graph */
 	private final ConcurrentHashMap<JobVertexID, ExecutionJobVertex> tasks;
 	
@@ -124,14 +127,20 @@ public class ExecutionGraph {
 	}
 	
 	public ExecutionGraph(JobID jobId, String jobName, Configuration jobConfig,
-						List<BlobKey> requiredJarFiles,ExecutorService executor) {
-		if (jobId == null || jobName == null || jobConfig == null) {
+						List<BlobKey> requiredJarFiles, ExecutorService executor) {
+		this(jobId, jobName, jobConfig, requiredJarFiles, Thread.currentThread().getContextClassLoader(), null);
+	}
+	
+	public ExecutionGraph(JobID jobId, String jobName, Configuration jobConfig, 
+			List<BlobKey> requiredJarFiles, ClassLoader userClassLoader, ExecutorService executor) {
+		if (jobId == null || jobName == null || jobConfig == null || userClassLoader == null) {
 			throw new NullPointerException();
 		}
 		
 		this.jobID = jobId;
 		this.jobName = jobName;
 		this.jobConfiguration = jobConfig;
+		this.userClassLoader = userClassLoader;
 		this.executor = executor;
 		
 		this.tasks = new ConcurrentHashMap<JobVertexID, ExecutionJobVertex>();
@@ -224,6 +233,10 @@ public class ExecutionGraph {
 	
 	public Configuration getJobConfiguration() {
 		return jobConfiguration;
+	}
+	
+	public ClassLoader getUserClassLoader() {
+		return this.userClassLoader;
 	}
 	
 	public JobStatus getState() {

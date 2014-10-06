@@ -374,6 +374,15 @@ public class AbstractJobVertex implements java.io.Serializable {
 	 */
 	public void initializeOnMaster(ClassLoader loader) throws Exception {}
 	
+	/**
+	 * A hook that can be overwritten by sub classes to implement logic that is called by the 
+	 * master after the job completed.
+	 * 
+	 * @param loader The class loader for user defined code.
+	 * @throws Exception The method may throw exceptions which cause the job to fail immediately.
+	 */
+	public void finalizeOnMaster(ClassLoader loader) throws Exception {}
+	
 	// --------------------------------------------------------------------------------------------
 
 	@Override
