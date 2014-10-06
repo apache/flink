@@ -24,6 +24,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileReader;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
@@ -199,11 +200,11 @@ public abstract class AbstractTestBase {
 	// --------------------------------------------------------------------------------------------
 	
 	public BufferedReader[] getResultReader(String resultPath) throws IOException {
-		return getResultReader(resultPath, false);
+		return getResultReader(resultPath, new String[]{}, false);
 	}
 	
-	public BufferedReader[] getResultReader(String resultPath, boolean inOrderOfFiles) throws IOException {
-		File[] files = getAllInvolvedFiles(resultPath);
+	public BufferedReader[] getResultReader(String resultPath, String[] excludePrefixes, boolean inOrderOfFiles) throws IOException {
+		File[] files = getAllInvolvedFiles(resultPath, excludePrefixes);
 		
 		if (inOrderOfFiles) {
 			// sort the files after their name (1, 2, 3, 4)...
@@ -232,8 +233,14 @@ public abstract class AbstractTestBase {
 		return readers;
 	}
 	
+	
+	
 	public BufferedInputStream[] getResultInputStream(String resultPath) throws IOException {
-		File[] files = getAllInvolvedFiles(resultPath);
+		return getResultInputStream(resultPath, new String[]{});
+	}
+	
+	public BufferedInputStream[] getResultInputStream(String resultPath, String[] excludePrefixes) throws IOException {
+		File[] files = getAllInvolvedFiles(resultPath, excludePrefixes);
 		BufferedInputStream[] inStreams = new BufferedInputStream[files.length];
 		for (int i = 0; i < files.length; i++) {
 			inStreams[i] = new BufferedInputStream(new FileInputStream(files[i]));
@@ -242,11 +249,15 @@ public abstract class AbstractTestBase {
 	}
 	
 	public void readAllResultLines(List<String> target, String resultPath) throws IOException {
-		readAllResultLines(target, resultPath, false);
+		readAllResultLines(target, resultPath, new String[]{});
 	}
 	
-	public void readAllResultLines(List<String> target, String resultPath, boolean inOrderOfFiles) throws IOException {
-		for (BufferedReader reader : getResultReader(resultPath, inOrderOfFiles)) {
+	public void readAllResultLines(List<String> target, String resultPath, String[] excludePrefixes) throws IOException {
+		readAllResultLines(target, resultPath, excludePrefixes, false);
+	}
+	
+	public void readAllResultLines(List<String> target, String resultPath, String[] excludePrefixes, boolean inOrderOfFiles) throws IOException {
+		for (BufferedReader reader : getResultReader(resultPath, excludePrefixes, inOrderOfFiles)) {
 			String s = null;
 			while ((s = reader.readLine()) != null) {
 				target.add(s);
@@ -255,8 +266,12 @@ public abstract class AbstractTestBase {
 	}
 	
 	public void compareResultsByLinesInMemory(String expectedResultStr, String resultPath) throws Exception {
+		compareResultsByLinesInMemory(expectedResultStr, resultPath, new String[]{});
+	}
+	
+	public void compareResultsByLinesInMemory(String expectedResultStr, String resultPath, String[] excludePrefixes) throws Exception {
 		ArrayList<String> list = new ArrayList<String>();
-		readAllResultLines(list, resultPath, false);
+		readAllResultLines(list, resultPath, excludePrefixes, false);
 		
 		String[] result = (String[]) list.toArray(new String[list.size()]);
 		Arrays.sort(result);
@@ -267,10 +282,13 @@ public abstract class AbstractTestBase {
 		Assert.assertEquals("Different number of lines in expected and obtained result.", expected.length, result.length);
 		Assert.assertArrayEquals(expected, result);
 	}
-	
 	public void compareResultsByLinesInMemoryWithStrictOrder(String expectedResultStr, String resultPath) throws Exception {
+		compareResultsByLinesInMemoryWithStrictOrder(expectedResultStr, resultPath, new String[]{});
+	}
+	
+	public void compareResultsByLinesInMemoryWithStrictOrder(String expectedResultStr, String resultPath, String[] excludePrefixes) throws Exception {
 		ArrayList<String> list = new ArrayList<String>();
-		readAllResultLines(list, resultPath, true);
+		readAllResultLines(list, resultPath, excludePrefixes, true);
 		
 		String[] result = (String[]) list.toArray(new String[list.size()]);
 		
@@ -281,8 +299,12 @@ public abstract class AbstractTestBase {
 	}
 	
 	public void compareKeyValueParisWithDelta(String expectedLines, String resultPath, String delimiter, double maxDelta) throws Exception {
+		compareKeyValueParisWithDelta(expectedLines, resultPath, new String[]{}, delimiter, maxDelta);
+	}
+	
+	public void compareKeyValueParisWithDelta(String expectedLines, String resultPath, String[] excludePrefixes, String delimiter, double maxDelta) throws Exception {
 		ArrayList<String> list = new ArrayList<String>();
-		readAllResultLines(list, resultPath, false);
+		readAllResultLines(list, resultPath, excludePrefixes, false);
 		
 		String[] result = (String[]) list.toArray(new String[list.size()]);
 		String[] expected = expectedLines.isEmpty() ? new String[0] : expectedLines.split("\n");
@@ -314,13 +336,25 @@ public abstract class AbstractTestBase {
 		}
 	}
 	
-	private File[] getAllInvolvedFiles(String resultPath) {
+	private File[] getAllInvolvedFiles(String resultPath, String[] excludePrefixes) {
+		final String[] exPrefs = excludePrefixes;
 		File result = asFile(resultPath);
 		if (!result.exists()) {
 			Assert.fail("Result file was not written");
 		}
 		if (result.isDirectory()) {
-			return result.listFiles();
+			return result.listFiles(new FilenameFilter() {
+				
+				@Override
+				public boolean accept(File dir, String name) {
+					for(String p: exPrefs) {
+						if(name.startsWith(p)) {
+							return false;
+						}
+					}
+					return true;
+				}
+			});
 		} else {
 			return new File[] { result };
 		}

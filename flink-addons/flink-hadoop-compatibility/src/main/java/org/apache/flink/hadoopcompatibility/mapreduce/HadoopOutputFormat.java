@@ -22,18 +22,17 @@ package org.apache.flink.hadoopcompatibility.mapreduce;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
+import org.apache.flink.api.common.io.FinalizeOnMaster;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.hadoopcompatibility.mapreduce.utils.HadoopUtils;
-import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.JobID;
 import org.apache.hadoop.mapreduce.RecordWriter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
@@ -41,7 +40,7 @@ import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter;
 
 
-public class HadoopOutputFormat<K extends Writable,V extends Writable> implements OutputFormat<Tuple2<K, V>> {
+public class HadoopOutputFormat<K extends Writable,V extends Writable> implements OutputFormat<Tuple2<K, V>>, FinalizeOnMaster {
 	
 	private static final long serialVersionUID = 1L;
 	
@@ -50,6 +49,7 @@ public class HadoopOutputFormat<K extends Writable,V extends Writable> implement
 	private transient RecordWriter<K,V> recordWriter;
 	private transient FileOutputCommitter fileOutputCommitter;
 	private transient TaskAttemptContext context;
+	private transient int taskNumber;
 	
 	public HadoopOutputFormat(org.apache.hadoop.mapreduce.OutputFormat<K,V> mapreduceOutputFormat, Job job) {
 		super();
@@ -94,6 +94,8 @@ public class HadoopOutputFormat<K extends Writable,V extends Writable> implement
 		if (Integer.toString(taskNumber + 1).length() > 6) {
 			throw new IOException("Task id too large.");
 		}
+		
+		this.taskNumber = taskNumber+1;
 		
 		// for hadoop 2.2
 		this.configuration.set("mapreduce.output.basename", "tmp");
@@ -158,28 +160,42 @@ public class HadoopOutputFormat<K extends Writable,V extends Writable> implement
 		if (this.fileOutputCommitter.needsTaskCommit(this.context)) {
 			this.fileOutputCommitter.commitTask(this.context);
 		}
-		this.fileOutputCommitter.commitJob(this.context);
-		
 		
 		Path outputPath = new Path(this.configuration.get("mapred.output.dir"));
 		
-		// rename tmp-* files to final name
+		// rename tmp-file to final name
 		FileSystem fs = FileSystem.get(outputPath.toUri(), this.configuration);
 		
-		final Pattern p = Pattern.compile("tmp-(.)-([0-9]+)");
+		String taskNumberStr = Integer.toString(this.taskNumber);
+		String tmpFileTemplate = "tmp-r-00000";
+		String tmpFile = tmpFileTemplate.substring(0,11-taskNumberStr.length())+taskNumberStr;
 		
-		// isDirectory does not work in hadoop 1
-		if(fs.getFileStatus(outputPath).isDir()) {
-			FileStatus[] files = fs.listStatus(outputPath);
-			
-			for(FileStatus f : files) {
-				Matcher m = p.matcher(f.getPath().getName());
-				if(m.matches()) {
-					int part = Integer.valueOf(m.group(2));
-					fs.rename(f.getPath(), new Path(outputPath.toString()+"/"+part));
-				}
-			}
+		if(fs.exists(new Path(outputPath.toString()+"/"+tmpFile))) {
+			fs.rename(new Path(outputPath.toString()+"/"+tmpFile), new Path(outputPath.toString()+"/"+taskNumberStr));
 		}
+	}
+	
+	@Override
+	public void finalizeGlobal(int parallelism) throws IOException {
+
+		JobContext jobContext;
+		TaskAttemptContext taskContext;
+		try {
+			
+			TaskAttemptID taskAttemptID = TaskAttemptID.forName("attempt__0000_r_" 
+					+ String.format("%" + (6 - Integer.toString(1).length()) + "s"," ").replace(" ", "0") 
+					+ Integer.toString(1) 
+					+ "_0");
+			
+			jobContext = HadoopUtils.instantiateJobContext(this.configuration, new JobID());
+			taskContext = HadoopUtils.instantiateTaskAttemptContext(this.configuration, taskAttemptID);
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
+		this.fileOutputCommitter = new FileOutputCommitter(new Path(this.configuration.get("mapred.output.dir")), taskContext);
+		
+		// finalize HDFS output format
+		this.fileOutputCommitter.commitJob(jobContext);
 	}
 	
 	// --------------------------------------------------------------------------------------------
