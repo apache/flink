@@ -55,7 +55,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.jobmanager.RunningJob;
+import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmanager.JobManager;
@@ -510,34 +510,35 @@ public class CliFrontend {
 				return 1;
 			}
 
-			List<RunningJob> jobs = AkkaUtils.<RunningJobsResponse>ask(jobManager,
-					RequestRunningJobs$.MODULE$).asJavaList();
+			Iterable<ExecutionGraph> jobs = AkkaUtils.<RunningJobsResponse>ask(jobManager,
+					RequestRunningJobs$.MODULE$).asJavaIterable();
 
-			ArrayList<RunningJob> runningJobs = null;
-			ArrayList<RunningJob> scheduledJobs = null;
+			ArrayList<ExecutionGraph> runningJobs = null;
+			ArrayList<ExecutionGraph> scheduledJobs = null;
 			if (running) {
-				runningJobs = new ArrayList<RunningJob>();
+				runningJobs = new ArrayList<ExecutionGraph>();
 			}
 			if (scheduled) {
-				scheduledJobs = new ArrayList<RunningJob>();
+				scheduledJobs = new ArrayList<ExecutionGraph>();
 			}
 			
-			for (RunningJob rj : jobs) {
+			for (ExecutionGraph rj : jobs) {
 				
-				if (running && rj.jobStatus().equals(JobStatus.RUNNING)) {
+				if (running && rj.getState().equals(JobStatus.RUNNING)) {
 					runningJobs.add(rj);
 				}
-				if (scheduled && rj.jobStatus().equals(JobStatus.CREATED)) {
+				if (scheduled && rj.getState().equals(JobStatus.CREATED)) {
 					scheduledJobs.add(rj);
 				}
 			}
 			
 			SimpleDateFormat df = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss");
-			Comparator<RunningJob> njec = new Comparator<RunningJob>(){
+			Comparator<ExecutionGraph> njec = new Comparator<ExecutionGraph>(){
 				
 				@Override
-				public int compare(RunningJob o1, RunningJob o2) {
-					return (int)(o1.timestamp()-o2.timestamp());
+				public int compare(ExecutionGraph o1, ExecutionGraph o2) {
+					return (int)(o1.getStatusTimestamp(o1.getState())-o2.getStatusTimestamp(o2
+							.getState()));
 				}
 			};
 			
@@ -548,9 +549,9 @@ public class CliFrontend {
 					Collections.sort(runningJobs, njec);
 					
 					System.out.println("------------------------ Running Jobs ------------------------");
-					for(RunningJob rj : runningJobs) {
-						System.out.println(df.format(new Date(rj.timestamp()))+" : "+rj
-								.jobID().toString()+" : "+rj.jobName());
+					for(ExecutionGraph rj : runningJobs) {
+						System.out.println(df.format(new Date(rj.getStatusTimestamp(rj.getState())))
+								+" : "+rj.getJobID().toString()+" : "+rj.getJobName());
 					}
 					System.out.println("--------------------------------------------------------------");
 				}
@@ -562,9 +563,9 @@ public class CliFrontend {
 					Collections.sort(scheduledJobs, njec);
 					
 					System.out.println("----------------------- Scheduled Jobs -----------------------");
-					for(RunningJob rj : scheduledJobs) {
-						System.out.println(df.format(new Date(rj.timestamp()))+" : "+rj.jobID()
-								.toString()+" : "+rj.jobName());
+					for(ExecutionGraph rj : scheduledJobs) {
+						System.out.println(df.format(new Date(rj.getStatusTimestamp(rj.getState())))
+								+" : "+rj.getJobID().toString()+" : "+rj.getJobName());
 					}
 					System.out.println("--------------------------------------------------------------");
 				}

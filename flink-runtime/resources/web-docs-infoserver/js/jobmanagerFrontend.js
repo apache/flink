@@ -54,6 +54,7 @@ function poll(jobId) {
 	$.ajax({ url : "jobsInfo?get=updates&job="+jobId, type : "GET", cache: false, success : function(json) {
 
 		// Call init of no more jobs are running
+
 		$.each(json.recentjobs, function(j, job) {
 			if(!$.inArray(job.jobid, recentjobs)) {
 				init();

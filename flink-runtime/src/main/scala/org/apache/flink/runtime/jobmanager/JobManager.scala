@@ -313,16 +313,29 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
     }
 
     case RequestRunningJobs => {
-      val runningJobs = currentJobs map {
-        case (jobID, (eg, jobInfo)) =>
-          RunningJob(jobID, eg.getState, eg.getStatusTimestamp(eg.getState), eg.getJobName)
+      val executionGraphs = currentJobs map {
+        case (_, (eg, jobInfo)) => eg
       }
 
-      sender() ! RunningJobsResponse(runningJobs.toSeq)
+      sender() ! RunningJobsResponse(executionGraphs)
+    }
+
+    case RequestRunningJob(jobID) => {
+      val response = currentJobs.get(jobID) match {
+        case Some((eg, _)) => RunningJobFound(jobID, eg)
+        case None => RunningJobNotFound(jobID)
+      }
+
+      sender() ! response
     }
 
     case RequestBlobManagerPort => {
       sender() ! libraryCacheManager.getBlobServerPort
+    }
+
+    case RequestRegisteredTaskManagers => {
+      import scala.collection.JavaConverters._
+      sender() ! RegisteredTaskManagers(instanceManager.getAllRegisteredInstances.asScala)
     }
 
     case Heartbeat(instanceID) => {

@@ -28,9 +28,12 @@ SubmitJob}
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.{AllVerticesRunning,
 WaitForAllVerticesToBeRunning}
 import org.apache.flink.runtime.testingUtils.TestingUtils
+import org.junit.runner.RunWith
+import org.scalatest.junit.JUnitRunner
 import org.scalatest.{WordSpecLike, Matchers, BeforeAndAfterAll}
 import scala.concurrent.duration._
 
+@RunWith(classOf[JUnitRunner])
 class TaskManagerFailsITCase(_system: ActorSystem) extends TestKit(_system) with ImplicitSender
 with WordSpecLike with Matchers with BeforeAndAfterAll {
 
@@ -60,7 +63,7 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
       val jm = cluster.getJobManager
 
       try {
-        within(1 second) {
+        within(TestingUtils.TESTING_DURATION) {
           jm ! SubmitJob(jobGraph)
           expectMsg(SubmissionSuccess(jobGraph.getJobID))
 
@@ -70,8 +73,6 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
           // kill one task manager
           taskManagers.get(0) ! PoisonPill
           expectMsgType[JobResultFailed]
-
-          expectNoMsg()
         }
       }finally{
         cluster.stop()

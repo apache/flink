@@ -28,9 +28,12 @@ import org.apache.flink.runtime.messages.JobManagerMessages.{JobResultSuccess, S
 SubmitJob}
 import org.apache.flink.runtime.taskmanager.TaskManagerTest.Sender
 import org.apache.flink.runtime.testingUtils.TestingUtils
+import org.junit.runner.RunWith
+import org.scalatest.junit.JUnitRunner
 import org.scalatest.{Matchers, WordSpecLike, BeforeAndAfterAll}
 import scala.concurrent.duration._
 
+@RunWith(classOf[JUnitRunner])
 class SlotSharingITCase(_system: ActorSystem) extends TestKit(_system) with ImplicitSender with
 WordSpecLike with Matchers with BeforeAndAfterAll {
   def this() = this(ActorSystem("TestingActorSystem", TestingUtils.testConfig))
@@ -64,12 +67,11 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       val jm = cluster.getJobManager
 
       try {
-        within(1 second) {
+        within(TestingUtils.TESTING_DURATION) {
           jm ! SubmitJob(jobGraph)
           expectMsg(SubmissionSuccess(jobGraph.getJobID))
           expectMsgType[JobResultSuccess]
 
-          expectNoMsg()
         }
       } finally {
         cluster.stop()
@@ -108,12 +110,10 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       val cluster = TestingUtils.startTestingCluster(num_tasks)
       val jm = cluster.getJobManager
       try {
-        within(1 second) {
+        within(TestingUtils.TESTING_DURATION) {
           jm ! SubmitJob(jobGraph)
           expectMsg(SubmissionSuccess(jobGraph.getJobID))
           expectMsgType[JobResultSuccess]
-
-          expectNoMsg()
         }
       } finally {
         cluster.stop()

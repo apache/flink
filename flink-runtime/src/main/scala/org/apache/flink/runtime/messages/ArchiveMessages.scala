@@ -24,4 +24,21 @@ import org.apache.flink.runtime.jobgraph.JobID
 
 object ArchiveMessages {
   case class ArchiveExecutionGraph(jobID: JobID, graph: ExecutionGraph)
+
+  case object RequestArchivedJobs
+  case class ArchivedJobs(val jobs: Iterable[ExecutionGraph]){
+    def asJavaList(): java.util.List[ExecutionGraph] = {
+      import scala.collection.JavaConverters._
+      jobs.toSeq.asJava
+    }
+  }
+
+  case class RequestArchivedJob(jobID: JobID)
+
+  sealed trait ArchivedJobResponse{
+    def jobID: JobID
+  }
+  case class ArchivedJobFound(jobID: JobID, executionGraph: ExecutionGraph) extends ArchivedJobResponse
+  case class ArchivedJobNotFound(jobID: JobID) extends ArchivedJobResponse
+
 }

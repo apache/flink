@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.instance;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -231,11 +232,11 @@ public class InstanceManager {
 		return this.totalNumberOfAliveTaskSlots;
 	}
 	
-	public Map<InstanceID, Instance> getAllRegisteredInstances() {
+	public Collection<Instance> getAllRegisteredInstances() {
 		synchronized (this.lock) {
 			// return a copy (rather than a Collections.unmodifiable(...) wrapper), such that
 			// concurrent modifications do not interfere with the traversals or lookups
-			return new HashMap<InstanceID, Instance>(this.registeredHostsById);
+			return new HashSet<Instance>(registeredHostsById.values());
 		}
 	}
 	

@@ -28,11 +28,14 @@ import org.apache.flink.runtime.akka.serialization.IOReadableWritableSerializer
 import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.ActionQueue
 import org.apache.flink.runtime.minicluster.FlinkMiniCluster
 import org.apache.flink.runtime.taskmanager.TaskManager
+import scala.concurrent.duration._
 
 import scala.concurrent.ExecutionContext
 
 object TestingUtils {
   val testConfig = ConfigFactory.parseString(getDefaultTestingActorSystemConfigString)
+
+  val TESTING_DURATION = 10 second
 
   def getDefaultTestingActorSystemConfigString: String = {
     val ioRWSerializerClass = classOf[IOReadableWritableSerializer].getCanonicalName

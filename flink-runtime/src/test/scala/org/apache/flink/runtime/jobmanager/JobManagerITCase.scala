@@ -29,9 +29,12 @@ import org.apache.flink.runtime.testingUtils.{TestingUtils, TestingJobManagerMes
 import TestingJobManagerMessages.{ExecutionGraphNotFound, ExecutionGraphFound,
 ResponseExecutionGraph, RequestExecutionGraph}
 import org.apache.flink.runtime.messages.JobManagerMessages._
+import org.junit.runner.RunWith
+import org.scalatest.junit.JUnitRunner
 import org.scalatest.{Matchers, WordSpecLike, BeforeAndAfterAll}
 import scala.concurrent.duration._
 
+@RunWith(classOf[JUnitRunner])
 class JobManagerITCase(_system: ActorSystem) extends TestKit(_system) with ImplicitSender with
 WordSpecLike with Matchers with BeforeAndAfterAll {
   def this() = this(ActorSystem("TestingActorSystem", TestingUtils.testConfig))
@@ -91,15 +94,13 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
             val availableSlots = AkkaUtils.ask[Int](jm, RequestAvailableSlots)
             availableSlots should equal(num_tasks)
 
-            within(1 second) {
+            within(TestingUtils.TESTING_DURATION) {
               jm ! SubmitJob(jobGraph)
 
               expectMsg(SubmissionSuccess(jobGraph.getJobID))
               val result = expectMsgType[JobResultSuccess]
 
               result.jobID should equal(jobGraph.getJobID)
-
-              expectNoMsg()
             }
 
             val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
@@ -129,7 +130,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
           val jm = cluster.getJobManager
 
           try {
-            within(1 second) {
+            within(TestingUtils.TESTING_DURATION) {
               jm ! SubmitJob(jobGraph)
 
               expectMsg(SubmissionSuccess(jobGraph.getJobID))
@@ -137,8 +138,6 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
               val result = expectMsgType[JobResultSuccess]
 
               result.jobID should equal(jobGraph.getJobID)
-
-              expectNoMsg()
             }
 
             val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
@@ -173,7 +172,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
           val jm = cluster.getJobManager
 
           try {
-            within(1 second) {
+            within(TestingUtils.TESTING_DURATION) {
               jm ! SubmitJob(jobGraph)
 
               expectMsg(SubmissionSuccess(jobGraph.getJobID))
@@ -181,8 +180,6 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
               val result = expectMsgType[JobResultSuccess]
 
               result.jobID should equal(jobGraph.getJobID)
-
-              expectNoMsg()
             }
 
             val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
@@ -214,12 +211,11 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
           val jm = cluster.getJobManager
 
           try {
-            within(1 second) {
+            within(TestingUtils.TESTING_DURATION) {
               jm ! SubmitJob(jobGraph)
 
               expectMsg(SubmissionSuccess(jobGraph.getJobID))
               expectMsgType[JobResultSuccess]
-              expectNoMsg()
             }
 
             val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
@@ -258,13 +254,11 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
           val jm = cluster.getJobManager
 
           try {
-            within(1 second) {
+            within(TestingUtils.TESTING_DURATION) {
               jm ! SubmitJob(jobGraph)
 
               expectMsg(SubmissionSuccess(jobGraph.getJobID))
               expectMsgType[JobResultFailed]
-
-              expectNoMsg()
             }
 
             val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
@@ -303,7 +297,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
           val jm = cluster.getJobManager
 
           try {
-            within(5 second) {
+            within(TestingUtils.TESTING_DURATION) {
               jm ! SubmitJob(jobGraph)
               expectMsg(SubmissionSuccess(jobGraph.getJobID))
 
@@ -342,16 +336,15 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
           val jm = cluster.getJobManager
 
           try {
-            within(1 second) {
+            within(TestingUtils.TESTING_DURATION) {
               jm ! RequestAvailableSlots
               expectMsg(num_tasks)
             }
 
-            within(1 second) {
+            within(TestingUtils.TESTING_DURATION) {
               jm ! SubmitJob(jobGraph)
               expectMsg(SubmissionSuccess(jobGraph.getJobID))
               expectMsgType[JobResultFailed]
-              expectNoMsg()
             }
 
             val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
@@ -386,16 +379,15 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
           val jm = cluster.getJobManager
 
           try {
-            within(1 second) {
+            within(TestingUtils.TESTING_DURATION) {
               jm ! RequestAvailableSlots
               expectMsg(num_tasks)
             }
 
-            within(1 second) {
+            within(TestingUtils.TESTING_DURATION) {
               jm ! SubmitJob(jobGraph)
               expectMsg(SubmissionSuccess(jobGraph.getJobID))
               expectMsgType[JobResultFailed]
-              expectNoMsg()
             }
 
             val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
@@ -430,11 +422,10 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
           val jm = cluster.getJobManager
 
           try {
-            within(1 second) {
+            within(TestingUtils.TESTING_DURATION) {
               jm ! SubmitJob(jobGraph)
               expectMsg(SubmissionSuccess(jobGraph.getJobID))
               expectMsgType[JobResultFailed]
-              expectNoMsg()
             }
 
             val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
@@ -469,7 +460,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
           val jm = cluster.getJobManager
 
           try {
-            within(2 second) {
+            within(TestingUtils.TESTING_DURATION) {
               jm ! RequestAvailableSlots
               expectMsg(num_tasks)
 
@@ -510,7 +501,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
           val jm = cluster.getJobManager
 
           try {
-            within(1 second) {
+            within(TestingUtils.TESTING_DURATION) {
               jm ! RequestAvailableSlots
               expectMsg(num_tasks)
 

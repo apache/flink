@@ -66,25 +66,26 @@ public class WebInfoServer {
 	 * Creates a new web info server. The server runs the servlets that implement the logic
 	 * to list all present information concerning the job manager
 	 *
-	 * @param nepheleConfig
-	 *        The configuration for the nephele job manager.
+	 * @param config
+	 *        The configuration for the flink job manager.
 	 * @param port
 	 *        The port to launch the server on.
 	 * @throws IOException
 	 *         Thrown, if the server setup failed for an I/O related reason.
 	 */
-	public WebInfoServer(Configuration nepheleConfig, int port, ActorRef jobmanager) throws IOException {
+	public WebInfoServer(Configuration config, int port,
+						ActorRef jobmanager, ActorRef archive) throws IOException {
 		this.port = port;
 
 		// if no explicit configuration is given, use the global configuration
-		if (nepheleConfig == null) {
-			nepheleConfig = GlobalConfiguration.getConfiguration();
+		if (config == null) {
+			config = GlobalConfiguration.getConfiguration();
 		}
 
 		// get base path of Flink installation
-		final String basePath = nepheleConfig.getString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY, "");
-		final String webDirPath = nepheleConfig.getString(ConfigConstants.JOB_MANAGER_WEB_ROOT_PATH_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_WEB_ROOT_PATH);
-		final String[] logDirPaths = nepheleConfig.getString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY,
+		final String basePath = config.getString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY, "");
+		final String webDirPath = config.getString(ConfigConstants.JOB_MANAGER_WEB_ROOT_PATH_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_WEB_ROOT_PATH);
+		final String[] logDirPaths = config.getString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY,
 				basePath+"/log").split(","); // YARN allows to specify multiple log directories
 
 		final File[] logDirFiles = new File[logDirPaths.length];
@@ -108,7 +109,7 @@ public class WebInfoServer {
 			//LOG.info("Web info server will store temporary files in '" + tmpDir.getAbsolutePath());
 
 			LOG.info("Web info server will display information about nephele job-manager on "
-				+ nepheleConfig.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null) + ", port "
+				+ config.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null) + ", port "
 				+ port
 				+ ".");
 		}
@@ -124,7 +125,8 @@ public class WebInfoServer {
 		// ----- the handlers for the servlets -----
 		ServletContextHandler servletContext = new ServletContextHandler(ServletContextHandler.SESSIONS);
 		servletContext.setContextPath("/");
-		servletContext.addServlet(new ServletHolder(new JobmanagerInfoServlet(jobmanager)), "/jobsInfo");
+		servletContext.addServlet(new ServletHolder(new JobmanagerInfoServlet(jobmanager,
+				archive)), "/jobsInfo");
 		servletContext.addServlet(new ServletHolder(new LogfileInfoServlet(logDirFiles)), "/logInfo");
 		servletContext.addServlet(new ServletHolder(new SetupInfoServlet(jobmanager)), "/setupInfo");
 		servletContext.addServlet(new ServletHolder(new MenuServlet()), "/menu");
@@ -143,7 +145,7 @@ public class WebInfoServer {
 		// ----- create the login module with http authentication -----
 
 		File af = null;
-		String authFile = nepheleConfig.getString(ConfigConstants.JOB_MANAGER_WEB_ACCESS_FILE_KEY, null);
+		String authFile = config.getString(ConfigConstants.JOB_MANAGER_WEB_ACCESS_FILE_KEY, null);
 		if (authFile != null) {
 			af = new File(authFile);
 			if (!af.exists()) {

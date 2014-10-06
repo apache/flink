@@ -27,6 +27,10 @@ import static org.junit.Assert.fail;
 
 
 import java.net.InetAddress;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Set;
 
 import akka.actor.ActorSystem;
 import akka.testkit.JavaTestKit;
@@ -86,11 +90,19 @@ public class InstanceManagerTest{
 			
 			assertEquals(3, cm.getNumberOfRegisteredTaskManagers());
 			assertEquals(8, cm.getTotalNumberOfSlots());
-			
-			assertEquals(ici1, cm.getAllRegisteredInstances().get(i1).getInstanceConnectionInfo());
-			assertEquals(ici2, cm.getAllRegisteredInstances().get(i2).getInstanceConnectionInfo());
-			assertEquals(ici3, cm.getAllRegisteredInstances().get(i3).getInstanceConnectionInfo());
 
+			Collection<Instance> instances = cm.getAllRegisteredInstances();
+			Set<InstanceConnectionInfo> instanceConnectionInfos = new
+					HashSet<InstanceConnectionInfo>();
+
+			for(Instance instance: instances){
+				instanceConnectionInfos.add(instance.getInstanceConnectionInfo());
+			}
+
+			assertTrue(instanceConnectionInfos.contains(ici1));
+			assertTrue(instanceConnectionInfos.contains(ici2));
+			assertTrue(instanceConnectionInfos.contains(ici3));
+			
 			cm.shutdown();
 		}
 		catch (Exception e) {
@@ -167,14 +179,18 @@ public class InstanceManagerTest{
 			
 			final long WAIT = 200;
 			CommonTestUtils.sleepUninterruptibly(WAIT);
-			
-			long h1 = cm.getAllRegisteredInstances().get(i1).getLastHeartBeat();
-			long h2 = cm.getAllRegisteredInstances().get(i2).getLastHeartBeat();
-			long h3 = cm.getAllRegisteredInstances().get(i3).getLastHeartBeat();
+
+			Iterator<Instance> it = cm.getAllRegisteredInstances().iterator();
+
+			Instance instance1 = it.next();
+
+			long h1 = instance1.getLastHeartBeat();
+			long h2 = it.next().getLastHeartBeat();
+			long h3 = it.next().getLastHeartBeat();
 
 			// send one heart beat again and verify that the
-			assertTrue(cm.reportHeartBeat(i1));
-			long newH1 = cm.getAllRegisteredInstances().get(i1).getLastHeartBeat();
+			assertTrue(cm.reportHeartBeat(instance1.getId()));
+			long newH1 = instance1.getLastHeartBeat();
 			
 			long now = System.currentTimeMillis();
 			

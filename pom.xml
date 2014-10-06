@@ -65,7 +65,6 @@ under the License.
 		<module>flink-addons</module>
 		<module>flink-quickstart</module>
 		<module>flink-dist</module>
-		<module>testing</module>
 	</modules>
 
 	<properties>
@@ -99,16 +98,10 @@ under the License.
 			<version>${slf4j.version}</version>
 		</dependency>
 
-		<!--<dependency>-->
-			<!--<groupId>org.slf4j</groupId>-->
-			<!--<artifactId>slf4j-log4j12</artifactId>-->
-			<!--<version>${slf4j.version}</version>-->
-		<!--</dependency>-->
-
 		<dependency>
-			<groupId>ch.qos.logback</groupId>
-			<artifactId>logback-classic</artifactId>
-			<version>1.1.2</version>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-log4j12</artifactId>
+			<version>${slf4j.version}</version>
 		</dependency>
 
 		<dependency>

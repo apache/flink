@@ -19,14 +19,12 @@
 package org.apache.flink.runtime.messages
 
 import org.apache.flink.runtime.accumulators.AccumulatorEvent
-import org.apache.flink.runtime.instance.InstanceConnectionInfo
+import org.apache.flink.runtime.executiongraph.ExecutionGraph
+import org.apache.flink.runtime.instance.{Instance, InstanceConnectionInfo}
 import org.apache.flink.runtime.io.network.ConnectionInfoLookupResponse
 import org.apache.flink.runtime.io.network.channels.ChannelID
 import org.apache.flink.runtime.jobgraph.{JobVertexID, JobID, JobGraph}
-import org.apache.flink.runtime.jobmanager.RunningJob
 import org.apache.flink.runtime.taskmanager.TaskExecutionState
-
-import scala.collection.convert.{WrapAsScala, WrapAsJava}
 
 object JobManagerMessages {
 
@@ -45,6 +43,22 @@ object JobManagerMessages {
   case class ConnectionInformation(response: ConnectionInfoLookupResponse)
 
   case class ReportAccumulatorResult(accumulatorEvent: AccumulatorEvent)
+
+  case class RequestAccumulatorResults(jobID: JobID)
+
+  sealed trait AccumulatorResultsResponse{
+    val jobID: JobID
+  }
+
+  case class AccumulatorResultsFound(jobID: JobID, results: Map[String,
+    Object]) extends AccumulatorResultsResponse{
+    def asJavaMap: java.util.Map[String, Object] = {
+      import scala.collection.JavaConverters._
+      results.asJava
+    }
+  }
+
+  case class AccumulatorResulstNotFound(jobID: JobID) extends AccumulatorResultsResponse
 
   case class RequestJobStatus(jobID: JobID)
 
@@ -85,11 +99,33 @@ object JobManagerMessages {
 
   case object RequestRunningJobs
 
-  case class RunningJobsResponse(runningJobs: Seq[RunningJob]) {
+  case class RunningJobsResponse(runningJobs: Iterable[ExecutionGraph]) {
     def this() = this(Seq())
-    def asJavaList: java.util.List[RunningJob] = {
-      import scala.collection.JavaConversions.seqAsJavaList
-      seqAsJavaList(runningJobs)
+    def asJavaIterable: java.lang.Iterable[ExecutionGraph] = {
+      import scala.collection.JavaConverters._
+      runningJobs.asJava
+    }
+  }
+
+  case class RequestRunningJob(jobID: JobID)
+
+  sealed trait RunningJobResponse{
+    def jobID: JobID
+  }
+
+  case class RunningJobFound(jobID: JobID, executionGraph: ExecutionGraph) extends RunningJobResponse
+  case class RunningJobNotFound(jobID: JobID) extends RunningJobResponse
+
+  case object RequestRegisteredTaskManagers
+  case class RegisteredTaskManagers(taskManagers: Iterable[Instance]){
+    def asJavaIterable: java.lang.Iterable[Instance] = {
+      import scala.collection.JavaConverters._
+      taskManagers.asJava
+    }
+
+    def asJavaCollection: java.util.Collection[Instance] = {
+      import scala.collection.JavaConverters._
+      taskManagers.asJavaCollection
     }
   }
 

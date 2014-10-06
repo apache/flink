@@ -120,9 +120,9 @@ abstract public class FlinkMiniCluster {
 
 	protected void awaitTermination() {
 		for(ActorSystem system: taskManagerActorSystems){
-			system.awaitTermination();
+			system.awaitTermination(AkkaUtils.AWAIT_DURATION());
 		}
-		jobManagerActorSystem.awaitTermination();
+		jobManagerActorSystem.awaitTermination(AkkaUtils.AWAIT_DURATION());
 	}
 
 

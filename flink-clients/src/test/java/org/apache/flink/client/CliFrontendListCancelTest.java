@@ -29,13 +29,11 @@ import akka.actor.Status;
 import akka.actor.UntypedActor;
 import akka.testkit.JavaTestKit;
 import org.apache.commons.cli.CommandLine;
-import org.apache.flink.runtime.jobmanager.RunningJob;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import scala.collection.Seq;
 
 //TODO: Update test case
 public class CliFrontendListCancelTest {

@@ -46,6 +46,10 @@ ActorLogging with DecorateAsJava {
       graphs.update(jobID, graph)
       cleanup(jobID)
     }
+
+    case RequestArchivedJobs => {
+      sender() ! ArchivedJobs(graphs.values)
+    }
   }
 
   def cleanup(jobID: JobID): Unit = {
