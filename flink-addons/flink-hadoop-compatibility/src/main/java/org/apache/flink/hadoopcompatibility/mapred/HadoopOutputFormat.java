@@ -39,6 +39,7 @@ import org.apache.hadoop.mapred.TaskAttemptContext;
 import org.apache.hadoop.mapred.TaskAttemptID;
 import org.apache.hadoop.util.ReflectionUtils;
 
+
 public class HadoopOutputFormat<K extends Writable,V extends Writable> implements OutputFormat<Tuple2<K, V>> {
 	
 	private static final long serialVersionUID = 1L;

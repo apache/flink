@@ -50,7 +50,6 @@ import org.apache.hadoop.mapred.TextOutputFormat;
  */
 public class HadoopMapredCompatWordCount {
 	
-	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public static void main(String[] args) throws Exception {
 		if (args.length < 2) {
 			System.err.println("Usage: WordCount <input path> <result path>");
@@ -70,8 +69,8 @@ public class HadoopMapredCompatWordCount {
 		DataSet<Tuple2<LongWritable, Text>> text = env.createInput(hadoopInputFormat);
 		
 		DataSet<Tuple2<Text, LongWritable>> words = 
-				text.flatMap(new HadoopMapFunction(new Tokenizer(), Text.class, LongWritable.class))
-					.groupBy(0).reduceGroup(new HadoopReduceCombineFunction(new Counter(), new Counter(), Text.class, LongWritable.class));
+				text.flatMap(new HadoopMapFunction<LongWritable, Text, Text, LongWritable>(new Tokenizer()))
+					.groupBy(0).reduceGroup(new HadoopReduceCombineFunction<Text, LongWritable, Text, LongWritable>(new Counter(), new Counter()));
 		
 		// Set up Hadoop Output Format
 		HadoopOutputFormat<Text, LongWritable> hadoopOutputFormat = 
@@ -80,7 +79,7 @@ public class HadoopMapredCompatWordCount {
 		TextOutputFormat.setOutputPath(hadoopOutputFormat.getJobConf(), new Path(outputPath));
 		
 		// Output & Execute
-		words.output(hadoopOutputFormat);
+		words.output(hadoopOutputFormat).setParallelism(1);
 		env.execute("Hadoop Compat WordCount");
 	}
 	

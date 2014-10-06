@@ -27,16 +27,23 @@ import org.apache.hadoop.mapred.OutputCollector;
 import java.io.IOException;
 
 /**
- * A Hadoop OutputCollector that basically wraps a Flink OutputCollector.
- * This implies that on each call of collect() the data is actually collected.
+ * A Hadoop OutputCollector that wraps a Flink OutputCollector.
+ * On each call of collect() the data is forwarded to the wrapped Flink collector.
+ * 
  */
-public final class HadoopOutputCollector<KEY extends WritableComparable<?>, VALUE extends Writable>
+@SuppressWarnings("rawtypes")
+public final class HadoopOutputCollector<KEY extends WritableComparable, VALUE extends Writable>
 		implements OutputCollector<KEY,VALUE> {
 
 	private Collector<Tuple2<KEY,VALUE>> flinkCollector;
 	
 	private final Tuple2<KEY,VALUE> outTuple = new Tuple2<KEY, VALUE>();
 
+	/**
+	 * Set the wrapped Flink collector.
+	 * 
+	 * @param flinkCollector The wrapped Flink OutputCollector.
+	 */
 	public void setFlinkCollector(Collector<Tuple2<KEY, VALUE>> flinkCollector) {
 		this.flinkCollector = flinkCollector;
 	}
