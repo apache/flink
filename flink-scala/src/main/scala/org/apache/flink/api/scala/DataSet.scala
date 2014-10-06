@@ -615,11 +615,11 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * This only works on CaseClass DataSets.
    */
   def groupBy(firstField: String, otherFields: String*): GroupedDataSet[T] = {
-    val fieldIndices = fieldNames2Indices(javaSet.getType, firstField +: otherFields.toArray)
+    // val fieldIndices = fieldNames2Indices(javaSet.getType, firstField +: otherFields.toArray)
 
     new GroupedDataSet[T](
       this,
-      new Keys.ExpressionKeys[T](fieldIndices, javaSet.getType,false))
+      new Keys.ExpressionKeys[T](firstField +: otherFields.toArray, javaSet.getType))
   }
 
   //  public UnsortedGrouping<T> groupBy(String... fields) {

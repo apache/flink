@@ -340,7 +340,7 @@ public final class PojoComparator<T> extends CompositeTypeComparator<T> implemen
 	public int extractKeys(Object record, Object[] target, int index) {
 		int localIndex = index;
 		for (int i = 0; i < comparators.length; i++) {
-			if(comparators[i] instanceof PojoComparator || comparators[i] instanceof TupleComparator) {
+			if(comparators[i] instanceof CompositeTypeComparator) {
 				localIndex += comparators[i].extractKeys(accessField(keyFields[i], record), target, localIndex) -1;
 			} else {
 				// non-composite case (= atomic). We can assume this to have only one key.

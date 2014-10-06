@@ -1247,7 +1247,7 @@ public class TypeExtractorTest {
 	public static class InType extends MyObject<String> {}
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
-	@Ignore
+//	@Ignore
 	public void testParamertizedCustomObject() {
 		RichMapFunction<?, ?> function = new RichMapFunction<InType, MyObject<String>>() {
 			private static final long serialVersionUID = 1L;

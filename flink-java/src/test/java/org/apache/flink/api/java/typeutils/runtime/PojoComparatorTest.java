@@ -31,7 +31,7 @@ import org.junit.Assert;
 import org.junit.Ignore;
 
 
-@Ignore // TODO
+//@Ignore // TODO
 public class PojoComparatorTest extends ComparatorTestBase<PojoContainingTuple> {
 	TypeInformation<PojoContainingTuple> type = TypeExtractor.getForClass(PojoContainingTuple.class);
 	

@@ -398,7 +398,7 @@ public class TypeExtractor {
 			return ObjectArrayTypeInfo.getInfoFor(t, componentInfo);
 		}
 		// objects with generics are treated as raw type
-		else if (t instanceof ParameterizedType) {
+		else if (t instanceof ParameterizedType) { //TODO
 			return privateGetForClass((Class<OUT>) ((ParameterizedType) t).getRawType(), typeHierarchy);
 		}
 		// no tuple, no TypeVariable, no generic type
@@ -936,14 +936,13 @@ public class TypeExtractor {
 			return pojoType;
 		}
 
-
 		// return a generic type
 		return new GenericTypeInfo<X>(clazz);
 	}
 	
 	/**
 	 * Checks if the given field is a valid pojo field:
-	 * 	- it is public
+	 * - it is public
 	 * OR
 	 *  - there are getter and setter methods for the field.
 	 *  
@@ -968,8 +967,8 @@ public class TypeExtractor {
 			for(Method m : clazz.getMethods()) {
 				// check for getter
 				
-				if(	// The name should be "get<FieldName>".
-					m.getName().toLowerCase().contains("get"+fieldNameLow) &&
+				if(	// The name should be "get<FieldName>" or "<fieldName>" (for scala).
+                    (m.getName().toLowerCase().contains("get"+fieldNameLow) || m.getName().toLowerCase().contains(fieldNameLow)) &&
 					// no arguments for the getter
 					m.getParameterTypes().length == 0 &&
 					// return type is same as field type (or the generic variant of it)
@@ -980,12 +979,12 @@ public class TypeExtractor {
 					}
 					hasGetter = true;
 				}
-				// check for setters
-				if( m.getName().toLowerCase().contains("set"+fieldNameLow) &&
-						m.getParameterTypes().length == 1 && // one parameter of the field's type
-						( m.getParameterTypes()[0].equals( fieldType )  || (fieldTypeGeneric != null && m.getGenericParameterTypes()[0].equals(fieldTypeGeneric) ) )&&
-						// return type is void.
-						m.getReturnType().equals(Void.TYPE)
+				// check for setters (<FieldName>_$eq for scala)
+				if((m.getName().toLowerCase().contains("set"+fieldNameLow) || m.getName().toLowerCase().contains(fieldNameLow+"_$eq")) &&
+					m.getParameterTypes().length == 1 && // one parameter of the field's type
+					( m.getParameterTypes()[0].equals( fieldType ) || (fieldTypeGeneric != null && m.getGenericParameterTypes()[0].equals(fieldTypeGeneric) ) )&&
+					// return type is void.
+					m.getReturnType().equals(Void.TYPE)
 				) {
 					if(hasSetter) {
 						throw new IllegalStateException("Detected more than one getters");
@@ -993,7 +992,7 @@ public class TypeExtractor {
 					hasSetter = true;
 				}
 			}
-			if( hasGetter && hasSetter) {
+			if(hasGetter && hasSetter) {
 				return true;
 			} else {
 				if(!hasGetter) {
