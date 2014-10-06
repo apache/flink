@@ -344,7 +344,7 @@ public final class ConfigConstants {
 	 * Default number of seconds after which a task manager is marked as failed.
 	 */
 	// 30 seconds (its enough to get to mars, should be enough to detect failure)
-	public static final int DEFAULT_JOB_MANAGER_DEAD_TASKMANAGER_TIMEOUT = 30;
+	public static final int DEFAULT_JOB_MANAGER_DEAD_TASKMANAGER_TIMEOUT = 30*1000;
 	
 	/**
 	 * The default network port the task manager expects incoming IPC connections. The {@code -1} means that
