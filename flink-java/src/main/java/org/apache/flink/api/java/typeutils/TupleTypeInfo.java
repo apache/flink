@@ -62,14 +62,12 @@ public final class TupleTypeInfo<T extends Tuple> extends TupleTypeInfoBase<T> {
 	/**
 	 * Comparator creation
 	 */
-	private TypeSerializer<?>[] fieldSerializers;
 	private TypeComparator<?>[] fieldComparators;
 	private int[] logicalKeyFields;
 	private int comparatorHelperIndex = 0;
 	
 	@Override
 	protected void initializeNewComparator(int localKeyCount) {
-		fieldSerializers = new TypeSerializer[localKeyCount];
 		fieldComparators = new TypeComparator<?>[localKeyCount];
 		logicalKeyFields = new int[localKeyCount];
 		comparatorHelperIndex = 0;
@@ -78,7 +76,6 @@ public final class TupleTypeInfo<T extends Tuple> extends TupleTypeInfoBase<T> {
 	@Override
 	protected void addCompareField(int fieldId, TypeComparator<?> comparator) {
 		fieldComparators[comparatorHelperIndex] = comparator;
-		fieldSerializers[comparatorHelperIndex] = types[fieldId].createSerializer();
 		logicalKeyFields[comparatorHelperIndex] = fieldId;
 		comparatorHelperIndex++;
 	}

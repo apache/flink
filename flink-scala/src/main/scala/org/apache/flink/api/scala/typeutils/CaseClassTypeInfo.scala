@@ -32,68 +32,42 @@ abstract class CaseClassTypeInfo[T <: Product](
     val fieldNames: Seq[String])
   extends TupleTypeInfoBase[T](clazz, fieldTypes: _*) {
 
-  override def createComparator(logicalKeyFields: Array[Int],
-      orders: Array[Boolean], offset: Int): TypeComparator[T] = {
-    // sanity checks
-    if (logicalKeyFields == null || orders == null
-      || logicalKeyFields.length != orders.length || logicalKeyFields.length > types.length) {
-      throw new IllegalArgumentException
+  def getFieldIndices(fields: Array[String]): Array[Int] = {
+    fields map { x => fieldNames.indexOf(x) }
+  }
+
+  /*
+   * Comparator construction
+   */
+  var fieldComparators: Array[TypeComparator[_]] = null
+  var logicalKeyFields : Array[Int] = null
+  var comparatorHelperIndex = 0
+
+  override protected def initializeNewComparator(localKeyCount: Int): Unit = {
+    fieldComparators = new Array(localKeyCount)
+    logicalKeyFields = new Array(localKeyCount)
+    comparatorHelperIndex = 0
+  }
+
+  override protected def addCompareField(fieldId: Int, comparator: TypeComparator[_]): Unit = {
+    fieldComparators(comparatorHelperIndex) = comparator
+    logicalKeyFields(comparatorHelperIndex) = fieldId
+    comparatorHelperIndex += 1
+  }
+
+  override protected def getNewComparator: TypeComparator[T] = {
+    val finalLogicalKeyFields = logicalKeyFields.take(comparatorHelperIndex)
+    val finalComparators = fieldComparators.take(comparatorHelperIndex)
+    var maxKey: Int = 0
+    for (key <- finalLogicalKeyFields) {
+      maxKey = Math.max(maxKey, key)
     }
-
-    // No special handling of leading Key field as in JavaTupleComparator for now
-
-    // --- general case ---
-    var maxKey: Int = -1
-
-    for (key <- logicalKeyFields) {
-      maxKey = Math.max(key, maxKey)
-    }
-
-    if (maxKey >= types.length) {
-      throw new IllegalArgumentException("The key position " + maxKey + " is out of range for " +
-        "Tuple" + types.length)
-    }
-
-    // create the comparators for the individual fields
-    val fieldComparators: Array[TypeComparator[_]] = new Array(logicalKeyFields.length)
-
-    for (i <- 0 until logicalKeyFields.length) {
-      val keyPos = logicalKeyFields(i)
-      if (types(keyPos).isKeyType && types(keyPos).isInstanceOf[AtomicType[_]]) {
-        fieldComparators(i) = types(keyPos).asInstanceOf[AtomicType[_]].createComparator(orders(i))
-      } else {
-        throw new IllegalArgumentException(
-          "The field at position " + i + " (" + types(keyPos) + ") is no atomic key type.")
-      }
-    }
-
-    // create the serializers for the prefix up to highest key position
     val fieldSerializers: Array[TypeSerializer[_]] = new Array[TypeSerializer[_]](maxKey + 1)
 
     for (i <- 0 to maxKey) {
       fieldSerializers(i) = types(i).createSerializer
     }
-
-    new CaseClassComparator[T](logicalKeyFields, fieldComparators, fieldSerializers)
-  }
-
-  def getFieldIndices(fields: Array[String]): Array[Int] = {
-    fields map { x => fieldNames.indexOf(x) }
-  }
-
-  override protected def initializeNewComparator(localKeyCount: Int): Unit = {
-    throw new UnsupportedOperationException("The Scala API is not using the composite " +
-      "type comparator creation")
-  }
-
-  override protected def getNewComparator: TypeComparator[T] = {
-    throw new UnsupportedOperationException("The Scala API is not using the composite " +
-      "type comparator creation")
-  }
-
-  override protected def addCompareField(fieldId: Int, comparator: TypeComparator[_]): Unit = {
-    throw new UnsupportedOperationException("The Scala API is not using the composite " +
-      "type comparator creation")
+    new CaseClassComparator[T](finalLogicalKeyFields, finalComparators, fieldSerializers)
   }
 
   override def toString = clazz.getSimpleName + "(" + fieldNames.zip(types).map {
