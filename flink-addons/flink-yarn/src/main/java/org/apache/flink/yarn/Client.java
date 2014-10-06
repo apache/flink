@@ -223,8 +223,7 @@ public class Client {
 			confDirPath = cmd.getOptionValue(FLINK_CONF_DIR.getOpt())+"/";
 			File confFile = new File(confDirPath+CONFIG_FILE_NAME);
 			if(!confFile.exists()) {
-				LOG.error("Unable to locate configuration file in "+confFile);
-				System.exit(1);
+				throw new FileNotFoundException("Unable to locate configuration file in "+confFile);
 			}
 			confPath = new Path(confFile.getAbsolutePath());
 		} else {
@@ -246,9 +245,8 @@ public class Client {
 				confPath = new Path(outFile.toURI());
 			} else {
 				if(candidates.length > 1) {
-					System.out.println("Multiple .yaml configuration files were found in the current directory\n"
+					throw new RuntimeException("Multiple .yaml configuration files were found in the current directory\n"
 							+ "Please specify one explicitly");
-					System.exit(1);
 				} else if(candidates.length == 1) {
 					confPath = new Path(candidates[0].toURI());
 				}
@@ -298,9 +296,8 @@ public class Client {
 			jmMemory = Integer.valueOf(cmd.getOptionValue(JM_MEMORY.getOpt()));
 		}
 		if(jmMemory < MIN_JM_MEMORY) {
-			System.out.println("The JobManager memory is below the minimum required memory amount "
+			throw new IllegalArgumentException("The JobManager memory is below the minimum required memory amount "
 					+ "of "+MIN_JM_MEMORY+" MB");
-			System.exit(1);
 		}
 		// Task Managers memory
 		int tmMemory = 1024;
@@ -308,15 +305,14 @@ public class Client {
 			tmMemory = Integer.valueOf(cmd.getOptionValue(TM_MEMORY.getOpt()));
 		}
 		if(tmMemory < MIN_TM_MEMORY) {
-			System.out.println("The TaskManager memory is below the minimum required memory amount "
+			throw new IllegalArgumentException("The TaskManager memory is below the minimum required memory amount "
 					+ "of "+MIN_TM_MEMORY+" MB");
-			System.exit(1);
 		}
-		
+
 		if(cmd.hasOption(SLOTS.getOpt())) {
 			slots = Integer.valueOf(cmd.getOptionValue(SLOTS.getOpt()));
 		}
-		
+
 		String[] dynamicProperties = null;
 		if(cmd.hasOption(DYNAMIC_PROPERTIES.getOpt())) {
 			dynamicProperties = cmd.getOptionValues(DYNAMIC_PROPERTIES.getOpt());
@@ -334,7 +330,7 @@ public class Client {
 			LOG.warn("Unable to find job manager port in configuration!");
 			jmPort = ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT;
 		}
-		
+
 		conf = Utils.initializeYarnConfiguration();
 
 		// intialize HDFS
@@ -359,10 +355,9 @@ public class Client {
 			showClusterMetrics(yarnClient);
 		}
 		if(!cmd.hasOption(CONTAINER.getOpt())) {
-			LOG.error("Missing required argument "+CONTAINER.getOpt());
 			printUsage();
 			yarnClient.stop();
-			System.exit(1);
+			throw new IllegalArgumentException("Missing required argument "+CONTAINER.getOpt());
 		}
 
 		// TM Count
@@ -381,36 +376,33 @@ public class Client {
 		GetNewApplicationResponse appResponse = app.getNewApplicationResponse();
 		Resource maxRes = appResponse.getMaximumResourceCapability();
 		if(tmMemory > maxRes.getMemory() || tmCores > maxRes.getVirtualCores()) {
-			LOG.error("The cluster does not have the requested resources for the TaskManagers available!\n"
-					+ "Maximum Memory: "+maxRes.getMemory() +", Maximum Cores: "+tmCores);
 			yarnClient.stop();
-			System.exit(1);
+			throw new RuntimeException("The cluster does not have the requested resources for the TaskManagers available!\n"
+					+ "Maximum Memory: "+maxRes.getMemory() +", Maximum Cores: "+tmCores);
 		}
 		if(jmMemory > maxRes.getMemory() ) {
-			LOG.error("The cluster does not have the requested resources for the JobManager available!\n"
-					+ "Maximum Memory: "+maxRes.getMemory());
 			yarnClient.stop();
-			System.exit(1);
+			throw new RuntimeException("The cluster does not have the requested resources for the JobManager available!\n"
+					+ "Maximum Memory: "+maxRes.getMemory());
+
 		}
 		int totalMemoryRequired = jmMemory + tmMemory * taskManagerCount;
 		ClusterResourceDescription freeClusterMem = getCurrentFreeClusterResources(yarnClient);
 		if(freeClusterMem.totalFreeMemory < totalMemoryRequired) {
-			LOG.error("This YARN session requires "+totalMemoryRequired+"MB of memory in the cluster. "
-					+ "There are currently only "+freeClusterMem.totalFreeMemory+"MB available.");
 			yarnClient.stop();
-			System.exit(1);
+			throw new RuntimeException("This YARN session requires "+totalMemoryRequired+"MB of memory in the cluster. "
+					+ "There are currently only "+freeClusterMem.totalFreeMemory+"MB available.");
 		}
 		if( tmMemory > freeClusterMem.containerLimit) {
-			LOG.error("The requested amount of memory for the TaskManagers ("+tmMemory+"MB) is more than "
-					+ "the largest possible YARN container: "+freeClusterMem.containerLimit);
 			yarnClient.stop();
-			System.exit(1);
+			throw new RuntimeException("The requested amount of memory for the TaskManagers ("+tmMemory+"MB) is more than "
+					+ "the largest possible YARN container: "+freeClusterMem.containerLimit);
 		}
 		if( jmMemory > freeClusterMem.containerLimit) {
-			LOG.error("The requested amount of memory for the JobManager ("+jmMemory+"MB) is more than "
-					+ "the largest possible YARN container: "+freeClusterMem.containerLimit);
 			yarnClient.stop();
-			System.exit(1);
+			throw new RuntimeException("The requested amount of memory for the JobManager ("+jmMemory+"MB) is more than "
+					+ "the largest possible YARN container: "+freeClusterMem.containerLimit);
+
 		}
 
 		// respect custom JVM options in the YAML file
@@ -431,7 +423,7 @@ public class Client {
 		if(hasLog4j) {
 			amCommand += " -Dlog4j.configuration=file:log4j.properties";
 		}
-		
+
 		amCommand 	+= " "+ApplicationMaster.class.getName()+" "
 					+ " 1>"
 					+ ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager-stdout.log"
@@ -444,14 +436,14 @@ public class Client {
 		ApplicationSubmissionContext appContext = app.getApplicationSubmissionContext();
 		final ApplicationId appId = appContext.getApplicationId();
 		/**
-		 * All network ports are offsetted by the application number 
+		 * All network ports are offsetted by the application number
 		 * to avoid version port clashes when running multiple Flink sessions
 		 * in parallel
 		 */
 		int appNumber = appId.getId();
 
 		jmPort += appNumber;
-				
+
 		// Setup jar for ApplicationMaster
 		LocalResource appMasterJar = Records.newRecord(LocalResource.class);
 		LocalResource flinkConf = Records.newRecord(LocalResource.class);
@@ -665,7 +657,7 @@ public class Client {
 		shutFS.delete(sessionFilesDir, true); // delete conf and jar file.
 		shutFS.close();
 	}
-	
+
 	private void stopSession() {
 		try {
 			LOG.info("Sending shutdown request to the Application Master");
@@ -770,8 +762,7 @@ public class Client {
 		try {
 			jar = new JarFile(localJarPath.toUri().getPath());
 		} catch(FileNotFoundException fne) {
-			LOG.error("Unable to access jar file. Specify jar file or configuration file.", fne);
-			System.exit(1);
+			throw new FileNotFoundException("Unable to access jar file. Specify jar file or configuration file.");
 		}
 		InputStream confStream = jar.getInputStream(jar.getEntry("flink-conf.yaml"));
 
