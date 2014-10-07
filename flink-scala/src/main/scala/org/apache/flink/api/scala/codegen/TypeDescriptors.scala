@@ -36,10 +36,8 @@ private[flink] trait TypeDescriptors[C <: Context] { this: MacroContextHolder[C]
     
     def canBeKey: Boolean
 
-    def mkRoot: UDTDescriptor = this
-
     def flatten: Seq[UDTDescriptor]
-    def getters: Seq[FieldAccessor] = Seq()
+    def getters: Seq[FieldDescriptor] = Seq()
 
     def select(member: String): Option[UDTDescriptor] =
       getters find { _.getter.name.toString == member } map { _.desc }
@@ -48,7 +46,7 @@ private[flink] trait TypeDescriptors[C <: Context] { this: MacroContextHolder[C]
       case Nil => Seq(Some(this))
       case head :: tail => getters find { _.getter.name.toString == head } match {
         case None => Seq(None)
-        case Some(d : FieldAccessor) => d.desc.select(tail)
+        case Some(d : FieldDescriptor) => d.desc.select(tail)
       }
     }
 
@@ -60,7 +58,7 @@ private[flink] trait TypeDescriptors[C <: Context] { this: MacroContextHolder[C]
     }
 
     def getRecursiveRefs: Seq[UDTDescriptor] =
-      findByType[RecursiveDescriptor].flatMap { rd => findById(rd.refId) }.map { _.mkRoot }.distinct
+      findByType[RecursiveDescriptor].flatMap { rd => findById(rd.refId) }.distinct
   }
 
   case class GenericClassDescriptor(id: Int, tpe: Type) extends UDTDescriptor {
@@ -116,30 +114,45 @@ private[flink] trait TypeDescriptors[C <: Context] { this: MacroContextHolder[C]
     }
   }
 
-  case class BaseClassDescriptor(
-      id: Int, tpe: Type, override val getters: Seq[FieldAccessor], subTypes: Seq[UDTDescriptor])
+  case class PojoDescriptor(id: Int, tpe: Type, override val getters: Seq[FieldDescriptor])
     extends UDTDescriptor {
 
-    override def flatten =
-      this +: ((getters flatMap { _.desc.flatten }) ++ (subTypes flatMap { _.flatten }))
+    override val isPrimitiveProduct = getters.nonEmpty && getters.forall(_.desc.isPrimitiveProduct)
+
+    override def flatten = this +: (getters flatMap { _.desc.flatten })
+
     override def canBeKey = flatten forall { f => f.canBeKey }
-    
+
+    // Hack: ignore the ctorTpe, since two Type instances representing
+    // the same ctor function type don't appear to be considered equal.
+    // Equality of the tpe and ctor fields implies equality of ctorTpe anyway.
+    override def hashCode = (id, tpe, getters).hashCode
+    override def equals(that: Any) = that match {
+      case PojoDescriptor(thatId, thatTpe, thatGetters) =>
+        (id, tpe, getters).equals(
+          thatId, thatTpe, thatGetters)
+      case _ => false
+    }
+
     override def select(path: List[String]): Seq[Option[UDTDescriptor]] = path match {
       case Nil => getters flatMap { g => g.desc.select(Nil) }
       case head :: tail => getters find { _.getter.name.toString == head } match {
         case None => Seq(None)
-        case Some(d : FieldAccessor) => d.desc.select(tail)
+        case Some(d : FieldDescriptor) => d.desc.select(tail)
       }
     }
   }
 
   case class CaseClassDescriptor(
-      id: Int, tpe: Type, mutable: Boolean, ctor: Symbol, override val getters: Seq[FieldAccessor])
+      id: Int,
+      tpe: Type,
+      mutable: Boolean,
+      ctor: Symbol,
+      override val getters: Seq[FieldDescriptor])
     extends UDTDescriptor {
 
     override val isPrimitiveProduct = getters.nonEmpty && getters.forall(_.desc.isPrimitiveProduct)
 
-    override def mkRoot = this.copy(getters = getters map { _.copy(isBaseField = false) })
     override def flatten = this +: (getters flatMap { _.desc.flatten })
     
     override def canBeKey = flatten forall { f => f.canBeKey }
@@ -159,16 +172,16 @@ private[flink] trait TypeDescriptors[C <: Context] { this: MacroContextHolder[C]
       case Nil => getters flatMap { g => g.desc.select(Nil) }
       case head :: tail => getters find { _.getter.name.toString == head } match {
         case None => Seq(None)
-        case Some(d : FieldAccessor) => d.desc.select(tail)
+        case Some(d : FieldDescriptor) => d.desc.select(tail)
       }
     }
   }
 
-  case class FieldAccessor(
+  case class FieldDescriptor(
+      name: String,
       getter: Symbol,
       setter: Symbol,
       tpe: Type,
-      isBaseField: Boolean,
       desc: UDTDescriptor)
 
   case class RecursiveDescriptor(id: Int, tpe: Type, refId: Int) extends UDTDescriptor {

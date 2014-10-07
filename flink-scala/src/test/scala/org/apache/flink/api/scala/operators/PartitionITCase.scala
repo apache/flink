@@ -19,6 +19,7 @@ package org.apache.flink.api.scala.operators
 
 import org.apache.flink.api.common.functions.{RichFilterFunction, RichMapFunction}
 import org.apache.flink.api.scala.ExecutionEnvironment
+import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.test.util.JavaProgramTestBase
 import org.junit.runner.RunWith
@@ -32,40 +33,18 @@ import org.apache.flink.api.scala._
 
 
 object PartitionProgs {
-  var NUM_PROGRAMS: Int = 6
-
-  val tupleInput = Array(
-    (1, "Foo"),
-    (1, "Foo"),
-    (1, "Foo"),
-    (2, "Foo"),
-    (2, "Foo"),
-    (2, "Foo"),
-    (2, "Foo"),
-    (2, "Foo"),
-    (3, "Foo"),
-    (3, "Foo"),
-    (3, "Foo"),
-    (4, "Foo"),
-    (4, "Foo"),
-    (4, "Foo"),
-    (4, "Foo"),
-    (5, "Foo"),
-    (5, "Foo"),
-    (6, "Foo"),
-    (6, "Foo"),
-    (6, "Foo"),
-    (6, "Foo")
-  )
-
+  var NUM_PROGRAMS: Int = 7
 
   def runProgram(progId: Int, resultPath: String, onCollection: Boolean): String = {
     progId match {
       case 1 =>
+        /*
+         * Test hash partition by tuple field
+         */
         val env = ExecutionEnvironment.getExecutionEnvironment
-        val ds = env.fromCollection(tupleInput)
+        val ds = CollectionDataSets.get3TupleDataSet(env)
 
-        val unique = ds.partitionByHash(0).mapPartition( _.map(_._1).toSet )
+        val unique = ds.partitionByHash(1).mapPartition( _.map(_._2).toSet )
 
         unique.writeAsText(resultPath)
         env.execute()
@@ -73,16 +52,22 @@ object PartitionProgs {
         "1\n" + "2\n" + "3\n" + "4\n" + "5\n" + "6\n"
 
       case 2 =>
+        /*
+         * Test hash partition by key selector
+         */
         val env = ExecutionEnvironment.getExecutionEnvironment
-        val ds = env.fromCollection(tupleInput)
-        val unique = ds.partitionByHash( _._1 ).mapPartition( _.map(_._1).toSet )
+        val ds = CollectionDataSets.get3TupleDataSet(env)
+        val unique = ds.partitionByHash( _._2 ).mapPartition( _.map(_._2).toSet )
 
         unique.writeAsText(resultPath)
         env.execute()
         "1\n" + "2\n" + "3\n" + "4\n" + "5\n" + "6\n"
 
       case 3 =>
-        val env = ExecutionEnvironment.getExecutionEnvironment
+        /*
+         * Test forced rebalancing
+         */
+      val env = ExecutionEnvironment.getExecutionEnvironment
         val ds = env.generateSequence(1, 3000)
 
         val skewed = ds.filter(_ > 780)
@@ -101,8 +86,8 @@ object PartitionProgs {
         countsInPartition.writeAsText(resultPath)
         env.execute()
 
-        val numPerPartition : Int = 2220 / env.getDegreeOfParallelism / 10;
-        var result = "";
+        val numPerPartition : Int = 2220 / env.getDegreeOfParallelism / 10
+        var result = ""
         for (i <- 0 until env.getDegreeOfParallelism) {
           result += "(" + i + "," + numPerPartition + ")\n"
         }
@@ -112,10 +97,12 @@ object PartitionProgs {
         // Verify that mapPartition operation after repartition picks up correct
         // DOP
         val env = ExecutionEnvironment.getExecutionEnvironment
-        val ds = env.fromCollection(tupleInput)
+        val ds = CollectionDataSets.get3TupleDataSet(env)
         env.setDegreeOfParallelism(1)
 
-        val unique = ds.partitionByHash(0).setParallelism(4).mapPartition( _.map(_._1).toSet )
+        val unique = ds.partitionByHash(1)
+          .setParallelism(4)
+          .mapPartition( _.map(_._2).toSet )
 
         unique.writeAsText(resultPath)
         env.execute()
@@ -126,13 +113,13 @@ object PartitionProgs {
         // Verify that map operation after repartition picks up correct
         // DOP
         val env = ExecutionEnvironment.getExecutionEnvironment
-        val ds = env.fromCollection(tupleInput)
+        val ds = CollectionDataSets.get3TupleDataSet(env)
         env.setDegreeOfParallelism(1)
 
         val count = ds.partitionByHash(0).setParallelism(4).map(
-          new RichMapFunction[(Int, String), Tuple1[Int]] {
+          new RichMapFunction[(Int, Long, String), Tuple1[Int]] {
             var first = true
-            override def map(in: (Int, String)): Tuple1[Int] = {
+            override def map(in: (Int, Long, String)): Tuple1[Int] = {
               // only output one value with count 1
               if (first) {
                 first = false
@@ -152,13 +139,13 @@ object PartitionProgs {
         // Verify that filter operation after repartition picks up correct
         // DOP
         val env = ExecutionEnvironment.getExecutionEnvironment
-        val ds = env.fromCollection(tupleInput)
+        val ds = CollectionDataSets.get3TupleDataSet(env)
         env.setDegreeOfParallelism(1)
 
         val count = ds.partitionByHash(0).setParallelism(4).filter(
-          new RichFilterFunction[(Int, String)] {
+          new RichFilterFunction[(Int, Long, String)] {
             var first = true
-            override def filter(in: (Int, String)): Boolean = {
+            override def filter(in: (Int, Long, String)): Boolean = {
               // only output one value with count 1
               if (first) {
                 first = false
@@ -174,6 +161,19 @@ object PartitionProgs {
         env.execute()
 
         if (onCollection) "(1)\n" else "(4)\n"
+
+      case 7 =>
+        val env = ExecutionEnvironment.getExecutionEnvironment
+        env.setDegreeOfParallelism(3)
+        val ds = CollectionDataSets.getDuplicatePojoDataSet(env)
+        val uniqLongs = ds
+          .partitionByHash("nestedPojo.longNumber")
+          .setParallelism(4)
+          .mapPartition( _.map(_.nestedPojo.longNumber).toSet )
+
+        uniqLongs.writeAsText(resultPath)
+        env.execute()
+        "10000\n" + "20000\n" + "30000\n"
 
       case _ =>
         throw new IllegalArgumentException("Invalid program id")
@@ -194,7 +194,7 @@ class PartitionITCase(config: Configuration) extends JavaProgramTestBase(config)
   }
 
   protected def testProgram(): Unit = {
-    expectedResult = PartitionProgs.runProgram(curProgId, resultPath, isCollectionExecution)
+    expectedResult = GroupReduceProgs.runProgram(curProgId, resultPath, isCollectionExecution)
   }
 
   protected override def postSubmit(): Unit = {

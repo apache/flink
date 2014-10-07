@@ -550,14 +550,11 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   /**
    * Creates a new DataSet containing the distinct elements of this DataSet. The decision whether
    * two elements are distinct or not is made based on only the specified fields.
-   *
-   * This only works on CaseClass DataSets
    */
   def distinct(firstField: String, otherFields: String*): DataSet[T] = {
-    val fieldIndices = fieldNames2Indices(javaSet.getType, firstField +: otherFields.toArray)
     wrap(new DistinctOperator[T](
       javaSet,
-      new Keys.ExpressionKeys[T](fieldIndices, javaSet.getType, true)))
+      new Keys.ExpressionKeys[T](firstField +: otherFields.toArray, javaSet.getType)))
   }
 
   /**
@@ -615,8 +612,6 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * This only works on CaseClass DataSets.
    */
   def groupBy(firstField: String, otherFields: String*): GroupedDataSet[T] = {
-    // val fieldIndices = fieldNames2Indices(javaSet.getType, firstField +: otherFields.toArray)
-
     new GroupedDataSet[T](
       this,
       new Keys.ExpressionKeys[T](firstField +: otherFields.toArray, javaSet.getType))
@@ -862,10 +857,8 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    */
   def iterateDelta[R: ClassTag](workset: DataSet[R], maxIterations: Int, keyFields: Array[String])(
     stepFunction: (DataSet[T], DataSet[R]) => (DataSet[T], DataSet[R])) = {
-    val fieldIndices = fieldNames2Indices(javaSet.getType, keyFields)
 
-
-    val key = new ExpressionKeys[T](fieldIndices, javaSet.getType, false)
+    val key = new ExpressionKeys[T](keyFields, javaSet.getType)
     val iterativeSet = new DeltaIteration[T, R](
       javaSet.getExecutionEnvironment,
       javaSet.getType,
@@ -931,12 +924,10 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * significant amount of time.
    */
   def partitionByHash(firstField: String, otherFields: String*): DataSet[T] = {
-    val fieldIndices = fieldNames2Indices(javaSet.getType, firstField +: otherFields.toArray)
-
     val op = new PartitionOperator[T](
       javaSet,
       PartitionMethod.HASH,
-      new Keys.ExpressionKeys[T](fieldIndices, javaSet.getType, false))
+      new Keys.ExpressionKeys[T](firstField +: otherFields.toArray, javaSet.getType))
     wrap(op)
   }
 

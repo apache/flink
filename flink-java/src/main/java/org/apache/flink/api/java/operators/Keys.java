@@ -23,6 +23,7 @@ import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 
+import com.google.common.base.Joiner;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.typeinfo.AtomicType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -306,7 +307,12 @@ public abstract class Keys<T> {
 			}
 			return Ints.toArray(logicalKeys);
 		}
-		
+
+		@Override
+		public String toString() {
+			Joiner join = Joiner.on('.');
+			return "ExpressionKeys: " + join.join(keyFields);
+		}
 	}
 	
 	private static String[] removeDuplicates(String[] in) {

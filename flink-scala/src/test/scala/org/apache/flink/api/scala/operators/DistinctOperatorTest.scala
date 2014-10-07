@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.scala.operators
 
+import org.apache.flink.api.scala.util.CollectionDataSets.CustomType
 import org.junit.Assert
 import org.apache.flink.api.common.InvalidProgramException
 import org.junit.Test
@@ -102,7 +103,7 @@ class DistinctOperatorTest {
     }
   }
 
-  @Test(expected = classOf[UnsupportedOperationException])
+  @Test(expected = classOf[RuntimeException])
   def testDistinctByKeyFields2(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val longDs = env.fromCollection(emptyLongData)
@@ -111,16 +112,16 @@ class DistinctOperatorTest {
     longDs.distinct("_1")
   }
 
-  @Test(expected = classOf[UnsupportedOperationException])
+  @Test(expected = classOf[RuntimeException])
   def testDistinctByKeyFields3(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val customDs = env.fromCollection(customTypeData)
 
-    // should not work: field key on custom type
+    // should not work: invalid fields
     customDs.distinct("_1")
   }
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test(expected = classOf[RuntimeException])
   def testDistinctByKeyFields4(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tupleDs = env.fromCollection(emptyTupleData)
@@ -130,11 +131,20 @@ class DistinctOperatorTest {
   }
 
   @Test
+  def testDistinctByKeyFields5(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val customDs = env.fromCollection(customTypeData)
+
+    // should work
+    customDs.distinct("myInt")
+  }
+
+  @Test
   def testDistinctByKeySelector1(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     try {
       val customDs = env.fromCollection(customTypeData)
-      customDs.distinct {_.l}
+      customDs.distinct {_.myLong}
     }
     catch {
       case e: Exception => Assert.fail()

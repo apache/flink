@@ -17,7 +17,6 @@
  */
 package org.apache.flink.api.scala.codegen
 
-import scala.Option.option2Iterable
 import scala.collection.GenTraversableOnce
 import scala.collection.mutable
 import scala.reflect.macros.Context
@@ -59,12 +58,17 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
           case PrimitiveType(default, wrapper) => PrimitiveDescriptor(id, tpe, default, wrapper)
           case BoxedPrimitiveType(default, wrapper, box, unbox) =>
             BoxedPrimitiveDescriptor(id, tpe, default, wrapper, box, unbox)
-          case ListType(elemTpe, iter) => analyzeList(id, tpe, elemTpe, iter)
+          case ListType(elemTpe, iter) =>
+            analyzeList(id, tpe, elemTpe, iter)
           case CaseClassType() => analyzeCaseClass(id, tpe)
-          case BaseClassType() => analyzeClassHierarchy(id, tpe)
           case ValueType() => ValueDescriptor(id, tpe)
           case WritableType() => WritableDescriptor(id, tpe)
-          case _ => GenericClassDescriptor(id, tpe)
+          case JavaType() =>
+            // It's a Java Class, let the TypeExtractor deal with it...
+            c.warning(c.enclosingPosition, s"Type $tpe is a java class. Will be analyzed by " +
+              s"TypeExtractor at runtime.")
+            GenericClassDescriptor(id, tpe)
+          case _ => analyzePojo(id, tpe)
         }
       }
     }
@@ -78,110 +82,63 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
       case desc => ListDescriptor(id, tpe, iter, desc)
     }
 
-    private def analyzeClassHierarchy(id: Int, tpe: Type): UDTDescriptor = {
-
-      val tagField = {
-        val (intTpe, intDefault, intWrapper) = PrimitiveType.intPrimitive
-        FieldAccessor(
-          NoSymbol,
-          NoSymbol,
-          NullaryMethodType(intTpe),
-          isBaseField = true,
-          PrimitiveDescriptor(cache.newId, intTpe, intDefault, intWrapper))
-      }
-      
-      val subTypes = tpe.typeSymbol.asClass.knownDirectSubclasses.toList flatMap { d =>
-
-        val dTpe =
-          {
-            val tArgs = (tpe.typeSymbol.asClass.typeParams, typeArgs(tpe)).zipped.toMap
-            val dArgs = d.asClass.typeParams map { dp =>
-              val tArg = tArgs.keySet.find { tp =>
-                dp == tp.typeSignature.asSeenFrom(d.typeSignature, tpe.typeSymbol).typeSymbol
-              }
-              tArg map { tArgs(_) } getOrElse dp.typeSignature
-            }
-
-            appliedType(d.asType.toType, dArgs)
-          }
-
-        if (dTpe <:< tpe) {
-          Some(analyze(dTpe))
-        } else {
-          None
-        }
+    private def analyzePojo(id: Int, tpe: Type): UDTDescriptor = {
+      val immutableFields = tpe.members filter { _.isTerm } map { _.asTerm } filter { _.isVal }
+      if (immutableFields.nonEmpty) {
+        // We don't support POJOs with immutable fields
+        c.warning(
+          c.enclosingPosition,
+          s"Type $tpe is no POJO, has immutable fields: ${immutableFields.mkString(", ")}.")
+        return GenericClassDescriptor(id, tpe)
       }
 
-      val errors = subTypes flatMap { _.findByType[UnsupportedDescriptor] }
+      val fields = tpe.members
+        .filter { _.isTerm }
+        .map { _.asTerm }
+        .filter { _.isVar }
+        .filterNot { _.annotations.exists( _.tpe <:< typeOf[scala.transient]) }
 
-      errors match {
-        case _ :: _ =>
-          val errorMessage = errors flatMap {
-            case UnsupportedDescriptor(_, subType, errs) =>
-              errs map { err => "Subtype " + subType + " - " + err }
-          }
-          UnsupportedDescriptor(id, tpe, errorMessage)
-
-        case Nil if subTypes.isEmpty =>
-          UnsupportedDescriptor(id, tpe, Seq("No instantiable subtypes found for base class"))
-        case Nil =>
-          val (tParams, _) = tpe.typeSymbol.asClass.typeParams.zip(typeArgs(tpe)).unzip
-          val baseMembers =
-            tpe.members filter { f => f.isMethod } filter { f => f.asMethod.isSetter } map {
-            f => (f, f.asMethod.setter, f.asMethod.returnType)
-          }
-
-          val subMembers = subTypes map {
-            case BaseClassDescriptor(_, _, getters, _) => getters
-            case CaseClassDescriptor(_, _, _, _, getters) => getters
-            case _ => Seq()
-          }
-
-          val baseFields = baseMembers flatMap {
-            case (bGetter, bSetter, bTpe) =>
-              val accessors = subMembers map {
-                _ find { sf =>
-                  sf.getter.name == bGetter.name &&
-                    sf.tpe.termSymbol.asMethod.returnType <:< bTpe.termSymbol.asMethod.returnType
-                }
-              }
-              accessors.forall { _.isDefined } match {
-                case true =>
-                  Some(
-                    FieldAccessor(
-                      bGetter,
-                      bSetter,
-                      bTpe,
-                      isBaseField = true,
-                      analyze(bTpe.termSymbol.asMethod.returnType)))
-                case false => None
-              }
-          }
-
-          def wireBaseFields(desc: UDTDescriptor): UDTDescriptor = {
-
-            def updateField(field: FieldAccessor) = {
-              baseFields find { bf => bf.getter.name == field.getter.name } match {
-                case Some(FieldAccessor(_, _, _, _, fieldDesc)) =>
-                  field.copy(isBaseField = true, desc = fieldDesc)
-                case None => field
-              }
-            }
-
-            desc match {
-              case desc @ BaseClassDescriptor(_, _, getters, baseSubTypes) =>
-                desc.copy(
-                  getters = getters map updateField,
-                  subTypes = baseSubTypes map wireBaseFields)
-              case desc @ CaseClassDescriptor(_, _, _, _, getters) =>
-                desc.copy(getters = getters map updateField)
-              case _ => desc
-            }
-          }
-
-          BaseClassDescriptor(id, tpe, tagField +: baseFields.toSeq, subTypes map wireBaseFields)
+      if (fields.isEmpty) {
+        c.warning(c.enclosingPosition, "Type $tpe has no fields that are visible from Scala Type" +
+          " analysis. Falling back to Java Type Analysis (TypeExtractor).")
+        return GenericClassDescriptor(id, tpe)
       }
 
+      // check whether all fields are either: 1. public, 2. have getter/setter
+      val invalidFields = fields filterNot {
+        f =>
+          f.isPublic ||
+            (f.getter != NoSymbol && f.getter.isPublic && f.setter != NoSymbol && f.setter.isPublic)
+      }
+
+      if (invalidFields.nonEmpty) {
+        c.warning(c.enclosingPosition, s"Type $tpe is no POJO because it has non-public fields '" +
+          s"${invalidFields.mkString(", ")}' that don't have public getters/setters.")
+        return GenericClassDescriptor(id, tpe)
+      }
+
+      // check whether we have a zero-parameter ctor
+      val hasZeroCtor = tpe.declarations exists  {
+        case m: MethodSymbol
+          if m.isConstructor && m.paramss.length == 1 && m.paramss(0).length == 0 => true
+        case _ => false
+      }
+
+      if (!hasZeroCtor) {
+        // We don't support POJOs without zero-paramter ctor
+        c.warning(
+          c.enclosingPosition,
+          s"Class $tpe is no POJO, has no zero-parameters constructor.")
+        return GenericClassDescriptor(id, tpe)
+      }
+
+      val fieldDescriptors = fields map {
+        f =>
+          val fieldTpe = f.getter.asMethod.returnType.asSeenFrom(tpe, tpe.typeSymbol)
+          FieldDescriptor(f.name.toString.trim, f.getter, f.setter, fieldTpe, analyze(fieldTpe))
+      }
+
+      PojoDescriptor(id, tpe, fieldDescriptors.toSeq)
     }
 
     private def analyzeCaseClass(id: Int, tpe: Type): UDTDescriptor = {
@@ -216,7 +173,7 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
               }
               val fields = caseFields map {
                 case (fgetter, fsetter, fTpe) =>
-                  FieldAccessor(fgetter, fsetter, fTpe, isBaseField = false, analyze(fTpe))
+                  FieldDescriptor(fgetter.name.toString.trim, fgetter, fsetter, fTpe, analyze(fTpe))
               }
               val mutable = enableMutableUDTs && (fields forall { f => f.setter != NoSymbol })
               if (mutable) {
@@ -226,8 +183,9 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
                 case errs @ _ :: _ =>
                   val msgs = errs flatMap { f =>
                     (f: @unchecked) match {
-                      case FieldAccessor(fgetter, _,_,_, UnsupportedDescriptor(_, fTpe, errors)) =>
-                        errors map { err => "Field " + fgetter.name + ": " + fTpe + " - " + err }
+                      case FieldDescriptor(
+                        fName, _, _, _, UnsupportedDescriptor(_, fTpe, errors)) =>
+                        errors map { err => "Field " + fName + ": " + fTpe + " - " + err }
                     }
                   }
                   UnsupportedDescriptor(id, tpe, msgs)
@@ -296,11 +254,6 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
       def unapply(tpe: Type): Boolean = tpe.typeSymbol.asClass.isCaseClass
     }
 
-    private object BaseClassType {
-      def unapply(tpe: Type): Boolean =
-        tpe.typeSymbol.asClass.isAbstractClass && tpe.typeSymbol.asClass.isSealed
-    }
-    
     private object ValueType {
       def unapply(tpe: Type): Boolean =
         tpe.typeSymbol.asClass.baseClasses exists {
@@ -313,6 +266,10 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
         tpe.typeSymbol.asClass.baseClasses exists {
           s => s.fullName == "org.apache.hadoop.io.Writable"
         }
+    }
+
+    private object JavaType {
+      def unapply(tpe: Type): Boolean = tpe.typeSymbol.asClass.isJava
     }
 
     private class UDTAnalyzerCache {

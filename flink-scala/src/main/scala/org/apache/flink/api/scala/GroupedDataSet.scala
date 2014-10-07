@@ -47,7 +47,7 @@ class GroupedDataSet[T: ClassTag](
 
   // These are for optional secondary sort. They are only used
   // when using a group-at-a-time reduce function.
-  private val groupSortKeyPositions = mutable.MutableList[Int]()
+  private val groupSortKeyPositions = mutable.MutableList[Either[Int, String]]()
   private val groupSortOrders = mutable.MutableList[Order]()
 
   /**
@@ -64,7 +64,7 @@ class GroupedDataSet[T: ClassTag](
     if (field >= set.getType.getArity) {
       throw new IllegalArgumentException("Order key out of tuple bounds.")
     }
-    groupSortKeyPositions += field
+    groupSortKeyPositions += Left(field)
     groupSortOrders += order
     this
   }
@@ -76,9 +76,7 @@ class GroupedDataSet[T: ClassTag](
    * This only works on CaseClass DataSets.
    */
   def sortGroup(field: String, order: Order): GroupedDataSet[T] = {
-    val fieldIndex = fieldNames2Indices(set.getType, Array(field))(0)
-
-    groupSortKeyPositions += fieldIndex
+    groupSortKeyPositions += Right(field)
     groupSortOrders += order
     this
   }
@@ -88,14 +86,32 @@ class GroupedDataSet[T: ClassTag](
    */
   private def maybeCreateSortedGrouping(): Grouping[T] = {
     if (groupSortKeyPositions.length > 0) {
-      val grouping = new SortedGrouping[T](
-        set.javaSet,
-        keys,
-        groupSortKeyPositions(0),
-        groupSortOrders(0))
+      val grouping = groupSortKeyPositions(0) match {
+        case Left(pos) =>
+          new SortedGrouping[T](
+            set.javaSet,
+            keys,
+            pos,
+            groupSortOrders(0))
+
+        case Right(field) =>
+          new SortedGrouping[T](
+            set.javaSet,
+            keys,
+            field,
+            groupSortOrders(0))
+
+      }
       // now manually add the rest of the keys
       for (i <- 1 until groupSortKeyPositions.length) {
-        grouping.sortGroup(groupSortKeyPositions(i), groupSortOrders(i))
+        groupSortKeyPositions(i) match {
+          case Left(pos) =>
+            grouping.sortGroup(pos, groupSortOrders(i))
+
+          case Right(field) =>
+            grouping.sortGroup(field, groupSortOrders(i))
+
+        }
       }
       grouping
     } else {
@@ -209,7 +225,7 @@ class GroupedDataSet[T: ClassTag](
       }
     }
     wrap(
-      new GroupReduceOperator[T, R](createUnsortedGrouping(),
+      new GroupReduceOperator[T, R](maybeCreateSortedGrouping(),
         implicitly[TypeInformation[R]], reducer))
   }
 
@@ -227,7 +243,7 @@ class GroupedDataSet[T: ClassTag](
       }
     }
     wrap(
-      new GroupReduceOperator[T, R](createUnsortedGrouping(),
+      new GroupReduceOperator[T, R](maybeCreateSortedGrouping(),
         implicitly[TypeInformation[R]], reducer))
   }
 

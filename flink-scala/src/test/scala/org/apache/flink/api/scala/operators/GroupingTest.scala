@@ -17,10 +17,10 @@
  */
 package org.apache.flink.api.scala.operators
 
+import org.apache.flink.api.scala.util.CollectionDataSets.CustomType
 import org.junit.Assert
 import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.common.operators.Order
-import org.junit.Ignore
 import org.junit.Test
 
 import org.apache.flink.api.scala._
@@ -96,7 +96,7 @@ class GroupingTest {
     }
   }
 
-  @Test(expected = classOf[UnsupportedOperationException])
+  @Test(expected = classOf[IllegalArgumentException])
   def testGroupByKeyFields2(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val longDs = env.fromCollection(emptyLongData)
@@ -105,7 +105,7 @@ class GroupingTest {
     longDs.groupBy("_1")
   }
 
-  @Test(expected = classOf[UnsupportedOperationException])
+  @Test(expected = classOf[IllegalArgumentException])
   def testGroupByKeyFields3(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val customDs = env.fromCollection(customTypeData)
@@ -114,7 +114,7 @@ class GroupingTest {
     customDs.groupBy("_1")
   }
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test(expected = classOf[RuntimeException])
   def testGroupByKeyFields4(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tupleDs = env.fromCollection(emptyTupleData)
@@ -123,7 +123,15 @@ class GroupingTest {
     tupleDs.groupBy("foo")
   }
 
-  @Ignore
+  @Test
+  def testGroupByKeyFields5(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val customDs = env.fromCollection(customTypeData)
+
+    // should not work
+    customDs.groupBy("myInt")
+  }
+
   @Test
   def testGroupByKeyExpressions1(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -131,24 +139,22 @@ class GroupingTest {
 
     // should work
     try {
-//      ds.groupBy("i");
+      ds.groupBy("myInt")
     }
     catch {
       case e: Exception => Assert.fail()
     }
   }
 
-  @Ignore
-  @Test(expected = classOf[UnsupportedOperationException])
+  @Test(expected = classOf[IllegalArgumentException])
   def testGroupByKeyExpressions2(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
 
     // should not work: groups on basic type
-//    longDs.groupBy("l");
     val longDs = env.fromCollection(emptyLongData)
+    longDs.groupBy("l")
   }
 
-  @Ignore
   @Test(expected = classOf[InvalidProgramException])
   def testGroupByKeyExpressions3(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -158,14 +164,13 @@ class GroupingTest {
     customDs.groupBy(0)
   }
 
-  @Ignore
   @Test(expected = classOf[IllegalArgumentException])
   def testGroupByKeyExpressions4(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = env.fromCollection(customTypeData)
 
     // should not work, non-existent field
-//    ds.groupBy("myNonExistent");
+    ds.groupBy("myNonExistent")
   }
 
   @Test
@@ -173,7 +178,7 @@ class GroupingTest {
     val env = ExecutionEnvironment.getExecutionEnvironment
     try {
       val customDs = env.fromCollection(customTypeData)
-      customDs.groupBy { _.l }
+      customDs.groupBy { _.myLong }
     }
     catch {
       case e: Exception => Assert.fail()

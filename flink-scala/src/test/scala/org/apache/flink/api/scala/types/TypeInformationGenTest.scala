@@ -44,7 +44,9 @@ class CustomType(var myField1: String, var myField2: Int) {
   }
 }
 
-class MyObject[A](var a: A)
+class MyObject[A](var a: A) {
+  def this() { this(null.asInstanceOf[A]) }
+}
 
 class TypeInformationGenTest {
 
@@ -139,7 +141,7 @@ class TypeInformationGenTest {
 
     Assert.assertFalse(ti.isBasicType)
     Assert.assertFalse(ti.isTupleType)
-    Assert.assertTrue(ti.isInstanceOf[GenericTypeInfo[_]])
+    Assert.assertTrue(ti.isInstanceOf[PojoTypeInfo[_]])
     Assert.assertEquals(ti.getTypeClass, classOf[CustomType])
   }
 
@@ -152,7 +154,7 @@ class TypeInformationGenTest {
     val tti = ti.asInstanceOf[TupleTypeInfoBase[_]]
     Assert.assertEquals(classOf[Tuple2[_, _]], tti.getTypeClass)
     Assert.assertEquals(classOf[java.lang.Long], tti.getTypeAt(0).getTypeClass)
-    Assert.assertTrue(tti.getTypeAt(1).isInstanceOf[GenericTypeInfo[_]])
+    Assert.assertTrue(tti.getTypeAt(1).isInstanceOf[PojoTypeInfo[_]])
     Assert.assertEquals(classOf[CustomType], tti.getTypeAt(1).getTypeClass)
   }
 
@@ -235,7 +237,7 @@ class TypeInformationGenTest {
   def testParamertizedCustomObject(): Unit = {
     val ti = createTypeInformation[MyObject[String]]
 
-    Assert.assertTrue(ti.isInstanceOf[GenericTypeInfo[_]])
+    Assert.assertTrue(ti.isInstanceOf[PojoTypeInfo[_]])
   }
 
   @Test

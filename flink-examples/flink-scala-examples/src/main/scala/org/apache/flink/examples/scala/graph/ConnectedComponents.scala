@@ -76,7 +76,7 @@ object ConnectedComponents {
     val edges = getEdgesDataSet(env).flatMap { edge => Seq(edge, (edge._2, edge._1)) }
 
     // open a delta iteration
-    val verticesWithComponents = vertices.iterateDelta(vertices, maxIterations, Array(0)) {
+    val verticesWithComponents = vertices.iterateDelta(vertices, maxIterations, Array("_1")) {
       (s, ws) =>
 
         // apply the step logic: join with the edges

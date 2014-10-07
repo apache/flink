@@ -18,6 +18,7 @@
 package org.apache.flink.api.scala.operators
 
 import org.apache.flink.api.java.operators.Keys.IncompatibleKeysException
+import org.apache.flink.api.scala.util.CollectionDataSets.CustomType
 import org.junit.Assert
 import org.apache.flink.api.common.InvalidProgramException
 import org.junit.Ignore
@@ -132,7 +133,7 @@ class JoinOperatorTest {
     ds1.join(ds2).where("_1", "_2").equalTo("_3")
   }
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test(expected = classOf[RuntimeException])
   def testJoinKeyFields4(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = env.fromCollection(emptyTupleData)
@@ -142,7 +143,7 @@ class JoinOperatorTest {
     ds1.join(ds2).where("foo").equalTo("_1")
   }
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test(expected = classOf[RuntimeException])
   def testJoinKeyFields5(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = env.fromCollection(emptyTupleData)
@@ -152,7 +153,7 @@ class JoinOperatorTest {
     ds1.join(ds2).where("_1").equalTo("bar")
   }
 
-  @Test(expected = classOf[UnsupportedOperationException])
+  @Test(expected = classOf[IllegalArgumentException])
   def testJoinKeyFields6(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = env.fromCollection(emptyTupleData)
@@ -162,7 +163,6 @@ class JoinOperatorTest {
     ds1.join(ds2).where("_2").equalTo("_1")
   }
 
-  @Ignore
   @Test
   def testJoinKeyExpressions1(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -171,36 +171,33 @@ class JoinOperatorTest {
 
     // should work
     try {
-//      ds1.join(ds2).where("i").equalTo("i")
+      ds1.join(ds2).where("myInt").equalTo("myInt")
     }
     catch {
       case e: Exception => Assert.fail()
     }
   }
 
-  @Ignore
-  @Test(expected = classOf[InvalidProgramException])
+  @Test(expected = classOf[IncompatibleKeysException])
   def testJoinKeyExpressions2(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = env.fromCollection(customTypeData)
     val ds2 = env.fromCollection(customTypeData)
 
     // should not work, incompatible join key types
-//    ds1.join(ds2).where("i").equalTo("s")
+    ds1.join(ds2).where("myInt").equalTo("myString")
   }
 
-  @Ignore
-  @Test(expected = classOf[InvalidProgramException])
+  @Test(expected = classOf[IncompatibleKeysException])
   def testJoinKeyExpressions3(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = env.fromCollection(customTypeData)
     val ds2 = env.fromCollection(customTypeData)
 
     // should not work, incompatible number of keys
-//    ds1.join(ds2).where("i", "s").equalTo("i")
+    ds1.join(ds2).where("myInt", "myString").equalTo("myInt")
   }
 
-  @Ignore
   @Test(expected = classOf[IllegalArgumentException])
   def testJoinKeyExpressions4(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -208,7 +205,7 @@ class JoinOperatorTest {
     val ds2 = env.fromCollection(customTypeData)
 
     // should not work, join key non-existent
-//    ds1.join(ds2).where("myNonExistent").equalTo("i")
+    ds1.join(ds2).where("myNonExistent").equalTo("i")
   }
 
   @Test
@@ -219,7 +216,7 @@ class JoinOperatorTest {
 
     // should work
     try {
-      ds1.join(ds2).where { _.l} equalTo { _.l }
+      ds1.join(ds2).where { _.myLong} equalTo { _.myLong }
     }
     catch {
       case e: Exception => Assert.fail()
@@ -234,7 +231,7 @@ class JoinOperatorTest {
 
     // should work
     try {
-      ds1.join(ds2).where { _.l }.equalTo(3)
+      ds1.join(ds2).where { _.myLong }.equalTo(3)
     }
     catch {
       case e: Exception => Assert.fail()
@@ -249,7 +246,7 @@ class JoinOperatorTest {
 
     // should work
     try {
-      ds1.join(ds2).where(3).equalTo { _.l }
+      ds1.join(ds2).where(3).equalTo { _.myLong }
     }
     catch {
       case e: Exception => Assert.fail()
@@ -263,7 +260,7 @@ class JoinOperatorTest {
     val ds2 = env.fromCollection(customTypeData)
 
     // should not work, incompatible types
-    ds1.join(ds2).where(2).equalTo { _.l }
+    ds1.join(ds2).where(2).equalTo { _.myLong }
   }
 
   @Test(expected = classOf[IncompatibleKeysException])
@@ -273,7 +270,7 @@ class JoinOperatorTest {
     val ds2 = env.fromCollection(customTypeData)
 
     // should not work, more than one field position key
-    ds1.join(ds2).where(1, 3) equalTo { _.l }
+    ds1.join(ds2).where(1, 3) equalTo { _.myLong }
   }
 }
 

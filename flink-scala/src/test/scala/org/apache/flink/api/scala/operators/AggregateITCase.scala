@@ -19,6 +19,7 @@ package org.apache.flink.api.scala.operators
 
 import org.apache.flink.api.java.aggregation.Aggregations
 import org.apache.flink.api.scala.ExecutionEnvironment
+import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.test.util.JavaProgramTestBase
 import org.junit.runner.RunWith
@@ -34,38 +35,14 @@ import org.apache.flink.api.scala._
 object AggregateProgs {
   var NUM_PROGRAMS: Int = 3
 
-  val tupleInput = Array(
-    (1,1L,"Hi"),
-    (2,2L,"Hello"),
-    (3,2L,"Hello world"),
-    (4,3L,"Hello world, how are you?"),
-    (5,3L,"I am fine."),
-    (6,3L,"Luke Skywalker"),
-    (7,4L,"Comment#1"),
-    (8,4L,"Comment#2"),
-    (9,4L,"Comment#3"),
-    (10,4L,"Comment#4"),
-    (11,5L,"Comment#5"),
-    (12,5L,"Comment#6"),
-    (13,5L,"Comment#7"),
-    (14,5L,"Comment#8"),
-    (15,5L,"Comment#9"),
-    (16,6L,"Comment#10"),
-    (17,6L,"Comment#11"),
-    (18,6L,"Comment#12"),
-    (19,6L,"Comment#13"),
-    (20,6L,"Comment#14"),
-    (21,6L,"Comment#15")
-  )
-
-
   def runProgram(progId: Int, resultPath: String): String = {
     progId match {
       case 1 =>
         // Full aggregate
         val env = ExecutionEnvironment.getExecutionEnvironment
         env.setDegreeOfParallelism(10)
-        val ds = env.fromCollection(tupleInput)
+//        val ds = CollectionDataSets.get3TupleDataSet(env)
+        val ds = CollectionDataSets.get3TupleDataSet(env)
 
         val aggregateDs = ds
           .aggregate(Aggregations.SUM,0)
@@ -84,7 +61,7 @@ object AggregateProgs {
       case 2 =>
         // Grouped aggregate
         val env = ExecutionEnvironment.getExecutionEnvironment
-        val ds = env.fromCollection(tupleInput)
+        val ds = CollectionDataSets.get3TupleDataSet(env)
 
         val aggregateDs = ds
           .groupBy(1)
@@ -103,7 +80,7 @@ object AggregateProgs {
       case 3 =>
         // Nested aggregate
         val env = ExecutionEnvironment.getExecutionEnvironment
-        val ds = env.fromCollection(tupleInput)
+        val ds = CollectionDataSets.get3TupleDataSet(env)
 
         val aggregateDs = ds
           .groupBy(1)
@@ -111,7 +88,7 @@ object AggregateProgs {
           .aggregate(Aggregations.MIN, 0)
           // Ensure aggregate operator correctly copies other fields
           .filter(_._3 != null)
-          .map { t => Tuple1(t._1) }
+          .map { t => new Tuple1(t._1) }
 
         aggregateDs.writeAsCsv(resultPath)
 
@@ -140,7 +117,7 @@ class AggregateITCase(config: Configuration) extends JavaProgramTestBase(config)
   }
 
   protected def testProgram(): Unit = {
-    expectedResult = AggregateProgs.runProgram(curProgId, resultPath)
+    expectedResult = DistinctProgs.runProgram(curProgId, resultPath)
   }
 
   protected override def postSubmit(): Unit = {
@@ -152,7 +129,7 @@ object AggregateITCase {
   @Parameters
   def getConfigurations: java.util.Collection[Array[AnyRef]] = {
     val configs = mutable.MutableList[Array[AnyRef]]()
-    for (i <- 1 to AggregateProgs.NUM_PROGRAMS) {
+    for (i <- 1 to DistinctProgs.NUM_PROGRAMS) {
       val config = new Configuration()
       config.setInteger("ProgramId", i)
       configs += Array(config)

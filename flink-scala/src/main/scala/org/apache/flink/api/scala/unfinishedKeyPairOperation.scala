@@ -69,11 +69,9 @@ private[flink] abstract class UnfinishedKeyPairOperation[L, R, O](
    * This only works on a CaseClass [[DataSet]].
    */
   def where(firstLeftField: String, otherLeftFields: String*) = {
-    val fieldIndices = fieldNames2Indices(
-      leftInput.getType,
-      firstLeftField +: otherLeftFields.toArray)
-
-    val leftKey = new ExpressionKeys[L](fieldIndices, leftInput.getType)
+    val leftKey = new ExpressionKeys[L](
+      firstLeftField +: otherLeftFields.toArray,
+      leftInput.getType)
     new HalfUnfinishedKeyPairOperation[L, R, O](this, leftKey)
   }
 
@@ -118,11 +116,9 @@ private[flink] class HalfUnfinishedKeyPairOperation[L, R, O](
    * This only works on a CaseClass [[DataSet]].
    */
   def equalTo(firstRightField: String, otherRightFields: String*): O = {
-    val fieldIndices = fieldNames2Indices(
-      unfinished.rightInput.getType,
-      firstRightField +: otherRightFields.toArray)
-
-    val rightKey = new ExpressionKeys[R](fieldIndices, unfinished.rightInput.getType)
+    val rightKey = new ExpressionKeys[R](
+      firstRightField +: otherRightFields.toArray,
+      unfinished.rightInput.getType)
     if (!leftKey.areCompatible(rightKey)) {
       throw new InvalidProgramException("The types of the key fields do not match. Left: " +
         leftKey + " Right: " + rightKey)
