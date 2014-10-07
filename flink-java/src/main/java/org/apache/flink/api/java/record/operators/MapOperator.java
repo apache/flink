@@ -37,11 +37,18 @@ import org.apache.flink.types.Key;
 import org.apache.flink.types.Record;
 
 /**
+ * 
+ * <b>NOTE: The Record API is marked as deprecated. It is not being developed anymore and will be removed from
+ * the code at some point.
+ * See <a href="https://issues.apache.org/jira/browse/FLINK-1106">FLINK-1106</a> for more details.</b>
+ * 
+ * 
  * MapOperator that applies a {@link MapFunction} to each record independently.
  * 
  * @see MapFunction
  */
-@SuppressWarnings("deprecation")
+
+@Deprecated
 public class MapOperator extends CollectorMapOperatorBase<Record, Record, MapFunction> implements RecordOperator {
 	
 	private static String DEFAULT_NAME = "<Unnamed Mapper>";

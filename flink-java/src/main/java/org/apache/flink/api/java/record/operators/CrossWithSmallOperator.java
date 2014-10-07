@@ -27,11 +27,18 @@ import org.apache.flink.api.java.record.functions.CrossFunction;
 
 
 /**
+ * 
+ * <b>NOTE: The Record API is marked as deprecated. It is not being developed anymore and will be removed from
+ * the code at some point.
+ * See <a href="https://issues.apache.org/jira/browse/FLINK-1106">FLINK-1106</a> for more details.</b>
+ * 
+ * 
  * This operator represents a Cartesian-Product operation. Of the two inputs, the first is expected to be large
  * and the second is expected to be small. 
  * 
  * @see CrossFunction
  */
+@Deprecated
 public class CrossWithSmallOperator extends CrossOperator implements CrossWithSmall {
 	
 	/**

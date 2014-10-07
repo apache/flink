@@ -23,8 +23,11 @@ import org.apache.flink.api.common.operators.base.BulkIterationBase;
 import org.apache.flink.types.Record;
 
 /**
- * 
+ *  * <b>NOTE: The Record API is marked as deprecated. It is not being developed anymore and will be removed from
+ * the code at some point.
+ * See <a href="https://issues.apache.org/jira/browse/FLINK-1106">FLINK-1106</a> for more details.</b>
  */
+@Deprecated
 public class BulkIteration extends BulkIterationBase<Record> {
 	public BulkIteration() {
 		super(OperatorInfoHelper.unary());

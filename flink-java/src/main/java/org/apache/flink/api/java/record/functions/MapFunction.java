@@ -24,10 +24,15 @@ import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 
 /**
+ * 
+ * <b>NOTE: The Record API is marked as deprecated. It is not being developed anymore and will be removed from
+ * the code at some point.
+ * See <a href="https://issues.apache.org/jira/browse/FLINK-1106">FLINK-1106</a> for more details.</b>
+ * 
  * The MapFunction must be extended to provide a mapper implementation
  * By definition, the mapper is called for each individual input record.
  */
-@SuppressWarnings("deprecation")
+@Deprecated
 public abstract class MapFunction extends AbstractRichFunction implements GenericCollectorMap<Record, Record> {
 	
 	private static final long serialVersionUID = 1L;

@@ -26,8 +26,16 @@ import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 
 /**
+ * 
+ * <b>NOTE: The Record API is marked as deprecated. It is not being developed anymore and will be removed from
+ * the code at some point.
+ * See <a href="https://issues.apache.org/jira/browse/FLINK-1106">FLINK-1106</a> for more details.</b>
+ * 
+ * 
  * The CoGroupFunction is the base class for functions that are invoked by a {@link org.apache.flink.api.java.record.operators.CoGroupOperator}.
  */
+
+@Deprecated
 public abstract class CoGroupFunction extends AbstractRichFunction {
 
 	private static final long serialVersionUID = 1L;

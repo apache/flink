@@ -31,6 +31,13 @@ import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 
 
 /**
+ * 
+ * <b>NOTE: The Record API is marked as deprecated. It is not being developed anymore and will be removed from
+ * the code at some point.
+ * See <a href="https://issues.apache.org/jira/browse/FLINK-1106">FLINK-1106</a> for more details.</b>
+ * 
+ * 
+ * 
  * This class defines the semantic assertions that can be added to functions.
  * The assertions are realized as java annotations, to be added to the class declaration of
  * the class that realized the user function. For example, to declare the <i>ConstantFieldsExcept</i> 
@@ -55,6 +62,7 @@ import org.apache.flink.api.common.operators.util.UserCodeWrapper;
  * ({@link MapFunction}, {@link ReduceFunction}) and some only for stubs with two inputs 
  * ({@link CrossFunction}, {@link JoinFunction}, {@link CoGroupFunction}).
  */
+@Deprecated
 public class FunctionAnnotation {
 	
 	/**

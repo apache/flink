@@ -28,6 +28,12 @@ import org.apache.flink.types.Record;
 import java.util.Arrays;
 
 /**
+ * 
+ * <b>NOTE: The Record API is marked as deprecated. It is not being developed anymore and will be removed from
+ * the code at some point.
+ * See <a href="https://issues.apache.org/jira/browse/FLINK-1106">FLINK-1106</a> for more details.</b>
+ * 
+ * 
  * A DeltaIteration is similar to a {@link BulkIteration}, 
  * but maintains state across the individual iteration steps. The state is called the <i>solution set</i>, can be obtained
  * via {@link #getSolutionSet()}, and be accessed by joining (or CoGrouping) with it. The solution
@@ -45,6 +51,7 @@ import java.util.Arrays;
  * This class is a subclass of {@code DualInputOperator}. The solution set is considered the first input, the
  * workset is considered the second input.
  */
+@Deprecated
 public class DeltaIteration extends DeltaIterationBase<Record, Record> {
 
 	public DeltaIteration(int keyPosition) {

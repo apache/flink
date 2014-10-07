@@ -37,10 +37,16 @@ import org.apache.flink.types.Key;
 import org.apache.flink.types.Record;
 
 /**
+ * 
+ *  <b>NOTE: The Record API is marked as deprecated. It is not being developed anymore and will be removed from
+ * the code at some point.
+ * See <a href="https://issues.apache.org/jira/browse/FLINK-1106">FLINK-1106</a> for more details.</b>
  * MapPartitionOperator that applies a {@link MapPartitionFunction} to each record independently.
  * 
  * @see MapPartitionFunction
  */
+
+@Deprecated
 public class MapPartitionOperator extends MapPartitionOperatorBase<Record, Record, MapPartitionFunction> implements RecordOperator {
 	
 	private static String DEFAULT_NAME = "<Unnamed MapPartition>";

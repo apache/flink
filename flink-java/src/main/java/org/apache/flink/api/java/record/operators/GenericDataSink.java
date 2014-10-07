@@ -34,9 +34,16 @@ import org.apache.flink.types.Nothing;
 import org.apache.flink.types.Record;
 
 /**
+ * 
+ * <b>NOTE: The Record API is marked as deprecated. It is not being developed anymore and will be removed from
+ * the code at some point.
+ * See <a href="https://issues.apache.org/jira/browse/FLINK-1106">FLINK-1106</a> for more details.</b>
+ * 
  * Operator for nodes that act as data sinks, storing the data they receive.
  * The way the data is stored is handled by the {@link OutputFormat}.
  */
+
+@Deprecated
 public class GenericDataSink extends GenericDataSinkBase<Record> {
 
 	private static String DEFAULT_NAME = "<Unnamed Generic Record Data Sink>";

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.api.java.record.operators;
 
 import java.io.IOException;
@@ -45,8 +44,13 @@ import org.apache.flink.util.InstantiationUtil;
  * CoGroupOperator that applies a {@link CoGroupFunction} to groups of records sharing
  * the same key (one group per input).
  * 
+ * <b>NOTE: The Record API is marked as deprecated. It is not being developed anymore and will be removed from
+ * the code at some point.
+ * See <a href="https://issues.apache.org/jira/browse/FLINK-1106">FLINK-1106</a> for more details.</b>
+ * 
  * @see CoGroupFunction
  */
+@Deprecated
 public class CoGroupOperator extends CoGroupOperatorBase<Record, Record, Record, org.apache.flink.api.common.functions.CoGroupFunction<Record, Record, Record>> implements RecordOperator {
 	
 	/**

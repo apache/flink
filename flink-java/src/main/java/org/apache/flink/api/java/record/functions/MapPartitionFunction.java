@@ -23,9 +23,17 @@ import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 
 /**
+ * 
+ * <b>NOTE: The Record API is marked as deprecated. It is not being developed anymore and will be removed from
+ * the code at some point.
+ * See <a href="https://issues.apache.org/jira/browse/FLINK-1106">FLINK-1106</a> for more details.</b>
+ * 
+ * 
  * The MapPartitionFunction must be extended to provide a map partition implementation
  * By definition, the map partition is called for a full input set.
  */
+
+@Deprecated
 public abstract class MapPartitionFunction extends AbstractRichFunction implements org.apache.flink.api.common.functions.MapPartitionFunction<Record, Record> {
 	
 	private static final long serialVersionUID = 1L;

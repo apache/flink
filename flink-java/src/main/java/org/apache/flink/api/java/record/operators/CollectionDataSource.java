@@ -30,6 +30,11 @@ import org.apache.flink.api.java.record.io.CollectionInputFormat;
 import org.apache.flink.types.Record;
 
 /**
+ * 
+ *  * <b>NOTE: The Record API is marked as deprecated. It is not being developed anymore and will be removed from
+ * the code at some point.
+ * See <a href="https://issues.apache.org/jira/browse/FLINK-1106">FLINK-1106</a> for more details.</b>
+ * 
  * Operator for input nodes which reads data from collection or iterator.
  * Use this operator if you want to use a collection of data from the application 
  * as an input for a job to the cluster.
@@ -54,6 +59,7 @@ import org.apache.flink.types.Record;
  * 
  * The only limitation is that the elements need to have the same type.
  */
+@Deprecated
 public class CollectionDataSource extends GenericDataSourceBase<Record, GenericInputFormat<Record>> {
 
 	private static String DEFAULT_NAME = "<Unnamed Collection Data Source>";
