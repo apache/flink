@@ -65,7 +65,8 @@ under the License.
 		<module>flink-addons</module>
 		<module>flink-quickstart</module>
 		<module>flink-dist</module>
-	</modules>
+        <module>flink-mesos</module>
+    </modules>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
