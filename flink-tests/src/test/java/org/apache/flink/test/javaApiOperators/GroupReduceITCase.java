@@ -636,9 +636,9 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 					env.execute();
 
 					// return expected result
-					return "a--(1,1)-(1,2)-(1,3)-\n" +
+					return "a--(2,1)-(1,3)-(1,2)-\n" +
 							"b--(2,2)-\n"+
-							"c--(3,3)-(3,6)-(3,9)-\n";
+							"c--(4,9)-(3,6)-(3,3)-\n";
 				}
 				case 22: {
 					/*
@@ -737,24 +737,17 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 					env.setDegreeOfParallelism(1);
 
-					DataSet<PojoContainingTupleAndWritable> ds = CollectionDataSets.getPojoWithMultiplePojos(env);
+					DataSet<CollectionDataSets.PojoWithMultiplePojos> ds = CollectionDataSets.getPojoWithMultiplePojos(env);
 					// f0.f0 is first integer
-					DataSet<String> reduceDs = ds.groupBy("hadoopFan").sortGroup("theTuple.f0", Order.DESCENDING).sortGroup("theTuple.f1", Order.DESCENDING)
-							.reduceGroup(new GroupReduceFunction<CollectionDataSets.PojoContainingTupleAndWritable, String>() {
+					DataSet<String> reduceDs = ds.groupBy("p2.a2")
+							.reduceGroup(new GroupReduceFunction<CollectionDataSets.PojoWithMultiplePojos, String>() {
 								@Override
 								public void reduce(
-										Iterable<PojoContainingTupleAndWritable> values,
+										Iterable<CollectionDataSets.PojoWithMultiplePojos> values,
 										Collector<String> out) throws Exception {
-									boolean once = false;
 									StringBuilder concat = new StringBuilder();
-									for(PojoContainingTupleAndWritable value : values) {
-										if(!once) {
-											concat.append(value.hadoopFan.get());
-											concat.append("---");
-											once = true;
-										}
-										concat.append(value.theTuple);
-										concat.append("-");
+									for(CollectionDataSets.PojoWithMultiplePojos value : values) {
+										concat.append(value.p2.a2);
 									}
 									out.collect(concat.toString());
 								}
@@ -763,8 +756,7 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 					env.execute();
 
 					// return expected result
-					return "1---(10,100)-\n" +
-							"2---(30,600)-(30,400)-(30,200)-(20,201)-(20,200)-\n";
+					return "b\nccc\nee\n";
 				}
 				
 				default: {

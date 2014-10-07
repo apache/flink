@@ -1065,7 +1065,8 @@ public class TypeExtractor {
 
 	/**
 	 * recursively determine all declared fields
-	 * This is required because getFields() is not returning 
+	 * This is required because class.getFields() is not returning fields defined
+	 * in parent classes.
 	 */
 	public static List<Field> getAllDeclaredFields(Class<?> clazz) {
 		List<Field> result = new ArrayList<Field>();
