@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobmanager.web;
 
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -34,20 +35,20 @@ import javax.servlet.http.HttpServletResponse;
 
 import akka.actor.ActorRef;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.messages.ArchiveMessages.ArchivedJobResponse;
-import org.apache.flink.runtime.messages.ArchiveMessages.ArchivedJobFound;
-import org.apache.flink.runtime.messages.ArchiveMessages.RequestArchivedJob;
 import org.apache.flink.runtime.messages.ArchiveMessages.ArchivedJobs;
 import org.apache.flink.runtime.messages.ArchiveMessages.RequestArchivedJobs$;
 import org.apache.flink.runtime.messages.JobManagerMessages.AccumulatorResultsResponse;
 import org.apache.flink.runtime.messages.JobManagerMessages.AccumulatorResultsFound;
-import org.apache.flink.runtime.messages.JobManagerMessages.RunningJobsResponse;
+import org.apache.flink.runtime.messages.JobManagerMessages.RunningJobs;
 import org.apache.flink.runtime.messages.JobManagerMessages.RequestRunningJobs$;
 import org.apache.flink.runtime.messages.JobManagerMessages.RequestAvailableSlots$;
 import org.apache.flink.runtime.messages.JobManagerMessages.RequestNumberRegisteredTaskManager$;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancellationResponse;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancelJob;
 import org.apache.flink.runtime.messages.JobManagerMessages.RequestAccumulatorResults;
+import org.apache.flink.runtime.messages.JobManagerMessages.RequestJob;
+import org.apache.flink.runtime.messages.JobManagerMessages.JobResponse;
+import org.apache.flink.runtime.messages.JobManagerMessages.JobFound;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -90,36 +91,37 @@ public class JobmanagerInfoServlet extends HttpServlet {
 		
 		try {
 			if("archive".equals(req.getParameter("get"))) {
-				List<ExecutionGraph> archivedJobs = AkkaUtils.<ArchivedJobs>ask(archive,
-						RequestArchivedJobs$.MODULE$).asJavaList();
+				List<ExecutionGraph> archivedJobs = new ArrayList<ExecutionGraph>(AkkaUtils
+						.<ArchivedJobs>ask(archive,RequestArchivedJobs$.MODULE$).asJavaCollection());
+
 				writeJsonForArchive(resp.getWriter(), archivedJobs);
 			}
 			else if("job".equals(req.getParameter("get"))) {
 				String jobId = req.getParameter("job");
-				ArchivedJobResponse response = AkkaUtils.ask(archive,
-						new RequestArchivedJob(JobID.fromHexString(jobId)));
+				JobResponse response = AkkaUtils.ask(archive,
+						new RequestJob(JobID.fromHexString(jobId)));
 
-				if(response instanceof ArchivedJobFound){
-					ExecutionGraph archivedJob = ((ArchivedJobFound)response).executionGraph();
+				if(response instanceof JobFound){
+					ExecutionGraph archivedJob = ((JobFound)response).executionGraph();
 					writeJsonForArchivedJob(resp.getWriter(), archivedJob);
 				}else{
-					LOG.warn("Could not find job for job ID " + jobId);
+					LOG.warn("DoGet:job: Could not find job for job ID " + jobId);
 				}
 			}
 			else if("groupvertex".equals(req.getParameter("get"))) {
 				String jobId = req.getParameter("job");
 				String groupvertexId = req.getParameter("groupvertex");
 
-				ArchivedJobResponse response = AkkaUtils.ask(archive,
-						new RequestArchivedJob(JobID.fromHexString(jobId)));
+				JobResponse response = AkkaUtils.ask(archive,
+						new RequestJob(JobID.fromHexString(jobId)));
 
-				if(response instanceof ArchivedJobFound){
-					ExecutionGraph archivedJob = ((ArchivedJobFound)response).executionGraph();
+				if(response instanceof JobFound && groupvertexId != null){
+					ExecutionGraph archivedJob = ((JobFound)response).executionGraph();
 
 					writeJsonForArchivedJobGroupvertex(resp.getWriter(), archivedJob,
 							JobVertexID.fromHexString(groupvertexId));
 				}else{
-					LOG.warn("Could not find job for job ID " + jobId);
+					LOG.warn("DoGet:groupvertex: Could not find job for job ID " + jobId);
 				}
 			}
 			else if("taskmanagers".equals(req.getParameter("get"))) {
@@ -143,7 +145,7 @@ public class JobmanagerInfoServlet extends HttpServlet {
 				writeJsonForVersion(resp.getWriter());
 			}
 			else{
-				Iterable<ExecutionGraph> runningJobs = AkkaUtils.<RunningJobsResponse>ask
+				Iterable<ExecutionGraph> runningJobs = AkkaUtils.<RunningJobs>ask
 						(jobmanager, RequestRunningJobs$.MODULE$).asJavaIterable();
 				writeJsonForJobs(resp.getWriter(), runningJobs);
 			}
@@ -414,7 +416,7 @@ public class JobmanagerInfoServlet extends HttpServlet {
 	private void writeJsonUpdatesForJob(PrintWriter wrt, JobID jobId) {
 		
 		try {
-			Iterable<ExecutionGraph> graphs = AkkaUtils.<RunningJobsResponse>ask(jobmanager,
+			Iterable<ExecutionGraph> graphs = AkkaUtils.<RunningJobs>ask(jobmanager,
 					RequestRunningJobs$.MODULE$).asJavaIterable();
 			
 			//Serialize job to json
@@ -424,7 +426,6 @@ public class JobmanagerInfoServlet extends HttpServlet {
 			wrt.write("\"recentjobs\": [");
 
 			boolean first = true;
-			ExecutionGraph graph = null;
 
 			for(ExecutionGraph g : graphs){
 				if(first){
@@ -434,20 +435,15 @@ public class JobmanagerInfoServlet extends HttpServlet {
 				}
 
 				wrt.write("\"" + g.getJobID() + "\"");
-
-				if(g.getJobID() == jobId){
-					graph = g;
-				}
 			}
 
 			wrt.write("],");
 
-			if(graph == null){
-				wrt.write("\"vertexevents\": [],");
-				wrt.write("\"jobevents\": []");
-				wrt.write("}");
-				LOG.warn("Could not find job with job ID " + jobId);
-			}else {
+			JobResponse response = AkkaUtils.ask(jobmanager, new RequestJob(jobId));
+
+			if(response instanceof JobFound){
+				ExecutionGraph graph = ((JobFound)response).executionGraph();
+
 				wrt.write("\"vertexevents\": [");
 
 				first = true;
@@ -479,6 +475,16 @@ public class JobmanagerInfoServlet extends HttpServlet {
 				wrt.write("]");
 
 				wrt.write("}");
+			}else{
+				wrt.write("\"vertexevents\": [],");
+				wrt.write("\"jobevents\": [");
+				wrt.write("{");
+				wrt.write("\"newstate\": \"" + JobStatus.FINISHED + "\",");
+				wrt.write("\"timestamp\": \"" + System.currentTimeMillis() + "\"");
+				wrt.write("}");
+				wrt.write("]");
+				wrt.write("}");
+				LOG.warn("WriteJsonUpdatesForJob: Could not find job with job ID " + jobId);
 			}
 		} catch (EofException eof) { // Connection closed by client
 			LOG.info("Info server for jobmanager: Connection closed by client, EofException");

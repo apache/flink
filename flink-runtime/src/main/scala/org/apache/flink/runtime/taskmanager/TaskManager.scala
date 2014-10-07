@@ -455,12 +455,11 @@ object TaskManager {
   private def initialize(args: Array[String]): (String, Int, Configuration) = {
     val parser = new scopt.OptionParser[TaskManagerCLIConfiguration]("taskmanager") {
       head("flink task manager")
-
       opt[String]("configDir") action { (x, c) =>
         c.copy(configDir = x)
       } text ("Specify configuration directory.")
 
-      opt[String]("tempDir") action { (x, c) =>
+      opt[String]("tempDir") optional() action { (x, c) =>
         c.copy(tmpDir = x)
       } text ("Specify temporary directory.")
     }

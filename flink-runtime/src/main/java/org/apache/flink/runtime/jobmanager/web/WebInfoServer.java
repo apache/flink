@@ -68,14 +68,13 @@ public class WebInfoServer {
 	 *
 	 * @param config
 	 *        The configuration for the flink job manager.
-	 * @param port
-	 *        The port to launch the server on.
 	 * @throws IOException
 	 *         Thrown, if the server setup failed for an I/O related reason.
 	 */
-	public WebInfoServer(Configuration config, int port,
-						ActorRef jobmanager, ActorRef archive) throws IOException {
-		this.port = port;
+	public WebInfoServer(Configuration config, ActorRef jobmanager,
+						ActorRef archive) throws IOException {
+		this.port = config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY,
+				ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT);
 
 		// if no explicit configuration is given, use the global configuration
 		if (config == null) {

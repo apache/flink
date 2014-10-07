@@ -48,13 +48,13 @@ public class WebFrontend {
 			// get the config directory first
 			String configDir = null;
 
-			if (args.length >= 2 && args[0].equals("-configDir")) {
+			if (args.length >= 2 && args[0].equals("--configDir")) {
 				configDir = args[1];
 			}
 
 			if (configDir == null) {
 				System.err
-					.println("Error: Configuration directory must be specified.\nWebFrontend -configDir <directory>\n");
+					.println("Error: Configuration directory must be specified.\nWebFrontend --configDir <directory>\n");
 				System.exit(1);
 				return;
 			}

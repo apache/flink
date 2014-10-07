@@ -61,7 +61,7 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancelJob;
 import org.apache.flink.runtime.messages.JobManagerMessages.RequestRunningJobs$;
-import org.apache.flink.runtime.messages.JobManagerMessages.RunningJobsResponse;
+import org.apache.flink.runtime.messages.JobManagerMessages.RunningJobs;
 import org.apache.flink.util.StringUtils;
 
 /**
@@ -510,7 +510,7 @@ public class CliFrontend {
 				return 1;
 			}
 
-			Iterable<ExecutionGraph> jobs = AkkaUtils.<RunningJobsResponse>ask(jobManager,
+			Iterable<ExecutionGraph> jobs = AkkaUtils.<RunningJobs>ask(jobManager,
 					RequestRunningJobs$.MODULE$).asJavaIterable();
 
 			ArrayList<ExecutionGraph> runningJobs = null;

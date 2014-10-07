@@ -23,16 +23,15 @@ import java.net.{InetSocketAddress}
 
 import akka.actor._
 import akka.pattern.Patterns
+import akka.pattern.{ask, pipe}
 import com.google.common.base.Preconditions
 import org.apache.flink.configuration.{ConfigConstants, GlobalConfiguration, Configuration}
 import org.apache.flink.core.io.InputSplitAssigner
 import org.apache.flink.runtime.blob.BlobServer
 import org.apache.flink.runtime.executiongraph.{ExecutionJobVertex, ExecutionGraph}
 import org.apache.flink.runtime.io.network.ConnectionInfoLookupResponse
-import org.apache.flink.runtime.jobmanager.web.WebInfoServer
 import org.apache.flink.runtime.messages.ArchiveMessages.ArchiveExecutionGraph
-import org.apache.flink.runtime.messages.ExecutionGraphMessages.{CurrentJobStatus,
-JobStatusChanged}
+import org.apache.flink.runtime.messages.ExecutionGraphMessages.JobStatusChanged
 import org.apache.flink.runtime.{JobException, ActorLogMessages}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
@@ -47,13 +46,15 @@ import org.apache.flink.runtime.profiling.ProfilingUtils
 import org.slf4j.LoggerFactory
 
 import scala.collection.convert.WrapAsScala
-import scala.concurrent.Future
+import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
 
-class JobManager(val archiveCount: Int, val profiling: Boolean, cleanupInterval: Long) extends
+class JobManager(val configuration: Configuration) extends
 Actor with ActorLogMessages with ActorLogging with WrapAsScala {
-
   import context._
+  import AkkaUtils.FUTURE_TIMEOUT
+
+  val (archiveCount, profiling, cleanupInterval) = JobManager.parseConfiguration(configuration)
 
   def profilerProps: Props = Props(classOf[JobManagerProfiler])
 
@@ -158,6 +159,7 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
 
           if(listenToEvents){
             executionGraph.registerExecutionListener(sender())
+            executionGraph.registerJobStatusListener(sender())
           }
 
           jobInfo.detach = detach
@@ -305,10 +307,16 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
         (libraryCacheManager.getClassLoader(accumulatorEvent.getJobID)))
     }
 
+    case RequestAccumulatorResults(jobID) => {
+      import scala.collection.JavaConverters._
+      sender() ! AccumulatorResultsFound(jobID, accumulatorManager.getJobAccumulatorResults
+        (jobID).asScala.toMap)
+    }
+
     case RequestJobStatus(jobID) => {
       currentJobs.get(jobID) match {
         case Some((executionGraph,_)) => sender() ! CurrentJobStatus(jobID, executionGraph.getState)
-        case None => archive.tell(RequestJobStatus(jobID), sender())
+        case None => archive ? RequestJobStatus(jobID) pipeTo sender()
       }
     }
 
@@ -317,16 +325,14 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
         case (_, (eg, jobInfo)) => eg
       }
 
-      sender() ! RunningJobsResponse(executionGraphs)
+      sender() ! RunningJobs(executionGraphs)
     }
 
-    case RequestRunningJob(jobID) => {
-      val response = currentJobs.get(jobID) match {
-        case Some((eg, _)) => RunningJobFound(jobID, eg)
-        case None => RunningJobNotFound(jobID)
+    case RequestJob(jobID) => {
+      currentJobs.get(jobID) match {
+        case Some((eg, _)) => sender() ! JobFound(jobID, eg)
+        case None => archive ? RequestJob(jobID) pipeTo sender()
       }
-
-      sender() ! response
     }
 
     case RequestBlobManagerPort => {
@@ -375,7 +381,9 @@ object JobManager {
   def main(args: Array[String]): Unit = {
     val (hostname, port, configuration) = initialize(args)
 
-    val (jobManagerSystem, _) = startActorSystemAndActor(hostname, port, configuration)
+    val jobManagerSystem = AkkaUtils.createActorSystem(hostname, port, configuration)
+
+    startActor(Props(new JobManager(configuration) with WithWebServer))(jobManagerSystem)
     jobManagerSystem.awaitTermination()
   }
 
@@ -408,7 +416,7 @@ object JobManager {
   def startActorSystemAndActor(hostname: String, port: Int, configuration: Configuration):
   (ActorSystem, ActorRef) = {
     implicit val actorSystem = AkkaUtils.createActorSystem(hostname, port, configuration)
-    (actorSystem, (startActor _).tupled(parseConfiguration(configuration)))
+    (actorSystem, startActor(configuration))
   }
 
   def parseConfiguration(configuration: Configuration): (Int, Boolean, Long) = {
@@ -423,15 +431,12 @@ object JobManager {
     (archiveCount, profilingEnabled, cleanupInterval)
   }
 
-  def startActorWithConfiguration(configuration: Configuration)(implicit actorSystem:
-  ActorSystem) = {
-    (startActor _).tupled(parseConfiguration(configuration))
+  def startActor(configuration: Configuration)(implicit actorSystem: ActorSystem): ActorRef = {
+    startActor(Props(classOf[JobManager], configuration))
   }
 
-  def startActor(archiveCount: Int, profilingEnabled: Boolean, cleanupInterval: Long)
-                (implicit actorSystem: ActorSystem): ActorRef = {
-    actorSystem.actorOf(Props(classOf[JobManager], archiveCount, profilingEnabled, cleanupInterval),
-      JOB_MANAGER_NAME)
+  def startActor(props: Props)(implicit actorSystem: ActorSystem): ActorRef = {
+    actorSystem.actorOf(props, JOB_MANAGER_NAME)
   }
 
   def getAkkaURL(address: String): String = {

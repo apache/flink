@@ -163,7 +163,7 @@ public class CliFrontendListCancelTest {
 				assertEquals(jobID, cancelJob.jobID());
 				getSender().tell(new Status.Success(new Object()), getSelf());
 			}else if(message instanceof  JobManagerMessages.RequestRunningJobs$){
-				getSender().tell(new JobManagerMessages.RunningJobsResponse(),
+				getSender().tell(new JobManagerMessages.RunningJobs(),
 						getSelf());
 			}
 		}

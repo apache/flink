@@ -59,7 +59,7 @@ trait TestingJobManager extends ActorLogMessages with WrapAsScala {
         val waiting = waitForAllVerticesToBeRunning.getOrElse(jobID, Set[ActorRef]())
         waitForAllVerticesToBeRunning += jobID -> (waiting + sender())
       }
-    case ExecutionStateChanged(jobID, _, _, _, _, _, _) =>
+    case ExecutionStateChanged(jobID, _, _, _, _, _, _, _, _) =>
       val cleanup = waitForAllVerticesToBeRunning.get(jobID) match {
         case Some(listeners) if checkIfAllVerticesRunning(jobID) =>
           for(listener <- listeners){

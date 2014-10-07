@@ -18,25 +18,39 @@
 
 package org.apache.flink.runtime.messages
 
+import java.text.SimpleDateFormat
+import java.util.Date
+
 import org.apache.flink.runtime.execution.{ExecutionState}
-import org.apache.flink.runtime.executiongraph.{ExecutionAttemptID, ExecutionGraph}
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
 import org.apache.flink.runtime.jobgraph.{JobStatus, JobVertexID, JobID}
 
 object ExecutionGraphMessages {
 
-  case class ExecutionStateChanged(jobID: JobID, vertexID: JobVertexID, subtask: Int,
+  case class ExecutionStateChanged(jobID: JobID, vertexID: JobVertexID,
+                                   taskName: String, totalNumberOfSubTasks: Int, subtask: Int,
                                    executionID: ExecutionAttemptID,
-                                   newExecutionState: ExecutionState,
-                                   timestamp: Long, optionalMessage: String)
+                                   newExecutionState: ExecutionState, timestamp: Long,
+                                   optionalMessage: String){
+    override def toString: String = {
+      s"${timestampToString(timestamp)}\t$taskName(${subtask +
+        1}/${totalNumberOfSubTasks}) switched to $newExecutionState ${if(optionalMessage != null)
+        s"\n${optionalMessage}" else ""}"
+    }
+  }
 
-
-  sealed trait JobStatusResponse {
-    def jobID: JobID
-  };
-
-  case class CurrentJobStatus(jobID: JobID, status: JobStatus) extends JobStatusResponse
-  case class JobNotFound(jobID: JobID) extends JobStatusResponse
   case class JobStatusChanged(jobID: JobID, newJobStatus: JobStatus, timestamp: Long,
-                              optionalMessage: String)
+                              optionalMessage: String){
+    override def toString: String = {
+      s"${timestampToString(timestamp)}\tJob execution switched to status ${newJobStatus}."
+    }
+  }
+
+
+  private val DATE_FORMATTER: SimpleDateFormat = new SimpleDateFormat("MM/dd/yyyy HH:mm:ss")
+
+  private def timestampToString(timestamp: Long): String = {
+    DATE_FORMATTER.format(new Date(timestamp))
+  }
 
 }

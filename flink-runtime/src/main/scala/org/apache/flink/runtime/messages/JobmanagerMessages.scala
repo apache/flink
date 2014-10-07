@@ -23,7 +23,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraph
 import org.apache.flink.runtime.instance.{Instance, InstanceConnectionInfo}
 import org.apache.flink.runtime.io.network.ConnectionInfoLookupResponse
 import org.apache.flink.runtime.io.network.channels.ChannelID
-import org.apache.flink.runtime.jobgraph.{JobVertexID, JobID, JobGraph}
+import org.apache.flink.runtime.jobgraph.{JobStatus, JobVertexID, JobID, JobGraph}
 import org.apache.flink.runtime.taskmanager.TaskExecutionState
 
 object JobManagerMessages {
@@ -58,9 +58,15 @@ object JobManagerMessages {
     }
   }
 
-  case class AccumulatorResulstNotFound(jobID: JobID) extends AccumulatorResultsResponse
+  case class AccumulatorResultsNotFound(jobID: JobID) extends AccumulatorResultsResponse
 
   case class RequestJobStatus(jobID: JobID)
+
+  sealed trait JobStatusResponse {
+    def jobID: JobID
+  }
+
+  case class CurrentJobStatus(jobID: JobID, status: JobStatus) extends JobStatusResponse
 
   case object RequestInstances
 
@@ -99,7 +105,7 @@ object JobManagerMessages {
 
   case object RequestRunningJobs
 
-  case class RunningJobsResponse(runningJobs: Iterable[ExecutionGraph]) {
+  case class RunningJobs(runningJobs: Iterable[ExecutionGraph]) {
     def this() = this(Seq())
     def asJavaIterable: java.lang.Iterable[ExecutionGraph] = {
       import scala.collection.JavaConverters._
@@ -107,14 +113,14 @@ object JobManagerMessages {
     }
   }
 
-  case class RequestRunningJob(jobID: JobID)
+  case class RequestJob(jobID: JobID)
 
-  sealed trait RunningJobResponse{
+  sealed trait JobResponse{
     def jobID: JobID
   }
 
-  case class RunningJobFound(jobID: JobID, executionGraph: ExecutionGraph) extends RunningJobResponse
-  case class RunningJobNotFound(jobID: JobID) extends RunningJobResponse
+  case class JobFound(jobID: JobID, executionGraph: ExecutionGraph) extends JobResponse
+  case class JobNotFound(jobID: JobID) extends JobResponse with JobStatusResponse
 
   case object RequestRegisteredTaskManagers
   case class RegisteredTaskManagers(taskManagers: Iterable[Instance]){

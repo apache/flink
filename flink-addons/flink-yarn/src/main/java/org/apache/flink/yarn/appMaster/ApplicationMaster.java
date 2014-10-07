@@ -281,7 +281,7 @@ public class ApplicationMaster implements YARNClientMasterProtocol {
 				ApplicationMaster.class.getProtectionDomain().getCodeSource().getLocation().getPath());
 
 		String pathToNepheleConfig = currDir+"/flink-conf-modified.yaml";
-		String[] args = {"-executionMode","cluster", "-configDir", pathToNepheleConfig};
+		String[] args = {"-executionMode","cluster", "--configDir", pathToNepheleConfig};
 
 		// start the job manager
 		jobManager = JobManager.initialize( args );
@@ -430,7 +430,7 @@ public class ApplicationMaster implements YARNClientMasterProtocol {
 				if(hasLog4j) {
 					tmCommand += " -Dlog4j.configuration=file:log4j.properties";
 				}
-				tmCommand	+= " "+YarnTaskManagerRunner.class.getName()+" -configDir . "
+				tmCommand	+= " "+YarnTaskManagerRunner.class.getName()+" --configDir . "
 						+ " 1>"
 						+ ApplicationConstants.LOG_DIR_EXPANSION_VAR
 						+ "/taskmanager-stdout.log" 

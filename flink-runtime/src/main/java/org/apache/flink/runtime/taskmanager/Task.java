@@ -410,8 +410,9 @@ public final class Task {
 		}
 
 		for(ActorRef listener: executionListenerActors){
-			listener.tell(new ExecutionGraphMessages.ExecutionStateChanged(jobId, vertexId, subtaskIndex,
-					executionId, newState, System.currentTimeMillis(), message),
+			listener.tell(new ExecutionGraphMessages.ExecutionStateChanged(
+							jobId, vertexId, taskName, numberOfSubtasks, subtaskIndex,
+							executionId, newState,System.currentTimeMillis(), message),
 					ActorRef.noSender());
 		}
 	}

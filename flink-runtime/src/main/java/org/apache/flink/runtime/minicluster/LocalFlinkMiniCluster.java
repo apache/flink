@@ -137,7 +137,7 @@ public class LocalFlinkMiniCluster extends FlinkMiniCluster {
 	public ActorRef startJobManager(final ActorSystem system, final Configuration configuration) {
 		Configuration config = configuration.clone();
 
-		return JobManager.startActorWithConfiguration(config, system);
+		return JobManager.startActor(config, system);
 	}
 
 	@Override

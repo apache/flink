@@ -704,12 +704,15 @@ public class ExecutionGraph {
 			}
 		}
 
+		ExecutionJobVertex vertex = getJobVertex(vertexId);
+
 		if(executionListenerActors.size() >0){
 			String message = error == null ? null : ExceptionUtils.stringifyException(error);
 			for(ActorRef listener : executionListenerActors){
-				listener.tell(new ExecutionGraphMessages.ExecutionStateChanged(jobID, vertexId, subtask, executionID,
-						newExecutionState, System.currentTimeMillis(), message),
-						ActorRef.noSender());
+				listener.tell(new ExecutionGraphMessages.ExecutionStateChanged(jobID, vertexId,
+								vertex.getJobVertex().getName(), vertex.getParallelism(), subtask,
+								executionID, newExecutionState, System.currentTimeMillis(),
+								message), ActorRef.noSender());
 			}
 		}
 

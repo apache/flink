@@ -117,7 +117,7 @@ ActorLogMessages with ActorLogging {
       }
     }
 
-    case ExecutionStateChanged(_, vertexID, subtaskIndex, executionID, newExecutionState,
+    case ExecutionStateChanged(_, vertexID, _, _, subtaskIndex, executionID, newExecutionState,
     _, _) => {
       import ExecutionState._
 

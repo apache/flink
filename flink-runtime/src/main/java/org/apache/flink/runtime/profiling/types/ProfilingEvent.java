@@ -23,7 +23,6 @@ import java.io.IOException;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.event.job.AbstractEvent;
-import org.apache.flink.runtime.event.job.ManagementEvent;
 import org.apache.flink.runtime.jobgraph.JobID;
 
 import com.google.common.base.Preconditions;
@@ -32,7 +31,7 @@ import com.google.common.base.Preconditions;
  * A profiling event is a special type of event. It is intended to transport profiling data of a Nephele job to external
  * components.
  */
-public abstract class ProfilingEvent extends AbstractEvent implements ManagementEvent {
+public abstract class ProfilingEvent extends AbstractEvent {
 
 	private static final long serialVersionUID = 1L;
 

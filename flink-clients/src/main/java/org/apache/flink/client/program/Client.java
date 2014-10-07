@@ -82,7 +82,7 @@ public class Client {
 		Preconditions.checkNotNull(config, "Configuration is null");
 		this.configuration = config;
 		configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY,
-				jobManagerAddress.getAddress().getCanonicalHostName());
+				jobManagerAddress.getHostName());
 		configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerAddress.getPort());
 		
 		this.compiler = new PactCompiler(new DataStatistics(), new DefaultCostEstimator());

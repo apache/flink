@@ -20,25 +20,18 @@ package org.apache.flink.runtime.jobmanager
 
 import akka.actor.{ActorLogging, Actor}
 import org.apache.flink.runtime.ActorLogMessages
-import org.apache.flink.runtime.event.job.{RecentJobEvent, AbstractEvent}
 import org.apache.flink.runtime.executiongraph.ExecutionGraph
 import org.apache.flink.runtime.jobgraph.JobID
 import org.apache.flink.runtime.messages.ArchiveMessages._
-import org.apache.flink.runtime.messages.ExecutionGraphMessages.{JobNotFound, CurrentJobStatus}
-import org.apache.flink.runtime.messages.JobManagerMessages.RequestJobStatus
-
-import scala.collection.convert.DecorateAsJava
-import scala.collection.mutable.ListBuffer
+import org.apache.flink.runtime.messages.JobManagerMessages._
 
 class MemoryArchivist(private val max_entries: Int) extends Actor with ActorLogMessages with
-ActorLogging with DecorateAsJava {
+ActorLogging {
   /**
    * Map of execution graphs belonging to recently started jobs with the time stamp of the last
    * received job event.
    */
   val graphs = collection.mutable.HashMap[JobID, ExecutionGraph]()
-
-
   val lru = collection.mutable.Queue[JobID]()
 
   override def receiveWithLogMessages: Receive = {
@@ -49,6 +42,20 @@ ActorLogging with DecorateAsJava {
 
     case RequestArchivedJobs => {
       sender() ! ArchivedJobs(graphs.values)
+    }
+
+    case RequestJob(jobID) => {
+      graphs.get(jobID) match {
+        case Some(graph) => sender() ! JobFound(jobID, graph)
+        case None => sender() ! JobNotFound(jobID)
+      }
+    }
+
+    case RequestJobStatus(jobID) => {
+      graphs.get(jobID) match {
+        case Some(eg) => sender() ! CurrentJobStatus(jobID, eg.getState)
+        case None => sender() ! JobNotFound(jobID)
+      }
     }
   }
 

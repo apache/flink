@@ -22,8 +22,7 @@ package org.apache.flink.client.web;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.InetSocketAddress;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Iterator;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -35,8 +34,10 @@ import akka.actor.ActorSystem;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.event.job.RecentJobEvent;
+import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.jobmanager.JobManager;
+import org.apache.flink.runtime.messages.JobManagerMessages.RequestRunningJobs$;
+import org.apache.flink.runtime.messages.JobManagerMessages.RunningJobs;
 
 
 public class JobsInfoServlet extends HttpServlet {
@@ -51,8 +52,8 @@ public class JobsInfoServlet extends HttpServlet {
 
 	private final ActorSystem system;
 	
-	public JobsInfoServlet(Configuration nepheleConfig) {
-		this.config = nepheleConfig;
+	public JobsInfoServlet(Configuration flinkConfig) {
+		this.config = flinkConfig;
 		system = ActorSystem.create("JobsInfoServletActorSystem",
 				AkkaUtils.getDefaultActorSystemConfig());
 	}
@@ -68,28 +69,26 @@ public class JobsInfoServlet extends HttpServlet {
 
 			ActorRef jm = JobManager.getJobManager(new InetSocketAddress(jmHost, jmPort), system);
 
-			// TODO: fix
-			List<RecentJobEvent> recentJobs = null;
+			Iterator<ExecutionGraph> graphs = AkkaUtils.<RunningJobs>ask(jm,
+					RequestRunningJobs$.MODULE$).asJavaIterable().iterator();
 
-			ArrayList<RecentJobEvent> jobs = new ArrayList<RecentJobEvent>(recentJobs);
-			
+
 			resp.setStatus(HttpServletResponse.SC_OK);
 			PrintWriter wrt = resp.getWriter();
 			wrt.write("[");
-			for (int i = 0; i < jobs.size(); i++) {
-				RecentJobEvent jobEvent = jobs.get(i);
-				
+			while(graphs.hasNext()){
+				ExecutionGraph graph = graphs.next();
 				//Serialize job to json
 				wrt.write("{");
-				wrt.write("\"jobid\": \"" + jobEvent.getJobID() + "\",");
-				if(jobEvent.getJobName() != null) {
-					wrt.write("\"jobname\": \"" + jobEvent.getJobName()+"\",");
+				wrt.write("\"jobid\": \"" + graph.getJobID() + "\",");
+				if(graph.getJobName() != null) {
+					wrt.write("\"jobname\": \"" + graph.getJobName()+"\",");
 				}
-				wrt.write("\"status\": \""+ jobEvent.getJobStatus() + "\",");
-				wrt.write("\"time\": " + jobEvent.getTimestamp());
+				wrt.write("\"status\": \""+ graph.getState() + "\",");
+				wrt.write("\"time\": " + graph.getStatusTimestamp(graph.getState()));
 				wrt.write("}");
 				//Write seperator between json objects
-				if(i != jobs.size() - 1) {
+				if(graphs.hasNext()) {
 					wrt.write(",");
 				}
 			}

@@ -38,10 +38,7 @@ class TestingCluster extends FlinkMiniCluster {
   }
 
   override def startJobManager(system: ActorSystem, config: Configuration) = {
-    val (archiveCount, profiling, cleanupInterval) = JobManager.parseConfiguration(config)
-
-    system.actorOf(Props(new JobManager(archiveCount, profiling, cleanupInterval) with
-      TestingJobManager),
+    system.actorOf(Props(new JobManager(config) with TestingJobManager),
       JobManager.JOB_MANAGER_NAME)
   }
 
