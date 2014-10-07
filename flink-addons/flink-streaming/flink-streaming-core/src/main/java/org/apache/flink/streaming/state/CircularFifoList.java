@@ -20,6 +20,7 @@ package org.apache.flink.streaming.state;
 import java.io.Serializable;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Queue;
 
 /**
@@ -72,6 +73,11 @@ public class CircularFifoList<T> implements Serializable {
 			counter = 0;
 		}
 
+	}
+	
+	@SuppressWarnings("unchecked")
+	public List<T> getElements(){
+		return (List<T>) queue;
 	}
 
 	public Iterator<T> getIterator() {

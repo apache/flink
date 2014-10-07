@@ -216,6 +216,7 @@ public class BatchReduceInvokable<OUT> extends StreamInvokable<OUT, OUT> {
 
 	@Override
 	public void open(Configuration config) throws Exception{
+		super.open(config);
 		serializer = inSerializer.getObjectSerializer();
 		this.batch = new StreamBatch();
 	}

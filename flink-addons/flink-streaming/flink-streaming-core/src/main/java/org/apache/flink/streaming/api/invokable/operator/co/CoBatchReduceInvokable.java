@@ -21,7 +21,6 @@ import java.io.Serializable;
 import java.util.Iterator;
 
 import org.apache.commons.math.util.MathUtils;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.function.co.CoReduceFunction;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
@@ -46,8 +45,6 @@ public class CoBatchReduceInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2,
 	protected StreamBatch<IN2> batch2;
 	protected StreamBatch<IN1> currentBatch1;
 	protected StreamBatch<IN2> currentBatch2;
-	protected TypeSerializer<IN1> serializer1;
-	protected TypeSerializer<IN2> serializer2;
 
 	public CoBatchReduceInvokable(CoReduceFunction<IN1, IN2, OUT> coReducer, long batchSize1,
 			long batchSize2, long slideSize1, long slideSize2) {
@@ -173,8 +170,6 @@ public class CoBatchReduceInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2,
 		super.open(config);
 		this.batch1 = new StreamBatch<IN1>(batchSize1, slideSize1);
 		this.batch2 = new StreamBatch<IN2>(batchSize2, slideSize2);
-		this.serializer1 = srSerializer1.getObjectSerializer();
-		this.serializer2 = srSerializer2.getObjectSerializer();
 	}
 
 	public void reduceToBuffer1(StreamRecord<IN1> next, StreamBatch<IN1> streamBatch)

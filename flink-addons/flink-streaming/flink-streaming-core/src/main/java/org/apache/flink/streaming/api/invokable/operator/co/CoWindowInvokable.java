@@ -18,17 +18,19 @@
 package org.apache.flink.streaming.api.invokable.operator.co;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.commons.math.util.MathUtils;
-import org.apache.flink.api.common.functions.CoGroupFunction;
+import org.apache.flink.streaming.api.function.co.CoWindowFunction;
 import org.apache.flink.streaming.api.invokable.util.TimeStamp;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.state.CircularFifoList;
 
-public class CoGroupInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2, OUT> {
+public class CoWindowInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2, OUT> {
 	private static final long serialVersionUID = 1L;
 
-	protected CoGroupFunction<IN1, IN2, OUT> coGroupFunction;
+	protected CoWindowFunction<IN1, IN2, OUT> coWindowFunction;
 	protected long windowSize;
 	protected long slideSize;
 	protected CircularFifoList<StreamRecord<IN1>> circularList1;
@@ -41,10 +43,10 @@ public class CoGroupInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2, OUT> 
 	protected long startTime;
 	protected long nextRecordTime;
 
-	public CoGroupInvokable(CoGroupFunction<IN1, IN2, OUT> coGroupFunction, long windowSize,
+	public CoWindowInvokable(CoWindowFunction<IN1, IN2, OUT> coWindowFunction, long windowSize,
 			long slideInterval, TimeStamp<IN1> timeStamp1, TimeStamp<IN2> timeStamp2) {
-		super(coGroupFunction);
-		this.coGroupFunction = coGroupFunction;
+		super(coWindowFunction);
+		this.coWindowFunction = coWindowFunction;
 		this.windowSize = windowSize;
 		this.slideSize = slideInterval;
 		this.circularList1 = new CircularFifoList<StreamRecord<IN1>>();
@@ -73,8 +75,19 @@ public class CoGroupInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2, OUT> 
 
 	@Override
 	protected void callUserFunction() throws Exception {
-		if(!window.circularList1.isEmpty() || !window.circularList2.isEmpty()){
-			coGroupFunction.coGroup(window.getIterable1(), window.getIterable2(), collector);
+
+		List<IN1> first = new ArrayList<IN1>();
+		List<IN2> second = new ArrayList<IN2>();
+
+		for (IN1 element : window.circularList1.getElements()) {
+			first.add(serializer1.copy(element));
+		}
+		for (IN2 element : window.circularList2.getElements()) {
+			second.add(serializer2.copy(element));
+		}
+
+		if (!window.circularList1.isEmpty() || !window.circularList2.isEmpty()) {
+			coWindowFunction.coWindow(first, second, collector);
 		}
 	}
 
@@ -167,10 +180,11 @@ public class CoGroupInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2, OUT> 
 	}
 
 	@Override
-	public void close() {
+	public void close() throws Exception {
 		if (!window.miniBatchEnd()) {
 			callUserFunctionAndLogException();
 		}
+		super.close();
 	}
 
 	@Override
@@ -178,7 +192,7 @@ public class CoGroupInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2, OUT> 
 	}
 
 	@Override
-	protected void callUserFunction2() throws Exception {	
+	protected void callUserFunction2() throws Exception {
 	}
 
 }

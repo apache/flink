@@ -21,7 +21,6 @@ import java.io.Serializable;
 
 import org.apache.commons.lang3.SerializationException;
 import org.apache.commons.lang3.SerializationUtils;
-import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -30,14 +29,15 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.co.CoFlatMapFunction;
 import org.apache.flink.streaming.api.function.co.CoMapFunction;
 import org.apache.flink.streaming.api.function.co.CoReduceFunction;
+import org.apache.flink.streaming.api.function.co.CoWindowFunction;
 import org.apache.flink.streaming.api.function.co.RichCoMapFunction;
 import org.apache.flink.streaming.api.function.co.RichCoReduceFunction;
 import org.apache.flink.streaming.api.invokable.operator.co.CoFlatMapInvokable;
-import org.apache.flink.streaming.api.invokable.operator.co.CoGroupInvokable;
 import org.apache.flink.streaming.api.invokable.operator.co.CoGroupedReduceInvokable;
 import org.apache.flink.streaming.api.invokable.operator.co.CoInvokable;
 import org.apache.flink.streaming.api.invokable.operator.co.CoMapInvokable;
 import org.apache.flink.streaming.api.invokable.operator.co.CoReduceInvokable;
+import org.apache.flink.streaming.api.invokable.operator.co.CoWindowInvokable;
 import org.apache.flink.streaming.api.invokable.util.DefaultTimeStamp;
 import org.apache.flink.streaming.api.invokable.util.TimeStamp;
 import org.apache.flink.streaming.util.serialization.FunctionTypeWrapper;
@@ -167,11 +167,12 @@ public class ConnectedDataStream<IN1, IN2> {
 	/**
 	 * Applies a CoFlatMap transformation on a {@link ConnectedDataStream} and
 	 * maps the output to a common type. The transformation calls a
-	 * {@link CoFlatMapFunction#flatMap1} for each element of the first input and
-	 * {@link CoFlatMapFunction#flatMap2} for each element of the second input. Each
-	 * CoFlatMapFunction call returns any number of elements including none. The
-	 * user can also extend {@link RichFlatMapFunction} to gain access to other
-	 * features provided by the {@link RichFuntion} interface.
+	 * {@link CoFlatMapFunction#flatMap1} for each element of the first input
+	 * and {@link CoFlatMapFunction#flatMap2} for each element of the second
+	 * input. Each CoFlatMapFunction call returns any number of elements
+	 * including none. The user can also extend {@link RichFlatMapFunction} to
+	 * gain access to other features provided by the {@link RichFuntion}
+	 * interface.
 	 * 
 	 * @param coFlatMapper
 	 *            The CoFlatMapFunction used to jointly transform the two input
@@ -226,13 +227,13 @@ public class ConnectedDataStream<IN1, IN2> {
 	}
 
 	/**
-	 * Applies a CoGroup transformation on the connected DataStreams. The
-	 * transformation calls the {@link CoGroupFunction#coGroupache} method for
-	 * for time aligned windows of the two data streams. System time is used as
+	 * Applies a CoWindow transformation on the connected DataStreams. The
+	 * transformation calls the {@link CoWindowFunction#coWindow} method for for
+	 * time aligned windows of the two data streams. System time is used as
 	 * default to compute windows.
 	 * 
-	 * @param coGroupFunction
-	 *            The {@link CoGroupFunction} that will be applied for the time
+	 * @param coWindowFunction
+	 *            The {@link CoWindowFunction} that will be applied for the time
 	 *            windows.
 	 * @param windowSize
 	 *            Size of the windows that will be aligned for both streams in
@@ -243,20 +244,20 @@ public class ConnectedDataStream<IN1, IN2> {
 	 * 
 	 * @return The transformed {@link DataStream}.
 	 */
-	public <OUT> SingleOutputStreamOperator<OUT, ?> windowReduceGroup(
-			CoGroupFunction<IN1, IN2, OUT> coGroupFunction, long windowSize, long slideInterval) {
-		return windowReduceGroup(coGroupFunction, windowSize, slideInterval,
+	public <OUT> SingleOutputStreamOperator<OUT, ?> windowReduce(
+			CoWindowFunction<IN1, IN2, OUT> coWindowFunction, long windowSize, long slideInterval) {
+		return windowReduce(coWindowFunction, windowSize, slideInterval,
 				new DefaultTimeStamp<IN1>(), new DefaultTimeStamp<IN2>());
 	}
 
 	/**
-	 * Applies a CoGroup transformation on the connected DataStreams. The
-	 * transformation calls the {@link CoGroupFunction#coGroupache} method for
-	 * for time aligned windows of the two data streams. The user can implement
+	 * Applies a CoWindow transformation on the connected DataStreams. The
+	 * transformation calls the {@link CoWindowFunction#coWindow} method for
+	 * time aligned windows of the two data streams. The user can implement
 	 * their own time stamps or use the system time by default.
 	 * 
-	 * @param coGroupFunction
-	 *            The {@link CoGroupFunction} that will be applied for the time
+	 * @param coWindowFunction
+	 *            The {@link CoWindowFunction} that will be applied for the time
 	 *            windows.
 	 * @param windowSize
 	 *            Size of the windows that will be aligned for both streams. If
@@ -272,8 +273,8 @@ public class ConnectedDataStream<IN1, IN2> {
 	 *            User defined time stamps for the second input.
 	 * @return The transformed {@link DataStream}.
 	 */
-	public <OUT> SingleOutputStreamOperator<OUT, ?> windowReduceGroup(
-			CoGroupFunction<IN1, IN2, OUT> coGroupFunction, long windowSize, long slideInterval,
+	public <OUT> SingleOutputStreamOperator<OUT, ?> windowReduce(
+			CoWindowFunction<IN1, IN2, OUT> coWindowFunction, long windowSize, long slideInterval,
 			TimeStamp<IN1> timestamp1, TimeStamp<IN2> timestamp2) {
 
 		if (windowSize < 1) {
@@ -283,15 +284,15 @@ public class ConnectedDataStream<IN1, IN2> {
 			throw new IllegalArgumentException("Slide interval must be positive");
 		}
 
-		FunctionTypeWrapper<IN1> in1TypeWrapper = new FunctionTypeWrapper<IN1>(coGroupFunction,
-				CoGroupFunction.class, 0);
-		FunctionTypeWrapper<IN2> in2TypeWrapper = new FunctionTypeWrapper<IN2>(coGroupFunction,
-				CoGroupFunction.class, 1);
-		FunctionTypeWrapper<OUT> outTypeWrapper = new FunctionTypeWrapper<OUT>(coGroupFunction,
-				CoGroupFunction.class, 2);
+		FunctionTypeWrapper<IN1> in1TypeWrapper = new FunctionTypeWrapper<IN1>(coWindowFunction,
+				CoWindowFunction.class, 0);
+		FunctionTypeWrapper<IN2> in2TypeWrapper = new FunctionTypeWrapper<IN2>(coWindowFunction,
+				CoWindowFunction.class, 1);
+		FunctionTypeWrapper<OUT> outTypeWrapper = new FunctionTypeWrapper<OUT>(coWindowFunction,
+				CoWindowFunction.class, 2);
 
-		return addCoFunction("coWindowReduce", coGroupFunction, in1TypeWrapper, in2TypeWrapper,
-				outTypeWrapper, new CoGroupInvokable<IN1, IN2, OUT>(coGroupFunction, windowSize,
+		return addCoFunction("coWindowReduce", coWindowFunction, in1TypeWrapper, in2TypeWrapper,
+				outTypeWrapper, new CoWindowInvokable<IN1, IN2, OUT>(coWindowFunction, windowSize,
 						slideInterval, timestamp1, timestamp2));
 	}
 

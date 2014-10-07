@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.invokable.operator.co;
 
 import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
@@ -41,6 +42,8 @@ public abstract class CoInvokable<IN1, IN2, OUT> extends StreamInvokable<IN1, OU
 	protected StreamRecord<IN2> reuse2;
 	protected StreamRecordSerializer<IN1> srSerializer1;
 	protected StreamRecordSerializer<IN2> srSerializer2;
+	protected TypeSerializer<IN1> serializer1;
+	protected TypeSerializer<IN2> serializer2;
 
 	public void initialize(Collector<OUT> collector,
 			CoReaderIterator<StreamRecord<IN1>, StreamRecord<IN2>> recordIterator,
@@ -55,6 +58,8 @@ public abstract class CoInvokable<IN1, IN2, OUT> extends StreamInvokable<IN1, OU
 		this.srSerializer1 = serializer1;
 		this.srSerializer2 = serializer2;
 		this.isMutable = isMutable;
+		this.serializer1 = srSerializer1.getObjectSerializer();
+		this.serializer2 = srSerializer2.getObjectSerializer();
 	}
 
 	protected void resetReuseAll() {
