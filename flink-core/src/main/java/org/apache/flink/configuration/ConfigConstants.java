@@ -354,6 +354,11 @@ public final class ConfigConstants {
 	 * Log lifecycle events
 	 */
 	public static final String AKKA_LOG_LIFECYCLE_EVENTS = "akka.log.lifecycle.events";
+
+	/**
+	 * Log level for akka
+	 */
+	public static final String AKKA_LOG_LEVEL = "akka.loglevel";
 	
 	// ----------------------------- Miscellaneous ----------------------------
 	
@@ -619,6 +624,8 @@ public final class ConfigConstants {
 	public static boolean DEFAULT_AKKA_LOG_LIFECYCLE_EVENTS = false;
 
 	public static String DEFAULT_AKKA_FRAMESIZE = "10485760b";
+
+	public static String DEFAULT_AKKA_LOG_LEVEL = "OFF";
 	
 
 	// ----------------------------- LocalExecution ----------------------------

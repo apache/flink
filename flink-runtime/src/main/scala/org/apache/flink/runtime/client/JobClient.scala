@@ -49,7 +49,6 @@ class JobClient(jobManagerURL: String) extends Actor with ActorLogMessages with 
     case cancelJob: CancelJob =>
       jobManager forward cancelJob
     case SubmitJobAndWait(jobGraph, listen) =>
-      println("Submit job and wait.")
       val listener = context.actorOf(Props(classOf[JobClientListener], sender()))
       jobManager.tell(SubmitJob(jobGraph, listenToEvents = listen, detach = false), listener)
     case RequestBlobManagerPort =>
@@ -62,6 +61,7 @@ class JobClientListener(client: ActorRef) extends Actor with ActorLogMessages wi
     case SubmissionFailure(_, t) =>
       client ! Failure(t)
       self ! PoisonPill
+    case SubmissionSuccess(_) =>
     case JobResultSuccess(_, duration, accumulatorResults) =>
       client ! new JobExecutionResult(duration, accumulatorResults)
       self ! PoisonPill

@@ -77,6 +77,9 @@ object AkkaUtils {
 
     val logLifecycleEvents = if (lifecycleEvents) "on" else "off"
 
+    val logLevel = configuration.getString(ConfigConstants.AKKA_LOG_LEVEL,
+      ConfigConstants.DEFAULT_AKKA_LOG_LEVEL)
+
     val configString = s"""akka.remote.transport-failure-detector.heartbeat-interval =
                        $transportHeartbeatInterval
        |akka.remote.transport-failure-detector.acceptable-heartbeat-pause = $transportHeartbeatPause
@@ -92,6 +95,8 @@ object AkkaUtils {
        |akka.remote.log-remote-lifecycle-events = $logLifecycleEvents
        |akka.log-dead-letters = $logLifecycleEvents
        |akka.log-dead-letters-during-shutdown = $logLifecycleEvents
+       |akka.loglevel = "$logLevel"
+       |akka.stdout-loglevel = "$logLevel"
      """.stripMargin
 
     getDefaultActorSystemConfigString + configString
