@@ -147,14 +147,7 @@ public final class TupleComparator<T extends Tuple> extends TupleComparatorBase<
 	public int extractKeys(Object record, Object[] target, int index) {
 		int localIndex = index;
 		for(int i = 0; i < comparators.length; i++) {
-			// handle nested case
-			if(comparators[i] instanceof TupleComparator || comparators[i] instanceof PojoComparator) {
-				localIndex += comparators[i].extractKeys(((Tuple) record).getField(keyPositions[i]), target, localIndex) -1;
-			} else {
-				// flat
-				target[localIndex] = ((Tuple) record).getField(keyPositions[i]);
-			}
-			localIndex++;
+			localIndex += comparators[i].extractKeys(((Tuple) record).getField(keyPositions[i]), target, localIndex);
 		}
 		return localIndex - index;
 	}

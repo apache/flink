@@ -17,7 +17,8 @@
  */
 package org.apache.flink.api.scala.typeutils
 
-import org.apache.flink.api.common.typeutils.{TypeComparator, TypeSerializer}
+import org.apache.flink.api.common.typeutils.{CompositeTypeComparator, TypeComparator,
+TypeSerializer}
 import org.apache.flink.api.java.typeutils.runtime.TupleComparatorBase
 import org.apache.flink.core.memory.MemorySegment
 import org.apache.flink.types.{KeyFieldOutOfBoundsException, NullKeyFieldException}
@@ -140,9 +141,16 @@ class CaseClassComparator[T <: Product](
   }
 
   def extractKeys(value: AnyRef, target: Array[AnyRef], index: Int) = {
-    for (i <- 0 until keyPositions.length ) {
-      target(index + i) = value.asInstanceOf[T].productElement(keyPositions(i)).asInstanceOf[AnyRef]
+    val in = value.asInstanceOf[T]
+
+    var localIndex: Int = index
+    for (i <- 0 until comparators.length) {
+      localIndex += comparators(i).extractKeys(
+        in.productElement(keyPositions(i)),
+        target,
+        localIndex)
     }
-    keyPositions.length
+
+    localIndex - index
   }
 }
