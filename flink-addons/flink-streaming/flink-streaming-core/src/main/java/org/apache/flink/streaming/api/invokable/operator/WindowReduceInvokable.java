@@ -77,6 +77,11 @@ public class WindowReduceInvokable<OUT> extends BatchReduceInvokable<OUT> {
 				}
 			}
 		}
+		
+		@Override
+		public void reduceBatch() {
+			reduce(this);
+		}
 
 		@Override
 		protected boolean miniBatchEnd() {

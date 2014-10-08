@@ -83,13 +83,13 @@ public class CoBatchReduceInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2,
 	@Override
 	protected void handleStream1() throws Exception {
 		StreamBatch<IN1> batch1 = getBatch1(reuse1);
-		reduceToBuffer1(reuse1, batch1);
+		reduceToBuffer1(reuse1.getObject(), batch1);
 	}
 
 	@Override
 	protected void handleStream2() throws Exception {
 		StreamBatch<IN2> batch2 = getBatch2(reuse2);
-		reduceToBuffer2(reuse2, batch2);
+		reduceToBuffer2(reuse2.getObject(), batch2);
 	}
 
 	protected StreamBatch<IN1> getBatch1(StreamRecord<IN1> next) {
@@ -172,9 +172,8 @@ public class CoBatchReduceInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2,
 		this.batch2 = new StreamBatch<IN2>(batchSize2, slideSize2);
 	}
 
-	public void reduceToBuffer1(StreamRecord<IN1> next, StreamBatch<IN1> streamBatch)
-			throws Exception {
-		IN1 nextValue = next.getObject();
+	public void reduceToBuffer1(IN1 nextValue, StreamBatch<IN1> streamBatch) throws Exception {
+
 		if (streamBatch.currentValue != null) {
 			streamBatch.currentValue = coReducer.reduce1(
 					serializer1.copy(streamBatch.currentValue), serializer1.copy(nextValue));
@@ -192,9 +191,8 @@ public class CoBatchReduceInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2,
 		}
 	}
 
-	public void reduceToBuffer2(StreamRecord<IN2> next, StreamBatch<IN2> streamBatch)
-			throws Exception {
-		IN2 nextValue = next.getObject();
+	public void reduceToBuffer2(IN2 nextValue, StreamBatch<IN2> streamBatch) throws Exception {
+
 		if (streamBatch.currentValue != null) {
 			streamBatch.currentValue = coReducer.reduce2(
 					serializer2.copy(streamBatch.currentValue), serializer2.copy(nextValue));
