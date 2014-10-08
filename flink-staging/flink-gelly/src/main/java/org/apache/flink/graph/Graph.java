@@ -18,7 +18,9 @@
 
 package flink.graphs;
 
+import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.util.Collector;
 
 public class Graph<K extends Comparable<K>, VV, EV> {
 
@@ -26,15 +28,23 @@ public class Graph<K extends Comparable<K>, VV, EV> {
 	
 	private final DataSet<Edge<K, EV>> edges;
 	
+	/** a graph is directed by default */
+	private boolean isUndirected = false; 
 	
 	
 	public Graph(DataSet<Vertex<K, VV>> vertices, DataSet<Edge<K, EV>> edges) {
 		this.vertices = vertices;
 		this.edges = edges;
 	}
+	
+	public Graph(DataSet<Vertex<K, VV>> vertices, DataSet<Edge<K, EV>> edges, 
+			boolean undirected) {
+		this.vertices = vertices;
+		this.edges = edges;
+		this.isUndirected = undirected;
+	}
 
-	
-	
+
 	public DataSet<Vertex<K, VV>> getVertices() {
 		return vertices;
 	}
@@ -43,6 +53,32 @@ public class Graph<K extends Comparable<K>, VV, EV> {
 		return edges;
 	}
 	
+	/**
+	 * Convert the directed graph into an undirected graph
+	 * by adding all inverse-direction edges.
+	 * 
+	 */
+	public Graph<K, VV, EV> getUndirected() throws UnsupportedOperationException {
+		if (this.isUndirected) {
+			throw new UnsupportedOperationException("");
+		}
+		else {
+			DataSet<Edge<K, EV>> undirectedEdges = edges.flatMap(
+					new FlatMapFunction<Edge<K,EV>, Edge<K,EV>>() {
+						private static final long serialVersionUID = 1L;
+
+						public void flatMap(Edge<K, EV> edge, Collector<Edge<K, EV>> out){
+							out.collect(edge);
+							out.collect(edge.reverse());
+						}
+			});
+			return new Graph<K, VV, EV>(vertices, undirectedEdges);
+		}
+	}
 	
-	
+	public static <K extends Comparable<K>, VV, EV> Graph<K, VV, EV> 
+		create(DataSet<Vertex<K, VV>> vertices, DataSet<Edge<K, EV>> edges) {
+		return new Graph<>(vertices, edges);
+		
+	}
 }
