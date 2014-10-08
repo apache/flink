@@ -23,7 +23,7 @@ import java.lang.management.{GarbageCollectorMXBean, MemoryMXBean, ManagementFac
 import java.net.{InetAddress, InetSocketAddress}
 import java.util
 import java.util.concurrent.{FutureTask, TimeUnit}
-import scala.collection.JavaConverters._
+
 import akka.actor._
 import akka.pattern.ask
 import org.apache.flink.api.common.cache.DistributedCache
@@ -34,30 +34,34 @@ import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.blob.BlobCache
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager
 import org.apache.flink.runtime.execution.{CancelTaskException, ExecutionState, RuntimeEnvironment}
-import org.apache.flink.runtime.execution.librarycache.{BlobLibraryCacheManager, FallbackLibraryCacheManager, LibraryCacheManager}
+import org.apache.flink.runtime.execution.librarycache.{BlobLibraryCacheManager,
+FallbackLibraryCacheManager, LibraryCacheManager}
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
 import org.apache.flink.runtime.filecache.FileCache
 import org.apache.flink.runtime.instance.{InstanceConnectionInfo, HardwareDescription, InstanceID}
 import org.apache.flink.runtime.io.disk.iomanager.{IOManagerAsync}
 import org.apache.flink.runtime.io.network.netty.NettyConnectionManager
-import org.apache.flink.runtime.io.network.{NetworkConnectionManager, LocalConnectionManager, ChannelManager}
+import org.apache.flink.runtime.io.network.{NetworkConnectionManager, LocalConnectionManager,
+ChannelManager}
 import org.apache.flink.runtime.jobgraph.JobID
 import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager
 import org.apache.flink.runtime.messages.JobManagerMessages.UpdateTaskExecutionState
-import org.apache.flink.runtime.messages.RegistrationMessages.{RegisterTaskManager, AcknowledgeRegistration}
+import org.apache.flink.runtime.messages.RegistrationMessages.{RegisterTaskManager,
+AcknowledgeRegistration}
 import org.apache.flink.runtime.messages.TaskManagerMessages._
-import org.apache.flink.runtime.messages.TaskManagerProfilerMessages.{UnmonitorTask, MonitorTask, RegisterProfilingListener}
+import org.apache.flink.runtime.messages.TaskManagerProfilerMessages.{UnmonitorTask, MonitorTask,
+RegisterProfilingListener}
 import org.apache.flink.runtime.net.NetUtils
 import org.apache.flink.runtime.profiling.ProfilingUtils
 import org.apache.flink.runtime.util.EnvironmentInformation
 import org.apache.flink.util.ExceptionUtils
 import org.slf4j.LoggerFactory
+
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.Failure
 import scala.util.Success
-import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor
 
 /**
  * 
@@ -76,17 +80,22 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor
  */
 class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkkaURL: String,
                   val taskManagerConfig: TaskManagerConfiguration,
-                  val networkConnectionConfig: NetworkConnectionConfiguration)
+                  val networkConfig: NetworkEnvironmentConfiguration)
   extends Actor with ActorLogMessages with ActorLogging {
 
   import context._
   import taskManagerConfig.{timeout => tmTimeout, _}
+  import scala.collection.JavaConverters._
   implicit val timeout = tmTimeout
 
   log.info(s"Starting task manager at ${self.path}.")
 
+  val REGISTRATION_DELAY = 0 seconds
+  val REGISTRATION_INTERVAL = 10 seconds
+  val MAX_REGISTRATION_ATTEMPTS = 10
+  val HEARTBEAT_INTERVAL = 5000 millisecond
+
   TaskManager.checkTempDirs(tmpDirPaths)
-   
   val ioManager = new IOManagerAsync(tmpDirPaths)
   val memoryManager = new DefaultMemoryManager(memorySize, numberOfSlots, pageSize)
   val bcVarManager = new BroadcastVariableManager();
@@ -98,13 +107,13 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
   val waitForRegistration = scala.collection.mutable.Set[ActorRef]();
 
   val profiler = profilingInterval match {
-    case Some(interval) => 
-              Some(TaskManager.startProfiler(self.path.toSerializationFormat, interval))
+    case Some(interval) => Some(TaskManager.startProfiler(self.path.toSerializationFormat,
+      interval))
     case None => None
   }
 
-  var libraryCacheManager: LibraryCacheManager = _
-  var channelManager: Option[ChannelManager] = None
+  var libraryCacheManager: LibraryCacheManager = null
+  var networkEnvironment: Option[NetworkEnvironment] = None
   var registrationScheduler: Option[Cancellable] = None
   var registrationAttempts: Int = 0
   var registered: Boolean = false
@@ -133,7 +142,7 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
       _.cancel()
     }
 
-    channelManager foreach {
+    networkEnvironment foreach {
       channelManager =>
         try {
           channelManager.shutdown()
@@ -163,7 +172,6 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
         TaskManager.REGISTRATION_DELAY, TaskManager.REGISTRATION_INTERVAL,
         self, RegisterAtJobManager))
   }
-
 
   override def receiveWithLogMessages: Receive = {
     case RegisterAtJobManager => {
@@ -197,7 +205,7 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
         log.info(s"TaskManager successfully registered at JobManager ${
           currentJobManager.path.toString }.")
 
-        setupChannelManager()
+        setupNetworkEnvironment()
         setupLibraryCacheManager(blobPort)
 
         heartbeatScheduler = Some(context.system.scheduler.schedule(
@@ -217,6 +225,10 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
     
     case SubmitTask(tdd) => {
       submitTask(tdd)
+    }
+
+    case UpdateTask(executionId, resultId, partitionInfo) => {
+      updateTask(executionId, resultId, partitionInfo)
     }
 
     case CancelTask(executionID) => {
@@ -336,15 +348,15 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
           executionID, timeout)
 
       val env = new RuntimeEnvironment(task, tdd, userCodeClassLoader, memoryManager,
-          ioManager, splitProvider, currentJobManager, bcVarManager)
+          ioManager, splitProvider, currentJobManager, bcVarManager, networkEnvironment.get)
 
-      task.setEnvironment(env)
+        task.setEnvironment(env)
 
-      // register the task with the network stack and profilers
-      channelManager match {
-          case Some(cm) => cm.register(task)
-          case None => throw new RuntimeException("ChannelManager has not been properly " +
-            "instantiated.")
+        // register the task with the network stack and profilers
+        networkEnvironment match {
+          case Some(ne) => ne.registerTask(task)
+          case None => throw new RuntimeException(
+            "Network environment has not been properly instantiated.")
         }
 
         val jobConfig = tdd.getJobConfiguration
@@ -391,36 +403,63 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
 
           sender ! new TaskOperationResult(executionID, false, message)
       }
+    }
   }
-  
-  private def setupChannelManager(): Unit = {
-    //shutdown existing channel manager
-    channelManager foreach {
-      cm =>
+
+  private def updateTask(executionId: ExecutionAttemptID, resultId: IntermediateDataSetID, partitionInfo: PartitionInfo) : Unit = {
+     partitionInfo.getProducerLocation match {
+        case PartitionInfo.PartitionLocation.UNKNOWN =>
+          sender ! TaskOperationResult(executionId, false,
+            "Tried to update task with UNKNOWN channel.")
+
+        case _ =>
+          runningTasks.get(executionId) match {
+            case Some(task) =>
+              Option(task.getEnvironment.getReaderById(resultId)) match {
+                case Some(reader) =>
+                  Future {
+                    try {
+                      reader.updateInputChannel(partitionInfo)
+                    } catch {
+                      case t: Throwable =>
+                        log.error("Task update failure: {} Trying to cancel task.", t.getMessage)
+
+                        try {
+                          task.cancelExecution()
+                        } catch {
+                          case t: Throwable =>
+                            log.error("Failed canceling task with execution ID {} after task" +
+                              "update failure: {}.", executionId, t.getMessage)
+                        }
+                    }
+                  }
+                  sender ! TaskOperationResult(executionId, true)
+                case None => sender ! TaskOperationResult(executionId, false, "No reader with ID " +
+                  resultId + " was found.");
+              }
+
+            case None => sender ! TaskOperationResult(executionId, false, "No task with execution" +
+              "ID " + executionId + " was found.");
+          }
+      }
+  }
+
+  def setupNetworkEnvironment(): Unit = {
+   //shutdown existing network environment
+    networkEnvironment foreach {
+      ne =>
         try {
-          cm.shutdown()
+          ne.shutdown()
         } catch {
-          case t: Throwable => log.error(t, "ChannelManager did not shutdown properly.")
+          case t: Throwable => log.error(t, "Network environment did not shutdown properly.")
         }
     }
 
     try {
-      import networkConnectionConfig._
-
-      val connectionManager: NetworkConnectionManager = networkConnectionConfig match {
-        case _: LocalNetworkConfiguration => new LocalConnectionManager
-        case ClusterNetworkConfiguration(numBuffers, bufferSize, numInThreads,
-        numOutThreads, lowWaterMark, highWaterMark) =>
-          new NettyConnectionManager(connectionInfo.address(),
-          connectionInfo.dataPort(), bufferSize, numInThreads, numOutThreads, lowWaterMark,
-          highWaterMark)
-      }
-
-      channelManager = Some(new ChannelManager(currentJobManager, connectionInfo, numBuffers,
-        bufferSize, connectionManager, timeout))
+      networkEnvironment = Some(new NetworkEnvironment(currentJobManager, timeout, networkConfig))
     } catch {
       case ioe: IOException =>
-        log.error(ioe, "Failed to instantiate ChannelManager.")
+        log.error(ioe, "Failed to instantiate network environment.")
         throw new RuntimeException("Failed to instantiate ChannelManager.", ioe)
     }
   }
@@ -485,8 +524,8 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
       }
     }
 
-    channelManager foreach {
-      _.unregister(task.getExecutionId, task)
+    networkEnvironment foreach {
+      _.unregisterTask(task)
     }
 
     profiler foreach {
@@ -524,7 +563,6 @@ object TaskManager {
   val MAX_REGISTRATION_ATTEMPTS = 10
   val HEARTBEAT_INTERVAL = 5000 millisecond
 
-  
   def main(args: Array[String]): Unit = {
     val (hostname, port, configuration) = parseArgs(args)
 
@@ -580,16 +618,16 @@ object TaskManager {
                                localExecution: Boolean = false): (ActorSystem, ActorRef) = {
     implicit val actorSystem = AkkaUtils.createActorSystem(hostname, port, configuration)
 
-    val (connectionInfo, jobManagerURL, taskManagerConfig, networkConnectionConfiguration) =
+    val (connectionInfo, jobManagerURL, taskManagerConfig, networkConfig) =
       parseConfiguration(hostname, configuration, localExecution)
 
     (actorSystem, startActor(connectionInfo, jobManagerURL, taskManagerConfig,
-      networkConnectionConfiguration))
+      networkConfig))
   }
 
   def parseConfiguration(hostname: String, configuration: Configuration,
                          localExecution: Boolean = false):
-  (InstanceConnectionInfo, String, TaskManagerConfiguration, NetworkConnectionConfiguration) = {
+  (InstanceConnectionInfo, String, TaskManagerConfiguration, NetworkEnvironmentConfiguration) = {
     val dataport = configuration.getInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY,
       ConfigConstants.DEFAULT_TASK_MANAGER_DATA_PORT) match {
       case 0 => NetUtils.getAvailablePort
@@ -624,29 +662,14 @@ object TaskManager {
     val tmpDirs = configuration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
       ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(",|" + File.pathSeparator)
 
-    val numBuffers = configuration.getInteger(ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY,
+    val numNetworkBuffers = configuration.getInteger(
+      ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY,
       ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_NUM_BUFFERS)
-    val bufferSize = configuration.getInteger(ConfigConstants.TASK_MANAGER_NETWORK_BUFFER_SIZE_KEY,
-      ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_BUFFER_SIZE)
 
-    val networkConnectionConfiguration = if(localExecution){
-      LocalNetworkConfiguration(numBuffers, bufferSize)
-    } else {
-      val numInThreads = configuration.getInteger(
-        ConfigConstants.TASK_MANAGER_NET_NUM_IN_THREADS_KEY,
-        ConfigConstants.DEFAULT_TASK_MANAGER_NET_NUM_IN_THREADS)
-      val numOutThreads = configuration.getInteger(ConfigConstants
-        .TASK_MANAGER_NET_NUM_OUT_THREADS_KEY,
-        ConfigConstants.DEFAULT_TASK_MANAGER_NET_NUM_OUT_THREADS)
-      val lowWaterMark = configuration.getInteger(ConfigConstants
-        .TASK_MANAGER_NET_NETTY_LOW_WATER_MARK,
-        ConfigConstants.DEFAULT_TASK_MANAGER_NET_NETTY_LOW_WATER_MARK)
-      val highWaterMark = configuration.getInteger(ConfigConstants
-        .TASK_MANAGER_NET_NETTY_HIGH_WATER_MARK,
-        ConfigConstants.DEFAULT_TASK_MANAGER_NET_NETTY_HIGH_WATER_MARK)
-
-      ClusterNetworkConfiguration(numBuffers, bufferSize, numInThreads, numOutThreads,
-        lowWaterMark, highWaterMark)
+    val nettyConfig = localExecution match {
+      case true => None
+      case false => Some(new NettyConfig(
+        connectionInfo.address(), connectionInfo.dataPort(), pageSize, configuration))
     }
 
     val networkBufferMem = if(localExecution) 0 else numBuffers * bufferSize;
@@ -662,7 +685,6 @@ object TaskManager {
       ((EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag - networkBufferMem ) * fraction)
         .toLong
     }
-
 
     val memoryLoggingIntervalMs = configuration.getBoolean(ConfigConstants
       .TASK_MANAGER_DEBUG_MEMORY_USAGE_START_LOG_THREAD,
@@ -691,15 +713,15 @@ object TaskManager {
     val taskManagerConfig = TaskManagerConfiguration(numberOfSlots, memorySize, pageSize,
       tmpDirs, cleanupInterval, memoryLoggingIntervalMs, profilingInterval, timeout)
 
-    (connectionInfo, jobManagerURL, taskManagerConfig, networkConnectionConfiguration)
+    (connectionInfo, jobManagerURL, taskManagerConfig, networkConfig)
   }
 
   def startActor(connectionInfo: InstanceConnectionInfo, jobManagerURL: String,
                  taskManagerConfig: TaskManagerConfiguration,
-                 networkConnectionConfiguration: NetworkConnectionConfiguration)
+                 networkConfig: NetworkEnvironmentConfiguration)
                 (implicit actorSystem: ActorSystem): ActorRef = {
     startActor(Props(new TaskManager(connectionInfo, jobManagerURL, taskManagerConfig,
-      networkConnectionConfiguration)))
+      networkConfig)))
   }
 
   def startActor(props: Props)(implicit actorSystem: ActorSystem): ActorRef = {

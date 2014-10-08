@@ -26,7 +26,7 @@ import org.apache.flink.core.memory.MemorySegment;
  * An asynchronous implementation of the {@link BlockChannelWriterWithCallback} that queues I/O requests
  * and calls a callback once they have been handled.
  */
-public class AsynchronousBlockWriterWithCallback extends AsynchronousFileIOChannel<WriteRequest> implements BlockChannelWriterWithCallback {
+public class AsynchronousBlockWriterWithCallback extends AsynchronousFileIOChannel<MemorySegment, WriteRequest> implements BlockChannelWriterWithCallback {
 	
 	/**
 	 * Creates a new asynchronous block writer for the given channel.
@@ -51,17 +51,6 @@ public class AsynchronousBlockWriterWithCallback extends AsynchronousFileIOChann
 	 */
 	@Override
 	public void writeBlock(MemorySegment segment) throws IOException {
-		// check the error state of this channel
-		checkErroneous();
-		
-		// write the current buffer and get the next one
-		this.requestsNotReturned.incrementAndGet();
-		if (this.closed || this.requestQueue.isClosed()) {
-			// if we found ourselves closed after the counter increment,
-			// decrement the counter again and do not forward the request
-			this.requestsNotReturned.decrementAndGet();
-			throw new IOException("The writer has been closed.");
-		}
-		this.requestQueue.add(new SegmentWriteRequest(this, segment));
+		addRequest(new SegmentWriteRequest(this, segment));
 	}
 }

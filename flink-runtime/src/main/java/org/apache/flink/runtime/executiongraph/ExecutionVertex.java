@@ -18,9 +18,25 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import static org.apache.flink.runtime.execution.ExecutionState.CANCELED;
-import static org.apache.flink.runtime.execution.ExecutionState.FAILED;
-import static org.apache.flink.runtime.execution.ExecutionState.FINISHED;
+import org.apache.flink.runtime.JobException;
+import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.deployment.PartitionConsumerDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.PartitionDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.PartitionInfo;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
+import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.instance.AllocatedSlot;
+import org.apache.flink.runtime.instance.Instance;
+import org.apache.flink.runtime.jobgraph.DistributionPattern;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.jobgraph.JobEdge;
+import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
+import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
+import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
+import org.slf4j.Logger;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -28,28 +44,17 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-import org.apache.flink.runtime.blob.BlobKey;
-import org.slf4j.Logger;
-import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.deployment.GateDeploymentDescriptor;
-import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
-import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.instance.AllocatedSlot;
-import org.apache.flink.runtime.instance.Instance;
-import org.apache.flink.runtime.jobgraph.DistributionPattern;
-import org.apache.flink.runtime.jobgraph.JobEdge;
-import org.apache.flink.runtime.jobgraph.JobID;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
-import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
-import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
-import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
+import static com.google.common.base.Preconditions.checkElementIndex;
+import static org.apache.flink.runtime.execution.ExecutionState.CANCELED;
+import static org.apache.flink.runtime.execution.ExecutionState.FAILED;
+import static org.apache.flink.runtime.execution.ExecutionState.FINISHED;
 
 /**
  * The ExecutionVertex is a parallel subtask of the execution. It may be executed once, or several times, each of
  * which time it spawns an {@link Execution}.
  */
 public class ExecutionVertex implements Serializable {
+
 	static final long serialVersionUID = 42L;
 
 	@SuppressWarnings("unused")
@@ -78,28 +83,29 @@ public class ExecutionVertex implements Serializable {
 	public ExecutionVertex(ExecutionJobVertex jobVertex, int subTaskIndex, IntermediateResult[] producedDataSets) {
 		this(jobVertex, subTaskIndex, producedDataSets, System.currentTimeMillis());
 	}
-	
+
 	public ExecutionVertex(ExecutionJobVertex jobVertex, int subTaskIndex, IntermediateResult[] producedDataSets, long createTimestamp) {
 		this.jobVertex = jobVertex;
 		this.subTaskIndex = subTaskIndex;
-		
+
 		this.resultPartitions = new IntermediateResultPartition[producedDataSets.length];
 		for (int i = 0; i < producedDataSets.length; i++) {
 			IntermediateResultPartition irp = new IntermediateResultPartition(producedDataSets[i], this, subTaskIndex);
 			this.resultPartitions[i] = irp;
 			producedDataSets[i].setPartition(subTaskIndex, irp);
 		}
-		
+
 		this.inputEdges = new ExecutionEdge[jobVertex.getJobVertex().getInputs().size()][];
 		this.priorExecutions = new CopyOnWriteArrayList<Execution>();
-		
+
 		this.currentExecution = new Execution(this, 0, createTimestamp);
-		
+
 		// create a co-location scheduling hint, if necessary
 		CoLocationGroup clg = jobVertex.getCoLocationGroup();
 		if (clg != null) {
 			this.locationConstraint = clg.getLocationConstraint(subTaskIndex);
-		} else {
+		}
+		else {
 			this.locationConstraint = null;
 		}
 	}
@@ -181,14 +187,14 @@ public class ExecutionVertex implements Serializable {
 		final DistributionPattern pattern = edge.getDistributionPattern();
 		final IntermediateResultPartition[] sourcePartitions = source.getPartitions();
 		
-		ExecutionEdge[] edges = null;
+		ExecutionEdge[] edges;
 		
 		switch (pattern) {
 			case POINTWISE:
 				edges = connectPointwise(sourcePartitions, inputNumber);
 				break;
-				
-			case BIPARTITE: 
+
+			case ALL_TO_ALL:
 				edges = connectAllToAll(sourcePartitions, inputNumber);
 				break;
 				
@@ -199,14 +205,11 @@ public class ExecutionVertex implements Serializable {
 		
 		this.inputEdges[inputNumber] = edges;
 		
-		ExecutionGraph graph = getExecutionGraph();
-		
 		// add the consumers to the source
 		// for now (until the receiver initiated handshake is in place), we need to register the 
 		// edges as the execution graph
 		for (ExecutionEdge ee : edges) {
 			ee.getSource().addConsumer(ee, consumerNumber);
-			graph.registerExecutionEdge(ee);
 		}
 	}
 	
@@ -224,15 +227,15 @@ public class ExecutionVertex implements Serializable {
 	private ExecutionEdge[] connectPointwise(IntermediateResultPartition[] sourcePartitions, int inputNumber) {
 		final int numSources = sourcePartitions.length;
 		final int parallelism = getTotalNumberOfParallelSubtasks();
-		
+	
 		// simple case same number of sources as targets
 		if (numSources == parallelism) {
 			return new ExecutionEdge[] { new ExecutionEdge(sourcePartitions[subTaskIndex], this, inputNumber) };
 		}
 		else if (numSources < parallelism) {
-			
+
 			int sourcePartition;
-			
+
 			// check if the pattern is regular or irregular
 			// we use int arithmetics for regular, and floating point with rounding for irregular
 			if (parallelism % numSources == 0) {
@@ -245,7 +248,7 @@ public class ExecutionVertex implements Serializable {
 				float factor = ((float) parallelism) / numSources;
 				sourcePartition = (int) (subTaskIndex / factor);
 			}
-			
+
 			return new ExecutionEdge[] { new ExecutionEdge(sourcePartitions[sourcePartition], this, inputNumber) };
 		}
 		else {
@@ -253,7 +256,7 @@ public class ExecutionVertex implements Serializable {
 				// same number of targets per source
 				int factor = numSources / parallelism;
 				int startIndex = subTaskIndex * factor;
-				
+
 				ExecutionEdge[] edges = new ExecutionEdge[factor];
 				for (int i = 0; i < factor; i++) {
 					edges[i] = new ExecutionEdge(sourcePartitions[startIndex + i], this, inputNumber);
@@ -262,17 +265,17 @@ public class ExecutionVertex implements Serializable {
 			}
 			else {
 				float factor = ((float) numSources) / parallelism;
-				
+
 				int start = (int) (subTaskIndex * factor);
 				int end = (subTaskIndex == getTotalNumberOfParallelSubtasks() - 1) ?
 						sourcePartitions.length : 
 						(int) ((subTaskIndex + 1) * factor);
-				
+
 				ExecutionEdge[] edges = new ExecutionEdge[end - start];
 				for (int i = 0; i < edges.length; i++) {
 					edges[i] = new ExecutionEdge(sourcePartitions[start + i], this, inputNumber);
 				}
-				
+
 				return edges;
 			}
 		}
@@ -305,16 +308,16 @@ public class ExecutionVertex implements Serializable {
 		}
 		return locations;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//   Actions
 	// --------------------------------------------------------------------------------------------
-	
+
 	public void resetForNewExecution() {
 		synchronized (priorExecutions) {
 			Execution execution = currentExecution;
 			ExecutionState state = execution.getState();
-			
+
 			if (state == FINISHED || state == CANCELED || state == FAILED) {
 				priorExecutions.add(execution);
 				currentExecution = new Execution(this, execution.getAttemptNumber()+1, System.currentTimeMillis());
@@ -323,110 +326,118 @@ public class ExecutionVertex implements Serializable {
 				if (grp != null) {
 					this.locationConstraint = grp.getLocationConstraint(subTaskIndex);
 				}
-				
-				// temp: assign new channel IDs.
-				ExecutionGraph graph = getExecutionGraph();
-				
-				for (ExecutionEdge[] input : this.inputEdges) {
-					for (ExecutionEdge e : input) {
-						e.assignNewChannelIDs();
-						graph.registerExecutionEdge(e);
-					}
-				}
 			}
 			else {
 				throw new IllegalStateException("Cannot reset a vertex that is in state " + state);
 			}
 		}
 	}
-	
-	public void scheduleForExecution(Scheduler scheduler, boolean queued) throws NoResourceAvailableException {
-		this.currentExecution.scheduleForExecution(scheduler, queued);
+
+	public boolean scheduleForExecution(Scheduler scheduler, boolean queued) throws NoResourceAvailableException {
+		return this.currentExecution.scheduleForExecution(scheduler, queued);
 	}
-	
+
 	public void deployToSlot(AllocatedSlot slot) throws JobException {
 		this.currentExecution.deployToSlot(slot);
 	}
-	
+
 	public void cancel() {
 		this.currentExecution.cancel();
 	}
-	
+
 	public void fail(Throwable t) {
 		this.currentExecution.fail(t);
 	}
-	
+
+	/**
+	 * Schedules or updates the {@link IntermediateResultPartition} consumer
+	 * tasks of the intermediate result partition with the given index.
+	 */
+	boolean scheduleOrUpdateConsumers(int partitionIndex) throws Exception {
+		checkElementIndex(partitionIndex, resultPartitions.length);
+
+		IntermediateResultPartition partition = resultPartitions[partitionIndex];
+
+		return currentExecution.scheduleOrUpdateConsumers(partition.getConsumers());
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//   Notifications from the Execution Attempt
 	// --------------------------------------------------------------------------------------------
-	
+
 	void executionFinished() {
 		jobVertex.vertexFinished(subTaskIndex);
 	}
-	
+
 	void executionCanceled() {
 		jobVertex.vertexCancelled(subTaskIndex);
 	}
-	
+
 	void executionFailed(Throwable t) {
 		jobVertex.vertexFailed(subTaskIndex, t);
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//   Miscellaneous
 	// --------------------------------------------------------------------------------------------
-	
+
 	/**
 	 * Simply forward this notification. This is for logs and event archivers.
-	 * 
-	 * @param executionId
-	 * @param newState
-	 * @param error
 	 */
 	void notifyStateTransition(ExecutionAttemptID executionId, ExecutionState newState, Throwable error) {
 		getExecutionGraph().notifyExecutionChange(getJobvertexId(), subTaskIndex, executionId, newState, error);
 	}
 	
 	TaskDeploymentDescriptor createDeploymentDescriptor(ExecutionAttemptID executionId, AllocatedSlot slot) {
-		//  create the input gate deployment descriptors
-		List<GateDeploymentDescriptor> inputGates = new ArrayList<GateDeploymentDescriptor>(inputEdges.length);
-		for (ExecutionEdge[] channels : inputEdges) {
-			inputGates.add(GateDeploymentDescriptor.fromEdges(channels));
-		}
-		
-		// create the output gate deployment descriptors
-		List<GateDeploymentDescriptor> outputGates = new ArrayList<GateDeploymentDescriptor>(resultPartitions.length);
+		// Produced intermediate results
+		List<PartitionDeploymentDescriptor> producedPartitions = new ArrayList<PartitionDeploymentDescriptor>(resultPartitions.length);
+
 		for (IntermediateResultPartition partition : resultPartitions) {
-			for (List<ExecutionEdge> channels : partition.getConsumers()) {
-				outputGates.add(GateDeploymentDescriptor.fromEdges(channels));
-			}
+			producedPartitions.add(PartitionDeploymentDescriptor.fromIntermediateResultPartition(partition));
 		}
-		
+
+		// Consumed intermediate results
+		List<PartitionConsumerDeploymentDescriptor> consumedPartitions = new ArrayList<PartitionConsumerDeploymentDescriptor>();
+
+		for (ExecutionEdge[] edges : inputEdges) {
+			PartitionInfo[] partitions = PartitionInfo.fromEdges(edges, slot);
+
+			// If the produced partition has multiple consumers registered, we
+			// need to request the one matching our sub task index.
+			// TODO Refactor after removing the consumers from the intermediate result partitions
+			int numConsumerEdges = edges[0].getSource().getConsumers().get(0).size();
+
+			int queueToRequest = subTaskIndex % numConsumerEdges;
+
+			IntermediateDataSetID resultId = edges[0].getSource().getIntermediateResult().getId();
+
+			consumedPartitions.add(new PartitionConsumerDeploymentDescriptor(resultId, partitions, queueToRequest));
+		}
+
 		List<BlobKey> jarFiles = getExecutionGraph().getRequiredJarFiles();
-		
-		return new TaskDeploymentDescriptor(getJobId(), getJobvertexId(), executionId, getTaskName(), 
-				subTaskIndex, getTotalNumberOfParallelSubtasks(), 
-				getExecutionGraph().getJobConfiguration(), jobVertex.getJobVertex().getConfiguration(),
-				jobVertex.getJobVertex().getInvokableClassName(), outputGates, inputGates, jarFiles, slot.getSlotNumber());
+
+		return new TaskDeploymentDescriptor(getJobId(), getJobvertexId(), executionId, getTaskName(),
+				subTaskIndex, getTotalNumberOfParallelSubtasks(), getExecutionGraph().getJobConfiguration(),
+				jobVertex.getJobVertex().getConfiguration(), jobVertex.getJobVertex().getInvokableClassName(),
+				producedPartitions, consumedPartitions, jarFiles, slot.getSlotNumber());
 	}
-	
-	
+
 	// --------------------------------------------------------------------------------------------
 	//  Utilities
 	// --------------------------------------------------------------------------------------------
-	
+
 	/**
 	 * Creates a simple name representation in the style 'taskname (x/y)', where
 	 * 'taskname' is the name as returned by {@link #getTaskName()}, 'x' is the parallel
 	 * subtask index as returned by {@link #getParallelSubtaskIndex()}{@code + 1}, and 'y' is the total
 	 * number of tasks, as returned by {@link #getTotalNumberOfParallelSubtasks()}.
-	 * 
+	 *
 	 * @return A simple name representation.
 	 */
 	public String getSimpleName() {
 		return getTaskName() + " (" + (getParallelSubtaskIndex()+1) + '/' + getTotalNumberOfParallelSubtasks() + ')';
 	}
-	
+
 	@Override
 	public String toString() {
 		return getSimpleName();

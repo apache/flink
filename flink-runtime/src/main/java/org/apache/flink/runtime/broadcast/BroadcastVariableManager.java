@@ -23,7 +23,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
-import org.apache.flink.runtime.io.network.api.MutableReader;
+import org.apache.flink.runtime.io.network.api.reader.MutableReader;
 import org.apache.flink.runtime.operators.RegularPactTask;
 
 public class BroadcastVariableManager {

@@ -64,7 +64,7 @@ public class JobTaskVertexTest {
 		AbstractJobVertex target1= new AbstractJobVertex("target1");
 		AbstractJobVertex target2 = new AbstractJobVertex("target2");
 		target1.connectNewDataSetAsInput(source, DistributionPattern.POINTWISE);
-		target2.connectDataSetAsInput(source.getProducedDataSets().get(0), DistributionPattern.BIPARTITE);
+		target2.connectDataSetAsInput(source.getProducedDataSets().get(0), DistributionPattern.ALL_TO_ALL);
 		
 		assertTrue(source.isInputVertex());
 		assertFalse(source.isOutputVertex());

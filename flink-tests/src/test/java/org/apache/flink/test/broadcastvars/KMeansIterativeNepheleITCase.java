@@ -27,7 +27,6 @@ import org.apache.flink.api.java.record.io.CsvInputFormat;
 import org.apache.flink.api.java.record.operators.ReduceOperator.WrappingReduceFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.io.network.channels.ChannelType;
 import org.apache.flink.runtime.iterative.task.IterationHeadPactTask;
 import org.apache.flink.runtime.iterative.task.IterationIntermediatePactTask;
 import org.apache.flink.runtime.iterative.task.IterationTailPactTask;
@@ -288,22 +287,22 @@ public class KMeansIterativeNepheleITCase extends RecordAPITestBase {
 		OutputFormatVertex output = createOutput(jobGraph, resultPath, numSubTasks, serializer);
 
 		// -- edges ------------------------------------------------------------------------------------------------
-		JobGraphUtils.connect(points, mapper, ChannelType.NETWORK, DistributionPattern.POINTWISE);
+		JobGraphUtils.connect(points, mapper, DistributionPattern.POINTWISE);
 		
-		JobGraphUtils.connect(centers, head, ChannelType.NETWORK, DistributionPattern.POINTWISE);
+		JobGraphUtils.connect(centers, head, DistributionPattern.POINTWISE);
 		
-		JobGraphUtils.connect(head, mapper, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
+		JobGraphUtils.connect(head, mapper, DistributionPattern.ALL_TO_ALL);
 		new TaskConfig(mapper.getConfiguration()).setBroadcastGateIterativeWithNumberOfEventsUntilInterrupt(0, numSubTasks);
 		new TaskConfig(mapper.getConfiguration()).setInputCached(0, true);
 		new TaskConfig(mapper.getConfiguration()).setRelativeInputMaterializationMemory(0,
 				MEMORY_FRACTION_PER_CONSUMER);
 
-		JobGraphUtils.connect(mapper, reducer, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
+		JobGraphUtils.connect(mapper, reducer, DistributionPattern.ALL_TO_ALL);
 		new TaskConfig(reducer.getConfiguration()).setGateIterativeWithNumberOfEventsUntilInterrupt(0, numSubTasks);
 		
-		JobGraphUtils.connect(head, output, ChannelType.NETWORK, DistributionPattern.POINTWISE);
+		JobGraphUtils.connect(head, output, DistributionPattern.POINTWISE);
 		
-		JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
+		JobGraphUtils.connect(head, sync, DistributionPattern.ALL_TO_ALL);
 
 		// -- instance sharing -------------------------------------------------------------------------------------
 		

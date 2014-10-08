@@ -18,23 +18,18 @@
 
 package org.apache.flink.runtime.taskmanager;
 
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.concurrent.atomic.AtomicReference;
-
 import akka.actor.ActorRef;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
-import org.apache.flink.runtime.deployment.GateDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.PartitionConsumerDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.PartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.RuntimeEnvironment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.network.MockNetworkEnvironment;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -43,6 +38,19 @@ import org.apache.flink.runtime.memorymanager.MemoryManager;
 import org.apache.flink.util.ExceptionUtils;
 import org.junit.Test;
 import org.mockito.Matchers;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.concurrent.atomic.AtomicReference;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 public class TaskTest {
 
@@ -257,16 +265,16 @@ public class TaskTest {
 			
 			TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(jid, vid, eid, "TestTask", 2, 7,
 					new Configuration(), new Configuration(), TestInvokableCorrect.class.getName(),
-					Collections.<GateDeploymentDescriptor>emptyList(), 
-					Collections.<GateDeploymentDescriptor>emptyList(),
+					Collections.<PartitionDeploymentDescriptor>emptyList(),
+					Collections.<PartitionConsumerDeploymentDescriptor>emptyList(),
 					new ArrayList<BlobKey>(), 0);
 			
 			Task task = new Task(jid, vid, 2, 7, eid, "TestTask", taskManager);
 			
-			RuntimeEnvironment env = new RuntimeEnvironment(task, tdd, getClass().getClassLoader(),
+			RuntimeEnvironment env = new RuntimeEnvironment(mock(ActorRef.class), task, tdd, getClass().getClassLoader(),
 					mock(MemoryManager.class), mock(IOManager.class), mock(InputSplitProvider.class),
-					mock(ActorRef.class), new BroadcastVariableManager());
-			
+					new BroadcastVariableManager(), MockNetworkEnvironment.getMock());
+
 			task.setEnvironment(env);
 			
 			assertEquals(ExecutionState.DEPLOYING, task.getExecutionState());
@@ -295,16 +303,16 @@ public class TaskTest {
 			
 			TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(jid, vid, eid, "TestTask", 2, 7,
 					new Configuration(), new Configuration(), TestInvokableWithException.class.getName(),
-					Collections.<GateDeploymentDescriptor>emptyList(), 
-					Collections.<GateDeploymentDescriptor>emptyList(),
+					Collections.<PartitionDeploymentDescriptor>emptyList(),
+					Collections.<PartitionConsumerDeploymentDescriptor>emptyList(),
 					new ArrayList<BlobKey>(), 0);
 			
 			Task task = new Task(jid, vid, 2, 7, eid, "TestTask", taskManager);
 			
-			RuntimeEnvironment env = new RuntimeEnvironment(task, tdd, getClass().getClassLoader(),
+			RuntimeEnvironment env = new RuntimeEnvironment(mock(ActorRef.class), task, tdd, getClass().getClassLoader(),
 					mock(MemoryManager.class), mock(IOManager.class), mock(InputSplitProvider.class),
-					mock(ActorRef.class), new BroadcastVariableManager());
-			
+					new BroadcastVariableManager(), MockNetworkEnvironment.getMock());
+
 			task.setEnvironment(env);
 			
 			assertEquals(ExecutionState.DEPLOYING, task.getExecutionState());

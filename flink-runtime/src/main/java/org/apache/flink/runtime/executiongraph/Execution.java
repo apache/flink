@@ -86,8 +86,8 @@ public class Execution implements Serializable {
 	
 	private static final int NUM_CANCEL_CALL_TRIES = 3;
 
-	public static FiniteDuration timeout = new FiniteDuration(
-			ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT, TimeUnit.SECONDS);
+	public static FiniteDuration timeout = new FiniteDuration(ConfigConstants
+			.DEFAULT_AKKA_ASK_TIMEOUT, TimeUnit.SECONDS);
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -109,13 +109,11 @@ public class Execution implements Serializable {
 	// --------------------------------------------------------------------------------------------
 	
 	public Execution(ExecutionVertex vertex, int attemptNumber, long startTimestamp) {
-		Preconditions.checkNotNull(vertex);
-		Preconditions.checkArgument(attemptNumber >= 0);
-		
-		this.vertex = vertex;
+		this.vertex = checkNotNull(vertex);
 		this.attemptId = new ExecutionAttemptID();
+		checkArgument(attemptNumber >= 0);
 		this.attemptNumber = attemptNumber;
-		
+
 		this.stateTimestamps = new long[ExecutionState.values().length];
 		markTimestamp(ExecutionState.CREATED, startTimestamp);
 	}
@@ -174,30 +172,30 @@ public class Execution implements Serializable {
 	 * @throws IllegalStateException Thrown, if the vertex is not in CREATED state, which is the only state that permits scheduling.
 	 * @throws NoResourceAvailableException Thrown is no queued scheduling is allowed and no resources are currently available.
 	 */
-	public void scheduleForExecution(Scheduler scheduler, boolean queued) throws NoResourceAvailableException {
+	public boolean scheduleForExecution(Scheduler scheduler, boolean queued) throws NoResourceAvailableException {
 		if (scheduler == null) {
 			throw new NullPointerException();
 		}
-		
+
 		final SlotSharingGroup sharingGroup = vertex.getJobVertex().getSlotSharingGroup();
 		final CoLocationConstraint locationConstraint = vertex.getLocationConstraint();
-		
+
 		// sanity check
 		if (locationConstraint != null && sharingGroup == null) {
 			throw new RuntimeException("Trying to schedule with co-location constraint but without slot sharing allowed.");
 		}
-		
+
 		if (transitionState(CREATED, SCHEDULED)) {
-			
+
 			ScheduledUnit toSchedule = locationConstraint == null ?
 				new ScheduledUnit(this, sharingGroup) :
 				new ScheduledUnit(this, sharingGroup, locationConstraint);
-		
+
 			// IMPORTANT: To prevent leaks of cluster resources, we need to make sure that slots are returned
 			//     in all cases where the deployment failed. we use many try {} finally {} clauses to assure that
 			if (queued) {
 				SlotAllocationFuture future = scheduler.scheduleQueued(toSchedule);
-				
+
 				future.setFutureAction(new SlotAllocationFutureAction() {
 					@Override
 					public void slotAllocated(AllocatedSlot slot) {
@@ -227,13 +225,15 @@ public class Execution implements Serializable {
 					}
 				}
 			}
+
+			return true;
 		}
 		else {
 			// call race, already deployed
-			return;
+			return false;
 		}
 	}
-	
+
 	public void deployToSlot(final AllocatedSlot slot) throws JobException {
 		// sanity checks
 		if (slot == null) {
@@ -242,7 +242,7 @@ public class Execution implements Serializable {
 		if (!slot.isAlive()) {
 			throw new JobException("Traget slot for deployment is not alive.");
 		}
-		
+
 		// make sure exactly one deployment call happens from the correct state
 		// note: the transition from CREATED to DEPLOYING is for testing purposes only
 		ExecutionState previous = this.state;
@@ -257,14 +257,14 @@ public class Execution implements Serializable {
 			// vertex may have been cancelled, or it was already scheduled
 			throw new IllegalStateException("The vertex must be in CREATED or SCHEDULED state to be deployed. Found state " + previous);
 		}
-		
+
 		try {
 			// good, we are allowed to deploy
 			if (!slot.setExecutedVertex(this)) {
 				throw new JobException("Could not assign the ExecutionVertex to the slot " + slot);
 			}
 			this.assignedResource = slot;
-			
+
 			// race double check, did we fail/cancel and do we need to release the slot?
 			if (this.state != DEPLOYING) {
 				slot.releaseSlot();
@@ -291,8 +291,9 @@ public class Execution implements Serializable {
 				public void onComplete(Throwable failure, Object success) throws Throwable {
 					if (failure != null) {
 						markFailed(failure);
-					} else {
-						TaskOperationResult result = (TaskOperationResult) success;
+					}
+					else {
+						TaskManagerMessages.TaskOperationResult result = (TaskManagerMessages.TaskOperationResult) success;
 						if (success == null) {
 							markFailed(new Exception("Failed to deploy the task to slot " + slot + ": TaskOperationResult was null"));
 						}
@@ -305,7 +306,8 @@ public class Execution implements Serializable {
 						else {
 							// deployment failed :(
 							markFailed(new Exception("Failed to deploy the task " +
-									getVertexWithAttempt() + " to slot " + slot + ": " + result.description()));
+									getVertexWithAttempt() + " to slot " + slot + ": " + result
+									.description()));
 						}
 					}
 				}
@@ -316,8 +318,7 @@ public class Execution implements Serializable {
 			ExceptionUtils.rethrow(t);
 		}
 	}
-	
-	
+
 	public void cancel() {
 		// depending on the previous state, we go directly to cancelled (no cancel call necessary)
 		// -- or to canceling (cancel call needs to be sent to the task manager)
@@ -346,6 +347,8 @@ public class Execution implements Serializable {
 			else if (current == FINISHED || current == FAILED) {
 				// nothing to do any more. finished failed before it could be cancelled.
 				// in any case, the task is removed from the TaskManager already
+				sendFailIntermediateResultPartitionsRPCCall();
+
 				return;
 			}
 			else if (current == CREATED || current == SCHEDULED) {
@@ -373,40 +376,84 @@ public class Execution implements Serializable {
 			}
 		}
 	}
-	
+
+	// TODO This leads to many unnecessary RPC calls in most cases
+	boolean scheduleOrUpdateConsumers(List<List<ExecutionEdge>> consumers) throws Exception {
+		boolean success = true;
+
+		if (consumers.size() != 1) {
+			throw new IllegalStateException("Only one consumer is supported currently.");
+		}
+
+		final List<ExecutionEdge> consumer = consumers.get(0);
+
+		for (ExecutionEdge edge : consumer) {
+			final ExecutionVertex consumerVertex = edge.getTarget();
+
+			final ExecutionState consumerState = consumerVertex.getExecutionState();
+
+			if (consumerState == CREATED) {
+				if (state == RUNNING) {
+					if (!consumerVertex.scheduleForExecution(consumerVertex.getExecutionGraph().getScheduler(), false)) {
+						success = false;
+					}
+				}
+				else {
+					success = false;
+				}
+			}
+			else if (consumerState == RUNNING) {
+				AllocatedSlot consumerSlot = consumerVertex.getCurrentAssignedResource();
+				ExecutionAttemptID consumerExecutionId = consumerVertex.getCurrentExecutionAttempt().getAttemptId();
+
+				PartitionInfo partitionInfo = PartitionInfo.fromEdge(edge, consumerSlot);
+
+				if (!sendUpdateTaskRpcCall(consumerSlot, consumerExecutionId, edge.getSource().getIntermediateResult().getId(), partitionInfo)) {
+					success = false;
+				}
+
+			}
+			else if (consumerState == SCHEDULED || consumerState == DEPLOYING) {
+				success = false;
+			}
+		}
+
+		return success;
+	}
+
 	/**
 	 * This method fails the vertex due to an external condition. The task will move to state FAILED.
 	 * If the task was in state RUNNING or DEPLOYING before, it will send a cancel call to the TaskManager.
-	 * 
+	 *
 	 * @param t The exception that caused the task to fail.
 	 */
 	public void fail(Throwable t) {
 		processFail(t, false);
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//   Callbacks
 	// --------------------------------------------------------------------------------------------
-	
+
 	/**
 	 * This method marks the task as failed, but will make no attempt to remove task execution from the task manager.
 	 * It is intended for cases where the task is known not to be running, or then the TaskManager reports failure
 	 * (in which case it has already removed the task).
-	 * 
+	 *
 	 * @param t The exception that caused the task to fail.
 	 */
 	void markFailed(Throwable t) {
 		processFail(t, true);
 	}
-	
+
 	void markFinished() {
-		
+
 		// this call usually comes during RUNNING, but may also come while still in deploying (very fast tasks!)
 		while (true) {
 			ExecutionState current = this.state;
-			
+
 			if (current == RUNNING || current == DEPLOYING) {
-			
+
 				if (transitionState(current, FINISHED)) {
 					try {
 						assignedResource.releaseSlot();
@@ -437,17 +484,17 @@ public class Execution implements Serializable {
 			}
 		}
 	}
-	
+
 	void cancelingComplete() {
-		
+
 		// the taskmanagers can themselves cancel tasks without an external trigger, if they find that the
 		// network stack is canceled (for example by a failing / canceling receiver or sender
 		// this is an artifact of the old network runtime, but for now we need to support task transitions
 		// from running directly to canceled
-		
+
 		while (true) {
 			ExecutionState current = this.state;
-			
+
 			if (current == CANCELED) {
 				return;
 			}
@@ -462,9 +509,9 @@ public class Execution implements Serializable {
 					}
 					return;
 				}
-				
+
 				// else fall through the loop
-			} 
+			}
 			else {
 				// failing in the meantime may happen and is no problem.
 				// anything else is a serious problem !!!
@@ -477,26 +524,26 @@ public class Execution implements Serializable {
 			}
 		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//  Internal Actions
 	// --------------------------------------------------------------------------------------------
-	
+
 	private boolean processFail(Throwable t, boolean isCallback) {
-		
+
 		// damn, we failed. This means only that we keep our books and notify our parent JobExecutionVertex
 		// the actual computation on the task manager is cleaned up by the TaskManager that noticed the failure
-		
+
 		// we may need to loop multiple times (in the presence of concurrent calls) in order to
 		// atomically switch to failed 
 		while (true) {
 			ExecutionState current = this.state;
-			
+
 			if (current == FAILED) {
 				// already failed. It is enough to remember once that we failed (its sad enough)
 				return false;
 			}
-			
+
 			if (current == CANCELED) {
 				// we are already aborting or are already aborted
 				if (LOG.isDebugEnabled()) {
@@ -505,11 +552,11 @@ public class Execution implements Serializable {
 				}
 				return false;
 			}
-			
+
 			if (transitionState(current, FAILED, t)) {
 				// success (in a manner of speaking)
 				this.failureCause = t;
-				
+
 				try {
 					if (assignedResource != null) {
 						assignedResource.releaseSlot();
@@ -524,7 +571,7 @@ public class Execution implements Serializable {
 					if (LOG.isDebugEnabled()) {
 						LOG.debug("Sending out cancel request, to remove task execution from TaskManager.");
 					}
-					
+
 					try {
 						if (assignedResource != null) {
 							sendCancelRpcCall();
@@ -534,15 +581,15 @@ public class Execution implements Serializable {
 						LOG.error("Error triggering cancel call while marking task as failed.", tt);
 					}
 				}
-				
+
 				// leave the loop
 				return true;
 			}
 		}
 	}
-	
+
 	private boolean switchToRunning() {
-		
+
 		if (transitionState(DEPLOYING, RUNNING)) {
 			return true;
 		}
@@ -552,9 +599,9 @@ public class Execution implements Serializable {
 			//  - canceling, while deployment was in progress. state is now canceling, or canceled, if the response overtook
 			//  - finishing (execution and finished call overtook the deployment answer, which is possible and happens for fast tasks)
 			//  - failed (execution, failure, and failure message overtook the deployment answer)
-			
+
 			ExecutionState currentState = this.state;
-			
+
 			if (currentState == FINISHED || currentState == CANCELED) {
 				// do nothing, the task was really fast (nice)
 				// or it was canceled really fast
@@ -568,22 +615,22 @@ public class Execution implements Serializable {
 			else {
 				String message = String.format("Concurrent unexpected state transition of task %s to %s while deployment was in progress.",
 						getVertexWithAttempt(), currentState);
-				
+
 				if (LOG.isDebugEnabled()) {
 					LOG.debug(message);
 				}
-				
+
 				// undo the deployment
 				sendCancelRpcCall();
-				
+
 				// record the failure
 				markFailed(new Exception(message));
 			}
-			
+
 			return false;
 		}
 	}
-	
+
 	private void sendCancelRpcCall() {
 		final AllocatedSlot slot = this.assignedResource;
 		if (slot == null) {
@@ -591,7 +638,7 @@ public class Execution implements Serializable {
 		}
 
 		Future<Object> cancelResult = AkkaUtils.retry(slot.getInstance().getTaskManager(), new
-				TaskManagerMessages.CancelTask(attemptId), NUM_CANCEL_CALL_TRIES,
+						TaskManagerMessages.CancelTask(attemptId), NUM_CANCEL_CALL_TRIES,
 				AkkaUtils.globalExecutionContext(), timeout);
 
 		cancelResult.onComplete(new OnComplete<Object>(){
@@ -601,7 +648,7 @@ public class Execution implements Serializable {
 				if(failure != null){
 					fail(new Exception("Task could not be canceled.", failure));
 				}else{
-					TaskOperationResult result = (TaskOperationResult)success;
+					TaskManagerMessages.TaskOperationResult result = (TaskManagerMessages.TaskOperationResult)success;
 					if(!result.success()){
 						LOG.debug("Cancel task call did not find task. Probably akka message call" +
 								" race.");
@@ -611,44 +658,80 @@ public class Execution implements Serializable {
 		}, AkkaUtils.globalExecutionContext());
 	}
 
+	private void sendFailIntermediateResultPartitionsRPCCall() {
+		final AllocatedSlot slot = this.assignedResource;
+		if (slot == null) {
+			return;
+		}
+
+		final Instance instance = slot.getInstance();
+
+		if (instance.isAlive()) {
+			try {
+				// TODO For some tests this could be a problem when querying too early if all resources were released
+				instance.getTaskManager().tell(new TaskManagerMessages.FailIntermediateResultPartitions(attemptId), ActorRef.noSender());
+			}
+			catch (Throwable t) {
+				fail(new Exception("Intermediate result partition could not be failed.", t));
+			}
+		}
+	}
+
+	private boolean sendUpdateTaskRpcCall(final AllocatedSlot consumerSlot, final ExecutionAttemptID executionId, final IntermediateDataSetID resultId, final PartitionInfo partitionInfo) throws Exception {
+		final Instance instance = consumerSlot.getInstance();
+
+		final TaskManagerMessages.TaskOperationResult result = AkkaUtils.ask(
+				instance.getTaskManager(), new TaskManagerMessages.UpdateTask(executionId, resultId, partitionInfo), timeout);
+
+		if (!result.success()) {
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Update task {} was unsuccessful (maybe an RPC race): {}", executionId, result.description());
+			}
+
+			return false;
+		}
+
+		return true;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Miscellaneous
 	// --------------------------------------------------------------------------------------------
-	
+
 	private boolean transitionState(ExecutionState currentState, ExecutionState targetState) {
 		return transitionState(currentState, targetState, null);
 	}
-	
+
 	private boolean transitionState(ExecutionState currentState, ExecutionState targetState, Throwable error) {
 		if (STATE_UPDATER.compareAndSet(this, currentState, targetState)) {
 			markTimestamp(targetState);
-			
+
 			// make sure that the state transition completes normally.
 			// potential errors (in listeners may not affect the main logic)
 			try {
 				vertex.notifyStateTransition(attemptId, targetState, error);
 			}
 			catch (Throwable t) {
-				LOG.error("Error while notifying execution graph of execution state trnsition.", t);
+				LOG.error("Error while notifying execution graph of execution state transition.", t);
 			}
 			return true;
 		} else {
 			return false;
 		}
 	}
-	
+
 	private void markTimestamp(ExecutionState state) {
 		markTimestamp(state, System.currentTimeMillis());
 	}
-	
+
 	private void markTimestamp(ExecutionState state, long timestamp) {
 		this.stateTimestamps[state.ordinal()] = timestamp;
 	}
-	
+
 	public String getVertexWithAttempt() {
 		return vertex.getSimpleName() + " - execution #" + attemptNumber;
 	}
-	
+
 	@Override
 	public String toString() {
 		return String.format("Attempt #%d (%s) @ %s - [%s]", attemptNumber, vertex.getSimpleName(),

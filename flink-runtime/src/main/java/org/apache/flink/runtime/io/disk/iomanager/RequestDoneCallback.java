@@ -20,17 +20,15 @@ package org.apache.flink.runtime.io.disk.iomanager;
 
 import java.io.IOException;
 
-import org.apache.flink.core.memory.MemorySegment;
-
 /**
  * Callback to be executed on completion of an asynchronous I/O request.
- * Depending on success or failure, either method of
- * {@ink #requestSuccessful(MemorySegment)} or {@link #requestFailed(MemorySegment, IOException)}
- * is called.
+ * <p>
+ * Depending on success or failure, either {@link #requestSuccessful(Object)}
+ * or {@link #requestSuccessful(Object)} is called.
  */
-public interface RequestDoneCallback {
+public interface RequestDoneCallback<T> {
 
-	void requestSuccessful(MemorySegment buffer);
-	
-	void requestFailed(MemorySegment buffer, IOException e);
+	void requestSuccessful(T request);
+
+	void requestFailed(T buffer, IOException e);
 }

@@ -38,7 +38,6 @@ public class BooleanValue implements NormalizableKey<BooleanValue>, ResettableVa
 	public static final BooleanValue TRUE = new BooleanValue(true);
 	
 	public static final BooleanValue FALSE = new BooleanValue(false);
-	
 
 	private boolean value;
 
@@ -70,7 +69,7 @@ public class BooleanValue implements NormalizableKey<BooleanValue>, ResettableVa
 	public void setValue(BooleanValue value) {
 		this.value = value.value;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 
 	@Override

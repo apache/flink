@@ -18,53 +18,29 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.runtime.io.network.channels.ChannelID;
-
 public class ExecutionEdge {
 
 	private final IntermediateResultPartition source;
-	
+
 	private final ExecutionVertex target;
-	
+
 	private final int inputNum;
 
-	private ChannelID inputChannelId;
-	
-	private ChannelID outputChannelId;
-	
-	
 	public ExecutionEdge(IntermediateResultPartition source, ExecutionVertex target, int inputNum) {
 		this.source = source;
 		this.target = target;
 		this.inputNum = inputNum;
-		
-		this.inputChannelId = new ChannelID();
-		this.outputChannelId = new ChannelID();
 	}
-	
-	
+
 	public IntermediateResultPartition getSource() {
 		return source;
 	}
-	
+
 	public ExecutionVertex getTarget() {
 		return target;
 	}
-	
+
 	public int getInputNum() {
 		return inputNum;
-	}
-	
-	public ChannelID getInputChannelId() {
-		return inputChannelId;
-	}
-	
-	public ChannelID getOutputChannelId() {
-		return outputChannelId;
-	}
-	
-	public void assignNewChannelIDs() {
-		inputChannelId = new ChannelID();
-		outputChannelId = new ChannelID();
 	}
 }

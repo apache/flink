@@ -29,7 +29,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.io.network.api.MutableReader;
+import org.apache.flink.runtime.io.network.api.reader.MutableReader;
 import org.apache.flink.runtime.iterative.concurrent.BlockingBackChannel;
 import org.apache.flink.runtime.iterative.concurrent.BlockingBackChannelBroker;
 import org.apache.flink.runtime.iterative.concurrent.Broker;
@@ -164,7 +164,7 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 	@Override
 	public DistributedRuntimeUDFContext createRuntimeContext(String taskName) {
 		Environment env = getEnvironment();
-		return new IterativeRuntimeUdfContext(taskName, env.getCurrentNumberOfSubtasks(),
+		return new IterativeRuntimeUdfContext(taskName, env.getNumberOfSubtasks(),
 				env.getIndexInSubtaskGroup(), getUserCodeClassLoader());
 	}
 
@@ -227,7 +227,7 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 		for (int inputNum : this.iterativeInputs) {
 			MutableReader<?> reader = this.inputReaders[inputNum];
 
-			if (!reader.isInputClosed()) {
+			if (!reader.isFinished()) {
 				if (reader.hasReachedEndOfSuperstep()) {
 					reader.startNextSuperstep();
 				}
@@ -238,7 +238,7 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 					Object o = this.inputSerializers[inputNum].getSerializer().createInstance();
 					while ((o = inIter.next(o)) != null);
 					
-					if (!reader.isInputClosed()) {
+					if (!reader.isFinished()) {
 						// also reset the end-of-superstep state
 						reader.startNextSuperstep();
 					}
@@ -249,7 +249,7 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 		for (int inputNum : this.iterativeBroadcastInputs) {
 			MutableReader<?> reader = this.broadcastInputReaders[inputNum];
 
-			if (!reader.isInputClosed()) {
+			if (!reader.isFinished()) {
 				
 				// sanity check that the BC input is at the end of the superstep
 				if (!reader.hasReachedEndOfSuperstep()) {
@@ -283,10 +283,10 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 
 	/**
 	 * Creates a new {@link WorksetUpdateOutputCollector}.
-	 * <p/>
+	 * <p>
 	 * This collector is used by {@link IterationIntermediatePactTask} or {@link IterationTailPactTask} to update the
 	 * workset.
-	 * <p/>
+	 * <p>
 	 * If a non-null delegate is given, the new {@link Collector} will write to the solution set and also call
 	 * collect(T) of the delegate.
 	 *
@@ -305,12 +305,12 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 
 	/**
 	 * Creates a new solution set update output collector.
-	 * <p/>
+	 * <p>
 	 * This collector is used by {@link IterationIntermediatePactTask} or {@link IterationTailPactTask} to update the
 	 * solution set of workset iterations. Depending on the task configuration, either a fast (non-probing)
 	 * {@link org.apache.flink.runtime.iterative.io.SolutionSetFastUpdateOutputCollector} or normal (re-probing)
 	 * {@link SolutionSetUpdateOutputCollector} is created.
-	 * <p/>
+	 * <p>
 	 * If a non-null delegate is given, the new {@link Collector} will write back to the solution set and also call
 	 * collect(T) of the delegate.
 	 *

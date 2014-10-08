@@ -26,7 +26,7 @@ import org.apache.flink.core.memory.MemorySegment;
 /**
  * A {@link RequestDoneCallback} that adds the memory segments to a blocking queue.
  */
-public class QueuingCallback implements RequestDoneCallback {
+public class QueuingCallback implements RequestDoneCallback<MemorySegment> {
 
 	private final LinkedBlockingQueue<MemorySegment> queue;
 	

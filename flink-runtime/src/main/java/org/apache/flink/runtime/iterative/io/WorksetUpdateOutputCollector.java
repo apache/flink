@@ -27,7 +27,7 @@ import org.apache.flink.util.Collector;
 
 /**
  * A {@link Collector} to update the iteration workset (partial solution for bulk iterations).
- * <p/>
+ * <p>
  * The records are written to a {@link DataOutputView} to allow in-memory data exchange.
  */
 public class WorksetUpdateOutputCollector<T> implements Collector<T> {

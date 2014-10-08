@@ -19,8 +19,7 @@
 package org.apache.flink.runtime.akka.serialization
 
 import akka.serialization.JSerializer
-import org.apache.flink.runtime.io.network.serialization.{DataInputDeserializer,
-DataOutputSerializer}
+import org.apache.flink.runtime.util.{DataInputDeserializer, DataOutputSerializer}
 import org.apache.flink.util.InstantiationUtil
 import org.apache.hadoop.io.Writable
 

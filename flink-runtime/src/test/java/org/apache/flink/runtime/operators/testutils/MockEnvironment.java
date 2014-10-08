@@ -70,37 +70,96 @@ public class MockEnvironment implements Environment, BufferProvider, LocalBuffer
 
 	private final Configuration taskConfiguration;
 
-	private final List<InputGate<DeserializationDelegate<Record>>> inputs;
+	private final List<BufferReader> inputs;
 
-	private final List<OutputGate> outputs;
+	private final List<BufferWriter> outputs;
 
 	private final JobID jobID = new JobID();
 
-	private final Buffer mockBuffer;
-	
+	private final MockNetworkEnvironment mockNetworkEnvironment = new MockNetworkEnvironment();
+
 	private final BroadcastVariableManager bcVarManager = new BroadcastVariableManager();
-	
+
+	private final int bufferSize;
 
 	public MockEnvironment(long memorySize, MockInputSplitProvider inputSplitProvider, int bufferSize) {
 		this.jobConfiguration = new Configuration();
 		this.taskConfiguration = new Configuration();
-		this.inputs = new LinkedList<InputGate<DeserializationDelegate<Record>>>();
-		this.outputs = new LinkedList<OutputGate>();
+		this.inputs = new LinkedList<BufferReader>();
+		this.outputs = new LinkedList<BufferWriter>();
 
 		this.memManager = new DefaultMemoryManager(memorySize, 1);
 		this.ioManager = new IOManagerAsync();
 		this.inputSplitProvider = inputSplitProvider;
-		this.mockBuffer = new Buffer(new MemorySegment(new byte[bufferSize]), bufferSize, null);
+		this.bufferSize = bufferSize;
 	}
 
-	public void addInput(MutableObjectIterator<Record> inputIterator) {
-		int id = inputs.size();
-		inputs.add(new MockInputGate(id, inputIterator));
+	public MockIteratorBufferReader<Record> addInput(MutableObjectIterator<Record> inputIterator) {
+		try {
+			final MockIteratorBufferReader<Record> reader = new MockIteratorBufferReader<Record>(bufferSize, Record.class, inputIterator);
+
+			inputs.add(reader.getMock());
+
+			return reader;
+		}
+		catch (Throwable t) {
+			throw new RuntimeException("Error setting up mock readers: " + t.getMessage(), t);
+		}
 	}
 
-	public void addOutput(List<Record> outputList) {
-		int id = outputs.size();
-		outputs.add(new MockOutputGate(id, outputList));
+	public void addOutput(final List<Record> outputList) {
+		try {
+			// The record-oriented writers wrap the buffer writer. We mock it
+			// to collect the returned buffers and deserialize the content to
+			// the output list
+			BufferProvider mockBufferProvider = mock(BufferProvider.class);
+			when(mockBufferProvider.requestBufferBlocking()).thenAnswer(new Answer<Buffer>() {
+
+				@Override
+				public Buffer answer(InvocationOnMock invocationOnMock) throws Throwable {
+					return new Buffer(new MemorySegment(new byte[bufferSize]), mock(BufferRecycler.class));
+				}
+			});
+
+			BufferWriter mockWriter = mock(BufferWriter.class);
+			when(mockWriter.getNumberOfOutputChannels()).thenReturn(1);
+			when(mockWriter.getBufferProvider()).thenReturn(mockBufferProvider);
+
+			final Record record = new Record();
+			final RecordDeserializer<Record> deserializer = new AdaptiveSpanningRecordDeserializer<Record>();
+
+			// Add records from the buffer to the output list
+			doAnswer(new Answer<Void>() {
+
+				@Override
+				public Void answer(InvocationOnMock invocationOnMock) throws Throwable {
+					Buffer buffer = (Buffer) invocationOnMock.getArguments()[0];
+
+					deserializer.setNextBuffer(buffer);
+
+					while (deserializer.hasUnfinishedData()) {
+						RecordDeserializer.DeserializationResult result = deserializer.getNextRecord(record);
+
+						if (result.isFullRecord()) {
+							outputList.add(record.createCopy());
+						}
+
+						if (result == RecordDeserializer.DeserializationResult.LAST_RECORD_FROM_BUFFER
+								|| result == RecordDeserializer.DeserializationResult.PARTIAL_RECORD) {
+							break;
+						}
+					}
+
+					return null;
+				}
+			}).when(mockWriter).writeBuffer(any(Buffer.class), anyInt());
+
+			outputs.add(mockWriter);
+		}
+		catch (Throwable t) {
+			t.printStackTrace();
+			fail(t.getMessage());
+		}
 	}
 
 	@Override
@@ -112,7 +171,7 @@ public class MockEnvironment implements Environment, BufferProvider, LocalBuffer
 	public MemoryManager getMemoryManager() {
 		return this.memManager;
 	}
-	
+
 	@Override
 	public IOManager getIOManager() {
 		return this.ioManager;
@@ -124,139 +183,12 @@ public class MockEnvironment implements Environment, BufferProvider, LocalBuffer
 	}
 
 	@Override
-	public Buffer requestBuffer(int minBufferSize) throws IOException {
-		return mockBuffer;
-	}
-
-	@Override
-	public Buffer requestBufferBlocking(int minBufferSize) throws IOException, InterruptedException {
-		return mockBuffer;
-	}
-
-	@Override
-	public int getBufferSize() {
-		return this.mockBuffer.size();
-	}
-
-	@Override
-	public BufferAvailabilityRegistration registerBufferAvailabilityListener(BufferAvailabilityListener listener) {
-		return BufferAvailabilityRegistration.FAILED_BUFFER_POOL_DESTROYED;
-	}
-
-	@Override
-	public int getNumberOfChannels() {
-		return 1;
-	}
-
-	@Override
-	public void setDesignatedNumberOfBuffers(int numBuffers) {
-
-	}
-
-	@Override
-	public void clearLocalBufferPool() {
-
-	}
-
-	@Override
-	public void registerGlobalBufferPool(GlobalBufferPool globalBufferPool) {
-
-	}
-
-	@Override
-	public void logBufferUtilization() {
-
-	}
-
-	@Override
-	public void reportAsynchronousEvent() {
-
-	}
-
-	private static class MockInputGate extends InputGate<DeserializationDelegate<Record>> {
-		
-		private MutableObjectIterator<Record> it;
-
-		public MockInputGate(int id, MutableObjectIterator<Record> it) {
-			super(new JobID(), new GateID(), id);
-			this.it = it;
-		}
-
-		@Override
-		public void registerRecordAvailabilityListener(final RecordAvailabilityListener<DeserializationDelegate<Record>> listener) {
-			super.registerRecordAvailabilityListener(listener);
-			this.notifyRecordIsAvailable(0);
-		}
-		
-		@Override
-		public InputChannelResult readRecord(DeserializationDelegate<Record> target) throws IOException, InterruptedException {
-
-			Record reuse = target != null ? target.getInstance() : null;
-
-			// Handle NonReusingDeserializationDelegate, which by default
-			// does not have a Record instance
-			if (reuse == null && target != null) {
-				reuse = new Record();
-				target.setInstance(reuse);
-			}
-			
-			if (it.next(reuse) != null) {
-				// everything comes from the same source channel and buffer in this mock
-				notifyRecordIsAvailable(0);
-				return InputChannelResult.INTERMEDIATE_RECORD_FROM_BUFFER;
-			} else {
-				return InputChannelResult.END_OF_STREAM;
-			}
-		}
-	}
-
-	private class MockOutputGate extends OutputGate {
-		
-		private List<Record> out;
-
-		private RecordDeserializer<Record> deserializer;
-
-		private Record record;
-
-		public MockOutputGate(int index, List<Record> outList) {
-			super(new JobID(), new GateID(), index);
-			this.out = outList;
-			this.deserializer = new AdaptiveSpanningRecordDeserializer<Record>();
-			this.record = new Record();
-		}
-
-		@Override
-		public void sendBuffer(Buffer buffer, int targetChannel) throws IOException, InterruptedException {
-
-			this.deserializer.setNextMemorySegment(MockEnvironment.this.mockBuffer.getMemorySegment(), MockEnvironment.this.mockBuffer.size());
-
-			while (this.deserializer.hasUnfinishedData()) {
-				DeserializationResult result = this.deserializer.getNextRecord(this.record);
-
-				if (result.isFullRecord()) {
-					this.out.add(this.record.createCopy());
-				}
-
-				if (result == DeserializationResult.LAST_RECORD_FROM_BUFFER ||
-					result == DeserializationResult.PARTIAL_RECORD) {
-					break;
-				}
-			}
-		}
-
-		@Override
-		public int getNumChannels() {
-			return 1;
-		}
-	}
-
-	@Override
 	public Configuration getJobConfiguration() {
 		return this.jobConfiguration;
 	}
 
 	@Override
-	public int getCurrentNumberOfSubtasks() {
+	public int getNumberOfSubtasks() {
 		return 1;
 	}
 
@@ -276,74 +208,13 @@ public class MockEnvironment implements Environment, BufferProvider, LocalBuffer
 	}
 
 	@Override
-	public GateID getNextUnboundInputGateID() {
+	public String getTaskNameWithSubtasks() {
 		return null;
 	}
 
 	@Override
-	public int getNumberOfOutputGates() {
-		return this.outputs.size();
-	}
-
-	@Override
-	public int getNumberOfInputGates() {
-		return this.inputs.size();
-	}
-
-	@Override
-	public Set<ChannelID> getOutputChannelIDs() {
-		throw new IllegalStateException("getOutputChannelIDs called on MockEnvironment");
-	}
-
-	@Override
-	public Set<ChannelID> getInputChannelIDs() {
-		throw new IllegalStateException("getInputChannelIDs called on MockEnvironment");
-	}
-
-	@Override
-	public Set<GateID> getOutputGateIDs() {
-		throw new IllegalStateException("getOutputGateIDs called on MockEnvironment");
-	}
-
-	@Override
-	public Set<GateID> getInputGateIDs() {
-		throw new IllegalStateException("getInputGateIDs called on MockEnvironment");
-	}
-
-	@Override
-	public Set<ChannelID> getOutputChannelIDsOfGate(final GateID gateID) {
-		throw new IllegalStateException("getOutputChannelIDsOfGate called on MockEnvironment");
-	}
-
-	@Override
-	public Set<ChannelID> getInputChannelIDsOfGate(final GateID gateID) {
-		throw new IllegalStateException("getInputChannelIDsOfGate called on MockEnvironment");
-	}
-
-	@Override
-	public ActorRef getAccumulator() {
-		throw new UnsupportedOperationException("Accumulators are not supported by the MockEnvironment.");
-	}
-
-	@Override
-	public OutputGate createAndRegisterOutputGate() {
-		return this.outputs.remove(0);
-	}
-
-	@SuppressWarnings("unchecked")
-	@Override
-	public <T extends IOReadableWritable> InputGate<T> createAndRegisterInputGate() {
-		return (InputGate<T>) this.inputs.remove(0);
-	}
-
-	@Override
-	public int getNumberOfOutputChannels() {
-		return this.outputs.size();
-	}
-
-	@Override
-	public int getNumberOfInputChannels() {
-		return this.inputs.size();
+	public ActorRef getJobManager() {
+		throw new UnsupportedOperationException("getAccumulatorProtocolProxy() is not supported by MockEnvironment");
 	}
 
 	@Override
@@ -352,20 +223,35 @@ public class MockEnvironment implements Environment, BufferProvider, LocalBuffer
 	}
 
 	@Override
-	public BufferProvider getOutputBufferProvider() {
-		return this;
+	public Map<String, FutureTask<Path>> getCopyTask() {
+		return null;
 	}
 
 	@Override
-	public Map<String, FutureTask<Path>> getCopyTask() {
-		return null;
+	public BufferWriter getWriter(int index) {
+		return outputs.get(index);
+	}
+
+	@Override
+	public BufferWriter[] getAllWriters() {
+		return outputs.toArray(new BufferWriter[outputs.size()]);
+	}
+
+	@Override
+	public BufferReader getReader(int index) {
+		return inputs.get(index);
+	}
+
+	@Override
+	public BufferReader[] getAllReaders() {
+		return inputs.toArray(new BufferReader[inputs.size()]);
 	}
 
 	@Override
 	public JobVertexID getJobVertexId() {
 		return new JobVertexID(new byte[16]);
 	}
-	
+
 	@Override
 	public BroadcastVariableManager getBroadcastVariableManager() {
 		return this.bcVarManager;

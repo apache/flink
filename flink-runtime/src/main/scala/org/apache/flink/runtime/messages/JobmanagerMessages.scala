@@ -20,10 +20,8 @@ package org.apache.flink.runtime.messages
 
 import org.apache.flink.runtime.accumulators.AccumulatorEvent
 import org.apache.flink.runtime.executiongraph.{ExecutionAttemptID, ExecutionGraph}
-import org.apache.flink.runtime.instance.{Instance, InstanceConnectionInfo}
-import org.apache.flink.runtime.io.network.ConnectionInfoLookupResponse
-import org.apache.flink.runtime.io.network.channels.ChannelID
-import org.apache.flink.runtime.jobgraph.{JobStatus, JobVertexID, JobID, JobGraph}
+import org.apache.flink.runtime.instance.Instance
+import org.apache.flink.runtime.jobgraph.{JobGraph, JobID, JobStatus, JobVertexID}
 import org.apache.flink.runtime.taskmanager.TaskExecutionState
 
 /**
@@ -75,25 +73,25 @@ object JobManagerMessages {
   ExecutionAttemptID)
 
   /**
-   * Looks up the connection information of a task being the source of a channel specified by
-   * [[sourceChannelID]]. The caller denotes the instance information of the task requesting the
-   * lookup information. The connection information is sent back to the sender as a
-   * [[ConnectionInformation]] message.
+   * Notifies the [[org.apache.flink.runtime.jobmanager.JobManager]] about available data for a
+   * produced partition.
+   * <p>
+   * There is a call to this method for each
+   * [[org.apache.flink.runtime.executiongraph.ExecutionVertex]] instance once per produced
+   * [[org.apache.flink.runtime.io.network.partition.IntermediateResultPartition]] instance,
+   * either when first producing data (for pipelined executions) or when all data has been produced
+   * (for staged executions).
+   * <p>
+   * The [[org.apache.flink.runtime.jobmanager.JobManager]] then can decide when to schedule the
+   * partition consumers of the given session.
    *
-   * @param caller instance on which the task requesting the connection information runs
-   * @param jobID
-   * @param sourceChannelID denoting the channel whose producer shall be found
+   * @see [[org.apache.flink.runtime.io.network.partition.IntermediateResultPartition]]
    */
-  case class LookupConnectionInformation(caller: InstanceConnectionInfo, jobID: JobID,
-                                         sourceChannelID: ChannelID)
+  case class ScheduleOrUpdateConsumers(jobId: JobID,
+                                       executionId: ExecutionAttemptID,
+                                       partitionIndex: Int)
 
-  /**
-   * Contains the connection lookup information of a lookup request triggered by
-   * [[LookupConnectionInformation]].
-   *
-   * @param response
-   */
-  case class ConnectionInformation(response: ConnectionInfoLookupResponse)
+  case class ConsumerNotificationResult(success: Boolean, error: Option[Throwable] = None)
 
   /**
    * Reports the accumulator results of the individual tasks to the job manager.

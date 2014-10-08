@@ -36,8 +36,7 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
 	private int degreeOfParallelism = DEFAULT_DEGREE_OF_PARALLELISM;
 	
 	private boolean isCollectionExecution;
-	
-	
+
 	public JavaProgramTestBase() {
 		this(new Configuration());
 	}
@@ -46,7 +45,6 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
 		super(config);
 		setTaskManagerNumSlots(degreeOfParallelism);
 	}
-	
 	
 	public void setDegreeOfParallelism(int degreeOfParallelism) {
 		this.degreeOfParallelism = degreeOfParallelism;
@@ -64,13 +62,12 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
 	public boolean isCollectionExecution() {
 		return isCollectionExecution;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//  Methods to create the test program and for pre- and post- test work
 	// --------------------------------------------------------------------------------------------
 
 	protected abstract void testProgram() throws Exception;
-	
 
 	protected void preSubmit() throws Exception {}
 	

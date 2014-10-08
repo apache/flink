@@ -80,7 +80,7 @@ public abstract class AbstractInvokable {
 	 * @return the current number of subtasks the respective task is split into
 	 */
 	public final int getCurrentNumberOfSubtasks() {
-		return this.environment.getCurrentNumberOfSubtasks();
+		return this.environment.getNumberOfSubtasks();
 	}
 
 	/**

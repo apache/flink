@@ -23,12 +23,12 @@ import java.io.IOException;
 
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.runtime.event.task.AbstractTaskEvent;
+import org.apache.flink.runtime.event.task.TaskEvent;
 
 /**
  * Signals that the iteration is completely executed, participating tasks must terminate now
  */
-public class TerminationEvent extends AbstractTaskEvent {
+public class TerminationEvent extends TaskEvent {
 
 	public static final TerminationEvent INSTANCE = new TerminationEvent();
 	

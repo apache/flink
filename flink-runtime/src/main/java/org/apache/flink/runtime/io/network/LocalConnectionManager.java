@@ -18,21 +18,24 @@
 
 package org.apache.flink.runtime.io.network;
 
+import org.apache.flink.runtime.io.network.netty.PartitionRequestClient;
+import org.apache.flink.runtime.io.network.partition.IntermediateResultPartitionProvider;
+
 import java.io.IOException;
 
-public class LocalConnectionManager implements NetworkConnectionManager {
+/**
+ * A connection manager implementation to bypass setup overhead for task managers running in local
+ * execution mode.
+ */
+public class LocalConnectionManager implements ConnectionManager {
 
 	@Override
-	public void start(ChannelManager channelManager) throws IOException {
+	public void start(IntermediateResultPartitionProvider partitionProvider, TaskEventDispatcher taskEventDispatcher) throws IOException {
 	}
 
 	@Override
-	public void enqueue(Envelope envelope, RemoteReceiver receiver, boolean isFirstEnvelope) throws IOException {
-	}
-
-	@Override
-	public void close(RemoteReceiver receiver) {
-
+	public PartitionRequestClient createPartitionRequestClient(RemoteAddress remoteAddress) throws IOException {
+		return null;
 	}
 
 	@Override

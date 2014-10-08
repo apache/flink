@@ -29,7 +29,6 @@ import org.apache.flink.configuration.{ConfigConstants, GlobalConfiguration, Con
 import org.apache.flink.core.io.InputSplitAssigner
 import org.apache.flink.runtime.blob.BlobServer
 import org.apache.flink.runtime.executiongraph.{Execution, ExecutionJobVertex, ExecutionGraph}
-import org.apache.flink.runtime.io.network.ConnectionInfoLookupResponse
 import org.apache.flink.runtime.messages.ArchiveMessages.ArchiveExecutionGraph
 import org.apache.flink.runtime.messages.ExecutionGraphMessages.JobStatusChanged
 import org.apache.flink.runtime.taskmanager.TaskManager
@@ -361,18 +360,15 @@ Actor with ActorLogMessages with ActorLogging {
       }
     }
 
-    case LookupConnectionInformation(connectionInformation, jobID, sourceChannelID) => {
-      currentJobs.get(jobID) match {
+    case ScheduleOrUpdateConsumers(jobId, executionId, partitionIndex) => {
+      currentJobs.get(jobId) match {
         case Some((executionGraph, _)) =>
-          val originalSender = sender
-          Future {
-            originalSender ! ConnectionInformation(
-              executionGraph.lookupConnectionInfoAndDeployReceivers
-                (connectionInformation, sourceChannelID))
-          }
+          sender ! ConsumerNotificationResult(executionGraph
+            .scheduleOrUpdateConsumers(executionId, partitionIndex))
         case None =>
-          log.error(s"Cannot find execution graph for job ID ${jobID}.")
-          sender ! ConnectionInformation(ConnectionInfoLookupResponse.createReceiverNotFound())
+          log.error(s"Cannot find execution graph for job ID ${jobId}.")
+          sender ! ConsumerNotificationResult(false, Some(
+            new IllegalStateException("Cannot find execution graph for job ID " + jobId)))
       }
     }
 

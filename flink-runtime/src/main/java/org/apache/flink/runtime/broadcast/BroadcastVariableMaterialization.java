@@ -27,7 +27,7 @@ import java.util.Set;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
-import org.apache.flink.runtime.io.network.api.MutableReader;
+import org.apache.flink.runtime.io.network.api.reader.MutableReader;
 import org.apache.flink.runtime.operators.RegularPactTask;
 import org.apache.flink.runtime.operators.util.ReaderIterator;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
@@ -87,7 +87,7 @@ public class BroadcastVariableMaterialization<T, C> {
 						String.format("The task %s (%d/%d) already holds a reference to the broadcast variable %s.",
 								referenceHolder.getEnvironment().getTaskName(),
 								referenceHolder.getEnvironment().getIndexInSubtaskGroup() + 1,
-								referenceHolder.getEnvironment().getCurrentNumberOfSubtasks(),
+								referenceHolder.getEnvironment().getNumberOfSubtasks(),
 								key.toString()));
 			}
 			
@@ -180,7 +180,7 @@ public class BroadcastVariableMaterialization<T, C> {
 							String.format("The task %s (%d/%d) did not hold a reference to the broadcast variable %s.",
 									referenceHolder.getEnvironment().getTaskName(),
 									referenceHolder.getEnvironment().getIndexInSubtaskGroup() + 1,
-									referenceHolder.getEnvironment().getCurrentNumberOfSubtasks(),
+									referenceHolder.getEnvironment().getNumberOfSubtasks(),
 									key.toString()));
 				} else {
 					return false;

@@ -31,11 +31,11 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
 import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
-import org.apache.flink.runtime.event.task.AbstractTaskEvent;
+import org.apache.flink.runtime.event.task.TaskEvent;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.InstantiationUtil;
 
-public abstract class IterationEventWithAggregators extends AbstractTaskEvent {
+public abstract class IterationEventWithAggregators extends TaskEvent {
 	
 	protected static final String[] NO_STRINGS = new String[0];
 	protected static final Value[] NO_VALUES = new Value[0];

@@ -35,7 +35,6 @@ import org.apache.flink.api.java.record.io.CsvInputFormat;
 import org.apache.flink.api.java.record.io.CsvOutputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.io.network.channels.ChannelType;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.InputFormatVertex;
@@ -323,9 +322,9 @@ public class BroadcastVarsNepheleITCase extends RecordAPITestBase {
 		OutputFormatVertex output = createOutput(jobGraph, resultPath, numSubTasks, serializer);
 
 		// -- edges ------------------------------------------------------------------------------------------------
-		JobGraphUtils.connect(points, mapper, ChannelType.NETWORK, DistributionPattern.POINTWISE);
-		JobGraphUtils.connect(models, mapper, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
-		JobGraphUtils.connect(mapper, output, ChannelType.NETWORK, DistributionPattern.POINTWISE);
+		JobGraphUtils.connect(points, mapper, DistributionPattern.POINTWISE);
+		JobGraphUtils.connect(models, mapper, DistributionPattern.ALL_TO_ALL);
+		JobGraphUtils.connect(mapper, output, DistributionPattern.POINTWISE);
 
 		// -- instance sharing -------------------------------------------------------------------------------------
 		

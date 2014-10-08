@@ -18,56 +18,63 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+
 import java.util.ArrayList;
 import java.util.List;
 
 public class IntermediateResultPartition {
-	
-	private final IntermediateResult totalResut;
-	
+
+	private final IntermediateResult totalResult;
+
 	private final ExecutionVertex producer;
-	
-	private final int partition;
-	
+
+	private final int partitionNumber;
+
+	private final IntermediateResultPartitionID partitionId;
+
 	private List<List<ExecutionEdge>> consumers;
-	
-	
-	public IntermediateResultPartition(IntermediateResult totalResut, ExecutionVertex producer, int partition) {
-		this.totalResut = totalResut;
+
+	public IntermediateResultPartition(IntermediateResult totalResult, ExecutionVertex producer, int partitionNumber) {
+		this.totalResult = totalResult;
 		this.producer = producer;
-		this.partition = partition;
+		this.partitionNumber = partitionNumber;
 		this.consumers = new ArrayList<List<ExecutionEdge>>(0);
+		this.partitionId = new IntermediateResultPartitionID();
 	}
-	
-	
+
 	public ExecutionVertex getProducer() {
 		return producer;
 	}
-	
-	public int getPartition() {
-		return partition;
+
+	public int getPartitionNumber() {
+		return partitionNumber;
 	}
-	
+
 	public IntermediateResult getIntermediateResult() {
-		return totalResut;
+		return totalResult;
 	}
-	
+
+	public IntermediateResultPartitionID getPartitionId() {
+		return partitionId;
+	}
+
 	public List<List<ExecutionEdge>> getConsumers() {
 		return consumers;
 	}
-	
+
 	int addConsumerGroup() {
 		int pos = consumers.size();
-		
+
 		// NOTE: currently we support only one consumer per result!!!
 		if (pos != 0) {
-			throw new RuntimeException("Currenty, each intermediate result can only have one consumer.");
+			throw new RuntimeException("Currently, each intermediate result can only have one consumer.");
 		}
-		
+
 		consumers.add(new ArrayList<ExecutionEdge>());
 		return pos;
 	}
-	
+
 	void addConsumer(ExecutionEdge edge, int consumerNumber) {
 		consumers.get(consumerNumber).add(edge);
 	}

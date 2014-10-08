@@ -35,6 +35,7 @@ object TestingJobManagerMessages {
   case class ExecutionGraphNotFound(jobID: JobID) extends ResponseExecutionGraph
 
   case class WaitForAllVerticesToBeRunning(jobID: JobID)
+  case class WaitForAllVerticesToBeRunningOrFinished(jobID: JobID)
   case class AllVerticesRunning(jobID: JobID)
 
   case class NotifyWhenJobRemoved(jobID: JobID)

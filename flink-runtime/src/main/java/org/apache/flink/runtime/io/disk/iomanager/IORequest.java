@@ -33,7 +33,6 @@ interface IORequest {
 	public void requestDone(IOException ioex);
 }
 
-
 /**
  * Interface for I/O requests that are handled by the IOManager's reading thread. 
  */
@@ -46,7 +45,6 @@ interface ReadRequest extends IORequest {
 	 */
 	public void read() throws IOException;
 }
-
 
 /**
  * Interface for I/O requests that are handled by the IOManager's writing thread.

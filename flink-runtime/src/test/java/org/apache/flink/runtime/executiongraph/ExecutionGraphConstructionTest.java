@@ -89,11 +89,11 @@ public class ExecutionGraphConstructionTest {
 		v4.setParallelism(11);
 		v5.setParallelism(4);
 		
-		v2.connectNewDataSetAsInput(v1, DistributionPattern.BIPARTITE);
-		v4.connectNewDataSetAsInput(v2, DistributionPattern.BIPARTITE);
-		v4.connectNewDataSetAsInput(v3, DistributionPattern.BIPARTITE);
-		v5.connectNewDataSetAsInput(v4, DistributionPattern.BIPARTITE);
-		v5.connectNewDataSetAsInput(v3, DistributionPattern.BIPARTITE);
+		v2.connectNewDataSetAsInput(v1, DistributionPattern.ALL_TO_ALL);
+		v4.connectNewDataSetAsInput(v2, DistributionPattern.ALL_TO_ALL);
+		v4.connectNewDataSetAsInput(v3, DistributionPattern.ALL_TO_ALL);
+		v5.connectNewDataSetAsInput(v4, DistributionPattern.ALL_TO_ALL);
+		v5.connectNewDataSetAsInput(v3, DistributionPattern.ALL_TO_ALL);
 		
 		List<AbstractJobVertex> ordered = new ArrayList<AbstractJobVertex>(Arrays.asList(v1, v2, v3, v4, v5));
 
@@ -125,7 +125,7 @@ public class ExecutionGraphConstructionTest {
 		v3.setParallelism(2);
 		
 		// this creates an intermediate result for v1
-		v2.connectNewDataSetAsInput(v1, DistributionPattern.BIPARTITE);
+		v2.connectNewDataSetAsInput(v1, DistributionPattern.ALL_TO_ALL);
 		
 		// create results for v2 and v3
 		IntermediateDataSet v2result = v2.createAndAddResultDataSet();
@@ -151,10 +151,10 @@ public class ExecutionGraphConstructionTest {
 		v4.setParallelism(11);
 		v5.setParallelism(4);
 		
-		v4.connectDataSetAsInput(v2result, DistributionPattern.BIPARTITE);
-		v4.connectDataSetAsInput(v3result_1, DistributionPattern.BIPARTITE);
-		v5.connectNewDataSetAsInput(v4, DistributionPattern.BIPARTITE);
-		v5.connectDataSetAsInput(v3result_2, DistributionPattern.BIPARTITE);
+		v4.connectDataSetAsInput(v2result, DistributionPattern.ALL_TO_ALL);
+		v4.connectDataSetAsInput(v3result_1, DistributionPattern.ALL_TO_ALL);
+		v5.connectNewDataSetAsInput(v4, DistributionPattern.ALL_TO_ALL);
+		v5.connectDataSetAsInput(v3result_2, DistributionPattern.ALL_TO_ALL);
 		
 		List<AbstractJobVertex> ordered2 = new ArrayList<AbstractJobVertex>(Arrays.asList(v4, v5));
 		
@@ -186,7 +186,7 @@ public class ExecutionGraphConstructionTest {
 		v3.setParallelism(2);
 		
 		// this creates an intermediate result for v1
-		v2.connectNewDataSetAsInput(v1, DistributionPattern.BIPARTITE);
+		v2.connectNewDataSetAsInput(v1, DistributionPattern.ALL_TO_ALL);
 		
 		// create results for v2 and v3
 		IntermediateDataSet v2result = v2.createAndAddResultDataSet();
@@ -212,10 +212,10 @@ public class ExecutionGraphConstructionTest {
 		v4.setParallelism(11);
 		v5.setParallelism(4);
 		
-		v4.connectIdInput(v2result.getId(), DistributionPattern.BIPARTITE);
-		v4.connectIdInput(v3result_1.getId(), DistributionPattern.BIPARTITE);
-		v5.connectNewDataSetAsInput(v4, DistributionPattern.BIPARTITE);
-		v5.connectIdInput(v3result_2.getId(), DistributionPattern.BIPARTITE);
+		v4.connectIdInput(v2result.getId(), DistributionPattern.ALL_TO_ALL);
+		v4.connectIdInput(v3result_1.getId(), DistributionPattern.ALL_TO_ALL);
+		v5.connectNewDataSetAsInput(v4, DistributionPattern.ALL_TO_ALL);
+		v5.connectIdInput(v3result_2.getId(), DistributionPattern.ALL_TO_ALL);
 		
 		List<AbstractJobVertex> ordered2 = new ArrayList<AbstractJobVertex>(Arrays.asList(v4, v5));
 		
@@ -298,7 +298,7 @@ public class ExecutionGraphConstructionTest {
 				int sumOfPartitions = 0;
 				for (ExecutionEdge inEdge : inputs) {
 					assertEquals(0,inEdge.getInputNum());
-					sumOfPartitions += inEdge.getSource().getPartition();
+					sumOfPartitions += inEdge.getSource().getPartitionNumber();
 				}
 				
 				assertEquals(10, sumOfPartitions);
@@ -361,7 +361,7 @@ public class ExecutionGraphConstructionTest {
 					int sumOfPartitions = 0;
 					for (ExecutionEdge inEdge : inputs) {
 						assertEquals(0, inEdge.getInputNum());
-						sumOfPartitions += inEdge.getSource().getPartition();
+						sumOfPartitions += inEdge.getSource().getPartitionNumber();
 					}
 					
 					assertEquals(21, sumOfPartitions);
@@ -374,7 +374,7 @@ public class ExecutionGraphConstructionTest {
 					int sumOfPartitions = 0;
 					for (ExecutionEdge inEdge : inputs) {
 						assertEquals(1, inEdge.getInputNum());
-						sumOfPartitions += inEdge.getSource().getPartition();
+						sumOfPartitions += inEdge.getSource().getPartitionNumber();
 					}
 					
 					assertEquals(1, sumOfPartitions);
@@ -410,7 +410,7 @@ public class ExecutionGraphConstructionTest {
 					int sumOfPartitions = 0;
 					for (ExecutionEdge inEdge : inputs) {
 						assertEquals(0, inEdge.getInputNum());
-						sumOfPartitions += inEdge.getSource().getPartition();
+						sumOfPartitions += inEdge.getSource().getPartitionNumber();
 					}
 					
 					assertEquals(55, sumOfPartitions);
@@ -423,7 +423,7 @@ public class ExecutionGraphConstructionTest {
 					int sumOfPartitions = 0;
 					for (ExecutionEdge inEdge : inputs) {
 						assertEquals(1, inEdge.getInputNum());
-						sumOfPartitions += inEdge.getSource().getPartition();
+						sumOfPartitions += inEdge.getSource().getPartitionNumber();
 					}
 					
 					assertEquals(1, sumOfPartitions);
@@ -455,7 +455,7 @@ public class ExecutionGraphConstructionTest {
 		
 		// attach the second part of the graph
 		AbstractJobVertex v2 = new AbstractJobVertex("vertex2");
-		v2.connectIdInput(new IntermediateDataSetID(), DistributionPattern.BIPARTITE);
+		v2.connectIdInput(new IntermediateDataSetID(), DistributionPattern.ALL_TO_ALL);
 		
 		List<AbstractJobVertex> ordered2 = new ArrayList<AbstractJobVertex>(Arrays.asList(v2));
 		
@@ -486,11 +486,11 @@ public class ExecutionGraphConstructionTest {
 		v4.setParallelism(11);
 		v5.setParallelism(4);
 		
-		v2.connectNewDataSetAsInput(v1, DistributionPattern.BIPARTITE);
-		v4.connectNewDataSetAsInput(v2, DistributionPattern.BIPARTITE);
-		v4.connectNewDataSetAsInput(v3, DistributionPattern.BIPARTITE);
-		v5.connectNewDataSetAsInput(v4, DistributionPattern.BIPARTITE);
-		v5.connectNewDataSetAsInput(v3, DistributionPattern.BIPARTITE);
+		v2.connectNewDataSetAsInput(v1, DistributionPattern.ALL_TO_ALL);
+		v4.connectNewDataSetAsInput(v2, DistributionPattern.ALL_TO_ALL);
+		v4.connectNewDataSetAsInput(v3, DistributionPattern.ALL_TO_ALL);
+		v5.connectNewDataSetAsInput(v4, DistributionPattern.ALL_TO_ALL);
+		v5.connectNewDataSetAsInput(v3, DistributionPattern.ALL_TO_ALL);
 		
 		List<AbstractJobVertex> ordered = new ArrayList<AbstractJobVertex>(Arrays.asList(v1, v2, v3, v5, v4));
 
@@ -538,11 +538,11 @@ public class ExecutionGraphConstructionTest {
 			v4.setParallelism(11);
 			v5.setParallelism(4);
 			
-			v2.connectNewDataSetAsInput(v1, DistributionPattern.BIPARTITE);
-			v4.connectNewDataSetAsInput(v2, DistributionPattern.BIPARTITE);
-			v4.connectNewDataSetAsInput(v3, DistributionPattern.BIPARTITE);
-			v5.connectNewDataSetAsInput(v4, DistributionPattern.BIPARTITE);
-			v5.connectNewDataSetAsInput(v3, DistributionPattern.BIPARTITE);
+			v2.connectNewDataSetAsInput(v1, DistributionPattern.ALL_TO_ALL);
+			v4.connectNewDataSetAsInput(v2, DistributionPattern.ALL_TO_ALL);
+			v4.connectNewDataSetAsInput(v3, DistributionPattern.ALL_TO_ALL);
+			v5.connectNewDataSetAsInput(v4, DistributionPattern.ALL_TO_ALL);
+			v5.connectNewDataSetAsInput(v3, DistributionPattern.ALL_TO_ALL);
 			
 			v3.setInputSplitSource(source1);
 			v5.setInputSplitSource(source2);
@@ -583,8 +583,8 @@ public class ExecutionGraphConstructionTest {
 			v3.setParallelism(2);
 
 			IntermediateDataSet result = v1.createAndAddResultDataSet();
-			v2.connectDataSetAsInput(result, DistributionPattern.BIPARTITE);
-			v3.connectDataSetAsInput(result, DistributionPattern.BIPARTITE);
+			v2.connectDataSetAsInput(result, DistributionPattern.ALL_TO_ALL);
+			v3.connectDataSetAsInput(result, DistributionPattern.ALL_TO_ALL);
 			
 			List<AbstractJobVertex> ordered = new ArrayList<AbstractJobVertex>(Arrays.asList(v1, v2, v3));
 

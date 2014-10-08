@@ -23,14 +23,14 @@ import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.runtime.operators.DataSourceTask;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
-import org.apache.flink.runtime.io.network.api.RecordWriter;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 
 public class MockRecordWriter extends RecordWriter<SerializationDelegate<StreamRecord<Tuple1<Integer>>>> {
 
 	public ArrayList<Integer> emittedRecords;
 
 	public MockRecordWriter(DataSourceTask<?> inputBase, Class<StreamRecord<Tuple1<Integer>>> outputClass) {
-		super(inputBase);
+		super(inputBase.getEnvironment().getWriter(0));
 	}
 
 	public boolean initList() {

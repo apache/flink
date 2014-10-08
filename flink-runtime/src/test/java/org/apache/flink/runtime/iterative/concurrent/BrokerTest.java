@@ -19,7 +19,9 @@
 
 package org.apache.flink.runtime.iterative.concurrent;
 
-import static org.junit.Assert.assertEquals;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
+import org.junit.Test;
 
 import java.util.Collections;
 import java.util.List;
@@ -30,11 +32,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-import org.apache.flink.runtime.iterative.concurrent.Broker;
-import org.junit.Test;
-
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
+import static org.junit.Assert.assertEquals;
 
 public class BrokerTest {
 
@@ -48,28 +46,33 @@ public class BrokerTest {
 
 	void mediate(int subtasks) throws InterruptedException, ExecutionException {
 
-		ExecutorService executorService = Executors.newFixedThreadPool(subtasks * 2);
+		final ExecutorService executorService = Executors.newFixedThreadPool(subtasks * 2);
 
-		List<Callable<StringPair>> tasks = Lists.newArrayList();
-		Broker<String> broker = new Broker<String>();
+		try {
+			List<Callable<StringPair>> tasks = Lists.newArrayList();
+			Broker<String> broker = new Broker<String>();
 
-		for (int subtask = 0; subtask < subtasks; subtask++) {
-			tasks.add(new IterationHead(broker, subtask, "value" + subtask));
-			tasks.add(new IterationTail(broker, subtask));
-		}
-
-		Collections.shuffle(tasks);
-
-		int numSuccessfulHandovers = 0;
-		for (Future<StringPair> future : executorService.invokeAll(tasks)) {
-			StringPair stringPair = future.get();
-			if (stringPair != null) {
-				assertEquals("value" + stringPair.getFirst(), stringPair.getSecond());
-				numSuccessfulHandovers++;
+			for (int subtask = 0; subtask < subtasks; subtask++) {
+				tasks.add(new IterationHead(broker, subtask, "value" + subtask));
+				tasks.add(new IterationTail(broker, subtask));
 			}
-		}
 
-		assertEquals(subtasks, numSuccessfulHandovers);
+			Collections.shuffle(tasks);
+
+			int numSuccessfulHandovers = 0;
+			for (Future<StringPair> future : executorService.invokeAll(tasks)) {
+				StringPair stringPair = future.get();
+				if (stringPair != null) {
+					assertEquals("value" + stringPair.getFirst(), stringPair.getSecond());
+					numSuccessfulHandovers++;
+				}
+			}
+
+			assertEquals(subtasks, numSuccessfulHandovers);
+		}
+		finally {
+			executorService.shutdownNow();
+		}
 	}
 
 	class IterationHead implements Callable<StringPair> {

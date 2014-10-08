@@ -97,24 +97,38 @@ public class TestBaseUtils {
 			throws Exception {
 		if(executor != null) {
 			int numUnreleasedBCVars = 0;
+			int numActiveConnections = 0;
 			{
 				List<ActorRef> tms = executor.getTaskManagersAsJava();
-				List<Future<Object>> responseFutures = new ArrayList<Future<Object>>();
+				List<Future<Object>> bcVariableManagerResponseFutures = new ArrayList<Future<Object>>();
+				List<Future<Object>> numActiveConnectionsResponseFutures = new ArrayList<Future<Object>>();
 
 				for (ActorRef tm : tms) {
-					responseFutures.add(Patterns.ask(tm, TestingTaskManagerMessages
-							.RequestBroadcastVariablesWithReferences$.MODULE$, new Timeout
-							(timeout)));
+					bcVariableManagerResponseFutures.add(Patterns.ask(tm, TestingTaskManagerMessages
+							.RequestBroadcastVariablesWithReferences$.MODULE$, new Timeout(timeout)));
+
+					numActiveConnectionsResponseFutures.add(Patterns.ask(tm, TestingTaskManagerMessages
+							.RequestNumActiveConnections$.MODULE$, new Timeout(timeout)));
 				}
 
-				Future<Iterable<Object>> futureResponses = Futures.sequence(
-						responseFutures, AkkaUtils.globalExecutionContext());
+				Future<Iterable<Object>> bcVariableManagerFutureResponses = Futures.sequence(
+						bcVariableManagerResponseFutures, AkkaUtils.globalExecutionContext());
 
-				Iterable<Object> responses = Await.result(futureResponses, timeout);
+				Iterable<Object> responses = Await.result(bcVariableManagerFutureResponses, timeout);
 
 				for (Object response : responses) {
 					numUnreleasedBCVars += ((TestingTaskManagerMessages
 							.ResponseBroadcastVariablesWithReferences) response).number();
+				}
+
+				Future<Iterable<Object>> numActiveConnectionsFutureResponses = Futures.sequence(
+						numActiveConnectionsResponseFutures, AkkaUtils.globalExecutionContext());
+
+				responses = Await.result(numActiveConnectionsFutureResponses, timeout);
+
+				for (Object response : responses) {
+					numActiveConnections += ((TestingTaskManagerMessages
+							.ResponseNumActiveConnections) response).number();
 				}
 			}
 
@@ -123,6 +137,7 @@ public class TestBaseUtils {
 			System.gc();
 
 			Assert.assertEquals("Not all broadcast variables were released.", 0, numUnreleasedBCVars);
+			Assert.assertEquals("Not all TCP connections were released.", 0, numActiveConnections);
 		}
 
 	}

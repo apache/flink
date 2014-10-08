@@ -18,26 +18,26 @@
 
 package org.apache.flink.runtime.iterative.task;
 
-import java.io.IOException;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.functions.Function;
-import org.apache.flink.runtime.io.network.api.BufferWriter;
-import org.apache.flink.runtime.io.network.channels.EndOfSuperstepEvent;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
+import org.apache.flink.runtime.io.network.api.EndOfSuperstepEvent;
 import org.apache.flink.runtime.iterative.concurrent.BlockingBackChannel;
 import org.apache.flink.runtime.iterative.concurrent.SuperstepKickoffLatch;
 import org.apache.flink.runtime.iterative.concurrent.SuperstepKickoffLatchBroker;
 import org.apache.flink.runtime.iterative.event.TerminationEvent;
 import org.apache.flink.runtime.iterative.io.WorksetUpdateOutputCollector;
 import org.apache.flink.util.Collector;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
 
 /**
  * An intermediate iteration task, which runs a Driver}inside.
- * <p/>
+ * <p>
  * It will propagate {@link EndOfSuperstepEvent}s and {@link TerminationEvent}s to it's connected tasks. Furthermore
  * intermediate tasks can also update the iteration state, either the workset or the solution set.
- * <p/>
+ * <p>
  * If the iteration state is updated, the output of this task will be send back to the {@link IterationHeadPactTask} via
  * a {@link BlockingBackChannel} for the workset -XOR- a eHashTable for the solution set. In this case
  * this task must be scheduled on the same instance as the head.
@@ -123,7 +123,7 @@ public class IterationIntermediatePactTask<S extends Function, OT> extends Abstr
 	}
 
 	private void sendEndOfSuperstep() throws IOException, InterruptedException {
-		for (BufferWriter eventualOutput : this.eventualOutputs) {
+		for (RecordWriter eventualOutput : this.eventualOutputs) {
 			eventualOutput.sendEndOfSuperstep();
 		}
 	}

@@ -50,28 +50,33 @@ public class AtomicDisposableReferenceCounterTest {
 	public void testConcurrentIncrementAndDecrement() throws InterruptedException, ExecutionException, TimeoutException {
 		final Random random = new Random();
 
-		final ExecutorService executor = Executors.newCachedThreadPool();
+		final ExecutorService executor = Executors.newFixedThreadPool(2);
 
-		final MockIncrementer incrementer = new MockIncrementer();
+		try {
+			final MockIncrementer incrementer = new MockIncrementer();
 
-		final MockDecrementer decrementer = new MockDecrementer();
+			final MockDecrementer decrementer = new MockDecrementer();
 
-		// Repeat this to provoke races
-		for (int i = 0; i < 256; i++) {
-			final AtomicDisposableReferenceCounter counter = new AtomicDisposableReferenceCounter();
-			incrementer.setCounter(counter);
-			decrementer.setCounter(counter);
+			// Repeat this to provoke races
+			for (int i = 0; i < 256; i++) {
+				final AtomicDisposableReferenceCounter counter = new AtomicDisposableReferenceCounter();
+				incrementer.setCounter(counter);
+				decrementer.setCounter(counter);
 
-			counter.incrementReferenceCounter();
+				counter.incrementReferenceCounter();
 
-			// Randomly decide which one should be first as the first task usually will win the race
-			boolean incrementFirst = random.nextBoolean();
+				// Randomly decide which one should be first as the first task usually will win the race
+				boolean incrementFirst = random.nextBoolean();
 
-			Future<Boolean> success1 = executor.submit(incrementFirst ? incrementer : decrementer);
-			Future<Boolean> success2 = executor.submit(incrementFirst ? decrementer : incrementer);
+				Future<Boolean> success1 = executor.submit(incrementFirst ? incrementer : decrementer);
+				Future<Boolean> success2 = executor.submit(incrementFirst ? decrementer : incrementer);
 
-			// Only one of the two should win the race and return true
-			assertTrue(success1.get() ^ success2.get());
+				// Only one of the two should win the race and return true
+				assertTrue(success1.get() ^ success2.get());
+			}
+		}
+		finally {
+			executor.shutdownNow();
 		}
 	}
 

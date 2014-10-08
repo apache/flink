@@ -24,7 +24,6 @@ import java.util.List;
 
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.junit.Test;
 
 public class JobGraphTest {
@@ -46,7 +45,7 @@ public class JobGraphTest {
 				AbstractJobVertex source2 = new AbstractJobVertex("source2");
 				AbstractJobVertex target = new AbstractJobVertex("target");
 				target.connectNewDataSetAsInput(source1, DistributionPattern.POINTWISE);
-				target.connectNewDataSetAsInput(source2, DistributionPattern.BIPARTITE);
+				target.connectNewDataSetAsInput(source2, DistributionPattern.ALL_TO_ALL);
 				
 				jg.addVertex(source1);
 				jg.addVertex(source2);

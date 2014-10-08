@@ -22,7 +22,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.runtime.io.network.api.RecordWriter;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.io.BlockingQueueBroker;
@@ -70,8 +70,6 @@ public class StreamIterationHead<OUT extends Tuple> extends StreamVertex<OUT,OUT
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("SOURCE {} invoked with instance id {}", getName(), getInstanceID());
 		}
-
-		outputHandler.initializeOutputSerializers();
 
 		StreamRecord<OUT> nextRecord;
 

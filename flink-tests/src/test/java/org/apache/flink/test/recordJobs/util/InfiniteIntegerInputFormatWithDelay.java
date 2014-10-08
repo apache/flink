@@ -25,9 +25,6 @@ import org.apache.flink.api.java.record.io.GenericInputFormat;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 
-/**
- * 
- */
 public class InfiniteIntegerInputFormatWithDelay extends GenericInputFormat {
 	private static final long serialVersionUID = 1L;
 	

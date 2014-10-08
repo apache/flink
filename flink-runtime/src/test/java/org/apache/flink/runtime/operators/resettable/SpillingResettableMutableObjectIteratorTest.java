@@ -19,9 +19,6 @@
 
 package org.apache.flink.runtime.operators.resettable;
 
-import java.util.ArrayList;
-
-import org.junit.Assert;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.record.RecordSerializer;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -29,15 +26,17 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
-import org.apache.flink.runtime.operators.resettable.SpillingResettableMutableObjectIterator;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.MutableObjectIteratorWrapper;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.MutableObjectIterator;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+
+import java.util.ArrayList;
 
 public class SpillingResettableMutableObjectIteratorTest {
 	

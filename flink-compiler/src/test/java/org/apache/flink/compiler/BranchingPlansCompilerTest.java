@@ -781,7 +781,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 	}
 
 	/**
-	 * <prev>
+	 * <pre>
 	 *                  +----Iteration-------+
 	 *                  |                    |
 	 *       /---------< >---------join-----< >---sink
@@ -790,12 +790,11 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 	 *    /--map-------< >----\   /       /--|
 	 *   /     (Workset)|      \ /       /   |
 	 * src-map          |     join------/    |
-	 *   \   		    |      /             |
+	 *   \              |      /             |
 	 *    \             +-----/--------------+
 	 *     \                 /
 	 *      \--reduce-------/
-	 * <p/>
-	 * </prev>
+	 * </pre>
 	 */
 	@Test
 	public void testDeltaIterationWithStaticInput() {
@@ -847,7 +846,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 	}
 
 	/**
-	 * <prev>
+	 * <pre>
 	 *             +---------Iteration-------+
 	 *             |                         |
 	 *    /--map--< >----\                   |
@@ -857,8 +856,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 	 *    \        +-----/-------------------+
 	 *     \            /
 	 *      \--reduce--/
-	 * <p/>
-	 * </prev>
+	 * </pre>
 	 */
 	@Test
 	public void testIterationWithStaticInput() {

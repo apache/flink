@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import io.netty.buffer.ByteBuf;
 import org.apache.flink.runtime.AbstractID;
 
 /**
@@ -25,6 +26,19 @@ import org.apache.flink.runtime.AbstractID;
  * in cases of failures and recovery.
  */
 public class ExecutionAttemptID extends AbstractID {
-	
+
 	private static final long serialVersionUID = -1169683445778281344L;
+
+	public ExecutionAttemptID() {
+	}
+
+	public ExecutionAttemptID(long lowerPart, long upperPart) {
+		super(lowerPart, upperPart);
+	}
+
+	public static ExecutionAttemptID fromByteBuf(ByteBuf buf) {
+		long lower = buf.readLong();
+		long upper = buf.readLong();
+		return new ExecutionAttemptID(lower, upper);
+	}
 }

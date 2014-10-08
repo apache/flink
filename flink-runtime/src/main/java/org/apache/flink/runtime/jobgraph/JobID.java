@@ -55,12 +55,6 @@ public final class JobID extends AbstractID {
 		return new JobID(lower, upper);
 	}
 
-	public static JobID fromByteBuffer(ByteBuffer buf, int offset) {
-		long lower = buf.getLong(offset);
-		long upper = buf.getLong(offset + 8);
-		return new JobID(lower, upper);
-	}
-
 	public static JobID fromHexString(String hexString) {
 		return new JobID(DatatypeConverter.parseHexBinary(hexString));
 	}

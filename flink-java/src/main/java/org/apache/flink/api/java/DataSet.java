@@ -499,7 +499,7 @@ public abstract class DataSet<T> {
 	
 	/**
 	 * Returns a distinct set of a {@link DataSet} using a {@link KeySelector} function.
-	 * <p/>
+	 * <p>
 	 * The KeySelector function is called for each element of the DataSet and extracts a single key value on which the
 	 * decision is made if two items are distinct or not.
 	 *  
@@ -514,10 +514,10 @@ public abstract class DataSet<T> {
 	
 	/**
 	 * Returns a distinct set of a {@link Tuple} {@link DataSet} using field position keys.
-	 * <p/>
+	 * <p>
 	 * The field position keys specify the fields of Tuples on which the decision is made if two Tuples are distinct or
 	 * not.
-	 * <p/>
+	 * <p>
 	 * Note: Field position keys can only be specified for Tuple DataSets.
 	 *
 	 * @param fields One or more field positions on which the distinction of the DataSet is decided. 
@@ -529,10 +529,10 @@ public abstract class DataSet<T> {
 	
 	/**
 	 * Returns a distinct set of a {@link Tuple} {@link DataSet} using expression keys.
-	 * <p/>
+	 * <p>
 	 * The field position keys specify the fields of Tuples or Pojos on which the decision is made if two elements are distinct or
 	 * not.
-	 * <p/>
+	 * <p>
 	 *
 	 * @param fields One or more field positions on which the distinction of the DataSet is decided. 
 	 * @return A DistinctOperator that represents the distinct DataSet.
@@ -543,7 +543,7 @@ public abstract class DataSet<T> {
 	
 	/**
 	 * Returns a distinct set of a {@link Tuple} {@link DataSet} using all fields of the tuple.
-	 * <p/>
+	 * <p>
 	 * Note: This operator can only be applied to Tuple DataSets.
 	 * 
 	 * @return A DistinctOperator that represents the distinct DataSet.

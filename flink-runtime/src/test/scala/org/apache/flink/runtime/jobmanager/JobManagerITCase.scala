@@ -207,14 +207,14 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
 
       sender1.setInvokableClass(classOf[Sender])
       sender2.setInvokableClass(classOf[Sender])
-      receiver.setInvokableClass(classOf[AgnosticReceiver])
+      receiver.setInvokableClass(classOf[AgnosticTertiaryReceiver])
 
       sender1.setParallelism(num_tasks)
       sender2.setParallelism(2 * num_tasks)
       receiver.setParallelism(3 * num_tasks)
 
       receiver.connectNewDataSetAsInput(sender1, DistributionPattern.POINTWISE)
-      receiver.connectNewDataSetAsInput(sender2, DistributionPattern.BIPARTITE)
+      receiver.connectNewDataSetAsInput(sender2, DistributionPattern.ALL_TO_ALL)
 
       val jobGraph = new JobGraph("Bipartite Job", sender1, receiver, sender2)
 
@@ -251,7 +251,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       receiver.setParallelism(3 * num_tasks)
 
       receiver.connectNewDataSetAsInput(sender1, DistributionPattern.POINTWISE)
-      receiver.connectNewDataSetAsInput(sender2, DistributionPattern.BIPARTITE)
+      receiver.connectNewDataSetAsInput(sender2, DistributionPattern.ALL_TO_ALL)
 
       val jobGraph = new JobGraph("Bipartite Job", sender1, receiver, sender2)
 

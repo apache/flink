@@ -24,7 +24,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import org.apache.flink.runtime.io.network.api.RecordWriter;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 
@@ -96,8 +96,6 @@ public class RecordOutputCollector implements Collector<Record>
 			try {
 				writer.flush();
 			} catch (IOException e) {
-				throw new RuntimeException(e.getMessage(), e);
-			} catch (InterruptedException e) {
 				throw new RuntimeException(e.getMessage(), e);
 			}
 		}

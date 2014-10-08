@@ -20,7 +20,8 @@ package org.apache.flink.runtime.akka.serialization
 
 import akka.serialization.JSerializer
 import org.apache.flink.core.io.IOReadableWritable
-import org.apache.flink.runtime.io.network.serialization.{DataInputDeserializer, DataOutputSerializer}
+import org.apache.flink.runtime.util.{DataOutputSerializer, DataInputDeserializer}
+
 import org.apache.flink.util.InstantiationUtil
 
 class IOReadableWritableSerializer extends JSerializer {
