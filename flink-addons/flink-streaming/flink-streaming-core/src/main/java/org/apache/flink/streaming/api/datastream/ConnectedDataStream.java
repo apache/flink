@@ -18,12 +18,14 @@
 package org.apache.flink.streaming.api.datastream;
 
 import java.io.Serializable;
+import java.util.List;
 
 import org.apache.commons.lang3.SerializationException;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.JobGraphBuilder;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.co.CoFlatMapFunction;
@@ -40,8 +42,11 @@ import org.apache.flink.streaming.api.invokable.operator.co.CoReduceInvokable;
 import org.apache.flink.streaming.api.invokable.operator.co.CoWindowInvokable;
 import org.apache.flink.streaming.api.invokable.util.DefaultTimeStamp;
 import org.apache.flink.streaming.api.invokable.util.TimeStamp;
+import org.apache.flink.streaming.util.serialization.ClassTypeWrapper;
+import org.apache.flink.streaming.util.serialization.CombineTypeWrapper;
 import org.apache.flink.streaming.util.serialization.FunctionTypeWrapper;
 import org.apache.flink.streaming.util.serialization.TypeWrapper;
+import org.apache.flink.util.Collector;
 
 /**
  * The ConnectedDataStream represents a stream for two different data types. It
@@ -475,6 +480,53 @@ public class ConnectedDataStream<IN1, IN2> {
 			invokable = new CoReduceInvokable<IN1, IN2, OUT>(coReducer);
 		}
 		return invokable;
+	}
+
+	private static class CrossWindowFunction<IN1, IN2> implements
+			CoWindowFunction<IN1, IN2, Tuple2<IN1, IN2>> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public void coWindow(List<IN1> first, List<IN2> second, Collector<Tuple2<IN1, IN2>> out)
+				throws Exception {
+
+			for (IN1 item1 : first) {
+				for (IN2 item2 : second) {
+					out.collect(new Tuple2<IN1, IN2>(item1, item2));
+				}
+			}
+		}
+	}
+
+	SingleOutputStreamOperator<Tuple2<IN1, IN2>, ?> windowCross(long windowSize, long slideInterval) {
+
+		return windowCross(windowSize, slideInterval, new DefaultTimeStamp<IN1>(),
+				new DefaultTimeStamp<IN2>());
+	}
+
+	SingleOutputStreamOperator<Tuple2<IN1, IN2>, ?> windowCross(long windowSize,
+			long slideInterval, TimeStamp<IN1> timestamp1, TimeStamp<IN2> timestamp2) {
+
+		if (windowSize < 1) {
+			throw new IllegalArgumentException("Window size must be positive");
+		}
+		if (slideInterval < 1) {
+			throw new IllegalArgumentException("Slide interval must be positive");
+		}
+
+		TypeWrapper<IN1> in1TypeWrapper = null;
+		TypeWrapper<IN2> in2TypeWrapper = null;
+
+		in1TypeWrapper = new ClassTypeWrapper<IN1>(dataStream1.getOutputType().getTypeClass());
+		in2TypeWrapper = new ClassTypeWrapper<IN2>(dataStream2.getOutputType().getTypeClass());
+
+		CombineTypeWrapper<IN1, IN2> outTypeWrapper = new CombineTypeWrapper<IN1, IN2>(
+				in1TypeWrapper, in2TypeWrapper);
+
+		return addCoFunction("coWindowReduce", new CrossWindowFunction<IN1, IN2>(), in1TypeWrapper,
+				in2TypeWrapper, outTypeWrapper, new CoWindowInvokable<IN1, IN2, Tuple2<IN1, IN2>>(
+						new CrossWindowFunction<IN1, IN2>(), windowSize, slideInterval, timestamp1,
+						timestamp2));
 	}
 
 	protected <OUT> SingleOutputStreamOperator<OUT, ?> addCoFunction(String functionName,

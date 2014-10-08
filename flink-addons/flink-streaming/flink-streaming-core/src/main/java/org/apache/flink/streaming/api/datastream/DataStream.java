@@ -34,6 +34,7 @@ import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.functions.RichReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.streaming.api.JobGraphBuilder;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -222,9 +223,9 @@ public class DataStream<OUT> {
 	}
 
 	/**
-	 * Creates a new {@link DataStream} by merging {@link DataStream}
-	 * outputs of the same type with each other. The DataStreams merged using
-	 * this operator will be transformed simultaneously.
+	 * Creates a new {@link DataStream} by merging {@link DataStream} outputs of
+	 * the same type with each other. The DataStreams merged using this operator
+	 * will be transformed simultaneously.
 	 * 
 	 * @param streams
 	 *            The DataStreams to merge output with.
@@ -261,6 +262,51 @@ public class DataStream<OUT> {
 	 */
 	public <R> ConnectedDataStream<OUT, R> connect(DataStream<R> dataStream) {
 		return new ConnectedDataStream<OUT, R>(this, dataStream);
+	}
+
+	/**
+	 * Creates a cross (Cartesian product) of a data stream window. The user can
+	 * implement their own time stamps or use the system time by default.
+	 * 
+	 * @param windowSize
+	 *            Size of the windows that will be aligned for both streams in
+	 *            milliseconds.
+	 * @param slideInterval
+	 *            After every function call the windows will be slid by this
+	 *            interval.
+	 * @param dataStreamToCross
+	 * @param windowSize
+	 * @param slideInterval
+	 * @return The transformed {@link DataStream}.
+	 */
+	public <IN2> SingleOutputStreamOperator<Tuple2<OUT, IN2>, ?> windowCross(
+			DataStream<IN2> dataStreamToCross, long windowSize, long slideInterval) {
+		return this.windowCross(dataStreamToCross, windowSize, slideInterval,
+				new DefaultTimeStamp<OUT>(), new DefaultTimeStamp<IN2>());
+	}
+
+	/**
+	 * Creates a cross (Cartesian product) of a data stream window.
+	 * 
+	 * @param dataStreamToCross
+	 *            {@link DataStream} to cross with
+	 * @param windowSize
+	 *            Size of the windows that will be aligned for both streams in
+	 *            milliseconds.
+	 * @param slideInterval
+	 *            After every function call the windows will be slid by this
+	 *            interval.
+	 * @param timestamp1
+	 *            User defined time stamps for the first input.
+	 * @param timestamp2
+	 *            User defined time stamps for the second input.
+	 * @return The transformed {@link DataStream}.
+	 */
+	public <IN2> SingleOutputStreamOperator<Tuple2<OUT, IN2>, ?> windowCross(
+			DataStream<IN2> dataStreamToCross, long windowSize, long slideInterval,
+			TimeStamp<OUT> timestamp1, TimeStamp<IN2> timestamp2) {
+		return this.connect(dataStreamToCross).windowCross(windowSize, slideInterval, timestamp1,
+				timestamp2);
 	}
 
 	/**
