@@ -37,7 +37,7 @@ import org.apache.flink.api.java.record.io.FileOutputFormat;
 import org.apache.flink.api.java.record.operators.ReduceOperator.WrappingReduceFunction;
 import org.apache.flink.api.java.record.operators.ReduceOperator.WrappingClassReduceFunction;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.io.network.channels.ChannelType;
+import org.apache.flink.runtime.io.network.partition.ChannelType;
 import org.apache.flink.runtime.iterative.convergence.WorksetEmptyConvergenceCriterion;
 import org.apache.flink.runtime.iterative.task.IterationHeadPactTask;
 import org.apache.flink.runtime.iterative.task.IterationIntermediatePactTask;

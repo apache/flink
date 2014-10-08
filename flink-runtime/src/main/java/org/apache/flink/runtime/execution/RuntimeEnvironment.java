@@ -18,6 +18,31 @@
 
 package org.apache.flink.runtime.execution;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.runtime.deployment.GateDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
+import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.network.buffer.BufferFuture;
+import org.apache.flink.runtime.io.network.buffer.BufferPool;
+import org.apache.flink.runtime.io.network.buffer.BufferPoolFactory;
+import org.apache.flink.runtime.io.network.buffer.BufferPoolOwner;
+import org.apache.flink.runtime.io.network.buffer.BufferProvider;
+import org.apache.flink.runtime.io.network.gates.IntermediateResultPartition;
+import org.apache.flink.runtime.io.network.partition.ChannelID;
+import org.apache.flink.runtime.io.network.partition.OutputChannel;
+import org.apache.flink.runtime.io.network.gates.GateID;
+import org.apache.flink.runtime.io.network.gates.InputGate;
+import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
+import org.apache.flink.runtime.memorymanager.MemoryManager;
+import org.apache.flink.runtime.protocols.AccumulatorProtocol;
+import org.apache.flink.runtime.taskmanager.Task;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -32,72 +57,40 @@ import java.util.Set;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.Path;
-import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.runtime.deployment.GateDeploymentDescriptor;
-import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.network.Buffer;
-import org.apache.flink.runtime.io.network.bufferprovider.BufferAvailabilityListener;
-import org.apache.flink.runtime.io.network.bufferprovider.BufferProvider;
-import org.apache.flink.runtime.io.network.bufferprovider.GlobalBufferPool;
-import org.apache.flink.runtime.io.network.bufferprovider.LocalBufferPool;
-import org.apache.flink.runtime.io.network.bufferprovider.LocalBufferPoolOwner;
-import org.apache.flink.runtime.io.network.channels.ChannelID;
-import org.apache.flink.runtime.io.network.channels.OutputChannel;
-import org.apache.flink.runtime.io.network.gates.GateID;
-import org.apache.flink.runtime.io.network.gates.InputGate;
-import org.apache.flink.runtime.io.network.gates.OutputGate;
-import org.apache.flink.runtime.jobgraph.JobID;
-import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
-import org.apache.flink.runtime.memorymanager.MemoryManager;
-import org.apache.flink.runtime.protocols.AccumulatorProtocol;
-import org.apache.flink.runtime.taskmanager.Task;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.common.base.Preconditions;
-
-
-public class RuntimeEnvironment implements Environment, BufferProvider, LocalBufferPoolOwner, Runnable {
+public class RuntimeEnvironment implements Environment, BufferProvider, Runnable {
 
 	/** The log object used for debugging. */
 	private static final Logger LOG = LoggerFactory.getLogger(RuntimeEnvironment.class);
 
 	private static final ThreadGroup TASK_THREADS = new ThreadGroup("Task Threads");
-	
+
 	/** The interval to sleep in case a communication channel is not yet entirely set up (in milliseconds). */
 	private static final int SLEEPINTERVAL = 100;
-	
-	
-	
+
 	// --------------------------------------------------------------------------------------------
 
 	/** The task that owns this environment */
 	private final Task owner;
-	
-	
+
 	/** The job configuration encapsulated in the environment object. */
 	private final Configuration jobConfiguration;
 
 	/** The task configuration encapsulated in the environment object. */
 	private final Configuration taskConfiguration;
-	
-	
+
 	/** ClassLoader for all user code classes */
 	private final ClassLoader userCodeClassLoader;
-	
+
 	/** Class of the task to run in this environment. */
 	private final Class<? extends AbstractInvokable> invokableClass;
 
 	/** Instance of the class to be run in this environment. */
 	private final AbstractInvokable invokable;
-	
-	
+
 	/** List of output gates created by the task. */
-	private final ArrayList<OutputGate> outputGates = new ArrayList<OutputGate>();
+	private final ArrayList<IntermediateResultPartition> outputGates = new ArrayList<IntermediateResultPartition>();
 
 	/** List of input gates created by the task. */
 	private final ArrayList<InputGate<? extends IOReadableWritable>> inputGates = new ArrayList<InputGate<? extends IOReadableWritable>>();
@@ -114,45 +107,32 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 	/** The input split provider that can be queried for new input splits.  */
 	private final InputSplitProvider inputSplitProvider;
 
-	
 	/** The thread executing the task in the environment. */
 	private Thread executingThread;
 
-	/**
-	 * The RPC proxy to report accumulators to JobManager
-	 */
+	/** The RPC proxy to report accumulators to JobManager. */
 	private final AccumulatorProtocol accumulatorProtocolProxy;
 
 	private final Map<String,FutureTask<Path>> cacheCopyTasks = new HashMap<String, FutureTask<Path>>();
-	
-	private LocalBufferPool outputBufferPool;
-	
+
+	private BufferPool outputBufferPool;
+
 	private AtomicBoolean canceled = new AtomicBoolean();
 
+	public RuntimeEnvironment(
+			Task owner, TaskDeploymentDescriptor tdd, ClassLoader userCodeClassLoader,
+			MemoryManager memoryManager, IOManager ioManager, BufferPoolFactory bufferPoolFactory,
+			InputSplitProvider inputSplitProvider, AccumulatorProtocol accumulatorProtocolProxy) throws Exception {
 
-	public RuntimeEnvironment(Task owner, TaskDeploymentDescriptor tdd,
-							ClassLoader userCodeClassLoader,
-							MemoryManager memoryManager, IOManager ioManager,
-							InputSplitProvider inputSplitProvider,
-							AccumulatorProtocol accumulatorProtocolProxy)
-		throws Exception
-	{
-		Preconditions.checkNotNull(owner);
-		Preconditions.checkNotNull(memoryManager);
-		Preconditions.checkNotNull(ioManager);
-		Preconditions.checkNotNull(inputSplitProvider);
-		Preconditions.checkNotNull(accumulatorProtocolProxy);
-		Preconditions.checkNotNull(userCodeClassLoader);
-		
-		this.owner = owner;
+		this.owner = checkNotNull(owner);
 
-		this.memoryManager = memoryManager;
-		this.ioManager = ioManager;
-		this.inputSplitProvider = inputSplitProvider;
-		this.accumulatorProtocolProxy = accumulatorProtocolProxy;
+		this.memoryManager = checkNotNull(memoryManager);
+		this.ioManager = checkNotNull(ioManager);
+		this.inputSplitProvider = checkNotNull(inputSplitProvider);
+		this.accumulatorProtocolProxy = checkNotNull(accumulatorProtocolProxy);
 
 		// load and instantiate the invokable class
-		this.userCodeClassLoader = userCodeClassLoader;
+		this.userCodeClassLoader = checkNotNull(userCodeClassLoader);
 		try {
 			final String className = tdd.getInvokableClassName();
 			this.invokableClass = Class.forName(className, true, userCodeClassLoader).asSubclass(AbstractInvokable.class);
@@ -160,24 +140,23 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 		catch (Throwable t) {
 			throw new Exception("Could not load invokable class.", t);
 		}
-		
+
 		try {
 			this.invokable = this.invokableClass.newInstance();
 		}
 		catch (Throwable t) {
 			throw new Exception("Could not instantiate the invokable class.", t);
 		}
-		
+
 		this.jobConfiguration = tdd.getJobConfiguration();
 		this.taskConfiguration = tdd.getTaskConfiguration();
-		
+
 		this.invokable.setEnvironment(this);
 		this.invokable.registerInputOutput();
 
 		List<GateDeploymentDescriptor> inGates = tdd.getInputGates();
 		List<GateDeploymentDescriptor> outGates = tdd.getOutputGates();
-		
-		
+
 		if (this.inputGates.size() != inGates.size()) {
 			throw new Exception("The number of readers created in 'registerInputOutput()' "
 					+ "is different than the number of connected incoming edges in the job graph.");
@@ -186,12 +165,31 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 			throw new Exception("The number of writers created in 'registerInputOutput()' "
 					+ "is different than the number of connected outgoing edges in the job graph.");
 		}
-		
+
 		for (int i = 0; i < inGates.size(); i++) {
 			this.inputGates.get(i).initializeChannels(inGates.get(i));
 		}
 		for (int i = 0; i < outGates.size(); i++) {
 			this.outputGates.get(i).initializeChannels(outGates.get(i));
+		}
+
+		// Create buffer pools (TODO this will be moved to the constructor)
+		checkNotNull(bufferPoolFactory);
+
+		try {
+
+			registerGlobalBufferPool(bufferPoolFactory);
+
+			for (InputGate ig : inputGates) {
+				ig.registerGlobalBufferPool(bufferPoolFactory);
+			}
+		} catch (Throwable t) {
+			outputBufferPool.destroy();
+			for (InputGate ig : inputGates) {
+				if (ig.getBufferPool() != null) {
+					ig.getBufferPool().destroy();
+				}
+			}
 		}
 	}
 
@@ -215,8 +213,8 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 	}
 
 	@Override
-	public OutputGate createAndRegisterOutputGate() {
-		OutputGate gate = new OutputGate(getJobID(), new GateID(), getNumberOfOutputGates());
+	public IntermediateResultPartition createAndRegisterOutputGate() {
+		IntermediateResultPartition gate = new IntermediateResultPartition(getJobID(), new GateID(), getNumberOfOutputGates());
 		this.outputGates.add(gate);
 
 		return gate;
@@ -229,7 +227,9 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 			owner.cancelingDone();
 			return;
 		}
-		
+
+		boolean hasReleasedResource = false;
+
 		try {
 			Thread.currentThread().setContextClassLoader(userCodeClassLoader);
 			this.invokable.invoke();
@@ -238,7 +238,7 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 			if (this.owner.isCanceledOrFailed()) {
 				throw new CancelTaskException();
 			}
-			
+
 			// If there is any unclosed input gate, close it and propagate close operation to corresponding output gate
 			closeInputGates();
 
@@ -250,18 +250,18 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 
 			// Now we wait until all output channels have written out their data and are closed
 			waitForOutputChannelsToBeClosed();
-			
+
 			if (this.owner.isCanceledOrFailed()) {
 				throw new CancelTaskException();
 			}
-			
+
 			// Finally, switch execution state to FINISHED and report to job manager
 			if (!owner.markAsFinished()) {
 				throw new Exception("Could notify job manager that the task is finished.");
 			}
 		}
 		catch (Throwable t) {
-			
+
 			if (!this.owner.isCanceledOrFailed()) {
 
 				// Perform clean up when the task failed and has been not canceled by the user
@@ -274,6 +274,7 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 
 			// Release all resources that may currently be allocated by the individual channels
 			releaseAllChannelResources();
+			hasReleasedResource = true;
 
 			// if we are already set as cancelled or failed (when failure is triggered externally),
 			// mark that the thread is done.
@@ -287,7 +288,9 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 		}
 		finally {
 			// Release all resources that may currently be allocated by the individual channels
-			releaseAllChannelResources();
+			if (!hasReleasedResource) {
+				releaseAllChannelResources();
+			}
 		}
 	}
 
@@ -348,7 +351,7 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 	 * @param index the index of the output gate to return
 	 * @return the output gate at index <code>pos</code> or <code>null</code> if no such index exists
 	 */
-	public OutputGate getOutputGate(int index) {
+	public IntermediateResultPartition getOutputGate(int index) {
 		if (index < this.outputGates.size()) {
 			return this.outputGates.get(index);
 		}
@@ -372,7 +375,7 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 			return this.executingThread;
 		}
 	}
-	
+
 	public void cancelExecution() {
 		if (!canceled.compareAndSet(false, true)) {
 			return;
@@ -388,36 +391,36 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 				LOG.error("Error while cancelling the task.", e);
 			}
 		}
-		
+
 		final Thread executingThread = this.executingThread;
 		if (executingThread != null) {
 			// interrupt the running thread and wait for it to die
 			executingThread.interrupt();
-			
+
 			try {
 				executingThread.join(5000);
 			} catch (InterruptedException e) {}
-			
+
 			if (!executingThread.isAlive()) {
 				return;
 			}
-			
+
 			// Continuously interrupt the user thread until it changed to state CANCELED
 			while (executingThread != null && executingThread.isAlive()) {
 				LOG.warn("Task " + owner.getTaskNameWithSubtasks() + " did not react to cancelling signal. Sending repeated interrupt.");
-	
+
 				if (LOG.isDebugEnabled()) {
 					StringBuilder bld = new StringBuilder("Task ").append(owner.getTaskNameWithSubtasks()).append(" is stuck in method:\n");
-					
+
 					StackTraceElement[] stack = executingThread.getStackTrace();
 					for (StackTraceElement e : stack) {
 						bld.append(e).append('\n');
 					}
 					LOG.debug(bld.toString());
 				}
-				
+
 				executingThread.interrupt();
-				
+
 				try {
 					executingThread.join(1000);
 				} catch (InterruptedException e) {}
@@ -436,7 +439,7 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 			return;
 		}
 
-		for (OutputGate og : this.outputGates) {
+		for (IntermediateResultPartition og : this.outputGates) {
 			og.waitForGateToBeClosed();
 		}
 	}
@@ -540,11 +543,18 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 	 */
 	private void releaseAllChannelResources() {
 		for (int i = 0; i < this.inputGates.size(); i++) {
-			this.inputGates.get(i).releaseAllChannelResources();
+			InputGate ig = inputGates.get(i);
+			ig.releaseAllChannelResources();
+			ig.getBufferPool().destroy();
 		}
 
 		for (int i = 0; i < this.outputGates.size(); i++) {
 			this.outputGates.get(i).releaseAllChannelResources();
+		}
+
+		// Check for tests
+		if (outputBufferPool != null) {
+			outputBufferPool.destroy();
 		}
 	}
 
@@ -552,7 +562,7 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 	public Set<ChannelID> getOutputChannelIDs() {
 		Set<ChannelID> ids = new HashSet<ChannelID>();
 
-		for (OutputGate gate : this.outputGates) {
+		for (IntermediateResultPartition gate : this.outputGates) {
 			for (OutputChannel channel : gate.channels()) {
 				ids.add(channel.getID());
 			}
@@ -593,7 +603,7 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 	public Set<GateID> getOutputGateIDs() {
 		final Set<GateID> outputGateIDs = new HashSet<GateID>();
 
-		final Iterator<OutputGate> gateIterator = this.outputGates.iterator();
+		final Iterator<IntermediateResultPartition> gateIterator = this.outputGates.iterator();
 		while (gateIterator.hasNext()) {
 			outputGateIDs.add(gateIterator.next().getGateID());
 		}
@@ -601,13 +611,12 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 		return Collections.unmodifiableSet(outputGateIDs);
 	}
 
-
 	@Override
 	public Set<ChannelID> getOutputChannelIDsOfGate(final GateID gateID) {
-		OutputGate outputGate = null;
-		final Iterator<OutputGate> gateIterator = this.outputGates.iterator();
+		IntermediateResultPartition outputGate = null;
+		final Iterator<IntermediateResultPartition> gateIterator = this.outputGates.iterator();
 		while (gateIterator.hasNext()) {
-			final OutputGate candidateGate = gateIterator.next();
+			final IntermediateResultPartition candidateGate = gateIterator.next();
 			if (candidateGate.getGateID().equals(gateID)) {
 				outputGate = candidateGate;
 				break;
@@ -626,7 +635,6 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 
 		return Collections.unmodifiableSet(outputChannelIDs);
 	}
-
 
 	@Override
 	public Set<ChannelID> getInputChannelIDsOfGate(final GateID gateID) {
@@ -653,7 +661,7 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 		return Collections.unmodifiableSet(inputChannelIDs);
 	}
 
-	public List<OutputGate> outputGates() {
+	public List<IntermediateResultPartition> outputGates() {
 		return this.outputGates;
 	}
 
@@ -674,7 +682,7 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 	public void addCopyTasksForCacheFile(Map<String, FutureTask<Path>> copyTasks) {
 		this.cacheCopyTasks.putAll(copyTasks);
 	}
-	
+
 	public void addCopyTaskForCacheFile(String name, FutureTask<Path> copyTask) {
 		this.cacheCopyTasks.put(name, copyTask);
 	}
@@ -689,67 +697,39 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 		return this;
 	}
 
-	// -----------------------------------------------------------------------------------------------------------------
-	//                                            BufferProvider methods
-	// -----------------------------------------------------------------------------------------------------------------
+	public BufferPool getOutputBufferPool() {
+		return outputBufferPool;
+	}
+
+	// ------------------------------------------------------------------------
+	// BufferPool
+	// ------------------------------------------------------------------------
 
 	@Override
-	public Buffer requestBuffer(int minBufferSize) throws IOException {
+	public BufferFuture requestBuffer() {
+		return this.outputBufferPool.requestBuffer();
+	}
+
+	@Override
+	public BufferFuture requestBuffer(int minBufferSize) {
 		return this.outputBufferPool.requestBuffer(minBufferSize);
 	}
 
-	@Override
-	public Buffer requestBufferBlocking(int minBufferSize) throws IOException, InterruptedException {
-		return this.outputBufferPool.requestBufferBlocking(minBufferSize);
-	}
-
-	@Override
-	public int getBufferSize() {
-		return this.outputBufferPool.getBufferSize();
-	}
-
-	@Override
-	public BufferAvailabilityRegistration registerBufferAvailabilityListener(BufferAvailabilityListener listener) {
-		return this.outputBufferPool.registerBufferAvailabilityListener(listener);
-	}
-
-	// -----------------------------------------------------------------------------------------------------------------
-	//                                       LocalBufferPoolOwner methods
-	// -----------------------------------------------------------------------------------------------------------------
-
-	@Override
-	public int getNumberOfChannels() {
-		return getNumberOfOutputChannels();
-	}
-
-	@Override
-	public void setDesignatedNumberOfBuffers(int numBuffers) {
-		this.outputBufferPool.setNumDesignatedBuffers(numBuffers);
-	}
-
-	@Override
-	public void clearLocalBufferPool() {
-		this.outputBufferPool.destroy();
-	}
-
-	@Override
-	public void registerGlobalBufferPool(GlobalBufferPool globalBufferPool) {
+	private void registerGlobalBufferPool(BufferPoolFactory networkBufferPool) {
 		if (this.outputBufferPool == null) {
-			this.outputBufferPool = new LocalBufferPool(globalBufferPool, 1);
+			int numRequiredBuffers = getNumberOfOutputChannels();
+			BufferPoolOwner noopOwner = new BufferPoolOwner() {
+				@Override
+				public void recycleBuffers(int numBuffersToRecycle) {
+				}
+
+				@Override
+				public void recycleAllBuffers() {
+
+				}
+			};
+
+			this.outputBufferPool = networkBufferPool.createBufferPool(noopOwner, numRequiredBuffers, false);
 		}
-	}
-
-	@Override
-	public void logBufferUtilization() {
-		LOG.info(String.format("\t%s: %d available, %d requested, %d designated",
-				owner.getTaskNameWithSubtasks(),
-				this.outputBufferPool.numAvailableBuffers(),
-				this.outputBufferPool.numRequestedBuffers(),
-				this.outputBufferPool.numDesignatedBuffers()));
-	}
-
-	@Override
-	public void reportAsynchronousEvent() {
-		this.outputBufferPool.reportAsynchronousEvent();
 	}
 }

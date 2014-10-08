@@ -24,7 +24,7 @@ import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.executiongraph.ExecutionEdge;
-import org.apache.flink.runtime.io.network.channels.ChannelID;
+import org.apache.flink.runtime.io.network.partition.ChannelID;
 
 /**
  * A channel deployment descriptor contains all the information necessary to deploy either an input or an output channel

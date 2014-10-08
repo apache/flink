@@ -19,8 +19,6 @@
 
 package org.apache.flink.runtime.io.network;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.AbstractID;
 import org.apache.flink.runtime.execution.CancelTaskException;
@@ -28,23 +26,23 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.RuntimeEnvironment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
-import org.apache.flink.runtime.io.network.bufferprovider.BufferProvider;
-import org.apache.flink.runtime.io.network.bufferprovider.BufferProviderBroker;
-import org.apache.flink.runtime.io.network.bufferprovider.DiscardBufferPool;
-import org.apache.flink.runtime.io.network.bufferprovider.GlobalBufferPool;
-import org.apache.flink.runtime.io.network.bufferprovider.LocalBufferPoolOwner;
-import org.apache.flink.runtime.io.network.channels.Channel;
-import org.apache.flink.runtime.io.network.channels.ChannelID;
-import org.apache.flink.runtime.io.network.channels.ChannelType;
-import org.apache.flink.runtime.io.network.channels.InputChannel;
-import org.apache.flink.runtime.io.network.channels.OutputChannel;
-import org.apache.flink.runtime.io.network.gates.GateID;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferPool;
+import org.apache.flink.runtime.io.network.buffer.BufferProvider;
+import org.apache.flink.runtime.io.network.buffer.BufferProviderBroker;
 import org.apache.flink.runtime.io.network.gates.InputGate;
-import org.apache.flink.runtime.io.network.gates.OutputGate;
+import org.apache.flink.runtime.io.network.gates.IntermediateResultPartition;
+import org.apache.flink.runtime.io.network.partition.Channel;
+import org.apache.flink.runtime.io.network.partition.ChannelID;
+import org.apache.flink.runtime.io.network.partition.ChannelType;
+import org.apache.flink.runtime.io.network.partition.InputChannel;
+import org.apache.flink.runtime.io.network.partition.OutputChannel;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.protocols.ChannelLookupProtocol;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.util.ExceptionUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -65,31 +63,20 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 
 	private final Map<ChannelID, Channel> channels;
 
-	private final Map<AbstractID, LocalBufferPoolOwner> localBuffersPools;
+	private final Map<AbstractID, BufferPool> localBuffersPools;
 
 	private final Map<ChannelID, EnvelopeReceiverList> receiverCache;
-
-	private final GlobalBufferPool globalBufferPool;
 
 	private final NetworkConnectionManager networkConnectionManager;
 	
 	private final InetSocketAddress ourAddress;
-	
-	private final DiscardBufferPool discardBufferPool;
 
 	// -----------------------------------------------------------------------------------------------------------------
 
-	public ChannelManager(ChannelLookupProtocol channelLookupService, InstanceConnectionInfo connectionInfo,
-			int numNetworkBuffers, int networkBufferSize, NetworkConnectionManager networkConnectionManager) throws IOException {
+	public ChannelManager(ChannelLookupProtocol channelLookupService, InstanceConnectionInfo connectionInfo, NetworkConnectionManager networkConnectionManager) throws IOException {
 
 		this.channelLookupService = channelLookupService;
 		this.connectionInfo = connectionInfo;
-
-		try {
-			this.globalBufferPool = new GlobalBufferPool(numNetworkBuffers, networkBufferSize);
-		} catch (Throwable e) {
-			throw new IOException("Failed to instantiate GlobalBufferPool.", e);
-		}
 
 		this.networkConnectionManager = networkConnectionManager;
 		networkConnectionManager.start(this);
@@ -97,22 +84,13 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 		// management data structures
 		this.channels = new ConcurrentHashMap<ChannelID, Channel>();
 		this.receiverCache = new ConcurrentHashMap<ChannelID, EnvelopeReceiverList>();
-		this.localBuffersPools = new ConcurrentHashMap<AbstractID, LocalBufferPoolOwner>();
+		this.localBuffersPools = new ConcurrentHashMap<AbstractID, BufferPool>();
 		
 		this.ourAddress = new InetSocketAddress(connectionInfo.address(), connectionInfo.dataPort());
-		
-		// a special pool if the data is to be discarded
-		this.discardBufferPool = new DiscardBufferPool();
 	}
 
 	public void shutdown() throws IOException {
 		this.networkConnectionManager.shutdown();
-
-		this.globalBufferPool.destroy();
-	}
-
-	public GlobalBufferPool getGlobalBufferPool() {
-		return globalBufferPool;
 	}
 	
 	// -----------------------------------------------------------------------------------------------------------------
@@ -123,25 +101,19 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 	 * Registers the given task with the channel manager.
 	 *
 	 * @param task the task to be registered
-	 * @throws InsufficientResourcesException thrown if not enough buffers available to safely run this task
 	 */
-	public void register(Task task) throws InsufficientResourcesException {
-		// Check if we can safely run this task with the given buffers
-		ensureBufferAvailability(task);
-
+	public void register(Task task) {
 		RuntimeEnvironment environment = task.getEnvironment();
 
 		// -------------------------------------------------------------------------------------------------------------
 		//                                       Register output channels
 		// -------------------------------------------------------------------------------------------------------------
 
-		environment.registerGlobalBufferPool(this.globalBufferPool);
-
 		if (this.localBuffersPools.containsKey(task.getExecutionId())) {
 			throw new IllegalStateException("Execution " + task.getExecutionId() + " has a previous buffer pool owner");
 		}
 
-		for (OutputGate gate : environment.outputGates()) {
+		for (IntermediateResultPartition gate : environment.outputGates()) {
 			// add receiver list hints
 			for (OutputChannel channel : gate.channels()) {
 				// register envelope dispatcher with the channel
@@ -160,16 +132,12 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 			}
 		}
 
-		this.localBuffersPools.put(task.getExecutionId(), environment);
-
 		// -------------------------------------------------------------------------------------------------------------
 		//                                       Register input channels
 		// -------------------------------------------------------------------------------------------------------------
 
 		// register global
 		for (InputGate<?> gate : environment.inputGates()) {
-			gate.registerGlobalBufferPool(this.globalBufferPool);
-
 			for (int i = 0; i < gate.getNumberOfInputChannels(); i++) {
 				InputChannel<? extends IOReadableWritable> channel = gate.getInputChannel(i);
 				channel.registerEnvelopeDispatcher(this);
@@ -180,13 +148,7 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 
 				this.channels.put(channel.getID(), channel);
 			}
-
-			this.localBuffersPools.put(gate.getGateID(), gate);
 		}
-
-		// the number of channels per buffers has changed after unregistering the task
-		// => redistribute the number of designated buffers of the registered local buffer pools
-		redistributeBuffers();
 	}
 
 	/**
@@ -208,7 +170,7 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 				channel.destroy();
 			}
 
-			this.receiverCache.remove(channel);
+			this.receiverCache.remove(channel.getID());
 		}
 
 		// destroy and remove INPUT channels from registered channels and cache
@@ -218,78 +180,7 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 				channel.destroy();
 			}
 
-			this.receiverCache.remove(channel);
-		}
-
-		// clear and remove INPUT side buffer pools
-		for (GateID id : environment.getInputGateIDs()) {
-			LocalBufferPoolOwner bufferPool = this.localBuffersPools.remove(id);
-			if (bufferPool != null) {
-				bufferPool.clearLocalBufferPool();
-			}
-		}
-
-		// clear and remove OUTPUT side buffer pool
-		LocalBufferPoolOwner bufferPool = this.localBuffersPools.remove(executionId);
-		if (bufferPool != null) {
-			bufferPool.clearLocalBufferPool();
-		}
-
-		// the number of channels per buffers has changed after unregistering the task
-		// => redistribute the number of designated buffers of the registered local buffer pools
-		redistributeBuffers();
-	}
-
-	/**
-	 * Ensures that the channel manager has enough buffers to execute the given task.
-	 * <p>
-	 * If there is less than one buffer per channel available, an InsufficientResourcesException will be thrown,
-	 * because of possible deadlocks. With more then one buffer per channel, deadlock-freedom is guaranteed.
-	 *
-	 * @param task task to be executed
-	 * @throws InsufficientResourcesException thrown if not enough buffers available to execute the task
-	 */
-	private void ensureBufferAvailability(Task task) throws InsufficientResourcesException {
-		Environment env = task.getEnvironment();
-
-		int numBuffers = this.globalBufferPool.numBuffers();
-		// existing channels + channels of the task
-		int numChannels = this.channels.size() + env.getNumberOfOutputChannels() + env.getNumberOfInputChannels();
-
-		// need at least one buffer per channel
-		if (numChannels > 0 && numBuffers / numChannels < 1) {
-			String msg = String.format("%s has not enough buffers to safely execute %s (%d buffers missing)",
-					this.connectionInfo.hostname(), env.getTaskName(), numChannels - numBuffers);
-
-			throw new InsufficientResourcesException(msg);
-		}
-	}
-
-	/**
-	 * Redistributes the buffers among the registered buffer pools. This method is called after each task registration
-	 * and unregistration.
-	 * <p>
-	 * Every registered buffer pool gets buffers according to its number of channels weighted by the current buffer to
-	 * channel ratio.
-	 */
-	private void redistributeBuffers() {
-		if (this.localBuffersPools.isEmpty() | this.channels.size() == 0) {
-			return;
-		}
-
-		int numBuffers = this.globalBufferPool.numBuffers();
-		int numChannels = this.channels.size();
-
-		double buffersPerChannel = numBuffers / (double) numChannels;
-
-		if (buffersPerChannel < 1.0) {
-			throw new RuntimeException("System has not enough buffers to execute tasks.");
-		}
-
-		// redistribute number of designated buffers per buffer pool
-		for (LocalBufferPoolOwner bufferPool : this.localBuffersPools.values()) {
-			int numDesignatedBuffers = (int) Math.ceil(buffersPerChannel * bufferPool.getNumberOfChannels());
-			bufferPool.setDesignatedNumberOfBuffers(numDesignatedBuffers);
+			this.receiverCache.remove(channel.getID());
 		}
 	}
 
@@ -300,7 +191,7 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 	private void releaseEnvelope(Envelope envelope) {
 		Buffer buffer = envelope.getBuffer();
 		if (buffer != null) {
-			buffer.recycleBuffer();
+			buffer.recycle();
 		}
 	}
 
@@ -452,14 +343,18 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 				// copy the buffer into the memory space of the receiver 
 				if (srcBuffer != null) {
 					try {
-						destBuffer = inputChannel.requestBufferBlocking(srcBuffer.size());
+						destBuffer = inputChannel.requestBuffer(srcBuffer.getSize()).waitForBuffer().getBuffer();
+
+						if (destBuffer == null) {
+							throw new IOException("Unexpected NULL buffer from input side. This means that the buffer future has been canceled.");
+						}
 					} catch (InterruptedException e) {
 						throw new IOException(e.getMessage());
 					}
 
-					srcBuffer.copyToBuffer(destBuffer);
+					srcBuffer.copyTo(destBuffer);
 					envelope.setBuffer(destBuffer);
-					srcBuffer.recycleBuffer();
+					srcBuffer.recycle();
 				}
 				
 				inputChannel.queueEnvelope(envelope);
@@ -479,10 +374,10 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 		} finally {
 			if (!success) {
 				if (srcBuffer != null) {
-					srcBuffer.recycleBuffer();
+					srcBuffer.recycle();
 				}
 				if (destBuffer != null) {
-					destBuffer.recycleBuffer();
+					destBuffer.recycle();
 				}
 			}
 		}
@@ -511,6 +406,7 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 			}
 
 			OutputChannel outputChannel = (OutputChannel) channel;
+
 			outputChannel.queueEnvelope(envelope);
 		}
 		else if (receiverList.hasRemoteReceiver()) {
@@ -617,7 +513,7 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 		
 		// check if the receiver is already gone
 		if (receiverList == null) {
-			return this.discardBufferPool;
+			return null;
 		}
 
 		if (!receiverList.hasLocalReceiver() || receiverList.hasRemoteReceiver()) {
@@ -630,7 +526,7 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 		
 		if (channel == null) {
 			// receiver is already canceled
-			return this.discardBufferPool;
+			return null;
 		}
 
 		if (!channel.isInputChannel()) {
@@ -638,27 +534,5 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 		}
 
 		return (InputChannel<?>) channel;
-	}
-
-	// -----------------------------------------------------------------------------------------------------------------
-
-	public void logBufferUtilization() {
-		System.out.println("Buffer utilization at " + System.currentTimeMillis());
-
-		System.out.println("\tUnused global buffers: " + this.globalBufferPool.numAvailableBuffers());
-
-		System.out.println("\tLocal buffer pool status:");
-
-		for (LocalBufferPoolOwner bufferPool : this.localBuffersPools.values()) {
-			bufferPool.logBufferUtilization();
-		}
-
-		System.out.println("\tIncoming connections:");
-
-		for (Channel channel : this.channels.values()) {
-			if (channel.isInputChannel()) {
-				((InputChannel<?>) channel).logQueuedEnvelopes();
-			}
-		}
 	}
 }

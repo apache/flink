@@ -24,8 +24,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.util.Random;
 
-import org.apache.flink.runtime.event.task.AbstractTaskEvent;
-import org.apache.flink.runtime.iterative.concurrent.SuperstepBarrier;
+import org.apache.flink.runtime.event.task.TaskEvent;
 import org.apache.flink.runtime.iterative.event.AllWorkersDoneEvent;
 import org.apache.flink.runtime.iterative.event.TerminationEvent;
 import org.junit.Test;
@@ -46,7 +45,7 @@ public class SuperstepBarrierTest {
 		}
 	}
 
-	private void sync(AbstractTaskEvent event) throws InterruptedException {
+	private void sync(TaskEvent event) throws InterruptedException {
 
 		TerminationSignaled terminationSignaled = new TerminationSignaled();
 
@@ -104,11 +103,11 @@ public class SuperstepBarrierTest {
 
 		private final SuperstepBarrier barrier;
 
-		private final AbstractTaskEvent event;
+		private final TaskEvent event;
 
 		private final Random random;
 
-		IterationSync(SuperstepBarrier barrier, AbstractTaskEvent event) {
+		IterationSync(SuperstepBarrier barrier, TaskEvent event) {
 			this.barrier = barrier;
 			this.event = event;
 			random = new Random();
@@ -119,7 +118,7 @@ public class SuperstepBarrierTest {
 			try {
 				Thread.sleep(random.nextInt(10));
 
-				barrier.eventOccurred(event);
+				barrier.onEvent(event);
 
 			} catch (Exception e) {
 				throw new RuntimeException(e);

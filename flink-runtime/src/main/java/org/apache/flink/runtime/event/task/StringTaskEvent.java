@@ -28,7 +28,7 @@ import org.apache.flink.core.memory.DataOutputView;
  * This class provides a simple implementation of an event that holds a string value.
  * 
  */
-public class StringTaskEvent extends AbstractTaskEvent {
+public class StringTaskEvent extends TaskEvent {
 
 	/**
 	 * The string encapsulated by this event.

@@ -30,7 +30,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.io.StringRecord;
 import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
-import org.apache.flink.runtime.io.network.serialization.DataOutputSerializer;
+import org.apache.flink.runtime.util.DataOutputSerializer;
 import org.apache.flink.runtime.net.NetUtils;
 import org.apache.flink.runtime.util.IOUtils;
 import org.apache.flink.util.ClassUtils;

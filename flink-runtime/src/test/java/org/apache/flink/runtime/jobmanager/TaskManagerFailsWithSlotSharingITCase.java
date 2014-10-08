@@ -22,15 +22,13 @@ import static org.apache.flink.runtime.jobgraph.JobManagerTestUtils.startJobMana
 import static org.apache.flink.runtime.jobgraph.JobManagerTestUtils.waitForTaskThreadsToBeTerminated;
 import static org.junit.Assert.*;
 
-import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.client.AbstractJobResult;
 import org.apache.flink.runtime.client.JobSubmissionResult;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.instance.LocalInstanceManager;
-import org.apache.flink.runtime.io.network.bufferprovider.GlobalBufferPool;
+import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -39,8 +37,6 @@ import org.apache.flink.runtime.jobmanager.tasks.BlockingReceiver;
 import org.apache.flink.runtime.jobmanager.tasks.Sender;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.junit.Test;
-
-import java.util.ArrayList;
 
 public class TaskManagerFailsWithSlotSharingITCase {
 
@@ -68,8 +64,8 @@ public class TaskManagerFailsWithSlotSharingITCase {
 			final TaskManager tm1 = ((LocalInstanceManager) jm.getInstanceManager()).getTaskManagers()[0];
 			final TaskManager tm2 = ((LocalInstanceManager) jm.getInstanceManager()).getTaskManagers()[1];
 			
-			final GlobalBufferPool bp1 = tm1.getChannelManager().getGlobalBufferPool();
-			final GlobalBufferPool bp2 = tm2.getChannelManager().getGlobalBufferPool();
+			final NetworkBufferPool bp1 = tm1.getNetworkBufferPool();
+			final NetworkBufferPool bp2 = tm2.getNetworkBufferPool();
 			
 			try {
 				JobSubmissionResult result = jm.submitJob(jobGraph);
@@ -107,8 +103,8 @@ public class TaskManagerFailsWithSlotSharingITCase {
 				
 				// make sure that in any case, the network buffers are all returned
 				waitForTaskThreadsToBeTerminated();
-				assertTrue(bp1.isDestroyed() || bp1.numBuffers() == bp1.numAvailableBuffers());
-				assertTrue(bp2.isDestroyed() || bp2.numBuffers() == bp2.numAvailableBuffers());
+				assertTrue(bp1.isDestroyed() || bp1.getNumMemorySegments() == bp1.getNumAvailableMemorySegments());
+				assertTrue(bp2.isDestroyed() || bp2.getNumMemorySegments() == bp2.getNumAvailableMemorySegments());
 			}
 			finally {
 				jm.shutdown();

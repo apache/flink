@@ -26,9 +26,10 @@ import java.util.Collections;
 import java.util.List;
 
 import org.apache.flink.runtime.event.task.AbstractEvent;
-import org.apache.flink.runtime.io.network.channels.ChannelID;
-import org.apache.flink.runtime.io.network.serialization.DataInputDeserializer;
-import org.apache.flink.runtime.io.network.serialization.DataOutputSerializer;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.partition.ChannelID;
+import org.apache.flink.runtime.util.DataInputDeserializer;
+import org.apache.flink.runtime.util.DataOutputSerializer;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -61,7 +62,7 @@ public final class Envelope {
 	public Envelope duplicate() {
 		Envelope duplicate = new Envelope(this);
 		if (hasBuffer()) {
-			duplicate.setBuffer(this.buffer.duplicate());
+			duplicate.setBuffer(this.buffer.retain());
 		}
 
 		return duplicate;
@@ -177,7 +178,40 @@ public final class Envelope {
 	@Override
 	public String toString() {
 		return String.format("Envelope %d [source id: %s, buffer size: %d, events size: %d]",
-				this.sequenceNumber, this.getSource(), this.buffer == null ? -1 : this.buffer.size(),
+				this.sequenceNumber, this.getSource(), this.buffer == null ? -1 : this.buffer.getSize(),
 				this.serializedEventList == null ? -1 : this.serializedEventList.remaining());
+	}
+
+	public static ByteBuffer toSerializedEvent(AbstractEvent event) throws IOException {
+		final DataOutputSerializer serializer = new DataOutputSerializer(128);
+
+		serializer.writeUTF(event.getClass().getName());
+		event.write(serializer);
+
+		return serializer.wrapAsByteBuffer();
+	}
+
+	public static AbstractEvent fromSerializedEvent(ByteBuffer buffer, ClassLoader classLoader) {
+		try {
+			final DataInputDeserializer deserializer = new DataInputDeserializer(buffer);
+
+			final String className = deserializer.readUTF();
+
+			final Class<? extends AbstractEvent> clazz;
+			try {
+				clazz = classLoader.loadClass(className).asSubclass(AbstractEvent.class);
+			} catch (ClassNotFoundException e) {
+				throw new RuntimeException("Could not load event class '" + className + "'.", e);
+			} catch (ClassCastException e) {
+				throw new RuntimeException("The class '" + className + "' is not a valid subclass of '" + AbstractEvent.class.getName() + "'.", e);
+			}
+
+			final AbstractEvent event = InstantiationUtil.instantiate(clazz, AbstractEvent.class);
+			event.read(deserializer);
+
+			return event;
+		} catch (IOException e) {
+			throw new RuntimeException("Error while deserializing event.", e);
+		}
 	}
 }

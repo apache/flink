@@ -24,15 +24,13 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.client.AbstractJobResult;
 import org.apache.flink.runtime.client.JobSubmissionResult;
-import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.instance.LocalInstanceManager;
-import org.apache.flink.runtime.io.network.api.RecordReader;
-import org.apache.flink.runtime.io.network.api.RecordWriter;
-import org.apache.flink.runtime.io.network.bufferprovider.GlobalBufferPool;
+import org.apache.flink.runtime.io.network.api.reader.RecordReader;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
+import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -46,8 +44,6 @@ import org.apache.flink.runtime.jobmanager.tasks.Receiver;
 import org.apache.flink.runtime.jobmanager.tasks.Sender;
 import org.apache.flink.runtime.types.IntegerRecord;
 import org.junit.Test;
-
-import java.util.ArrayList;
 
 /**
  * This test is intended to cover the basic functionality of the {@link JobManager}.
@@ -66,8 +62,8 @@ public class JobManagerITCase {
 			
 			final JobManager jm = startJobManager(1);
 			
-			final GlobalBufferPool bp = ((LocalInstanceManager) jm.getInstanceManager())
-					.getTaskManagers()[0].getChannelManager().getGlobalBufferPool();
+			final NetworkBufferPool bp = ((LocalInstanceManager) jm.getInstanceManager())
+					.getTaskManagers()[0].getNetworkBufferPool();
 			
 			try {
 				
@@ -110,7 +106,7 @@ public class JobManagerITCase {
 				
 				// make sure that in any case, the network buffers are all returned
 				waitForTaskThreadsToBeTerminated();
-				assertEquals(bp.numBuffers(), bp.numAvailableBuffers());
+				assertEquals(bp.getNumMemorySegments(), bp.getNumAvailableMemorySegments());
 			}
 			finally {
 				jm.shutdown();
@@ -136,8 +132,8 @@ public class JobManagerITCase {
 			
 			final JobManager jm = startJobManager(NUM_TASKS);
 			
-			final GlobalBufferPool bp = ((LocalInstanceManager) jm.getInstanceManager())
-					.getTaskManagers()[0].getChannelManager().getGlobalBufferPool();
+			final NetworkBufferPool bp = ((LocalInstanceManager) jm.getInstanceManager())
+					.getTaskManagers()[0].getNetworkBufferPool();
 			
 			try {
 				
@@ -182,7 +178,7 @@ public class JobManagerITCase {
 				
 				// make sure that in any case, the network buffers are all returned
 				waitForTaskThreadsToBeTerminated();
-				assertEquals(bp.numBuffers(), bp.numAvailableBuffers());
+				assertEquals(bp.getNumMemorySegments(), bp.getNumAvailableMemorySegments());
 			}
 			finally {
 				jm.shutdown();
@@ -209,8 +205,8 @@ public class JobManagerITCase {
 			
 			final JobManager jm = startJobManager(10);
 			
-			final GlobalBufferPool bp = ((LocalInstanceManager) jm.getInstanceManager())
-					.getTaskManagers()[0].getChannelManager().getGlobalBufferPool();
+			final NetworkBufferPool bp = ((LocalInstanceManager) jm.getInstanceManager())
+					.getTaskManagers()[0].getNetworkBufferPool();
 			
 			try {
 				JobSubmissionResult result = jm.submitJob(jobGraph);
@@ -235,7 +231,7 @@ public class JobManagerITCase {
 				
 				// make sure that in any case, the network buffers are all returned
 				waitForTaskThreadsToBeTerminated();
-				assertEquals(bp.numBuffers(), bp.numAvailableBuffers());
+				assertEquals(bp.getNumMemorySegments(), bp.getNumAvailableMemorySegments());
 			}
 			finally {
 				jm.shutdown();
@@ -246,7 +242,7 @@ public class JobManagerITCase {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testForwardJob() {
 		
@@ -268,8 +264,8 @@ public class JobManagerITCase {
 			
 			final JobManager jm = startJobManager(2 * NUM_TASKS);
 			
-			final GlobalBufferPool bp = ((LocalInstanceManager) jm.getInstanceManager())
-					.getTaskManagers()[0].getChannelManager().getGlobalBufferPool();
+			final NetworkBufferPool bp = ((LocalInstanceManager) jm.getInstanceManager())
+					.getTaskManagers()[0].getNetworkBufferPool();
 			
 			try {
 				JobSubmissionResult result = jm.submitJob(jobGraph);
@@ -294,7 +290,7 @@ public class JobManagerITCase {
 				
 				// make sure that in any case, the network buffers are all returned
 				waitForTaskThreadsToBeTerminated();
-				assertEquals(bp.numBuffers(), bp.numAvailableBuffers());
+				assertEquals(bp.getNumMemorySegments(), bp.getNumAvailableMemorySegments());
 			}
 			finally {
 				jm.shutdown();
@@ -327,8 +323,8 @@ public class JobManagerITCase {
 			
 			final JobManager jm = startJobManager(2 * NUM_TASKS);
 			
-			final GlobalBufferPool bp = ((LocalInstanceManager) jm.getInstanceManager())
-					.getTaskManagers()[0].getChannelManager().getGlobalBufferPool();
+			final NetworkBufferPool bp = ((LocalInstanceManager) jm.getInstanceManager())
+					.getTaskManagers()[0].getNetworkBufferPool();
 			
 			try {
 				JobSubmissionResult result = jm.submitJob(jobGraph);
@@ -353,7 +349,7 @@ public class JobManagerITCase {
 				
 				// make sure that in any case, the network buffers are all returned
 				waitForTaskThreadsToBeTerminated();
-				assertEquals(bp.numBuffers(), bp.numAvailableBuffers());
+				assertEquals(bp.getNumMemorySegments(), bp.getNumAvailableMemorySegments());
 			}
 			finally {
 				jm.shutdown();
@@ -390,8 +386,8 @@ public class JobManagerITCase {
 			
 			final JobManager jm = startJobManager(6*NUM_TASKS);
 			
-			final GlobalBufferPool bp = ((LocalInstanceManager) jm.getInstanceManager())
-					.getTaskManagers()[0].getChannelManager().getGlobalBufferPool();
+			final NetworkBufferPool bp = ((LocalInstanceManager) jm.getInstanceManager())
+					.getTaskManagers()[0].getNetworkBufferPool();
 			
 			try {
 				JobSubmissionResult result = jm.submitJob(jobGraph);
@@ -416,7 +412,7 @@ public class JobManagerITCase {
 				
 				// make sure that in any case, the network buffers are all returned
 				waitForTaskThreadsToBeTerminated();
-				assertEquals(bp.numBuffers(), bp.numAvailableBuffers());
+				assertEquals(bp.getNumMemorySegments(), bp.getNumAvailableMemorySegments());
 			}
 			finally {
 				jm.shutdown();
@@ -453,8 +449,8 @@ public class JobManagerITCase {
 			
 			JobManager jm = startJobManager(6 * NUM_TASKS);
 			
-			final GlobalBufferPool bp = ((LocalInstanceManager) jm.getInstanceManager())
-								.getTaskManagers()[0].getChannelManager().getGlobalBufferPool();
+			final NetworkBufferPool bp = ((LocalInstanceManager) jm.getInstanceManager())
+								.getTaskManagers()[0].getNetworkBufferPool();
 			
 			try {
 				JobSubmissionResult result = jm.submitJob(jobGraph);
@@ -479,7 +475,7 @@ public class JobManagerITCase {
 				
 				// make sure that in any case, the network buffers are all returned
 				waitForTaskThreadsToBeTerminated();
-				assertEquals(bp.numBuffers(), bp.numAvailableBuffers());
+				assertEquals(bp.getNumMemorySegments(), bp.getNumAvailableMemorySegments());
 			}
 			finally {
 				jm.shutdown();
@@ -512,8 +508,8 @@ public class JobManagerITCase {
 			
 			final JobManager jm = startJobManager(NUM_TASKS);
 			
-			final GlobalBufferPool bp = ((LocalInstanceManager) jm.getInstanceManager())
-					.getTaskManagers()[0].getChannelManager().getGlobalBufferPool();
+			final NetworkBufferPool bp = ((LocalInstanceManager) jm.getInstanceManager())
+					.getTaskManagers()[0].getNetworkBufferPool();
 			
 			try {
 				assertEquals(NUM_TASKS, jm.getTotalNumberOfRegisteredSlots());
@@ -540,7 +536,7 @@ public class JobManagerITCase {
 				
 				// make sure that in any case, the network buffers are all returned
 				waitForTaskThreadsToBeTerminated();
-				assertEquals(bp.numBuffers(), bp.numAvailableBuffers());
+				assertEquals(bp.getNumMemorySegments(), bp.getNumAvailableMemorySegments());
 			}
 			finally {
 				jm.shutdown();
@@ -573,8 +569,8 @@ public class JobManagerITCase {
 			
 			final JobManager jm = startJobManager(NUM_TASKS);
 			
-			final GlobalBufferPool bp = ((LocalInstanceManager) jm.getInstanceManager())
-					.getTaskManagers()[0].getChannelManager().getGlobalBufferPool();
+			final NetworkBufferPool bp = ((LocalInstanceManager) jm.getInstanceManager())
+					.getTaskManagers()[0].getNetworkBufferPool();
 			
 			try {
 				assertEquals(NUM_TASKS, jm.getTotalNumberOfRegisteredSlots());
@@ -599,7 +595,7 @@ public class JobManagerITCase {
 				
 				// make sure that in any case, the network buffers are all returned
 				waitForTaskThreadsToBeTerminated();
-				assertEquals(bp.numBuffers(), bp.numAvailableBuffers());
+				assertEquals(bp.getNumMemorySegments(), bp.getNumAvailableMemorySegments());
 			}
 			finally {
 				jm.shutdown();
@@ -632,8 +628,8 @@ public class JobManagerITCase {
 			
 			final JobManager jm = startJobManager(2 * NUM_TASKS);
 			
-			final GlobalBufferPool bp = ((LocalInstanceManager) jm.getInstanceManager())
-					.getTaskManagers()[0].getChannelManager().getGlobalBufferPool();
+			final NetworkBufferPool bp = ((LocalInstanceManager) jm.getInstanceManager())
+					.getTaskManagers()[0].getNetworkBufferPool();
 			
 			try {
 				JobSubmissionResult result = jm.submitJob(jobGraph);
@@ -658,7 +654,7 @@ public class JobManagerITCase {
 				
 				// make sure that in any case, the network buffers are all returned
 				waitForTaskThreadsToBeTerminated();
-				assertEquals(bp.numBuffers(), bp.numAvailableBuffers());
+				assertEquals(bp.getNumMemorySegments(), bp.getNumAvailableMemorySegments());
 			}
 			finally {
 				jm.shutdown();
@@ -694,8 +690,8 @@ public class JobManagerITCase {
 			
 			final JobManager jm = startJobManager(NUM_TASKS);
 			
-			final GlobalBufferPool bp = ((LocalInstanceManager) jm.getInstanceManager())
-					.getTaskManagers()[0].getChannelManager().getGlobalBufferPool();
+			final NetworkBufferPool bp = ((LocalInstanceManager) jm.getInstanceManager())
+					.getTaskManagers()[0].getNetworkBufferPool();
 			
 			try {
 				assertEquals(NUM_TASKS, jm.getTotalNumberOfRegisteredSlots());
@@ -722,7 +718,7 @@ public class JobManagerITCase {
 				
 				// make sure that in any case, the network buffers are all returned
 				waitForTaskThreadsToBeTerminated();
-				assertEquals(bp.numBuffers(), bp.numAvailableBuffers());
+				assertEquals(bp.getNumMemorySegments(), bp.getNumAvailableMemorySegments());
 			}
 			finally {
 				jm.shutdown();
@@ -758,8 +754,8 @@ public class JobManagerITCase {
 			
 			final JobManager jm = startJobManager(2*NUM_TASKS);
 			
-			final GlobalBufferPool bp = ((LocalInstanceManager) jm.getInstanceManager())
-					.getTaskManagers()[0].getChannelManager().getGlobalBufferPool();
+			final NetworkBufferPool bp = ((LocalInstanceManager) jm.getInstanceManager())
+					.getTaskManagers()[0].getNetworkBufferPool();
 			
 			try {
 				assertEquals(2*NUM_TASKS, jm.getNumberOfSlotsAvailableToScheduler());
@@ -786,7 +782,7 @@ public class JobManagerITCase {
 				
 				// make sure that in any case, the network buffers are all returned
 				waitForTaskThreadsToBeTerminated();
-				assertEquals(bp.numBuffers(), bp.numAvailableBuffers());
+				assertEquals(bp.getNumMemorySegments(), bp.getNumAvailableMemorySegments());
 			}
 			finally {
 				jm.shutdown();

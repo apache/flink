@@ -21,7 +21,7 @@ package org.apache.flink.runtime.operators.util;
 
 import java.io.IOException;
 
-import org.apache.flink.runtime.io.network.api.MutableReader;
+import org.apache.flink.runtime.io.network.api.reader.MutableReader;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.MutableObjectIterator;
 

@@ -24,7 +24,7 @@ import java.io.IOException;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.runtime.io.network.channels.ChannelID;
+import org.apache.flink.runtime.io.network.partition.ChannelID;
 
 public class ConnectionInfoLookupResponse implements IOReadableWritable {
 

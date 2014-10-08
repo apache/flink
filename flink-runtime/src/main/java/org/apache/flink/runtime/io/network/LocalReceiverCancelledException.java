@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.io.network;
 
 import org.apache.flink.runtime.execution.CancelTaskException;
-import org.apache.flink.runtime.io.network.channels.ChannelID;
+import org.apache.flink.runtime.io.network.partition.ChannelID;
 
 
 /**

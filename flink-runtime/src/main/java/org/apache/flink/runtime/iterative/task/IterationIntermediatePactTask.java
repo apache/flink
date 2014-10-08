@@ -20,11 +20,11 @@ package org.apache.flink.runtime.iterative.task;
 
 import java.io.IOException;
 
+import org.apache.flink.runtime.io.network.api.writer.IntermediateResultWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.functions.Function;
-import org.apache.flink.runtime.io.network.api.BufferWriter;
-import org.apache.flink.runtime.io.network.channels.EndOfSuperstepEvent;
+import org.apache.flink.runtime.io.network.partition.EndOfSuperstepEvent;
 import org.apache.flink.runtime.iterative.concurrent.BlockingBackChannel;
 import org.apache.flink.runtime.iterative.concurrent.SuperstepKickoffLatch;
 import org.apache.flink.runtime.iterative.concurrent.SuperstepKickoffLatchBroker;
@@ -123,7 +123,7 @@ public class IterationIntermediatePactTask<S extends Function, OT> extends Abstr
 	}
 
 	private void sendEndOfSuperstep() throws IOException, InterruptedException {
-		for (BufferWriter eventualOutput : this.eventualOutputs) {
+		for (IntermediateResultWriter eventualOutput : this.eventualOutputs) {
 			eventualOutput.sendEndOfSuperstep();
 		}
 	}

@@ -33,7 +33,7 @@ import org.apache.flink.api.common.distributions.UniformIntegerDistribution;
 import org.apache.flink.api.common.typeutils.record.RecordComparator;
 import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
 import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
-import org.apache.flink.runtime.io.network.api.ChannelSelector;
+import org.apache.flink.runtime.io.network.api.writer.ChannelSelector;
 import org.apache.flink.runtime.operators.shipping.RecordOutputEmitter;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.types.DeserializationException;

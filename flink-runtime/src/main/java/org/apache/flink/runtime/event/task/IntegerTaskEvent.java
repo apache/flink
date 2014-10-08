@@ -28,7 +28,7 @@ import org.apache.flink.core.memory.DataOutputView;
  * This class provides a simple implementation of an event that holds an integer value.
  * 
  */
-public class IntegerTaskEvent extends AbstractTaskEvent {
+public class IntegerTaskEvent extends TaskEvent {
 
 	/**
 	 * The integer value transported by this integer task event.

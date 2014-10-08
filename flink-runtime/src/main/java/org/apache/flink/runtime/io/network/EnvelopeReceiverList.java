@@ -21,9 +21,7 @@ package org.apache.flink.runtime.io.network;
 
 import java.net.InetAddress;
 
-import org.apache.flink.runtime.io.network.ConnectionInfoLookupResponse;
-import org.apache.flink.runtime.io.network.RemoteReceiver;
-import org.apache.flink.runtime.io.network.channels.ChannelID;
+import org.apache.flink.runtime.io.network.partition.ChannelID;
 
 /**
  * A transfer envelope receiver list contains all recipients of a transfer envelope. Their are three different types of

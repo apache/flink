@@ -27,7 +27,7 @@ import org.apache.flink.api.java.record.io.CsvInputFormat;
 import org.apache.flink.api.java.record.operators.ReduceOperator.WrappingReduceFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.io.network.channels.ChannelType;
+import org.apache.flink.runtime.io.network.partition.ChannelType;
 import org.apache.flink.runtime.iterative.task.IterationHeadPactTask;
 import org.apache.flink.runtime.iterative.task.IterationIntermediatePactTask;
 import org.apache.flink.runtime.iterative.task.IterationTailPactTask;

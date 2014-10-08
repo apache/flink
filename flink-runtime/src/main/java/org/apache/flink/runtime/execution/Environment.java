@@ -27,11 +27,12 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.network.bufferprovider.BufferProvider;
-import org.apache.flink.runtime.io.network.channels.ChannelID;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
+import org.apache.flink.runtime.io.network.buffer.BufferProvider;
+import org.apache.flink.runtime.io.network.gates.IntermediateResultPartition;
+import org.apache.flink.runtime.io.network.partition.ChannelID;
 import org.apache.flink.runtime.io.network.gates.GateID;
 import org.apache.flink.runtime.io.network.gates.InputGate;
-import org.apache.flink.runtime.io.network.gates.OutputGate;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
@@ -149,7 +150,7 @@ public interface Environment {
 	 *
 	 * @return the newly created output gate
 	 */
-	OutputGate createAndRegisterOutputGate();
+	IntermediateResultPartition createAndRegisterOutputGate();
 
 	/**
 	 * Creates a new InputGate and registers it with the Environment.
@@ -217,7 +218,7 @@ public interface Environment {
 	 * The returned buffer provider is used by the output side of the network stack.
 	 *
 	 * @return Buffer provider for the output side of the network stack
-	 * @see org.apache.flink.runtime.io.network.api.RecordWriter
+	 * @see RecordWriter
 	 */
 	BufferProvider getOutputBufferProvider();
 

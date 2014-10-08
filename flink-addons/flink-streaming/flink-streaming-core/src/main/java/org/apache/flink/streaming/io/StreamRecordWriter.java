@@ -20,13 +20,13 @@ package org.apache.flink.streaming.io;
 import java.io.IOException;
 
 import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.runtime.io.network.Buffer;
-import org.apache.flink.runtime.io.network.api.ChannelSelector;
-import org.apache.flink.runtime.io.network.api.RecordWriter;
-import org.apache.flink.runtime.io.network.api.RoundRobinChannelSelector;
-import org.apache.flink.runtime.io.network.bufferprovider.BufferProvider;
-import org.apache.flink.runtime.io.network.serialization.RecordSerializer;
-import org.apache.flink.runtime.io.network.serialization.SpanningRecordSerializer;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.api.writer.ChannelSelector;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
+import org.apache.flink.runtime.io.network.api.writer.RoundRobinChannelSelector;
+import org.apache.flink.runtime.io.network.buffer.BufferProvider;
+import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
+import org.apache.flink.runtime.io.network.api.serialization.SpanningRecordSerializer;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 
 public class StreamRecordWriter<T extends IOReadableWritable> extends
@@ -94,9 +94,7 @@ public class StreamRecordWriter<T extends IOReadableWritable> extends
 						sendBuffer(buffer, targetChannel);
 					}
 
-					buffer = this.bufferPool
-							.requestBufferBlocking(this.bufferPool
-									.getBufferSize());
+					buffer = this.bufferPool.requestBuffer().waitForBuffer().getBuffer();
 					result = serializer.setNextBuffer(buffer);
 				}
 			}

@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.testutils;
 
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.io.network.BufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 
 public class DiscardingRecycler implements BufferRecycler {
 

@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.io.network;
 
 import java.io.IOException;
@@ -26,9 +25,10 @@ import java.util.List;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.event.task.AbstractEvent;
-import org.apache.flink.runtime.io.network.channels.ChannelID;
+import org.apache.flink.runtime.event.task.RuntimeEvent;
+import org.apache.flink.runtime.io.network.partition.ChannelID;
 
-public final class SenderHintEvent extends AbstractEvent {
+public final class SenderHintEvent extends RuntimeEvent {
 
 	/**
 	 * The sequence number that will be set for transfer envelopes which contain the sender hint event.

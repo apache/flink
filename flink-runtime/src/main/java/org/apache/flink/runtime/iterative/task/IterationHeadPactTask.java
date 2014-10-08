@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.flink.runtime.io.network.api.writer.IntermediateResultWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,7 +35,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.InputViewIterator;
-import org.apache.flink.runtime.io.network.api.BufferWriter;
 import org.apache.flink.runtime.iterative.concurrent.BlockingBackChannel;
 import org.apache.flink.runtime.iterative.concurrent.BlockingBackChannelBroker;
 import org.apache.flink.runtime.iterative.concurrent.Broker;
@@ -84,13 +84,13 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 
 	private Collector<X> finalOutputCollector;
 
-	private List<BufferWriter> finalOutputWriters;
+	private List<IntermediateResultWriter> finalOutputWriters;
 
 	private TypeSerializerFactory<Y> feedbackTypeSerializer;
 
 	private TypeSerializerFactory<X> solutionTypeSerializer;
 
-	private BufferWriter toSync;
+	private IntermediateResultWriter toSync;
 
 	private int initialSolutionSetInput; // undefined for bulk iterations
 
@@ -114,7 +114,7 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 
 		// at this time, the outputs to the step function are created
 		// add the outputs for the final solution
-		this.finalOutputWriters = new ArrayList<BufferWriter>();
+		this.finalOutputWriters = new ArrayList<IntermediateResultWriter>();
 		final TaskConfig finalOutConfig = this.config.getIterationHeadFinalOutputConfig();
 		final ClassLoader userCodeClassLoader = getUserCodeClassLoader();
 		this.finalOutputCollector = RegularPactTask.getOutputCollector(this, finalOutConfig,
@@ -129,7 +129,7 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 			throw new Exception("Error: Inconsistent head task setup - wrong mapping of output gates.");
 		}
 		// now, we can instantiate the sync gate
-		this.toSync = new BufferWriter(this);
+		this.toSync = new IntermediateResultWriter(this);
 	}
 
 	/**
