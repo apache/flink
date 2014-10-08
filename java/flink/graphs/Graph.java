@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,14 +16,8 @@
  * limitations under the License.
  */
 
-package flinkgraph.api.io;
+package flink.graphs;
 
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
+public abstract class Graph<VT extends Comparable<VT>, VV, EV> {
 
-import flinkgraph.api.Edge;
-
-public interface EdgeBuilder<T> {
-	
-	public DataSet<? extends Edge<T>> createEdges(ExecutionEnvironment env, Class<T> idType);
 }
