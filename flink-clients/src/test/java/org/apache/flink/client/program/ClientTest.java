@@ -104,7 +104,7 @@ public class ClientTest {
 
 	@Test
 	public void shouldSubmitToJobClient() throws ProgramInvocationException, IOException {
-		when(mockJobClient.submitJobDetached(any(JobGraph.class), any(boolean.class),
+		when(mockJobClient.submitJobDetached(any(JobGraph.class),
 				any(ActorRef.class))).thenReturn(mockSubmissionSuccess);
 
 		Client out = new Client(configMock, getClass().getClassLoader());
@@ -117,7 +117,7 @@ public class ClientTest {
 
 	@Test(expected = ProgramInvocationException.class)
 	public void shouldThrowException() throws Exception {
-		when(mockJobClient.submitJobDetached(any(JobGraph.class), any(boolean.class),
+		when(mockJobClient.submitJobDetached(any(JobGraph.class),
 				any(ActorRef.class))).thenReturn(mockSubmissionFailure);
 
 		Client out = new Client(configMock, getClass().getClassLoader());

@@ -317,8 +317,7 @@ public class Client {
 				return JobClient.submitJobAndWait(jobGraph, printStatusDuringExecution, client);
 			}
 			else {
-				SubmissionResponse response =JobClient.submitJobDetached(jobGraph,
-						printStatusDuringExecution, client);
+				SubmissionResponse response =JobClient.submitJobDetached(jobGraph, client);
 
 				if(response instanceof SubmissionFailure){
 					SubmissionFailure failure = (SubmissionFailure) response;

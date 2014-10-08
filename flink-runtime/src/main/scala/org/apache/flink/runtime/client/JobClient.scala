@@ -122,9 +122,9 @@ object JobClient{
   }
 
 
-  def submitJobDetached(jobGraph: JobGraph, listen: Boolean, jobClient: ActorRef): SubmissionResponse = {
+  def submitJobDetached(jobGraph: JobGraph, jobClient: ActorRef): SubmissionResponse = {
     import AkkaUtils.FUTURE_TIMEOUT
-    val response = jobClient ? SubmitJobDetached(jobGraph, listenToEvents = listen)
+    val response = jobClient ? SubmitJobDetached(jobGraph)
 
     Await.result(response.mapTo[SubmissionResponse],AkkaUtils.FUTURE_DURATION)
   }
