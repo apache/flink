@@ -147,10 +147,9 @@ public class MemorySegment {
 			this.wrapper.limit(offset + length);
 			this.wrapper.position(offset);
 		}
-		
+
 		return this.wrapper;
 	}
-
 
 	// ------------------------------------------------------------------------
 	//                    Random Access get() and put() methods

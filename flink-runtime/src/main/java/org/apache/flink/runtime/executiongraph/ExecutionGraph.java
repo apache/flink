@@ -18,11 +18,27 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import akka.actor.ActorRef;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.JobException;
+import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
+import org.apache.flink.runtime.messages.ExecutionGraphMessages;
+import org.apache.flink.runtime.taskmanager.TaskExecutionState;
+import org.apache.flink.util.ExceptionUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.Serializable;
-import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -32,44 +48,20 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
-import akka.actor.ActorRef;
-import org.apache.flink.runtime.akka.AkkaUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.blob.BlobKey;
-import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.instance.Instance;
-import org.apache.flink.runtime.instance.InstanceConnectionInfo;
-import org.apache.flink.runtime.io.network.ConnectionInfoLookupResponse;
-import org.apache.flink.runtime.io.network.RemoteReceiver;
-import org.apache.flink.runtime.io.network.channels.ChannelID;
-import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
-import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import org.apache.flink.runtime.jobgraph.JobID;
-import org.apache.flink.runtime.jobgraph.JobStatus;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
-import org.apache.flink.runtime.messages.ExecutionGraphMessages;
-import org.apache.flink.runtime.taskmanager.TaskExecutionState;
-import org.apache.flink.runtime.messages.ExecutionGraphMessages.JobStatusChanged;
-import org.apache.flink.util.ExceptionUtils;
-
 import static akka.dispatch.Futures.future;
 
-
 public class ExecutionGraph implements Serializable {
+
 	static final long serialVersionUID = 42L;
 
 	private static final AtomicReferenceFieldUpdater<ExecutionGraph, JobStatus> STATE_UPDATER =
 			AtomicReferenceFieldUpdater.newUpdater(ExecutionGraph.class, JobStatus.class, "state");
-	
+
 	/** The log object used for debugging. */
 	static final Logger LOG = LoggerFactory.getLogger(ExecutionGraph.class);
 
 	// --------------------------------------------------------------------------------------------
-	
+
 	/** The ID of the job this graph has been built for. */
 	private final JobID jobID;
 
@@ -78,67 +70,61 @@ public class ExecutionGraph implements Serializable {
 
 	/** The job configuration that was originally attached to the JobGraph. */
 	private transient final Configuration jobConfiguration;
-	
+
 	/** The classloader of the user code. */
 	private final ClassLoader userClassLoader;
-	
+
 	/** All job vertices that are part of this graph */
 	private final ConcurrentHashMap<JobVertexID, ExecutionJobVertex> tasks;
-	
+
 	/** All vertices, in the order in which they were created **/
 	private final List<ExecutionJobVertex> verticesInCreationOrder;
 
 	/** All intermediate results that are part of this graph */
-	private transient final ConcurrentHashMap<IntermediateDataSetID, IntermediateResult>
-	intermediateResults;
-	
+	private transient final ConcurrentHashMap<IntermediateDataSetID, IntermediateResult> intermediateResults;
+
 	/** The currently executed tasks, for callbacks */
 	private transient final ConcurrentHashMap<ExecutionAttemptID, Execution> currentExecutions;
 
-	private transient final Map<ChannelID, ExecutionEdge> edges = new HashMap<ChannelID,
-			ExecutionEdge>();
-	
 	private transient final List<BlobKey> requiredJarFiles;
-	
+
 	private transient final List<ActorRef> jobStatusListenerActors;
 
 	private transient final List<ActorRef> executionListenerActors;
-	
+
 	private final long[] stateTimestamps;
-	
+
 	private transient final Object progressLock = new Object();
-	
+
 	private int nextVertexToFinish;
-	
+
 	private int numberOfRetriesLeft;
-	
+
 	private long delayBeforeRetrying;
-	
+
 	private volatile JobStatus state = JobStatus.CREATED;
-	
+
 	private volatile Throwable failureCause;
-	
-	
+
 	private transient Scheduler scheduler;
-	
+
 	private boolean allowQueuedScheduling = true;
-	
-	
+
 	public ExecutionGraph(JobID jobId, String jobName, Configuration jobConfig) {
 		this(jobId, jobName, jobConfig, new ArrayList<BlobKey>());
 	}
-	
-	public ExecutionGraph(JobID jobId, String jobName, Configuration jobConfig,
-						List<BlobKey> requiredJarFiles) {
+
+	public ExecutionGraph(JobID jobId, String jobName, Configuration jobConfig, List<BlobKey> requiredJarFiles) {
 		this(jobId, jobName, jobConfig, requiredJarFiles, Thread.currentThread().getContextClassLoader());
 	}
-	
+
 	public ExecutionGraph(JobID jobId, String jobName, Configuration jobConfig, 
 			List<BlobKey> requiredJarFiles, ClassLoader userClassLoader) {
+
 		if (jobId == null || jobName == null || jobConfig == null || userClassLoader == null) {
 			throw new NullPointerException();
 		}
-		
+
 		this.jobID = jobId;
 		this.jobName = jobName;
 		this.jobConfiguration = jobConfig;
@@ -148,10 +134,10 @@ public class ExecutionGraph implements Serializable {
 		this.intermediateResults = new ConcurrentHashMap<IntermediateDataSetID, IntermediateResult>();
 		this.verticesInCreationOrder = new ArrayList<ExecutionJobVertex>();
 		this.currentExecutions = new ConcurrentHashMap<ExecutionAttemptID, Execution>();
-		
+
 		this.jobStatusListenerActors  = new CopyOnWriteArrayList<ActorRef>();
 		this.executionListenerActors = new CopyOnWriteArrayList<ActorRef>();
-		
+
 		this.stateTimestamps = new long[JobStatus.values().length];
 		this.stateTimestamps[JobStatus.CREATED.ordinal()] = System.currentTimeMillis();
 
@@ -159,29 +145,29 @@ public class ExecutionGraph implements Serializable {
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
+
 	public void setNumberOfRetriesLeft(int numberOfRetriesLeft) {
 		if (numberOfRetriesLeft < -1) {
 			throw new IllegalArgumentException();
 		}
 		this.numberOfRetriesLeft = numberOfRetriesLeft;
 	}
-	
+
 	public int getNumberOfRetriesLeft() {
 		return numberOfRetriesLeft;
 	}
-	
+
 	public void setDelayBeforeRetrying(long delayBeforeRetrying) {
 		if (delayBeforeRetrying < 0) {
 			throw new IllegalArgumentException("Delay before retry must be non-negative.");
 		}
 		this.delayBeforeRetrying = delayBeforeRetrying;
 	}
-	
+
 	public long getDelayBeforeRetrying() {
 		return delayBeforeRetrying;
 	}
-	
+
 	public void attachJobGraph(List<AbstractJobVertex> topologiallySorted) throws JobException {
 		if (LOG.isDebugEnabled()) {
 			LOG.debug(String.format("Attaching %d topologically sorted vertices to existing job graph with %d "
@@ -223,39 +209,43 @@ public class ExecutionGraph implements Serializable {
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
+
+	public Scheduler getScheduler() {
+		return scheduler;
+	}
+
 	public JobID getJobID() {
 		return jobID;
 	}
-	
+
 	public String getJobName() {
 		return jobName;
 	}
-	
+
 	public Configuration getJobConfiguration() {
 		return jobConfiguration;
 	}
-	
+
 	public ClassLoader getUserClassLoader() {
 		return this.userClassLoader;
 	}
-	
+
 	public JobStatus getState() {
 		return state;
 	}
-	
+
 	public Throwable getFailureCause() {
 		return failureCause;
 	}
-	
+
 	public ExecutionJobVertex getJobVertex(JobVertexID id) {
 		return this.tasks.get(id);
 	}
-	
+
 	public Map<JobVertexID, ExecutionJobVertex> getAllVertices() {
 		return Collections.unmodifiableMap(this.tasks);
 	}
-	
+
 	public Iterable<ExecutionJobVertex> getVerticesTopologically() {
 		// we return a specific iterator that does not fail with concurrent modifications
 		// the list is append only, so it is safe for that
@@ -289,11 +279,11 @@ public class ExecutionGraph implements Serializable {
 			}
 		};
 	}
-	
+
 	public Map<IntermediateDataSetID, IntermediateResult> getAllIntermediateResults() {
 		return Collections.unmodifiableMap(this.intermediateResults);
 	}
-	
+
 	public Iterable<ExecutionVertex> getAllExecutionVertices() {
 		return new Iterable<ExecutionVertex>() {
 			@Override
@@ -302,28 +292,30 @@ public class ExecutionGraph implements Serializable {
 			}
 		};
 	}
-	
+
 	public long getStatusTimestamp(JobStatus status) {
 		return this.stateTimestamps[status.ordinal()];
 	}
-	
+
 	public boolean isQueuedSchedulingAllowed() {
 		return this.allowQueuedScheduling;
 	}
-	
+
 	public void setQueuedSchedulingAllowed(boolean allowed) {
 		this.allowQueuedScheduling = allowed;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+	//  Actions
+	// --------------------------------------------------------------------------------------------
+
 	public void scheduleForExecution(Scheduler scheduler) throws JobException {
 		if (scheduler == null) {
 			throw new IllegalArgumentException("Scheduler must not be null.");
 		}
 		
 		if (this.scheduler != null && this.scheduler != scheduler) {
-			throw new IllegalArgumentException("Cann not use different schedulers for the same job");
+			throw new IllegalArgumentException("Cannot use different schedulers for the same job");
 		}
 		
 		if (transitionState(JobStatus.CREATED, JobStatus.RUNNING)) {
@@ -342,7 +334,7 @@ public class ExecutionGraph implements Serializable {
 			throw new IllegalStateException("Job may only be scheduled from state " + JobStatus.CREATED);
 		}
 	}
-	
+
 	public void cancel() {
 		while (true) {
 			JobStatus current = state;
@@ -361,7 +353,7 @@ public class ExecutionGraph implements Serializable {
 			}
 		}
 	}
-	
+
 	public void fail(Throwable t) {
 		while (true) {
 			JobStatus current = state;
@@ -383,11 +375,10 @@ public class ExecutionGraph implements Serializable {
 		}
 	}
 
-
 	private boolean transitionState(JobStatus current, JobStatus newState) {
 		return transitionState(current, newState, null);
 	}
-	
+
 	private boolean transitionState(JobStatus current, JobStatus newState, Throwable error) {
 		if (STATE_UPDATER.compareAndSet(this, current, newState)) {
 			stateTimestamps[newState.ordinal()] = System.currentTimeMillis();
@@ -398,7 +389,7 @@ public class ExecutionGraph implements Serializable {
 			return false;
 		}
 	}
-	
+
 	void jobVertexInFinalState(ExecutionJobVertex ev) {
 		synchronized (progressLock) {
 			int nextPos = nextVertexToFinish;
@@ -457,18 +448,18 @@ public class ExecutionGraph implements Serializable {
 							fail(new Exception("ExecutionGraph went into final state from state " + current));
 						}
 					}
-					
+
 					// also, notify waiters
 					progressLock.notifyAll();
 				}
 			}
 		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//  Callbacks and Callback Utilities
 	// --------------------------------------------------------------------------------------------
-	
+
 	public boolean updateState(TaskExecutionState state) {
 		Execution attempt = this.currentExecutions.get(state.getID());
 		if (attempt != null) {
@@ -493,181 +484,63 @@ public class ExecutionGraph implements Serializable {
 			return false;
 		}
 	}
-	
-	public ConnectionInfoLookupResponse lookupConnectionInfoAndDeployReceivers(InstanceConnectionInfo caller, ChannelID sourceChannelID) {
-		
-		final ExecutionEdge edge = edges.get(sourceChannelID);
-		if (edge == null) {
-			// that is bad, we need to fail the job
-			LOG.error("Cannot find execution edge associated with ID " + sourceChannelID);
-			fail(new Exception("Channels are not correctly registered"));
-			return ConnectionInfoLookupResponse.createReceiverNotFound();
-		}
-		
-		
-		//  ----- Request was sent from an input channel (receiver side), requesting the output channel (sender side) ------
-		//  -----                               This is the case for backwards events                                 ------
 
-		if (sourceChannelID.equals(edge.getInputChannelId())) {
-			final ExecutionVertex targetVertex = edge.getSource().getProducer();
-			final ExecutionState executionState = targetVertex.getExecutionState();
-			
-			// common case - found task running
-			if (executionState == ExecutionState.RUNNING) {
-				Instance location = targetVertex.getCurrentAssignedResource().getInstance();
+	public boolean scheduleOrUpdateConsumers(ExecutionAttemptID executionId, int partitionIndex) throws Exception {
+		Execution execution = currentExecutions.get(executionId);
 
-				if (location.getInstanceConnectionInfo().equals(caller)) {
-					// Receiver runs on the same task manager
-					return ConnectionInfoLookupResponse.createReceiverFoundAndReady(edge.getOutputChannelId());
-				}
-				else {
-					// Receiver runs on a different task manager
-					final InstanceConnectionInfo ici = location.getInstanceConnectionInfo();
-					final InetSocketAddress isa = new InetSocketAddress(ici.address(), ici.dataPort());
+		if (execution == null) {
+			throw new IllegalStateException("Cannot find execution for execution ID " + executionId);
+		}
 
-					int connectionIdx = edge.getSource().getIntermediateResult().getConnectionIndex();
-					return ConnectionInfoLookupResponse.createReceiverFoundAndReady(new RemoteReceiver(isa, connectionIdx));
-				}
-			}
-			else if (executionState == ExecutionState.FINISHED) {
-				// that should not happen. if there is data pending, the sender cannot yet be done
-				// we need to fail the whole affair
-				LOG.error("Receiver " + targetVertex + " set to FINISHED even though data is pending");
-				fail(new Exception("Channels are not correctly registered"));
-				return ConnectionInfoLookupResponse.createReceiverNotFound();
-			}
-			else if (executionState == ExecutionState.FAILED || executionState == ExecutionState.CANCELED ||
-					executionState == ExecutionState.CANCELING)
-			{
-				return ConnectionInfoLookupResponse.createJobIsAborting();
-			}
-			else {
-				// all other states should not be, because the sender cannot be in CREATED, SCHEDULED, or DEPLOYING
-				// state when the receiver is already running
-				LOG.error("Channel lookup (backwards) - sender " + targetVertex + " found in inconsistent state " + executionState);
-				fail(new Exception("Channels are not correctly registered"));
-				return ConnectionInfoLookupResponse.createReceiverNotFound();
-			}
-		}
-		
-		//  ----- Request was sent from an output channel (sender side), requesting the input channel (receiver side) ------
-		//  -----                                 This is the case for forward data                                   ------
-		
-		final ExecutionVertex targetVertex = edge.getTarget();
-		final ExecutionState executionState = targetVertex.getExecutionState();
-
-		if (executionState == ExecutionState.RUNNING) {
-			
-			// already online
-			Instance location = targetVertex.getCurrentAssignedResource().getInstance();
-			
-			if (location.getInstanceConnectionInfo().equals(caller)) {
-				// Receiver runs on the same task manager
-				return ConnectionInfoLookupResponse.createReceiverFoundAndReady(edge.getInputChannelId());
-			}
-			else {
-				// Receiver runs on a different task manager
-				final InstanceConnectionInfo ici = location.getInstanceConnectionInfo();
-				final InetSocketAddress isa = new InetSocketAddress(ici.address(), ici.dataPort());
-
-				final int connectionIdx = edge.getSource().getIntermediateResult().getConnectionIndex();
-				return ConnectionInfoLookupResponse.createReceiverFoundAndReady(new RemoteReceiver(isa, connectionIdx));
-			}
-		}
-		else if (executionState == ExecutionState.DEPLOYING || executionState == ExecutionState.SCHEDULED) {
-			return ConnectionInfoLookupResponse.createReceiverNotReady();
-		}
-		else if (executionState == ExecutionState.CREATED) {
-			// bring the receiver online
-			try {
-				edge.getTarget().scheduleForExecution(scheduler, false);
-				
-				// delay the requester
-				return ConnectionInfoLookupResponse.createReceiverNotReady();
-			}
-			catch (JobException e) {
-				fail(new Exception("Cannot schedule the receivers, not enough resources", e));
-				return ConnectionInfoLookupResponse.createJobIsAborting();
-			}
-		}
-		else if (executionState == ExecutionState.CANCELED || executionState == ExecutionState.CANCELING ||
-				executionState == ExecutionState.FAILED)
-		{
-			return ConnectionInfoLookupResponse.createJobIsAborting();
-		}
-		else {
-			// illegal state for all other states - or all the other state, since the only remaining state is FINISHED
-			// state when the receiver is already running
-			String message = "Channel lookup (forward) - receiver " + targetVertex + " found in inconsistent state " + executionState;
-			LOG.error(message);
-			fail(new Exception(message));
-			return ConnectionInfoLookupResponse.createReceiverNotFound();
-		}
+		return execution.getVertex().scheduleOrUpdateConsumers(partitionIndex);
 	}
-	
+
 	public Map<ExecutionAttemptID, Execution> getRegisteredExecutions() {
 		return Collections.unmodifiableMap(currentExecutions);
 	}
-	
+
 	void registerExecution(Execution exec) {
 		Execution previous = currentExecutions.putIfAbsent(exec.getAttemptId(), exec);
 		if (previous != null) {
 			fail(new Exception("Trying to register execution " + exec + " for already used ID " + exec.getAttemptId()));
 		}
 	}
-	
+
 	void deregisterExecution(Execution exec) {
 		Execution contained = currentExecutions.remove(exec.getAttemptId());
-		
+
 		if (contained != null && contained != exec) {
 			fail(new Exception("De-registering execution " + exec + " failed. Found for same ID execution " + contained));
 		}
 	}
-	
-	void registerExecutionEdge(ExecutionEdge edge) {
-		ChannelID target = edge.getInputChannelId();
-		ChannelID source = edge.getOutputChannelId();
-		edges.put(source, edge);
-		edges.put(target, edge);
-	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//  Listeners & Observers
 	// --------------------------------------------------------------------------------------------
-	
+
 	public void registerJobStatusListener(ActorRef listener){
 		this.jobStatusListenerActors.add(listener);
-
 	}
 
 	public void registerExecutionListener(ActorRef listener){
 		this.executionListenerActors.add(listener);
 	}
-	
+
 	/**
 	 * NOTE: This method never throws an error, only logs errors caused by the notified listeners.
-	 * 
-	 * @param newState
-	 * @param error
 	 */
 	private void notifyJobStatusChange(JobStatus newState, Throwable error) {
 		if(jobStatusListenerActors.size() > 0){
 			String message = error == null ? null : ExceptionUtils.stringifyException(error);
 			for(ActorRef listener: jobStatusListenerActors){
-				listener.tell(new JobStatusChanged(jobID, newState, System.currentTimeMillis(),
+				listener.tell(new ExecutionGraphMessages.JobStatusChanged(jobID, newState, System.currentTimeMillis(),
 								message), ActorRef.noSender());
 			}
 		}
-
 	}
-	
+
 	/**
 	 * NOTE: This method never throws an error, only logs errors caused by the notified listeners.
-	 * 
-	 * @param vertexId
-	 * @param subtask
-	 * @param newExecutionState
-	 * @param error
 	 */
 	void notifyExecutionChange(JobVertexID vertexId, int subtask, ExecutionAttemptID executionID, ExecutionState
 							newExecutionState, Throwable error) {
@@ -703,7 +576,6 @@ public class ExecutionGraph implements Serializable {
 				}
 
 				this.currentExecutions.clear();
-				this.edges.clear();
 
 				for (ExecutionJobVertex jv : this.verticesInCreationOrder) {
 					jv.resetForNewExecution();
@@ -717,7 +589,8 @@ public class ExecutionGraph implements Serializable {
 			}
 
 			scheduleForExecution(scheduler);
-		} catch (Throwable t) {
+		}
+		catch (Throwable t) {
 			fail(t);
 		}
 	}

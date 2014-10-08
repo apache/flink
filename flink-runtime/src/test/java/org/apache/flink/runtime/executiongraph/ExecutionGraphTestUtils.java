@@ -122,6 +122,9 @@ public class ExecutionGraphTestUtils {
 				TaskManagerMessages.CancelTask cancelTask = (TaskManagerMessages.CancelTask) msg;
 				getSender().tell(new TaskOperationResult(cancelTask.attemptID(), true), getSelf());
 			}
+			else if (msg instanceof TaskManagerMessages.FailIntermediateResultPartitions) {
+				getSender().tell(new Object(), getSelf());
+			}
 		}
 	}
 

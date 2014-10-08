@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.exampleJavaPrograms;
 
 import java.io.BufferedReader;

@@ -18,17 +18,16 @@
 
 package org.apache.flink.runtime.jobmanager.web;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.instance.AllocatedSlot;
-import org.apache.flink.runtime.io.network.channels.ChannelType;
 import org.apache.flink.util.StringUtils;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class JsonFactory {
 
@@ -92,8 +91,7 @@ public class JsonFactory {
 			
 			json.append("{");
 			json.append("\"groupvertexid\": \"" + input.getJobVertexId() + "\",");
-			json.append("\"groupvertexname\": \"" +  StringUtils.escapeHtml(jobVertex.getJobVertex().getName()) + "\",");
-			json.append("\"channelType\": \"" +  ChannelType.NETWORK + "\"");
+			json.append("\"groupvertexname\": \"" +  StringUtils.escapeHtml(jobVertex.getJobVertex().getName()) + "\"");
 			json.append("}");
 			
 			// print delimiter

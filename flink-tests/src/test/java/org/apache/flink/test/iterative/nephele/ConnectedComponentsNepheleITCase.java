@@ -37,7 +37,6 @@ import org.apache.flink.api.java.record.io.FileOutputFormat;
 import org.apache.flink.api.java.record.operators.ReduceOperator.WrappingReduceFunction;
 import org.apache.flink.api.java.record.operators.ReduceOperator.WrappingClassReduceFunction;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.io.network.channels.ChannelType;
 import org.apache.flink.runtime.iterative.convergence.WorksetEmptyConvergenceCriterion;
 import org.apache.flink.runtime.iterative.task.IterationHeadPactTask;
 import org.apache.flink.runtime.iterative.task.IterationIntermediatePactTask;
@@ -418,19 +417,19 @@ public class ConnectedComponentsNepheleITCase extends RecordAPITestBase {
 		}
 
 		// -- edges ------------------------------------------------------------------------------------------------
-		JobGraphUtils.connect(vertices, head, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
-		JobGraphUtils.connect(edges, head, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
-		JobGraphUtils.connect(vertices, head, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
+		JobGraphUtils.connect(vertices, head, DistributionPattern.ALL_TO_ALL);
+		JobGraphUtils.connect(edges, head, DistributionPattern.ALL_TO_ALL);
+		JobGraphUtils.connect(vertices, head, DistributionPattern.ALL_TO_ALL);
 
-		JobGraphUtils.connect(head, intermediate, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
+		JobGraphUtils.connect(head, intermediate, DistributionPattern.ALL_TO_ALL);
 		intermediateConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, numSubTasks);
 
-		JobGraphUtils.connect(intermediate, tail, ChannelType.IN_MEMORY, DistributionPattern.POINTWISE);
+		JobGraphUtils.connect(intermediate, tail, DistributionPattern.POINTWISE);
 		tailConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, 1);
 
-		JobGraphUtils.connect(head, output, ChannelType.IN_MEMORY, DistributionPattern.POINTWISE);
+		JobGraphUtils.connect(head, output, DistributionPattern.POINTWISE);
 
-		JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.POINTWISE);
+		JobGraphUtils.connect(head, sync, DistributionPattern.POINTWISE);
 
 		SlotSharingGroup sharingGroup = new SlotSharingGroup();
 		vertices.setSlotSharingGroup(sharingGroup);
@@ -553,25 +552,25 @@ public class ConnectedComponentsNepheleITCase extends RecordAPITestBase {
 
 		// --------------- the wiring ---------------------
 
-		JobGraphUtils.connect(vertices, head, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
-		JobGraphUtils.connect(edges, head, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
-		JobGraphUtils.connect(vertices, head, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
+		JobGraphUtils.connect(vertices, head, DistributionPattern.ALL_TO_ALL);
+		JobGraphUtils.connect(edges, head, DistributionPattern.ALL_TO_ALL);
+		JobGraphUtils.connect(vertices, head, DistributionPattern.ALL_TO_ALL);
 
-		JobGraphUtils.connect(head, intermediate, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
+		JobGraphUtils.connect(head, intermediate, DistributionPattern.ALL_TO_ALL);
 		intermediateConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, numSubTasks);
 
-		JobGraphUtils.connect(intermediate, ssJoinIntermediate, ChannelType.NETWORK, DistributionPattern.POINTWISE);
+		JobGraphUtils.connect(intermediate, ssJoinIntermediate, DistributionPattern.POINTWISE);
 		ssJoinIntermediateConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, 1);
 
-		JobGraphUtils.connect(ssJoinIntermediate, ssTail, ChannelType.IN_MEMORY, DistributionPattern.POINTWISE);
+		JobGraphUtils.connect(ssJoinIntermediate, ssTail, DistributionPattern.POINTWISE);
 		ssTailConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, 1);
 
-		JobGraphUtils.connect(ssJoinIntermediate, wsTail, ChannelType.IN_MEMORY, DistributionPattern.POINTWISE);
+		JobGraphUtils.connect(ssJoinIntermediate, wsTail, DistributionPattern.POINTWISE);
 		wsTailConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, 1);
 
-		JobGraphUtils.connect(head, output, ChannelType.IN_MEMORY, DistributionPattern.POINTWISE);
+		JobGraphUtils.connect(head, output, DistributionPattern.POINTWISE);
 
-		JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.POINTWISE);
+		JobGraphUtils.connect(head, sync, DistributionPattern.POINTWISE);
 
 		SlotSharingGroup sharingGroup = new SlotSharingGroup();
 		vertices.setSlotSharingGroup(sharingGroup);
@@ -674,23 +673,23 @@ public class ConnectedComponentsNepheleITCase extends RecordAPITestBase {
 
 		// edges
 
-		JobGraphUtils.connect(vertices, head, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
-		JobGraphUtils.connect(edges, head, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
-		JobGraphUtils.connect(vertices, head, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
+		JobGraphUtils.connect(vertices, head, DistributionPattern.ALL_TO_ALL);
+		JobGraphUtils.connect(edges, head, DistributionPattern.ALL_TO_ALL);
+		JobGraphUtils.connect(vertices, head, DistributionPattern.ALL_TO_ALL);
 
-		JobGraphUtils.connect(head, intermediate, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
+		JobGraphUtils.connect(head, intermediate, DistributionPattern.ALL_TO_ALL);
 		intermediateConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, numSubTasks);
 
-		JobGraphUtils.connect(intermediate, wsUpdateIntermediate, ChannelType.NETWORK,
-			DistributionPattern.POINTWISE);
+		JobGraphUtils.connect(intermediate, wsUpdateIntermediate,
+				DistributionPattern.POINTWISE);
 		wsUpdateConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, 1);
 
-		JobGraphUtils.connect(wsUpdateIntermediate, ssTail, ChannelType.IN_MEMORY, DistributionPattern.POINTWISE);
+		JobGraphUtils.connect(wsUpdateIntermediate, ssTail, DistributionPattern.POINTWISE);
 		ssTailConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, 1);
 
-		JobGraphUtils.connect(head, output, ChannelType.IN_MEMORY, DistributionPattern.POINTWISE);
+		JobGraphUtils.connect(head, output, DistributionPattern.POINTWISE);
 
-		JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.POINTWISE);
+		JobGraphUtils.connect(head, sync, DistributionPattern.POINTWISE);
 
 		SlotSharingGroup sharingGroup = new SlotSharingGroup();
 		vertices.setSlotSharingGroup(sharingGroup);
@@ -791,22 +790,22 @@ public class ConnectedComponentsNepheleITCase extends RecordAPITestBase {
 
 		// --------------- the wiring ---------------------
 
-		JobGraphUtils.connect(vertices, head, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
-		JobGraphUtils.connect(edges, head, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
-		JobGraphUtils.connect(vertices, head, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
+		JobGraphUtils.connect(vertices, head, DistributionPattern.ALL_TO_ALL);
+		JobGraphUtils.connect(edges, head, DistributionPattern.ALL_TO_ALL);
+		JobGraphUtils.connect(vertices, head, DistributionPattern.ALL_TO_ALL);
 
-		JobGraphUtils.connect(head, intermediate, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
+		JobGraphUtils.connect(head, intermediate, DistributionPattern.ALL_TO_ALL);
 		intermediateConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, numSubTasks);
 
-		JobGraphUtils.connect(intermediate, ssJoinIntermediate, ChannelType.NETWORK, DistributionPattern.POINTWISE);
+		JobGraphUtils.connect(intermediate, ssJoinIntermediate, DistributionPattern.POINTWISE);
 		ssJoinIntermediateConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, 1);
 
-		JobGraphUtils.connect(ssJoinIntermediate, wsTail, ChannelType.IN_MEMORY, DistributionPattern.POINTWISE);
+		JobGraphUtils.connect(ssJoinIntermediate, wsTail, DistributionPattern.POINTWISE);
 		wsTailConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, 1);
 
-		JobGraphUtils.connect(head, output, ChannelType.IN_MEMORY, DistributionPattern.POINTWISE);
+		JobGraphUtils.connect(head, output, DistributionPattern.POINTWISE);
 
-		JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.POINTWISE);
+		JobGraphUtils.connect(head, sync, DistributionPattern.POINTWISE);
 
 		
 		SlotSharingGroup sharingGroup = new SlotSharingGroup();

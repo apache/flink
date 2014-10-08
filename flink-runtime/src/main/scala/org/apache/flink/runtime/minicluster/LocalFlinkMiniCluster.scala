@@ -23,6 +23,7 @@ import org.apache.flink.api.common.io.FileOutputFormat
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.client.JobClient
+import org.apache.flink.runtime.io.network.netty.NettyConfig
 import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.util.EnvironmentInformation
@@ -171,6 +172,11 @@ class LocalFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem:
     config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 1)
     config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, ConfigConstants
       .DEFAULT_TASK_MANAGER_NUM_TASK_SLOTS)
+
+    // Reduce number of threads for local execution
+    config.setInteger(NettyConfig.NUM_THREADS_CLIENT, 1)
+    config.setInteger(NettyConfig.NUM_THREADS_SERVER, 2)
+
     config
   }
 }

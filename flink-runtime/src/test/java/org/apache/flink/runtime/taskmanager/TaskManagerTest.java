@@ -26,43 +26,42 @@ import akka.japi.Creator;
 import akka.pattern.Patterns;
 import akka.testkit.JavaTestKit;
 import akka.util.Timeout;
-
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.blob.BlobKey;
-import org.apache.flink.runtime.deployment.ChannelDeploymentDescriptor;
-import org.apache.flink.runtime.deployment.GateDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.PartitionConsumerDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.PartitionDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.PartitionInfo;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.instance.InstanceID;
-import org.apache.flink.runtime.io.network.ConnectionInfoLookupResponse;
-import org.apache.flink.runtime.io.network.api.RecordReader;
-import org.apache.flink.runtime.io.network.api.RecordWriter;
-import org.apache.flink.runtime.io.network.channels.ChannelID;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionType;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobmanager.Tasks;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.RegistrationMessages;
+import org.apache.flink.runtime.messages.TaskManagerMessages;
 import org.apache.flink.runtime.messages.TaskManagerMessages.CancelTask;
 import org.apache.flink.runtime.messages.TaskManagerMessages.SubmitTask;
 import org.apache.flink.runtime.messages.TaskManagerMessages.TaskOperationResult;
-import org.apache.flink.runtime.messages.TaskManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.runtime.types.IntegerRecord;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -70,7 +69,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
-
 
 public class TaskManagerTest {
 
@@ -103,8 +101,8 @@ public class TaskManagerTest {
 
 				final TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(jid, vid, eid, "TestTask", 2, 7,
 						new Configuration(), new Configuration(), TestInvokableCorrect.class.getName(),
-						Collections.<GateDeploymentDescriptor>emptyList(),
-						Collections.<GateDeploymentDescriptor>emptyList(),
+						Collections.<PartitionDeploymentDescriptor>emptyList(),
+						Collections.<PartitionConsumerDeploymentDescriptor>emptyList(),
 					new ArrayList<BlobKey>(), 0);
 
 				new Within(duration("1 seconds")){
@@ -142,14 +140,14 @@ public class TaskManagerTest {
 
 				final TaskDeploymentDescriptor tdd1 = new TaskDeploymentDescriptor(jid1, vid1, eid1, "TestTask1", 1, 5,
 						new Configuration(), new Configuration(), TestInvokableBlockingCancelable.class.getName(),
-						Collections.<GateDeploymentDescriptor>emptyList(),
-						Collections.<GateDeploymentDescriptor>emptyList(),
+						Collections.<PartitionDeploymentDescriptor>emptyList(),
+						Collections.<PartitionConsumerDeploymentDescriptor>emptyList(),
 					new ArrayList<BlobKey>(), 0);
 
 				final TaskDeploymentDescriptor tdd2 = new TaskDeploymentDescriptor(jid2, vid2, eid2, "TestTask2", 2, 7,
 						new Configuration(), new Configuration(), TestInvokableBlockingCancelable.class.getName(),
-						Collections.<GateDeploymentDescriptor>emptyList(),
-						Collections.<GateDeploymentDescriptor>emptyList(),
+						Collections.<PartitionDeploymentDescriptor>emptyList(),
+						Collections.<PartitionConsumerDeploymentDescriptor>emptyList(),
 					new ArrayList<BlobKey>(), 0);
 
 				final FiniteDuration d = duration("1 second");
@@ -244,15 +242,15 @@ public class TaskManagerTest {
 				final ExecutionAttemptID eid2 = new ExecutionAttemptID();
 
 				final TaskDeploymentDescriptor tdd1 = new TaskDeploymentDescriptor(jid, vid1, eid1, "Sender", 0, 1,
-						new Configuration(), new Configuration(), Sender.class.getName(),
-						Collections.<GateDeploymentDescriptor>emptyList(),
-						Collections.<GateDeploymentDescriptor>emptyList(),
+						new Configuration(), new Configuration(), Tasks.Sender.class.getName(),
+						Collections.<PartitionDeploymentDescriptor>emptyList(),
+						Collections.<PartitionConsumerDeploymentDescriptor>emptyList(),
 					new ArrayList<BlobKey>(), 0);
 
 				final TaskDeploymentDescriptor tdd2 = new TaskDeploymentDescriptor(jid, vid2, eid2, "Receiver", 2, 7,
-						new Configuration(), new Configuration(), Receiver.class.getName(),
-						Collections.<GateDeploymentDescriptor>emptyList(),
-						Collections.<GateDeploymentDescriptor>emptyList(),
+						new Configuration(), new Configuration(), Tasks.Receiver.class.getName(),
+						Collections.<PartitionDeploymentDescriptor>emptyList(),
+						Collections.<PartitionConsumerDeploymentDescriptor>emptyList(),
 					new ArrayList<BlobKey>(), 0);
 
 				new Within(duration("1 second")){
@@ -307,29 +305,35 @@ public class TaskManagerTest {
 			final ExecutionAttemptID eid1 = new ExecutionAttemptID();
 			final ExecutionAttemptID eid2 = new ExecutionAttemptID();
 
-			final ChannelID senderId = new ChannelID();
-			final ChannelID receiverId = new ChannelID();
-
-			ActorRef jm = system.actorOf(Props.create(new SimpleLookupJobManagerCreator(receiverId)));
+			ActorRef jm = system.actorOf(Props.create(new SimpleLookupJobManagerCreator()));
 			final ActorRef tm = createTaskManager(jm);
 
-			ChannelDeploymentDescriptor cdd = new ChannelDeploymentDescriptor(senderId, receiverId);
+			IntermediateResultPartitionID partitionId = new IntermediateResultPartitionID();
+
+			List<PartitionDeploymentDescriptor> irpdd = new ArrayList<PartitionDeploymentDescriptor>();
+			irpdd.add(new PartitionDeploymentDescriptor(new IntermediateDataSetID(), partitionId, IntermediateResultPartitionType.PIPELINED, 1));
+
+			PartitionConsumerDeploymentDescriptor ircdd =
+					new PartitionConsumerDeploymentDescriptor(
+							new IntermediateDataSetID(),
+							new PartitionInfo[]{
+									new PartitionInfo(partitionId, eid1, PartitionInfo.PartitionLocation.LOCAL, null)
+							},
+							0);
 
 			final TaskDeploymentDescriptor tdd1 = new TaskDeploymentDescriptor(jid, vid1, eid1, "Sender", 0, 1,
-					new Configuration(), new Configuration(), Sender.class.getName(),
-					Collections.singletonList(new GateDeploymentDescriptor(Collections.singletonList(cdd))),
-					Collections.<GateDeploymentDescriptor>emptyList(),
-					new ArrayList<BlobKey>(), 0);
+					new Configuration(), new Configuration(), Tasks.Sender.class.getName(),
+					irpdd, Collections.<PartitionConsumerDeploymentDescriptor>emptyList(), new ArrayList<BlobKey>(), 0);
 
 			final TaskDeploymentDescriptor tdd2 = new TaskDeploymentDescriptor(jid, vid2, eid2, "Receiver", 2, 7,
-					new Configuration(), new Configuration(), Receiver.class.getName(),
-					Collections.<GateDeploymentDescriptor>emptyList(),
-					Collections.singletonList(new GateDeploymentDescriptor(Collections.singletonList(cdd))),
+					new Configuration(), new Configuration(), Tasks.Receiver.class.getName(),
+					Collections.<PartitionDeploymentDescriptor>emptyList(),
+					Collections.singletonList(ircdd),
 					new ArrayList<BlobKey>(), 0);
 
 			final FiniteDuration d = duration("1 second");
 
-			new Within(d){
+			new Within(d) {
 
 				@Override
 				protected void run() {
@@ -346,8 +350,8 @@ public class TaskManagerTest {
 						Task t1 = tasks.get(eid1);
 						Task t2 = tasks.get(eid2);
 
-			// wait until the tasks are done. rare thread races may cause the tasks to be done before
-			// we get to the check, so we need to guard the check
+						// wait until the tasks are done. rare thread races may cause the tasks to be done before
+						// we get to the check, so we need to guard the check
 						if (t1 != null) {
 							Future<Object> response = Patterns.ask(tm, new TestingTaskManagerMessages.NotifyWhenTaskRemoved(eid1),
 									timeout);
@@ -358,15 +362,16 @@ public class TaskManagerTest {
 							Future<Object> response = Patterns.ask(tm, new TestingTaskManagerMessages.NotifyWhenTaskRemoved(eid2),
 									timeout);
 							Await.ready(response, d);
-				assertEquals(ExecutionState.FINISHED, t2.getExecutionState());
-			}
+							assertEquals(ExecutionState.FINISHED, t2.getExecutionState());
+						}
 
 						tm.tell(TestingTaskManagerMessages.getRequestRunningTasksMessage(), getRef());
 						tasks = expectMsgClass(TestingTaskManagerMessages.ResponseRunningTasks
 								.class).asJava();
 
 						assertEquals(0, tasks.size());
-					}catch (Exception e) {
+					}
+					catch (Exception e) {
 						e.printStackTrace();
 						fail(e.getMessage());
 
@@ -378,7 +383,7 @@ public class TaskManagerTest {
 	
 	@Test
 	public void testCancellingDependentAndStateUpdateFails() {
-		
+
 		// this tests creates two tasks. the sender sends data, and fails to send the
 		// state update back to the job manager
 		// the second one blocks to be canceled
@@ -392,30 +397,37 @@ public class TaskManagerTest {
 			final ExecutionAttemptID eid1 = new ExecutionAttemptID();
 			final ExecutionAttemptID eid2 = new ExecutionAttemptID();
 
-			final ChannelID senderId = new ChannelID();
-			final ChannelID receiverId = new ChannelID();
-
-			ActorRef jm = system.actorOf(Props.create(new SimpleLookupFailingUpdateJobManagerCreator(receiverId)));
+			ActorRef jm = system.actorOf(Props.create(new SimpleLookupFailingUpdateJobManagerCreator()));
 			final ActorRef tm = createTaskManager(jm);
 
-			ChannelDeploymentDescriptor cdd = new ChannelDeploymentDescriptor(senderId, receiverId);
+			IntermediateResultPartitionID partitionId = new IntermediateResultPartitionID();
+
+			List<PartitionDeploymentDescriptor> irpdd = new ArrayList<PartitionDeploymentDescriptor>();
+			irpdd.add(new PartitionDeploymentDescriptor(new IntermediateDataSetID(), partitionId, IntermediateResultPartitionType.PIPELINED, 1));
+
+			PartitionConsumerDeploymentDescriptor ircdd =
+					new PartitionConsumerDeploymentDescriptor(
+							new IntermediateDataSetID(),
+							new PartitionInfo[]{
+									new PartitionInfo(partitionId, eid1, PartitionInfo.PartitionLocation.LOCAL, null)
+							},
+							0);
 
 			final TaskDeploymentDescriptor tdd1 = new TaskDeploymentDescriptor(jid, vid1, eid1, "Sender", 0, 1,
-					new Configuration(), new Configuration(), Sender.class.getName(),
-					Collections.singletonList(new GateDeploymentDescriptor(Collections.singletonList(cdd))),
-					Collections.<GateDeploymentDescriptor>emptyList(),
+					new Configuration(), new Configuration(), Tasks.Sender.class.getName(),
+					irpdd, Collections.<PartitionConsumerDeploymentDescriptor>emptyList(),
 					new ArrayList<BlobKey>(), 0);
 
 			final TaskDeploymentDescriptor tdd2 = new TaskDeploymentDescriptor(jid, vid2, eid2, "Receiver", 2, 7,
-					new Configuration(), new Configuration(), ReceiverBlocking.class.getName(),
-					Collections.<GateDeploymentDescriptor>emptyList(),
-					Collections.singletonList(new GateDeploymentDescriptor(Collections.singletonList(cdd))),
+					new Configuration(), new Configuration(), Tasks.BlockingReceiver.class.getName(),
+					Collections.<PartitionDeploymentDescriptor>emptyList(),
+					Collections.singletonList(ircdd),
 					new ArrayList<BlobKey>(), 0);
 
 			final FiniteDuration d = duration("1 second");
 
 			new Within(d){
-			
+
 				@Override
 				protected void run() {
 					try {
@@ -466,7 +478,6 @@ public class TaskManagerTest {
 		}};
 	}
 
-	
 	// --------------------------------------------------------------------------------------------
 
 	public static class SimpleJobManager extends UntypedActor{
@@ -483,28 +494,19 @@ public class TaskManagerTest {
 		}
 	}
 
-	public static class SimpleLookupJobManager extends SimpleJobManager{
-		private final ChannelID receiverID;
+	public static class SimpleLookupJobManager extends SimpleJobManager {
 
-		public SimpleLookupJobManager(ChannelID receiverID){
-			this.receiverID = receiverID;
-		}
 		@Override
 		public void onReceive(Object message) throws Exception {
-			if(message instanceof JobManagerMessages.LookupConnectionInformation){
-				getSender().tell(new JobManagerMessages.ConnectionInformation(ConnectionInfoLookupResponse
-						.createReceiverFoundAndReady(receiverID)), getSelf());
-			}else{
+			if (message instanceof JobManagerMessages.ScheduleOrUpdateConsumers) {
+				getSender().tell(new JobManagerMessages.ConsumerNotificationResult(true, scala.Option.<Throwable>apply(null)), getSelf());
+			} else {
 				super.onReceive(message);
 			}
 		}
 	}
 
 	public static class SimpleLookupFailingUpdateJobManager extends SimpleLookupJobManager{
-
-		public SimpleLookupFailingUpdateJobManager(ChannelID receiverID) {
-			super(receiverID);
-		}
 
 		@Override
 		public void onReceive(Object message) throws Exception{
@@ -516,32 +518,19 @@ public class TaskManagerTest {
 		}
 	}
 
-	@SuppressWarnings("serial")
 	public static class SimpleLookupJobManagerCreator implements Creator<SimpleLookupJobManager>{
-		private final ChannelID receiverID;
-
-		public SimpleLookupJobManagerCreator(ChannelID receiverID){
-			this.receiverID = receiverID;
-		}
 
 		@Override
 		public SimpleLookupJobManager create() throws Exception {
-			return new SimpleLookupJobManager(receiverID);
+			return new SimpleLookupJobManager();
 		}
 	}
 
-	@SuppressWarnings("serial")
-	public static class SimpleLookupFailingUpdateJobManagerCreator implements
-			Creator<SimpleLookupFailingUpdateJobManager>{
-		private final ChannelID receiverID;
-
-		public SimpleLookupFailingUpdateJobManagerCreator(ChannelID receiverID){
-			this.receiverID = receiverID;
-		}
+	public static class SimpleLookupFailingUpdateJobManagerCreator implements Creator<SimpleLookupFailingUpdateJobManager>{
 
 		@Override
 		public SimpleLookupFailingUpdateJobManager create() throws Exception {
-			return new SimpleLookupFailingUpdateJobManager(receiverID);
+			return new SimpleLookupFailingUpdateJobManager();
 		}
 	}
 
@@ -588,60 +577,6 @@ public class TaskManagerTest {
 			Object o = new Object();
 			synchronized (o) {
 				o.wait();
-			}
-		}
-	}
-	
-	public static final class Sender extends AbstractInvokable {
-
-		private RecordWriter<IntegerRecord> writer;
-		
-		@Override
-		public void registerInputOutput() {
-			writer = new RecordWriter<IntegerRecord>(this);
-		}
-
-		@Override
-		public void invoke() throws Exception {
-			writer.initializeSerializers();
-			writer.emit(new IntegerRecord(42));
-			writer.emit(new IntegerRecord(1337));
-			writer.flush();
-		}
-	}
-	
-	public static final class Receiver extends AbstractInvokable {
-
-		private RecordReader<IntegerRecord> reader;
-		
-		@Override
-		public void registerInputOutput() {
-			reader = new RecordReader<IntegerRecord>(this, IntegerRecord.class);
-		}
-
-		@Override
-		public void invoke() throws Exception {
-			IntegerRecord i1 = reader.next();
-			IntegerRecord i2 = reader.next();
-			IntegerRecord i3 = reader.next();
-			
-			if (i1.getValue() != 42 || i2.getValue() != 1337 || i3 != null) {
-				throw new Exception("Wrong Data Received");
-			}
-		}
-	}
-	
-	public static final class ReceiverBlocking extends AbstractInvokable {
-
-		@Override
-		public void registerInputOutput() {
-			new RecordReader<IntegerRecord>(this, IntegerRecord.class);
-		}
-
-		@Override
-		public void invoke() throws Exception {
-			synchronized(this) {
-				wait();
 			}
 		}
 	}

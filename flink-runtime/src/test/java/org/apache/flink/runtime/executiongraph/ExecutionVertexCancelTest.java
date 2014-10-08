@@ -486,7 +486,7 @@ public class ExecutionVertexCancelTest {
 
 					vertex.cancel();
 
-					assertEquals(ExecutionState.CANCELING, vertex.getExecutionState());
+					assertTrue(vertex.getExecutionState() == ExecutionState.CANCELING || vertex.getExecutionState() == ExecutionState.FAILED);
 
 					vertex.getCurrentExecutionAttempt().markFailed(new Throwable("test"));
 

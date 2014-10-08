@@ -36,6 +36,9 @@ object TestingTaskManagerMessages {
   
   case class ResponseBroadcastVariablesWithReferences(number: Int)
 
+  case object RequestNumActiveConnections
+  case class ResponseNumActiveConnections(number: Int)
+
   case class CheckIfJobRemoved(jobID: JobID)
   
   case object RequestRunningTasks

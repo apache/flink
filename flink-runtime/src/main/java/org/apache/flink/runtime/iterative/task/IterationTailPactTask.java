@@ -30,12 +30,12 @@ import org.apache.flink.util.Collector;
 
 /**
  * An iteration tail, which runs a driver inside.
- * <p/>
+ * <p>
  * If the iteration state is updated, the output of this task will be send back to the {@link IterationHeadPactTask} via
  * a BackChannel for the workset -OR- a HashTable for the solution set. Therefore this
  * task must be scheduled on the same instance as the head. It's also possible for the tail to update *both* the workset
  * and the solution set.
- * <p/>
+ * <p>
  * If there is a separate solution set tail, the iteration head has to make sure to wait for it to finish.
  */
 public class IterationTailPactTask<S extends Function, OT> extends AbstractIterativePactTask<S, OT> {

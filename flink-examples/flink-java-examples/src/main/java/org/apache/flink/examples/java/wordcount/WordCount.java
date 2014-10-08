@@ -19,11 +19,11 @@
 package org.apache.flink.examples.java.wordcount;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.util.Collector;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.examples.java.wordcount.util.WordCountData;
+import org.apache.flink.util.Collector;
 
 /**
  * Implements the "WordCount" program that computes a simple word occurrence histogram

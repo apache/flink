@@ -22,6 +22,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.flink.runtime.io.network.api.writer.BufferWriter;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,7 +36,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.InputViewIterator;
-import org.apache.flink.runtime.io.network.api.BufferWriter;
 import org.apache.flink.runtime.iterative.concurrent.BlockingBackChannel;
 import org.apache.flink.runtime.iterative.concurrent.BlockingBackChannelBroker;
 import org.apache.flink.runtime.iterative.concurrent.Broker;
@@ -84,7 +85,7 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 
 	private Collector<X> finalOutputCollector;
 
-	private List<BufferWriter> finalOutputWriters;
+	private List<RecordWriter<?>> finalOutputWriters;
 
 	private TypeSerializerFactory<Y> feedbackTypeSerializer;
 
@@ -114,11 +115,11 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 
 		// at this time, the outputs to the step function are created
 		// add the outputs for the final solution
-		this.finalOutputWriters = new ArrayList<BufferWriter>();
+		this.finalOutputWriters = new ArrayList<RecordWriter<?>>();
 		final TaskConfig finalOutConfig = this.config.getIterationHeadFinalOutputConfig();
 		final ClassLoader userCodeClassLoader = getUserCodeClassLoader();
 		this.finalOutputCollector = RegularPactTask.getOutputCollector(this, finalOutConfig,
-			userCodeClassLoader, this.finalOutputWriters, finalOutConfig.getNumOutputs());
+			userCodeClassLoader, this.finalOutputWriters, config.getNumOutputs(), finalOutConfig.getNumOutputs());
 
 		// sanity check the setup
 		final int writersIntoStepFunction = this.eventualOutputs.size();
@@ -129,7 +130,7 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 			throw new Exception("Error: Inconsistent head task setup - wrong mapping of output gates.");
 		}
 		// now, we can instantiate the sync gate
-		this.toSync = new BufferWriter(this);
+		this.toSync = getEnvironment().getWriter(syncGateIndex);
 	}
 
 	/**
@@ -233,9 +234,6 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 
 	@Override
 	public void run() throws Exception {
-		// initialize the serializers (one per channel) of the record writers
-		RegularPactTask.initOutputWriters(this.finalOutputWriters);
-
 		final String brokerKey = brokerKey();
 		final int workerIndex = getEnvironment().getIndexInSubtaskGroup();
 		
@@ -445,6 +443,6 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 		if (log.isInfoEnabled()) {
 			log.info(formatLogString("sending " + WorkerDoneEvent.class.getSimpleName() + " to sync"));
 		}
-		this.toSync.broadcastEvent(event);
+		this.toSync.writeEventToAllChannels(event);
 	}
 }

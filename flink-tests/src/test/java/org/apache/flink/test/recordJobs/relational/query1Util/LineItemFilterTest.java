@@ -27,7 +27,7 @@ import static org.mockito.MockitoAnnotations.initMocks;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.flink.runtime.io.network.api.RecordWriter;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.operators.shipping.RecordOutputCollector;
 import org.apache.flink.test.recordJobs.util.Tuple;
 import org.apache.flink.types.IntValue;

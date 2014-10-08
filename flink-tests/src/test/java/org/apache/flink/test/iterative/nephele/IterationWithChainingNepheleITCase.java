@@ -29,7 +29,6 @@ import org.apache.flink.api.common.typeutils.record.RecordSerializerFactory;
 import org.apache.flink.api.java.record.functions.MapFunction;
 import org.apache.flink.api.java.record.io.FileOutputFormat;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.io.network.channels.ChannelType;
 import org.apache.flink.runtime.iterative.task.IterationHeadPactTask;
 import org.apache.flink.runtime.iterative.task.IterationTailPactTask;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
@@ -58,11 +57,11 @@ import org.junit.runners.Parameterized;
 
 /**
  * Tests chained iteration tails.
- * <p/>
+ * <p>
  * GitHub issue #123 reports a problem with chaining of tasks to iteration tails. The initial fix worked around the
  * issue by having the compiler *not* chain tasks to an iteration tail. The existing IterationWithChainingITCase only
  * tests this compiler behavior. The JobGraph and bypasses the compiler to test the original chaining problem.
- * <p/>
+ * <p>
  * A chained mapper after the iteration tail (dummy reduce) increments the given input points in each iteration. The
  * final result will only be correct, if the chained mapper is successfully executed.
  * 
@@ -229,14 +228,14 @@ public class IterationWithChainingNepheleITCase extends RecordAPITestBase {
 		// --------------------------------------------------------------------------------------------------------------
 		// 2. EDGES
 		// --------------------------------------------------------------------------------------------------------------
-		JobGraphUtils.connect(input, head, ChannelType.IN_MEMORY, DistributionPattern.POINTWISE);
+		JobGraphUtils.connect(input, head, DistributionPattern.POINTWISE);
 
-		JobGraphUtils.connect(head, tail, ChannelType.IN_MEMORY, DistributionPattern.BIPARTITE);
+		JobGraphUtils.connect(head, tail, DistributionPattern.ALL_TO_ALL);
 		tailConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, numSubTasks);
 
-		JobGraphUtils.connect(head, output, ChannelType.IN_MEMORY, DistributionPattern.POINTWISE);
+		JobGraphUtils.connect(head, output, DistributionPattern.POINTWISE);
 
-		JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.POINTWISE);
+		JobGraphUtils.connect(head, sync, DistributionPattern.POINTWISE);
 
 		// --------------------------------------------------------------------------------------------------------------
 		// 3. INSTANCE SHARING

@@ -24,13 +24,13 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.apache.flink.runtime.event.task.TaskEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.aggregators.AggregatorWithName;
 import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
-import org.apache.flink.runtime.event.task.AbstractTaskEvent;
-import org.apache.flink.runtime.io.network.api.MutableRecordReader;
+import org.apache.flink.runtime.io.network.api.reader.MutableRecordReader;
 import org.apache.flink.runtime.iterative.event.AllWorkersDoneEvent;
 import org.apache.flink.runtime.iterative.event.TerminationEvent;
 import org.apache.flink.runtime.iterative.event.WorkerDoneEvent;
@@ -73,7 +73,7 @@ public class IterationSynchronizationSinkTask extends AbstractInvokable implemen
 	
 	@Override
 	public void registerInputOutput() {
-		this.headEventReader = new MutableRecordReader<IntegerRecord>(this);
+		this.headEventReader = new MutableRecordReader<IntegerRecord>(getEnvironment().getReader(0));
 	}
 
 	@Override
@@ -99,7 +99,7 @@ public class IterationSynchronizationSinkTask extends AbstractInvokable implemen
 		int numEventsTillEndOfSuperstep = taskConfig.getNumberOfEventsUntilInterruptInIterativeGate(0);
 		eventHandler = new SyncEventHandler(numEventsTillEndOfSuperstep, aggregators,
 				getEnvironment().getUserClassLoader());
-		headEventReader.subscribeToEvent(eventHandler, WorkerDoneEvent.class);
+		headEventReader.subscribeToTaskEvent(eventHandler, WorkerDoneEvent.class);
 
 		IntegerRecord dummy = new IntegerRecord();
 		
@@ -199,8 +199,8 @@ public class IterationSynchronizationSinkTask extends AbstractInvokable implemen
 		}
 	}
 
-	private void sendToAllWorkers(AbstractTaskEvent event) throws IOException, InterruptedException {
-		headEventReader.publishEvent(event);
+	private void sendToAllWorkers(TaskEvent event) throws IOException, InterruptedException {
+		headEventReader.sendTaskEvent(event);
 	}
 
 	private String formatLogString(String message) {

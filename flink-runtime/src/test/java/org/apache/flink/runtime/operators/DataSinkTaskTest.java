@@ -16,8 +16,30 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators;
+
+import org.apache.flink.api.common.typeutils.record.RecordComparatorFactory;
+import org.apache.flink.api.java.record.io.DelimitedOutputFormat;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.io.network.api.reader.MockIteratorBufferReader;
+import org.apache.flink.runtime.io.network.api.writer.BufferWriter;
+import org.apache.flink.runtime.operators.testutils.InfiniteInputIterator;
+import org.apache.flink.runtime.operators.testutils.TaskCancelThread;
+import org.apache.flink.runtime.operators.testutils.TaskTestBase;
+import org.apache.flink.runtime.operators.testutils.UniformRecordGenerator;
+import org.apache.flink.runtime.operators.util.LocalStrategy;
+import org.apache.flink.runtime.taskmanager.Task;
+import org.apache.flink.types.IntValue;
+import org.apache.flink.types.Key;
+import org.apache.flink.types.Record;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -28,33 +50,18 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.junit.Assert;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.apache.flink.api.common.typeutils.record.RecordComparatorFactory;
-import org.apache.flink.api.java.record.io.DelimitedOutputFormat;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.operators.testutils.InfiniteInputIterator;
-import org.apache.flink.runtime.operators.testutils.TaskCancelThread;
-import org.apache.flink.runtime.operators.testutils.TaskTestBase;
-import org.apache.flink.runtime.operators.testutils.UniformRecordGenerator;
-import org.apache.flink.runtime.operators.util.LocalStrategy;
-import org.apache.flink.types.IntValue;
-import org.apache.flink.types.Key;
-import org.apache.flink.types.Record;
-import org.junit.After;
-import org.junit.Test;
-
+@RunWith(PowerMockRunner.class)
+@PrepareForTest({Task.class, BufferWriter.class})
 public class DataSinkTaskTest extends TaskTestBase
 {
 	private static final Logger LOG = LoggerFactory.getLogger(DataSinkTaskTest.class);
-	
+
 	private static final int MEMORY_MANAGER_SIZE = 3 * 1024 * 1024;
 
 	private static final int NETWORK_BUFFER_SIZE = 1024;
-	
+
 	private final String tempTestPath = constructTestPath(DataSinkTaskTest.class, "dst_test");
-	
+
 	@After
 	public void cleanUp() {
 		File tempTestFile = new File(this.tempTestPath);
@@ -62,20 +69,20 @@ public class DataSinkTaskTest extends TaskTestBase
 			tempTestFile.delete();
 		}
 	}
-	
+
 	@Test
 	public void testDataSinkTask() {
 
 		int keyCnt = 100;
 		int valCnt = 20;
-		
+
 		super.initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
 		super.addInput(new UniformRecordGenerator(keyCnt, valCnt, false), 0);
-		
+
 		DataSinkTask<Record> testTask = new DataSinkTask<Record>();
 
 		super.registerFileOutputTask(testTask, MockOutputFormat.class, new File(tempTestPath).toURI().toString());
-		
+
 		try {
 			testTask.invoke();
 		} catch (Exception e) {
@@ -84,37 +91,37 @@ public class DataSinkTaskTest extends TaskTestBase
 		}
 
 		File tempTestFile = new File(this.tempTestPath);
-		
+
 		Assert.assertTrue("Temp output file does not exist",tempTestFile.exists());
-		
+
 		FileReader fr = null;
 		BufferedReader br = null;
 		try {
 			fr = new FileReader(tempTestFile);
 			br = new BufferedReader(fr);
-			
+
 			HashMap<Integer,HashSet<Integer>> keyValueCountMap = new HashMap<Integer, HashSet<Integer>>(keyCnt);
-			
+
 			while(br.ready()) {
 				String line = br.readLine();
-				
+
 				Integer key = Integer.parseInt(line.substring(0,line.indexOf("_")));
 				Integer val = Integer.parseInt(line.substring(line.indexOf("_")+1,line.length()));
-				
+
 				if(!keyValueCountMap.containsKey(key)) {
 					keyValueCountMap.put(key,new HashSet<Integer>());
 				}
 				keyValueCountMap.get(key).add(val);
 			}
-			
+
 			Assert.assertTrue("Invalid key count in out file. Expected: "+keyCnt+" Actual: "+keyValueCountMap.keySet().size(),
 				keyValueCountMap.keySet().size() == keyCnt);
-			
+
 			for(Integer key : keyValueCountMap.keySet()) {
 				Assert.assertTrue("Invalid value count for key: "+key+". Expected: "+valCnt+" Actual: "+keyValueCountMap.get(key).size(),
 					keyValueCountMap.get(key).size() == valCnt);
 			}
-			
+
 		} catch (FileNotFoundException e) {
 			Assert.fail("Out file got lost...");
 		} catch (IOException ioe) {
@@ -128,24 +135,32 @@ public class DataSinkTaskTest extends TaskTestBase
 			}
 		}
 	}
-	
+
 	@Test
 	public void testUnionDataSinkTask() {
 
 		int keyCnt = 100;
 		int valCnt = 20;
-		
+
 		super.initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
-		super.addInput(new UniformRecordGenerator(keyCnt, valCnt, 0, 0, false), 0);
-		super.addInput(new UniformRecordGenerator(keyCnt, valCnt, keyCnt, 0, false), 0);
-		super.addInput(new UniformRecordGenerator(keyCnt, valCnt, keyCnt*2, 0, false), 0);
-		super.addInput(new UniformRecordGenerator(keyCnt, valCnt, keyCnt*3, 0, false), 0);
-		
+
+		MockIteratorBufferReader<?>[] readers = new MockIteratorBufferReader[4];
+		readers[0] = super.addInput(new UniformRecordGenerator(keyCnt, valCnt, 0, 0, false), 0, false);
+		readers[1] = super.addInput(new UniformRecordGenerator(keyCnt, valCnt, keyCnt, 0, false), 0, false);
+		readers[2] = super.addInput(new UniformRecordGenerator(keyCnt, valCnt, keyCnt * 2, 0, false), 0, false);
+		readers[3] = super.addInput(new UniformRecordGenerator(keyCnt, valCnt, keyCnt * 3, 0, false), 0, false);
+
 		DataSinkTask<Record> testTask = new DataSinkTask<Record>();
 
 		super.registerFileOutputTask(testTask, MockOutputFormat.class, new File(tempTestPath).toURI().toString());
-		
+
 		try {
+			// For the union reader to work, we need to start notifications *after* the union reader
+			// has been initialized.
+			for (MockIteratorBufferReader<?> reader : readers) {
+				reader.read();
+			}
+
 			testTask.invoke();
 		} catch (Exception e) {
 			LOG.debug("Exception while invoking the test task.", e);
@@ -153,37 +168,37 @@ public class DataSinkTaskTest extends TaskTestBase
 		}
 
 		File tempTestFile = new File(this.tempTestPath);
-		
+
 		Assert.assertTrue("Temp output file does not exist",tempTestFile.exists());
-		
+
 		FileReader fr = null;
 		BufferedReader br = null;
 		try {
 			fr = new FileReader(tempTestFile);
 			br = new BufferedReader(fr);
-			
+
 			HashMap<Integer,HashSet<Integer>> keyValueCountMap = new HashMap<Integer, HashSet<Integer>>(keyCnt);
-			
+
 			while(br.ready()) {
 				String line = br.readLine();
-				
+
 				Integer key = Integer.parseInt(line.substring(0,line.indexOf("_")));
 				Integer val = Integer.parseInt(line.substring(line.indexOf("_")+1,line.length()));
-				
+
 				if(!keyValueCountMap.containsKey(key)) {
 					keyValueCountMap.put(key,new HashSet<Integer>());
 				}
 				keyValueCountMap.get(key).add(val);
 			}
-			
+
 			Assert.assertTrue("Invalid key count in out file. Expected: "+keyCnt+" Actual: "+keyValueCountMap.keySet().size(),
 				keyValueCountMap.keySet().size() == keyCnt * 4);
-			
+
 			for(Integer key : keyValueCountMap.keySet()) {
 				Assert.assertTrue("Invalid value count for key: "+key+". Expected: "+valCnt+" Actual: "+keyValueCountMap.get(key).size(),
 					keyValueCountMap.get(key).size() == valCnt);
 			}
-			
+
 		} catch (FileNotFoundException e) {
 			Assert.fail("Out file got lost...");
 		} catch (IOException ioe) {
@@ -197,7 +212,7 @@ public class DataSinkTaskTest extends TaskTestBase
 			}
 		}
 	}
-	
+
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testSortingDataSinkTask() {
@@ -205,12 +220,13 @@ public class DataSinkTaskTest extends TaskTestBase
 		int keyCnt = 100;
 		int valCnt = 20;
 		double memoryFraction = 1.0;
-		
+
 		super.initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
+
 		super.addInput(new UniformRecordGenerator(keyCnt, valCnt, true), 0);
-		
+
 		DataSinkTask<Record> testTask = new DataSinkTask<Record>();
-		
+
 		// set sorting
 		super.getTaskConfig().setInputLocalStrategy(0, LocalStrategy.SORT);
 		super.getTaskConfig().setInputComparator(
@@ -221,33 +237,33 @@ public class DataSinkTaskTest extends TaskTestBase
 		super.getTaskConfig().setSpillingThresholdInput(0, 0.8f);
 
 		super.registerFileOutputTask(testTask, MockOutputFormat.class, new File(tempTestPath).toURI().toString());
-		
+
 		try {
 			testTask.invoke();
 		} catch (Exception e) {
 			LOG.debug("Exception while invoking the test task.", e);
 			Assert.fail("Invoke method caused exception.");
 		}
-		
+
 		File tempTestFile = new File(this.tempTestPath);
-		
+
 		Assert.assertTrue("Temp output file does not exist",tempTestFile.exists());
-		
+
 		FileReader fr = null;
 		BufferedReader br = null;
 		try {
 			fr = new FileReader(tempTestFile);
 			br = new BufferedReader(fr);
-			
+
 			Set<Integer> keys = new HashSet<Integer>();
-			
+
 			int curVal = -1;
 			while(br.ready()) {
 				String line = br.readLine();
-				
+
 				Integer key = Integer.parseInt(line.substring(0,line.indexOf("_")));
 				Integer val = Integer.parseInt(line.substring(line.indexOf("_")+1,line.length()));
-				
+
 				// check that values are in correct order
 				Assert.assertTrue("Values not in ascending order", val >= curVal);
 				// next value hit
@@ -261,10 +277,10 @@ public class DataSinkTaskTest extends TaskTestBase
 					// update current value
 					curVal = val;
 				}
-				
+
 				Assert.assertTrue("Duplicate key for value", keys.add(key));
 			}
-			
+
 		} catch (FileNotFoundException e) {
 			Assert.fail("Out file got lost...");
 		} catch (IOException ioe) {
@@ -278,13 +294,13 @@ public class DataSinkTaskTest extends TaskTestBase
 			}
 		}
 	}
-	
+
 	@Test
 	public void testFailingDataSinkTask() {
 
 		int keyCnt = 100;
 		int valCnt = 20;
-		
+
 		super.initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
 		super.addInput(new UniformRecordGenerator(keyCnt, valCnt, false), 0);
 
@@ -293,7 +309,7 @@ public class DataSinkTaskTest extends TaskTestBase
 		super.getTaskConfig().setStubParameters(stubParams);
 
 		super.registerFileOutputTask(testTask, MockFailingOutputFormat.class, new File(tempTestPath).toURI().toString());
-		
+
 		boolean stubFailed = false;
 
 		try {
@@ -302,13 +318,13 @@ public class DataSinkTaskTest extends TaskTestBase
 			stubFailed = true;
 		}
 		Assert.assertTrue("Function exception was not forwarded.", stubFailed);
-		
+
 		// assert that temp file was created
 		File tempTestFile = new File(this.tempTestPath);
 		Assert.assertFalse("Temp output file has not been removed", tempTestFile.exists());
-		
+
 	}
-	
+
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testFailingSortingDataSinkTask() {
@@ -316,14 +332,92 @@ public class DataSinkTaskTest extends TaskTestBase
 		int keyCnt = 100;
 		int valCnt = 20;;
 		double memoryFraction = 1.0;
-		
+
 		super.initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
 		super.addInput(new UniformRecordGenerator(keyCnt, valCnt, true), 0);
 
 		DataSinkTask<Record> testTask = new DataSinkTask<Record>();
 		Configuration stubParams = new Configuration();
 		super.getTaskConfig().setStubParameters(stubParams);
-		
+
+		// set sorting
+		super.getTaskConfig().setInputLocalStrategy(0, LocalStrategy.SORT);
+		super.getTaskConfig().setInputComparator(
+				new RecordComparatorFactory(new int[]{1}, ((Class<? extends Key<?>>[]) new Class[]{IntValue.class})),
+				0);
+		super.getTaskConfig().setRelativeMemoryInput(0, memoryFraction);
+		super.getTaskConfig().setFilehandlesInput(0, 8);
+		super.getTaskConfig().setSpillingThresholdInput(0, 0.8f);
+
+		super.registerFileOutputTask(testTask, MockFailingOutputFormat.class, new File(tempTestPath).toURI().toString());
+
+		boolean stubFailed = false;
+
+		try {
+			testTask.invoke();
+		} catch (Exception e) {
+			stubFailed = true;
+		}
+		Assert.assertTrue("Function exception was not forwarded.", stubFailed);
+
+		// assert that temp file was created
+		File tempTestFile = new File(this.tempTestPath);
+		Assert.assertFalse("Temp output file has not been removed", tempTestFile.exists());
+
+	}
+
+	@Test
+	public void testCancelDataSinkTask() {
+
+		super.initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
+		super.addInput(new InfiniteInputIterator(), 0);
+
+		final DataSinkTask<Record> testTask = new DataSinkTask<Record>();
+		Configuration stubParams = new Configuration();
+		super.getTaskConfig().setStubParameters(stubParams);
+
+		super.registerFileOutputTask(testTask, MockOutputFormat.class,  new File(tempTestPath).toURI().toString());
+
+		Thread taskRunner = new Thread() {
+			@Override
+			public void run() {
+				try {
+					testTask.invoke();
+				} catch (Exception ie) {
+					ie.printStackTrace();
+					Assert.fail("Task threw exception although it was properly canceled");
+				}
+			}
+		};
+		taskRunner.start();
+
+		TaskCancelThread tct = new TaskCancelThread(1, taskRunner, testTask);
+		tct.start();
+
+		try {
+			tct.join();
+			taskRunner.join();
+		} catch(InterruptedException ie) {
+			Assert.fail("Joining threads failed");
+		}
+
+		// assert that temp file was created
+		File tempTestFile = new File(this.tempTestPath);
+		Assert.assertFalse("Temp output file has not been removed", tempTestFile.exists());
+	}
+
+	@Test
+	@SuppressWarnings("unchecked")
+	public void testCancelSortingDataSinkTask() {
+		double memoryFraction = 1.0;
+
+		super.initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
+		super.addInput(new InfiniteInputIterator(), 0);
+
+		final DataSinkTask<Record> testTask = new DataSinkTask<Record>();
+		Configuration stubParams = new Configuration();
+		super.getTaskConfig().setStubParameters(stubParams);
+
 		// set sorting
 		super.getTaskConfig().setInputLocalStrategy(0, LocalStrategy.SORT);
 		super.getTaskConfig().setInputComparator(
@@ -332,36 +426,9 @@ public class DataSinkTaskTest extends TaskTestBase
 		super.getTaskConfig().setRelativeMemoryInput(0, memoryFraction);
 		super.getTaskConfig().setFilehandlesInput(0, 8);
 		super.getTaskConfig().setSpillingThresholdInput(0, 0.8f);
-		
-		super.registerFileOutputTask(testTask, MockFailingOutputFormat.class, new File(tempTestPath).toURI().toString());
-		
-		boolean stubFailed = false;
 
-		try {
-			testTask.invoke();
-		} catch (Exception e) {
-			stubFailed = true;
-		}
-		Assert.assertTrue("Function exception was not forwarded.", stubFailed);
-		
-		// assert that temp file was created
-		File tempTestFile = new File(this.tempTestPath);
-		Assert.assertFalse("Temp output file has not been removed", tempTestFile.exists());
-		
-	}
-	
-	@Test
-	public void testCancelDataSinkTask() {
-		
-		super.initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
-		super.addInput(new InfiniteInputIterator(), 0);
-		
-		final DataSinkTask<Record> testTask = new DataSinkTask<Record>();
-		Configuration stubParams = new Configuration();
-		super.getTaskConfig().setStubParameters(stubParams);
-		
 		super.registerFileOutputTask(testTask, MockOutputFormat.class,  new File(tempTestPath).toURI().toString());
-		
+
 		Thread taskRunner = new Thread() {
 			@Override
 			public void run() {
@@ -374,91 +441,40 @@ public class DataSinkTaskTest extends TaskTestBase
 			}
 		};
 		taskRunner.start();
-		
-		TaskCancelThread tct = new TaskCancelThread(1, taskRunner, testTask);
-		tct.start();
-		
-		try {
-			tct.join();
-			taskRunner.join();		
-		} catch(InterruptedException ie) {
-			Assert.fail("Joining threads failed");
-		}
-		
-		// assert that temp file was created
-		File tempTestFile = new File(this.tempTestPath);
-		Assert.assertFalse("Temp output file has not been removed", tempTestFile.exists());
-	}
-	
-	@Test
-	@SuppressWarnings("unchecked")
-	public void testCancelSortingDataSinkTask() {
-		double memoryFraction = 1.0;
-		
-		super.initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
-		super.addInput(new InfiniteInputIterator(), 0);
-		
-		final DataSinkTask<Record> testTask = new DataSinkTask<Record>();
-		Configuration stubParams = new Configuration();
-		super.getTaskConfig().setStubParameters(stubParams);
-		
-		// set sorting
-		super.getTaskConfig().setInputLocalStrategy(0, LocalStrategy.SORT);
-		super.getTaskConfig().setInputComparator(
-				new RecordComparatorFactory(new int[]{1},((Class<? extends Key<?>>[])new Class[]{IntValue.class})), 
-				0);
-		super.getTaskConfig().setRelativeMemoryInput(0, memoryFraction);
-		super.getTaskConfig().setFilehandlesInput(0, 8);
-		super.getTaskConfig().setSpillingThresholdInput(0, 0.8f);
-		
-		super.registerFileOutputTask(testTask, MockOutputFormat.class,  new File(tempTestPath).toURI().toString());
-		
-		Thread taskRunner = new Thread() {
-			@Override
-			public void run() {
-				try {
-					testTask.invoke();
-				} catch (Exception ie) {
-					ie.printStackTrace();
-					Assert.fail("Task threw exception although it was properly canceled");
-				}
-			}
-		};
-		taskRunner.start();
-		
+
 		TaskCancelThread tct = new TaskCancelThread(2, taskRunner, testTask);
 		tct.start();
-		
+
 		try {
 			tct.join();
 			taskRunner.join();
 		} catch(InterruptedException ie) {
 			Assert.fail("Joining threads failed");
 		}
-				
+
 	}
-	
+
 	public static class MockOutputFormat extends DelimitedOutputFormat {
 		private static final long serialVersionUID = 1L;
-		
+
 		final StringBuilder bld = new StringBuilder();
-		
+
 		@Override
 		public void configure(Configuration parameters) {
 			super.configure(parameters);
 		}
-		
+
 		@Override
 		public int serializeRecord(Record rec, byte[] target) throws Exception
 		{
 			IntValue key = rec.getField(0, IntValue.class);
 			IntValue value = rec.getField(1, IntValue.class);
-		
+
 			this.bld.setLength(0);
 			this.bld.append(key.getValue());
 			this.bld.append('_');
 			this.bld.append(value.getValue());
-			
+
 			byte[] bytes = this.bld.toString().getBytes();
 			if (bytes.length <= target.length) {
 				System.arraycopy(bytes, 0, target, 0, bytes.length);
@@ -467,19 +483,19 @@ public class DataSinkTaskTest extends TaskTestBase
 			// else
 			return -bytes.length;
 		}
-		
+
 	}
-	
+
 	public static class MockFailingOutputFormat extends MockOutputFormat {
 		private static final long serialVersionUID = 1L;
 
 		int cnt = 0;
-		
+
 		@Override
 		public void configure(Configuration parameters) {
 			super.configure(parameters);
 		}
-		
+
 		@Override
 		public int serializeRecord(Record rec, byte[] target) throws Exception
 		{

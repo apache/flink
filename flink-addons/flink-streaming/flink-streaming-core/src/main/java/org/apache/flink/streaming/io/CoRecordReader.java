@@ -17,176 +17,117 @@
 
 package org.apache.flink.streaming.io;
 
-import java.io.IOException;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Set;
-
 import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.runtime.event.task.AbstractTaskEvent;
-import org.apache.flink.runtime.io.network.api.AbstractRecordReader;
-import org.apache.flink.runtime.io.network.api.MutableRecordReader;
-import org.apache.flink.runtime.io.network.gates.InputChannelResult;
-import org.apache.flink.runtime.io.network.gates.InputGate;
-import org.apache.flink.runtime.io.network.gates.RecordAvailabilityListener;
+import org.apache.flink.runtime.event.task.TaskEvent;
+import org.apache.flink.runtime.io.network.api.reader.MutableRecordReader;
+import org.apache.flink.runtime.io.network.api.reader.ReaderBase;
+import org.apache.flink.runtime.util.event.EventListener;
+
+import java.io.IOException;
 
 /**
  * A CoRecordReader wraps {@link MutableRecordReader}s of two different input
  * types to read records effectively.
  */
 @SuppressWarnings("rawtypes")
-public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadableWritable> extends
-		AbstractRecordReader implements RecordAvailabilityListener {
+public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadableWritable> implements ReaderBase {
 
 	/**
-	 * Sets of input gates for the two input types
+	 * Readers for the two input types
 	 */
-	private Set<InputGate<T1>> inputGates1;
-	private Set<InputGate<T2>> inputGates2;
+	private MutableRecordReader<T1> reader1;
+	private MutableRecordReader<T2> reader2;
 
-	private final Set<InputGate> remainingInputGates;
+	private boolean finishedReader1 = false;
 
-	private final InputGate[] allInputGates;
-	
-	/**
-	 * Queue with indices of channels that store at least one available record.
-	 */
-	private final ArrayDeque<InputGate> availableInputGates = new ArrayDeque<InputGate>();
+	private boolean finishedReader2 = false;
 
-	/**
-	 * The next input gate to read a record from.
-	 */
-	private InputGate nextInputGateToReadFrom;
+	private boolean endOfSuperstepReader1 = false;
 
-	@Override
-	public boolean isInputClosed() {
-		return this.remainingInputGates.isEmpty();
-	}
+	private boolean endOfSuperstepReader2 = false;
 
-	@SuppressWarnings("unchecked")
-	public CoRecordReader(ArrayList<MutableRecordReader<T1>> inputList1,
-			ArrayList<MutableRecordReader<T2>> inputList2) {
-
-		if (inputList1 == null || inputList2 == null) {
-			throw new IllegalArgumentException("Provided argument recordReaders is null");
-		}
-
-		this.inputGates1 = new HashSet<InputGate<T1>>();
-		this.inputGates2 = new HashSet<InputGate<T2>>();
-		this.remainingInputGates = new HashSet<InputGate>(
-				(int) ((inputList1.size() + inputList2.size()) * 1.6f));
-		this.allInputGates = new InputGate[inputList1.size() + inputList2.size()];
-		
-		int inputNumber = 0;
-
-		for (MutableRecordReader<T1> reader : inputList1) {
-			InputGate<T1> inputGate = (InputGate<T1>) reader.getInputGate();
-			inputGate.registerRecordAvailabilityListener(this);
-			this.inputGates1.add(inputGate);
-			this.remainingInputGates.add(inputGate);
-			this.allInputGates[inputNumber] = inputGate;
-			inputNumber++;
-		}
-
-		for (MutableRecordReader<T2> reader : inputList2) {
-			InputGate<T2> inputGate = (InputGate<T2>) reader.getInputGate();
-			inputGate.registerRecordAvailabilityListener(this);
-			this.inputGates2.add(inputGate);
-			this.remainingInputGates.add(inputGate);
-			this.allInputGates[inputNumber] = inputGate;
-			inputNumber++;
-		}
-	}
-
-	@Override
-	public void publishEvent(AbstractTaskEvent event) throws IOException, InterruptedException {
-		for (InputGate<T1> gate : this.inputGates1) {
-			gate.publishEvent(event);
-		}
-		for (InputGate<T2> gate : this.inputGates2) {
-			gate.publishEvent(event);
-		}
-	}
-	
-	@Override
-	public void publishEvent(AbstractTaskEvent event, int inputNumber) throws IOException,
-			InterruptedException {
-		allInputGates[inputNumber].publishEvent(event);
-	}
-
-	@Override
-	public void reportRecordAvailability(InputGate inputGate) {
-		synchronized (this.availableInputGates) {
-			this.availableInputGates.add(inputGate);
-			this.availableInputGates.notifyAll();
-		}
+	public CoRecordReader(MutableRecordReader<T1> reader1, MutableRecordReader<T2> reader2) {
+		this.reader1 = reader1;
+		this.reader2 = reader2;
 	}
 
 	@SuppressWarnings("unchecked")
 	protected int getNextRecord(T1 target1, T2 target2) throws IOException, InterruptedException {
-		int out;
-		while (true) {
-			// has the current input gate more data?
-			if (this.nextInputGateToReadFrom == null) {
-				if (this.remainingInputGates.isEmpty()) {
-					return 0;
+		do {
+			if (finishedReader1 && finishedReader2) {
+				return 0;
+			}
+
+			if (endOfSuperstepReader1 && endOfSuperstepReader2) {
+				endOfSuperstepReader1 = false;
+				endOfSuperstepReader2 = false;
+
+				return 0;
+			}
+
+			if (!finishedReader1 && !endOfSuperstepReader1) {
+				if (reader1.next(target1)) {
+					return 1;
 				}
-
-				this.nextInputGateToReadFrom = getNextAvailableInputGate();
-			}
-			InputChannelResult result;
-
-			if (inputGates1.contains(this.nextInputGateToReadFrom)) {
-				result = this.nextInputGateToReadFrom.readRecord(target1);
-				out = 1;
-			} else {
-				result = this.nextInputGateToReadFrom.readRecord(target2);
-				out = 2;
-			}
-			switch (result) {
-			case INTERMEDIATE_RECORD_FROM_BUFFER: // record is available and we
-													// can stay on the same
-													// channel
-				return out;
-
-			case LAST_RECORD_FROM_BUFFER: // record is available, but we need to
-											// re-check the channels
-				this.nextInputGateToReadFrom = null;
-				return out;
-
-			case END_OF_SUPERSTEP:
-				this.nextInputGateToReadFrom = null;
-				if (incrementEndOfSuperstepEventAndCheck()) {
-					return 0; // end of the superstep
-				} else {
-					break; // fall through and wait for next record/event
+				else if (reader1.isFinished()) {
+					finishedReader1 = true;
 				}
-
-			case TASK_EVENT: // event for the subscribers is available
-				handleEvent(this.nextInputGateToReadFrom.getCurrentEvent());
-				this.nextInputGateToReadFrom = null;
-				break;
-
-			case END_OF_STREAM: // one gate is empty
-				this.remainingInputGates.remove(this.nextInputGateToReadFrom);
-				this.nextInputGateToReadFrom = null;
-				break;
-
-			case NONE: // gate processed an internal event and could not return
-						// a record on this call
-				this.nextInputGateToReadFrom = null;
-				break;
+				else if (reader1.hasReachedEndOfSuperstep()) {
+					endOfSuperstepReader1 = true;
+				}
+				else {
+					throw new IOException("Unexpected return value from reader.");
+				}
 			}
-		}
+
+			if (!finishedReader2 && !endOfSuperstepReader2) {
+				if (reader2.next(target2)) {
+					return 2;
+				}
+				else if (reader2.isFinished()) {
+					finishedReader2 = true;
+				}
+				else if (reader2.hasReachedEndOfSuperstep()) {
+					endOfSuperstepReader2 = true;
+				}
+				else {
+					throw new IOException("Unexpected return value from reader.");
+				}
+			}
+		} while (true);
 	}
 
-	private InputGate getNextAvailableInputGate() throws InterruptedException {
-		synchronized (this.availableInputGates) {
-			while (this.availableInputGates.isEmpty()) {
-				this.availableInputGates.wait();
-			}
-			return this.availableInputGates.pop();
-		}
+	@Override
+	public boolean isFinished() {
+		return reader1.isFinished() && reader2.isFinished();
+	}
+
+	@Override
+	public void subscribeToTaskEvent(EventListener<TaskEvent> eventListener, Class<? extends TaskEvent> eventType) {
+		reader1.subscribeToTaskEvent(eventListener, eventType);
+		reader2.subscribeToTaskEvent(eventListener, eventType);
+	}
+
+	@Override
+	public void sendTaskEvent(TaskEvent event) throws IOException, InterruptedException {
+		reader1.sendTaskEvent(event);
+		reader2.sendTaskEvent(event);
+	}
+
+	@Override
+	public void setIterativeReader() {
+		reader1.setIterativeReader();
+		reader2.setIterativeReader();
+	}
+
+	@Override
+	public void startNextSuperstep() {
+		reader1.startNextSuperstep();
+		reader2.startNextSuperstep();
+	}
+
+	@Override
+	public boolean hasReachedEndOfSuperstep() {
+		return reader1.hasReachedEndOfSuperstep() && reader2.hasReachedEndOfSuperstep();
 	}
 }

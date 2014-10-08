@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.operators.testutils;
 
-import java.util.List;
-
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
@@ -27,8 +25,9 @@ import org.apache.flink.api.common.typeutils.record.RecordSerializerFactory;
 import org.apache.flink.api.java.record.io.DelimitedInputFormat;
 import org.apache.flink.api.java.record.io.FileOutputFormat;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.io.network.api.reader.MockIteratorBufferReader;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
 import org.apache.flink.runtime.operators.PactDriver;
@@ -39,6 +38,8 @@ import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.MutableObjectIterator;
 import org.junit.After;
 import org.junit.Assert;
+
+import java.util.List;
 
 public abstract class TaskTestBase {
 	
@@ -54,11 +55,23 @@ public abstract class TaskTestBase {
 		this.mockEnv = new MockEnvironment(this.memorySize, this.inputSplitProvider, bufferSize);
 	}
 
-	public void addInput(MutableObjectIterator<Record> input, int groupId) {
-		this.mockEnv.addInput(input);
+	public MockIteratorBufferReader<Record> addInput(MutableObjectIterator<Record> input, int groupId) {
+		final MockIteratorBufferReader<Record> reader = addInput(input, groupId, true);
+
+		return reader;
+	}
+
+	public MockIteratorBufferReader<Record> addInput(MutableObjectIterator<Record> input, int groupId, boolean read) {
+		final MockIteratorBufferReader<Record> reader = this.mockEnv.addInput(input);
 		TaskConfig conf = new TaskConfig(this.mockEnv.getTaskConfiguration());
 		conf.addInputToGroup(groupId);
 		conf.setInputSerializer(RecordSerializerFactory.get(), groupId);
+
+		if (read) {
+			reader.read();
+		}
+
+		return reader;
 	}
 
 	public void addOutput(List<Record> output) {

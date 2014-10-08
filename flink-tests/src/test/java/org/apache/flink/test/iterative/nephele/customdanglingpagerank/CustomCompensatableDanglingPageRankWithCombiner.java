@@ -24,7 +24,6 @@ import org.apache.flink.api.common.typeutils.TypePairComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.api.java.record.io.FileOutputFormat;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.io.network.channels.ChannelType;
 import org.apache.flink.runtime.iterative.task.IterationHeadPactTask;
 import org.apache.flink.runtime.iterative.task.IterationIntermediatePactTask;
 import org.apache.flink.runtime.iterative.task.IterationTailPactTask;
@@ -297,21 +296,21 @@ public class CustomCompensatableDanglingPageRankWithCombiner {
 		
 		// --------------- the wiring ---------------------
 
-		JobGraphUtils.connect(pageWithRankInput, head, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
+		JobGraphUtils.connect(pageWithRankInput, head, DistributionPattern.ALL_TO_ALL);
 
-		JobGraphUtils.connect(head, intermediate, ChannelType.IN_MEMORY, DistributionPattern.POINTWISE);
+		JobGraphUtils.connect(head, intermediate, DistributionPattern.POINTWISE);
 		intermediateConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, 1);
 		
-		JobGraphUtils.connect(adjacencyListInput, intermediate, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
+		JobGraphUtils.connect(adjacencyListInput, intermediate, DistributionPattern.ALL_TO_ALL);
 		
-		JobGraphUtils.connect(head, tail, ChannelType.NETWORK, DistributionPattern.POINTWISE);
-		JobGraphUtils.connect(intermediate, tail, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
+		JobGraphUtils.connect(head, tail, DistributionPattern.POINTWISE);
+		JobGraphUtils.connect(intermediate, tail, DistributionPattern.ALL_TO_ALL);
 		tailConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(0, 1);
 		tailConfig.setGateIterativeWithNumberOfEventsUntilInterrupt(1, degreeOfParallelism);
 
-		JobGraphUtils.connect(head, output, ChannelType.IN_MEMORY, DistributionPattern.POINTWISE);
+		JobGraphUtils.connect(head, output, DistributionPattern.POINTWISE);
 
-		JobGraphUtils.connect(head, sync, ChannelType.NETWORK, DistributionPattern.POINTWISE);
+		JobGraphUtils.connect(head, sync, DistributionPattern.POINTWISE);
 		
 		SlotSharingGroup sharingGroup = new SlotSharingGroup();
 		pageWithRankInput.setSlotSharingGroup(sharingGroup);

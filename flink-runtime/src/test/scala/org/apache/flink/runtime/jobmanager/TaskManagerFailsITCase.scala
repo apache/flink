@@ -18,20 +18,16 @@
 
 package org.apache.flink.runtime.jobmanager
 
-import akka.actor.{PoisonPill, ActorSystem}
+import akka.actor.{ActorSystem, PoisonPill}
 import akka.testkit.{ImplicitSender, TestKit}
-import org.apache.flink.runtime.jobgraph.{JobGraph, DistributionPattern,
-AbstractJobVertex}
+import org.apache.flink.runtime.jobgraph.{AbstractJobVertex, DistributionPattern, JobGraph}
 import org.apache.flink.runtime.jobmanager.Tasks.{BlockingReceiver, Sender}
-import org.apache.flink.runtime.messages.JobManagerMessages.{JobResultFailed, SubmissionSuccess,
-SubmitJob}
-import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.{AllVerticesRunning,
-WaitForAllVerticesToBeRunning}
+import org.apache.flink.runtime.messages.JobManagerMessages.{JobResultFailed, SubmissionSuccess, SubmitJob}
+import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.{AllVerticesRunning, WaitForAllVerticesToBeRunningOrFinished}
 import org.apache.flink.runtime.testingUtils.TestingUtils
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-import org.scalatest.{WordSpecLike, Matchers, BeforeAndAfterAll}
-import scala.concurrent.duration._
+import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 @RunWith(classOf[JUnitRunner])
 class TaskManagerFailsITCase(_system: ActorSystem) extends TestKit(_system) with ImplicitSender
@@ -67,7 +63,7 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
           jm ! SubmitJob(jobGraph)
           expectMsg(SubmissionSuccess(jobGraph.getJobID))
 
-          jm ! WaitForAllVerticesToBeRunning(jobID)
+          jm ! WaitForAllVerticesToBeRunningOrFinished(jobID)
           expectMsg(AllVerticesRunning(jobID))
 
           // kill one task manager

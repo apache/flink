@@ -27,7 +27,7 @@ import org.apache.flink.core.memory.MemorySegment;
 /**
  *
  */
-public class AsynchronousBulkBlockReader extends AsynchronousFileIOChannel<ReadRequest> implements BulkBlockChannelReader {
+public class AsynchronousBulkBlockReader extends AsynchronousFileIOChannel<MemorySegment, ReadRequest> implements BulkBlockChannelReader {
 	
 	private final ArrayList<MemorySegment> returnBuffers;
 	
@@ -59,18 +59,7 @@ public class AsynchronousBulkBlockReader extends AsynchronousFileIOChannel<ReadR
 	}
 	
 	private void readBlock(MemorySegment segment) throws IOException {
-		// check the error state of this channel
-		checkErroneous();
-		
-		// write the current buffer and get the next one
-		this.requestsNotReturned.incrementAndGet();
-		if (this.closed || this.requestQueue.isClosed()) {
-			// if we found ourselves closed after the counter increment,
-			// decrement the counter again and do not forward the request
-			this.requestsNotReturned.decrementAndGet();
-			throw new IOException("The reader has been closed.");
-		}
-		this.requestQueue.add(new SegmentReadRequest(this, segment));
+		addRequest(new SegmentReadRequest(this, segment));
 	}
 	
 	@Override
@@ -86,7 +75,7 @@ public class AsynchronousBulkBlockReader extends AsynchronousFileIOChannel<ReadR
 	
 	// --------------------------------------------------------------------------------------------
 	
-	private static final class CollectingCallback implements RequestDoneCallback {
+	private static final class CollectingCallback implements RequestDoneCallback<MemorySegment> {
 		
 		private final ArrayList<MemorySegment> list;
 

@@ -715,7 +715,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 	}
 	
 	private int getNumberOfSendersPerReceiver(DistributionPattern pattern, int numSenders, int numReceivers) {
-		if (pattern == DistributionPattern.BIPARTITE) {
+		if (pattern == DistributionPattern.ALL_TO_ALL) {
 			return numSenders;
 		} else if (pattern == DistributionPattern.POINTWISE) {
 			if (numSenders != numReceivers) {
@@ -1063,7 +1063,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			case PARTITION_CUSTOM:
 			case PARTITION_RANGE:
 			case PARTITION_FORCED_REBALANCE:
-				distributionPattern = DistributionPattern.BIPARTITE;
+				distributionPattern = DistributionPattern.ALL_TO_ALL;
 				break;
 			default:
 				throw new RuntimeException("Unknown runtime ship strategy: " + channel.getShipStrategy());

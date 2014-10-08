@@ -19,25 +19,17 @@
 
 package org.apache.flink.runtime.io.disk.iomanager;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.List;
-
-import org.junit.Assert;
-
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.io.disk.iomanager.AsynchronousFileIOChannel;
-import org.apache.flink.runtime.io.disk.iomanager.BlockChannelReader;
-import org.apache.flink.runtime.io.disk.iomanager.BlockChannelWriter;
-import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.disk.iomanager.ReadRequest;
-import org.apache.flink.runtime.io.disk.iomanager.WriteRequest;
 import org.apache.flink.runtime.memory.DefaultMemoryManagerTest.DummyInvokable;
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.List;
 
 public class IOManagerTest {
 	
@@ -200,11 +192,11 @@ public class IOManagerTest {
 	
 	final class FailingSegmentReadRequest implements ReadRequest {
 		
-		private final AsynchronousFileIOChannel<ReadRequest> channel;
+		private final AsynchronousFileIOChannel<MemorySegment, ReadRequest> channel;
 		
 		private final MemorySegment segment;
 		
-		protected FailingSegmentReadRequest(AsynchronousFileIOChannel<ReadRequest> targetChannel, MemorySegment segment) {
+		protected FailingSegmentReadRequest(AsynchronousFileIOChannel<MemorySegment, ReadRequest> targetChannel, MemorySegment segment) {
 			this.channel = targetChannel;
 			this.segment = segment;
 		}
@@ -229,11 +221,11 @@ public class IOManagerTest {
 	 */
 	final class FailingSegmentWriteRequest implements WriteRequest {
 		
-		private final AsynchronousFileIOChannel<WriteRequest> channel;
+		private final AsynchronousFileIOChannel<MemorySegment, WriteRequest> channel;
 		
 		private final MemorySegment segment;
 		
-		protected FailingSegmentWriteRequest(AsynchronousFileIOChannel<WriteRequest> targetChannel, MemorySegment segment) {
+		protected FailingSegmentWriteRequest(AsynchronousFileIOChannel<MemorySegment, WriteRequest> targetChannel, MemorySegment segment) {
 			this.channel = targetChannel;
 			this.segment = segment;
 		}

@@ -18,17 +18,7 @@
 
 package org.apache.flink.runtime.operators;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.NoSuchElementException;
-
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.util.InstantiationUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -36,13 +26,23 @@ import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.execution.CancelTaskException;
-import org.apache.flink.runtime.io.network.api.BufferWriter;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.operators.chaining.ChainedDriver;
 import org.apache.flink.runtime.operators.chaining.ExceptionInChainedStubException;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.InstantiationUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.NoSuchElementException;
 
 /**
  * DataSourceTask which is executed by a task manager. The task reads data and uses an 
@@ -51,11 +51,10 @@ import org.apache.flink.util.Collector;
  * @see org.apache.flink.api.common.io.InputFormat
  */
 public class DataSourceTask<OT> extends AbstractInvokable {
-	
+
 	private static final Logger LOG = LoggerFactory.getLogger(DataSourceTask.class);
 
-	
-	private List<BufferWriter> eventualOutputs;
+	private List<RecordWriter<?>> eventualOutputs;
 
 	// Output collector
 	private Collector<OT> output;
@@ -145,9 +144,6 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 		final TypeSerializer<OT> serializer = this.serializerFactory.getSerializer();
 		
 		try {
-			// initialize the serializers (one per channel) of the record writers
-			RegularPactTask.initOutputWriters(this.eventualOutputs);
-
 			// start all chained tasks
 			RegularPactTask.openChainedTasks(this.chainedTasks, this);
 			
@@ -159,7 +155,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 			{
 				// get start and end
 				final InputSplit split = splitIterator.next();
-				
+
 				if (LOG.isDebugEnabled()) {
 					LOG.debug(getLogString("Opening input split " + split.toString()));
 				}
@@ -174,7 +170,6 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 				}
 				
 				try {
-
 					final Collector<OT> output = this.output;
 
 					if (objectReuseEnabled) {
@@ -222,7 +217,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 			// close the input, but do not report any exceptions, since we already have another root cause
 			try {
 				this.format.close();
-			} catch (Throwable t) {}
+			} catch (Throwable ignored) {}
 			
 			RegularPactTask.cancelChainedTasks(this.chainedTasks);
 			
@@ -236,6 +231,8 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 				// drop exception, if the task was canceled
 				RegularPactTask.logAndThrowException(ex, this);
 			}
+		} finally {
+			RegularPactTask.clearWriters(eventualOutputs);
 		}
 
 		if (!this.taskCanceled) {
@@ -304,7 +301,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 	 */
 	private void initOutputs(ClassLoader cl) throws Exception {
 		this.chainedTasks = new ArrayList<ChainedDriver<?, ?>>();
-		this.eventualOutputs = new ArrayList<BufferWriter>();
+		this.eventualOutputs = new ArrayList<RecordWriter<?>>();
 		this.output = RegularPactTask.initOutputs(this, cl, this.config, this.chainedTasks, this.eventualOutputs, getExecutionConfig());
 	}
 

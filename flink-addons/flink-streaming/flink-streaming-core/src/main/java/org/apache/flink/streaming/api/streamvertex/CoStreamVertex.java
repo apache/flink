@@ -17,9 +17,9 @@
 
 package org.apache.flink.streaming.api.streamvertex;
 
-import java.util.ArrayList;
-
-import org.apache.flink.runtime.io.network.api.MutableRecordReader;
+import org.apache.flink.runtime.io.network.api.reader.BufferReader;
+import org.apache.flink.runtime.io.network.api.reader.MutableRecordReader;
+import org.apache.flink.runtime.io.network.api.reader.UnionBufferReader;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.streaming.api.invokable.operator.co.CoInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
@@ -27,6 +27,8 @@ import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.io.CoReaderIterator;
 import org.apache.flink.streaming.io.CoRecordReader;
 import org.apache.flink.util.MutableObjectIterator;
+
+import java.util.ArrayList;
 
 public class CoStreamVertex<IN1, IN2, OUT> extends StreamVertex<IN1, OUT> {
 
@@ -74,27 +76,47 @@ public class CoStreamVertex<IN1, IN2, OUT> extends StreamVertex<IN1, OUT> {
 
 		int numberOfInputs = configuration.getNumberOfInputs();
 
-		ArrayList<MutableRecordReader<DeserializationDelegate<StreamRecord<IN1>>>> inputList1 = new ArrayList<MutableRecordReader<DeserializationDelegate<StreamRecord<IN1>>>>();
-		ArrayList<MutableRecordReader<DeserializationDelegate<StreamRecord<IN2>>>> inputList2 = new ArrayList<MutableRecordReader<DeserializationDelegate<StreamRecord<IN2>>>>();
+		ArrayList<BufferReader> inputList1 = new ArrayList<BufferReader>();
+		ArrayList<BufferReader> inputList2 = new ArrayList<BufferReader>();
 
 		for (int i = 0; i < numberOfInputs; i++) {
 			int inputType = configuration.getInputType(i);
+			BufferReader reader = getEnvironment().getReader(i);
 			switch (inputType) {
-			case 1:
-				inputList1.add(new MutableRecordReader<DeserializationDelegate<StreamRecord<IN1>>>(
-						this));
-				break;
-			case 2:
-				inputList2.add(new MutableRecordReader<DeserializationDelegate<StreamRecord<IN2>>>(
-						this));
-				break;
-			default:
-				throw new RuntimeException("Invalid input type number: " + inputType);
+				case 1:
+					inputList1.add(reader);
+					break;
+				case 2:
+					inputList2.add(reader);
+					break;
+				default:
+					throw new RuntimeException("Invalid input type number: " + inputType);
 			}
 		}
 
-		coReader = new CoRecordReader<DeserializationDelegate<StreamRecord<IN1>>, DeserializationDelegate<StreamRecord<IN2>>>(
-				inputList1, inputList2);
+		MutableRecordReader<DeserializationDelegate<StreamRecord<IN1>>> reader1;
+		if (inputList1.size() == 1) {
+			reader1 = new MutableRecordReader<DeserializationDelegate<StreamRecord<IN1>>>(inputList1.get(0));
+		}
+		else if (inputList1.size() > 1) {
+			reader1 = new MutableRecordReader<DeserializationDelegate<StreamRecord<IN1>>>(new UnionBufferReader(inputList1.toArray(new BufferReader[inputList1.size()])));
+		}
+		else {
+			throw new IllegalStateException("Illegal input size for first input.");
+		}
+
+		MutableRecordReader<DeserializationDelegate<StreamRecord<IN2>>> reader2;
+		if (inputList2.size() == 1) {
+			reader2 = new MutableRecordReader<DeserializationDelegate<StreamRecord<IN2>>>(inputList2.get(0));
+		}
+		else if (inputList2.size() > 1) {
+			reader2 = new MutableRecordReader<DeserializationDelegate<StreamRecord<IN2>>>(new UnionBufferReader(inputList2.toArray(new BufferReader[inputList2.size()])));
+		}
+		else {
+			throw new IllegalStateException("Illegal input size for first input.");
+		}
+
+		coReader = new CoRecordReader<DeserializationDelegate<StreamRecord<IN1>>, DeserializationDelegate<StreamRecord<IN2>>>(reader1, reader2);
 	}
 
 	@Override
@@ -106,32 +128,29 @@ public class CoStreamVertex<IN1, IN2, OUT> extends StreamVertex<IN1, OUT> {
 	@Override
 	public <X> MutableObjectIterator<X> getInput(int index) {
 		switch (index) {
-		case 0:
-			return (MutableObjectIterator<X>) inputIter1;
-		case 1:
-			return (MutableObjectIterator<X>) inputIter2;
-		default:
-			throw new IllegalArgumentException("CoStreamVertex has only 2 inputs");
+			case 0:
+				return (MutableObjectIterator<X>) inputIter1;
+			case 1:
+				return (MutableObjectIterator<X>) inputIter2;
+			default:
+				throw new IllegalArgumentException("CoStreamVertex has only 2 inputs");
 		}
 	}
-
 	@SuppressWarnings("unchecked")
 	@Override
 	public <X> StreamRecordSerializer<X> getInputSerializer(int index) {
 		switch (index) {
-		case 0:
-			return (StreamRecordSerializer<X>) inputDeserializer1;
-		case 1:
-			return (StreamRecordSerializer<X>) inputDeserializer2;
-		default:
-			throw new IllegalArgumentException("CoStreamVertex has only 2 inputs");
+			case 0:
+				return (StreamRecordSerializer<X>) inputDeserializer1;
+			case 1:
+				return (StreamRecordSerializer<X>) inputDeserializer2;
+			default:
+				throw new IllegalArgumentException("CoStreamVertex has only 2 inputs");
 		}
 	}
-
 	@SuppressWarnings("unchecked")
 	@Override
 	public <X, Y> CoReaderIterator<X, Y> getCoReader() {
 		return (CoReaderIterator<X, Y>) coIter;
 	}
-
 }

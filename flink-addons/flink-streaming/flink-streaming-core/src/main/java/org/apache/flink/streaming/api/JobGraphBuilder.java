@@ -386,7 +386,7 @@ public class JobGraphBuilder {
 					.connectNewDataSetAsInput(upStreamVertex, DistributionPattern.POINTWISE);
 		} else {
 			downStreamVertex
-					.connectNewDataSetAsInput(upStreamVertex, DistributionPattern.BIPARTITE);
+					.connectNewDataSetAsInput(upStreamVertex, DistributionPattern.ALL_TO_ALL);
 		}
 
 		if (LOG.isDebugEnabled()) {

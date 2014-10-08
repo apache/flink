@@ -17,7 +17,11 @@
 
 package org.apache.flink.streaming.api.collector;
 
-import static org.junit.Assert.assertEquals;
+import org.apache.flink.streaming.api.datastream.SplitDataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.function.sink.SinkFunction;
+import org.apache.flink.streaming.util.TestStreamEnvironment;
+import org.junit.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -26,12 +30,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.streaming.api.datastream.SplitDataStream;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.function.sink.SinkFunction;
-import org.apache.flink.streaming.util.TestStreamEnvironment;
-import org.junit.Test;
+import static org.junit.Assert.assertEquals;
 
 public class DirectedOutputTest {
 
@@ -42,15 +41,6 @@ public class DirectedOutputTest {
 	private static final String ODD_AND_TEN = "oddAndTen";
 	private static final String EVEN = "even";
 	private static final String NON_SELECTED = "nonSelected";
-
-	static final class MyMap implements MapFunction<Long, Long> {
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public Long map(Long value) throws Exception {
-			return value;
-		}
-	}
 
 	static final class MyOutputSelector implements OutputSelector<Long> {
 		private static final long serialVersionUID = 1L;

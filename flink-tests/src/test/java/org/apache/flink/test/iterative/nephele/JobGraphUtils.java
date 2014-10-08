@@ -18,12 +18,10 @@
 
 package org.apache.flink.test.iterative.nephele;
 
-
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
-import org.apache.flink.runtime.io.network.channels.ChannelType;
 import org.apache.flink.runtime.iterative.task.IterationSynchronizationSinkTask;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -70,9 +68,7 @@ public class JobGraphUtils {
 //		new TaskConfig(source.getConfiguration()).addOutputShipStrategy(shipStrategy);
 //	}
 	
-	public static void connect(AbstractJobVertex source, AbstractJobVertex target, ChannelType channelType,
-			DistributionPattern distributionPattern)
-	{
+	public static void connect(AbstractJobVertex source, AbstractJobVertex target, DistributionPattern distributionPattern) {
 		target.connectNewDataSetAsInput(source, distributionPattern);
 	}
 

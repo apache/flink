@@ -105,31 +105,31 @@ public abstract class RecordAPITestBase extends AbstractTestBase {
 				e.printStackTrace();
 				Assert.fail("Pre-submit work caused an error: " + e.getMessage());
 			}
-			
+
 			// submit job
 			JobGraph jobGraph = null;
 			try {
 				jobGraph = getJobGraph();
 			}
-			catch(Exception e) {
+			catch (Exception e) {
 				System.err.println(e.getMessage());
 				e.printStackTrace();
 				Assert.fail("Failed to obtain JobGraph!");
 			}
-			
+
 			Assert.assertNotNull("Obtained null JobGraph", jobGraph);
-			
+
 			try {
 			ActorRef client = this.executor.getJobClient();
 			this.jobExecutionResult = JobClient.submitJobAndWait(jobGraph, false, client,
 					executor.timeout());
 			}
-			catch(Exception e) {
+			catch (Exception e) {
 				System.err.println(e.getMessage());
 				e.printStackTrace();
 				Assert.fail("Job execution failed!");
 			}
-			
+
 			// post-submit
 			try {
 				postSubmit();

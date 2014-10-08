@@ -18,16 +18,18 @@
 
 package org.apache.flink.runtime.deployment;
 
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
+
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * A task deployment descriptor contains all the information necessary to deploy a task on a task manager.
@@ -41,7 +43,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 
 	/** The task's job vertex ID. */
 	private final JobVertexID vertexID;
-	
+
 	/** The ID referencing the attempt to execute the task. */
 	private final ExecutionAttemptID executionId;
 
@@ -51,8 +53,8 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	/** The task's index in the subtask group. */
 	private int indexInSubtaskGroup;
 
-	/** The current number of subtasks. */
-	private int currentNumberOfSubtasks;
+	/** The number of sub tasks. */
+	private int numberOfSubtasks;
 
 	/** The configuration of the job the task belongs to. */
 	private Configuration jobConfiguration;
@@ -62,73 +64,44 @@ public final class TaskDeploymentDescriptor implements Serializable {
 
 	/** The name of the class containing the task code to be executed. */
 	private String invokableClassName;
-	/** The list of output gate deployment descriptors. */
-	private List<GateDeploymentDescriptor> outputGates;
 
-	/** The list of input gate deployment descriptors. */
-	private List<GateDeploymentDescriptor> inputGates;
-	
+
+	/** The list of produced intermediate result partition deployment descriptors. */
+	private List<PartitionDeploymentDescriptor> producedPartitions;
+
+	/** The list of consumed intermediate result partitions. */
+	private List<PartitionConsumerDeploymentDescriptor> consumedPartitions;
+
 	private int targetSlotNumber;
 
-	/**
-	 * The list of JAR files required to run this task.
-	 */
+	/** The list of JAR files required to run this task. */
 	private final List<BlobKey> requiredJarFiles;
 
 	/**
 	 * Constructs a task deployment descriptor.
-	 * 
-	 * @param jobID
-	 *        the ID of the job the tasks belongs to
-	 * @param vertexID
-	 *        the task's execution vertex ID
-	 * @param taskName
-	 *        the task's name the task's index in the subtask group
-	 * @param indexInSubtaskGroup
-	 *        he task's index in the subtask group
-	 * @param currentNumberOfSubtasks
-	 *        the current number of subtasks
-	 * @param jobConfiguration
-	 *        the configuration of the job the task belongs to
-	 * @param taskConfiguration
-	 *        the task's configuration object
-	 * @param invokableClassName
-	 *        the class containing the task code to be executed
-	 * @param outputGates
-	 *        list of output gate deployment descriptors
-	 * @param requiredJarFiles
-	 *        list of JAR files required to run this task
 	 */
-	public TaskDeploymentDescriptor(JobID jobID, JobVertexID vertexID, ExecutionAttemptID execuionId,
-			String taskName, int indexInSubtaskGroup, int currentNumberOfSubtasks, 
-			Configuration jobConfiguration, Configuration taskConfiguration,
-			String invokableClassName,
-			List<GateDeploymentDescriptor> outputGates,
-			List<GateDeploymentDescriptor> inputGates,
-			final List<BlobKey> requiredJarFiles, int targetSlotNumber){
-		if (jobID == null || vertexID == null || execuionId == null || taskName == null || indexInSubtaskGroup < 0 ||
-				currentNumberOfSubtasks <= indexInSubtaskGroup || jobConfiguration == null ||
-				taskConfiguration == null || invokableClassName == null || outputGates == null || inputGates == null)
-		{
-			throw new IllegalArgumentException();
-		}
-		
-		if (requiredJarFiles == null) {
-			throw new IllegalArgumentException("Argument requiredJarFiles must not be null");
-		}
+	public TaskDeploymentDescriptor(
+			JobID jobID, JobVertexID vertexID,  ExecutionAttemptID executionId,  String taskName,
+			int indexInSubtaskGroup,  int numberOfSubtasks, Configuration jobConfiguration,
+			Configuration taskConfiguration, String invokableClassName,
+			List<PartitionDeploymentDescriptor> producedPartitions,
+			List<PartitionConsumerDeploymentDescriptor> consumedPartitions,
+			List<BlobKey> requiredJarFiles, int targetSlotNumber){
 
-		this.jobID = jobID;
-		this.vertexID = vertexID;
-		this.executionId = execuionId;
-		this.taskName = taskName;
+		this.jobID = checkNotNull(jobID);
+		this.vertexID = checkNotNull(vertexID);
+		this.executionId = checkNotNull(executionId);
+		this.taskName = checkNotNull(taskName);
+		checkArgument(indexInSubtaskGroup >= 0);
 		this.indexInSubtaskGroup = indexInSubtaskGroup;
-		this.currentNumberOfSubtasks = currentNumberOfSubtasks;
-		this.jobConfiguration = jobConfiguration;
-		this.taskConfiguration = taskConfiguration;
-		this.invokableClassName = invokableClassName;
-		this.outputGates = outputGates;
-		this.inputGates = inputGates;
-		this.requiredJarFiles = requiredJarFiles;
+		checkArgument(numberOfSubtasks > indexInSubtaskGroup);
+		this.numberOfSubtasks = numberOfSubtasks;
+		this.jobConfiguration = checkNotNull(jobConfiguration);
+		this.taskConfiguration = checkNotNull(taskConfiguration);
+		this.invokableClassName = checkNotNull(invokableClassName);
+		this.producedPartitions = checkNotNull(producedPartitions);
+		this.consumedPartitions = checkNotNull(consumedPartitions);
+		this.requiredJarFiles = checkNotNull(requiredJarFiles);
 		this.targetSlotNumber = targetSlotNumber;
 	}
 
@@ -141,40 +114,34 @@ public final class TaskDeploymentDescriptor implements Serializable {
 		this.executionId = new ExecutionAttemptID();
 		this.jobConfiguration = new Configuration();
 		this.taskConfiguration = new Configuration();
-		this.outputGates = Collections.emptyList();
-		this.inputGates = Collections.emptyList();
+		this.producedPartitions = new ArrayList<PartitionDeploymentDescriptor>();
+		this.consumedPartitions = new ArrayList<PartitionConsumerDeploymentDescriptor>();
 		this.requiredJarFiles = new ArrayList<BlobKey>();
 	}
 
 	/**
 	 * Returns the ID of the job the tasks belongs to.
-	 * 
-	 * @return the ID of the job the tasks belongs to
 	 */
 	public JobID getJobID() {
-		return this.jobID;
+		return jobID;
 	}
 
 	/**
 	 * Returns the task's execution vertex ID.
-	 * 
-	 * @return the task's execution vertex ID
 	 */
 	public JobVertexID getVertexID() {
-		return this.vertexID;
+		return vertexID;
 	}
-	
+
 	public ExecutionAttemptID getExecutionId() {
 		return executionId;
 	}
 
 	/**
 	 * Returns the task's name.
-	 * 
-	 * @return the task's name
 	 */
 	public String getTaskName() {
-		return this.taskName;
+		return taskName;
 	}
 
 	/**
@@ -183,16 +150,14 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	 * @return the task's index in the subtask group
 	 */
 	public int getIndexInSubtaskGroup() {
-		return this.indexInSubtaskGroup;
+		return indexInSubtaskGroup;
 	}
 
 	/**
 	 * Returns the current number of subtasks.
-	 * 
-	 * @return the current number of subtasks
 	 */
-	public int getCurrentNumberOfSubtasks() {
-		return this.currentNumberOfSubtasks;
+	public int getNumberOfSubtasks() {
+		return numberOfSubtasks;
 	}
 	
 	/**
@@ -206,38 +171,34 @@ public final class TaskDeploymentDescriptor implements Serializable {
 
 	/**
 	 * Returns the configuration of the job the task belongs to.
-	 * 
-	 * @return the configuration of the job the tasks belongs to
 	 */
 	public Configuration getJobConfiguration() {
-		return this.jobConfiguration;
+		return jobConfiguration;
 	}
 
 	/**
 	 * Returns the task's configuration object.
-	 * 
-	 * @return the task's configuration object
 	 */
 	public Configuration getTaskConfiguration() {
-		return this.taskConfiguration;
+		return taskConfiguration;
 	}
 
 	/**
 	 * Returns the name of the class containing the task code to be executed.
-	 * 
-	 * @return The name of the class containing the task code to be executed
 	 */
 	public String getInvokableClassName() {
-		return this.invokableClassName;
+		return invokableClassName;
 	}
 
-	public List<GateDeploymentDescriptor> getOutputGates() {
-		return outputGates;
-	}
-	
-	public List<GateDeploymentDescriptor> getInputGates() {
-		return inputGates;
+	public List<PartitionDeploymentDescriptor> getProducedPartitions() {
+		return producedPartitions;
 	}
 
-	public List<BlobKey> getRequiredJarFiles() { return requiredJarFiles; }
+	public List<PartitionConsumerDeploymentDescriptor> getConsumedPartitions() {
+		return consumedPartitions;
+	}
+
+	public List<BlobKey> getRequiredJarFiles() {
+		return requiredJarFiles;
+	}
 }

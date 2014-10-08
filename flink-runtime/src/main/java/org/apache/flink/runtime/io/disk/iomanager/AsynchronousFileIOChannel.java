@@ -25,6 +25,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.flink.core.memory.MemorySegment;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 /**
  * A base class for readers and writers that accept read or write requests for whole blocks.
  * The request is delegated to an asynchronous I/O thread. After completion of the I/O request, the memory
@@ -34,7 +36,7 @@ import org.apache.flink.core.memory.MemorySegment;
  * 
  * @param <R> The type of request (e.g. <tt>ReadRequest</tt> or <tt>WriteRequest</tt> issued by this access to the I/O threads.
  */
-public abstract class AsynchronousFileIOChannel<R extends IORequest> extends AbstractFileIOChannel {
+public abstract class AsynchronousFileIOChannel<T, R extends IORequest> extends AbstractFileIOChannel {
 	
 	/** The lock that is used during closing to synchronize the thread that waits for all
 	 * requests to be handled with the asynchronous I/O thread. */
@@ -47,7 +49,7 @@ public abstract class AsynchronousFileIOChannel<R extends IORequest> extends Abs
 	protected final AtomicInteger requestsNotReturned = new AtomicInteger(0);
 	
 	/** Hander for completed requests */
-	protected final RequestDoneCallback resultHander;
+	protected final RequestDoneCallback<T> resultHandler;
 	
 	/** An exception that was encountered by the asynchronous request handling thread.*/
 	protected volatile IOException exception;
@@ -70,16 +72,12 @@ public abstract class AsynchronousFileIOChannel<R extends IORequest> extends Abs
 	 * @throws IOException Thrown, if the channel could no be opened.
 	 */
 	protected AsynchronousFileIOChannel(FileIOChannel.ID channelID, RequestQueue<R> requestQueue, 
-			RequestDoneCallback callback, boolean writeEnabled) throws IOException
+			RequestDoneCallback<T> callback, boolean writeEnabled) throws IOException
 	{
 		super(channelID, writeEnabled);
-		
-		if (requestQueue == null) {
-			throw new NullPointerException();
-		}
-		
-		this.requestQueue = requestQueue;
-		this.resultHander = callback;
+
+		this.requestQueue = checkNotNull(requestQueue);
+		this.resultHandler = checkNotNull(callback);
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -106,7 +104,7 @@ public abstract class AsynchronousFileIOChannel<R extends IORequest> extends Abs
 			
 			try {
 				// wait until as many buffers have been returned as were written
-				// only then is everything guaranteed to be consistent.{
+				// only then is everything guaranteed to be consistent.
 				while (this.requestsNotReturned.get() > 0) {
 					try {
 						// we add a timeout here, because it is not guaranteed that the
@@ -115,7 +113,7 @@ public abstract class AsynchronousFileIOChannel<R extends IORequest> extends Abs
 						this.closeLock.wait(1000);
 						checkErroneous();
 					}
-					catch (InterruptedException iex) {}
+					catch (InterruptedException ignored) {}
 				}
 			}
 			finally {
@@ -167,15 +165,19 @@ public abstract class AsynchronousFileIOChannel<R extends IORequest> extends Abs
 	 * @param buffer The buffer to be processed.
 	 * @param ex The exception that occurred in the I/O threads when processing the buffer's request.
 	 */
-	final void handleProcessedBuffer(MemorySegment buffer, IOException ex) {
+	final protected void handleProcessedBuffer(T buffer, IOException ex) {
+		if (buffer == null) {
+			return;
+		}
+
 		// even if the callbacks throw an error, we need to maintain our bookkeeping
 		try {
 			if (ex != null && this.exception == null) {
 				this.exception = ex;
-				this.resultHander.requestFailed(buffer, ex);
+				this.resultHandler.requestFailed(buffer, ex);
 			}
 			else {
-				this.resultHander.requestSuccessful(buffer);
+				this.resultHandler.requestSuccessful(buffer);
 			}
 		}
 		finally {
@@ -193,6 +195,21 @@ public abstract class AsynchronousFileIOChannel<R extends IORequest> extends Abs
 			}
 		}
 	}
+
+	final protected void addRequest(R request) throws IOException {
+		// check the error state of this channel
+		checkErroneous();
+
+		// write the current buffer and get the next one
+		this.requestsNotReturned.incrementAndGet();
+		if (this.closed || this.requestQueue.isClosed()) {
+			// if we found ourselves closed after the counter increment,
+			// decrement the counter again and do not forward the request
+			this.requestsNotReturned.decrementAndGet();
+			throw new IOException("I/O channel already closed. Could not fulfill: " + request);
+		}
+		this.requestQueue.add(request);
+	}
 }
 
 //--------------------------------------------------------------------------------------------
@@ -202,11 +219,11 @@ public abstract class AsynchronousFileIOChannel<R extends IORequest> extends Abs
  */
 final class SegmentReadRequest implements ReadRequest {
 	
-	private final AsynchronousFileIOChannel<ReadRequest> channel;
+	private final AsynchronousFileIOChannel<MemorySegment, ReadRequest> channel;
 	
 	private final MemorySegment segment;
 	
-	protected SegmentReadRequest(AsynchronousFileIOChannel<ReadRequest> targetChannel, MemorySegment segment) {
+	protected SegmentReadRequest(AsynchronousFileIOChannel<MemorySegment, ReadRequest> targetChannel, MemorySegment segment) {
 		this.channel = targetChannel;
 		this.segment = segment;
 	}
@@ -238,11 +255,11 @@ final class SegmentReadRequest implements ReadRequest {
  */
 final class SegmentWriteRequest implements WriteRequest {
 	
-	private final AsynchronousFileIOChannel<WriteRequest> channel;
+	private final AsynchronousFileIOChannel<MemorySegment, WriteRequest> channel;
 	
 	private final MemorySegment segment;
 	
-	protected SegmentWriteRequest(AsynchronousFileIOChannel<WriteRequest> targetChannel, MemorySegment segment) {
+	protected SegmentWriteRequest(AsynchronousFileIOChannel<MemorySegment, WriteRequest> targetChannel, MemorySegment segment) {
 		this.channel = targetChannel;
 		this.segment = segment;
 	}

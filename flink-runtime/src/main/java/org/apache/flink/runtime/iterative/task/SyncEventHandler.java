@@ -21,14 +21,14 @@ package org.apache.flink.runtime.iterative.task;
 import java.util.Map;
 
 import org.apache.flink.api.common.aggregators.Aggregator;
-import org.apache.flink.runtime.event.task.AbstractTaskEvent;
-import org.apache.flink.runtime.event.task.EventListener;
+import org.apache.flink.runtime.event.task.TaskEvent;
+import org.apache.flink.runtime.util.event.EventListener;
 import org.apache.flink.runtime.iterative.event.WorkerDoneEvent;
 import org.apache.flink.types.Value;
 
 import com.google.common.base.Preconditions;
 
-public class SyncEventHandler implements EventListener {
+public class SyncEventHandler implements EventListener<TaskEvent> {
 	
 	private final ClassLoader userCodeClassLoader;
 	
@@ -49,7 +49,7 @@ public class SyncEventHandler implements EventListener {
 	}
 
 	@Override
-	public void eventOccurred(AbstractTaskEvent event) {
+	public void onEvent(TaskEvent event) {
 		if (WorkerDoneEvent.class.equals(event.getClass())) {
 			onWorkerDoneEvent((WorkerDoneEvent) event);
 			return;

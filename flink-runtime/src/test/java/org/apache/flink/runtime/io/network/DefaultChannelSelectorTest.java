@@ -22,7 +22,7 @@ package org.apache.flink.runtime.io.network;
 import static org.junit.Assert.assertEquals;
 
 import org.apache.flink.core.io.StringRecord;
-import org.apache.flink.runtime.io.network.api.RoundRobinChannelSelector;
+import org.apache.flink.runtime.io.network.api.writer.RoundRobinChannelSelector;
 import org.junit.Test;
 
 /**

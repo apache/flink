@@ -38,6 +38,9 @@ trait TestingJobManager extends ActorLogMessages with WrapAsScala {
 
   val waitForAllVerticesToBeRunning = scala.collection.mutable.HashMap[JobID, Set[ActorRef]]()
 
+  val waitForAllVerticesToBeRunningOrFinished =
+    scala.collection.mutable.HashMap[JobID, Set[ActorRef]]()
+
   override def archiveProps = Props(new MemoryArchivist(archiveCount) with TestingMemoryArchivist)
 
   abstract override def receiveWithLogMessages: Receive = {
@@ -62,8 +65,19 @@ trait TestingJobManager extends ActorLogMessages with WrapAsScala {
         val waiting = waitForAllVerticesToBeRunning.getOrElse(jobID, Set[ActorRef]())
         waitForAllVerticesToBeRunning += jobID -> (waiting + sender)
       }
+    case WaitForAllVerticesToBeRunningOrFinished(jobID) =>
+      if(checkIfAllVerticesRunningOrFinished(jobID)){
+        sender ! AllVerticesRunning(jobID)
+      }else{
+        currentJobs.get(jobID) match {
+          case Some((eg, _)) => eg.registerExecutionListener(self)
+          case None =>
+        }
+        val waiting = waitForAllVerticesToBeRunningOrFinished.getOrElse(jobID, Set[ActorRef]())
+        waitForAllVerticesToBeRunningOrFinished += jobID -> (waiting + sender)
+      }
     case ExecutionStateChanged(jobID, _, _, _, _, _, _, _, _) =>
-      val cleanup = waitForAllVerticesToBeRunning.get(jobID) match {
+      val cleanupRunning = waitForAllVerticesToBeRunning.get(jobID) match {
         case Some(listeners) if checkIfAllVerticesRunning(jobID) =>
           for(listener <- listeners){
             listener ! AllVerticesRunning(jobID)
@@ -72,8 +86,21 @@ trait TestingJobManager extends ActorLogMessages with WrapAsScala {
         case _ => false
       }
 
-      if(cleanup){
+      if(cleanupRunning){
         waitForAllVerticesToBeRunning.remove(jobID)
+      }
+
+      val cleanupRunningOrFinished = waitForAllVerticesToBeRunningOrFinished.get(jobID) match {
+        case Some(listeners) if checkIfAllVerticesRunningOrFinished(jobID) =>
+          for(listener <- listeners){
+            listener ! AllVerticesRunning(jobID)
+          }
+          true
+        case _ => false
+      }
+
+      if (cleanupRunningOrFinished) {
+        waitForAllVerticesToBeRunningOrFinished.remove(jobID)
       }
     case NotifyWhenJobRemoved(jobID) => {
       val tms = instanceManager.getAllRegisteredInstances.map(_.getTaskManager)
@@ -94,6 +121,18 @@ trait TestingJobManager extends ActorLogMessages with WrapAsScala {
     currentJobs.get(jobID) match {
       case Some((eg, _)) =>
         eg.getAllExecutionVertices.forall( _.getExecutionState == ExecutionState.RUNNING)
+      case None => false
+    }
+  }
+
+  def checkIfAllVerticesRunningOrFinished(jobID: JobID): Boolean = {
+    currentJobs.get(jobID) match {
+      case Some((eg, _)) =>
+        eg.getAllExecutionVertices.forall {
+          case vertex =>
+            (vertex.getExecutionState == ExecutionState.RUNNING
+              || vertex.getExecutionState == ExecutionState.FINISHED)
+        }
       case None => false
     }
   }

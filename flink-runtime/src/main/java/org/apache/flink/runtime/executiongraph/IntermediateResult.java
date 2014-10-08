@@ -19,72 +19,80 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionType;
 
 public class IntermediateResult {
 
 	private final IntermediateDataSetID id;
-	
+
 	private final ExecutionJobVertex producer;
-	
+
 	private final IntermediateResultPartition[] partitions;
-	
+
 	private final int numParallelProducers;
-	
+
 	private int partitionsAssigned;
-	
+
 	private int numConsumers;
-	
+
 	private final int connectionIndex;
-	
-	
+
+	private final IntermediateResultPartitionType resultType;
+
 	public IntermediateResult(IntermediateDataSetID id, ExecutionJobVertex producer, int numParallelProducers) {
 		this.id = id;
 		this.producer = producer;
 		this.partitions = new IntermediateResultPartition[numParallelProducers];
 		this.numParallelProducers = numParallelProducers;
-		
+
 		// we do not set the intermediate result partitions here, because we let them be initialized by
 		// the execution vertex that produces them
-		
+
 		// assign a random connection index
 		this.connectionIndex = (int) (Math.random() * Integer.MAX_VALUE);
+
+		// The runtime type for this produced result
+		// TODO The JobGraph generator has to decide which type of result this is
+		this.resultType = IntermediateResultPartitionType.PIPELINED;
 	}
-	
+
 	public void setPartition(int partitionNumber, IntermediateResultPartition partition) {
 		if (partition == null || partitionNumber < 0 || partitionNumber >= numParallelProducers) {
 			throw new IllegalArgumentException();
 		}
-		
+
 		if (partitions[partitionNumber] != null) {
 			throw new IllegalStateException("Partition #" + partitionNumber + " has already been assigned.");
 		}
-		
+
 		partitions[partitionNumber] = partition;
 		partitionsAssigned++;
 	}
-	
-	
-	
+
 	public IntermediateDataSetID getId() {
 		return id;
 	}
-	
+
 	public ExecutionJobVertex getProducer() {
 		return producer;
 	}
-	
+
 	public IntermediateResultPartition[] getPartitions() {
 		return partitions;
 	}
-	
+
 	public int getNumberOfAssignedPartitions() {
 		return partitionsAssigned;
 	}
-	
+
+	public IntermediateResultPartitionType getResultType() {
+		return resultType;
+	}
+
 	public int registerConsumer() {
 		final int index = numConsumers;
 		numConsumers++;
-		
+
 		for (IntermediateResultPartition p : partitions) {
 			if (p.addConsumerGroup() != index) {
 				throw new RuntimeException("Inconsistent consumer mapping between intermediate result partitions.");
@@ -92,7 +100,7 @@ public class IntermediateResult {
 		}
 		return index;
 	}
-	
+
 	public int getConnectionIndex() {
 		return connectionIndex;
 	}

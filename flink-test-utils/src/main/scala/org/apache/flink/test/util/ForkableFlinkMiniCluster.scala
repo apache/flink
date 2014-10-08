@@ -18,11 +18,11 @@
 
 package org.apache.flink.test.util
 
-import akka.actor.{Props, ActorSystem, ActorRef}
+import akka.actor.{ActorRef, ActorSystem, Props}
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster
 import org.apache.flink.runtime.taskmanager.TaskManager
-import org.apache.flink.runtime.testingUtils.{TestingTaskManager}
+import org.apache.flink.runtime.testingUtils.TestingTaskManager
 
 class ForkableFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem: Boolean)
   extends LocalFlinkMiniCluster(userConfiguration, singleActorSystem) {

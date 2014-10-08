@@ -18,19 +18,17 @@
 
 package org.apache.flink.test.util;
 
+import com.google.common.base.Charsets;
+import com.google.common.io.Files;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
+import scala.concurrent.duration.FiniteDuration;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
-
-import com.google.common.base.Charsets;
-import com.google.common.io.Files;
-import org.junit.Assert;
-import scala.concurrent.duration.FiniteDuration;
 
 public abstract class AbstractTestBase extends TestBaseUtils {
 
@@ -66,9 +64,6 @@ public abstract class AbstractTestBase extends TestBaseUtils {
 	public void stopCluster() throws Exception {
 		stopCluster(executor, timeout);
 
-			int numActiveConnections = 0;
-
-			Assert.assertEquals("Not all network connections were released.", 0, numActiveConnections);
 		deleteAllTempFiles();
 	}
 

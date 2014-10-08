@@ -40,7 +40,7 @@ import org.apache.flink.core.memory.MemorySegment;
  * or even whether the file was written in blocks of the same size, or in blocks at all. Ensuring that the
  * writing and reading is consistent with each other (same blocks sizes) is up to the programmer.  
  */
-public class AsynchronousBlockReader extends AsynchronousFileIOChannel<ReadRequest> implements BlockChannelReader {
+public class AsynchronousBlockReader extends AsynchronousFileIOChannel<MemorySegment, ReadRequest> implements BlockChannelReader {
 	
 	private final LinkedBlockingQueue<MemorySegment> returnSegments;
 	
@@ -72,20 +72,7 @@ public class AsynchronousBlockReader extends AsynchronousFileIOChannel<ReadReque
 	 */
 	@Override
 	public void readBlock(MemorySegment segment) throws IOException {
-		// check the error state of this channel
-		checkErroneous();
-		
-		// write the current buffer and get the next one
-		// the statements have to be in this order to avoid incrementing the counter
-		// after the channel has been closed
-		this.requestsNotReturned.incrementAndGet();
-		if (this.closed || this.requestQueue.isClosed()) {
-			// if we found ourselves closed after the counter increment,
-			// decrement the counter again and do not forward the request
-			this.requestsNotReturned.decrementAndGet();
-			throw new IOException("The reader has been closed.");
-		}
-		this.requestQueue.add(new SegmentReadRequest(this, segment));
+		addRequest(new SegmentReadRequest(this, segment));
 	}
 	
 	/**

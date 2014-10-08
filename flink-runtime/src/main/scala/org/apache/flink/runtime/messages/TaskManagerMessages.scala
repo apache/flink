@@ -19,13 +19,13 @@
 package org.apache.flink.runtime.messages
 
 import org.apache.flink.core.io.InputSplit
-import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor
+import org.apache.flink.runtime.deployment.{PartitionInfo, TaskDeploymentDescriptor}
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
-import org.apache.flink.runtime.instance.InstanceID 
+import org.apache.flink.runtime.instance.InstanceID
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID
 
 object TaskManagerMessages {
 
-  
   /**
    * Cancels the task associated with [[attemptID]]. The result is sent back to the sender as a
    * [[TaskOperationResult]] message.
@@ -51,11 +51,26 @@ object TaskManagerMessages {
   case class NextInputSplit(inputSplit: InputSplit)
 
   /**
-   * Unregisters a task identified by [[executionID]] from the task manager.
+   * Unregisters the task identified by [[executionID]] from the task manager.
    *
    * @param executionID
    */
   case class UnregisterTask(executionID: ExecutionAttemptID)
+
+  /**
+   * Updates the reader identified by [[resultId]] of the task identified by
+   * [[executionId]] from the task manager.
+   */
+  case class UpdateTask(executionId: ExecutionAttemptID,
+                        resultId: IntermediateDataSetID,
+                        partitionInfo: PartitionInfo)
+
+  /**
+   * Fails all intermediate result partitions identified by [[executionID]] from the task manager.
+   *
+   * @param executionID
+   */
+  case class FailIntermediateResultPartitions(executionID: ExecutionAttemptID)
 
   /**
    * Reports whether a task manager operation has been successful or not. This message will be
@@ -115,7 +130,7 @@ object TaskManagerMessages {
    */
   case class FailTask(executionID: ExecutionAttemptID, cause: Throwable)
   
-    // --------------------------------------------------------------------------
+  // --------------------------------------------------------------------------
   // Utility methods to allow simpler case object access from Java
   // --------------------------------------------------------------------------
   

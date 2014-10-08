@@ -18,19 +18,25 @@
 
 package org.apache.flink.runtime.jobgraph;
 
+import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+
 /**
- * A distribution pattern determines which subtasks of a producing Nephele task a wired to which
- * subtasks of a consuming subtask.
+ * A distribution pattern determines, which sub tasks of a producing task are connected to which
+ * consuming sub tasks.
  */
 public enum DistributionPattern {
 
 	/**
-	 * Each subtask of the producing Nephele task is wired to each subtask of the consuming Nephele task.
+	 * Each producing sub task is connected to each sub task of the consuming task.
+	 * <p>
+	 * {@link ExecutionVertex#connectAllToAll(org.apache.flink.runtime.executiongraph.IntermediateResultPartition[], int)}
 	 */
-	BIPARTITE,
+	ALL_TO_ALL,
 
 	/**
-	 * The i-th subtask of the producing Nephele task is wired to the i-th subtask of the consuming Nephele task.
+	 * Each producing sub task is connected to one or more subtask(s) of the consuming task.
+	 * <p>
+	 * {@link ExecutionVertex#connectPointwise(org.apache.flink.runtime.executiongraph.IntermediateResultPartition[], int)}
 	 */
 	POINTWISE
 }

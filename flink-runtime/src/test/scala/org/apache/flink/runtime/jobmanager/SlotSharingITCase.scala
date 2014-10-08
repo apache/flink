@@ -20,18 +20,14 @@ package org.apache.flink.runtime.jobmanager
 
 import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestKit}
-import org.apache.flink.runtime.jobgraph.{JobGraph, DistributionPattern,
-AbstractJobVertex}
-import org.apache.flink.runtime.jobmanager.Tasks.{AgnosticBinaryReceiver, Receiver}
+import org.apache.flink.runtime.jobgraph.{AbstractJobVertex, DistributionPattern, JobGraph}
+import org.apache.flink.runtime.jobmanager.Tasks.{Sender, AgnosticBinaryReceiver, Receiver}
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup
-import org.apache.flink.runtime.messages.JobManagerMessages.{JobResultSuccess, SubmissionSuccess,
-SubmitJob}
-import org.apache.flink.runtime.taskmanager.TaskManagerTest.Sender
+import org.apache.flink.runtime.messages.JobManagerMessages.{JobResultSuccess, SubmissionSuccess, SubmitJob}
 import org.apache.flink.runtime.testingUtils.TestingUtils
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-import org.scalatest.{Matchers, WordSpecLike, BeforeAndAfterAll}
-import scala.concurrent.duration._
+import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 @RunWith(classOf[JUnitRunner])
 class SlotSharingITCase(_system: ActorSystem) extends TestKit(_system) with ImplicitSender with
@@ -103,7 +99,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       receiver.setSlotSharingGroup(sharingGroup)
 
       receiver.connectNewDataSetAsInput(sender1, DistributionPattern.POINTWISE)
-      receiver.connectNewDataSetAsInput(sender2, DistributionPattern.BIPARTITE)
+      receiver.connectNewDataSetAsInput(sender2, DistributionPattern.ALL_TO_ALL)
 
       val jobGraph = new JobGraph("Bipartite job", sender1, sender2, receiver)
 

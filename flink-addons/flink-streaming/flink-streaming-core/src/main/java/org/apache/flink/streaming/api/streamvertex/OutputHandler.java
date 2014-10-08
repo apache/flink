@@ -17,12 +17,8 @@
 
 package org.apache.flink.streaming.api.streamvertex;
 
-import java.io.IOException;
-import java.util.LinkedList;
-import java.util.List;
-
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.runtime.io.network.api.RecordWriter;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.StreamConfig;
 import org.apache.flink.streaming.api.collector.DirectedStreamCollector;
@@ -35,6 +31,10 @@ import org.apache.flink.streaming.io.StreamRecordWriter;
 import org.apache.flink.streaming.partitioner.StreamPartitioner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.util.LinkedList;
+import java.util.List;
 
 public class OutputHandler<OUT> {
 	private static final Logger LOG = LoggerFactory.getLogger(OutputHandler.class);
@@ -121,7 +121,7 @@ public class OutputHandler<OUT> {
 		RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output;
 
 		if (bufferTimeout >= 0) {
-			output = new StreamRecordWriter<SerializationDelegate<StreamRecord<OUT>>>(streamVertex,
+			output = new StreamRecordWriter<SerializationDelegate<StreamRecord<OUT>>>(streamVertex.getEnvironment().getWriter(outputNumber),
 					outputPartitioner, bufferTimeout);
 
 			if (LOG.isTraceEnabled()) {
@@ -129,7 +129,7 @@ public class OutputHandler<OUT> {
 						bufferTimeout, streamVertex.getClass().getSimpleName());
 			}
 		} else {
-			output = new RecordWriter<SerializationDelegate<StreamRecord<OUT>>>(streamVertex,
+			output = new RecordWriter<SerializationDelegate<StreamRecord<OUT>>>(streamVertex.getEnvironment().getWriter(outputNumber),
 					outputPartitioner);
 
 			if (LOG.isTraceEnabled()) {
@@ -161,12 +161,6 @@ public class OutputHandler<OUT> {
 		}
 	}
 
-	public void initializeOutputSerializers() {
-		for (RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output : outputs) {
-			output.initializeSerializers();
-		}
-	}
-
 	long startTime;
 
 	public void invokeUserFunction(String componentTypeName, StreamInvokable<?, OUT> userInvokable)
@@ -175,8 +169,6 @@ public class OutputHandler<OUT> {
 			LOG.debug("{} {} invoked with instance id {}", componentTypeName,
 					streamVertex.getName(), streamVertex.getInstanceID());
 		}
-
-		initializeOutputSerializers();
 
 		try {
 			streamVertex.invokeUserFunction(userInvokable);
