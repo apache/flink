@@ -18,28 +18,9 @@
 
 package flink.graphs;
 
-import org.apache.flink.api.java.DataSet;
+public class Vertex<K, V> {
 
-public class Graph<K extends Comparable<K>, VV, EV> {
-
-	private final DataSet<Vertex<K, VV>> vertices;
+	private K key;
 	
-	private final DataSet<Edge<K, EV>> edges;
-	
-	
-	
-	public Graph(DataSet<Vertex<K, VV>> vertices, DataSet<Edge<K, EV>> edges) {
-		this.vertices = vertices;
-		this.edges = edges;
-	}
-
-	
-	
-	public DataSet<Vertex<K, VV>> getVertices() {
-		return vertices;
-	}
-	
-	public DataSet<Edge<K, EV>> getEdges() {
-		return edges;
-	}
+	private V value;
 }
