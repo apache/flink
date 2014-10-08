@@ -21,7 +21,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.function.co.CoReduceFunction;
 import org.apache.flink.streaming.api.invokable.util.DefaultTimeStamp;
 import org.apache.flink.streaming.api.invokable.util.TimeStamp;
-import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
 public class CoWindowReduceInvokable<IN1, IN2, OUT> extends CoBatchReduceInvokable<IN1, IN2, OUT> {
 	private static final long serialVersionUID = 1L;
@@ -31,6 +30,8 @@ public class CoWindowReduceInvokable<IN1, IN2, OUT> extends CoBatchReduceInvokab
 	protected long nextRecordTime2;
 	protected TimeStamp<IN1> timestamp1;
 	protected TimeStamp<IN2> timestamp2;
+	protected StreamWindow<IN1> window1;
+	protected StreamWindow<IN2> window2;
 
 	public CoWindowReduceInvokable(CoReduceFunction<IN1, IN2, OUT> coReducer, long windowSize1,
 			long windowSize2, long slideInterval1, long slideInterval2, TimeStamp<IN1> timestamp1,
@@ -44,11 +45,24 @@ public class CoWindowReduceInvokable<IN1, IN2, OUT> extends CoBatchReduceInvokab
 	}
 
 	@Override
-	public void reduceToBuffer1(StreamRecord<IN1> next, StreamBatch<IN1> streamWindow)
-			throws Exception {
-		IN1 nextValue = next.getObject();
+	public void open(Configuration config) throws Exception {
+		super.open(config);
+		this.window1 = new StreamWindow<IN1>(batchSize1, slideSize1);
+		this.window2 = new StreamWindow<IN2>(batchSize2, slideSize2);
+		this.batch1 = this.window1;
+		this.batch2 = this.window2;
+		if (timestamp1 instanceof DefaultTimeStamp) {
+			(new TimeCheck1()).start();
+		}
+		if (timestamp2 instanceof DefaultTimeStamp) {
+			(new TimeCheck2()).start();
+		}
+	}
 
-		checkBatchEnd1(timestamp1.getTimestamp(nextValue), streamWindow);
+	@Override
+	public void reduceToBuffer1(IN1 nextValue, StreamBatch<IN1> streamWindow) throws Exception {
+
+		checkWindowEnd1(timestamp1.getTimestamp(nextValue), (StreamWindow<IN1>) streamWindow);
 
 		if (streamWindow.currentValue != null) {
 			streamWindow.currentValue = coReducer.reduce1(
@@ -59,11 +73,9 @@ public class CoWindowReduceInvokable<IN1, IN2, OUT> extends CoBatchReduceInvokab
 	}
 
 	@Override
-	public void reduceToBuffer2(StreamRecord<IN2> next, StreamBatch<IN2> streamWindow)
-			throws Exception {
-		IN2 nextValue = next.getObject();
+	public void reduceToBuffer2(IN2 nextValue, StreamBatch<IN2> streamWindow) throws Exception {
 
-		checkBatchEnd2(timestamp2.getTimestamp(nextValue), streamWindow);
+		checkWindowEnd2(timestamp2.getTimestamp(nextValue), (StreamWindow<IN2>) streamWindow);
 
 		if (streamWindow.currentValue != null) {
 			streamWindow.currentValue = coReducer.reduce2(
@@ -73,23 +85,23 @@ public class CoWindowReduceInvokable<IN1, IN2, OUT> extends CoBatchReduceInvokab
 		}
 	}
 
-	protected synchronized void checkBatchEnd1(long timeStamp, StreamBatch<IN1> streamWindow) {
+	protected synchronized void checkWindowEnd1(long timeStamp, StreamWindow<IN1> streamWindow) {
 		nextRecordTime1 = timeStamp;
 
 		while (miniBatchEnd1()) {
-			((StreamWindow<IN1>) streamWindow).addToBuffer();
-			if (((StreamWindow<IN1>) streamWindow).batchEnd()) {
-				reduceBatch1((StreamWindow<IN1>) streamWindow);
+			streamWindow.addToBuffer();
+			if (streamWindow.batchEnd()) {
+				reduceBatch1(streamWindow);
 			}
 		}
 	}
 
-	protected synchronized void checkBatchEnd2(long timeStamp, StreamBatch<IN2> streamWindow) {
+	protected synchronized void checkWindowEnd2(long timeStamp, StreamWindow<IN2> streamWindow) {
 		nextRecordTime2 = timeStamp;
 
 		while (miniBatchEnd2()) {
-			(streamWindow).addToBuffer();
-			if (((StreamWindow<IN2>) streamWindow).batchEnd()) {
+			streamWindow.addToBuffer();
+			if (streamWindow.batchEnd()) {
 				reduceBatch2(streamWindow);
 			}
 		}
@@ -113,6 +125,16 @@ public class CoWindowReduceInvokable<IN1, IN2, OUT> extends CoBatchReduceInvokab
 		}
 	}
 
+	@Override
+	public void reduceBatch1(StreamBatch<IN1> streamBatch) {
+		reduce1(streamBatch);
+	}
+
+	@Override
+	public void reduceBatch2(StreamBatch<IN2> streamBatch) {
+		reduce2(streamBatch);
+	}
+
 	protected class StreamWindow<IN> extends StreamBatch<IN> {
 		private static final long serialVersionUID = 1L;
 
@@ -131,19 +153,6 @@ public class CoWindowReduceInvokable<IN1, IN2, OUT> extends CoBatchReduceInvokab
 
 	}
 
-	@Override
-	public void open(Configuration config) throws Exception {
-		super.open(config);
-		this.batch1 = new StreamWindow<IN1>(batchSize1, slideSize1);
-		this.batch2 = new StreamWindow<IN2>(batchSize2, slideSize2);
-		if (timestamp1 instanceof DefaultTimeStamp) {
-			(new TimeCheck1()).start();
-		}
-		if (timestamp2 instanceof DefaultTimeStamp) {
-			(new TimeCheck2()).start();
-		}
-	}
-
 	private class TimeCheck1 extends Thread {
 		@Override
 		public void run() {
@@ -153,7 +162,7 @@ public class CoWindowReduceInvokable<IN1, IN2, OUT> extends CoBatchReduceInvokab
 				} catch (InterruptedException e) {
 				}
 				if (isRunning) {
-					checkBatchEnd1(System.currentTimeMillis(), (StreamWindow<IN1>) batch1);
+					checkWindowEnd1(System.currentTimeMillis(), window1);
 				} else {
 					break;
 				}
@@ -170,7 +179,7 @@ public class CoWindowReduceInvokable<IN1, IN2, OUT> extends CoBatchReduceInvokab
 				} catch (InterruptedException e) {
 				}
 				if (isRunning) {
-					checkBatchEnd2(System.currentTimeMillis(), (StreamWindow<IN2>) batch2);
+					checkWindowEnd2(System.currentTimeMillis(), window2);
 				} else {
 					break;
 				}
