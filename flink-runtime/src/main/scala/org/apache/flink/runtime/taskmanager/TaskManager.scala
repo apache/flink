@@ -76,7 +76,7 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
 
   val REGISTRATION_DELAY = 0 seconds
   val REGISTRATION_INTERVAL = 10 seconds
-  val MAX_REGISTRATION_ATTEMPTS = 1
+  val MAX_REGISTRATION_ATTEMPTS = 10
   val HEARTBEAT_INTERVAL = 1000 millisecond
 
   TaskManager.checkTempDirs(tmpDirPaths)
@@ -84,7 +84,9 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
   val memoryManager = new DefaultMemoryManager(memorySize, numberOfSlots, pageSize)
   val hardwareDescription = HardwareDescription.extractFromSystem(memoryManager.getMemorySize)
   val fileCache = new FileCache()
-  val runningTasks = scala.collection.concurrent.TrieMap[ExecutionAttemptID, Task]()
+  val runningTasks = scala.collection.mutable.HashMap[ExecutionAttemptID, Task]()
+
+  // Actors which want to be notified once this task manager has been registered at the job manager
   val waitForRegistration = scala.collection.mutable.Set[ActorRef]();
 
   val profiler = profilingInterval match {
@@ -151,13 +153,12 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
     registrationAttempts = 0
     import context.dispatcher
     registrationScheduler = Some(context.system.scheduler.schedule(REGISTRATION_DELAY,
-      REGISTRATION_INTERVAL,
-      self, RegisterAtMaster))
+      REGISTRATION_INTERVAL, self, RegisterAtJobManager))
   }
 
 
   override def receiveWithLogMessages: Receive = {
-    case RegisterAtMaster => {
+    case RegisterAtJobManager => {
       registrationAttempts += 1
 
       if (registered) {
@@ -198,7 +199,7 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
         }
 
         for (listener <- waitForRegistration) {
-          listener ! RegisteredAtMaster
+          listener ! RegisteredAtJobManager
         }
 
         waitForRegistration.clear()
@@ -240,61 +241,56 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
         val task = new Task(jobID, vertexID, taskIndex, numSubtasks, executionID,
           tdd.getTaskName, this)
 
-        runningTasks.putIfAbsent(executionID, task) match {
+        runningTasks.put(executionID, task) match {
           case Some(_) => throw new RuntimeException(s"TaskManager contains already a task with " +
             s"executionID ${executionID}.")
           case None =>
         }
 
-        var success = false
-        try {
-          val splitProvider = new TaskInputSplitProvider(currentJobManager, jobID, vertexID)
-          val env = new RuntimeEnvironment(task, tdd, userCodeClassLoader, memoryManager,
-            ioManager, splitProvider,
-            currentJobManager)
-          task.setEnvironment(env)
+        val splitProvider = new TaskInputSplitProvider(currentJobManager, jobID, vertexID)
+        val env = new RuntimeEnvironment(task, tdd, userCodeClassLoader, memoryManager,
+          ioManager, splitProvider,currentJobManager)
 
-          // register the task with the network stack and profilers
-          channelManager match {
-            case Some(cm) => cm.register(task)
-            case None => throw new RuntimeException("ChannelManager has not been properly " +
-              "instantiated.")
-          }
+        task.setEnvironment(env)
 
-          val jobConfig = tdd.getJobConfiguration
+        // register the task with the network stack and profilers
+        channelManager match {
+          case Some(cm) => cm.register(task)
+          case None => throw new RuntimeException("ChannelManager has not been properly " +
+            "instantiated.")
+        }
 
-          if (jobConfig.getBoolean(ProfilingUtils.PROFILE_JOB_KEY, true)) {
-            profiler match {
-              case Some(profiler) => profiler ! MonitorTask(task)
-              case None => log.info("There is no profiling enabled for the task manager.")
-            }
-          }
+        val jobConfig = tdd.getJobConfiguration
 
-          val cpTasks = new util.HashMap[String, FutureTask[Path]]()
-
-          for (entry <- DistributedCache.readFileInfoFromConfig(tdd.getJobConfiguration)) {
-            val cp = fileCache.createTmpFile(entry.getKey, entry.getValue, jobID)
-            cpTasks.put(entry.getKey, cp)
-          }
-          env.addCopyTasksForCacheFile(cpTasks)
-
-          if (!task.startExecution()) {
-            throw new RuntimeException("Cannot start task. Task was canceled or failed.")
-          }
-
-          success = true
-          sender() ! TaskOperationResult(executionID, true)
-        } finally {
-          if (!success) {
-            runningTasks.remove(executionID)
-            for (entry <- DistributedCache.readFileInfoFromConfig(tdd.getJobConfiguration)) {
-              fileCache.deleteTmpFile(entry.getKey, entry.getValue, jobID)
-            }
+        if (jobConfig.getBoolean(ProfilingUtils.PROFILE_JOB_KEY, true)) {
+          profiler match {
+            case Some(profiler) => profiler ! MonitorTask(task)
+            case None => log.info("There is no profiling enabled for the task manager.")
           }
         }
+
+        val cpTasks = new util.HashMap[String, FutureTask[Path]]()
+
+        for (entry <- DistributedCache.readFileInfoFromConfig(tdd.getJobConfiguration)) {
+          val cp = fileCache.createTmpFile(entry.getKey, entry.getValue, jobID)
+          cpTasks.put(entry.getKey, cp)
+        }
+        env.addCopyTasksForCacheFile(cpTasks)
+
+        if (!task.startExecution()) {
+          throw new RuntimeException("Cannot start task. Task was canceled or failed.")
+        }
+
+        sender() ! TaskOperationResult(executionID, true)
       } catch {
         case t: Throwable =>
           log.error(t, s"Could not instantiate task with execution ID ${executionID}.")
+
+          runningTasks.remove(executionID)
+
+          for (entry <- DistributedCache.readFileInfoFromConfig(tdd.getJobConfiguration)) {
+            fileCache.deleteTmpFile(entry.getKey, entry.getValue, jobID)
+          }
 
           if (jarsRegistered) {
             try {
@@ -324,9 +320,9 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
       }
     }
 
-    case NotifyWhenRegisteredAtMaster => {
+    case NotifyWhenRegisteredAtJobManager => {
       registered match {
-        case true => sender() ! RegisteredAtMaster
+        case true => sender() ! RegisteredAtJobManager
         case false => waitForRegistration += sender()
       }
     }
@@ -384,7 +380,7 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
 
   def setupChannelManager(): Unit = {
     //shutdown existing channel manager
-    channelManager map {
+    channelManager foreach {
       cm =>
         try {
           cm.shutdown()

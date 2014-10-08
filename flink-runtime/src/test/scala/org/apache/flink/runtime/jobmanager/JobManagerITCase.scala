@@ -55,7 +55,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
       val jm = cluster.getJobManager
 
       try {
-        val availableSlots = AkkaUtils.ask[Int](jm, RequestAvailableSlots)
+        val availableSlots = AkkaUtils.ask[Int](jm, RequestTotalNumberOfSlots)
         availableSlots should equal(1)
 
         within(1 second) {
@@ -91,7 +91,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
           val jm = cluster.getJobManager
 
           try {
-            val availableSlots = AkkaUtils.ask[Int](jm, RequestAvailableSlots)
+            val availableSlots = AkkaUtils.ask[Int](jm, RequestTotalNumberOfSlots)
             availableSlots should equal(num_tasks)
 
             within(TestingUtils.TESTING_DURATION) {
@@ -337,7 +337,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
 
           try {
             within(TestingUtils.TESTING_DURATION) {
-              jm ! RequestAvailableSlots
+              jm ! RequestTotalNumberOfSlots
               expectMsg(num_tasks)
             }
 
@@ -380,7 +380,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
 
           try {
             within(TestingUtils.TESTING_DURATION) {
-              jm ! RequestAvailableSlots
+              jm ! RequestTotalNumberOfSlots
               expectMsg(num_tasks)
             }
 
@@ -461,7 +461,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
 
           try {
             within(TestingUtils.TESTING_DURATION) {
-              jm ! RequestAvailableSlots
+              jm ! RequestTotalNumberOfSlots
               expectMsg(num_tasks)
 
               jm ! SubmitJob(jobGraph)
@@ -502,7 +502,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
 
           try {
             within(TestingUtils.TESTING_DURATION) {
-              jm ! RequestAvailableSlots
+              jm ! RequestTotalNumberOfSlots
               expectMsg(num_tasks)
 
               jm ! SubmitJob(jobGraph)

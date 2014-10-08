@@ -55,7 +55,7 @@ import org.apache.flink.runtime.messages.RegistrationMessages;
 import org.apache.flink.runtime.messages.TaskManagerMessages.TaskOperationResult;
 import org.apache.flink.runtime.messages.TaskManagerMessages.SubmitTask;
 import org.apache.flink.runtime.messages.TaskManagerMessages.CancelTask;
-import org.apache.flink.runtime.messages.TaskManagerMessages.NotifyWhenRegisteredAtMaster$;
+import org.apache.flink.runtime.messages.TaskManagerMessages.NotifyWhenRegisteredAtJobManager$;
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.types.IntegerRecord;
@@ -537,7 +537,7 @@ public class TaskManagerTest {
 
 		ActorRef taskManager = TestingUtils.startTestingTaskManagerWithConfiguration("localhost", cfg, system);
 
-		Future<Object> response = Patterns.ask(taskManager, NotifyWhenRegisteredAtMaster$.MODULE$,
+		Future<Object> response = Patterns.ask(taskManager, NotifyWhenRegisteredAtJobManager$.MODULE$,
 				AkkaUtils.FUTURE_TIMEOUT());
 
 		try {

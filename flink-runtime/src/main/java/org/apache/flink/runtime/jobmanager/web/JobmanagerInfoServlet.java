@@ -41,7 +41,7 @@ import org.apache.flink.runtime.messages.JobManagerMessages.AccumulatorResultsRe
 import org.apache.flink.runtime.messages.JobManagerMessages.AccumulatorResultsFound;
 import org.apache.flink.runtime.messages.JobManagerMessages.RunningJobs;
 import org.apache.flink.runtime.messages.JobManagerMessages.RequestRunningJobs$;
-import org.apache.flink.runtime.messages.JobManagerMessages.RequestAvailableSlots$;
+import org.apache.flink.runtime.messages.JobManagerMessages.RequestTotalNumberOfSlots$;
 import org.apache.flink.runtime.messages.JobManagerMessages.RequestNumberRegisteredTaskManager$;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancellationResponse;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancelJob;
@@ -128,7 +128,7 @@ public class JobmanagerInfoServlet extends HttpServlet {
 				int numberOfTaskManagrs = AkkaUtils.<Integer>ask(jobmanager,
 						RequestNumberRegisteredTaskManager$.MODULE$);
 				int numberOfRegisteredSltos = AkkaUtils.<Integer>ask(jobmanager,
-						RequestAvailableSlots$.MODULE$);
+						RequestTotalNumberOfSlots$.MODULE$);
 
 				resp.getWriter().write("{\"taskmanagers\": " + numberOfTaskManagrs +", " +
 						"\"slots\": "+numberOfRegisteredSltos+"}");

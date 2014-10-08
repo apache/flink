@@ -156,7 +156,7 @@ public class CliFrontendListCancelTest {
 
 		@Override
 		public void onReceive(Object message) throws Exception {
-			if(message instanceof JobManagerMessages.RequestAvailableSlots$){
+			if(message instanceof JobManagerMessages.RequestTotalNumberOfSlots$){
 				getSender().tell(1, getSelf());
 			}else if(message instanceof JobManagerMessages.CancelJob){
 				JobManagerMessages.CancelJob cancelJob = (JobManagerMessages.CancelJob) message;

@@ -20,7 +20,15 @@ package org.apache.flink.runtime.messages
 
 import org.apache.flink.runtime.profiling.impl.types.ProfilingDataContainer
 
+/**
+ * This object contains the job manager profiler messages
+ */
 object JobManagerProfilerMessages {
+
+  /**
+   * Reports profiling data to the profiler.
+   * @param profilingDataContainer
+   */
   case class ReportProfilingData(profilingDataContainer: ProfilingDataContainer)
 
 }

@@ -22,11 +22,34 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
 import org.apache.flink.runtime.taskmanager.Task
 
 object TaskManagerProfilerMessages {
+
+  /**
+   * Requests to monitor the specified [[task]].
+   *
+   * @param task
+   */
   case class MonitorTask(task: Task)
+
+  /**
+   * Requests to unmonitor the task associated to [[executionID]].
+   *
+   * @param executionID
+   */
   case class UnmonitorTask(executionID: ExecutionAttemptID)
 
+  /**
+   * Registers the sender as a profiling event listener.
+   */
   case object RegisterProfilingListener
+
+  /**
+   * Unregisters the sender as a profiling event listener.
+   */
   case object UnregisterProfilingListener
+
+  /**
+   * Makes the task manager profiling the running tasks.
+   */
   case object ProfileTasks
 
 }

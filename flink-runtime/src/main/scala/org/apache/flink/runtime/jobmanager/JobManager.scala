@@ -56,8 +56,10 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
 
   val (archiveCount, profiling, cleanupInterval) = JobManager.parseConfiguration(configuration)
 
+  // Props for the profiler actor
   def profilerProps: Props = Props(classOf[JobManagerProfiler])
 
+  // Props for the archive actor
   def archiveProps: Props = Props(classOf[MemoryArchivist], archiveCount)
 
   val profiler = profiling match {
@@ -65,7 +67,6 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
     case false => None
   }
 
-  // will be removed
   val archive = context.actorOf(archiveProps, JobManager.ARCHIVE_NAME)
 
   val accumulatorManager = new AccumulatorManager(Math.min(1, archiveCount))
@@ -73,7 +74,10 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
   val scheduler = new FlinkScheduler()
   val libraryCacheManager = new BlobLibraryCacheManager(new BlobServer(), cleanupInterval)
 
+  // List of current jobs running
   val currentJobs = scala.collection.mutable.HashMap[JobID, (ExecutionGraph, JobInfo)]()
+
+  // Map of actors which want to be notified once a specific job terminates
   val finalJobStatusListener = scala.collection.mutable.HashMap[JobID, Set[ActorRef]]()
 
   instanceManager.addInstanceListener(scheduler)
@@ -92,7 +96,10 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
       val taskManager = sender()
       val instanceID = instanceManager.registerTaskManager(taskManager, connectionInfo,
         hardwareInformation, numberOfSlots)
+
+      // to be notified when the taskManager is no longer reachable
       context.watch(taskManager);
+
       taskManager ! AcknowledgeRegistration(instanceID, libraryCacheManager.getBlobServerPort)
     }
 
@@ -100,7 +107,7 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
       sender() ! instanceManager.getNumberOfRegisteredTaskManagers
     }
 
-    case RequestAvailableSlots => {
+    case RequestTotalNumberOfSlots => {
       sender() ! instanceManager.getTotalNumberOfSlots
     }
 
@@ -151,13 +158,13 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
           log.debug(s"Successfully created execution graph from job graph ${jobGraph.getJobID} " +
             s"(${jobGraph.getName}).")
 
-          // should the job fail if a vertex cannot be deployed immediately (streams,
-          // closed iterations)
           executionGraph.setQueuedSchedulingAllowed(jobGraph.getAllowQueuedScheduling)
 
+          // get notified about job status changes
           executionGraph.registerJobStatusListener(self)
 
           if(listenToEvents){
+            // the sender will be notified about state changes
             executionGraph.registerExecutionListener(sender())
             executionGraph.registerJobStatusListener(sender())
           }
@@ -178,7 +185,8 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
             case Some((executionGraph, jobInfo)) =>
               executionGraph.fail(t)
 
-              // don't send the client the final job status
+              // don't send the client the final job status because we already send him
+              // SubmissionFailure
               jobInfo.detach = true
 
               val status = Patterns.ask(self, RequestFinalJobStatus(jobGraph.getJobID), 10 second)
@@ -213,14 +221,16 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
     }
 
     case UpdateTaskExecutionState(taskExecutionState) => {
-      Preconditions.checkNotNull(taskExecutionState)
+      if(taskExecutionState == null){
+        sender() ! false
+      }else {
+        currentJobs.get(taskExecutionState.getJobID) match {
+          case Some((executionGraph, _)) => sender() ! executionGraph.updateState(taskExecutionState)
 
-      currentJobs.get(taskExecutionState.getJobID) match {
-        case Some((executionGraph, _)) => sender() ! executionGraph.updateState(taskExecutionState)
-        case None => log.error(s"Cannot find execution graph for ID ${taskExecutionState
-          .getJobID} to change state to" +
-          s" ${taskExecutionState.getExecutionState}.")
-          sender() ! false
+          case None => log.error(s"Cannot find execution graph for ID ${taskExecutionState
+            .getJobID} to change state to ${taskExecutionState.getExecutionState}.")
+            sender() ! false
+        }
       }
     }
 

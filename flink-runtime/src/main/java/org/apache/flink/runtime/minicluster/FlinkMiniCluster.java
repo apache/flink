@@ -135,7 +135,7 @@ abstract public class FlinkMiniCluster {
 		List<Future<Object>> responses = new ArrayList<Future<Object>>();
 
 		for(ActorRef taskManager: taskManagerActors){
-			Future<Object> response = Patterns.ask(taskManager, TaskManagerMessages.NotifyWhenRegisteredAtMaster$
+			Future<Object> response = Patterns.ask(taskManager, TaskManagerMessages.NotifyWhenRegisteredAtJobManager$
 					.MODULE$, AkkaUtils.FUTURE_TIMEOUT());
 			responses.add(response);
 		}

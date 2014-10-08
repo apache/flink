@@ -44,13 +44,13 @@ class JobClient(jobManagerURL: String) extends Actor with ActorLogMessages with 
   val jobManager = AkkaUtils.getReference(jobManagerURL)
 
   override def receiveWithLogMessages: Receive = {
-    case SubmitJobDetached(jobGraph, listen) =>
-      jobManager.tell(SubmitJob(jobGraph, listenToEvents = listen, detach = true), sender())
+    case SubmitJobDetached(jobGraph) =>
+      jobManager.tell(SubmitJob(jobGraph, registerForEvents = false, detach = true), sender())
     case cancelJob: CancelJob =>
       jobManager forward cancelJob
     case SubmitJobAndWait(jobGraph, listen) =>
       val listener = context.actorOf(Props(classOf[JobClientListener], sender()))
-      jobManager.tell(SubmitJob(jobGraph, listenToEvents = listen, detach = false), listener)
+      jobManager.tell(SubmitJob(jobGraph, registerForEvents = listen, detach = false), listener)
     case RequestBlobManagerPort =>
       jobManager forward RequestBlobManagerPort
   }

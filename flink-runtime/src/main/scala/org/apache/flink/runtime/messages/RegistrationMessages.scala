@@ -22,10 +22,25 @@ import org.apache.flink.runtime.instance.{InstanceConnectionInfo, InstanceID, Ha
 
 object RegistrationMessages {
 
+  /**
+   * Registers a task manager at the job manager. A successful registration is acknowledged by
+   * [[AcknowledgeRegistration]].
+   *
+   * @param connectionInfo
+   * @param hardwareDescription
+   * @param numberOfSlots
+   */
   case class RegisterTaskManager(connectionInfo: InstanceConnectionInfo,
                                  hardwareDescription: HardwareDescription,
                                  numberOfSlots: Int)
 
+  /**
+   * Denotes the successful registration of a task manager at the job manager. This is the
+   * response triggered by the [[RegisterTaskManager]] message.
+   *
+   * @param instanceID
+   * @param blobPort
+   */
   case class AcknowledgeRegistration(instanceID: InstanceID, blobPort: Int)
 
 }

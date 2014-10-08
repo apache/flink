@@ -25,27 +25,50 @@ import org.apache.flink.runtime.execution.{ExecutionState}
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
 import org.apache.flink.runtime.jobgraph.{JobStatus, JobVertexID, JobID}
 
+/**
+ * This object contains the execution graph specific messages.
+ */
 object ExecutionGraphMessages {
 
+  /**
+   * Denotes the execution state change of an [[org.apache.flink.runtime.executiongraph.ExecutionVertex]]
+   *
+   * @param jobID to which the vertex belongs
+   * @param vertexID of the ExecutionJobVertex to which the ExecutionVertex belongs
+   * @param taskName
+   * @param totalNumberOfSubTasks denotes the number of parallel subtasks
+   * @param subtaskIndex denotes the index of the ExecutionVertex
+   * @param executionID
+   * @param newExecutionState
+   * @param timestamp of the execution state change
+   * @param optionalMessage
+   */
   case class ExecutionStateChanged(jobID: JobID, vertexID: JobVertexID,
-                                   taskName: String, totalNumberOfSubTasks: Int, subtask: Int,
+                                   taskName: String, totalNumberOfSubTasks: Int, subtaskIndex: Int,
                                    executionID: ExecutionAttemptID,
                                    newExecutionState: ExecutionState, timestamp: Long,
                                    optionalMessage: String){
     override def toString: String = {
-      s"${timestampToString(timestamp)}\t$taskName(${subtask +
+      s"${timestampToString(timestamp)}\t$taskName(${subtaskIndex +
         1}/${totalNumberOfSubTasks}) switched to $newExecutionState ${if(optionalMessage != null)
         s"\n${optionalMessage}" else ""}"
     }
   }
 
+  /**
+   * Denotes the job state change of a job.
+   *
+   * @param jobID identifying the correspong job
+   * @param newJobStatus
+   * @param timestamp
+   * @param optionalMessage
+   */
   case class JobStatusChanged(jobID: JobID, newJobStatus: JobStatus, timestamp: Long,
                               optionalMessage: String){
     override def toString: String = {
       s"${timestampToString(timestamp)}\tJob execution switched to status ${newJobStatus}."
     }
   }
-
 
   private val DATE_FORMATTER: SimpleDateFormat = new SimpleDateFormat("MM/dd/yyyy HH:mm:ss")
 
