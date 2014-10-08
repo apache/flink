@@ -18,26 +18,22 @@
 
 package org.apache.flink.hadoopcompatibility.mapred.example;
 
-import java.io.IOException;
-import java.util.Iterator;
-
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.hadoopcompatibility.mapred.HadoopInputFormat;
-import org.apache.flink.hadoopcompatibility.mapred.HadoopMapFunction;
-import org.apache.flink.hadoopcompatibility.mapred.HadoopOutputFormat;
-import org.apache.flink.hadoopcompatibility.mapred.HadoopReduceCombineFunction;
+import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.JobConf;
-import org.apache.hadoop.mapred.Mapper;
-import org.apache.hadoop.mapred.OutputCollector;
-import org.apache.hadoop.mapred.Reducer;
-import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.mapred.TextInputFormat;
 import org.apache.hadoop.mapred.TextOutputFormat;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.aggregation.Aggregations;
+import org.apache.flink.api.common.functions.RichFlatMapFunction;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.hadoopcompatibility.mapred.HadoopInputFormat;
+import org.apache.flink.hadoopcompatibility.mapred.HadoopOutputFormat;
+import org.apache.flink.util.Collector;
 
 
 
@@ -48,7 +44,8 @@ import org.apache.hadoop.mapred.TextOutputFormat;
  * This example shows how to use Hadoop Input Formats, how to convert Hadoop Writables to 
  * common Java types for better usage in a Flink job and how to use Hadoop Output Formats.
  */
-public class HadoopMapredCompatWordCount {
+@SuppressWarnings("serial")
+public class WordCount {
 	
 	public static void main(String[] args) throws Exception {
 		if (args.length < 2) {
@@ -60,6 +57,7 @@ public class HadoopMapredCompatWordCount {
 		final String outputPath = args[1];
 		
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setDegreeOfParallelism(1);
 		
 		// Set up the Hadoop Input Format
 		HadoopInputFormat<LongWritable, Text> hadoopInputFormat = new HadoopInputFormat<LongWritable, Text>(new TextInputFormat(), LongWritable.class, Text.class, new JobConf());
@@ -68,66 +66,55 @@ public class HadoopMapredCompatWordCount {
 		// Create a Flink job with it
 		DataSet<Tuple2<LongWritable, Text>> text = env.createInput(hadoopInputFormat);
 		
-		DataSet<Tuple2<Text, LongWritable>> words = 
-				text.flatMap(new HadoopMapFunction<LongWritable, Text, Text, LongWritable>(new Tokenizer()))
-					.groupBy(0).reduceGroup(new HadoopReduceCombineFunction<Text, LongWritable, Text, LongWritable>(new Counter(), new Counter()));
+		// Tokenize the line and convert from Writable "Text" to String for better handling
+		DataSet<Tuple2<String, Integer>> words = text.flatMap(new Tokenizer());
+		
+		// Sum up the words
+		DataSet<Tuple2<String, Integer>> result = words.groupBy(0).aggregate(Aggregations.SUM, 1);
+		
+		// Convert String back to Writable "Text" for use with Hadoop Output Format
+		DataSet<Tuple2<Text, IntWritable>> hadoopResult = result.map(new HadoopDatatypeMapper());
 		
 		// Set up Hadoop Output Format
-		HadoopOutputFormat<Text, LongWritable> hadoopOutputFormat = 
-				new HadoopOutputFormat<Text, LongWritable>(new TextOutputFormat<Text, LongWritable>(), new JobConf());
+		HadoopOutputFormat<Text, IntWritable> hadoopOutputFormat = new HadoopOutputFormat<Text, IntWritable>(new TextOutputFormat<Text, IntWritable>(), new JobConf());
 		hadoopOutputFormat.getJobConf().set("mapred.textoutputformat.separator", " ");
 		TextOutputFormat.setOutputPath(hadoopOutputFormat.getJobConf(), new Path(outputPath));
 		
 		// Output & Execute
-		words.output(hadoopOutputFormat).setParallelism(1);
-		env.execute("Hadoop Compat WordCount");
+		hadoopResult.output(hadoopOutputFormat);
+		env.execute("Word Count");
 	}
 	
-	
-	public static final class Tokenizer implements Mapper<LongWritable, Text, Text, LongWritable> {
-
+	/**
+	 * Splits a line into words and converts Hadoop Writables into normal Java data types.
+	 */
+	public static final class Tokenizer extends RichFlatMapFunction<Tuple2<LongWritable, Text>, Tuple2<String, Integer>> {
+		
 		@Override
-		public void map(LongWritable k, Text v, OutputCollector<Text, LongWritable> out, Reporter rep) 
-				throws IOException {
+		public void flatMap(Tuple2<LongWritable, Text> value, Collector<Tuple2<String, Integer>> out) {
 			// normalize and split the line
-			String line = v.toString();
+			String line = value.f1.toString();
 			String[] tokens = line.toLowerCase().split("\\W+");
 			
 			// emit the pairs
 			for (String token : tokens) {
 				if (token.length() > 0) {
-					out.collect(new Text(token), new LongWritable(1l));
+					out.collect(new Tuple2<String, Integer>(token, 1));
 				}
 			}
 		}
-		
-		@Override
-		public void configure(JobConf arg0) { }
-		
-		@Override
-		public void close() throws IOException { }
-		
 	}
 	
-	public static final class Counter implements Reducer<Text, LongWritable, Text, LongWritable> {
-
+	/**
+	 * Converts Java data types to Hadoop Writables.
+	 */
+	public static final class HadoopDatatypeMapper extends RichMapFunction<Tuple2<String, Integer>, Tuple2<Text, IntWritable>> {
+		
 		@Override
-		public void reduce(Text k, Iterator<LongWritable> vs, OutputCollector<Text, LongWritable> out, Reporter rep)
-				throws IOException {
-			
-			long cnt = 0;
-			while(vs.hasNext()) {
-				cnt += vs.next().get();
-			}
-			out.collect(k, new LongWritable(cnt));
-			
+		public Tuple2<Text, IntWritable> map(Tuple2<String, Integer> value) throws Exception {
+			return new Tuple2<Text, IntWritable>(new Text(value.f0), new IntWritable(value.f1));
 		}
 		
-		@Override
-		public void configure(JobConf arg0) { }
-		
-		@Override
-		public void close() throws IOException { }
 	}
 	
 }
