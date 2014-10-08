@@ -27,7 +27,7 @@ import org.apache.hadoop.util.Progressable;
  */
 public class HadoopDummyProgressable implements Progressable {
 	@Override
-	public void progress() {
-
+	public void progress() { 
+		
 	}
 }

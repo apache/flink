@@ -87,6 +87,9 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
 	
 	protected void postSubmit() throws Exception {}
 	
+	protected boolean skipCollectionExecution() {
+		return false;
+	};
 
 	// --------------------------------------------------------------------------------------------
 	//  Test entry point
@@ -141,6 +144,12 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
 	
 	@Test
 	public void testJobCollectionExecution() throws Exception {
+		
+		// check if collection execution should be skipped.
+		if(this.skipCollectionExecution()) {
+			return;
+		}
+		
 		isCollectionExecution = true;
 		
 		// pre-submit
