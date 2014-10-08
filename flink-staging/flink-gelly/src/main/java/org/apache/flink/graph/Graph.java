@@ -42,4 +42,7 @@ public class Graph<K extends Comparable<K>, VV, EV> {
 	public DataSet<Edge<K, EV>> getEdges() {
 		return edges;
 	}
+	
+	
+	
 }
