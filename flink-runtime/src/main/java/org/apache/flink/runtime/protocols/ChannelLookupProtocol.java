@@ -24,7 +24,7 @@ import java.io.IOException;
 import org.apache.flink.core.protocols.VersionedProtocol;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.io.network.ConnectionInfoLookupResponse;
-import org.apache.flink.runtime.io.network.channels.ChannelID;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.jobgraph.JobID;
 
 /**
@@ -48,5 +48,5 @@ public interface ChannelLookupProtocol extends VersionedProtocol {
 	 *         thrown if an error occurs during the IPC call
 	 */
 	ConnectionInfoLookupResponse lookupConnectionInfo(InstanceConnectionInfo caller, JobID jobID,
-			ChannelID sourceChannelID) throws IOException;
+			InputChannelID sourceChannelID) throws IOException;
 }

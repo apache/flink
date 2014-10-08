@@ -24,7 +24,7 @@ import static org.junit.Assert.fail;
 
 import java.io.IOException;
 
-import org.apache.flink.runtime.io.network.channels.ChannelID;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.testutils.ServerTestUtils;
 import org.apache.flink.util.StringUtils;
 import org.junit.Test;
@@ -38,8 +38,8 @@ public class ChannelDeploymentDescriptorTest {
 	@Test
 	public void testConstructorWithValidArguments() {
 
-		final ChannelID outputChannelID = new ChannelID();
-		final ChannelID inputChannelID = new ChannelID();
+		final InputChannelID outputChannelID = new InputChannelID();
+		final InputChannelID inputChannelID = new InputChannelID();
 
 		final ChannelDeploymentDescriptor cdd = new ChannelDeploymentDescriptor(outputChannelID, inputChannelID);
 
@@ -53,7 +53,7 @@ public class ChannelDeploymentDescriptorTest {
 	@Test
 	public void testConstructorWithInvalidArguments() {
 
-		final ChannelID channelID = new ChannelID();
+		final InputChannelID channelID = new InputChannelID();
 
 		boolean firstExceptionCaught = false;
 		boolean secondExceptionCaught = false;
@@ -89,8 +89,8 @@ public class ChannelDeploymentDescriptorTest {
 	@Test
 	public void testSerialization() {
 
-		final ChannelID outputChannelID = new ChannelID();
-		final ChannelID inputChannelID = new ChannelID();
+		final InputChannelID outputChannelID = new InputChannelID();
+		final InputChannelID inputChannelID = new InputChannelID();
 
 		final ChannelDeploymentDescriptor orig = new ChannelDeploymentDescriptor(outputChannelID, inputChannelID);
 

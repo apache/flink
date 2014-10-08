@@ -48,13 +48,13 @@ public class TaskDeploymentDescriptorTest {
 			final Configuration jobConfiguration = new Configuration();
 			final Configuration taskConfiguration = new Configuration();
 			final Class<? extends AbstractInvokable> invokableClass = RegularPactTask.class;
-			final List<GateDeploymentDescriptor> outputGates = new ArrayList<GateDeploymentDescriptor>(0);
+			final List<IntermediateResultPartitionDeploymentDescriptor> producedResults = new ArrayList<IntermediateResultPartitionDeploymentDescriptor>(0);
 			final List<GateDeploymentDescriptor> inputGates = new ArrayList<GateDeploymentDescriptor>(0);
 			final List<BlobKey> requiredJars = new ArrayList<BlobKey>(0);
 	
 			final TaskDeploymentDescriptor orig = new TaskDeploymentDescriptor(jobID, vertexID, execId, taskName,
 				indexInSubtaskGroup, currentNumberOfSubtasks, jobConfiguration, taskConfiguration,
-				invokableClass.getName(), outputGates, inputGates, requiredJars, 47);
+				invokableClass.getName(), producedResults, inputGates, requiredJars, 47);
 	
 			final TaskDeploymentDescriptor copy = CommonTestUtils.createCopyWritable(orig);
 	
@@ -69,7 +69,7 @@ public class TaskDeploymentDescriptorTest {
 			assertEquals(orig.getTaskName(), copy.getTaskName());
 			assertEquals(orig.getIndexInSubtaskGroup(), copy.getIndexInSubtaskGroup());
 			assertEquals(orig.getCurrentNumberOfSubtasks(), copy.getCurrentNumberOfSubtasks());
-			assertEquals(orig.getOutputGates(), copy.getOutputGates());
+			assertEquals(orig.getProducedPartitions(), copy.getProducedPartitions());
 			assertEquals(orig.getInputGates(), copy.getInputGates());
 
 			assertEquals(orig.getRequiredJarFiles(), copy.getRequiredJarFiles());

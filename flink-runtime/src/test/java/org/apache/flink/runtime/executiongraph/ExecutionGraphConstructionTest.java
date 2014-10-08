@@ -298,7 +298,7 @@ public class ExecutionGraphConstructionTest {
 				int sumOfPartitions = 0;
 				for (ExecutionEdge inEdge : inputs) {
 					assertEquals(0,inEdge.getInputNum());
-					sumOfPartitions += inEdge.getSource().getPartition();
+					sumOfPartitions += inEdge.getSource().getPartitionNumber();
 				}
 				
 				assertEquals(10, sumOfPartitions);
@@ -361,7 +361,7 @@ public class ExecutionGraphConstructionTest {
 					int sumOfPartitions = 0;
 					for (ExecutionEdge inEdge : inputs) {
 						assertEquals(0, inEdge.getInputNum());
-						sumOfPartitions += inEdge.getSource().getPartition();
+						sumOfPartitions += inEdge.getSource().getPartitionNumber();
 					}
 					
 					assertEquals(21, sumOfPartitions);
@@ -374,7 +374,7 @@ public class ExecutionGraphConstructionTest {
 					int sumOfPartitions = 0;
 					for (ExecutionEdge inEdge : inputs) {
 						assertEquals(1, inEdge.getInputNum());
-						sumOfPartitions += inEdge.getSource().getPartition();
+						sumOfPartitions += inEdge.getSource().getPartitionNumber();
 					}
 					
 					assertEquals(1, sumOfPartitions);
@@ -410,7 +410,7 @@ public class ExecutionGraphConstructionTest {
 					int sumOfPartitions = 0;
 					for (ExecutionEdge inEdge : inputs) {
 						assertEquals(0, inEdge.getInputNum());
-						sumOfPartitions += inEdge.getSource().getPartition();
+						sumOfPartitions += inEdge.getSource().getPartitionNumber();
 					}
 					
 					assertEquals(55, sumOfPartitions);
@@ -423,7 +423,7 @@ public class ExecutionGraphConstructionTest {
 					int sumOfPartitions = 0;
 					for (ExecutionEdge inEdge : inputs) {
 						assertEquals(1, inEdge.getInputNum());
-						sumOfPartitions += inEdge.getSource().getPartition();
+						sumOfPartitions += inEdge.getSource().getPartitionNumber();
 					}
 					
 					assertEquals(1, sumOfPartitions);

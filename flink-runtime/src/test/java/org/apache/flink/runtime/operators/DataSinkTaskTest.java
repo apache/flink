@@ -46,6 +46,8 @@ import org.apache.flink.types.Record;
 import org.junit.After;
 import org.junit.Test;
 
+import static org.apache.flink.runtime.operators.testutils.MockEnvironment.InputPlayer;
+
 public class DataSinkTaskTest extends TaskTestBase
 {
 	private static final Logger LOG = LoggerFactory.getLogger(DataSinkTaskTest.class);
@@ -71,12 +73,13 @@ public class DataSinkTaskTest extends TaskTestBase
 		int valCnt = 20;
 		
 		super.initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
+
 		super.addInput(new UniformRecordGenerator(keyCnt, valCnt, false), 0);
-		
+
 		DataSinkTask<Record> testTask = new DataSinkTask<Record>();
 
 		super.registerFileOutputTask(testTask, MockOutputFormat.class, new File(tempTestPath).toURI().toString());
-		
+
 		try {
 			testTask.invoke();
 		} catch (Exception e) {
@@ -129,7 +132,7 @@ public class DataSinkTaskTest extends TaskTestBase
 			}
 		}
 	}
-	
+
 	@Test
 	public void testUnionDataSinkTask() {
 
@@ -137,16 +140,23 @@ public class DataSinkTaskTest extends TaskTestBase
 		int valCnt = 20;
 		
 		super.initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
-		super.addInput(new UniformRecordGenerator(keyCnt, valCnt, 0, 0, false), 0);
-		super.addInput(new UniformRecordGenerator(keyCnt, valCnt, keyCnt, 0, false), 0);
-		super.addInput(new UniformRecordGenerator(keyCnt, valCnt, keyCnt*2, 0, false), 0);
-		super.addInput(new UniformRecordGenerator(keyCnt, valCnt, keyCnt*3, 0, false), 0);
+
+		InputPlayer[] inputPlayers = new InputPlayer[4];
+		inputPlayers[0] = super.addInputAndGetPlayer(new UniformRecordGenerator(keyCnt, valCnt, 0, 0, false), 0);
+		inputPlayers[1] = super.addInputAndGetPlayer(new UniformRecordGenerator(keyCnt, valCnt, keyCnt, 0, false), 0);
+		inputPlayers[2] = super.addInputAndGetPlayer(new UniformRecordGenerator(keyCnt, valCnt, keyCnt * 2, 0, false), 0);
+		inputPlayers[3] = super.addInputAndGetPlayer(new UniformRecordGenerator(keyCnt, valCnt, keyCnt * 3, 0, false), 0);
 		
 		DataSinkTask<Record> testTask = new DataSinkTask<Record>();
 
 		super.registerFileOutputTask(testTask, MockOutputFormat.class, new File(tempTestPath).toURI().toString());
 		
 		try {
+			// For the union reader to work, we need to start the input channel
+			// notifications *after* the union reader has been initialized.
+			for (InputPlayer player : inputPlayers) {
+				player.play();
+			}
 			testTask.invoke();
 		} catch (Exception e) {
 			LOG.debug("Exception while invoking the test task.", e);
@@ -350,7 +360,7 @@ public class DataSinkTaskTest extends TaskTestBase
 		Assert.assertTrue("Temp output file does not exist",tempTestFile.exists());
 		
 	}
-	
+
 	@Test
 	public void testCancelDataSinkTask() {
 		
@@ -381,7 +391,7 @@ public class DataSinkTaskTest extends TaskTestBase
 		
 		try {
 			tct.join();
-			taskRunner.join();		
+			taskRunner.join();
 		} catch(InterruptedException ie) {
 			Assert.fail("Joining threads failed");
 		}

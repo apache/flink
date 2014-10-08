@@ -21,7 +21,7 @@ package org.apache.flink.runtime.operators.shipping;
 
 import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.typeutils.TypeComparator;
-import org.apache.flink.runtime.io.network.api.ChannelSelector;
+import org.apache.flink.runtime.io.network.api.writer.ChannelSelector;
 import org.apache.flink.types.Key;
 import org.apache.flink.types.Record;
 

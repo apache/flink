@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.jobmanager.tasks;
 
-import org.apache.flink.runtime.io.network.api.RecordReader;
+import org.apache.flink.runtime.io.network.api.reader.RecordReader;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.types.IntegerRecord;
 
@@ -28,7 +28,7 @@ public final class AgnosticReceiver extends AbstractInvokable {
 	
 	@Override
 	public void registerInputOutput() {
-		reader = new RecordReader<IntegerRecord>(this, IntegerRecord.class);
+		reader = new RecordReader<IntegerRecord>(getEnvironment().getReader(0), IntegerRecord.class);
 	}
 
 	@Override

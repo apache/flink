@@ -16,16 +16,17 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.io.network;
+
+import io.netty.channel.Channel;
 
 import java.io.IOException;
 
 public interface NetworkConnectionManager {
 
-	public void start(ChannelManager channelManager) throws IOException;
+	public void start() throws IOException;
 
-	public void enqueue(Envelope envelope, RemoteReceiver receiver) throws IOException;
+	public Channel connectOrGet(RemoteAddress target) throws IOException;
 
 	public void shutdown() throws IOException;
 }

@@ -18,8 +18,6 @@
 
 package org.apache.flink.test.iterative.nephele;
 
-import java.io.IOException;
-
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
@@ -27,7 +25,6 @@ import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.client.JobExecutionException;
-import org.apache.flink.runtime.io.network.channels.ChannelType;
 import org.apache.flink.runtime.iterative.task.IterationSynchronizationSinkTask;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -38,6 +35,8 @@ import org.apache.flink.runtime.operators.DataSinkTask;
 import org.apache.flink.runtime.operators.DataSourceTask;
 import org.apache.flink.runtime.operators.RegularPactTask;
 import org.apache.flink.runtime.operators.util.TaskConfig;
+
+import java.io.IOException;
 
 public class JobGraphUtils {
 
@@ -80,8 +79,7 @@ public class JobGraphUtils {
 //		new TaskConfig(source.getConfiguration()).addOutputShipStrategy(shipStrategy);
 //	}
 	
-	public static void connect(AbstractJobVertex source, AbstractJobVertex target, ChannelType channelType,
-			DistributionPattern distributionPattern)
+	public static void connect(AbstractJobVertex source, AbstractJobVertex target, DistributionPattern distributionPattern)
 	{
 		target.connectNewDataSetAsInput(source, distributionPattern);
 	}

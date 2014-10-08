@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.jobmanager.tasks;
 
-import org.apache.flink.runtime.io.network.api.RecordReader;
+import org.apache.flink.runtime.io.network.api.reader.RecordReader;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.types.IntegerRecord;
 
@@ -28,17 +28,22 @@ public final class Receiver extends AbstractInvokable {
 	
 	@Override
 	public void registerInputOutput() {
-		reader = new RecordReader<IntegerRecord>(this, IntegerRecord.class);
+		reader = new RecordReader<IntegerRecord>(getEnvironment().getReader(0), IntegerRecord.class);
 	}
 
 	@Override
 	public void invoke() throws Exception {
-		IntegerRecord i1 = reader.next();
-		IntegerRecord i2 = reader.next();
-		IntegerRecord i3 = reader.next();
-		
-		if (i1.getValue() != 42 || i2.getValue() != 1337 || i3 != null) {
-			throw new Exception("Wrong Data Received");
+		try {
+			IntegerRecord i1 = reader.next();
+			IntegerRecord i2 = reader.next();
+			IntegerRecord i3 = reader.next();
+
+			if (i1.getValue() != 42 || i2.getValue() != 1337 || i3 != null) {
+				throw new Exception("Wrong Data Received");
+			}
+		} catch (Exception e) {
+			reader.clearBuffers();
+			throw e;
 		}
 	}
 }

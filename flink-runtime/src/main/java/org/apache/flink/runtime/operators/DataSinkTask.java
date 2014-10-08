@@ -19,6 +19,7 @@
 
 package org.apache.flink.runtime.operators;
 
+import org.apache.flink.runtime.io.network.api.reader.UnionBufferReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.io.OutputFormat;
@@ -28,9 +29,8 @@ import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.execution.CancelTaskException;
-import org.apache.flink.runtime.io.network.api.MutableReader;
-import org.apache.flink.runtime.io.network.api.MutableRecordReader;
-import org.apache.flink.runtime.io.network.api.MutableUnionRecordReader;
+import org.apache.flink.runtime.io.network.api.reader.MutableReader;
+import org.apache.flink.runtime.io.network.api.reader.MutableRecordReader;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.chaining.ExceptionInChainedStubException;
 import org.apache.flink.runtime.operators.sort.UnilateralSortMerger;
@@ -298,15 +298,11 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 		numGates += groupSize;
 		if (groupSize == 1) {
 			// non-union case
-			inputReader = new MutableRecordReader<DeserializationDelegate<IT>>(this);
+			inputReader = new MutableRecordReader<DeserializationDelegate<IT>>(getEnvironment().getReader(0));
 		} else if (groupSize > 1){
 			// union case
-			
-			MutableRecordReader<IOReadableWritable>[] readers = new MutableRecordReader[groupSize];
-			for (int j = 0; j < groupSize; ++j) {
-				readers[j] = new MutableRecordReader<IOReadableWritable>(this);
-			}
-			inputReader = new MutableUnionRecordReader<IOReadableWritable>(readers);
+			UnionBufferReader reader = new UnionBufferReader(getEnvironment().getAllReaders());
+			inputReader = new MutableRecordReader<IOReadableWritable>(reader);
 		} else {
 			throw new Exception("Illegal input group size in task configuration: " + groupSize);
 		}

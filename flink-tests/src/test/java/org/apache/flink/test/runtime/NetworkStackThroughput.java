@@ -18,16 +18,12 @@
 
 package org.apache.flink.test.runtime;
 
-import java.io.IOException;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.runtime.io.network.api.RecordReader;
-import org.apache.flink.runtime.io.network.api.RecordWriter;
+import org.apache.flink.runtime.io.network.api.reader.RecordReader;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -35,6 +31,10 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.test.util.RecordAPITestBase;
 import org.junit.After;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
 
 public class NetworkStackThroughput {
 
@@ -159,13 +159,11 @@ public class NetworkStackThroughput {
 
 		@Override
 		public void registerInputOutput() {
-			this.writer = new RecordWriter<SpeedTestRecord>(this);
+			this.writer = new RecordWriter<SpeedTestRecord>(getEnvironment().getWriter(0));
 		}
 
 		@Override
 		public void invoke() throws Exception {
-			this.writer.initializeSerializers();
-
 			// Determine the amount of data to send per subtask
 			int dataVolumeGb = getTaskConfiguration().getInteger(NetworkStackThroughput.DATA_VOLUME_GB_CONFIG_KEY, 1);
 
@@ -200,14 +198,12 @@ public class NetworkStackThroughput {
 
 		@Override
 		public void registerInputOutput() {
-			this.reader = new RecordReader<SpeedTestRecord>(this, SpeedTestRecord.class);
-			this.writer = new RecordWriter<SpeedTestRecord>(this);
+			this.reader = new RecordReader<SpeedTestRecord>(getEnvironment().getReader(0), SpeedTestRecord.class);
+			this.writer = new RecordWriter<SpeedTestRecord>(getEnvironment().getWriter(0));
 		}
 
 		@Override
 		public void invoke() throws Exception {
-			this.writer.initializeSerializers();
-
 			SpeedTestRecord record;
 			while ((record = this.reader.next()) != null) {
 				this.writer.emit(record);
@@ -223,7 +219,7 @@ public class NetworkStackThroughput {
 
 		@Override
 		public void registerInputOutput() {
-			this.reader = new RecordReader<SpeedTestRecord>(this, SpeedTestRecord.class);
+			this.reader = new RecordReader<SpeedTestRecord>(getEnvironment().getReader(0), SpeedTestRecord.class);
 		}
 
 		@Override

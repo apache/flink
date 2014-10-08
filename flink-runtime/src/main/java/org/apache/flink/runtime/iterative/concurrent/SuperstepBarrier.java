@@ -21,8 +21,8 @@ package org.apache.flink.runtime.iterative.concurrent;
 
 import java.util.concurrent.CountDownLatch;
 
-import org.apache.flink.runtime.event.task.AbstractTaskEvent;
-import org.apache.flink.runtime.event.task.EventListener;
+import org.apache.flink.runtime.event.task.TaskEvent;
+import org.apache.flink.runtime.util.event.EventListener;
 import org.apache.flink.runtime.iterative.event.AllWorkersDoneEvent;
 import org.apache.flink.runtime.iterative.event.TerminationEvent;
 import org.apache.flink.types.Value;
@@ -30,7 +30,7 @@ import org.apache.flink.types.Value;
 /**
  * A resettable one-shot latch.
  */
-public class SuperstepBarrier implements EventListener {
+public class SuperstepBarrier implements EventListener<TaskEvent> {
 	
 	private final ClassLoader userCodeClassLoader;
 
@@ -65,9 +65,10 @@ public class SuperstepBarrier implements EventListener {
 		return aggregates;
 	}
 
-	/** barrier will release the waiting thread if an event occurs */
+	/** barrier will release the waiting thread if an event occurs
+	 * @param event*/
 	@Override
-	public void eventOccurred(AbstractTaskEvent event) {
+	public void onEvent(TaskEvent event) {
 		if (event instanceof TerminationEvent) {
 			terminationSignaled = true;
 		}

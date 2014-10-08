@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.jobmanager.tasks;
 
-import org.apache.flink.runtime.io.network.api.RecordWriter;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.types.IntegerRecord;
 
@@ -28,13 +28,12 @@ public final class Sender extends AbstractInvokable {
 	
 	@Override
 	public void registerInputOutput() {
-		writer = new RecordWriter<IntegerRecord>(this);
+		writer = new RecordWriter<IntegerRecord>(getEnvironment().getWriter(0));
 	}
 
 	@Override
 	public void invoke() throws Exception {
 		try {
-			writer.initializeSerializers();
 			writer.emit(new IntegerRecord(42));
 			writer.emit(new IntegerRecord(1337));
 			writer.flush();

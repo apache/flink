@@ -24,7 +24,7 @@ import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.executiongraph.ExecutionEdge;
-import org.apache.flink.runtime.io.network.channels.ChannelID;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 
 /**
  * A channel deployment descriptor contains all the information necessary to deploy either an input or an output channel
@@ -33,10 +33,10 @@ import org.apache.flink.runtime.io.network.channels.ChannelID;
 public final class ChannelDeploymentDescriptor implements IOReadableWritable {
 
 	/** The ID of the output channel. */
-	private final ChannelID outputChannelID;
+	private final InputChannelID outputChannelID;
 
 	/** The ID of the input channel. */
-	private final ChannelID inputChannelID;
+	private final InputChannelID inputChannelID;
 
 	/**
 	 * Constructs a new channel deployment descriptor.
@@ -44,7 +44,7 @@ public final class ChannelDeploymentDescriptor implements IOReadableWritable {
 	 * @param outputChannelID The ID of the output channel
 	 * @param inputChannelID The ID of the input channel
 	 */
-	public ChannelDeploymentDescriptor(ChannelID outputChannelID, ChannelID inputChannelID) {
+	public ChannelDeploymentDescriptor(InputChannelID outputChannelID, InputChannelID inputChannelID) {
 		if (outputChannelID == null || inputChannelID == null) {
 			throw new IllegalArgumentException("Channel IDs must not be null");
 		}
@@ -57,8 +57,8 @@ public final class ChannelDeploymentDescriptor implements IOReadableWritable {
 	 * Default constructor for serialization/deserialization.
 	 */
 	public ChannelDeploymentDescriptor() {
-		this.outputChannelID = new ChannelID();
-		this.inputChannelID = new ChannelID();
+		this.outputChannelID = new InputChannelID();
+		this.inputChannelID = new InputChannelID();
 	}
 
 
@@ -80,7 +80,7 @@ public final class ChannelDeploymentDescriptor implements IOReadableWritable {
 	 * 
 	 * @return the output channel ID attached to this deployment descriptor
 	 */
-	public ChannelID getOutputChannelID() {
+	public InputChannelID getOutputChannelID() {
 		return this.outputChannelID;
 	}
 
@@ -89,7 +89,7 @@ public final class ChannelDeploymentDescriptor implements IOReadableWritable {
 	 * 
 	 * @return the input channel ID attached to this deployment descriptor
 	 */
-	public ChannelID getInputChannelID() {
+	public InputChannelID getInputChannelID() {
 		return this.inputChannelID;
 	}
 	

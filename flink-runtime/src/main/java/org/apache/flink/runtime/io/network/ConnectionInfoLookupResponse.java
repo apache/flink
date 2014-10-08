@@ -24,7 +24,7 @@ import java.io.IOException;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.runtime.io.network.channels.ChannelID;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 
 public class ConnectionInfoLookupResponse implements IOReadableWritable {
 
@@ -35,9 +35,9 @@ public class ConnectionInfoLookupResponse implements IOReadableWritable {
 	// was request successful?
 	private ReturnCode returnCode;
 	
-	private RemoteReceiver remoteTarget;
+	private RemoteAddress remoteTarget;
 
-	private ChannelID localTarget;
+	private InputChannelID localTarget;
 	
 	
 	public ConnectionInfoLookupResponse() {}
@@ -48,23 +48,23 @@ public class ConnectionInfoLookupResponse implements IOReadableWritable {
 		this.localTarget = null;
 	}
 	
-	public ConnectionInfoLookupResponse(ReturnCode code, ChannelID localTarget) {
+	public ConnectionInfoLookupResponse(ReturnCode code, InputChannelID localTarget) {
 		this.returnCode = code;
 		this.remoteTarget = null;
 		this.localTarget = localTarget;
 	}
 	
-	public ConnectionInfoLookupResponse(ReturnCode code, RemoteReceiver receiver) {
+	public ConnectionInfoLookupResponse(ReturnCode code, RemoteAddress receiver) {
 		this.returnCode = code;
 		this.remoteTarget = receiver;
 		this.localTarget = null;
 	}
 
-	public RemoteReceiver getRemoteTarget() {
+	public RemoteAddress getRemoteTarget() {
 		return this.remoteTarget;
 	}
 
-	public ChannelID getLocalTarget() {
+	public InputChannelID getLocalTarget() {
 		return this.localTarget;
 	}
 
@@ -73,11 +73,11 @@ public class ConnectionInfoLookupResponse implements IOReadableWritable {
 		this.returnCode = ReturnCode.values()[in.readInt()];
 		
 		if (in.readBoolean()) {
-			this.remoteTarget = new RemoteReceiver();
+			this.remoteTarget = new RemoteAddress();
 			this.remoteTarget.read(in);
 		}
 		if (in.readBoolean()) {
-			this.localTarget = new ChannelID();
+			this.localTarget = new InputChannelID();
 			this.localTarget.read(in);
 		}
 	}
@@ -118,11 +118,11 @@ public class ConnectionInfoLookupResponse implements IOReadableWritable {
 	}
 
 	
-	public static ConnectionInfoLookupResponse createReceiverFoundAndReady(ChannelID targetChannelID) {
+	public static ConnectionInfoLookupResponse createReceiverFoundAndReady(InputChannelID targetChannelID) {
 		return new ConnectionInfoLookupResponse(ReturnCode.FOUND_AND_RECEIVER_READY, targetChannelID);
 	}
 
-	public static ConnectionInfoLookupResponse createReceiverFoundAndReady(RemoteReceiver remoteReceiver) {
+	public static ConnectionInfoLookupResponse createReceiverFoundAndReady(RemoteAddress remoteReceiver) {
 		return new ConnectionInfoLookupResponse(ReturnCode.FOUND_AND_RECEIVER_READY, remoteReceiver);
 	}
 

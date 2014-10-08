@@ -27,17 +27,14 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.doAnswer;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
@@ -137,11 +134,11 @@ public class ExecutionGraphDeploymentTest {
 			assertEquals(RegularPactTask.class.getName(), descr.getInvokableClassName());
 			assertEquals("v2", descr.getTaskName());
 			
-			assertEquals(2, descr.getOutputGates().size());
+			assertEquals(2, descr.getProducedPartitions().size());
 			assertEquals(1, descr.getInputGates().size());
 			
-			assertEquals(10, descr.getOutputGates().get(0).getChannels().size());
-			assertEquals(10, descr.getOutputGates().get(1).getChannels().size());
+			assertEquals(10, descr.getProducedPartitions().get(0).getGdd().getChannels().size());
+			assertEquals(10, descr.getProducedPartitions().get(1).getGdd().getChannels().size());
 			assertEquals(10, descr.getInputGates().get(0).getChannels().size());
 		}
 		catch (Exception e) {

@@ -19,23 +19,19 @@
 package org.apache.flink.runtime.io.network;
 
 import org.apache.flink.runtime.execution.CancelTaskException;
-import org.apache.flink.runtime.io.network.channels.ChannelID;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 
-
-/**
- *
- */
 public class LocalReceiverCancelledException extends CancelTaskException {
 	private static final long serialVersionUID = 1L;
 
-	private final ChannelID receiver;
+	private final InputChannelID receiver;
 
-	public LocalReceiverCancelledException(ChannelID receiver) {
+	public LocalReceiverCancelledException(InputChannelID receiver) {
 		this.receiver = receiver;
 	}
-	
-	
-	public ChannelID getReceiver() {
+
+
+	public InputChannelID getReceiver() {
 		return receiver;
 	}
 }

@@ -28,11 +28,15 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.deployment.GateDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.IntermediateResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.RuntimeEnvironment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.network.TaskEventDispatcher;
+import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.io.network.partition.IntermediateResultPartitionManager;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -256,15 +260,16 @@ public class TaskTest {
 			
 			TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(jid, vid, eid, "TestTask", 2, 7,
 					new Configuration(), new Configuration(), TestInvokableCorrect.class.getName(),
-					Collections.<GateDeploymentDescriptor>emptyList(), 
+					Collections.<IntermediateResultPartitionDeploymentDescriptor>emptyList(),
 					Collections.<GateDeploymentDescriptor>emptyList(),
 					new ArrayList<BlobKey>(), 0);
 			
 			Task task = new Task(jid, vid, 2, 7, eid, "TestTask", taskManager);
 			
 			RuntimeEnvironment env = new RuntimeEnvironment(task, tdd, getClass().getClassLoader(),
-					mock(MemoryManager.class), mock(IOManager.class), mock(InputSplitProvider.class),
-					mock(AccumulatorProtocol.class));
+					mock(MemoryManager.class), mock(IOManager.class), mock(NetworkBufferPool.class),
+					mock(IntermediateResultPartitionManager.class), mock(TaskEventDispatcher.class),
+					mock(InputSplitProvider.class), mock(AccumulatorProtocol.class));
 			
 			task.setEnvironment(env);
 			
@@ -294,15 +299,16 @@ public class TaskTest {
 			
 			TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(jid, vid, eid, "TestTask", 2, 7,
 					new Configuration(), new Configuration(), TestInvokableWithException.class.getName(),
-					Collections.<GateDeploymentDescriptor>emptyList(), 
+					Collections.<IntermediateResultPartitionDeploymentDescriptor>emptyList(),
 					Collections.<GateDeploymentDescriptor>emptyList(),
 					new ArrayList<BlobKey>(), 0);
 			
 			Task task = new Task(jid, vid, 2, 7, eid, "TestTask", taskManager);
 			
 			RuntimeEnvironment env = new RuntimeEnvironment(task, tdd, getClass().getClassLoader(),
-					mock(MemoryManager.class), mock(IOManager.class), mock(InputSplitProvider.class),
-					mock(AccumulatorProtocol.class));
+					mock(MemoryManager.class), mock(IOManager.class), mock(NetworkBufferPool.class),
+					mock(IntermediateResultPartitionManager.class), mock(TaskEventDispatcher.class),
+					mock(InputSplitProvider.class), mock(AccumulatorProtocol.class));
 			
 			task.setEnvironment(env);
 			

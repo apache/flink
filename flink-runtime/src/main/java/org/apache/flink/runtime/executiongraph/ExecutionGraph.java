@@ -31,6 +31,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
+import org.apache.flink.runtime.io.network.RemoteAddress;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,8 +44,6 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.io.network.ConnectionInfoLookupResponse;
-import org.apache.flink.runtime.io.network.RemoteReceiver;
-import org.apache.flink.runtime.io.network.channels.ChannelID;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobID;
@@ -87,7 +87,7 @@ public class ExecutionGraph {
 
 	
 	
-	private final Map<ChannelID, ExecutionEdge> edges = new HashMap<ChannelID, ExecutionEdge>();
+	private final Map<InputChannelID, ExecutionEdge> edges = new HashMap<InputChannelID, ExecutionEdge>();
 	
 	
 	/** An executor that can run long actions (involving remote calls) */
@@ -447,7 +447,7 @@ public class ExecutionGraph {
 		}
 	}
 	
-	public ConnectionInfoLookupResponse lookupConnectionInfoAndDeployReceivers(InstanceConnectionInfo caller, ChannelID sourceChannelID) {
+	public ConnectionInfoLookupResponse lookupConnectionInfoAndDeployReceivers(InstanceConnectionInfo caller, InputChannelID sourceChannelID) {
 		
 		final ExecutionEdge edge = edges.get(sourceChannelID);
 		if (edge == null) {
@@ -479,7 +479,7 @@ public class ExecutionGraph {
 					final InetSocketAddress isa = new InetSocketAddress(ici.address(), ici.dataPort());
 
 					int connectionIdx = edge.getSource().getIntermediateResult().getConnectionIndex();
-					return ConnectionInfoLookupResponse.createReceiverFoundAndReady(new RemoteReceiver(isa, connectionIdx));
+					return ConnectionInfoLookupResponse.createReceiverFoundAndReady(new RemoteAddress(isa, connectionIdx));
 				}
 			}
 			else if (executionState == ExecutionState.FINISHED) {
@@ -524,7 +524,7 @@ public class ExecutionGraph {
 				final InetSocketAddress isa = new InetSocketAddress(ici.address(), ici.dataPort());
 
 				final int connectionIdx = edge.getSource().getIntermediateResult().getConnectionIndex();
-				return ConnectionInfoLookupResponse.createReceiverFoundAndReady(new RemoteReceiver(isa, connectionIdx));
+				return ConnectionInfoLookupResponse.createReceiverFoundAndReady(new RemoteAddress(isa, connectionIdx));
 			}
 		}
 		else if (executionState == ExecutionState.DEPLOYING || executionState == ExecutionState.SCHEDULED) {
@@ -578,8 +578,8 @@ public class ExecutionGraph {
 	}
 	
 	void registerExecutionEdge(ExecutionEdge edge) {
-		ChannelID target = edge.getInputChannelId();
-		ChannelID source = edge.getOutputChannelId();
+		InputChannelID target = edge.getInputChannelId();
+		InputChannelID source = edge.getOutputChannelId();
 		edges.put(source, edge);
 		edges.put(target, edge);
 	}

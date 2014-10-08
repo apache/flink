@@ -16,11 +16,8 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.distributions.DataDistribution;
@@ -38,12 +35,12 @@ import org.apache.flink.runtime.accumulators.AccumulatorEvent;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.network.api.BufferWriter;
-import org.apache.flink.runtime.io.network.api.ChannelSelector;
-import org.apache.flink.runtime.io.network.api.MutableReader;
-import org.apache.flink.runtime.io.network.api.MutableRecordReader;
-import org.apache.flink.runtime.io.network.api.MutableUnionRecordReader;
-import org.apache.flink.runtime.io.network.api.RecordWriter;
+import org.apache.flink.runtime.io.network.api.reader.BufferReader;
+import org.apache.flink.runtime.io.network.api.reader.MutableReader;
+import org.apache.flink.runtime.io.network.api.reader.MutableRecordReader;
+import org.apache.flink.runtime.io.network.api.reader.UnionBufferReader;
+import org.apache.flink.runtime.io.network.api.writer.ChannelSelector;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
 import org.apache.flink.runtime.operators.chaining.ChainedDriver;
@@ -67,6 +64,8 @@ import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.MutableObjectIterator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -109,7 +108,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	 * The output writers for the data that this task forwards to the next task. The latest driver (the central, if no chained
 	 * drivers exist, otherwise the last chained driver) produces its output to these writers.
 	 */
-	protected List<BufferWriter> eventualOutputs;
+	protected List<RecordWriter> eventualOutputs;
 
 	/**
 	 * The input readers to this task.
@@ -275,9 +274,6 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		// so that the thread that creates them catches its own errors that may happen in that process.
 		// this is especially important, since there may be asynchronous closes (such as through canceling).
 		try {
-			// initialize the serializers (one per channel) of the record writers
-			initOutputWriters(this.eventualOutputs);
-
 			// initialize the remaining data structures on the input and trigger the local processing
 			// the local processing includes building the dams / caches
 			try {
@@ -299,7 +295,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 							throw new IllegalArgumentException();
 						}
 						else if (numberOfEventsUntilInterrupt > 0) {
-							this.inputReaders[i].setIterative(numberOfEventsUntilInterrupt);
+							this.inputReaders[i].setIterativeReader();
 							iterativeInputs.add(i);
 				
 							if (LOG.isDebugEnabled()) {
@@ -321,7 +317,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 							throw new IllegalArgumentException();
 						}
 						else if (numberOfEventsUntilInterrupt > 0) {
-							this.broadcastInputReaders[i].setIterative(numberOfEventsUntilInterrupt);
+							this.broadcastInputReaders[i].setIterativeReader();
 							iterativeBcInputs.add(i);
 				
 							if (LOG.isDebugEnabled()) {
@@ -695,6 +691,8 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 
 		int numGates = 0;
 
+		int currentReaderOffset = 0;
+
 		for (int i = 0; i < numInputs; i++) {
 			//  ---------------- create the input readers ---------------------
 			// in case where a logical input unions multiple physical inputs, create a union reader
@@ -702,22 +700,25 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 			numGates += groupSize;
 			if (groupSize == 1) {
 				// non-union case
-				inputReaders[i] = new MutableRecordReader<IOReadableWritable>(this);
+				inputReaders[i] = new MutableRecordReader<IOReadableWritable>(getEnvironment().getReader(currentReaderOffset));
 			} else if (groupSize > 1){
 				// union case
-				MutableRecordReader<IOReadableWritable>[] readers = new MutableRecordReader[groupSize];
+				BufferReader[] readers = new BufferReader[groupSize];
 				for (int j = 0; j < groupSize; ++j) {
-					readers[j] = new MutableRecordReader<IOReadableWritable>(this);
+					readers[j] = getEnvironment().getReader(currentReaderOffset + j);
 				}
-				inputReaders[i] = new MutableUnionRecordReader<IOReadableWritable>(readers);
+				UnionBufferReader reader = new UnionBufferReader(readers);
+				inputReaders[i] = new MutableRecordReader<IOReadableWritable>(reader);
 			} else {
 				throw new Exception("Illegal input group size in task configuration: " + groupSize);
 			}
+
+			currentReaderOffset += groupSize;
 		}
 		this.inputReaders = inputReaders;
 
 		// final sanity check
-		if (numGates != this.config.getNumInputs()) {
+		if (currentReaderOffset != this.config.getNumInputs()) {
 			throw new Exception("Illegal configuration: Number of input gates and group sizes are not consistent.");
 		}
 	}
@@ -731,24 +732,29 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	protected void initBroadcastInputReaders() throws Exception {
 		final int numBroadcastInputs = this.config.getNumBroadcastInputs();
 		final MutableReader<?>[] broadcastInputReaders = new MutableReader[numBroadcastInputs];
-		
+
+		int currentReaderOffset = config.getNumInputs();
+
 		for (int i = 0; i < this.config.getNumBroadcastInputs(); i++) {
 			//  ---------------- create the input readers ---------------------
 			// in case where a logical input unions multiple physical inputs, create a union reader
 			final int groupSize = this.config.getBroadcastGroupSize(i);
 			if (groupSize == 1) {
 				// non-union case
-				broadcastInputReaders[i] = new MutableRecordReader<IOReadableWritable>(this);
+				broadcastInputReaders[i] = new MutableRecordReader<IOReadableWritable>(getEnvironment().getReader(currentReaderOffset));
 			} else if (groupSize > 1){
 				// union case
-				MutableRecordReader<IOReadableWritable>[] readers = new MutableRecordReader[groupSize];
+				BufferReader[] readers = new BufferReader[groupSize];
 				for (int j = 0; j < groupSize; ++j) {
-					readers[j] = new MutableRecordReader<IOReadableWritable>(this);
+					readers[j] = getEnvironment().getReader(currentReaderOffset + j);
 				}
-				broadcastInputReaders[i] = new MutableUnionRecordReader<IOReadableWritable>(readers);
+				UnionBufferReader reader = new UnionBufferReader(readers);
+				broadcastInputReaders[i] = new MutableRecordReader<IOReadableWritable>(reader);
 			} else {
 				throw new Exception("Illegal input group size in task configuration: " + groupSize);
 			}
+
+			currentReaderOffset += groupSize;
 		}
 		this.broadcastInputReaders = broadcastInputReaders;
 	}
@@ -1037,7 +1043,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	 */
 	protected void initOutputs() throws Exception {
 		this.chainedTasks = new ArrayList<ChainedDriver<?, ?>>();
-		this.eventualOutputs = new ArrayList<BufferWriter>();
+		this.eventualOutputs = new ArrayList<RecordWriter>();
 
 		ClassLoader userCodeClassLoader = getUserCodeClassLoader();
 
@@ -1221,7 +1227,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	 *
 	 * @return The OutputCollector that data produced in this task is submitted to.
 	 */
-	public static <T> Collector<T> getOutputCollector(AbstractInvokable task, TaskConfig config, ClassLoader cl, List<BufferWriter> eventualOutputs, int numOutputs)
+	public static <T> Collector<T> getOutputCollector(AbstractInvokable task, TaskConfig config, ClassLoader cl, List<RecordWriter> eventualOutputs, int outputOffset, int numOutputs)
 			throws Exception
 	{
 		if (numOutputs == 0) {
@@ -1253,7 +1259,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 					oe = new RecordOutputEmitter(strategy, comparator, distribution);
 				}
 
-				writers.add(new RecordWriter<Record>(task, oe));
+				writers.add(new RecordWriter<Record>(task.getEnvironment().getWriter(outputOffset + i), oe));
 			}
 			if (eventualOutputs != null) {
 				eventualOutputs.addAll(writers);
@@ -1286,7 +1292,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 					oe = new OutputEmitter<T>(strategy, comparator, dataDist);
 				}
 
-				writers.add(new RecordWriter<SerializationDelegate<T>>(task, oe));
+				writers.add(new RecordWriter<SerializationDelegate<T>>(task.getEnvironment().getWriter(outputOffset + i), oe));
 			}
 			if (eventualOutputs != null) {
 				eventualOutputs.addAll(writers);
@@ -1301,7 +1307,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	 */
 	@SuppressWarnings("unchecked")
 	public static <T> Collector<T> initOutputs(AbstractInvokable nepheleTask, ClassLoader cl, TaskConfig config,
-					List<ChainedDriver<?, ?>> chainedTasksTarget, List<BufferWriter> eventualOutputs)
+					List<ChainedDriver<?, ?>> chainedTasksTarget, List<RecordWriter> eventualOutputs)
 	throws Exception
 	{
 		final int numOutputs = config.getNumOutputs();
@@ -1335,7 +1341,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 
 				if (i == numChained -1) {
 					// last in chain, instantiate the output collector for this task
-					previous = getOutputCollector(nepheleTask, chainedStubConf, cl, eventualOutputs, chainedStubConf.getNumOutputs());
+					previous = getOutputCollector(nepheleTask, chainedStubConf, cl, eventualOutputs, 0, chainedStubConf.getNumOutputs());
 				}
 
 				ct.setup(chainedStubConf, taskName, previous, nepheleTask, cl);
@@ -1349,15 +1355,9 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		// else
 
 		// instantiate the output collector the default way from this configuration
-		return getOutputCollector(nepheleTask , config, cl, eventualOutputs, numOutputs);
+		return getOutputCollector(nepheleTask , config, cl, eventualOutputs, 0, numOutputs);
 	}
 
-	public static void initOutputWriters(List<BufferWriter> writers) {
-		for (BufferWriter writer : writers) {
-			((RecordWriter<?>) writer).initializeSerializers();
-		}
-	}
-	
 	// --------------------------------------------------------------------------------------------
 	//                                  User Code LifeCycle
 	// --------------------------------------------------------------------------------------------
@@ -1493,6 +1493,4 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		}
 		return a;
 	}
-
-
 }

@@ -40,6 +40,8 @@ import org.apache.flink.util.MutableObjectIterator;
 import org.junit.After;
 import org.junit.Assert;
 
+import static org.apache.flink.runtime.operators.testutils.MockEnvironment.*;
+
 public abstract class TaskTestBase {
 	
 	protected long memorySize = 0;
@@ -55,10 +57,18 @@ public abstract class TaskTestBase {
 	}
 
 	public void addInput(MutableObjectIterator<Record> input, int groupId) {
-		this.mockEnv.addInput(input);
+		this.mockEnv.addInput(input, true);
 		TaskConfig conf = new TaskConfig(this.mockEnv.getTaskConfiguration());
 		conf.addInputToGroup(groupId);
 		conf.setInputSerializer(RecordSerializerFactory.get(), groupId);
+	}
+
+	public InputPlayer addInputAndGetPlayer(MutableObjectIterator<Record> input, int groupId) {
+		InputPlayer inputPlayer = this.mockEnv.addInput(input, false);
+		TaskConfig conf = new TaskConfig(this.mockEnv.getTaskConfiguration());
+		conf.addInputToGroup(groupId);
+		conf.setInputSerializer(RecordSerializerFactory.get(), groupId);
+		return inputPlayer;
 	}
 
 	public void addOutput(List<Record> output) {

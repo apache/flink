@@ -30,7 +30,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.io.network.api.MutableReader;
+import org.apache.flink.runtime.io.network.api.reader.MutableReader;
 import org.apache.flink.runtime.iterative.concurrent.BlockingBackChannel;
 import org.apache.flink.runtime.iterative.concurrent.BlockingBackChannelBroker;
 import org.apache.flink.runtime.iterative.concurrent.Broker;
@@ -221,7 +221,7 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 		for (int inputNum : this.iterativeInputs) {
 			MutableReader<?> reader = this.inputReaders[inputNum];
 
-			if (!reader.isInputClosed()) {
+			if (!reader.isFinished()) {
 				if (reader.hasReachedEndOfSuperstep()) {
 					reader.startNextSuperstep();
 				}
@@ -232,7 +232,7 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 					Object o = this.inputSerializers[inputNum].getSerializer().createInstance();
 					while ((o = inIter.next(o)) != null);
 					
-					if (!reader.isInputClosed()) {
+					if (!reader.isFinished()) {
 						// also reset the end-of-superstep state
 						reader.startNextSuperstep();
 					}
@@ -243,7 +243,7 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 		for (int inputNum : this.iterativeBroadcastInputs) {
 			MutableReader<?> reader = this.broadcastInputReaders[inputNum];
 
-			if (!reader.isInputClosed()) {
+			if (!reader.isFinished()) {
 				
 				// sanity check that the BC input is at the end of the superstep
 				if (!reader.hasReachedEndOfSuperstep()) {

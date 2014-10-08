@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.runtime.io.network.channels.ChannelID;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 
 public class ExecutionEdge {
 
@@ -28,9 +28,9 @@ public class ExecutionEdge {
 	
 	private final int inputNum;
 
-	private final ChannelID inputChannelId;
+	private final InputChannelID inputChannelId;
 	
-	private final ChannelID outputChannelId;
+	private final InputChannelID outputChannelId;
 	
 	
 	public ExecutionEdge(IntermediateResultPartition source, ExecutionVertex target, int inputNum) {
@@ -38,11 +38,11 @@ public class ExecutionEdge {
 		this.target = target;
 		this.inputNum = inputNum;
 		
-		this.inputChannelId = new ChannelID();
-		this.outputChannelId = new ChannelID();
+		this.inputChannelId = new InputChannelID();
+		this.outputChannelId = new InputChannelID();
 	}
 	
-	public ExecutionEdge(IntermediateResultPartition source, ExecutionVertex target, int inputNum, ChannelID inputChannelId, ChannelID outputChannelId) {
+	public ExecutionEdge(IntermediateResultPartition source, ExecutionVertex target, int inputNum, InputChannelID inputChannelId, InputChannelID outputChannelId) {
 		this.source = source;
 		this.target = target;
 		this.inputNum = inputNum;
@@ -64,11 +64,11 @@ public class ExecutionEdge {
 		return inputNum;
 	}
 	
-	public ChannelID getInputChannelId() {
+	public InputChannelID getInputChannelId() {
 		return inputChannelId;
 	}
 	
-	public ChannelID getOutputChannelId() {
+	public InputChannelID getOutputChannelId() {
 		return outputChannelId;
 	}
 }

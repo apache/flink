@@ -25,6 +25,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.flink.configuration.ConfigConstants;
@@ -34,18 +35,18 @@ import org.apache.flink.runtime.ExecutionMode;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.deployment.ChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.GateDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.IntermediateResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.io.network.ConnectionInfoLookupResponse;
-import org.apache.flink.runtime.io.network.api.RecordReader;
-import org.apache.flink.runtime.io.network.api.RecordWriter;
-import org.apache.flink.runtime.io.network.bufferprovider.GlobalBufferPool;
-import org.apache.flink.runtime.io.network.channels.ChannelID;
+import org.apache.flink.runtime.io.network.api.reader.RecordReader;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
+import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -55,7 +56,6 @@ import org.apache.flink.runtime.types.IntegerRecord;
 import org.junit.Test;
 
 import org.mockito.Matchers;
-
 
 public class TaskManagerTest {
 	
@@ -73,7 +73,7 @@ public class TaskManagerTest {
 			
 			TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(jid, vid, eid, "TestTask", 2, 7,
 					new Configuration(), new Configuration(), TestInvokableCorrect.class.getName(),
-					Collections.<GateDeploymentDescriptor>emptyList(), 
+					Collections.<IntermediateResultPartitionDeploymentDescriptor>emptyList(),
 					Collections.<GateDeploymentDescriptor>emptyList(),
 					new ArrayList<BlobKey>(), 0);
 			
@@ -117,13 +117,13 @@ public class TaskManagerTest {
 			
 			TaskDeploymentDescriptor tdd1 = new TaskDeploymentDescriptor(jid1, vid1, eid1, "TestTask1", 1, 5,
 					new Configuration(), new Configuration(), TestInvokableBlockingCancelable.class.getName(),
-					Collections.<GateDeploymentDescriptor>emptyList(), 
+					Collections.<IntermediateResultPartitionDeploymentDescriptor>emptyList(),
 					Collections.<GateDeploymentDescriptor>emptyList(),
 					new ArrayList<BlobKey>(), 0);
 			
 			TaskDeploymentDescriptor tdd2 = new TaskDeploymentDescriptor(jid2, vid2, eid2, "TestTask2", 2, 7,
 					new Configuration(), new Configuration(), TestInvokableBlockingCancelable.class.getName(),
-					Collections.<GateDeploymentDescriptor>emptyList(), 
+					Collections.<IntermediateResultPartitionDeploymentDescriptor>emptyList(),
 					Collections.<GateDeploymentDescriptor>emptyList(),
 					new ArrayList<BlobKey>(), 0);
 
@@ -199,13 +199,13 @@ public class TaskManagerTest {
 			
 			TaskDeploymentDescriptor tdd1 = new TaskDeploymentDescriptor(jid, vid1, eid1, "Sender", 0, 1,
 					new Configuration(), new Configuration(), Sender.class.getName(),
-					Collections.<GateDeploymentDescriptor>emptyList(),
+					Collections.<IntermediateResultPartitionDeploymentDescriptor>emptyList(),
 					Collections.<GateDeploymentDescriptor>emptyList(),
 					new ArrayList<BlobKey>(), 0);
 			
 			TaskDeploymentDescriptor tdd2 = new TaskDeploymentDescriptor(jid, vid2, eid2, "Receiver", 2, 7,
 					new Configuration(), new Configuration(), Receiver.class.getName(),
-					Collections.<GateDeploymentDescriptor>emptyList(),
+					Collections.<IntermediateResultPartitionDeploymentDescriptor>emptyList(),
 					Collections.<GateDeploymentDescriptor>emptyList(),
 					new ArrayList<BlobKey>(), 0);
 
@@ -244,8 +244,8 @@ public class TaskManagerTest {
 			ExecutionAttemptID eid1 = new ExecutionAttemptID();
 			ExecutionAttemptID eid2 = new ExecutionAttemptID();
 			
-			ChannelID senderId = new ChannelID();
-			ChannelID receiverId = new ChannelID();
+			InputChannelID senderId = new InputChannelID();
+			InputChannelID receiverId = new InputChannelID();
 			
 			jobManager = getJobManagerMockBase();
 			when(jobManager.lookupConnectionInfo(Matchers.any(InstanceConnectionInfo.class), Matchers.eq(jid), Matchers.eq(senderId)))
@@ -254,16 +254,21 @@ public class TaskManagerTest {
 			tm = createTaskManager(jobManager);
 			
 			ChannelDeploymentDescriptor cdd = new ChannelDeploymentDescriptor(senderId, receiverId);
+
+			List<IntermediateResultPartitionDeploymentDescriptor> irpdd = new ArrayList<IntermediateResultPartitionDeploymentDescriptor>();
+			IntermediateResultPartitionDeploymentDescriptor irp = mock(IntermediateResultPartitionDeploymentDescriptor.class);
+			when(irp.getGdd()).thenReturn(new GateDeploymentDescriptor(Collections.singletonList(cdd)));
+			irpdd.add(irp);
 			
 			TaskDeploymentDescriptor tdd1 = new TaskDeploymentDescriptor(jid, vid1, eid1, "Sender", 0, 1,
 					new Configuration(), new Configuration(), Sender.class.getName(),
-					Collections.singletonList(new GateDeploymentDescriptor(Collections.singletonList(cdd))), 
+					irpdd,
 					Collections.<GateDeploymentDescriptor>emptyList(),
 					new ArrayList<BlobKey>(), 0);
 			
 			TaskDeploymentDescriptor tdd2 = new TaskDeploymentDescriptor(jid, vid2, eid2, "Receiver", 2, 7,
 					new Configuration(), new Configuration(), Receiver.class.getName(),
-					Collections.<GateDeploymentDescriptor>emptyList(),
+					Collections.<IntermediateResultPartitionDeploymentDescriptor>emptyList(),
 					Collections.singletonList(new GateDeploymentDescriptor(Collections.singletonList(cdd))),
 					new ArrayList<BlobKey>(), 0);
 
@@ -331,8 +336,8 @@ public class TaskManagerTest {
 			ExecutionAttemptID eid1 = new ExecutionAttemptID();
 			ExecutionAttemptID eid2 = new ExecutionAttemptID();
 			
-			ChannelID senderId = new ChannelID();
-			ChannelID receiverId = new ChannelID();
+			InputChannelID senderId = new InputChannelID();
+			InputChannelID receiverId = new InputChannelID();
 			
 			jobManager = getJobManagerMockBase();
 			when(jobManager.updateTaskExecutionState(any(TaskExecutionState.class))).thenReturn(false);
@@ -342,16 +347,21 @@ public class TaskManagerTest {
 			tm = createTaskManager(jobManager);
 			
 			ChannelDeploymentDescriptor cdd = new ChannelDeploymentDescriptor(senderId, receiverId);
+
+			List<IntermediateResultPartitionDeploymentDescriptor> irpdd = new ArrayList<IntermediateResultPartitionDeploymentDescriptor>();
+			IntermediateResultPartitionDeploymentDescriptor irp = mock(IntermediateResultPartitionDeploymentDescriptor.class);
+			when(irp.getGdd()).thenReturn(new GateDeploymentDescriptor(Collections.singletonList(cdd)));
+			irpdd.add(irp);
 			
 			TaskDeploymentDescriptor tdd1 = new TaskDeploymentDescriptor(jid, vid1, eid1, "Sender", 0, 1,
 					new Configuration(), new Configuration(), Sender.class.getName(),
-					Collections.singletonList(new GateDeploymentDescriptor(Collections.singletonList(cdd))), 
+					irpdd,
 					Collections.<GateDeploymentDescriptor>emptyList(),
 					new ArrayList<BlobKey>(), 0);
 			
 			TaskDeploymentDescriptor tdd2 = new TaskDeploymentDescriptor(jid, vid2, eid2, "Receiver", 2, 7,
 					new Configuration(), new Configuration(), ReceiverBlocking.class.getName(),
-					Collections.<GateDeploymentDescriptor>emptyList(),
+					Collections.<IntermediateResultPartitionDeploymentDescriptor>emptyList(),
 					Collections.singletonList(new GateDeploymentDescriptor(Collections.singletonList(cdd))),
 					new ArrayList<BlobKey>(), 0);
 			
@@ -402,8 +412,8 @@ public class TaskManagerTest {
 	
 	
 	private static void assertNetworkResourcesReleased(TaskManager tm) {
-		GlobalBufferPool gbp = tm.getChannelManager().getGlobalBufferPool();
-		assertEquals(gbp.numBuffers(), gbp.numAvailableBuffers());
+		NetworkBufferPool gbp = tm.getNetworkBufferPool();
+		assertEquals(gbp.getNumMemorySegments(), gbp.getNumAvailableMemorySegments());
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -465,12 +475,11 @@ public class TaskManagerTest {
 		
 		@Override
 		public void registerInputOutput() {
-			writer = new RecordWriter<IntegerRecord>(this);
+			writer = new RecordWriter<IntegerRecord>(getEnvironment().getWriter(0));
 		}
 
 		@Override
 		public void invoke() throws Exception {
-			writer.initializeSerializers();
 			writer.emit(new IntegerRecord(42));
 			writer.emit(new IntegerRecord(1337));
 			writer.flush();
@@ -483,7 +492,7 @@ public class TaskManagerTest {
 		
 		@Override
 		public void registerInputOutput() {
-			reader = new RecordReader<IntegerRecord>(this, IntegerRecord.class);
+			reader = new RecordReader<IntegerRecord>(getEnvironment().getReader(0), IntegerRecord.class);
 		}
 
 		@Override
@@ -502,7 +511,6 @@ public class TaskManagerTest {
 
 		@Override
 		public void registerInputOutput() {
-			new RecordReader<IntegerRecord>(this, IntegerRecord.class);
 		}
 
 		@Override
