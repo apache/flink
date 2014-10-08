@@ -25,4 +25,25 @@ public class Edge<K, V> {
 	private K target;
 	
 	private V value;
+	
+	public Edge(K src, K trg) {
+		this.source = src;
+		this.target = trg;
+	}
+
+	public Edge(K src, K trg, V val) {
+		this.source = src;
+		this.target = trg;
+		this.value = val;
+	}
+
+	public Edge<K, V> reverse() {
+		if (value != null) {
+			return new Edge<K, V>(this.target, this.source, this.value);
+		}
+		else {
+			return new Edge<K, V>(this.target, this.source);
+		}
+		
+	}
 }
