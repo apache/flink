@@ -28,7 +28,6 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
-
 import org.apache.flink.api.java.typeutils.runtime.tuple.base.TuplePairComparatorTestBase;
 
 public class GenericPairComparatorTest extends TuplePairComparatorTestBase<Tuple3<Integer, String, Double>, Tuple4<Integer, Float, Long, Double>> {
@@ -57,7 +56,7 @@ public class GenericPairComparatorTest extends TuplePairComparatorTestBase<Tuple
 		new Tuple4<Integer, Float, Long, Double>(7, 0.88f, 34L, 15.2)
 	};
 
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings("rawtypes")
 	@Override
 	protected GenericPairComparator<Tuple3<Integer, String, Double>, Tuple4<Integer, Float, Long, Double>> createComparator(boolean ascending) {
 		int[] fields1 = new int[]{0, 2};

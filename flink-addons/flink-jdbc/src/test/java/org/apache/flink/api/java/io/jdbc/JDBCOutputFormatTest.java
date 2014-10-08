@@ -26,7 +26,6 @@ import java.sql.Statement;
 
 import org.junit.Assert;
 
-import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.junit.After;
 import org.junit.AfterClass;

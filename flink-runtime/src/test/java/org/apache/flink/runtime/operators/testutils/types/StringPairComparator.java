@@ -34,8 +34,6 @@ public class StringPairComparator extends TypeComparator<StringPair> {
 	
 	private String reference;
 
-	private Comparable[] extractedKey = new Comparable[1];
-
 	private final TypeComparator[] comparators = new TypeComparator[] {new StringComparator(true)};
 
 	@Override
@@ -118,12 +116,12 @@ public class StringPairComparator extends TypeComparator<StringPair> {
 	}
 
 	@Override
-	public Object[] extractKeys(StringPair record) {
-		extractedKey[0] = record.getKey();
-		return extractedKey;
+	public int extractKeys(Object record, Object[] target, int index) {
+		target[index] = ((StringPair) record).getKey();
+		return 1;
 	}
 
-	@Override public TypeComparator[] getComparators() {
+	@Override public TypeComparator[] getFlatComparators() {
 		return comparators;
 	}
 }

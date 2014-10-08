@@ -35,7 +35,12 @@ import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.compiler.PactCompiler;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
+import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.CrazyNested;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.CustomType;
+import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.FromTuple;
+import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.FromTupleWithCTor;
+import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.POJO;
+import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.PojoContainingTupleAndWritable;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.util.Collector;
 import org.junit.runner.RunWith;
@@ -48,7 +53,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 @RunWith(Parameterized.class)
 public class GroupReduceITCase extends JavaProgramTestBase {
 	
-	private static int NUM_PROGRAMS = 15;
+	private static int NUM_PROGRAMS = 26;
 	
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -406,7 +411,6 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 				/*
 				 * check correctness of groupReduce with descending group sort
 				 */
-
 					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 					env.setDegreeOfParallelism(1);
 
@@ -484,12 +488,304 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 							"16,6,Comment#10\n";
 					
 				}
+				case 16: {
+					/*
+					 * Deep nesting test
+					 * + null value in pojo
+					 */
+					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+					
+					DataSet<CrazyNested> ds = CollectionDataSets.getCrazyNestedDataSet(env);
+					DataSet<Tuple2<String, Integer>> reduceDs = ds.groupBy("nest_Lvl1.nest_Lvl2.nest_Lvl3.nest_Lvl4.f1nal")
+							.reduceGroup(new GroupReduceFunction<CollectionDataSets.CrazyNested, Tuple2<String, Integer>>() {
+								private static final long serialVersionUID = 1L;
+
+								@Override
+								public void reduce(Iterable<CrazyNested> values,
+										Collector<Tuple2<String, Integer>> out)
+										throws Exception {
+									int c = 0; String n = null;
+									for(CrazyNested v : values) {
+										c++; // haha
+										n = v.nest_Lvl1.nest_Lvl2.nest_Lvl3.nest_Lvl4.f1nal;
+									}
+									out.collect(new Tuple2<String, Integer>(n,c));
+								}});
+					
+					reduceDs.writeAsCsv(resultPath);
+					env.execute();
+					
+					// return expected result
+					return "aa,1\nbb,2\ncc,3\n";
+				} 
+				case 17: {
+					/*
+					 * Test Pojo extending from tuple WITH custom fields
+					 */
+					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+					
+					DataSet<FromTupleWithCTor> ds = CollectionDataSets.getPojoExtendingFromTuple(env);
+					DataSet<Integer> reduceDs = ds.groupBy("special", "f2")
+							.reduceGroup(new GroupReduceFunction<FromTupleWithCTor, Integer>() {
+								private static final long serialVersionUID = 1L;
+								@Override
+								public void reduce(Iterable<FromTupleWithCTor> values,
+										Collector<Integer> out)
+										throws Exception {
+									int c = 0;
+									for(FromTuple v : values) {
+										c++;
+									}
+									out.collect(c);
+								}});
+					
+					reduceDs.writeAsText(resultPath);
+					env.execute();
+					
+					// return expected result
+					return "3\n2\n";
+				} 
+				case 18: {
+					/*
+					 * Test Pojo containing a Writable and Tuples
+					 */
+					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+					
+					DataSet<PojoContainingTupleAndWritable> ds = CollectionDataSets.getPojoContainingTupleAndWritable(env);
+					DataSet<Integer> reduceDs = ds.groupBy("hadoopFan", "theTuple.*") // full tuple selection
+							.reduceGroup(new GroupReduceFunction<PojoContainingTupleAndWritable, Integer>() {
+								private static final long serialVersionUID = 1L;
+								@Override
+								public void reduce(Iterable<PojoContainingTupleAndWritable> values,
+										Collector<Integer> out)
+										throws Exception {
+									int c = 0;
+									for(PojoContainingTupleAndWritable v : values) {
+										c++;
+									}
+									out.collect(c);
+								}});
+					
+					reduceDs.writeAsText(resultPath);
+					env.execute();
+					
+					// return expected result
+					return "1\n5\n";
+				} 
+				case 19: {
+					/*
+					 * Test Tuple containing pojos and regular fields
+					 */
+					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+					
+					DataSet<Tuple3<Integer,CrazyNested, POJO>> ds = CollectionDataSets.getTupleContainingPojos(env);
+					DataSet<Integer> reduceDs = ds.groupBy("f0", "f1.*") // nested full tuple selection
+							.reduceGroup(new GroupReduceFunction<Tuple3<Integer,CrazyNested, POJO>, Integer>() {
+								private static final long serialVersionUID = 1L;
+								@Override
+								public void reduce(Iterable<Tuple3<Integer,CrazyNested, POJO>> values,
+										Collector<Integer> out)
+										throws Exception {
+									int c = 0;
+									for(Tuple3<Integer,CrazyNested, POJO> v : values) {
+										c++;
+									}
+									out.collect(c);
+								}});
+					
+					reduceDs.writeAsText(resultPath);
+					env.execute();
+					
+					// return expected result
+					return "3\n1\n";
+				}
+				case 20: {
+					/*
+					 * Test string-based definition on group sort, based on test:
+					 * check correctness of groupReduce with descending group sort
+					 */
+					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+					env.setDegreeOfParallelism(1);
+
+					DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+					DataSet<Tuple3<Integer, Long, String>> reduceDs = ds.
+							groupBy(1).sortGroup("f2", Order.DESCENDING).reduceGroup(new Tuple3SortedGroupReduce());
+
+					reduceDs.writeAsCsv(resultPath);
+					env.execute();
+
+					// return expected result
+					return "1,1,Hi\n" +
+							"5,2,Hello world-Hello\n" +
+							"15,3,Luke Skywalker-I am fine.-Hello world, how are you?\n" +
+							"34,4,Comment#4-Comment#3-Comment#2-Comment#1\n" +
+							"65,5,Comment#9-Comment#8-Comment#7-Comment#6-Comment#5\n" +
+							"111,6,Comment#15-Comment#14-Comment#13-Comment#12-Comment#11-Comment#10\n";
+
+				}
+				case 21: {
+					/*
+					 * Test int-based definition on group sort, for (full) nested Tuple
+					 */
+					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+					env.setDegreeOfParallelism(1);
+
+					DataSet<Tuple2<Tuple2<Integer, Integer>, String>> ds = CollectionDataSets.getGroupSortedNestedTupleDataSet(env);
+					DataSet<String> reduceDs = ds.groupBy("f1").sortGroup(0, Order.DESCENDING).reduceGroup(new NestedTupleReducer());
+					reduceDs.writeAsText(resultPath);
+					env.execute();
+
+					// return expected result
+					return "a--(2,1)-(1,3)-(1,2)-\n" +
+							"b--(2,2)-\n"+
+							"c--(4,9)-(3,6)-(3,3)-\n";
+				}
+				case 22: {
+					/*
+					 * Test int-based definition on group sort, for (partial) nested Tuple ASC
+					 */
+					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+					env.setDegreeOfParallelism(1);
+
+					DataSet<Tuple2<Tuple2<Integer, Integer>, String>> ds = CollectionDataSets.getGroupSortedNestedTupleDataSet(env);
+					// f0.f0 is first integer
+					DataSet<String> reduceDs = ds.groupBy("f1").sortGroup("f0.f0", Order.ASCENDING).reduceGroup(new NestedTupleReducer());
+					reduceDs.writeAsText(resultPath);
+					env.execute();
+					
+					// return expected result
+					return "a--(1,3)-(1,2)-(2,1)-\n" +
+							"b--(2,2)-\n"+
+							"c--(3,3)-(3,6)-(4,9)-\n";
+				}
+				case 23: {
+					/*
+					 * Test string-based definition on group sort, for (partial) nested Tuple DESC
+					 */
+					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+					env.setDegreeOfParallelism(1);
+
+					DataSet<Tuple2<Tuple2<Integer, Integer>, String>> ds = CollectionDataSets.getGroupSortedNestedTupleDataSet(env);
+					// f0.f0 is first integer
+					DataSet<String> reduceDs = ds.groupBy("f1").sortGroup("f0.f0", Order.DESCENDING).reduceGroup(new NestedTupleReducer());
+					reduceDs.writeAsText(resultPath);
+					env.execute();
+					
+					// return expected result
+					return "a--(2,1)-(1,3)-(1,2)-\n" +
+							"b--(2,2)-\n"+
+							"c--(4,9)-(3,3)-(3,6)-\n";
+				}
+				case 24: {
+					/*
+					 * Test string-based definition on group sort, for two grouping keys
+					 */
+					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+					env.setDegreeOfParallelism(1);
+
+					DataSet<Tuple2<Tuple2<Integer, Integer>, String>> ds = CollectionDataSets.getGroupSortedNestedTupleDataSet(env);
+					// f0.f0 is first integer
+					DataSet<String> reduceDs = ds.groupBy("f1").sortGroup("f0.f0", Order.DESCENDING).sortGroup("f0.f1", Order.DESCENDING).reduceGroup(new NestedTupleReducer());
+					reduceDs.writeAsText(resultPath);
+					env.execute();
+					
+					// return expected result
+					return "a--(2,1)-(1,3)-(1,2)-\n" +
+							"b--(2,2)-\n"+
+							"c--(4,9)-(3,6)-(3,3)-\n";
+				}
+				case 25: {
+					/*
+					 * Test string-based definition on group sort, for two grouping keys with Pojos
+					 */
+					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+					env.setDegreeOfParallelism(1);
+
+					DataSet<PojoContainingTupleAndWritable> ds = CollectionDataSets.getGroupSortedPojoContainingTupleAndWritable(env);
+					// f0.f0 is first integer
+					DataSet<String> reduceDs = ds.groupBy("hadoopFan").sortGroup("theTuple.f0", Order.DESCENDING).sortGroup("theTuple.f1", Order.DESCENDING)
+							.reduceGroup(new GroupReduceFunction<CollectionDataSets.PojoContainingTupleAndWritable, String>() {
+								@Override
+								public void reduce(
+										Iterable<PojoContainingTupleAndWritable> values,
+										Collector<String> out) throws Exception {
+									boolean once = false;
+									StringBuilder concat = new StringBuilder();
+									for(PojoContainingTupleAndWritable value : values) {
+										if(!once) {
+											concat.append(value.hadoopFan.get());
+											concat.append("---");
+											once = true;
+										}
+										concat.append(value.theTuple);
+										concat.append("-");
+									}
+									out.collect(concat.toString());
+								}
+					});
+					reduceDs.writeAsText(resultPath);
+					env.execute();
+					
+					// return expected result
+					return "1---(10,100)-\n" +
+							"2---(30,600)-(30,400)-(30,200)-(20,201)-(20,200)-\n";
+				}
+				case 26: {
+					/*
+					 * Test grouping with pojo containing multiple pojos (was a bug)
+					 */
+					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+					env.setDegreeOfParallelism(1);
+
+					DataSet<CollectionDataSets.PojoWithMultiplePojos> ds = CollectionDataSets.getPojoWithMultiplePojos(env);
+					// f0.f0 is first integer
+					DataSet<String> reduceDs = ds.groupBy("p2.a2")
+							.reduceGroup(new GroupReduceFunction<CollectionDataSets.PojoWithMultiplePojos, String>() {
+								@Override
+								public void reduce(
+										Iterable<CollectionDataSets.PojoWithMultiplePojos> values,
+										Collector<String> out) throws Exception {
+									StringBuilder concat = new StringBuilder();
+									for(CollectionDataSets.PojoWithMultiplePojos value : values) {
+										concat.append(value.p2.a2);
+									}
+									out.collect(concat.toString());
+								}
+							});
+					reduceDs.writeAsText(resultPath);
+					env.execute();
+
+					// return expected result
+					return "b\nccc\nee\n";
+				}
+				
 				default: {
 					throw new IllegalArgumentException("Invalid program id");
 				}
 			}
 		}
 	
+	}
+	
+	
+	public static class NestedTupleReducer implements GroupReduceFunction<Tuple2<Tuple2<Integer,Integer>,String>, String> {
+		@Override
+		public void reduce(
+				Iterable<Tuple2<Tuple2<Integer, Integer>, String>> values,
+				Collector<String> out)
+				throws Exception {
+			boolean once = false;
+			StringBuilder concat = new StringBuilder();
+			for(Tuple2<Tuple2<Integer, Integer>, String> value : values) {
+				if(!once) {
+					concat.append(value.f1).append("--");
+					once = true;
+				}
+				concat.append(value.f0); // the tuple with the sorted groups
+				concat.append("-");
+			}
+			out.collect(concat.toString());
+		}
 	}
 	
 	public static class Tuple3GroupReduce implements GroupReduceFunction<Tuple3<Integer, Long, String>, Tuple2<Integer, Long>> {

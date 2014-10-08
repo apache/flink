@@ -26,6 +26,7 @@ import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
 import org.apache.flink.api.common.operators.base.MapOperatorBase;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction.Combinable;
 import org.apache.flink.api.java.operators.translation.KeyExtractingMapper;
@@ -58,7 +59,7 @@ public class DistinctOperator<T> extends SingleInputOperator<T, T, DistinctOpera
 				for(int i = 0; i < tupleType.getArity(); i++) {
 					allFields[i] = i;
 				}
-				keys = new Keys.FieldPositionKeys<T>(allFields, input.getType(), true);
+				keys = new Keys.ExpressionKeys<T>(allFields, input.getType(), true);
 			}
 			else {
 				throw new InvalidProgramException("Distinction on all fields is only possible on tuple data types.");
@@ -67,8 +68,8 @@ public class DistinctOperator<T> extends SingleInputOperator<T, T, DistinctOpera
 		
 		
 		// FieldPositionKeys can only be applied on Tuples
-		if (keys instanceof Keys.FieldPositionKeys && !input.getType().isTupleType()) {
-			throw new InvalidProgramException("Distinction on field positions is only possible on tuple data types.");
+		if (keys instanceof Keys.ExpressionKeys && !(input.getType() instanceof CompositeType)) {
+			throw new InvalidProgramException("Distinction on field positions is only possible on composite type DataSets.");
 		}
 		
 		this.keys = keys;
@@ -81,7 +82,7 @@ public class DistinctOperator<T> extends SingleInputOperator<T, T, DistinctOpera
 
 		String name = function.getClass().getName();
 		
-		if (keys instanceof Keys.FieldPositionKeys) {
+		if (keys instanceof Keys.ExpressionKeys) {
 
 			int[] logicalKeyPositions = keys.computeLogicalKeyPositions();
 			UnaryOperatorInformation<T, T> operatorInfo = new UnaryOperatorInformation<T, T>(getInputType(), getResultType());

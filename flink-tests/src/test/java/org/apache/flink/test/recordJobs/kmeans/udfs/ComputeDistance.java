@@ -25,7 +25,6 @@ import org.apache.flink.api.java.record.functions.FunctionAnnotation.ConstantFie
 import org.apache.flink.types.DoubleValue;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
-import org.apache.flink.util.Collector;
 
 /**
  * Cross PACT computes the distance of all data points to all cluster

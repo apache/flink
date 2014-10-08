@@ -22,7 +22,7 @@ import org.apache.flink.api.common.InvalidProgramException
 
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.operators.Keys
-import org.apache.flink.api.java.operators.Keys.FieldPositionKeys
+import org.apache.flink.api.java.operators.Keys.ExpressionKeys
 import org.apache.flink.api.common.typeinfo.TypeInformation
 
 /**
@@ -56,7 +56,7 @@ private[flink] abstract class UnfinishedKeyPairOperation[L, R, O](
    * This only works on Tuple [[DataSet]].
    */
   def where(leftKeys: Int*) = {
-    val leftKey = new FieldPositionKeys[L](leftKeys.toArray, leftInput.getType)
+    val leftKey = new ExpressionKeys[L](leftKeys.toArray, leftInput.getType)
     new HalfUnfinishedKeyPairOperation[L, R, O](this, leftKey)
   }
 
@@ -73,7 +73,7 @@ private[flink] abstract class UnfinishedKeyPairOperation[L, R, O](
       leftInput.getType,
       firstLeftField +: otherLeftFields.toArray)
 
-    val leftKey = new FieldPositionKeys[L](fieldIndices, leftInput.getType)
+    val leftKey = new ExpressionKeys[L](fieldIndices, leftInput.getType)
     new HalfUnfinishedKeyPairOperation[L, R, O](this, leftKey)
   }
 
@@ -103,8 +103,8 @@ private[flink] class HalfUnfinishedKeyPairOperation[L, R, O](
    * This only works on a Tuple [[DataSet]].
    */
   def equalTo(rightKeys: Int*): O = {
-    val rightKey = new FieldPositionKeys[R](rightKeys.toArray, unfinished.rightInput.getType)
-    if (!leftKey.areCompatibale(rightKey)) {
+    val rightKey = new ExpressionKeys[R](rightKeys.toArray, unfinished.rightInput.getType)
+    if (!leftKey.areCompatible(rightKey)) {
       throw new InvalidProgramException("The types of the key fields do not match. Left: " +
         leftKey + " Right: " + rightKey)
     }
@@ -122,8 +122,8 @@ private[flink] class HalfUnfinishedKeyPairOperation[L, R, O](
       unfinished.rightInput.getType,
       firstRightField +: otherRightFields.toArray)
 
-    val rightKey = new FieldPositionKeys[R](fieldIndices, unfinished.rightInput.getType)
-    if (!leftKey.areCompatibale(rightKey)) {
+    val rightKey = new ExpressionKeys[R](fieldIndices, unfinished.rightInput.getType)
+    if (!leftKey.areCompatible(rightKey)) {
       throw new InvalidProgramException("The types of the key fields do not match. Left: " +
         leftKey + " Right: " + rightKey)
     }
@@ -145,7 +145,7 @@ private[flink] class HalfUnfinishedKeyPairOperation[L, R, O](
       unfinished.rightInput.getType,
       keyType)
     
-    if (!leftKey.areCompatibale(rightKey)) {
+    if (!leftKey.areCompatible(rightKey)) {
       throw new InvalidProgramException("The types of the key fields do not match. Left: " +
         leftKey + " Right: " + rightKey)
     }

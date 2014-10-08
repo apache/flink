@@ -18,33 +18,41 @@
 
 package org.apache.flink.api.java.typeutils;
 
-import com.google.common.base.Joiner;
-
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
+import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.common.typeinfo.AtomicType;
-import org.apache.flink.api.common.typeinfo.CompositeType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.operators.Keys.ExpressionKeys;
 import org.apache.flink.api.java.typeutils.runtime.PojoComparator;
 import org.apache.flink.api.java.typeutils.runtime.PojoSerializer;
 
+import com.google.common.base.Joiner;
+
 
 /**
- *
+ * TypeInformation for arbitrary (they have to be java-beans-style) java objects (what we call POJO).
+ * 
  */
-public class PojoTypeInfo<T> extends TypeInformation<T> implements CompositeType<T> {
+public class PojoTypeInfo<T> extends CompositeType<T>{
 
 	private final Class<T> typeClass;
 
 	private PojoField[] fields;
+	
+	private int totalFields;
 
 	public PojoTypeInfo(Class<T> typeClass, List<PojoField> fields) {
+		super(typeClass);
 		this.typeClass = typeClass;
 		List<PojoField> tempFields = new ArrayList<PojoField>(fields);
 		Collections.sort(tempFields, new Comparator<PojoField>() {
@@ -54,6 +62,14 @@ public class PojoTypeInfo<T> extends TypeInformation<T> implements CompositeType
 			}
 		});
 		this.fields = tempFields.toArray(new PojoField[tempFields.size()]);
+		
+		// check if POJO is public
+		if(!Modifier.isPublic(typeClass.getModifiers())) {
+			throw new RuntimeException("POJO "+typeClass+" is not public");
+		}
+		for(PojoField field : fields) {
+			totalFields += field.type.getTotalFields();
+		}
 	}
 
 	@Override
@@ -71,6 +87,11 @@ public class PojoTypeInfo<T> extends TypeInformation<T> implements CompositeType
 	public int getArity() {
 		return fields.length;
 	}
+	
+	@Override
+	public int getTotalFields() {
+		return totalFields;
+	}
 
 	@Override
 	public Class<T> getTypeClass() {
@@ -82,18 +103,6 @@ public class PojoTypeInfo<T> extends TypeInformation<T> implements CompositeType
 		return Comparable.class.isAssignableFrom(typeClass);
 	}
 
-	@Override
-	public TypeSerializer<T> createSerializer() {
-		TypeSerializer<?>[] fieldSerializers = new TypeSerializer<?>[fields.length];
-		Field[] reflectiveFields = new Field[fields.length];
-
-		for (int i = 0; i < fields.length; i++) {
-			fieldSerializers[i] = fields[i].type.createSerializer();
-			reflectiveFields[i] = fields[i].field;
-		}
-
-		return new PojoSerializer<T>(this.typeClass, fieldSerializers, reflectiveFields);
-	}
 
 	@Override
 	public String toString() {
@@ -105,73 +114,128 @@ public class PojoTypeInfo<T> extends TypeInformation<T> implements CompositeType
 				+ ", fields = [" + Joiner.on(", ").join(fieldStrings) + "]"
 				+ ">";
 	}
-
-	public int getLogicalPosition(String fieldExpression) {
-		for (int i = 0; i < fields.length; i++) {
-			if (fields[i].field.getName().equals(fieldExpression)) {
-				return i;
+	
+	@Override
+	public void getKey(String fieldExpression, int offset, List<FlatFieldDescriptor> result) {
+		// handle 'select all' first
+		if(fieldExpression.equals(ExpressionKeys.SELECT_ALL_CHAR) || fieldExpression.equals(ExpressionKeys.SELECT_ALL_CHAR_SCALA)) {
+			int keyPosition = 0;
+			for(PojoField field : fields) {
+				if(field.type instanceof AtomicType) {
+					result.add(new FlatFieldDescriptor(offset + keyPosition, field.type));
+				} else if(field.type instanceof CompositeType) {
+					CompositeType<?> cType = (CompositeType<?>)field.type;
+					cType.getKey(String.valueOf(ExpressionKeys.SELECT_ALL_CHAR), offset + keyPosition, result);
+					keyPosition += cType.getTotalFields()-1;
+				} else {
+					throw new RuntimeException("Unexpected key type: "+field.type);
+				}
+				keyPosition++;
 			}
+			return;
 		}
-		return -1;
-	}
-
-	public int[] getLogicalPositions(String[] fieldExpression) {
-		int[] result = new int[fieldExpression.length];
-		for (int i = 0; i < fieldExpression.length; i++) {
-			result[i] = getLogicalPosition(fieldExpression[i]);
-		}
-		return result;
-	}
-
-	public TypeInformation<?> getType(String fieldExpression) {
-		for (int i = 0; i < fields.length; i++) {
-			if (fields[i].field.getName().equals(fieldExpression)) {
-				return fields[i].type;
+		Validate.notEmpty(fieldExpression, "Field expression must not be empty.");
+		// if there is a dot try getting the field from that sub field
+		int firstDot = fieldExpression.indexOf('.');
+		if (firstDot == -1) {
+			// this is the last field (or only field) in the field expression
+			int fieldId = 0;
+			for (int i = 0; i < fields.length; i++) {
+				if(fields[i].type instanceof CompositeType) {
+					fieldId += fields[i].type.getTotalFields()-1;
+				}
+				if (fields[i].field.getName().equals(fieldExpression)) {
+					if(fields[i].type instanceof CompositeType) {
+						throw new IllegalArgumentException("The specified field '"+fieldExpression+"' is refering to a composite type.\n"
+								+ "Either select all elements in this type with the '"+ExpressionKeys.SELECT_ALL_CHAR+"' operator or specify a field in the sub-type");
+					}
+					result.add(new FlatFieldDescriptor(offset + fieldId, fields[i].type));
+					return;
+				}
+				fieldId++;
 			}
+		} else {
+			// split and go deeper
+			String firstField = fieldExpression.substring(0, firstDot);
+			String rest = fieldExpression.substring(firstDot + 1);
+			int fieldId = 0;
+			for (int i = 0; i < fields.length; i++) {
+				if (fields[i].field.getName().equals(firstField)) {
+					if (!(fields[i].type instanceof CompositeType<?>)) {
+						throw new RuntimeException("Field "+fields[i].type+" (specified by '"+fieldExpression+"') is not a composite type");
+					}
+					CompositeType<?> cType = (CompositeType<?>) fields[i].type;
+					cType.getKey(rest, offset + fieldId, result); // recurse
+					return;
+				}
+				fieldId += fields[i].type.getTotalFields();
+			}
+			throw new RuntimeException("Unable to find field "+fieldExpression+" in type "+this+" (looking for '"+firstField+"')");
 		}
-		return null;
-	}
-
-	public TypeInformation<?>[] getTypes(String[] fieldExpression) {
-		TypeInformation<?>[] result = new TypeInformation<?>[fieldExpression.length];
-		for (int i = 0; i < fieldExpression.length; i++) {
-			result[i] = getType(fieldExpression[i]);
-		}
-		return result;
 	}
 
 	@Override
-	public TypeComparator<T> createComparator(int[] logicalKeyFields, boolean[] orders) {
-		// sanity checks
-		if (logicalKeyFields == null || orders == null || logicalKeyFields.length != orders.length ||
-				logicalKeyFields.length > fields.length)
-		{
-			throw new IllegalArgumentException();
+	public <X> TypeInformation<X> getTypeAt(int pos) {
+		if (pos < 0 || pos >= this.fields.length) {
+			throw new IndexOutOfBoundsException();
 		}
-
-//		if (logicalKeyFields.length == 1) {
-//			return createSinglefieldComparator(logicalKeyFields[0], orders[0], types[logicalKeyFields[0]]);
-//		}
-
-		// create the comparators for the individual fields
-		TypeComparator<?>[] fieldComparators = new TypeComparator<?>[logicalKeyFields.length];
-		Field[] keyFields = new Field[logicalKeyFields.length];
-
-		for (int i = 0; i < logicalKeyFields.length; i++) {
-			int field = logicalKeyFields[i];
-
-			if (field < 0 || field >= fields.length) {
-				throw new IllegalArgumentException("The field position " + field + " is out of range [0," + fields.length + ")");
-			}
-			if (fields[field].type.isKeyType() && fields[field].type instanceof AtomicType) {
-				fieldComparators[i] = ((AtomicType<?>) fields[field].type).createComparator(orders[i]);
-				keyFields[i] = fields[field].field;
-				keyFields[i].setAccessible(true);
-			} else {
-				throw new IllegalArgumentException("The field at position " + field + " (" + fields[field].type + ") is no atomic key type.");
-			}
-		}
-
-		return new PojoComparator<T>(keyFields, fieldComparators, createSerializer(), typeClass);
+		@SuppressWarnings("unchecked")
+		TypeInformation<X> typed = (TypeInformation<X>) fields[pos].type;
+		return typed;
 	}
+
+	// used for testing. Maybe use mockito here
+	public PojoField getPojoFieldAt(int pos) {
+		if (pos < 0 || pos >= this.fields.length) {
+			throw new IndexOutOfBoundsException();
+		}
+		return this.fields[pos];
+	}
+
+	/**
+	 * Comparator creation
+	 */
+	private TypeComparator<?>[] fieldComparators;
+	private Field[] keyFields;
+	private int comparatorHelperIndex = 0;
+	@Override
+	protected void initializeNewComparator(int keyCount) {
+		fieldComparators = new TypeComparator<?>[keyCount];
+		keyFields = new Field[keyCount];
+		comparatorHelperIndex = 0;
+	}
+
+	@Override
+	protected void addCompareField(int fieldId, TypeComparator<?> comparator) {
+		fieldComparators[comparatorHelperIndex] = comparator;
+		keyFields[comparatorHelperIndex] = fields[fieldId].field;
+		comparatorHelperIndex++;
+	}
+
+	@Override
+	protected TypeComparator<T> getNewComparator() {
+		// first remove the null array fields
+		final Field[] finalKeyFields = Arrays.copyOf(keyFields, comparatorHelperIndex);
+		@SuppressWarnings("rawtypes")
+		final TypeComparator[] finalFieldComparators = Arrays.copyOf(fieldComparators, comparatorHelperIndex);
+		if(finalFieldComparators.length == 0 || finalKeyFields.length == 0 ||  finalFieldComparators.length != finalKeyFields.length) {
+			throw new IllegalArgumentException("Pojo comparator creation has a bug");
+		}
+		return new PojoComparator<T>(finalKeyFields, finalFieldComparators, createSerializer(), typeClass);
+	}
+
+
+	@Override
+	public TypeSerializer<T> createSerializer() {
+		TypeSerializer<?>[] fieldSerializers = new TypeSerializer<?>[fields.length ];
+		Field[] reflectiveFields = new Field[fields.length];
+
+		for (int i = 0; i < fields.length; i++) {
+			fieldSerializers[i] = fields[i].type.createSerializer();
+			reflectiveFields[i] = fields[i].field;
+		}
+
+		return new PojoSerializer<T>(this.typeClass, fieldSerializers, reflectiveFields);
+	}
+
 }

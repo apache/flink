@@ -87,7 +87,7 @@ public class TypeInfoParser {
 			}
 			return (TypeInformation<X>) parse(new StringBuilder(clearedString));
 		} catch (Exception e) {
-			throw new IllegalArgumentException("String could not be parsed: " + e.getMessage());
+			throw new IllegalArgumentException("String could not be parsed: " + e.getMessage(), e);
 		}
 	}
 

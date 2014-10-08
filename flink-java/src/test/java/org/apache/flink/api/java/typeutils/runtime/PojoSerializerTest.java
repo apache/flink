@@ -18,27 +18,37 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
-import com.google.common.base.Objects;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
+import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.CompositeType.FlatFieldDescriptor;
+import org.apache.flink.api.java.operators.Keys.ExpressionKeys;
+import org.apache.flink.api.java.operators.Keys.IncompatibleKeysException;
+import org.apache.flink.api.java.tuple.Tuple1;
+import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.typeutils.PojoTypeInfo;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.junit.Ignore;
+import org.junit.Assert;
+import org.junit.Test;
 
-import java.util.Random;
+import com.google.common.base.Objects;
 
 /**
  * A test for the {@link org.apache.flink.api.java.typeutils.runtime.PojoSerializer}.
  */
-@Ignore
 public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.TestUserClass> {
 	private TypeInformation<TestUserClass> type = TypeExtractor.getForClass(TestUserClass.class);
 
 	@Override
 	protected TypeSerializer<TestUserClass> createSerializer() {
 		TypeSerializer<TestUserClass> serializer = type.createSerializer();
-		assert (serializer instanceof PojoSerializer);
+		assert(serializer instanceof PojoSerializer);
 		return serializer;
 	}
 
@@ -67,12 +77,12 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 
 	// User code class for testing the serializer
 	public static class TestUserClass {
-		private int dumm1;
-		protected String dumm2;
+		public int dumm1;
+		public String dumm2;
 		public double dumm3;
-		private int[] dumm4;
+		public int[] dumm4;
 
-		private NestedTestUserClass nestedClass;
+		public NestedTestUserClass nestedClass;
 
 		public TestUserClass() {
 		}
@@ -121,10 +131,10 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 	}
 
 	public static class NestedTestUserClass {
-		private int dumm1;
-		protected String dumm2;
+		public int dumm1;
+		public String dumm2;
 		public double dumm3;
-		private int[] dumm4;
+		public int[] dumm4;
 
 		public NestedTestUserClass() {
 		}
@@ -166,5 +176,53 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 			}
 			return true;
 		}
+	}
+	
+	/**
+	 * This tests if the hashes returned by the pojo and tuple comparators are the same
+	 */
+	@Test
+	public void testTuplePojoTestEquality() {
+		
+		// test with a simple, string-key first.
+		PojoTypeInfo<TestUserClass> pType = (PojoTypeInfo<TestUserClass>) type;
+		List<FlatFieldDescriptor> result = new ArrayList<FlatFieldDescriptor>();
+		pType.getKey("nestedClass.dumm2", 0, result);
+		int[] fields = new int[1]; // see below
+		fields[0] = result.get(0).getPosition();
+		TypeComparator<TestUserClass> pojoComp = pType.createComparator( fields, new boolean[]{true}, 0);
+		
+		TestUserClass pojoTestRecord = new TestUserClass(0, "abc", 3d, new int[] {1,2,3}, new NestedTestUserClass(1, "haha", 4d, new int[] {5,4,3}));
+		int pHash = pojoComp.hash(pojoTestRecord);
+		
+		Tuple1<String> tupleTest = new Tuple1<String>("haha");
+		TupleTypeInfo<Tuple1<String>> tType = (TupleTypeInfo<Tuple1<String>>)TypeExtractor.getForObject(tupleTest);
+		TypeComparator<Tuple1<String>> tupleComp = tType.createComparator(new int[] {0}, new boolean[] {true}, 0);
+		
+		int tHash = tupleComp.hash(tupleTest);
+		
+		Assert.assertTrue("The hashing for tuples and pojos must be the same, so that they are mixable", pHash == tHash);
+		
+		Tuple3<Integer, String, Double> multiTupleTest = new Tuple3<Integer, String, Double>(1, "haha", 4d); // its important here to use the same values.
+		TupleTypeInfo<Tuple3<Integer, String, Double>> multiTupleType = (TupleTypeInfo<Tuple3<Integer, String, Double>>)TypeExtractor.getForObject(multiTupleTest);
+		
+		ExpressionKeys fieldKey = new ExpressionKeys(new int[]{1,0,2}, multiTupleType);
+		ExpressionKeys expressKey = new ExpressionKeys(new String[] {"nestedClass.dumm2", "nestedClass.dumm1", "nestedClass.dumm3"}, pType);
+		try {
+			Assert.assertTrue("Expecting the keys to be compatible", fieldKey.areCompatible(expressKey));
+		} catch (IncompatibleKeysException e) {
+			e.printStackTrace();
+			Assert.fail("Keys must be compatible: "+e.getMessage());
+		}
+		TypeComparator<TestUserClass> multiPojoComp = pType.createComparator( expressKey.computeLogicalKeyPositions(), new boolean[]{true, true, true}, 0);
+		int multiPojoHash = multiPojoComp.hash(pojoTestRecord);
+		
+		
+		// pojo order is: dumm2 (str), dumm1 (int), dumm3 (double).
+		TypeComparator<Tuple3<Integer, String, Double>> multiTupleComp = multiTupleType.createComparator(fieldKey.computeLogicalKeyPositions(), new boolean[] {true, true,true}, 0);
+		int multiTupleHash = multiTupleComp.hash(multiTupleTest);
+		
+		Assert.assertTrue("The hashing for tuples and pojos must be the same, so that they are mixable. Also for those with multiple key fields", multiPojoHash == multiTupleHash);
+		
 	}
 }	

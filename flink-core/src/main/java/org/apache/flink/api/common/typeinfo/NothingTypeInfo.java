@@ -39,6 +39,11 @@ public class NothingTypeInfo extends TypeInformation<Nothing> {
 	}
 
 	@Override
+	public int getTotalFields() {
+		return 0;
+	}
+	
+	@Override
 	public Class<Nothing> getTypeClass() {
 		return Nothing.class;
 	}

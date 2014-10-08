@@ -16,15 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.common.typeinfo;
+package org.apache.flink.api.common.typeutils;
 
-import org.apache.flink.api.common.typeutils.TypeComparator;
+import java.util.LinkedList;
+import java.util.List;
 
+public abstract class CompositeTypeComparator<T> extends TypeComparator<T> {
+	
+	private static final long serialVersionUID = 1L;
 
-/**
- *
- */
-public interface CompositeType<T> {
-
-	TypeComparator<T> createComparator(int[] logicalKeyFields, boolean[] orders);
+	@Override
+	public TypeComparator[] getFlatComparators() {
+		List<TypeComparator> flatComparators = new LinkedList<TypeComparator>();
+		this.getFlatComparator(flatComparators);
+		return flatComparators.toArray(new TypeComparator[flatComparators.size()]);
+	}
+	
+	public abstract void getFlatComparator(List<TypeComparator> flatComparators);
 }

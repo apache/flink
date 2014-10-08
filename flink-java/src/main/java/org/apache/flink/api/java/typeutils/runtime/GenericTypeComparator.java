@@ -53,9 +53,6 @@ public class GenericTypeComparator<T extends Comparable<T>> extends TypeComparat
 	private transient Kryo kryo;
 
 	@SuppressWarnings("rawtypes")
-	private final Comparable[] extractedKey = new Comparable[1];
-
-	@SuppressWarnings("rawtypes")
 	private final TypeComparator[] comparators = new TypeComparator[] {this};
 
 	// ------------------------------------------------------------------------
@@ -171,14 +168,14 @@ public class GenericTypeComparator<T extends Comparable<T>> extends TypeComparat
 	}
 
 	@Override
-	public Object[] extractKeys(T record) {
-		extractedKey[0] = record;
-		return extractedKey;
+	public int extractKeys(Object record, Object[] target, int index) {
+		target[index] = record;
+		return 1;
 	}
 
-	@Override
 	@SuppressWarnings("rawtypes")
-	public TypeComparator[] getComparators() {
+	@Override
+	public TypeComparator[] getFlatComparators() {
 		return comparators;
 	}
 

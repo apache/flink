@@ -176,11 +176,12 @@ DataSet<Tuple2<String, Integer>> out = in.project(2,0).types(String.class, Integ
 ### Transformations on Grouped DataSet
 
 The reduce operations can operate on grouped data sets. Specifying the key to
-be used for grouping can be done in two ways:
+be used for grouping can be done in many ways:
 
-- a key-selector function or
-- one or more field position keys (Tuple DataSet only).
-- Case Class fields (Case Classes only).
+- key expressions
+- a key-selector function
+- one or more field position keys (Tuple DataSet only)
+- Case Class fields (Case Classes only)
 
 Please look at the reduce examples to see how the grouping keys are specified.
 
@@ -220,11 +221,8 @@ public class WordCounter implements ReduceFunction<WC> {
 // [...]
 DataSet<WC> words = // [...]
 DataSet<WC> wordCounts = words
-                         // DataSet grouping with inline-defined KeySelector function
-                         .groupBy(
-                           new KeySelector<WC, String>() {
-                             public String getKey(WC wc) { return wc.word; }
-                           })
+                         // DataSet grouping on field "word"
+                         .groupBy("word")
                          // apply ReduceFunction on grouped DataSet
                          .reduce(new WordCounter());
 ~~~
@@ -360,11 +358,10 @@ Works analogous to grouping by Case Class fields in *Reduce* transformations.
 
 Works analogous to key-selector functions in *Reduce* transformations.
 
-#### GroupReduce on sorted groups (Tuple DataSets only)
+#### GroupReduce on sorted groups
 
 A group-reduce function accesses the elements of a group using an Iterable. Optionally, the Iterable can hand out the elements of a group in a specified order. In many cases this can help to reduce the complexity of a user-defined
 group-reduce function and improve its efficiency.
-Right now, this feature is only available for DataSets of Tuples.
 
 The following code shows another example how to remove duplicate Strings in a DataSet grouped by an Integer and sorted by String.
 
@@ -656,7 +653,8 @@ val output = input.aggregate(SUM, 0).and(MIN, 2)
 
 The Join transformation joins two DataSets into one DataSet. The elements of both DataSets are joined on one or more keys which can be specified using
 
-- a key-selector function or
+- a kex expression
+- a key-selector function
 - one or more field position keys (Tuple DataSet only).
 - Case Class Fields
 
@@ -672,13 +670,15 @@ The following code shows a default Join transformation using field position keys
 <div data-lang="java" markdown="1">
 
 ~~~java
-DataSet<Tuple2<Integer, String>> input1 = // [...]
-DataSet<Tuple2<Double, Integer>> input2 = // [...]
+public static class User { public String name; public int zip; }
+public static class Store { public Manager mgr; public int zip; }
+DataSet<User> input1 = // [...]
+DataSet<Store> input2 = // [...]
 // result dataset is typed as Tuple2
-DataSet<Tuple2<Tuple2<Integer, String>, Tuple2<Double, Integer>>>
+DataSet<Tuple2<User, Store>>
             result = input1.join(input2)
-                           .where(0)       // key of the first input
-                           .equalTo(1);    // key of the second input
+                           .where("zip")       // key of the first input (users)
+                           .equalTo("zip");    // key of the second input (stores)
 ~~~
 
 </div>
@@ -729,14 +729,10 @@ DataSet<Tuple2<String, Double>>
             ratings.join(weights)
 
                    // key of the first input
-                   .where(new KeySelection<Rating, String>() {
-                            public String getKey(Rating r) { return r.category; }
-                          })
+                   .where("category)
 
                    // key of the second input
-                   .equalTo(new KeySelection<Tuple2<String, Double>, String>() {
-                              public String getKey(Tuple2<String, Double> t) { return t.f0; }
-                            })
+                   .equalTo("f0")
 
                    // applying the JoinFunction on joining pairs
                    .with(new PointWeighter());
@@ -1000,17 +996,14 @@ val result1 = input1.crossWithHuge(input2)
 The CoGroup transformation jointly processes groups of two DataSets. Both DataSets are grouped on a defined key and groups of both DataSets that share the same key are handed together to a user-defined co-group function. If for a specific key only one DataSet has a group, the co-group function is called with this group and an empty group.
 A co-group function can separately iterate over the elements of both groups and return an arbitrary number of result elements.
 
-Similar to Reduce, GroupReduce, and Join, keys can be defined using
+Similar to Reduce, GroupReduce, and Join, keys can be defined using the different key-selection methods.
 
-- a key-selector function or
-- one or more field position keys (Tuple DataSet only) or
-- Case Class fields.
-
-#### CoGroup on DataSets Grouped by Field Position Keys (Tuple DataSets only)
+#### CoGroup on DataSets
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 
+The example shows how to group by Field Position Keys (Tuple DataSets only). You can do the same with Pojo-types and key expressions.
 ~~~java
 // Some CoGroupFunction definition
 class MyCoGrouper
@@ -1071,9 +1064,6 @@ val output = iVals.coGroup(dVals).where(0).equalTo(0) {
 </div>
 </div>
 
-#### CoGroup on DataSets Grouped by Key-Selector Function
-
-Works analogous to key-selector functions in Join transformations.
 
 ### Union
 
@@ -1132,7 +1122,7 @@ val out = in.rebalance().map { ... }
 ### Hash-Partition
 
 Hash-partitions a DataSet on a given key. 
-Keys can be specified as key-selector functions or field position keys (see [Reduce examples](#reduce-on-grouped-dataset) for how to specify keys).
+Keys can be specified as key expressions or field position keys (see [Reduce examples](#reduce-on-grouped-dataset) for how to specify keys).
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">

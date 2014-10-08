@@ -26,18 +26,22 @@ import java.util.LinkedList;
 import java.util.List;
 
 import org.apache.flink.api.common.functions.CoGroupFunction;
+import org.apache.flink.api.common.functions.RichCoGroupFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.common.functions.RichCoGroupFunction;
+import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
+import org.apache.flink.api.java.tuple.Tuple7;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.CustomType;
+import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.POJO;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.util.Collector;
+import org.junit.Assert;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
@@ -45,7 +49,7 @@ import org.junit.runners.Parameterized.Parameters;
 @RunWith(Parameterized.class)
 public class CoGroupITCase extends JavaProgramTestBase {
 	
-	private static int NUM_PROGRAMS = 9;
+	private static int NUM_PROGRAMS = 13;
 	
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -356,6 +360,149 @@ public class CoGroupITCase extends JavaProgramTestBase {
 						"5,3,HIJ\n" +
 						"5,3,IJK\n";
 			}
+			case 10: {
+				/*
+				 * CoGroup on two custom type inputs using expression keys
+				 */
+				
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				
+				DataSet<CustomType> ds = CollectionDataSets.getCustomTypeDataSet(env);
+				DataSet<CustomType> ds2 = CollectionDataSets.getCustomTypeDataSet(env);
+				DataSet<CustomType> coGroupDs = ds.coGroup(ds2).where("myInt").equalTo("myInt").with(new CustomTypeCoGroup());
+				
+				coGroupDs.writeAsText(resultPath);
+				env.execute();
+				
+				// return expected result
+				return "1,0,test\n" +
+						"2,6,test\n" +
+						"3,24,test\n" +
+						"4,60,test\n" +
+						"5,120,test\n" +
+						"6,210,test\n";
+			}
+			case 11: {
+				/*
+				 * CoGroup on two custom type inputs using expression keys
+				 */
+				
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				
+				DataSet<POJO> ds = CollectionDataSets.getSmallPojoDataSet(env);
+				DataSet<Tuple7<Integer, String, Integer, Integer, Long, String, Long>> ds2 = CollectionDataSets.getSmallTuplebasedPojoMatchingDataSet(env);
+				DataSet<CustomType> coGroupDs = ds.coGroup(ds2)
+						.where("nestedPojo.longNumber").equalTo(6).with(new CoGroupFunction<POJO, Tuple7<Integer, String, Integer, Integer, Long, String, Long>, CustomType>() {
+						private static final long serialVersionUID = 1L;
+
+						@Override
+						public void coGroup(
+								Iterable<POJO> first,
+								Iterable<Tuple7<Integer, String, Integer, Integer, Long, String, Long>> second,
+								Collector<CustomType> out) throws Exception {
+							for(POJO p : first) {
+								for(Tuple7<Integer, String, Integer, Integer, Long, String, Long> t: second) {
+									Assert.assertTrue(p.nestedPojo.longNumber == t.f6);
+									out.collect(new CustomType(-1, p.nestedPojo.longNumber, "Flink"));
+								}
+							}
+						}
+				});
+				coGroupDs.writeAsText(resultPath);
+				env.execute();
+				
+				// return expected result
+				return 	"-1,20000,Flink\n" +
+						"-1,10000,Flink\n" +
+						"-1,30000,Flink\n";
+			}
+			case 12: {
+				/*
+				 * CoGroup field-selector (expression keys) + key selector function
+				 * The key selector is unnecessary complicated (Tuple1) ;)
+				 */
+				
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				
+				DataSet<POJO> ds = CollectionDataSets.getSmallPojoDataSet(env);
+				DataSet<Tuple7<Integer, String, Integer, Integer, Long, String, Long>> ds2 = CollectionDataSets.getSmallTuplebasedPojoMatchingDataSet(env);
+				DataSet<CustomType> coGroupDs = ds.coGroup(ds2)
+						.where(new KeySelector<POJO, Tuple1<Long>>() {
+							private static final long serialVersionUID = 1L;
+
+							@Override
+							public Tuple1<Long> getKey(POJO value)
+									throws Exception {
+								return new Tuple1<Long>(value.nestedPojo.longNumber);
+							}
+						}).equalTo(6).with(new CoGroupFunction<POJO, Tuple7<Integer, String, Integer, Integer, Long, String, Long>, CustomType>() {
+							private static final long serialVersionUID = 1L;
+
+						@Override
+						public void coGroup(
+								Iterable<POJO> first,
+								Iterable<Tuple7<Integer, String, Integer, Integer, Long, String, Long>> second,
+								Collector<CustomType> out) throws Exception {
+							for(POJO p : first) {
+								for(Tuple7<Integer, String, Integer, Integer, Long, String, Long> t: second) {
+									Assert.assertTrue(p.nestedPojo.longNumber == t.f6);
+									out.collect(new CustomType(-1, p.nestedPojo.longNumber, "Flink"));
+								}
+							}
+						}
+				});
+				coGroupDs.writeAsText(resultPath);
+				env.execute();
+				
+				// return expected result
+				return 	"-1,20000,Flink\n" +
+						"-1,10000,Flink\n" +
+						"-1,30000,Flink\n";
+			}
+			case 13: {
+				/*
+				 * CoGroup field-selector (expression keys) + key selector function
+				 * The key selector is simple here
+				 */
+				
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				
+				DataSet<POJO> ds = CollectionDataSets.getSmallPojoDataSet(env);
+				DataSet<Tuple7<Integer, String, Integer, Integer, Long, String, Long>> ds2 = CollectionDataSets.getSmallTuplebasedPojoMatchingDataSet(env);
+				DataSet<CustomType> coGroupDs = ds.coGroup(ds2)
+						.where(new KeySelector<POJO, Long>() {
+							private static final long serialVersionUID = 1L;
+
+							@Override
+							public Long getKey(POJO value)
+									throws Exception {
+								return value.nestedPojo.longNumber;
+							}
+						}).equalTo(6).with(new CoGroupFunction<POJO, Tuple7<Integer, String, Integer, Integer, Long, String, Long>, CustomType>() {
+							private static final long serialVersionUID = 1L;
+
+						@Override
+						public void coGroup(
+								Iterable<POJO> first,
+								Iterable<Tuple7<Integer, String, Integer, Integer, Long, String, Long>> second,
+								Collector<CustomType> out) throws Exception {
+							for(POJO p : first) {
+								for(Tuple7<Integer, String, Integer, Integer, Long, String, Long> t: second) {
+									Assert.assertTrue(p.nestedPojo.longNumber == t.f6);
+									out.collect(new CustomType(-1, p.nestedPojo.longNumber, "Flink"));
+								}
+							}
+						}
+				});
+				coGroupDs.writeAsText(resultPath);
+				env.execute();
+				
+				// return expected result
+				return 	"-1,20000,Flink\n" +
+						"-1,10000,Flink\n" +
+						"-1,30000,Flink\n";
+			}
+			
 			default: 
 				throw new IllegalArgumentException("Invalid program id");
 			}

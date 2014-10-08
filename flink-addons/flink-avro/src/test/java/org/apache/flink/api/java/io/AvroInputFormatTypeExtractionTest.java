@@ -23,7 +23,7 @@ import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.typeutils.GenericTypeInfo;
+import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.fs.Path;
 import org.junit.Assert;
@@ -43,8 +43,8 @@ public class AvroInputFormatTypeExtractionTest {
 			TypeInformation<?> typeInfoDataSet = input.getType();
 
 
-			Assert.assertTrue(typeInfoDirect instanceof GenericTypeInfo);
-			Assert.assertTrue(typeInfoDataSet instanceof GenericTypeInfo);
+			Assert.assertTrue(typeInfoDirect instanceof PojoTypeInfo);
+			Assert.assertTrue(typeInfoDataSet instanceof PojoTypeInfo);
 
 			Assert.assertEquals(MyAvroType.class, typeInfoDirect.getTypeClass());
 			Assert.assertEquals(MyAvroType.class, typeInfoDataSet.getTypeClass());

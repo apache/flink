@@ -29,8 +29,8 @@ import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeinfo.AtomicType;
-import org.apache.flink.api.common.typeinfo.CompositeType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.GenericPairComparator;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
@@ -86,7 +86,7 @@ public class JoinOperatorBase<IN1, IN2, OUT, FT extends FlatJoinFunction<IN1, IN
 			boolean[] orders = new boolean[keyPositions.length];
 			Arrays.fill(orders, true);
 
-			leftComparator = ((CompositeType<IN1>) leftInformation).createComparator(keyPositions, orders);
+			leftComparator = ((CompositeType<IN1>) leftInformation).createComparator(keyPositions, orders, 0);
 		}else{
 			throw new RuntimeException("Type information for left input of type " + leftInformation.getClass()
 					.getCanonicalName() + " is not supported. Could not generate a comparator.");
@@ -99,7 +99,7 @@ public class JoinOperatorBase<IN1, IN2, OUT, FT extends FlatJoinFunction<IN1, IN
 			boolean[] orders = new boolean[keyPositions.length];
 			Arrays.fill(orders, true);
 
-			rightComparator = ((CompositeType<IN2>) rightInformation).createComparator(keyPositions, orders);
+			rightComparator = ((CompositeType<IN2>) rightInformation).createComparator(keyPositions, orders, 0);
 		}else{
 			throw new RuntimeException("Type information for right input of type " + rightInformation.getClass()
 					.getCanonicalName() + " is not supported. Could not generate a comparator.");

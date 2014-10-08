@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.example.java.environments;
+package org.apache.flink.examples.java.environments;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.CollectionEnvironment;

@@ -19,19 +19,31 @@
 package org.apache.flink.api.java.typeutils;
 
 import java.util.Arrays;
+import java.util.List;
 
-import org.apache.flink.api.common.typeinfo.CompositeType;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.flink.api.common.typeinfo.AtomicType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.CompositeType;
+import org.apache.flink.api.java.operators.Keys.ExpressionKeys;
 
-public abstract class TupleTypeInfoBase<T> extends TypeInformation<T> implements CompositeType<T> {
+import com.google.common.base.Preconditions;
+
+public abstract class TupleTypeInfoBase<T> extends CompositeType<T> {
 	
 	protected final TypeInformation<?>[] types;
 	
 	protected final Class<T> tupleType;
+
+	private int totalFields;
 	
 	public TupleTypeInfoBase(Class<T> tupleType, TypeInformation<?>... types) {
+		super(tupleType);
 		this.tupleType = tupleType;
 		this.types = types;
+		for(TypeInformation<?> type : types) {
+			totalFields += type.getTotalFields();
+		}
 	}
 
 	@Override
@@ -48,12 +60,109 @@ public abstract class TupleTypeInfoBase<T> extends TypeInformation<T> implements
 	public int getArity() {
 		return types.length;
 	}
+	
+	@Override
+	public int getTotalFields() {
+		return totalFields;
+	}
 
 	@Override
 	public Class<T> getTypeClass() {
 		return tupleType;
 	}
 
+	
+	/**
+	 * Recursively add all fields in this tuple type. We need this in particular to get all
+	 * the types.
+	 * @param keyId
+	 * @param keyFields
+	 */
+	public void addAllFields(int startKeyId, List<FlatFieldDescriptor> keyFields) {
+		for(int i = 0; i < this.getArity(); i++) {
+			TypeInformation<?> type = this.types[i];
+			if(type instanceof AtomicType) {
+				keyFields.add(new FlatFieldDescriptor(startKeyId, type));
+			} else if(type instanceof TupleTypeInfoBase<?>) {
+				TupleTypeInfoBase<?> ttb = (TupleTypeInfoBase<?>) type;
+				ttb.addAllFields(startKeyId, keyFields);
+			}
+			startKeyId += type.getTotalFields();
+		}
+	}
+	
+
+	@Override
+	public void getKey(String fieldExpression, int offset, List<FlatFieldDescriptor> result) {
+		// handle 'select all'
+		if(fieldExpression.equals(ExpressionKeys.SELECT_ALL_CHAR) || fieldExpression.equals(ExpressionKeys.SELECT_ALL_CHAR_SCALA)) {
+			int keyPosition = 0;
+			for(TypeInformation<?> type : types) {
+				if(type instanceof AtomicType) {
+					result.add(new FlatFieldDescriptor(offset + keyPosition, type));
+				} else if(type instanceof CompositeType) {
+					CompositeType<?> cType = (CompositeType<?>)type;
+					cType.getKey(String.valueOf(ExpressionKeys.SELECT_ALL_CHAR), offset + keyPosition, result);
+					keyPosition += cType.getTotalFields()-1;
+				} else {
+					throw new RuntimeException("Unexpected key type: "+type);
+				}
+				keyPosition++;
+			}
+			return;
+		}
+		// check input
+		if(fieldExpression.length() < 2) {
+			throw new IllegalArgumentException("The field expression '"+fieldExpression+"' is incorrect. The length must be at least 2");
+		}
+		if(fieldExpression.charAt(0) != 'f') {
+			throw new IllegalArgumentException("The field expression '"+fieldExpression+"' is incorrect for a Tuple type. It has to start with an 'f'");
+		}
+		// get first component of nested expression
+		int dotPos = fieldExpression.indexOf('.');
+		String nestedSplitFirst = fieldExpression;
+		if(dotPos != -1 ) {
+			Preconditions.checkArgument(dotPos != fieldExpression.length()-1, "The field expression can never end with a dot.");
+			nestedSplitFirst = fieldExpression.substring(0, dotPos);
+		}
+		String fieldNumStr = nestedSplitFirst.substring(1, nestedSplitFirst.length());
+		if(!StringUtils.isNumeric(fieldNumStr)) {
+			throw new IllegalArgumentException("The field expression '"+fieldExpression+"' is incorrect. Field number '"+fieldNumStr+" is not numeric");
+		}
+		int pos = -1;
+		try {
+			pos = Integer.valueOf(fieldNumStr);
+		} catch(NumberFormatException nfe) {
+			throw new IllegalArgumentException("The field expression '"+fieldExpression+"' is incorrect. Field number '"+fieldNumStr+" is not numeric", nfe);
+		}
+		if(pos < 0) {
+			throw new IllegalArgumentException("Negative position is not possible");
+		}
+		// pass down the remainder (after the dot) of the fieldExpression to the type at that position.
+		if(dotPos != -1) { // we need to go deeper
+			String rem = fieldExpression.substring(dotPos+1);
+			if( !(types[pos] instanceof CompositeType<?>) ) {
+				throw new RuntimeException("Element at position "+pos+" is not a composite type. There are no nested types to select");
+			}
+			CompositeType<?> cType = (CompositeType<?>) types[pos];
+			cType.getKey(rem, offset + pos, result);
+			return;
+		}
+		
+		if(pos >= types.length) {
+			throw new IllegalArgumentException("The specified tuple position does not exist");
+		}
+		
+		// count nested fields before "pos".
+		for(int i = 0; i < pos; i++) {
+			offset += types[i].getTotalFields() - 1; // this adds only something to offset if its a composite type.
+		}
+		if(types[pos] instanceof CompositeType) {
+			throw new IllegalArgumentException("The specified field '"+fieldExpression+"' is refering to a composite type.\n"
+					+ "Either select all elements in this type with the '"+ExpressionKeys.SELECT_ALL_CHAR+"' operator or specify a field in the sub-type");
+		}
+		result.add(new FlatFieldDescriptor(offset + pos, types[pos]));
+	}
 	
 	public <X> TypeInformation<X> getTypeAt(int pos) {
 		if (pos < 0 || pos >= this.types.length) {
@@ -115,4 +224,5 @@ public abstract class TupleTypeInfoBase<T> extends TypeInformation<T> implements
 		bld.append('>');
 		return bld.toString();
 	}
+	
 }

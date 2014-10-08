@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.scala.operators
 
+import org.apache.flink.api.java.operators.Keys.IncompatibleKeysException
 import org.junit.Assert
 import org.apache.flink.api.common.InvalidProgramException
 import org.junit.Ignore
@@ -45,7 +46,7 @@ class JoinOperatorTest {
     }
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test(expected = classOf[IncompatibleKeysException])
   def testJoinKeyIndices2(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = env.fromCollection(emptyTupleData)
@@ -55,7 +56,7 @@ class JoinOperatorTest {
     ds1.join(ds2).where(0).equalTo(2)
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test(expected = classOf[IncompatibleKeysException])
   def testJoinKeyIndices3(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = env.fromCollection(emptyTupleData)
@@ -110,7 +111,7 @@ class JoinOperatorTest {
     }
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test(expected = classOf[IncompatibleKeysException])
   def testJoinKeyFields2(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = env.fromCollection(emptyTupleData)
@@ -120,7 +121,7 @@ class JoinOperatorTest {
     ds1.join(ds2).where("_1").equalTo("_3")
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test(expected = classOf[IncompatibleKeysException])
   def testJoinKeyFields3(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = env.fromCollection(emptyTupleData)
@@ -255,7 +256,7 @@ class JoinOperatorTest {
     }
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test(expected = classOf[IncompatibleKeysException])
   def testJoinKeyMixing3(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = env.fromCollection(emptyTupleData)
@@ -265,7 +266,7 @@ class JoinOperatorTest {
     ds1.join(ds2).where(2).equalTo { _.l }
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test(expected = classOf[IncompatibleKeysException])
   def testJoinKeyMixing4(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = env.fromCollection(emptyTupleData)
