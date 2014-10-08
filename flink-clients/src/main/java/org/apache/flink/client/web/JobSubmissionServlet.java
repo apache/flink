@@ -366,7 +366,7 @@ public class JobSubmissionServlet extends HttpServlet {
 
 		writer.println("<body>");
 		writer.println("  <div class=\"mainHeading\">");
-		writer.println("    <h1><img src=\"img/FlinkLogo.png\" width=\"326\" height=\"100\" alt=\"Flink Logo\" align=\"middle\"/>Flink Query Interface</h1>");
+		writer.println("    <h1><img src=\"img/flink-logo.png\" width=\"100\" height=\"100\" alt=\"Flink Logo\" align=\"middle\"/>Flink Web Submission Client</h1>");
 		writer.println("  </div>");
 		writer.println("  <div style=\"margin-top: 50px; text-align: center;\">");
 		writer.println("    <p class=\"error_text\" style=\"font-size: 18px;\">");

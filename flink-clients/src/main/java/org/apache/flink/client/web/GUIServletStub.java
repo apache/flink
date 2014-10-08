@@ -136,7 +136,7 @@ public abstract class GUIServletStub extends HttpServlet {
 		// write the header
 		writer.println("<body>");
 		writer.println("  <div class=\"mainHeading\">");
-		writer.println("    <h1 style=\"margin-top:0\"><img src=\"img/FlinkLogo.png\" width=\"326\" height=\"100\" alt=\"Flink Logo\" align=\"middle\"/>Flink Query Interface"
+		writer.println("    <h1 style=\"margin-top:0\"><img src=\"img/flink-logo.png\" width=\"100\" height=\"100\" alt=\"Flink Logo\" align=\"middle\"/>Flink Web Submission Client"
 				+ "<div style='position:absolute; top:40px; right:110px;'>"
 				+ "<button id='zoomIn' type='button' class='btn btn-default'>Zoom In</button>"
 				+ "<button id='zoomOut' type='button' class='btn btn-default'>Zoom Out</button>"
