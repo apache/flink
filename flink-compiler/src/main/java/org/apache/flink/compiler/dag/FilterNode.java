@@ -64,5 +64,6 @@ public class FilterNode extends SingleInputNode {
 	@Override
 	protected void computeOperatorSpecificDefaultEstimates(DataStatistics statistics) {
 		this.estimatedNumRecords = (long) (getPredecessorNode().getEstimatedNumRecords() * 0.5);
+		this.estimatedOutputSize = (long) (getPredecessorNode().getEstimatedOutputSize() * 0.5);
 	}
 }
