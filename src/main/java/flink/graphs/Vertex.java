@@ -18,9 +18,35 @@
 
 package flink.graphs;
 
-public class Vertex<K, V> {
+import java.io.Serializable;
 
-	private K key;
+import org.apache.flink.api.java.tuple.Tuple2;
+
+public class Vertex<K extends Serializable, V extends Serializable> extends Tuple2<K, V> {
+
+	private static final long serialVersionUID = 1L;
+
+	public Vertex(){}
 	
-	private V value;
+	public Vertex(K k, V val) {
+		this.f0 = k;
+		this.f1 = val;
+	}
+	
+	public K getId() {
+		return this.f0;
+	}
+	
+	public V getValue() {
+		return this.f1;
+	}
+	
+	public void setId(K id) {
+		this.f0 = id;
+	}
+	
+	public void setValue(V val) {
+		this.f1 = val;
+	}
+	
 }

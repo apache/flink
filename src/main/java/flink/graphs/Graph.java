@@ -18,11 +18,15 @@
 
 package flink.graphs;
 
+import java.io.Serializable;
+
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.util.Collector;
 
-public class Graph<K extends Comparable<K>, VV, EV> {
+@SuppressWarnings("serial")
+public class Graph<K extends Comparable<K> & Serializable, VV extends Serializable, 
+	EV extends Serializable>{
 
 	private final DataSet<Vertex<K, VV>> vertices;
 	
@@ -63,22 +67,21 @@ public class Graph<K extends Comparable<K>, VV, EV> {
 			throw new UnsupportedOperationException("");
 		}
 		else {
-			DataSet<Edge<K, EV>> undirectedEdges = edges.flatMap(
+			DataSet<Edge<K,EV>> undirectedEdges = edges.flatMap(
 					new FlatMapFunction<Edge<K,EV>, Edge<K,EV>>() {
-						private static final long serialVersionUID = 1L;
-
-						public void flatMap(Edge<K, EV> edge, Collector<Edge<K, EV>> out){
-							out.collect(edge);
-							out.collect(edge.reverse());
-						}
+				public void flatMap(Edge<K,EV> edge, Collector<Edge<K,EV>> out){
+					out.collect(edge);
+					out.collect(edge.reverse());
+				}
 			});
-			return new Graph<K, VV, EV>(vertices, undirectedEdges);
+			return new Graph<K, VV, EV>(vertices, (DataSet<Edge<K, EV>>) undirectedEdges);
 		}
 	}
 	
-	public static <K extends Comparable<K>, VV, EV> Graph<K, VV, EV> 
+	public static <K extends Comparable<K> & Serializable, VV extends Serializable, 
+		EV extends Serializable> Graph<K, VV, EV> 
 		create(DataSet<Vertex<K, VV>> vertices, DataSet<Edge<K, EV>> edges) {
-		return new Graph<>(vertices, edges);
+		return new Graph<K, VV, EV>(vertices, edges);
 		
 	}
 }
