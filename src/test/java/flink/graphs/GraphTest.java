@@ -15,7 +15,10 @@ public class GraphTest {
     // Vertex values: 0,1,2,3
     // Edges: 0->1, 1->3, 0->3, 1->2
 
-    Graph<Integer, Integer, Integer> graph =  new Graph<>();
+    DataSet<Vertex<Integer, Integer>> vertices;
+    DataSet<Edge<Integer, Integer>> edges;
+
+    Graph<Integer, Integer, Integer> graph =  new Graph<Integer, Integer, Integer>(vertices, edges);
 
     @Test
     public void testGraphCreation() {
@@ -52,7 +55,7 @@ public class GraphTest {
                 .map(new MapFunction<Vertex<Integer, Integer>, Vertex<Integer, Integer>>() {
                     @Override
                     public Vertex<Integer, Integer> map(Vertex<Integer, Integer> v) throws Exception {
-                        return new Vertex<Integer, Integer>(v.getKey(), v.getValue() * 2);
+                        return new Vertex<Integer, Integer>(v.getId(), v.getValue() * 2);
                     }
                 });
         List<Vertex<Integer, Integer>> originalDataDoubled = new ArrayList<>();
