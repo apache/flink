@@ -26,6 +26,8 @@ import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType.FlatFieldDescriptor;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
@@ -498,5 +500,64 @@ public class PojoTypeExtractionTest {
 			}
 		}
 	}
+
+
+	public static class Vertex<K, V> {
+
+		private K key1;
+		private K key2;
+		private V value;
+
+		public Vertex() {}
+
+		public Vertex(K key, V value) {
+			this.key1 = key;
+			this.key2 = key;
+			this.value = value;
+		}
+
+		public Vertex(K key1, K key2, V value) {
+			this.key1 = key1;
+			this.key2 = key2;
+			this.value = value;
+		}
+
+		public void setKey1(K key1) {
+			this.key1 = key1;
+		}
+
+		public void setKey2(K key2) {
+			this.key2 = key2;
+		}
+
+		public K getKey1() {
+			return key1;
+		}
+
+		public K getKey2() {
+			return key2;
+		}
+
+		public void setValue(V value) {
+			this.value = value;
+		}
+
+		public V getValue() {
+			return value;
+		}
+	}
+
+	public static class VertexTyped extends Vertex<Long, Double>{
+		public VertexTyped(Long l, Double d) {
+			super(l, d);
+		}
+		public VertexTyped() {
+		}
+	}
 	
+	@Test
+	public void testGetterSetterWithVertex() {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<VertexTyped> set = env.fromElements(new VertexTyped(0L, 3.0), new VertexTyped(1L, 1.0));
+	}
 }

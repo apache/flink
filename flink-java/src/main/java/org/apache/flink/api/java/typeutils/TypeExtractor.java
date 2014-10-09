@@ -969,16 +969,15 @@ public class TypeExtractor {
 			}
 			for(Method m : clazz.getMethods()) {
 				// check for getter
-				
 				if(	// The name should be "get<FieldName>" or "<fieldName>" (for scala).
 					(m.getName().toLowerCase().equals("get"+fieldNameLow) || m.getName().toLowerCase().equals(fieldNameLow)) &&
 					// no arguments for the getter
 					m.getParameterTypes().length == 0 &&
 					// return type is same as field type (or the generic variant of it)
-					m.getReturnType().equals( fieldType ) || (fieldTypeGeneric != null && m.getGenericReturnType().equals(fieldTypeGeneric) )
+					(m.getReturnType().equals( fieldType ) || (fieldTypeGeneric != null && m.getGenericReturnType().equals(fieldTypeGeneric)) )
 				) {
 					if(hasGetter) {
-						throw new IllegalStateException("Detected more than one getters");
+						throw new IllegalStateException("Detected more than one getter");
 					}
 					hasGetter = true;
 				}
@@ -990,7 +989,7 @@ public class TypeExtractor {
 					m.getReturnType().equals(Void.TYPE)
 				) {
 					if(hasSetter) {
-						throw new IllegalStateException("Detected more than one getters");
+						throw new IllegalStateException("Detected more than one setter");
 					}
 					hasSetter = true;
 				}
