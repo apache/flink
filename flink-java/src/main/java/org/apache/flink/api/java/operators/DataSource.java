@@ -19,6 +19,7 @@
 package org.apache.flink.api.java.operators;
 
 import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.io.NonParallelInput;
 import org.apache.flink.api.common.operators.GenericDataSourceBase;
 import org.apache.flink.api.common.operators.OperatorInformation;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -52,6 +53,10 @@ public class DataSource<OUT> extends Operator<OUT, DataSource<OUT>> {
 		}
 		
 		this.inputFormat = inputFormat;
+		
+		if (inputFormat instanceof NonParallelInput) {
+			this.dop = 1;
+		}
 	}
 
 	/**
