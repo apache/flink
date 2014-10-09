@@ -18,32 +18,57 @@
 
 package flink.graphs;
 
-public class Edge<K, V> {
+import java.io.Serializable;
 
-	private K source;
-	
-	private K target;
-	
-	private V value;
+import org.apache.flink.api.java.tuple.Tuple3;
+
+public class Edge<K extends Serializable, V extends Serializable> extends Tuple3<K, K, V>{
+
+	private static final long serialVersionUID = 1L;
+
+	public Edge(){}
 	
 	public Edge(K src, K trg) {
-		this.source = src;
-		this.target = trg;
+		this.f0 = src;
+		this.f1 = trg;
 	}
 
 	public Edge(K src, K trg, V val) {
-		this.source = src;
-		this.target = trg;
-		this.value = val;
+		this.f0 = src;
+		this.f1 = trg;
+		this.f2 = val;
 	}
 
 	public Edge<K, V> reverse() {
-		if (value != null) {
-			return new Edge<K, V>(this.target, this.source, this.value);
+		if (f2 != null) {
+			return new Edge<K, V>(this.f1, this.f0, this.f2);
 		}
 		else {
-			return new Edge<K, V>(this.target, this.source);
+			return new Edge<K, V>(this.f1, this.f0);
 		}
-		
+	}
+	
+	public void setSource(K src) {
+		this.f0 = src;
+	}
+	
+	public K getSource() {
+		return this.f0;
+	}
+	
+	public void setTarget(K target) {
+		this.f1 = target;
+	}
+	
+	public K getTarget() {
+		return f1;
+	}
+	
+	public void setValue(V value) {
+		this.f2 = value;
+	}
+	
+	public V getValue() {
+		return f2;
 	}
 }
