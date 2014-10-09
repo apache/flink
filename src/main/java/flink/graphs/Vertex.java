@@ -20,7 +20,21 @@ package flink.graphs;
 
 public class Vertex<K, V> {
 
-	private K key;
-	
+    public Vertex(K key, V value) {
+        this.key = key;
+        this.value = value;
+    }
+
+    private K key;
+
 	private V value;
+
+    public V getValue() {
+        return value;
+    }
+
+    public K getKey() {
+        return key;
+    }
 }
+

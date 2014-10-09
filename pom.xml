@@ -19,7 +19,7 @@ under the License.
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
-	
+
 	<groupId>flink</groupId>
 	<artifactId>flink-graphs</artifactId>
 	<version>1.0-SNAPSHOT</version>
@@ -42,8 +42,8 @@ under the License.
 			</snapshots>
 		</repository>
 	</repositories>
-	
-	<!-- These two requirements are the minimum to use and develop Flink. 
+
+	<!-- These two requirements are the minimum to use and develop Flink.
 		You can add others like <artifactId>pact-scala-core</artifactId> for Scala! -->
 	<dependencies>
 		<dependency>
@@ -66,9 +66,16 @@ under the License.
 			<artifactId>flink-avro</artifactId>
 			<version>0.7-incubating-SNAPSHOT</version>
 		</dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.11</version>
+            <type>jar</type>
+            <scope>test</scope>
+        </dependency>
 	</dependencies>
 
-	<!-- We use the maven-jar-plugin to generate a runnable jar that you can 
+	<!-- We use the maven-jar-plugin to generate a runnable jar that you can
 		submit to your Flink cluster. -->
 	<build>
 		<plugins>

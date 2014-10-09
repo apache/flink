@@ -21,8 +21,20 @@ package flink.graphs;
 public class Edge<K, V> {
 
 	private K source;
-	
+
 	private K target;
-	
+
 	private V value;
+
+    public K getSource() {
+        return source;
+    }
+
+    public K getTarget() {
+        return target;
+    }
+
+    public V getValue() {
+        return value;
+    }
 }
