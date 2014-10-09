@@ -91,6 +91,11 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 	public int getLength() {
 		return -1;
 	}
+	
+	@Override
+	public int getMinimumLength() {
+		return 1;
+	}
 
 	@Override
 	public void serialize(T record, DataOutputView target) throws IOException {

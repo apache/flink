@@ -62,6 +62,11 @@ public final class ShortValueSerializer extends TypeSerializerSingleton<ShortVal
 	public int getLength() {
 		return 2;
 	}
+	
+	@Override
+	public int getMinimumLength() {
+		return getLength();
+	}
 
 	@Override
 	public void serialize(ShortValue record, DataOutputView target) throws IOException {

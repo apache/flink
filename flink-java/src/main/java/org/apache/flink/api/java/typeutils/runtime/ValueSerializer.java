@@ -87,6 +87,11 @@ public class ValueSerializer<T extends Value> extends TypeSerializer<T> {
 	public int getLength() {
 		return -1;
 	}
+	
+	@Override
+	public int getMinimumLength() {
+		return 1;
+	}
 
 	@Override
 	public void serialize(T value, DataOutputView target) throws IOException {

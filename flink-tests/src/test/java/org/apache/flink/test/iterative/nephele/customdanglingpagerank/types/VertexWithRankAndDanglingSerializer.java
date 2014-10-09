@@ -61,6 +61,11 @@ public final class VertexWithRankAndDanglingSerializer extends TypeSerializerSin
 	public int getLength() {
 		return 17;
 	}
+	
+	@Override
+	public int getMinimumLength() {
+		return getLength();
+	}
 
 	@Override
 	public void serialize(VertexWithRankAndDangling record, DataOutputView target) throws IOException {

@@ -62,6 +62,11 @@ public final class StringSerializer extends TypeSerializerSingleton<String> {
 	public int getLength() {
 		return -1;
 	}
+	
+	@Override
+	public int getMinimumLength() {
+		return 1;
+	}
 
 	@Override
 	public void serialize(String record, DataOutputView target) throws IOException {

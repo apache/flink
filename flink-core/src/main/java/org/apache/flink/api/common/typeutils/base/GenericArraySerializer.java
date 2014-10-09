@@ -88,6 +88,11 @@ public final class GenericArraySerializer<C> extends TypeSerializer<C[]> {
 	public int getLength() {
 		return -1;
 	}
+	
+	@Override
+	public int getMinimumLength() {
+		return 4;
+	}
 
 	@Override
 	public void serialize(C[] value, DataOutputView target) throws IOException {

@@ -62,6 +62,11 @@ public class FloatValueSerializer extends TypeSerializerSingleton<FloatValue> {
 	public int getLength() {
 		return 4;
 	}
+	
+	@Override
+	public int getMinimumLength() {
+		return getLength();
+	}
 
 	@Override
 	public void serialize(FloatValue record, DataOutputView target) throws IOException {

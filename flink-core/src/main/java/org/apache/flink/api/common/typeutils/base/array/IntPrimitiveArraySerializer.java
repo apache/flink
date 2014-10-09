@@ -68,6 +68,10 @@ public class IntPrimitiveArraySerializer extends TypeSerializerSingleton<int[]>{
 		return -1;
 	}
 
+	@Override
+	public int getMinimumLength() {
+		return 4;
+	}
 
 	@Override
 	public void serialize(int[] record, DataOutputView target) throws IOException {

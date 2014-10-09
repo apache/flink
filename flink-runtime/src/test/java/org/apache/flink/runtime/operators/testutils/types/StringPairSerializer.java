@@ -59,6 +59,11 @@ public class StringPairSerializer extends TypeSerializer<StringPair> {
 	public int getLength() {
 		return -1;
 	}
+	
+	@Override
+	public int getMinimumLength() {
+		return 2;
+	}
 
 	@Override
 	public void serialize(StringPair record, DataOutputView target) throws IOException {

@@ -67,6 +67,10 @@ public final class BytePrimitiveArraySerializer extends TypeSerializerSingleton<
 		return -1;
 	}
 
+	@Override
+	public int getMinimumLength() {
+		return 4;
+	}
 
 	@Override
 	public void serialize(byte[] record, DataOutputView target) throws IOException {

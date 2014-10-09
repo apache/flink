@@ -171,6 +171,14 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 		return -1;
 	}
 
+	@Override
+	public int getMinimumLength() {
+		int minLen = 0;
+		for(TypeSerializer<?> s : this.fieldSerializers) {
+			minLen += s.getMinimumLength();
+		}
+		return minLen;
+	}
 
 	@Override
 	public void serialize(T value, DataOutputView target) throws IOException {

@@ -118,6 +118,15 @@ public final class TupleSerializer<T extends Tuple> extends TupleSerializerBase<
 		return reuse;
 	}
 	
+	@Override
+	public int getMinimumLength() {
+		int minLen = 0;
+		for(TypeSerializer<?> s : this.fieldSerializers) {
+			minLen += s.getMinimumLength();
+		}
+		return minLen;
+	}
+	
 	private T instantiateRaw() {
 		try {
 			return tupleClass.newInstance();

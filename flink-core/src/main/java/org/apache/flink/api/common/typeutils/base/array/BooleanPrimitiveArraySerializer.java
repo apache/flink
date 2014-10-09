@@ -68,6 +68,10 @@ public final class BooleanPrimitiveArraySerializer extends TypeSerializerSinglet
 		return -1;
 	}
 
+	@Override
+	public int getMinimumLength() {
+		return 4;
+	}
 
 	@Override
 	public void serialize(boolean[] record, DataOutputView target) throws IOException {

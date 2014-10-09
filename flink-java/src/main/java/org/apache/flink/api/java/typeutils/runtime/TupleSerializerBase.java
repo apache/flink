@@ -70,7 +70,7 @@ public abstract class TupleSerializerBase<T> extends TypeSerializer<T> {
 	public int getLength() {
 		return -1;
 	}
-
+	
 	public int getArity() {
 		return arity;
 	}

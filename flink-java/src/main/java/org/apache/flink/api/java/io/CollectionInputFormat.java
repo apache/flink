@@ -29,6 +29,7 @@ import java.util.List;
 
 import org.apache.flink.api.common.io.GenericInputFormat;
 import org.apache.flink.api.common.io.NonParallelInput;
+import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.core.memory.InputViewObjectInputStreamWrapper;
@@ -49,6 +50,7 @@ public class CollectionInputFormat<T> extends GenericInputFormat<T> implements N
 
 	
 	public CollectionInputFormat(Collection<T> dataSet, TypeSerializer<T> serializer) {
+		
 		if (dataSet == null) {
 			throw new NullPointerException();
 		}
@@ -74,6 +76,11 @@ public class CollectionInputFormat<T> extends GenericInputFormat<T> implements N
 	@Override
 	public T nextRecord(T record) throws IOException {
 		return this.iterator.next();
+	}
+	
+	@Override
+	public BaseStatistics getStatistics(BaseStatistics cachedStatistics) throws IOException {
+		return new CollectionStatistics<T>(this.dataSet.size(), this.serializer.getMinimumLength());
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -127,5 +134,32 @@ public class CollectionInputFormat<T> extends GenericInputFormat<T> implements N
 							viewedAs.getCanonicalName());
 			}
 		}
+	}
+	
+	public static class CollectionStatistics<T> implements BaseStatistics {
+
+		private final long numRecords;
+		private final float recordWidth;
+		
+		public CollectionStatistics(long numRecords, float recordWidth) {
+			this.numRecords = numRecords;
+			this.recordWidth = recordWidth;
+		}
+		
+		@Override
+		public long getTotalInputSize() {
+			return (long)this.recordWidth * this.numRecords;
+		}
+
+		@Override
+		public long getNumberOfRecords() {
+			return this.numRecords;
+		}
+
+		@Override
+		public float getAverageRecordWidth() {
+			return recordWidth;
+		}
+		
 	}
 }

@@ -62,6 +62,11 @@ public final class ByteSerializer extends TypeSerializerSingleton<Byte> {
 	public int getLength() {
 		return 1;
 	}
+	
+	@Override
+	public int getMinimumLength() {
+		return getLength();
+	}
 
 	@Override
 	public void serialize(Byte record, DataOutputView target) throws IOException {

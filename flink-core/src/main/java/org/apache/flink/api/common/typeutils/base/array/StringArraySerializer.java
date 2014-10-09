@@ -71,6 +71,11 @@ public final class StringArraySerializer extends TypeSerializerSingleton<String[
 	}
 
 	@Override
+	public int getMinimumLength() {
+		return 4;
+	}
+	
+	@Override
 	public void serialize(String[] record, DataOutputView target) throws IOException {
 		if (record == null) {
 			throw new IllegalArgumentException("The record must not be null.");

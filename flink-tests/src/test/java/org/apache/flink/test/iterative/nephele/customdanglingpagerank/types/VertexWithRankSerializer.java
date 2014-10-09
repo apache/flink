@@ -60,6 +60,11 @@ public final class VertexWithRankSerializer extends TypeSerializerSingleton<Vert
 	public int getLength() {
 		return 16;
 	}
+	
+	@Override
+	public int getMinimumLength() {
+		return getLength();
+	}
 
 	@Override
 	public void serialize(VertexWithRank record, DataOutputView target) throws IOException {

@@ -83,4 +83,12 @@ abstract class CaseClassSerializer[T <: Product](
       fields = new Array[AnyRef](arity)
     }
   }
+  
+  def getMinimumLength(): Int = {
+    var minLen = 0;
+    for(s <- fieldSerializers) {
+      minLen += s.getMinimumLength()
+    }
+    minLen
+  }
 }

@@ -64,6 +64,11 @@ public final class StringValueSerializer extends TypeSerializerSingleton<StringV
 	public int getLength() {
 		return -1;
 	}
+	
+	@Override
+	public int getMinimumLength() {
+		return 1;
+	}
 
 	@Override
 	public void serialize(StringValue record, DataOutputView target) throws IOException {

@@ -100,6 +100,14 @@ public abstract class TypeSerializer<T> implements Serializable {
 	 */
 	public abstract int getLength();
 	
+	/**
+	 * Gets the minimum length of the data type.
+	 * The minimum length might be used as a lower bound for size estimations.
+	 * 
+	 * @return The minimum length of the data type.
+	 */
+	public abstract int getMinimumLength();
+	
 	// --------------------------------------------------------------------------------------------
 
 	/**

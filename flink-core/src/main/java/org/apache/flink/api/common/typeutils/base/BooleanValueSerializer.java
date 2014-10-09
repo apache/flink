@@ -64,6 +64,11 @@ public final class BooleanValueSerializer extends TypeSerializerSingleton<Boolea
 	public int getLength() {
 		return 1;
 	}
+	
+	@Override
+	public int getMinimumLength() {
+		return getLength();
+	}
 
 	@Override
 	public void serialize(BooleanValue record, DataOutputView target) throws IOException {
