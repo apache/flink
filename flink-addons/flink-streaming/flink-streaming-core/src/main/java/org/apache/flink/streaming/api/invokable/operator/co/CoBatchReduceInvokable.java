@@ -236,9 +236,11 @@ public class CoBatchReduceInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2,
 		}
 
 		if (streamBatch.changed == true && streamBatch.minibatchCounter >= 0) {
-			for (long i = 0; i < (numberOfBatches2 - streamBatch.minibatchCounter); i++) {
-				if (!streamBatch.circularBuffer.isEmpty()) {
-					streamBatch.circularBuffer.remove();
+			if (streamBatch.circularBuffer.isFull()) {
+				for (long i = 0; i < (numberOfBatches2 - streamBatch.minibatchCounter); i++) {
+					if (!streamBatch.circularBuffer.isEmpty()) {
+						streamBatch.circularBuffer.remove();
+					}
 				}
 			}
 			if (!streamBatch.circularBuffer.isEmpty()) {
