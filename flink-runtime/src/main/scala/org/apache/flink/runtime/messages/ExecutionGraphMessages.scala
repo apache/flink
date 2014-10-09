@@ -31,7 +31,8 @@ import org.apache.flink.runtime.jobgraph.{JobStatus, JobVertexID, JobID}
 object ExecutionGraphMessages {
 
   /**
-   * Denotes the execution state change of an [[org.apache.flink.runtime.executiongraph.ExecutionVertex]]
+   * Denotes the execution state change of an
+   * [[org.apache.flink.runtime.executiongraph.ExecutionVertex]]
    *
    * @param jobID to which the vertex belongs
    * @param vertexID of the ExecutionJobVertex to which the ExecutionVertex belongs
@@ -49,9 +50,13 @@ object ExecutionGraphMessages {
                                    newExecutionState: ExecutionState, timestamp: Long,
                                    optionalMessage: String){
     override def toString: String = {
+      val oMsg = if (optionalMessage != null) {
+        s"\n$optionalMessage"
+      } else {
+        ""
+      }
       s"${timestampToString(timestamp)}\t$taskName(${subtaskIndex +
-        1}/${totalNumberOfSubTasks}) switched to $newExecutionState ${if(optionalMessage != null)
-        s"\n${optionalMessage}" else ""}"
+        1}/${totalNumberOfSubTasks}) switched to $newExecutionState $oMsg"
     }
   }
 

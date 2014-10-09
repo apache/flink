@@ -44,7 +44,7 @@ public class YarnTaskManagerRunner {
 
 		// configure local directory
 		final String[] newArgs = Arrays.copyOf(args, args.length + 2);
-		newArgs[newArgs.length-2] = "-"+TaskManager.ARG_CONF_DIR;
+		newArgs[newArgs.length-2] = "--configDir";
 		newArgs[newArgs.length-1] = localDirs;
 		LOG.info("Setting log path "+localDirs);
 		LOG.info("YARN daemon runs as '"+UserGroupInformation.getCurrentUser().getShortUserName()+"' setting"

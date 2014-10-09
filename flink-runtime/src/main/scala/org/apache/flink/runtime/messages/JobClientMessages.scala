@@ -41,7 +41,8 @@ object JobClientMessages {
 
   /**
    * This message submits a jobGraph to the JobClient which sends it to the JobManager. The
-   * JobClient awaits the [[org.apache.flink.runtime.messages.JobManagerMessages.SubmissionResponse]]
+   * JobClient awaits the
+   * [[org.apache.flink.runtime.messages.JobManagerMessages.SubmissionResponse]]
    * from the JobManager and sends it back to the sender().
    *
    * @param jobGraph containing the job description

@@ -106,8 +106,8 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
             val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
               RequestExecutionGraph(jobGraph.getJobID)) match {
               case ExecutionGraphFound(_, eg) => eg
-              case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} " +
-                s"was not retrievable.")
+              case ExecutionGraphNotFound(jobID) =>
+                fail(s"The execution graph for job ID ${jobID} was not retrievable.")
             }
 
             executionGraph.getRegisteredExecutions.size should equal(0)
@@ -143,8 +143,8 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
             val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
               RequestExecutionGraph(jobGraph.getJobID)) match {
               case ExecutionGraphFound(_, eg) => eg
-              case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} " +
-                s"was not retrievable.")
+              case ExecutionGraphNotFound(jobID) =>
+                fail(s"The execution graph for job ID ${jobID} was not retrievable.")
             }
 
             executionGraph.getRegisteredExecutions.size should equal(0)
@@ -185,8 +185,8 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
             val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
               RequestExecutionGraph(jobGraph.getJobID)) match {
               case ExecutionGraphFound(_, eg) => eg
-              case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} " +
-                s"was not retrievable.")
+              case ExecutionGraphNotFound(jobID) =>
+                fail(s"The execution graph for job ID ${jobID} was not retrievable.")
             }
 
             executionGraph.getRegisteredExecutions.size should equal(0)
@@ -221,8 +221,8 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
             val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
               RequestExecutionGraph(jobGraph.getJobID)) match {
               case ExecutionGraphFound(_, eg) => eg
-              case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} " +
-                s"was not retrievable.")
+              case ExecutionGraphNotFound(jobID) =>
+                fail(s"The execution graph for job ID ${jobID} was not retrievable.")
             }
 
             executionGraph.getRegisteredExecutions.size should equal(0)
@@ -264,8 +264,8 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
             val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
               RequestExecutionGraph(jobGraph.getJobID)) match {
               case ExecutionGraphFound(_, eg) => eg
-              case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} " +
-                s"was not retrievable.")
+              case ExecutionGraphNotFound(jobID) =>
+                fail(s"The execution graph for job ID ${jobID} was not retrievable.")
             }
 
             executionGraph.getRegisteredExecutions.size should equal(0)
@@ -307,8 +307,8 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
             val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
               RequestExecutionGraph(jobGraph.getJobID)) match {
               case ExecutionGraphFound(_, eg) => eg
-              case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} " +
-                s"was not retrievable.")
+              case ExecutionGraphNotFound(jobID) =>
+                fail(s"The execution graph for job ID ${jobID} was not retrievable.")
             }
 
             executionGraph.getRegisteredExecutions.size should equal(0)
@@ -350,8 +350,8 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
             val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
               RequestExecutionGraph(jobGraph.getJobID)) match {
               case ExecutionGraphFound(_, eg) => eg
-              case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} " +
-                s"was not retrievable.")
+              case ExecutionGraphNotFound(jobID) =>
+                fail(s"The execution graph for job ID ${jobID} was not retrievable.")
             }
 
             executionGraph.getRegisteredExecutions.size should equal(0)
@@ -393,8 +393,8 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
             val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
               RequestExecutionGraph(jobGraph.getJobID)) match {
               case ExecutionGraphFound(_, eg) => eg
-              case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} " +
-                s"was not retrievable.")
+              case ExecutionGraphNotFound(jobID) =>
+                fail(s"The execution graph for job ID ${jobID} was not retrievable.")
             }
 
             executionGraph.getRegisteredExecutions.size should equal(0)
@@ -431,8 +431,8 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
             val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
               RequestExecutionGraph(jobGraph.getJobID)) match {
               case ExecutionGraphFound(_, eg) => eg
-              case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} " +
-                s"was not retrievable.")
+              case ExecutionGraphNotFound(jobID) =>
+                fail(s"The execution graph for job ID ${jobID} was not retrievable.")
             }
 
             executionGraph.getRegisteredExecutions.size should equal(0)
@@ -472,8 +472,8 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
             val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
               RequestExecutionGraph(jobGraph.getJobID)) match {
               case ExecutionGraphFound(_, eg) => eg
-              case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} " +
-                s"was not retrievable.")
+              case ExecutionGraphNotFound(jobID) =>
+                fail(s"The execution graph for job ID ${jobID} was not retrievable.")
             }
 
             executionGraph.getRegisteredExecutions.size should equal(0)
@@ -513,8 +513,8 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
             val executionGraph = AkkaUtils.ask[ResponseExecutionGraph](jm,
               RequestExecutionGraph(jobGraph.getJobID)) match {
               case ExecutionGraphFound(_, eg) => eg
-              case ExecutionGraphNotFound(jobID) => fail(s"The execution graph for job ID ${jobID} " +
-                s"was not retrievable.")
+              case ExecutionGraphNotFound(jobID) =>
+                fail(s"The execution graph for job ID ${jobID} was not retrievable.")
             }
 
             executionGraph.getRegisteredExecutions.size should equal(0)

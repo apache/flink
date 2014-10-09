@@ -32,10 +32,6 @@ under the License.
 	<artifactId>flink-runtime</artifactId>
 	<name>flink-runtime</name>
 
-	<properties>
-		<akka.version>2.3.6</akka.version>
-	</properties>
-
 	<packaging>jar</packaging>
 
 	<dependencies>
@@ -104,39 +100,31 @@ under the License.
 		<dependency>
 			<groupId>org.scala-lang</groupId>
 			<artifactId>scala-library</artifactId>
-			<version>${scala.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>com.typesafe.akka</groupId>
 			<artifactId>akka-actor_2.10</artifactId>
-			<version>${akka.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>com.typesafe.akka</groupId>
 			<artifactId>akka-remote_2.10</artifactId>
-			<version>${akka.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>com.typesafe.akka</groupId>
 			<artifactId>akka-slf4j_2.10</artifactId>
-			<version>${akka.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>com.typesafe.akka</groupId>
 			<artifactId>akka-testkit_2.10</artifactId>
-			<version>${akka.version}</version>
-			<scope>test</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.scalatest</groupId>
 			<artifactId>scalatest_2.10</artifactId>
-			<version>2.2.2</version>
-			<scope>test</scope>
 		</dependency>
 
 		<dependency>
@@ -150,7 +138,7 @@ under the License.
 				</exclusion>
 			</exclusions>
 		</dependency>
-		
+
 	</dependencies>
 
 	<build>
@@ -251,6 +239,30 @@ under the License.
 						</configuration>
 					</execution>
 				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>org.scalastyle</groupId>
+				<artifactId>scalastyle-maven-plugin</artifactId>
+				<version>0.5.0</version>
+				<executions>
+					<execution>
+						<goals>
+							<goal>check</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<verbose>false</verbose>
+					<failOnViolation>true</failOnViolation>
+					<includeTestSourceDirectory>true</includeTestSourceDirectory>
+					<failOnWarning>false</failOnWarning>
+					<sourceDirectory>${basedir}/src/main/scala</sourceDirectory>
+					<testSourceDirectory>${basedir}/src/test/scala</testSourceDirectory>
+					<configLocation>${project.basedir}/../tools/maven/scalastyle-config.xml</configLocation>
+					<outputFile>${project.basedir}/scalastyle-output.xml</outputFile>
+					<outputEncoding>UTF-8</outputEncoding>
+				</configuration>
 			</plugin>
 
 			<plugin>

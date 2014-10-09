@@ -63,7 +63,8 @@ object JobManagerMessages {
   case class UpdateTaskExecutionState(taskExecutionState: TaskExecutionState)
 
   /**
-   * Requesting next input split for the [[org.apache.flink.runtime.executiongraph.ExecutionJobVertex]]
+   * Requesting next input split for the
+   * [[org.apache.flink.runtime.executiongraph.ExecutionJobVertex]]
    * of the job specified by [[jobID]]. The next input split is sent back to the sender as a
    * [[org.apache.flink.runtime.messages.TaskManagerMessages.NextInputSplit]] message.
    *

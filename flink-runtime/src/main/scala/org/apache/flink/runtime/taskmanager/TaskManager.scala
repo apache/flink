@@ -64,15 +64,13 @@ import scala.util.Failure
 import scala.util.Success
 
 class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkkaURL: String,
-                  val numberOfSlots: Int, val memorySize: Long, val pageSize: Int,
-                  val tmpDirPaths: Array[String],
-                  val networkConnectionConfig: NetworkConnectionConfiguration,
-                  memoryUsageLogging: MemoryUsageLogging, profilingInterval: Option[Long],
-                  cleanupInterval: Long)
+                  val taskManagerConfig: TaskManagerConfiguration,
+                  val networkConnectionConfig: NetworkConnectionConfiguration)
   extends Actor with ActorLogMessages with ActorLogging with DecorateAsScala with WrapAsScala {
 
   import context._
   import AkkaUtils.FUTURE_TIMEOUT
+  import taskManagerConfig._
 
   val REGISTRATION_DELAY = 0 seconds
   val REGISTRATION_INTERVAL = 10 seconds
@@ -107,7 +105,7 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
   var heartbeatScheduler: Option[Cancellable] = None
 
   if (log.isDebugEnabled) {
-    memoryUsageLogging.logIntervalMs.foreach {
+    memoryLogggingIntervalMs.foreach {
       interval =>
         val d = FiniteDuration(interval, TimeUnit.MILLISECONDS)
         memoryMXBean = Some(ManagementFactory.getMemoryMXBean)
@@ -499,8 +497,7 @@ object TaskManager {
 
   def parseConfiguration(hostname: String, configuration: Configuration,
                          localExecution: Boolean = false):
-  (InstanceConnectionInfo, String, Int, Long, Int, Array[String], NetworkConnectionConfiguration,
-    MemoryUsageLogging, Option[Long], Long) = {
+  (InstanceConnectionInfo, String, TaskManagerConfiguration, NetworkConnectionConfiguration) = {
     val dataport = configuration.getInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY,
       ConfigConstants.DEFAULT_TASK_MANAGER_DATA_PORT) match {
       case 0 => NetUtils.getAvailablePort
@@ -554,7 +551,8 @@ object TaskManager {
     val networkConnectionConfiguration = if(localExecution){
       LocalNetworkConfiguration(numBuffers, bufferSize)
     }else{
-      val numInThreads = configuration.getInteger(ConfigConstants.TASK_MANAGER_NET_NUM_IN_THREADS_KEY,
+      val numInThreads = configuration.getInteger(
+        ConfigConstants.TASK_MANAGER_NET_NUM_IN_THREADS_KEY,
         ConfigConstants.DEFAULT_TASK_MANAGER_NET_NUM_IN_THREADS)
       val numOutThreads = configuration.getInteger(ConfigConstants
         .TASK_MANAGER_NET_NUM_OUT_THREADS_KEY,
@@ -571,11 +569,11 @@ object TaskManager {
     }
 
 
-    val logIntervalMs = configuration.getBoolean(ConfigConstants
+    val memoryLoggingIntervalMs = configuration.getBoolean(ConfigConstants
       .TASK_MANAGER_DEBUG_MEMORY_USAGE_START_LOG_THREAD,
       ConfigConstants.DEFAULT_TASK_MANAGER_DEBUG_MEMORY_USAGE_START_LOG_THREAD) match {
       case true => Some(
-        configuration.getInteger(ConfigConstants.TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS,
+        configuration.getLong(ConfigConstants.TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS,
           ConfigConstants.DEFAULT_TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS)
       )
       case false => None
@@ -592,23 +590,18 @@ object TaskManager {
       .LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL,
       ConfigConstants.DEFAULT_LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL) * 1000
 
+    val taskManagerConfig = TaskManagerConfiguration(numberOfSlots, memorySize, pageSize,
+      tmpDirs, cleanupInterval, memoryLoggingIntervalMs, profilingInterval)
 
-
-    (connectionInfo, jobManagerURL, numberOfSlots, memorySize, pageSize, tmpDirs,
-      networkConnectionConfiguration, MemoryUsageLogging(logIntervalMs), profilingInterval,
-      cleanupInterval)
+    (connectionInfo, jobManagerURL, taskManagerConfig, networkConnectionConfiguration)
   }
 
   def startActor(connectionInfo: InstanceConnectionInfo, jobManagerURL: String,
-                 numberOfSlots: Int, memorySize: Long, pageSize: Int, tmpDirs: Array[String],
-                 networkConnectionConfiguration: NetworkConnectionConfiguration,
-                 memoryUsageLogging: MemoryUsageLogging, profilingInterval: Option[Long],
-                 cleanupInterval: Long)
-                (implicit actorSystem:
-                ActorSystem): ActorRef = {
-    actorSystem.actorOf(Props(classOf[TaskManager], connectionInfo, jobManagerURL, numberOfSlots,
-      memorySize, pageSize, tmpDirs, networkConnectionConfiguration, memoryUsageLogging,
-      profilingInterval, cleanupInterval), TASK_MANAGER_NAME);
+                 taskManagerConfig: TaskManagerConfiguration,
+                 networkConnectionConfiguration: NetworkConnectionConfiguration)
+                (implicit actorSystem: ActorSystem): ActorRef = {
+    actorSystem.actorOf(Props(classOf[TaskManager], connectionInfo, jobManagerURL,
+      taskManagerConfig, networkConnectionConfiguration), TASK_MANAGER_NAME);
   }
 
   def startActorWithConfiguration(hostname: String, configuration: Configuration,

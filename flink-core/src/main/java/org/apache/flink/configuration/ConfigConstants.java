@@ -484,7 +484,7 @@ public final class ConfigConstants {
 	/**
 	 * The interval (in ms) for the log thread to log the current memory usage.
 	 */
-	public static final int DEFAULT_TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS = 5000;
+	public static final long DEFAULT_TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS = 5000L;
 
 	/**
 	 * The default number of task slots per task manager

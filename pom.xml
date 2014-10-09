@@ -81,6 +81,7 @@ under the License.
 		<slf4j.version>1.7.7</slf4j.version>
 		<guava.version>17.0</guava.version>
 		<scala.version>2.10.4</scala.version>
+		<akka.version>2.3.6</akka.version>
 		<scala.binary.version>2.10</scala.binary.version>
 		<scala.macros.version>2.0.1</scala.macros.version>
 	</properties>
@@ -230,6 +231,75 @@ under the License.
 				<artifactId>stax-api</artifactId>
 				<version>1.0.1</version>
 			</dependency>
+
+			<dependency>
+				<groupId>org.scala-lang</groupId>
+				<artifactId>scala-library</artifactId>
+				<version>${scala.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>org.scala-lang</groupId>
+				<artifactId>scala-reflect</artifactId>
+				<version>${scala.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>org.scala-lang</groupId>
+				<artifactId>scala-compiler</artifactId>
+				<version>${scala.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>com.typesafe.akka</groupId>
+				<artifactId>akka-actor_2.10</artifactId>
+				<version>${akka.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>com.typesafe.akka</groupId>
+				<artifactId>akka-remote_2.10</artifactId>
+				<version>${akka.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>com.typesafe.akka</groupId>
+				<artifactId>akka-slf4j_2.10</artifactId>
+				<version>${akka.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>com.typesafe.akka</groupId>
+				<artifactId>akka-camel_2.10</artifactId>
+				<version>${akka.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>com.typesafe.akka</groupId>
+				<artifactId>akka-testkit_2.10</artifactId>
+				<version>${akka.version}</version>
+				<scope>test</scope>
+			</dependency>
+
+			<dependency>
+				<groupId>org.scalatest</groupId>
+				<artifactId>scalatest_2.10</artifactId>
+				<version>2.2.2</version>
+				<scope>test</scope>
+			</dependency>
+
+			<dependency>
+				<groupId>com.github.scopt</groupId>
+				<artifactId>scopt_2.10</artifactId>
+				<version>3.2.0</version>
+				<exclusions>
+					<exclusion>
+						<groupId>org.scala-lang</groupId>
+						<artifactId>scala-library</artifactId>
+					</exclusion>
+				</exclusions>
+			</dependency>
+
 
 			<!-- "Old" stable Hadoop = MapReduce v1 -->
 			<dependency>

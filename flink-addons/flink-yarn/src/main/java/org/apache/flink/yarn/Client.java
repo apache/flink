@@ -17,25 +17,23 @@
  */
 package org.apache.flink.yarn;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.jar.JarFile;
 
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import akka.actor.Props;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.HelpFormatter;
@@ -44,13 +42,14 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.PosixParser;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.client.CliFrontend;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.yarn.appMaster.ApplicationMaster;
-import org.apache.flink.yarn.rpc.YARNClientMasterProtocol.Message;
+import org.apache.flink.yarn.Messages.WaitForJobTermination$;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -74,6 +73,7 @@ import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.client.api.YarnClientApplication;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.util.Records;
+import scala.concurrent.duration.Duration;
 
 /**
  * All classes in this package contain code taken from
@@ -147,7 +147,9 @@ public class Client {
 	private Configuration conf;
 	private YarnClient yarnClient;
 
-	private ClientMasterControl cmc;
+	private ActorSystem actorSystem;
+
+	private ActorRef applicationClient = ActorRef.noSender();
 
 	private File yarnPropertiesFile;
 
@@ -493,8 +495,6 @@ public class Client {
 		amContainer.setLocalResources(localResources);
 		fs.close();
 
-		int amRPCPort = GlobalConfiguration.getInteger(ConfigConstants.YARN_AM_PRC_PORT, ConfigConstants.DEFAULT_YARN_AM_RPC_PORT);
-		amRPCPort = Utils.offsetPort(amRPCPort, appNumber);
 		// Setup CLASSPATH for ApplicationMaster
 		Map<String, String> appMasterEnv = new HashMap<String, String>();
 		Utils.setupEnv(conf, appMasterEnv);
@@ -507,7 +507,6 @@ public class Client {
 		appMasterEnv.put(Client.ENV_CLIENT_HOME_DIR, fs.getHomeDirectory().toString());
 		appMasterEnv.put(Client.ENV_CLIENT_SHIP_FILES, envShipFileList.toString() );
 		appMasterEnv.put(Client.ENV_CLIENT_USERNAME, UserGroupInformation.getCurrentUser().getShortUserName());
-		appMasterEnv.put(Client.ENV_AM_PRC_PORT, String.valueOf(amRPCPort));
 		appMasterEnv.put(Client.ENV_SLOTS, String.valueOf(slots));
 		appMasterEnv.put(Client.ENV_APP_NUMBER, String.valueOf(appNumber));
 		if(dynamicPropertiesEncoded != null) {
@@ -533,97 +532,29 @@ public class Client {
 		LOG.info("Submitting application master " + appId);
 		yarnClient.submitApplication(appContext);
 		ApplicationReport appReport = yarnClient.getApplicationReport(appId);
-		YarnApplicationState appState = appReport.getYarnApplicationState();
-		boolean told = false;
-		char[] el = { '/', '|', '\\', '-'};
-		int i = 0;
-		int numTaskmanagers = 0;
-		int numMessages = 0;
 
-		BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
+		Runtime.getRuntime().addShutdownHook(new ClientShutdownHook());
 
-		while (appState != YarnApplicationState.FINISHED
-				&& appState != YarnApplicationState.KILLED
-				&& appState != YarnApplicationState.FAILED) {
-			if(!told && appState ==  YarnApplicationState.RUNNING) {
-				System.err.println("Flink JobManager is now running on "+appReport.getHost()+":"+jmPort);
-				System.err.println("JobManager Web Interface: "+appReport.getTrackingUrl());
-				// write jobmanager connect information
-				Properties yarnProps = new Properties();
-				yarnProps.setProperty(CliFrontend.YARN_PROPERTIES_JOBMANAGER_KEY, appReport.getHost()+":"+jmPort);
-				if(slots != -1) {
-					yarnProps.setProperty(CliFrontend.YARN_PROPERTIES_DOP, Integer.toString(slots * taskManagerCount) );
-				}
-				// add dynamic properties
-				if(dynamicProperties != null) {
-					yarnProps.setProperty(CliFrontend.YARN_PROPERTIES_DYNAMIC_PROPERTIES_STRING, dynamicPropertiesEncoded);
-				}
-				OutputStream out = new FileOutputStream(yarnPropertiesFile);
-				yarnProps.store(out, "Generated YARN properties file");
-				out.close();
-				yarnPropertiesFile.setReadable(true, false); // readable for all.
+		// start actor system
+		LOG.info("Start actor system.");
+		actorSystem = AkkaUtils.createActorSystem();
 
-				// connect RPC service
-				cmc = new ClientMasterControl(new InetSocketAddress(appReport.getHost(), amRPCPort));
-				cmc.start();
-				Runtime.getRuntime().addShutdownHook(new ClientShutdownHook());
-				told = true;
-			}
-			if(!told) {
-				System.err.print(el[i++]+"\r");
-				if(i == el.length) {
-					i = 0;
-				}
-				Thread.sleep(500); // wait for the application to switch to RUNNING
-			} else {
-				int newTmCount = cmc.getNumberOfTaskManagers();
-				if(numTaskmanagers != newTmCount) {
-					System.err.println("Number of connected TaskManagers changed to "+newTmCount+". "
-							+ "Slots available: "+cmc.getNumberOfAvailableSlots());
-					numTaskmanagers = newTmCount;
-				}
-				// we also need to show new messages.
-				if(cmc.getFailedStatus()) {
-					System.err.println("The Application Master failed!\nMessages:\n");
-					for(Message m: cmc.getMessages() ) {
-						System.err.println("Message: "+m.getMessage());
-					}
-					System.err.println("Requesting Application Master shutdown");
-					cmc.shutdownAM();
-					cmc.close();
-					System.err.println("Application Master closed.");
-				}
-				if(cmc.getMessages().size() != numMessages) {
-					System.err.println("Received new message(s) from the Application Master");
-					List<Message> msg = cmc.getMessages();
-					while(msg.size() > numMessages) {
-						System.err.println("Message: "+msg.get(numMessages).getMessage());
-						numMessages++;
-					}
-				}
+		// start application client
+		String path = appReport.getHost() + ":" + jmPort;
+		LOG.info("Start application client.");
+		applicationClient = actorSystem.actorOf(Props.create(ApplicationClient.class, path,
+				yarnClient));
 
-				// wait until CLIENT_POLLING_INTERVALL is over or the user entered something.
-				long startTime = System.currentTimeMillis();
-				while ((System.currentTimeMillis() - startTime) < CLIENT_POLLING_INTERVALL * 1000
-						&& !in.ready()) {
-					Thread.sleep(200);
-				}
-				if (in.ready()) {
-					String command = in.readLine();
-					evalCommand(command);
-				}
+		appReport = AkkaUtils.ask(applicationClient,
+				WaitForJobTermination$.MODULE$,
+				AkkaUtils.FUTURE_TIMEOUT(), Duration.Inf());
 
-			}
+		LOG.info("Application " + appId + " finished with state " + appReport
+				.getYarnApplicationState() + " and final state " + appReport
+				.getFinalApplicationStatus() + " at " + appReport.getFinishTime());
 
-			appReport = yarnClient.getApplicationReport(appId);
-			appState = appReport.getYarnApplicationState();
-		}
-
-		LOG.info("Application " + appId + " finished with"
-				+ " state " + appState + " and "
-				+ "final state " + appReport.getFinalApplicationStatus() + " at " + appReport.getFinishTime());
-
-		if(appState == YarnApplicationState.FAILED || appState == YarnApplicationState.KILLED ) {
+		if(appReport.getYarnApplicationState() == YarnApplicationState.FAILED || appReport.getYarnApplicationState()
+				== YarnApplicationState.KILLED	) {
 			LOG.warn("Application failed. Diagnostics "+appReport.getDiagnostics());
 			LOG.warn("If log aggregation is activated in the Hadoop cluster, we recommend to retreive "
 					+ "the full application log using this command:\n"
@@ -632,47 +563,21 @@ public class Client {
 		}
 	}
 
-	private void printHelp() {
-		System.err.println("Available commands:\n"
-				+ "\t stop : Stop the YARN session\n"
-				+ "\t allmsg : Show all messages\n");
-	}
-	private void evalCommand(String command) {
-		if(command.equals("help")) {
-			printHelp();
-		} else if(command.equals("stop") || command.equals("quit") || command.equals("exit")) {
-			stopSession();
-			System.exit(0);
-		} else if(command.equals("allmsg")) {
-			System.err.println("All messages from the ApplicationMaster:");
-			for(Message m: cmc.getMessages() ) {
-				System.err.println("Message: "+m.getMessage());
-			}
-		} else if(command.startsWith("add")) {
-			System.err.println("This feature is not implemented yet!");
-//			String nStr = command.replace("add", "").trim();
-//			int n = Integer.valueOf(nStr);
-//			System.err.println("Adding "+n+" TaskManagers to the session");
-//			cmc.addTaskManagers(n);
-		} else {
-			System.err.println("Unknown command '"+command+"'");
-			printHelp();
-		}
-	}
-
-	private void cleanUp() throws IOException {
-		LOG.info("Deleting files in "+sessionFilesDir );
-		FileSystem shutFS = FileSystem.get(conf);
-		shutFS.delete(sessionFilesDir, true); // delete conf and jar file.
-		shutFS.close();
-	}
-	
 	private void stopSession() {
 		try {
 			LOG.info("Sending shutdown request to the Application Master");
-			cmc.shutdownAM();
-			cleanUp();
-			cmc.close();
+			if(applicationClient != ActorRef.noSender()) {
+				applicationClient.tell(new Messages.StopYarnSession(FinalApplicationStatus.KILLED),
+						ActorRef.noSender());
+				applicationClient = ActorRef.noSender();
+			}
+
+			if(actorSystem != null){
+				actorSystem.shutdown();
+				actorSystem.awaitTermination();
+
+				actorSystem = null;
+			}
 		} catch (Exception e) {
 			LOG.warn("Exception while killing the YARN application", e);
 		}
@@ -683,6 +588,16 @@ public class Client {
 		}
 		LOG.info("YARN Client is shutting down");
 		yarnClient.stop();
+
+		LOG.info("Deleting files in "+sessionFilesDir );
+
+		try {
+			FileSystem shutFS = FileSystem.get(conf);
+			shutFS.delete(sessionFilesDir, true); // delete conf and jar file.
+			shutFS.close();
+		}catch(IOException e){
+			LOG.error("Could not delete the conf and jar files.", e);
+		}
 	}
 
 	public class ClientShutdownHook extends Thread {

@@ -35,7 +35,7 @@ import scala.concurrent.ExecutionContext
 object TestingUtils {
   val testConfig = ConfigFactory.parseString(getDefaultTestingActorSystemConfigString)
 
-  val TESTING_DURATION = 10 second
+  val TESTING_DURATION = 20 second
 
   def getDefaultTestingActorSystemConfigString: String = {
     val ioRWSerializerClass = classOf[IOReadableWritableSerializer].getCanonicalName
@@ -59,13 +59,11 @@ object TestingUtils {
 
   def startTestingTaskManagerWithConfiguration(hostname: String, config: Configuration)
                                               (implicit system: ActorSystem) = {
-    val (connectionInfo, jobManagerURL, numberOfSlots, memorySize, pageSize, tmpDirPaths,
-    networkConnectionConfig, memoryUsageLogging, profilingInterval, cleanupInterval) =
+    val (connectionInfo, jobManagerURL, taskManagerConfig, networkConnectionConfig) =
       TaskManager.parseConfiguration(hostname, config);
 
-    system.actorOf(Props(new TaskManager(connectionInfo, jobManagerURL, numberOfSlots,
-      memorySize, pageSize, tmpDirPaths, networkConnectionConfig, memoryUsageLogging,
-      profilingInterval, cleanupInterval) with TestingTaskManager))
+    system.actorOf(Props(new TaskManager(connectionInfo, jobManagerURL, taskManagerConfig,
+      networkConnectionConfig) with TestingTaskManager))
   }
 
   def startTestingCluster(numSlots: Int, numTaskManagers: Int = 1): FlinkMiniCluster = {

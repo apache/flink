@@ -24,7 +24,7 @@ import java.util.concurrent.Callable
 import akka.actor.{ActorSelection, ActorRef, ActorSystem}
 import akka.pattern.Patterns
 import akka.util.Timeout
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.core.io.IOReadableWritable
 import org.apache.flink.runtime.akka.serialization.{WritableSerializer,
@@ -42,13 +42,15 @@ object AkkaUtils {
 
   def createActorSystem(host: String, port: Int, configuration: Configuration): ActorSystem = {
     val akkaConfig = ConfigFactory.parseString(AkkaUtils.getConfigString(host, port, configuration))
-    val actorSystem = ActorSystem.create("flink", akkaConfig)
-
-    actorSystem
+    createActorSystem(akkaConfig)
   }
 
   def createActorSystem(): ActorSystem = {
-    ActorSystem.create("default", getDefaultActorSystemConfig)
+    createActorSystem(getDefaultActorSystemConfig)
+  }
+
+  def createActorSystem(akkaConfig: Config): ActorSystem = {
+    ActorSystem.create("flink", akkaConfig)
   }
 
   def getConfigString(host: String, port: Int, configuration: Configuration): String = {
@@ -132,14 +134,24 @@ object AkkaUtils {
 
   @throws(classOf[IOException])
   def ask[T](actorSelection: ActorSelection, msg: Any): T = {
-    val future = Patterns.ask(actorSelection, msg, FUTURE_TIMEOUT)
-    Await.result(future, AWAIT_DURATION).asInstanceOf[T]
+    ask(actorSelection, msg, FUTURE_TIMEOUT, FUTURE_DURATION)
   }
 
   @throws(classOf[IOException])
   def ask[T](actor: ActorRef, msg: Any): T = {
-    val future = Patterns.ask(actor, msg, FUTURE_TIMEOUT)
-    Await.result(future, AWAIT_DURATION).asInstanceOf[T]
+    ask(actor, msg, FUTURE_TIMEOUT, FUTURE_DURATION)
+  }
+
+  @throws(classOf[IOException])
+  def ask[T](actorSelection: ActorSelection, msg: Any, timeout: Timeout, duration: Duration): T = {
+    val future = Patterns.ask(actorSelection, msg, timeout)
+    Await.result(future, duration).asInstanceOf[T]
+  }
+
+  @throws(classOf[IOException])
+  def ask[T](actor: ActorRef, msg: Any, timeout: Timeout, duration: Duration): T = {
+    val future = Patterns.ask(actor, msg, timeout)
+    Await.result(future, duration).asInstanceOf[T]
   }
 
   def retry[T](body: => T, tries: Int)(implicit executionContext: ExecutionContext): Future[T] = {

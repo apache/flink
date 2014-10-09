@@ -192,7 +192,8 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
               val status = Patterns.ask(self, RequestFinalJobStatus(jobGraph.getJobID), 10 second)
               status.onFailure{
                 case _: Throwable => self ! JobStatusChanged(executionGraph.getJobID,
-                  JobStatus.FAILED, System.currentTimeMillis(), s"Cleanup job ${jobGraph.getJobID}.")
+                  JobStatus.FAILED, System.currentTimeMillis(),
+                  s"Cleanup job ${jobGraph.getJobID}.")
               }
             case None =>
               libraryCacheManager.unregister(jobGraph.getJobID)
@@ -225,8 +226,8 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
         sender() ! false
       }else {
         currentJobs.get(taskExecutionState.getJobID) match {
-          case Some((executionGraph, _)) => sender() ! executionGraph.updateState(taskExecutionState)
-
+          case Some((executionGraph, _)) =>
+            sender() ! executionGraph.updateState(taskExecutionState)
           case None => log.error(s"Cannot find execution graph for ID ${taskExecutionState
             .getJobID} to change state to ${taskExecutionState.getExecutionState}.")
             sender() ! false
@@ -450,7 +451,7 @@ object JobManager {
   }
 
   def getAkkaURL(address: String): String = {
-    s"akka.tcp://flink@${address}/user/jobmanager"
+    s"akka.tcp://flink@${address}/user/${JOB_MANAGER_NAME}"
   }
 
   def getProfiler(jobManager: ActorRef)(implicit system: ActorSystem): ActorRef = {
