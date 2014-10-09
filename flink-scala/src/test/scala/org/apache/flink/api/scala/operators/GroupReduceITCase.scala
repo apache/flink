@@ -22,21 +22,15 @@ import java.lang.Iterable
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.scala.ExecutionEnvironment
-import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.api.scala.util.CollectionDataSets.CustomType
+import org.apache.flink.api.scala.util.CollectionDataSets.{CrazyNested, POJO, MutableTuple3,
+CustomType}
 import org.apache.flink.compiler.PactCompiler
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.configuration.Configuration
-import org.apache.flink.test.util.JavaProgramTestBase
 import org.apache.flink.test.util.JavaProgramTestBase
 import org.apache.flink.util.Collector
 import org.junit.runner.RunWith
-import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.runners.Parameterized
-import org.junit.runners.Parameterized.Parameters
 import org.junit.runners.Parameterized.Parameters
 
 import scala.collection.JavaConverters._
@@ -46,7 +40,7 @@ import org.apache.flink.api.scala._
 
 
 object GroupReduceProgs {
-  var NUM_PROGRAMS: Int = 8
+  var NUM_PROGRAMS: Int = 26
 
   def runProgram(progId: Int, resultPath: String, onCollection: Boolean): String = {
     progId match {
@@ -128,7 +122,7 @@ object GroupReduceProgs {
           in =>
             val iter = in.toIterator
             val o = new CustomType
-            var c = iter.next()
+            val c = iter.next()
 
             o.myString = "Hello!"
             o.myInt = c.myInt
@@ -216,322 +210,486 @@ object GroupReduceProgs {
         env.execute()
         "1,1,55\n" + "5,2,55\n" + "15,3,55\n" + "34,4,55\n" + "65,5,55\n" + "111,6,55\n"
 
-//      case 9 =>
-//        val env = ExecutionEnvironment.getExecutionEnvironment
-//        val ds =  CollectionDataSets.get3TupleDataSet(env)
-//        val reduceDs =  ds.groupBy(1).reduceGroup(new
-//            GroupReduceITCase.InputReturningTuple3GroupReduce)
-//        reduceDs.writeAsCsv(resultPath)
-//        env.execute()
-//        "11,1,Hi!\n" + "21,1,Hi again!\n" + "12,2,Hi!\n" + "22,2,Hi again!\n" + "13,2," +
-//          "Hi!\n" + "23,2,Hi again!\n"
+      case 9 =>
+        /*
+         * check correctness of groupReduce if UDF returns input objects multiple times and
+         * changes it in between
+         */
+        val env = ExecutionEnvironment.getExecutionEnvironment
+        val ds =  CollectionDataSets.get3TupleDataSet(env)
+          .map( t => MutableTuple3(t._1, t._2, t._3) )
+        val reduceDs =  ds.groupBy(1).reduceGroup {
+          (in, out: Collector[MutableTuple3[Int, Long, String]]) =>
+            for (t <- in) {
+              if (t._1 < 4) {
+                t._3 = "Hi!"
+                t._1 += 10
+                out.collect(t)
+                t._1 += 10
+                t._3 = "Hi again!"
+                out.collect(t)
+              }
+            }
+        }
+        reduceDs.writeAsCsv(resultPath)
+        env.execute()
+        "11,1,Hi!\n" + "21,1,Hi again!\n" + "12,2,Hi!\n" + "22,2,Hi again!\n" + "13,2," +
+          "Hi!\n" + "23,2,Hi again!\n"
 
-//      case 10 => {
-//        val env = ExecutionEnvironment.getExecutionEnvironment
-//        val ds =  CollectionDataSets.getCustomTypeDataSet
-//        (env)
-//        val reduceDs =  ds.groupBy(new
-//            KeySelector[CollectionDataSets.CustomType, Integer] {
-//          def getKey(in: CollectionDataSets.CustomType): Integer = {
-//            return in.myInt
-//          }
-//        }).reduceGroup(new GroupReduceITCase.CustomTypeGroupReduceWithCombine)
-//        reduceDs.writeAsText(resultPath)
-//        env.execute()
-//        if (collectionExecution) {
-//          return null
-//        }
-//        else {
-//          "1,0,test1\n" + "2,3,test2\n" + "3,12,test3\n" + "4,30,test4\n" + "5,60," +
-//            "test5\n" + "6,105,test6\n"
-//        }
-//      }
-//      case 11 => {
-//        val env = ExecutionEnvironment.getExecutionEnvironment
-//        env.setDegreeOfParallelism(2)
-//        val ds =  CollectionDataSets.get3TupleDataSet(env)
-//        val reduceDs =  ds.groupBy(1).reduceGroup(new
-//            GroupReduceITCase.Tuple3GroupReduceWithCombine)
-//        reduceDs.writeAsCsv(resultPath)
-//        env.execute()
-//        if (collectionExecution) {
-//          return null
-//        }
-//        else {
-//          "1,test1\n" + "5,test2\n" + "15,test3\n" + "34,test4\n" + "65,test5\n" + "111," +
-//            "test6\n"
-//        }
-//      }
-//
-//
-//      // all-groupreduce with combine
-//
-//
-//      case 12 => {
-//        val env = ExecutionEnvironment.getExecutionEnvironment
-//        val ds =  CollectionDataSets.get3TupleDataSet(env)
-//          .map(new GroupReduceITCase.IdentityMapper[Tuple3[Integer, Long,
-//          String]]).setParallelism(4)
-//        val cfg: Configuration = new Configuration
-//        cfg.setString(PactCompiler.HINT_SHIP_STRATEGY,
-// PactCompiler.HINT_SHIP_STRATEGY_REPARTITION)
-//        val reduceDs =  ds.reduceGroup(new GroupReduceITCase
-//        .Tuple3AllGroupReduceWithCombine).withParameters(cfg)
-//        reduceDs.writeAsCsv(resultPath)
-//        env.execute()
-//        if (collectionExecution) {
-//          return null
-//        }
-//        else {
-//          "322," +
-//          "testtesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttest\n"
-//        }
-//      }
-//      case 13 => {
-//        val env = ExecutionEnvironment.getExecutionEnvironment
-//        env.setDegreeOfParallelism(1)
-//        val ds =  CollectionDataSets.get3TupleDataSet(env)
-//        val reduceDs =  ds.groupBy(1).sortGroup(2,
-//          Order.DESCENDING).reduceGroup(new GroupReduceITCase.Tuple3SortedGroupReduce)
-//        reduceDs.writeAsCsv(resultPath)
-//        env.execute()
-//        "1,1,Hi\n" + "5,2,Hello world-Hello\n" + "15,3,Luke Skywalker-I am fine.-Hello " +
-//          "world, how are you?\n" + "34,4,Comment#4-Comment#3-Comment#2-Comment#1\n" + "65,5," +
-//          "Comment#9-Comment#8-Comment#7-Comment#6-Comment#5\n" + "111,6," +
-//          "Comment#15-Comment#14-Comment#13-Comment#12-Comment#11-Comment#10\n"
-//      }
-//      case 14 => {
-//        val env = ExecutionEnvironment.getExecutionEnvironment
-//        val ds =  CollectionDataSets
-//          .get5TupleDataSet(env)
-//        val reduceDs: DataSet[Tuple5[Integer, Long, Integer, String,
-//          Long]] = ds.groupBy(new KeySelector[Tuple5[Integer, Long, Integer, String, Long],
-//          Tuple2[Integer, Long]] {
-//          def getKey(t: Tuple5[Integer, Long, Integer, String, Long]): Tuple2[Integer, Long] = {
-//            return new Tuple2[Integer, Long](t.f0, t.f4)
-//          }
-//        }).reduceGroup(new GroupReduceITCase.Tuple5GroupReduce)
-//        reduceDs.writeAsCsv(resultPath)
-//        env.execute()
-//        "1,1,0,P-),1\n" + "2,3,0,P-),1\n" + "2,2,0,P-),2\n" + "3,9,0,P-),2\n" + "3,6,0," +
-//          "P-),3\n" + "4,17,0,P-),1\n" + "4,17,0,P-),2\n" + "5,11,0,P-),1\n" + "5,29,0,P-)," +
-//          "2\n" + "5,25,0,P-),3\n"
-//      }
-//      case 15 => {
-//        val env = ExecutionEnvironment.getExecutionEnvironment
-//        env.setDegreeOfParallelism(1)
-//        val ds =  CollectionDataSets.get3TupleDataSet(env)
-//        val reduceDs =  ds.groupBy(1).sortGroup(0,
-//          Order.ASCENDING).reduceGroup(new GroupReduceITCase.OrderCheckingCombinableReduce)
-//        reduceDs.writeAsCsv(resultPath)
-//        env.execute()
-//        "1,1,Hi\n" + "2,2,Hello\n" + "4,3,Hello world, how are you?\n" + "7,4," +
-//          "Comment#1\n" + "11,5,Comment#5\n" + "16,6,Comment#10\n"
-//      }
-//      case 16 => {
-//        val env = ExecutionEnvironment.getExecutionEnvironment
-//        val ds =  CollectionDataSets
-//          .getCrazyNestedDataSet(env)
-//        val reduceDs =  ds.groupBy("nest_Lvl1.nest_Lvl2" +
-//          ".nest_Lvl3.nest_Lvl4.f1nal").reduceGroup(new GroupReduceFunction[CollectionDataSets
-//        .CrazyNested, Tuple2[String, Integer]] {
-//          def reduce(values: Iterable[CollectionDataSets.CrazyNested],
-//                     out: Collector[Tuple2[String, Integer]]) {
-//            var c: Int = 0
-//            var n: String = null
-//            import scala.collection.JavaConversions._
-//            for (v <- values) {
-//              c += 1
-//              n = v.nest_Lvl1.nest_Lvl2.nest_Lvl3.nest_Lvl4.f1nal
-//            }
-//            out.collect(new Tuple2[String, Integer](n, c))
-//          }
-//        })
-//        reduceDs.writeAsCsv(resultPath)
-//        env.execute()
-//        "aa,1\nbb,2\ncc,3\n"
-//      }
-//      case 17 => {
-//        val env = ExecutionEnvironment.getExecutionEnvironment
-//        val ds =  CollectionDataSets
-//          .getPojoExtendingFromTuple(env)
-//        val reduceDs =  ds.groupBy("special",
-//          "f2")
-// .reduceGroup(new GroupReduceFunction[CollectionDataSets.FromTupleWithCTor, Integer] {
-//          def reduce(values: Iterable[CollectionDataSets.FromTupleWithCTor],
-//                     out: Collector[Integer]) {
-//            var c: Int = 0
-//            import scala.collection.JavaConversions._
-//            for (v <- values) {
-//              c += 1
-//            }
-//            out.collect(c)
-//          }
-//        })
-//        reduceDs.writeAsText(resultPath)
-//        env.execute()
-//        "3\n2\n"
-//      }
-//      case 18 => {
-//        val env = ExecutionEnvironment.getExecutionEnvironment
-//        val ds =  CollectionDataSets
-//          .getPojoContainingTupleAndWritable(env)
-//        val reduceDs =  ds.groupBy("hadoopFan", "theTuple.*").reduceGroup(new
-//            GroupReduceFunction[CollectionDataSets.PojoContainingTupleAndWritable, Integer] {
-//          def reduce(values: Iterable[CollectionDataSets.PojoContainingTupleAndWritable],
-//                     out: Collector[Integer]) {
-//            var c: Int = 0
-//            import scala.collection.JavaConversions._
-//            for (v <- values) {
-//              c += 1
-//            }
-//            out.collect(c)
-//          }
-//        })
-//        reduceDs.writeAsText(resultPath)
-//        env.execute()
-//        "1\n5\n"
-//      }
-//      case 19 => {
-//        val env = ExecutionEnvironment.getExecutionEnvironment
-//        val ds: DataSet[Tuple3[Integer, CollectionDataSets.CrazyNested,
-//          CollectionDataSets.POJO]] = CollectionDataSets.getTupleContainingPojos(env)
-//        val reduceDs =  ds.groupBy("f0", "f1.*").reduceGroup(new
-//            GroupReduceFunction[Tuple3[Integer, CollectionDataSets.CrazyNested,
-//              CollectionDataSets.POJO], Integer] {
-//          def reduce(values: Iterable[Tuple3[Integer, CollectionDataSets.CrazyNested,
-//            CollectionDataSets.POJO]], out: Collector[Integer]) {
-//            var c: Int = 0
-//            import scala.collection.JavaConversions._
-//            for (v <- values) {
-//              c += 1
-//            }
-//            out.collect(c)
-//          }
-//        })
-//        reduceDs.writeAsText(resultPath)
-//        env.execute()
-//        "3\n1\n"
-//      }
-//      case 20 => {
-//        val env = ExecutionEnvironment.getExecutionEnvironment
-//        env.setDegreeOfParallelism(1)
-//        val ds =  CollectionDataSets.get3TupleDataSet(env)
-//        val reduceDs =  ds.groupBy(1).sortGroup("f2",
-//          Order.DESCENDING).reduceGroup(new GroupReduceITCase.Tuple3SortedGroupReduce)
-//        reduceDs.writeAsCsv(resultPath)
-//        env.execute()
-//        "1,1,Hi\n" + "5,2,Hello world-Hello\n" + "15,3,Luke Skywalker-I am fine.-Hello " +
-//          "world, how are you?\n" + "34,4,Comment#4-Comment#3-Comment#2-Comment#1\n" + "65,5," +
-//          "Comment#9-Comment#8-Comment#7-Comment#6-Comment#5\n" + "111,6," +
-//          "Comment#15-Comment#14-Comment#13-Comment#12-Comment#11-Comment#10\n"
-//      }
-//      case 21 => {
-//        val env = ExecutionEnvironment.getExecutionEnvironment
-//        env.setDegreeOfParallelism(1)
-//        val ds =  CollectionDataSets
-//          .getGroupSortedNestedTupleDataSet(env)
-//        val reduceDs =  ds.groupBy("f1").sortGroup(0,
-//          Order.DESCENDING).reduceGroup(new GroupReduceITCase.NestedTupleReducer)
-//        reduceDs.writeAsText(resultPath)
-//        env.execute()
-//        "a--(1,1)-(1,2)-(1,3)-\n" + "b--(2,2)-\n" + "c--(3,3)-(3,6)-(3,9)-\n"
-//      }
-//      case 22 => {
-//        val env = ExecutionEnvironment.getExecutionEnvironment
-//        env.setDegreeOfParallelism(1)
-//        val ds =  CollectionDataSets
-//          .getGroupSortedNestedTupleDataSet(env)
-//        val reduceDs =  ds.groupBy("f1").sortGroup("f0.f0",
-//          Order.ASCENDING).reduceGroup(new GroupReduceITCase.NestedTupleReducer)
-//        reduceDs.writeAsText(resultPath)
-//        env.execute()
-//        "a--(1,3)-(1,2)-(2,1)-\n" + "b--(2,2)-\n" + "c--(3,3)-(3,6)-(4,9)-\n"
-//      }
-//      case 23 => {
-//        val env = ExecutionEnvironment.getExecutionEnvironment
-//        env.setDegreeOfParallelism(1)
-//        val ds =  CollectionDataSets
-//          .getGroupSortedNestedTupleDataSet(env)
-//        val reduceDs =  ds.groupBy("f1").sortGroup("f0.f0",
-//          Order.DESCENDING).reduceGroup(new GroupReduceITCase.NestedTupleReducer)
-//        reduceDs.writeAsText(resultPath)
-//        env.execute()
-//        "a--(2,1)-(1,3)-(1,2)-\n" + "b--(2,2)-\n" + "c--(4,9)-(3,3)-(3,6)-\n"
-//      }
-//      case 24 => {
-//        val env = ExecutionEnvironment.getExecutionEnvironment
-//        env.setDegreeOfParallelism(1)
-//        val ds =  CollectionDataSets
-//          .getGroupSortedNestedTupleDataSet(env)
-//        val reduceDs =  ds.groupBy("f1").sortGroup("f0.f0",
-//          Order.DESCENDING).sortGroup("f0.f1", Order.DESCENDING).reduceGroup(new
-//            GroupReduceITCase.NestedTupleReducer)
-//        reduceDs.writeAsText(resultPath)
-//        env.execute()
-//        "a--(2,1)-(1,3)-(1,2)-\n" + "b--(2,2)-\n" + "c--(4,9)-(3,6)-(3,3)-\n"
-//      }
-//      case 25 => {
-//        val env = ExecutionEnvironment.getExecutionEnvironment
-//        env.setDegreeOfParallelism(1)
-//        val ds =  CollectionDataSets
-//          .getGroupSortedPojoContainingTupleAndWritable(env)
-//        val reduceDs =  ds.groupBy("hadoopFan").sortGroup("theTuple.f0",
-//          Order.DESCENDING)
-// .sortGroup("theTuple.f1", Order.DESCENDING)
-// .reduceGroup(new GroupReduceFunction[CollectionDataSets.PojoContainingTupleAndWritable, String] {
-//  def reduce(values: Iterable[CollectionDataSets.PojoContainingTupleAndWritable],
-// out: Collector[String]) {
-//            var once: Boolean = false
-//            val concat: StringBuilder = new StringBuilder
-//            import scala.collection.JavaConversions._
-//            for (value <- values) {
-//              if (!once) {
-//                concat.append(value.hadoopFan.get)
-//                concat.append("---")
-//                once = true
-//              }
-//              concat.append(value.theTuple)
-//              concat.append("-")
-//            }
-//            out.collect(concat.toString)
-//          }
-//        })
-//        reduceDs.writeAsText(resultPath)
-//        env.execute()
-//        "1---(10,100)-\n" + "2---(30,600)-(30,400)-(30,200)-(20,201)-(20,200)-\n"
-//      }
-//      case 26 => {
-//        val env = ExecutionEnvironment.getExecutionEnvironment
-//        env.setDegreeOfParallelism(1)
-//        val ds =  CollectionDataSets.getPojoWithMultiplePojos(env)
-//        val reduceDs =  ds.groupBy("hadoopFan")
-// .sortGroup("theTuple.f0", Order.DESCENDING).sortGroup("theTuple.f1", Order.DESCENDING)
-// .reduceGroup(new GroupReduceFunction[CollectionDataSets.PojoContainingTupleAndWritable, String] {
-//          def reduce(values: Iterable[CollectionDataSets.PojoContainingTupleAndWritable],
-// out: Collector[String]) {
-//            var once: Boolean = false
-//            val concat: StringBuilder = new StringBuilder
-//            import scala.collection.JavaConversions._
-//            for (value <- values) {
-//              if (!once) {
-//                concat.append(value.hadoopFan.get)
-//                concat.append("---")
-//                once = true
-//              }
-//              concat.append(value.theTuple)
-//              concat.append("-")
-//            }
-//            out.collect(concat.toString)
-//          }
-//        })
-//        reduceDs.writeAsText(resultPath)
-//        env.execute()
-//        "1---(10,100)-\n" + "2---(30,600)-(30,400)-(30,200)-(20,201)-(20,200)-\n"
-//      }
-//      case _ => {
-//        throw new IllegalArgumentException("Invalid program id")
-//      }
+      case 10 =>
+        /*
+         * check correctness of groupReduce on custom type with key extractor and combine
+         */
+        val env = ExecutionEnvironment.getExecutionEnvironment
+        val ds =  CollectionDataSets.getCustomTypeDataSet(env)
+
+        @RichGroupReduceFunction.Combinable
+        class CustomTypeGroupReduceWithCombine
+          extends RichGroupReduceFunction[CustomType, CustomType] {
+          override def combine(values: Iterable[CustomType], out: Collector[CustomType]): Unit = {
+            val o = new CustomType()
+            for (c <- values.asScala) {
+              o.myInt = c.myInt
+              o.myLong += c.myLong
+              o.myString = "test" + c.myInt
+            }
+            out.collect(o)
+          }
+
+          override def reduce(values: Iterable[CustomType], out: Collector[CustomType]): Unit = {
+            val o = new CustomType(0, 0, "")
+            for (c <- values.asScala) {
+              o.myInt = c.myInt
+              o.myLong += c.myLong
+              o.myString = c.myString
+            }
+            out.collect(o)
+          }
+        }
+        val reduceDs =  ds.groupBy(_.myInt).reduceGroup(new CustomTypeGroupReduceWithCombine)
+
+        reduceDs.writeAsText(resultPath)
+        env.execute()
+        if (onCollection) {
+          null
+        }
+        else {
+          "1,0,test1\n" + "2,3,test2\n" + "3,12,test3\n" + "4,30,test4\n" + "5,60," +
+            "test5\n" + "6,105,test6\n"
+        }
+
+      case 11 =>
+        /*
+         * check correctness of groupReduce on tuples with combine
+         */
+        val env = ExecutionEnvironment.getExecutionEnvironment
+        // important because it determines how often the combiner is called
+        env.setDegreeOfParallelism(2)
+        val ds =  CollectionDataSets.get3TupleDataSet(env)
+        @RichGroupReduceFunction.Combinable
+        class Tuple3GroupReduceWithCombine
+          extends RichGroupReduceFunction[(Int, Long, String), (Int, String)] {
+          override def combine(
+              values: Iterable[(Int, Long, String)],
+              out: Collector[(Int, Long, String)]): Unit = {
+            var i = 0
+            var l = 0L
+            var s = ""
+            for (t <- values.asScala) {
+              i += t._1
+              l = t._2
+              s = "test" + t._2
+            }
+            out.collect((i, l, s))
+          }
+
+          override def reduce(
+              values: Iterable[(Int, Long, String)],
+              out: Collector[(Int, String)]): Unit = {
+            var i = 0
+            var s = ""
+            for (t <- values.asScala) {
+              i += t._1
+              s = t._3
+            }
+            out.collect((i, s))
+          }
+        }
+        val reduceDs =  ds.groupBy(1).reduceGroup(new Tuple3GroupReduceWithCombine)
+        reduceDs.writeAsCsv(resultPath)
+        env.execute()
+        if (onCollection) {
+          null
+        }
+        else {
+          "1,test1\n" + "5,test2\n" + "15,test3\n" + "34,test4\n" + "65,test5\n" + "111," +
+            "test6\n"
+        }
+
+
+      // all-groupreduce with combine
+
+
+      case 12 =>
+        /*
+         * check correctness of all-groupreduce for tuples with combine
+         */
+        val env = ExecutionEnvironment.getExecutionEnvironment
+        val ds =  CollectionDataSets.get3TupleDataSet(env).map(t => t).setParallelism(4)
+
+        val cfg: Configuration = new Configuration
+        cfg.setString(PactCompiler.HINT_SHIP_STRATEGY, PactCompiler.HINT_SHIP_STRATEGY_REPARTITION)
+
+        @RichGroupReduceFunction.Combinable
+        class Tuple3AllGroupReduceWithCombine
+          extends RichGroupReduceFunction[(Int, Long, String), (Int, String)] {
+          override def combine(
+              values: Iterable[(Int, Long, String)],
+              out: Collector[(Int, Long, String)]): Unit = {
+            var i = 0
+            var l = 0L
+            var s = ""
+            for (t <- values.asScala) {
+              i += t._1
+              l += t._2
+              s += "test"
+            }
+            out.collect((i, l, s))
+          }
+
+          override def reduce(
+              values: Iterable[(Int, Long, String)],
+              out: Collector[(Int, String)]): Unit = {
+            var i = 0
+            var s = ""
+            for (t <- values.asScala) {
+              i += t._1 + t._2.toInt
+              s += t._3
+            }
+            out.collect((i, s))
+          }
+        }
+        val reduceDs =  ds.reduceGroup(new Tuple3AllGroupReduceWithCombine).withParameters(cfg)
+
+        reduceDs.writeAsCsv(resultPath)
+        env.execute()
+        if (onCollection) {
+          null
+        }
+        else {
+          "322," +
+          "testtesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttest\n"
+        }
+
+      case 13 =>
+        /*
+         * check correctness of groupReduce with descending group sort
+         */
+        val env = ExecutionEnvironment.getExecutionEnvironment
+        env.setDegreeOfParallelism(1)
+        val ds =  CollectionDataSets.get3TupleDataSet(env)
+        val reduceDs =  ds.groupBy(1).sortGroup(2, Order.DESCENDING).reduceGroup {
+          in =>
+            in.reduce((l, r) => (l._1 + r._1, l._2, l._3 + "-" + r._3))
+        }
+
+        reduceDs.writeAsCsv(resultPath)
+        env.execute()
+        "1,1,Hi\n" + "5,2,Hello world-Hello\n" + "15,3,Luke Skywalker-I am fine.-Hello " +
+          "world, how are you?\n" + "34,4,Comment#4-Comment#3-Comment#2-Comment#1\n" + "65,5," +
+          "Comment#9-Comment#8-Comment#7-Comment#6-Comment#5\n" + "111,6," +
+          "Comment#15-Comment#14-Comment#13-Comment#12-Comment#11-Comment#10\n"
+
+      case 14 =>
+        /*
+         * check correctness of groupReduce on tuples with tuple-returning key selector
+         */
+        val env = ExecutionEnvironment.getExecutionEnvironment
+        val ds =  CollectionDataSets
+          .get5TupleDataSet(env)
+        val reduceDs = ds.groupBy( t => (t._1, t._5)).reduceGroup {
+          in =>
+            val (i, l, l2) = in
+              .map( t => (t._1, t._2, t._5))
+              .reduce((l, r) => (l._1, l._2 + r._2, l._3))
+            (i, l, 0, "P-)", l2)
+        }
+
+        reduceDs.writeAsCsv(resultPath)
+        env.execute()
+        "1,1,0,P-),1\n" + "2,3,0,P-),1\n" + "2,2,0,P-),2\n" + "3,9,0,P-),2\n" + "3,6,0," +
+          "P-),3\n" + "4,17,0,P-),1\n" + "4,17,0,P-),2\n" + "5,11,0,P-),1\n" + "5,29,0,P-)," +
+          "2\n" + "5,25,0,P-),3\n"
+
+      case 15 =>
+        /*
+         * check that input of combiner is also sorted for combinable groupReduce with group 
+         * sorting
+         */
+        val env = ExecutionEnvironment.getExecutionEnvironment
+        env.setDegreeOfParallelism(1)
+        val ds =  CollectionDataSets.get3TupleDataSet(env).map { t =>
+          MutableTuple3(t._1, t._2, t._3)
+        }
+
+        @RichGroupReduceFunction.Combinable
+        class OrderCheckingCombinableReduce
+          extends RichGroupReduceFunction[MutableTuple3[Int, Long, String],
+            MutableTuple3[Int, Long, String]] {
+          def reduce(
+              values: Iterable[MutableTuple3[Int, Long, String]],
+              out: Collector[MutableTuple3[Int, Long, String]]) {
+            val it = values.iterator()
+            var t = it.next()
+            val i = t._1
+            out.collect(t)
+
+            while (it.hasNext) {
+              t = it.next()
+              if (i > t._1 || (t._3 == "INVALID-ORDER!")) {
+                t._3 = "INVALID-ORDER!"
+                out.collect(t)
+              }
+            }
+          }
+
+          override def combine(
+              values: Iterable[MutableTuple3[Int, Long, String]],
+              out: Collector[MutableTuple3[Int, Long, String]]) {
+            val it = values.iterator()
+            var t = it.next
+            val i: Int = t._1
+            out.collect(t)
+            while (it.hasNext) {
+              t = it.next
+              if (i > t._1) {
+                t._3 = "INVALID-ORDER!"
+                out.collect(t)
+              }
+            }
+          }
+        }
+        
+        val reduceDs =  ds.groupBy(1)
+          .sortGroup(0, Order.ASCENDING).reduceGroup(new OrderCheckingCombinableReduce)
+        reduceDs.writeAsCsv(resultPath)
+        env.execute()
+        "1,1,Hi\n" + "2,2,Hello\n" + "4,3,Hello world, how are you?\n" + "7,4," +
+          "Comment#1\n" + "11,5,Comment#5\n" + "16,6,Comment#10\n"
+      
+      case 16 =>
+        /*
+         * Deep nesting test
+         * + null value in pojo
+         */
+        val env = ExecutionEnvironment.getExecutionEnvironment
+        val ds =  CollectionDataSets
+          .getCrazyNestedDataSet(env)
+        val reduceDs =  ds.groupBy("nest_Lvl1.nest_Lvl2.nest_Lvl3.nest_Lvl4.f1nal")
+          .reduceGroup {
+          in =>
+            var c = 0
+            var n: String = null
+            for (v <- in) {
+              c += 1
+              n = v.nest_Lvl1.nest_Lvl2.nest_Lvl3.nest_Lvl4.f1nal
+            }
+            (n, c)
+        }
+        reduceDs.writeAsCsv(resultPath)
+        env.execute()
+        "aa,1\nbb,2\ncc,3\n"
+
+
+      case 17 =>
+        // We don't have that test but keep numbering compatible to Java GroupReduceITCase
+        val env = ExecutionEnvironment.getExecutionEnvironment
+        env.fromElements("Hello world").writeAsText(resultPath)
+        env.execute()
+        "Hello world"
+
+      case 18 =>
+        /*
+         * Test Pojo containing a Writable and Tuples
+         */
+        val env = ExecutionEnvironment.getExecutionEnvironment
+        val ds =  CollectionDataSets
+          .getPojoContainingTupleAndWritable(env)
+        val reduceDs =  ds.groupBy("hadoopFan", "theTuple.*").reduceGroup(new
+            GroupReduceFunction[CollectionDataSets.PojoContainingTupleAndWritable, Integer] {
+          def reduce(
+              values: Iterable[CollectionDataSets.PojoContainingTupleAndWritable],
+              out: Collector[Integer]) {
+            var c: Int = 0
+            for (v <- values.asScala) {
+              c += 1
+            }
+            out.collect(c)
+          }
+        })
+        reduceDs.writeAsText(resultPath)
+        env.execute()
+        "1\n5\n"
+
+      case 19 =>
+        /*
+         * Test Tuple containing pojos and regular fields
+         */
+        val env = ExecutionEnvironment.getExecutionEnvironment
+        val ds = CollectionDataSets.getTupleContainingPojos(env)
+        val reduceDs =  ds.groupBy("_1", "_2.*").reduceGroup(
+          new GroupReduceFunction[(Int, CrazyNested, POJO), Int] {
+          def reduce(values: Iterable[(Int, CrazyNested, POJO)], out: Collector[Int]) {
+            var c: Int = 0
+            for (v <- values.asScala) {
+              c += 1
+            }
+            out.collect(c)
+          }
+        })
+        reduceDs.writeAsText(resultPath)
+        env.execute()
+        "3\n1\n"
+
+      case 20 =>
+        /*
+         * Test string-based definition on group sort, based on test:
+         * check correctness of groupReduce with descending group sort
+         */
+        val env = ExecutionEnvironment.getExecutionEnvironment
+        env.setDegreeOfParallelism(1)
+        val ds =  CollectionDataSets.get3TupleDataSet(env)
+        val reduceDs =  ds.groupBy(1)
+          .sortGroup("_3", Order.DESCENDING)
+          .reduceGroup {
+          in =>
+            in.reduce((l, r) => (l._1 + r._1, l._2, l._3 + "-" + r._3))
+        }
+        reduceDs.writeAsCsv(resultPath)
+        env.execute()
+        "1,1,Hi\n" + "5,2,Hello world-Hello\n" + "15,3,Luke Skywalker-I am fine.-Hello " +
+          "world, how are you?\n" + "34,4,Comment#4-Comment#3-Comment#2-Comment#1\n" + "65,5," +
+          "Comment#9-Comment#8-Comment#7-Comment#6-Comment#5\n" + "111,6," +
+          "Comment#15-Comment#14-Comment#13-Comment#12-Comment#11-Comment#10\n"
+
+      case 21 =>
+        /*
+         * Test int-based definition on group sort, for (full) nested Tuple
+         */
+        val env = ExecutionEnvironment.getExecutionEnvironment
+        env.setDegreeOfParallelism(1)
+        val ds =  CollectionDataSets.getGroupSortedNestedTupleDataSet(env)
+        val reduceDs =  ds.groupBy("_2").sortGroup(0, Order.DESCENDING)
+          .reduceGroup(new NestedTupleReducer)
+        reduceDs.writeAsText(resultPath)
+        env.execute()
+        "a--(2,1)-(1,3)-(1,2)-\n" + "b--(2,2)-\n" + "c--(4,9)-(3,6)-(3,3)-\n"
+
+
+      case 22 =>
+        /*
+         * Test int-based definition on group sort, for (partial) nested Tuple ASC
+         */
+        val env = ExecutionEnvironment.getExecutionEnvironment
+        env.setDegreeOfParallelism(1)
+        val ds =  CollectionDataSets.getGroupSortedNestedTupleDataSet(env)
+        val reduceDs =  ds.groupBy("_2")
+          .sortGroup("_1._1", Order.ASCENDING)
+          .sortGroup("_1._2", Order.ASCENDING)
+          .reduceGroup(new NestedTupleReducer)
+        reduceDs.writeAsText(resultPath)
+        env.execute()
+        "a--(1,2)-(1,3)-(2,1)-\n" + "b--(2,2)-\n" + "c--(3,3)-(3,6)-(4,9)-\n"
+
+      case 23 =>
+        /*
+         * Test string-based definition on group sort, for (partial) nested Tuple DESC
+         */
+        val env = ExecutionEnvironment.getExecutionEnvironment
+        env.setDegreeOfParallelism(1)
+        val ds =  CollectionDataSets.getGroupSortedNestedTupleDataSet(env)
+        val reduceDs =  ds.groupBy("_2")
+          .sortGroup("_1._1", Order.DESCENDING)
+          .sortGroup("_1._2", Order.ASCENDING)
+          .reduceGroup(new NestedTupleReducer)
+        reduceDs.writeAsText(resultPath)
+        env.execute()
+        "a--(2,1)-(1,2)-(1,3)-\n" + "b--(2,2)-\n" + "c--(4,9)-(3,3)-(3,6)-\n"
+
+      case 24 =>
+        /*
+         * Test string-based definition on group sort, for two grouping keys
+         */
+        val env = ExecutionEnvironment.getExecutionEnvironment
+        env.setDegreeOfParallelism(1)
+        val ds =  CollectionDataSets.getGroupSortedNestedTupleDataSet(env)
+        val reduceDs =  ds.groupBy("_2")
+          .sortGroup("_1._1", Order.DESCENDING)
+          .sortGroup("_1._2", Order.DESCENDING)
+          .reduceGroup(new NestedTupleReducer)
+        reduceDs.writeAsText(resultPath)
+        env.execute()
+        "a--(2,1)-(1,3)-(1,2)-\n" + "b--(2,2)-\n" + "c--(4,9)-(3,6)-(3,3)-\n"
+
+      case 25 =>
+        /*
+         * Test string-based definition on group sort, for two grouping keys with Pojos
+         */
+        val env = ExecutionEnvironment.getExecutionEnvironment
+        env.setDegreeOfParallelism(1)
+        val ds =  CollectionDataSets.getGroupSortedPojoContainingTupleAndWritable(env)
+        val reduceDs =  ds.groupBy("hadoopFan")
+          .sortGroup("theTuple._1", Order.DESCENDING)
+          .sortGroup("theTuple._2", Order.DESCENDING)
+          .reduceGroup(
+            new GroupReduceFunction[CollectionDataSets.PojoContainingTupleAndWritable, String] {
+              def reduce(
+                  values: Iterable[CollectionDataSets.PojoContainingTupleAndWritable],
+                  out: Collector[String]) {
+                var once: Boolean = false
+                val concat: StringBuilder = new StringBuilder
+                for (value <- values.asScala) {
+                  if (!once) {
+                    concat.append(value.hadoopFan.get)
+                    concat.append("---")
+                    once = true
+                  }
+                  concat.append(value.theTuple)
+                  concat.append("-")
+                }
+                out.collect(concat.toString())
+              }
+            })
+        reduceDs.writeAsText(resultPath)
+        env.execute()
+        "1---(10,100)-\n" + "2---(30,600)-(30,400)-(30,200)-(20,201)-(20,200)-\n"
+
+      case 26 =>
+        /*
+         * Test grouping with pojo containing multiple pojos (was a bug)
+         */
+        val env = ExecutionEnvironment.getExecutionEnvironment
+        env.setDegreeOfParallelism(1)
+        val ds =  CollectionDataSets.getPojoWithMultiplePojos(env)
+        val reduceDs =  ds.groupBy("p2.a2")
+          .reduceGroup(
+            new GroupReduceFunction[CollectionDataSets.PojoWithMultiplePojos, String] {
+              def reduce(
+                  values: Iterable[CollectionDataSets.PojoWithMultiplePojos],
+                  out: Collector[String]) {
+                val concat: StringBuilder = new StringBuilder
+                for (value <- values.asScala) {
+                  concat.append(value.p2.a2)
+                }
+                out.collect(concat.toString())
+              }
+            })
+        reduceDs.writeAsText(resultPath)
+        env.execute()
+        "b\nccc\nee\n"
+
+      case _ =>
+        throw new IllegalArgumentException("Invalid program id")
     }
   }
 }
@@ -540,7 +698,7 @@ object GroupReduceProgs {
 @RunWith(classOf[Parameterized])
 class GroupReduceITCase(config: Configuration) extends JavaProgramTestBase(config) {
 
-  private var curProgId: Int = config.getInteger("ProgramId", -1)
+  private val curProgId: Int = config.getInteger("ProgramId", -1)
   private var resultPath: String = null
   private var expectedResult: String = null
 
@@ -553,7 +711,7 @@ class GroupReduceITCase(config: Configuration) extends JavaProgramTestBase(confi
   }
 
   protected override def postSubmit(): Unit = {
-    compareResultsByLinesInMemory(expectedResult, resultPath)
+    if (expectedResult != null) compareResultsByLinesInMemory(expectedResult, resultPath)
   }
 }
 
@@ -568,6 +726,22 @@ object GroupReduceITCase {
     }
 
     configs.asJavaCollection
+  }
+}
+
+class NestedTupleReducer extends GroupReduceFunction[((Int, Int), String), String] {
+  def reduce(values: Iterable[((Int, Int), String)], out: Collector[String]) {
+    var once: Boolean = false
+    val concat: StringBuilder = new StringBuilder
+    for (value <- values.asScala) {
+      if (!once) {
+        concat.append(value._2).append("--")
+        once = true
+      }
+      concat.append(value._1)
+      concat.append("-")
+    }
+    out.collect(concat.toString())
   }
 }
 

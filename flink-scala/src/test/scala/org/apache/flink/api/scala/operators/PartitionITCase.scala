@@ -194,7 +194,7 @@ class PartitionITCase(config: Configuration) extends JavaProgramTestBase(config)
   }
 
   protected def testProgram(): Unit = {
-    expectedResult = GroupReduceProgs.runProgram(curProgId, resultPath, isCollectionExecution)
+    expectedResult = PartitionProgs.runProgram(curProgId, resultPath, isCollectionExecution)
   }
 
   protected override def postSubmit(): Unit = {

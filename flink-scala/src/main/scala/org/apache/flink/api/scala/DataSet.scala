@@ -31,6 +31,7 @@ import org.apache.flink.api.java.operators.Keys.ExpressionKeys
 import org.apache.flink.api.java.operators._
 import org.apache.flink.api.java.{DataSet => JavaDataSet}
 import org.apache.flink.api.scala.operators.{ScalaCsvOutputFormat, ScalaAggregateOperator}
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.core.fs.{FileSystem, Path}
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -217,6 +218,16 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
       case _ =>
         throw new UnsupportedOperationException("Cannot specify constant sets on Operator " +
           javaSet.toString + ".")
+    }
+    this
+  }
+
+  def withParameters(parameters: Configuration): DataSet[T] = {
+    javaSet match {
+      case udfOp: UdfOperator[_] => udfOp.withParameters(parameters)
+      case _ =>
+        throw new UnsupportedOperationException("Operator " + javaSet.toString + " cannot have " +
+          "parameters")
     }
     this
   }

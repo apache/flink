@@ -22,6 +22,7 @@ import org.apache.hadoop.io.IntWritable
 import org.apache.flink.api.scala._
 
 import scala.collection.mutable
+import scala.reflect.classTag
 import scala.util.Random
 
 /**
@@ -237,6 +238,18 @@ object CollectionDataSets {
     env.fromCollection(data)
   }
 
+  def getGroupSortedPojoContainingTupleAndWritable(env: ExecutionEnvironment):
+  DataSet[PojoContainingTupleAndWritable] = {
+    val data = new mutable.MutableList[PojoContainingTupleAndWritable]
+    data.+=(new CollectionDataSets.PojoContainingTupleAndWritable(1, 10L, 100L))
+    data.+=(new CollectionDataSets.PojoContainingTupleAndWritable(2, 20L, 200L))
+    data.+=(new CollectionDataSets.PojoContainingTupleAndWritable(2, 20L, 201L))
+    data.+=(new CollectionDataSets.PojoContainingTupleAndWritable(2, 30L, 200L))
+    data.+=(new CollectionDataSets.PojoContainingTupleAndWritable(2, 30L, 600L))
+    data.+=(new CollectionDataSets.PojoContainingTupleAndWritable(2, 30L, 400L))
+    env.fromCollection(data)
+  }
+
   def getTupleContainingPojos(env: ExecutionEnvironment): DataSet[(Int, CrazyNested, POJO)] = {
     val data = new mutable.MutableList[(Int, CrazyNested, POJO)]
     data.+=((
@@ -262,12 +275,16 @@ object CollectionDataSets {
   .PojoWithMultiplePojos] = {
     val data = new mutable.MutableList[CollectionDataSets
     .PojoWithMultiplePojos]
-    data.+=(new PojoWithMultiplePojos("a", "aa", "b", "bb", 1))
-    data.+=(new PojoWithMultiplePojos("b", "bb", "c", "cc", 2))
-    data.+=(new PojoWithMultiplePojos("d", "dd", "e", "ee", 3))
+    data.+=(new CollectionDataSets.PojoWithMultiplePojos("a", "aa", "b", "bb", 1))
+    data.+=(new CollectionDataSets.PojoWithMultiplePojos("b", "bb", "c", "cc", 2))
+    data.+=(new CollectionDataSets.PojoWithMultiplePojos("b", "bb", "c", "cc", 2))
+    data.+=(new CollectionDataSets.PojoWithMultiplePojos("b", "bb", "c", "cc", 2))
+    data.+=(new CollectionDataSets.PojoWithMultiplePojos("d", "dd", "e", "ee", 3))
+    data.+=(new CollectionDataSets.PojoWithMultiplePojos("d", "dd", "e", "ee", 3))
     env.fromCollection(data)
   }
 
+  case class MutableTuple3[T1, T2, T3](var _1: T1, var _2: T2, var _3: T3)
 
   class CustomType(var myInt: Int, var myLong: Long, var myString: String) {
     def this() {
@@ -365,11 +382,15 @@ object CollectionDataSets {
   class Pojo1 {
     var a: String = null
     var b: String = null
+
+    override def toString = s"Pojo1 a=$a b=$b"
   }
 
   class Pojo2 {
     var a2: String = null
     var b2: String = null
+
+    override def toString = s"Pojo2 a2=$a2 b2=$b2"
   }
 
   class PojoWithMultiplePojos {
@@ -381,13 +402,15 @@ object CollectionDataSets {
       p1.b = b
       p2 = new Pojo2
       p2.a2 = a1
-      p2.a2 = b1
+      p2.b2 = b1
       this.i0 = i0
     }
 
     var p1: Pojo1 = null
     var p2: Pojo2 = null
     var i0: Int = 0
+
+    override def toString = s"PojoWithMultiplePojos p1=$p1 p2=$p2 i0=$i0"
   }
 
 }

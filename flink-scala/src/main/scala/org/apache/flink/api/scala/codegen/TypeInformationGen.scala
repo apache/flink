@@ -17,6 +17,8 @@
  */
 package org.apache.flink.api.scala.codegen
 
+import java.lang.reflect.{Field, Modifier}
+
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
@@ -29,6 +31,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.hadoop.io.Writable
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 import scala.reflect.macros.Context
 
@@ -154,17 +157,40 @@ private[flink] trait TypeInformationGen[C <: Context] {
       val fields =  fieldsList.splice
       val clazz: Class[T] = tpeClazz.splice
 
-      val fieldMap = TypeExtractor.getAllDeclaredFields(clazz).asScala map {
-        f => (f.getName, f)
-      } toMap
+      var traversalClazz: Class[_] = clazz
+      val clazzFields = mutable.Map[String, Field]()
 
-      val pojoFields = fields map {
-        case (fName, fTpe) =>
-          new PojoField(fieldMap(fName), fTpe)
+      var error = false
+      while (traversalClazz != null) {
+        for (field <- traversalClazz.getDeclaredFields) {
+          if (clazzFields.contains(field.getName)) {
+            println(s"The field $field is already contained in the " +
+              s"hierarchy of the class ${clazz}. Please use unique field names throughout " +
+              "your class hierarchy")
+            error = true
+          }
+          clazzFields += (field.getName -> field)
+        }
+        traversalClazz = traversalClazz.getSuperclass
       }
 
-      new PojoTypeInfo(clazz, pojoFields.asJava)
+      if (error) {
+        new GenericTypeInfo(clazz)
+      } else {
+        val pojoFields = fields flatMap {
+          case (fName, fTpe) =>
+            val field = clazzFields(fName)
+            if (Modifier.isTransient(field.getModifiers) || Modifier.isStatic(field.getModifiers)) {
+              // ignore transient and static fields
+              // the TypeAnalyzer for some reason does not always detect transient fields
+              None
+            } else {
+              Some(new PojoField(clazzFields(fName), fTpe))
+            }
+        }
 
+        new PojoTypeInfo(clazz, pojoFields.asJava)
+      }
     }
   }
 

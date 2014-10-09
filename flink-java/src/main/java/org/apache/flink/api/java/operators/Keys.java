@@ -30,7 +30,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.CompositeType.FlatFieldDescriptor;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -116,7 +115,7 @@ public abstract class Keys<T> {
 				
 				if(keyType.isTupleType()) {
 					// special case again:
-					TupleTypeInfo<?> tupleKeyType = (TupleTypeInfo<?>) keyType;
+					TupleTypeInfoBase<?> tupleKeyType = (TupleTypeInfoBase<?>) keyType;
 					List<FlatFieldDescriptor> keyTypeFields = new ArrayList<FlatFieldDescriptor>(tupleKeyType.getTotalFields());
 					tupleKeyType.getKey(ExpressionKeys.SELECT_ALL_CHAR, 0, keyTypeFields);
 					if(expressionKeys.keyFields.size() != keyTypeFields.size()) {

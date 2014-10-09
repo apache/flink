@@ -649,12 +649,15 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 
 					DataSet<Tuple2<Tuple2<Integer, Integer>, String>> ds = CollectionDataSets.getGroupSortedNestedTupleDataSet(env);
 					// f0.f0 is first integer
-					DataSet<String> reduceDs = ds.groupBy("f1").sortGroup("f0.f0", Order.ASCENDING).reduceGroup(new NestedTupleReducer());
+					DataSet<String> reduceDs = ds.groupBy("f1")
+							.sortGroup("f0.f0", Order.ASCENDING)
+							.sortGroup("f0.f1", Order.ASCENDING)
+							.reduceGroup(new NestedTupleReducer());
 					reduceDs.writeAsText(resultPath);
 					env.execute();
 					
 					// return expected result
-					return "a--(1,3)-(1,2)-(2,1)-\n" +
+					return "a--(1,2)-(1,3)-(2,1)-\n" +
 							"b--(2,2)-\n"+
 							"c--(3,3)-(3,6)-(4,9)-\n";
 				}

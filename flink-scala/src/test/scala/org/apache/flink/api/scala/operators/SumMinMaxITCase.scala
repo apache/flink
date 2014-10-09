@@ -32,7 +32,12 @@ import scala.collection.mutable
 import org.apache.flink.api.scala._
 
 
-object AggregateProgs {
+
+/**
+ * These tests are copied from [[AggregateITCase]] replacing calls to aggregate with calls to sum,
+ * min, and max
+ */
+object SumMinMaxProgs {
   var NUM_PROGRAMS: Int = 3
 
   def runProgram(progId: Int, resultPath: String): String = {
@@ -41,12 +46,12 @@ object AggregateProgs {
         // Full aggregate
         val env = ExecutionEnvironment.getExecutionEnvironment
         env.setDegreeOfParallelism(10)
-//        val ds = CollectionDataSets.get3TupleDataSet(env)
+        //        val ds = CollectionDataSets.get3TupleDataSet(env)
         val ds = CollectionDataSets.get3TupleDataSet(env)
 
         val aggregateDs = ds
-          .aggregate(Aggregations.SUM,0)
-          .and(Aggregations.MAX, 1)
+          .sum(0)
+          .andMax(1)
           // Ensure aggregate operator correctly copies other fields
           .filter(_._3 != null)
           .map{ t => (t._1, t._2) }
@@ -65,7 +70,7 @@ object AggregateProgs {
 
         val aggregateDs = ds
           .groupBy(1)
-          .aggregate(Aggregations.SUM, 0)
+          .sum(0)
           // Ensure aggregate operator correctly copies other fields
           .filter(_._3 != null)
           .map { t => (t._2, t._1) }
@@ -84,8 +89,8 @@ object AggregateProgs {
 
         val aggregateDs = ds
           .groupBy(1)
-          .aggregate(Aggregations.MIN, 0)
-          .aggregate(Aggregations.MIN, 0)
+          .min(0)
+          .min(0)
           // Ensure aggregate operator correctly copies other fields
           .filter(_._3 != null)
           .map { t => new Tuple1(t._1) }
@@ -106,7 +111,7 @@ object AggregateProgs {
 
 
 @RunWith(classOf[Parameterized])
-class AggregateITCase(config: Configuration) extends JavaProgramTestBase(config) {
+class SumMinMaxITCase(config: Configuration) extends JavaProgramTestBase(config) {
 
   private var curProgId: Int = config.getInteger("ProgramId", -1)
   private var resultPath: String = null
@@ -117,7 +122,7 @@ class AggregateITCase(config: Configuration) extends JavaProgramTestBase(config)
   }
 
   protected def testProgram(): Unit = {
-    expectedResult = AggregateProgs.runProgram(curProgId, resultPath)
+    expectedResult = SumMinMaxProgs.runProgram(curProgId, resultPath)
   }
 
   protected override def postSubmit(): Unit = {
@@ -125,11 +130,11 @@ class AggregateITCase(config: Configuration) extends JavaProgramTestBase(config)
   }
 }
 
-object AggregateITCase {
+object SumMinMaxITCase {
   @Parameters
   def getConfigurations: java.util.Collection[Array[AnyRef]] = {
     val configs = mutable.MutableList[Array[AnyRef]]()
-    for (i <- 1 to AggregateProgs.NUM_PROGRAMS) {
+    for (i <- 1 to SumMinMaxProgs.NUM_PROGRAMS) {
       val config = new Configuration()
       config.setInteger("ProgramId", i)
       configs += Array(config)

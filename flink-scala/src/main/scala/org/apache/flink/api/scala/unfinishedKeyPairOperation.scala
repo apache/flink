@@ -131,7 +131,7 @@ private[flink] class HalfUnfinishedKeyPairOperation[L, R, O](
    * Specify the key selector function for the right side of the key based operation. This returns
    * the finished operation.
    */
-  def equalTo[K: TypeInformation](fun: (R) => K) = {
+  def equalTo[K: TypeInformation](fun: (R) => K): O = {
     val keyType = implicitly[TypeInformation[K]]
     val keyExtractor = new KeySelector[R, K] {
       def getKey(in: R) = fun(in)
