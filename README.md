@@ -1,4 +1,4 @@
-flink-graphs
-============
+flink-graph
+===========
 
-Playground for a Graph API
+Graph API for Apache Flink
