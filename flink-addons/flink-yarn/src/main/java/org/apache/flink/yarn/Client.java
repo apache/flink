@@ -42,14 +42,12 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.PosixParser;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.client.CliFrontend;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.yarn.Messages.WaitForJobTermination$;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -73,7 +71,6 @@ import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.client.api.YarnClientApplication;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.util.Records;
-import scala.concurrent.duration.Duration;
 
 /**
  * All classes in this package contain code taken from
@@ -128,16 +125,11 @@ public class Client {
 	public static final String ENV_CLIENT_HOME_DIR = "_CLIENT_HOME_DIR";
 	public static final String ENV_CLIENT_SHIP_FILES = "_CLIENT_SHIP_FILES";
 	public static final String ENV_CLIENT_USERNAME = "_CLIENT_USERNAME";
-	public static final String ENV_AM_PRC_PORT = "_AM_PRC_PORT";
 	public static final String ENV_SLOTS = "_SLOTS";
 	public static final String ENV_DYNAMIC_PROPERTIES = "_DYNAMIC_PROPERTIES";
 
 	private static final String CONFIG_FILE_NAME = "flink-conf.yaml";
 	
-	/**
-	 * Seconds to wait between each status query to the AM.
-	 */
-	private static final int CLIENT_POLLING_INTERVALL = 3;
 	/**
 	 * Minimum memory requirements, checked by the Client.
 	 */
@@ -314,11 +306,11 @@ public class Client {
 					+ "of "+MIN_TM_MEMORY+" MB");
 			System.exit(1);
 		}
-		
+
 		if(cmd.hasOption(SLOTS.getOpt())) {
 			slots = Integer.valueOf(cmd.getOptionValue(SLOTS.getOpt()));
 		}
-		
+
 		String[] dynamicProperties = null;
 		if(cmd.hasOption(DYNAMIC_PROPERTIES.getOpt())) {
 			dynamicProperties = cmd.getOptionValues(DYNAMIC_PROPERTIES.getOpt());
@@ -336,7 +328,7 @@ public class Client {
 			LOG.warn("Unable to find job manager port in configuration!");
 			jmPort = ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT;
 		}
-		
+
 		conf = Utils.initializeYarnConfiguration();
 
 		// intialize HDFS
@@ -435,7 +427,7 @@ public class Client {
 		if(hasLog4j) {
 			amCommand += " -Dlog4j.configuration=file:log4j.properties";
 		}
-		
+
 		amCommand 	+= " "+ApplicationMaster.class.getName()+" "
 					+ " 1>"
 					+ ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager-stdout.log"
@@ -448,14 +440,14 @@ public class Client {
 		ApplicationSubmissionContext appContext = app.getApplicationSubmissionContext();
 		final ApplicationId appId = appContext.getApplicationId();
 		/**
-		 * All network ports are offsetted by the application number 
+		 * All network ports are offsetted by the application number
 		 * to avoid version port clashes when running multiple Flink sessions
 		 * in parallel
 		 */
 		int appNumber = appId.getId();
 
 		jmPort = Utils.offsetPort(jmPort, appNumber);
-				
+
 		// Setup jar for ApplicationMaster
 		LocalResource appMasterJar = Records.newRecord(LocalResource.class);
 		LocalResource flinkConf = Records.newRecord(LocalResource.class);
@@ -531,23 +523,23 @@ public class Client {
 
 		LOG.info("Submitting application master " + appId);
 		yarnClient.submitApplication(appContext);
-		ApplicationReport appReport = yarnClient.getApplicationReport(appId);
 
 		Runtime.getRuntime().addShutdownHook(new ClientShutdownHook());
 
 		// start actor system
 		LOG.info("Start actor system.");
-		actorSystem = AkkaUtils.createActorSystem();
+		actorSystem = YarnUtils.createActorSystem();
 
 		// start application client
-		String path = appReport.getHost() + ":" + jmPort;
 		LOG.info("Start application client.");
-		applicationClient = actorSystem.actorOf(Props.create(ApplicationClient.class, path,
-				yarnClient));
+		applicationClient = actorSystem.actorOf(Props.create(ApplicationClient.class, appId, jmPort,
+				yarnClient, confDirPath, slots, taskManagerCount, dynamicPropertiesEncoded));
 
-		appReport = AkkaUtils.ask(applicationClient,
-				WaitForJobTermination$.MODULE$,
-				AkkaUtils.FUTURE_TIMEOUT(), Duration.Inf());
+		actorSystem.awaitTermination();
+
+		actorSystem = null;
+
+		ApplicationReport appReport = yarnClient.getApplicationReport(appId);
 
 		LOG.info("Application " + appId + " finished with state " + appReport
 				.getYarnApplicationState() + " and final state " + appReport
@@ -564,7 +556,7 @@ public class Client {
 	}
 
 	private void stopSession() {
-		try {
+		if(actorSystem != null){
 			LOG.info("Sending shutdown request to the Application Master");
 			if(applicationClient != ActorRef.noSender()) {
 				applicationClient.tell(new Messages.StopYarnSession(FinalApplicationStatus.KILLED),
@@ -572,15 +564,20 @@ public class Client {
 				applicationClient = ActorRef.noSender();
 			}
 
-			if(actorSystem != null){
-				actorSystem.shutdown();
-				actorSystem.awaitTermination();
+			actorSystem.shutdown();
+			actorSystem.awaitTermination();
 
-				actorSystem = null;
-			}
-		} catch (Exception e) {
-			LOG.warn("Exception while killing the YARN application", e);
+			actorSystem = null;
 		}
+
+		try {
+			FileSystem shutFS = FileSystem.get(conf);
+			shutFS.delete(sessionFilesDir, true); // delete conf and jar file.
+			shutFS.close();
+		}catch(IOException e){
+			LOG.error("Could not delete the conf and jar files.", e);
+		}
+
 		try {
 			yarnPropertiesFile.delete();
 		} catch (Exception e) {
@@ -590,14 +587,6 @@ public class Client {
 		yarnClient.stop();
 
 		LOG.info("Deleting files in "+sessionFilesDir );
-
-		try {
-			FileSystem shutFS = FileSystem.get(conf);
-			shutFS.delete(sessionFilesDir, true); // delete conf and jar file.
-			shutFS.close();
-		}catch(IOException e){
-			LOG.error("Could not delete the conf and jar files.", e);
-		}
 	}
 
 	public class ClientShutdownHook extends Thread {

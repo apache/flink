@@ -42,7 +42,7 @@ import org.apache.hadoop.yarn.util.Records
 import scala.concurrent.duration._
 
 
-trait YarnMaster extends ActorLogMessages {
+trait YarnJobManager extends ActorLogMessages {
   that: JobManager =>
 
   import context._
@@ -59,16 +59,20 @@ trait YarnMaster extends ActorLogMessages {
   var allocatedContainers = 0
   var completedContainers = 0
   var numTaskManager = 0
-  var actorState = startYarnSessionMessages
 
 
   abstract override def receiveWithLogMessages: Receive = {
-    actorState orElse receiveYarnMessages orElse super.receiveWithLogMessages
+    receiveYarnMessages orElse super.receiveWithLogMessages
   }
 
   def receiveYarnMessages: Receive = {
     case StopYarnSession(status) =>
-      log.info("Stopping Yarn JobManager.")
+      log.info("Stopping Yarn Session.")
+
+      instanceManager.getAllRegisteredInstances foreach {
+        instance =>
+          instance.getTaskManager ! StopYarnSession(status)
+      }
 
       rmClientOption foreach {
         rmClient =>
@@ -84,21 +88,21 @@ trait YarnMaster extends ActorLogMessages {
 
       nmClientOption = None
 
-      self ! PoisonPill
-
-      log.info("Stopped Yarn JobManager.")
+      context.system.shutdown()
 
     case RegisterMessageListener =>
       messageListener = Some(sender())
-  }
 
-  def startYarnSessionMessages: Receive = {
     case StartYarnSession(conf) => {
+      log.info("Start yarn session.")
       val memoryPerTaskManager = env.get(Client.ENV_TM_MEMORY).toInt
       val heapLimit = Utils.calculateHeapSize(memoryPerTaskManager)
 
       val applicationMasterHost = env.get(Environment.NM_HOST.key)
       require(applicationMasterHost != null, s"Application master (${Environment.NM_HOST} not set.")
+
+      numTaskManager = env.get(Client.ENV_TM_COUNT).toInt
+      log.info(s"Requesting ${numTaskManager} task managers.")
 
       val coresPerTaskManager = env.get(Client.ENV_TM_CORES).toInt
       val remoteFlinkJarPath = env.get(Client.FLINK_JAR_PATH)
@@ -185,25 +189,20 @@ trait YarnMaster extends ActorLogMessages {
         yarnClientUsername, conf, taskManagerLocalResources))
 
       context.system.scheduler.scheduleOnce(ALLOCATION_DELAY, self, PollContainerCompletion)
-
-      actorState = pollContainerCompletionMessages
     }
-  }
 
-  def pollContainerCompletionMessages: Receive = {
     case PollContainerCompletion => {
       rmClientOption match {
         case Some(rmClient) => {
           val response = rmClient.allocate(completedContainers.toFloat / numTaskManager)
+
           for (container <- response.getAllocatedContainers) {
             log.info(s"Got new container for TM ${container.getId} on host ${
-              container.getNodeId
-                .getHost
-            }")
+              container.getNodeId.getHost}")
 
             allocatedContainers += 1
 
-            log.info(s"Launching container $allocatedContainers.")
+            log.info(s"Launching container #$allocatedContainers.")
             nmClientOption match {
               case Some(nmClient) => {
                 containerLaunchContext match {
@@ -219,26 +218,26 @@ trait YarnMaster extends ActorLogMessages {
                 self ! StopYarnSession(FinalApplicationStatus.FAILED)
               }
             }
+          }
 
-            for (status <- response.getCompletedContainersStatuses) {
-              completedContainers += 1
-              log.info(s"Completed container ${status.getContainerId}. Total completed " +
-                s"$completedContainers.")
-              log.info(s"Diagnostics ${status.getDiagnostics}.")
+          for (status <- response.getCompletedContainersStatuses) {
+            completedContainers += 1
+            log.info(s"Completed container ${status.getContainerId}. Total completed " +
+              s"$completedContainers.")
+            log.info(s"Diagnostics ${status.getDiagnostics}.")
 
-              messageListener foreach {
-                _ ! YarnMessage(s"Diagnostics for containerID=${status.getContainerId} in " +
-                  s"state=${status.getState}.\n${status.getDiagnostics}")
-              }
+            messageListener foreach {
+              _ ! YarnMessage(s"Diagnostics for containerID=${status.getContainerId} in " +
+                s"state=${status.getState}.\n${status.getDiagnostics}")
             }
+          }
 
-            if (allocatedContainers < numTaskManager) {
-              context.system.scheduler.scheduleOnce(ALLOCATION_DELAY, self, PollContainerCompletion)
-            } else if (completedContainers < numTaskManager) {
-              context.system.scheduler.scheduleOnce(COMPLETION_DELAY, self, PollContainerCompletion)
-            } else {
-              self ! StopYarnSession(FinalApplicationStatus.FAILED)
-            }
+          if (allocatedContainers < numTaskManager) {
+            context.system.scheduler.scheduleOnce(ALLOCATION_DELAY, self, PollContainerCompletion)
+          } else if (completedContainers < numTaskManager) {
+            context.system.scheduler.scheduleOnce(COMPLETION_DELAY, self, PollContainerCompletion)
+          } else {
+            self ! StopYarnSession(FinalApplicationStatus.FAILED)
           }
         }
         case None => {
@@ -253,10 +252,11 @@ trait YarnMaster extends ActorLogMessages {
                                    yarnClientUsername: String, yarnConf: Configuration,
                                    taskManagerLocalResources: Map[String, LocalResource]):
   ContainerLaunchContext = {
+    log.info("Create container launch context.")
     val ctx = Records.newRecord(classOf[ContainerLaunchContext])
 
     val javaOpts = configuration.getString(ConfigConstants.FLINK_JVM_OPTIONS, "")
-    val tmCommand = new StringBuilder(s"$$JAVA_HOME/bin/java -Xmx ${heapLimit}m $javaOpts")
+    val tmCommand = new StringBuilder(s"$$JAVA_HOME/bin/java -Xmx${heapLimit}m $javaOpts")
 
     if (hasLogback || hasLog4j) {
       tmCommand ++=

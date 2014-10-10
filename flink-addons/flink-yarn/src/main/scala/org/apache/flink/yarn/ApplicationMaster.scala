@@ -37,6 +37,9 @@ object ApplicationMaster{
 
   val LOG = LoggerFactory.getLogger(this.getClass)
 
+  val CONF_FILE = "flink-conf.yaml"
+  val MODIFIED_CONF_FILE = "flink-conf-modified.yaml"
+
   def main(args: Array[String]): Unit ={
     val yarnClientUsername = System.getenv(Client.ENV_CLIENT_USERNAME)
     LOG.info(s"YARN daemon runs as ${UserGroupInformation.getCurrentUser.getShortUserName} " +
@@ -90,12 +93,14 @@ object ApplicationMaster{
           actorSystem = system
           jobManager = actor
 
+          LOG.info("Start yarn session on job manager.")
           jobManager ! StartYarnSession(conf)
 
+          LOG.info("Await termination of actor system.")
           actorSystem.awaitTermination()
         }catch{
           case t: Throwable =>
-            LOG.error("Error while running the application master.")
+            LOG.error("Error while running the application master.", t)
 
             if(actorSystem != null){
               actorSystem.shutdown()
@@ -115,13 +120,13 @@ object ApplicationMaster{
                                jobManagerWebPort: Int, logDirs: String, slots: Int,
                                taskManagerCount: Int, dynamicPropertiesEncodedString: String)
   : Unit = {
-    val output = new PrintWriter(new BufferedWriter(new FileWriter(s"$currDir/flink-conf-modified" +
-      s".yaml")))
+    LOG.info("Generate configuration file for application master.")
+    val output = new PrintWriter(new BufferedWriter(
+      new FileWriter(s"$currDir/$MODIFIED_CONF_FILE"))
+    )
 
-    val exclusions = Set(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY,
-      ConfigConstants.JOB_MANAGER_WEB_ROOT_PATH_KEY)
-    for (line <- Source.fromFile(s"$currDir/flink-conf.yaml").getLines() if !(exclusions exists
-      {line.contains(_)})) {
+    for (line <- Source.fromFile(s"$currDir/$CONF_FILE").getLines() if !(line.contains
+      (ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY))) {
       output.println(line)
     }
 
@@ -149,15 +154,17 @@ object ApplicationMaster{
   }
 
   def startJobManager(currDir: String): (ActorSystem, ActorRef) = {
-
-    val pathToConfig = s"$currDir/flink-conf.modified.yaml"
+    LOG.info("Start job manager for yarn")
+    val pathToConfig = s"$currDir/$MODIFIED_CONF_FILE"
     val args = Array[String]("--configDir", pathToConfig)
 
-    val (hostname, port, configuration) = JobManager.initialize(args)
+    LOG.info(s"Config path: ${pathToConfig}.")
+    val (hostname, port, configuration) = JobManager.parseArgs(args)
 
     implicit val jobManagerSystem = YarnUtils.createActorSystem(hostname, port, configuration)
 
+    LOG.info("Start job manager actor.")
     (jobManagerSystem, JobManager.startActor(Props(new JobManager(configuration) with
-      WithWebServer with YarnMaster)))
+      WithWebServer with YarnJobManager)))
   }
 }

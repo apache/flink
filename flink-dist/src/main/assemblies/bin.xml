@@ -50,8 +50,15 @@ under the License.
 		</dependencySet>
 	</dependencySets>
 
-	<fileSets>
+	<files>
+		<file>
+			<source>src/main/resources/flink-conf.yaml</source>
+			<outputDirectory>conf</outputDirectory>
+			<fileMode>0644</fileMode>
+		</file>
+	</files>
 
+	<fileSets>
 		<fileSet>
 			<!-- copy start scripts -->
 			<directory>src/main/flink-bin/bin</directory>

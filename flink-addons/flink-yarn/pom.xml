@@ -64,7 +64,13 @@ under the License.
 			<groupId>com.typesafe.akka</groupId>
 			<artifactId>akka-camel_2.10</artifactId>
 		</dependency>
-		
+
+		<dependency>
+			<groupId>org.apache.camel</groupId>
+			<artifactId>camel-stream</artifactId>
+			<version>2.14.0</version>
+		</dependency>
+
 		<!--  guava needs to be in "provided" scope, to make sure it is not included into the jars by the shading -->
 		<dependency>
 			<groupId>com.google.guava</groupId>

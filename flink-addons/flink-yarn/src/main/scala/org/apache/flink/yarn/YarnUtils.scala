@@ -18,10 +18,11 @@
 
 package org.apache.flink.yarn
 
-import akka.actor.ActorSystem
+import akka.actor.{Props, ActorRef, ActorSystem}
 import com.typesafe.config.ConfigFactory
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.akka.AkkaUtils
+import org.apache.flink.runtime.taskmanager.TaskManager
 
 object YarnUtils {
   def createActorSystem(hostname: String, port: Int, configuration: Configuration): ActorSystem = {
@@ -31,7 +32,28 @@ object YarnUtils {
     AkkaUtils.createActorSystem(akkaConfig)
   }
 
+  def createActorSystem: ActorSystem = {
+    val akkaConfig = ConfigFactory.parseString(AkkaUtils.getDefaultActorSystemConfigString +
+      getConfigString)
+
+    AkkaUtils.createActorSystem(akkaConfig)
+  }
+
   def getConfigString: String = {
-    s"""""".stripMargin
+    s"""akka.loglevel = "INFO"
+      |akka.stdout-loglevel = "INFO"
+      |""".stripMargin
+  }
+
+  def startActorSystemAndTaskManager(args: Array[String]): (ActorSystem, ActorRef) = {
+    val (hostname, port, config) = TaskManager.parseArgs(args)
+
+    val actorSystem = createActorSystem(hostname, port, config)
+
+    val (connectionInfo, jobManagerURL, taskManagerConfig, networkConnectionConfiguration) =
+      TaskManager.parseConfiguration(hostname, config, false)
+
+    (actorSystem, TaskManager.startActor(Props(new TaskManager(connectionInfo, jobManagerURL,
+      taskManagerConfig, networkConnectionConfiguration) with YarnTaskManager))(actorSystem))
   }
 }

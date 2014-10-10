@@ -38,6 +38,8 @@ object AkkaUtils {
   implicit val AWAIT_DURATION: FiniteDuration = 1 minute
   implicit val FUTURE_DURATION: FiniteDuration = 1 minute
 
+  val INF_TIMEOUT = 21474835 seconds
+
   var globalExecutionContext: ExecutionContext = ExecutionContext.global
 
   def createActorSystem(host: String, port: Int, configuration: Configuration): ActorSystem = {
@@ -110,7 +112,7 @@ object AkkaUtils {
       |akka.loglevel = "WARNING"
       |akka.logging-filter = "akka.event.slf4j.Slf4jLoggingFilter"
       |akka.stdout-loglevel = "WARNING"
-      |akka.jvm-exit-on-fata-error = off
+      |akka.jvm-exit-on-fatal-error = off
       |akka.actor.provider = "akka.remote.RemoteActorRefProvider"
       |akka.remote.netty.tcp.transport-class = "akka.remote.transport.netty.NettyTransport"
       |akka.remote.netty.tcp.tcp-nodelay = on
@@ -152,6 +154,11 @@ object AkkaUtils {
   def ask[T](actor: ActorRef, msg: Any, timeout: Timeout, duration: Duration): T = {
     val future = Patterns.ask(actor, msg, timeout)
     Await.result(future, duration).asInstanceOf[T]
+  }
+
+  def askInf[T](actor: ActorRef, msg: Any): T = {
+    val future = Patterns.ask(actor, msg, INF_TIMEOUT)
+    Await.result(future, INF_TIMEOUT).asInstanceOf[T]
   }
 
   def retry[T](body: => T, tries: Int)(implicit executionContext: ExecutionContext): Future[T] = {

@@ -72,6 +72,8 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
   import AkkaUtils.FUTURE_TIMEOUT
   import taskManagerConfig._
 
+  log.info(s"Starting task manager at ${self.path}.")
+
   val REGISTRATION_DELAY = 0 seconds
   val REGISTRATION_INTERVAL = 10 seconds
   val MAX_REGISTRATION_ATTEMPTS = 10
@@ -440,13 +442,14 @@ object TaskManager {
   val PROFILER_NAME = "profiler"
 
   def main(args: Array[String]): Unit = {
-    val (hostname, port, configuration) = initialize(args)
+    val (hostname, port, configuration) = parseArgs(args)
 
     val (taskManagerSystem, _) = startActorSystemAndActor(hostname, port, configuration)
+
     taskManagerSystem.awaitTermination()
   }
 
-  private def initialize(args: Array[String]): (String, Int, Configuration) = {
+  def parseArgs(args: Array[String]): (String, Int, Configuration) = {
     val parser = new scopt.OptionParser[TaskManagerCLIConfiguration]("taskmanager") {
       head("flink task manager")
       opt[String]("configDir") action { (x, c) =>
@@ -483,6 +486,7 @@ object TaskManager {
 
         (hostname, port, configuration)
     } getOrElse {
+      LOG.error(s"TaskManager parseArgs called with ${args.mkString(" ")}.")
       LOG.error("CLI parsing failed. Usage: " + parser.usage)
       sys.exit(FAILURE_RETURN_CODE)
     }
@@ -491,8 +495,12 @@ object TaskManager {
   def startActorSystemAndActor(hostname: String, port: Int, configuration: Configuration,
                                localExecution: Boolean = false): (ActorSystem, ActorRef) = {
     implicit val actorSystem = AkkaUtils.createActorSystem(hostname, port, configuration)
-    (actorSystem, (startActor _).tupled(parseConfiguration(hostname, configuration,
-      localExecution)))
+
+    val (connectionInfo, jobManagerURL, taskManagerConfig, networkConnectionConfiguration) =
+      parseConfiguration(hostname, configuration, localExecution)
+
+    (actorSystem, startActor(connectionInfo, jobManagerURL, taskManagerConfig,
+      networkConnectionConfiguration))
   }
 
   def parseConfiguration(hostname: String, configuration: Configuration,
@@ -600,14 +608,21 @@ object TaskManager {
                  taskManagerConfig: TaskManagerConfiguration,
                  networkConnectionConfiguration: NetworkConnectionConfiguration)
                 (implicit actorSystem: ActorSystem): ActorRef = {
-    actorSystem.actorOf(Props(classOf[TaskManager], connectionInfo, jobManagerURL,
-      taskManagerConfig, networkConnectionConfiguration), TASK_MANAGER_NAME);
+    startActor(Props(new TaskManager(connectionInfo, jobManagerURL, taskManagerConfig,
+      networkConnectionConfiguration)))
+  }
+
+  def startActor(props: Props)(implicit actorSystem: ActorSystem): ActorRef = {
+    actorSystem.actorOf(props, TASK_MANAGER_NAME)
   }
 
   def startActorWithConfiguration(hostname: String, configuration: Configuration,
                                   localExecution: Boolean = false)
                                  (implicit system: ActorSystem) = {
-    (startActor _).tupled(parseConfiguration(hostname, configuration, localExecution))
+    val (connectionInfo, jobManagerURL, taskManagerConfig, networkConnectionConfiguration) =
+      parseConfiguration(hostname, configuration, localExecution)
+
+    startActor(connectionInfo, jobManagerURL, taskManagerConfig, networkConnectionConfiguration)
   }
 
   def startProfiler(instancePath: String, reportInterval: Long)(implicit system: ActorSystem):

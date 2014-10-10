@@ -111,7 +111,7 @@ under the License.
 	<files>
 		<!-- copy default configuration -->
 		<file>
-			<source>src/main/flink-bin/conf/flink-conf.yaml</source>
+			<source>src/main/resources/flink-conf.yaml</source>
 			<outputDirectory>conf</outputDirectory>
 			<fileMode>0644</fileMode>
 		</file>

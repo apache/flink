@@ -23,14 +23,17 @@ import java.security.PrivilegedAction;
 import java.util.Arrays;
 import java.util.Map;
 
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import org.apache.flink.yarn.YarnUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.yarn.Client;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
+import scala.Tuple2;
 
 
 public class YarnTaskManagerRunner {
@@ -44,7 +47,7 @@ public class YarnTaskManagerRunner {
 
 		// configure local directory
 		final String[] newArgs = Arrays.copyOf(args, args.length + 2);
-		newArgs[newArgs.length-2] = "--configDir";
+		newArgs[newArgs.length-2] = "--tempDir";
 		newArgs[newArgs.length-1] = localDirs;
 		LOG.info("Setting log path "+localDirs);
 		LOG.info("YARN daemon runs as '"+UserGroupInformation.getCurrentUser().getShortUserName()+"' setting"
@@ -57,7 +60,10 @@ public class YarnTaskManagerRunner {
 			@Override
 			public Object run() {
 				try {
-					TaskManager.main(newArgs);
+					Tuple2<ActorSystem, ActorRef> tuple = YarnUtils
+							.startActorSystemAndTaskManager(newArgs);
+
+					tuple._1().awaitTermination();
 				} catch (Exception e) {
 					LOG.error("Error while running the TaskManager", e);
 				}

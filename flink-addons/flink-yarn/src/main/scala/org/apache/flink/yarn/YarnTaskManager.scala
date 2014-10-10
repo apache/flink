@@ -16,22 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmanager
+package org.apache.flink.yarn
 
-import akka.actor.Actor
-import org.apache.flink.runtime.jobmanager.web.WebInfoServer
+import org.apache.flink.runtime.ActorLogMessages
+import org.apache.flink.runtime.taskmanager.TaskManager
+import org.apache.flink.yarn.Messages.StopYarnSession
 
-trait WithWebServer extends Actor {
-  that: JobManager =>
+trait YarnTaskManager extends ActorLogMessages {
+  that: TaskManager =>
 
-  val webServer = new WebInfoServer(configuration,self, archive)
-  webServer.start()
+  abstract override def receiveWithLogMessages: Receive = {
+    receiveYarnMessages orElse super.receiveWithLogMessages
+  }
 
-  abstract override def postStop(): Unit = {
-    log.info("Stopping webserver.")
-    webServer.stop()
-    log.info("Stopped webserver.")
-
-    super.postStop()
+  def receiveYarnMessages: Receive = {
+    case StopYarnSession(status) => {
+      context.system.shutdown()
+    }
   }
 }

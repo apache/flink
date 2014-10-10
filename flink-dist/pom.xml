@@ -162,6 +162,7 @@ under the License.
 			<build>
 				<plugins>
 					<plugin>
+						<!--Build uber jar-->
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-shade-plugin</artifactId>
 						<version>2.3</version>
@@ -181,6 +182,16 @@ under the License.
 											<exclude>org.apache.flink:flink-streaming-examples</exclude>
 										</excludes>
 									</artifactSet>
+									<filters>
+										<filter>
+											<artifact>org.apache.flink:flink-clients</artifact>
+											<excludes>
+												<exclude>
+													web-docs/**
+												</exclude>
+											</excludes>
+										</filter>
+									</filters>
 									<transformers>
 										<transformer
 												implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
@@ -201,33 +212,6 @@ under the License.
 						<artifactId>maven-assembly-plugin</artifactId>
 						<version>2.4</version>
 						<executions>
-							<!--&lt;!&ndash;  Uber-jar &ndash;&gt;-->
-							<!--<execution>-->
-								<!--<id>uber-jar</id>-->
-								<!--<phase>package</phase>-->
-								<!--<goals>-->
-									<!--<goal>single</goal>-->
-								<!--</goals>-->
-								<!--<configuration>-->
-									<!--<archiverConfig>-->
-										<!--&lt;!&ndash; https://jira.codehaus.org/browse/MASSEMBLY-449 &ndash;&gt;-->
-										<!--<fileMode>420</fileMode> &lt;!&ndash; 420(dec) = 644(oct) &ndash;&gt;-->
-										<!--<directoryMode>493</directoryMode> &lt;!&ndash; 493(dec) = 755(oct) &ndash;&gt;-->
-										<!--<defaultDirectoryMode>493</defaultDirectoryMode>-->
-									<!--</archiverConfig>-->
-									<!--<archive>-->
-										<!--<manifest>-->
-											<!--<mainClass>org.apache.flink.yarn.Client</mainClass>-->
-											<!--<addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>-->
-											<!--<addDefaultImplementationEntries>true</addDefaultImplementationEntries>-->
-										<!--</manifest>-->
-									<!--</archive>-->
-									<!--<descriptors>-->
-										<!--<descriptor>src/main/assemblies/yarn-uberjar.xml</descriptor>-->
-									<!--</descriptors>-->
-								<!--</configuration>-->
-							<!--</execution>-->
-
 							<!-- yarn bin directory -->
 							<execution>
 								<id>yarn-bin</id>

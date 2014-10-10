@@ -115,10 +115,8 @@ object JobClient{
   @throws(classOf[JobExecutionException])
   def submitJobAndWait(jobGraph: JobGraph, listen: Boolean,
                        jobClient: ActorRef): JobExecutionResult = {
-    import AkkaUtils.FUTURE_TIMEOUT
-    val response = jobClient ? SubmitJobAndWait(jobGraph, listenToEvents = listen)
-
-    Await.result(response.mapTo[JobExecutionResult],Duration.Inf)
+    AkkaUtils.askInf[JobExecutionResult](jobClient,
+      SubmitJobAndWait(jobGraph, listenToEvents = listen))
   }
 
 

@@ -54,6 +54,8 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
   import context._
   import AkkaUtils.FUTURE_TIMEOUT
 
+  log.info("Starting job manager.")
+
   val (archiveCount, profiling, cleanupInterval) = JobManager.parseConfiguration(configuration)
 
   // Props for the profiler actor
@@ -390,7 +392,7 @@ object JobManager {
   val PROFILER_NAME = "profiler"
 
   def main(args: Array[String]): Unit = {
-    val (hostname, port, configuration) = initialize(args)
+    val (hostname, port, configuration) = parseArgs(args)
 
     val jobManagerSystem = AkkaUtils.createActorSystem(hostname, port, configuration)
 
@@ -398,7 +400,7 @@ object JobManager {
     jobManagerSystem.awaitTermination()
   }
 
-  def initialize(args: Array[String]): (String, Int, Configuration) = {
+  def parseArgs(args: Array[String]): (String, Int, Configuration) = {
     val parser = new scopt.OptionParser[JobManagerCLIConfiguration]("jobmanager") {
       head("flink jobmanager")
       opt[String]("configDir") action { (x, c) => c.copy(configDir = x) } text ("Specify " +

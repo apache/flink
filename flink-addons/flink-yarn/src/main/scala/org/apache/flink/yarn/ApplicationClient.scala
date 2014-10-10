@@ -33,10 +33,10 @@ ApplicationId}
 import org.apache.hadoop.yarn.client.api.YarnClient
 import scala.concurrent.duration._
 
-class ApplicationClient(appId: ApplicationId, address: String, yarnClient: YarnClient,
+class ApplicationClient(appId: ApplicationId, port: Int, yarnClient: YarnClient,
                         confDirPath: String, slots: Int, numTaskManagers: Int,
                         dynamicPropertiesEncoded: String)
-  extends Actor with ActorLogMessages with ActorLogging with Consumer {
+  extends Actor with Consumer with ActorLogMessages with ActorLogging {
   import context._
 
   val INITIAL_POLLING_DELAY = 0 seconds
@@ -44,8 +44,6 @@ class ApplicationClient(appId: ApplicationId, address: String, yarnClient: YarnC
   val POLLING_INTERVAL = 3 seconds
 
   val waitingChars = Array[Char]('/', '|', '\\', '-')
-
-  val terminationListeners = scala.collection.mutable.HashSet[ActorRef]()
 
   var jobManager: Option[ActorRef] = None
   var pollingTimer: Option[Cancellable] = None
@@ -55,11 +53,13 @@ class ApplicationClient(appId: ApplicationId, address: String, yarnClient: YarnC
   def endpointUri = "stream:in"
 
   override def preStart(): Unit = {
+    super.preStart()
     pollingTimer = Some(context.system.scheduler.schedule(INITIAL_POLLING_DELAY,
       WAIT_FOR_YARN_INTERVAL, self, PollYarnReport))
   }
 
   override def postStop(): Unit = {
+    log.info("Stopped Application client.")
     pollingTimer foreach {
       _.cancel()
     }
@@ -68,25 +68,25 @@ class ApplicationClient(appId: ApplicationId, address: String, yarnClient: YarnC
   }
 
   override def receiveWithLogMessages: Receive = {
-    case WaitForJobTermination =>
-      terminationListeners += sender()
     case PollYarnReport => {
       val report = yarnClient.getApplicationReport(appId)
+
+      log.info(s"Yarn state ${report.getYarnApplicationState}, " +
+        s"state ${report.getFinalApplicationStatus}")
 
       report.getYarnApplicationState match {
         case YarnApplicationState.FINISHED | YarnApplicationState.KILLED | YarnApplicationState
           .FAILED => {
-          terminationListeners foreach {
-            _ ! report
-          }
+          log.info(s"Terminate polling.")
 
-          self ! PoisonPill
+          context.system.shutdown()
         }
-        case YarnApplicationState.RUNNING => {
-          println(s"Flink JobManager is now running on $address")
-          println(s"JobManager Web Interface: ${report.getTrackingUrl}")
+        case YarnApplicationState.RUNNING if !running => {
+          val address = s"${report.getHost}:$port"
+          log.info(s"Flink JobManager is now running on $address")
+          log.info(s"JobManager Web Interface: ${report.getTrackingUrl}")
 
-          writeYarnProperties()
+          writeYarnProperties(address)
 
           jobManager = Some(AkkaUtils.getReference(JobManager.getAkkaURL(address)))
           jobManager.get ! RegisterMessageListener
@@ -116,6 +116,7 @@ class ApplicationClient(appId: ApplicationId, address: String, yarnClient: YarnC
       println(msg)
     }
     case msg: StopYarnSession => {
+      log.info("Stop yarn session.")
       jobManager foreach {
         _ forward msg
       }
@@ -136,7 +137,7 @@ class ApplicationClient(appId: ApplicationId, address: String, yarnClient: YarnC
       """.stripMargin)
   }
 
-  def writeYarnProperties(): Unit = {
+  def writeYarnProperties(address: String): Unit = {
     val yarnProps = new Properties()
     yarnProps.setProperty(CliFrontend.YARN_PROPERTIES_JOBMANAGER_KEY, address)
 
