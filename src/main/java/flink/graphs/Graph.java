@@ -35,79 +35,78 @@ import java.io.Serializable;
 
 @SuppressWarnings("serial")
 public class Graph<K extends Comparable<K> & Serializable, VV extends Serializable,
-	EV extends Serializable>{
+	EV extends Serializable> implements Serializable{
 
-	private final DataSet<Vertex<K, VV>> vertices;
+	private final DataSet<Tuple2<K, VV>> vertices;
 
-	private final DataSet<Edge<K, EV>> edges;
+	private final DataSet<Tuple3<K, K, EV>> edges;
 
 
 	/** a graph is directed by default */
 	private boolean isUndirected = false;
 
 
-	public Graph(DataSet<Vertex<K, VV>> vertices, DataSet<Edge<K, EV>> edges) {
+	public Graph(DataSet<Tuple2<K, VV>> vertices, DataSet<Tuple3<K, K, EV>> edges) {
 		this.vertices = vertices;
 		this.edges = edges;
 	}
 
-	public Graph(DataSet<Vertex<K, VV>> vertices, DataSet<Edge<K, EV>> edges,
+	public Graph(DataSet<Tuple2<K, VV>> vertices, DataSet<Tuple3<K, K, EV>> edges,
 			boolean undirected) {
 		this.vertices = vertices;
 		this.edges = edges;
 		this.isUndirected = undirected;
 	}
 
-	public DataSet<Vertex<K, VV>> getVertices() {
+	public DataSet<Tuple2<K, VV>> getVertices() {
 		return vertices;
 	}
 
-	public DataSet<Edge<K, EV>> getEdges() {
+	public DataSet<Tuple3<K, K, EV>> getEdges() {
 		return edges;
 	}
 
     /**
-     * Apply a function to the attribute of each vertex in the graph
-     * @param mapper A function that transforms the attribute of each vertex
-     * @param <V2> The type of the vertex attribute after the function has been applied
-     * @return A DataSet of Vertex which contains the new values of all vertices
+     * Apply a function to the attribute of each Tuple2 in the graph
+     * @param mapper A function that transforms the attribute of each Tuple2
+     * @return A DataSet of Tuple2 which contains the new values of all vertices
      */
-    public <V2 extends Serializable> DataSet<Vertex<K, V2>> mapVertices(final MapFunction<VV, V2> mapper) {
-        // Return a Vertex Dataset or a new Graph?
-        return vertices.map(new MapFunction<Vertex<K, VV>, Vertex<K, V2>>() {
+    //TODO(thvasilo): Make it possible for the function to change the attribute type
+    public DataSet<Tuple2<K, VV>> mapVertices(final MapFunction<VV, VV> mapper) {
+        // Return a Tuple2 Dataset or a new Graph?
+        return vertices.map(new MapFunction<Tuple2<K, VV>, Tuple2<K, VV>>() {
             @Override
-            public Vertex<K, V2> map(Vertex<K, VV> kvvVertex) throws Exception {
-                // Return new object for every Vertex not a good idea probably
-                return  new Vertex<>(kvvVertex.getId(), mapper.map(kvvVertex.getValue()));
+            public Tuple2<K, VV> map(Tuple2<K, VV> kvvTuple2) throws Exception {
+                // Return new object for every Tuple2 not a good idea probably
+                return new Tuple2<>(kvvTuple2.f0, mapper.map(kvvTuple2.f1));
             }
         });
     }
 
-
     /**
      * Apply filtering functions to the graph and return a sub-graph that satisfies
      * the predicates
-     * @param vertexFilter
+     * @param Tuple2Filter
      * @param edgeFilter
      * @return
      */
     // TODO(thvasilo): Add proper edge filtering functionality
-    public Graph<K, VV, EV> subgraph(final FilterFunction<VV> vertexFilter, final FilterFunction<EV> edgeFilter) {
+    public Graph<K, VV, EV> subgraph(final FilterFunction<VV> Tuple2Filter, final FilterFunction<EV> edgeFilter) {
 
-        DataSet<Vertex<K, VV>> filteredVertices = this.vertices.filter(new FilterFunction<Vertex<K, VV>>() {
+        DataSet<Tuple2<K, VV>> filteredVertices = this.vertices.filter(new FilterFunction<Tuple2<K, VV>>() {
             @Override
-            public boolean filter(Vertex<K, VV> kvvVertex) throws Exception {
-                return vertexFilter.filter(kvvVertex.getValue());
+            public boolean filter(Tuple2<K, VV> kvvTuple2) throws Exception {
+                return Tuple2Filter.filter(kvvTuple2.f1);
             }
         });
 
-        // Should combine with vertex filter function as well, so that only
-        // edges that satisfy edge filter *and* connect vertices that satisfy vertex
+        // Should combine with Tuple2 filter function as well, so that only
+        // edges that satisfy edge filter *and* connect vertices that satisfy Tuple2
         // filter are returned
-        DataSet<Edge<K, EV>> filteredEdges = this.edges.filter(new FilterFunction<Edge<K, EV>>() {
+        DataSet<Tuple3<K, K, EV>> filteredEdges = this.edges.filter(new FilterFunction<Tuple3<K, K, EV>>() {
             @Override
-            public boolean filter(Edge<K, EV> kevEdge) throws Exception {
-                return edgeFilter.filter(kevEdge.getValue());
+            public boolean filter(Tuple3<K, K, EV> kevEdge) throws Exception {
+                return edgeFilter.filter(kevEdge.f2);
             }
         });
 
@@ -121,23 +120,23 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
      */
     public DataSet<Tuple2<K, Integer>> outDegrees() {
         return this.edges
-                .groupBy(new KeySelector<Edge<K, EV>, K>() {
+                .groupBy(new KeySelector<Tuple3<K, K, EV>, K>() {
                     @Override
-                    public K getKey(Edge<K, EV> kevEdge) throws Exception {
-                        return kevEdge.getSource();
+                    public K getKey(Tuple3<K, K, EV> kevEdge) throws Exception {
+                        return kevEdge.f0;
                     }
                 })
-                .reduceGroup(new GroupReduceFunction<Edge<K, EV>, Tuple2<K, Integer>>() {
+                .reduceGroup(new GroupReduceFunction<Tuple3<K, K, EV>, Tuple2<K, Integer>>() {
                     @Override
-                    public void reduce(Iterable<Edge<K, EV>> edges, Collector<Tuple2<K, Integer>> integerCollector)
+                    public void reduce(Iterable<Tuple3<K, K, EV>> edges, Collector<Tuple2<K, Integer>> integerCollector)
                             throws Exception {
 
                         int count = 0;
-                        for (Edge<K, EV> edge : edges) {
+                        for (Tuple3<K, K, EV> edge : edges) {
                             count++;
                         }
 
-                        integerCollector.collect(new Tuple2<K, Integer>(edges.iterator().next().getSource(), count));
+                        integerCollector.collect(new Tuple2<K, Integer>(edges.iterator().next().f0, count));
                     }
                 });
     }
@@ -151,21 +150,21 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
      * @param <MsgT>
      * @return
      */
-    public <MsgT> Graph<K, VV, EV> pga(CoGroupFunction<Vertex<K, VV>, Edge<K, EV>, Tuple2<K, MsgT>> cog,
+    public <MsgT> Graph<K, VV, EV> pga(CoGroupFunction<Tuple2<K, VV>, Tuple3<K, K, EV>, Tuple2<K, MsgT>> cog,
                                        GroupReduceFunction<Tuple2<K, MsgT>, Tuple2<K, MsgT>> gred,
-                                       FlatJoinFunction<Tuple2<K, MsgT>, Vertex<K, VV>, Vertex<K, VV>> fjoin,
+                                       FlatJoinFunction<Tuple2<K, MsgT>, Tuple2<K, VV>, Tuple2<K, VV>> fjoin,
                                        int maxIterations){
 
-        DeltaIteration<Vertex<K, VV>, Vertex<K, VV>> iteration = this.vertices
+        DeltaIteration<Tuple2<K, VV>, Tuple2<K, VV>> iteration = this.vertices
             .iterateDelta(this.vertices, maxIterations, 0);
 
         DataSet<Tuple2<K, MsgT>> p = iteration.getWorkset().coGroup(this.edges).where(0).equalTo(0).with(cog);
 
         DataSet<Tuple2<K, MsgT>> g = p.groupBy(0).reduceGroup(gred);
 
-        DataSet<Vertex<K, VV>> a = g.join(iteration.getSolutionSet()).where(0).equalTo(0).with(fjoin);
+        DataSet<Tuple2<K, VV>> a = g.join(iteration.getSolutionSet()).where(0).equalTo(0).with(fjoin);
 
-        DataSet<Vertex<K, VV>> result = iteration.closeWith(a, a);
+        DataSet<Tuple2<K, VV>> result = iteration.closeWith(a, a);
 
         return new Graph<>(result, this.edges);
     }
@@ -180,14 +179,14 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 			throw new UnsupportedOperationException("");
 		}
 		else {
-			DataSet<Edge<K,EV>> undirectedEdges = edges.flatMap(
-					new FlatMapFunction<Edge<K,EV>, Edge<K,EV>>() {
-				public void flatMap(Edge<K,EV> edge, Collector<Edge<K,EV>> out){
+			DataSet<Tuple3<K, K, EV>> undirectedEdges = edges.flatMap(
+					new FlatMapFunction<Tuple3<K, K, EV>, Tuple3<K, K, EV>>() {
+				public void flatMap(Tuple3<K, K, EV> edge, Collector<Tuple3<K, K, EV>> out){
 					out.collect(edge);
-					out.collect(edge.reverse());
+					out.collect(new Tuple3<K, K, EV>(edge.f1, edge.f0, edge.f2));
 				}
 			});
-			return new Graph<K, VV, EV>(vertices, (DataSet<Edge<K, EV>>) undirectedEdges, true);
+			return new Graph<K, VV, EV>(vertices, (DataSet<Tuple3<K, K, EV>>) undirectedEdges, true);
 		}
 	}
 
@@ -201,42 +200,42 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 			throw new UnsupportedOperationException("");
 		}
 		else {
-			DataSet<Edge<K, EV>> undirectedEdges = edges.map(new MapFunction<Edge<K, EV>,
-					Edge<K, EV>>() {
-				public Edge<K, EV> map(Edge<K, EV> edge){
-					return edge.reverse();
+			DataSet<Tuple3<K, K, EV>> undirectedEdges = edges.map(new MapFunction<Tuple3<K, K, EV>,
+					Tuple3<K, K, EV>>() {
+				public Tuple3<K, K, EV> map(Tuple3<K, K, EV> edge){
+					return new Tuple3<K, K, EV>(edge.f1, edge.f0, edge.f2);
 				}
 			});
-			return new Graph<K, VV, EV>(vertices, (DataSet<Edge<K, EV>>) undirectedEdges, true);
+			return new Graph<K, VV, EV>(vertices, (DataSet<Tuple3<K, K, EV>>) undirectedEdges, true);
 		}
 	}
 
 	public static <K extends Comparable<K> & Serializable, VV extends Serializable,
 		EV extends Serializable> Graph<K, VV, EV>
-		create(DataSet<Vertex<K, VV>> vertices, DataSet<Edge<K, EV>> edges) {
+		create(DataSet<Tuple2<K, VV>> vertices, DataSet<Tuple3<K, K, EV>> edges) {
 		return new Graph<K, VV, EV>(vertices, edges);
 
 	}
 
 	/**
-	 * Read and create the graph vertex dataset from a csv file
+	 * Read and create the graph Tuple2 dataset from a csv file
 	 * @param env
 	 * @param filePath
 	 * @param delimiter
-	 * @param vertexIdClass
-	 * @param vertexValueClass
+	 * @param Tuple2IdClass
+	 * @param Tuple2ValueClass
 	 * @return
 	 */
 	public static <K extends Comparable<K> & Serializable, VV extends Serializable>
-		DataSet<Vertex<K, VV>> readVertexCsvFile(ExecutionEnvironment env, String filePath,
-			char delimiter, Class<K> vertexIdClass, Class<VV> vertexValueClass) {
+		DataSet<Tuple2<K, VV>> readTuple2CsvFile(ExecutionEnvironment env, String filePath,
+			char delimiter, Class<K> Tuple2IdClass, Class<VV> Tuple2ValueClass) {
 
 		CsvReader reader = new CsvReader(filePath, env);
-		DataSet<Vertex<K, VV>> vertices = reader.fieldDelimiter(delimiter).types(vertexIdClass, vertexValueClass)
-		.map(new MapFunction<Tuple2<K, VV>, Vertex<K, VV>>() {
+		DataSet<Tuple2<K, VV>> vertices = reader.fieldDelimiter(delimiter).types(Tuple2IdClass, Tuple2ValueClass)
+		.map(new MapFunction<Tuple2<K, VV>, Tuple2<K, VV>>() {
 
-			public Vertex<K, VV> map(Tuple2<K, VV> value) throws Exception {
-				return (Vertex<K, VV>)value;
+			public Tuple2<K, VV> map(Tuple2<K, VV> value) throws Exception {
+				return (Tuple2<K, VV>)value;
 			}
 		});
 		return vertices;
@@ -247,21 +246,21 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	 * @param env
 	 * @param filePath
 	 * @param delimiter
-	 * @param vertexIdClass
+	 * @param Tuple2IdClass
 	 * @param edgeValueClass
 	 * @return
 	 */
 	public static <K extends Comparable<K> & Serializable, EV extends Serializable>
-		DataSet<Edge<K, EV>> readEdgesCsvFile(ExecutionEnvironment env, String filePath,
-			char delimiter, Class<K> vertexIdClass, Class<EV> edgeValueClass) {
+		DataSet<Tuple3<K, K, EV>> readEdgesCsvFile(ExecutionEnvironment env, String filePath,
+			char delimiter, Class<K> Tuple2IdClass, Class<EV> edgeValueClass) {
 
 		CsvReader reader = new CsvReader(filePath, env);
-		DataSet<Edge<K, EV>> edges = reader.fieldDelimiter(delimiter)
-			.types(vertexIdClass, vertexIdClass, edgeValueClass)
-			.map(new MapFunction<Tuple3<K, K, EV>, Edge<K, EV>>() {
+		DataSet<Tuple3<K, K, EV>> edges = reader.fieldDelimiter(delimiter)
+			.types(Tuple2IdClass, Tuple2IdClass, edgeValueClass)
+			.map(new MapFunction<Tuple3<K, K, EV>, Tuple3<K, K, EV>>() {
 
-			public Edge<K, EV> map(Tuple3<K, K, EV> value) throws Exception {
-				return (Edge<K, EV>)value;
+			public Tuple3<K, K, EV> map(Tuple3<K, K, EV> value) throws Exception {
+				return (Tuple3<K, K, EV>)value;
 			}
 		});
 		return edges;
@@ -271,37 +270,37 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	 * Create the graph, by reading a csv file for vertices
 	 * and a csv file for the edges
 	 * @param env
-	 * @param vertexFilepath
-	 * @param vertexDelimiter
+	 * @param Tuple2Filepath
+	 * @param Tuple2Delimiter
 	 * @param edgeFilepath
 	 * @param edgeDelimiter
-	 * @param vertexIdClass
-	 * @param vertexValueClass
+	 * @param Tuple2IdClass
+	 * @param Tuple2ValueClass
 	 * @param edgeValueClass
 	 * @return
 	 */
 	public static <K extends Comparable<K> & Serializable, VV extends Serializable,
 		EV extends Serializable> Graph<K, VV, EV> readGraphFromCsvFile(ExecutionEnvironment env,
-				String vertexFilepath, char vertexDelimiter, String edgeFilepath, char edgeDelimiter,
-				Class<K> vertexIdClass, Class<VV> vertexValueClass,	Class<EV> edgeValueClass) {
+				String Tuple2Filepath, char Tuple2Delimiter, String edgeFilepath, char edgeDelimiter,
+				Class<K> Tuple2IdClass, Class<VV> Tuple2ValueClass,	Class<EV> edgeValueClass) {
 
-		CsvReader vertexReader = new CsvReader(vertexFilepath, env);
-		DataSet<Vertex<K, VV>> vertices = vertexReader.fieldDelimiter(vertexDelimiter)
-				.types(vertexIdClass, vertexValueClass).map(new MapFunction<Tuple2<K, VV>,
-						Vertex<K, VV>>() {
+		CsvReader Tuple2Reader = new CsvReader(Tuple2Filepath, env);
+		DataSet<Tuple2<K, VV>> vertices = Tuple2Reader.fieldDelimiter(Tuple2Delimiter)
+				.types(Tuple2IdClass, Tuple2ValueClass).map(new MapFunction<Tuple2<K, VV>,
+						Tuple2<K, VV>>() {
 
-			public Vertex<K, VV> map(Tuple2<K, VV> value) throws Exception {
-				return (Vertex<K, VV>)value;
+			public Tuple2<K, VV> map(Tuple2<K, VV> value) throws Exception {
+				return (Tuple2<K, VV>)value;
 			}
 		});
 
 		CsvReader edgeReader = new CsvReader(edgeFilepath, env);
-		DataSet<Edge<K, EV>> edges = edgeReader.fieldDelimiter(edgeDelimiter)
-			.types(vertexIdClass, vertexIdClass, edgeValueClass)
-			.map(new MapFunction<Tuple3<K, K, EV>, Edge<K, EV>>() {
+		DataSet<Tuple3<K, K, EV>> edges = edgeReader.fieldDelimiter(edgeDelimiter)
+			.types(Tuple2IdClass, Tuple2IdClass, edgeValueClass)
+			.map(new MapFunction<Tuple3<K, K, EV>, Tuple3<K, K, EV>>() {
 
-			public Edge<K, EV> map(Tuple3<K, K, EV> value) throws Exception {
-				return (Edge<K, EV>)value;
+			public Tuple3<K, K, EV> map(Tuple3<K, K, EV> value) throws Exception {
+				return (Tuple3<K, K, EV>)value;
 			}
 		});
 
