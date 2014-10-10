@@ -271,6 +271,18 @@ under the License.
 			</dependencyManagement>
 		</profile>
 
+        <profile>
+            <id>include-yarn</id>
+            <activation>
+                <property>
+                    <!-- Please do not remove the 'hadoop1' comment. See ./tools/generate_specific_pom.sh -->
+                    <!--hadoop2--><name>hadoop.profile</name><value>2</value>
+                </property>
+            </activation>
+            <modules>
+                <module>flink-yarn-tests</module>
+            </modules>
+        </profile>
 		<profile>
 			<id>vendor-repos</id>
 			<!-- Add vendor maven repositories -->
