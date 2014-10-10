@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,28 +16,59 @@
  * limitations under the License.
  */
 
-package flinkgraph.api;
+package flink.graphs;
 
-public class EdgeWithValue<T, V> extends Edge<T> {
+import java.io.Serializable;
+
+import org.apache.flink.api.java.tuple.Tuple3;
+
+public class Edge<K extends Serializable, V extends Serializable> extends Tuple3<K, K, V>{
 
 	private static final long serialVersionUID = 1L;
 
-	private V value;
+	public Edge(){}
 
-	
-	public EdgeWithValue() {}
-	
-	public EdgeWithValue(T source, T target, V value) {
-		super(source, target);
-		this.value = value;
+	public Edge(K src, K trg) {
+		this.f0 = src;
+		this.f1 = trg;
 	}
-	
-	
-	public V getValue() {
-		return value;
+
+	public Edge(K src, K trg, V val) {
+		this.f0 = src;
+		this.f1 = trg;
+		this.f2 = val;
+	}
+
+	public Edge<K, V> reverse() {
+		if (f2 != null) {
+			return new Edge<K, V>(this.f1, this.f0, this.f2);
+		}
+		else {
+			return new Edge<K, V>(this.f1, this.f0);
+		}
+	}
+
+	public void setSource(K src) {
+		this.f0 = src;
+	}
+
+	public K getSource() {
+		return this.f0;
+	}
+
+	public void setTarget(K target) {
+		this.f1 = target;
+	}
+
+	public K getTarget() {
+		return f1;
 	}
 
 	public void setValue(V value) {
-		this.value = value;
+		this.f2 = value;
+	}
+
+	public V getValue() {
+		return f2;
 	}
 }
