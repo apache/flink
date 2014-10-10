@@ -69,8 +69,6 @@ object ApplicationMaster{
           val taskManagerCount = env.get(Client.ENV_TM_COUNT).toInt
           val slots = env.get(Client.ENV_SLOTS).toInt
           val dynamicPropertiesEncodedString = env.get(Client.ENV_DYNAMIC_PROPERTIES)
-          val localWebInterfaceDir =
-            s"$currDir/resources/${ConfigConstants.DEFAULT_JOB_MANAGER_WEB_PATH_NAME}"
 
           val appNumber = env.get(Client.ENV_APP_NUMBER).toInt
 
@@ -84,8 +82,8 @@ object ApplicationMaster{
           val jobManagerWebPort = GlobalConfiguration.getInteger(ConfigConstants
             .JOB_MANAGER_WEB_PORT_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT)
 
-          generateConfigurationFile(currDir, ownHostname, jobManagerPort, localWebInterfaceDir,
-            jobManagerWebPort, logDirs, slots, taskManagerCount, dynamicPropertiesEncodedString)
+          generateConfigurationFile(currDir, ownHostname, jobManagerPort, jobManagerWebPort,
+            logDirs, slots, taskManagerCount, dynamicPropertiesEncodedString)
 
           val (system, actor) = startJobManager(currDir)
 
@@ -114,8 +112,9 @@ object ApplicationMaster{
   }
 
   def generateConfigurationFile(currDir: String, ownHostname: String, jobManagerPort: Int,
-                                localWebInterfaceDir: String, jobManagerWebPort: Int, logDirs:
-  String, slots: Int, taskManagerCount: Int, dynamicPropertiesEncodedString: String): Unit = {
+                               jobManagerWebPort: Int, logDirs: String, slots: Int,
+                               taskManagerCount: Int, dynamicPropertiesEncodedString: String)
+  : Unit = {
     val output = new PrintWriter(new BufferedWriter(new FileWriter(s"$currDir/flink-conf-modified" +
       s".yaml")))
 
@@ -128,7 +127,6 @@ object ApplicationMaster{
 
     output.println(s"${ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY}: $ownHostname")
     output.println(s"${ConfigConstants.JOB_MANAGER_IPC_PORT_KEY}: $jobManagerPort")
-    output.println(s"${ConfigConstants.JOB_MANAGER_WEB_ROOT_PATH_KEY}: $localWebInterfaceDir")
     output.println(s"${ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY}: $logDirs")
     output.println(s"${ConfigConstants.JOB_MANAGER_WEB_PORT_KEY}: $jobManagerWebPort")
 
@@ -151,8 +149,6 @@ object ApplicationMaster{
   }
 
   def startJobManager(currDir: String): (ActorSystem, ActorRef) = {
-//    Utils.copyJarContents(s"resources/${ConfigConstants.DEFAULT_JOB_MANAGER_WEB_PATH_NAME}",
-//      classOf[YarnMaster].getProtectionDomain.getCodeSource.getLocation.getPath)
 
     val pathToConfig = s"$currDir/flink-conf.modified.yaml"
     val args = Array[String]("--configDir", pathToConfig)

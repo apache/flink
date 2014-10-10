@@ -561,23 +561,23 @@ under the License.
 						<goals>
 							<goal>shade</goal>
 						</goals>
+						<configuration>
+							<shadedArtifactAttached>false</shadedArtifactAttached>
+							<createDependencyReducedPom>false</createDependencyReducedPom>
+							<artifactSet>
+								<includes>
+									<include>org.apache.flink:${project.artifact}</include>
+								</includes>
+							</artifactSet>
+							<relocations>
+								<relocation>
+									<pattern>com.google</pattern>
+									<shadedPattern>org.apache.flink.shaded.com.google</shadedPattern>
+								</relocation>
+							</relocations>
+						</configuration>
 					</execution>
 				</executions>
-				<configuration>
-					<shadedArtifactAttached>false</shadedArtifactAttached>
-					<createDependencyReducedPom>false</createDependencyReducedPom>
-					<artifactSet>
-						<includes>
-							<include>org.apache.flink:${project.artifact}</include>
-						</includes>
-					</artifactSet>
-					<relocations>
-						<relocation>
-							<pattern>com.google</pattern>
-							<shadedPattern>org.apache.flink.shaded.com.google</shadedPattern>
-						</relocation>
-					</relocations>
-				</configuration>
 			</plugin>
 			<plugin>
 				<groupId>org.apache.rat</groupId>

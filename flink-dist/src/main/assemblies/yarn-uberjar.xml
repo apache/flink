@@ -56,16 +56,6 @@ under the License.
 	<fileSets>
 		<!-- copy files for Jobmanager web frontend -->
 		<fileSet>
-			<directory>../nephele/nephele-server/resources</directory>
-			<outputDirectory>resources</outputDirectory>
-			<fileMode>0644</fileMode>
-			<excludes>
-				<exclude>*etc/users</exclude>
-			</excludes>
-		</fileSet>
-
-		<!-- copy files for Jobmanager web frontend -->
-		<fileSet>
 			<directory>../flink-runtime/resources</directory>
 			<outputDirectory>resources</outputDirectory>
 			<fileMode>0644</fileMode>

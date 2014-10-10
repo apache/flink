@@ -56,24 +56,24 @@ under the License.
 						<goals>
 							<goal>shade</goal>
 						</goals>
+						<configuration>
+							<shadedArtifactAttached>false</shadedArtifactAttached>
+							<createDependencyReducedPom>true</createDependencyReducedPom>
+							<dependencyReducedPomLocation>${project.basedir}/target/dependency-reduced-pom.xml</dependencyReducedPomLocation>
+							<artifactSet>
+								<includes>
+									<include>com.google.guava:guava</include>
+								</includes>
+							</artifactSet>
+							<relocations>
+								<relocation>
+									<pattern>com.google</pattern>
+									<shadedPattern>org.apache.flink.shaded.com.google</shadedPattern>
+								</relocation>
+							</relocations>
+						</configuration>
 					</execution>
 				</executions>
-				<configuration>
-					<shadedArtifactAttached>false</shadedArtifactAttached>
-					<createDependencyReducedPom>true</createDependencyReducedPom>
-					<dependencyReducedPomLocation>${project.basedir}/target/dependency-reduced-pom.xml</dependencyReducedPomLocation>
-					<artifactSet>
-						<includes>
-							<include>com.google.guava:guava</include>
-						</includes>
-					</artifactSet>
-					<relocations>
-						<relocation>
-							<pattern>com.google</pattern>
-							<shadedPattern>org.apache.flink.shaded.com.google</shadedPattern>
-						</relocation>
-					</relocations>
-				</configuration>
 			</plugin>
 		</plugins>
 	</build>

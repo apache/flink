@@ -1,0 +1,77 @@
+################################################################################
+#  Licensed to the Apache Software Foundation (ASF) under one
+#  or more contributor license agreements.  See the NOTICE file
+#  distributed with this work for additional information
+#  regarding copyright ownership.  The ASF licenses this file
+#  to you under the Apache License, Version 2.0 (the
+#  "License"); you may not use this file except in compliance
+#  with the License.  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+# limitations under the License.
+################################################################################
+
+
+#==============================================================================
+# Common
+#==============================================================================
+
+jobmanager.rpc.address: localhost
+
+jobmanager.rpc.port: 6123
+
+jobmanager.heap.mb: 256
+
+taskmanager.heap.mb: 512
+
+taskmanager.numberOfTaskSlots: -1
+
+parallelization.degree.default: 1
+
+#==============================================================================
+# Web Frontend
+#==============================================================================
+
+jobmanager.web.port: 8081
+
+webclient.port: 8080
+
+#==============================================================================
+# Advanced
+#==============================================================================
+
+# The number of buffers for the network stack.
+#
+# taskmanager.network.numberOfBuffers: 2048
+
+# Directories for temporary files.
+#
+# Add a delimited list for multiple directories, using the system directory
+# delimiter (colon ':' on unix) or a comma, e.g.:
+#     /data1/tmp:/data2/tmp:/data3/tmp
+#
+# Note: Each directory entry is read from and written to by a different I/O
+# thread. You can include the same directory multiple times in order to create
+# multiple I/O threads against that directory. This is for example relevant for
+# high-throughput RAIDs.
+#
+# If not specified, the system-specific Java temporary directory (java.io.tmpdir
+# property) is taken.
+#
+# taskmanager.tmp.dirs: /tmp
+
+# Path to the Hadoop configuration directory.
+#
+# This configuration is used when writing into HDFS. Unless specified otherwise,
+# HDFS file creation will use HDFS default settings with respect to block-size,
+# replication factor, etc.
+#
+# You can also directly specify the paths to hdfs-default.xml and hdfs-site.xml
+# via keys 'fs.hdfs.hdfsdefault' and 'fs.hdfs.hdfssite'.
+#
+# fs.hdfs.hadoopconf: /path/to/hadoop/conf/

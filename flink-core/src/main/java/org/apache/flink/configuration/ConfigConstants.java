@@ -250,11 +250,6 @@ public final class ConfigConstants {
 	public static final String JOB_MANAGER_WEB_PORT_KEY = "jobmanager.web.port";
 
 	/**
-	 * The parameter defining the directory containing the web documents for the jobmanager web frontend.
-	 */
-	public static final String JOB_MANAGER_WEB_ROOT_PATH_KEY = "jobmanager.web.rootpath";
-
-	/**
 	 * The config parameter defining the path to the htaccess file protecting the web frontend.
 	 */
 	public static final String JOB_MANAGER_WEB_ACCESS_FILE_KEY = "jobmanager.web.access";
@@ -273,11 +268,6 @@ public final class ConfigConstants {
 	 * The config parameter defining port for the pact web-frontend server.
 	 */
 	public static final String WEB_FRONTEND_PORT_KEY = "webclient.port";
-
-	/**
-	 * The config parameter defining the directory containing the web documents.
-	 */
-	public static final String WEB_ROOT_PATH_KEY = "webclient.rootpath";
 
 	/**
 	 * The config parameter defining the temporary data directory for the web client.
@@ -299,9 +289,6 @@ public final class ConfigConstants {
 	 */
 	public static final String WEB_ACCESS_FILE_KEY = "webclient.access";
 	
-	// ----------------------------- YARN Client ----------------------------
-	
-	public static final String YARN_AM_PRC_PORT = "yarn.am.rpc.port";
 
 	// ------------------------------ AKKA ------------------------------------
 
@@ -550,16 +537,6 @@ public final class ConfigConstants {
 	public static final int DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT = 8081;
 
 	/**
-	 * The default directory name of the info server
-	 */
-	public static final String DEFAULT_JOB_MANAGER_WEB_PATH_NAME = "web-docs-infoserver";
-	
-	/**
-	 * The default path of the directory for info server containing the web documents.
-	 */
-	public static final String DEFAULT_JOB_MANAGER_WEB_ROOT_PATH = "./resources/"+DEFAULT_JOB_MANAGER_WEB_PATH_NAME+"/";
-	
-	/**
 	 * The default number of archived jobs for the jobmanager
 	 */
 	public static final int DEFAULT_JOB_MANAGER_WEB_ARCHIVE_COUNT = 5;
@@ -571,11 +548,6 @@ public final class ConfigConstants {
 	 * The default port to launch the web frontend server on.
 	 */
 	public static final int DEFAULT_WEBCLIENT_PORT = 8080;
-
-	/**
-	 * The default path of the directory containing the web documents.
-	 */
-	public static final String DEFAULT_WEB_ROOT_DIR = "./resources/web-docs/";
 
 	/**
 	 * The default directory to store temporary objects (e.g. during file uploads).
@@ -599,10 +571,6 @@ public final class ConfigConstants {
 	 */
 	public static final String DEFAULT_WEB_ACCESS_FILE_PATH = null;
 	
-	// ----------------------------- YARN ----------------------------
-	
-	public static final int DEFAULT_YARN_AM_RPC_PORT = 10245;
-
 	// ------------------------------ Akka Values ------------------------------
 
 	public static String DEFAULT_AKKA_TRANSPORT_HEARTBEAT_INTERVAL = "1000 ms";
@@ -635,19 +603,6 @@ public final class ConfigConstants {
 	 */
 	public static final String LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER = "localinstancemanager.numtaskmanager";
 	
-	
-	// ----------------------------- Deprecated --------------------------------
-
-	/**
-	 * The default definition for an instance type, if no other configuration is provided.
-	 */
-	public static final String DEFAULT_INSTANCE_TYPE = "default,1,1,1,1,0"; // minimalistic instance type until "cloud" model is fully removed.
-
-	/**
-	 * The default index for the default instance type.
-	 */
-	public static final int DEFAULT_DEFAULT_INSTANCE_TYPE_INDEX = 1;
-
 	// ------------------------------------------------------------------------
 	
 	/**

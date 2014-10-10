@@ -22,8 +22,10 @@ package org.apache.flink.runtime.jobmanager.web;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.URL;
 
 import akka.actor.ActorRef;
+import org.eclipse.jetty.server.handler.ResourceHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.configuration.ConfigConstants;
@@ -36,7 +38,6 @@ import org.eclipse.jetty.security.HashLoginService;
 import org.eclipse.jetty.security.authentication.BasicAuthenticator;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.HandlerList;
-import org.eclipse.jetty.server.handler.ResourceHandler;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 
@@ -46,6 +47,11 @@ import org.eclipse.jetty.servlet.ServletHolder;
  * It instantiates and configures an embedded jetty server.
  */
 public class WebInfoServer {
+
+	/**
+	 * Web root dir in the jar
+	 */
+	private static final String WEB_ROOT_DIR = "web-docs-infoserver";
 
 	/**
 	 * The log for this class.
@@ -83,9 +89,15 @@ public class WebInfoServer {
 
 		// get base path of Flink installation
 		final String basePath = config.getString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY, "");
-		final String webDirPath = config.getString(ConfigConstants.JOB_MANAGER_WEB_ROOT_PATH_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_WEB_ROOT_PATH);
 		final String[] logDirPaths = config.getString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY,
 				basePath+"/log").split(","); // YARN allows to specify multiple log directories
+
+		URL webRootDir = this.getClass().getClassLoader().getResource(WEB_ROOT_DIR);
+
+		if(webRootDir == null) {
+			throw new FileNotFoundException("Cannot start jobmanager web info server. The " +
+					"resource " + WEB_ROOT_DIR + " is not included in the jar.");
+		}
 
 		final File[] logDirFiles = new File[logDirPaths.length];
 		int i = 0;
@@ -93,30 +105,15 @@ public class WebInfoServer {
 			logDirFiles[i++] = new File(path);
 		}
 
-		File webDir;
-		if(webDirPath.startsWith("/")) {
-			// absolute path
-			webDir = new File(webDirPath);
-		} else {
-			// path relative to base dir
-			webDir = new File(basePath+"/"+webDirPath);
-		}
-
 
 		if (LOG.isInfoEnabled()) {
-			LOG.info("Setting up web info server, using web-root directory '" + webDir.getAbsolutePath() + "'.");
-			//LOG.info("Web info server will store temporary files in '" + tmpDir.getAbsolutePath());
+			LOG.info("Setting up web info server, using web-root directory" +
+					webRootDir.toExternalForm()	+ ".");
 
 			LOG.info("Web info server will display information about flink job-manager on "
 				+ config.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null) + ", port "
 				+ port
 				+ ".");
-		}
-
-		// ensure that the directory with the web documents exists
-		if (!webDir.exists()) {
-			throw new FileNotFoundException("Cannot start jobmanager web info server. The directory containing the web documents does not exist: "
-				+ webDir.getAbsolutePath());
 		}
 
 		server = new Server(port);
@@ -134,7 +131,7 @@ public class WebInfoServer {
 		// ----- the handler serving all the static files -----
 		ResourceHandler resourceHandler = new ResourceHandler();
 		resourceHandler.setDirectoriesListed(false);
-		resourceHandler.setResourceBase(webDir.getAbsolutePath());
+		resourceHandler.setResourceBase(webRootDir.toExternalForm());
 
 		// ----- add the handlers to the list handler -----
 		HandlerList handlers = new HandlerList();

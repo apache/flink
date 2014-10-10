@@ -103,26 +103,6 @@ under the License.
 			<fileMode>0644</fileMode>
 		</fileSet>
 
-		<fileSet>
-			<!-- copy files for compiler web frontend -->
-			<directory>../flink-clients/resources</directory>
-			<outputDirectory>resources</outputDirectory>
-			<fileMode>0644</fileMode>
-			<excludes>
-				<exclude>*etc/users</exclude>
-			</excludes>
-		</fileSet>
-		
-		<fileSet>
-			<!-- copy files for Jobmanager web frontend -->
-			<directory>../flink-runtime/resources</directory>
-			<outputDirectory>resources</outputDirectory>
-			<fileMode>0644</fileMode>
-			<excludes>
-				<exclude>*etc/users</exclude>
-			</excludes>
-		</fileSet>
-		
 		<!-- copy the tools -->
 		<fileSet>
 			<directory>src/main/flink-bin/tools</directory>

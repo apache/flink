@@ -22,6 +22,7 @@ package org.apache.flink.client.web;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.URL;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,6 +46,9 @@ import org.eclipse.jetty.servlet.ServletHolder;
  * configures an embedded jetty server.
  */
 public class WebInterfaceServer {
+
+	private static final String WEB_ROOT_DIR = "web-docs";
+
 	/**
 	 * The log for this class.
 	 */
@@ -81,20 +85,15 @@ public class WebInterfaceServer {
 		// get base path of Flink installation
 		String basePath = nepheleConfig.getString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY,"");
 
-		File webDir;
 		File tmpDir;
 		File uploadDir;
 		File planDumpDir;
 		
-		String webDirPath = config.getString(ConfigConstants.WEB_ROOT_PATH_KEY,
-			ConfigConstants.DEFAULT_WEB_ROOT_DIR);
-		
-		if(webDirPath.startsWith("/")) {
-			// absolute path
-			webDir = new File(webDirPath);
-		} else {
-			// path relative to base dir
-			webDir = new File(basePath+"/"+webDirPath);
+		URL webRootDir = this.getClass().getClassLoader().getResource(WEB_ROOT_DIR);
+
+		if(webRootDir == null){
+			throw new FileNotFoundException("Cannot start web interface server because the web " +
+					"root dir " + WEB_ROOT_DIR + " is not included in the jar.");
 		}
 		
 		String tmpDirPath = config.getString(ConfigConstants.WEB_TMP_DIR_KEY,
@@ -131,7 +130,8 @@ public class WebInterfaceServer {
 		}
 		
 		if (LOG.isInfoEnabled()) {
-			LOG.info("Setting up web frontend server, using web-root directory '" + webDir.getAbsolutePath() + "'.");
+			LOG.info("Setting up web frontend server, using web-root directory '" +
+					webRootDir.toExternalForm()	+ "'.");
 			LOG.info("Web frontend server will store temporary files in '" + tmpDir.getAbsolutePath()
 				+ "', uploaded jobs in '" + uploadDir.getAbsolutePath() + "', plan-json-dumps in '"
 				+ planDumpDir.getAbsolutePath() + "'.");
@@ -143,12 +143,6 @@ public class WebInterfaceServer {
 		}
 
 		server = new Server(port);
-
-		// ensure that the directory with the web documents exists
-		if (!webDir.exists()) {
-			throw new FileNotFoundException("The directory containing the web documents does not exist: "
-				+ webDir.getAbsolutePath());
-		}
 
 		// ensure, that all the directories exist
 		checkAndCreateDirectories(tmpDir, true);
@@ -178,7 +172,7 @@ public class WebInterfaceServer {
 		// ----- the handler serving all the static files -----
 		ResourceHandler resourceHandler = new ResourceHandler();
 		resourceHandler.setDirectoriesListed(false);
-		resourceHandler.setResourceBase(webDir.getAbsolutePath());
+		resourceHandler.setResourceBase(webRootDir.toExternalForm());
 
 		// ----- add the handlers to the list handler -----
 		HandlerList handlers = new HandlerList();
