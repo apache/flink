@@ -450,7 +450,7 @@ public class Client {
 		 */
 		int appNumber = appId.getId();
 
-		jmPort += appNumber;
+		jmPort = Utils.offsetPort(jmPort, appNumber);
 				
 		// Setup jar for ApplicationMaster
 		LocalResource appMasterJar = Records.newRecord(LocalResource.class);
@@ -492,7 +492,7 @@ public class Client {
 		fs.close();
 
 		int amRPCPort = GlobalConfiguration.getInteger(ConfigConstants.YARN_AM_PRC_PORT, ConfigConstants.DEFAULT_YARN_AM_RPC_PORT);
-		amRPCPort += appNumber;
+		amRPCPort = Utils.offsetPort(amRPCPort, appNumber);
 		// Setup CLASSPATH for ApplicationMaster
 		Map<String, String> appMasterEnv = new HashMap<String, String>();
 		Utils.setupEnv(conf, appMasterEnv);

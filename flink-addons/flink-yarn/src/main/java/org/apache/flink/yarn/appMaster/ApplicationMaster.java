@@ -18,7 +18,6 @@
 
 package org.apache.flink.yarn.appMaster;
 
-
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -44,7 +43,6 @@ import org.apache.flink.runtime.ipc.RPC;
 import org.apache.flink.runtime.ipc.RPC.Server;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.util.SerializableArrayList;
-import org.apache.flink.types.BooleanValue;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.yarn.Client;
 import org.apache.flink.yarn.Utils;
@@ -220,12 +218,13 @@ public class ApplicationMaster implements YARNClientMasterProtocol {
 		// determine JobManager port
 		int port = GlobalConfiguration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, -1);
 		if(port != -1) {
-			port += appNumber;
+			port = Utils.offsetPort(port,appNumber);
 		} else {
 			LOG.warn("JobManager port is unknown");
 		}
 		this.jobManagerPort = port;
-		this.jobManagerWebPort = GlobalConfiguration.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT)+appNumber;
+		int jmWebPort = GlobalConfiguration.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT);
+		this.jobManagerWebPort = Utils.offsetPort(jmWebPort, appNumber);
 	}
 	
 	private void setFailed(boolean failed) {
@@ -506,7 +505,7 @@ public class ApplicationMaster implements YARNClientMasterProtocol {
 	
 
 	@Override
-	public BooleanValue shutdownAM() throws Exception {
+	public void shutdownAM() throws Exception {
 		LOG.info("Client requested shutdown of AM");
 		FinalApplicationStatus finalStatus = FinalApplicationStatus.SUCCEEDED;
 		String finalMessage = "";
@@ -518,7 +517,6 @@ public class ApplicationMaster implements YARNClientMasterProtocol {
 		}
 		rmClient.unregisterApplicationMaster(finalStatus, finalMessage, "");
 		this.close();
-		return new BooleanValue(true);
 	}
 	
 	private void close() throws Exception {
@@ -527,12 +525,15 @@ public class ApplicationMaster implements YARNClientMasterProtocol {
 			nmClient.close();
 			rmClient.close();
 			if(!isFailed) {
-			//	amRpcServer.stop();
+				amRpcServer.stop();
 			} else {
 				LOG.warn("Can not close AM RPC connection since the AM is in failed state");
 			}
+		} else {
+			LOG.warn("The AM has already been closed before");
 		}
 		this.isClosed = true;
+		System.exit(0); // kill it hard.
 	}
 
 	@Override

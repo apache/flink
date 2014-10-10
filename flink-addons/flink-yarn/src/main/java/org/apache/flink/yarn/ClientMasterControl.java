@@ -106,13 +106,12 @@ public class ClientMasterControl extends Thread {
 		}
 	}
 
-	public boolean shutdownAM() {
+	public void shutdownAM() {
 		try {
-			boolean result = cmp.shutdownAM().getValue();
-			return result;
+			cmp.shutdownAM();
 		} catch(Throwable e) {
-			LOG.warn("Error shutting down the application master", e);
-			return false;
+			// the old RPC service is unable to shut down itself. So the java.io.EOFException is expected here.
+			LOG.debug("This exception is expected", e);
 		}
 	}
 

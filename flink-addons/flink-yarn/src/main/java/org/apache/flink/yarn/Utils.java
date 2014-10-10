@@ -266,4 +266,23 @@ public class Utils {
 		environment.put(StringInterner.weakIntern(variable),
 				StringInterner.weakIntern(val));
 	}
+	
+	/**
+	 * Valid ports are 1024 - 65535.
+	 * We offset the incoming port by the applicationId to avoid port collisions if YARN allocates two ApplicationMasters
+	 * on the same physical hardware
+	 */
+	public static int offsetPort(int port, int appId) {
+		if(port > 65535) {
+			LOG.warn("The specified YARN RPC port ("+port+") is above the maximum possible port 65535."
+					+ "Setting it to "+64535);
+			port = 64535;
+		}
+		if(port + (appId % 1000) > 65535) {
+			LOG.warn("The specified YARN RPC port ("+port+") is, when offsetted by the ApplicationID ("+appId+") above "
+					+ "the maximum possible port 65535. Setting it to "+64535);
+			port = port - 1000;
+		}
+		return port + (appId % 1000);
+	}
 }

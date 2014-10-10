@@ -279,6 +279,13 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 			this.scheduler.shutdown();
 		}
 
+		if(this.server != null) {
+			try {
+				this.server.stop();
+			} catch (Exception e1) {
+				throw new RuntimeException("Error shtopping the web-info-server.", e1);
+			}
+		}
 		this.isShutDown = true;
 		LOG.debug("Shutdown of job manager completed");
 	}

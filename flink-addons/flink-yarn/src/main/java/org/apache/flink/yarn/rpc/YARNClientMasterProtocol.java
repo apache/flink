@@ -26,7 +26,6 @@ import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.protocols.VersionedProtocol;
-import org.apache.flink.types.BooleanValue;
 
 
 /**
@@ -71,7 +70,7 @@ public interface YARNClientMasterProtocol extends VersionedProtocol {
 
 	ApplicationMasterStatus getAppplicationMasterStatus();
 
-	BooleanValue shutdownAM() throws Exception;
+	void shutdownAM() throws Exception;
 
 	List<Message> getMessages();
 
