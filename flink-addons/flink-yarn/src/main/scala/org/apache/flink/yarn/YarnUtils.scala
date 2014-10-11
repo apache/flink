@@ -42,6 +42,9 @@ object YarnUtils {
   def getConfigString: String = {
     s"""akka.loglevel = "INFO"
       |akka.stdout-loglevel = "INFO"
+      |akka.log-dead-letters-during-shutdown = off
+      |akka.log-dead-letters = off
+      |akka.remote.log-remote-lifecycle-events=off
       |""".stripMargin
   }
 

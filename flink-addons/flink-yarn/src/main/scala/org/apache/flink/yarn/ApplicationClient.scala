@@ -71,9 +71,6 @@ class ApplicationClient(appId: ApplicationId, port: Int, yarnClient: YarnClient,
     case PollYarnReport => {
       val report = yarnClient.getApplicationReport(appId)
 
-      log.info(s"Yarn state ${report.getYarnApplicationState}, " +
-        s"state ${report.getFinalApplicationStatus}")
-
       report.getYarnApplicationState match {
         case YarnApplicationState.FINISHED | YarnApplicationState.KILLED | YarnApplicationState
           .FAILED => {
