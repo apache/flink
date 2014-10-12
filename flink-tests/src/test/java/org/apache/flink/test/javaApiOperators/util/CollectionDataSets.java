@@ -29,6 +29,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.tuple.Tuple7;
+import org.apache.flink.api.java.tuple.Tuple8;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -286,17 +287,32 @@ public class CollectionDataSets {
 		}
 	}
 
-	public static DataSet<Tuple7<Integer, String, Integer, Integer, Long, String, Long>> getSmallTuplebasedPojoMatchingDataSet(ExecutionEnvironment env) {
+	public static DataSet<Tuple7<Integer, String, Integer, Integer, Long, String, Long>> getSmallTuplebasedDataSet(ExecutionEnvironment env) {
 		List<Tuple7<Integer, String, Integer, Integer, Long, String, Long>> data = new ArrayList<Tuple7<Integer, String, Integer, Integer, Long, String, Long>>();
 		data.add(new Tuple7<Integer, String, Integer, Integer, Long, String, Long>(1, "First", 10, 100, 1000L, "One", 10000L));
 		data.add(new Tuple7<Integer, String, Integer, Integer, Long, String, Long>(2, "Second", 20, 200, 2000L, "Two", 20000L));
 		data.add(new Tuple7<Integer, String, Integer, Integer, Long, String, Long>(3, "Third", 30, 300, 3000L, "Three", 30000L));
 		return env.fromCollection(data);
 	}
+	
+	public static DataSet<Tuple7<Long, Integer, Integer, Long, String, Integer, String>> getSmallTuplebasedDataSetMatchingPojo(ExecutionEnvironment env) {
+		List<Tuple7<Long, Integer, Integer, Long, String, Integer, String>> data = 
+				new ArrayList<Tuple7<Long, Integer, Integer, Long, String, Integer, String>>();
+		data.add(new Tuple7<Long, Integer, Integer, Long, String, Integer, String>
+				(10000L, 10, 100, 1000L, "One", 1, "First"));
+		
+		data.add(new Tuple7<Long, Integer, Integer, Long, String, Integer, String>
+		(20000L, 20, 200, 2000L, "Two", 2, "Second"));
+		
+		data.add(new Tuple7<Long, Integer, Integer, Long, String, Integer, String>
+		(30000L, 30, 300, 3000L, "Three", 3, "Third"));
+		
+		return env.fromCollection(data);
+	}
 
 	public static DataSet<POJO> getSmallPojoDataSet(ExecutionEnvironment env) {
 		List<POJO> data = new ArrayList<POJO>();
-		data.add(new POJO(1, "First", 10, 100, 1000L, "One", 10000L));
+		data.add(new POJO(1 /*number*/, "First" /*str*/, 10 /*f0*/, 100/*f1.myInt*/, 1000L/*f1.myLong*/, "One" /*f1.myString*/, 10000L /*nestedPojo.longNumber*/));
 		data.add(new POJO(2, "Second", 20, 200, 2000L, "Two", 20000L));
 		data.add(new POJO(3, "Third", 30, 300, 3000L, "Three", 30000L));
 		return env.fromCollection(data);
@@ -320,7 +336,6 @@ public class CollectionDataSets {
 		public String str;
 		public Tuple2<Integer, CustomType> nestedTupleWithCustom;
 		public NestedPojo nestedPojo;
-		public Date date;
 		public transient Long ignoreMe;
 
 		public POJO(int i0, String s0,
@@ -330,7 +345,6 @@ public class CollectionDataSets {
 			this.str = s0;
 			this.nestedTupleWithCustom = new Tuple2<Integer, CustomType>(i1, new CustomType(i2, l0, s1));
 			this.nestedPojo = new NestedPojo();
-			this.date = new Date();
 			this.nestedPojo.longNumber = l1;
 		}
 
