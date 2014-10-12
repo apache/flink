@@ -390,7 +390,7 @@ public class CoGroupITCase extends JavaProgramTestBase {
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				
 				DataSet<POJO> ds = CollectionDataSets.getSmallPojoDataSet(env);
-				DataSet<Tuple7<Integer, String, Integer, Integer, Long, String, Long>> ds2 = CollectionDataSets.getSmallTuplebasedPojoMatchingDataSet(env);
+				DataSet<Tuple7<Integer, String, Integer, Integer, Long, String, Long>> ds2 = CollectionDataSets.getSmallTuplebasedDataSet(env);
 				DataSet<CustomType> coGroupDs = ds.coGroup(ds2)
 						.where("nestedPojo.longNumber").equalTo(6).with(new CoGroupFunction<POJO, Tuple7<Integer, String, Integer, Integer, Long, String, Long>, CustomType>() {
 						private static final long serialVersionUID = 1L;
@@ -425,7 +425,7 @@ public class CoGroupITCase extends JavaProgramTestBase {
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				
 				DataSet<POJO> ds = CollectionDataSets.getSmallPojoDataSet(env);
-				DataSet<Tuple7<Integer, String, Integer, Integer, Long, String, Long>> ds2 = CollectionDataSets.getSmallTuplebasedPojoMatchingDataSet(env);
+				DataSet<Tuple7<Integer, String, Integer, Integer, Long, String, Long>> ds2 = CollectionDataSets.getSmallTuplebasedDataSet(env);
 				DataSet<CustomType> coGroupDs = ds.coGroup(ds2)
 						.where(new KeySelector<POJO, Tuple1<Long>>() {
 							private static final long serialVersionUID = 1L;
@@ -468,7 +468,7 @@ public class CoGroupITCase extends JavaProgramTestBase {
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				
 				DataSet<POJO> ds = CollectionDataSets.getSmallPojoDataSet(env);
-				DataSet<Tuple7<Integer, String, Integer, Integer, Long, String, Long>> ds2 = CollectionDataSets.getSmallTuplebasedPojoMatchingDataSet(env);
+				DataSet<Tuple7<Integer, String, Integer, Integer, Long, String, Long>> ds2 = CollectionDataSets.getSmallTuplebasedDataSet(env);
 				DataSet<CustomType> coGroupDs = ds.coGroup(ds2)
 						.where(new KeySelector<POJO, Long>() {
 							private static final long serialVersionUID = 1L;

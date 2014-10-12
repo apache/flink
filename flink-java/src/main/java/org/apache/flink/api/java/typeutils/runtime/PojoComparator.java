@@ -199,7 +199,7 @@ public final class PojoComparator<T> extends CompositeTypeComparator<T> implemen
 			throw new NullKeyFieldException("Unable to access field "+field+" on object "+object);
 		} catch (IllegalAccessException iaex) {
 			throw new RuntimeException("This should not happen since we call setAccesssible(true) in PojoTypeInfo."
-			+ " fiels: " + field + " obj: " + object);
+			+ " fields: " + field + " obj: " + object);
 		}
 		return object;
 	}
@@ -211,7 +211,6 @@ public final class PojoComparator<T> extends CompositeTypeComparator<T> implemen
 		for (; i < this.keyFields.length; i++) {
 			code *= TupleComparatorBase.HASH_SALT[i & 0x1F];
 			code += this.comparators[i].hash(accessField(keyFields[i], value));
-			
 		}
 		return code;
 
