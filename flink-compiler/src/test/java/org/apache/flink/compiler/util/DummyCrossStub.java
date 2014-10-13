@@ -21,6 +21,7 @@ package org.apache.flink.compiler.util;
 import org.apache.flink.api.java.record.functions.CrossFunction;
 import org.apache.flink.types.Record;
 
+@SuppressWarnings("deprecation")
 public class DummyCrossStub extends CrossFunction {
 	private static final long serialVersionUID = 1L;
 

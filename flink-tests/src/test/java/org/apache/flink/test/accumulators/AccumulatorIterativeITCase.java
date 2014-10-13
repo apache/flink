@@ -45,6 +45,7 @@ import org.junit.runners.Parameterized.Parameters;
 /**
  * To be finished !!! Didn't test with iterations yet;-(
  */
+@SuppressWarnings("deprecation")
 @RunWith(Parameterized.class)
 public class AccumulatorIterativeITCase extends RecordAPITestBase {
 

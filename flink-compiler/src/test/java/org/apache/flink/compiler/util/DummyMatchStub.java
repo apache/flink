@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.compiler.util;
 
 import java.io.Serializable;
@@ -26,6 +25,7 @@ import org.apache.flink.api.java.record.functions.FunctionAnnotation.ConstantFie
 import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 
+@SuppressWarnings("deprecation")
 @ConstantFieldsFirstExcept({})
 public class DummyMatchStub extends JoinFunction implements Serializable {
 	private static final long serialVersionUID = 1L;

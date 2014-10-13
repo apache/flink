@@ -58,7 +58,7 @@ import org.apache.flink.compiler.util.IdentityReduce;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 
-@SuppressWarnings("serial")
+@SuppressWarnings({"serial", "deprecation"})
 public class BranchingPlansCompilerTest extends CompilerTestBase {
 	
 	
@@ -358,7 +358,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 		}
 	}
 	
-	@SuppressWarnings({ "unchecked", "deprecation" })
+	@SuppressWarnings("unchecked")
 	@Test
 	public void testBranchEachContractType() {
 		try {

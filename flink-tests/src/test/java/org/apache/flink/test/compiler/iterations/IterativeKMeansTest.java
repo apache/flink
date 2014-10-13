@@ -42,7 +42,7 @@ import org.apache.flink.test.recordJobs.kmeans.KMeansBroadcast;
 import org.junit.Assert;
 import org.junit.Test;
 
-
+@SuppressWarnings("deprecation")
 public class IterativeKMeansTest extends CompilerTestBase {
 	
 	private static final String DATAPOINTS = "Data Points";

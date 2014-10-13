@@ -53,6 +53,7 @@ import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 import org.junit.Assert;
 
+@SuppressWarnings("deprecation")
 public class BroadcastVarsNepheleITCase extends RecordAPITestBase {
 
 	private static final long SEED_POINTS = 0xBADC0FFEEBEEFL;

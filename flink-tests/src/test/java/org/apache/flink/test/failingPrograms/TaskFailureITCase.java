@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.failingPrograms;
 
 import org.apache.flink.api.common.Plan;
@@ -40,6 +39,7 @@ import org.apache.flink.util.Collector;
 /**
  * Tests whether the system recovers from a runtime exception from the user code.
  */
+@SuppressWarnings("deprecation")
 public class TaskFailureITCase extends FailingTestBase {
 
 	private static final int DOP = 4;

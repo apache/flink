@@ -55,9 +55,7 @@ import org.apache.flink.util.Collector;
 import org.junit.Assert;
 import org.junit.Test;
 
-/**
- *
- */
+@SuppressWarnings("deprecation")
 public class ConnectedComponentsTest extends CompilerTestBase {
 	
 	private static final String VERTEX_SOURCE = "Vertices";

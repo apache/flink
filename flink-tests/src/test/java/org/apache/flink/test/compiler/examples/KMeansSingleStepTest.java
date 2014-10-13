@@ -37,7 +37,7 @@ import org.apache.flink.test.recordJobs.kmeans.KMeansSingleStep;
 import org.junit.Assert;
 import org.junit.Test;
 
-
+@SuppressWarnings("deprecation")
 public class KMeansSingleStepTest extends CompilerTestBase {
 	
 	private static final String DATAPOINTS = "Data Points";
