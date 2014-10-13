@@ -855,18 +855,20 @@ public class PactCompiler {
 				// and the solution set. If it does depend on both, this descend should create both nodes
 				iter.getSolutionSetDelta().accept(recursiveCreator);
 				
-				final SolutionSetNode solutionSetNode = (SolutionSetNode) recursiveCreator.con2node.get(iter.getSolutionSet());
 				final WorksetNode worksetNode = (WorksetNode) recursiveCreator.con2node.get(iter.getWorkset());
 				
 				if (worksetNode == null) {
-					throw new CompilerException("In the given plan, the solution set delta does not depend on the workset. This is a prerequisite in workset iterations.");
+					throw new CompilerException("In the given plan, the solution set delta does not depend on the workset. This is a prerequisite in delta iterations.");
 				}
 				
 				iter.getNextWorkset().accept(recursiveCreator);
 				
+				SolutionSetNode solutionSetNode = (SolutionSetNode) recursiveCreator.con2node.get(iter.getSolutionSet());
+				
 				if (solutionSetNode == null || solutionSetNode.getOutgoingConnections() == null || solutionSetNode.getOutgoingConnections().isEmpty()) {
-					throw new CompilerException("Error: The step function does not reference the solution set.");
-				} else {
+					solutionSetNode = new SolutionSetNode((SolutionSetPlaceHolder<?>) iter.getSolutionSet(), iterNode);
+				}
+				else {
 					for (PactConnection conn : solutionSetNode.getOutgoingConnections()) {
 						OptimizerNode successor = conn.getTarget();
 					

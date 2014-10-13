@@ -492,8 +492,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 								instantiate(dps, in1Copy, in2Copy, broadcastPlanChannels, target, estimator, rgps1, rgps2, ilp1, ilp2);
 								break;
 							} else {
-								// meet, but not co-compatible
-//								throw new CompilerException("Implements to adjust one side to the other!");
+								// cannot use this pair, fall through the loop and try the next one
 							}
 						}
 					}
