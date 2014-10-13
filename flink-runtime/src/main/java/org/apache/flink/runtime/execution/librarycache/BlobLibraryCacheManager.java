@@ -83,12 +83,6 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 			HashMap<BlobKey, Integer>();
 
 	/**
-	 * Timer for cleanup task
-	 */
-	private final Timer timer;
-
-
-	/**
 	 * All registered blobs
 	 */
 	private final Set<BlobKey> registeredBlobs = new HashSet<BlobKey>();
@@ -99,7 +93,7 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 		this.blobService = blobService;
 
 		// Initializing the clean up task
-		timer = new Timer();
+		Timer timer = new Timer(true);
 		long cleanupInterval = configuration.getLong(
 				ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL,
 				ConfigConstants.DEFAULT_LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL)*1000;
@@ -256,7 +250,6 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 
 	@Override
 	public void shutdown() throws IOException{
-		timer.cancel();
 		blobService.shutdown();
 	}
 
