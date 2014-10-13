@@ -44,6 +44,7 @@ import org.junit.Before;
 /**
  *
  */
+@SuppressWarnings("deprecation")
 public abstract class CompilerTestBase implements java.io.Serializable {
 	
 	private static final long serialVersionUID = 1L;

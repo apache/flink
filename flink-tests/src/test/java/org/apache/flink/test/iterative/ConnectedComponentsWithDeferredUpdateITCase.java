@@ -47,6 +47,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
+@SuppressWarnings("deprecation")
 @RunWith(Parameterized.class)
 public class ConnectedComponentsWithDeferredUpdateITCase extends RecordAPITestBase {
 	

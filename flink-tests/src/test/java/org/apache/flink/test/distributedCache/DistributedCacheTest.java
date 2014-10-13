@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.distributedCache;
 
 import java.io.BufferedReader;
@@ -42,10 +41,10 @@ import org.apache.flink.types.Record;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.Collector;
 
-
 /**
  * Test the distributed cache via using the cache file to do a selection on the input
  */
+@SuppressWarnings("deprecation")
 public class DistributedCacheTest extends RecordAPITestBase {
 
 	public static final String cacheData = "machen\n" + "zeit\n" + "heerscharen\n" + "keiner\n" + "meine\n"

@@ -41,6 +41,7 @@ import org.junit.Test;
 /**
  * Tests TPCH Q3 (simplified) under various input conditions.
  */
+@SuppressWarnings("deprecation")
 public class RelationalQueryCompilerTest extends CompilerTestBase {
 	
 	private static final String ORDERS = "Orders";

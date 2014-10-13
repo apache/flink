@@ -275,7 +275,6 @@ public class JavaApiPostPass implements OptimizerPostPass {
 			throw new RuntimeException("Wrong operator type found in post pass.");
 		}
 	}
-
 	
 	private static <T> TypeSerializerFactory<?> createSerializer(TypeInformation<T> typeInfo) {
 		TypeSerializer<T> serializer = typeInfo.createSerializer();
@@ -287,8 +286,6 @@ public class JavaApiPostPass implements OptimizerPostPass {
 		}
 	}
 	
-	
-	@SuppressWarnings("unchecked")
 	private static <T> TypeComparatorFactory<?> createComparator(TypeInformation<T> typeInfo, FieldList keys, boolean[] sortOrder) {
 		
 		TypeComparator<T> comparator;

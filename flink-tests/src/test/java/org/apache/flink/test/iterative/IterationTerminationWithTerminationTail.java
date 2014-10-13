@@ -37,6 +37,7 @@ import org.apache.flink.types.StringValue;
 import org.apache.flink.util.Collector;
 import org.junit.Assert;
 
+@SuppressWarnings("deprecation")
 public class IterationTerminationWithTerminationTail extends RecordAPITestBase {
 
 	private static final String INPUT = "1\n" + "2\n" + "3\n" + "4\n" + "5\n";

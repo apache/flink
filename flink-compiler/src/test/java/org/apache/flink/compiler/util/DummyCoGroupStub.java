@@ -25,6 +25,7 @@ import org.apache.flink.api.java.record.functions.CoGroupFunction;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 
+@SuppressWarnings("deprecation")
 public class DummyCoGroupStub extends CoGroupFunction implements Serializable {
 	private static final long serialVersionUID = 1L;
 

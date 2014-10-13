@@ -51,6 +51,7 @@ import org.junit.Test;
 * Tests that validate optimizer choices when using operators that are requesting certain specific execution
 * strategies.
 */
+@SuppressWarnings("deprecation")
 public class WorksetIterationsRecordApiCompilerTest extends CompilerTestBase {
 	
 	private static final long serialVersionUID = 1L;

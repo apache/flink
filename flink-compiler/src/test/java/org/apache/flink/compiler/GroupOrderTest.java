@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.compiler;
 
 import static org.junit.Assert.fail;
@@ -48,13 +47,12 @@ import org.apache.flink.types.StringValue;
 import org.junit.Assert;
 import org.junit.Test;
 
-
 /**
  * This test case has been created to validate that correct strategies are used if orders within groups are
  * requested.
  */
-@SuppressWarnings("serial")
-public class GroupOrderTest extends CompilerTestBase  {
+@SuppressWarnings({"serial", "deprecation"})
+public class GroupOrderTest extends CompilerTestBase {
 
 	@Test
 	public void testReduceWithGroupOrder() {

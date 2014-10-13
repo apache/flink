@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.compiler;
 
 import static org.junit.Assert.fail;
@@ -37,7 +36,7 @@ import org.junit.Test;
  * This test case has been created to validate a bug that occurred when
  * the ReduceOperator was used without a grouping key.
  */
-@SuppressWarnings("serial")
+@SuppressWarnings({"serial", "deprecation"})
 public class ReduceAllTest extends CompilerTestBase {
 
 	@Test

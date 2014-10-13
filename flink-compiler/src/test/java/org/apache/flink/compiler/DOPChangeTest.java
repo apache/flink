@@ -20,7 +20,6 @@
 package org.apache.flink.compiler;
 
 import org.junit.Assert;
-
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.record.operators.FileDataSink;
 import org.apache.flink.api.java.record.operators.FileDataSource;
@@ -52,7 +51,7 @@ import org.junit.Test;
  *       parallelism between tasks is increased or decreased.
  * </ul>
  */
-@SuppressWarnings("serial")
+@SuppressWarnings({"serial", "deprecation"})
 public class DOPChangeTest extends CompilerTestBase {
 	
 	/**

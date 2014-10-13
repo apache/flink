@@ -49,10 +49,10 @@ import org.apache.flink.compiler.util.DummyOutputFormat;
 import org.apache.flink.compiler.util.IdentityReduce;
 
 
-@SuppressWarnings("serial")
+@SuppressWarnings({"serial", "deprecation"})
 public class UnionPropertyPropagationTest extends CompilerTestBase {
 
-	@SuppressWarnings({ "deprecation", "unchecked" })
+	@SuppressWarnings("unchecked")
 	@Test
 	public void testUnionPropertyOldApiPropagation() {
 		// construct the plan
