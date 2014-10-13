@@ -331,8 +331,9 @@ public final class Task {
 	 *        the central memory manager
 	 */
 	public void unregisterMemoryManager(MemoryManager memoryManager) {
-		if (memoryManager != null) {
-			memoryManager.releaseAll(this.environment.getInvokable());
+		RuntimeEnvironment env = this.environment;
+		if (memoryManager != null && env != null) {
+			memoryManager.releaseAll(env.getInvokable());
 		}
 	}
 	
