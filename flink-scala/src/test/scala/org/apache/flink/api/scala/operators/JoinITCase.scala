@@ -34,7 +34,7 @@ import org.apache.flink.api.scala._
 
 
 object JoinProgs {
-  var NUM_PROGRAMS: Int = 19
+  var NUM_PROGRAMS: Int = 20
 
   def runProgram(progId: Int, resultPath: String): String = {
     progId match {
@@ -324,14 +324,14 @@ object JoinProgs {
          */
         val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
         val ds1 = CollectionDataSets.getSmallPojoDataSet(env)
-        val ds2 = CollectionDataSets.getSmallTuplebasedPojoMatchingDataSet(env)
+        val ds2 = CollectionDataSets.getSmallTuplebasedDataSetMatchingPojo(env)
         val joinDs = ds1.join(ds2).where("*").equalTo("*")
         joinDs.writeAsCsv(resultPath)
         env.setDegreeOfParallelism(1)
         env.execute()
-        "1 First (10,100,1000,One) 10000,(1,First,10,100,1000,One,10000)\n" + "2 Second (20,200," +
-          "2000,Two) 20000,(2,Second,20,200,2000,Two,20000)\n" + "3 Third (30,300,3000," +
-          "Three) 30000,(3,Third,30,300,3000,Three,30000)\n"
+        "1 First (10,100,1000,One) 10000,(10000,10,100,1000,One,1,First)\n" +
+        "2 Second (20,200,2000,Two) 20000,(20000,20,200,2000,Two,2,Second)\n" +
+        "3 Third (30,300,3000,Three) 30000,(30000,30,300,3000,Three,3,Third)\n"
       
       case _ =>
         throw new IllegalArgumentException("Invalid program id: " + progId)

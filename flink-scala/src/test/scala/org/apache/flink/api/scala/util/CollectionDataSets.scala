@@ -271,6 +271,15 @@ object CollectionDataSets {
     env.fromCollection(data)
   }
 
+  def getSmallTuplebasedDataSetMatchingPojo(env: ExecutionEnvironment):
+    DataSet[(Long, Integer, Integer, Long, String, Integer, String)] = {
+    val data = new mutable.MutableList[(Long, Integer, Integer, Long, String, Integer, String)]
+    data.+=((10000L, 10, 100, 1000L, "One", 1, "First"))
+    data.+=((20000L, 20, 200, 2000L, "Two", 2, "Second"))
+    data.+=((30000L, 30, 300, 3000L, "Three", 3, "Third"))
+    env.fromCollection(data)
+  }
+
   def getPojoWithMultiplePojos(env: ExecutionEnvironment): DataSet[CollectionDataSets
   .PojoWithMultiplePojos] = {
     val data = new mutable.MutableList[CollectionDataSets
