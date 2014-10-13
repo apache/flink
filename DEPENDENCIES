@@ -23,6 +23,7 @@ under the Apache License (v 2.0):
  - Apache Derby (http://db.apache.org/derby/)
  - Apache Kafka (http://kafka.apache.org)
  - Apache Flume (http://flume.apache.org)
+ - Apache Camel (http://camel.apache.org)
  - Google Guava (https://code.google.com/p/guava-libraries/)
  - Netty (http://netty.io)
  - Powermock (http://www.powermock.org)
@@ -33,6 +34,7 @@ under the Apache License (v 2.0):
  - StartBootstrap (http://startbootstrap.com)
  - CHAP Links Library Timeline (http://almende.github.io/chap-links-library/)
  - Twitter Hosebird Client (hbc) (https://github.com/twitter/hbc)
+ - Akka (http://akka.io)
 
 
 -----------------------------------------------------------------------
@@ -65,6 +67,7 @@ under the MIT License
  - normalize.css v3.0.0 (http://git.io/normalize) - Copyright (c) Nicolas Gallagher and Jonathan Neal
  - Font Awesome - Code (http://fortawesome.github.io/Font-Awesome/) - Copyright (c) 2014 Dave Gandy
  - D3 dagre renderer (https://github.com/cpettitt/dagre-d3) - Copyright (c) 2012-2013 Chris Pettitt
+ - scopt v3.2.0 (http://github.com/scopt/scopt)
 
 
 All rights reserved.
