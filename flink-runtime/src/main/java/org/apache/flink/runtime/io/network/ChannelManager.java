@@ -197,6 +197,9 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 	 */
 	public void unregister(ExecutionAttemptID executionId, Task task) {
 		final Environment environment = task.getEnvironment();
+		if (environment == null) {
+			return;
+		}
 
 		// destroy and remove OUTPUT channels from registered channels and cache
 		for (ChannelID id : environment.getOutputChannelIDs()) {
