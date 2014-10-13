@@ -42,6 +42,7 @@ object TestingUtils {
     val ioRWClass = classOf[IOReadableWritable].getCanonicalName
 
     s"""akka.daemonic = on
+      |akka.test.timefactor = 10
       |akka.loggers = ["akka.event.slf4j.Slf4jLogger"]
       |akka.loglevel = "OFF"
       |akka.logging-filter = "akka.event.slf4j.Slf4jLoggingFilter"
