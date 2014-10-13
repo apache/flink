@@ -47,9 +47,7 @@ import org.apache.flink.types.StringValue;
 import org.junit.Assert;
 import org.junit.Test;
 
-/**
- *
- */
+@SuppressWarnings("deprecation")
 public class WordCountCompilerTest extends CompilerTestBase {
 	
 	/**

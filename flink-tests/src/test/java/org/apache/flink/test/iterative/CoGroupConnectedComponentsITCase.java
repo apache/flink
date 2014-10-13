@@ -43,6 +43,7 @@ import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 
 
+@SuppressWarnings("deprecation")
 public class CoGroupConnectedComponentsITCase extends RecordAPITestBase {
 	
 	private static final long SEED = 0xBADC0FFEEBEEFL;

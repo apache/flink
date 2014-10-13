@@ -35,6 +35,7 @@ import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 
+@SuppressWarnings("deprecation")
 public class MatchJoinCancelingITCase extends CancellingTestBase {
 	private static final int DOP = 4;
 

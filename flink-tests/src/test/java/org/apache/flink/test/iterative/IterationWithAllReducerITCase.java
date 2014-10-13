@@ -35,7 +35,7 @@ import org.apache.flink.types.StringValue;
 import org.apache.flink.util.Collector;
 import org.junit.Assert;
 
-
+@SuppressWarnings("deprecation")
 public class IterationWithAllReducerITCase extends RecordAPITestBase {
 
 	private static final String INPUT = "1\n" + "1\n" + "1\n" + "1\n" + "1\n" + "1\n" + "1\n" + "1\n";

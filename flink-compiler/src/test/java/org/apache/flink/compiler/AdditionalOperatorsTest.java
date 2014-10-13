@@ -43,7 +43,7 @@ import org.junit.Test;
 * Tests that validate optimizer choices when using operators that are requesting certain specific execution
 * strategies.
 */
-@SuppressWarnings("serial")
+@SuppressWarnings({"serial", "deprecation"})
 public class AdditionalOperatorsTest extends CompilerTestBase {
 
 	@Test

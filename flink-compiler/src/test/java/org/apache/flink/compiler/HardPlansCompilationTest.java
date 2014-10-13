@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.compiler;
 
 import org.apache.flink.api.common.Plan;
@@ -41,9 +40,8 @@ import org.junit.Test;
  *   <li> Ticket 158
  * </ul>
  */
-@SuppressWarnings("serial")
-public class HardPlansCompilationTest extends CompilerTestBase
-{
+@SuppressWarnings({"serial", "deprecation"})
+public class HardPlansCompilationTest extends CompilerTestBase {
 	
 	/**
 	 * Source -> Map -> Reduce -> Cross -> Reduce -> Cross -> Reduce ->
