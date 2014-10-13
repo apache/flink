@@ -102,7 +102,7 @@ public class WorksetIterationsJavaApiCompilerTest extends CompilerTestBase {
 	}
 	
 	@Test
-	public void testRecordApiWithDeferredSoltionSetUpdateWithNonPreservingJoin() {
+	public void testJavaApiWithDeferredSoltionSetUpdateWithNonPreservingJoin() {
 		try {
 			Plan plan = getJavaTestPlan(false, false);
 			
@@ -146,7 +146,7 @@ public class WorksetIterationsJavaApiCompilerTest extends CompilerTestBase {
 	}
 	
 	@Test
-	public void testRecordApiWithDirectSoltionSetUpdate() {
+	public void testJavaApiWithDirectSoltionSetUpdate() {
 		try {
 			Plan plan = getJavaTestPlan(true, false);
 			
