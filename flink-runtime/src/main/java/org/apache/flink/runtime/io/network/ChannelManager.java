@@ -206,9 +206,8 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 			Channel channel = this.channels.remove(id);
 			if (channel != null) {
 				channel.destroy();
+				this.receiverCache.remove(channel);
 			}
-
-			this.receiverCache.remove(channel);
 		}
 
 		// destroy and remove INPUT channels from registered channels and cache
@@ -216,9 +215,8 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 			Channel channel = this.channels.remove(id);
 			if (channel != null) {
 				channel.destroy();
+				this.receiverCache.remove(channel);
 			}
-
-			this.receiverCache.remove(channel);
 		}
 
 		// clear and remove INPUT side buffer pools
