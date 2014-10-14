@@ -16,15 +16,14 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators.testutils;
 
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-
+import org.apache.flink.util.ExceptionUtils;
 import org.junit.Assert;
 
-public class TaskCancelThread extends Thread
-{
+public class TaskCancelThread extends Thread {
+	
 	private final DriverTestBase<?> cancelDriver;
 	private final AbstractInvokable cancelTask;
 	private final Thread interruptedThread;
@@ -33,16 +32,14 @@ public class TaskCancelThread extends Thread
 	
 	
 	
-	public TaskCancelThread(int cancelTimeout, Thread interruptedThread, DriverTestBase<?> canceledTask)
-	{
+	public TaskCancelThread(int cancelTimeout, Thread interruptedThread, DriverTestBase<?> canceledTask) {
 		this.cancelTimeout = cancelTimeout;
 		this.interruptedThread = interruptedThread;
 		this.cancelDriver = canceledTask;
 		this.cancelTask = null;
 	}
 	
-	public TaskCancelThread(int cancelTimeout, Thread interruptedThread, AbstractInvokable canceledTask)
-	{
+	public TaskCancelThread(int cancelTimeout, Thread interruptedThread, AbstractInvokable canceledTask) {
 		this.cancelTimeout = cancelTimeout;
 		this.interruptedThread = interruptedThread;
 		this.cancelDriver = null;
@@ -50,11 +47,11 @@ public class TaskCancelThread extends Thread
 	}
 	
 	@Override
-	public void run()
-	{
+	public void run() {
 		try {
 			Thread.sleep(this.cancelTimeout*1000);
-		} catch (InterruptedException e) {
+		}
+		catch (InterruptedException e) {
 			Assert.fail("CancelThread interruped while waiting for cancel timeout");
 		}
 		
@@ -68,7 +65,7 @@ public class TaskCancelThread extends Thread
 			
 			this.interruptedThread.interrupt();
 		} catch (Exception e) {
-			Assert.fail("Canceling task failed");
+			Assert.fail("Canceling task failed: " + ExceptionUtils.stringifyException(e));
 		}
 	}
 	
