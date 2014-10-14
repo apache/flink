@@ -99,11 +99,11 @@ public class FunctionUtils {
 			String className = (String) implClassMethod.invoke(serializedLambda);
 			String methodName = (String) implMethodNameMethod.invoke(serializedLambda);
 
-			Class<?> implClass = Class.forName(className.replace('/', '.'));
+			Class<?> implClass = Class.forName(className.replace('/', '.'), true, Thread.currentThread().getContextClassLoader());
 
 			Method[] methods = implClass.getDeclaredMethods();
 			Method parameterizedMethod = null;
-			for(Method method : methods) {
+			for (Method method : methods) {
 				if(method.getName().equals(methodName)) {
 					if(parameterizedMethod != null) {
 						// It is very unlikely that a class contains multiple e.g. "lambda$2()" but its possible
@@ -115,13 +115,13 @@ public class FunctionUtils {
 					}
 				}
 			}
-			if(parameterizedMethod == null) {
+			if (parameterizedMethod == null) {
 				throw new Exception("No lambda method found.");
 			}
 			return parameterizedMethod;
 		}
-		catch(Exception e) {
-			throw new RuntimeException("Could not extract lambda method out of function.", e);
+		catch (Exception e) {
+			throw new RuntimeException("Could not extract lambda method out of function: " + e.getClass().getSimpleName() + " - " + e.getMessage(), e);
 		}
 	}
 }
