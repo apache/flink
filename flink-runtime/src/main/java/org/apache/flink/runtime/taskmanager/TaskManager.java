@@ -61,6 +61,7 @@ import org.apache.flink.core.protocols.VersionedProtocol;
 import org.apache.flink.runtime.ExecutionMode;
 import org.apache.flink.runtime.blob.BlobCache;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
+import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.RuntimeEnvironment;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
@@ -572,7 +573,6 @@ public class TaskManager implements TaskOperationProtocol {
 		
 		Task task = null;
 		boolean jarsRegistered = false;
-		boolean success = false;
 		
 		try {
 			// Now register data with the library manager
@@ -616,7 +616,7 @@ public class TaskManager implements TaskOperationProtocol {
 			env.addCopyTasksForCacheFile(cpTasks);
 			
 			if (!task.startExecution()) {
-				return new TaskOperationResult(executionId, false, "Task was canceled or failed.");
+				throw new CancelTaskException();
 			}
 		
 			// final check that we can go (we do this after the registration, so the the "happen's before"
@@ -624,16 +624,19 @@ public class TaskManager implements TaskOperationProtocol {
 			if (shutdownStarted.get()) {
 				throw new Exception("Task Manager is shut down.");
 			}
-			
-			success = true;
+
 			return new TaskOperationResult(executionId, true);
 		}
 		catch (Throwable t) {
-			LOG.error("Could not instantiate task", t);
-			return new TaskOperationResult(executionId, false, ExceptionUtils.stringifyException(t));
-		}
-		finally {
-			if (!success) {
+			String message;
+			if (t instanceof CancelTaskException) {
+				message = "Task was canceled";
+			} else {
+				LOG.error("Could not instantiate task", t);
+				message = ExceptionUtils.stringifyException(t);
+			}
+			
+			try {
 				this.runningTasks.remove(executionId);
 				
 				if (task != null) {
@@ -643,6 +646,11 @@ public class TaskManager implements TaskOperationProtocol {
 					libraryCacheManager.unregister(jobID);
 				}
 			}
+			catch (Throwable t2) {
+				LOG.error("Error during cleanup of task deployment", t2);
+			}
+			
+			return new TaskOperationResult(executionId, false, message);
 		}
 	}
 
