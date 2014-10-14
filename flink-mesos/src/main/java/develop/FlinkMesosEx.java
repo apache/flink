@@ -5,6 +5,9 @@ import org.apache.mesos.ExecutorDriver;
 import org.apache.mesos.MesosExecutorDriver;
 import org.apache.mesos.Protos;
 
+import java.io.File;
+import java.util.logging.FileHandler;
+
 /**
  * Created by sebastian on 10/7/14.
  */
@@ -34,7 +37,7 @@ public class FlinkMesosEx implements Executor {
 						.setState(Protos.TaskState.TASK_RUNNING).build();
 
 				executorDriver.sendStatusUpdate(status);
-
+				System.out.println("Location: " + new File(".").getAbsolutePath());
 				System.out.println("Running task " + taskInfo.getTaskId());
 
 				// This is where one would perform the requested task.

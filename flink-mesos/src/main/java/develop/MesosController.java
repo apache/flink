@@ -6,15 +6,10 @@ import org.apache.mesos.Protos;
 import java.io.File;
 import java.io.IOException;
 
-/**
- * Created by sebastian on 10/7/14.
- */
 public class MesosController {
 	public static void main(String[] args) throws IOException {
 
-		String uri = new File("./exec").getCanonicalPath();
-
-
+		String uri = new File("./executor.sh").getCanonicalPath();
 		Protos.ExecutorInfo executor = Protos.ExecutorInfo.newBuilder()
 				.setExecutorId(Protos.ExecutorID.newBuilder().setValue("default"))
 				.setCommand(Protos.CommandInfo.newBuilder().setValue(uri))
