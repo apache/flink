@@ -29,6 +29,7 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase.PartitionMethod;
 import org.apache.flink.api.java.aggregation.Aggregations;
 import org.apache.flink.api.java.functions.FormattingMapper;
@@ -52,7 +53,6 @@ import org.apache.flink.api.java.functions.FirstReducer;
 import org.apache.flink.api.java.operators.FlatMapOperator;
 import org.apache.flink.api.java.operators.GroupReduceOperator;
 import org.apache.flink.api.java.operators.IterativeDataSet;
-import org.apache.flink.api.java.operators.JoinOperator.JoinHint;
 import org.apache.flink.api.java.operators.JoinOperator.JoinOperatorSets;
 import org.apache.flink.api.java.operators.Keys;
 import org.apache.flink.api.java.operators.MapOperator;
@@ -566,6 +566,27 @@ public abstract class DataSet<T> {
 	public <R> JoinOperatorSets<T, R> join(DataSet<R> other) {
 		return new JoinOperatorSets<T, R>(this, other);
 	}
+	
+	/**
+	 * Initiates a Join transformation. <br/>
+	 * A Join transformation joins the elements of two 
+	 *   {@link DataSet DataSets} on key equality and provides multiple ways to combine 
+	 *   joining elements into one DataSet.</br>
+	 * 
+	 * This method returns a {@link JoinOperatorSets} on which one of the {@code where} methods
+	 * can be called to define the join key of the first joining (i.e., this) DataSet.
+	 *  
+	 * @param other The other DataSet with which this DataSet is joined.
+	 * @param strategy The strategy that should be used execute the join. If {@code null} is give, then the
+	 *                 optimizer will pick the join strategy.
+	 * @return A JoinOperatorSets to continue the definition of the Join transformation.
+	 * 
+	 * @see JoinOperatorSets
+	 * @see DataSet
+	 */
+	public <R> JoinOperatorSets<T, R> join(DataSet<R> other, JoinHint strategy) {
+		return new JoinOperatorSets<T, R>(this, other, strategy);
+	}
 
 	/**
 	 * Initiates a Join transformation. <br/>
@@ -621,7 +642,7 @@ public abstract class DataSet<T> {
 	 *   is called with an empty group for the non-existing group.</br>
 	 * The CoGroupFunction can iterate over the elements of both groups and return any number 
 	 *   of elements including none.</br>
-	 * This method returns a {@link JoinOperatorSets} on which one of the {@code where} methods
+	 * This method returns a {@link CoGroupOperatorSets} on which one of the {@code where} methods
 	 * can be called to define the join key of the first joining (i.e., this) DataSet.
 	 * 
 	 * @param other The other DataSet of the CoGroup transformation.

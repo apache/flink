@@ -31,6 +31,7 @@ import org.apache.flink.api.common.operators.DualInputSemanticProperties;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase;
+import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
 import org.apache.flink.api.common.operators.base.MapOperatorBase;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
@@ -62,55 +63,10 @@ import org.apache.flink.util.Collector;
  */
 public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT, JoinOperator<I1, I2, OUT>> {
 	
-	/**
-	 * An enumeration of hints, optionally usable to tell the system how exactly execute the join.
-	 */
-	public static enum JoinHint {
-		/**
-		 * leave the choice how to do the join to the optimizer. If in doubt, the
-		 * optimizer will choose a repartitioning join.
-		 */
-		OPTIMIZER_CHOOSES,
-		
-		/**
-		 * Hint that the first join input is much smaller than the second. This results in
-		 * broadcasting and hashing the first input, unless the optimizer infers that
-		 * prior existing partitioning is available that is even cheaper to exploit.
-		 */
-		BROADCAST_HASH_FIRST,
-		
-		/**
-		 * Hint that the second join input is much smaller than the second. This results in
-		 * broadcasting and hashing the second input, unless the optimizer infers that
-		 * prior existing partitioning is available that is even cheaper to exploit.
-		 */
-		BROADCAST_HASH_SECOND,
-		
-		/**
-		 * Hint that the first join input is a bit smaller than the second. This results in
-		 * repartitioning both inputs and hashing the first input, unless the optimizer infers that
-		 * prior existing partitioning and orders are available that are even cheaper to exploit.
-		 */
-		REPARTITION_HASH_FIRST,
-		
-		/**
-		 * Hint that the second join input is a bit smaller than the second. This results in
-		 * repartitioning both inputs and hashing the second input, unless the optimizer infers that
-		 * prior existing partitioning and orders are available that are even cheaper to exploit.
-		 */
-		REPARTITION_HASH_SECOND,
-		
-		/**
-		 * Hint that the join should repartitioning both inputs and use sorting and merging
-		 * as the join strategy.
-		 */
-		REPARTITION_SORT_MERGE,
-	};
-	
 	protected final Keys<I1> keys1;
 	protected final Keys<I2> keys2;
 	
-	private JoinHint joinHint;
+	private final JoinHint joinHint;
 	
 	protected JoinOperator(DataSet<I1> input1, DataSet<I2> input2, 
 			Keys<I1> keys1, Keys<I2> keys2,
@@ -142,7 +98,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 
 		this.keys1 = keys1;
 		this.keys2 = keys2;
-		this.joinHint = hint;
+		this.joinHint = hint == null ? JoinHint.OPTIMIZER_CHOOSES : hint;
 	}
 	
 	protected Keys<I1> getKeys1() {
@@ -255,6 +211,8 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 				throw new InvalidProgramException("The types of the key fields do not match.", ike);
 			}
 
+			final JoinOperatorBase<?, ?, OUT, ?> translated;
+			
 			if (keys1 instanceof Keys.SelectorFunctionKeys
 					&& keys2 instanceof Keys.SelectorFunctionKeys) {
 				// Both join sides have a key selector function, so we need to do the
@@ -274,8 +232,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 				// set dop
 				po.setDegreeOfParallelism(this.getParallelism());
 				
-				return po;
-				
+				translated = po;
 			}
 			else if (keys2 instanceof Keys.SelectorFunctionKeys) {
 				// The right side of the join needs the tuple wrapping/unwrapping
@@ -294,7 +251,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 				// set dop
 				po.setDegreeOfParallelism(this.getParallelism());
 
-				return po;
+				translated = po;
 			}
 			else if (keys1 instanceof Keys.SelectorFunctionKeys) {
 				// The left side of the join needs the tuple wrapping/unwrapping
@@ -313,7 +270,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 				// set dop
 				po.setDegreeOfParallelism(this.getParallelism());
 
-				return po;
+				translated = po;
 			}
 			else if (super.keys1 instanceof Keys.ExpressionKeys && super.keys2 instanceof Keys.ExpressionKeys)
 			{
@@ -334,12 +291,15 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 				// set dop
 				po.setDegreeOfParallelism(this.getParallelism());
 				
-				return po;
+				translated = po;
 			}
 			else {
 				throw new UnsupportedOperationException("Unrecognized or incompatible key types.");
 			}
 			
+			translated.setJoinHint(getJoinHint());
+			
+			return translated;
 		}
 		
 		private static <I1, I2, K, OUT> PlanBothUnwrappingJoinOperator<I1, I2, OUT, K> translateSelectorFunctionJoin(
