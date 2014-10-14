@@ -16,10 +16,9 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.compiler.dag;
 
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.flink.api.common.operators.Ordering;
@@ -35,8 +34,11 @@ import org.apache.flink.compiler.operators.OperatorDescriptorDual;
  */
 public class CoGroupNode extends TwoInputNode {
 	
+	private List<OperatorDescriptorDual> dataProperties;
+	
 	public CoGroupNode(CoGroupOperatorBase<?, ?, ?, ?> pactContract) {
 		super(pactContract);
+		this.dataProperties = initializeDataProperties();
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -58,6 +60,27 @@ public class CoGroupNode extends TwoInputNode {
 
 	@Override
 	protected List<OperatorDescriptorDual> getPossibleProperties() {
+		return this.dataProperties;
+	}
+	
+	public void makeCoGroupWithSolutionSet(int solutionsetInputIndex) {
+		OperatorDescriptorDual op;
+		if (solutionsetInputIndex == 0) {
+			op = new CoGroupWithSolutionSetFirstDescriptor(keys1, keys2);
+		} else if (solutionsetInputIndex == 1) {
+			op = new CoGroupWithSolutionSetSecondDescriptor(keys1, keys2);
+		} else {
+			throw new IllegalArgumentException();
+		}
+		this.dataProperties = Collections.<OperatorDescriptorDual>singletonList(op);
+	}
+
+	@Override
+	protected void computeOperatorSpecificDefaultEstimates(DataStatistics statistics) {
+		// for CoGroup, we currently make no reasonable default estimates
+	}
+	
+	private List<OperatorDescriptorDual> initializeDataProperties() {
 		Ordering groupOrder1 = null;
 		Ordering groupOrder2 = null;
 		
@@ -72,26 +95,6 @@ public class CoGroupNode extends TwoInputNode {
 			groupOrder2 = null;
 		}
 		
-		List<OperatorDescriptorDual> l = new ArrayList<OperatorDescriptorDual>(1);
-		l.add(new CoGroupDescriptor(this.keys1, this.keys2, groupOrder1, groupOrder2));
-		return l;
-	}
-	
-	public void makeCoGroupWithSolutionSet(int solutionsetInputIndex) {
-		OperatorDescriptorDual op;
-		if (solutionsetInputIndex == 0) {
-			op = new CoGroupWithSolutionSetFirstDescriptor(keys1, keys2);
-		} else if (solutionsetInputIndex == 1) {
-			op = new CoGroupWithSolutionSetSecondDescriptor(keys1, keys2);
-		} else {
-			throw new IllegalArgumentException();
-		}
-		this.possibleProperties.clear();
-		this.possibleProperties.add(op);
-	}
-
-	@Override
-	protected void computeOperatorSpecificDefaultEstimates(DataStatistics statistics) {
-		// for CoGroup, we currently make no reasonable default estimates
+		return Collections.<OperatorDescriptorDual>singletonList(new CoGroupDescriptor(this.keys1, this.keys2, groupOrder1, groupOrder2));
 	}
 }

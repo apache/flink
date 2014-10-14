@@ -69,12 +69,12 @@ public abstract class TwoInputNode extends OptimizerNode {
 	
 	protected final FieldList keys2; // The set of key fields for the second input
 	
-	protected final List<OperatorDescriptorDual> possibleProperties;
-	
 	protected PactConnection input1; // The first input edge
 
 	protected PactConnection input2; // The second input edge
-		
+	
+	private List<OperatorDescriptorDual> cachedDescriptors;
+	
 	// --------------------------------------------------------------------------------------------
 	
 	/**
@@ -103,8 +103,6 @@ public abstract class TwoInputNode extends OptimizerNode {
 		} else if (this.keys2 != null) {
 			throw new CompilerException("Keys are set on second input, but not on first.");
 		}
-		
-		this.possibleProperties = getPossibleProperties();
 	}
 
 	// ------------------------------------------------------------------------
@@ -258,6 +256,13 @@ public abstract class TwoInputNode extends OptimizerNode {
 	
 	protected abstract List<OperatorDescriptorDual> getPossibleProperties();
 
+	private List<OperatorDescriptorDual> getProperties() {
+		if (this.cachedDescriptors == null) {
+			this.cachedDescriptors = getPossibleProperties();
+		}
+		return this.cachedDescriptors;
+	}
+	
 	@Override
 	public void computeInterestingPropertiesForInputs(CostEstimator estimator) {
 		// get what we inherit and what is preserved by our user code 
@@ -265,7 +270,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 		final InterestingProperties props2 = getInterestingProperties().filterByCodeAnnotations(this, 1);
 		
 		// add all properties relevant to this node
-		for (OperatorDescriptorDual dpd : this.possibleProperties) {
+		for (OperatorDescriptorDual dpd : getProperties()) {
 			for (GlobalPropertiesPair gp : dpd.getPossibleGlobalProperties()) {
 				// input 1
 				props1.addGlobalProperties(gp.getProperties1());
@@ -327,7 +332,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 		{
 			Set<GlobalPropertiesPair> pairsGlob = new HashSet<GlobalPropertiesPair>();
 			Set<LocalPropertiesPair> pairsLoc = new HashSet<LocalPropertiesPair>();
-			for (OperatorDescriptorDual ods : this.possibleProperties) {
+			for (OperatorDescriptorDual ods : getProperties()) {
 				pairsGlob.addAll(ods.getPossibleGlobalProperties());
 				pairsLoc.addAll(ods.getPossibleLocalProperties());
 			}
@@ -469,7 +474,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 				final Channel in2 = template2.clone();
 				ilp2.parameterizeChannel(in2);
 				
-				for (OperatorDescriptorDual dps: this.possibleProperties) {
+				for (OperatorDescriptorDual dps: getProperties()) {
 					for (LocalPropertiesPair lpp : dps.getPossibleLocalProperties()) {
 						if (lpp.getProperties1().isMetBy(in1.getLocalProperties()) &&
 							lpp.getProperties2().isMetBy(in2.getLocalProperties()) )

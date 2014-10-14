@@ -16,42 +16,40 @@
  * limitations under the License.
  */
 
-
-package org.apache.flink.compiler;
+package org.apache.flink.compiler.java;
 
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.operators.util.FieldList;
+import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.common.functions.RichReduceFunction;
+import org.apache.flink.api.java.operators.GroupReduceOperator;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.operators.DriverStrategy;
+import org.apache.flink.util.Collector;
 import org.junit.Test;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.compiler.CompilerTestBase;
 import org.apache.flink.compiler.plan.OptimizedPlan;
 import org.apache.flink.compiler.plan.SingleInputPlanNode;
 import org.apache.flink.compiler.plan.SinkPlanNode;
 import org.apache.flink.compiler.plan.SourcePlanNode;
-import org.apache.flink.runtime.operators.DriverStrategy;
 
 import static org.junit.Assert.*;
 
 @SuppressWarnings("serial")
-public class ReduceCompilationTest extends CompilerTestBase implements java.io.Serializable {
+public class GroupReduceCompilationTest extends CompilerTestBase implements java.io.Serializable {
 
 	@Test
-	public void testAllReduceNoCombiner() {
+	public void testAllGroupReduceNoCombiner() {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 			env.setDegreeOfParallelism(8);
 			
 			DataSet<Double> data = env.fromElements(0.2, 0.3, 0.4, 0.5).name("source");
 			
-			data.reduce(new RichReduceFunction<Double>() {
-				
-				@Override
-				public Double reduce(Double value1, Double value2){
-					return value1 + value2;
-				}
+			data.reduceGroup(new RichGroupReduceFunction<Double, Double>() {
+				public void reduce(Iterable<Double> values, Collector<Double> out) {}
 			}).name("reducer")
 			.print().name("sink");
 			
@@ -70,6 +68,9 @@ public class ReduceCompilationTest extends CompilerTestBase implements java.io.S
 			// check wiring
 			assertEquals(sourceNode, reduceNode.getInput().getSource());
 			assertEquals(reduceNode, sinkNode.getInput().getSource());
+			
+			// check that reduce has the right strategy
+			assertEquals(DriverStrategy.ALL_GROUP_REDUCE, reduceNode.getDriverStrategy());
 			
 			// check DOP
 			assertEquals(1, sourceNode.getDegreeOfParallelism());
@@ -91,14 +92,12 @@ public class ReduceCompilationTest extends CompilerTestBase implements java.io.S
 			
 			DataSet<Long> data = env.generateSequence(1, 8000000).name("source");
 			
-			data.reduce(new RichReduceFunction<Long>() {
-				
-				@Override
-				public Long reduce(Long value1, Long value2){
-					return value1 + value2;
-				}
-			}).name("reducer")
-			.print().name("sink");
+			GroupReduceOperator<Long, Long> reduced = data.reduceGroup(new RichGroupReduceFunction<Long, Long>() {
+				public void reduce(Iterable<Long> values, Collector<Long> out) {}
+			}).name("reducer");
+			
+			reduced.setCombinable(true);
+			reduced.print().name("sink");
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
@@ -118,8 +117,8 @@ public class ReduceCompilationTest extends CompilerTestBase implements java.io.S
 			assertEquals(reduceNode, sinkNode.getInput().getSource());
 			
 			// check that both reduce and combiner have the same strategy
-			assertEquals(DriverStrategy.ALL_REDUCE, reduceNode.getDriverStrategy());
-			assertEquals(DriverStrategy.ALL_REDUCE, combineNode.getDriverStrategy());
+			assertEquals(DriverStrategy.ALL_GROUP_REDUCE, reduceNode.getDriverStrategy());
+			assertEquals(DriverStrategy.ALL_GROUP_COMBINE, combineNode.getDriverStrategy());
 			
 			// check DOP
 			assertEquals(8, sourceNode.getDegreeOfParallelism());
@@ -134,8 +133,9 @@ public class ReduceCompilationTest extends CompilerTestBase implements java.io.S
 		}
 	}
 	
+	
 	@Test
-	public void testGroupedReduceWithFieldPositionKey() {
+	public void testGroupedReduceWithFieldPositionKeyNonCombinable() {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 			env.setDegreeOfParallelism(8);
@@ -145,13 +145,61 @@ public class ReduceCompilationTest extends CompilerTestBase implements java.io.S
 			
 			data
 				.groupBy(1)
-				.reduce(new RichReduceFunction<Tuple2<String,Double>>() {
-				@Override
-				public Tuple2<String, Double> reduce(Tuple2<String, Double> value1, Tuple2<String, Double> value2){
-					return null;
-				}
+				.reduceGroup(new RichGroupReduceFunction<Tuple2<String, Double>, Tuple2<String, Double>>() {
+				public void reduce(Iterable<Tuple2<String, Double>> values, Collector<Tuple2<String, Double>> out) {}
 			}).name("reducer")
 			.print().name("sink");
+			
+			Plan p = env.createProgramPlan();
+			OptimizedPlan op = compileNoStats(p);
+			
+			OptimizerPlanNodeResolver resolver = getOptimizerPlanNodeResolver(op);
+			
+			// get the original nodes
+			SourcePlanNode sourceNode = resolver.getNode("source");
+			SingleInputPlanNode reduceNode = resolver.getNode("reducer");
+			SinkPlanNode sinkNode = resolver.getNode("sink");
+			
+			// check wiring
+			assertEquals(sourceNode, reduceNode.getInput().getSource());
+			assertEquals(reduceNode, sinkNode.getInput().getSource());
+			
+			// check that both reduce and combiner have the same strategy
+			assertEquals(DriverStrategy.SORTED_GROUP_REDUCE, reduceNode.getDriverStrategy());
+			
+			// check the keys
+			assertEquals(new FieldList(1), reduceNode.getKeys(0));
+			assertEquals(new FieldList(1), reduceNode.getInput().getLocalStrategyKeys());
+			
+			// check DOP
+			assertEquals(6, sourceNode.getDegreeOfParallelism());
+			assertEquals(8, reduceNode.getDegreeOfParallelism());
+			assertEquals(8, sinkNode.getDegreeOfParallelism());
+		}
+		catch (Exception e) {
+			System.err.println(e.getMessage());
+			e.printStackTrace();
+			fail(e.getClass().getSimpleName() + " in test: " + e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testGroupedReduceWithFieldPositionKeyCombinable() {
+		try {
+			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+			env.setDegreeOfParallelism(8);
+			
+			DataSet<Tuple2<String, Double>> data = env.readCsvFile("file:///will/never/be/read").types(String.class, Double.class)
+				.name("source").setParallelism(6);
+			
+			GroupReduceOperator<Tuple2<String, Double>, Tuple2<String, Double>> reduced = data
+					.groupBy(1)
+					.reduceGroup(new RichGroupReduceFunction<Tuple2<String, Double>, Tuple2<String, Double>>() {
+				public void reduce(Iterable<Tuple2<String, Double>> values, Collector<Tuple2<String, Double>> out) {}
+			}).name("reducer");
+			
+			reduced.setCombinable(true);
+			reduced.print().name("sink");
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
@@ -171,12 +219,13 @@ public class ReduceCompilationTest extends CompilerTestBase implements java.io.S
 			assertEquals(reduceNode, sinkNode.getInput().getSource());
 			
 			// check that both reduce and combiner have the same strategy
-			assertEquals(DriverStrategy.SORTED_REDUCE, reduceNode.getDriverStrategy());
-			assertEquals(DriverStrategy.SORTED_PARTIAL_REDUCE, combineNode.getDriverStrategy());
+			assertEquals(DriverStrategy.SORTED_GROUP_REDUCE, reduceNode.getDriverStrategy());
+			assertEquals(DriverStrategy.SORTED_GROUP_COMBINE, combineNode.getDriverStrategy());
 			
 			// check the keys
 			assertEquals(new FieldList(1), reduceNode.getKeys(0));
 			assertEquals(new FieldList(1), combineNode.getKeys(0));
+			assertEquals(new FieldList(1), combineNode.getKeys(1));
 			assertEquals(new FieldList(1), reduceNode.getInput().getLocalStrategyKeys());
 			
 			// check DOP
@@ -193,7 +242,7 @@ public class ReduceCompilationTest extends CompilerTestBase implements java.io.S
 	}
 	
 	@Test
-	public void testGroupedReduceWithSelectorFunctionKey() {
+	public void testGroupedReduceWithSelectorFunctionKeyNoncombinable() {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 			env.setDegreeOfParallelism(8);
@@ -205,13 +254,70 @@ public class ReduceCompilationTest extends CompilerTestBase implements java.io.S
 				.groupBy(new KeySelector<Tuple2<String,Double>, String>() { 
 					public String getKey(Tuple2<String, Double> value) { return value.f0; }
 				})
-				.reduce(new RichReduceFunction<Tuple2<String,Double>>() {
-				@Override
-				public Tuple2<String, Double> reduce(Tuple2<String, Double> value1, Tuple2<String, Double> value2){
-					return null;
-				}
+				.reduceGroup(new RichGroupReduceFunction<Tuple2<String, Double>, Tuple2<String, Double>>() {
+				public void reduce(Iterable<Tuple2<String, Double>> values, Collector<Tuple2<String, Double>> out) {}
 			}).name("reducer")
 			.print().name("sink");
+			
+			Plan p = env.createProgramPlan();
+			OptimizedPlan op = compileNoStats(p);
+			
+			OptimizerPlanNodeResolver resolver = getOptimizerPlanNodeResolver(op);
+			
+			// get the original nodes
+			SourcePlanNode sourceNode = resolver.getNode("source");
+			SingleInputPlanNode reduceNode = resolver.getNode("reducer");
+			SinkPlanNode sinkNode = resolver.getNode("sink");
+			
+			// get the key extractors and projectors
+			SingleInputPlanNode keyExtractor = (SingleInputPlanNode) reduceNode.getInput().getSource();
+			SingleInputPlanNode keyProjector = (SingleInputPlanNode) sinkNode.getInput().getSource();
+			
+			// check wiring
+			assertEquals(sourceNode, keyExtractor.getInput().getSource());
+			assertEquals(keyProjector, sinkNode.getInput().getSource());
+			
+			// check that both reduce and combiner have the same strategy
+			assertEquals(DriverStrategy.SORTED_GROUP_REDUCE, reduceNode.getDriverStrategy());
+			
+			// check the keys
+			assertEquals(new FieldList(0), reduceNode.getKeys(0));
+			assertEquals(new FieldList(0), reduceNode.getInput().getLocalStrategyKeys());
+			
+			// check DOP
+			assertEquals(6, sourceNode.getDegreeOfParallelism());
+			assertEquals(6, keyExtractor.getDegreeOfParallelism());
+			
+			assertEquals(8, reduceNode.getDegreeOfParallelism());
+			assertEquals(8, keyProjector.getDegreeOfParallelism());
+			assertEquals(8, sinkNode.getDegreeOfParallelism());
+		}
+		catch (Exception e) {
+			System.err.println(e.getMessage());
+			e.printStackTrace();
+			fail(e.getClass().getSimpleName() + " in test: " + e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testGroupedReduceWithSelectorFunctionKeyCombinable() {
+		try {
+			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+			env.setDegreeOfParallelism(8);
+			
+			DataSet<Tuple2<String, Double>> data = env.readCsvFile("file:///will/never/be/read").types(String.class, Double.class)
+				.name("source").setParallelism(6);
+			
+			GroupReduceOperator<Tuple2<String, Double>, Tuple2<String, Double>> reduced = data
+				.groupBy(new KeySelector<Tuple2<String,Double>, String>() { 
+					public String getKey(Tuple2<String, Double> value) { return value.f0; }
+				})
+				.reduceGroup(new RichGroupReduceFunction<Tuple2<String, Double>, Tuple2<String, Double>>() {
+				public void reduce(Iterable<Tuple2<String, Double>> values, Collector<Tuple2<String, Double>> out) {}
+			}).name("reducer");
+			
+			reduced.setCombinable(true);
+			reduced.print().name("sink");
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
@@ -235,12 +341,13 @@ public class ReduceCompilationTest extends CompilerTestBase implements java.io.S
 			assertEquals(keyProjector, sinkNode.getInput().getSource());
 			
 			// check that both reduce and combiner have the same strategy
-			assertEquals(DriverStrategy.SORTED_REDUCE, reduceNode.getDriverStrategy());
-			assertEquals(DriverStrategy.SORTED_PARTIAL_REDUCE, combineNode.getDriverStrategy());
+			assertEquals(DriverStrategy.SORTED_GROUP_REDUCE, reduceNode.getDriverStrategy());
+			assertEquals(DriverStrategy.SORTED_GROUP_COMBINE, combineNode.getDriverStrategy());
 			
 			// check the keys
 			assertEquals(new FieldList(0), reduceNode.getKeys(0));
 			assertEquals(new FieldList(0), combineNode.getKeys(0));
+			assertEquals(new FieldList(0), combineNode.getKeys(1));
 			assertEquals(new FieldList(0), reduceNode.getInput().getLocalStrategyKeys());
 			
 			// check DOP
