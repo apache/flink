@@ -26,7 +26,7 @@ import org.apache.flink.api.common.operators.base.PartitionOperatorBase.Partitio
 import org.apache.flink.api.java.aggregation.Aggregations
 import org.apache.flink.api.java.functions.{FirstReducer, KeySelector}
 import org.apache.flink.api.java.io.{PrintingOutputFormat, TextOutputFormat}
-import org.apache.flink.api.java.operators.JoinOperator.JoinHint
+import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
 import org.apache.flink.api.java.operators.Keys.ExpressionKeys
 import org.apache.flink.api.java.operators._
 import org.apache.flink.api.java.{DataSet => JavaDataSet}
@@ -676,6 +676,13 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   def join[O](other: DataSet[O]): UnfinishedJoinOperation[T, O] =
     new UnfinishedJoinOperation(this, other, JoinHint.OPTIMIZER_CHOOSES)
 
+  /**
+   * Special [[join]] operation for explicitly telling the system what join strategy to use. If
+   * null is given as the join strategy, then the optimizer will pick the strategy.
+   */
+  def join[O](other: DataSet[O], strategy: JoinHint): UnfinishedJoinOperation[T, O] =
+    new UnfinishedJoinOperation(this, other, strategy)
+  
   /**
    * Special [[join]] operation for explicitly telling the system that the right side is assumed
    * to be a lot smaller than the left side of the join.

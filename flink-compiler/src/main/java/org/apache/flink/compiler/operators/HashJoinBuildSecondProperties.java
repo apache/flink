@@ -36,6 +36,12 @@ public final class HashJoinBuildSecondProperties extends AbstractJoinDescriptor 
 	public HashJoinBuildSecondProperties(FieldList keys1, FieldList keys2) {
 		super(keys1, keys2);
 	}
+	
+	public HashJoinBuildSecondProperties(FieldList keys1, FieldList keys2,
+			boolean broadcastFirstAllowed, boolean broadcastSecondAllowed, boolean repartitionAllowed)
+	{
+		super(keys1, keys2, broadcastFirstAllowed, broadcastSecondAllowed, repartitionAllowed);
+	}
 
 	@Override
 	public DriverStrategy getStrategy() {
@@ -72,7 +78,7 @@ public final class HashJoinBuildSecondProperties extends AbstractJoinDescriptor 
 		else {
 			strategy = DriverStrategy.HYBRIDHASH_BUILD_SECOND;
 		}
-		return new DualInputPlanNode(node, "Join("+node.getPactContract().getName()+")", in1, in2, strategy, this.keys1, this.keys2);
+		return new DualInputPlanNode(node, "Join ("+node.getPactContract().getName()+")", in1, in2, strategy, this.keys1, this.keys2);
 	}
 	
 	@Override

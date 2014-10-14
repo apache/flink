@@ -36,10 +36,16 @@ import org.apache.flink.runtime.operators.DriverStrategy;
 /**
  * 
  */
-public class SortMergeJoinDescriptor extends AbstractJoinDescriptor
-{
+public class SortMergeJoinDescriptor extends AbstractJoinDescriptor {
+	
 	public SortMergeJoinDescriptor(FieldList keys1, FieldList keys2) {
 		super(keys1, keys2);
+	}
+	
+	public SortMergeJoinDescriptor(FieldList keys1, FieldList keys2,
+			boolean broadcastFirstAllowed, boolean broadcastSecondAllowed, boolean repartitionAllowed)
+	{
+		super(keys1, keys2, broadcastFirstAllowed, broadcastSecondAllowed, repartitionAllowed);
 	}
 
 	@Override

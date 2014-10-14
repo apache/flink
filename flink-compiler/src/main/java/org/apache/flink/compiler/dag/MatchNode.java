@@ -16,13 +16,13 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.compiler.dag;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.flink.api.common.operators.base.JoinOperatorBase;
+import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
 import org.apache.flink.compiler.CompilerException;
 import org.apache.flink.compiler.DataStatistics;
 import org.apache.flink.compiler.PactCompiler;
@@ -33,17 +33,20 @@ import org.apache.flink.compiler.operators.SortMergeJoinDescriptor;
 import org.apache.flink.configuration.Configuration;
 
 /**
- * The Optimizer representation of a <i>Match</i> contract node.
+ * The Optimizer representation of a join operator.
  */
 public class MatchNode extends TwoInputNode {
 	
+	private final JoinHint joinHint;
+	
 	/**
-	 * Creates a new MatchNode for the given contract.
+	 * Creates a new MatchNode for the given join operator.
 	 * 
-	 * @param pactContract The match contract object.
+	 * @param joinOperatorBase The join operator object.
 	 */
-	public MatchNode(JoinOperatorBase<?, ?, ?, ?> pactContract) {
-		super(pactContract);
+	public MatchNode(JoinOperatorBase<?, ?, ?, ?> joinOperatorBase) {
+		super(joinOperatorBase);
+		this.joinHint = joinOperatorBase.getJoinHint();
 	}
 
 	// ------------------------------------------------------------------------
@@ -87,11 +90,37 @@ public class MatchNode extends TwoInputNode {
 			ArrayList<OperatorDescriptorDual> list = new ArrayList<OperatorDescriptorDual>();
 			list.add(fixedDriverStrat);
 			return list;
-		} else {
+		}
+		else {
 			ArrayList<OperatorDescriptorDual> list = new ArrayList<OperatorDescriptorDual>();
-			list.add(new SortMergeJoinDescriptor(this.keys1, this.keys2));
-			list.add(new HashJoinBuildFirstProperties(this.keys1, this.keys2));
-			list.add(new HashJoinBuildSecondProperties(this.keys1, this.keys2));
+			
+			JoinHint hint = this.joinHint == null ? JoinHint.OPTIMIZER_CHOOSES : this.joinHint;
+			
+			switch (hint) {
+				case BROADCAST_HASH_FIRST:
+					list.add(new HashJoinBuildFirstProperties(this.keys1, this.keys2, true, false, false));
+					break;
+				case BROADCAST_HASH_SECOND:
+					list.add(new HashJoinBuildSecondProperties(this.keys1, this.keys2, false, true, false));
+					break;
+				case REPARTITION_HASH_FIRST:
+					list.add(new HashJoinBuildFirstProperties(this.keys1, this.keys2, false, false, true));
+					break;
+				case REPARTITION_HASH_SECOND:
+					list.add(new HashJoinBuildSecondProperties(this.keys1, this.keys2, false, false, true));
+					break;
+				case REPARTITION_SORT_MERGE:
+					list.add(new SortMergeJoinDescriptor(this.keys1, this.keys2, false, false, true));
+					break;
+				case OPTIMIZER_CHOOSES:
+					list.add(new SortMergeJoinDescriptor(this.keys1, this.keys2));
+					list.add(new HashJoinBuildFirstProperties(this.keys1, this.keys2));
+					list.add(new HashJoinBuildSecondProperties(this.keys1, this.keys2));
+					break;
+				default:
+					throw new CompilerException("Unrecognized join hint: " + joinHint);
+			}
+			
 			return list;
 		}
 	}

@@ -39,6 +39,12 @@ public class HashJoinBuildFirstProperties extends AbstractJoinDescriptor {
 	public HashJoinBuildFirstProperties(FieldList keys1, FieldList keys2) {
 		super(keys1, keys2);
 	}
+	
+	public HashJoinBuildFirstProperties(FieldList keys1, FieldList keys2,
+			boolean broadcastFirstAllowed, boolean broadcastSecondAllowed, boolean repartitionAllowed)
+	{
+		super(keys1, keys2, broadcastFirstAllowed, broadcastSecondAllowed, repartitionAllowed);
+	}
 
 	@Override
 	public DriverStrategy getStrategy() {
@@ -48,8 +54,7 @@ public class HashJoinBuildFirstProperties extends AbstractJoinDescriptor {
 	@Override
 	protected List<LocalPropertiesPair> createPossibleLocalProperties() {
 		// all properties are possible
-		return Collections.singletonList(new LocalPropertiesPair(
-			new RequestedLocalProperties(), new RequestedLocalProperties()));
+		return Collections.singletonList(new LocalPropertiesPair(new RequestedLocalProperties(), new RequestedLocalProperties()));
 	}
 	
 	@Override
