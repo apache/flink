@@ -75,7 +75,7 @@ import org.apache.flink.streaming.util.serialization.TypeWrapper;
  * <ul>
  * <li>{@link DataStream#map},</li>
  * <li>{@link DataStream#filter}, or</li>
- * <li>{@link DataStream#batchReduce}.</li>
+ * <li>{@link DataStream#aggregate}.</li>
  * </ul>
  * 
  * @param <OUT>
@@ -325,7 +325,7 @@ public class DataStream<OUT> {
 	 * calls a {@link MapFunction} for each element of the DataStream. Each
 	 * MapFunction call returns exactly one element. The user can also extend
 	 * {@link RichMapFunction} to gain access to other features provided by the
-	 * {@link RichFuntion} interface.
+	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
 	 * 
 	 * @param mapper
 	 *            The MapFunction that is called for each element of the
@@ -349,7 +349,7 @@ public class DataStream<OUT> {
 	 * transformation calls a {@link FlatMapFunction} for each element of the
 	 * DataStream. Each FlatMapFunction call can return any number of elements
 	 * including none. The user can also extend {@link RichFlatMapFunction} to
-	 * gain access to other features provided by the {@link RichFuntion}
+	 * gain access to other features provided by the {@link org.apache.flink.api.common.functions.RichFunction}
 	 * interface.
 	 * 
 	 * @param flatMapper
@@ -373,7 +373,7 @@ public class DataStream<OUT> {
 	/**
 	 * Applies a reduce transformation on the data stream. The user can also
 	 * extend the {@link RichReduceFunction} to gain access to other features
-	 * provided by the {@link RichFuntion} interface.
+	 * provided by the {@link org.apache.flink.api.common.functions.RichFunction} interface.
 	 * 
 	 * @param reducer
 	 *            The {@link ReduceFunction} that will be called for every
@@ -678,7 +678,7 @@ public class DataStream<OUT> {
 	 * DataStream and retains only those element for which the function returns
 	 * true. Elements for which the function returns false are filtered. The
 	 * user can also extend {@link RichFilterFunction} to gain access to other
-	 * features provided by the {@link RichFuntion} interface.
+	 * features provided by the {@link org.apache.flink.api.common.functions.RichFunction} interface.
 	 * 
 	 * @param filter
 	 *            The FilterFunction that is called for each element of the
