@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.compiler.dag;
 
 import java.util.ArrayList;
@@ -68,6 +67,8 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 	
 	private final GlobalProperties partitionedProperties;
 	
+	private final List<OperatorDescriptorDual> dataProperties;
+	
 	private SolutionSetNode solutionSetNode;
 	
 	private WorksetNode worksetNode;
@@ -112,7 +113,7 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 		}
 		this.costWeight = weight; 
 		
-		this.possibleProperties.add(new WorksetOpDescriptor(this.solutionSetKeyFields));
+		this.dataProperties = Collections.<OperatorDescriptorDual>singletonList(new WorksetOpDescriptor(this.solutionSetKeyFields));
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -224,7 +225,7 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 	
 	@Override
 	protected List<OperatorDescriptorDual> getPossibleProperties() {
-		return new ArrayList<OperatorDescriptorDual>(1);
+		return this.dataProperties;
 	}
 	
 	@Override

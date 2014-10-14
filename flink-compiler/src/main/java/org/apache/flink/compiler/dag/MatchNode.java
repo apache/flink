@@ -19,6 +19,7 @@
 package org.apache.flink.compiler.dag;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.flink.api.common.operators.base.JoinOperatorBase;
@@ -37,7 +38,7 @@ import org.apache.flink.configuration.Configuration;
  */
 public class MatchNode extends TwoInputNode {
 	
-	private final JoinHint joinHint;
+	private List<OperatorDescriptorDual> dataProperties;
 	
 	/**
 	 * Creates a new MatchNode for the given join operator.
@@ -46,7 +47,7 @@ public class MatchNode extends TwoInputNode {
 	 */
 	public MatchNode(JoinOperatorBase<?, ?, ?, ?> joinOperatorBase) {
 		super(joinOperatorBase);
-		this.joinHint = joinOperatorBase.getJoinHint();
+		this.dataProperties = getDataProperties(joinOperatorBase, joinOperatorBase.getJoinHint());
 	}
 
 	// ------------------------------------------------------------------------
@@ -68,8 +69,47 @@ public class MatchNode extends TwoInputNode {
 
 	@Override
 	protected List<OperatorDescriptorDual> getPossibleProperties() {
+		return this.dataProperties;
+	}
+	
+	public void makeJoinWithSolutionSet(int solutionsetInputIndex) {
+		OperatorDescriptorDual op;
+		if (solutionsetInputIndex == 0) {
+			op = new HashJoinBuildFirstProperties(this.keys1, this.keys2);
+		} else if (solutionsetInputIndex == 1) {
+			op = new HashJoinBuildSecondProperties(this.keys1, this.keys2);
+		} else {
+			throw new IllegalArgumentException();
+		}
+		
+		this.dataProperties = Collections.singletonList(op);
+	}
+	
+	/**
+	 * The default estimates build on the principle of inclusion: The smaller input key domain is included in the larger
+	 * input key domain. We also assume that every key from the larger input has one join partner in the smaller input.
+	 * The result cardinality is hence the larger one.
+	 */
+	@Override
+	protected void computeOperatorSpecificDefaultEstimates(DataStatistics statistics) {
+		long card1 = getFirstPredecessorNode().getEstimatedNumRecords();
+		long card2 = getSecondPredecessorNode().getEstimatedNumRecords();
+		this.estimatedNumRecords = (card1 < 0 || card2 < 0) ? -1 : Math.max(card1, card2);
+		
+		if (this.estimatedNumRecords >= 0) {
+			float width1 = getFirstPredecessorNode().getEstimatedAvgWidthPerOutputRecord();
+			float width2 = getSecondPredecessorNode().getEstimatedAvgWidthPerOutputRecord();
+			float width = (width1 <= 0 || width2 <= 0) ? -1 : width1 + width2;
+			
+			if (width > 0) {
+				this.estimatedOutputSize = (long) (width * this.estimatedNumRecords);
+			}
+		}
+	}
+	
+	private List<OperatorDescriptorDual> getDataProperties(JoinOperatorBase<?, ?, ?, ?> joinOperatorBase, JoinHint joinHint) {
 		// see if an internal hint dictates the strategy to use
-		Configuration conf = getPactContract().getParameters();
+		Configuration conf = joinOperatorBase.getParameters();
 		String localStrategy = conf.getString(PactCompiler.HINT_LOCAL_STRATEGY, null);
 
 		if (localStrategy != null) {
@@ -94,9 +134,9 @@ public class MatchNode extends TwoInputNode {
 		else {
 			ArrayList<OperatorDescriptorDual> list = new ArrayList<OperatorDescriptorDual>();
 			
-			JoinHint hint = this.joinHint == null ? JoinHint.OPTIMIZER_CHOOSES : this.joinHint;
+			joinHint = joinHint == null ? JoinHint.OPTIMIZER_CHOOSES : joinHint;
 			
-			switch (hint) {
+			switch (joinHint) {
 				case BROADCAST_HASH_FIRST:
 					list.add(new HashJoinBuildFirstProperties(this.keys1, this.keys2, true, false, false));
 					break;
@@ -122,42 +162,6 @@ public class MatchNode extends TwoInputNode {
 			}
 			
 			return list;
-		}
-	}
-	
-	public void makeJoinWithSolutionSet(int solutionsetInputIndex) {
-		OperatorDescriptorDual op;
-		if (solutionsetInputIndex == 0) {
-			op = new HashJoinBuildFirstProperties(this.keys1, this.keys2);
-		} else if (solutionsetInputIndex == 1) {
-			op = new HashJoinBuildSecondProperties(this.keys1, this.keys2);
-		} else {
-			throw new IllegalArgumentException();
-		}
-		
-		this.possibleProperties.clear();
-		this.possibleProperties.add(op);
-	}
-	
-	/**
-	 * The default estimates build on the principle of inclusion: The smaller input key domain is included in the larger
-	 * input key domain. We also assume that every key from the larger input has one join partner in the smaller input.
-	 * The result cardinality is hence the larger one.
-	 */
-	@Override
-	protected void computeOperatorSpecificDefaultEstimates(DataStatistics statistics) {
-		long card1 = getFirstPredecessorNode().getEstimatedNumRecords();
-		long card2 = getSecondPredecessorNode().getEstimatedNumRecords();
-		this.estimatedNumRecords = (card1 < 0 || card2 < 0) ? -1 : Math.max(card1, card2);
-		
-		if (this.estimatedNumRecords >= 0) {
-			float width1 = getFirstPredecessorNode().getEstimatedAvgWidthPerOutputRecord();
-			float width2 = getSecondPredecessorNode().getEstimatedAvgWidthPerOutputRecord();
-			float width = (width1 <= 0 || width2 <= 0) ? -1 : width1 + width2;
-			
-			if (width > 0) {
-				this.estimatedOutputSize = (long) (width * this.estimatedNumRecords);
-			}
 		}
 	}
 }
