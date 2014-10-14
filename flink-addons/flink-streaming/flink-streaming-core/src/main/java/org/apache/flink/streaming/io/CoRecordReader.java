@@ -47,6 +47,8 @@ public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadable
 
 	private final Set<InputGate> remainingInputGates;
 
+	private final InputGate[] allInputGates;
+	
 	/**
 	 * Queue with indices of channels that store at least one available record.
 	 */
@@ -73,13 +75,18 @@ public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadable
 		this.inputGates1 = new HashSet<InputGate<T1>>();
 		this.inputGates2 = new HashSet<InputGate<T2>>();
 		this.remainingInputGates = new HashSet<InputGate>(
-				(int) ((inputGates1.size() + inputGates2.size()) * 1.6f));
+				(int) ((inputList1.size() + inputList2.size()) * 1.6f));
+		this.allInputGates = new InputGate[inputList1.size() + inputList2.size()];
+		
+		int inputNumber = 0;
 
 		for (MutableRecordReader<T1> reader : inputList1) {
 			InputGate<T1> inputGate = (InputGate<T1>) reader.getInputGate();
 			inputGate.registerRecordAvailabilityListener(this);
 			this.inputGates1.add(inputGate);
 			this.remainingInputGates.add(inputGate);
+			this.allInputGates[inputNumber] = inputGate;
+			inputNumber++;
 		}
 
 		for (MutableRecordReader<T2> reader : inputList2) {
@@ -87,6 +94,8 @@ public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadable
 			inputGate.registerRecordAvailabilityListener(this);
 			this.inputGates2.add(inputGate);
 			this.remainingInputGates.add(inputGate);
+			this.allInputGates[inputNumber] = inputGate;
+			inputNumber++;
 		}
 	}
 
@@ -98,6 +107,12 @@ public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadable
 		for (InputGate<T2> gate : this.inputGates2) {
 			gate.publishEvent(event);
 		}
+	}
+	
+	@Override
+	public void publishEvent(AbstractTaskEvent event, int inputNumber) throws IOException,
+			InterruptedException {
+		allInputGates[inputNumber].publishEvent(event);
 	}
 
 	@Override

@@ -96,6 +96,12 @@ public abstract class AbstractUnionRecordReader<T extends IOReadableWritable> ex
 	}
 	
 	@Override
+	public void publishEvent(AbstractTaskEvent event, int inputNumber) throws IOException,
+			InterruptedException {
+		allInputGates[inputNumber].publishEvent(event);
+	}
+	
+	@Override
 	public void reportRecordAvailability(InputGate<T> inputGate) {
 		synchronized (this.availableInputGates) {
 			this.availableInputGates.add(inputGate);

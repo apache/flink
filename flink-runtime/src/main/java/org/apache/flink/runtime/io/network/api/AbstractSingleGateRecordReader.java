@@ -68,6 +68,15 @@ public abstract class AbstractSingleGateRecordReader<T extends IOReadableWritabl
 		// Delegate call to input gate to send events
 		this.inputGate.publishEvent(event);
 	}
+	
+	@Override
+	public void publishEvent(AbstractTaskEvent event, int inputNumber) throws IOException, InterruptedException {
+		if(inputNumber==0) {
+			publishEvent(event);
+		}else {
+			throw new IOException("RecordReader has only 1 input");
+		}
+	}
 
 	public InputGate<T> getInputGate() {
 		return this.inputGate;
