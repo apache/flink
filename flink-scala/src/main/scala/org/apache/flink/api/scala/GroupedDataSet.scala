@@ -231,8 +231,9 @@ class GroupedDataSet[T: ClassTag](
   def reduce(fun: (T, T) => T): DataSet[T] = {
     Validate.notNull(fun, "Reduce function must not be null.")
     val reducer = new ReduceFunction[T] {
+      val cleanFun = set.clean(fun)
       def reduce(v1: T, v2: T) = {
-        fun(v1, v2)
+        cleanFun(v1, v2)
       }
     }
     wrap(new ReduceOperator[T](createUnsortedGrouping(), reducer, getCallLocationName()))
@@ -256,8 +257,9 @@ class GroupedDataSet[T: ClassTag](
       fun: (Iterator[T]) => R): DataSet[R] = {
     Validate.notNull(fun, "Group reduce function must not be null.")
     val reducer = new GroupReduceFunction[T, R] {
+      val cleanFun = set.clean(fun)
       def reduce(in: java.lang.Iterable[T], out: Collector[R]) {
-        out.collect(fun(in.iterator().asScala))
+        out.collect(cleanFun(in.iterator().asScala))
       }
     }
     wrap(
@@ -274,8 +276,9 @@ class GroupedDataSet[T: ClassTag](
       fun: (Iterator[T], Collector[R]) => Unit): DataSet[R] = {
     Validate.notNull(fun, "Group reduce function must not be null.")
     val reducer = new GroupReduceFunction[T, R] {
+      val cleanFun = set.clean(fun)
       def reduce(in: java.lang.Iterable[T], out: Collector[R]) {
-        fun(in.iterator().asScala, out)
+        cleanFun(in.iterator().asScala, out)
       }
     }
     wrap(
