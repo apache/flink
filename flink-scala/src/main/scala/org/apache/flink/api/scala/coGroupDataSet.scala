@@ -87,8 +87,9 @@ class CoGroupDataSet[L, R](
       fun: (Iterator[L], Iterator[R]) => O): DataSet[O] = {
     Validate.notNull(fun, "CoGroup function must not be null.")
     val coGrouper = new CoGroupFunction[L, R, O] {
+      val cleanFun = clean(fun)
       def coGroup(left: java.lang.Iterable[L], right: java.lang.Iterable[R], out: Collector[O]) = {
-        out.collect(fun(left.iterator().asScala, right.iterator().asScala))
+        out.collect(cleanFun(left.iterator().asScala, right.iterator().asScala))
       }
     }
     val coGroupOperator = new CoGroupOperator[L, R, O](
@@ -116,8 +117,9 @@ class CoGroupDataSet[L, R](
       fun: (Iterator[L], Iterator[R], Collector[O]) => Unit): DataSet[O] = {
     Validate.notNull(fun, "CoGroup function must not be null.")
     val coGrouper = new CoGroupFunction[L, R, O] {
+      val cleanFun = clean(fun)
       def coGroup(left: java.lang.Iterable[L], right: java.lang.Iterable[R], out: Collector[O]) = {
-        fun(left.iterator().asScala, right.iterator().asScala, out)
+        cleanFun(left.iterator.asScala, right.iterator.asScala, out)
       }
     }
     val coGroupOperator = new CoGroupOperator[L, R, O](

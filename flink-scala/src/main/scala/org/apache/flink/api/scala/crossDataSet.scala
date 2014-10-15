@@ -59,8 +59,9 @@ class CrossDataSet[L, R](
   def apply[O: TypeInformation: ClassTag](fun: (L, R) => O): DataSet[O] = {
     Validate.notNull(fun, "Cross function must not be null.")
     val crosser = new CrossFunction[L, R, O] {
+      val cleanFun = clean(fun)
       def cross(left: L, right: R): O = {
-        fun(left, right)
+        cleanFun(left, right)
       }
     }
     val crossOperator = new CrossOperator[L, R, O](
