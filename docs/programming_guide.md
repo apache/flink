@@ -699,7 +699,7 @@ data.flatMap { str => str.split(" ") }
       <td><strong>MapPartition</strong></td>
       <td>
         <p>Transforms a parallel partition in a single function call. The function get the partition
-        as a `TraversableOnce` and can produce an arbitrary number of result values. The number of
+        as an `Iterator` and can produce an arbitrary number of result values. The number of
         elements in each partition depends on the degree-of-parallelism and previous operations.</p>
 {% highlight scala %}
 data.mapPartition { in => in map { (_, 1) } }
