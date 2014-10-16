@@ -217,7 +217,7 @@ class GroupedDataSet[T: ClassTag](
    * concatenation of those will form the resulting [[DataSet]].
    */
   def reduceGroup[R: TypeInformation: ClassTag](
-      fun: (TraversableOnce[T]) => R): DataSet[R] = {
+      fun: (Iterator[T]) => R): DataSet[R] = {
     Validate.notNull(fun, "Group reduce function must not be null.")
     val reducer = new GroupReduceFunction[T, R] {
       def reduce(in: java.lang.Iterable[T], out: Collector[R]) {
@@ -235,7 +235,7 @@ class GroupedDataSet[T: ClassTag](
    * the [[Collector]]. The concatenation of the emitted values will form the resulting [[DataSet]].
    */
   def reduceGroup[R: TypeInformation: ClassTag](
-      fun: (TraversableOnce[T], Collector[R]) => Unit): DataSet[R] = {
+      fun: (Iterator[T], Collector[R]) => Unit): DataSet[R] = {
     Validate.notNull(fun, "Group reduce function must not be null.")
     val reducer = new GroupReduceFunction[T, R] {
       def reduce(in: java.lang.Iterable[T], out: Collector[R]) {

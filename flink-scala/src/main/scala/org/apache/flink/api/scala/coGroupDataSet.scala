@@ -70,11 +70,11 @@ class CoGroupDataSet[L, R](
    * result of the given function.
    */
   def apply[O: TypeInformation: ClassTag](
-      fun: (TraversableOnce[L], TraversableOnce[R]) => O): DataSet[O] = {
+      fun: (Iterator[L], Iterator[R]) => O): DataSet[O] = {
     Validate.notNull(fun, "CoGroup function must not be null.")
     val coGrouper = new CoGroupFunction[L, R, O] {
       def coGroup(left: java.lang.Iterable[L], right: java.lang.Iterable[R], out: Collector[O]) = {
-        out.collect(fun(left.iterator.asScala, right.iterator.asScala))
+        out.collect(fun(left.iterator().asScala, right.iterator().asScala))
       }
     }
     val coGroupOperator = new CoGroupOperator[L, R, O](
@@ -94,11 +94,11 @@ class CoGroupDataSet[L, R](
    * [[Collector]] which will form the result.
    */
   def apply[O: TypeInformation: ClassTag](
-      fun: (TraversableOnce[L], TraversableOnce[R], Collector[O]) => Unit): DataSet[O] = {
+      fun: (Iterator[L], Iterator[R], Collector[O]) => Unit): DataSet[O] = {
     Validate.notNull(fun, "CoGroup function must not be null.")
     val coGrouper = new CoGroupFunction[L, R, O] {
       def coGroup(left: java.lang.Iterable[L], right: java.lang.Iterable[R], out: Collector[O]) = {
-        fun(left.iterator.asScala, right.iterator.asScala, out)
+        fun(left.iterator().asScala, right.iterator().asScala, out)
       }
     }
     val coGroupOperator = new CoGroupOperator[L, R, O](

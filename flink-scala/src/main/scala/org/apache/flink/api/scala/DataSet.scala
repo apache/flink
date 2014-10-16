@@ -249,7 +249,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   /**
    * Creates a new DataSet by applying the given function to every element of this DataSet.
    */
-  def map[R: TypeInformation: ClassTag](fun: (T) => R): DataSet[R] = {
+  def map[R: TypeInformation: ClassTag](fun: T => R): DataSet[R] = {
     if (fun == null) {
       throw new NullPointerException("Map function must not be null.")
     }
@@ -284,7 +284,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * the use of [[map]] and [[flatMap]] is preferable.
    */
   def mapPartition[R: TypeInformation: ClassTag](
-      fun: (TraversableOnce[T], Collector[R]) => Unit): DataSet[R] = {
+      fun: (Iterator[T], Collector[R]) => Unit): DataSet[R] = {
     if (fun == null) {
       throw new NullPointerException("MapPartition function must not be null.")
     }
@@ -305,7 +305,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * the use of [[map]] and [[flatMap]] is preferable.
    */
   def mapPartition[R: TypeInformation: ClassTag](
-      fun: (TraversableOnce[T]) => TraversableOnce[R]): DataSet[R] = {
+      fun: (Iterator[T]) => TraversableOnce[R]): DataSet[R] = {
     if (fun == null) {
       throw new NullPointerException("MapPartition function must not be null.")
     }
@@ -346,7 +346,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * Creates a new DataSet by applying the given function to every element and flattening
    * the results.
    */
-  def flatMap[R: TypeInformation: ClassTag](fun: (T) => TraversableOnce[R]): DataSet[R] = {
+  def flatMap[R: TypeInformation: ClassTag](fun: T => TraversableOnce[R]): DataSet[R] = {
     if (fun == null) {
       throw new NullPointerException("FlatMap function must not be null.")
     }
@@ -369,7 +369,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   /**
    * Creates a new DataSet that contains only the elements satisfying the given filter predicate.
    */
-  def filter(fun: (T) => Boolean): DataSet[T] = {
+  def filter(fun: T => Boolean): DataSet[T] = {
     if (fun == null) {
       throw new NullPointerException("Filter function must not be null.")
     }
@@ -492,7 +492,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * emitted values will form the resulting [[DataSet]].
    */
   def reduceGroup[R: TypeInformation: ClassTag](
-      fun: (TraversableOnce[T], Collector[R]) => Unit): DataSet[R] = {
+      fun: (Iterator[T], Collector[R]) => Unit): DataSet[R] = {
     if (fun == null) {
       throw new NullPointerException("GroupReduce function must not be null.")
     }
@@ -505,7 +505,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   /**
    * Creates a new [[DataSet]] by passing all elements in this DataSet to the group reduce function.
    */
-  def reduceGroup[R: TypeInformation: ClassTag](fun: (TraversableOnce[T]) => R): DataSet[R] = {
+  def reduceGroup[R: TypeInformation: ClassTag](fun: (Iterator[T]) => R): DataSet[R] = {
     if (fun == null) {
       throw new NullPointerException("GroupReduce function must not be null.")
     }
@@ -536,7 +536,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * Creates a new DataSet containing the distinct elements of this DataSet. The decision whether
    * two elements are distinct or not is made using the return value of the given function.
    */
-  def distinct[K: TypeInformation](fun: (T) => K): DataSet[T] = {
+  def distinct[K: TypeInformation](fun: T => K): DataSet[T] = {
     val keyExtractor = new KeySelector[T, K] {
       def getKey(in: T) = fun(in)
     }
@@ -589,7 +589,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * This will not create a new DataSet, it will just attach the key function which will be used
    * for grouping when executing a grouped operation.
    */
-  def groupBy[K: TypeInformation](fun: (T) => K): GroupedDataSet[T] = {
+  def groupBy[K: TypeInformation](fun: T => K): GroupedDataSet[T] = {
     val keyType = implicitly[TypeInformation[K]]
     val keyExtractor = new KeySelector[T, K] {
       def getKey(in: T) = fun(in)
@@ -718,7 +718,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    *   val left: DataSet[(String, Int, Int)] = ...
    *   val right: DataSet[(Int, String, Int)] = ...
    *   val coGrouped = left.coGroup(right).where(0).isEqualTo(1) { (l, r) =>
-   *     // l and r are of type TraversableOnce
+   *     // l and r are of type Iterator
    *     (l.min, r.max)
    *   }
    * }}}
@@ -955,7 +955,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * '''Important:'''This operation shuffles the whole DataSet over the network and can take
    * significant amount of time.
    */
-  def partitionByHash[K: TypeInformation](fun: (T) => K): DataSet[T] = {
+  def partitionByHash[K: TypeInformation](fun: T => K): DataSet[T] = {
     val keyExtractor = new KeySelector[T, K] {
       def getKey(in: T) = fun(in)
     }
