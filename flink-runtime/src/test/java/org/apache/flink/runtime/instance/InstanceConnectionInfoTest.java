@@ -25,7 +25,10 @@ import static org.junit.Assert.fail;
 import java.net.InetAddress;
 
 import org.apache.flink.runtime.testutils.CommonTestUtils;
+import org.junit.Assert;
 import org.junit.Test;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.reflect.Whitebox;
 
 public class InstanceConnectionInfoTest {
 
@@ -79,7 +82,7 @@ public class InstanceConnectionInfoTest {
 			// with resolved hostname
 			{
 				InstanceConnectionInfo original = new InstanceConnectionInfo(InetAddress.getByName("127.0.0.1"), 10523, 19871);
-				original.hostname();
+				original.getFQDNHostname();
 				
 				InstanceConnectionInfo copy = CommonTestUtils.createCopyWritable(original);
 				assertEquals(original, copy);
@@ -95,17 +98,43 @@ public class InstanceConnectionInfoTest {
 	}
 	
 	@Test
-	public void testGetHostname() {
+	public void testGetFQDNHostname() {
 		try {
 			InstanceConnectionInfo info1 = new InstanceConnectionInfo(InetAddress.getByName("127.0.0.1"), 10523, 19871);
-			assertTrue(info1.hostname() != null);
+			assertTrue(info1.getFQDNHostname() != null);
 			
 			InstanceConnectionInfo info2 = new InstanceConnectionInfo(InetAddress.getByName("1.2.3.4"), 9999, 8888);
-			assertTrue(info2.hostname() != null);
+			assertTrue(info2.getFQDNHostname() != null);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
 	}
+	
+	@Test
+	public void testGetHostname0() {
+		try {
+			final InstanceConnectionInfo info1 = PowerMockito.spy(new InstanceConnectionInfo(InetAddress.getByName("127.0.0.1"), 10523, 19871));
+			Whitebox.setInternalState(info1, "fqdnHostName", "worker2.cluster.mycompany.com");
+			Assert.assertEquals("worker2", info1.getHostname());
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testGetHostname1() {
+		try {
+			final InstanceConnectionInfo info1 = PowerMockito.spy(new InstanceConnectionInfo(InetAddress.getByName("127.0.0.1"), 10523, 19871));
+			Whitebox.setInternalState(info1, "fqdnHostName", "worker10");
+			Assert.assertEquals("worker10", info1.getHostname());
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	
 }
