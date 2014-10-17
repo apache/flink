@@ -1129,6 +1129,11 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		// ------------ finalize the head config with the final outputs and the sync gate ------------
 		final int numStepFunctionOuts = headConfig.getNumOutputs();
 		final int numFinalOuts = headFinalOutputConfig.getNumOutputs();
+		
+		if (numStepFunctionOuts == 0) {
+			throw new CompilerException("The iteration has no operation inside the step function.");
+		}
+		
 		headConfig.setIterationHeadFinalOutputConfig(headFinalOutputConfig);
 		headConfig.setIterationHeadIndexOfSyncOutput(numStepFunctionOuts + numFinalOuts);
 		final double relativeMemForBackChannel = bulkNode.getRelativeMemoryPerSubTask();
@@ -1250,6 +1255,11 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		{
 			final int numStepFunctionOuts = headConfig.getNumOutputs();
 			final int numFinalOuts = headFinalOutputConfig.getNumOutputs();
+			
+			if (numStepFunctionOuts == 0) {
+				throw new CompilerException("The workset iteration has no operation on the workset inside the step function.");
+			}
+			
 			headConfig.setIterationHeadFinalOutputConfig(headFinalOutputConfig);
 			headConfig.setIterationHeadIndexOfSyncOutput(numStepFunctionOuts + numFinalOuts);
 			final double relativeMemory = iterNode.getRelativeMemoryPerSubTask();
