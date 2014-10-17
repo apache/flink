@@ -801,7 +801,8 @@ public class PactCompiler {
 				final BulkIterationNode iterNode = (BulkIterationNode) n;
 				final BulkIterationBase<?> iter = iterNode.getIterationContract();
 
-				// calculate closure of the anonymous function
+				// pass a copy of the no iterative part into the iteration translation,
+				// in case the iteration references its closure
 				HashMap<Operator<?>, OptimizerNode> closure = new HashMap<Operator<?>, OptimizerNode>(con2node);
 
 				// first, recursively build the data flow for the step function
@@ -831,8 +832,8 @@ public class PactCompiler {
 					}
 				}
 				
-				iterNode.setNextPartialSolution(rootOfStepFunction, terminationCriterion);
 				iterNode.setPartialSolution(partialSolution);
+				iterNode.setNextPartialSolution(rootOfStepFunction, terminationCriterion);
 				
 				// go over the contained data flow and mark the dynamic path nodes
 				StaticDynamicPathIdentifier identifier = new StaticDynamicPathIdentifier(iterNode.getCostWeight());

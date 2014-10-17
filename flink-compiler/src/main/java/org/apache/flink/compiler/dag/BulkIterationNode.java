@@ -130,7 +130,9 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 	public void setNextPartialSolution(OptimizerNode nextPartialSolution, OptimizerNode terminationCriterion) {
 		
 		// check if the root of the step function has the same DOP as the iteration
-		if (nextPartialSolution.getDegreeOfParallelism() != getDegreeOfParallelism())
+		// or if the steo function has any operator at all
+		if (nextPartialSolution.getDegreeOfParallelism() != getDegreeOfParallelism() ||
+			nextPartialSolution == partialSolution)
 		{
 			// add a no-op to the root to express the re-partitioning
 			NoOpNode noop = new NoOpNode();
