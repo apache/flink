@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.jobmanager.tasks;
 
-import org.apache.flink.runtime.io.network.api.RecordWriter;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.types.IntegerRecord;
 

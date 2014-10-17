@@ -19,6 +19,7 @@
 
 package org.apache.flink.runtime.operators;
 
+import org.apache.flink.runtime.io.network.api.writer.IntermediateResultWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.accumulators.Accumulator;
@@ -38,12 +39,11 @@ import org.apache.flink.runtime.accumulators.AccumulatorEvent;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.network.api.BufferWriter;
-import org.apache.flink.runtime.io.network.api.ChannelSelector;
-import org.apache.flink.runtime.io.network.api.MutableReader;
-import org.apache.flink.runtime.io.network.api.MutableRecordReader;
-import org.apache.flink.runtime.io.network.api.MutableUnionRecordReader;
-import org.apache.flink.runtime.io.network.api.RecordWriter;
+import org.apache.flink.runtime.io.network.api.writer.ChannelSelector;
+import org.apache.flink.runtime.io.network.api.reader.MutableReader;
+import org.apache.flink.runtime.io.network.api.reader.MutableRecordReader;
+import org.apache.flink.runtime.io.network.api.reader.MutableUnionRecordReader;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
 import org.apache.flink.runtime.operators.chaining.ChainedDriver;
@@ -109,7 +109,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	 * The output writers for the data that this task forwards to the next task. The latest driver (the central, if no chained
 	 * drivers exist, otherwise the last chained driver) produces its output to these writers.
 	 */
-	protected List<BufferWriter> eventualOutputs;
+	protected List<IntermediateResultWriter> eventualOutputs;
 
 	/**
 	 * The input readers to this task.
@@ -1037,7 +1037,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	 */
 	protected void initOutputs() throws Exception {
 		this.chainedTasks = new ArrayList<ChainedDriver<?, ?>>();
-		this.eventualOutputs = new ArrayList<BufferWriter>();
+		this.eventualOutputs = new ArrayList<IntermediateResultWriter>();
 
 		ClassLoader userCodeClassLoader = getUserCodeClassLoader();
 
@@ -1221,7 +1221,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	 *
 	 * @return The OutputCollector that data produced in this task is submitted to.
 	 */
-	public static <T> Collector<T> getOutputCollector(AbstractInvokable task, TaskConfig config, ClassLoader cl, List<BufferWriter> eventualOutputs, int numOutputs)
+	public static <T> Collector<T> getOutputCollector(AbstractInvokable task, TaskConfig config, ClassLoader cl, List<IntermediateResultWriter> eventualOutputs, int numOutputs)
 			throws Exception
 	{
 		if (numOutputs == 0) {
@@ -1301,7 +1301,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	 */
 	@SuppressWarnings("unchecked")
 	public static <T> Collector<T> initOutputs(AbstractInvokable nepheleTask, ClassLoader cl, TaskConfig config,
-					List<ChainedDriver<?, ?>> chainedTasksTarget, List<BufferWriter> eventualOutputs)
+					List<ChainedDriver<?, ?>> chainedTasksTarget, List<IntermediateResultWriter> eventualOutputs)
 	throws Exception
 	{
 		final int numOutputs = config.getNumOutputs();
@@ -1352,8 +1352,8 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		return getOutputCollector(nepheleTask , config, cl, eventualOutputs, numOutputs);
 	}
 
-	public static void initOutputWriters(List<BufferWriter> writers) {
-		for (BufferWriter writer : writers) {
+	public static void initOutputWriters(List<IntermediateResultWriter> writers) {
+		for (IntermediateResultWriter writer : writers) {
 			((RecordWriter<?>) writer).initializeSerializers();
 		}
 	}

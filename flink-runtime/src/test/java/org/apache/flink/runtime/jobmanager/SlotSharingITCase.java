@@ -22,13 +22,11 @@ import static org.apache.flink.runtime.jobgraph.JobManagerTestUtils.*;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.client.AbstractJobResult;
 import org.apache.flink.runtime.client.JobSubmissionResult;
-import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.instance.LocalInstanceManager;
-import org.apache.flink.runtime.io.network.bufferprovider.GlobalBufferPool;
+import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -38,8 +36,6 @@ import org.apache.flink.runtime.jobmanager.tasks.AgnosticBinaryReceiver;
 import org.apache.flink.runtime.jobmanager.tasks.Receiver;
 import org.apache.flink.runtime.jobmanager.tasks.Sender;
 import org.junit.Test;
-
-import java.util.ArrayList;
 
 public class SlotSharingITCase {
 
@@ -72,8 +68,8 @@ public class SlotSharingITCase {
 			
 			final JobManager jm = startJobManager(NUM_TASKS);
 			
-			final GlobalBufferPool bp = ((LocalInstanceManager) jm.getInstanceManager())
-					.getTaskManagers()[0].getChannelManager().getGlobalBufferPool();
+			final NetworkBufferPool bp = ((LocalInstanceManager) jm.getInstanceManager())
+					.getTaskManagers()[0].getNetworkBufferPool();
 			
 			try {
 				JobSubmissionResult result = jm.submitJob(jobGraph);
@@ -96,7 +92,7 @@ public class SlotSharingITCase {
 				
 				// make sure that in any case, the network buffers are all returned
 				waitForTaskThreadsToBeTerminated();
-				assertEquals(bp.numBuffers(), bp.numAvailableBuffers());
+				assertEquals(bp.getNumMemorySegments(), bp.getNumAvailableMemorySegments());
 			}
 			finally {
 				jm.shutdown();
@@ -141,8 +137,8 @@ public class SlotSharingITCase {
 			
 			JobManager jm = startJobManager(NUM_TASKS);
 			
-			final GlobalBufferPool bp = ((LocalInstanceManager) jm.getInstanceManager())
-								.getTaskManagers()[0].getChannelManager().getGlobalBufferPool();
+			final NetworkBufferPool bp = ((LocalInstanceManager) jm.getInstanceManager())
+								.getTaskManagers()[0].getNetworkBufferPool();
 			
 			try {
 				JobSubmissionResult result = jm.submitJob(jobGraph);
@@ -165,7 +161,7 @@ public class SlotSharingITCase {
 				
 				// make sure that in any case, the network buffers are all returned
 				waitForTaskThreadsToBeTerminated();
-				assertEquals(bp.numBuffers(), bp.numAvailableBuffers());
+				assertEquals(bp.getNumMemorySegments(), bp.getNumAvailableMemorySegments());
 			}
 			finally {
 				jm.shutdown();

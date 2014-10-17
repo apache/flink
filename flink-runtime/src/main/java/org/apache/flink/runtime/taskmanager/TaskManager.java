@@ -76,6 +76,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.ChannelManager;
 import org.apache.flink.runtime.io.network.LocalConnectionManager;
 import org.apache.flink.runtime.io.network.NetworkConnectionManager;
+import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.netty.NettyConnectionManager;
 import org.apache.flink.runtime.ipc.RPC;
 import org.apache.flink.runtime.ipc.Server;
@@ -156,6 +157,8 @@ public class TaskManager implements TaskOperationProtocol {
 	private final MemoryManager memoryManager;
 
 	private final IOManager ioManager;
+
+	private final NetworkBufferPool networkBufferPool;
 
 	private final int numberOfSlots;
 
@@ -262,6 +265,14 @@ public class TaskManager implements TaskOperationProtocol {
 				ConfigConstants.TASK_MANAGER_NETWORK_BUFFER_SIZE_KEY,
 				ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_BUFFER_SIZE);
 
+		try {
+			this.networkBufferPool = new NetworkBufferPool(numBuffers, bufferSize);
+		} catch (Throwable t) {
+			LOG.error(StringUtils.stringifyException(t));
+			throw new Exception("Failed to instantiate network buffer pool.", t);
+		}
+
+
 		// Initialize the channel manager
 		try {
 			NetworkConnectionManager networkConnectionManager = null;
@@ -271,24 +282,12 @@ public class TaskManager implements TaskOperationProtocol {
 					networkConnectionManager = new LocalConnectionManager();
 					break;
 				case CLUSTER:
-					int numInThreads = GlobalConfiguration.getInteger(ConfigConstants.TASK_MANAGER_NET_NUM_IN_THREADS_KEY,
-							ConfigConstants.DEFAULT_TASK_MANAGER_NET_NUM_IN_THREADS);
-	
-					int numOutThreads = GlobalConfiguration.getInteger(ConfigConstants.TASK_MANAGER_NET_NUM_OUT_THREADS_KEY,
-							ConfigConstants.DEFAULT_TASK_MANAGER_NET_NUM_OUT_THREADS);
-	
-					int lowWaterMark = GlobalConfiguration.getInteger(ConfigConstants.TASK_MANAGER_NET_NETTY_LOW_WATER_MARK,
-							ConfigConstants.DEFAULT_TASK_MANAGER_NET_NETTY_LOW_WATER_MARK);
-	
-					int highWaterMark = GlobalConfiguration.getInteger(ConfigConstants.TASK_MANAGER_NET_NETTY_HIGH_WATER_MARK,
-							ConfigConstants.DEFAULT_TASK_MANAGER_NET_NETTY_HIGH_WATER_MARK);
-	
 					networkConnectionManager = new NettyConnectionManager(localInstanceConnectionInfo.address(),
-							localInstanceConnectionInfo.dataPort(), bufferSize, numInThreads, numOutThreads, lowWaterMark, highWaterMark);
+							localInstanceConnectionInfo.dataPort(), bufferSize, GlobalConfiguration.getConfiguration());
 					break;
 			}
 
-			channelManager = new ChannelManager(lookupService, localInstanceConnectionInfo, numBuffers, bufferSize, networkConnectionManager);
+			channelManager = new ChannelManager(lookupService, localInstanceConnectionInfo, networkConnectionManager);
 		} catch (IOException ioe) {
 			LOG.error(StringUtils.stringifyException(ioe));
 			throw new Exception("Failed to instantiate ChannelManager.", ioe);
@@ -448,6 +447,12 @@ public class TaskManager implements TaskOperationProtocol {
 			this.profiler.shutdown();
 		}
 
+		try {
+			networkBufferPool.destroy();
+		} catch (Throwable t) {
+			LOG.warn("Network buffer pool did not shutdown properly: " + t.getMessage(), t);
+		}
+
 		// Shut down the channel manager
 		try {
 			this.channelManager.shutdown();
@@ -531,8 +536,8 @@ public class TaskManager implements TaskOperationProtocol {
 		return Collections.unmodifiableMap(this.runningTasks);
 	}
 	
-	public ChannelManager getChannelManager() {
-		return channelManager;
+	public NetworkBufferPool getNetworkBufferPool() {
+		return networkBufferPool;
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -591,7 +596,7 @@ public class TaskManager implements TaskOperationProtocol {
 			}
 			
 			final InputSplitProvider splitProvider = new TaskInputSplitProvider(this.globalInputSplitProvider, jobID, vertexId);
-			final RuntimeEnvironment env = new RuntimeEnvironment(task, tdd, userCodeClassLoader, this.memoryManager, this.ioManager, splitProvider, this.accumulatorProtocolProxy);
+			final RuntimeEnvironment env = new RuntimeEnvironment(task, tdd, userCodeClassLoader, this.memoryManager, this.ioManager, networkBufferPool, splitProvider, this.accumulatorProtocolProxy);
 			task.setEnvironment(env);
 			
 			// register the task with the network stack and profilers

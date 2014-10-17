@@ -25,6 +25,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 
+import org.apache.flink.runtime.io.network.api.writer.IntermediateResultWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.accumulators.Accumulator;
@@ -34,7 +35,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.execution.CancelTaskException;
-import org.apache.flink.runtime.io.network.api.BufferWriter;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.operators.chaining.ChainedCollectorMapDriver;
@@ -57,7 +57,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 	private static final Logger LOG = LoggerFactory.getLogger(DataSourceTask.class);
 
 	
-	private List<BufferWriter> eventualOutputs;
+	private List<IntermediateResultWriter> eventualOutputs;
 
 	// Output collector
 	private Collector<OT> output;
@@ -323,7 +323,7 @@ l	 *
 	 */
 	private void initOutputs(ClassLoader cl) throws Exception {
 		this.chainedTasks = new ArrayList<ChainedDriver<?, ?>>();
-		this.eventualOutputs = new ArrayList<BufferWriter>();
+		this.eventualOutputs = new ArrayList<IntermediateResultWriter>();
 		this.output = RegularPactTask.initOutputs(this, cl, this.config, this.chainedTasks, this.eventualOutputs);
 	}
 

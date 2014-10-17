@@ -16,16 +16,15 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.io.network.netty;
 
+import org.apache.flink.configuration.Configuration;
 import org.junit.Assert;
 
 import org.apache.flink.runtime.io.network.ChannelManager;
 import org.apache.flink.runtime.io.network.Envelope;
 import org.apache.flink.runtime.io.network.RemoteReceiver;
-import org.apache.flink.runtime.io.network.channels.ChannelID;
-import org.apache.flink.runtime.io.network.netty.NettyConnectionManager;
+import org.apache.flink.runtime.io.network.partition.ChannelID;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.mockito.Matchers;
 import org.mockito.invocation.InvocationOnMock;
@@ -71,7 +70,7 @@ public class NettyConnectionManagerTest {
 
 		for (Integer[] params : configs) {
 			System.out.println(String.format("Running %s with config: %d sub tasks, %d envelopes to send per subtasks, "
-					+ "%d num channels, %d num in threads, %d num out threads.",
+							+ "%d num channels, %d num in threads, %d num out threads.",
 					"testEnqueueRaceAndDeadlockFreeMultipleChannels", params[0], params[1], params[2], params[3], params[4]));
 
 			long start = System.currentTimeMillis();
@@ -96,12 +95,14 @@ public class NettyConnectionManagerTest {
 		doAnswer(new VerifyEnvelopes(latch, numToSendPerSubtask))
 				.when(channelManager).dispatchFromNetwork(Matchers.<Envelope>anyObject());
 
-		final NettyConnectionManager senderConnManager = new NettyConnectionManager(localhost, BIND_PORT, BUFFER_SIZE,
-				numInThreads, numOutThreads, -1, -1);
+		Configuration conf = new Configuration();
+		conf.setInteger("taskmanager.net.client.numThreads", numInThreads);
+		conf.setInteger("taskmanager.net.server.numThreads", numOutThreads);
+
+		final NettyConnectionManager senderConnManager = new NettyConnectionManager(localhost, BIND_PORT, BUFFER_SIZE);
 		senderConnManager.start(channelManager);
 
-		NettyConnectionManager receiverConnManager = new NettyConnectionManager(localhost, BIND_PORT + 1, BUFFER_SIZE,
-				numInThreads, numOutThreads, -1, -1);
+		NettyConnectionManager receiverConnManager = new NettyConnectionManager(localhost, BIND_PORT + 1, BUFFER_SIZE);
 		receiverConnManager.start(channelManager);
 
 		// --------------------------------------------------------------------
@@ -128,7 +129,8 @@ public class NettyConnectionManagerTest {
 						try {
 							Envelope env = new Envelope(seqNum.getAndIncrement(), jobId, channelId);
 							senderConnManager.enqueue(env, receiver);
-						} catch (IOException e) {
+						}
+						catch (IOException e) {
 							throw new RuntimeException("Unexpected exception while enqueuing envelope.");
 						}
 					}

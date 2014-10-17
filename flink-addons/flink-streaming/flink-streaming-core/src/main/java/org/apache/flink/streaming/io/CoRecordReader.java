@@ -24,9 +24,9 @@ import java.util.HashSet;
 import java.util.Set;
 
 import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.runtime.event.task.AbstractTaskEvent;
-import org.apache.flink.runtime.io.network.api.AbstractRecordReader;
-import org.apache.flink.runtime.io.network.api.MutableRecordReader;
+import org.apache.flink.runtime.event.task.TaskEvent;
+import org.apache.flink.runtime.io.network.api.reader.AbstractRecordReader;
+import org.apache.flink.runtime.io.network.api.reader.MutableRecordReader;
 import org.apache.flink.runtime.io.network.gates.InputChannelResult;
 import org.apache.flink.runtime.io.network.gates.InputGate;
 import org.apache.flink.runtime.io.network.gates.RecordAvailabilityListener;
@@ -91,7 +91,7 @@ public class CoRecordReader<T1 extends IOReadableWritable, T2 extends IOReadable
 	}
 
 	@Override
-	public void publishEvent(AbstractTaskEvent event) throws IOException, InterruptedException {
+	public void publishEvent(TaskEvent event) throws IOException, InterruptedException {
 		for (InputGate<T1> gate : this.inputGates1) {
 			gate.publishEvent(event);
 		}

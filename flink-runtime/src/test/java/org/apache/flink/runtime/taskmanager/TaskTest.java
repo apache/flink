@@ -33,6 +33,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.RuntimeEnvironment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -263,8 +264,8 @@ public class TaskTest {
 			Task task = new Task(jid, vid, 2, 7, eid, "TestTask", taskManager);
 			
 			RuntimeEnvironment env = new RuntimeEnvironment(task, tdd, getClass().getClassLoader(),
-					mock(MemoryManager.class), mock(IOManager.class), mock(InputSplitProvider.class),
-					mock(AccumulatorProtocol.class));
+					mock(MemoryManager.class), mock(IOManager.class), mock(NetworkBufferPool.class),
+					mock(InputSplitProvider.class), mock(AccumulatorProtocol.class));
 			
 			task.setEnvironment(env);
 			
@@ -301,7 +302,7 @@ public class TaskTest {
 			Task task = new Task(jid, vid, 2, 7, eid, "TestTask", taskManager);
 			
 			RuntimeEnvironment env = new RuntimeEnvironment(task, tdd, getClass().getClassLoader(),
-					mock(MemoryManager.class), mock(IOManager.class), mock(InputSplitProvider.class),
+					mock(MemoryManager.class), mock(IOManager.class), mock(NetworkBufferPool.class), mock(InputSplitProvider.class),
 					mock(AccumulatorProtocol.class));
 			
 			task.setEnvironment(env);

@@ -18,29 +18,28 @@
 
 package org.apache.flink.runtime.io.network.gates;
 
+import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.runtime.deployment.ChannelDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.GateDeploymentDescriptor;
+import org.apache.flink.runtime.event.task.AbstractEvent;
+import org.apache.flink.runtime.event.task.TaskEvent;
+import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.io.network.buffer.BufferFuture;
+import org.apache.flink.runtime.io.network.buffer.BufferPool;
+import org.apache.flink.runtime.io.network.buffer.BufferPoolFactory;
+import org.apache.flink.runtime.io.network.buffer.BufferPoolOwner;
+import org.apache.flink.runtime.io.network.buffer.BufferProvider;
+import org.apache.flink.runtime.io.network.partition.InputChannel;
+import org.apache.flink.runtime.jobgraph.DistributionPattern;
+import org.apache.flink.runtime.jobgraph.JobID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicReference;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.runtime.deployment.ChannelDeploymentDescriptor;
-import org.apache.flink.runtime.deployment.GateDeploymentDescriptor;
-import org.apache.flink.runtime.event.task.AbstractEvent;
-import org.apache.flink.runtime.event.task.AbstractTaskEvent;
-import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.io.network.Buffer;
-import org.apache.flink.runtime.io.network.bufferprovider.BufferAvailabilityListener;
-import org.apache.flink.runtime.io.network.bufferprovider.BufferProvider;
-import org.apache.flink.runtime.io.network.bufferprovider.GlobalBufferPool;
-import org.apache.flink.runtime.io.network.bufferprovider.LocalBufferPool;
-import org.apache.flink.runtime.io.network.bufferprovider.LocalBufferPoolOwner;
-import org.apache.flink.runtime.io.network.channels.InputChannel;
-import org.apache.flink.runtime.jobgraph.DistributionPattern;
-import org.apache.flink.runtime.jobgraph.JobID;
 
 /**
  * Input gates are a specialization of general gates and connect input channels and record readers. As
@@ -50,7 +49,7 @@ import org.apache.flink.runtime.jobgraph.JobID;
  * 
  * @param <T> The type of record that can be transported through this gate.
  */
-public class InputGate<T extends IOReadableWritable> extends Gate<T> implements BufferProvider, LocalBufferPoolOwner {
+public class InputGate<T extends IOReadableWritable> extends Gate<T> implements BufferProvider {
 	
 	/**
 	 * The log object used for debugging.
@@ -73,7 +72,7 @@ public class InputGate<T extends IOReadableWritable> extends Gate<T> implements 
 	private final AtomicReference<RecordAvailabilityListener<T>> recordAvailabilityListener = new AtomicReference<RecordAvailabilityListener<T>>(null);
 	
 	
-	private AbstractTaskEvent currentEvent;
+	private TaskEvent currentEvent;
 
 	/**
 	 * If the value of this variable is set to <code>true</code>, the input gate is closed.
@@ -85,7 +84,7 @@ public class InputGate<T extends IOReadableWritable> extends Gate<T> implements 
 	 */
 	private int channelToReadFrom = -1;
 
-	private LocalBufferPool bufferPool;
+	private BufferPool bufferPool;
 
 	/**
 	 * Constructs a new runtime input gate.
@@ -205,8 +204,8 @@ public class InputGate<T extends IOReadableWritable> extends Gate<T> implements 
 		}
 	}
 
-	public AbstractTaskEvent getCurrentEvent() {
-		AbstractTaskEvent e = this.currentEvent;
+	public TaskEvent getCurrentEvent() {
+		TaskEvent e = this.currentEvent;
 		this.currentEvent = null;
 		return e;
 	}
@@ -289,7 +288,7 @@ public class InputGate<T extends IOReadableWritable> extends Gate<T> implements 
 	public void publishEvent(AbstractEvent event) throws IOException, InterruptedException {
 
 		// Copy event to all connected channels
-		for(int i=0; i< getNumberOfChannels(); i++){
+		for(int i=0; i< getNumberOfInputChannels(); i++){
 			channels[i].transferEvent(event);
 		}
 	}
@@ -298,7 +297,7 @@ public class InputGate<T extends IOReadableWritable> extends Gate<T> implements 
 	@Override
 	public void releaseAllChannelResources() {
 
-		for(int i=0; i< getNumberOfChannels(); i++){
+		for(int i=0; i< getNumberOfInputChannels(); i++){
 			channels[i].releaseAllResources();
 		}
 	}
@@ -326,59 +325,33 @@ public class InputGate<T extends IOReadableWritable> extends Gate<T> implements 
 		this.channelToReadFrom = -1;
 	}
 
-	//
+	@Override
+	public BufferFuture requestBuffer() {
+		return this.bufferPool.requestBuffer();
+	}
 
 	@Override
-	public Buffer requestBuffer(int minBufferSize) throws IOException {
+	public BufferFuture requestBuffer(int minBufferSize) {
 		return this.bufferPool.requestBuffer(minBufferSize);
 	}
 
-	@Override
-	public Buffer requestBufferBlocking(int minBufferSize) throws IOException, InterruptedException {
-		return this.bufferPool.requestBufferBlocking(minBufferSize);
+	public void registerGlobalBufferPool(BufferPoolFactory networkBufferPool) {
+		int numRequiredBuffers = getNumberOfInputChannels();
+		BufferPoolOwner noopOwner = new BufferPoolOwner() {
+			@Override
+			public void recycleBuffers(int numBuffersToRecycle) {
+			}
+
+			@Override
+			public void recycleAllBuffers() {
+
+			}
+		};
+
+		bufferPool = networkBufferPool.createBufferPool(noopOwner, numRequiredBuffers, false);
 	}
 
-	@Override
-	public int getBufferSize() {
-		return this.bufferPool.getBufferSize();
-	}
-
-	@Override
-	public int getNumberOfChannels() {
-		return getNumberOfInputChannels();
-	}
-
-	@Override
-	public void setDesignatedNumberOfBuffers(int numBuffers) {
-		this.bufferPool.setNumDesignatedBuffers(numBuffers);
-	}
-
-	@Override
-	public void clearLocalBufferPool() {
-		this.bufferPool.destroy();
-	}
-
-	@Override
-	public void registerGlobalBufferPool(GlobalBufferPool globalBufferPool) {
-		this.bufferPool = new LocalBufferPool(globalBufferPool, 1);
-	}
-
-	@Override
-	public void logBufferUtilization() {
-		LOG.info(String.format("\t%s: %d available, %d requested, %d designated",
-				this,
-				this.bufferPool.numAvailableBuffers(),
-				this.bufferPool.numRequestedBuffers(),
-				this.bufferPool.numDesignatedBuffers()));
-	}
-
-	@Override
-	public void reportAsynchronousEvent() {
-		this.bufferPool.reportAsynchronousEvent();
-	}
-
-	@Override
-	public BufferAvailabilityRegistration registerBufferAvailabilityListener(BufferAvailabilityListener listener) {
-		return this.bufferPool.registerBufferAvailabilityListener(listener);
+	public BufferPool getBufferPool() {
+		return bufferPool;
 	}
 }

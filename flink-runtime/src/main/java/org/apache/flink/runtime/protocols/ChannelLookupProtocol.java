@@ -24,7 +24,7 @@ import java.io.IOException;
 import org.apache.flink.core.protocols.VersionedProtocol;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.io.network.ConnectionInfoLookupResponse;
-import org.apache.flink.runtime.io.network.channels.ChannelID;
+import org.apache.flink.runtime.io.network.partition.ChannelID;
 import org.apache.flink.runtime.jobgraph.JobID;
 
 /**

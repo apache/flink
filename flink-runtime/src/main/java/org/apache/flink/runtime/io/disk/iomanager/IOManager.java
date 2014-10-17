@@ -25,9 +25,12 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.core.memory.MemorySegment;
+
+import static com.google.common.base.Preconditions.checkState;
 
 /**
  * The facade for the provided I/O manager services.
@@ -447,7 +450,39 @@ public class IOManager implements UncaughtExceptionHandler {
 		
 		return new BulkBlockChannelReader(channelID, this.readers[channelID.getThreadNum()].requestQueue, targetSegments, numBlocks);
 	}
-	
+
+	// -----------------------------------------------------------------------
+	// Buffer file writers and readers for the network stack
+	// -----------------------------------------------------------------------
+
+	public BufferFileWriter createBufferFileWriter(Channel.ID id) throws IOException {
+		checkState(!isClosed, "I/O manager is already closed.");
+
+		return new BufferFileWriter(id, writers[id.getThreadNum()].requestQueue);
+	}
+
+	public BufferFileReader createBufferFileReader(Channel.ID id, BufferProvider bufferProvider) throws IOException {
+		checkState(!isClosed, "I/O manager is already closed.");
+
+		return new BufferFileReader(id, readers[id.getThreadNum()].requestQueue, bufferProvider, 0);
+	}
+
+	public BufferFileReader createBufferFileReader(Channel.ID id, BufferProvider bufferProvider, long initialPosition) throws IOException {
+		checkState(!isClosed, "I/O manager is already closed.");
+
+		return new BufferFileReader(id, readers[id.getThreadNum()].requestQueue, bufferProvider, initialPosition);
+	}
+
+	public BufferFileSegmentReader createBufferFileSegmentReader(Channel.ID id) throws IOException {
+		return createBufferFileSegmentReader(id, 0);
+	}
+
+	public BufferFileSegmentReader createBufferFileSegmentReader(Channel.ID id, long initialPosition) throws IOException {
+		checkState(!isClosed, "I/O manager is already closed.");
+
+		return new BufferFileSegmentReader(id, readers[id.getThreadNum()].requestQueue, initialPosition);
+	}
+
 	// ========================================================================
 	//                             Utilities
 	// ========================================================================

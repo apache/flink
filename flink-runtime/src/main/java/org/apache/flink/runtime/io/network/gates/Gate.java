@@ -23,10 +23,10 @@ import java.io.IOException;
 
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.event.task.AbstractEvent;
-import org.apache.flink.runtime.event.task.AbstractTaskEvent;
-import org.apache.flink.runtime.event.task.EventListener;
-import org.apache.flink.runtime.event.task.EventNotificationManager;
-import org.apache.flink.runtime.io.network.channels.ChannelType;
+import org.apache.flink.runtime.event.task.TaskEvent;
+import org.apache.flink.runtime.util.event.EventListener;
+import org.apache.flink.runtime.util.event.EventHandler;
+import org.apache.flink.runtime.io.network.partition.ChannelType;
 import org.apache.flink.runtime.jobgraph.JobID;
 
 /**
@@ -62,7 +62,7 @@ public abstract class Gate<T extends IOReadableWritable> {
 	/**
 	 * The event notification manager used to dispatch events.
 	 */
-	private final EventNotificationManager eventNotificationManager = new EventNotificationManager();
+	private final EventHandler eventHandler = new EventHandler();
 
 	/**
 	 * The type of input/output channels connected to this gate.
@@ -94,8 +94,8 @@ public abstract class Gate<T extends IOReadableWritable> {
 	 * 
 	 * @return the event notification manager used to dispatch events
 	 */
-	protected final EventNotificationManager getEventNotificationManager() {
-		return this.eventNotificationManager;
+	protected final EventHandler getEventHandler() {
+		return this.eventHandler;
 	}
 
 	public String toString() {
@@ -103,20 +103,20 @@ public abstract class Gate<T extends IOReadableWritable> {
 		return "Gate " + this.index;
 	}
 
-	public final void subscribeToEvent(EventListener eventListener, Class<? extends AbstractTaskEvent> eventType) {
+	public final void subscribeToEvent(EventListener<TaskEvent> eventListener, Class<? extends TaskEvent> eventType) {
 
-		this.eventNotificationManager.subscribeToEvent(eventListener, eventType);
+		this.eventHandler.subscribe(eventListener, eventType);
 	}
 
-	public final void unsubscribeFromEvent(final EventListener eventListener,
-			final Class<? extends AbstractTaskEvent> eventType) {
+	public final void unsubscribeFromEvent(final EventListener<TaskEvent> eventListener,
+			final Class<? extends TaskEvent> eventType) {
 
-		this.eventNotificationManager.unsubscribeFromEvent(eventListener, eventType);
+		this.eventHandler.unsubscribe(eventListener, eventType);
 	}
 
-	public final void deliverEvent(final AbstractTaskEvent event) {
+	public final void deliverEvent(final TaskEvent event) {
 
-		this.eventNotificationManager.deliverEvent((AbstractTaskEvent) event);
+		this.eventHandler.publish((TaskEvent) event);
 	}
 
 	public final void setChannelType(final ChannelType channelType) {

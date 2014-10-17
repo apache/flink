@@ -16,8 +16,36 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators.testutils;
+
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.network.api.serialization.AdaptiveSpanningRecordDeserializer;
+import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
+import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferFuture;
+import org.apache.flink.runtime.io.network.buffer.BufferProvider;
+import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.io.network.gates.IntermediateResultPartition;
+import org.apache.flink.runtime.io.network.partition.ChannelID;
+import org.apache.flink.runtime.io.network.gates.GateID;
+import org.apache.flink.runtime.io.network.gates.InputChannelResult;
+import org.apache.flink.runtime.io.network.gates.InputGate;
+import org.apache.flink.runtime.io.network.gates.RecordAvailabilityListener;
+import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
+import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
+import org.apache.flink.runtime.memorymanager.MemoryManager;
+import org.apache.flink.runtime.protocols.AccumulatorProtocol;
+import org.apache.flink.types.Record;
+import org.apache.flink.util.MutableObjectIterator;
+import org.mockito.Mockito;
 
 import java.io.IOException;
 import java.util.LinkedList;
@@ -26,35 +54,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.FutureTask;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.Path;
-import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.network.Buffer;
-import org.apache.flink.runtime.io.network.bufferprovider.BufferAvailabilityListener;
-import org.apache.flink.runtime.io.network.bufferprovider.BufferProvider;
-import org.apache.flink.runtime.io.network.bufferprovider.GlobalBufferPool;
-import org.apache.flink.runtime.io.network.bufferprovider.LocalBufferPoolOwner;
-import org.apache.flink.runtime.io.network.channels.ChannelID;
-import org.apache.flink.runtime.io.network.gates.GateID;
-import org.apache.flink.runtime.io.network.gates.InputChannelResult;
-import org.apache.flink.runtime.io.network.gates.InputGate;
-import org.apache.flink.runtime.io.network.gates.OutputGate;
-import org.apache.flink.runtime.io.network.gates.RecordAvailabilityListener;
-import org.apache.flink.runtime.io.network.serialization.AdaptiveSpanningRecordDeserializer;
-import org.apache.flink.runtime.io.network.serialization.RecordDeserializer;
-import org.apache.flink.runtime.io.network.serialization.RecordDeserializer.DeserializationResult;
-import org.apache.flink.runtime.jobgraph.JobID;
-import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
-import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
-import org.apache.flink.runtime.memorymanager.MemoryManager;
-import org.apache.flink.runtime.protocols.AccumulatorProtocol;
-import org.apache.flink.types.Record;
-import org.apache.flink.util.MutableObjectIterator;
-
-public class MockEnvironment implements Environment, BufferProvider, LocalBufferPoolOwner {
+public class MockEnvironment implements Environment, BufferProvider {
 	
 	private final MemoryManager memManager;
 
@@ -68,7 +68,7 @@ public class MockEnvironment implements Environment, BufferProvider, LocalBuffer
 
 	private final List<InputGate<Record>> inputs;
 
-	private final List<OutputGate> outputs;
+	private final List<IntermediateResultPartition> outputs;
 
 	private final JobID jobID = new JobID();
 
@@ -78,12 +78,12 @@ public class MockEnvironment implements Environment, BufferProvider, LocalBuffer
 		this.jobConfiguration = new Configuration();
 		this.taskConfiguration = new Configuration();
 		this.inputs = new LinkedList<InputGate<Record>>();
-		this.outputs = new LinkedList<OutputGate>();
+		this.outputs = new LinkedList<IntermediateResultPartition>();
 
 		this.memManager = new DefaultMemoryManager(memorySize, 1);
 		this.ioManager = new IOManager(System.getProperty("java.io.tmpdir"));
 		this.inputSplitProvider = inputSplitProvider;
-		this.mockBuffer = new Buffer(new MemorySegment(new byte[bufferSize]), bufferSize, null);
+		this.mockBuffer = new Buffer(new MemorySegment(new byte[bufferSize]), bufferSize, Mockito.mock(BufferRecycler.class));
 	}
 
 	public void addInput(MutableObjectIterator<Record> inputIterator) {
@@ -117,52 +117,16 @@ public class MockEnvironment implements Environment, BufferProvider, LocalBuffer
 	}
 
 	@Override
-	public Buffer requestBuffer(int minBufferSize) throws IOException {
-		return mockBuffer;
+	public BufferFuture requestBuffer() {
+		return new BufferFuture(mockBuffer);
 	}
 
 	@Override
-	public Buffer requestBufferBlocking(int minBufferSize) throws IOException, InterruptedException {
-		return mockBuffer;
+	public BufferFuture requestBuffer(int minBufferSize) {
+		return new BufferFuture(mockBuffer.getSize());
 	}
 
-	@Override
-	public int getBufferSize() {
-		return this.mockBuffer.size();
-	}
-
-	@Override
-	public BufferAvailabilityRegistration registerBufferAvailabilityListener(BufferAvailabilityListener listener) {
-		return BufferAvailabilityRegistration.FAILED_BUFFER_POOL_DESTROYED;
-	}
-
-	@Override
-	public int getNumberOfChannels() {
-		return 1;
-	}
-
-	@Override
-	public void setDesignatedNumberOfBuffers(int numBuffers) {
-
-	}
-
-	@Override
-	public void clearLocalBufferPool() {
-
-	}
-
-	@Override
-	public void registerGlobalBufferPool(GlobalBufferPool globalBufferPool) {
-
-	}
-
-	@Override
-	public void logBufferUtilization() {
-
-	}
-
-	@Override
-	public void reportAsynchronousEvent() {
+	public void registerGlobalBufferPool(NetworkBufferPool networkBufferPool) {
 
 	}
 
@@ -194,7 +158,7 @@ public class MockEnvironment implements Environment, BufferProvider, LocalBuffer
 		}
 	}
 
-	private class MockOutputGate extends OutputGate {
+	private class MockOutputGate extends IntermediateResultPartition {
 		
 		private List<Record> out;
 
@@ -212,7 +176,7 @@ public class MockEnvironment implements Environment, BufferProvider, LocalBuffer
 		@Override
 		public void sendBuffer(Buffer buffer, int targetChannel) throws IOException, InterruptedException {
 
-			this.deserializer.setNextMemorySegment(MockEnvironment.this.mockBuffer.getMemorySegment(), MockEnvironment.this.mockBuffer.size());
+			this.deserializer.setNextMemorySegment(MockEnvironment.this.mockBuffer.getMemorySegment(), MockEnvironment.this.mockBuffer.getSize());
 
 			while (this.deserializer.hasUnfinishedData()) {
 				DeserializationResult result = this.deserializer.getNextRecord(this.record);
@@ -305,7 +269,7 @@ public class MockEnvironment implements Environment, BufferProvider, LocalBuffer
 	}
 
 	@Override
-	public OutputGate createAndRegisterOutputGate() {
+	public IntermediateResultPartition createAndRegisterOutputGate() {
 		return this.outputs.remove(0);
 	}
 
