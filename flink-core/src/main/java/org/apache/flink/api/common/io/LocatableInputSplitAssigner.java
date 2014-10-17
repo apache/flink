@@ -32,6 +32,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.core.io.LocatableInputSplit;
+import org.apache.flink.util.NetUtils;
 
 /**
  * The locatable input split assigner assigns to each host splits that are local, before assigning
@@ -81,7 +82,7 @@ public final class LocatableInputSplitAssigner implements InputSplitAssigner {
 					return next;
 				} else {
 					if (LOG.isDebugEnabled()) {
-						LOG.debug("No more input splits remaining.");
+						LOG.debug("No more unassigned input splits remaining.");
 					}
 					return null;
 				}
@@ -125,6 +126,7 @@ public final class LocatableInputSplitAssigner implements InputSplitAssigner {
 				}
 			}
 		}
+		
 		
 		// at this point, we have a list of local splits (possibly empty)
 		// we need to make sure no one else operates in the current list (that protects against
@@ -173,13 +175,13 @@ public final class LocatableInputSplitAssigner implements InputSplitAssigner {
 		}
 	}
 	
-	private static final boolean isLocal(String host, String[] hosts) {
-		if (host == null || hosts == null) {
+	private static final boolean isLocal(String flinkHost, String[] hosts) {
+		if (flinkHost == null || hosts == null) {
 			return false;
 		}
-		
 		for (String h : hosts) {
-			if (h != null && host.equals(h.toLowerCase())) {
+			final String hadoopHost = NetUtils.getHostnameFromFQDN(h.toLowerCase());
+			if (h != null && hadoopHost.toLowerCase().equals(flinkHost)) {
 				return true;
 			}
 		}
