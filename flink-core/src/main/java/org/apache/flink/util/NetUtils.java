@@ -15,21 +15,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.flink.util;
 
-package org.apache.flink.runtime.protocols;
 
-import java.io.IOException;
-
-import org.apache.flink.core.io.InputSplit;
-import org.apache.flink.core.protocols.VersionedProtocol;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.jobgraph.JobID;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
-
-/**
- * The input split provider protocol is used to facilitate RPC calls related to the lazy split assignment.
- */
-public interface InputSplitProviderProtocol extends VersionedProtocol {
-
-	InputSplit requestNextInputSplit(JobID jobID, JobVertexID vertex, ExecutionAttemptID executionAttempt) throws IOException;
+public class NetUtils {
+	/**
+	 * Turn a fully qualified domain name (fqdn) into a hostname.
+	 * 
+	 * @param fqdn
+	 * @return
+	 */
+	public static String getHostnameFromFQDN(String fqdn) {
+		int dotPos = fqdn.indexOf('.');
+		if(dotPos == -1) {
+			return fqdn;
+		} else {
+			return fqdn.substring(0, dotPos);
+		}
+	}
 }

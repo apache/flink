@@ -58,9 +58,12 @@ import org.apache.flink.runtime.client.JobSubmissionResult;
 import org.apache.flink.runtime.event.job.AbstractEvent;
 import org.apache.flink.runtime.event.job.RecentJobEvent;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
+import org.apache.flink.runtime.executiongraph.Execution;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
+import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.instance.Hardware;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.Instance;
@@ -453,7 +456,7 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 	}
 	
 	@Override
-	public InputSplit requestNextInputSplit(JobID jobID, JobVertexID vertexId) throws IOException {
+	public InputSplit requestNextInputSplit(JobID jobID, JobVertexID vertexId, ExecutionAttemptID executionAttempt) throws IOException {
 
 		final ExecutionGraph graph = this.currentJobs.get(jobID);
 		if (graph == null) {
@@ -473,8 +476,19 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 			return null;
 		}
 		
+		// get hostname for input split assignment
+		String host = null;
+		Execution execution = graph.getRegisteredExecutions().get(executionAttempt);
+		if(execution == null) {
+			LOG.error("Can not find Execution for attempt " + executionAttempt);
+		} else {
+			AllocatedSlot slot = execution.getAssignedResource();
+			if(slot != null) {
+				host = slot.getInstance().getInstanceConnectionInfo().getHostname();
+			}
+		}
 		
-		return splitAssigner.getNextInputSplit(null);
+		return splitAssigner.getNextInputSplit(host);
 	}
 	
 	@Override

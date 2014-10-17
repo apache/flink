@@ -259,7 +259,7 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 		// need at least one buffer per channel
 		if (numChannels > 0 && numBuffers / numChannels < 1) {
 			String msg = String.format("%s has not enough buffers to safely execute %s (%d buffers missing)",
-					this.connectionInfo.hostname(), env.getTaskName(), numChannels - numBuffers);
+					this.connectionInfo.getFQDNHostname(), env.getTaskName(), numChannels - numBuffers);
 
 			throw new InsufficientResourcesException(msg);
 		}
