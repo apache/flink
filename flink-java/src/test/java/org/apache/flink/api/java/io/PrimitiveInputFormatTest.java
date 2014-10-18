@@ -27,31 +27,24 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 
-import org.apache.log4j.Level;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.util.LogUtils;
 
 public class PrimitiveInputFormatTest {
 
 	private static final Path PATH = new Path("an/ignored/file/");
 
-	@BeforeClass
-	public static void initialize() {
-		LogUtils.initializeDefaultConsoleLogger(Level.WARN);
-	}
 
 	@Test
 	public void testStringInput() {
 		try {
-			final String fileContent = "abc|def||";
+			final String fileContent = "abc||def||||";
 			final FileInputSplit split = createInputSplit(fileContent);
 
-			final PrimitiveInputFormat<String> format = new PrimitiveInputFormat<String>(PATH, '|', String.class);
+			final PrimitiveInputFormat<String> format = new PrimitiveInputFormat<String>(PATH, "||", String.class);
 
 			final Configuration parameters = new Configuration();
 			format.configure(parameters);
@@ -86,7 +79,7 @@ public class PrimitiveInputFormatTest {
 			final String fileContent = "111|222|";
 			final FileInputSplit split = createInputSplit(fileContent);
 
-			final PrimitiveInputFormat<Integer> format = new PrimitiveInputFormat<Integer>(PATH,'|', Integer.class);
+			final PrimitiveInputFormat<Integer> format = new PrimitiveInputFormat<Integer>(PATH,"|", Integer.class);
 
 			format.configure(new Configuration());
 			format.open(split);
