@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -49,6 +49,11 @@ public enum ShipStrategyType {
 	 * Partitioning the data in ranges according to a total order.
 	 */
 	PARTITION_RANGE(true, true),
+	
+	/**
+	 * Partitioning the data evenly
+	 */
+	PARTITION_FORCED_REBALANCE(true, false),
 	
 	/**
 	 * Replicating the data set to all instances.

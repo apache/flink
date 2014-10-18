@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -19,91 +19,103 @@ package org.apache.flink.streaming.api.collector;
 
 import static org.junit.Assert.assertEquals;
 
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashSet;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
-import org.apache.flink.api.java.functions.RichMapFunction;
-import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.streaming.api.collector.OutputSelector;
 import org.apache.flink.streaming.api.datastream.SplitDataStream;
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
-import org.apache.flink.streaming.util.LogUtils;
-import org.apache.log4j.Level;
 import org.junit.Test;
 
 public class DirectedOutputTest {
 
-	static HashSet<Long> evenSet = new HashSet<Long>();
-	static HashSet<Long> oddSet = new HashSet<Long>();
+	private static final String TEN = "ten";
+	private static final String ODD = "odd";
+	private static final String ALL = "all";
+	private static final String EVEN_AND_ODD = "evenAndOdd";
+	private static final String ODD_AND_TEN = "oddAndTen";
+	private static final String EVEN = "even";
+	private static final String NON_SELECTED = "nonSelected";
 
-	private static class PlusTwo extends RichMapFunction<Long, Long> {
-
+	static final class MyMap implements MapFunction<Long, Long> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public Long map(Long arg0) throws Exception {
-			arg0 += 2;
-			return arg0;
+		public Long map(Long value) throws Exception {
+			return value;
 		}
 	}
 
-	private static class EvenSink implements SinkFunction<Long> {
-
+	static final class MyOutputSelector extends OutputSelector<Long> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void invoke(Long tuple) {
-			evenSet.add(tuple);
-		}
-	}
-
-	private static class OddSink implements SinkFunction<Long> {
-
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public void invoke(Long tuple) {
-			oddSet.add(tuple);
-		}
-	}
-
-	private static class MySelector extends OutputSelector<Long> {
-
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public void select(Long tuple, Collection<String> outputs) {
-			int mod = (int) (tuple % 2);
-			switch (mod) {
-			case 0:
-				outputs.add("ds1");
-				break;
-			case 1:
-				outputs.add("ds2");
-				break;
+		public void select(Long value, Collection<String> outputs) {
+			if (value % 2 == 0) {
+				outputs.add(EVEN);
+			} else {
+				outputs.add(ODD);
+			}
+			
+			if (value == 10L) {
+				outputs.add(TEN);
+			}
+			
+			if (value == 11L) {
+				outputs.add(NON_SELECTED);
 			}
 		}
 	}
+	
+	static final class ListSink implements SinkFunction<Long> {
+		private static final long serialVersionUID = 1L;
 
-	@SuppressWarnings("unused")
+		private String name;
+		private transient List<Long> list;
+
+		public ListSink(String name) {
+			this.name = name;
+		}
+
+		@Override
+		public void invoke(Long value) {
+			list.add(value);
+		}
+
+		private void readObject(java.io.ObjectInputStream in) throws IOException,
+				ClassNotFoundException {
+			in.defaultReadObject();
+			outputs.put(name, new ArrayList<Long>());
+			this.list = outputs.get(name);
+		}
+	}
+
+	private static Map<String, List<Long>> outputs = new HashMap<String, List<Long>>();
+	
 	@Test
-	public void directOutputTest() throws Exception {
-		LogUtils.initializeDefaultConsoleLogger(Level.OFF, Level.OFF);
+	public void outputSelectorTest() throws Exception {
+		
 
 		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
-		SplitDataStream<Long> s = env.generateSequence(1, 6).split(new MySelector(),
-				new String[] { "ds1", "ds2" });
-		DataStream<Long> ds1 = s.select("ds1").shuffle().map(new PlusTwo()).addSink(new EvenSink());
-		DataStream<Long> ds2 = s.select("ds2").map(new PlusTwo()).addSink(new OddSink());
-
-		env.executeTest(32);
-
-		HashSet<Long> expectedEven = new HashSet<Long>(Arrays.asList(4L, 6L, 8L));
-		HashSet<Long> expectedOdd = new HashSet<Long>(Arrays.asList(3L, 5L, 7L));
-
-		assertEquals(expectedEven, evenSet);
-		assertEquals(expectedOdd, oddSet);
+		
+		SplitDataStream<Long> source = env.generateSequence(1, 11).split(new MyOutputSelector());
+		source.select(EVEN).addSink(new ListSink(EVEN));
+		source.select(ODD, TEN).addSink(new ListSink(ODD_AND_TEN));
+		source.select(EVEN, ODD).addSink(new ListSink(EVEN_AND_ODD));
+		source.selectAll().addSink(new ListSink(ALL));
+		
+		env.executeTest(128);
+		assertEquals(Arrays.asList(2L, 4L, 6L, 8L, 10L), outputs.get(EVEN));
+		assertEquals(Arrays.asList(1L, 3L, 5L, 7L, 9L, 10L, 11L), outputs.get(ODD_AND_TEN));
+		assertEquals(Arrays.asList(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L, 11L), outputs.get(EVEN_AND_ODD));
+		assertEquals(Arrays.asList(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L, 11L), outputs.get(ALL));
 	}
 }

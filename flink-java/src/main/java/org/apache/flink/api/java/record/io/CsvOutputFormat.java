@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,8 +24,8 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.java.record.operators.FileDataSink;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.types.Record;
@@ -70,7 +70,7 @@ public class CsvOutputFormat extends FileOutputFormat {
 	public static final String LENIENT_PARSING = "output.record.lenient";
 
 	@SuppressWarnings("unused")
-	private static final Log LOG = LogFactory.getLog(CsvOutputFormat.class);
+	private static final Logger LOG = LoggerFactory.getLogger(CsvOutputFormat.class);
 
 	// --------------------------------------------------------------------------------------------
 
@@ -206,14 +206,20 @@ public class CsvOutputFormat extends FileOutputFormat {
 		Class<Value>[] arr = new Class[this.numFields];
 		this.classes = arr;
 
-		for (int i = 0; i < this.numFields; i++) {
-			@SuppressWarnings("unchecked")
-			Class<? extends Value> clazz = (Class<? extends Value>) parameters.getClass(FIELD_TYPE_PARAMETER_PREFIX + i, null);
-			if (clazz == null) {
-				throw new IllegalArgumentException("Invalid configuration for CsvOutputFormat: " + "No type class for parameter " + i);
+		try {
+			ClassLoader cl = Thread.currentThread().getContextClassLoader();
+			
+			for (int i = 0; i < this.numFields; i++) {
+				Class<? extends Value> clazz =  parameters.<Value>getClass(FIELD_TYPE_PARAMETER_PREFIX + i, null, cl);
+				if (clazz == null) {
+					throw new IllegalArgumentException("Invalid configuration for CsvOutputFormat: " + "No type class for parameter " + i);
+				}
+	
+				this.classes[i] = clazz;
 			}
-
-			this.classes[i] = clazz;
+		}
+		catch (ClassNotFoundException e) {
+			throw new RuntimeException("Could not resolve type classes", e);
 		}
 
 		this.recordPositions = new int[this.numFields];

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,8 +23,8 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.net.InetAddress;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.util.StringUtils;
 
@@ -38,7 +38,7 @@ public class ProfilingUtils {
 	/**
 	 * The logging instance used to report problems.
 	 */
-	private static final Log LOG = LogFactory.getLog(ProfilingUtils.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ProfilingUtils.class);
 
 	/**
 	 * The key to check the job manager's profiling component should be enabled.
@@ -150,10 +150,12 @@ public class ProfilingUtils {
 		try {
 			constructor = profilerClass.getConstructor(InetAddress.class, InstanceConnectionInfo.class);
 		} catch (SecurityException e1) {
-			LOG.error(e1);
+			LOG.error("Security exception while retrieving constructor for class " + profilerClass.getCanonicalName()
+					+ ".", e1);
 			return null;
 		} catch (NoSuchMethodException e1) {
-			LOG.error(e1);
+			LOG.error("Class " + profilerClass.getCanonicalName() + " does not have a constructor taking a " +
+					"InetAddress and InstanceConnectionInfo parameter.", e1);
 			return null;
 		}
 
@@ -161,13 +163,16 @@ public class ProfilingUtils {
 		try {
 			profiler = constructor.newInstance(jobManagerAddress, instanceConnectionInfo);
 		} catch (IllegalArgumentException e) {
-			LOG.error(e);
+			LOG.error("IllegalArgumentException while creating object of class " + profilerClass.getCanonicalName() +
+							".", e);
 		} catch (InstantiationException e) {
-			LOG.error(e);
+			LOG.error("Could not instantiate object of class " + profilerClass.getCanonicalName() + ".",e);
 		} catch (IllegalAccessException e) {
-			LOG.error(e);
+			LOG.error("IllegalAccessException while creating object of class " + profilerClass.getCanonicalName() + ".",
+					e);
 		} catch (InvocationTargetException e) {
-			LOG.error(e);
+			LOG.error("InvocationTargetException while creating object of class " + profilerClass.getCanonicalName() +
+							".", e);
 		}
 
 		return profiler;

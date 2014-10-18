@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,8 +19,8 @@
 
 package org.apache.flink.runtime.operators;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
@@ -39,7 +39,7 @@ import org.apache.flink.util.MutableObjectIterator;
  */
 public class AllReduceDriver<T> implements PactDriver<ReduceFunction<T>, T> {
 	
-	private static final Log LOG = LogFactory.getLog(AllReduceDriver.class);
+	private static final Logger LOG = LoggerFactory.getLogger(AllReduceDriver.class);
 
 	private PactTaskContext<ReduceFunction<T>, T> taskContext;
 	
@@ -70,8 +70,8 @@ public class AllReduceDriver<T> implements PactDriver<ReduceFunction<T>, T> {
 	}
 
 	@Override
-	public boolean requiresComparatorOnInput() {
-		return false;
+	public int getNumberOfDriverComparators() {
+		return 0;
 	}
 
 	// --------------------------------------------------------------------------------------------

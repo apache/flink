@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,15 +19,14 @@
 
 package org.apache.flink.runtime.operators;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -35,7 +34,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.execution.CancelTaskException;
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.io.network.api.BufferWriter;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
@@ -56,7 +54,7 @@ import org.apache.flink.util.Collector;
  */
 public class DataSourceTask<OT> extends AbstractInvokable {
 	
-	private static final Log LOG = LogFactory.getLog(DataSourceTask.class);
+	private static final Logger LOG = LoggerFactory.getLogger(DataSourceTask.class);
 
 	
 	private List<BufferWriter> eventualOutputs;
@@ -76,8 +74,6 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 	// tasks chained to this data source
 	private ArrayList<ChainedDriver<?, ?>> chainedTasks;
 	
-	private ClassLoader userCodeClassLoader;
-
 	// cancel flag
 	private volatile boolean taskCanceled = false;
 
@@ -91,7 +87,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 		}
 
 		try {
-			initOutputs(this.userCodeClassLoader);
+			initOutputs(getUserCodeClassLoader());
 		} catch (Exception ex) {
 			throw new RuntimeException("The initialization of the DataSource's outputs caused an error: " + 
 				ex.getMessage(), ex);
@@ -282,15 +278,6 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 	}
 	
 	/**
-	 * Sets the class-loader to be used to load the user code.
-	 * 
-	 * @param cl The class-loader to be used to load the user code.
-	 */
-	public void setUserCodeClassLoader(ClassLoader cl) {
-		this.userCodeClassLoader = cl;
-	}
-
-	/**
 	 * Initializes the InputFormat implementation and configuration.
 l	 * 
 	 * @throws RuntimeException
@@ -298,24 +285,14 @@ l	 *
 	 *         obtained.
 	 */
 	private void initInputFormat() {
-		if (this.userCodeClassLoader == null) {
-			try {
-				this.userCodeClassLoader = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
-			}
-			catch (IOException ioe) {
-				throw new RuntimeException("Usercode ClassLoader could not be obtained for job: " +
-						getEnvironment().getJobID(), ioe);
-			}
-		}
-
+		ClassLoader userCodeClassLoader = getUserCodeClassLoader();
 		// obtain task configuration (including stub parameters)
 		Configuration taskConf = getTaskConfiguration();
-		taskConf.setClassLoader(this.userCodeClassLoader);
 		this.config = new TaskConfig(taskConf);
 
 		try {
-			this.format = config.<InputFormat<OT, InputSplit>>getStubWrapper(this.userCodeClassLoader)
-					.getUserCodeObject(InputFormat.class, this.userCodeClassLoader);
+			this.format = config.<InputFormat<OT, InputSplit>>getStubWrapper(userCodeClassLoader)
+					.getUserCodeObject(InputFormat.class, userCodeClassLoader);
 
 			// check if the class is a subclass, if the check is required
 			if (!InputFormat.class.isAssignableFrom(this.format.getClass())) {
@@ -337,7 +314,7 @@ l	 *
 		}
 		
 		// get the factory for the type serializer
-		this.serializerFactory = this.config.getOutputSerializer(this.userCodeClassLoader);
+		this.serializerFactory = this.config.getOutputSerializer(userCodeClassLoader);
 	}
 
 	/**

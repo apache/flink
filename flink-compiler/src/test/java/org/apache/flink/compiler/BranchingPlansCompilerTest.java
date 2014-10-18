@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -29,8 +29,8 @@ import org.junit.Test;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.IterativeDataSet;
-import org.apache.flink.api.java.functions.RichJoinFunction;
+import org.apache.flink.api.java.operators.IterativeDataSet;
+import org.apache.flink.api.common.functions.RichJoinFunction;
 import org.apache.flink.api.java.record.operators.BulkIteration;
 import org.apache.flink.api.java.record.operators.CoGroupOperator;
 import org.apache.flink.api.java.record.operators.CrossOperator;
@@ -58,7 +58,7 @@ import org.apache.flink.compiler.util.IdentityReduce;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 
-@SuppressWarnings("serial")
+@SuppressWarnings({"serial", "deprecation"})
 public class BranchingPlansCompilerTest extends CompilerTestBase {
 	
 	
@@ -358,7 +358,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 		}
 	}
 	
-	@SuppressWarnings({ "unchecked", "deprecation" })
+	@SuppressWarnings("unchecked")
 	@Test
 	public void testBranchEachContractType() {
 		try {

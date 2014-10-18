@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,19 +16,15 @@
  * limitations under the License.
  */
 
-
-/**
- * This file is based on source code from the Hadoop Project (http://hadoop.apache.org/), licensed by the Apache
- * Software Foundation (ASF) under the Apache License, Version 2.0. See the NOTICE file distributed with this work for
- * additional information regarding copyright ownership. 
- */
-
 package org.apache.flink.util;
 
-import java.io.PrintWriter;
-import java.io.StringWriter;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Random;
+
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.types.StringValue;
 
 /**
  * Utility class to convert objects into strings in vice-versa.
@@ -48,11 +44,7 @@ public final class StringUtils {
 	 * @return A string with exception name and call stack.
 	 */
 	public static String stringifyException(final Throwable e) {
-		final StringWriter stm = new StringWriter();
-		final PrintWriter wrt = new PrintWriter(stm);
-		e.printStackTrace(wrt);
-		wrt.close();
-		return stm.toString();
+		return ExceptionUtils.stringifyException(e);
 	}
 
 	/**
@@ -71,6 +63,7 @@ public final class StringUtils {
 		if (bytes == null) {
 			throw new IllegalArgumentException("bytes == null");
 		}
+		
 		final StringBuilder s = new StringBuilder();
 		for (int i = start; i < end; i++) {
 			s.append(String.format("%02x", bytes[i]));
@@ -301,5 +294,38 @@ public final class StringUtils {
 			data[i] = (char) (rnd.nextInt(diff) + minValue);
 		}
 		return new String(data);
+	}
+	
+	/**
+	 * Writes a String to the given output. The string may be null.
+	 * The written string can be read with {@link #readNullableString(DataInputView)}-
+	 * 
+	 * @param str The string to write, or null.
+	 * @param out The output to write to.
+	 * @throws IOException Throws if the writing or the serialization fails.
+	 */
+	public static void writeNullableString(String str, DataOutputView out) throws IOException {
+		if (str != null) {
+			out.writeBoolean(true);
+			StringValue.writeString(str, out);
+		} else {
+			out.writeBoolean(false);
+		}
+	}
+	
+	/**
+	 * Reads a String from the given input. The string may be null and must have been written with
+	 * {@link #writeNullableString(String, DataOutputView)}.
+	 * 
+	 * @param in The input to read from.
+	 * @return The deserialized string, or null.
+	 * @throws IOException Throws if the reading or the deserialization fails.
+	 */
+	public static String readNullableString(DataInputView in) throws IOException {
+		if (in.readBoolean()) {
+			return StringValue.readString(in);
+		} else {
+			return null;
+		}
 	}
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,8 +22,8 @@ package org.apache.flink.api.common.operators;
 import java.util.List;
 
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.types.TypeInformation;
 import org.apache.flink.util.Visitable;
 
 /**
@@ -47,7 +47,7 @@ public abstract class Operator<OUT> implements Visitable<Operator<?>> {
 	 */
 	protected final OperatorInformation<OUT> operatorInfo;
 
-	// --------------------------------------------------------------------------------------------	
+	// --------------------------------------------------------------------------------------------
 
 	/**
 	 * Creates a new contract with the given name. The parameters are empty by default and
@@ -191,6 +191,8 @@ public abstract class Operator<OUT> implements Visitable<Operator<?>> {
 	public UserCodeWrapper<?> getUserCodeWrapper() {
 		return null;
 	}
+	
+	// --------------------------------------------------------------------------------------------
 	
 	/**
 	 * Takes a list of operators and creates a cascade of unions of this inputs, if needed.

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.profiling.impl;
 
 import java.lang.management.ThreadInfo;
@@ -25,8 +24,9 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
-import org.apache.flink.runtime.executiongraph.ExecutionVertexID;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.profiling.impl.types.InternalExecutionVertexThreadProfilingData;
 
 public class EnvironmentThreadSet {
@@ -35,59 +35,26 @@ public class EnvironmentThreadSet {
 
 	private static final long PERCENT = 100;
 
-	private class CPUUtilizationSnapshot {
-
-		private final long timestamp;
-
-		private final long totalCPUTime;
-
-		private final long totalCPUUserTime;
-
-		private final long totalCPUWaitTime;
-
-		private final long totalCPUBlockTime;
-
-		public CPUUtilizationSnapshot(long timestamp, long totalCPUTime, long totalCPUUserTime, long totalCPUWaitTime,
-				long totalCPUBlockTime) {
-			this.timestamp = timestamp;
-			this.totalCPUTime = totalCPUTime;
-			this.totalCPUUserTime = totalCPUUserTime;
-			this.totalCPUWaitTime = totalCPUWaitTime;
-			this.totalCPUBlockTime = totalCPUBlockTime;
-		}
-
-		public long getTimestamp() {
-			return this.timestamp;
-		}
-
-		public long getTotalCPUTime() {
-			return this.totalCPUTime;
-		}
-
-		public long getTotalCPUUserTime() {
-			return this.totalCPUUserTime;
-		}
-
-		public long getTotalCPUWaitTime() {
-			return this.totalCPUWaitTime;
-		}
-
-		public long getTotalCPUBlockTime() {
-			return this.totalCPUBlockTime;
-		}
-	}
+	
 
 	private final Thread mainThread;
 
-	private final ExecutionVertexID executionVertexID;
+	private final JobVertexID vertexId;
+	
+	private final int subtask;
+	
+	private final ExecutionAttemptID executionId;
 
 	private final Map<Thread, CPUUtilizationSnapshot> userThreads = new HashMap<Thread, CPUUtilizationSnapshot>();
 
-	private CPUUtilizationSnapshot mainThreadSnapshot = null;
+	private CPUUtilizationSnapshot mainThreadSnapshot;
 
-	public EnvironmentThreadSet(ThreadMXBean tmx, Thread mainThread, ExecutionVertexID executionVertexID) {
+	
+	public EnvironmentThreadSet(ThreadMXBean tmx, Thread mainThread, JobVertexID vertexId, int subtask, ExecutionAttemptID executionId) {
 		this.mainThread = mainThread;
-		this.executionVertexID = executionVertexID;
+		this.vertexId = vertexId;
+		this.subtask = subtask;
+		this.executionId = executionId;
 
 		this.mainThreadSnapshot = createCPUUtilizationSnapshot(tmx, mainThread, System.currentTimeMillis());
 	}
@@ -97,29 +64,24 @@ public class EnvironmentThreadSet {
 	}
 
 	public void addUserThread(ThreadMXBean tmx, Thread thread) {
-
 		synchronized (this.userThreads) {
 			this.userThreads.put(thread, createCPUUtilizationSnapshot(tmx, thread, System.currentTimeMillis()));
 		}
 	}
 
 	public void removeUserThread(Thread thread) {
-
 		synchronized (this.userThreads) {
 			this.userThreads.remove(thread);
 		}
 	}
 
 	public int getNumberOfUserThreads() {
-
 		synchronized (this.userThreads) {
 			return this.userThreads.size();
 		}
-
 	}
 
 	private CPUUtilizationSnapshot createCPUUtilizationSnapshot(ThreadMXBean tmx, Thread thread, long timestamp) {
-
 		final long threadId = thread.getId();
 
 		final ThreadInfo threadInfo = tmx.getThreadInfo(threadId);
@@ -127,13 +89,14 @@ public class EnvironmentThreadSet {
 			return null;
 		}
 
-		return new CPUUtilizationSnapshot(timestamp, tmx.getThreadCpuTime(threadId) / NANO_TO_MILLISECONDS, tmx
-			.getThreadUserTime(threadId) / NANO_TO_MILLISECONDS, threadInfo.getWaitedTime(),
-			threadInfo.getBlockedTime());
+		return new CPUUtilizationSnapshot(timestamp,
+				tmx.getThreadCpuTime(threadId) / NANO_TO_MILLISECONDS,
+				tmx.getThreadUserTime(threadId) / NANO_TO_MILLISECONDS,
+				threadInfo.getWaitedTime(),
+				threadInfo.getBlockedTime());
 	}
 
-	public InternalExecutionVertexThreadProfilingData captureCPUUtilization(JobID jobID, ThreadMXBean tmx,
-			long timestamp) {
+	public InternalExecutionVertexThreadProfilingData captureCPUUtilization(JobID jobID, ThreadMXBean tmx, long timestamp) {
 
 		synchronized (this.userThreads) {
 
@@ -183,13 +146,10 @@ public class EnvironmentThreadSet {
 					}
 
 					cputime = newUtilizationSnaphot.getTotalCPUTime() - oldUtilizationSnapshot.getTotalCPUTime();
-					usrtime = newUtilizationSnaphot.getTotalCPUUserTime()
-						- oldUtilizationSnapshot.getTotalCPUUserTime();
+					usrtime = newUtilizationSnaphot.getTotalCPUUserTime() - oldUtilizationSnapshot.getTotalCPUUserTime();
 					systime = cputime - usrtime;
-					waitime = newUtilizationSnaphot.getTotalCPUWaitTime()
-						- oldUtilizationSnapshot.getTotalCPUWaitTime();
-					blktime = newUtilizationSnaphot.getTotalCPUBlockTime()
-						- oldUtilizationSnapshot.getTotalCPUBlockTime();
+					waitime = newUtilizationSnaphot.getTotalCPUWaitTime() - oldUtilizationSnapshot.getTotalCPUWaitTime();
+					blktime = newUtilizationSnaphot.getTotalCPUBlockTime() - oldUtilizationSnapshot.getTotalCPUBlockTime();
 
 					sumUsrTime += (int) ((usrtime * PERCENT) / interval);
 					sumSysTime += (int) ((systime * PERCENT) / interval);
@@ -206,8 +166,52 @@ public class EnvironmentThreadSet {
 				sumWaiTime /= (divisor + 1);
 			}
 
-			return new InternalExecutionVertexThreadProfilingData(jobID, this.executionVertexID, (int) mainInterval,
-				sumUsrTime, sumSysTime, sumBlkTime, sumWaiTime);
+			return new InternalExecutionVertexThreadProfilingData(jobID, this.vertexId, this.subtask, this.executionId,
+					(int) mainInterval, sumUsrTime, sumSysTime, sumBlkTime, sumWaiTime);
+		}
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	private class CPUUtilizationSnapshot {
+
+		private final long timestamp;
+
+		private final long totalCPUTime;
+
+		private final long totalCPUUserTime;
+
+		private final long totalCPUWaitTime;
+
+		private final long totalCPUBlockTime;
+
+		public CPUUtilizationSnapshot(long timestamp, long totalCPUTime, long totalCPUUserTime, long totalCPUWaitTime,
+				long totalCPUBlockTime) {
+			this.timestamp = timestamp;
+			this.totalCPUTime = totalCPUTime;
+			this.totalCPUUserTime = totalCPUUserTime;
+			this.totalCPUWaitTime = totalCPUWaitTime;
+			this.totalCPUBlockTime = totalCPUBlockTime;
+		}
+
+		public long getTimestamp() {
+			return this.timestamp;
+		}
+
+		public long getTotalCPUTime() {
+			return this.totalCPUTime;
+		}
+
+		public long getTotalCPUUserTime() {
+			return this.totalCPUUserTime;
+		}
+
+		public long getTotalCPUWaitTime() {
+			return this.totalCPUWaitTime;
+		}
+
+		public long getTotalCPUBlockTime() {
+			return this.totalCPUBlockTime;
 		}
 	}
 }

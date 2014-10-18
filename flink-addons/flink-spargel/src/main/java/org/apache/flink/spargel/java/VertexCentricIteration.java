@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,11 +25,11 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.lang3.Validate;
-
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.DeltaIteration;
-import org.apache.flink.api.java.functions.RichCoGroupFunction;
+import org.apache.flink.api.java.operators.DeltaIteration;
+import org.apache.flink.api.common.functions.RichCoGroupFunction;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.operators.CoGroupOperator;
 import org.apache.flink.api.java.operators.CustomUnaryOperation;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -38,7 +38,6 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.types.TypeInformation;
 import org.apache.flink.util.Collector;
 
 /**
@@ -97,7 +96,9 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 	private String name;
 	
 	private int parallelism = -1;
-		
+	
+	private boolean unmanagedSolutionSet;
+	
 	// ----------------------------------------------------------------------------------
 	
 	private  VertexCentricIteration(VertexUpdateFunction<VertexKey, VertexValue, Message> uf,
@@ -234,6 +235,28 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 		return parallelism;
 	}
 	
+	/**
+	 * Defines whether the solution set is kept in managed memory (Flink's internal way of keeping object
+	 * in serialized form) or as a simple object map.
+	 * By default, the solution set runs in managed memory.
+	 * 
+	 * @param unmanaged True, to keep the solution set in unmanaged memory, false otherwise.
+	 */
+	public void setSolutionSetUnmanagedMemory(boolean unmanaged) {
+		this.unmanagedSolutionSet = unmanaged;
+	}
+	
+	/**
+	 * Gets whether the solution set is kept in managed memory (Flink's internal way of keeping object
+	 * in serialized form) or as a simple object map.
+	 * By default, the solution set runs in managed memory.
+	 * 
+	 * @return True, if the solution set is in unmanaged memory, false otherwise.
+	 */
+	public boolean isSolutionSetUnmanagedMemory() {
+		return this.unmanagedSolutionSet;
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	//  Custom Operator behavior
 	// --------------------------------------------------------------------------------------------
@@ -290,6 +313,7 @@ public class VertexCentricIteration<VertexKey extends Comparable<VertexKey>, Ver
 			this.initialVertices.iterateDelta(this.initialVertices, this.maximumNumberOfIterations, zeroKeyPos);
 		iteration.name(name);
 		iteration.parallelism(parallelism);
+		iteration.setSolutionSetUnManaged(unmanagedSolutionSet);
 		
 		// register all aggregators
 		for (Map.Entry<String, Aggregator<?>> entry : this.aggregators.entrySet()) {

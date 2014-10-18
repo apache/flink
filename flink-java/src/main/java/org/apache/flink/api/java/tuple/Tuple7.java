@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -172,12 +172,12 @@ public class Tuple7<T0, T1, T2, T3, T4, T5, T6> extends Tuple {
 	@Override
 	public String toString() {
 		return "(" + StringUtils.arrayAwareToString(this.f0)
-			+ ", " + StringUtils.arrayAwareToString(this.f1)
-			+ ", " + StringUtils.arrayAwareToString(this.f2)
-			+ ", " + StringUtils.arrayAwareToString(this.f3)
-			+ ", " + StringUtils.arrayAwareToString(this.f4)
-			+ ", " + StringUtils.arrayAwareToString(this.f5)
-			+ ", " + StringUtils.arrayAwareToString(this.f6)
+			+ "," + StringUtils.arrayAwareToString(this.f1)
+			+ "," + StringUtils.arrayAwareToString(this.f2)
+			+ "," + StringUtils.arrayAwareToString(this.f3)
+			+ "," + StringUtils.arrayAwareToString(this.f4)
+			+ "," + StringUtils.arrayAwareToString(this.f5)
+			+ "," + StringUtils.arrayAwareToString(this.f6)
 			+ ")";
 	}
 
@@ -216,7 +216,7 @@ public class Tuple7<T0, T1, T2, T3, T4, T5, T6> extends Tuple {
 
 	/**
 	* Shallow tuple copy.
-	* @returns A new Tuple with the same fields as this.
+	* @return A new Tuple with the same fields as this.
 	 */
 	public Tuple7<T0,T1,T2,T3,T4,T5,T6> copy(){ 
 		return new Tuple7<T0,T1,T2,T3,T4,T5,T6>(this.f0,

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -32,6 +32,10 @@ public abstract class BasicTypeComparator<T extends Comparable<T>> extends TypeC
 	private transient T reference;
 	
 	protected final boolean ascendingComparison;
+
+	// For use by getComparators
+	@SuppressWarnings("rawtypes")
+	private final TypeComparator[] comparators = new TypeComparator[] {this};
 	
 
 	protected BasicTypeComparator(boolean ascending) {
@@ -78,6 +82,18 @@ public abstract class BasicTypeComparator<T extends Comparable<T>> extends TypeC
 	@Override
 	public void writeWithKeyNormalization(T record, DataOutputView target) throws IOException {
 		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public int extractKeys(Object record, Object[] target, int index) {
+		target[index] = record;
+		return 1;
+	}
+
+	@SuppressWarnings("rawtypes")
+	@Override
+	public TypeComparator[] getFlatComparators() {
+		return comparators;
 	}
 
 	@Override

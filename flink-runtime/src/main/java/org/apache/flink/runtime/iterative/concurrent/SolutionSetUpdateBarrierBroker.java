@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,12 +16,12 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.iterative.concurrent;
 
 /**
- * Broker to hand over {@link SolutionSetUpdateBarrier} from {@link IterationHeadPactTask} to
- * {@link IterationTailPactTask}.
+ * Broker to hand over {@link SolutionSetUpdateBarrier} from 
+ * {@link org.apache.flink.runtime.iterative.task.IterationHeadPactTask} to
+ * {@link org.apache.flink.runtime.iterative.task.IterationTailPactTask}.
  */
 public class SolutionSetUpdateBarrierBroker extends Broker<SolutionSetUpdateBarrier> {
 

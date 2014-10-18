@@ -20,24 +20,24 @@
 setlocal EnableDelayedExpansion
 
 SET bin=%~dp0
-SET NEPHELE_ROOT_DIR=%bin%..
-SET NEPHELE_LIB_DIR=%NEPHELE_ROOT_DIR%\lib
-SET NEPHELE_CONF_DIR=%NEPHELE_ROOT_DIR%\conf
-SET NEPHELE_LOG_DIR=%NEPHELE_ROOT_DIR%\log
+SET FLINK_ROOT_DIR=%bin%..
+SET FLINK_LIB_DIR=%FLINK_ROOT_DIR%\lib
+SET FLINK_CONF_DIR=%FLINK_ROOT_DIR%\conf
+SET FLINK_LOG_DIR=%FLINK_ROOT_DIR%\log
 
 SET JVM_ARGS=-Xms768m -Xmx768m
 
-SET NEPHELE_JM_CLASSPATH=%NEPHELE_LIB_DIR%\*
+SET FLINK_JM_CLASSPATH=%FLINK_LIB_DIR%\*
 
-SET logname=nephele-%username%-jobmanager-%computername%.log
-SET log=%NEPHELE_LOG_DIR%\%logname%
-SET outname=nephele-%username%-jobmanager-%computername%.out
-SET out=%NEPHELE_LOG_DIR%\%outname%
-SET log_setting=-Dlog.file=%log% -Dlog4j.configuration=file:%NEPHELE_CONF_DIR%/log4j.properties
+SET logname=flink-%username%-jobmanager-%computername%.log
+SET log=%FLINK_LOG_DIR%\%logname%
+SET outname=flink-%username%-jobmanager-%computername%.out
+SET out=%FLINK_LOG_DIR%\%outname%
+SET log_setting=-Dlog.file=%log% -Dlogback.configurationFile=file:%FLINK_CONF_DIR%/logback.xml -Dlog4j.configuration=file:%FLINK_CONF_DIR%/log4j.properties
 
 
 :: Log rotation (quick and dirty)
-CD %NEPHELE_LOG_DIR%
+CD %FLINK_LOG_DIR%
 for /l %%x in (5, -1, 1) do ( 
 SET /A y = %%x+1 
 RENAME "%logname%.%%x" "%logname%.!y!" 2> nul
@@ -57,6 +57,6 @@ if not defined FOUND (
 echo Starting Flink job manager. Webinterface by default on http://localhost:8081/.
 echo Don't close this batch window. Stop job manager by pressing Ctrl+C.
 
-java %JVM_ARGS% %log_setting% -cp %NEPHELE_JM_CLASSPATH% org.apache.flink.runtime.jobmanager.JobManager -executionMode local -configDir %NEPHELE_CONF_DIR%  > "%out%"  2>&1
+java %JVM_ARGS% %log_setting% -cp %FLINK_JM_CLASSPATH% org.apache.flink.runtime.jobmanager.JobManager -executionMode local -configDir %FLINK_CONF_DIR%  > "%out%"  2>&1
 
 endlocal

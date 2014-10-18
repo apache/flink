@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.api.function.source;
 
-import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.util.Collector;
 
 /**
@@ -30,7 +29,6 @@ public class GenSequenceFunction implements SourceFunction<Long> {
 
 	long from;
 	long to;
-	Tuple1<Long> outTuple = new Tuple1<Long>();
 
 	public GenSequenceFunction(long from, long to) {
 		this.from = from;

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -39,6 +39,17 @@ public final class ConfigConstants {
 	// -------------------------------- Runtime -------------------------------
 
 	/**
+	 * The config parameter defining the storage directory to be used by the blob server.
+	 */
+	public static final String BLOB_STORAGE_DIRECTORY_KEY = "blob.storage.directory";
+
+	/**
+	 * The config parameter defining the cleanup interval of the library cache manager.
+	 */
+	public static final String LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL = "library-cache-manager" +
+			".cleanup.interval";
+	
+	/**
 	 * The config parameter defining the network address to connect to
 	 * for communication with the job manager.
 	 */
@@ -55,6 +66,12 @@ public final class ConfigConstants {
 	 */
 	public static final String JOB_MANAGER_IPC_HANDLERS_KEY = "jobmanager.rpc.numhandler";
 
+	/**
+	 * The config parameter defining the number of seconds that a task manager heartbeat may be missing before it is
+	 * marked as failed.
+	 */
+	public static final String JOB_MANAGER_DEAD_TASKMANAGER_TIMEOUT_KEY = "jobmanager.max-heartbeat-delay-before-failure.sec";
+	
 	/**
 	 * The config parameter defining the task manager's IPC port from the configuration.
 	 */
@@ -117,9 +134,14 @@ public final class ConfigConstants {
 	public static final String TASK_MANAGER_NET_NUM_OUT_THREADS_KEY = "taskmanager.net.numOutThreads";
 
 	/**
-	 * The minimum time in ms a channel must be idle, before it will be closed.
+	 * The low water mark used in NettyConnectionManager for the Bootstrap.
 	 */
-	public static final String TASK_MANAGER_NET_CLOSE_AFTER_IDLE_FOR_MS_KEY = "taskmanager.net.closeAfterIdleForMs";
+	public static final String TASK_MANAGER_NET_NETTY_LOW_WATER_MARK = "taskmanager.net.nettyLowWaterMark";
+
+	/**
+	 * The high water mark used in NettyConnectionManager for the Bootstrap.
+	 */
+	public static final String TASK_MANAGER_NET_NETTY_HIGH_WATER_MARK = "taskmanager.net.nettyHighWaterMark";
 	
 	/**
 	 * Parameter for the interval in which the TaskManager sends the periodic heart beat messages
@@ -292,6 +314,11 @@ public final class ConfigConstants {
 	public static final int DEFAULT_PARALLELIZATION_DEGREE = 1;
 	
 	// ------------------------------ Runtime ---------------------------------
+
+	/**
+	 * The default library cache manager cleanup interval in seconds
+	 */
+	public static final long DEFAULT_LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL = 3600;
 	
 	/**
 	 * The default network port to connect to for communication with the job manager.
@@ -304,14 +331,22 @@ public final class ConfigConstants {
 	public static final int DEFAULT_JOB_MANAGER_IPC_HANDLERS = 8;
 	
 	/**
-	 * The default network port the task manager expects incoming IPC connections.
+	 * Default number of seconds after which a task manager is marked as failed.
 	 */
-	public static final int DEFAULT_TASK_MANAGER_IPC_PORT = 6122;
+	// 30 seconds (its enough to get to mars, should be enough to detect failure)
+	public static final int DEFAULT_JOB_MANAGER_DEAD_TASKMANAGER_TIMEOUT = 30;
+	
+	/**
+	 * The default network port the task manager expects incoming IPC connections. The {@code -1} means that
+	 * the TaskManager searches for a free port.
+	 */
+	public static final int DEFAULT_TASK_MANAGER_IPC_PORT = -1;
 
 	/**
-	 * The default network port the task manager expects to receive transfer envelopes on.
+	 * The default network port the task manager expects to receive transfer envelopes on. The {@code -1} means that
+	 * the TaskManager searches for a free port.
 	 */
-	public static final int DEFAULT_TASK_MANAGER_DATA_PORT = 6121;
+	public static final int DEFAULT_TASK_MANAGER_DATA_PORT = -1;
 
 	/**
 	 * The default directory for temporary files of the task manager.
@@ -353,14 +388,21 @@ public final class ConfigConstants {
 	public static final int DEFAULT_TASK_MANAGER_NET_NUM_OUT_THREADS = -1;
 
 	/**
-	 * The minimum time in ms a channel must be idle, before it will be closed.
+	 * Default low water mark used in NettyConnectionManager for the Bootstrap. If set to -1, NettyConnectionManager
+	 * will use half of the network buffer size as the low water mark.
 	 */
-	public static final int DEFAULT_TASK_MANAGER_NET_CLOSE_AFTER_IDLE_FOR_MS = 10000;
+	public static final int DEFAULT_TASK_MANAGER_NET_NETTY_LOW_WATER_MARK = -1;
 
 	/**
-	 * The default interval for TaskManager heart beats (2000 msecs).
+	 * Default high water mark used in NettyConnectionManager for the Bootstrap. If set to -1, NettyConnectionManager
+	 * will use the network buffer size as the high water mark.
 	 */
-	public static final int DEFAULT_TASK_MANAGER_HEARTBEAT_INTERVAL = 2000;
+	public static final int DEFAULT_TASK_MANAGER_NET_NETTY_HIGH_WATER_MARK = -1;
+
+	/**
+	 * The default interval for TaskManager heart beats (5000 msecs).
+	 */
+	public static final int DEFAULT_TASK_MANAGER_HEARTBEAT_INTERVAL = 5000;
 
 	/**
 	 * Flag indicating whether to start a thread, which repeatedly logs the memory usage of the JVM.

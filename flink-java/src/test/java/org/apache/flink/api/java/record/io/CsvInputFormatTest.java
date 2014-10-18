@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -33,7 +33,6 @@ import java.io.OutputStreamWriter;
 
 import org.junit.Assert;
 
-import org.apache.flink.api.java.record.io.CsvInputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.FileInputSplit;
@@ -41,11 +40,8 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.types.StringValue;
-import org.apache.flink.util.LogUtils;
-import org.apache.log4j.Level;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 public class CsvInputFormatTest {
@@ -60,12 +56,6 @@ public class CsvInputFormatTest {
 	private static final String SECOND_PART = "That is the second part";
 	
 	// --------------------------------------------------------------------------------------------
-
-	@BeforeClass
-	public static void initialize() {
-		LogUtils.initializeDefaultConsoleLogger(Level.WARN);
-	}
-	
 	@Before
 	public void setup() {
 		format.setFilePath("file:///some/file/that/will/not/be/read");

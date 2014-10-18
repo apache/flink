@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -17,15 +17,15 @@
 
 package org.apache.flink.streaming.connectors.twitter;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
-import org.apache.flink.streaming.examples.function.JSONParseFlatMap;
+import org.apache.flink.streaming.connectors.json.JSONParseFlatMap;
 import org.apache.flink.util.Collector;
 import org.apache.sling.commons.json.JSONException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class TwitterStreaming {
 
@@ -33,7 +33,7 @@ public class TwitterStreaming {
 	private static final int SOURCE_PARALLELISM = 1;
 	private static final int NUMBEROFTWEETS = 100;
 
-	private static final Log LOG = LogFactory.getLog(TwitterStreaming.class);
+	private static final Logger LOG = LoggerFactory.getLogger(TwitterStreaming.class);
 
 	public static class TwitterSink implements SinkFunction<Tuple5<Long, Integer, String, String, String>> {
 
@@ -72,7 +72,7 @@ public class TwitterStreaming {
 		}
 	}
 
-	public static void main(String[] args) {
+	public static void main(String[] args) throws Exception {
 
 		String path = new String();
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,8 +20,8 @@ package org.apache.flink.runtime.iterative.task;
 
 import java.io.IOException;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.runtime.io.network.api.BufferWriter;
 import org.apache.flink.runtime.io.network.channels.EndOfSuperstepEvent;
@@ -44,7 +44,7 @@ import org.apache.flink.util.Collector;
  */
 public class IterationIntermediatePactTask<S extends Function, OT> extends AbstractIterativePactTask<S, OT> {
 
-	private static final Log log = LogFactory.getLog(IterationIntermediatePactTask.class);
+	private static final Logger log = LoggerFactory.getLogger(IterationIntermediatePactTask.class);
 
 	private WorksetUpdateOutputCollector<OT> worksetUpdateOutputCollector;
 

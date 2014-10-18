@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -35,8 +35,6 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.flink.client.program.Client;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
@@ -45,6 +43,8 @@ import org.apache.flink.compiler.plan.OptimizedPlan;
 import org.apache.flink.compiler.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 public class JobSubmissionServlet extends HttpServlet {
@@ -74,7 +74,7 @@ public class JobSubmissionServlet extends HttpServlet {
 
 	private static final String SUSPEND_PARAM_NAME = "suspend";
 
-	private static final Log LOG = LogFactory.getLog(JobSubmissionServlet.class);
+	private static final Logger LOG = LoggerFactory.getLogger(JobSubmissionServlet.class);
 
 	// ------------------------------------------------------------------------
 
@@ -366,7 +366,7 @@ public class JobSubmissionServlet extends HttpServlet {
 
 		writer.println("<body>");
 		writer.println("  <div class=\"mainHeading\">");
-		writer.println("    <h1><img src=\"img/FlinkLogo.png\" width=\"326\" height=\"100\" alt=\"Flink Logo\" align=\"middle\"/>Flink Query Interface</h1>");
+		writer.println("    <h1><img src=\"img/flink-logo.png\" width=\"100\" height=\"100\" alt=\"Flink Logo\" align=\"middle\"/>Flink Web Submission Client</h1>");
 		writer.println("  </div>");
 		writer.println("  <div style=\"margin-top: 50px; text-align: center;\">");
 		writer.println("    <p class=\"error_text\" style=\"font-size: 18px;\">");

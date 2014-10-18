@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -36,10 +36,16 @@ import org.apache.flink.runtime.operators.DriverStrategy;
 /**
  * 
  */
-public class SortMergeJoinDescriptor extends AbstractJoinDescriptor
-{
+public class SortMergeJoinDescriptor extends AbstractJoinDescriptor {
+	
 	public SortMergeJoinDescriptor(FieldList keys1, FieldList keys2) {
 		super(keys1, keys2);
+	}
+	
+	public SortMergeJoinDescriptor(FieldList keys1, FieldList keys2,
+			boolean broadcastFirstAllowed, boolean broadcastSecondAllowed, boolean repartitionAllowed)
+	{
+		super(keys1, keys2, broadcastFirstAllowed, broadcastSecondAllowed, repartitionAllowed);
 	}
 
 	@Override

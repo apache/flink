@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,9 +23,9 @@ import java.util.List;
 
 import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
 import org.apache.flink.api.common.aggregators.LongSumAggregator;
-import org.apache.flink.api.java.functions.RichFlatMapFunction;
-import org.apache.flink.api.java.functions.RichGroupReduceFunction;
-import org.apache.flink.api.java.functions.RichJoinFunction;
+import org.apache.flink.api.common.functions.RichFlatMapFunction;
+import org.apache.flink.api.common.functions.RichGroupReduceFunction;
+import org.apache.flink.api.common.functions.RichJoinFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.JavaProgramTestBase;
@@ -33,7 +33,7 @@ import org.apache.flink.types.LongValue;
 import org.apache.flink.util.Collector;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.IterativeDataSet;
+import org.apache.flink.api.java.operators.IterativeDataSet;
 
 
 /**
@@ -54,6 +54,7 @@ public class ConnectedComponentsWithParametrizableConvergenceITCase extends Java
 	@Override
 	protected void preSubmit() throws Exception {
 		// vertices input
+		verticesInput.clear();
 		verticesInput.add(new Tuple2<Long, Long>(1l,1l));
 		verticesInput.add(new Tuple2<Long, Long>(2l,2l));
 		verticesInput.add(new Tuple2<Long, Long>(3l,3l));
@@ -65,6 +66,7 @@ public class ConnectedComponentsWithParametrizableConvergenceITCase extends Java
 		verticesInput.add(new Tuple2<Long, Long>(9l,9l));
 
 		// vertices input
+		edgesInput.clear();
 		edgesInput.add(new Tuple2<Long, Long>(1l,2l));
 		edgesInput.add(new Tuple2<Long, Long>(1l,3l));
 		edgesInput.add(new Tuple2<Long, Long>(2l,3l));
@@ -86,8 +88,8 @@ public class ConnectedComponentsWithParametrizableConvergenceITCase extends Java
 
 		resultPath = getTempDirPath("result");
 
-		expectedResult = "(1, 1)\n" + "(2, 1)\n" + "(3, 1)\n" + "(4, 1)\n" +
-						"(5, 2)\n" + "(6, 1)\n" + "(7, 7)\n" + "(8, 7)\n" + "(9, 7)\n";
+		expectedResult = "(1,1)\n" + "(2,1)\n" + "(3,1)\n" + "(4,1)\n" +
+						"(5,2)\n" + "(6,1)\n" + "(7,7)\n" + "(8,7)\n" + "(9,7)\n";
 	}
 
 	@Override

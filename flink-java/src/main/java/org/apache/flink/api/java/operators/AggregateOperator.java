@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -29,17 +29,16 @@ import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.aggregation.AggregationFunction;
 import org.apache.flink.api.java.aggregation.AggregationFunctionFactory;
 import org.apache.flink.api.java.aggregation.Aggregations;
-import org.apache.flink.api.java.functions.RichGroupReduceFunction;
-import org.apache.flink.api.java.functions.RichGroupReduceFunction.Combinable;
+import org.apache.flink.api.common.functions.RichGroupReduceFunction;
+import org.apache.flink.api.common.functions.RichGroupReduceFunction.Combinable;
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
-
-import org.apache.flink.api.java.DataSet;
 
 /**
  * This operator represents the application of a "aggregate" operation on a data set, and the
@@ -68,7 +67,7 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 			throw new InvalidProgramException("Aggregating on field positions is only possible on tuple data types.");
 		}
 		
-		TupleTypeInfo<?> inType = (TupleTypeInfo<?>) input.getType();
+		TupleTypeInfoBase<?> inType = (TupleTypeInfoBase<?>) input.getType();
 		
 		if (field < 0 || field >= inType.getArity()) {
 			throw new IllegalArgumentException("Aggregation field position is out of range.");
@@ -100,7 +99,7 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 			throw new InvalidProgramException("Aggregating on field positions is only possible on tuple data types.");
 		}
 		
-		TupleTypeInfo<?> inType = (TupleTypeInfo<?>) input.getDataSet().getType();
+		TupleTypeInfoBase<?> inType = (TupleTypeInfoBase<?>) input.getDataSet().getType();
 		
 		if (field < 0 || field >= inType.getArity()) {
 			throw new IllegalArgumentException("Aggregation field position is out of range.");
@@ -119,7 +118,7 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 	public AggregateOperator<IN> and(Aggregations function, int field) {
 		Validate.notNull(function);
 		
-		TupleTypeInfo<?> inType = (TupleTypeInfo<?>) getType();
+		TupleTypeInfoBase<?> inType = (TupleTypeInfoBase<?>) getType();
 		
 		if (field < 0 || field >= inType.getArity()) {
 			throw new IllegalArgumentException("Aggregation field position is out of range.");
@@ -196,7 +195,7 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 			return po;
 		}
 		
-		if (this.grouping.getKeys() instanceof Keys.FieldPositionKeys) {
+		if (this.grouping.getKeys() instanceof Keys.ExpressionKeys) {
 			// grouped aggregation
 			int[] logicalKeyPositions = this.grouping.getKeys().computeLogicalKeyPositions();
 			UnaryOperatorInformation<IN, IN> operatorInfo = new UnaryOperatorInformation<IN, IN>(getInputType(), getResultType());
@@ -283,8 +282,8 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 				current = values.next();
 				
 				for (int i = 0; i < fieldPositions.length; i++) {
-					Object val = current.getField(fieldPositions[i]);
-					aggFunctions[i].aggregate(val);
+						Object val = current.getFieldNotNull(fieldPositions[i]);
+						aggFunctions[i].aggregate(val);
 				}
 			}
 			

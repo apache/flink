@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,8 +21,8 @@ package org.apache.flink.test.operators.io;
 
 import java.io.IOException;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.java.record.io.DelimitedInputFormat;
 import org.apache.flink.api.java.record.io.FileOutputFormat;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
@@ -32,7 +32,7 @@ import org.apache.flink.types.StringValue;
 
 public class ContractITCaseIOFormats {
 
-	private static final Log LOG = LogFactory.getLog(ContractITCaseIOFormats.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ContractITCaseIOFormats.class);
 	
 	public static class ContractITCaseInputFormat extends DelimitedInputFormat {
 		private static final long serialVersionUID = 1L;

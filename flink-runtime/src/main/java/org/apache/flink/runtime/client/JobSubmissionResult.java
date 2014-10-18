@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,13 +16,7 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.client;
-
-import java.io.IOException;
-
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
 
 /**
  * A <code>JobSubmissionResult</code> is used to report the results
@@ -53,17 +47,4 @@ public class JobSubmissionResult extends AbstractJobResult {
 	public JobSubmissionResult() {
 		super();
 	}
-
-
-	@Override
-	public void read(final DataInputView in) throws IOException {
-		super.read(in);
-	}
-
-
-	@Override
-	public void write(final DataOutputView out) throws IOException {
-		super.write(out);
-	}
-
 }

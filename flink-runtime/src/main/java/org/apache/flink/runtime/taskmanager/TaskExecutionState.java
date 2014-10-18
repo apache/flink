@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,68 +16,76 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.taskmanager;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 
 import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.core.io.StringRecord;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.ExecutionVertexID;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobID;
-import org.apache.flink.runtime.util.EnumUtils;
 
 /**
- * This class can be used to propagate updates about a task's execution state from the
- * task manager to the job manager.
- * 
+ * This class represents an update about a task's execution state.
  */
-public class TaskExecutionState implements IOReadableWritable {
+public class TaskExecutionState implements IOReadableWritable , java.io.Serializable {
 
-	private JobID jobID = null;
+	private static final long serialVersionUID = 1L;
 
-	private ExecutionVertexID executionVertexID = null;
+	private JobID jobID;
 
-	private ExecutionState executionState = null;
+	private ExecutionAttemptID executionId;
 
-	private String description = null;
+	private ExecutionState executionState;
 
+	private Throwable error;
+
+	
+	public TaskExecutionState(JobID jobID, ExecutionAttemptID executionId, ExecutionState executionState) {
+		this(jobID, executionId, executionState, null);
+	}
+	
 	/**
 	 * Creates a new task execution state.
 	 * 
 	 * @param jobID
 	 *        the ID of the job the task belongs to
-	 * @param id
-	 *        the ID of the task whose state is to be reported
+	 * @param executionId
+	 *        the ID of the task execution whose state is to be reported
 	 * @param executionState
 	 *        the execution state to be reported
-	 * @param description
-	 *        an optional description
+	 * @param error
+	 *        an optional error
 	 */
-	public TaskExecutionState(final JobID jobID, final ExecutionVertexID id, final ExecutionState executionState,
-			final String description) {
+	public TaskExecutionState(JobID jobID, ExecutionAttemptID executionId, ExecutionState executionState, Throwable error) {
+		if (jobID == null || executionId == null || executionState == null) {
+			throw new NullPointerException();
+		}
+		
 		this.jobID = jobID;
-		this.executionVertexID = id;
+		this.executionId = executionId;
 		this.executionState = executionState;
-		this.description = description;
+		this.error = error;
 	}
 
 	/**
 	 * Creates an empty task execution state.
 	 */
 	public TaskExecutionState() {
+		this.jobID = new JobID();
+		this.executionId = new ExecutionAttemptID();
 	}
 
-	/**
-	 * Returns the description of this task execution state.
-	 * 
-	 * @return the description of this task execution state or <code>null</code> if there is no description available
-	 */
-	public String getDescription() {
-		return this.description;
+	// --------------------------------------------------------------------------------------------
+	
+	public Throwable getError() {
+		return this.error;
 	}
 
 	/**
@@ -85,8 +93,8 @@ public class TaskExecutionState implements IOReadableWritable {
 	 * 
 	 * @return the ID of the task this result belongs to
 	 */
-	public ExecutionVertexID getID() {
-		return this.executionVertexID;
+	public ExecutionAttemptID getID() {
+		return this.executionId;
 	}
 
 	/**
@@ -107,61 +115,83 @@ public class TaskExecutionState implements IOReadableWritable {
 		return this.jobID;
 	}
 
+	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public void read(final DataInputView in) throws IOException {
+	public void read(DataInputView in) throws IOException {
+		this.jobID.read(in);
+		this.executionId.read(in);
+		this.executionState = ExecutionState.values()[in.readInt()];
 
-		boolean isNotNull = in.readBoolean();
-
-		if (isNotNull) {
-			this.jobID = new JobID();
-			this.jobID.read(in);
-		} else {
-			this.jobID = null;
+		// read the exception
+		int errorDataLen = in.readInt();
+		if (errorDataLen > 0) {
+			byte[] data = new byte[errorDataLen];
+			in.readFully(data);
+			try {
+				ByteArrayInputStream bis = new ByteArrayInputStream(data);
+				ObjectInputStream ois = new ObjectInputStream(bis);
+				this.error = (Throwable) ois.readObject();
+				ois.close();
+			} catch (Throwable t) {
+				this.error = new Exception("An error occurred, but the exception could not be transfered through the RPC");
+			}
 		}
-
-		isNotNull = in.readBoolean();
-
-		// Read the execution vertex ID
-		if (isNotNull) {
-			this.executionVertexID = new ExecutionVertexID();
-			this.executionVertexID.read(in);
-		} else {
-			this.executionVertexID = null;
+		else {
+			this.error = null;
 		}
-
-		// Read execution state
-		this.executionState = EnumUtils.readEnum(in, ExecutionState.class);
-
-		// Read description
-		this.description = StringRecord.readString(in);
 	}
-
 
 	@Override
-	public void write(final DataOutputView out) throws IOException {
+	public void write(DataOutputView out) throws IOException {
+		this.jobID.write(out);
+		this.executionId.write(out);
+		out.writeInt(this.executionState.ordinal());
 
-		if (this.jobID == null) {
-			out.writeBoolean(false);
-		} else {
-			out.writeBoolean(true);
-			this.jobID.write(out);
+		// transfer the exception
+		if (this.error != null) {
+			ByteArrayOutputStream baos = new ByteArrayOutputStream();
+			ObjectOutputStream oos = new ObjectOutputStream(baos);
+			oos.writeObject(error);
+			oos.flush();
+			oos.close();
+			
+			byte[] data = baos.toByteArray();
+			out.writeInt(data.length);
+			out.write(data);
 		}
-
-		// Write the execution vertex ID
-		if (this.executionVertexID == null) {
-			out.writeBoolean(false);
-		} else {
-			out.writeBoolean(true);
-			this.executionVertexID.write(out);
+		else {
+			out.writeInt(0);
 		}
-
-		// Write execution state
-		EnumUtils.writeEnum(out, this.executionState);
-
-		// Write description
-		StringRecord.writeString(out, this.description);
-
 	}
+	
+	// --------------------------------------------------------------------------------------------
 
+	@Override
+	public boolean equals(Object obj) {
+		if (obj instanceof TaskExecutionState) {
+			TaskExecutionState other = (TaskExecutionState) obj;
+			return other.jobID.equals(this.jobID) &&
+					other.executionId.equals(this.executionId) &&
+					other.executionState == this.executionState &&
+					(other.error == null ? this.error == null :
+						(this.error != null && other.error.getClass() == this.error.getClass()));
+			
+			// NOTE: exception equality does not work, so we can only check for same error class
+		}
+		else {
+			return false;
+		}
+	}
+	
+	@Override
+	public int hashCode() {
+		return jobID.hashCode() + executionId.hashCode() + executionState.ordinal();
+	}
+	
+	@Override
+	public String toString() {
+		return String.format("TaskState jobId=%s, executionId=%s, state=%s, error=%s", 
+				jobID, executionId, executionState, error == null ? "(null)" : error.getClass().getName() + ": " + error.getMessage());
+	}
 }

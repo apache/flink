@@ -18,43 +18,45 @@ This example is using the `HadoopInputFormat` wrapper to use an existing Hadoop 
 1. Download and compile the `azure-tables-hadoop` project. The input format developed by the project is not yet available in Maven Central, therefore, we have to build the project ourselves.
 Execute the following commands:
 
-    ```bash
-    git clone https://github.com/mooso/azure-tables-hadoop.git
-    cd azure-tables-hadoop
-    mvn clean install
-    ```
+   ~~~bash
+   git clone https://github.com/mooso/azure-tables-hadoop.git
+   cd azure-tables-hadoop
+   mvn clean install
+   ~~~
 
 2. Setup a new Flink project using the quickstarts:
 
-    ```bash
-    curl https://raw.githubusercontent.com/apache/incubator-flink/master/flink-quickstart/quickstart.sh | bash
-    ```
+   ~~~bash
+   curl https://raw.githubusercontent.com/apache/incubator-flink/master/flink-quickstart/quickstart.sh | bash
+   ~~~
 
 3. Set the the version of Flink to `{{site.FLINK_VERSION_HADOOP_2_STABLE}}` in the `pom.xml` file. The quickstart.sh script sets the version to the `hadoop1` version of Flink. Since the `microsoft-hadoop-azure` has been written for Hadoop 2.2 (mapreduce-API) version, we need to use the appropriate Flink version. 
 
     Replace all occurences of `<version>{{site.FLINK_VERSION_STABLE}}</version>` with `<version>{{site.FLINK_VERSION_HADOOP_2_STABLE}}</version>`.
 4. Add the following dependencies (in the `<dependencies>` section) to your `pom.xml` file:
 
-    ```xml
-    <dependency>
-    	<groupId>org.apache.flink</groupId>
-    	<artifactId>flink-hadoop-compatibility</artifactId>
-    	<version>{{site.FLINK_VERSION_HADOOP_2_STABLE}}</version>
-    </dependency>
-    <dependency>
-      <groupId>com.microsoft.hadoop</groupId>
-      <artifactId>microsoft-hadoop-azure</artifactId>
-      <version>0.0.4</version>
-    </dependency>
-    ```
-    - `flink-hadoop-compatibility` is a Flink package that provides the Hadoop input format wrappers.
-    - `microsoft-hadoop-azure` is adding the project we've build before to our project.
+   ~~~xml
+   <dependency>
+       <groupId>org.apache.flink</groupId>
+       <artifactId>flink-hadoop-compatibility</artifactId>
+       <version>{{site.FLINK_VERSION_HADOOP_2_STABLE}}</version>
+   </dependency>
+   <dependency>
+     <groupId>com.microsoft.hadoop</groupId>
+     <artifactId>microsoft-hadoop-azure</artifactId>
+     <version>0.0.4</version>
+   </dependency>
+   ~~~
+
+   `flink-hadoop-compatibility` is a Flink package that provides the Hadoop input format wrappers.
+   `microsoft-hadoop-azure` is adding the project we've build before to our project.
 
 The project is now prepared for starting to code. We recommend to import the project into an IDE, such as Eclipse or IntelliJ. (Import as a Maven project!).
 Browse to the code of the `Job.java` file. Its an empty skeleton for a Flink job.
 
 Paste the following code into it:
-```java
+
+~~~java
 import java.util.Map;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
@@ -107,7 +109,8 @@ public class AzureTableExample {
     env.execute("Azure Example");
   }
 }
-```
+~~~
+
 The example shows how to access an Azure table and turn data into Flink's `DataSet` (more specifically, the type of the set is `DataSet<Tuple2<Text, WritableEntity>>`). With the `DataSet`, you can apply all known transformations to the DataSet.
 
 ## Access MongoDB

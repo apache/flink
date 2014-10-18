@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,8 +19,8 @@
 
 package org.apache.flink.runtime.operators;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -40,7 +40,7 @@ import org.apache.flink.util.MutableObjectIterator;
  */
 public class ReduceDriver<T> implements PactDriver<ReduceFunction<T>, T> {
 	
-	private static final Log LOG = LogFactory.getLog(ReduceDriver.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ReduceDriver.class);
 
 	private PactTaskContext<ReduceFunction<T>, T> taskContext;
 	
@@ -73,8 +73,8 @@ public class ReduceDriver<T> implements PactDriver<ReduceFunction<T>, T> {
 	}
 
 	@Override
-	public boolean requiresComparatorOnInput() {
-		return true;
+	public int getNumberOfDriverComparators() {
+		return 1;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -86,7 +86,7 @@ public class ReduceDriver<T> implements PactDriver<ReduceFunction<T>, T> {
 			throw new Exception("Unrecognized driver strategy for Reduce driver: " + config.getDriverStrategy().name());
 		}
 		this.serializer = this.taskContext.<T>getInputSerializer(0).getSerializer();
-		this.comparator = this.taskContext.getInputComparator(0);
+		this.comparator = this.taskContext.getDriverComparator(0);
 		this.input = this.taskContext.getInput(0);
 	}
 

@@ -1,10 +1,22 @@
 # s3 deployment based on http://about.travis-ci.org/blog/2012-12-18-travis-artifacts/
 
 language: java
-jdk:
-  - oraclejdk8
-  - oraclejdk7
-  - openjdk6
+
+
+#See https://issues.apache.org/jira/browse/FLINK-1072
+matrix:
+  include:
+    - jdk: "openjdk6"
+      env: PROFILE=
+    - jdk: "oraclejdk7"
+      env: PROFILE=
+    - jdk: "openjdk6"
+      env: PROFILE="-P!include-yarn -Dhadoop.profile=2 -Dhadoop.version=2.0.0-alpha"
+    - jdk: "oraclejdk7"
+      env: PROFILE="-Dhadoop.profile=2 -Dhadoop.version=2.2.0"
+    - jdk: "oraclejdk8"
+      env: PROFILE="-Dhadoop.profile=2 -Dhadoop.version=2.5.0"
+
 
 git:
   depth: 10
@@ -27,9 +39,6 @@ env:
         - secure: "SNZkMm++fvPbjdreibc4j/XTKy7rOvGvjbvJJLQ01fVDR8ur1FGB5L/CE9tm2Aye75G8br+tJ+gf5cMX8CHL+0VrvuTk5U6flbuM08Pd0pmP64ZncmGfRFKC5qTvt24YR0u3cqxWze8RTkdduz0t8xrEdyCtb94CHs1+RNS+0HA="
         # javadocs deploy
         - secure: "f4wACodae0NCaIZtmg/JvP40G/3dE7O6+ONDMbq8P/9dnT5peRB1q7+KZxggRmFSWTMPdPIDI7YxI/rM5wZ3pUN2eX0BpjfANT58OJdgCNXN3Hr9YOa8UykD2h6b+AHpy4G89MG65m73RvNXngHTCQ8SBIfewzeMAhHdD3Fk0u8="
-    matrix:
-        - PROFILE=
-        - PROFILE="-Dhadoop.profile=2"
 
 before_script:
    - "gem install --no-document --version 0.8.9 faraday "

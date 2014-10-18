@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,7 +24,7 @@ import java.util.Collection;
 import java.util.LinkedList;
 
 import org.apache.flink.api.common.functions.CrossFunction;
-import org.apache.flink.api.java.functions.RichCrossFunction;
+import org.apache.flink.api.common.functions.RichCrossFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
@@ -327,15 +327,15 @@ public class CrossITCase extends JavaProgramTestBase {
 				env.execute();
 				
 				// return expected result
-				return "(1, 1, Hi),(2, 2, 1, Hallo Welt, 2)\n" +
-						"(1, 1, Hi),(1, 1, 0, Hallo, 1)\n" +
-						"(1, 1, Hi),(2, 3, 2, Hallo Welt wie, 1)\n" +
-						"(2, 2, Hello),(2, 2, 1, Hallo Welt, 2)\n" +
-						"(2, 2, Hello),(1, 1, 0, Hallo, 1)\n" +
-						"(2, 2, Hello),(2, 3, 2, Hallo Welt wie, 1)\n" +
-						"(3, 2, Hello world),(2, 2, 1, Hallo Welt, 2)\n" +
-						"(3, 2, Hello world),(1, 1, 0, Hallo, 1)\n" +
-						"(3, 2, Hello world),(2, 3, 2, Hallo Welt wie, 1)\n";
+				return "(1,1,Hi),(2,2,1,Hallo Welt,2)\n" +
+						"(1,1,Hi),(1,1,0,Hallo,1)\n" +
+						"(1,1,Hi),(2,3,2,Hallo Welt wie,1)\n" +
+						"(2,2,Hello),(2,2,1,Hallo Welt,2)\n" +
+						"(2,2,Hello),(1,1,0,Hallo,1)\n" +
+						"(2,2,Hello),(2,3,2,Hallo Welt wie,1)\n" +
+						"(3,2,Hello world),(2,2,1,Hallo Welt,2)\n" +
+						"(3,2,Hello world),(1,1,0,Hallo,1)\n" +
+						"(3,2,Hello world),(2,3,2,Hallo Welt wie,1)\n";
 				
 			}
 

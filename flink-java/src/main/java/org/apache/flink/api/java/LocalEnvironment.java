@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,9 +22,6 @@ import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.PlanExecutor;
-import org.apache.flink.util.LogUtils;
-import org.apache.log4j.Level;
-
 
 /**
  * An {@link ExecutionEnvironment} that runs the program locally, multi-threaded, in the JVM where the
@@ -35,9 +32,6 @@ import org.apache.log4j.Level;
  * machine.
  */
 public class LocalEnvironment extends ExecutionEnvironment {
-	
-	private boolean logging = false;
-
 	/**
 	 * Creates a new local environment.
 	 */
@@ -54,7 +48,6 @@ public class LocalEnvironment extends ExecutionEnvironment {
 		Plan p = createProgramPlan(jobName);
 		
 		PlanExecutor executor = PlanExecutor.createLocalExecutor();
-		initLogging();
 		return executor.executePlan(p);
 	}
 	
@@ -63,41 +56,8 @@ public class LocalEnvironment extends ExecutionEnvironment {
 		Plan p = createProgramPlan();
 		
 		PlanExecutor executor = PlanExecutor.createLocalExecutor();
-		initLogging();
 		return executor.getOptimizerPlanAsJSON(p);
 	}
-	
-	// --------------------------------------------------------------------------------------------
-	
-	/**
-	 * Causes the local environment to print INFO level log messages to the standard error output.
-	 */
-	public void enableLogging() {
-		this.logging = true;
-	}
-	
-	/**
-	 * Completely disables logging during the execution of programs in the local environment.
-	 */
-	public void disableLogging() {
-		this.logging = false;
-	}
-
-	/**
-	 * Checks whether logging during the program execution is enabled or disabled.
-	 * <p>
-	 * By default, logging is turned off.
-	 * 
-	 * @return True, if logging is enabled, false otherwise.
-	 */
-	public boolean isLoggingEnabled() {
-		return this.logging;
-	}
-	
-	private void initLogging() {
-		LogUtils.initializeDefaultConsoleLogger(logging ? Level.INFO : Level.OFF);
-	}
-
 	// --------------------------------------------------------------------------------------------
 	
 	@Override

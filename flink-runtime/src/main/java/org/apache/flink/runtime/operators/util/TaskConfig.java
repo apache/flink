@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -76,6 +76,8 @@ public class TaskConfig {
 	private static final String DRIVER_COMPARATOR_PARAMETERS_PREFIX = "driver.comp.params.";
 	
 	private static final String DRIVER_PAIR_COMPARATOR_FACTORY = "driver.paircomp";
+	
+	private static final String DRIVER_MUTABLE_OBJECT_MODE = "diver.mutableobjects";
 
 	// -------------------------------------- Inputs ----------------------------------------------
 
@@ -212,6 +214,8 @@ public class TaskConfig {
 	private static final String ITERATION_SOLUTION_SET_UPDATE_WAIT = "iterative.ss-wait";
 
 	private static final String ITERATION_WORKSET_UPDATE = "iterative.ws-update";
+	
+	private static final String SOLUTION_SET_OBJECTS = "itertive.ss.obj";
 
 	// ---------------------------------- Miscellaneous -------------------------------------------
 	
@@ -333,6 +337,14 @@ public class TaskConfig {
 		} else {
 			return DriverStrategy.values()[ls];
 		}
+	}
+	
+	public void setMutableObjectMode(boolean mode) {
+		this.config.setBoolean(DRIVER_MUTABLE_OBJECT_MODE, mode);
+	}
+	
+	public boolean getMutableObjectMode() {
+		return this.config.getBoolean(DRIVER_MUTABLE_OBJECT_MODE, true);
 	}
 	
 	public void setDriverComparator(TypeComparatorFactory<?> factory, int inputNum) {
@@ -904,7 +916,7 @@ public class TaskConfig {
 	}
 	
 	@SuppressWarnings("unchecked")
-	public Collection<AggregatorWithName<?>> getIterationAggregators() {
+	public Collection<AggregatorWithName<?>> getIterationAggregators(ClassLoader cl) {
 		final int numAggs = this.config.getInteger(ITERATION_NUM_AGGREGATORS, 0);
 		if (numAggs == 0) {
 			return Collections.emptyList();
@@ -915,7 +927,7 @@ public class TaskConfig {
 			Aggregator<Value> aggObj;
 			try {
 				aggObj = (Aggregator<Value>) InstantiationUtil.readObjectFromConfig(
-						this.config, ITERATION_AGGREGATOR_PREFIX + i, getConfiguration().getClassLoader());
+						this.config, ITERATION_AGGREGATOR_PREFIX + i, cl);
 			} catch (IOException e) {
 					throw new RuntimeException("Error while reading the aggregator object from the task configuration.");
 			} catch (ClassNotFoundException e) {
@@ -944,11 +956,11 @@ public class TaskConfig {
 	}
 
 	@SuppressWarnings("unchecked")
-	public <T extends Value> ConvergenceCriterion<T> getConvergenceCriterion() {
+	public <T extends Value> ConvergenceCriterion<T> getConvergenceCriterion(ClassLoader cl) {
 		ConvergenceCriterion<T> convCriterionObj = null;
 		try {
 			convCriterionObj = (ConvergenceCriterion<T>) InstantiationUtil.readObjectFromConfig(
-			this.config, ITERATION_CONVERGENCE_CRITERION, getConfiguration().getClassLoader());
+			this.config, ITERATION_CONVERGENCE_CRITERION, cl);
 		} catch (IOException e) {
 			throw new RuntimeException("Error while reading the covergence criterion object from the task configuration.");
 		} catch (ClassNotFoundException e) {
@@ -962,7 +974,7 @@ public class TaskConfig {
 	}
 
 	public boolean usesConvergenceCriterion() {
-		return config.getString(ITERATION_CONVERGENCE_CRITERION, null) != null;
+		return config.getBytes(ITERATION_CONVERGENCE_CRITERION, null) != null;
 	}
 	
 	public String getConvergenceCriterionAggregatorName() {
@@ -1103,6 +1115,14 @@ public class TaskConfig {
 		return factory;
 	}
 	
+	public void setSolutionSetUnmanaged(boolean unmanaged) {
+		config.setBoolean(SOLUTION_SET_OBJECTS, unmanaged);
+	}
+	
+	public boolean isSolutionSetUnmanaged() {
+		return config.getBoolean(SOLUTION_SET_OBJECTS, false);
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	//                          Utility class for nested Configurations
 	// --------------------------------------------------------------------------------------------
@@ -1154,18 +1174,8 @@ public class TaskConfig {
 		}
 
 		@Override
-		public <T> Class<T> getClass(String key, Class<? extends T> defaultValue, Class<? super T> ancestor) {
-			return this.backingConfig.getClass(this.prefix + key, defaultValue, ancestor);
-		}
-
-		@Override
-		public ClassLoader getClassLoader() {
-			return this.backingConfig.getClassLoader();
-		}
-
-		@Override
-		public Class<?> getClass(String key, Class<?> defaultValue) {
-			return this.backingConfig.getClass(this.prefix + key, defaultValue);
+		public <T> Class<T> getClass(String key, Class<? extends T> defaultValue, ClassLoader classLoader) throws ClassNotFoundException {
+			return this.backingConfig.getClass(this.prefix + key, defaultValue, classLoader);
 		}
 
 		@Override
@@ -1246,11 +1256,6 @@ public class TaskConfig {
 		@Override
 		public String toString() {
 			return backingConfig.toString();
-		}
-		
-		@Override
-		public void setClassLoader(ClassLoader classLoader) {
-			backingConfig.setClassLoader(classLoader);
 		}
 		
 		@Override

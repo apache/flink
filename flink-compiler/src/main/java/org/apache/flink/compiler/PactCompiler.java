@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,10 +28,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.common.operators.GenericDataSinkBase;
+import org.apache.flink.api.common.operators.GenericDataSourceBase;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.Union;
 import org.apache.flink.api.common.operators.base.BulkIterationBase;
@@ -40,12 +42,11 @@ import org.apache.flink.api.common.operators.base.CrossOperatorBase;
 import org.apache.flink.api.common.operators.base.DeltaIterationBase;
 import org.apache.flink.api.common.operators.base.FilterOperatorBase;
 import org.apache.flink.api.common.operators.base.FlatMapOperatorBase;
-import org.apache.flink.api.common.operators.base.GenericDataSinkBase;
-import org.apache.flink.api.common.operators.base.GenericDataSourceBase;
 import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase;
 import org.apache.flink.api.common.operators.base.MapOperatorBase;
 import org.apache.flink.api.common.operators.base.MapPartitionOperatorBase;
+import org.apache.flink.api.common.operators.base.PartitionOperatorBase;
 import org.apache.flink.api.common.operators.base.ReduceOperatorBase;
 import org.apache.flink.api.common.operators.base.BulkIterationBase.PartialSolutionPlaceHolder;
 import org.apache.flink.api.common.operators.base.DeltaIterationBase.SolutionSetPlaceHolder;
@@ -69,6 +70,7 @@ import org.apache.flink.compiler.dag.MapPartitionNode;
 import org.apache.flink.compiler.dag.MatchNode;
 import org.apache.flink.compiler.dag.OptimizerNode;
 import org.apache.flink.compiler.dag.PactConnection;
+import org.apache.flink.compiler.dag.PartitionNode;
 import org.apache.flink.compiler.dag.ReduceNode;
 import org.apache.flink.compiler.dag.SinkJoiner;
 import org.apache.flink.compiler.dag.SolutionSetNode;
@@ -92,7 +94,6 @@ import org.apache.flink.compiler.plan.WorksetIterationPlanNode;
 import org.apache.flink.compiler.plan.WorksetPlanNode;
 import org.apache.flink.compiler.postpass.OptimizerPostPass;
 import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
@@ -321,7 +322,7 @@ public class PactCompiler {
 	/**
 	 * The log handle that is used by the compiler to log messages.
 	 */
-	public static final Log LOG = LogFactory.getLog(PactCompiler.class);
+	public static final Logger LOG = LoggerFactory.getLogger(PactCompiler.class);
 
 	// ------------------------------------------------------------------------
 	// Members
@@ -408,11 +409,15 @@ public class PactCompiler {
 		this.statistics = stats;
 		this.costEstimator = estimator;
 
-		Configuration config = GlobalConfiguration.getConfiguration();
-
 		// determine the default parallelization degree
-		this.defaultDegreeOfParallelism = config.getInteger(ConfigConstants.DEFAULT_PARALLELIZATION_DEGREE_KEY,
+		this.defaultDegreeOfParallelism = GlobalConfiguration.getInteger(ConfigConstants.DEFAULT_PARALLELIZATION_DEGREE_KEY,
 			ConfigConstants.DEFAULT_PARALLELIZATION_DEGREE);
+		
+		if (defaultDegreeOfParallelism < 1) {
+			LOG.warn("Config value " + defaultDegreeOfParallelism + " for option "
+					+ ConfigConstants.DEFAULT_PARALLELIZATION_DEGREE + " is invalid. Ignoring and using a value of 1.");
+			this.defaultDegreeOfParallelism = 1;
+		}
 	}
 	
 	// ------------------------------------------------------------------------
@@ -708,6 +713,9 @@ public class PactCompiler {
 			else if (c instanceof Union){
 				n = new BinaryUnionNode((Union<?>) c);
 			}
+			else if (c instanceof PartitionOperatorBase) {
+				n = new PartitionNode((PartitionOperatorBase<?>) c);
+			}
 			else if (c instanceof PartialSolutionPlaceHolder) {
 				if (this.parent == null) {
 					throw new InvalidProgramException("It is currently not supported to create data sinks inside iterations.");
@@ -847,18 +855,20 @@ public class PactCompiler {
 				// and the solution set. If it does depend on both, this descend should create both nodes
 				iter.getSolutionSetDelta().accept(recursiveCreator);
 				
-				final SolutionSetNode solutionSetNode = (SolutionSetNode) recursiveCreator.con2node.get(iter.getSolutionSet());
 				final WorksetNode worksetNode = (WorksetNode) recursiveCreator.con2node.get(iter.getWorkset());
 				
 				if (worksetNode == null) {
-					throw new CompilerException("In the given plan, the solution set delta does not depend on the workset. This is a prerequisite in workset iterations.");
+					throw new CompilerException("In the given plan, the solution set delta does not depend on the workset. This is a prerequisite in delta iterations.");
 				}
 				
 				iter.getNextWorkset().accept(recursiveCreator);
 				
+				SolutionSetNode solutionSetNode = (SolutionSetNode) recursiveCreator.con2node.get(iter.getSolutionSet());
+				
 				if (solutionSetNode == null || solutionSetNode.getOutgoingConnections() == null || solutionSetNode.getOutgoingConnections().isEmpty()) {
-					throw new CompilerException("Error: The step function does not reference the solution set.");
-				} else {
+					solutionSetNode = new SolutionSetNode((SolutionSetPlaceHolder<?>) iter.getSolutionSet(), iterNode);
+				}
+				else {
 					for (PactConnection conn : solutionSetNode.getOutgoingConnections()) {
 						OptimizerNode successor = conn.getTarget();
 					
@@ -1032,7 +1042,7 @@ public class PactCompiler {
 
 			node.computeUnclosedBranchStack();
 		}
-	};
+	}
 	
 	/**
 	 * Utility class that traverses a plan to collect all nodes and add them to the OptimizedPlan.

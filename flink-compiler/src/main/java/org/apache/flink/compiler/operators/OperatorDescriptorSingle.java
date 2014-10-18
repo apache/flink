@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -67,13 +67,37 @@ public abstract class OperatorDescriptorSingle implements AbstractOperatorDescri
 		return this.localProps;
 	}
 	
+	/**
+	 * Returns a list of global properties that are required by this operator descriptor.
+	 * 
+	 * @return A list of global properties that are required by this operator descriptor.
+	 */
 	protected abstract List<RequestedGlobalProperties> createPossibleGlobalProperties();
 	
+	/**
+	 * Returns a list of local properties that are required by this operator descriptor.
+	 * 
+	 * @return A list of local properties that are required by this operator descriptor.
+	 */
 	protected abstract List<RequestedLocalProperties> createPossibleLocalProperties();
 	
 	public abstract SingleInputPlanNode instantiate(Channel in, SingleInputNode node);
 	
+	/**
+	 * Returns the global properties which are present after the operator was applied on the 
+	 * provided global properties.
+	 * 
+	 * @param in The global properties on which the operator is applied.
+	 * @return The global properties which are valid after the operator has been applied.
+	 */
 	public abstract GlobalProperties computeGlobalProperties(GlobalProperties in);
 	
+	/**
+	 * Returns the local properties which are present after the operator was applied on the 
+	 * provided local properties.
+	 * 
+	 * @param in The local properties on which the operator is applied.
+	 * @return The local properties which are valid after the operator has been applied.
+	 */
 	public abstract LocalProperties computeLocalProperties(LocalProperties in);
 }

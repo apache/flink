@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -30,7 +30,7 @@ import org.iq80.leveldb.Options;
 /**
  * Interface to a LevelDB key-value store.
  * 
- * See {@linktourl https://code.google.com/p/leveldb/}
+ * @see <a href="https://code.google.com/p/leveldb/">https://code.google.com/p/leveldb/</a>
  * 
  * @param <K>
  *            Type of key

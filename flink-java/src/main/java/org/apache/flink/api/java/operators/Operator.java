@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,9 +18,9 @@
 
 package org.apache.flink.api.java.operators;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.types.TypeInformation;
 
 /**
  * Base class of all operators in the Java API.
@@ -30,9 +30,9 @@ import org.apache.flink.types.TypeInformation;
  */
 public abstract class Operator<OUT, O extends Operator<OUT, O>> extends DataSet<OUT> {
 
-	private String name;
+	protected String name;
 	
-	private int dop = -1;
+	protected int dop = -1;
 
 	protected Operator(ExecutionEnvironment context, TypeInformation<OUT> resultType) {
 		super(context, resultType);

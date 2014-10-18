@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.deployment;
 
 import java.io.IOException;
@@ -24,43 +23,30 @@ import java.io.IOException;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.runtime.executiongraph.ExecutionEdge;
 import org.apache.flink.runtime.io.network.channels.ChannelID;
 
 /**
  * A channel deployment descriptor contains all the information necessary to deploy either an input or an output channel
  * as part of a task on a task manager.
- * <p>
- * This class is not thread-safe in general.
- * 
  */
 public final class ChannelDeploymentDescriptor implements IOReadableWritable {
 
-	/**
-	 * The ID of the output channel.
-	 */
+	/** The ID of the output channel. */
 	private final ChannelID outputChannelID;
 
-	/**
-	 * The ID of the input channel.
-	 */
+	/** The ID of the input channel. */
 	private final ChannelID inputChannelID;
 
 	/**
 	 * Constructs a new channel deployment descriptor.
 	 * 
-	 * @param outputChannelID
-	 *        the ID of the output channel
-	 * @param inputChannelID
-	 *        the ID of the input channel
+	 * @param outputChannelID The ID of the output channel
+	 * @param inputChannelID The ID of the input channel
 	 */
-	public ChannelDeploymentDescriptor(final ChannelID outputChannelID, final ChannelID inputChannelID) {
-
-		if (outputChannelID == null) {
-			throw new IllegalArgumentException("Argument outputChannelID must not be null");
-		}
-
-		if (inputChannelID == null) {
-			throw new IllegalArgumentException("Argument inputChannelID must not be null");
+	public ChannelDeploymentDescriptor(ChannelID outputChannelID, ChannelID inputChannelID) {
+		if (outputChannelID == null || inputChannelID == null) {
+			throw new IllegalArgumentException("Channel IDs must not be null");
 		}
 
 		this.outputChannelID = outputChannelID;
@@ -71,23 +57,20 @@ public final class ChannelDeploymentDescriptor implements IOReadableWritable {
 	 * Default constructor for serialization/deserialization.
 	 */
 	public ChannelDeploymentDescriptor() {
-
 		this.outputChannelID = new ChannelID();
 		this.inputChannelID = new ChannelID();
 	}
 
 
 	@Override
-	public void write(final DataOutputView out) throws IOException {
-
+	public void write(DataOutputView out) throws IOException {
 		this.outputChannelID.write(out);
 		this.inputChannelID.write(out);
 	}
 
 
 	@Override
-	public void read(final DataInputView in) throws IOException {
-
+	public void read(DataInputView in) throws IOException {
 		this.outputChannelID.read(in);
 		this.inputChannelID.read(in);
 	}
@@ -98,7 +81,6 @@ public final class ChannelDeploymentDescriptor implements IOReadableWritable {
 	 * @return the output channel ID attached to this deployment descriptor
 	 */
 	public ChannelID getOutputChannelID() {
-
 		return this.outputChannelID;
 	}
 
@@ -108,7 +90,12 @@ public final class ChannelDeploymentDescriptor implements IOReadableWritable {
 	 * @return the input channel ID attached to this deployment descriptor
 	 */
 	public ChannelID getInputChannelID() {
-
 		return this.inputChannelID;
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	public static ChannelDeploymentDescriptor fromExecutionEdge(ExecutionEdge edge) {
+		return new ChannelDeploymentDescriptor(edge.getOutputChannelId(), edge.getInputChannelId());
 	}
 }

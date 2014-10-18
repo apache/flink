@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,8 +25,8 @@
 
 package org.apache.flink.runtime.ipc;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.io.StringRecord;
 import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
@@ -56,16 +56,10 @@ import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
-/**
- * A client for an IPC service. IPC calls take a single {@link Writable} as a
- * parameter, and return a {@link Writable} as their value. A service runs on
- * a port and is defined by a parameter class and a value class.
- * 
- * @see Server
- */
+
 public class Client {
 
-	public static final Log LOG = LogFactory.getLog(Client.class);
+	public static final Logger LOG = LoggerFactory.getLogger(Client.class);
 
 	private Hashtable<ConnectionId, Connection> connections = new Hashtable<ConnectionId, Connection>();
 
@@ -512,14 +506,14 @@ public class Client {
 						try {
 							c = ClassUtils.getRecordByName(returnClassName);
 						} catch (ClassNotFoundException e) {
-							LOG.error(e);
+							LOG.error("Could not find class " + returnClassName + ".", e);
 						}
 						try {
 							value = c.newInstance();
 						} catch (InstantiationException e) {
-							LOG.error(e);
+							LOG.error("Could not instantiate object of class " + c.getCanonicalName() + ".", e);
 						} catch (IllegalAccessException e) {
-							LOG.error(e);
+							LOG.error("Error instantiating object of class " + c.getCanonicalName() + ".", e);
 						} 
 						try {
 							value.read(new InputViewDataInputStreamWrapper(in)); // read value
@@ -633,9 +627,6 @@ public class Client {
 		}
 	}
 
-	/**
-	 * Construct an IPC client whose values are of the given {@link Writable} class.
-	 */
 	public Client(final SocketFactory factory) {
 		this.maxIdleTime = 1000;
 		this.maxRetries = 10;
@@ -646,9 +637,6 @@ public class Client {
 
 	/**
 	 * Construct an IPC client with the default SocketFactory
-	 * 
-	 * @param valueClass
-	 * @param conf
 	 */
 	public Client() {
 		this(NetUtils.getDefaultSocketFactory());

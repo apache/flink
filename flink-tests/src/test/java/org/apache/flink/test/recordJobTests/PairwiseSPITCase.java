@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 
 package org.apache.flink.test.recordJobTests;
 
@@ -71,7 +70,8 @@ public class PairwiseSPITCase extends RecordAPITestBase {
 	@Override
 	protected Plan getTestJob() {
 		PairwiseSP a2aSP = new PairwiseSP();
-		return a2aSP.getPlan(config.getString("All2AllSPTest#NoSubtasks", new Integer(DOP).toString()),
+		return a2aSP.getPlan(
+				String.valueOf(config.getInteger("All2AllSPTest#NoSubtasks", DOP)),
 				rdfDataPath,
 				resultPath,
 				"true");

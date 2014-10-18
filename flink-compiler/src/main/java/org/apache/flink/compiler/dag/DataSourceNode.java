@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,8 +28,8 @@ import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.NonParallelInput;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
+import org.apache.flink.api.common.operators.GenericDataSourceBase;
 import org.apache.flink.api.common.operators.Operator;
-import org.apache.flink.api.common.operators.base.GenericDataSourceBase;
 import org.apache.flink.compiler.DataStatistics;
 import org.apache.flink.compiler.PactCompiler;
 import org.apache.flink.compiler.costs.CostEstimator;
@@ -109,7 +109,6 @@ public class DataSourceNode extends OptimizerNode {
 			try {
 				format = getPactContract().getFormatWrapper().getUserCodeObject();
 				Configuration config = getPactContract().getParameters();
-				config.setClassLoader(format.getClass().getClassLoader());
 				format.configure(config);
 			}
 			catch (Throwable t) {

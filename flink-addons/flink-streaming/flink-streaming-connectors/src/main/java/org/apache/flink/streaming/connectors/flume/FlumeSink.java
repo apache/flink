@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -17,8 +17,8 @@
 
 package org.apache.flink.streaming.connectors.flume;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
 import org.apache.flume.Event;
@@ -31,7 +31,7 @@ import org.apache.flume.event.EventBuilder;
 public abstract class FlumeSink<IN> implements SinkFunction<IN> {
 	private static final long serialVersionUID = 1L;
 
-	private static final Log LOG = LogFactory.getLog(FlumeSink.class);
+	private static final Logger LOG = LoggerFactory.getLogger(FlumeSink.class);
 
 	private transient FlinkRpcClientFacade client;
 	boolean initDone = false;
@@ -110,7 +110,7 @@ public abstract class FlumeSink<IN> implements SinkFunction<IN> {
 						Thread.sleep(1000);
 					} catch (InterruptedException e1) {
 						if (LOG.isErrorEnabled()) {
-							LOG.error("Interrupted while trying to connect " + port + " at " + host);
+							LOG.error("Interrupted while trying to connect {} at {}", port, host);
 						}
 					}
 				}

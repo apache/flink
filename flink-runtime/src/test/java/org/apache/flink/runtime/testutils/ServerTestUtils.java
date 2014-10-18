@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -184,7 +184,7 @@ public final class ServerTestUtils {
 	public static void waitForJobManagerToBecomeReady(final ExtendedManagementProtocol jobManager) throws IOException,
 			InterruptedException {
 
-		while (jobManager.getAvailableSlots() == 0) {
+		while (jobManager.getTotalNumberOfRegisteredSlots() == 0) {
 			Thread.sleep(100);
 		}
 	}

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -231,9 +231,9 @@ public class InMemoryPartition<T> {
 		}
 	}
 	
-	public void readRecordAt(long pointer, T record) throws IOException {
+	public T readRecordAt(long pointer, T reuse) throws IOException {
 		this.readView.setReadPosition(pointer);
-		this.serializer.deserialize(record, this.readView);
+		return this.serializer.deserialize(reuse, this.readView);
 	}
 	
 	/**

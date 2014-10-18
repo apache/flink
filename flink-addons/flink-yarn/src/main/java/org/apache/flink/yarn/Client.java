@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -44,8 +44,8 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.PosixParser;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.client.CliFrontend;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -74,11 +74,6 @@ import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.client.api.YarnClientApplication;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.util.Records;
-import org.apache.log4j.ConsoleAppender;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
-import org.apache.log4j.PatternLayout;
-
 
 /**
  * All classes in this package contain code taken from
@@ -94,7 +89,7 @@ import org.apache.log4j.PatternLayout;
  *
  */
 public class Client {
-	private static final Log LOG = LogFactory.getLog(Client.class);
+	private static final Logger LOG = LoggerFactory.getLogger(Client.class);
 
 	/**
 	 * Command Line argument options
@@ -202,21 +197,6 @@ public class Client {
 			System.exit(1);
 		}
 
-		if (System.getProperty("log4j.configuration") == null) {
-			Logger root = Logger.getRootLogger();
-			root.removeAllAppenders();
-			PatternLayout layout = new PatternLayout("%d{HH:mm:ss,SSS} %-5p %-60c %x - %m%n");
-			ConsoleAppender appender = new ConsoleAppender(layout, "System.err");
-			root.addAppender(appender);
-			if(cmd.hasOption(VERBOSE.getOpt())) {
-				root.setLevel(Level.DEBUG);
-				LOG.debug("CLASSPATH: "+System.getProperty("java.class.path"));
-			} else {
-				root.setLevel(Level.INFO);
-			}
-		}
-
-
 		// Jar Path
 		Path localJarPath;
 		if(cmd.hasOption(FLINK_JAR.getOpt())) {
@@ -243,7 +223,7 @@ public class Client {
 			confDirPath = cmd.getOptionValue(FLINK_CONF_DIR.getOpt())+"/";
 			File confFile = new File(confDirPath+CONFIG_FILE_NAME);
 			if(!confFile.exists()) {
-				LOG.fatal("Unable to locate configuration file in "+confFile);
+				LOG.error("Unable to locate configuration file in "+confFile);
 				System.exit(1);
 			}
 			confPath = new Path(confFile.getAbsolutePath());
@@ -290,12 +270,18 @@ public class Client {
 				LOG.warn("Ship directory is not a directory!");
 			}
 		}
+		boolean hasLogback = false;
 		boolean hasLog4j = false;
-		//check if there is a log4j file
+		//check if there is a logback or log4j file
 		if(confDirPath.length() > 0) {
-			File l4j = new File(confDirPath+"/log4j.properties");
-			if(l4j.exists()) {
-				shipFiles.add(l4j);
+			File logback = new File(confDirPath+"/logback.xml");
+			if(logback.exists()) {
+				shipFiles.add(logback);
+				hasLogback = true;
+			}
+			File log4j = new File(confDirPath+"/log4j.properties");
+			if(log4j.exists()) {
+				shipFiles.add(log4j);
 				hasLog4j = true;
 			}
 		}
@@ -373,7 +359,7 @@ public class Client {
 			showClusterMetrics(yarnClient);
 		}
 		if(!cmd.hasOption(CONTAINER.getOpt())) {
-			LOG.fatal("Missing required argument "+CONTAINER.getOpt());
+			LOG.error("Missing required argument "+CONTAINER.getOpt());
 			printUsage();
 			yarnClient.stop();
 			System.exit(1);
@@ -395,13 +381,13 @@ public class Client {
 		GetNewApplicationResponse appResponse = app.getNewApplicationResponse();
 		Resource maxRes = appResponse.getMaximumResourceCapability();
 		if(tmMemory > maxRes.getMemory() || tmCores > maxRes.getVirtualCores()) {
-			LOG.fatal("The cluster does not have the requested resources for the TaskManagers available!\n"
+			LOG.error("The cluster does not have the requested resources for the TaskManagers available!\n"
 					+ "Maximum Memory: "+maxRes.getMemory() +", Maximum Cores: "+tmCores);
 			yarnClient.stop();
 			System.exit(1);
 		}
 		if(jmMemory > maxRes.getMemory() ) {
-			LOG.fatal("The cluster does not have the requested resources for the JobManager available!\n"
+			LOG.error("The cluster does not have the requested resources for the JobManager available!\n"
 					+ "Maximum Memory: "+maxRes.getMemory());
 			yarnClient.stop();
 			System.exit(1);
@@ -409,19 +395,19 @@ public class Client {
 		int totalMemoryRequired = jmMemory + tmMemory * taskManagerCount;
 		ClusterResourceDescription freeClusterMem = getCurrentFreeClusterResources(yarnClient);
 		if(freeClusterMem.totalFreeMemory < totalMemoryRequired) {
-			LOG.fatal("This YARN session requires "+totalMemoryRequired+"MB of memory in the cluster. "
+			LOG.error("This YARN session requires "+totalMemoryRequired+"MB of memory in the cluster. "
 					+ "There are currently only "+freeClusterMem.totalFreeMemory+"MB available.");
 			yarnClient.stop();
 			System.exit(1);
 		}
 		if( tmMemory > freeClusterMem.containerLimit) {
-			LOG.fatal("The requested amount of memory for the TaskManagers ("+tmMemory+"MB) is more than "
+			LOG.error("The requested amount of memory for the TaskManagers ("+tmMemory+"MB) is more than "
 					+ "the largest possible YARN container: "+freeClusterMem.containerLimit);
 			yarnClient.stop();
 			System.exit(1);
 		}
 		if( jmMemory > freeClusterMem.containerLimit) {
-			LOG.fatal("The requested amount of memory for the JobManager ("+jmMemory+"MB) is more than "
+			LOG.error("The requested amount of memory for the JobManager ("+jmMemory+"MB) is more than "
 					+ "the largest possible YARN container: "+freeClusterMem.containerLimit);
 			yarnClient.stop();
 			System.exit(1);
@@ -436,9 +422,16 @@ public class Client {
 
 		String amCommand = "$JAVA_HOME/bin/java"
 					+ " -Xmx"+Utils.calculateHeapSize(jmMemory)+"M " +javaOpts;
-		if(hasLog4j) {
-			amCommand 	+= " -Dlog.file=\""+ApplicationConstants.LOG_DIR_EXPANSION_VAR +"/jobmanager-log4j.log\" -Dlog4j.configuration=file:log4j.properties";
+		if(hasLogback || hasLog4j) {
+			amCommand += " -Dlog.file=\""+ApplicationConstants.LOG_DIR_EXPANSION_VAR +"/jobmanager-main.log\"";
 		}
+		if(hasLogback) {
+			amCommand += " -Dlogback.configurationFile=file:logback.xml";
+		}
+		if(hasLog4j) {
+			amCommand += " -Dlog4j.configuration=file:log4j.properties";
+		}
+		
 		amCommand 	+= " "+ApplicationMaster.class.getName()+" "
 					+ " 1>"
 					+ ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager-stdout.log"
@@ -457,7 +450,7 @@ public class Client {
 		 */
 		int appNumber = appId.getId();
 
-		jmPort += appNumber;
+		jmPort = Utils.offsetPort(jmPort, appNumber);
 				
 		// Setup jar for ApplicationMaster
 		LocalResource appMasterJar = Records.newRecord(LocalResource.class);
@@ -499,7 +492,7 @@ public class Client {
 		fs.close();
 
 		int amRPCPort = GlobalConfiguration.getInteger(ConfigConstants.YARN_AM_PRC_PORT, ConfigConstants.DEFAULT_YARN_AM_RPC_PORT);
-		amRPCPort += appNumber;
+		amRPCPort = Utils.offsetPort(amRPCPort, appNumber);
 		// Setup CLASSPATH for ApplicationMaster
 		Map<String, String> appMasterEnv = new HashMap<String, String>();
 		Utils.setupEnv(conf, appMasterEnv);
@@ -777,7 +770,7 @@ public class Client {
 		try {
 			jar = new JarFile(localJarPath.toUri().getPath());
 		} catch(FileNotFoundException fne) {
-			LOG.fatal("Unable to access jar file. Specify jar file or configuration file.", fne);
+			LOG.error("Unable to access jar file. Specify jar file or configuration file.", fne);
 			System.exit(1);
 		}
 		InputStream confStream = jar.getInputStream(jar.getEntry("flink-conf.yaml"));

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -46,12 +46,12 @@ import java.util.Set;
 
 import javax.net.SocketFactory;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.runtime.ipc.Server;
 
 public class NetUtils {
-	private static final Log LOG = LogFactory.getLog(NetUtils.class);
+	private static final Logger LOG = LoggerFactory.getLogger(NetUtils.class);
 
 	private static Map<String, String> hostToResolved = new HashMap<String, String>();
 
@@ -102,7 +102,7 @@ public class NetUtils {
 				hostname = addr.getHost();
 				port = addr.getPort();
 			} catch (URISyntaxException use) {
-				LOG.fatal(use);
+				LOG.error("Invalid URI syntax.", use);
 			}
 		}
 

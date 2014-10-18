@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,8 +28,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.ipc.RPC;
@@ -40,32 +40,31 @@ import org.apache.flink.runtime.profiling.ProfilingException;
 import org.apache.flink.runtime.profiling.ProfilingListener;
 import org.apache.flink.runtime.profiling.ProfilingUtils;
 import org.apache.flink.runtime.profiling.impl.types.InternalExecutionVertexThreadProfilingData;
-import org.apache.flink.runtime.profiling.impl.types.InternalInputGateProfilingData;
 import org.apache.flink.runtime.profiling.impl.types.InternalInstanceProfilingData;
-import org.apache.flink.runtime.profiling.impl.types.InternalOutputGateProfilingData;
 import org.apache.flink.runtime.profiling.impl.types.InternalProfilingData;
 import org.apache.flink.runtime.profiling.impl.types.ProfilingDataContainer;
-import org.apache.flink.runtime.profiling.types.InputGateProfilingEvent;
 import org.apache.flink.runtime.profiling.types.InstanceSummaryProfilingEvent;
-import org.apache.flink.runtime.profiling.types.OutputGateProfilingEvent;
 import org.apache.flink.runtime.profiling.types.SingleInstanceProfilingEvent;
 import org.apache.flink.runtime.profiling.types.ThreadProfilingEvent;
 import org.apache.flink.util.StringUtils;
 
 public class JobManagerProfilerImpl implements JobManagerProfiler, ProfilerImplProtocol {
 
-	private static final Log LOG = LogFactory.getLog(JobManagerProfilerImpl.class);
+	private static final Logger LOG = LoggerFactory.getLogger(JobManagerProfilerImpl.class);
 
 	private static final String RPC_NUM_HANDLER_KEY = "jobmanager.profiling.rpc.numhandler";
 
 	private static final int DEFAULT_NUM_HANLDER = 3;
 
+	
 	private final Server profilingServer;
 
 	private final Map<JobID, List<ProfilingListener>> registeredListeners = new HashMap<JobID, List<ProfilingListener>>();
 
 	private final Map<JobID, JobProfilingData> registeredJobs = new HashMap<JobID, JobProfilingData>();
 
+	// --------------------------------------------------------------------------------------------
+	
 	public JobManagerProfilerImpl(InetAddress jobManagerbindAddress) throws ProfilingException {
 
 		// Start profiling IPC server
@@ -89,17 +88,14 @@ public class JobManagerProfilerImpl implements JobManagerProfiler, ProfilerImplP
 
 	@Override
 	public void registerProfilingJob(ExecutionGraph executionGraph) {
-
 		synchronized (this.registeredJobs) {
 			this.registeredJobs.put(executionGraph.getJobID(), new JobProfilingData(executionGraph));
 		}
-
 	}
 
 
 	@Override
 	public void unregisterProfilingJob(ExecutionGraph executionGraph) {
-
 		synchronized (this.registeredListeners) {
 			this.registeredListeners.remove(executionGraph.getJobID());
 		}
@@ -107,12 +103,10 @@ public class JobManagerProfilerImpl implements JobManagerProfiler, ProfilerImplP
 		synchronized (this.registeredJobs) {
 			this.registeredJobs.remove(executionGraph.getJobID());
 		}
-
 	}
 
 	@Override
 	public void shutdown() {
-
 		// Stop the RPC server
 		if (this.profilingServer != null) {
 			LOG.debug("Stopping profiling RPC server");
@@ -124,7 +118,9 @@ public class JobManagerProfilerImpl implements JobManagerProfiler, ProfilerImplP
 
 		final long profilingStart = getProfilingStart(profilingData.getJobID());
 		if (profilingStart < 0 && LOG.isDebugEnabled()) {
-			LOG.debug("Received profiling data for unregistered job " + profilingData.getJobID());
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Received profiling data for unregistered job {}", profilingData.getJobID());
+			}
 			return;
 		}
 
@@ -135,10 +131,10 @@ public class JobManagerProfilerImpl implements JobManagerProfiler, ProfilerImplP
 				return;
 			}
 
-			final ThreadProfilingEvent threadProfilingEvent = new ThreadProfilingEvent(profilingData.getUserTime(),
-				profilingData.getSystemTime(), profilingData.getBlockedTime(), profilingData.getWaitedTime(),
-				profilingData.getExecutionVertexID().toManagementVertexID(), profilingData.getProfilingInterval(),
-				profilingData.getJobID(), timestamp, (timestamp - profilingStart));
+			final ThreadProfilingEvent threadProfilingEvent = new ThreadProfilingEvent(
+					profilingData.getUserTime(), profilingData.getSystemTime(), profilingData.getBlockedTime(), profilingData.getWaitedTime(),
+					profilingData.getVertexId(), profilingData.getSubtask(), profilingData.getExecutionAttemptId(),
+					profilingData.getProfilingInterval(), profilingData.getJobID(), timestamp, (timestamp - profilingStart));
 
 			final Iterator<ProfilingListener> it = jobListeners.iterator();
 			while (it.hasNext()) {
@@ -156,7 +152,7 @@ public class JobManagerProfilerImpl implements JobManagerProfiler, ProfilerImplP
 			while (it.hasNext()) {
 				final JobID jobID = it.next();
 				final JobProfilingData jobProfilingData = this.registeredJobs.get(jobID);
-				if (!jobProfilingData.instanceAllocatedByJob(profilingData)) {
+				if (!jobProfilingData.addIfInstanceIsAllocatedByJob(profilingData)) {
 					continue;
 				}
 
@@ -192,60 +188,6 @@ public class JobManagerProfilerImpl implements JobManagerProfiler, ProfilerImplP
 		}
 	}
 
-	private void dispatchInputGateData(long timestamp, InternalInputGateProfilingData profilingData) {
-
-		final long profilingStart = getProfilingStart(profilingData.getJobID());
-		if (profilingStart < 0) {
-			LOG.error("Received profiling data for unregistered job " + profilingData.getJobID());
-			return;
-		}
-
-		synchronized (this.registeredListeners) {
-
-			final List<ProfilingListener> jobListeners = this.registeredListeners.get(profilingData.getJobID());
-			if (jobListeners == null) {
-				return;
-			}
-
-			final InputGateProfilingEvent inputGateProfilingEvent = new InputGateProfilingEvent(profilingData
-				.getGateIndex(), profilingData.getNoRecordsAvailableCounter(), profilingData.getExecutionVertexID()
-				.toManagementVertexID(), profilingData.getProfilingInterval(), profilingData.getJobID(), timestamp,
-				timestamp - profilingStart);
-
-			final Iterator<ProfilingListener> it = jobListeners.iterator();
-			while (it.hasNext()) {
-				it.next().processProfilingEvents(inputGateProfilingEvent);
-			}
-		}
-	}
-
-	private void dispatchOutputGateData(long timestamp, InternalOutputGateProfilingData profilingData) {
-
-		final long profilingStart = getProfilingStart(profilingData.getJobID());
-		if (profilingStart < 0) {
-			LOG.error("Received profiling data for unregistered job " + profilingData.getJobID());
-			return;
-		}
-
-		synchronized (this.registeredListeners) {
-
-			final List<ProfilingListener> jobListeners = this.registeredListeners.get(profilingData.getJobID());
-			if (jobListeners == null) {
-				return;
-			}
-
-			final OutputGateProfilingEvent outputGateProfilingEvent = new OutputGateProfilingEvent(profilingData
-				.getGateIndex(), profilingData.getChannelCapacityExhaustedCounter(), profilingData
-				.getExecutionVertexID().toManagementVertexID(), profilingData.getProfilingInterval(), profilingData
-				.getJobID(), timestamp, timestamp - profilingStart);
-
-			final Iterator<ProfilingListener> it = jobListeners.iterator();
-			while (it.hasNext()) {
-				it.next().processProfilingEvents(outputGateProfilingEvent);
-			}
-		}
-	}
-
 	private long getProfilingStart(JobID jobID) {
 
 		synchronized (this.registeredJobs) {
@@ -274,10 +216,6 @@ public class JobManagerProfilerImpl implements JobManagerProfiler, ProfilerImplP
 				dispatchThreadData(timestamp, (InternalExecutionVertexThreadProfilingData) internalProfilingData);
 			} else if (internalProfilingData instanceof InternalInstanceProfilingData) {
 				dispatchInstanceData(timestamp, (InternalInstanceProfilingData) internalProfilingData);
-			} else if (internalProfilingData instanceof InternalInputGateProfilingData) {
-				dispatchInputGateData(timestamp, (InternalInputGateProfilingData) internalProfilingData);
-			} else if (internalProfilingData instanceof InternalOutputGateProfilingData) {
-				dispatchOutputGateData(timestamp, (InternalOutputGateProfilingData) internalProfilingData);
 			} else {
 				LOG.error("Received unknown profiling data: " + internalProfilingData.getClass().getName());
 			}

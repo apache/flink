@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 
 package org.apache.flink.runtime.filecache;
 
@@ -42,8 +41,10 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.runtime.jobgraph.JobID;
-import org.apache.flink.runtime.taskmanager.runtime.ExecutorThreadFactory;
+import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.util.IOUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The FileCache is used to create the local files for the registered cache files when a task is deployed. 
@@ -52,9 +53,12 @@ import org.apache.flink.runtime.util.IOUtils;
  */
 public class FileCache {
 
-	private LocalFileSystem lfs = new LocalFileSystem();
-
+	private static final Logger LOG = LoggerFactory.getLogger(FileCache.class);
+	
 	private static final Object lock = new Object();
+	
+	
+	private LocalFileSystem lfs = new LocalFileSystem();
 
 	private Map<Pair<JobID, String>, Integer> count = new HashMap<Pair<JobID,String>, Integer>();
 
@@ -99,10 +103,11 @@ public class FileCache {
 	}
 
 	public void shutdown() {
-		if (this.executorService != null) {
-			this.executorService.shutdown();
+		ScheduledExecutorService es = this.executorService;
+		if (es != null) {
+			es.shutdown();
 			try {
-				this.executorService.awaitTermination(5000L, TimeUnit.MILLISECONDS);
+				es.awaitTermination(5000L, TimeUnit.MILLISECONDS);
 			} catch (InterruptedException e) {
 				throw new RuntimeException("Error shutting down the file cache", e);
 			}
@@ -133,6 +138,7 @@ public class FileCache {
 					IOUtils.copyBytes(fsInput, lfsOutput);
 					new File(targetPath.toString()).setExecutable(executable);
 				} catch (IOException ioe) {
+					LOG.error("could not copy file to local file cache.", ioe);
 				}
 			}
 		}
@@ -159,8 +165,8 @@ public class FileCache {
 				synchronized (lock) {
 					copy(new Path(filePath), tmp, this.executable);
 				}
-			} catch (IOException e1) {
-				throw new RuntimeException("Error copying a file from hdfs to the local fs", e1);
+			} catch (IOException e) {
+				LOG.error("Could not copy file to local file cache.", e);
 			}
 			return tmp;
 		}
@@ -192,8 +198,8 @@ public class FileCache {
 				if (lfs.exists(tmp)) {
 					lfs.delete(tmp, true);
 				}
-			} catch (IOException e1) {
-				throw new RuntimeException("Error deleting the file", e1);
+			} catch (IOException e) {
+				LOG.error("Could not delete file from local file cache.", e);
 			}
 		}
 	}

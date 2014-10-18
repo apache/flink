@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,22 +16,24 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.profiling.types;
 
 import java.io.IOException;
 
-import org.apache.flink.core.io.StringRecord;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.types.StringValue;
+
+import com.google.common.base.Preconditions;
 
 /**
  * A single instance profiling event encapsulates profiling information for one particular instance.
- * 
  */
 public final class SingleInstanceProfilingEvent extends InstanceProfilingEvent {
 
+	private static final long serialVersionUID = 1L;
+	
 	private String instanceName;
 
 	/**
@@ -78,11 +80,13 @@ public final class SingleInstanceProfilingEvent extends InstanceProfilingEvent {
 			final int userCPU, final int systemCPU, final int hardIrqCPU, final int softIrqCPU, final long totalMemory,
 			final long freeMemory, final long bufferedMemory, final long cachedMemory, final long cachedSwapMemory,
 			final long receivedBytes, final long transmittedBytes, final JobID jobID, final long timestamp,
-			final long profilingTimestamp, final String instanceName) {
+			final long profilingTimestamp, final String instanceName)
+	{
 		super(profilingInterval, ioWaitCPU, idleCPU, userCPU, systemCPU, hardIrqCPU, softIrqCPU, totalMemory,
 			freeMemory, bufferedMemory, cachedMemory, cachedSwapMemory, receivedBytes, transmittedBytes, jobID,
 			timestamp, profilingTimestamp);
 
+		Preconditions.checkNotNull(instanceName);
 		this.instanceName = instanceName;
 	}
 
@@ -93,6 +97,8 @@ public final class SingleInstanceProfilingEvent extends InstanceProfilingEvent {
 		super();
 	}
 
+	// --------------------------------------------------------------------------------------------
+	
 	/**
 	 * Returns the name of the instance.
 	 * 
@@ -102,47 +108,40 @@ public final class SingleInstanceProfilingEvent extends InstanceProfilingEvent {
 		return this.instanceName;
 	}
 
-
+	// --------------------------------------------------------------------------------------------
+	//  Serialization
+	// --------------------------------------------------------------------------------------------
+	
 	@Override
 	public void read(DataInputView in) throws IOException {
 		super.read(in);
-
-		this.instanceName = StringRecord.readString(in);
+		this.instanceName = StringValue.readString(in);
 	}
-
 
 	@Override
 	public void write(DataOutputView out) throws IOException {
 		super.write(out);
-
-		StringRecord.writeString(out, this.instanceName);
+		StringValue.writeString(this.instanceName, out);
 	}
-
+	
+	// --------------------------------------------------------------------------------------------
+	//  Utilities
+	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public boolean equals(Object obj) {
-
-		if (!super.equals(obj)) {
+		if (obj instanceof SingleInstanceProfilingEvent) {
+			SingleInstanceProfilingEvent other = (SingleInstanceProfilingEvent) obj;
+			return super.equals(obj) && this.instanceName.equals(other.instanceName);
+			
+		}
+		else {
 			return false;
 		}
-
-		if (!(obj instanceof SingleInstanceProfilingEvent)) {
-			return false;
-		}
-
-		final SingleInstanceProfilingEvent singleInstanceProfilingEvent = (SingleInstanceProfilingEvent) obj;
-
-		if (!this.instanceName.equals(singleInstanceProfilingEvent.getInstanceName())) {
-			return false;
-		}
-
-		return true;
 	}
-
-
+	
 	@Override
 	public int hashCode() {
-
-		return super.hashCode();
+		return super.hashCode() + 31*instanceName.hashCode();
 	}
 }

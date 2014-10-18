@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,567 +16,129 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.jobgraph;
 
-import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.commons.lang3.Validate;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.core.io.StringRecord;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
-import org.apache.flink.runtime.io.network.channels.ChannelType;
+import org.apache.flink.core.io.InputSplitSource;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.util.EnumUtils;
-import org.apache.flink.util.StringUtils;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 
 /**
  * An abstract base class for a job vertex.
  */
-public abstract class AbstractJobVertex implements IOReadableWritable {
+public class AbstractJobVertex implements java.io.Serializable {
+
+	private static final long serialVersionUID = 1L;
 
 	private static final String DEFAULT_NAME = "(unnamed vertex)";
 	
-	/**
-	 * List of outgoing edges.
-	 */
-	private final ArrayList<JobEdge> forwardEdges = new ArrayList<JobEdge>();
+	
+	// --------------------------------------------------------------------------------------------
+	// Members that define the structure / topology of the graph
+	// --------------------------------------------------------------------------------------------
 
-	/**
-	 * List of incoming edges.
-	 */
-	private final ArrayList<JobEdge> backwardEdges = new ArrayList<JobEdge>();
-
-	/**
-	 * The name of the vertex or task, respectively.
-	 */
-	private String name;
-
-	/**
-	 * The ID of the vertex.
-	 */
+	/** The ID of the vertex. */
 	private final JobVertexID id;
 
-	/**
-	 * The graph this vertex belongs to.
-	 */
-	private final JobGraph jobGraph;
+	/** List of produced data sets, one per writer */
+	private final ArrayList<IntermediateDataSet> results = new ArrayList<IntermediateDataSet>();
 
-	/**
-	 * Number of subtasks to split this task into at runtime.
-	 */
-	private int numberOfSubtasks = -1;
+	/** List of edges with incoming data. One per Reader. */
+	private final ArrayList<JobEdge> inputs = new ArrayList<JobEdge>();
 
-	/**
-	 * Number of retries in case of an error before the task represented by this vertex is considered as failed.
-	 */
-	private int numberOfExecutionRetries = -1;
+	/** Number of subtasks to split this task into at runtime.*/
+	private int parallelism = -1;
 
-	/**
-	 * Other task to share a (set of) of instances with at runtime.
-	 */
-	private AbstractJobVertex vertexToShareInstancesWith = null;
+	/** Custom configuration passed to the assigned task at runtime. */
+	private Configuration configuration;
 
-	/**
-	 * Custom configuration passed to the assigned task at runtime.
-	 */
-	private Configuration configuration = new Configuration();
+	/** The class of the invokable. */
+	private String invokableClassName;
 
-	/**
-	 * The class of the invokable.
-	 */
-	protected Class<? extends AbstractInvokable> invokableClass = null;
-
+	/** Optionally, a source of input splits */
+	private InputSplitSource<?> inputSplitSource;
 	
+	/** The name of the vertex */
+	private String name;
+	
+	/** Optionally, a sharing group that allows subtasks from different job vertices to run concurrently in one slot */
+	private SlotSharingGroup slotSharingGroup;
+	
+	/** The group inside which the vertex subtasks share slots */
+	private CoLocationGroup coLocationGroup;
+	
+	// --------------------------------------------------------------------------------------------
+
 	/**
 	 * Constructs a new job vertex and assigns it with the given name.
 	 * 
-	 * @param name
-	 *        the name of the new job vertex
-	 * @param jobGraph
-	 *        the job graph this vertex belongs to
+	 * @param name The name of the new job vertex.
 	 */
-	protected AbstractJobVertex(String name, JobGraph jobGraph) {
-		this(name, null, jobGraph);
+	public AbstractJobVertex(String name) {
+		this(name, null);
 	}
 	
 	/**
 	 * Constructs a new job vertex and assigns it with the given name.
 	 * 
-	 * @param name
-	 *        the name of the new job vertex
-	 * @param jobGraph
-	 *        the job graph this vertex belongs to
+	 * @param name The name of the new job vertex.
+	 * @param id The id of the job vertex.
 	 */
-	protected AbstractJobVertex(String name, JobVertexID id, JobGraph jobGraph) {
+	public AbstractJobVertex(String name, JobVertexID id) {
 		this.name = name == null ? DEFAULT_NAME : name;
 		this.id = id == null ? new JobVertexID() : id;
-		this.jobGraph = jobGraph;
 	}
-
+	
+	// --------------------------------------------------------------------------------------------
+	
 	/**
-	 * Connects the job vertex to the specified job vertex.
+	 * Returns the ID of this job vertex.
 	 * 
-	 * @param vertex
-	 *        the vertex this vertex should connect to
-	 * @throws JobGraphDefinitionException
-	 *         thrown if the given vertex cannot be connected to <code>vertex</code> in the requested manner
+	 * @return The ID of this job vertex
 	 */
-	public void connectTo(final AbstractJobVertex vertex) throws JobGraphDefinitionException {
-		this.connectTo(vertex, null, -1, -1, DistributionPattern.BIPARTITE);
-	}
-
-	/**
-	 * Connects the job vertex to the specified job vertex.
-	 * 
-	 * @param vertex
-	 *        the vertex this vertex should connect to
-	 * @param indexOfOutputGate
-	 *        index of the producing task's output gate to be used, <code>-1</code> will determine the next free index
-	 *        number
-	 * @param indexOfInputGate
-	 *        index of the consuming task's input gate to be used, <code>-1</code> will determine the next free index
-	 *        number
-	 * @throws JobGraphDefinitionException
-	 *         thrown if the given vertex cannot be connected to <code>vertex</code> in the requested manner
-	 */
-	public void connectTo(final AbstractJobVertex vertex, final int indexOfOutputGate, final int indexOfInputGate)
-			throws JobGraphDefinitionException {
-		this.connectTo(vertex, null, indexOfOutputGate, indexOfInputGate, DistributionPattern.BIPARTITE);
-	}
-
-	/**
-	 * Connects the job vertex to the specified job vertex.
-	 * 
-	 * @param vertex
-	 *        the vertex this vertex should connect to
-	 * @param channelType
-	 *        the channel type the two vertices should be connected by at runtime
-	 * @throws JobGraphDefinitionException
-	 *         thrown if the given vertex cannot be connected to <code>vertex</code> in the requested manner
-	 */
-	public void connectTo(final AbstractJobVertex vertex, final ChannelType channelType) throws JobGraphDefinitionException {
-		this.connectTo(vertex, channelType, -1, -1, DistributionPattern.BIPARTITE);
-	}
-
-	/**
-	 * Connects the job vertex to the specified job vertex.
-	 * 
-	 * @param vertex
-	 *        the vertex this vertex should connect to
-	 * @param channelType
-	 *        the channel type the two vertices should be connected by at runtime
-	 * @param distributionPattern
-	 *        the distribution pattern between the two job vertices
-	 * @throws JobGraphDefinitionException
-	 *         thrown if the given vertex cannot be connected to <code>vertex</code> in the requested manner
-	 */
-	public void connectTo(final AbstractJobVertex vertex, final ChannelType channelType,
-			final DistributionPattern distributionPattern)
-			throws JobGraphDefinitionException {
-		this.connectTo(vertex, channelType, -1, -1, distributionPattern);
-	}
-
-	/**
-	 * Connects the job vertex to the specified job vertex.
-	 * 
-	 * @param vertex
-	 *        the vertex this vertex should connect to
-	 * @param channelType
-	 *        the channel type the two vertices should be connected by at runtime
-	 * @param indexOfOutputGate
-	 *        index of the producing task's output gate to be used, <code>-1</code> will determine the next free index
-	 *        number
-	 * @param indexOfInputGate
-	 *        index of the consuming task's input gate to be used, <code>-1</code> will determine the next free index
-	 *        number
-	 * @param distributionPattern
-	 * 		  the distribution pattern between the two job vertices
-	 * @throws JobGraphDefinitionException
-	 *         thrown if the given vertex cannot be connected to <code>vertex</code> in the requested manner
-	 */
-	public void connectTo(final AbstractJobVertex vertex, final ChannelType channelType, int indexOfOutputGate, int indexOfInputGate,
-			DistributionPattern distributionPattern)
-			throws JobGraphDefinitionException {
-
-		if (vertex == null) {
-			throw new JobGraphDefinitionException("Target vertex is null!");
-		}
-
-		if (indexOfOutputGate == -1) {
-			indexOfOutputGate = getFirstFreeOutputGateIndex();
-		}
-
-		// Make sure the array is big enough
-		for (int i = this.forwardEdges.size(); i <= indexOfOutputGate; i++) {
-			this.forwardEdges.add(null);
-		}
-
-		if (this.forwardEdges.get(indexOfOutputGate) != null) {
-			throw new JobGraphDefinitionException("Source vertex " + this.name + " already has an edge at index "
-				+ indexOfOutputGate);
-		}
-
-		if (indexOfInputGate == -1) {
-			indexOfInputGate = vertex.getFirstFreeInputGateIndex();
-		} else {
-			if (vertex.getBackwardConnection(indexOfInputGate) != null) {
-				throw new JobGraphDefinitionException("Target vertex " + vertex.getName()
-					+ " already has an edge at index " + indexOfInputGate);
-			}
-		}
-
-		// Add new edge
-		this.forwardEdges.set(indexOfOutputGate, new JobEdge(vertex, channelType, indexOfInputGate,
-			distributionPattern));
-		vertex.connectBacklink(this, channelType, indexOfOutputGate, indexOfInputGate,
-			distributionPattern);
-	}
-
-	/**
-	 * Returns the index of this vertex's first free output gate.
-	 * 
-	 * @return the index of the first free output gate
-	 */
-	protected int getFirstFreeOutputGateIndex() {
-
-		for (int i = 0; i < this.forwardEdges.size(); i++) {
-
-			if (this.forwardEdges.get(i) == null) {
-				return i;
-			}
-		}
-
-		return this.forwardEdges.size();
-	}
-
-	/**
-	 * Returns the index of this vertex's first free input gate.
-	 * 
-	 * @return the index of the first free input gate
-	 */
-	protected int getFirstFreeInputGateIndex() {
-
-		for (int i = 0; i < this.backwardEdges.size(); i++) {
-
-			if (this.backwardEdges.get(i) == null) {
-				return i;
-			}
-		}
-
-		return this.backwardEdges.size();
-	}
-
-	/**
-	 * Creates a backward link from a connected job vertex.
-	 * 
-	 * @param vertex
-	 *        the job vertex to connect to
-	 * @param channelType
-	 *        the channel type the two vertices should be connected by at runtime
-	 * @param indexOfOutputGate
-	 *        index of the producing task's output gate to be used
-	 * @param indexOfInputGate
-	 *        index of the consuming task's input gate to be used
-	 * @param distributionPattern
-	 * 		  the distribution pattern between the two job vertices
-	 */
-	private void connectBacklink(final AbstractJobVertex vertex, final ChannelType channelType,
-			final int indexOfOutputGate, final int indexOfInputGate,
-			DistributionPattern distributionPattern) {
-
-		// Make sure the array is big enough
-		for (int i = this.backwardEdges.size(); i <= indexOfInputGate; i++) {
-			this.backwardEdges.add(null);
-		}
-
-		this.backwardEdges.set(indexOfInputGate, new JobEdge(vertex, channelType, indexOfOutputGate,
-			distributionPattern));
-	}
-
-	/**
-	 * Sets the name of the vertex.
-	 * 
-	 * @param name 
-	 *        The name of the vertex.
-	 */
-	public void setName(String name) {
-		this.name = name;
+	public JobVertexID getID() {
+		return this.id;
 	}
 	
 	/**
 	 * Returns the name of the vertex.
 	 * 
-	 * @return the name of the vertex or <code>null</code> if no name is set.
+	 * @return The name of the vertex.
 	 */
 	public String getName() {
 		return this.name;
 	}
-
+	
 	/**
-	 * Returns the number of forward connections.
+	 * Sets the name of the vertex
 	 * 
-	 * @return the number of forward connections
+	 * @param name The new name.
 	 */
-	public int getNumberOfForwardConnections() {
-		return this.forwardEdges.size();
-	}
-
-	/**
-	 * Returns the number of backward connections.
-	 * 
-	 * @return the number of backward connections
-	 */
-	public int getNumberOfBackwardConnections() {
-		return this.backwardEdges.size();
+	public void setName(String name) {
+		this.name = name == null ? DEFAULT_NAME : name;
 	}
 
 	/**
-	 * Returns the forward edge with index <code>index</code>.
+	 * Returns the number of produced intermediate data sets.
 	 * 
-	 * @param index
-	 *        the index of the edge
-	 * @return the forward edge or <code>null</code> if no edge exists at the specified index.
+	 * @return The number of produced intermediate data sets.
 	 */
-	public JobEdge getForwardConnection(final int index) {
-
-		if (index < this.forwardEdges.size()) {
-			return this.forwardEdges.get(index);
-		}
-
-		return null;
+	public int getNumberOfProducedIntermediateDataSets() {
+		return this.results.size();
 	}
 
 	/**
-	 * Returns the backward edge with index <code>index</code>.
+	 * Returns the number of inputs.
 	 * 
-	 * @param index
-	 *        the index of the edge
-	 * @return the backward edge or <code>null</code> if no edge exists at the specified index
+	 * @return The number of inputs.
 	 */
-	public JobEdge getBackwardConnection(final int index) {
-
-		if (index < this.backwardEdges.size()) {
-			return this.backwardEdges.get(index);
-		}
-
-		return null;
-	}
-
-	/**
-	 * Returns the ID of this job vertex.
-	 * 
-	 * @return the ID of this job vertex
-	 */
-	public JobVertexID getID() {
-		return this.id;
-	}
-
-
-	@SuppressWarnings("unchecked")
-	@Override
-	public void read(final DataInputView in) throws IOException {
-
-		if (jobGraph == null) {
-			throw new IOException("jobGraph is null, cannot deserialize");
-		}
-
-		// Read number of subtasks
-		this.numberOfSubtasks = in.readInt();
-
-		// Number of execution retries
-		this.numberOfExecutionRetries = in.readInt();
-
-		// Read vertex to share instances with
-		if (in.readBoolean()) {
-			final JobVertexID id = new JobVertexID();
-			id.read(in);
-			final AbstractJobVertex vertexToShareInstancesWith = this.jobGraph.findVertexByID(id);
-			if (vertexToShareInstancesWith == null) {
-				throw new IOException("Cannot find vertex with id " + id + " share instances with");
-			}
-
-			this.vertexToShareInstancesWith = vertexToShareInstancesWith;
-		}
-
-		// Find the class loader for the job
-		final ClassLoader cl = LibraryCacheManager.getClassLoader(this.getJobGraph().getJobID());
-		if (cl == null) {
-			throw new IOException("Cannot find class loader for vertex " + getID());
-		}
-
-		// Re-instantiate the configuration object with the correct class loader and read the configuration
-		this.configuration = new Configuration(cl);
-		this.configuration.read(in);
-
-		// Read number of forward edges
-		final int numForwardEdges = in.readInt();
-
-		// Now reconnect to other vertices via the reconstruction map
-		final JobVertexID tmpID = new JobVertexID();
-		for (int i = 0; i < numForwardEdges; i++) {
-			if (in.readBoolean()) {
-				tmpID.read(in);
-				final AbstractJobVertex jv = jobGraph.findVertexByID(tmpID);
-				if (jv == null) {
-					throw new IOException("Cannot find vertex with id " + tmpID);
-				}
-
-				final ChannelType channelType = EnumUtils.readEnum(in, ChannelType.class);
-				final DistributionPattern distributionPattern = EnumUtils.readEnum(in, DistributionPattern.class);
-				final int indexOfInputGate = in.readInt();
-
-				try {
-					this.connectTo(jv, channelType, i, indexOfInputGate, distributionPattern);
-				} catch (JobGraphDefinitionException e) {
-					throw new IOException(StringUtils.stringifyException(e));
-				}
-			} else {
-				this.forwardEdges.add(null);
-			}
-		}
-
-		// Read the invokable class
-		final boolean isNotNull = in.readBoolean();
-		if (!isNotNull) {
-			return;
-		}
-
-		// Read the name of the expected class
-		final String className = StringRecord.readString(in);
-
-		try {
-			this.invokableClass = (Class<? extends AbstractInvokable>) Class.forName(className, true, cl);
-		} catch (ClassNotFoundException cnfe) {
-			throw new IOException("Class " + className + " not found in one of the supplied jar files: "
-				+ StringUtils.stringifyException(cnfe));
-		}
-	}
-
-
-	@Override
-	public void write(final DataOutputView out) throws IOException {
-
-		// Number of subtasks
-		out.writeInt(this.numberOfSubtasks);
-
-		// Number of execution retries
-		out.writeInt(this.numberOfExecutionRetries);
-
-		// Vertex to share instance with
-		if (this.vertexToShareInstancesWith != null) {
-			out.writeBoolean(true);
-			this.vertexToShareInstancesWith.getID().write(out);
-		} else {
-			out.writeBoolean(false);
-		}
-
-		// Write the configuration
-		this.configuration.write(out);
-
-		// We ignore the backward edges and connect them when we reconstruct the graph on the remote side, only write
-		// number of forward edges
-		out.writeInt(this.forwardEdges.size());
-
-		// Now output the IDs of the vertices this vertex is connected to
-		for (int i = 0; i < this.forwardEdges.size(); i++) {
-			final JobEdge edge = this.forwardEdges.get(i);
-			if (edge == null) {
-				out.writeBoolean(false);
-			} else {
-				out.writeBoolean(true);
-				edge.getConnectedVertex().getID().write(out);
-				EnumUtils.writeEnum(out, edge.getChannelType());
-				EnumUtils.writeEnum(out, edge.getDistributionPattern());
-				out.writeInt(edge.getIndexOfInputGate());
-			}
-		}
-
-		// Write the invokable class
-		if (this.invokableClass == null) {
-			out.writeBoolean(false);
-			return;
-		}
-
-		out.writeBoolean(true);
-
-		// Write out the name of the class
-		StringRecord.writeString(out, this.invokableClass.getName());
-	}
-
-	/**
-	 * Returns the job graph this job vertex belongs to.
-	 * 
-	 * @return the job graph this job vertex belongs to or <code>null</code> if no job graph has been set yet
-	 */
-	public JobGraph getJobGraph() {
-		return this.jobGraph;
-	}
-
-	/**
-	 * Sets the number of subtasks the task this vertex represents should be split into at runtime.
-	 * 
-	 * @param numberOfSubtasks
-	 *        the number of subtasks this vertex represents should be split into at runtime
-	 */
-	public void setNumberOfSubtasks(final int numberOfSubtasks) {
-		this.numberOfSubtasks = numberOfSubtasks;
-	}
-
-	/**
-	 * Returns the number of subtasks the task this vertex represents should be split into at runtime.
-	 * 
-	 * @return the number of subtasks this vertex represents should be split into at runtime, <code>-1</code> if
-	 *         unspecified
-	 */
-	public int getNumberOfSubtasks() {
-		return this.numberOfSubtasks;
-	}
-
-	/**
-	 * Sets the number of retries in case of an error before the task represented by this vertex is considered as
-	 * failed.
-	 * 
-	 * @param numberOfExecutionRetries
-	 *        the number of retries in case of an error before the task represented by this vertex is considered as
-	 *        failed
-	 */
-	public void setNumberOfExecutionRetries(final int numberOfExecutionRetries) {
-		this.numberOfExecutionRetries = numberOfExecutionRetries;
-	}
-
-	/**
-	 * Returns the number of retries in case of an error before the task represented by this vertex is considered as
-	 * failed.
-	 * 
-	 * @return the number of retries in case of an error before the task represented by this vertex is considered as
-	 *         failed or <code>-1</code> if unspecified
-	 */
-	public int getNumberOfExecutionRetries() {
-		return this.numberOfExecutionRetries;
-	}
-
-	/**
-	 * Sets the vertex this vertex should share its instances with at runtime.
-	 * 
-	 * @param vertex
-	 *        the vertex this vertex should share its instances with at runtime
-	 */
-	public void setVertexToShareInstancesWith(final AbstractJobVertex vertex) {
-		this.vertexToShareInstancesWith = vertex;
-	}
-
-	/**
-	 * Returns the vertex this vertex should share its instance with at runtime.
-	 * 
-	 * @return the vertex this vertex should share its instance with at runtime, <code>null</code> if undefined
-	 */
-	public AbstractJobVertex getVertexToShareInstancesWith() {
-		return this.vertexToShareInstancesWith;
+	public int getNumberOfInputs() {
+		return this.inputs.size();
 	}
 
 	/**
@@ -585,25 +147,237 @@ public abstract class AbstractJobVertex implements IOReadableWritable {
 	 * @return the vertex's configuration object
 	 */
 	public Configuration getConfiguration() {
+		if (this.configuration == null) {
+			this.configuration = new Configuration();
+		}
 		return this.configuration;
 	}
-
+	
 	public void setInvokableClass(Class<? extends AbstractInvokable> invokable) {
 		Validate.notNull(invokable);
-		this.invokableClass = invokable;
+		this.invokableClassName = invokable.getName();
+	}
+	
+	/**
+	 * Returns the name of the invokable class which represents the task of this vertex.
+	 * 
+	 * @return The name of the invokable class, <code>null</code> if not set.
+	 */
+	public String getInvokableClassName() {
+		return this.invokableClassName;
 	}
 	
 	/**
 	 * Returns the invokable class which represents the task of this vertex
 	 * 
-	 * @return the invokable class, <code>null</code> if it is not set
+	 * @param cl The classloader used to resolve user-defined classes
+	 * @return The invokable class, <code>null</code> if it is not set
 	 */
-	public Class<? extends AbstractInvokable> getInvokableClass() {
-		return this.invokableClass;
+	public Class<? extends AbstractInvokable> getInvokableClass(ClassLoader cl) {
+		if (cl == null) {
+			throw new NullPointerException("The classloader must not be null.");
+		}
+		if (invokableClassName == null) {
+			return null;
+		}
+		
+		try {
+			return Class.forName(invokableClassName, true, cl).asSubclass(AbstractInvokable.class);
+		}
+		catch (ClassNotFoundException e) {
+			throw new RuntimeException("The user-code class could not be resolved.", e);
+		}
+		catch (ClassCastException e) {
+			throw new RuntimeException("The user-code class is no subclass of " + AbstractInvokable.class.getName(), e);
+		}
 	}
 	
+	/**
+	 * Gets the degree of parallelism of the task.
+	 * 
+	 * @return The degree of parallelism of the task.
+	 */
+	public int getParallelism() {
+		return parallelism;
+	}
+
+	/**
+	 * Sets the degree of parallelism for the task.
+	 * 
+	 * @param parallelism The degree of parallelism for the task.
+	 */
+	public void setParallelism(int parallelism) {
+		if (parallelism < 1) {
+			throw new IllegalArgumentException("The degree of parallelism must be at least one.");
+		}
+		this.parallelism = parallelism;
+	}
+	
+	public InputSplitSource<?> getInputSplitSource() {
+		return inputSplitSource;
+	}
+
+	public void setInputSplitSource(InputSplitSource<?> inputSplitSource) {
+		this.inputSplitSource = inputSplitSource;
+	}
+	
+	public List<IntermediateDataSet> getProducedDataSets() {
+		return this.results;
+	}
+	
+	public List<JobEdge> getInputs() {
+		return this.inputs;
+	}
+	
+	/**
+	 * Associates this vertex with a slot sharing group for scheduling. Different vertices in the same
+	 * slot sharing group can run one subtask each in the same slot.
+	 * 
+	 * @param grp The slot sharing group to associate the vertex with.
+	 */
+	public void setSlotSharingGroup(SlotSharingGroup grp) {
+		if (this.slotSharingGroup != null) {
+			this.slotSharingGroup.removeVertexFromGroup(id);
+		}
+		
+		this.slotSharingGroup = grp;
+		if (grp != null) {
+			grp.addVertexToGroup(id);
+		}
+	}
+	
+	/**
+	 * Gets the slot sharing group that this vertex is associated with. Different vertices in the same
+	 * slot sharing group can run one subtask each in the same slot. If the vertex is not associated with
+	 * a slot sharing group, this method returns {@code null}.
+	 * 
+	 * @return The slot sharing group to associate the vertex with, or {@code null}, if not associated with one.
+	 */
+	public SlotSharingGroup getSlotSharingGroup() {
+		return slotSharingGroup;
+	}
+	
+	/**
+	 * Tells this vertex to strictly co locate its subtasks with the subtasks of the given vertex.
+	 * Strict co-location implies that the n'th subtask of this vertex will run on the same parallel computing
+	 * instance (TaskManager) as the n'th subtask of the given vertex.
+	 * 
+	 * NOTE: Co-location is only possible between vertices in a slot sharing group.
+	 * 
+	 * NOTE: This vertex must (transitively) depend on the vertex to be co-located with. That means that the
+	 * respective vertex must be a (transitive) input of this vertex.
+	 * 
+	 * @param strictlyCoLocatedWith The vertex whose subtasks to co-locate this vertex's subtasks with.
+	 * 
+	 * @throws IllegalArgumentException Thrown, if this vertex and the vertex to co-locate with are not in a common
+	 *                                  slot sharing group.
+	 * 
+	 * @see #setSlotSharingGroup(SlotSharingGroup)
+	 */
+	public void setStrictlyCoLocatedWith(AbstractJobVertex strictlyCoLocatedWith) {
+		if (this.slotSharingGroup == null || this.slotSharingGroup != strictlyCoLocatedWith.slotSharingGroup) {
+			throw new IllegalArgumentException("Strict co-location requires that both vertices are in the same slot sharing group.");
+		}
+		
+		CoLocationGroup thisGroup = this.coLocationGroup;
+		CoLocationGroup otherGroup = strictlyCoLocatedWith.coLocationGroup;
+		
+		if (otherGroup == null) {
+			if (thisGroup == null) {
+				CoLocationGroup group = new CoLocationGroup(this, strictlyCoLocatedWith);
+				this.coLocationGroup = group;
+				strictlyCoLocatedWith.coLocationGroup = group;
+			}
+			else {
+				thisGroup.addVertex(strictlyCoLocatedWith);
+				strictlyCoLocatedWith.coLocationGroup = thisGroup;
+			}
+		}
+		else {
+			if (thisGroup == null) {
+				otherGroup.addVertex(this);
+				this.coLocationGroup = otherGroup;
+			}
+			else {
+				// both had yet distinct groups, we need to merge them
+				thisGroup.mergeInto(otherGroup);
+			}
+		}
+	}
+	
+	public CoLocationGroup getCoLocationGroup() {
+		return coLocationGroup;
+	}
+	
+	public void updateCoLocationGroup(CoLocationGroup group) {
+		this.coLocationGroup = group;
+	}
+	
+	// --------------------------------------------------------------------------------------------
+
+	public IntermediateDataSet createAndAddResultDataSet() {
+		return createAndAddResultDataSet(new IntermediateDataSetID());
+	}
+	
+	public IntermediateDataSet createAndAddResultDataSet(IntermediateDataSetID id) {
+		IntermediateDataSet result = new IntermediateDataSet(id, this);
+		this.results.add(result);
+		return result;
+	}
+	
+	public void connectDataSetAsInput(IntermediateDataSet dataSet, DistributionPattern distPattern) {
+		JobEdge edge = new JobEdge(dataSet, this, distPattern);
+		this.inputs.add(edge);
+		dataSet.addConsumer(edge);
+	}
+	
+	public void connectNewDataSetAsInput(AbstractJobVertex input, DistributionPattern distPattern) {
+		IntermediateDataSet dataSet = input.createAndAddResultDataSet();
+		JobEdge edge = new JobEdge(dataSet, this, distPattern);
+		this.inputs.add(edge);
+		dataSet.addConsumer(edge);
+	}
+	
+	public void connectIdInput(IntermediateDataSetID dataSetId, DistributionPattern distPattern) {
+		JobEdge edge = new JobEdge(dataSetId, this, distPattern);
+		this.inputs.add(edge);
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	public boolean isInputVertex() {
+		return this.inputs.isEmpty();
+	}
+	
+	public boolean isOutputVertex() {
+		return this.results.isEmpty();
+	}
+	
+	public boolean hasNoConnectedInputs() {
+		for (JobEdge edge : inputs) {
+			if (!edge.isIdReference()) {
+				return false;
+			}
+		}
+		
+		return true;
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * A hook that can be overwritten by sub classes to implement logic that is called by the 
+	 * master when the job starts.
+	 * 
+	 * @param loader The class loader for user defined code.
+	 * @throws Exception The method may throw exceptions which cause the job to fail immediately.
+	 */
+	public void initializeOnMaster(ClassLoader loader) throws Exception {}
+	
+	// --------------------------------------------------------------------------------------------
+
 	@Override
 	public String toString() {
-		return this.name + " (" + this.invokableClass + ')';
+		return this.name + " (" + this.invokableClassName + ')';
 	}
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -315,25 +315,25 @@ public class Tuple20<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13,
 	@Override
 	public String toString() {
 		return "(" + StringUtils.arrayAwareToString(this.f0)
-			+ ", " + StringUtils.arrayAwareToString(this.f1)
-			+ ", " + StringUtils.arrayAwareToString(this.f2)
-			+ ", " + StringUtils.arrayAwareToString(this.f3)
-			+ ", " + StringUtils.arrayAwareToString(this.f4)
-			+ ", " + StringUtils.arrayAwareToString(this.f5)
-			+ ", " + StringUtils.arrayAwareToString(this.f6)
-			+ ", " + StringUtils.arrayAwareToString(this.f7)
-			+ ", " + StringUtils.arrayAwareToString(this.f8)
-			+ ", " + StringUtils.arrayAwareToString(this.f9)
-			+ ", " + StringUtils.arrayAwareToString(this.f10)
-			+ ", " + StringUtils.arrayAwareToString(this.f11)
-			+ ", " + StringUtils.arrayAwareToString(this.f12)
-			+ ", " + StringUtils.arrayAwareToString(this.f13)
-			+ ", " + StringUtils.arrayAwareToString(this.f14)
-			+ ", " + StringUtils.arrayAwareToString(this.f15)
-			+ ", " + StringUtils.arrayAwareToString(this.f16)
-			+ ", " + StringUtils.arrayAwareToString(this.f17)
-			+ ", " + StringUtils.arrayAwareToString(this.f18)
-			+ ", " + StringUtils.arrayAwareToString(this.f19)
+			+ "," + StringUtils.arrayAwareToString(this.f1)
+			+ "," + StringUtils.arrayAwareToString(this.f2)
+			+ "," + StringUtils.arrayAwareToString(this.f3)
+			+ "," + StringUtils.arrayAwareToString(this.f4)
+			+ "," + StringUtils.arrayAwareToString(this.f5)
+			+ "," + StringUtils.arrayAwareToString(this.f6)
+			+ "," + StringUtils.arrayAwareToString(this.f7)
+			+ "," + StringUtils.arrayAwareToString(this.f8)
+			+ "," + StringUtils.arrayAwareToString(this.f9)
+			+ "," + StringUtils.arrayAwareToString(this.f10)
+			+ "," + StringUtils.arrayAwareToString(this.f11)
+			+ "," + StringUtils.arrayAwareToString(this.f12)
+			+ "," + StringUtils.arrayAwareToString(this.f13)
+			+ "," + StringUtils.arrayAwareToString(this.f14)
+			+ "," + StringUtils.arrayAwareToString(this.f15)
+			+ "," + StringUtils.arrayAwareToString(this.f16)
+			+ "," + StringUtils.arrayAwareToString(this.f17)
+			+ "," + StringUtils.arrayAwareToString(this.f18)
+			+ "," + StringUtils.arrayAwareToString(this.f19)
 			+ ")";
 	}
 
@@ -398,7 +398,7 @@ public class Tuple20<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13,
 
 	/**
 	* Shallow tuple copy.
-	* @returns A new Tuple with the same fields as this.
+	* @return A new Tuple with the same fields as this.
 	 */
 	public Tuple20<T0,T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11,T12,T13,T14,T15,T16,T17,T18,T19> copy(){ 
 		return new Tuple20<T0,T1,T2,T3,T4,T5,T6,T7,T8,T9,T10,T11,T12,T13,T14,T15,T16,T17,T18,T19>(this.f0,

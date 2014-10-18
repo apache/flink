@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.io.disk.iomanager;
 
 import java.io.EOFException;
@@ -25,9 +24,9 @@ import java.util.List;
 
 import org.apache.flink.core.memory.MemorySegment;
 
-
 /**
- * A {@link DataInputView} that is backed by a {@link BlockChannelReader}, making it effectively a data input
+ * A {@link org.apache.flink.core.memory.DataInputView} that is backed by a
+ * {@link BlockChannelReader}, making it effectively a data input
  * stream. This view is similar to the {@link ChannelReaderInputView}, but does not expect
  * a header for each block, giving a direct stream abstraction over sequence of written
  * blocks. It therefore requires specification of the number of blocks and the number of
@@ -73,8 +72,7 @@ public class HeaderlessChannelReaderInputView extends ChannelReaderInputView
 	
 
 	@Override
-	protected MemorySegment nextSegment(MemorySegment current) throws IOException
-	{
+	protected MemorySegment nextSegment(MemorySegment current) throws IOException {
 		// check for end-of-stream
 		if (this.numBlocksRemaining <= 0) {
 			this.reader.close();
@@ -94,8 +92,7 @@ public class HeaderlessChannelReaderInputView extends ChannelReaderInputView
 	
 
 	@Override
-	protected int getLimitForSegment(MemorySegment segment)
-	{
+	protected int getLimitForSegment(MemorySegment segment) {
 		return this.numBlocksRemaining > 0 ? segment.size() : this.lastBlockBytes;
 	}
 }

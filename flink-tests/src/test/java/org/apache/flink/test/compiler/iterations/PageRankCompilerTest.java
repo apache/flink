@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,7 +23,6 @@ import static org.apache.flink.api.java.aggregation.Aggregations.SUM;
 import static org.junit.Assert.fail;
 
 import org.apache.flink.api.common.Plan;
-import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.compiler.PactCompiler;
 import org.apache.flink.compiler.plan.BulkIterationPlanNode;
@@ -31,11 +30,11 @@ import org.apache.flink.compiler.plan.BulkPartialSolutionPlanNode;
 import org.apache.flink.compiler.plan.OptimizedPlan;
 import org.apache.flink.compiler.plan.SinkPlanNode;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.example.java.graph.PageRankBasic.BuildOutgoingEdgeList;
-import org.apache.flink.example.java.graph.PageRankBasic.Dampener;
-import org.apache.flink.example.java.graph.PageRankBasic.EpsilonFilter;
-import org.apache.flink.example.java.graph.PageRankBasic.JoinVertexWithEdgesMatch;
-import org.apache.flink.example.java.graph.PageRankBasic.RankAssigner;
+import org.apache.flink.examples.java.graph.PageRankBasic.BuildOutgoingEdgeList;
+import org.apache.flink.examples.java.graph.PageRankBasic.Dampener;
+import org.apache.flink.examples.java.graph.PageRankBasic.EpsilonFilter;
+import org.apache.flink.examples.java.graph.PageRankBasic.JoinVertexWithEdgesMatch;
+import org.apache.flink.examples.java.graph.PageRankBasic.RankAssigner;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.apache.flink.test.compiler.util.CompilerTestBase;
@@ -43,7 +42,7 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.IterativeDataSet;
+import org.apache.flink.api.java.operators.IterativeDataSet;
 
 public class PageRankCompilerTest extends CompilerTestBase{
 	
@@ -53,8 +52,7 @@ public class PageRankCompilerTest extends CompilerTestBase{
 			final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 			
 			// get input data
-			@SuppressWarnings("unchecked")
-			DataSet<Tuple1<Long>> pagesInput = env.fromElements(new Tuple1<Long>(1l));
+			DataSet<Long> pagesInput = env.fromElements(1l);
 			@SuppressWarnings("unchecked")
 			DataSet<Tuple2<Long, Long>> linksInput =env.fromElements(new Tuple2<Long, Long>(1l, 2l));
 			

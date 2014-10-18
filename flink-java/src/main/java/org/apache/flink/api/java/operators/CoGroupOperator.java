@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,25 +23,26 @@ import java.security.InvalidParameterException;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.operators.BinaryOperatorInformation;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.CoGroupOperatorBase;
 import org.apache.flink.api.common.operators.base.MapOperatorBase;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.DeltaIteration.SolutionSetPlaceHolder;
+import org.apache.flink.api.java.operators.DeltaIteration.SolutionSetPlaceHolder;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.functions.UnsupportedLambdaExpressionException;
-import org.apache.flink.api.java.operators.Keys.FieldPositionKeys;
+import org.apache.flink.api.java.operators.Keys.ExpressionKeys;
+import org.apache.flink.api.java.operators.Keys.IncompatibleKeysException;
 import org.apache.flink.api.java.operators.translation.KeyExtractingMapper;
-import org.apache.flink.api.java.operators.translation.PlanUnwrappingCoGroupOperator;
-import org.apache.flink.api.java.operators.translation.TupleKeyExtractingMapper;
+import org.apache.flink.api.java.operators.translation.PlanBothUnwrappingCoGroupOperator;
+import org.apache.flink.api.java.operators.translation.PlanLeftUnwrappingCoGroupOperator;
+import org.apache.flink.api.java.operators.translation.PlanRightUnwrappingCoGroupOperator;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.types.TypeInformation;
+
 
 /**
  * A {@link DataSet} that is the result of a CoGroup transformation. 
@@ -60,7 +61,7 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 	private final Keys<I2> keys2;
 
 
-	protected CoGroupOperator(DataSet<I1> input1, DataSet<I2> input2,
+	public CoGroupOperator(DataSet<I1> input1, DataSet<I2> input2,
 							Keys<I1> keys1, Keys<I2> keys2,
 							CoGroupFunction<I1, I2, OUT> function,
 							TypeInformation<OUT> returnType)
@@ -71,6 +72,24 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 
 		if (keys1 == null || keys2 == null) {
 			throw new NullPointerException();
+		}
+
+		// sanity check solution set key mismatches
+		if (input1 instanceof SolutionSetPlaceHolder) {
+			if (keys1 instanceof ExpressionKeys) {
+				int[] positions = ((ExpressionKeys<?>) keys1).computeLogicalKeyPositions();
+				((SolutionSetPlaceHolder<?>) input1).checkJoinKeyFields(positions);
+			} else {
+				throw new InvalidProgramException("Currently, the solution set may only be CoGrouped with using tuple field positions.");
+			}
+		}
+		if (input2 instanceof SolutionSetPlaceHolder) {
+			if (keys2 instanceof ExpressionKeys) {
+				int[] positions = ((ExpressionKeys<?>) keys2).computeLogicalKeyPositions();
+				((SolutionSetPlaceHolder<?>) input2).checkJoinKeyFields(positions);
+			} else {
+				throw new InvalidProgramException("Currently, the solution set may only be CoGrouped with using tuple field positions.");
+			}
 		}
 
 		this.keys1 = keys1;
@@ -91,17 +110,23 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 	protected org.apache.flink.api.common.operators.base.CoGroupOperatorBase<?, ?, OUT, ?> translateToDataFlow(Operator<I1> input1, Operator<I2> input2) {
 		
 		String name = getName() != null ? getName() : function.getClass().getName();
+		try {
+			keys1.areCompatible(keys2);
+		} catch (IncompatibleKeysException e) {
+			throw new InvalidProgramException("The types of the key fields do not match.", e);
+		}
 
 		if (keys1 instanceof Keys.SelectorFunctionKeys
-				&& keys2 instanceof Keys.SelectorFunctionKeys
-				&& keys1.areCompatibale(keys2)) {
+				&& keys2 instanceof Keys.SelectorFunctionKeys) {
 
 			@SuppressWarnings("unchecked")
-			Keys.SelectorFunctionKeys<I1, ?> selectorKeys1 = (Keys.SelectorFunctionKeys<I1, ?>) keys1;
+			Keys.SelectorFunctionKeys<I1, ?> selectorKeys1 =
+					(Keys.SelectorFunctionKeys<I1, ?>) keys1;
 			@SuppressWarnings("unchecked")
-			Keys.SelectorFunctionKeys<I2, ?> selectorKeys2 = (Keys.SelectorFunctionKeys<I2, ?>) keys2;
+			Keys.SelectorFunctionKeys<I2, ?> selectorKeys2 =
+					(Keys.SelectorFunctionKeys<I2, ?>) keys2;
 
-			PlanUnwrappingCoGroupOperator<I1, I2, OUT, ?> po =
+			PlanBothUnwrappingCoGroupOperator<I1, I2, OUT, ?> po =
 					translateSelectorFunctionCoGroup(selectorKeys1, selectorKeys2, function,
 					getInput1Type(), getInput2Type(), getResultType(), name, input1, input2);
 
@@ -111,15 +136,45 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 			return po;
 
 		}
-		else if ((keys1 instanceof Keys.FieldPositionKeys
-				&& keys2 instanceof Keys.FieldPositionKeys) ||
-				((keys1 instanceof Keys.ExpressionKeys
-						&& keys2 instanceof Keys.ExpressionKeys)))
-			{
+		else if (keys2 instanceof Keys.SelectorFunctionKeys) {
 
-				if (!keys1.areCompatibale(keys2)) {
-					throw new InvalidProgramException("The types of the key fields do not match.");
-				}
+			int[] logicalKeyPositions1 = keys1.computeLogicalKeyPositions();
+
+			@SuppressWarnings("unchecked")
+			Keys.SelectorFunctionKeys<I2, ?> selectorKeys2 = (Keys.SelectorFunctionKeys<I2, ?>) keys2;
+
+			PlanRightUnwrappingCoGroupOperator<I1, I2, OUT, ?> po =
+					translateSelectorFunctionCoGroupRight(logicalKeyPositions1, selectorKeys2, function,
+							getInput1Type(), getInput2Type(), getResultType(), name, input1, input2);
+
+			// set dop
+			po.setDegreeOfParallelism(this.getParallelism());
+
+			return po;
+		}
+		else if (keys1 instanceof Keys.SelectorFunctionKeys) {
+
+			@SuppressWarnings("unchecked")
+			Keys.SelectorFunctionKeys<I1, ?> selectorKeys1 = (Keys.SelectorFunctionKeys<I1, ?>) keys1;
+
+			int[] logicalKeyPositions2 = keys2.computeLogicalKeyPositions();
+
+			PlanLeftUnwrappingCoGroupOperator<I1, I2, OUT, ?> po =
+					translateSelectorFunctionCoGroupLeft(selectorKeys1, logicalKeyPositions2, function,
+							getInput1Type(), getInput2Type(), getResultType(), name, input1, input2);
+
+			// set dop
+			po.setDegreeOfParallelism(this.getParallelism());
+
+			return po;
+		}
+		else if ( keys1 instanceof Keys.ExpressionKeys && keys2 instanceof Keys.ExpressionKeys)
+			{
+			try {
+				keys1.areCompatible(keys2);
+			} catch (IncompatibleKeysException e) {
+				throw new InvalidProgramException("The types of the key fields do not match.", e);
+			}
 
 			int[] logicalKeyPositions1 = keys1.computeLogicalKeyPositions();
 			int[] logicalKeyPositions2 = keys2.computeLogicalKeyPositions();
@@ -139,51 +194,13 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 			return po;
 
 		}
-		else if (keys1 instanceof Keys.FieldPositionKeys
-				&& keys2 instanceof Keys.SelectorFunctionKeys
-				&& keys1.areCompatibale(keys2)
-			) {
-
-			int[] logicalKeyPositions1 = keys1.computeLogicalKeyPositions();
-
-			@SuppressWarnings("unchecked")
-			Keys.SelectorFunctionKeys<I2, ?> selectorKeys2 = (Keys.SelectorFunctionKeys<I2, ?>) keys2;
-
-			PlanUnwrappingCoGroupOperator<I1, I2, OUT, ?> po =
-					translateSelectorFunctionCoGroupRight(logicalKeyPositions1, selectorKeys2, function,
-					getInput1Type(), getInput2Type(), getResultType(), name, input1, input2);
-
-			// set dop
-			po.setDegreeOfParallelism(this.getParallelism());
-
-			return po;
-		}
-		else if (keys1 instanceof Keys.SelectorFunctionKeys
-				&& keys2 instanceof Keys.FieldPositionKeys
-				&& keys1.areCompatibale(keys2)
-			) {
-
-			@SuppressWarnings("unchecked")
-			Keys.SelectorFunctionKeys<I1, ?> selectorKeys1 = (Keys.SelectorFunctionKeys<I1, ?>) keys1;
-
-			int[] logicalKeyPositions2 = keys2.computeLogicalKeyPositions();
-
-			PlanUnwrappingCoGroupOperator<I1, I2, OUT, ?> po =
-					translateSelectorFunctionCoGroupLeft(selectorKeys1, logicalKeyPositions2, function,
-					getInput1Type(), getInput2Type(), getResultType(), name, input1, input2);
-
-			// set dop
-			po.setDegreeOfParallelism(this.getParallelism());
-
-			return po;
-		}
 		else {
 			throw new UnsupportedOperationException("Unrecognized or incompatible key types.");
 		}
 	}
 
 
-	private static <I1, I2, K, OUT> PlanUnwrappingCoGroupOperator<I1, I2, OUT, K> translateSelectorFunctionCoGroup(
+	private static <I1, I2, K, OUT> PlanBothUnwrappingCoGroupOperator<I1, I2, OUT, K> translateSelectorFunctionCoGroup(
 			Keys.SelectorFunctionKeys<I1, ?> rawKeys1, Keys.SelectorFunctionKeys<I2, ?> rawKeys2,
 			CoGroupFunction<I1, I2, OUT> function,
 			TypeInformation<I1> inputType1, TypeInformation<I2> inputType2, TypeInformation<OUT> outputType, String name,
@@ -204,7 +221,7 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 				new MapOperatorBase<I1, Tuple2<K, I1>, MapFunction<I1, Tuple2<K, I1>>>(extractor1, new UnaryOperatorInformation<I1, Tuple2<K, I1>>(inputType1, typeInfoWithKey1), "Key Extractor 1");
 		final MapOperatorBase<I2, Tuple2<K, I2>, MapFunction<I2, Tuple2<K, I2>>> keyMapper2 =
 				new MapOperatorBase<I2, Tuple2<K, I2>, MapFunction<I2, Tuple2<K, I2>>>(extractor2, new UnaryOperatorInformation<I2, Tuple2<K, I2>>(inputType2, typeInfoWithKey2), "Key Extractor 2");
-		final PlanUnwrappingCoGroupOperator<I1, I2, OUT, K> cogroup = new PlanUnwrappingCoGroupOperator<I1, I2, OUT, K>(function, keys1, keys2, name, outputType, typeInfoWithKey1, typeInfoWithKey2);
+		final PlanBothUnwrappingCoGroupOperator<I1, I2, OUT, K> cogroup = new PlanBothUnwrappingCoGroupOperator<I1, I2, OUT, K>(function, keys1, keys2, name, outputType, typeInfoWithKey1, typeInfoWithKey2);
 
 		cogroup.setFirstInput(keyMapper1);
 		cogroup.setSecondInput(keyMapper2);
@@ -218,7 +235,7 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 		return cogroup;
 	}
 
-	private static <I1, I2, K, OUT> PlanUnwrappingCoGroupOperator<I1, I2, OUT, K> translateSelectorFunctionCoGroupRight(
+	private static <I1, I2, K, OUT> PlanRightUnwrappingCoGroupOperator<I1, I2, OUT, K> translateSelectorFunctionCoGroupRight(
 			int[] logicalKeyPositions1, Keys.SelectorFunctionKeys<I2, ?> rawKeys2,
 			CoGroupFunction<I1, I2, OUT> function,
 			TypeInformation<I1> inputType1, TypeInformation<I2> inputType2, TypeInformation<OUT> outputType, String name,
@@ -231,32 +248,39 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 		@SuppressWarnings("unchecked")
 		final Keys.SelectorFunctionKeys<I2, K> keys2 = (Keys.SelectorFunctionKeys<I2, K>) rawKeys2;
 
-		final TypeInformation<Tuple2<K, I1>> typeInfoWithKey1 = new TupleTypeInfo<Tuple2<K, I1>>(keys2.getKeyType(), inputType1); // assume same key, checked by Key.areCompatibale() before
-		final TypeInformation<Tuple2<K, I2>> typeInfoWithKey2 = new TupleTypeInfo<Tuple2<K, I2>>(keys2.getKeyType(), inputType2);
+		final TypeInformation<Tuple2<K, I2>> typeInfoWithKey2 =
+				new TupleTypeInfo<Tuple2<K, I2>>(keys2.getKeyType(), inputType2);
 
-		final TupleKeyExtractingMapper<I1, K> extractor1 = new TupleKeyExtractingMapper<I1, K>(logicalKeyPositions1[0]);
-		final KeyExtractingMapper<I2, K> extractor2 = new KeyExtractingMapper<I2, K>(keys2.getKeyExtractor());
+		final KeyExtractingMapper<I2, K> extractor2 =
+				new KeyExtractingMapper<I2, K>(keys2.getKeyExtractor());
 
-		final MapOperatorBase<I1, Tuple2<K, I1>, MapFunction<I1, Tuple2<K, I1>>> keyMapper1 =
-				new MapOperatorBase<I1, Tuple2<K, I1>, MapFunction<I1, Tuple2<K, I1>>>(extractor1, new UnaryOperatorInformation<I1, Tuple2<K, I1>>(inputType1, typeInfoWithKey1), "Key Extractor 1");
 		final MapOperatorBase<I2, Tuple2<K, I2>, MapFunction<I2, Tuple2<K, I2>>> keyMapper2 =
-				new MapOperatorBase<I2, Tuple2<K, I2>, MapFunction<I2, Tuple2<K, I2>>>(extractor2, new UnaryOperatorInformation<I2, Tuple2<K, I2>>(inputType2, typeInfoWithKey2), "Key Extractor 2");
+				new MapOperatorBase<I2, Tuple2<K, I2>, MapFunction<I2, Tuple2<K, I2>>>(
+						extractor2,
+						new UnaryOperatorInformation<I2, Tuple2<K, I2>>(inputType2, typeInfoWithKey2),
+						"Key Extractor 2");
 		
-		final PlanUnwrappingCoGroupOperator<I1, I2, OUT, K> cogroup = new PlanUnwrappingCoGroupOperator<I1, I2, OUT, K>(function, logicalKeyPositions1, keys2, name, outputType, typeInfoWithKey1, typeInfoWithKey2);
+		final PlanRightUnwrappingCoGroupOperator<I1, I2, OUT, K> cogroup =
+				new PlanRightUnwrappingCoGroupOperator<I1, I2, OUT, K>(
+						function,
+						logicalKeyPositions1,
+						keys2,
+						name,
+						outputType,
+						inputType1,
+						typeInfoWithKey2);
 
-		cogroup.setFirstInput(keyMapper1);
+		cogroup.setFirstInput(input1);
 		cogroup.setSecondInput(keyMapper2);
 
-		keyMapper1.setInput(input1);
 		keyMapper2.setInput(input2);
 		// set dop
-		keyMapper1.setDegreeOfParallelism(input1.getDegreeOfParallelism());
 		keyMapper2.setDegreeOfParallelism(input2.getDegreeOfParallelism());
 
 		return cogroup;
 	}
 
-	private static <I1, I2, K, OUT> PlanUnwrappingCoGroupOperator<I1, I2, OUT, K> translateSelectorFunctionCoGroupLeft(
+	private static <I1, I2, K, OUT> PlanLeftUnwrappingCoGroupOperator<I1, I2, OUT, K> translateSelectorFunctionCoGroupLeft(
 			Keys.SelectorFunctionKeys<I1, ?> rawKeys1, int[] logicalKeyPositions2,
 			CoGroupFunction<I1, I2, OUT> function,
 			TypeInformation<I1> inputType1, TypeInformation<I2> inputType2, TypeInformation<OUT> outputType, String name,
@@ -269,27 +293,33 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 		@SuppressWarnings("unchecked")
 		final Keys.SelectorFunctionKeys<I1, K> keys1 = (Keys.SelectorFunctionKeys<I1, K>) rawKeys1;
 
-		final TypeInformation<Tuple2<K, I1>> typeInfoWithKey1 = new TupleTypeInfo<Tuple2<K, I1>>(keys1.getKeyType(), inputType1); // assume same key, checked by Key.areCompatibale() before
-		final TypeInformation<Tuple2<K, I2>> typeInfoWithKey2 = new TupleTypeInfo<Tuple2<K, I2>>(keys1.getKeyType(), inputType2);
+		final TypeInformation<Tuple2<K, I1>> typeInfoWithKey1 =
+				new TupleTypeInfo<Tuple2<K, I1>>(keys1.getKeyType(), inputType1);
 
 		final KeyExtractingMapper<I1, K> extractor1 = new KeyExtractingMapper<I1, K>(keys1.getKeyExtractor());
-		final TupleKeyExtractingMapper<I2, K> extractor2 = new TupleKeyExtractingMapper<I2, K>(logicalKeyPositions2[0]);
 
 		final MapOperatorBase<I1, Tuple2<K, I1>, MapFunction<I1, Tuple2<K, I1>>> keyMapper1 =
-				new MapOperatorBase<I1, Tuple2<K, I1>, MapFunction<I1, Tuple2<K, I1>>>(extractor1, new UnaryOperatorInformation<I1, Tuple2<K, I1>>(inputType1, typeInfoWithKey1), "Key Extractor 1");
-		final MapOperatorBase<I2, Tuple2<K, I2>, MapFunction<I2, Tuple2<K, I2>>> keyMapper2 =
-				new MapOperatorBase<I2, Tuple2<K, I2>, MapFunction<I2, Tuple2<K, I2>>>(extractor2, new UnaryOperatorInformation<I2, Tuple2<K, I2>>(inputType2, typeInfoWithKey2), "Key Extractor 2");
-		
-		final PlanUnwrappingCoGroupOperator<I1, I2, OUT, K> cogroup = new PlanUnwrappingCoGroupOperator<I1, I2, OUT, K>(function, keys1, logicalKeyPositions2, name, outputType, typeInfoWithKey1, typeInfoWithKey2);
+				new MapOperatorBase<I1, Tuple2<K, I1>, MapFunction<I1, Tuple2<K, I1>>>(
+						extractor1,
+						new UnaryOperatorInformation<I1, Tuple2<K, I1>>(inputType1, typeInfoWithKey1),
+						"Key Extractor 1");
+
+		final PlanLeftUnwrappingCoGroupOperator<I1, I2, OUT, K> cogroup =
+				new PlanLeftUnwrappingCoGroupOperator<I1, I2, OUT, K>(
+						function,
+						keys1,
+						logicalKeyPositions2,
+						name,
+						outputType,
+						typeInfoWithKey1,
+						inputType2);
 
 		cogroup.setFirstInput(keyMapper1);
-		cogroup.setSecondInput(keyMapper2);
+		cogroup.setSecondInput(input2);
 
 		keyMapper1.setInput(input1);
-		keyMapper2.setInput(input2);
 		// set dop
 		keyMapper1.setDegreeOfParallelism(input1.getDegreeOfParallelism());
-		keyMapper2.setDegreeOfParallelism(input2.getDegreeOfParallelism());
 
 		return cogroup;
 	}
@@ -334,7 +364,7 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 		 * @see DataSet
 		 */
 		public CoGroupOperatorSetsPredicate where(int... fields) {
-			return new CoGroupOperatorSetsPredicate(new Keys.FieldPositionKeys<I1>(fields, input1.getType()));
+			return new CoGroupOperatorSetsPredicate(new Keys.ExpressionKeys<I1>(fields, input1.getType()));
 		}
 
 		/**
@@ -350,9 +380,9 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 		 * @see Tuple
 		 * @see DataSet
 		 */
-//		public CoGroupOperatorSetsPredicate where(String... fields) {
-//			return new CoGroupOperatorSetsPredicate(new Keys.ExpressionKeys<I1>(fields, input1.getType()));
-//		}
+		public CoGroupOperatorSetsPredicate where(String... fields) {
+			return new CoGroupOperatorSetsPredicate(new Keys.ExpressionKeys<I1>(fields, input1.getType()));
+		}
 
 		/**
 		 * Continues a CoGroup transformation and defines a {@link KeySelector} function for the first co-grouped {@link DataSet}.</br>
@@ -367,7 +397,8 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 		 * @see DataSet
 		 */
 		public <K> CoGroupOperatorSetsPredicate where(KeySelector<I1, K> keyExtractor) {
-			return new CoGroupOperatorSetsPredicate(new Keys.SelectorFunctionKeys<I1, K>(keyExtractor, input1.getType()));
+			TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keyExtractor, input1.getType());
+			return new CoGroupOperatorSetsPredicate(new Keys.SelectorFunctionKeys<I1, K>(keyExtractor, input1.getType(), keyType));
 		}
 
 		// ----------------------------------------------------------------------------------------
@@ -405,7 +436,7 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 			 *           Call {@link org.apache.flink.api.java.operators.CoGroupOperator.CoGroupOperatorSets.CoGroupOperatorSetsPredicate.CoGroupOperatorWithoutFunction#with(org.apache.flink.api.common.functions.CoGroupFunction)} to finalize the CoGroup transformation.
 			 */
 			public CoGroupOperatorWithoutFunction equalTo(int... fields) {
-				return createCoGroupOperator(new Keys.FieldPositionKeys<I2>(fields, input2.getType()));
+				return createCoGroupOperator(new Keys.ExpressionKeys<I2>(fields, input2.getType()));
 			}
 
 			/**
@@ -417,9 +448,9 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 			 * @return An incomplete CoGroup transformation.
 			 *           Call {@link org.apache.flink.api.java.operators.CoGroupOperator.CoGroupOperatorSets.CoGroupOperatorSetsPredicate.CoGroupOperatorWithoutFunction#with(org.apache.flink.api.common.functions.CoGroupFunction)} to finalize the CoGroup transformation.
 			 */
-//			public CoGroupOperatorWithoutFunction equalTo(String... fields) {
-//				return createCoGroupOperator(new Keys.ExpressionKeys<I2>(fields, input2.getType()));
-//			}
+			public CoGroupOperatorWithoutFunction equalTo(String... fields) {
+				return createCoGroupOperator(new Keys.ExpressionKeys<I2>(fields, input2.getType()));
+			}
 
 			/**
 			 * Continues a CoGroup transformation and defines a {@link KeySelector} function for the second co-grouped {@link DataSet}.</br>
@@ -431,12 +462,13 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 			 *           Call {@link org.apache.flink.api.java.operators.CoGroupOperator.CoGroupOperatorSets.CoGroupOperatorSetsPredicate.CoGroupOperatorWithoutFunction#with(org.apache.flink.api.common.functions.CoGroupFunction)} to finalize the CoGroup transformation.
 			 */
 			public <K> CoGroupOperatorWithoutFunction equalTo(KeySelector<I2, K> keyExtractor) {
-				return createCoGroupOperator(new Keys.SelectorFunctionKeys<I2, K>(keyExtractor, input2.getType()));
+				TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keyExtractor, input2.getType());
+				return createCoGroupOperator(new Keys.SelectorFunctionKeys<I2, K>(keyExtractor, input2.getType(), keyType));
 			}
 
 			/**
 			 * Intermediate step of a CoGroup transformation. <br/>
-			 * To continue the CoGroup transformation, provide a {@link org.apache.flink.api.java.functions.RichCoGroupFunction} by calling
+			 * To continue the CoGroup transformation, provide a {@link org.apache.flink.api.common.functions.RichCoGroupFunction} by calling
 			 * {@link org.apache.flink.api.java.operators.CoGroupOperator.CoGroupOperatorSets.CoGroupOperatorSetsPredicate.CoGroupOperatorWithoutFunction#with(org.apache.flink.api.common.functions.CoGroupFunction)}.
 			 *
 			 */
@@ -448,27 +480,10 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 				if (keys2.isEmpty()) {
 					throw new InvalidProgramException("The co-group keys must not be empty.");
 				}
-
-				if (!keys1.areCompatibale(keys2)) {
-					throw new InvalidProgramException("The pair of co-group keys are not compatible with each other.");
-				}
-				
-				// sanity check solution set key mismatches
-				if (input1 instanceof SolutionSetPlaceHolder) {
-					if (keys1 instanceof FieldPositionKeys) {
-						int[] positions = ((FieldPositionKeys<?>) keys1).computeLogicalKeyPositions();
-						((SolutionSetPlaceHolder<?>) input1).checkJoinKeyFields(positions);
-					} else {
-						throw new InvalidProgramException("Currently, the solution set may only be CoGrouped with using tuple field positions.");
-					}
-				}
-				if (input2 instanceof SolutionSetPlaceHolder) {
-					if (keys2 instanceof FieldPositionKeys) {
-						int[] positions = ((FieldPositionKeys<?>) keys2).computeLogicalKeyPositions();
-						((SolutionSetPlaceHolder<?>) input2).checkJoinKeyFields(positions);
-					} else {
-						throw new InvalidProgramException("Currently, the solution set may only be CoGrouped with using tuple field positions.");
-					}
+				try {
+					keys1.areCompatible(keys2);
+				} catch(IncompatibleKeysException ike) {
+					throw new InvalidProgramException("The pair of co-group keys are not compatible with each other.", ike);
 				}
 
 				return new CoGroupOperatorWithoutFunction(keys2);
@@ -490,21 +505,18 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 				}
 
 				/**
-				 * Finalizes a CoGroup transformation by applying a {@link org.apache.flink.api.java.functions.RichCoGroupFunction} to groups of elements with identical keys.<br/>
+				 * Finalizes a CoGroup transformation by applying a {@link org.apache.flink.api.common.functions.RichCoGroupFunction} to groups of elements with identical keys.<br/>
 				 * Each CoGroupFunction call returns an arbitrary number of keys. 
 				 * 
 				 * @param function The CoGroupFunction that is called for all groups of elements with identical keys.
 				 * @return An CoGroupOperator that represents the co-grouped result DataSet.
 				 * 
-				 * @see org.apache.flink.api.java.functions.RichCoGroupFunction
+				 * @see org.apache.flink.api.common.functions.RichCoGroupFunction
 				 * @see DataSet
 				 */
 				public <R> CoGroupOperator<I1, I2, R> with(CoGroupFunction<I1, I2, R> function) {
 					if (function == null) {
 						throw new NullPointerException("CoGroup function must not be null.");
-					}
-					if (FunctionUtils.isLambdaFunction(function)) {
-						throw new UnsupportedLambdaExpressionException();
 					}
 					TypeInformation<R> returnType = TypeExtractor.getCoGroupReturnTypes(function, input1.getType(), input2.getType());
 					return new CoGroupOperator<I1, I2, R>(input1, input2, keys1, keys2, function, returnType);

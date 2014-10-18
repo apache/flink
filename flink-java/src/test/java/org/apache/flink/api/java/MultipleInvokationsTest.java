@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,9 +22,8 @@ package org.apache.flink.api.java;
 import static org.junit.Assert.*;
 
 import org.apache.flink.api.common.Plan;
-import org.apache.flink.api.common.operators.base.GenericDataSinkBase;
+import org.apache.flink.api.common.operators.GenericDataSinkBase;
 import org.junit.Test;
-
 import org.apache.flink.api.java.io.DiscardingOuputFormat;
 
 public class MultipleInvokationsTest {

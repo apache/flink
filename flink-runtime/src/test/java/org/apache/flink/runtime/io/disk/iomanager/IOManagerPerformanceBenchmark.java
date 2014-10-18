@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -34,8 +34,8 @@ import java.util.List;
 
 import org.junit.Assert;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
@@ -59,7 +59,7 @@ import org.junit.Test;
  */
 public class IOManagerPerformanceBenchmark
 {
-	private static final Log LOG = LogFactory.getLog(IOManagerPerformanceBenchmark.class);
+	private static final Logger LOG = LoggerFactory.getLogger(IOManagerPerformanceBenchmark.class);
 	
 	private static final int[] SEGMENT_SIZES_ALIGNED = { 4096, 16384, 524288 };
 	

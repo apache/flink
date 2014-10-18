@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,12 +27,6 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 
-import org.apache.flink.api.common.io.BinaryInputFormat;
-import org.apache.flink.api.common.io.BinaryOutputFormat;
-import org.apache.flink.api.common.io.BlockInfo;
-import org.apache.flink.api.common.io.FormatUtil;
-import org.apache.flink.api.common.io.SerializedInputFormat;
-import org.apache.flink.api.common.io.SerializedOutputFormat;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
@@ -42,12 +36,9 @@ import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.types.StringValue;
-import org.apache.flink.util.LogUtils;
-import org.apache.log4j.Level;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -79,11 +70,6 @@ public class SequentialFormatTest {
 
 	private File tempFile;
 
-	@BeforeClass
-	public static void initialize() {
-		LogUtils.initializeDefaultConsoleLogger(Level.WARN);
-	}
-	
 	/**
 	 * Initializes SequentialFormatTest.
 	 */

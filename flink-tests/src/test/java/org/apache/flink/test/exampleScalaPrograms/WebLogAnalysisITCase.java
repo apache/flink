@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,17 +16,34 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.exampleScalaPrograms;
 
-import org.apache.flink.api.common.Plan;
-import org.apache.flink.examples.scala.relational.WebLogAnalysis;
 
-public class WebLogAnalysisITCase extends org.apache.flink.test.recordJobTests.WebLogAnalysisITCase {
+import org.apache.flink.examples.scala.relational.WebLogAnalysis;
+import org.apache.flink.test.testdata.WebLogAnalysisData;
+import org.apache.flink.test.util.JavaProgramTestBase;
+
+public class WebLogAnalysisITCase extends JavaProgramTestBase {
+
+	private String docsPath;
+	private String ranksPath;
+	private String visitsPath;
+	private String resultPath;
 
 	@Override
-	protected Plan getTestJob() {
-		WebLogAnalysis webLogAnalysis = new WebLogAnalysis();
-		return webLogAnalysis.getScalaPlan(DOP, docsPath, ranksPath, visitsPath, resultPath);
+	protected void preSubmit() throws Exception {
+		docsPath = createTempFile("docs", WebLogAnalysisData.DOCS);
+		ranksPath = createTempFile("ranks", WebLogAnalysisData.RANKS);
+		visitsPath = createTempFile("visits", WebLogAnalysisData.VISITS);
+		resultPath = getTempDirPath("result");
+	}
+
+	@Override
+	protected void postSubmit() throws Exception {
+		compareResultsByLinesInMemory(WebLogAnalysisData.EXCEPTED_RESULT, resultPath);
+	}
+	@Override
+	protected void testProgram() throws Exception {
+		WebLogAnalysis.main(new String[]{docsPath, ranksPath, visitsPath, resultPath});
 	}
 }

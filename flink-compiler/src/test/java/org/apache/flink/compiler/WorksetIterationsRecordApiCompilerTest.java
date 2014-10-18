@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -51,6 +51,7 @@ import org.junit.Test;
 * Tests that validate optimizer choices when using operators that are requesting certain specific execution
 * strategies.
 */
+@SuppressWarnings("deprecation")
 public class WorksetIterationsRecordApiCompilerTest extends CompilerTestBase {
 	
 	private static final long serialVersionUID = 1L;
@@ -97,7 +98,7 @@ public class WorksetIterationsRecordApiCompilerTest extends CompilerTestBase {
 		
 		// verify reducer
 		assertEquals(ShipStrategyType.PARTITION_HASH, worksetReducer.getInput().getShipStrategy());
-		assertEquals(list0, worksetReducer.getKeys());
+		assertEquals(list0, worksetReducer.getKeys(0));
 		
 		// currently, the system may partition before or after the mapper
 		ShipStrategyType ss1 = deltaMapper.getInput().getShipStrategy();
@@ -142,7 +143,7 @@ public class WorksetIterationsRecordApiCompilerTest extends CompilerTestBase {
 		
 		// verify reducer
 		assertEquals(ShipStrategyType.PARTITION_HASH, worksetReducer.getInput().getShipStrategy());
-		assertEquals(list0, worksetReducer.getKeys());
+		assertEquals(list0, worksetReducer.getKeys(0));
 		
 		
 		// verify solution delta
@@ -186,7 +187,7 @@ public class WorksetIterationsRecordApiCompilerTest extends CompilerTestBase {
 		
 		// verify reducer
 		assertEquals(ShipStrategyType.FORWARD, worksetReducer.getInput().getShipStrategy());
-		assertEquals(list0, worksetReducer.getKeys());
+		assertEquals(list0, worksetReducer.getKeys(0));
 		
 		
 		// verify solution delta

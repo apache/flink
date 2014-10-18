@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,8 +19,8 @@
 
 package org.apache.flink.client;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.client.web.WebInterfaceServer;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -35,7 +35,7 @@ public class WebFrontend {
 	/**
 	 * The log for this class.
 	 */
-	private static final Log LOG = LogFactory.getLog(WebFrontend.class);
+	private static final Logger LOG = LoggerFactory.getLogger(WebFrontend.class);
 
 	/**
 	 * Main method. accepts a single parameter, which is the config directory.

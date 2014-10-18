@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -20,81 +20,109 @@ package org.apache.flink.streaming.api.invokable.operator;
 import static org.junit.Assert.assertEquals;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
+import java.util.HashSet;
 import java.util.List;
 
-import org.apache.flink.api.common.functions.GroupReduceFunction;
-import org.apache.flink.streaming.api.invokable.util.Timestamp;
+import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.streaming.api.invokable.util.TimeStamp;
 import org.apache.flink.streaming.util.MockInvokable;
-import org.apache.flink.util.Collector;
-import org.junit.Before;
 import org.junit.Test;
 
 public class WindowReduceInvokableTest {
 
-	public static final class MySlidingWindowReduce implements GroupReduceFunction<Integer, String> {
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public void reduce(Iterable<Integer> values, Collector<String> out) throws Exception {
-			for (Integer value : values) {
-				out.collect(value.toString());
-			}
-			out.collect(EOW);
-		}
-	}
-
-	public static final class MyTimestamp implements Timestamp<Integer> {
-		private static final long serialVersionUID = 1L;
-
-		private Iterator<Long> timestamps;
-
-		public MyTimestamp(List<Long> timestamps) {
-			this.timestamps = timestamps.iterator();
-		}
-
-		@Override
-		public long getTimestamp(Integer value) {
-			long ts = timestamps.next();
-			return ts;
-		}
-	}
-
-	private final static String EOW = "|";
-
-	private static List<WindowReduceInvokable<Integer, String>> invokables = new ArrayList<WindowReduceInvokable<Integer, String>>();
-	private static List<List<String>> expectedResults = new ArrayList<List<String>>();
-
-	@Before
-	public void before() {
-		long windowSize = 3;
-		long slideSize = 2;
-		List<Long> timestamps = Arrays.asList(101L, 102L, 103L, 104L, 105L, 106L, 107L, 108L, 109L,
-				110L);
-		expectedResults.add(Arrays.asList("1", "2", "3", EOW, "3", "4", "5", EOW, "5", "6", "7",
-				EOW, "7", "8", "9", EOW, "8", "9", "10", EOW));
-		invokables.add(new WindowReduceInvokable<Integer, String>(new MySlidingWindowReduce(),
-				windowSize, slideSize, new MyTimestamp(timestamps)));
-
-		windowSize = 10;
-		slideSize = 5;
-		timestamps = Arrays.asList(101L, 103L, 121L, 122L, 123L, 124L, 180L, 181L, 185L, 190L);
-		expectedResults.add(Arrays.asList("1", "2", EOW, EOW, EOW, EOW, "3", "4", "5", "6", EOW, EOW, EOW, EOW, EOW, EOW, EOW, EOW, EOW, EOW, EOW, EOW, "7", "8", "9", EOW, "9", "10", EOW));
-		invokables.add(new WindowReduceInvokable<Integer, String>(new MySlidingWindowReduce(),
-				windowSize, slideSize, new MyTimestamp(timestamps)));
-	}
-
 	@Test
-	public void slidingBatchReduceTest() {
-		List<List<String>> actualResults = new ArrayList<List<String>>();
-		
-		for (WindowReduceInvokable<Integer, String> invokable : invokables) {
-			actualResults.add(MockInvokable.createAndExecute(invokable,
-					Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)));
-		}
+	public void windowReduceTest() {
 
-		assertEquals(expectedResults, actualResults);
+		List<Integer> inputs = new ArrayList<Integer>();
+		inputs.add(1);
+		inputs.add(2);
+		inputs.add(2);
+		inputs.add(3);
+		inputs.add(4);
+		inputs.add(5);
+		inputs.add(10);
+		inputs.add(11);
+		inputs.add(11);
+		// 1,2,3,4-3,4,5,6-5,6,7,8-7,8,9,10-9,10,11
+		// 12-12-5-10-32
+
+		List<Integer> expected = new ArrayList<Integer>();
+		expected.add(12);
+		expected.add(12);
+		expected.add(5);
+		expected.add(10);
+		expected.add(32);
+
+		WindowReduceInvokable<Integer> invokable = new WindowReduceInvokable<Integer>(
+				new ReduceFunction<Integer>() {
+					private static final long serialVersionUID = 1L;
+
+					@Override
+					public Integer reduce(Integer value1, Integer value2) throws Exception {
+						return value1 + value2;
+					}
+				}, 4, 2, new TimeStamp<Integer>() {
+					private static final long serialVersionUID = 1L;
+
+					@Override
+					public long getTimestamp(Integer value) {
+						return value;
+					}
+
+					@Override
+					public long getStartTime() {
+						return 1;
+					}
+				});
+
+		assertEquals(expected, MockInvokable.createAndExecute(invokable, inputs));
+
+		List<Tuple2<String, Integer>> inputs2 = new ArrayList<Tuple2<String, Integer>>();
+		inputs2.add(new Tuple2<String, Integer>("a", 1));
+		inputs2.add(new Tuple2<String, Integer>("a", 2));
+		inputs2.add(new Tuple2<String, Integer>("b", 2));
+		inputs2.add(new Tuple2<String, Integer>("b", 2));
+		inputs2.add(new Tuple2<String, Integer>("b", 5));
+		inputs2.add(new Tuple2<String, Integer>("a", 7));
+		inputs2.add(new Tuple2<String, Integer>("b", 9));
+		inputs2.add(new Tuple2<String, Integer>("b", 10));
+
+		List<Tuple2<String, Integer>> expected2 = new ArrayList<Tuple2<String, Integer>>();
+		expected2.add(new Tuple2<String, Integer>("a", 3));
+		expected2.add(new Tuple2<String, Integer>("b", 4));
+		expected2.add(new Tuple2<String, Integer>("b", 5));
+		expected2.add(new Tuple2<String, Integer>("a", 7));
+		expected2.add(new Tuple2<String, Integer>("b", 10));
+
+		GroupedWindowReduceInvokable<Tuple2<String, Integer>> invokable2 = new GroupedWindowReduceInvokable<Tuple2<String, Integer>>(
+				new ReduceFunction<Tuple2<String, Integer>>() {
+					private static final long serialVersionUID = 1L;
+
+					@Override
+					public Tuple2<String, Integer> reduce(Tuple2<String, Integer> value1,
+							Tuple2<String, Integer> value2) throws Exception {
+						return new Tuple2<String, Integer>(value1.f0, value1.f1 + value2.f1);
+					}
+				}, 2, 3, 0, new TimeStamp<Tuple2<String, Integer>>() {
+					private static final long serialVersionUID = 1L;
+
+					@Override
+					public long getTimestamp(Tuple2<String, Integer> value) {
+						return value.f1;
+					}
+
+					@Override
+					public long getStartTime() {
+						return 1;
+					}
+				});
+
+		List<Tuple2<String, Integer>> actual2 = MockInvokable.createAndExecute(invokable2, inputs2);
+		assertEquals(new HashSet<Tuple2<String, Integer>>(expected2),
+				new HashSet<Tuple2<String, Integer>>(actual2));
+		assertEquals(expected2.size(), actual2.size());
+
 	}
 
 }

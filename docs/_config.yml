@@ -5,15 +5,20 @@
 #     {{ site.CONFIG_KEY }}
 #------------------------------------------------------------------------------
 
-FLINK_VERSION_STABLE: 0.6-incubating # this variable can point to a SNAPSHOT version in the git source.
-FLINK_VERSION_HADOOP_2_STABLE: 0.6-hadoop2-incubating
-FLINK_VERSION_SHORT: 0.6
+FLINK_VERSION_STABLE: "0.7-incubating" # this variable can point to a SNAPSHOT version in the git source.
+FLINK_VERSION_SHORT: "0.7"
+FLINK_VERSION_HADOOP_2_STABLE: 0.7-hadoop2-incubating
+FLINK_SCALA_VERSION: "2.10.4"
+FLINK_SCALA_VERSION_SHORT: "2.10"
 FLINK_ISSUES_URL: https://issues.apache.org/jira/browse/FLINK
 FLINK_GITHUB_URL:  https://github.com/apache/incubator-flink
 
-FLINK_DOWNLOAD_URL_HADOOP_1_STABLE: http://www.apache.org/dyn/closer.cgi/incubator/flink/flink-0.6-incubating-bin-hadoop1.tgz
-FLINK_DOWNLOAD_URL_HADOOP_2_STABLE: http://www.apache.org/dyn/closer.cgi/incubator/flink/flink-0.6-incubating-bin-hadoop2.tgz
-FLINK_DOWNLOAD_URL_YARN_STABLE: http://www.apache.org/dyn/closer.cgi/incubator/flink/flink-0.6-incubating-bin-hadoop2-yarn.tgz
+FLINK_WEBSITE_URL: http://flink.incubator.apache.org
+FLINK_DOWNLOAD_URL: http://flink.incubator.apache.org/downloads.html
+
+FLINK_DOWNLOAD_URL_HADOOP_1_STABLE: http://www.apache.org/dyn/closer.cgi/incubator/flink/flink-0.7-incubating-bin-hadoop1.tgz
+FLINK_DOWNLOAD_URL_HADOOP_2_STABLE: http://www.apache.org/dyn/closer.cgi/incubator/flink/flink-0.7-incubating-bin-hadoop2.tgz
+FLINK_DOWNLOAD_URL_YARN_STABLE: http://www.apache.org/dyn/closer.cgi/incubator/flink/flink-0.7-incubating-bin-hadoop2-yarn.tgz
 
 #------------------------------------------------------------------------------
 # BUILD CONFIG
@@ -27,12 +32,10 @@ defaults:
     scope:
       path: ""
     values:
-      layout: docs
+      layout: default
 
 highlighter: pygments
-markdown: redcarpet
-redcarpet:
-  # https://help.github.com/articles/github-flavored-markdown
-  extensions: ["no_intra_emphasis", "fenced_code_blocks", "autolink",
-               "tables", "with_toc_data", "strikethrough", "superscript",
-               "lax_spacing"]
+markdown: KramdownPygments
+
+kramdown:
+    toc_levels: 1..3

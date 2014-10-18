@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -23,13 +23,13 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.invokable.operator.co.CoInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.io.CoReaderIterator;
-import org.apache.flink.types.TypeInformation;
 import org.apache.flink.util.Collector;
 
 public class MockCoInvokable<IN1, IN2, OUT> {
@@ -158,6 +158,7 @@ public class MockCoInvokable<IN1, IN2, OUT> {
 		try {
 			invokable.open(null);
 			invokable.invoke();
+			invokable.close();
 		} catch (Exception e) {
 			throw new RuntimeException("Cannot invoke invokable.", e);
 		}

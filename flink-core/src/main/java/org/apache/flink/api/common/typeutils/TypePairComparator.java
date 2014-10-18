@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,8 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-
 package org.apache.flink.api.common.typeutils;
 
 /**
@@ -32,8 +30,8 @@ package org.apache.flink.api.common.typeutils;
  * @param <T1> The class of the first data type.
  * @param <T2> The class of the second data type. 
  */
-public abstract class TypePairComparator<T1, T2>
-{
+public abstract class TypePairComparator<T1, T2> {
+	
 	/**
 	 * Sets the reference for comparisons.
 	 * 

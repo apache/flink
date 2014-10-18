@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,8 +19,8 @@
 
 package org.apache.flink.test.recordJobs.graph.pageRankUtil;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
 
 @SuppressWarnings("serial")
@@ -28,7 +28,7 @@ public class DiffL1NormConvergenceCriterion implements ConvergenceCriterion<Page
 
 	private static final double EPSILON = 0.00005;
 
-	private static final Log log = LogFactory.getLog(DiffL1NormConvergenceCriterion.class);
+	private static final Logger log = LoggerFactory.getLogger(DiffL1NormConvergenceCriterion.class);
 
 	@Override
 	public boolean isConverged(int iteration, PageRankStats pageRankStats) {

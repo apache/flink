@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,8 +23,8 @@ import java.util.Iterator;
 
 import org.junit.Assert;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.client.minicluster.NepheleMiniCluster;
 import org.apache.flink.compiler.DataStatistics;
@@ -40,20 +40,17 @@ import org.apache.flink.runtime.event.job.AbstractEvent;
 import org.apache.flink.runtime.event.job.JobEvent;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
-import org.apache.flink.util.LogUtils;
 import org.apache.flink.util.StringUtils;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.log4j.Level;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.BeforeClass;
 
 /**
  * 
  */
 public abstract class CancellingTestBase {
 	
-	private static final Log LOG = LogFactory.getLog(CancellingTestBase.class);
+	private static final Logger LOG = LoggerFactory.getLogger(CancellingTestBase.class);
 
 	private static final int MINIMUM_HEAP_SIZE_MB = 192;
 	
@@ -79,12 +76,6 @@ public abstract class CancellingTestBase {
 				+ "m", heap > MINIMUM_HEAP_SIZE_MB - 50);
 	}
 
-	@BeforeClass
-	public static void initLogging() {
-		// suppress warnings because this test prints cancel warnings
-		LogUtils.initializeDefaultConsoleLogger(Level.ERROR);
-	}
-	
 	@Before
 	public void startCluster() throws Exception {
 		verifyJvmOptions();
@@ -205,11 +196,11 @@ public abstract class CancellingTestBase {
 						case CANCELED:
 							exitLoop = true;
 							break;
-						case SCHEDULED: // okay
 						case RUNNING:
+						case CANCELLING:
+						case FAILING:
+						case CREATED:
 							break;
-						default:
-							throw new Exception("Bug: Unrecognized Job Status.");
 						}
 					}
 
@@ -226,7 +217,7 @@ public abstract class CancellingTestBase {
 			}
 
 		} catch (Exception e) {
-			LOG.error(e);
+			LOG.error("Exception while running runAndCancelJob.", e);
 			Assert.fail(StringUtils.stringifyException(e));
 			return;
 		}

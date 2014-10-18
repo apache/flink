@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -112,6 +112,9 @@ public abstract class CostEstimator {
 				break;
 			case BROADCAST:
 				addBroadcastCost(channel, channel.getReplicationFactor(), costs);
+				break;
+			case PARTITION_FORCED_REBALANCE:
+				addRandomPartitioningCost(channel, costs);
 				break;
 			default:
 				throw new CompilerException("Unknown shipping strategy for input: " + channel.getShipStrategy());

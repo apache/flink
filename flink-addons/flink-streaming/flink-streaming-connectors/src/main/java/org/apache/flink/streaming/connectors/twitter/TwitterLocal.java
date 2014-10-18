@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -21,8 +21,7 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.examples.function.JSONParseFlatMap;
-import org.apache.flink.streaming.examples.wordcount.WordCountLocal.WordCountCounter;
+import org.apache.flink.streaming.connectors.json.JSONParseFlatMap;
 import org.apache.flink.util.Collector;
 import org.apache.sling.commons.json.JSONException;
 
@@ -59,7 +58,7 @@ public class TwitterLocal {
 
 	}
 
-	public static void main(String[] args) {
+	public static void main(String[] args) throws Exception {
 
 		String path = new String();
 
@@ -90,7 +89,7 @@ public class TwitterLocal {
 					}
 				})
 				.groupBy(0)
-				.reduce(new WordCountCounter());
+				.sum(1);
 
 		dataStream.print();
 

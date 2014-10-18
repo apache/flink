@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,27 +21,31 @@ package org.apache.flink.api.java.type.extractor;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
+import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.RichCoGroupFunction;
+import org.apache.flink.api.common.functions.RichCrossFunction;
+import org.apache.flink.api.common.functions.RichFlatJoinFunction;
+import org.apache.flink.api.common.functions.RichFlatMapFunction;
+import org.apache.flink.api.common.functions.RichGroupReduceFunction;
+import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.api.java.functions.RichCoGroupFunction;
-import org.apache.flink.api.java.functions.RichCrossFunction;
-import org.apache.flink.api.java.functions.RichFlatMapFunction;
-import org.apache.flink.api.java.functions.RichGroupReduceFunction;
-import org.apache.flink.api.java.functions.InvalidTypesException;
-import org.apache.flink.api.java.functions.RichFlatJoinFunction;
+import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.CompositeType.FlatFieldDescriptor;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple9;
-import org.apache.flink.api.java.typeutils.BasicArrayTypeInfo;
-import org.apache.flink.api.java.typeutils.BasicTypeInfo;
-import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
-import org.apache.flink.api.java.typeutils.PrimitiveArrayTypeInfo;
+import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
@@ -52,15 +56,17 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.types.DoubleValue;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.StringValue;
-import org.apache.flink.types.TypeInformation;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
 import org.apache.hadoop.io.Writable;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
+
 
 public class TypeExtractorTest {
 
+	
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
 	public void testBasicType() {
@@ -140,7 +146,10 @@ public class TypeExtractorTest {
 		Assert.assertTrue(ti.isTupleType());
 		Assert.assertEquals(9, ti.getArity());
 		Assert.assertTrue(ti instanceof TupleTypeInfo);
-		
+		List<FlatFieldDescriptor> ffd = new ArrayList<FlatFieldDescriptor>();
+		((TupleTypeInfo) ti).getKey("f3", 0, ffd);
+		Assert.assertTrue(ffd.size() == 1);
+		Assert.assertEquals(3, ffd.get(0).getPosition() );
 
 		TupleTypeInfo<?> tti = (TupleTypeInfo<?>) ti;
 		Assert.assertEquals(Tuple9.class, tti.getTypeClass());
@@ -203,6 +212,20 @@ public class TypeExtractorTest {
 		Assert.assertTrue(ti.isTupleType());
 		Assert.assertEquals(3, ti.getArity());
 		Assert.assertTrue(ti instanceof TupleTypeInfo);
+		List<FlatFieldDescriptor> ffd = new ArrayList<FlatFieldDescriptor>();
+		
+		((TupleTypeInfo) ti).getKey("f0.f0", 0, ffd);
+		Assert.assertEquals(0, ffd.get(0).getPosition() );
+		ffd.clear();
+		
+		((TupleTypeInfo) ti).getKey("f0.f0", 0, ffd);
+		Assert.assertTrue( ffd.get(0).getType() instanceof BasicTypeInfo );
+		Assert.assertTrue( ffd.get(0).getType().getTypeClass().equals(String.class) );
+		ffd.clear();
+		
+		((TupleTypeInfo) ti).getKey("f1.f0", 0, ffd);
+		Assert.assertEquals(1, ffd.get(0).getPosition() );
+		ffd.clear();
 
 		TupleTypeInfo<?> tti = (TupleTypeInfo<?>) ti;
 		Assert.assertEquals(Tuple3.class, tti.getTypeClass());
@@ -253,7 +276,7 @@ public class TypeExtractorTest {
 			}			
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getJoinReturnTypes(function, (TypeInformation) TypeInfoParser.parse("Tuple2<String, Integer>"), (TypeInformation) TypeInfoParser.parse("String"));
+		TypeInformation<?> ti = TypeExtractor.getFlatJoinReturnTypes(function, (TypeInformation) TypeInfoParser.parse("Tuple2<String, Integer>"), (TypeInformation) TypeInfoParser.parse("String"));
 
 		Assert.assertTrue(ti.isTupleType());
 		Assert.assertEquals(2, ti.getArity());
@@ -305,11 +328,11 @@ public class TypeExtractorTest {
 
 		Assert.assertFalse(ti.isBasicType());
 		Assert.assertFalse(ti.isTupleType());
-		Assert.assertTrue(ti instanceof GenericTypeInfo);
+		Assert.assertTrue(ti instanceof PojoTypeInfo);
 		Assert.assertEquals(ti.getTypeClass(), CustomType.class);
 
 		// use getForClass()
-		Assert.assertTrue(TypeExtractor.getForClass(CustomType.class) instanceof GenericTypeInfo);
+		Assert.assertTrue(TypeExtractor.getForClass(CustomType.class) instanceof PojoTypeInfo);
 		Assert.assertEquals(TypeExtractor.getForClass(CustomType.class).getTypeClass(), ti.getTypeClass());
 
 		// use getForObject()
@@ -318,10 +341,12 @@ public class TypeExtractorTest {
 
 		Assert.assertFalse(ti2.isBasicType());
 		Assert.assertFalse(ti2.isTupleType());
-		Assert.assertTrue(ti2 instanceof GenericTypeInfo);
+		Assert.assertTrue(ti2 instanceof PojoTypeInfo);
 		Assert.assertEquals(ti2.getTypeClass(), CustomType.class);
 	}
+	
 
+	
 	public static class CustomType {
 		public String myField1;
 		public int myField2;
@@ -356,9 +381,27 @@ public class TypeExtractorTest {
 		
 		TupleTypeInfo<?> tti = (TupleTypeInfo<?>) ti;
 		Assert.assertEquals(Tuple2.class, tti.getTypeClass());
+		List<FlatFieldDescriptor> ffd = new ArrayList<FlatFieldDescriptor>();
+		
+		tti.getKey("f0", 0, ffd);
+		Assert.assertEquals(1, ffd.size());
+		Assert.assertEquals(0, ffd.get(0).getPosition() ); // Long
+		Assert.assertTrue( ffd.get(0).getType().getTypeClass().equals(Long.class) );
+		ffd.clear();
+		
+		tti.getKey("f1.myField1", 0, ffd);
+		Assert.assertEquals(1, ffd.get(0).getPosition() );
+		Assert.assertTrue( ffd.get(0).getType().getTypeClass().equals(String.class) );
+		ffd.clear();
+		
+		
+		tti.getKey("f1.myField2", 0, ffd);
+		Assert.assertEquals(2, ffd.get(0).getPosition() );
+		Assert.assertTrue( ffd.get(0).getType().getTypeClass().equals(Integer.class) );
+		
 		
 		Assert.assertEquals(Long.class, tti.getTypeAt(0).getTypeClass());
-		Assert.assertTrue(tti.getTypeAt(1) instanceof GenericTypeInfo);
+		Assert.assertTrue(tti.getTypeAt(1) instanceof PojoTypeInfo);
 		Assert.assertEquals(CustomType.class, tti.getTypeAt(1).getTypeClass());
 
 		// use getForObject()
@@ -371,7 +414,7 @@ public class TypeExtractorTest {
 		
 		Assert.assertEquals(Tuple2.class, tti2.getTypeClass());
 		Assert.assertEquals(Long.class, tti2.getTypeAt(0).getTypeClass());
-		Assert.assertTrue(tti2.getTypeAt(1) instanceof GenericTypeInfo);
+		Assert.assertTrue(tti2.getTypeAt(1) instanceof PojoTypeInfo);
 		Assert.assertEquals(CustomType.class, tti2.getTypeAt(1).getTypeClass());
 	}
 
@@ -1201,20 +1244,21 @@ public class TypeExtractorTest {
 		public T myField;
 	}
 	
+	public static class InType extends MyObject<String> {}
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
 	public void testParamertizedCustomObject() {
-		RichMapFunction<?, ?> function = new RichMapFunction<MyObject<String>, MyObject<String>>() {
+		RichMapFunction<?, ?> function = new RichMapFunction<InType, MyObject<String>>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
-			public MyObject<String> map(MyObject<String> value) throws Exception {
+			public MyObject<String> map(InType value) throws Exception {
 				return null;
 			}
 		};
-		
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("org.apache.flink.api.java.type.extractor.TypeExtractorTest$MyObject"));
-		Assert.assertTrue(ti instanceof GenericTypeInfo);
+		TypeInformation<?> inType = TypeExtractor.createTypeInfo(InType.class);
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) inType);
+		Assert.assertTrue(ti instanceof PojoTypeInfo);
 	}
 	
 	@Test
@@ -1449,5 +1493,45 @@ public class TypeExtractorTest {
 		catch (Exception e) {
 			Assert.fail("wrong exception type");
 		}
+	}
+	
+	public static class DuplicateValue<T> implements MapFunction<Tuple1<T>, Tuple2<T, T>> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public Tuple2<T, T> map(Tuple1<T> vertex) {
+			return new Tuple2<T, T>(vertex.f0, vertex.f0);
+		}
+	}
+	
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	@Test
+	public void testDuplicateValue() {
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes((MapFunction) new DuplicateValue<String>(), TypeInfoParser.parse("Tuple1<String>"));
+		Assert.assertTrue(ti.isTupleType());
+		Assert.assertEquals(2, ti.getArity());
+		TupleTypeInfo<?> tti = (TupleTypeInfo<?>) ti;
+		Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, tti.getTypeAt(0));
+		Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, tti.getTypeAt(1));
+	}
+	
+	public static class DuplicateValueNested<T> implements MapFunction<Tuple1<Tuple1<T>>, Tuple2<T, T>> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public Tuple2<T, T> map(Tuple1<Tuple1<T>> vertex) {
+			return new Tuple2<T, T>(null, null);
+		}
+	}
+	
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	@Test
+	public void testDuplicateValueNested() {
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes((MapFunction) new DuplicateValueNested<String>(), TypeInfoParser.parse("Tuple1<Tuple1<String>>"));
+		Assert.assertTrue(ti.isTupleType());
+		Assert.assertEquals(2, ti.getArity());
+		TupleTypeInfo<?> tti = (TupleTypeInfo<?>) ti;
+		Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, tti.getTypeAt(0));
+		Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, tti.getTypeAt(1));
 	}
 }

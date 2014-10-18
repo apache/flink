@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,13 +23,16 @@ import java.util.HashSet;
 import java.util.Set;
 
 import org.apache.flink.api.common.operators.DualInputOperator;
+import org.apache.flink.api.common.operators.GenericDataSourceBase;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.SingleInputOperator;
 import org.apache.flink.api.common.operators.base.BulkIterationBase;
 import org.apache.flink.api.common.operators.base.DeltaIterationBase;
-import org.apache.flink.api.common.operators.base.GenericDataSourceBase;
 import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
 import org.apache.flink.api.common.operators.util.FieldList;
+import org.apache.flink.api.common.typeinfo.AtomicType;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypePairComparatorFactory;
@@ -37,8 +40,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.api.java.operators.translation.PlanUnwrappingReduceGroupOperator;
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.api.java.typeutils.AtomicType;
-import org.apache.flink.api.java.typeutils.CompositeType;
+import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.runtime.RuntimeComparatorFactory;
 import org.apache.flink.api.java.typeutils.runtime.RuntimePairComparatorFactory;
 import org.apache.flink.api.java.typeutils.runtime.RuntimeStatefulSerializerFactory;
@@ -60,7 +62,6 @@ import org.apache.flink.compiler.plan.WorksetIterationPlanNode;
 import org.apache.flink.compiler.plan.WorksetPlanNode;
 import org.apache.flink.compiler.util.NoOpUnaryUdfOp;
 import org.apache.flink.runtime.operators.DriverStrategy;
-import org.apache.flink.types.TypeInformation;
 
 /**
  * The post-optimizer plan traversal. This traversal fills in the API specific utilities (serializers and
@@ -161,11 +162,10 @@ public class JavaApiPostPass implements OptimizerPostPass {
 			SingleInputOperator<?, ?, ?> singleInputOperator = (SingleInputOperator<?, ?, ?>) sn.getOptimizerNode().getPactContract();
 			
 			// parameterize the node's driver strategy
-			if (sn.getDriverStrategy().requiresComparator()) {
-				sn.setComparator(createComparator(singleInputOperator.getOperatorInfo().getInputType(), sn.getKeys(),
-					getSortOrders(sn.getKeys(), sn.getSortOrders())));
+			for(int i=0;i<sn.getDriverStrategy().getNumRequiredComparators();i++) {
+				sn.setComparator(createComparator(singleInputOperator.getOperatorInfo().getInputType(), sn.getKeys(i),
+						getSortOrders(sn.getKeys(i), sn.getSortOrders(i))), i);
 			}
-			
 			// done, we can now propagate our info down
 			traverseChannel(sn.getInput());
 			
@@ -184,7 +184,7 @@ public class JavaApiPostPass implements OptimizerPostPass {
 			DualInputOperator<?, ?, ?, ?> dualInputOperator = (DualInputOperator<?, ?, ?, ?>) dn.getOptimizerNode().getPactContract();
 			
 			// parameterize the node's driver strategy
-			if (dn.getDriverStrategy().requiresComparator()) {
+			if (dn.getDriverStrategy().getNumRequiredComparators() > 0) {
 				dn.setComparator1(createComparator(dualInputOperator.getOperatorInfo().getFirstInputType(), dn.getKeysForInput1(),
 					getSortOrders(dn.getKeysForInput1(), dn.getSortOrders())));
 				dn.setComparator2(createComparator(dualInputOperator.getOperatorInfo().getSecondInputType(), dn.getKeysForInput2(),
@@ -275,7 +275,6 @@ public class JavaApiPostPass implements OptimizerPostPass {
 			throw new RuntimeException("Wrong operator type found in post pass.");
 		}
 	}
-
 	
 	private static <T> TypeSerializerFactory<?> createSerializer(TypeInformation<T> typeInfo) {
 		TypeSerializer<T> serializer = typeInfo.createSerializer();
@@ -287,13 +286,11 @@ public class JavaApiPostPass implements OptimizerPostPass {
 		}
 	}
 	
-	
-	@SuppressWarnings("unchecked")
 	private static <T> TypeComparatorFactory<?> createComparator(TypeInformation<T> typeInfo, FieldList keys, boolean[] sortOrder) {
 		
 		TypeComparator<T> comparator;
 		if (typeInfo instanceof CompositeType) {
-			comparator = ((CompositeType<T>) typeInfo).createComparator(keys.toArray(), sortOrder);
+			comparator = ((CompositeType<T>) typeInfo).createComparator(keys.toArray(), sortOrder, 0);
 		}
 		else if (typeInfo instanceof AtomicType) {
 			// handle grouping of atomic types
@@ -307,8 +304,8 @@ public class JavaApiPostPass implements OptimizerPostPass {
 	}
 	
 	private static <T1 extends Tuple, T2 extends Tuple> TypePairComparatorFactory<T1,T2> createPairComparator(TypeInformation<?> typeInfo1, TypeInformation<?> typeInfo2) {
-		if (!(typeInfo1.isTupleType() && typeInfo2.isTupleType())) {
-			throw new RuntimeException("The runtime currently supports only keyed binary operations on tuples.");
+		if (!(typeInfo1.isTupleType() || typeInfo1 instanceof PojoTypeInfo) && (typeInfo2.isTupleType() || typeInfo2 instanceof PojoTypeInfo)) {
+			throw new RuntimeException("The runtime currently supports only keyed binary operations (such as joins) on tuples and POJO types.");
 		}
 		
 //		@SuppressWarnings("unchecked")

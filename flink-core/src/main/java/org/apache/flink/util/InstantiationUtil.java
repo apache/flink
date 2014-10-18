@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.util;
 
 import java.io.ByteArrayInputStream;
@@ -30,7 +29,6 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Modifier;
 
 import org.apache.flink.configuration.Configuration;
-
 
 /**
  * Utility class to create instances from class objects and checking failure reasons.

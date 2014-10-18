@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.instance;
 
 import java.io.IOException;
@@ -26,67 +25,43 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
 /**
- * A hardware description reflects the hardware environment which is actually present on the task manager's compute
- * nodes. Unlike the {@link InstanceType} the hardware description is determined by the compute node itself and not
- * loaded from a predefined configuration profile. In particular, the hardware description includes the size of free
- * memory which is actually available to the JVM and can be used to allocate large memory portions.
- * <p>
- * This class is thread-safe.
- * 
+ * A hardware description describes the resources available to a task manager.
  */
-public final class HardwareDescription implements IOReadableWritable {
+public final class HardwareDescription implements IOReadableWritable, java.io.Serializable {
 
-	/**
-	 * The number of CPU cores available to the JVM on the compute node.
-	 */
-	private int numberOfCPUCores = 0;
+	private static final long serialVersionUID = 3380016608300325361L;
 
-	/**
-	 * The size of physical memory in bytes available on the compute node.
-	 */
-	private long sizeOfPhysicalMemory = 0;
+	/** The number of CPU cores available to the JVM on the compute node. */
+	private int numberOfCPUCores;
 
-	/**
-	 * The size of free memory in bytes available to the JVM on the compute node.
-	 */
-	private long sizeOfFreeMemory = 0;
+	/** The size of physical memory in bytes available on the compute node. */
+	private long sizeOfPhysicalMemory;
 
+	/** The size of the JVM heap memory */
+	private long sizeOfJvmHeap;
+	
+	/** The size of the memory managed by the system for caching, hashing, sorting, ... */
+	private long sizeOfManagedMemory;
+
+	
 	/**
 	 * Public default constructor used for serialization process.
 	 */
-	public HardwareDescription() {
-	}
+	public HardwareDescription() {}
 
 	/**
 	 * Constructs a new hardware description object.
 	 * 
-	 * @param numberOfCPUCores
-	 *        the number of CPU cores available to the JVM on the compute node
-	 * @param sizeOfPhysicalMemory
-	 *        the size of physical memory in bytes available on the compute node
-	 * @param sizeOfFreeMemory
-	 *        the size of free memory in bytes available to the JVM on the compute node
+	 * @param numberOfCPUCores The number of CPU cores available to the JVM on the compute node. 
+	 * @param sizeOfPhysicalMemory The size of physical memory in bytes available on the compute node.
+	 * @param sizeOfJvmHeap The size of the JVM heap memory.
+	 * @param sizeOfManagedMemory The size of the memory managed by the system for caching, hashing, sorting, ...
 	 */
-	HardwareDescription(final int numberOfCPUCores, final long sizeOfPhysicalMemory, final long sizeOfFreeMemory) {
+	public HardwareDescription(int numberOfCPUCores, long sizeOfPhysicalMemory, long sizeOfJvmHeap, long sizeOfManagedMemory) {
 		this.numberOfCPUCores = numberOfCPUCores;
 		this.sizeOfPhysicalMemory = sizeOfPhysicalMemory;
-		this.sizeOfFreeMemory = sizeOfFreeMemory;
-	}
-
-	@Override
-	public void write(final DataOutputView out) throws IOException {
-
-		out.writeInt(this.numberOfCPUCores);
-		out.writeLong(this.sizeOfPhysicalMemory);
-		out.writeLong(this.sizeOfFreeMemory);
-	}
-
-	@Override
-	public void read(final DataInputView in) throws IOException {
-
-		this.numberOfCPUCores = in.readInt();
-		this.sizeOfPhysicalMemory = in.readLong();
-		this.sizeOfFreeMemory = in.readLong();
+		this.sizeOfJvmHeap = sizeOfJvmHeap;
+		this.sizeOfManagedMemory = sizeOfManagedMemory;
 	}
 
 	/**
@@ -108,11 +83,62 @@ public final class HardwareDescription implements IOReadableWritable {
 	}
 
 	/**
-	 * Returns the size of free memory in bytes available to the JVM on the compute node.
+	 * Returns the size of the JVM heap memory
 	 * 
-	 * @return the size of free memory in bytes available to the JVM on the compute node
+	 * @return The size of the JVM heap memory
 	 */
-	public long getSizeOfFreeMemory() {
-		return this.sizeOfFreeMemory;
+	public long getSizeOfJvmHeap() {
+		return this.sizeOfJvmHeap;
+	}
+	
+	/**
+	 * Returns the size of the memory managed by the system for caching, hashing, sorting, ...
+	 * 
+	 * @return The size of the memory managed by the system.
+	 */
+	public long getSizeOfManagedMemory() {
+		return this.sizeOfManagedMemory;
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	// Serialization
+	// --------------------------------------------------------------------------------------------
+	
+	@Override
+	public void write(DataOutputView out) throws IOException {
+		out.writeInt(this.numberOfCPUCores);
+		out.writeLong(this.sizeOfPhysicalMemory);
+		out.writeLong(this.sizeOfJvmHeap);
+		out.writeLong(this.sizeOfManagedMemory);
+	}
+
+	@Override
+	public void read(DataInputView in) throws IOException {
+		this.numberOfCPUCores = in.readInt();
+		this.sizeOfPhysicalMemory = in.readLong();
+		this.sizeOfJvmHeap = in.readLong();
+		this.sizeOfManagedMemory = in.readLong();
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	// Utils
+	// --------------------------------------------------------------------------------------------
+	
+	@Override
+	public String toString() {
+		return String.format("cores=%d, physMem=%d, heap=%d, managed=%d", 
+				numberOfCPUCores, sizeOfPhysicalMemory, sizeOfJvmHeap, sizeOfManagedMemory);
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	// Factory
+	// --------------------------------------------------------------------------------------------
+	
+	public static HardwareDescription extractFromSystem(long managedMemory) {
+		final int numberOfCPUCores = Hardware.getNumberCPUCores();
+		final long sizeOfJvmHeap = Runtime.getRuntime().maxMemory();
+		final long sizeOfPhysicalMemory = Hardware.getSizeOfPhysicalMemory();
+		
+		return new HardwareDescription(numberOfCPUCores, sizeOfPhysicalMemory, sizeOfJvmHeap, managedMemory);
 	}
 }

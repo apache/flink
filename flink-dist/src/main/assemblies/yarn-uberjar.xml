@@ -39,6 +39,7 @@ under the License.
 			<excludes>
 				<exclude>org.apache.flink:flink-java-examples:*</exclude>
 				<exclude>org.apache.flink:flink-scala-examples:*</exclude>
+				<exclude>org.apache.flink:flink-streaming-examples:*</exclude>
 			</excludes>
 		</dependencySet>
 	</dependencySets>

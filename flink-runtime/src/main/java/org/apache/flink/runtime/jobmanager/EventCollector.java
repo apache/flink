@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.jobmanager;
 
 import java.util.ArrayList;
@@ -32,40 +31,30 @@ import org.apache.flink.runtime.event.job.ExecutionStateChangeEvent;
 import org.apache.flink.runtime.event.job.JobEvent;
 import org.apache.flink.runtime.event.job.ManagementEvent;
 import org.apache.flink.runtime.event.job.RecentJobEvent;
-import org.apache.flink.runtime.event.job.VertexAssignmentEvent;
 import org.apache.flink.runtime.event.job.VertexEvent;
 import org.apache.flink.runtime.execution.ExecutionListener;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.ExecutionGraphIterator;
-import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.executiongraph.ExecutionVertexID;
-import org.apache.flink.runtime.executiongraph.InternalJobStatus;
+import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
-import org.apache.flink.runtime.executiongraph.ManagementGraphFactory;
-import org.apache.flink.runtime.executiongraph.VertexAssignmentListener;
-import org.apache.flink.runtime.instance.AllocatedResource;
-import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.archive.ArchiveListener;
-import org.apache.flink.runtime.managementgraph.ManagementGraph;
-import org.apache.flink.runtime.managementgraph.ManagementVertex;
-import org.apache.flink.runtime.managementgraph.ManagementVertexID;
 import org.apache.flink.runtime.profiling.ProfilingListener;
 import org.apache.flink.runtime.profiling.types.ProfilingEvent;
-import org.apache.flink.runtime.topology.NetworkTopology;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The event collector collects events which occurred during the execution of a job and prepares them
  * for being fetched by a client. The collected events have an expiration time. In a configurable interval
  * the event collector removes all intervals which are older than the interval.
- * <p>
- * This class is thread-safe.
- * 
  */
 public final class EventCollector extends TimerTask implements ProfilingListener {
+
+	private static final Logger LOG = LoggerFactory.getLogger(EventCollector.class);
 
 	/**
 	 * The execution listener wrapper is an auxiliary class. It is required
@@ -73,85 +62,44 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 	 * the data provided by the <code>executionStateChanged</code> callback method.
 	 * However, these IDs are needed to create the construct the {@link VertexEvent} and the
 	 * {@link ExecutionStateChangeEvent}.
-	 * 
 	 */
 	private static final class ExecutionListenerWrapper implements ExecutionListener {
 
-		/**
-		 * The event collector to forward the created event to.
-		 */
+		/** The event collector to forward the created event to. */
 		private final EventCollector eventCollector;
 
-		/**
-		 * The vertex this listener belongs to.
-		 */
-		private final ExecutionVertex vertex;
+		private final ExecutionGraph graph;
+		
 
-		/**
-		 * Constructs a new execution listener object.
-		 * 
-		 * @param eventCollector
-		 *        the event collector to forward the created event to
-		 * @param vertex
-		 *        the vertex this listener belongs to.
-		 */
-		public ExecutionListenerWrapper(final EventCollector eventCollector, final ExecutionVertex vertex) {
+		public ExecutionListenerWrapper(EventCollector eventCollector, ExecutionGraph graph) {
 			this.eventCollector = eventCollector;
-			this.vertex = vertex;
+			this.graph = graph;
 		}
 
-		/**
-		 * {@inheritDoc}
-		 */
 		@Override
-		public void executionStateChanged(final JobID jobID, final ExecutionVertexID vertexID,
-				final ExecutionState newExecutionState, final String optionalMessage) {
-
+		public void executionStateChanged(JobID jobID, JobVertexID vertexId, int subtask, ExecutionAttemptID executionId,
+				ExecutionState newExecutionState, String optionalMessage)
+		{
 			final long timestamp = System.currentTimeMillis();
 
-			final JobVertexID jobVertexID = this.vertex.getGroupVertex().getJobVertexID();
-			final String taskName = this.vertex.getGroupVertex().getName();
-			final int totalNumberOfSubtasks = this.vertex.getGroupVertex().getCurrentNumberOfGroupMembers();
-			final int indexInSubtaskGroup = this.vertex.getIndexInVertexGroup();
+			final ExecutionJobVertex vertex = graph.getJobVertex(vertexId);
+			
+			final String taskName = vertex == null ? "(null)" : vertex.getJobVertex().getName();
+			final int totalNumberOfSubtasks = vertex == null ? -1 : vertex.getParallelism();
 
 			// Create a new vertex event
-			final VertexEvent vertexEvent = new VertexEvent(timestamp, jobVertexID, taskName, totalNumberOfSubtasks,
-				indexInSubtaskGroup, newExecutionState, optionalMessage);
+			final VertexEvent vertexEvent = new VertexEvent(timestamp, vertexId, taskName, totalNumberOfSubtasks,
+					subtask, executionId, newExecutionState, optionalMessage);
 
 			this.eventCollector.addEvent(jobID, vertexEvent);
 
-			final ExecutionStateChangeEvent executionStateChangeEvent = new ExecutionStateChangeEvent(timestamp,
-				vertexID.toManagementVertexID(), newExecutionState);
+			final ExecutionStateChangeEvent executionStateChangeEvent = new ExecutionStateChangeEvent(timestamp, vertexId, subtask,
+					executionId, newExecutionState);
 
-			this.eventCollector.updateManagementGraph(jobID, executionStateChangeEvent, optionalMessage);
 			this.eventCollector.addEvent(jobID, executionStateChangeEvent);
+			
+			LOG.info(vertexEvent.toString());
 		}
-
-		/**
-		 * {@inheritDoc}
-		 */
-		@Override
-		public void userThreadStarted(final JobID jobID, final ExecutionVertexID vertexID, final Thread userThread) {
-			// Nothing to do here
-		}
-
-		/**
-		 * {@inheritDoc}
-		 */
-		@Override
-		public void userThreadFinished(final JobID jobID, final ExecutionVertexID vertexID, final Thread userThread) {
-			// Nothing to do here
-		}
-
-		/**
-		 * {@inheritDoc}
-		 */
-		@Override
-		public int getPriority() {
-
-			return 20;
-		}
-
 	}
 
 	/**
@@ -163,24 +111,16 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 	 */
 	private static final class JobStatusListenerWrapper implements JobStatusListener {
 
-		/**
-		 * The event collector to forward the created event to.
-		 */
+		/** The event collector to forward the created event to. */
 		private final EventCollector eventCollector;
 
-		/**
-		 * The name of the job this wrapper has been created for.
-		 */
+		/** The name of the job this wrapper has been created for. */
 		private final String jobName;
 
-		/**
-		 * <code>true</code> if profiling events are collected for the job, <code>false</code> otherwise.
-		 */
+		/** <code>true</code> if profiling events are collected for the job, <code>false</code> otherwise. */
 		private final boolean isProfilingAvailable;
 
-		/**
-		 * The time stamp of the job submission
-		 */
+		/** The time stamp of the job submission */
 		private final long submissionTimestamp;
 
 		/**
@@ -195,101 +135,30 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 		 * @param submissionTimestamp
 		 *        the submission time stamp of the job
 		 */
-		public JobStatusListenerWrapper(final EventCollector eventCollector, final String jobName,
-				final boolean isProfilingAvailable, final long submissionTimestamp) {
-
+		public JobStatusListenerWrapper(EventCollector eventCollector, String jobName,
+				boolean isProfilingAvailable, long submissionTimestamp)
+		{
 			this.eventCollector = eventCollector;
 			this.jobName = jobName;
 			this.isProfilingAvailable = isProfilingAvailable;
 			this.submissionTimestamp = submissionTimestamp;
 		}
 
-		/**
-		 * {@inheritDoc}
-		 */
 		@Override
-		public void jobStatusHasChanged(final ExecutionGraph executionGraph, final InternalJobStatus newJobStatus,
-				final String optionalMessage) {
+		public void jobStatusHasChanged(ExecutionGraph executionGraph, JobStatus newJobStatus, String optionalMessage) {
 
 			final JobID jobID = executionGraph.getJobID();
 
-			if (newJobStatus == InternalJobStatus.SCHEDULED) {
-
-				final ManagementGraph managementGraph = ManagementGraphFactory.fromExecutionGraph(executionGraph);
-				this.eventCollector.addManagementGraph(jobID, managementGraph);
+			if (newJobStatus == JobStatus.RUNNING) {
+				this.eventCollector.addExecutionGraph(jobID, executionGraph);
 			}
 
 			// Update recent job event
-			final JobStatus jobStatus = InternalJobStatus.toJobStatus(newJobStatus);
-			if (jobStatus != null) {
-				this.eventCollector.updateRecentJobEvent(jobID, this.jobName, this.isProfilingAvailable,
-					this.submissionTimestamp, jobStatus);
+			this.eventCollector.updateRecentJobEvent(jobID, this.jobName, this.isProfilingAvailable,
+					this.submissionTimestamp, newJobStatus);
 
-				this.eventCollector.addEvent(jobID,
-					new JobEvent(System.currentTimeMillis(), jobStatus, optionalMessage));
-			}
-		}
-	}
-
-	/**
-	 * The vertex assignment listener wrapper is an auxiliary class. It is required
-	 * because the job ID cannot be accessed from the data provided by the <code>vertexAssignmentChanged</code> callback
-	 * method. However, this job ID is needed to prepare the {@link VertexAssignmentEvent} for transmission.
-	 * 
-	 */
-	private static final class VertexAssignmentListenerWrapper implements VertexAssignmentListener {
-
-		/**
-		 * The event collector to forward the created event to.
-		 */
-		private final EventCollector eventCollector;
-
-		/**
-		 * The ID the job this wrapper has been created for.
-		 */
-		private final JobID jobID;
-
-		/**
-		 * Constructs a new vertex assignment listener wrapper.
-		 * 
-		 * @param eventCollector
-		 *        the event collector to forward the events to
-		 * @param jobID
-		 *        the ID of the job
-		 */
-		public VertexAssignmentListenerWrapper(final EventCollector eventCollector, final JobID jobID) {
-			this.eventCollector = eventCollector;
-			this.jobID = jobID;
-		}
-
-		/**
-		 * {@inheritDoc}
-		 */
-		@Override
-		public void vertexAssignmentChanged(final ExecutionVertexID id, final AllocatedResource newAllocatedResource) {
-
-			// Create a new vertex assignment event
-			final ManagementVertexID managementVertexID = id.toManagementVertexID();
-			final long timestamp = System.currentTimeMillis();
-
-			final Instance instance = newAllocatedResource.getInstance();
-			VertexAssignmentEvent event;
-			if (instance == null) {
-				event = new VertexAssignmentEvent(timestamp, managementVertexID, "null");
-			} else {
-
-				String instanceName = null;
-				if (instance.getInstanceConnectionInfo() != null) {
-					instanceName = instance.getInstanceConnectionInfo().toString();
-				} else {
-					instanceName = instance.toString();
-				}
-
-				event = new VertexAssignmentEvent(timestamp, managementVertexID, instanceName);
-			}
-
-			this.eventCollector.updateManagementGraph(jobID, event);
-			this.eventCollector.addEvent(this.jobID, event);
+			this.eventCollector.addEvent(jobID,
+					new JobEvent(System.currentTimeMillis(), newJobStatus, optionalMessage));
 		}
 	}
 
@@ -309,12 +178,7 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 	/**
 	 * Map of management graphs belonging to recently started jobs with the time stamp of the last received job event.
 	 */
-	private final Map<JobID, ManagementGraph> recentManagementGraphs = new HashMap<JobID, ManagementGraph>();
-
-	/**
-	 * Map of network topologies belonging to recently started jobs with the time stamp of the last received job event.
-	 */
-	private final Map<JobID, NetworkTopology> recentNetworkTopologies = new HashMap<JobID, NetworkTopology>();
+	private final Map<JobID, ExecutionGraph> recentManagementGraphs = new HashMap<JobID, ExecutionGraph>();
 
 	/**
 	 * The timer used to trigger the cleanup routine.
@@ -350,8 +214,7 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 	 *        <code>true</code> if {@link ManagementEvent} objects shall be added to the list as well,
 	 *        <code>false</code> otherwise
 	 */
-	public void getEventsForJob(final JobID jobID, final List<AbstractEvent> eventList,
-			final boolean includeManagementEvents) {
+	public void getEventsForJob(JobID jobID, List<AbstractEvent> eventList, boolean includeManagementEvents) {
 
 		synchronized (this.collectedEvents) {
 
@@ -372,13 +235,8 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 	}
 
 	public void getRecentJobs(List<RecentJobEvent> eventList) {
-
 		synchronized (this.recentJobs) {
-
-			final Iterator<RecentJobEvent> it = this.recentJobs.values().iterator();
-			while (it.hasNext()) {
-				eventList.add(it.next());
-			}
+			eventList.addAll(this.recentJobs.values());
 		}
 	}
 
@@ -437,15 +295,15 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 	 * @param jobStatus
 	 *        the status of the job
 	 */
-	private void updateRecentJobEvent(final JobID jobID, final String jobName, final boolean isProfilingEnabled,
-			final long submissionTimestamp, final JobStatus jobStatus) {
-
+	private void updateRecentJobEvent(JobID jobID, String jobName, boolean isProfilingEnabled,
+			long submissionTimestamp, JobStatus jobStatus)
+	{
 		final long currentTime = System.currentTimeMillis();
+		
 		final RecentJobEvent recentJobEvent = new RecentJobEvent(jobID, jobName, jobStatus, isProfilingEnabled,
 			submissionTimestamp, currentTime);
 
 		synchronized (this.recentJobs) {
-
 			this.recentJobs.put(jobID, recentJobEvent);
 		}
 	}
@@ -454,7 +312,7 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 	 * Registers a job in form of its execution graph representation
 	 * with the job progress collector. The collector will subscribe
 	 * to state changes of the individual subtasks. A separate
-	 * deregistration is not necessary since the job progress collector
+	 * de-registration is not necessary since the job progress collector
 	 * periodically discards outdated progress information.
 	 * 
 	 * @param executionGraph
@@ -464,26 +322,12 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 	 * @param submissionTimestamp
 	 *        the submission time stamp of the job
 	 */
-	public void registerJob(final ExecutionGraph executionGraph, final boolean profilingAvailable,
-			final long submissionTimestamp) {
+	public void registerJob(ExecutionGraph executionGraph, boolean profilingAvailable, long submissionTimestamp) {
 
-		final Iterator<ExecutionVertex> it = new ExecutionGraphIterator(executionGraph, true);
+		executionGraph.registerExecutionListener(new ExecutionListenerWrapper(this, executionGraph));
 
-		while (it.hasNext()) {
-
-			final ExecutionVertex vertex = it.next();
-
-			// Register the listener object which will pass state changes on to the collector
-			vertex.registerExecutionListener(new ExecutionListenerWrapper(this, vertex));
-
-			// Register the listener object which will pass assignment changes on to the collector
-			vertex.registerVertexAssignmentListener(new VertexAssignmentListenerWrapper(this, executionGraph.getJobID()));
-		}
-
-		// Register one job status listener wrapper for the entire job
 		executionGraph.registerJobStatusListener(new JobStatusListenerWrapper(this, executionGraph.getJobName(),
 			profilingAvailable, submissionTimestamp));
-
 	}
 
 	/**
@@ -545,10 +389,6 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 						archiveManagementGraph(entry.getKey(), this.recentManagementGraphs.get(entry.getKey()));
 						this.recentManagementGraphs.remove(entry.getValue());
 					}
-					synchronized (this.recentNetworkTopologies) {
-						archiveNetworkTopology(entry.getKey(), this.recentNetworkTopologies.get(entry.getKey()));
-						this.recentNetworkTopologies.remove(entry.getValue());
-					}
 				}
 			}
 		}
@@ -557,91 +397,31 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 
 	@Override
 	public void processProfilingEvents(final ProfilingEvent profilingEvent) {
-
 		// Simply add profiling events to the job's event queue
 		addEvent(profilingEvent.getJobID(), profilingEvent);
 	}
 
 	/**
-	 * Adds a {@link ManagementGraph} to the map of recently created management graphs.
+	 * Adds an execution graph to the map of recently created management graphs.
 	 * 
-	 * @param jobID
-	 *        the ID of the job the management graph belongs to
-	 * @param managementGraph
-	 *        the management graph to be added
+	 * @param jobID The ID of the graph
+	 * @param executionGraph The graph to be added
 	 */
-	void addManagementGraph(final JobID jobID, final ManagementGraph managementGraph) {
-
+	void addExecutionGraph(JobID jobID, ExecutionGraph executionGraph) {
 		synchronized (this.recentManagementGraphs) {
-			this.recentManagementGraphs.put(jobID, managementGraph);
+			this.recentManagementGraphs.put(jobID, executionGraph);
 		}
 	}
 
 	/**
-	 * Returns the {@link ManagementGraph} object for the job with the given ID from the map of recently created
-	 * management graphs.
+	 * Returns the execution graph object for the job with the given ID from the map of recently added graphs.
 	 * 
-	 * @param jobID
-	 *        the ID of the job the management graph shall be retrieved for
+	 * @param jobID The ID of the job the management graph shall be retrieved for
 	 * @return the management graph for the job with the given ID or <code>null</code> if no such graph exists
 	 */
-	public ManagementGraph getManagementGraph(final JobID jobID) {
-
+	public ExecutionGraph getManagementGraph(JobID jobID) {
 		synchronized (this.recentManagementGraphs) {
 			return this.recentManagementGraphs.get(jobID);
-		}
-	}
-
-	/**
-	 * Applies changes in the vertex assignment to the stored management graph.
-	 * 
-	 * @param jobID
-	 *        the ID of the job whose management graph shall be updated
-	 * @param vertexAssignmentEvent
-	 *        the event describing the changes in the vertex assignment
-	 */
-	private void updateManagementGraph(final JobID jobID, final VertexAssignmentEvent vertexAssignmentEvent) {
-
-		synchronized (this.recentManagementGraphs) {
-
-			final ManagementGraph managementGraph = this.recentManagementGraphs.get(jobID);
-			if (managementGraph == null) {
-				return;
-			}
-			final ManagementVertex vertex = managementGraph.getVertexByID(vertexAssignmentEvent.getVertexID());
-			if (vertex == null) {
-				return;
-			}
-
-			vertex.setInstanceName(vertexAssignmentEvent.getInstanceName());
-		}
-	}
-
-	/**
-	 * Applies changes in the state of an execution vertex to the stored management graph.
-	 * 
-	 * @param jobID
-	 *        the ID of the job whose management graph shall be updated
-	 * @param executionStateChangeEvent
-	 *        the event describing the changes in the execution state of the vertex
-	 */
-	private void updateManagementGraph(final JobID jobID, final ExecutionStateChangeEvent executionStateChangeEvent, String optionalMessage) {
-
-		synchronized (this.recentManagementGraphs) {
-
-			final ManagementGraph managementGraph = this.recentManagementGraphs.get(jobID);
-			if (managementGraph == null) {
-				return;
-			}
-			final ManagementVertex vertex = managementGraph.getVertexByID(executionStateChangeEvent.getVertexID());
-			if (vertex == null) {
-				return;
-			}
-
-			vertex.setExecutionState(executionStateChangeEvent.getNewExecutionState());
-			if (executionStateChangeEvent.getNewExecutionState() == ExecutionState.FAILED) {
-				vertex.setOptMessage(optionalMessage);
-			}
 		}
 	}
 	
@@ -653,26 +433,20 @@ public final class EventCollector extends TimerTask implements ProfilingListener
 	}
 	
 	private void archiveEvent(JobID jobId, AbstractEvent event) {
-		for(ArchiveListener al : archivists) {
+		for (ArchiveListener al : archivists) {
 			al.archiveEvent(jobId, event);
 		}
 	}
 	
 	private void archiveJobevent(JobID jobId, RecentJobEvent event) {
-		for(ArchiveListener al : archivists) {
+		for (ArchiveListener al : archivists) {
 			al.archiveJobevent(jobId, event);
 		}
 	}
 	
-	private void archiveManagementGraph(JobID jobId, ManagementGraph graph) {
-		for(ArchiveListener al : archivists) {
-			al.archiveManagementGraph(jobId, graph);
-		}
-	}
-	
-	private void archiveNetworkTopology(JobID jobId, NetworkTopology topology) {
-		for(ArchiveListener al : archivists) {
-			al.archiveNetworkTopology(jobId, topology);
+	private void archiveManagementGraph(JobID jobId, ExecutionGraph graph) {
+		for (ArchiveListener al : archivists) {
+			al.archiveExecutionGraph(jobId, graph);
 		}
 	}
 }

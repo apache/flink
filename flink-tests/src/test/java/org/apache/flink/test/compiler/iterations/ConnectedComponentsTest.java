@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -55,9 +55,7 @@ import org.apache.flink.util.Collector;
 import org.junit.Assert;
 import org.junit.Test;
 
-/**
- *
- */
+@SuppressWarnings("deprecation")
 public class ConnectedComponentsTest extends CompilerTestBase {
 	
 	private static final String VERTEX_SOURCE = "Vertices";

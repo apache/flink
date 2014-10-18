@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,20 +16,23 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.core.io;
 
 import java.io.IOException;
+import java.util.Arrays;
 
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
-
 /**
  * A locatable input split is an input split referring to input data which is located on one or more hosts.
  */
-public class LocatableInputSplit implements InputSplit {
+public class LocatableInputSplit implements InputSplit, java.io.Serializable {
+	
+	private static final long serialVersionUID = 1L;
 
+	private static final String[] EMPTY_ARR = new String[0];
+	
 	/**
 	 * The number of the split.
 	 */
@@ -40,6 +43,8 @@ public class LocatableInputSplit implements InputSplit {
 	 */
 	private String[] hostnames;
 
+	// --------------------------------------------------------------------------------------------
+	
 	/**
 	 * Creates a new locatable input split.
 	 * 
@@ -48,73 +53,86 @@ public class LocatableInputSplit implements InputSplit {
 	 * @param hostnames
 	 *        the names of the hosts storing the data this input split refers to
 	 */
-	public LocatableInputSplit(final int splitNumber, final String[] hostnames) {
-
-		this.hostnames = hostnames;
+	public LocatableInputSplit(int splitNumber, String[] hostnames) {
+		this.splitNumber = splitNumber;
+		this.hostnames = hostnames == null ? EMPTY_ARR : hostnames;
+	}
+	
+	public LocatableInputSplit(int splitNumber, String hostname) {
+		this.splitNumber = splitNumber;
+		this.hostnames = hostname == null ? EMPTY_ARR : new String[] { hostname };
 	}
 
 	/**
 	 * Default constructor for serialization/deserialization.
 	 */
-	public LocatableInputSplit() {
-	}
+	public LocatableInputSplit() {}
 
+	// --------------------------------------------------------------------------------------------
+	
+	@Override
+	public int getSplitNumber() {
+		return this.splitNumber;
+	}
+	
 	/**
 	 * Returns the names of the hosts storing the data this input split refers to
 	 * 
 	 * @return the names of the hosts storing the data this input split refers to
 	 */
 	public String[] getHostnames() {
-
-		if (this.hostnames == null) {
-			return new String[] {};
-		}
-
 		return this.hostnames;
 	}
 
+	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public void write(final DataOutputView out) throws IOException {
-
-		// Write the split number
+	public void write(DataOutputView out) throws IOException {
 		out.writeInt(this.splitNumber);
-
-		// Write hostnames
-		if (this.hostnames == null) {
-			out.writeBoolean(false);
-		} else {
-			out.writeBoolean(true);
-			out.writeInt(this.hostnames.length);
-			for (int i = 0; i < this.hostnames.length; i++) {
-				StringRecord.writeString(out, this.hostnames[i]);
-			}
+		out.writeInt(this.hostnames.length);
+		for (int i = 0; i < this.hostnames.length; i++) {
+			StringRecord.writeString(out, this.hostnames[i]);
 		}
 	}
 
-
 	@Override
-	public void read(final DataInputView in) throws IOException {
-
-		// Read the split number
+	public void read(DataInputView in) throws IOException {
 		this.splitNumber = in.readInt();
 
-		// Read hostnames
-		if (in.readBoolean()) {
-			final int numHosts = in.readInt();
+		final int numHosts = in.readInt();
+		if (numHosts == 0) {
+			this.hostnames = EMPTY_ARR;
+		} else {
 			this.hostnames = new String[numHosts];
 			for (int i = 0; i < numHosts; i++) {
 				this.hostnames[i] = StringRecord.readString(in);
 			}
-		} else {
-			this.hostnames = null;
 		}
 	}
-
-
+	
+	// --------------------------------------------------------------------------------------------
+	
 	@Override
-	public int getSplitNumber() {
-
+	public int hashCode() {
 		return this.splitNumber;
+	}
+	
+	@Override
+	public boolean equals(Object obj) {
+		if (obj == this) {
+			return true;
+		}
+		else if (obj != null && obj instanceof LocatableInputSplit) {
+			LocatableInputSplit other = (LocatableInputSplit) obj;
+			return other.splitNumber == this.splitNumber && Arrays.deepEquals(other.hostnames, this.hostnames);
+		}
+		else {
+			return false;
+		}
+	}
+	
+	@Override
+	public String toString() {
+		return "Locatable Split (" + splitNumber + ") at " + Arrays.toString(this.hostnames);
 	}
 }

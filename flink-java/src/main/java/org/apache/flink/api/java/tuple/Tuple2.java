@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -125,7 +125,7 @@ public class Tuple2<T0, T1> extends Tuple {
 	@Override
 	public String toString() {
 		return "(" + StringUtils.arrayAwareToString(this.f0)
-			+ ", " + StringUtils.arrayAwareToString(this.f1)
+			+ "," + StringUtils.arrayAwareToString(this.f1)
 			+ ")";
 	}
 
@@ -154,7 +154,7 @@ public class Tuple2<T0, T1> extends Tuple {
 
 	/**
 	* Shallow tuple copy.
-	* @returns A new Tuple with the same fields as this.
+	* @return A new Tuple with the same fields as this.
 	 */
 	public Tuple2<T0,T1> copy(){ 
 		return new Tuple2<T0,T1>(this.f0,

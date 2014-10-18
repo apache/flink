@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.execution;
 
 public interface ExecutionObserver {
@@ -30,22 +29,6 @@ public interface ExecutionObserver {
 	 *        an optional message providing further information on the state change
 	 */
 	void executionStateChanged(ExecutionState newExecutionState, String optionalMessage);
-
-	/**
-	 * Called when the user task has started a new thread.
-	 * 
-	 * @param userThread
-	 *        the user thread which has been started
-	 */
-	void userThreadStarted(Thread userThread);
-
-	/**
-	 * Called when a thread spawn by a user task has finished.
-	 * 
-	 * @param userThread
-	 *        the user thread which has finished
-	 */
-	void userThreadFinished(Thread userThread);
 
 	/**
 	 * Returns whether the task has been canceled.

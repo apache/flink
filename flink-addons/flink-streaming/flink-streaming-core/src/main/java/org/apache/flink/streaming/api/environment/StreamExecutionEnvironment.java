@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -35,6 +35,7 @@ import org.apache.flink.streaming.api.function.source.SourceFunction;
 import org.apache.flink.streaming.api.invokable.SourceInvokable;
 import org.apache.flink.streaming.util.serialization.FunctionTypeWrapper;
 import org.apache.flink.streaming.util.serialization.ObjectTypeWrapper;
+import org.apache.flink.streaming.util.serialization.TypeWrapper;
 
 /**
  * {@link ExecutionEnvironment} for streaming jobs. An instance of it is
@@ -70,7 +71,7 @@ public abstract class StreamExecutionEnvironment {
 	 * Constructor for creating StreamExecutionEnvironment
 	 */
 	protected StreamExecutionEnvironment() {
-		jobGraphBuilder = new JobGraphBuilder("jobGraph");
+		jobGraphBuilder = new JobGraphBuilder();
 	}
 
 	public int getExecutionParallelism() {
@@ -189,7 +190,6 @@ public abstract class StreamExecutionEnvironment {
 		return addSource(new FileStreamFunction(filePath), parallelism);
 	}
 
-
 	private static void checkIfFileExists(String filePath) {
 		File file = new File(filePath);
 		if (!file.exists()) {
@@ -199,12 +199,12 @@ public abstract class StreamExecutionEnvironment {
 		if (!file.canRead()) {
 			throw new IllegalArgumentException("Cannot read file: " + filePath);
 		}
-		
+
 		if (file.isDirectory()) {
 			throw new IllegalArgumentException("Given path is a directory: " + filePath);
 		}
 	}
-	
+
 	/**
 	 * Creates a new DataStream that contains the given elements. The elements
 	 * must all be of the same type, for example, all of the String or Integer.
@@ -219,17 +219,19 @@ public abstract class StreamExecutionEnvironment {
 	 * @return The DataStream representing the elements.
 	 */
 	public <OUT extends Serializable> DataStreamSource<OUT> fromElements(OUT... data) {
-		DataStreamSource<OUT> returnStream = new DataStreamSource<OUT>(this, "elements");
-
 		if (data.length == 0) {
 			throw new IllegalArgumentException(
 					"fromElements needs at least one element as argument");
 		}
 
+		TypeWrapper<OUT> outTypeWrapper = new ObjectTypeWrapper<OUT>(data[0]);
+		DataStreamSource<OUT> returnStream = new DataStreamSource<OUT>(this, "elements",
+				outTypeWrapper);
+
 		try {
 			SourceFunction<OUT> function = new FromElementsFunction<OUT>(data);
-			jobGraphBuilder.addSource(returnStream.getId(), new SourceInvokable<OUT>(function),
-					new ObjectTypeWrapper<OUT>(data[0]), "source",
+			jobGraphBuilder.addStreamVertex(returnStream.getId(),
+					new SourceInvokable<OUT>(function), null, outTypeWrapper, "source",
 					SerializationUtils.serialize(function), 1);
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize elements");
@@ -250,8 +252,6 @@ public abstract class StreamExecutionEnvironment {
 	 * @return The DataStream representing the elements.
 	 */
 	public <OUT extends Serializable> DataStreamSource<OUT> fromCollection(Collection<OUT> data) {
-		DataStreamSource<OUT> returnStream = new DataStreamSource<OUT>(this, "elements");
-
 		if (data == null) {
 			throw new NullPointerException("Collection must not be null");
 		}
@@ -260,11 +260,15 @@ public abstract class StreamExecutionEnvironment {
 			throw new IllegalArgumentException("Collection must not be empty");
 		}
 
+		TypeWrapper<OUT> outTypeWrapper = new ObjectTypeWrapper<OUT>(data.iterator().next());
+		DataStreamSource<OUT> returnStream = new DataStreamSource<OUT>(this, "elements",
+				outTypeWrapper);
+
 		try {
 			SourceFunction<OUT> function = new FromElementsFunction<OUT>(data);
 
-			jobGraphBuilder.addSource(returnStream.getId(), new SourceInvokable<OUT>(
-					new FromElementsFunction<OUT>(data)), new ObjectTypeWrapper<OUT>(data
+			jobGraphBuilder.addStreamVertex(returnStream.getId(), new SourceInvokable<OUT>(
+					new FromElementsFunction<OUT>(data)), null, new ObjectTypeWrapper<OUT>(data
 					.iterator().next()), "source", SerializationUtils.serialize(function), 1);
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize collection");
@@ -301,11 +305,14 @@ public abstract class StreamExecutionEnvironment {
 	 * @return the data stream constructed
 	 */
 	public <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function, int parallelism) {
-		DataStreamSource<OUT> returnStream = new DataStreamSource<OUT>(this, "source");
+		TypeWrapper<OUT> outTypeWrapper = new FunctionTypeWrapper<OUT>(function,
+				SourceFunction.class, 0);
+		DataStreamSource<OUT> returnStream = new DataStreamSource<OUT>(this, "source",
+				outTypeWrapper);
 
 		try {
-			jobGraphBuilder.addSource(returnStream.getId(), new SourceInvokable<OUT>(function),
-					new FunctionTypeWrapper<OUT>(function, SourceFunction.class, 0), "source",
+			jobGraphBuilder.addStreamVertex(returnStream.getId(),
+					new SourceInvokable<OUT>(function), null, outTypeWrapper, "source",
 					SerializationUtils.serialize(function), parallelism);
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize SourceFunction");
@@ -448,8 +455,24 @@ public abstract class StreamExecutionEnvironment {
 	 * <p>
 	 * The program execution will be logged and displayed with a generated
 	 * default name.
+	 * 
+	 * @throws Exception
 	 **/
-	public abstract void execute();
+	public abstract void execute() throws Exception;
+
+	/**
+	 * Triggers the program execution. The environment will execute all parts of
+	 * the program that have resulted in a "sink" operation. Sink operations are
+	 * for example printing results or forwarding them to a message queue.
+	 * <p>
+	 * The program execution will be logged and displayed with the provided
+	 * name
+	 * 
+	 * @param jobName Desired name of the job
+	 * 
+	 * @throws Exception
+	 **/
+	public abstract void execute(String jobName) throws Exception;
 
 	/**
 	 * Getter of the {@link JobGraphBuilder} of the streaming job.

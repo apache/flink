@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -34,8 +34,8 @@ import java.util.Map;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.hadoop.conf.Configuration;
@@ -61,7 +61,7 @@ import org.apache.hadoop.yarn.util.ConverterUtils;
 
 public class Utils {
 	
-	private static final Log LOG = LogFactory.getLog(Utils.class);
+	private static final Logger LOG = LoggerFactory.getLogger(Utils.class);
 	private static final int HEAP_LIMIT_CAP = 500;
 	
 
@@ -163,7 +163,7 @@ public class Utils {
 		try {
 			hadoopHome = Shell.getHadoopHome();
 		} catch (IOException e) {
-			LOG.fatal("Unable to get hadoop home. Please set HADOOP_HOME variable!", e);
+			LOG.error("Unable to get hadoop home. Please set HADOOP_HOME variable!", e);
 			System.exit(1);
 		}
 		File tryConf = new File(hadoopHome+"/etc/hadoop");
@@ -181,10 +181,10 @@ public class Utils {
 	}
 	
 	public static void setupEnv(Configuration conf, Map<String, String> appMasterEnv) {
+		addToEnvironment(appMasterEnv, Environment.CLASSPATH.name(), Environment.PWD.$() + File.separator + "*");
 		for (String c : conf.getStrings(YarnConfiguration.YARN_APPLICATION_CLASSPATH,YarnConfiguration.DEFAULT_YARN_APPLICATION_CLASSPATH)) {
 			addToEnvironment(appMasterEnv, Environment.CLASSPATH.name(), c.trim());
 		}
-		addToEnvironment(appMasterEnv, Environment.CLASSPATH.name(), Environment.PWD.$() + File.separator + "*");
 	}
 	
 	
@@ -230,13 +230,16 @@ public class Utils {
 		}
 		DataOutputBuffer dob = new DataOutputBuffer();
 		credentials.writeTokenStorageToStream(dob);
-		LOG.debug("Wrote tokens. Credentials buffer length: "+dob.getLength());
-		
+
+		if(LOG.isDebugEnabled()) {
+			LOG.debug("Wrote tokens. Credentials buffer length: " + dob.getLength());
+		}
+
 		ByteBuffer securityTokens = ByteBuffer.wrap(dob.getData(), 0, dob.getLength());
 		amContainer.setTokens(securityTokens);
 	}
 	
-	public static void logFilesInCurrentDirectory(final Log logger) {
+	public static void logFilesInCurrentDirectory(final Logger logger) {
 		new File(".").list(new FilenameFilter() {
 			
 			@Override
@@ -262,5 +265,24 @@ public class Utils {
 		}
 		environment.put(StringInterner.weakIntern(variable),
 				StringInterner.weakIntern(val));
+	}
+	
+	/**
+	 * Valid ports are 1024 - 65535.
+	 * We offset the incoming port by the applicationId to avoid port collisions if YARN allocates two ApplicationMasters
+	 * on the same physical hardware
+	 */
+	public static int offsetPort(int port, int appId) {
+		if(port > 65535) {
+			LOG.warn("The specified YARN RPC port ("+port+") is above the maximum possible port 65535."
+					+ "Setting it to "+64535);
+			port = 64535;
+		}
+		if(port + (appId % 1000) > 65535) {
+			LOG.warn("The specified YARN RPC port ("+port+") is, when offsetted by the ApplicationID ("+appId+") above "
+					+ "the maximum possible port 65535. Setting it to "+64535);
+			port = port - 1000;
+		}
+		return port + (appId % 1000);
 	}
 }

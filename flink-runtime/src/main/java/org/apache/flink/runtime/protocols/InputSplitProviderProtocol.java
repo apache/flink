@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,38 +16,19 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.protocols;
 
 import java.io.IOException;
 
+import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.protocols.VersionedProtocol;
-import org.apache.flink.runtime.executiongraph.ExecutionVertexID;
 import org.apache.flink.runtime.jobgraph.JobID;
-import org.apache.flink.runtime.jobmanager.splitassigner.InputSplitWrapper;
-import org.apache.flink.runtime.types.IntegerRecord;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 
 /**
- * The input split provider protocol is used to facilitate RPC calls related to the lazy split assignment which Nephele
- * applies to provide better load balancing properties.
- * 
+ * The input split provider protocol is used to facilitate RPC calls related to the lazy split assignment.
  */
 public interface InputSplitProviderProtocol extends VersionedProtocol {
 
-	/**
-	 * Requests the next split to be consumed by the task with the given execution vertex ID.
-	 * 
-	 * @param jobID
-	 *        the ID of the job the task to retrieve the next input split for belongs to
-	 * @param vertexID
-	 *        the ID of the task to retrieve the next input split for
-	 * @param sequenceNumber
-	 *        a sequence number, starting at 0 and increased by the task on each request
-	 * @return a wrapper containing the next input split. The wrapped input split may also be <code>null</code> in case
-	 *         no more input splits shall be consumed by the task with the given execution vertex ID
-	 * @throws IOException
-	 *         thrown if an I/O error occurs while retrieving the new input split
-	 */
-	InputSplitWrapper requestNextInputSplit(JobID jobID, ExecutionVertexID vertexID, IntegerRecord sequenceNumber)
-			throws IOException;
+	InputSplit requestNextInputSplit(JobID jobID, JobVertexID vertex) throws IOException;
 }

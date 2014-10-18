@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,21 +16,18 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators.testutils;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.Assert;
-
 import org.apache.flink.api.common.functions.Function;
-import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
-import org.apache.flink.api.java.typeutils.runtime.record.RecordComparator;
-import org.apache.flink.api.java.typeutils.runtime.record.RecordSerializerFactory;
+import org.apache.flink.api.common.typeutils.record.RecordComparator;
+import org.apache.flink.api.common.typeutils.record.RecordSerializerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -43,11 +40,8 @@ import org.apache.flink.runtime.operators.sort.UnilateralSortMerger;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.LogUtils;
 import org.apache.flink.util.MutableObjectIterator;
-import org.apache.log4j.Level;
 import org.junit.After;
-import org.junit.BeforeClass;
 
 public class DriverTestBase<S extends Function> implements PactTaskContext<S, Record> {
 	
@@ -84,14 +78,6 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 	private PactDriver<S, Record> driver;
 	
 	private volatile boolean running;
-	
-	
-	@BeforeClass
-	public static void setupLog() {
-		/// suppress log output, as this class produces errors on purpose to test exception handling
-		LogUtils.initializeDefaultConsoleLogger(Level.OFF);
-	}
-	
 	
 	protected DriverTestBase(long memory, int maxNumSorters) {
 		this(memory, maxNumSorters, DEFAULT_PER_SORT_MEM);
@@ -132,7 +118,7 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 		this.inputs.add(null);
 	}
 	
-	public void addInputComparator(RecordComparator comparator) {
+	public void addDriverComparator(RecordComparator comparator) {
 		this.comparators.add(comparator);
 	}
 
@@ -297,7 +283,7 @@ public class DriverTestBase<S extends Function> implements PactTaskContext<S, Re
 	}
 
 	@Override
-	public <X> TypeComparator<X> getInputComparator(int index) {
+	public <X> TypeComparator<X> getDriverComparator(int index) {
 		@SuppressWarnings("unchecked")
 		TypeComparator<X> comparator = (TypeComparator<X>) this.comparators.get(index);
 		return comparator;

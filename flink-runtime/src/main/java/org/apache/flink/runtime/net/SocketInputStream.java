@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -148,7 +148,7 @@ public class SocketInputStream extends InputStream implements ReadableByteChanne
 	/**
 	 * Returns underlying channel used by inputstream.
 	 * This is useful in certain cases like channel for
-	 * {@link FileChannel#transferFrom(ReadableByteChannel, long, long)}.
+	 * {@link java.nio.channels.FileChannel#transferFrom(ReadableByteChannel, long, long)}.
 	 */
 	public ReadableByteChannel getChannel() {
 		return reader.channel;

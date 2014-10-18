@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,14 +16,13 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.core.io;
-
 
 /**
  * This interface must be implemented by all kind of input splits that can be assigned to input formats.
  */
-public interface InputSplit extends IOReadableWritable {
+public interface InputSplit extends IOReadableWritable, java.io.Serializable {
+	
 	/**
 	 * Returns the number of this input split.
 	 * 

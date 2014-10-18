@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -67,6 +67,15 @@ public abstract class AbstractSingleGateRecordReader<T extends IOReadableWritabl
 	public void publishEvent(AbstractTaskEvent event) throws IOException, InterruptedException {
 		// Delegate call to input gate to send events
 		this.inputGate.publishEvent(event);
+	}
+	
+	@Override
+	public void publishEvent(AbstractTaskEvent event, int inputNumber) throws IOException, InterruptedException {
+		if(inputNumber==0) {
+			publishEvent(event);
+		}else {
+			throw new IOException("RecordReader has only 1 input");
+		}
 	}
 
 	public InputGate<T> getInputGate() {

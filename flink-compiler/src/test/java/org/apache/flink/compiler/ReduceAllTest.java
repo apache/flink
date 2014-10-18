@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 
 package org.apache.flink.compiler;
 
@@ -37,7 +36,7 @@ import org.junit.Test;
  * This test case has been created to validate a bug that occurred when
  * the ReduceOperator was used without a grouping key.
  */
-@SuppressWarnings("serial")
+@SuppressWarnings({"serial", "deprecation"})
 public class ReduceAllTest extends CompilerTestBase {
 
 	@Test

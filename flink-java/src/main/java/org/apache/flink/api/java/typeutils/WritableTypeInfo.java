@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,12 +18,13 @@
 
 package org.apache.flink.api.java.typeutils;
 
+import org.apache.flink.api.common.functions.InvalidTypesException;
+import org.apache.flink.api.common.typeinfo.AtomicType;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.functions.InvalidTypesException;
 import org.apache.flink.api.java.typeutils.runtime.WritableComparator;
 import org.apache.flink.api.java.typeutils.runtime.WritableSerializer;
-import org.apache.flink.types.TypeInformation;
 import org.apache.hadoop.io.Writable;
 
 public class WritableTypeInfo<T extends Writable> extends TypeInformation<T> implements AtomicType<T> {
@@ -66,6 +67,11 @@ public class WritableTypeInfo<T extends Writable> extends TypeInformation<T> imp
 	public int getArity() {
 		return 1;
 	}
+	
+	@Override
+	public int getTotalFields() {
+		return 1;
+	}
 
 	@Override
 	public Class<T> getTypeClass() {
@@ -86,6 +92,20 @@ public class WritableTypeInfo<T extends Writable> extends TypeInformation<T> imp
 	public String toString() {
 		return "WritableType<" + typeClass.getName() + ">";
 	}	
+	
+	@Override
+	public int hashCode() {
+		return typeClass.hashCode() ^ 0xd3a2646c;
+	}
+	
+	@Override
+	public boolean equals(Object obj) {
+		if (obj.getClass() == WritableTypeInfo.class) {
+			return typeClass == ((WritableTypeInfo<?>) obj).typeClass;
+		} else {
+			return false;
+		}
+	}
 	
 	// --------------------------------------------------------------------------------------------
 	

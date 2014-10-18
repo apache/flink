@@ -122,7 +122,6 @@
 div.canvas
 {
 	background-color: white;
-	background-image: url('../img/gradient.jpg');
 	background-repeat: no-repeat;
 	background-position: top right;
 	padding: 0px;
@@ -132,7 +131,6 @@ div.canvas
 div.propertyCanvas
 {
 	background-color: white;
-	background-image: url('../img/gradient.jpg');
 	background-repeat: no-repeat;
 	background-position: top right;
 

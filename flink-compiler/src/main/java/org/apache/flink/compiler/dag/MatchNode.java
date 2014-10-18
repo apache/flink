@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,13 +16,14 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.compiler.dag;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.flink.api.common.operators.base.JoinOperatorBase;
+import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
 import org.apache.flink.compiler.CompilerException;
 import org.apache.flink.compiler.DataStatistics;
 import org.apache.flink.compiler.PactCompiler;
@@ -33,17 +34,20 @@ import org.apache.flink.compiler.operators.SortMergeJoinDescriptor;
 import org.apache.flink.configuration.Configuration;
 
 /**
- * The Optimizer representation of a <i>Match</i> contract node.
+ * The Optimizer representation of a join operator.
  */
 public class MatchNode extends TwoInputNode {
 	
+	private List<OperatorDescriptorDual> dataProperties;
+	
 	/**
-	 * Creates a new MatchNode for the given contract.
+	 * Creates a new MatchNode for the given join operator.
 	 * 
-	 * @param pactContract The match contract object.
+	 * @param joinOperatorBase The join operator object.
 	 */
-	public MatchNode(JoinOperatorBase<?, ?, ?, ?> pactContract) {
-		super(pactContract);
+	public MatchNode(JoinOperatorBase<?, ?, ?, ?> joinOperatorBase) {
+		super(joinOperatorBase);
+		this.dataProperties = getDataProperties(joinOperatorBase, joinOperatorBase.getJoinHint());
 	}
 
 	// ------------------------------------------------------------------------
@@ -65,35 +69,7 @@ public class MatchNode extends TwoInputNode {
 
 	@Override
 	protected List<OperatorDescriptorDual> getPossibleProperties() {
-		// see if an internal hint dictates the strategy to use
-		Configuration conf = getPactContract().getParameters();
-		String localStrategy = conf.getString(PactCompiler.HINT_LOCAL_STRATEGY, null);
-
-		if (localStrategy != null) {
-			final OperatorDescriptorDual fixedDriverStrat;
-			if (PactCompiler.HINT_LOCAL_STRATEGY_SORT_BOTH_MERGE.equals(localStrategy) ||
-				PactCompiler.HINT_LOCAL_STRATEGY_SORT_FIRST_MERGE.equals(localStrategy) ||
-				PactCompiler.HINT_LOCAL_STRATEGY_SORT_SECOND_MERGE.equals(localStrategy) ||
-				PactCompiler.HINT_LOCAL_STRATEGY_MERGE.equals(localStrategy) )
-			{
-				fixedDriverStrat = new SortMergeJoinDescriptor(this.keys1, this.keys2);
-			} else if (PactCompiler.HINT_LOCAL_STRATEGY_HASH_BUILD_FIRST.equals(localStrategy)) {
-				fixedDriverStrat = new HashJoinBuildFirstProperties(this.keys1, this.keys2);
-			} else if (PactCompiler.HINT_LOCAL_STRATEGY_HASH_BUILD_SECOND.equals(localStrategy)) {
-				fixedDriverStrat = new HashJoinBuildSecondProperties(this.keys1, this.keys2);
-			} else {
-				throw new CompilerException("Invalid local strategy hint for match contract: " + localStrategy);
-			}
-			ArrayList<OperatorDescriptorDual> list = new ArrayList<OperatorDescriptorDual>();
-			list.add(fixedDriverStrat);
-			return list;
-		} else {
-			ArrayList<OperatorDescriptorDual> list = new ArrayList<OperatorDescriptorDual>();
-			list.add(new SortMergeJoinDescriptor(this.keys1, this.keys2));
-			list.add(new HashJoinBuildFirstProperties(this.keys1, this.keys2));
-			list.add(new HashJoinBuildSecondProperties(this.keys1, this.keys2));
-			return list;
-		}
+		return this.dataProperties;
 	}
 	
 	public void makeJoinWithSolutionSet(int solutionsetInputIndex) {
@@ -106,8 +82,7 @@ public class MatchNode extends TwoInputNode {
 			throw new IllegalArgumentException();
 		}
 		
-		this.possibleProperties.clear();
-		this.possibleProperties.add(op);
+		this.dataProperties = Collections.singletonList(op);
 	}
 	
 	/**
@@ -129,6 +104,64 @@ public class MatchNode extends TwoInputNode {
 			if (width > 0) {
 				this.estimatedOutputSize = (long) (width * this.estimatedNumRecords);
 			}
+		}
+	}
+	
+	private List<OperatorDescriptorDual> getDataProperties(JoinOperatorBase<?, ?, ?, ?> joinOperatorBase, JoinHint joinHint) {
+		// see if an internal hint dictates the strategy to use
+		Configuration conf = joinOperatorBase.getParameters();
+		String localStrategy = conf.getString(PactCompiler.HINT_LOCAL_STRATEGY, null);
+
+		if (localStrategy != null) {
+			final OperatorDescriptorDual fixedDriverStrat;
+			if (PactCompiler.HINT_LOCAL_STRATEGY_SORT_BOTH_MERGE.equals(localStrategy) ||
+				PactCompiler.HINT_LOCAL_STRATEGY_SORT_FIRST_MERGE.equals(localStrategy) ||
+				PactCompiler.HINT_LOCAL_STRATEGY_SORT_SECOND_MERGE.equals(localStrategy) ||
+				PactCompiler.HINT_LOCAL_STRATEGY_MERGE.equals(localStrategy) )
+			{
+				fixedDriverStrat = new SortMergeJoinDescriptor(this.keys1, this.keys2);
+			} else if (PactCompiler.HINT_LOCAL_STRATEGY_HASH_BUILD_FIRST.equals(localStrategy)) {
+				fixedDriverStrat = new HashJoinBuildFirstProperties(this.keys1, this.keys2);
+			} else if (PactCompiler.HINT_LOCAL_STRATEGY_HASH_BUILD_SECOND.equals(localStrategy)) {
+				fixedDriverStrat = new HashJoinBuildSecondProperties(this.keys1, this.keys2);
+			} else {
+				throw new CompilerException("Invalid local strategy hint for match contract: " + localStrategy);
+			}
+			ArrayList<OperatorDescriptorDual> list = new ArrayList<OperatorDescriptorDual>();
+			list.add(fixedDriverStrat);
+			return list;
+		}
+		else {
+			ArrayList<OperatorDescriptorDual> list = new ArrayList<OperatorDescriptorDual>();
+			
+			joinHint = joinHint == null ? JoinHint.OPTIMIZER_CHOOSES : joinHint;
+			
+			switch (joinHint) {
+				case BROADCAST_HASH_FIRST:
+					list.add(new HashJoinBuildFirstProperties(this.keys1, this.keys2, true, false, false));
+					break;
+				case BROADCAST_HASH_SECOND:
+					list.add(new HashJoinBuildSecondProperties(this.keys1, this.keys2, false, true, false));
+					break;
+				case REPARTITION_HASH_FIRST:
+					list.add(new HashJoinBuildFirstProperties(this.keys1, this.keys2, false, false, true));
+					break;
+				case REPARTITION_HASH_SECOND:
+					list.add(new HashJoinBuildSecondProperties(this.keys1, this.keys2, false, false, true));
+					break;
+				case REPARTITION_SORT_MERGE:
+					list.add(new SortMergeJoinDescriptor(this.keys1, this.keys2, false, false, true));
+					break;
+				case OPTIMIZER_CHOOSES:
+					list.add(new SortMergeJoinDescriptor(this.keys1, this.keys2));
+					list.add(new HashJoinBuildFirstProperties(this.keys1, this.keys2));
+					list.add(new HashJoinBuildSecondProperties(this.keys1, this.keys2));
+					break;
+				default:
+					throw new CompilerException("Unrecognized join hint: " + joinHint);
+			}
+			
+			return list;
 		}
 	}
 }

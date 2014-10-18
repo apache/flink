@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -30,7 +30,7 @@ import com.google.common.base.Preconditions;
 
 public class SyncEventHandler implements EventListener {
 	
-//	private static final Log log = LogFactory.getLog(SyncEventHandler.class);
+//	private static final Logger log = LoggerFactory.getLogger(SyncEventHandler.class);
 	
 	private final ClassLoader userCodeClassLoader;
 	

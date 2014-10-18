@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -145,6 +145,11 @@ public abstract class WrappingFunction<T extends Function> extends AbstractRichF
 		@Override
 		public DistributedCache getDistributedCache() {
 			return context.getDistributedCache();
+		}
+		
+		@Override
+		public ClassLoader getUserCodeClassLoader() {
+			return context.getUserCodeClassLoader();
 		}
 	}
 	

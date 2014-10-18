@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,9 +20,9 @@ package org.apache.flink.api.java.typeutils;
 
 import java.lang.reflect.Field;
 
-import org.apache.flink.types.TypeInformation;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 
-class PojoField {
+public class PojoField {
 	public Field field;
 	public TypeInformation<?> type;
 
@@ -30,4 +30,9 @@ class PojoField {
 		this.field = field;
 		this.type = type;
 	}
-}              
+
+	@Override
+	public String toString() {
+		return "PojoField " + field.getDeclaringClass() + "." + field.getName() + " (" + type + ")";
+	}
+}

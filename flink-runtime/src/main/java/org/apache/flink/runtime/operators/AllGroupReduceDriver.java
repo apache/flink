@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,8 +19,8 @@
 
 package org.apache.flink.runtime.operators;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.functions.FlatCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -41,7 +41,7 @@ import org.apache.flink.util.MutableObjectIterator;
  */
 public class AllGroupReduceDriver<IT, OT> implements PactDriver<GroupReduceFunction<IT, OT>, OT> {
 	
-	private static final Log LOG = LogFactory.getLog(AllGroupReduceDriver.class);
+	private static final Logger LOG = LoggerFactory.getLogger(AllGroupReduceDriver.class);
 
 	private PactTaskContext<GroupReduceFunction<IT, OT>, OT> taskContext;
 	
@@ -71,8 +71,8 @@ public class AllGroupReduceDriver<IT, OT> implements PactDriver<GroupReduceFunct
 	}
 
 	@Override
-	public boolean requiresComparatorOnInput() {
-		return false;
+	public int getNumberOfDriverComparators() {
+		return 0;
 	}
 
 	// --------------------------------------------------------------------------------------------

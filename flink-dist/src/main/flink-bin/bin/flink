@@ -27,8 +27,6 @@ if [ "$FLINK_IDENT_STRING" = "" ]; then
         FLINK_IDENT_STRING="$USER"
 fi
 
-FLINK_LIB_CLIENTS_DIR=$FLINK_ROOT_DIR/lib_clients
-
 
 # auxiliary function to construct a lightweight classpath for the
 # Flink CLI client
@@ -41,10 +39,6 @@ constructCLIClientClassPath() {
 			CC_CLASSPATH=$CC_CLASSPATH:$jarfile
 		fi
 	done
-	
-	for jarfile in $FLINK_LIB_CLIENTS_DIR/*.jar ; do
-		CC_CLASSPATH=$CC_CLASSPATH:$jarfile
-	done
 
 	echo $CC_CLASSPATH
 }
@@ -52,7 +46,7 @@ constructCLIClientClassPath() {
 CC_CLASSPATH=`manglePathList $(constructCLIClientClassPath)`
 
 log=$FLINK_LOG_DIR/flink-$FLINK_IDENT_STRING-flink-client-$HOSTNAME.log
-log_setting="-Dlog.file="$log" -Dlog4j.configuration=file:"$FLINK_CONF_DIR"/log4j.properties"
+log_setting="-Dlog.file="$log" -Dlog4j.configuration=file:"$FLINK_CONF_DIR"/log4j.properties -Dlogback.configurationFile=file:"$FLINK_CONF_DIR"/logback.xml"
 
 export FLINK_CONF_DIR
 

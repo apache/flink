@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,8 +27,8 @@ import org.apache.flink.api.java.DataSet;
 
 /**
  * This interface marks operators as operators that execute user-defined functions (UDFs), such as
- * {@link org.apache.flink.api.java.functions.RichMapFunction}, {@link org.apache.flink.api.java.functions.RichReduceFunction},
- * or {@link org.apache.flink.api.java.functions.RichCoGroupFunction}.
+ * {@link org.apache.flink.api.common.functions.RichMapFunction}, {@link org.apache.flink.api.common.functions.RichReduceFunction},
+ * or {@link org.apache.flink.api.common.functions.RichCoGroupFunction}.
  * The UDF operators stand in contrast to operators that execute built-in operations, like aggregations.
  */
 public interface UdfOperator<O extends UdfOperator<O>> {
@@ -61,7 +61,7 @@ public interface UdfOperator<O extends UdfOperator<O>> {
 	 * 
 	 * @return The semantic properties of the UDF.
 	 */
-	SemanticProperties getSematicProperties();
+	SemanticProperties getSemanticProperties();
 	
 	// --------------------------------------------------------------------------------------------
 	// Fluent API methods

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -43,7 +43,10 @@ public class WritableComparator<T extends Writable & Comparable<T>> extends Type
 	private transient T tempReference;
 	
 	private transient Kryo kryo;
-	
+
+	@SuppressWarnings("rawtypes")
+	private final TypeComparator[] comparators = new TypeComparator[] {this};
+
 	public WritableComparator(boolean ascending, Class<T> type) {
 		this.type = type;
 		this.ascendingComparison = ascending;
@@ -79,7 +82,7 @@ public class WritableComparator<T extends Writable & Comparable<T>> extends Type
 	}
 	
 	@Override
-	public int compare(DataInputView firstSource, DataInputView secondSource) throws IOException {
+	public int compareSerialized(DataInputView firstSource, DataInputView secondSource) throws IOException {
 		ensureReferenceInstantiated();
 		ensureTempReferenceInstantiated();
 		
@@ -122,6 +125,17 @@ public class WritableComparator<T extends Writable & Comparable<T>> extends Type
 	@Override
 	public TypeComparator<T> duplicate() {
 		return new WritableComparator<T>(ascendingComparison, type);
+	}
+
+	@Override
+	public int extractKeys(Object record, Object[] target, int index) {
+		target[index] = record;
+		return 1;
+	}
+
+	@SuppressWarnings("rawtypes")
+	@Override public TypeComparator[] getFlatComparators() {
+		return comparators;
 	}
 	
 	// --------------------------------------------------------------------------------------------

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,10 +20,10 @@ package org.apache.flink.streaming.api.streamrecord;
 
 import java.io.IOException;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.types.TypeInformation;
 
 public final class StreamRecordSerializer<T> extends TypeSerializer<StreamRecord<T>> {
 
@@ -35,6 +35,10 @@ public final class StreamRecordSerializer<T> extends TypeSerializer<StreamRecord
 	public StreamRecordSerializer(TypeInformation<T> typeInfo) {
 		this.typeSerializer = typeInfo.createSerializer();
 		this.isTuple = typeInfo.isTupleType();
+	}
+
+	public TypeSerializer<T> getObjectSerializer() {
+		return typeSerializer;
 	}
 
 	@Override
@@ -58,6 +62,15 @@ public final class StreamRecordSerializer<T> extends TypeSerializer<StreamRecord
 			throw new RuntimeException("Cannot instantiate StreamRecord.", e);
 		}
 	}
+	
+	@Override
+	public StreamRecord<T> copy(StreamRecord<T> from) {
+		StreamRecord<T> rec = new StreamRecord<T>();
+		rec.isTuple = from.isTuple;
+		rec.setId(from.getId().copy());
+		rec.setObject(typeSerializer.copy(from.getObject()));
+		return rec;
+	}
 
 	@Override
 	public StreamRecord<T> copy(StreamRecord<T> from, StreamRecord<T> reuse) {
@@ -77,10 +90,18 @@ public final class StreamRecordSerializer<T> extends TypeSerializer<StreamRecord
 		value.getId().write(target);
 		typeSerializer.serialize(value.getObject(), target);
 	}
+	
+	@Override
+	public StreamRecord<T> deserialize(DataInputView source) throws IOException {
+		StreamRecord<T> record = new StreamRecord<T>();
+		record.isTuple = this.isTuple;
+		record.getId().read(source);
+		record.setObject(typeSerializer.deserialize(source));
+		return record;
+	}
 
 	@Override
-	public StreamRecord<T> deserialize(StreamRecord<T> reuse, DataInputView source)
-			throws IOException {
+	public StreamRecord<T> deserialize(StreamRecord<T> reuse, DataInputView source) throws IOException {
 		reuse.getId().read(source);
 		reuse.setObject(typeSerializer.deserialize(reuse.getObject(), source));
 		return reuse;
@@ -88,7 +109,6 @@ public final class StreamRecordSerializer<T> extends TypeSerializer<StreamRecord
 
 	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		//Needs to be implemented
+		// Needs to be implemented
 	}
-
 }

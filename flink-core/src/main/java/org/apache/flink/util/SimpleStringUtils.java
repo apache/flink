@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,13 +16,11 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.util;
 
 import java.io.Serializable;
 
 import org.apache.flink.types.StringValue;
-
 
 /**
  * Utility class for efficient string operations on strings. All methods in this class are

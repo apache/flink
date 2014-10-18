@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -62,6 +62,22 @@ public interface ReaderBase {
 	 *         thrown if the thread is interrupted while waiting for the event to be published
 	 */
 	void publishEvent(AbstractTaskEvent event) throws IOException, InterruptedException;
+	
+	/**
+	 * Publishes an event to a specific input.
+	 * 
+	 * @param event
+	 *            the event to be published
+	 * @param inputNumber
+	 *            the number of the input that we want to publish the event to
+	 * 
+	 * @throws IOException
+	 *             thrown if an error occurs while transmitting the event
+	 * @throws InterruptedException
+	 *             thrown if the thread is interrupted while waiting for the
+	 *             event to be published
+	 */
+	void publishEvent(AbstractTaskEvent event, int inputNumber) throws IOException, InterruptedException;
 	
 	
 	void setIterative(int numEventsUntilEndOfSuperstep);

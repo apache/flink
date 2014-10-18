@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.deployment;
 
 import static org.junit.Assert.assertEquals;
@@ -25,16 +24,12 @@ import static org.junit.Assert.fail;
 
 import java.io.IOException;
 
-import org.apache.flink.runtime.deployment.ChannelDeploymentDescriptor;
 import org.apache.flink.runtime.io.network.channels.ChannelID;
 import org.apache.flink.runtime.testutils.ServerTestUtils;
 import org.apache.flink.util.StringUtils;
 import org.junit.Test;
 
-/**
- * This class contains unit tests for the {@link ChannelDeploymentDescriptor} class.
- * 
- */
+
 public class ChannelDeploymentDescriptorTest {
 
 	/**

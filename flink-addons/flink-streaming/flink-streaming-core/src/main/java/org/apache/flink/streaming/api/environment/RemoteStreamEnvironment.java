@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -21,8 +21,8 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.apache.flink.client.program.Client;
 import org.apache.flink.client.program.JobWithJars;
@@ -32,7 +32,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 
 public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
-	private static final Log LOG = LogFactory.getLog(RemoteStreamEnvironment.class);
+	private static final Logger LOG = LoggerFactory.getLogger(RemoteStreamEnvironment.class);
 
 	private String host;
 	private int port;
@@ -70,11 +70,27 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 
 	@Override
 	public void execute() {
-		if (LOG.isInfoEnabled()) {
-			LOG.info("Running remotely at " + host + ":" + port);
-		}
-
+		
 		JobGraph jobGraph = jobGraphBuilder.getJobGraph();
+		executeRemotely(jobGraph);
+	}
+	
+	@Override
+	public void execute(String jobName) {
+		
+		JobGraph jobGraph = jobGraphBuilder.getJobGraph(jobName);
+		executeRemotely(jobGraph);
+	}
+
+	/**
+	 * Executes the remote job.
+	 * 
+	 * @param jobGraph jobGraph to execute
+	 */
+	private void executeRemotely(JobGraph jobGraph) {
+		if (LOG.isInfoEnabled()) {
+			LOG.info("Running remotely at {}:{}", host, port);
+		}
 
 		for (int i = 0; i < jarFiles.length; i++) {
 			File file = new File(jarFiles[i]);

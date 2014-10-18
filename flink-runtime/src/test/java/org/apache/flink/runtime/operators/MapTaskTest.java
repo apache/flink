@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,8 +21,8 @@ package org.apache.flink.runtime.operators;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.functions.GenericCollectorMap;
 import org.apache.flink.api.java.record.functions.MapFunction;
 import org.apache.flink.runtime.operators.CollectorMapDriver;
@@ -40,7 +40,7 @@ import org.junit.Test;
 @SuppressWarnings("deprecation")
 public class MapTaskTest extends DriverTestBase<GenericCollectorMap<Record, Record>> {
 	
-	private static final Log LOG = LogFactory.getLog(MapTaskTest.class);
+	private static final Logger LOG = LoggerFactory.getLogger(MapTaskTest.class);
 	
 	private final CountingOutputCollector output = new CountingOutputCollector();
 	
@@ -62,7 +62,7 @@ public class MapTaskTest extends DriverTestBase<GenericCollectorMap<Record, Reco
 		try {
 			testDriver(testDriver, MockMapStub.class);
 		} catch (Exception e) {
-			LOG.debug(e);
+			LOG.debug("Exception while running the test driver.", e);
 			Assert.fail("Invoke method caused exception.");
 		}
 		

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,8 +24,11 @@ import java.util.Collection;
 import java.util.LinkedList;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.functions.RichReduceFunction;
+import org.apache.flink.api.common.functions.RichReduceFunction;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.configuration.Configuration;
@@ -35,13 +38,11 @@ import org.apache.flink.test.util.JavaProgramTestBase;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
 
 @RunWith(Parameterized.class)
 public class ReduceITCase extends JavaProgramTestBase {
 	
-	private static int NUM_PROGRAMS = 8;
+	private static int NUM_PROGRAMS = 10;
 	
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -271,6 +272,66 @@ public class ReduceITCase extends JavaProgramTestBase {
 						"65,5,Hi again!\n" +
 						"111,6,Hi again!\n";
 			}
+			case 9: {
+				/*
+				 * Reduce with a Tuple-returning KeySelector 
+				 */
+				
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				
+				DataSet<Tuple5<Integer, Long,  Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
+				DataSet<Tuple5<Integer, Long,  Integer, String, Long>> reduceDs = ds .
+						groupBy(
+								new KeySelector<Tuple5<Integer,Long,Integer,String,Long>, Tuple2<Integer, Long>>() {
+									private static final long serialVersionUID = 1L;
+		
+									@Override
+									public Tuple2<Integer, Long> getKey(Tuple5<Integer,Long,Integer,String,Long> t) {
+										return new Tuple2<Integer, Long>(t.f0, t.f4);
+									}
+								}).reduce(new Tuple5Reduce());
+				
+				reduceDs.writeAsCsv(resultPath);
+				env.execute();
+				
+				return "1,1,0,Hallo,1\n" +
+						"2,3,2,Hallo Welt wie,1\n" +
+						"2,2,1,Hallo Welt,2\n" +
+						"3,9,0,P-),2\n" +
+						"3,6,5,BCD,3\n" +
+						"4,17,0,P-),1\n" +
+						"4,17,0,P-),2\n" +
+						"5,11,10,GHI,1\n" +
+						"5,29,0,P-),2\n" +
+						"5,25,0,P-),3\n";
+			}
+			case 10: {
+				/*
+				 * Case 2 with String-based field expression
+				 */
+				
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				
+				DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
+				DataSet<Tuple5<Integer, Long, Integer, String, Long>> reduceDs = ds.
+						groupBy("f4","f0").reduce(new Tuple5Reduce());
+				
+				reduceDs.writeAsCsv(resultPath);
+				env.execute();
+				
+				// return expected result
+				return "1,1,0,Hallo,1\n" +
+						"2,3,2,Hallo Welt wie,1\n" +
+						"2,2,1,Hallo Welt,2\n" +
+						"3,9,0,P-),2\n" +
+						"3,6,5,BCD,3\n" +
+						"4,17,0,P-),1\n" +
+						"4,17,0,P-),2\n" +
+						"5,11,10,GHI,1\n" +
+						"5,29,0,P-),2\n" +
+						"5,25,0,P-),3\n";
+			} 
+			
 			default:
 				throw new IllegalArgumentException("Invalid program id");
 			}

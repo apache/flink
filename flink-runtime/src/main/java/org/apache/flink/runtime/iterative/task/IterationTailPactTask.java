@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.iterative.task;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.runtime.iterative.concurrent.SolutionSetUpdateBarrier;
 import org.apache.flink.runtime.iterative.concurrent.SolutionSetUpdateBarrierBroker;
@@ -42,7 +42,7 @@ import org.apache.flink.util.Collector;
 public class IterationTailPactTask<S extends Function, OT> extends AbstractIterativePactTask<S, OT>
 		implements PactTaskContext<S, OT> {
 
-	private static final Log log = LogFactory.getLog(IterationTailPactTask.class);
+	private static final Logger log = LoggerFactory.getLogger(IterationTailPactTask.class);
 
 	private SolutionSetUpdateBarrier solutionSetUpdateBarrier;
 

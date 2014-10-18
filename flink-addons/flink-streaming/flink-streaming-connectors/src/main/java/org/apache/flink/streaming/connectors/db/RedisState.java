@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -26,7 +26,7 @@ import redis.clients.jedis.Jedis;
 /**
  * Interface to a Redis key-value cache. It needs a running instance of Redis.
  * 
- * See {@linktourl http://redis.io/}
+ * @see <a href="http://redis.io/">http://redis.io/</a>
  * 
  * @param <K>
  *            Type of key

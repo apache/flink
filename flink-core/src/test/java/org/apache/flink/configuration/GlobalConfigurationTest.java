@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.configuration;
 
 import static org.junit.Assert.assertEquals;
@@ -27,13 +26,8 @@ import java.io.FileNotFoundException;
 import java.io.PrintWriter;
 import java.lang.reflect.Field;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.testutils.CommonTestUtils;
-import org.apache.flink.util.LogUtils;
-import org.apache.log4j.Level;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 /**
@@ -41,16 +35,11 @@ import org.junit.Test;
  */
 public class GlobalConfigurationTest {
 
-	@BeforeClass
-	public static void initLogging() {
-		LogUtils.initializeDefaultConsoleLogger(Level.OFF);
-	}
-	
 	@Before
 	public void resetSingleton() throws SecurityException, NoSuchFieldException, IllegalArgumentException,
 			IllegalAccessException {
 		// reset GlobalConfiguration between tests
-		Field instance = GlobalConfiguration.class.getDeclaredField("configuration");
+		Field instance = GlobalConfiguration.class.getDeclaredField("SINGLETON");
 		instance.setAccessible(true);
 		instance.set(null, null);
 	}
@@ -83,8 +72,8 @@ public class GlobalConfigurationTest {
 			GlobalConfiguration.loadConfiguration(tmpDir.getAbsolutePath());
 			Configuration conf = GlobalConfiguration.getConfiguration();
 			
-			// all distinct keys from confFile1 + confFile2 + 'config.dir' key
-			assertEquals(3 + 1, conf.keySet().size());
+			// all distinct keys from confFile1 + confFile2key
+			assertEquals(3, conf.keySet().size());
 			
 			// keys 1, 2, 3 should be OK and match the expected values
 			// => configuration keys from YAML should overwrite keys from XML
@@ -136,8 +125,8 @@ public class GlobalConfigurationTest {
 			GlobalConfiguration.loadConfiguration(tmpDir.getAbsolutePath());
 			Configuration conf = GlobalConfiguration.getConfiguration();
 
-			// all distinct keys from confFile1 + confFile2 + 'config.dir' key
-			assertEquals(6 + 1, conf.keySet().size());
+			// all distinct keys from confFile1 + confFile2 key
+			assertEquals(6, conf.keySet().size());
 
 			// keys 1, 2, 4, 5, 6, 7, 8 should be OK and match the expected values
 			assertEquals("myvalue1", conf.getString("mykey1", null));
@@ -212,14 +201,6 @@ public class GlobalConfigurationTest {
 			newconf.setInteger("mynewinteger", 1000);
 			GlobalConfiguration.includeConfiguration(newconf);
 			assertEquals(GlobalConfiguration.getInteger("mynewinteger", 0), 1000);
-
-			// Test local "sub" configuration
-			final String[] configparams = { "mykey1", "mykey2" };
-			Configuration newconf2 = GlobalConfiguration.getConfiguration(configparams);
-
-			assertEquals(newconf2.keySet().size(), 2);
-			assertEquals(newconf2.getString("mykey1", "null"), "myvalue1");
-			assertEquals(newconf2.getString("mykey2", "null"), "myvalue2");
 		} finally {
 			// Remove temporary files
 			confFile1.delete();

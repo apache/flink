@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -110,45 +110,11 @@ public class SerializableArrayList<E extends IOReadableWritable> extends ArrayLi
 
 
 	@Override
-	public boolean equals(final Object obj) {
-
+	public boolean equals(Object obj) {
 		if (!(obj instanceof SerializableArrayList<?>)) {
 			return false;
 		}
 
-		final SerializableArrayList<?> sal = (SerializableArrayList<?>) obj;
-
-		if (this.size() != sal.size()) {
-			return false;
-		}
-
-		final Iterator<E> it = iterator();
-		final Iterator<?> it2 = sal.iterator();
-		while (it.hasNext()) {
-
-			final E e = it.next();
-			final Object obj2 = it2.next();
-			if (!e.equals(obj2)) {
-				return false;
-			}
-		}
-
-		return true;
-	}
-
-
-	@Override
-	public int hashCode() {
-
-		int hashCode = Integer.MIN_VALUE;
-
-		if (!isEmpty()) {
-			final E e = get(0);
-			hashCode += Math.abs(e.getClass().hashCode());
-		}
-
-		hashCode += size();
-
-		return hashCode;
+		return (obj instanceof SerializableArrayList) && super.equals(obj);
 	}
 }

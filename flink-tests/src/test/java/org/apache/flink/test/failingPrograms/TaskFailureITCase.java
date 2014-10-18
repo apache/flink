@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 
 package org.apache.flink.test.failingPrograms;
 
@@ -40,6 +39,7 @@ import org.apache.flink.util.Collector;
 /**
  * Tests whether the system recovers from a runtime exception from the user code.
  */
+@SuppressWarnings("deprecation")
 public class TaskFailureITCase extends FailingTestBase {
 
 	private static final int DOP = 4;

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -38,55 +38,41 @@ import java.util.Map;
 
 import javax.net.SocketFactory;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.io.StringRecord;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.protocols.VersionedProtocol;
 import org.apache.flink.runtime.net.NetUtils;
+import org.apache.flink.types.JavaToValueConverter;
+import org.apache.flink.types.Value;
 import org.apache.flink.util.ClassUtils;
 
-/**
- * A simple RPC mechanism.
- * A <i>protocol</i> is a Java interface. All parameters and return types must
- * be one of:
- * <ul>
- * <li>a primitive type, <code>boolean</code>, <code>byte</code>, <code>char</code>, <code>short</code>,
- * <code>int</code>, <code>long</code>, <code>float</code>, <code>double</code>, or <code>void</code>; or</li>
- * <li>a {@link String}; or</li>
- * <li>a {@link Writable}; or</li>
- * <li>an array of the above types</li>
- * </ul>
- * All methods in the protocol should throw only IOException. No field data of
- * the protocol instance is transmitted.
- */
+
 public class RPC {
 
-	private static final Log LOG = LogFactory.getLog(RPC.class);
+	private static final Logger LOG = LoggerFactory.getLogger(RPC.class);
 
-	private RPC() {
-	} // no public ctor
+	private RPC() {}
 
 	/** A method invocation, including the method name and its parameters. */
 	private static class Invocation implements IOReadableWritable {
 
 		private String methodName;
 
-		private Class<? extends IOReadableWritable>[] parameterClasses;
+		private Class<?>[] parameterClasses;
 
-		private IOReadableWritable[] parameters;
+		private Object[] parameters;
 
 		@SuppressWarnings("unused")
 		public Invocation() {
 		}
 
-		// TODO: See if type safety can be improved here
-		@SuppressWarnings("unchecked")
-		public Invocation(Method method, IOReadableWritable[] parameters) {
+		public Invocation(Method method, Object[] parameters) {
 			this.methodName = method.getName();
-			this.parameterClasses = (Class<? extends IOReadableWritable>[]) method.getParameterTypes();
+			this.parameterClasses = method.getParameterTypes();
 			this.parameters = parameters;
 		}
 
@@ -96,21 +82,21 @@ public class RPC {
 		}
 
 		/** The parameter classes. */
-		public Class<? extends IOReadableWritable>[] getParameterClasses() {
+		public Class<?>[] getParameterClasses() {
 			return parameterClasses;
 		}
 
 		/** The parameter instances. */
-		public IOReadableWritable[] getParameters() {
+		public Object[] getParameters() {
 			return parameters;
 		}
 
-		// TODO: See if type safety can be improved here
+
 		@SuppressWarnings("unchecked")
 		public void read(DataInputView in) throws IOException {
 
 			this.methodName = StringRecord.readString(in);
-			this.parameters = new IOReadableWritable[in.readInt()];
+			this.parameters = new Object[in.readInt()];
 			this.parameterClasses = new Class[parameters.length];
 
 			for (int i = 0; i < parameters.length; i++) {
@@ -118,27 +104,28 @@ public class RPC {
 				// Read class name for parameter and try to get class to that name
 				final String className = StringRecord.readString(in);
 				try {
-					parameterClasses[i] = ClassUtils.getRecordByName(className);
-				} catch (ClassNotFoundException cnfe) {
-					throw new IOException(cnfe.toString());
+					parameterClasses[i] = ClassUtils.resolveClassPrimitiveAware(className);
+				} 
+				catch (ClassNotFoundException e) {
+					throw new IOException(e);
 				}
 
 				// See if parameter is null
 				if (in.readBoolean()) {
+					IOReadableWritable value;
 					try {
 						final String parameterClassName = StringRecord.readString(in);
-						final Class<? extends IOReadableWritable> parameterClass = ClassUtils
-							.getRecordByName(parameterClassName);
-						parameters[i] = parameterClass.newInstance();
-					} catch (IllegalAccessException iae) {
-						throw new IOException(iae.toString());
-					} catch (InstantiationException ie) {
-						throw new IOException(ie.toString());
-					} catch (ClassNotFoundException cnfe) {
-						throw new IOException(cnfe.toString());
+						final Class<? extends IOReadableWritable> parameterClass =
+								(Class<? extends IOReadableWritable>) ClassUtils.resolveClassPrimitiveAware(parameterClassName);
+						
+						value = parameterClass.newInstance();
+						parameters[i] = value;
+					}
+					catch (Exception e) {
+						throw new IOException(e);
 					}
 					// Object will do everything else on its own
-					parameters[i].read(in);
+					value.read(in);
 				} else {
 					parameters[i] = null;
 				}
@@ -148,6 +135,8 @@ public class RPC {
 		public void write(DataOutputView out) throws IOException {
 			StringRecord.writeString(out, methodName);
 			out.writeInt(parameterClasses.length);
+
+			// at this point, type conversion should have happened
 			for (int i = 0; i < parameterClasses.length; i++) {
 				StringRecord.writeString(out, parameterClasses[i].getName());
 				if (parameters[i] == null) {
@@ -155,7 +144,39 @@ public class RPC {
 				} else {
 					out.writeBoolean(true);
 					StringRecord.writeString(out, parameters[i].getClass().getName());
-					parameters[i].write(out);
+					((IOReadableWritable) parameters[i]).write(out);
+				}
+			}
+		}
+		
+		public void doTypeConversion() throws IOException {
+			try {
+				for (int i = 0; i < parameterClasses.length; i++) {
+					if (!IOReadableWritable.class.isAssignableFrom(parameterClasses[i])) {
+						try {
+							parameters[i] = JavaToValueConverter.convertBoxedJavaType(parameters[i]);
+						}
+						catch (IllegalArgumentException e) {
+							throw new IOException("Argument " + i + " of method " + methodName
+									+ " is not a primitive type (or boxed primitive) and not of type IOReadableWriteable");
+						}
+					}
+				}
+			}
+			catch (IOException e) {
+				LOG.error(e.getMessage(), e);
+				throw e;
+			}
+			catch (Exception e) {
+				LOG.error(e.getMessage(), e);
+				throw new IOException(e);
+			}
+		}
+		
+		public void undoTypeConversion() {
+			for (int i = 0; i < parameterClasses.length; i++) {
+				if (!IOReadableWritable.class.isAssignableFrom(parameterClasses[i])) {
+					parameters[i] = JavaToValueConverter.convertValueType((Value) parameters[i]);
 				}
 			}
 		}
@@ -180,14 +201,6 @@ public class RPC {
 	static private class ClientCache {
 		private Map<SocketFactory, Client> clients = new HashMap<SocketFactory, Client>();
 
-		/**
-		 * Construct & cache an IPC client with the user-provided SocketFactory
-		 * if no cached client exists.
-		 * 
-		 * @param conf
-		 *        Configuration
-		 * @return an IPC client
-		 */
 		private synchronized Client getClient(SocketFactory factory) {
 			// Construct & cache client. The configuration is only used for timeout,
 			// and Clients have connection pools. So we can either (a) lose some
@@ -236,26 +249,17 @@ public class RPC {
 		}
 
 		public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-
-			// TODO clean up
-			IOReadableWritable[] castArgs = null;
-			if (args != null) {
-				castArgs = new IOReadableWritable[args.length];
-
-				// Check if args are instances of ReadableWritable
-				for (int i = 0; i < args.length; i++) {
-					if ((args[i] != null) && !(args[i] instanceof IOReadableWritable)) {
-						throw new IOException("Argument " + i + " of method " + method.getName()
-							+ " is not of type IOReadableWriteable");
-					} else {
-						castArgs[i] = (IOReadableWritable) args[i];
-					}
-				}
+			Invocation invocation = new Invocation(method, args);
+			invocation.doTypeConversion();
+			
+			Object retValue = this.client.call(invocation, this.address, method.getDeclaringClass());
+			
+			if (IOReadableWritable.class.isAssignableFrom(method.getReturnType())) {
+				return retValue;
 			}
-			final IOReadableWritable value = this.client.call(new Invocation(method, castArgs), this.address, method
-				.getDeclaringClass());
-
-			return value;
+			else {
+				return JavaToValueConverter.convertValueType((Value) retValue);
+			}
 		}
 
 		/* close the IPC client that's responsible for this invoker's RPCs */
@@ -328,11 +332,6 @@ public class RPC {
 
 	/**
 	 * Construct a client-side proxy object with the default SocketFactory
-	 * 
-	 * @param protocol
-	 * @param addr
-	 * @return
-	 * @throws IOException
 	 */
 	public static <V extends VersionedProtocol> V getProxy(Class<V> protocol, InetSocketAddress addr)
 			throws IOException {
@@ -370,8 +369,6 @@ public class RPC {
 		 * 
 		 * @param instance
 		 *        the instance whose methods will be called
-		 * @param conf
-		 *        the configuration to use
 		 * @param bindAddress
 		 *        the address to bind on to listen for connection
 		 * @param port
@@ -395,8 +392,6 @@ public class RPC {
 		 * 
 		 * @param instance
 		 *        the instance whose methods will be called
-		 * @param conf
-		 *        the configuration to use
 		 * @param bindAddress
 		 *        the address to bind on to listen for connection
 		 * @param port
@@ -415,12 +410,26 @@ public class RPC {
 			try {
 				
 				final Invocation call = (Invocation) param;
+				call.undoTypeConversion();
 				
 				final Method method = protocol.getMethod(call.getMethodName(), call.getParameterClasses());
 				method.setAccessible(true);
 
 				final Object value = method.invoke((Object) instance, (Object[]) call.getParameters());
-				return (IOReadableWritable) value;
+
+				if (IOReadableWritable.class.isAssignableFrom(method.getReturnType())) {
+					return (IOReadableWritable) value;
+				}
+				else {
+					try {
+						return JavaToValueConverter.convertBoxedJavaType(value);
+					}
+					catch (IllegalArgumentException e) {
+						throw new IOException("The return type of method " + method.getName()
+								+ " is not a primitive type (or boxed primitive) and not of type IOReadableWriteable");
+					}
+				}
+
 			} catch (InvocationTargetException e) {
 				
 				final Throwable target = e.getTargetException();
@@ -431,7 +440,8 @@ public class RPC {
 					ioe.setStackTrace(target.getStackTrace());
 					throw ioe;
 				}
-			} catch (Throwable e) {
+			}
+			catch (Throwable e) {
 				final IOException ioe = new IOException(e.toString());
 				ioe.setStackTrace(e.getStackTrace());
 				throw ioe;

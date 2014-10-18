@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -302,9 +302,9 @@ public abstract class GenericFlatTypePostPass<X, T extends AbstractSchema<X>> im
 			
 			if (createUtilities) {
 				// parameterize the node's driver strategy
-				if (sn.getDriverStrategy().requiresComparator()) {
+				for(int i=0;i<sn.getDriverStrategy().getNumRequiredComparators();i++) {
 					try {
-						sn.setComparator(createComparator(sn.getKeys(), sn.getSortOrders(), schema));
+						sn.setComparator(createComparator(sn.getKeys(i), sn.getSortOrders(i), schema),i);
 					} catch (MissingFieldTypeInfoException e) {
 						throw new CompilerPostPassException("Could not set up runtime strategy for node '" + 
 								optNode.getPactContract().getName() + "'. Missing type information for key field " +
@@ -371,7 +371,7 @@ public abstract class GenericFlatTypePostPass<X, T extends AbstractSchema<X>> im
 			
 			// parameterize the node's driver strategy
 			if (createUtilities) {
-				if (dn.getDriverStrategy().requiresComparator()) {
+				if (dn.getDriverStrategy().getNumRequiredComparators() > 0) {
 					// set the individual comparators
 					try {
 						dn.setComparator1(createComparator(dn.getKeysForInput1(), dn.getSortOrders(), schema1));

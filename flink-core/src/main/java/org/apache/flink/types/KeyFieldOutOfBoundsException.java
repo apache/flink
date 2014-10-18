@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -59,6 +59,11 @@ public class KeyFieldOutOfBoundsException extends RuntimeException
 	 */
 	public KeyFieldOutOfBoundsException(int fieldNumber) {
 		super("Field " + fieldNumber + " is accessed for a key, but out of bounds in the record.");
+		this.fieldNumber = fieldNumber;
+	}
+	
+	public KeyFieldOutOfBoundsException(int fieldNumber, Throwable parent) {
+		super("Field " + fieldNumber + " is accessed for a key, but out of bounds in the record.", parent);
 		this.fieldNumber = fieldNumber;
 	}
 	

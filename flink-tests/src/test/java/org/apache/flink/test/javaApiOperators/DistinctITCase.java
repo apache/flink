@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,26 +22,29 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.LinkedList;
 
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.functions.RichMapFunction;
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple1;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.CustomType;
+import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.POJO;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
 
 @SuppressWarnings("serial")
 @RunWith(Parameterized.class)
 public class DistinctITCase extends JavaProgramTestBase {
 	
-	private static int NUM_PROGRAMS = 5;
+	private static int NUM_PROGRAMS = 8;
 	
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -201,6 +204,83 @@ public class DistinctITCase extends JavaProgramTestBase {
 				return "1,1,Hi\n" +
 						"2,2,Hello\n" +
 						"3,2,Hello world\n";
+			}
+			case 6: {
+				
+				/*
+				 * check correctness of distinct on custom type with tuple-returning type extractor
+				 */
+				
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				
+				DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
+				DataSet<Tuple2<Integer, Long>> reduceDs = ds
+						.distinct(new KeySelector<Tuple5<Integer, Long, Integer, String, Long>, Tuple2<Integer, Long>>() {
+									private static final long serialVersionUID = 1L;
+									@Override
+									public Tuple2<Integer,Long> getKey(Tuple5<Integer, Long, Integer, String, Long> t) {
+										return new Tuple2<Integer, Long>(t.f0, t.f4);
+									}
+								})
+						.project(0,4).types(Integer.class, Long.class);
+				
+				reduceDs.writeAsCsv(resultPath);
+				env.execute();
+				
+				// return expected result
+				return "1,1\n" +
+						"2,1\n" +
+						"2,2\n" +
+						"3,2\n" +
+						"3,3\n" +
+						"4,1\n" +
+						"4,2\n" +
+						"5,1\n" +
+						"5,2\n" +
+						"5,3\n";
+			}
+			case 7: {
+				
+				/*
+				 * check correctness of distinct on tuples with field expressions
+				 */
+				
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				
+				DataSet<Tuple5<Integer, Long,  Integer, String, Long>> ds = CollectionDataSets.getSmall5TupleDataSet(env);
+				DataSet<Tuple1<Integer>> reduceDs = ds.union(ds)
+						.distinct("f0").project(0).types(Integer.class);
+				
+				reduceDs.writeAsCsv(resultPath);
+				env.execute();
+				
+				// return expected result
+				return "1\n" +
+						"2\n";
+								
+			}
+			case 8: {
+				
+				/*
+				 * check correctness of distinct on Pojos
+				 */
+				
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				
+				DataSet<POJO> ds = CollectionDataSets.getDuplicatePojoDataSet(env);
+				DataSet<Integer> reduceDs = ds.distinct("nestedPojo.longNumber").map(new MapFunction<CollectionDataSets.POJO, Integer>() {
+					@Override
+					public Integer map(POJO value) throws Exception {
+						return (int) value.nestedPojo.longNumber;
+					}
+				});
+				
+				reduceDs.writeAsText(resultPath);
+				env.execute();
+				
+				// return expected result
+				return "10000\n20000\n30000\n";
+								
 			}
 			default: 
 				throw new IllegalArgumentException("Invalid program id");

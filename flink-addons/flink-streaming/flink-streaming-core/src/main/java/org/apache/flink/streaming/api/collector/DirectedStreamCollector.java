@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -17,16 +17,18 @@
 
 package org.apache.flink.streaming.api.collector;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.flink.runtime.io.network.api.RecordWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.util.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A StreamCollector that uses user defined output names and a user defined
@@ -37,8 +39,10 @@ import org.apache.flink.util.StringUtils;
  */
 public class DirectedStreamCollector<OUT> extends StreamCollector<OUT> {
 
+	private static final Logger LOG = LoggerFactory.getLogger(DirectedStreamCollector.class);
+
 	OutputSelector<OUT> outputSelector;
-	private static final Log LOG = LogFactory.getLog(DirectedStreamCollector.class);
+	private List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> selectAllOutputs;
 	private Set<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> emitted;
 
 	/**
@@ -57,49 +61,65 @@ public class DirectedStreamCollector<OUT> extends StreamCollector<OUT> {
 		super(channelID, serializationDelegate);
 		this.outputSelector = outputSelector;
 		this.emitted = new HashSet<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>>();
-
+		this.selectAllOutputs = new ArrayList<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>>();
 	}
 
-	/**
-	 * Collects and emits a tuple to the outputs by reusing a StreamRecord
-	 * object.
-	 * 
-	 * @param outputObject
-	 *            Object to be collected and emitted.
-	 */
 	@Override
-	public void collect(OUT outputObject) {
-		streamRecord.setObject(outputObject);
-		emit(streamRecord);
+	public void addOutput(RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output,
+			List<String> outputNames, boolean isSelectAllOutput) {
+
+		if (isSelectAllOutput) {
+			selectAllOutputs.add(output);
+		} else {
+			addOneOutput(output, outputNames, isSelectAllOutput);
+		}
 	}
 
 	/**
 	 * Emits a StreamRecord to the outputs selected by the user defined
 	 * OutputSelector
-	 * 
-	 * @param streamRecord
-	 *            Record to emit.
+	 *
 	 */
-	private void emit(StreamRecord<OUT> streamRecord) {
+	protected void emitToOutputs() {
 		Collection<String> outputNames = outputSelector.getOutputs(streamRecord.getObject());
-		streamRecord.newId(channelID);
-		serializationDelegate.setInstance(streamRecord);
 		emitted.clear();
 		for (String outputName : outputNames) {
+			List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> outputList = outputMap
+					.get(outputName);
 			try {
-				for (RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output : outputMap
-						.get(outputName)) {
+				for (RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output : selectAllOutputs) {
 					if (!emitted.contains(output)) {
 						output.emit(serializationDelegate);
 						emitted.add(output);
 					}
 				}
+
+				if (outputList == null) {
+					if (LOG.isErrorEnabled()) {
+						String format = String.format(
+								"Cannot emit because no output is selected with the name: %s",
+								outputName);
+						LOG.error(format);
+
+					}
+				} else {
+
+					for (RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output : outputList) {
+						if (!emitted.contains(output)) {
+							output.emit(serializationDelegate);
+							emitted.add(output);
+						}
+					}
+
+				}
+
 			} catch (Exception e) {
 				if (LOG.isErrorEnabled()) {
-					LOG.error(String.format("Emit to %s failed due to: %s", outputName,
-							StringUtils.stringifyException(e)));
+					LOG.error("Emit to {} failed due to: {}", outputName,
+							StringUtils.stringifyException(e));
 				}
 			}
+
 		}
 	}
 }

@@ -65,5 +65,13 @@ under the License.
 			<artifactId>junit</artifactId>
 			<version>4.11</version>
 		</dependency>
+		
+		<!--  guava needs to be in "provided" scope, to make sure it is not included into the jars by the shading -->
+		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava</artifactId>
+			<version>${guava.version}</version>
+			<scope>provided</scope>
+		</dependency>
 	</dependencies>
 </project>

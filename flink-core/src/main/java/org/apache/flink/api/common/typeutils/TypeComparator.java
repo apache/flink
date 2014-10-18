@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 
 package org.apache.flink.api.common.typeutils;
 
@@ -177,7 +176,7 @@ public abstract class TypeComparator<T> implements Serializable {
 	 * 
 	 *  @see java.util.Comparator#compare(Object, Object)
 	 */
-	public abstract int compare(DataInputView firstSource, DataInputView secondSource) throws IOException;
+	public abstract int compareSerialized(DataInputView firstSource, DataInputView secondSource) throws IOException;
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -286,7 +285,23 @@ public abstract class TypeComparator<T> implements Serializable {
 	public abstract TypeComparator<T> duplicate();
 	
 	// --------------------------------------------------------------------------------------------
-	
+
+	/**
+	 * Extracts the key fields from a record. This is for use by the PairComparator to provide
+	 * interoperability between different record types.
+	 * @return the number of keys added to target.
+	 */
+	public abstract int extractKeys(Object record, Object[] target, int index);
+
+	/**
+	 * Get the field comparators. This is used together with {@link #extractKeys(Object)} to provide
+	 * interoperability between different record types.
+	 */
+	@SuppressWarnings("rawtypes")
+	public abstract TypeComparator[] getFlatComparators();
+
+	// --------------------------------------------------------------------------------------------
+
 	@SuppressWarnings("rawtypes")
 	public int compareAgainstReference(Comparable[] keys) {
 		throw new UnsupportedOperationException("Workaround hack.");

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.io.disk.iomanager;
 
 import java.io.EOFException;
@@ -28,9 +27,9 @@ import java.util.concurrent.LinkedBlockingQueue;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.memorymanager.AbstractPagedInputView;
 
-
 /**
- * A {@link DataInputView} that is backed by a {@link BlockChannelReader}, making it effectively a data input
+ * A {@link org.apache.flink.core.memory.DataInputView} that is backed by a
+ * {@link BlockChannelReader}, making it effectively a data input
  * stream. The view reads it data in blocks from the underlying channel. The view can only read data that
  * has been written by a {@link ChannelWriterOutputView}, due to block formatting.
  */
@@ -111,7 +110,7 @@ public class ChannelReaderInputView extends AbstractPagedInputView {
 	 *                  given, the reader avoids issuing pre-fetch requests for blocks
 	 *                  beyond the channel size.
 	 * @param headerLen The length of the header assumed at the beginning of the block. Note that the
-	 *                  {@link #nextSegment(MemorySegment)} method assumes the default header length,
+	 *                  {@link #nextSegment(org.apache.flink.core.memory.MemorySegment)} method assumes the default header length,
 	 *                  so any subclass changing the header length should override that methods as well.
 	 * @param waitForFirstBlock A flag indicating weather this constructor call should block
 	 *                          until the first block has returned from the asynchronous I/O reader.
@@ -245,8 +244,7 @@ public class ChannelReaderInputView extends AbstractPagedInputView {
 	
 
 	@Override
-	protected int getLimitForSegment(MemorySegment segment)
-	{
+	protected int getLimitForSegment(MemorySegment segment) {
 		return segment.getInt(ChannelWriterOutputView.HEAD_BLOCK_LENGTH_OFFSET);
 	}
 	
@@ -257,8 +255,7 @@ public class ChannelReaderInputView extends AbstractPagedInputView {
 	 * @param seg The segment to use for the read request.
 	 * @throws IOException Thrown, if the reader is in error.
 	 */
-	protected void sendReadRequest(MemorySegment seg) throws IOException
-	{
+	protected void sendReadRequest(MemorySegment seg) throws IOException {
 		if (this.numRequestsRemaining != 0) {
 			this.reader.readBlock(seg);
 			if (this.numRequestsRemaining != -1) {

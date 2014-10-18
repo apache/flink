@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,7 +25,7 @@ import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.operators.base.FlatMapOperatorBase;
 import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
 import org.apache.flink.api.java.aggregation.Aggregations;
-import org.apache.flink.api.java.functions.RichFlatMapFunction;
+import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.java.record.operators.FileDataSink;
 import org.apache.flink.api.java.record.operators.FileDataSource;
 import org.apache.flink.api.java.record.operators.ReduceOperator;
@@ -49,10 +49,10 @@ import org.apache.flink.compiler.util.DummyOutputFormat;
 import org.apache.flink.compiler.util.IdentityReduce;
 
 
-@SuppressWarnings("serial")
+@SuppressWarnings({"serial", "deprecation"})
 public class UnionPropertyPropagationTest extends CompilerTestBase {
 
-	@SuppressWarnings({ "deprecation", "unchecked" })
+	@SuppressWarnings("unchecked")
 	@Test
 	public void testUnionPropertyOldApiPropagation() {
 		// construct the plan

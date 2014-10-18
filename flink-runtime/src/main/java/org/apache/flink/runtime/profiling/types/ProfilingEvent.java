@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.profiling.types;
 
 import java.io.IOException;
@@ -27,23 +26,20 @@ import org.apache.flink.runtime.event.job.AbstractEvent;
 import org.apache.flink.runtime.event.job.ManagementEvent;
 import org.apache.flink.runtime.jobgraph.JobID;
 
+import com.google.common.base.Preconditions;
+
 /**
  * A profiling event is a special type of event. It is intended to transport profiling data of a Nephele job to external
  * components.
- * <p>
- * This class is not thread-safe.
- * 
  */
 public abstract class ProfilingEvent extends AbstractEvent implements ManagementEvent {
 
-	/**
-	 * The ID of the job the profiling data belongs to.
-	 */
-	private JobID jobID;
+	private static final long serialVersionUID = 1L;
 
-	/**
-	 * The profiling time stamp.
-	 */
+	/** The ID of the job the profiling data belongs to. */
+	private final JobID jobID;
+
+	/** The profiling time stamp. */
 	private long profilingTimestamp;
 
 	/**
@@ -56,9 +52,10 @@ public abstract class ProfilingEvent extends AbstractEvent implements Management
 	 * @param profilingTimestamp
 	 *        the time stamp of the profiling data
 	 */
-	public ProfilingEvent(final JobID jobID, final long timestamp, final long profilingTimestamp) {
+	public ProfilingEvent(JobID jobID, long timestamp, long profilingTimestamp) {
 		super(timestamp);
 
+		Preconditions.checkNotNull(jobID);
 		this.jobID = jobID;
 		this.profilingTimestamp = profilingTimestamp;
 	}
@@ -68,8 +65,11 @@ public abstract class ProfilingEvent extends AbstractEvent implements Management
 	 */
 	public ProfilingEvent() {
 		super();
+		this.jobID = new JobID();
 	}
 
+	// --------------------------------------------------------------------------------------------
+	
 	/**
 	 * Returns the ID of the job this profiling information belongs to.
 	 * 
@@ -90,59 +90,47 @@ public abstract class ProfilingEvent extends AbstractEvent implements Management
 		return this.profilingTimestamp;
 	}
 
+	// --------------------------------------------------------------------------------------------
+	//  Serialization
+	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public void read(final DataInputView in) throws IOException {
+	public void read(DataInputView in) throws IOException {
 		super.read(in);
 
-		this.jobID = new JobID();
 		this.jobID.read(in);
-
 		this.profilingTimestamp = in.readLong();
 	}
 
 
 	@Override
-	public void write(final DataOutputView out) throws IOException {
+	public void write(DataOutputView out) throws IOException {
 		super.write(out);
 
 		this.jobID.write(out);
 		out.writeLong(this.profilingTimestamp);
 	}
 
+	// --------------------------------------------------------------------------------------------
+	// Utilities
+	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public boolean equals(final Object obj) {
-
-		if (!super.equals(obj)) {
+	public boolean equals(Object obj) {
+		if (obj instanceof ProfilingEvent) {
+			final ProfilingEvent other = (ProfilingEvent) obj;
+			
+			return super.equals(obj) && this.profilingTimestamp == other.profilingTimestamp &&
+					this.jobID.equals(other.jobID);
+		}
+		else {
 			return false;
 		}
-
-		if (!(obj instanceof ProfilingEvent)) {
-			return false;
-		}
-
-		final ProfilingEvent profilingEvent = (ProfilingEvent) obj;
-
-		if (!this.jobID.equals(profilingEvent.getJobID())) {
-			return false;
-		}
-
-		if (this.profilingTimestamp != profilingEvent.getProfilingTimestamp()) {
-			return false;
-		}
-
-		return true;
 	}
-
 
 	@Override
 	public int hashCode() {
-
-		if (this.jobID != null) {
-			return this.jobID.hashCode();
-		}
-
-		return super.hashCode();
+		return this.jobID.hashCode() ^ ((int) (profilingTimestamp >>> 32)) ^ ((int) (profilingTimestamp)) ^
+				super.hashCode();
 	}
 }

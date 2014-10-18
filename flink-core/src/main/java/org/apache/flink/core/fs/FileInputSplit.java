@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,28 +16,21 @@
  * limitations under the License.
  */
 
-
-/**
- * This file is based on source code from the Hadoop Project (http://hadoop.apache.org/), licensed by the Apache
- * Software Foundation (ASF) under the Apache License, Version 2.0. See the NOTICE file distributed with this work for
- * additional information regarding copyright ownership. 
- */
-
 package org.apache.flink.core.fs;
 
 import java.io.IOException;
 
-import org.apache.flink.core.io.InputSplit;
-import org.apache.flink.core.io.StringRecord;
+import org.apache.flink.core.io.LocatableInputSplit;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
 /**
  * A file input split provides information on a particular part of a file, possibly
- * hosted on a distributed file system and replicated among several hosts.
- * 
+ * hosted on a distributed file system and replicated among several hosts. 
  */
-public class FileInputSplit implements InputSplit {
+public class FileInputSplit extends LocatableInputSplit {
+
+	private static final long serialVersionUID = 1L;
 
 	/**
 	 * The path of the file this file split refers to.
@@ -54,16 +47,8 @@ public class FileInputSplit implements InputSplit {
 	 */
 	private long length;
 
-	/**
-	 * List of hosts (hostnames) containing the block, possibly <code>null</code>.
-	 */
-	private String[] hosts;
-
-	/**
-	 * The logical number of the split.
-	 */
-	private int partitionNumber;
-
+	// --------------------------------------------------------------------------------------------
+	
 	/**
 	 * Constructs a split with host information.
 	 * 
@@ -78,20 +63,21 @@ public class FileInputSplit implements InputSplit {
 	 * @param hosts
 	 *        the list of hosts containing the block, possibly <code>null</code>
 	 */
-	public FileInputSplit(final int num, final Path file, final long start, final long length, final String[] hosts) {
-		this.partitionNumber = num;
+	public FileInputSplit(int num, Path file, long start, long length, String[] hosts) {
+		super(num, hosts);
+		
 		this.file = file;
 		this.start = start;
 		this.length = length;
-		this.hosts = hosts;
 	}
 
 	/**
-	 * Constructor used to reconstruct the object at the receiver of an RPC call.
+	 * Default constructor for deserialization.
 	 */
-	public FileInputSplit() {
-	}
+	public FileInputSplit() {}
 
+	// --------------------------------------------------------------------------------------------
+	
 	/**
 	 * Returns the path of the file containing this split's data.
 	 * 
@@ -118,35 +104,17 @@ public class FileInputSplit implements InputSplit {
 	public long getLength() {
 		return length;
 	}
-
-	/**
-	 * Gets the names of the hosts that this file split resides on.
-	 * 
-	 * @return The names of the hosts that this file split resides on.
-	 */
-	public String[] getHostNames() {
-		if (this.hosts == null) {
-			return new String[] {};
-		} else {
-			return this.hosts;
-		}
-	}
+	
+	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public int getSplitNumber() {
-		return this.partitionNumber;
-	}
+	public void write(DataOutputView out) throws IOException {
+		super.write(out);
 
-	@Override
-	public String toString() {
-		return "[" + this.partitionNumber + "] " + file + ":" + start + "+" + length;
-	}
-
-	@Override
-	public void write(final DataOutputView out) throws IOException {
-		// write partition number
-		out.writeInt(this.partitionNumber);
-
+		// write start and length
+		out.writeLong(this.start);
+		out.writeLong(this.length);
+		
 		// write file
 		if (this.file != null) {
 			out.writeBoolean(true);
@@ -154,48 +122,49 @@ public class FileInputSplit implements InputSplit {
 		} else {
 			out.writeBoolean(false);
 		}
-
-		// write start and length
-		out.writeLong(this.start);
-		out.writeLong(this.length);
-
-		// write hosts
-		if (this.hosts == null) {
-			out.writeBoolean(false);
-		} else {
-			out.writeBoolean(true);
-			out.writeInt(this.hosts.length);
-			for (int i = 0; i < this.hosts.length; i++) {
-				StringRecord.writeString(out, this.hosts[i]);
-			}
-		}
 	}
 
-
 	@Override
-	public void read(final DataInputView in) throws IOException {
-		// read partition number
-		this.partitionNumber = in.readInt();
-
+	public void read(DataInputView in) throws IOException {
+		super.read(in);
+		
+		this.start = in.readLong();
+		this.length = in.readLong();
+		
 		// read file path
 		boolean isNotNull = in.readBoolean();
 		if (isNotNull) {
 			this.file = new Path();
 			this.file.read(in);
 		}
-
-		this.start = in.readLong();
-		this.length = in.readLong();
-
-		isNotNull = in.readBoolean();
-		if (isNotNull) {
-			final int numHosts = in.readInt();
-			this.hosts = new String[numHosts];
-			for (int i = 0; i < numHosts; i++) {
-				this.hosts[i] = StringRecord.readString(in);
-			}
-		} else {
-			this.hosts = null;
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	@Override
+	public int hashCode() {
+		return getSplitNumber() ^ (file == null ? 0 : file.hashCode());
+	}
+	
+	@Override
+	public boolean equals(Object obj) {
+		if (obj == this) {
+			return true;
 		}
+		else if (obj != null && obj instanceof FileInputSplit && super.equals(obj)) {
+			FileInputSplit other = (FileInputSplit) obj;
+			
+			return this.start == other.start &&
+					this.length == other.length &&
+					(this.file == null ? other.file == null : (other.file != null && this.file.equals(other.file)));
+		}
+		else {
+			return false;
+		}
+	}
+	
+	@Override
+	public String toString() {
+		return "[" + getSplitNumber() + "] " + file + ":" + start + "+" + length;
 	}
 }

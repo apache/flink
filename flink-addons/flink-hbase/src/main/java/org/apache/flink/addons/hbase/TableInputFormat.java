@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,14 +23,16 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.addons.hbase.common.HBaseKey;
 import org.apache.flink.addons.hbase.common.HBaseResult;
 import org.apache.flink.addons.hbase.common.HBaseUtil;
 import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.io.LocatableInputSplitAssigner;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.hadoop.fs.Path;
@@ -51,7 +53,7 @@ public class TableInputFormat implements InputFormat<Record, TableInputSplit> {
 
 	private static final long serialVersionUID = 1L;
 
-	private static final Log LOG = LogFactory.getLog(TableInputFormat.class);
+	private static final Logger LOG = LoggerFactory.getLogger(TableInputFormat.class);
 
 	/** A handle on an HBase table */
 	private HTable table;
@@ -73,7 +75,7 @@ public class TableInputFormat implements InputFormat<Record, TableInputSplit> {
 
 	/**
 	 * Base-64 encoded scanner. All other SCAN_ confs are ignored if this is specified.
-	 * See {@link TableMapReduceUtil#convertScanToString(Scan)} for more details.
+	 * See TableMapReduceUtil.convertScanToString(Scan) for more details.
 	 */
 	public static final String SCAN = "hbase.scan";
 
@@ -120,7 +122,7 @@ public class TableInputFormat implements InputFormat<Record, TableInputSplit> {
 	 * Read the configuration and creates a {@link Scan} object.
 	 * 
 	 * @param parameters
-	 * @return
+	 * @return The scanner
 	 */
 	protected Scan createScanner(Configuration parameters) {
 		Scan scan = null;
@@ -380,15 +382,12 @@ public class TableInputFormat implements InputFormat<Record, TableInputSplit> {
 		return true;
 	}
 
-
 	@Override
-	public Class<TableInputSplit> getInputSplitType() {
-
-		return TableInputSplit.class;
+	public InputSplitAssigner getInputSplitAssigner(TableInputSplit[] inputSplits) {
+		return new LocatableInputSplitAssigner(inputSplits);
 	}
-
-	public void setTable(HTable table)
-	{
+	
+	public void setTable(HTable table) {
 		this.table = table;
 	}
 
@@ -396,8 +395,7 @@ public class TableInputFormat implements InputFormat<Record, TableInputSplit> {
 		return table;
 	}
 
-	public void setScan(Scan scan)
-	{
+	public void setScan(Scan scan) {
 		this.scan = scan;
 	}
 

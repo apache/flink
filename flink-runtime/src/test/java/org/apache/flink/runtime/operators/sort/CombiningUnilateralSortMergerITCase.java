@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,21 +25,19 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 
 import org.junit.Assert;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
-import org.apache.flink.api.java.functions.RichGroupReduceFunction;
-import org.apache.flink.api.java.typeutils.runtime.record.RecordComparator;
-import org.apache.flink.api.java.typeutils.runtime.record.RecordSerializerFactory;
+import org.apache.flink.api.common.typeutils.record.RecordComparator;
+import org.apache.flink.api.common.typeutils.record.RecordSerializerFactory;
+import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
-import org.apache.flink.runtime.operators.sort.CombiningUnilateralSortMerger;
-import org.apache.flink.runtime.operators.sort.Sorter;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.TestData;
 import org.apache.flink.runtime.operators.testutils.TestData.Key;
@@ -49,17 +47,14 @@ import org.apache.flink.runtime.util.KeyGroupedIterator;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.LogUtils;
 import org.apache.flink.util.MutableObjectIterator;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
-
 
 public class CombiningUnilateralSortMergerITCase {
 	
-	private static final Log LOG = LogFactory.getLog(CombiningUnilateralSortMergerITCase.class);
+	private static final Logger LOG = LoggerFactory.getLogger(CombiningUnilateralSortMergerITCase.class);
 
 	private static final long SEED = 649180756312423613L;
 
@@ -81,12 +76,6 @@ public class CombiningUnilateralSortMergerITCase {
 	
 	private TypeComparator<Record> comparator;
 
-	
-	@BeforeClass
-	public static void setup() {
-		LogUtils.initializeDefaultTestConsoleLogger();
-	}
-	
 	@SuppressWarnings("unchecked")
 	@Before
 	public void beforeTest() {

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -19,17 +19,17 @@ package org.apache.flink.streaming.util;
 
 import java.net.InetSocketAddress;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.flink.client.minicluster.NepheleMiniCluster;
 import org.apache.flink.client.program.Client;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ClusterUtil {
 
-	private static final Log LOG = LogFactory.getLog(ClusterUtil.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ClusterUtil.class);
 	public static final String CANNOT_EXECUTE_EMPTY_JOB = "Cannot execute empty job";
 
 	/**
@@ -37,18 +37,19 @@ public class ClusterUtil {
 	 * 
 	 * @param jobGraph
 	 *            jobGraph
-	 * @param numberOfTaskTrackers
+	 * @param degreeOfPrallelism
 	 *            numberOfTaskTrackers
 	 * @param memorySize
 	 *            memorySize
 	 */
-	public static void runOnMiniCluster(JobGraph jobGraph, int numberOfTaskTrackers, long memorySize) {
+	public static void runOnMiniCluster(JobGraph jobGraph, int degreeOfPrallelism, long memorySize) throws Exception  {
 
 		Configuration configuration = jobGraph.getJobConfiguration();
 
 		NepheleMiniCluster exec = new NepheleMiniCluster();
 		exec.setMemorySize(memorySize);
-		exec.setNumTaskTracker(numberOfTaskTrackers);
+		exec.setNumTaskManager(1);
+		exec.setTaskManagerNumSlots(degreeOfPrallelism);
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Running on mini cluster");
 		}
@@ -59,15 +60,14 @@ public class ClusterUtil {
 			Client client = new Client(new InetSocketAddress("localhost",
 					exec.getJobManagerRpcPort()), configuration, ClusterUtil.class.getClassLoader());
 			client.run(jobGraph, true);
-
 		} catch (ProgramInvocationException e) {
 			if (e.getMessage().contains("GraphConversionException")) {
-				throw new RuntimeException(CANNOT_EXECUTE_EMPTY_JOB, e);
+				throw new Exception(CANNOT_EXECUTE_EMPTY_JOB, e);
 			} else {
-				throw new RuntimeException(e.getMessage(), e);
+				throw e;
 			}
 		} catch (Exception e) {
-			throw new RuntimeException(e.getMessage(), e);
+			throw e;
 		} finally {
 			try {
 				exec.stop();
@@ -76,7 +76,7 @@ public class ClusterUtil {
 		}
 	}
 
-	public static void runOnMiniCluster(JobGraph jobGraph, int numberOfTaskTrackers) {
+	public static void runOnMiniCluster(JobGraph jobGraph, int numberOfTaskTrackers) throws Exception {
 		runOnMiniCluster(jobGraph, numberOfTaskTrackers, -1);
 	}
 

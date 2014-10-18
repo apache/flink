@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,8 +23,8 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.runtime.io.network.Buffer;
 import org.apache.flink.runtime.io.network.Envelope;
 import org.apache.flink.runtime.io.network.bufferprovider.BufferAvailabilityListener;
@@ -39,7 +39,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class InboundEnvelopeDecoder extends ChannelInboundHandlerAdapter implements BufferAvailabilityListener {
 
-	private static final Log LOG = LogFactory.getLog(InboundEnvelopeDecoder.class);
+	private static final Logger LOG = LoggerFactory.getLogger(InboundEnvelopeDecoder.class);
 
 	private final BufferProviderBroker bufferProviderBroker;
 

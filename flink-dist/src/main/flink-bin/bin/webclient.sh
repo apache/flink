@@ -30,8 +30,6 @@ if [ "$FLINK_IDENT_STRING" = "" ]; then
         FLINK_IDENT_STRING="$USER"
 fi
 
-FLINK_LIB_CLIENTS_DIR=$FLINK_ROOT_DIR/lib_clients
-
 JVM_ARGS="$JVM_ARGS -Xmx512m"
 
 # auxilliary function to construct the classpath for the webclient
@@ -44,10 +42,6 @@ constructWebclientClassPath() {
 			FLINK_WEBCLIENT_CLASSPATH=$FLINK_WEBCLIENT_CLASSPATH:$jarfile
 		fi
 	done
-	
-	for jarfile in "$FLINK_LIB_CLIENTS_DIR"/*.jar ; do
-		FLINK_WEBCLIENT_CLASSPATH=$FLINK_WEBCLIENT_CLASSPATH:$jarfile
-	done
 
 	echo $FLINK_WEBCLIENT_CLASSPATH
 }
@@ -57,7 +51,7 @@ FLINK_WEBCLIENT_CLASSPATH=`manglePathList "$(constructWebclientClassPath)"`
 log=$FLINK_LOG_DIR/flink-$FLINK_IDENT_STRING-webclient-$HOSTNAME.log
 out=$FLINK_LOG_DIR/flink-$FLINK_IDENT_STRING-webclient-$HOSTNAME.out
 pid=$FLINK_PID_DIR/flink-$FLINK_IDENT_STRING-webclient.pid
-log_setting=(-Dlog.file="$log" -Dlog4j.configuration=file:"$FLINK_CONF_DIR"/log4j.properties)
+log_setting=(-Dlog.file="$log" -Dlog4j.configuration=file:"$FLINK_CONF_DIR"/log4j.properties -Dlogback.configurationFile=file:"$FLINK_CONF_DIR"/logback.xml)
 
 case $STARTSTOP in
 

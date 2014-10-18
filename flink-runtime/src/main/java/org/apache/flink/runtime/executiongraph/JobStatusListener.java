@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,25 +16,21 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.runtime.jobgraph.JobStatus;
+
 /**
- * This interface allows objects to receive notifications
- * when the status of an observed job has changed.
- * 
+ * This interface allows objects to receive notifications when the status of an observed job has changed.
  */
 public interface JobStatusListener {
 
-/**
-	 * Called when the status of the job with the given {@li
+	/**
+	 * Called when the status of the job changed.
 	 * 
-	 * @param executionGraph
-	 *        the executionGraph representing the job the event belongs to
-	 * @param newJobStatus
-	 *        the new job status
-	 * @param optionalMessage
-	 *        an optional message (possibly <code>null</code>) that can be attached to the state change
+	 * @param executionGraph   The executionGraph representing the job.
+	 * @param newJobStatus     The new job status.
+	 * @param optionalMessage  An optional message (possibly <code>null</code>) that can be attached to the state change.
 	 */
-	void jobStatusHasChanged(ExecutionGraph executionGraph, InternalJobStatus newJobStatus, String optionalMessage);
+	void jobStatusHasChanged(ExecutionGraph executionGraph, JobStatus newJobStatus, String optionalMessage);
 }

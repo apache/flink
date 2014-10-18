@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,15 +16,12 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.iterative.concurrent;
-
-import org.apache.flink.runtime.operators.hash.CompactingHashTable;
 
 /**
  * Used to hand over the hash-join from the iteration head to the solution-set match.
  */
-public class SolutionSetBroker extends Broker<CompactingHashTable<?>> {
+public class SolutionSetBroker extends Broker<Object> {
 
 	/**
 	 * Singleton instance
@@ -34,7 +31,7 @@ public class SolutionSetBroker extends Broker<CompactingHashTable<?>> {
 	/**
 	 * Retrieve the singleton instance.
 	 */
-	public static Broker<CompactingHashTable<?>> instance() {
+	public static Broker<Object> instance() {
 		return INSTANCE;
 	}
 	

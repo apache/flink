@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -26,8 +26,8 @@ import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -91,7 +91,7 @@ import org.apache.flink.util.MutableObjectIterator;
  */
 public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 	
-	private static final Log LOG = LogFactory.getLog(MutableHashTable.class);
+	private static final Logger LOG = LoggerFactory.getLogger(MutableHashTable.class);
 	
 	// ------------------------------------------------------------------------
 	//                         Internal Constants
@@ -531,10 +531,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 			return false;
 		}
 	}
-	/**
-	 * @return
-	 * @throws IOException
-	 */
+	
 	public boolean nextRecord() throws IOException {
 		
 		final boolean probeProcessing = processProbeIter();
@@ -596,16 +593,10 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 //		}
 //	}
 	
-	/**
-	 * @return
-	 */
 	public PT getCurrentProbeRecord() {
 		return this.probeIterator.getCurrent();
 	}
 	
-	/**
-	 * @return
-	 */
 	public HashBucketIterator<BT, PT> getBuildSideIterator() {
 		return this.bucketIterator;
 	}
@@ -1025,11 +1016,6 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 		this.partitionsBeingBuilt.clear();
 	}
 	
-	/**
-	 * @param numBuckets
-	 * @param numPartitions
-	 * @return
-	 */
 	protected void initTable(int numBuckets, byte numPartitions) {
 		final int bucketsPerSegment = this.bucketsPerSegmentMask + 1;
 		final int numSegs = (numBuckets >>> this.bucketsPerSegmentBits) + ( (numBuckets & this.bucketsPerSegmentMask) == 0 ? 0 : 1);

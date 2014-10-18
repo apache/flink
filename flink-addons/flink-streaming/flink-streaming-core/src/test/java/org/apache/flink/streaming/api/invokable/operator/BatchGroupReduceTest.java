@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -19,20 +19,18 @@ package org.apache.flink.streaming.api.invokable.operator;
 
 import static org.junit.Assert.assertEquals;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 import org.apache.flink.api.common.functions.GroupReduceFunction;
-import org.apache.flink.api.java.functions.RichGroupReduceFunction;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.util.MockInvokable;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
 
 public class BatchGroupReduceTest {
 
-	public static final class MySlidingBatchReduce1 implements GroupReduceFunction<Integer, String> {
+	public static final class MySlidingBatchReduce implements GroupReduceFunction<Integer, String> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -40,57 +38,61 @@ public class BatchGroupReduceTest {
 			for (Integer value : values) {
 				out.collect(value.toString());
 			}
-			out.collect(END_OF_GROUP);
+			out.collect(END_OF_BATCH);
 		}
 	}
 
-	public static final class MySlidingBatchReduce2 extends
-			RichGroupReduceFunction<Tuple2<Integer, String>, String> {
+	private final static String END_OF_BATCH = "end of batch";
+	private final static int SLIDING_BATCH_SIZE = 3;
+	private final static int SLIDE_SIZE = 2;
+
+	@Test
+	public void slidingBatchReduceTest() {
+		BatchGroupReduceInvokable<Integer, String> invokable = new BatchGroupReduceInvokable<Integer, String>(
+				new MySlidingBatchReduce(), SLIDING_BATCH_SIZE, SLIDE_SIZE);
+
+		List<String> expected = Arrays.asList("1", "2", "3", END_OF_BATCH, "3", "4", "5",
+				END_OF_BATCH, "5", "6", "7", END_OF_BATCH);
+		List<String> actual = MockInvokable.createAndExecute(invokable,
+				Arrays.asList(1, 2, 3, 4, 5, 6, 7));
+
+		assertEquals(expected, actual);
+	}
+
+	public static final class MyBatchReduce implements GroupReduceFunction<Double, Double> {
 		private static final long serialVersionUID = 1L;
 
-		String openString;
-		
 		@Override
-		public void reduce(Iterable<Tuple2<Integer, String>> values, Collector<String> out)
-				throws Exception {
-			out.collect(openString);
-			for (Tuple2<Integer, String> value : values) {
-				out.collect(value.f0.toString());
+		public void reduce(Iterable<Double> values, Collector<Double> out) throws Exception {
+
+			Double sum = 0.;
+			Double count = 0.;
+			for (Double value : values) {
+				sum += value;
+				count++;
 			}
-			out.collect(END_OF_GROUP);
-		}
-		
-		@Override
-		public void open(Configuration c){
-			openString = "open";
+			if (count > 0) {
+				out.collect(new Double(sum / count));
+			}
 		}
 	}
 
-	private final static String END_OF_GROUP = "end of group";
+	private static final int BATCH_SIZE = 5;
 
-	@SuppressWarnings("unchecked")
 	@Test
-	public void slidingBatchGroupReduceTest() {
-		BatchGroupReduceInvokable<Integer, String> invokable1 = new BatchGroupReduceInvokable<Integer, String>(
-				new MySlidingBatchReduce1(), 3, 2, 0);
+	public void nonSlidingBatchReduceTest() {
+		List<Double> inputs = new ArrayList<Double>();
+		for (Double i = 1.; i <= 100; i++) {
+			inputs.add(i);
+		}
 
-		List<String> expected = Arrays.asList("1", "1", END_OF_GROUP, "2", END_OF_GROUP, "2",
-				END_OF_GROUP, "3", "3", END_OF_GROUP);
-		List<String> actual = MockInvokable.createAndExecute(invokable1,
-				Arrays.asList(1, 1, 2, 3, 3));
+		BatchGroupReduceInvokable<Double, Double> invokable = new BatchGroupReduceInvokable<Double, Double>(
+				new MyBatchReduce(), BATCH_SIZE, BATCH_SIZE);
 
-		assertEquals(expected, actual);
+		List<Double> avgs = MockInvokable.createAndExecute(invokable, inputs);
 
-		BatchGroupReduceInvokable<Tuple2<Integer, String>, String> invokable2 = new BatchGroupReduceInvokable<Tuple2<Integer, String>, String>(
-				new MySlidingBatchReduce2(), 2, 2, 1);
-
-		expected = Arrays.asList("open","1", "2", END_OF_GROUP,"open", "3", END_OF_GROUP,"open", "4", END_OF_GROUP);
-		actual = MockInvokable.createAndExecute(invokable2, Arrays.asList(
-				new Tuple2<Integer, String>(1, "a"), new Tuple2<Integer, String>(2, "a"),
-				new Tuple2<Integer, String>(3, "b"), new Tuple2<Integer, String>(4, "a")));
-
-		assertEquals(expected, actual);
-
+		for (int i = 0; i < avgs.size(); i++) {
+			assertEquals(3.0 + i * BATCH_SIZE, avgs.get(i), 0);
+		}
 	}
-
 }

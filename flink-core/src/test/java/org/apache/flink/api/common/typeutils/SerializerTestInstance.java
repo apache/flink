@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 
 package org.apache.flink.api.common.typeutils;
 
@@ -68,11 +67,13 @@ public class SerializerTestInstance<T> extends SerializerTestBase<T> {
 	public void testAll() {
 		testInstantiate();
 		testGetLength();
+		testCopy();
 		testCopyIntoNewElements();
 		testCopyIntoReusedElements();
 		testSerializeIndividually();
 		testSerializeIndividuallyReusingValues();
-		testSerializeAsSequence();
+		testSerializeAsSequenceNoReuse();
+		testSerializeAsSequenceReusingValues();
 		testSerializedCopyIndividually();
 		testSerializedCopyAsSequence();
 		testSerializabilityAndEquals();

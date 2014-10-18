@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -80,25 +80,19 @@ public class IterativeDataStream<IN> extends
 	 * 
 	 */
 	public <R> DataStream<IN> closeWith(DataStream<IN> iterationTail, String iterationName) {
-		DataStream<R> returnStream = new DataStreamSink<R>(environment, "iterationSink");
+		DataStream<R> returnStream = new DataStreamSink<R>(environment, "iterationSink", null);
 
-		jobGraphBuilder.addIterationSink(returnStream.getId(), iterationTail.getId(),
+		jobGraphBuilder.addIterationTail(returnStream.getId(), iterationTail.getId(),
 				iterationID.toString(), iterationTail.getParallelism(), waitTime);
 
 		jobGraphBuilder.setIterationSourceSettings(iterationID.toString(), iterationTail.getId());
 
 		List<String> name = Arrays.asList(new String[] { iterationName });
 
-		if (iterationTail instanceof MergedDataStream) {
-			for (DataStream<IN> stream : ((MergedDataStream<IN>) iterationTail).mergedStreams) {
-				String inputID = stream.getId();
-				jobGraphBuilder.setEdge(inputID, returnStream.getId(),
-						new ForwardPartitioner<IN>(), 0, name);
-			}
-		} else {
-
-			jobGraphBuilder.setEdge(iterationTail.getId(), returnStream.getId(),
-					new ForwardPartitioner<IN>(), 0, name);
+		for (DataStream<IN> stream : iterationTail.mergedStreams) {
+			String inputID = stream.getId();
+			jobGraphBuilder.setEdge(inputID, returnStream.getId(), new ForwardPartitioner<IN>(), 0,
+					name, false);
 		}
 
 		return iterationTail;

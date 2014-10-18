@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,46 +16,43 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.jobgraph;
 
 /**
- * Defines the possible status of a job once it has been
- * accepted by the job manager.
- * <p>
- * This class is thread-safe.
- * 
+ * Possible states of a job once it has been accepted by the job manager.
  */
 public enum JobStatus {
 
-	/**
-	 * All tasks of the job are in the execution state CREATED.
-	 */
-	CREATED,
+	/** Job is newly created, no task has started to run. */
+	CREATED(false),
 
-	/**
-	 * All tasks of the job have been accepted by the scheduler, resources have been requested.
-	 */
-	SCHEDULED,
+	/** Some tasks are scheduled or running, some may be pending, some may be finished. */
+	RUNNING(false),
 
-	/**
-	 * At least one task of the job is running, none has definitely failed.
-	 */
-	RUNNING,
+	/** The job has failed and is currently waiting for the cleanup to complete */
+	FAILING(false),
+	
+	/** The job has failed to to non-recoverable task failure */
+	FAILED(true),
 
-	/**
-	 * At least one task of the job has definitively failed and cannot
-	 * be recovered anymore. As a result, the job has been terminated.
-	 */
-	FAILED,
+	/** Job is being cancelled */
+	CANCELLING(false),
+	
+	/** Job has been cancelled */
+	CANCELED(true),
 
-	/**
-	 * All tasks of the job are canceled as a result of a user request. The job has been terminated.
-	 */
-	CANCELED,
-
-	/**
-	 * All of the job's tasks have successfully finished.
-	 */
-	FINISHED
+	/** All of the job's tasks have successfully finished. */
+	FINISHED(true);
+	
+	// --------------------------------------------------------------------------------------------
+	
+	private final boolean terminalState;
+	
+	private JobStatus(boolean terminalState) {
+		this.terminalState = terminalState;
+	}
+	
+	public boolean isTerminalState() {
+		return terminalState;
+	}
 };

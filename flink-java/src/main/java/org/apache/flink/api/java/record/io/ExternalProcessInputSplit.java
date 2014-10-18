@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -36,6 +36,8 @@ import org.apache.flink.core.memory.DataOutputView;
  */
 public class ExternalProcessInputSplit extends GenericInputSplit {
 
+	private static final long serialVersionUID = 1L;
+	
 	// command to be executed for this input split
 	private String extProcessCommand;
 	

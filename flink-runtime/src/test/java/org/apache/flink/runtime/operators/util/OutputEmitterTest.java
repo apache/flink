@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,11 +27,12 @@ import java.io.PipedOutputStream;
 
 import junit.framework.TestCase;
 
+import org.apache.flink.api.common.typeutils.base.IntComparator;
 import org.junit.Assert;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
-import org.apache.flink.api.java.typeutils.runtime.record.RecordComparatorFactory;
-import org.apache.flink.api.java.typeutils.runtime.record.RecordSerializerFactory;
+import org.apache.flink.api.common.typeutils.record.RecordComparatorFactory;
+import org.apache.flink.api.common.typeutils.record.RecordSerializerFactory;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
@@ -379,8 +380,9 @@ public class OutputEmitterTest extends TestCase {
 		Assert.fail("Expected a NullKeyFieldException.");
 	}
 	
-	@SuppressWarnings("serial")
+	@SuppressWarnings({"serial", "rawtypes"})
 	private static class TestIntComparator extends TypeComparator<Integer> {
+		private TypeComparator[] comparators = new TypeComparator[]{new IntComparator(true)};
 
 		@Override
 		public int hash(Integer record) {
@@ -402,7 +404,7 @@ public class OutputEmitterTest extends TestCase {
 		public int compare(Integer first, Integer second) { throw new UnsupportedOperationException(); }
 
 		@Override
-		public int compare(DataInputView firstSource, DataInputView secondSource) {
+		public int compareSerialized(DataInputView firstSource, DataInputView secondSource) {
 			throw new UnsupportedOperationException();
 		}
 
@@ -438,7 +440,17 @@ public class OutputEmitterTest extends TestCase {
 
 		@Override
 		public TypeComparator<Integer> duplicate() { throw new UnsupportedOperationException(); }
-		
+
+		@Override
+		public int extractKeys(Object record, Object[] target, int index) {
+			target[index] = record;
+			return 1;
+		}
+
+		@Override
+		public TypeComparator[] getFlatComparators() {
+			return comparators;
+		}
 	}
 	
 //	@Test

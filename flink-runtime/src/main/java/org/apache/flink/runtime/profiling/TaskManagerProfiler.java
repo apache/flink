@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,22 +16,20 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.profiling;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.executiongraph.ExecutionVertexID;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.taskmanager.Task;
 
 /**
  * This interface must be implemented by profiling components
  * for the task manager manager.
- * 
  */
 public interface TaskManagerProfiler {
 
 	/**
-	 * Registers an {@link ExecutionListener} object for profiling.
+	 * Registers an {@link org.apache.flink.runtime.execution.ExecutionListener} object for profiling.
 	 * 
 	 * @param task
 	 *        task to be register a profiling listener for
@@ -41,13 +39,13 @@ public interface TaskManagerProfiler {
 	void registerExecutionListener(Task task, Configuration jobConfiguration);
 
 	/**
-	 * Unregisters all previously register {@link ExecutionListener} objects for
+	 * Unregisters all previously register {@link org.apache.flink.runtime.execution.ExecutionListener} objects for
 	 * the vertex identified by the given ID.
 	 * 
 	 * @param id
-	 *        the ID of the vertex to unregister the {@link ExecutionListener} objects for
+	 *        the ID of the vertex to unregister the {@link org.apache.flink.runtime.execution.ExecutionListener} objects for
 	 */
-	void unregisterExecutionListener(ExecutionVertexID id);
+	void unregisterExecutionListener(ExecutionAttemptID id);
 
 	/**
 	 * Shuts done the task manager's profiling component

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 
 package org.apache.flink.compiler;
 
@@ -41,9 +40,8 @@ import org.junit.Test;
  *   <li> Ticket 158
  * </ul>
  */
-@SuppressWarnings("serial")
-public class HardPlansCompilationTest extends CompilerTestBase
-{
+@SuppressWarnings({"serial", "deprecation"})
+public class HardPlansCompilationTest extends CompilerTestBase {
 	
 	/**
 	 * Source -> Map -> Reduce -> Cross -> Reduce -> Cross -> Reduce ->

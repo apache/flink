@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -38,7 +38,7 @@ public abstract class AbstractHashTableProber<PT, BT> {
 		this.pairComparator = pairComparator;
 	}
 	
-	public abstract boolean getMatchFor(PT probeSideRecord, BT targetForMatch);
+	public abstract BT getMatchFor(PT probeSideRecord, BT targetForMatch);
 	
 	public abstract void updateMatch(BT record) throws IOException;
 }

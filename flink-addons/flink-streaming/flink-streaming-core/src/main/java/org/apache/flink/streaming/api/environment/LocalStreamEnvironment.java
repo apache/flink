@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -22,16 +22,30 @@ import org.apache.flink.streaming.util.ClusterUtil;
 public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 
 	/**
-	 * Executes the JobGraph of the on a mini cluster of CLusterUtil.
-	 * 
+	 * Executes the JobGraph of the on a mini cluster of CLusterUtil with a
+	 * default name.
 	 */
 	@Override
-	public void execute() {
+	public void execute() throws Exception {
 		ClusterUtil.runOnMiniCluster(this.jobGraphBuilder.getJobGraph(), getExecutionParallelism());
 	}
 
-	public void executeTest(long memorySize) {
+	/**
+	 * Executes the JobGraph of the on a mini cluster of CLusterUtil with a user
+	 * specified name.
+	 * 
+	 * @param jobName
+	 *            name of the job
+	 */
+	@Override
+	public void execute(String jobName) throws Exception {
+		ClusterUtil.runOnMiniCluster(this.jobGraphBuilder.getJobGraph(jobName),
+				getExecutionParallelism());
+	}
+
+	public void executeTest(long memorySize) throws Exception {
 		ClusterUtil.runOnMiniCluster(this.jobGraphBuilder.getJobGraph(), getExecutionParallelism(),
 				memorySize);
 	}
+
 }

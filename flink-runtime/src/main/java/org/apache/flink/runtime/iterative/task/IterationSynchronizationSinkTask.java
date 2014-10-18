@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,13 +24,12 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.aggregators.AggregatorWithName;
 import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
 import org.apache.flink.runtime.event.task.AbstractTaskEvent;
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.io.network.api.MutableRecordReader;
 import org.apache.flink.runtime.iterative.event.AllWorkersDoneEvent;
 import org.apache.flink.runtime.iterative.event.TerminationEvent;
@@ -51,11 +50,9 @@ import com.google.common.base.Preconditions;
  */
 public class IterationSynchronizationSinkTask extends AbstractInvokable implements Terminable {
 
-	private static final Log log = LogFactory.getLog(IterationSynchronizationSinkTask.class);
+	private static final Logger log = LoggerFactory.getLogger(IterationSynchronizationSinkTask.class);
 
 	private MutableRecordReader<IntegerRecord> headEventReader;
-	
-	private ClassLoader userCodeClassLoader;
 	
 	private SyncEventHandler eventHandler;
 
@@ -81,18 +78,17 @@ public class IterationSynchronizationSinkTask extends AbstractInvokable implemen
 
 	@Override
 	public void invoke() throws Exception {
-		userCodeClassLoader = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
 		TaskConfig taskConfig = new TaskConfig(getTaskConfiguration());
 		
 		// store all aggregators
 		this.aggregators = new HashMap<String, Aggregator<?>>();
-		for (AggregatorWithName<?> aggWithName : taskConfig.getIterationAggregators()) {
+		for (AggregatorWithName<?> aggWithName : taskConfig.getIterationAggregators(getUserCodeClassLoader())) {
 			aggregators.put(aggWithName.getName(), aggWithName.getAggregator());
 		}
 		
 		// store the aggregator convergence criterion
 		if (taskConfig.usesConvergenceCriterion()) {
-			convergenceCriterion = taskConfig.getConvergenceCriterion();
+			convergenceCriterion = taskConfig.getConvergenceCriterion(getUserCodeClassLoader());
 			convergenceAggregatorName = taskConfig.getConvergenceCriterionAggregatorName();
 			Preconditions.checkNotNull(convergenceAggregatorName);
 		}
@@ -101,7 +97,8 @@ public class IterationSynchronizationSinkTask extends AbstractInvokable implemen
 		
 		// set up the event handler
 		int numEventsTillEndOfSuperstep = taskConfig.getNumberOfEventsUntilInterruptInIterativeGate(0);
-		eventHandler = new SyncEventHandler(numEventsTillEndOfSuperstep, aggregators, userCodeClassLoader);
+		eventHandler = new SyncEventHandler(numEventsTillEndOfSuperstep, aggregators,
+				getEnvironment().getUserClassLoader());
 		headEventReader.subscribeToEvent(eventHandler, WorkerDoneEvent.class);
 
 		IntegerRecord dummy = new IntegerRecord();

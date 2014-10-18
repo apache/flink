@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -55,11 +55,11 @@ public abstract class Grouping<T> {
 	}
 	
 	
-	protected DataSet<T> getDataSet() {
+	public DataSet<T> getDataSet() {
 		return this.dataSet;
 	}
 	
-	protected Keys<T> getKeys() {
+	public Keys<T> getKeys() {
 		return this.keys;
 	}
 

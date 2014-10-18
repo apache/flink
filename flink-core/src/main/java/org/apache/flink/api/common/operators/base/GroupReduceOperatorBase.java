@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,19 +16,34 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.operators.base;
 
-
+import org.apache.commons.lang3.ArrayUtils;
+import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.FlatCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.functions.util.CopyingListCollector;
+import org.apache.flink.api.common.functions.util.FunctionUtils;
+import org.apache.flink.api.common.functions.util.ListCollector;
 import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.SingleInputOperator;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
+import org.apache.flink.api.common.operators.util.ListKeyGroupedIterator;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.CompositeType;
+import org.apache.flink.api.common.typeutils.TypeComparator;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 
+import com.google.common.base.Preconditions;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 
 /**
  * @see org.apache.flink.api.common.functions.GroupReduceFunction
@@ -58,7 +73,7 @@ public class GroupReduceOperatorBase<IN, OUT, FT extends GroupReduceFunction<IN,
 	public GroupReduceOperatorBase(UserCodeWrapper<FT> udf, UnaryOperatorInformation<IN, OUT> operatorInfo, String name) {
 		super(udf, operatorInfo, name);
 	}
-	
+
 	public GroupReduceOperatorBase(FT udf, UnaryOperatorInformation<IN, OUT> operatorInfo, String name) {
 		super(new UserCodeObjectWrapper<FT>(udf), operatorInfo, name);
 	}
@@ -117,4 +132,87 @@ public class GroupReduceOperatorBase<IN, OUT, FT extends GroupReduceFunction<IN,
 		return this.combinable;
 	}
 
+	// --------------------------------------------------------------------------------------------
+
+	@Override
+	protected List<OUT> executeOnCollections(List<IN> inputData, RuntimeContext ctx, boolean mutableObjectSafeMode) throws Exception {
+		GroupReduceFunction<IN, OUT> function = this.userFunction.getUserCodeObject();
+
+		UnaryOperatorInformation<IN, OUT> operatorInfo = getOperatorInfo();
+		TypeInformation<IN> inputType = operatorInfo.getInputType();
+
+		int[] keyColumns = getKeyColumns(0);
+
+		if (!(inputType instanceof CompositeType) && (keyColumns.length > 0 || groupOrder != null)) {
+			throw new InvalidProgramException("Grouping or group-sorting is only possible on composite type.");
+		}
+
+		int[] sortColumns = keyColumns;
+		boolean[] sortOrderings = new boolean[sortColumns.length];
+
+		if (groupOrder != null) {
+			sortColumns = ArrayUtils.addAll(sortColumns, groupOrder.getFieldPositions());
+			sortOrderings = ArrayUtils.addAll(sortOrderings, groupOrder.getFieldSortDirections());
+		}
+
+		if (inputType instanceof CompositeType) {
+			if(sortColumns.length == 0) { // => all reduce. No comparator
+				Preconditions.checkArgument(sortOrderings.length == 0);
+			} else {
+				final TypeComparator<IN> sortComparator = ((CompositeType<IN>) inputType).createComparator(sortColumns, sortOrderings, 0);
+	
+				Collections.sort(inputData, new Comparator<IN>() {
+					@Override
+					public int compare(IN o1, IN o2) {
+						return sortComparator.compare(o1, o2);
+					}
+				});
+			}
+		}
+
+		FunctionUtils.setFunctionRuntimeContext(function, ctx);
+		FunctionUtils.openFunction(function, this.parameters);
+		
+		ArrayList<OUT> result = new ArrayList<OUT>();
+
+		if (keyColumns.length == 0) {
+			if (mutableObjectSafeMode) {
+				final TypeSerializer<IN> inputSerializer = inputType.createSerializer();
+				TypeSerializer<OUT> outSerializer = getOperatorInfo().getOutputType().createSerializer();
+				List<IN> inputDataCopy = new ArrayList<IN>(inputData.size());
+				for (IN in: inputData) {
+					inputDataCopy.add(inputSerializer.copy(in));
+				}
+				CopyingListCollector<OUT> collector = new CopyingListCollector<OUT>(result, outSerializer);
+
+				function.reduce(inputDataCopy, collector);
+			} else {
+				ListCollector<OUT> collector = new ListCollector<OUT>(result);
+				function.reduce(inputData, collector);
+			}
+		} else {
+			final TypeSerializer<IN> inputSerializer = inputType.createSerializer();
+			boolean[] keyOrderings = new boolean[keyColumns.length];
+			final TypeComparator<IN> comparator = ((CompositeType<IN>) inputType).createComparator(keyColumns, keyOrderings, 0);
+
+			ListKeyGroupedIterator<IN> keyedIterator = new ListKeyGroupedIterator<IN>(inputData, inputSerializer, comparator, mutableObjectSafeMode);
+
+			if (mutableObjectSafeMode) {
+				TypeSerializer<OUT> outSerializer = getOperatorInfo().getOutputType().createSerializer();
+				CopyingListCollector<OUT> collector = new CopyingListCollector<OUT>(result, outSerializer);
+
+				while (keyedIterator.nextKey()) {
+					function.reduce(keyedIterator.getValues(), collector);
+				}
+			} else {
+				ListCollector<OUT> collector = new ListCollector<OUT>(result);
+				while (keyedIterator.nextKey()) {
+					function.reduce(keyedIterator.getValues(), collector);
+				}
+			}
+		}
+
+		FunctionUtils.closeFunction(function);
+		return result;
+	}
 }

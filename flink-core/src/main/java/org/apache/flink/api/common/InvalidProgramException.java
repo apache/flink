@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -42,5 +42,9 @@ public class InvalidProgramException extends RuntimeException {
 	 */
 	public InvalidProgramException(String message) {
 		super(message);
+	}
+
+	public InvalidProgramException(String message, Throwable e) {
+		super(message, e);
 	}
 }

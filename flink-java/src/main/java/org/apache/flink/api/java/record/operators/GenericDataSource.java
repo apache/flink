@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,14 +20,21 @@
 package org.apache.flink.api.java.record.operators;
 
 import org.apache.flink.api.common.io.InputFormat;
-import org.apache.flink.api.common.operators.base.GenericDataSourceBase;
+import org.apache.flink.api.common.operators.GenericDataSourceBase;
 import org.apache.flink.types.Record;
 
 /**
+ * 
+ * <b>NOTE: The Record API is marked as deprecated. It is not being developed anymore and will be removed from
+ * the code at some point.
+ * See <a href="https://issues.apache.org/jira/browse/FLINK-1106">FLINK-1106</a> for more details.</b>
+ * 
  * Abstract superclass for data sources in a Pact plan.
  *
  * @param <T> The type of input format invoked by instances of this data source.
  */
+
+@Deprecated
 public class GenericDataSource<T extends InputFormat<Record, ?>> extends GenericDataSourceBase<Record, T> {
 
 	/**

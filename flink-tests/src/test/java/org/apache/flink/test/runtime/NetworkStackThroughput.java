@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,34 +16,29 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.runtime;
 
 import java.io.IOException;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.io.network.api.RecordReader;
 import org.apache.flink.runtime.io.network.api.RecordWriter;
-import org.apache.flink.runtime.io.network.channels.ChannelType;
+import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobGraphDefinitionException;
-import org.apache.flink.runtime.jobgraph.JobInputVertex;
-import org.apache.flink.runtime.jobgraph.JobOutputVertex;
-import org.apache.flink.runtime.jobgraph.JobTaskVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.test.util.RecordAPITestBase;
-import org.apache.flink.util.LogUtils;
 import org.junit.After;
 
 public class NetworkStackThroughput {
 
-	private static final Log LOG = LogFactory.getLog(NetworkStackThroughput.class);
+	private static final Logger LOG = LoggerFactory.getLogger(NetworkStackThroughput.class);
 
 	private static final String DATA_VOLUME_GB_CONFIG_KEY = "data.volume.gb";
 
@@ -87,10 +82,8 @@ public class NetworkStackThroughput {
 				throw new RuntimeException("The test case defines a parallelism that is not a multiple of the slots per task manager.");
 			}
 
-			setNumTaskTracker(parallelism / numSlots);
+			setNumTaskManager(parallelism / numSlots);
 			setTaskManagerNumSlots(numSlots);
-
-			LogUtils.initializeDefaultConsoleLogger();
 		}
 
 		@Override
@@ -99,38 +92,44 @@ public class NetworkStackThroughput {
 		}
 
 		private JobGraph createJobGraph(int dataVolumeGb, boolean useForwarder, boolean isSlowSender,
-				boolean isSlowReceiver, int numSubtasks) throws JobGraphDefinitionException {
-
+				boolean isSlowReceiver, int numSubtasks)
+		{
 			JobGraph jobGraph = new JobGraph("Speed Test");
+			SlotSharingGroup sharingGroup = new SlotSharingGroup();
 
-			JobInputVertex producer = new JobInputVertex("Speed Test Producer", jobGraph);
+			AbstractJobVertex producer = new AbstractJobVertex("Speed Test Producer");
+			jobGraph.addVertex(producer);
+			producer.setSlotSharingGroup(sharingGroup);
+			
 			producer.setInvokableClass(SpeedTestProducer.class);
-			producer.setNumberOfSubtasks(numSubtasks);
+			producer.setParallelism(numSubtasks);
 			producer.getConfiguration().setInteger(DATA_VOLUME_GB_CONFIG_KEY, dataVolumeGb);
 			producer.getConfiguration().setBoolean(IS_SLOW_SENDER_CONFIG_KEY, isSlowSender);
 
-			JobTaskVertex forwarder = null;
+			AbstractJobVertex forwarder = null;
 			if (useForwarder) {
-				forwarder = new JobTaskVertex("Speed Test Forwarder", jobGraph);
+				forwarder = new AbstractJobVertex("Speed Test Forwarder");
+				jobGraph.addVertex(forwarder);
+				forwarder.setSlotSharingGroup(sharingGroup);
+				
 				forwarder.setInvokableClass(SpeedTestForwarder.class);
-				forwarder.setNumberOfSubtasks(numSubtasks);
+				forwarder.setParallelism(numSubtasks);
 			}
 
-			JobOutputVertex consumer = new JobOutputVertex("Speed Test Consumer", jobGraph);
+			AbstractJobVertex consumer = new AbstractJobVertex("Speed Test Consumer");
+			jobGraph.addVertex(consumer);
+			consumer.setSlotSharingGroup(sharingGroup);
+			
 			consumer.setInvokableClass(SpeedTestConsumer.class);
-			consumer.setNumberOfSubtasks(numSubtasks);
+			consumer.setParallelism(numSubtasks);
 			consumer.getConfiguration().setBoolean(IS_SLOW_RECEIVER_CONFIG_KEY, isSlowReceiver);
 
 			if (useForwarder) {
-				producer.connectTo(forwarder, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
-				forwarder.connectTo(consumer, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
-
-				forwarder.setVertexToShareInstancesWith(producer);
-				consumer.setVertexToShareInstancesWith(producer);
+				forwarder.connectNewDataSetAsInput(producer, DistributionPattern.BIPARTITE);
+				consumer.connectNewDataSetAsInput(forwarder, DistributionPattern.BIPARTITE);
 			}
 			else {
-				producer.connectTo(consumer, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
-				producer.setVertexToShareInstancesWith(consumer);
+				consumer.connectNewDataSetAsInput(producer, DistributionPattern.BIPARTITE);
 			}
 
 			return jobGraph;
@@ -289,9 +288,12 @@ public class NetworkStackThroughput {
 			TestBaseWrapper test = new TestBaseWrapper(config);
 
 			test.startCluster();
-			test.testJob();
-			test.calculateThroughput();
-			test.stopCluster();
+			try {
+				test.testJob();
+				test.calculateThroughput();
+			} finally {
+				test.stopCluster();
+			}
 		}
 	}
 

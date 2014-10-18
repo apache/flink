@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.profiling.impl;
 
 import java.util.HashMap;
@@ -26,14 +25,13 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.ExecutionGroupVertex;
-import org.apache.flink.runtime.executiongraph.ExecutionGroupVertexIterator;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.instance.DummyInstance;
+import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.profiling.impl.types.InternalInstanceProfilingData;
 import org.apache.flink.runtime.profiling.types.InstanceSummaryProfilingEvent;
+
 
 public class JobProfilingData {
 
@@ -43,36 +41,30 @@ public class JobProfilingData {
 
 	private final Map<InstanceConnectionInfo, InternalInstanceProfilingData> collectedInstanceProfilingData = new HashMap<InstanceConnectionInfo, InternalInstanceProfilingData>();
 
+	
 	public JobProfilingData(ExecutionGraph executionGraph) {
 		this.executionGraph = executionGraph;
-
 		this.profilingStart = System.currentTimeMillis();
 	}
 
+	
 	public long getProfilingStart() {
 		return this.profilingStart;
 	}
 
 	public ExecutionGraph getExecutionGraph() {
-
 		return this.executionGraph;
 	}
 
-	public boolean instanceAllocatedByJob(InternalInstanceProfilingData instanceProfilingData) {
+	public boolean addIfInstanceIsAllocatedByJob(InternalInstanceProfilingData instanceProfilingData) {
 
-		final ExecutionGroupVertexIterator it = new ExecutionGroupVertexIterator(this.executionGraph, true,
-			this.executionGraph.getIndexOfCurrentExecutionStage());
-		while (it.hasNext()) {
-
-			final ExecutionGroupVertex groupVertex = it.next();
-			for (int i = 0; i < groupVertex.getCurrentNumberOfGroupMembers(); i++) {
-				final ExecutionVertex executionVertex = groupVertex.getGroupMember(i);
-				if (instanceProfilingData.getInstanceConnectionInfo().equals(
-					executionVertex.getAllocatedResource().getInstance().getInstanceConnectionInfo())) {
-					this.collectedInstanceProfilingData.put(instanceProfilingData.getInstanceConnectionInfo(),
-						instanceProfilingData);
-					return true;
-				}
+		for (ExecutionVertex executionVertex : this.executionGraph.getAllExecutionVertices()) {
+			AllocatedSlot slot = executionVertex.getCurrentAssignedResource();
+			if (slot != null && slot.getInstance().getInstanceConnectionInfo().equals(
+					instanceProfilingData.getInstanceConnectionInfo()))
+			{
+				this.collectedInstanceProfilingData.put(instanceProfilingData.getInstanceConnectionInfo(), instanceProfilingData);
+				return true;
 			}
 		}
 
@@ -82,25 +74,16 @@ public class JobProfilingData {
 	public InstanceSummaryProfilingEvent getInstanceSummaryProfilingData(long timestamp) {
 
 		final Set<Instance> tempSet = new HashSet<Instance>();
-		// First determine the number of allocated instances in the current stage
-		final ExecutionGroupVertexIterator it = new ExecutionGroupVertexIterator(this.executionGraph, true,
-			this.executionGraph.getIndexOfCurrentExecutionStage());
-		while (it.hasNext()) {
-
-			final ExecutionGroupVertex groupVertex = it.next();
-			for (int i = 0; i < groupVertex.getCurrentNumberOfGroupMembers(); i++) {
-				final ExecutionVertex executionVertex = groupVertex.getGroupMember(i);
-				final Instance instance = executionVertex.getAllocatedResource().getInstance();
-				if(!(instance instanceof DummyInstance)) {
-					tempSet.add(instance);
-				}
+		
+		for (ExecutionVertex executionVertex : this.executionGraph.getAllExecutionVertices()) {
+			AllocatedSlot slot = executionVertex.getCurrentAssignedResource();
+			if (slot != null) {
+				tempSet.add(slot.getInstance());
 			}
 		}
 
-		/*
-		 * Now compare the size of the collected data set and the allocated instance set.
-		 * If their sizes are equal we can issue an instance summary.
-		 */
+		// Now compare the size of the collected data set and the allocated instance set.
+		// If their sizes are equal we can issue an instance summary.
 		if (tempSet.size() != this.collectedInstanceProfilingData.size()) {
 			return null;
 		}
@@ -111,8 +94,8 @@ public class JobProfilingData {
 	private InstanceSummaryProfilingEvent constructInstanceSummary(long timestamp) {
 
 		final int numberOfInstances = this.collectedInstanceProfilingData.size();
-		final Iterator<InstanceConnectionInfo> instanceIterator = this.collectedInstanceProfilingData.keySet()
-			.iterator();
+		
+		final Iterator<InstanceConnectionInfo> instanceIterator = this.collectedInstanceProfilingData.keySet().iterator();
 
 		long freeMemorySum = 0;
 		long totalMemorySum = 0;
@@ -134,8 +117,7 @@ public class JobProfilingData {
 		// Sum up the individual values
 		while (instanceIterator.hasNext()) {
 
-			final InternalInstanceProfilingData profilingData = this.collectedInstanceProfilingData
-				.get(instanceIterator.next());
+			final InternalInstanceProfilingData profilingData = this.collectedInstanceProfilingData.get(instanceIterator.next());
 
 			freeMemorySum += profilingData.getFreeMemory();
 			ioWaitCPUSum += profilingData.getIOWaitCPU();
@@ -153,14 +135,22 @@ public class JobProfilingData {
 			cachedSwapMemorySum += profilingData.getCachedSwapMemory();
 		}
 
-		final InstanceSummaryProfilingEvent instanceSummary = new InstanceSummaryProfilingEvent(profilingIntervalSum
-			/ numberOfInstances, ioWaitCPUSum / numberOfInstances, idleCPUSum / numberOfInstances, userCPUSum
-			/ numberOfInstances, systemCPUSum / numberOfInstances, hardIrqCPUSum / numberOfInstances, softIrqCPUSum
-			/ numberOfInstances, totalMemorySum / (long) numberOfInstances, freeMemorySum / (long) numberOfInstances,
-			bufferedMemorySum / (long) numberOfInstances, cachedMemorySum / (long) numberOfInstances,
-			cachedSwapMemorySum / (long) numberOfInstances, receivedBytesSum / (long) numberOfInstances,
-			transmittedBytesSum / (long) numberOfInstances, this.executionGraph.getJobID(), timestamp,
-			(timestamp - this.profilingStart));
+		final InstanceSummaryProfilingEvent instanceSummary = new InstanceSummaryProfilingEvent(
+				profilingIntervalSum / numberOfInstances,
+				ioWaitCPUSum / numberOfInstances,
+				idleCPUSum / numberOfInstances,
+				userCPUSum / numberOfInstances,
+				systemCPUSum / numberOfInstances,
+				hardIrqCPUSum / numberOfInstances,
+				softIrqCPUSum / numberOfInstances,
+				totalMemorySum / numberOfInstances,
+				freeMemorySum / numberOfInstances,
+				bufferedMemorySum / numberOfInstances,
+				cachedMemorySum / numberOfInstances,
+				cachedSwapMemorySum / numberOfInstances,
+				receivedBytesSum / numberOfInstances,
+				transmittedBytesSum / numberOfInstances,
+				this.executionGraph.getJobID(), timestamp, (timestamp - this.profilingStart));
 
 		this.collectedInstanceProfilingData.clear();
 

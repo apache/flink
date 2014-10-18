@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,8 +19,8 @@
 
 package org.apache.flink.runtime.operators;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparatorFactory;
@@ -46,7 +46,7 @@ import org.apache.flink.util.MutableObjectIterator;
  */
 public class MatchDriver<IT1, IT2, OT> implements PactDriver<FlatJoinFunction<IT1, IT2, OT>, OT> {
 	
-	protected static final Log LOG = LogFactory.getLog(MatchDriver.class);
+	protected static final Logger LOG = LoggerFactory.getLogger(MatchDriver.class);
 	
 	protected PactTaskContext<FlatJoinFunction<IT1, IT2, OT>, OT> taskContext;
 	
@@ -75,8 +75,8 @@ public class MatchDriver<IT1, IT2, OT> implements PactDriver<FlatJoinFunction<IT
 	}
 	
 	@Override
-	public boolean requiresComparatorOnInput() {
-		return true;
+	public int getNumberOfDriverComparators() {
+		return 2;
 	}
 
 	@Override
@@ -100,8 +100,8 @@ public class MatchDriver<IT1, IT2, OT> implements PactDriver<FlatJoinFunction<IT
 		// get the key positions and types
 		final TypeSerializer<IT1> serializer1 = this.taskContext.<IT1>getInputSerializer(0).getSerializer();
 		final TypeSerializer<IT2> serializer2 = this.taskContext.<IT2>getInputSerializer(1).getSerializer();
-		final TypeComparator<IT1> comparator1 = this.taskContext.getInputComparator(0);
-		final TypeComparator<IT2> comparator2 = this.taskContext.getInputComparator(1);
+		final TypeComparator<IT1> comparator1 = this.taskContext.getDriverComparator(0);
+		final TypeComparator<IT2> comparator2 = this.taskContext.getDriverComparator(1);
 		
 		final TypePairComparatorFactory<IT1, IT2> pairComparatorFactory = config.getPairComparatorFactory(
 				this.taskContext.getUserCodeClassLoader());

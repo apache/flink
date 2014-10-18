@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,9 +18,9 @@
 
 package org.apache.flink.api.java.io.jdbc.example;
 
-import static org.apache.flink.api.java.typeutils.BasicTypeInfo.DOUBLE_TYPE_INFO;
-import static org.apache.flink.api.java.typeutils.BasicTypeInfo.INT_TYPE_INFO;
-import static org.apache.flink.api.java.typeutils.BasicTypeInfo.STRING_TYPE_INFO;
+import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.DOUBLE_TYPE_INFO;
+import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.INT_TYPE_INFO;
+import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.STRING_TYPE_INFO;
 
 import java.sql.Connection;
 import java.sql.DriverManager;

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -32,7 +32,6 @@ import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.source.SourceFunction;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.LogUtils;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -133,9 +132,6 @@ public class WriteAsCsvTest {
 	
 	@Test
 	public void test() throws Exception {
-
-		LogUtils.initializeDefaultTestConsoleLogger();
-		
 		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 
 		@SuppressWarnings("unused")

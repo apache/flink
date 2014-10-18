@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -93,6 +93,12 @@ public abstract class AbstractUnionRecordReader<T extends IOReadableWritable> ex
 		for (InputGate<T> gate : this.allInputGates) {
 			gate.publishEvent(event);
 		}
+	}
+	
+	@Override
+	public void publishEvent(AbstractTaskEvent event, int inputNumber) throws IOException,
+			InterruptedException {
+		allInputGates[inputNumber].publishEvent(event);
 	}
 	
 	@Override

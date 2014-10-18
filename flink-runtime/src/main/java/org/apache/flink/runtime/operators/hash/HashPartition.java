@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -261,7 +261,7 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 	 * <p>
 	 * If this method is invoked when the partition is still being built, it has undefined behavior.
 	 *   
-	 * @param object The record to be inserted into the probe side buffers.
+	 * @param record The record to be inserted into the probe side buffers.
 	 * @throws IOException Thrown, if the buffer is full, needs to be spilled, and spilling causes an error.
 	 */
 	public final void insertIntoProbeBuffer(PT record) throws IOException
@@ -311,12 +311,6 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 		return this.buildSideWriteBuffer.spill(this.buildSideChannel);
 	}
 	
-	/**
-	 * @param spilledPartitions
-	 * @param ioAccess
-	 * @param probeChannelEnumerator
-	 * @throws IOException
-	 */
 	public void finalizeBuildPhase(IOManager ioAccess, Channel.Enumerator probeChannelEnumerator,
 			LinkedBlockingQueue<MemorySegment> bufferReturnQueue)
 	throws IOException

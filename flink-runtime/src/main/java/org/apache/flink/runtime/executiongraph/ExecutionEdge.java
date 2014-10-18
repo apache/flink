@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,75 +16,59 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.runtime.io.network.channels.ChannelID;
-import org.apache.flink.runtime.io.network.channels.ChannelType;
 
-/**
- * Objects of this class represent a pair of {@link org.apache.flink.runtime.io.network.channels.InputChannel} and
- * {@link org.apache.flink.runtime.io.network.channels.OutputChannel} objects
- * within an {@link ExecutionGraph}, Nephele's internal scheduling representation for jobs.
- */
-public final class ExecutionEdge {
+public class ExecutionEdge {
 
-	private final ExecutionGroupEdge groupEdge;
+	private final IntermediateResultPartition source;
+	
+	private final ExecutionVertex target;
+	
+	private final int inputNum;
 
-	private final ExecutionGate outputGate;
-
-	private final ExecutionGate inputGate;
-
-	private final ChannelID outputChannelID;
-
-	private final ChannelID inputChannelID;
-
-	private final int outputGateIndex;
-
-	private final int inputGateIndex;
-
-	ExecutionEdge(final ExecutionGate outputGate, final ExecutionGate inputGate, final ExecutionGroupEdge groupEdge,
-			final ChannelID outputChannelID, final ChannelID inputChannelID, final int outputGateIndex,
-			final int inputGateIndex) {
-
-		this.outputGate = outputGate;
-		this.inputGate = inputGate;
-		this.groupEdge = groupEdge;
-		this.outputChannelID = outputChannelID;
-		this.inputChannelID = inputChannelID;
-		this.outputGateIndex = outputGateIndex;
-		this.inputGateIndex = inputGateIndex;
-	}
-
-	public ExecutionGate getInputGate() {
-		return this.inputGate;
-	}
-
-	public ExecutionGate getOutputGate() {
-		return this.outputGate;
-	}
-
-	public ChannelID getOutputChannelID() {
-		return this.outputChannelID;
-	}
-
-	public ChannelID getInputChannelID() {
-		return this.inputChannelID;
-	}
-
-	public int getOutputGateIndex() {
-		return this.outputGateIndex;
-	}
-
-	public int getInputGateIndex() {
-		return this.inputGateIndex;
+	private final ChannelID inputChannelId;
+	
+	private final ChannelID outputChannelId;
+	
+	
+	public ExecutionEdge(IntermediateResultPartition source, ExecutionVertex target, int inputNum) {
+		this.source = source;
+		this.target = target;
+		this.inputNum = inputNum;
+		
+		this.inputChannelId = new ChannelID();
+		this.outputChannelId = new ChannelID();
 	}
 	
-	public ChannelType getChannelType() {
-		return this.groupEdge.getChannelType();
+	public ExecutionEdge(IntermediateResultPartition source, ExecutionVertex target, int inputNum, ChannelID inputChannelId, ChannelID outputChannelId) {
+		this.source = source;
+		this.target = target;
+		this.inputNum = inputNum;
+		
+		this.inputChannelId = inputChannelId;
+		this.outputChannelId = outputChannelId;
 	}
 	
-	public int getConnectionID() {
-		return this.groupEdge.getConnectionID();
+	
+	public IntermediateResultPartition getSource() {
+		return source;
+	}
+	
+	public ExecutionVertex getTarget() {
+		return target;
+	}
+	
+	public int getInputNum() {
+		return inputNum;
+	}
+	
+	public ChannelID getInputChannelId() {
+		return inputChannelId;
+	}
+	
+	public ChannelID getOutputChannelId() {
+		return outputChannelId;
 	}
 }

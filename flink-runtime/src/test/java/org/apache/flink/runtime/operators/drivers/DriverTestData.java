@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -100,7 +100,7 @@ public class DriverTestData {
 	
 	public static final void compareTupleArrays(Object[] expected, Object[] found) {
 		if (expected.length != found.length) {
-			throw new IllegalArgumentException();
+			Assert.assertEquals("Length of result is wrong", expected.length, found.length);
 		}
 		
 		for (int i = 0; i < expected.length; i++) {

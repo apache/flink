@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,8 +23,8 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.util.ArrayList;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.RandomAccessInputView;
@@ -41,7 +41,7 @@ import org.apache.flink.runtime.util.MemoryBlockIterator;
  */
 abstract class AbstractBlockResettableIterator<T> implements MemoryBlockIterator {
 	
-	protected static final Log LOG = LogFactory.getLog(AbstractBlockResettableIterator.class);
+	protected static final Logger LOG = LoggerFactory.getLogger(AbstractBlockResettableIterator.class);
 	
 	// ------------------------------------------------------------------------
 	
@@ -85,7 +85,7 @@ abstract class AbstractBlockResettableIterator<T> implements MemoryBlockIterator
 		this.readView = new RandomAccessInputView(this.fullSegments, memoryManager.getPageSize());
 		
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("Iterator initalized using " + numPages + " memory buffers.");
+			LOG.debug("Iterator initialized using " + numPages + " memory buffers.");
 		}
 	}
 	

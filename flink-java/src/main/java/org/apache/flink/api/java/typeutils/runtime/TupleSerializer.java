@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,56 +19,22 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import java.io.IOException;
-import java.util.Arrays;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.types.NullFieldException;
 
 
-public final class TupleSerializer<T extends Tuple> extends TypeSerializer<T> {
+public final class TupleSerializer<T extends Tuple> extends TupleSerializerBase<T> {
 
 	private static final long serialVersionUID = 1L;
 	
-	
-	private final Class<T> tupleClass;
-	
-	private final TypeSerializer<Object>[] fieldSerializers;
-	
-	private final int arity;
-	
-	private final boolean stateful;
-	
-	
-	@SuppressWarnings("unchecked")
 	public TupleSerializer(Class<T> tupleClass, TypeSerializer<?>[] fieldSerializers) {
-		this.tupleClass = tupleClass;
-		this.fieldSerializers = (TypeSerializer<Object>[]) fieldSerializers;
-		this.arity = fieldSerializers.length;
-		
-		boolean stateful = false;
-		for (TypeSerializer<?> ser : fieldSerializers) {
-			if (ser.isStateful()) {
-				stateful = true;
-				break;
-			}
-		}
-		this.stateful = stateful;
-	}
-	
-	
-	@Override
-	public boolean isImmutableType() {
-		return false;
+		super(tupleClass, fieldSerializers);
 	}
 
-	@Override
-	public boolean isStateful() {
-		return this.stateful;
-	}
-	
-	
 	@Override
 	public T createInstance() {
 		try {
@@ -86,6 +52,32 @@ public final class TupleSerializer<T extends Tuple> extends TypeSerializer<T> {
 	}
 
 	@Override
+	public T createInstance(Object[] fields) {
+		try {
+			T t = tupleClass.newInstance();
+
+			for (int i = 0; i < arity; i++) {
+				t.setField(fields[i], i);
+			}
+
+			return t;
+		}
+		catch (Exception e) {
+			throw new RuntimeException("Cannot instantiate tuple.", e);
+		}
+	}
+
+	@Override
+	public T copy(T from) {
+		T target = instantiateRaw();
+		for (int i = 0; i < arity; i++) {
+			Object copy = fieldSerializers[i].copy(from.getField(i));
+			target.setField(copy, i);
+		}
+		return target;
+	}
+	
+	@Override
 	public T copy(T from, T reuse) {
 		for (int i = 0; i < arity; i++) {
 			Object copy = fieldSerializers[i].copy(from.getField(i), reuse.getField(i));
@@ -96,19 +88,27 @@ public final class TupleSerializer<T extends Tuple> extends TypeSerializer<T> {
 	}
 
 	@Override
-	public int getLength() {
-		return -1;
-	}
-
-
-	@Override
 	public void serialize(T value, DataOutputView target) throws IOException {
 		for (int i = 0; i < arity; i++) {
 			Object o = value.getField(i);
-			fieldSerializers[i].serialize(o, target);
+			try {
+				fieldSerializers[i].serialize(o, target);
+			} catch (NullPointerException npex) {
+				throw new NullFieldException(i);
+			}
 		}
 	}
 
+	@Override
+	public T deserialize(DataInputView source) throws IOException {
+		T tuple = instantiateRaw();
+		for (int i = 0; i < arity; i++) {
+			Object field = fieldSerializers[i].deserialize(source);
+			tuple.setField(field, i);
+		}
+		return tuple;
+	}
+	
 	@Override
 	public T deserialize(T reuse, DataInputView source) throws IOException {
 		for (int i = 0; i < arity; i++) {
@@ -117,33 +117,13 @@ public final class TupleSerializer<T extends Tuple> extends TypeSerializer<T> {
 		}
 		return reuse;
 	}
-
-	@Override
-	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		for (int i = 0; i < arity; i++) {
-			fieldSerializers[i].copy(source, target);
-		}
-	}
 	
-	@Override
-	public int hashCode() {
-		int hashCode = arity * 47;
-		for (TypeSerializer<?> ser : this.fieldSerializers) {
-			hashCode = (hashCode << 7) | (hashCode >>> -7);
-			hashCode += ser.hashCode();
+	private T instantiateRaw() {
+		try {
+			return tupleClass.newInstance();
 		}
-		return hashCode;
-	}
-	
-	@Override
-	public boolean equals(Object obj) {
-		if (obj != null && obj instanceof TupleSerializer) {
-			TupleSerializer<?> otherTS = (TupleSerializer<?>) obj;
-			return (otherTS.tupleClass == this.tupleClass) && 
-					Arrays.deepEquals(this.fieldSerializers, otherTS.fieldSerializers);
-		}
-		else {
-			return false;
+		catch (Exception e) {
+			throw new RuntimeException("Cannot instantiate tuple.", e);
 		}
 	}
 }

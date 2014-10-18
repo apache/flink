@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,8 +27,8 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Queue;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.functions.FlatCombineFunction;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -71,7 +71,7 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 	/**
 	 * Logging.
 	 */
-	private static final Log LOG = LogFactory.getLog(CombiningUnilateralSortMerger.class);
+	private static final Logger LOG = LoggerFactory.getLogger(CombiningUnilateralSortMerger.class);
 
 	private final FlatCombineFunction<E> combineStub;	// the user code stub that does the combining
 	

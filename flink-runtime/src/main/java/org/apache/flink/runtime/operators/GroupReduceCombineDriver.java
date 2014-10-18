@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,8 +19,8 @@
 
 package org.apache.flink.runtime.operators;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.functions.FlatCombineFunction;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -47,7 +47,7 @@ import java.util.List;
  */
 public class GroupReduceCombineDriver<T> implements PactDriver<FlatCombineFunction<T>, T> {
 	
-	private static final Log LOG = LogFactory.getLog(GroupReduceCombineDriver.class);
+	private static final Logger LOG = LoggerFactory.getLogger(GroupReduceCombineDriver.class);
 
 	/** Fix length records with a length below this threshold will be in-place sorted, if possible. */
 	private static final int THRESHOLD_FOR_IN_PLACE_SORTING = 32;
@@ -60,7 +60,9 @@ public class GroupReduceCombineDriver<T> implements PactDriver<FlatCombineFuncti
 
 	private TypeSerializer<T> serializer;
 
-	private TypeComparator<T> comparator;
+	private TypeComparator<T> sortingComparator;
+	
+	private TypeComparator<T> groupingComparator;
 
 	private QuickSort sortAlgo = new QuickSort();
 
@@ -82,7 +84,7 @@ public class GroupReduceCombineDriver<T> implements PactDriver<FlatCombineFuncti
 	public int getNumberOfInputs() {
 		return 1;
 	}
-
+	
 	@Override
 	public Class<FlatCombineFunction<T>> getStubType() {
 		@SuppressWarnings("unchecked")
@@ -91,8 +93,8 @@ public class GroupReduceCombineDriver<T> implements PactDriver<FlatCombineFuncti
 	}
 
 	@Override
-	public boolean requiresComparatorOnInput() {
-		return true;
+	public int getNumberOfDriverComparators() {
+		return 2;
 	}
 
 	@Override
@@ -107,7 +109,8 @@ public class GroupReduceCombineDriver<T> implements PactDriver<FlatCombineFuncti
 
 		final TypeSerializerFactory<T> serializerFactory = this.taskContext.getInputSerializer(0);
 		this.serializer = serializerFactory.getSerializer();
-		this.comparator = this.taskContext.getInputComparator(0);
+		this.sortingComparator = this.taskContext.getDriverComparator(0);
+		this.groupingComparator = this.taskContext.getDriverComparator(1);
 		this.combiner = this.taskContext.getStub();
 		this.output = this.taskContext.getOutputCollector();
 
@@ -115,12 +118,12 @@ public class GroupReduceCombineDriver<T> implements PactDriver<FlatCombineFuncti
 				numMemoryPages);
 
 		// instantiate a fix-length in-place sorter, if possible, otherwise the out-of-place sorter
-		if (this.comparator.supportsSerializationWithKeyNormalization() &&
+		if (this.sortingComparator.supportsSerializationWithKeyNormalization() &&
 				this.serializer.getLength() > 0 && this.serializer.getLength() <= THRESHOLD_FOR_IN_PLACE_SORTING)
 		{
-			this.sorter = new FixedLengthRecordSorter<T>(this.serializer, this.comparator, memory);
+			this.sorter = new FixedLengthRecordSorter<T>(this.serializer, this.sortingComparator, memory);
 		} else {
-			this.sorter = new NormalizedKeySorter<T>(this.serializer, this.comparator.duplicate(), memory);
+			this.sorter = new NormalizedKeySorter<T>(this.serializer, this.sortingComparator.duplicate(), memory);
 		}
 	}
 
@@ -163,7 +166,7 @@ public class GroupReduceCombineDriver<T> implements PactDriver<FlatCombineFuncti
 			this.sortAlgo.sort(sorter);
 
 			final KeyGroupedIterator<T> keyIter = new KeyGroupedIterator<T>(sorter.getIterator(), this.serializer,
-					this.comparator);
+					this.groupingComparator);
 
 			final FlatCombineFunction<T> combiner = this.combiner;
 			final Collector<T> output = this.output;
@@ -177,12 +180,16 @@ public class GroupReduceCombineDriver<T> implements PactDriver<FlatCombineFuncti
 
 	@Override
 	public void cleanup() throws Exception {
-		this.memManager.release(this.sorter.dispose());
+		if(this.sorter != null) {
+			this.memManager.release(this.sorter.dispose());
+		}
 	}
 
 	@Override
 	public void cancel() {
 		this.running = false;
-		this.memManager.release(this.sorter.dispose());
+		if(this.sorter != null) {
+			this.memManager.release(this.sorter.dispose());
+		}
 	}
 }

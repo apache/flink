@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,15 +22,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.Assert;
-
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.apache.flink.api.java.functions.RichGroupReduceFunction;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.apache.flink.api.common.functions.RichGroupReduceFunction;
+import org.apache.flink.api.common.typeutils.record.RecordComparator;
+import org.apache.flink.api.common.typeutils.record.RecordSerializerFactory;
 import org.apache.flink.api.java.record.operators.ReduceOperator.Combinable;
-import org.apache.flink.api.java.typeutils.runtime.record.RecordComparator;
-import org.apache.flink.api.java.typeutils.runtime.record.RecordSerializerFactory;
-import org.apache.flink.runtime.operators.DriverStrategy;
-import org.apache.flink.runtime.operators.GroupReduceDriver;
 import org.apache.flink.runtime.operators.sort.CombiningUnilateralSortMerger;
 import org.apache.flink.runtime.operators.testutils.DriverTestBase;
 import org.apache.flink.runtime.operators.testutils.UniformRecordGenerator;
@@ -42,7 +39,7 @@ import org.junit.Test;
 
 public class ReduceTaskExternalITCase extends DriverTestBase<RichGroupReduceFunction<Record, Record>>
 {
-	private static final Log LOG = LogFactory.getLog(ReduceTaskExternalITCase.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ReduceTaskExternalITCase.class);
 	
 	@SuppressWarnings("unchecked")
 	private final RecordComparator comparator = new RecordComparator(
@@ -63,7 +60,7 @@ public class ReduceTaskExternalITCase extends DriverTestBase<RichGroupReduceFunc
 		
 		setNumFileHandlesForSort(2);
 		
-		addInputComparator(this.comparator);
+		addDriverComparator(this.comparator);
 		setOutput(this.outList);
 		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP_REDUCE);
 		
@@ -74,7 +71,7 @@ public class ReduceTaskExternalITCase extends DriverTestBase<RichGroupReduceFunc
 			
 			testDriver(testTask, MockReduceStub.class);
 		} catch (Exception e) {
-			LOG.debug(e);
+			LOG.debug("Exception while running the test task.", e);
 			Assert.fail("Exception in Test.");
 		}
 		
@@ -95,7 +92,7 @@ public class ReduceTaskExternalITCase extends DriverTestBase<RichGroupReduceFunc
 
 		setNumFileHandlesForSort(2);
 		
-		addInputComparator(this.comparator);
+		addDriverComparator(this.comparator);
 		setOutput(this.outList);
 		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP_REDUCE);
 		
@@ -106,7 +103,7 @@ public class ReduceTaskExternalITCase extends DriverTestBase<RichGroupReduceFunc
 			
 			testDriver(testTask, MockReduceStub.class);
 		} catch (Exception e) {
-			LOG.debug(e);
+			LOG.debug("Exception while running the test task.", e);
 			Assert.fail("Exception in Test.");
 		}
 		
@@ -126,7 +123,7 @@ public class ReduceTaskExternalITCase extends DriverTestBase<RichGroupReduceFunc
 		final int keyCnt = 8192;
 		final int valCnt = 8;
 		
-		addInputComparator(this.comparator);
+		addDriverComparator(this.comparator);
 		setOutput(this.outList);
 		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP_REDUCE);
 		
@@ -143,7 +140,7 @@ public class ReduceTaskExternalITCase extends DriverTestBase<RichGroupReduceFunc
 		
 			testDriver(testTask, MockCombiningReduceStub.class);
 		} catch (Exception e) {
-			LOG.debug(e);
+			LOG.debug("Exception while running the test task.", e);
 			Assert.fail("Invoke method caused exception.");
 		} finally {
 			if (sorter != null) {
@@ -172,7 +169,7 @@ public class ReduceTaskExternalITCase extends DriverTestBase<RichGroupReduceFunc
 		int keyCnt = 32768;
 		int valCnt = 8;
 		
-		addInputComparator(this.comparator);
+		addDriverComparator(this.comparator);
 		setOutput(this.outList);
 		getTaskConfig().setDriverStrategy(DriverStrategy.SORTED_GROUP_REDUCE);
 		
@@ -189,7 +186,7 @@ public class ReduceTaskExternalITCase extends DriverTestBase<RichGroupReduceFunc
 		
 			testDriver(testTask, MockCombiningReduceStub.class);
 		} catch (Exception e) {
-			LOG.debug(e);
+			LOG.debug("Exception while running the test task.", e);
 			Assert.fail("Invoke method caused exception.");
 		} finally {
 			if (sorter != null) {

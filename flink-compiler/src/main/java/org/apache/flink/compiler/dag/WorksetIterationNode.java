@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.compiler.dag;
 
 import java.util.ArrayList;
@@ -27,6 +26,7 @@ import java.util.Set;
 
 import org.apache.flink.api.common.operators.base.DeltaIterationBase;
 import org.apache.flink.api.common.operators.util.FieldList;
+import org.apache.flink.api.common.typeinfo.NothingTypeInfo;
 import org.apache.flink.compiler.CompilerException;
 import org.apache.flink.compiler.DataStatistics;
 import org.apache.flink.compiler.PactCompiler.InterestingPropertyVisitor;
@@ -53,7 +53,6 @@ import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.apache.flink.types.Nothing;
-import org.apache.flink.types.NothingTypeInfo;
 import org.apache.flink.util.Visitor;
 
 /**
@@ -67,6 +66,8 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 	private final FieldList solutionSetKeyFields;
 	
 	private final GlobalProperties partitionedProperties;
+	
+	private final List<OperatorDescriptorDual> dataProperties;
 	
 	private SolutionSetNode solutionSetNode;
 	
@@ -112,7 +113,7 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 		}
 		this.costWeight = weight; 
 		
-		this.possibleProperties.add(new WorksetOpDescriptor(this.solutionSetKeyFields));
+		this.dataProperties = Collections.<OperatorDescriptorDual>singletonList(new WorksetOpDescriptor(this.solutionSetKeyFields));
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -224,7 +225,7 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 	
 	@Override
 	protected List<OperatorDescriptorDual> getPossibleProperties() {
-		return new ArrayList<OperatorDescriptorDual>(1);
+		return this.dataProperties;
 	}
 	
 	@Override

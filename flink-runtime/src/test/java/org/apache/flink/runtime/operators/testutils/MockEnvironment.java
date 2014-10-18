@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -250,16 +250,6 @@ public class MockEnvironment implements Environment, BufferProvider, LocalBuffer
 	}
 
 	@Override
-	public void userThreadStarted(final Thread userThread) {
-		// Nothing to do here
-	}
-
-	@Override
-	public void userThreadFinished(final Thread userThread) {
-		// Nothing to do here
-	}
-
-	@Override
 	public InputSplitProvider getInputSplitProvider() {
 		return this.inputSplitProvider;
 	}
@@ -339,6 +329,11 @@ public class MockEnvironment implements Environment, BufferProvider, LocalBuffer
 	public AccumulatorProtocol getAccumulatorProtocolProxy() {
 		throw new UnsupportedOperationException(
 				"getAccumulatorProtocolProxy() is not supported by MockEnvironment");
+	}
+
+	@Override
+	public ClassLoader getUserClassLoader() {
+		return getClass().getClassLoader();
 	}
 
 	@Override

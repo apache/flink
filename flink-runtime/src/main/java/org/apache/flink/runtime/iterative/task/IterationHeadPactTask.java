@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,9 +22,11 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.operators.util.JoinHashMap;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -78,7 +80,7 @@ import org.apache.flink.util.MutableObjectIterator;
  */
 public class IterationHeadPactTask<X, Y, S extends Function, OT> extends AbstractIterativePactTask<S, OT> {
 
-	private static final Log log = LogFactory.getLog(IterationHeadPactTask.class);
+	private static final Logger log = LoggerFactory.getLogger(IterationHeadPactTask.class);
 
 	private Collector<X> finalOutputCollector;
 
@@ -114,8 +116,9 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 		// add the outputs for the final solution
 		this.finalOutputWriters = new ArrayList<BufferWriter>();
 		final TaskConfig finalOutConfig = this.config.getIterationHeadFinalOutputConfig();
+		final ClassLoader userCodeClassLoader = getUserCodeClassLoader();
 		this.finalOutputCollector = RegularPactTask.getOutputCollector(this, finalOutConfig,
-			this.userCodeClassLoader, this.finalOutputWriters, finalOutConfig.getNumOutputs());
+			userCodeClassLoader, this.finalOutputWriters, finalOutConfig.getNumOutputs());
 
 		// sanity check the setup
 		final int writersIntoStepFunction = this.eventualOutputs.size();
@@ -157,6 +160,7 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 	private <BT> CompactingHashTable<BT> initCompactingHashTable() throws Exception {
 		// get some memory
 		double hashjoinMemorySize = config.getRelativeSolutionSetMemory();
+		final ClassLoader userCodeClassLoader = getUserCodeClassLoader();
 
 		TypeSerializerFactory<BT> solutionTypeSerializerFactory = config.getSolutionSetSerializer(userCodeClassLoader);
 		TypeComparatorFactory<BT> solutionTypeComparatorFactory = config.getSolutionSetComparator(userCodeClassLoader);
@@ -193,13 +197,35 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 		}
 	}
 	
+	private <BT> JoinHashMap<BT> initJoinHashMap() {
+		TypeSerializerFactory<BT> solutionTypeSerializerFactory = config.getSolutionSetSerializer
+				(getUserCodeClassLoader());
+		TypeComparatorFactory<BT> solutionTypeComparatorFactory = config.getSolutionSetComparator
+				(getUserCodeClassLoader());
+	
+		TypeSerializer<BT> solutionTypeSerializer = solutionTypeSerializerFactory.getSerializer();
+		TypeComparator<BT> solutionTypeComparator = solutionTypeComparatorFactory.createComparator();
+		
+		JoinHashMap<BT> map = new JoinHashMap<BT>(solutionTypeSerializer, solutionTypeComparator);
+		return map;
+	}
+	
 	private void readInitialSolutionSet(CompactingHashTable<X> solutionSet, MutableObjectIterator<X> solutionSetInput) throws IOException {
 		solutionSet.open();
 		solutionSet.buildTable(solutionSetInput);
 	}
+	
+	private void readInitialSolutionSet(JoinHashMap<X> solutionSet, MutableObjectIterator<X> solutionSetInput) throws IOException {
+		TypeSerializer<X> serializer = solutionTypeSerializer.getSerializer();
+		
+		X next;
+		while ((next = solutionSetInput.next(serializer.createInstance())) != null) {
+			solutionSet.insertOrReplace(next);
+		}
+	}
 
 	private SuperstepBarrier initSuperstepBarrier() {
-		SuperstepBarrier barrier = new SuperstepBarrier(userCodeClassLoader);
+		SuperstepBarrier barrier = new SuperstepBarrier(getUserCodeClassLoader());
 		this.toSync.subscribeToEvent(barrier, AllWorkersDoneEvent.class);
 		this.toSync.subscribeToEvent(barrier, TerminationEvent.class);
 		return barrier;
@@ -212,9 +238,11 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 
 		final String brokerKey = brokerKey();
 		final int workerIndex = getEnvironment().getIndexInSubtaskGroup();
+		
+		final boolean objectSolutionSet = config.isSolutionSetUnmanaged();
 
-		//MutableHashTable<X, ?> solutionSet = null; // if workset iteration
 		CompactingHashTable<X> solutionSet = null; // if workset iteration
+		JoinHashMap<X> solutionSetObjectMap = null; // if workset iteration with unmanaged solution set
 		
 		boolean waitForSolutionSetUpdate = config.getWaitForSolutionSetUpdate();
 		boolean isWorksetIteration = config.getIsWorksetIteration();
@@ -234,25 +262,29 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 
 			if (isWorksetIteration) {
 				initialSolutionSetInput = config.getIterationHeadSolutionSetInputIndex();
-				TypeSerializerFactory<X> solutionTypeSerializerFactory = config.getSolutionSetSerializer(userCodeClassLoader);
+				TypeSerializerFactory<X> solutionTypeSerializerFactory = config
+						.getSolutionSetSerializer(getUserCodeClassLoader());
 				solutionTypeSerializer = solutionTypeSerializerFactory;
 
 				// setup the index for the solution set
-				//solutionSet = initHashTable();
-				solutionSet = initCompactingHashTable();
-
-				// read the initial solution set
 				@SuppressWarnings("unchecked")
 				MutableObjectIterator<X> solutionSetInput = (MutableObjectIterator<X>) createInputIterator(inputReaders[initialSolutionSetInput], solutionTypeSerializer);
-				readInitialSolutionSet(solutionSet, solutionSetInput);
-
-				SolutionSetBroker.instance().handIn(brokerKey, solutionSet);
+				
+				// read the initial solution set
+				if (objectSolutionSet) {
+					solutionSetObjectMap = initJoinHashMap();
+					readInitialSolutionSet(solutionSetObjectMap, solutionSetInput);
+					SolutionSetBroker.instance().handIn(brokerKey, solutionSetObjectMap);
+				} else {
+					solutionSet = initCompactingHashTable();
+					readInitialSolutionSet(solutionSet, solutionSetInput);
+					SolutionSetBroker.instance().handIn(brokerKey, solutionSet);
+				}
 
 				if (waitForSolutionSetUpdate) {
 					solutionSetUpdateBarrier = new SolutionSetUpdateBarrier();
 					SolutionSetUpdateBarrierBroker.instance().handIn(brokerKey, solutionSetUpdateBarrier);
 				}
-
 			} else {
 				// bulk iteration case
 				initialSolutionSetInput = -1;
@@ -269,7 +301,8 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 			}
 
 			// instantiate all aggregators and register them at the iteration global registry
-			aggregatorRegistry = new RuntimeAggregatorRegistry(config.getIterationAggregators());
+			aggregatorRegistry = new RuntimeAggregatorRegistry(config.getIterationAggregators
+					(getUserCodeClassLoader()));
 			IterationAggregatorBroker.instance().handIn(brokerKey, aggregatorRegistry);
 
 			DataInputView superstepResult = null;
@@ -337,7 +370,11 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 			}
 
 			if (isWorksetIteration) {
-				streamSolutionSetToFinalOutput(solutionSet);
+				if (objectSolutionSet) {
+					streamSolutionSetToFinalOutput(solutionSetObjectMap);
+				} else {
+					streamSolutionSetToFinalOutput(solutionSet);
+				}
 			} else {
 				streamOutFinalOutputBulk(new InputViewIterator<X>(superstepResult, this.solutionTypeSerializer.getSerializer()));
 			}
@@ -380,6 +417,14 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 			output.collect(record);
 		}
 	}
+	
+	@SuppressWarnings("unchecked")
+	private void streamSolutionSetToFinalOutput(JoinHashMap<X> soluionSet) throws IOException {
+		final Collector<X> output = this.finalOutputCollector;
+		for (Object e : soluionSet.values()) {
+			output.collect((X) e);
+		}
+	}
 
 	private void feedBackSuperstepResult(DataInputView superstepResult) {
 		this.inputs[this.feedbackDataInput] =
@@ -400,8 +445,6 @@ public class IterationHeadPactTask<X, Y, S extends Function, OT> extends Abstrac
 		if (log.isInfoEnabled()) {
 			log.info(formatLogString("sending " + WorkerDoneEvent.class.getSimpleName() + " to sync"));
 		}
-
 		this.toSync.broadcastEvent(event);
 	}
-
 }

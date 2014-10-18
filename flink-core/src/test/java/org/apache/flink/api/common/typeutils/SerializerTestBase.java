@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -80,6 +80,24 @@ public abstract class SerializerTestBase<T> {
 		try {
 			TypeSerializer<T> serializer = getSerializer();
 			assertEquals(getLength(), serializer.getLength());
+		}
+		catch (Exception e) {
+			System.err.println(e.getMessage());
+			e.printStackTrace();
+			fail("Exception in test: " + e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testCopy() {
+		try {
+			TypeSerializer<T> serializer = getSerializer();
+			T[] testData = getData();
+			
+			for (T datum : testData) {
+				T copy = serializer.copy(datum);
+				deepEquals("Copied element is not equal to the original element.", datum, copy);
+			}
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -184,7 +202,36 @@ public abstract class SerializerTestBase<T> {
 	}
 	
 	@Test
-	public void testSerializeAsSequence() {
+	public void testSerializeAsSequenceNoReuse() {
+		try {
+			TypeSerializer<T> serializer = getSerializer();
+			T[] testData = getData();
+			
+			TestOutputView out = new TestOutputView();
+			for (T value : testData) {
+				serializer.serialize(value, out);
+			}
+			
+			TestInputView in = out.getInputView();
+			
+			int num = 0;
+			while (in.available() > 0) {
+				T deserialized = serializer.deserialize(in);
+				deepEquals("Deserialized value if wrong.", testData[num], deserialized);
+				num++;
+			}
+			
+			assertEquals("Wrong number of elements deserialized.", testData.length, num);
+		}
+		catch (Exception e) {
+			System.err.println(e.getMessage());
+			e.printStackTrace();
+			fail("Exception in test: " + e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testSerializeAsSequenceReusingValues() {
 		try {
 			TypeSerializer<T> serializer = getSerializer();
 			T[] testData = getData();
@@ -341,7 +388,7 @@ public abstract class SerializerTestBase<T> {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	private TypeSerializer<T> getSerializer() {
+	protected TypeSerializer<T> getSerializer() {
 		TypeSerializer<T> serializer = createSerializer();
 		if (serializer == null) {
 			throw new RuntimeException("Test case corrupt. Returns null as serializer.");

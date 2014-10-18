@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators.testutils;
 
 import java.util.List;
@@ -24,18 +23,15 @@ import java.util.List;
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
+import org.apache.flink.api.common.typeutils.record.RecordSerializerFactory;
 import org.apache.flink.api.java.record.io.DelimitedInputFormat;
 import org.apache.flink.api.java.record.io.FileOutputFormat;
-import org.apache.flink.api.java.typeutils.runtime.record.RecordSerializerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
-import org.apache.flink.runtime.operators.DataSinkTask;
-import org.apache.flink.runtime.operators.DataSourceTask;
 import org.apache.flink.runtime.operators.PactDriver;
-import org.apache.flink.runtime.operators.RegularPactTask;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.types.Record;
@@ -87,10 +83,6 @@ public abstract class TaskTestBase {
 		
 		task.setEnvironment(this.mockEnv);
 
-		if (task instanceof RegularPactTask<?, ?>) {
-			((RegularPactTask<?, ?>) task).setUserCodeClassLoader(getClass().getClassLoader());
-		}
-
 		task.registerInputOutput();
 	}
 
@@ -112,10 +104,6 @@ public abstract class TaskTestBase {
 		dsConfig.setStubWrapper(new UserCodeObjectWrapper<FileOutputFormat>(outputFormat));
 
 		outTask.setEnvironment(this.mockEnv);
-
-		if (outTask instanceof DataSinkTask<?>) {
-			((DataSinkTask<?>) outTask).setUserCodeClassLoader(getClass().getClassLoader());
-		}
 
 		outTask.registerInputOutput();
 	}
@@ -141,9 +129,6 @@ public abstract class TaskTestBase {
 
 		inTask.setEnvironment(this.mockEnv);
 
-		if (inTask instanceof DataSourceTask<?>) {
-			((DataSourceTask<?>) inTask).setUserCodeClassLoader(getClass().getClassLoader());
-		}
 		inTask.registerInputOutput();
 	}
 

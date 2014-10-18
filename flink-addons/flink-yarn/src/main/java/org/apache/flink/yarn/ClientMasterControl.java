@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,8 +23,8 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.runtime.ipc.RPC;
 import org.apache.flink.runtime.net.NetUtils;
 import org.apache.flink.yarn.rpc.ApplicationMasterStatus;
@@ -33,7 +33,7 @@ import org.apache.flink.yarn.rpc.YARNClientMasterProtocol.Message;
 
 
 public class ClientMasterControl extends Thread {
-	private static final Log LOG = LogFactory.getLog(ClientMasterControl.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ClientMasterControl.class);
 
 	private InetSocketAddress applicationMasterAddress;
 
@@ -106,13 +106,12 @@ public class ClientMasterControl extends Thread {
 		}
 	}
 
-	public boolean shutdownAM() {
+	public void shutdownAM() {
 		try {
-			boolean result = cmp.shutdownAM().getValue();
-			return result;
+			cmp.shutdownAM();
 		} catch(Throwable e) {
-			LOG.warn("Error shutting down the application master", e);
-			return false;
+			// the old RPC service is unable to shut down itself. So the java.io.EOFException is expected here.
+			LOG.debug("This exception is expected", e);
 		}
 	}
 

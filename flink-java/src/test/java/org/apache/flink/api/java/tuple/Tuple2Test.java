@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,9 +19,8 @@
 
 package org.apache.flink.api.java.tuple;
 
+import org.apache.flink.types.NullFieldException;
 import org.junit.Assert;
-
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.junit.Test;
 
 public class Tuple2Test {
@@ -34,5 +33,13 @@ public class Tuple2Test {
 		Assert.assertEquals(swapped.f0, toSwap.f1);
 
 		Assert.assertEquals(swapped.f1, toSwap.f0);
+	}
+	
+	@Test(expected = NullFieldException.class)
+	public void testGetFieldNotNull() {
+		Tuple2<String, Integer> tuple = new Tuple2<String, Integer>(new String("Test case"), null);
+
+		Assert.assertEquals("Test case", tuple.getFieldNotNull(0));
+		tuple.getFieldNotNull(1);
 	}
 }

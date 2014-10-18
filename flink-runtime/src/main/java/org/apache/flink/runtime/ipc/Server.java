@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -58,8 +58,8 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.io.StringRecord;
 import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
@@ -67,16 +67,10 @@ import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
 import org.apache.flink.core.protocols.VersionedProtocol;
 import org.apache.flink.util.ClassUtils;
 
-/**
- * An abstract IPC service. IPC calls take a single {@link Writable} as a
- * parameter, and return a {@link Writable} as their value. A service runs on
- * a port and is defined by a parameter class and a value class.
- * 
- * @see Client
- */
+
 public abstract class Server {
 
-	public static final Log LOG = LogFactory.getLog(Server.class);
+	public static final Logger LOG = LoggerFactory.getLogger(Server.class);
 
 	private static final Class<?>[] EMPTY_ARRAY = new Class[] {};
 
@@ -101,12 +95,7 @@ public abstract class Server {
 		return protocol;
 	}
 
-	/**
-	 * Returns the server instance called under or null. May be called under {@link #call(Writable, long)}
-	 * implementations, and under {@link Writable} methods of paramters and return values. Permits applications to
-	 * access
-	 * the server context.
-	 */
+
 	public static Server get() {
 		return SERVER.get();
 	}
@@ -119,7 +108,7 @@ public abstract class Server {
 
 	/**
 	 * Returns the remote side ip address when invoked inside an RPC
-	 * Returns null incase of an error.
+	 * Returns null in case of an error.
 	 */
 	public static InetAddress getRemoteIp() {
 		Call call = CurCall.get();
@@ -342,7 +331,7 @@ public abstract class Server {
 
 		@Override
 		public void run() {
-			LOG.debug(getName() + ": starting");
+			LOG.debug("{} : starting", getName());
 			SERVER.set(Server.this);
 			while (running) {
 				SelectionKey key = null;
@@ -384,7 +373,7 @@ public abstract class Server {
 				}
 				cleanupConnections(false);
 			}
-			LOG.debug("Stopping " + this.getName());
+			LOG.debug("Stopping {}", this.getName());
 
 			synchronized (this) {
 				try {
@@ -505,7 +494,7 @@ public abstract class Server {
 
 		@Override
 		public void run() {
-			LOG.debug(getName() + ": starting");
+			LOG.debug("{} : starting", getName());
 			SERVER.set(Server.this);
 			long lastPurgeTime = 0; // last check for old calls.
 
@@ -571,7 +560,7 @@ public abstract class Server {
 					LOG.warn("Exception in Responder " + e.toString());
 				}
 			}
-			LOG.debug("Stopping " + this.getName());
+			LOG.debug("Stopping {}", getName());
 
 			this.shutDown = true;
 		}
@@ -889,7 +878,7 @@ public abstract class Server {
 					protocol = getProtocolClass(header.getProtocol());
 				}
 			} catch (ClassNotFoundException cnfe) {
-				LOG.error(cnfe);
+				LOG.error("Could not find class " + header.getProtocol() + ".", cnfe);
 				throw new IOException("Unknown protocol: " + header.getProtocol());
 			}
 
@@ -942,7 +931,7 @@ public abstract class Server {
 
 		@Override
 		public void run() {
-			LOG.debug(getName() + ": starting");
+			LOG.debug("{} : starting", getName());
 			SERVER.set(Server.this);
 			ByteArrayOutputStream buf = new ByteArrayOutputStream(10240);
 			while (running) {
@@ -968,7 +957,7 @@ public abstract class Server {
 					LOG.error(getName() + " caught: ", e);
 				}
 			}
-			LOG.debug(getName() + ": exiting");
+			LOG.debug("{} : exiting", getName());
 
 			this.shutDown = true;
 		}
@@ -1083,7 +1072,7 @@ public abstract class Server {
 
 	/** Stops the service. No new calls will be handled after this is called. */
 	public synchronized void stop() {
-		LOG.debug("Stopping server on " + port);
+		LOG.debug("Stopping server on {}", port);
 		running = false;
 		if (handlers != null) {
 			for (int i = 0; i < handlerCount; i++) {

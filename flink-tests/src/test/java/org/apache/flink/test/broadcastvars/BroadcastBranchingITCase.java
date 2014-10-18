@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 
 package org.apache.flink.test.broadcastvars;
 
@@ -37,6 +36,7 @@ import org.apache.flink.types.Record;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.Collector;
 
+@SuppressWarnings("deprecation")
 public class BroadcastBranchingITCase extends RecordAPITestBase {
 
 	private static final String SC1_ID_ABC = "1 61 6 29\n2 7 13 10\n3 8 13 27\n";

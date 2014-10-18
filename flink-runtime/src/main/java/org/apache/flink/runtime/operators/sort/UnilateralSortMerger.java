@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators.sort;
 
 import java.io.File;
@@ -31,8 +30,8 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
@@ -68,7 +67,7 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 	/**
 	 * Logging.
 	 */
-	private static final Log LOG = LogFactory.getLog(UnilateralSortMerger.class);
+	private static final Logger LOG = LoggerFactory.getLogger(UnilateralSortMerger.class);
 	
 	/**
 	 * Fix length records with a length below this threshold will be in-place sorted, if possible.
@@ -754,11 +753,6 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 		private final ExceptionHandler<IOException> exceptionHandler;
 
 		/**
-		 * The parent task at whom the thread needs to register.
-		 */
-		private final AbstractInvokable parentTask;
-
-		/**
 		 * The flag marking this thread as alive.
 		 */
 		private volatile boolean alive;
@@ -783,7 +777,6 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 			this.setUncaughtExceptionHandler(this);
 
 			this.queues = queues;
-			this.parentTask = parentTask;
 			this.alive = true;
 		}
 
@@ -792,9 +785,6 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 		 */
 		public void run() {
 			try {
-				if (this.parentTask != null) {
-					this.parentTask.userThreadStarted(this);
-				}
 				go();
 			}
 			catch (Throwable t) {
@@ -802,9 +792,6 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 					+ t.getMessage(), t));
 			}
 			finally {
-				if (this.parentTask != null) {
-					this.parentTask.userThreadFinished(this);
-				}
 			}
 		}
 
@@ -1176,7 +1163,7 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 		 * @param exceptionHandler The exception handler to call for all exceptions.
 		 * @param queues The queues used to pass buffers between the threads.
 		 * @param parentTask The task that started this thread. If non-null, it is used to register this thread.
-		 * @param memoryManager The memory manager used to allocate buffers for the readers and writers.
+		 * @param memManager The memory manager used to allocate buffers for the readers and writers.
 		 * @param ioManager The I/I manager used to instantiate readers and writers from.
 		 * @param serializer
 		 * @param comparator
@@ -1455,12 +1442,9 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 		 * 
 		 * @param channelIDs The IDs of the sorted runs that need to be merged.
 		 * @param writeBuffers The buffers to be used by the writers.
-		 * @param writeBufferSize The size of the write buffers.
-		 * @param  readMemorySize The amount of memory dedicated to the readers.
+
 		 * @return A list of the IDs of the merged channels.
 		 * @throws IOException Thrown, if the readers or writers encountered an I/O problem.
-		 * @throws MemoryAllocationException Thrown, if the specified memory is insufficient to merge the channels
-		 *                                   or if the memory manager could not provide the requested memory.
 		 */
 		protected final List<ChannelWithBlockCount> mergeChannelList(final List<ChannelWithBlockCount> channelIDs,
 					final List<MemorySegment> allReadBuffers, final List<MemorySegment> writeBuffers)
@@ -1554,7 +1538,6 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 		 * @param memory A list containing the memory buffers to be distributed. The buffers are not
 		 *               removed from this list.
 		 * @param numChannels The number of channels for which to allocate buffers. Must not be zero.
-		 * @return A list with all memory segments that were allocated.
 		 */
 		protected final void getSegmentsForReaders(List<List<MemorySegment>> target,
 			List<MemorySegment> memory, int numChannels)
@@ -1592,7 +1575,7 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 		/**
 		 * Adds a channel to the list of channels that are to be removed at shutdown.
 		 * 
-		 * @param s The channel id.
+		 * @param channel The channel id.
 		 */
 		protected void registerChannelToBeRemovedAtShudown(Channel.ID channel) {
 			UnilateralSortMerger.this.channelsToDeleteAtShutdown.add(channel);
@@ -1601,7 +1584,7 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 		/**
 		 * Removes a channel from the list of channels that are to be removed at shutdown.
 		 * 
-		 * @param s The channel id.
+		 * @param channel The channel id.
 		 */
 		protected void unregisterChannelToBeRemovedAtShudown(Channel.ID channel) {
 			UnilateralSortMerger.this.channelsToDeleteAtShutdown.remove(channel);
@@ -1610,7 +1593,7 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 		/**
 		 * Adds a channel reader/writer to the list of channels that are to be removed at shutdown.
 		 * 
-		 * @param s The channel reader/writer.
+		 * @param channel The channel reader/writer.
 		 */
 		protected void registerOpenChannelToBeRemovedAtShudown(BlockChannelAccess<?, ?> channel) {
 			UnilateralSortMerger.this.openChannels.add(channel);
@@ -1619,7 +1602,7 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 		/**
 		 * Removes a channel reader/writer from the list of channels that are to be removed at shutdown.
 		 * 
-		 * @param s The channel reader/writer.
+		 * @param channel The channel reader/writer.
 		 */
 		protected void unregisterOpenChannelToBeRemovedAtShudown(BlockChannelAccess<?, ?> channel) {
 			UnilateralSortMerger.this.openChannels.remove(channel);

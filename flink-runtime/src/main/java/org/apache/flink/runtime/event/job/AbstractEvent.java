@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.event.job;
 
 import java.io.IOException;
@@ -30,72 +29,45 @@ import org.apache.flink.core.memory.DataOutputView;
 
 /**
  * An abstract event is transmitted from the job manager to the
- * job client in order to inform the user about the job progress.
- * 
+ * job client in order to inform the user about the job progress
  */
-public abstract class AbstractEvent implements IOReadableWritable {
+public abstract class AbstractEvent implements IOReadableWritable, java.io.Serializable {
 
-	/**
-	 * Static variable that points to the current global sequence number
-	 */
+	private static final long serialVersionUID = 1L;
+
+	/** Static variable that points to the current global sequence number */
 	private static final AtomicLong GLOBAL_SEQUENCE_NUMBER = new AtomicLong(0);
 
-	/**
-	 * Auxiliary object which helps to convert a {@link Date} object to the given string representation.
-	 */
+	/** Auxiliary object which helps to convert a {@link Date} object to the given string representation. */
 	private static final SimpleDateFormat DATA_FORMATTER = new SimpleDateFormat("MM/dd/yyyy HH:mm:ss");
 
-	/**
-	 * The timestamp of the event.
-	 */
+	
+	/** The timestamp of the event. */
 	private long timestamp = -1;
 
-	/**
-	 * The sequence number of the event.
-	 */
+	/** The sequence number of the event. */
 	private long sequenceNumber = -1;
 
+	// --------------------------------------------------------------------------------------------
+	
+	/**
+	 * Constructs a new abstract event object. This constructor
+	 * is required for the deserialization process and is not
+	 * supposed to be called directly.
+	 */
+	public AbstractEvent() {}	
 	/**
 	 * Constructs a new abstract event object.
 	 * 
 	 * @param timestamp
 	 *        the timestamp of the event.
 	 */
-	public AbstractEvent(final long timestamp) {
+	public AbstractEvent(long timestamp) {
 		this.timestamp = timestamp;
 		this.sequenceNumber = GLOBAL_SEQUENCE_NUMBER.incrementAndGet();
 	}
 
-	public long getSequenceNumber() {
-		return this.sequenceNumber;
-	}
-
-	/**
-	 * Constructs a new abstract event object. This constructor
-	 * is required for the deserialization process and is not
-	 * supposed to be called directly.
-	 */
-	public AbstractEvent() {
-	}
-
-
-	@Override
-	public void read(final DataInputView in) throws IOException {
-
-		// Read the timestamp
-		this.timestamp = in.readLong();
-		this.sequenceNumber = in.readLong();
-	}
-
-
-	@Override
-	public void write(final DataOutputView out) throws IOException {
-
-		// Write the timestamp
-		out.writeLong(this.timestamp);
-		out.writeLong(this.sequenceNumber);
-	}
-
+	// --------------------------------------------------------------------------------------------
 	/**
 	 * Returns the timestamp of the event.
 	 * 
@@ -104,7 +76,58 @@ public abstract class AbstractEvent implements IOReadableWritable {
 	public long getTimestamp() {
 		return this.timestamp;
 	}
+	
+	public String getTimestampString() {
+		return timestampToString(timestamp);
+	}
+	
+	public long getSequenceNumber() {
+		return this.sequenceNumber;
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	//  Serialization
+	// --------------------------------------------------------------------------------------------
 
+	@Override
+	public void read(DataInputView in) throws IOException {
+		this.timestamp = in.readLong();
+		this.sequenceNumber = in.readLong();
+	}
+
+	@Override
+	public void write(DataOutputView out) throws IOException {
+		out.writeLong(this.timestamp);
+		out.writeLong(this.sequenceNumber);
+	}
+
+	// --------------------------------------------------------------------------------------------
+	//  Utilities
+	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public boolean equals(Object obj) {
+		if (obj instanceof AbstractEvent) {
+			final AbstractEvent abstractEvent = (AbstractEvent) obj;
+			return this.timestamp == abstractEvent.timestamp;
+		}
+		else {
+			return false;
+		}
+	}
+
+	@Override
+	public int hashCode() {
+		return (int) (this.timestamp ^ (this.timestamp >>> 32));
+	}
+	
+	@Override
+	public String toString() {
+		return String.format("AbstractEvent #%d at %s", sequenceNumber, timestampToString(timestamp));
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
 	/**
 	 * Converts the timestamp of an event from its "milliseconds since beginning the epoch"
 	 * representation into a unified string representation.
@@ -113,31 +136,7 @@ public abstract class AbstractEvent implements IOReadableWritable {
 	 *        the timestamp in milliseconds since the beginning of "the epoch"
 	 * @return the string unified representation of the timestamp
 	 */
-	public static String timestampToString(final long timestamp) {
-
+	public static String timestampToString(long timestamp) {
 		return DATA_FORMATTER.format(new Date(timestamp));
-
-	}
-
-
-	@Override
-	public boolean equals(final Object obj) {
-
-		if (obj instanceof AbstractEvent) {
-
-			final AbstractEvent abstractEvent = (AbstractEvent) obj;
-			if (this.timestamp == abstractEvent.getTimestamp()) {
-				return true;
-			}
-		}
-
-		return false;
-	}
-
-
-	@Override
-	public int hashCode() {
-
-		return (int) (this.timestamp % Integer.MAX_VALUE);
 	}
 }

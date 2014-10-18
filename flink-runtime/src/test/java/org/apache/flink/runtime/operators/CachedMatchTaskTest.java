@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,12 +23,9 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.flink.api.common.functions.FlatJoinFunction;
-import org.apache.flink.api.java.functions.RichFlatJoinFunction;
-import org.apache.flink.api.java.typeutils.runtime.record.RecordComparator;
-import org.apache.flink.api.java.typeutils.runtime.record.RecordPairComparatorFactory;
-import org.apache.flink.runtime.operators.BuildFirstCachedMatchDriver;
-import org.apache.flink.runtime.operators.BuildSecondCachedMatchDriver;
-import org.apache.flink.runtime.operators.DriverStrategy;
+import org.apache.flink.api.common.functions.RichFlatJoinFunction;
+import org.apache.flink.api.common.typeutils.record.RecordComparator;
+import org.apache.flink.api.common.typeutils.record.RecordPairComparatorFactory;
 import org.apache.flink.runtime.operators.testutils.DelayingInfinitiveInputIterator;
 import org.apache.flink.runtime.operators.testutils.DriverTestBase;
 import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
@@ -73,8 +70,8 @@ public class CachedMatchTaskTest extends DriverTestBase<FlatJoinFunction<Record,
 				
 		addInput(new UniformRecordGenerator(keyCnt1, valCnt1, false));
 		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, false));
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		setOutput(this.outList);
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_FIRST_CACHED);
@@ -104,8 +101,8 @@ public class CachedMatchTaskTest extends DriverTestBase<FlatJoinFunction<Record,
 		
 		addInput(new UniformRecordGenerator(keyCnt1, valCnt1, false));
 		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, false));
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		setOutput(this.outList);
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_SECOND_CACHED);
@@ -135,8 +132,8 @@ public class CachedMatchTaskTest extends DriverTestBase<FlatJoinFunction<Record,
 		
 		addInput(new UniformRecordGenerator(keyCnt1, valCnt1, false));
 		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, false));
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		setOutput(this.outList);
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_FIRST_CACHED);
@@ -166,8 +163,8 @@ public class CachedMatchTaskTest extends DriverTestBase<FlatJoinFunction<Record,
 		
 		addInput(new UniformRecordGenerator(keyCnt1, valCnt1, false));
 		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, false));
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		setOutput(this.outList);
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_SECOND_CACHED);
@@ -197,8 +194,8 @@ public class CachedMatchTaskTest extends DriverTestBase<FlatJoinFunction<Record,
 		
 		addInput(new UniformRecordGenerator(keyCnt1, valCnt1, false));
 		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, false));
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		setOutput(this.outList);
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_FIRST_CACHED);
@@ -228,8 +225,8 @@ public class CachedMatchTaskTest extends DriverTestBase<FlatJoinFunction<Record,
 		
 		addInput(new UniformRecordGenerator(keyCnt1, valCnt1, false));
 		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, false));
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		setOutput(new NirvanaOutputList());
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_FIRST_CACHED);
@@ -258,8 +255,8 @@ public class CachedMatchTaskTest extends DriverTestBase<FlatJoinFunction<Record,
 		
 		addInput(new UniformRecordGenerator(keyCnt1, valCnt1, false));
 		addInput(new UniformRecordGenerator(keyCnt2, valCnt2, false));
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		setOutput(new NirvanaOutputList());
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_SECOND_CACHED);
@@ -286,8 +283,8 @@ public class CachedMatchTaskTest extends DriverTestBase<FlatJoinFunction<Record,
 		addInput(new DelayingInfinitiveInputIterator(100));
 		addInput(new UniformRecordGenerator(keyCnt, valCnt, false));
 		
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		
@@ -333,8 +330,8 @@ public class CachedMatchTaskTest extends DriverTestBase<FlatJoinFunction<Record,
 		
 		addInput(new UniformRecordGenerator(keyCnt, valCnt, false));
 		addInput(new DelayingInfinitiveInputIterator(100));
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		setOutput(new NirvanaOutputList());
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_SECOND_CACHED);
@@ -377,8 +374,8 @@ public class CachedMatchTaskTest extends DriverTestBase<FlatJoinFunction<Record,
 		
 		addInput(new UniformRecordGenerator(keyCnt, valCnt, false));
 		addInput(new UniformRecordGenerator(keyCnt, valCnt, false));
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		setOutput(new NirvanaOutputList());
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_FIRST);
@@ -421,8 +418,8 @@ public class CachedMatchTaskTest extends DriverTestBase<FlatJoinFunction<Record,
 		
 		addInput(new UniformRecordGenerator(keyCnt, valCnt, false));
 		addInput(new UniformRecordGenerator(keyCnt, valCnt, false));
-		addInputComparator(this.comparator1);
-		addInputComparator(this.comparator2);
+		addDriverComparator(this.comparator1);
+		addDriverComparator(this.comparator2);
 		getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
 		setOutput(new NirvanaOutputList());
 		getTaskConfig().setDriverStrategy(DriverStrategy.HYBRIDHASH_BUILD_SECOND);

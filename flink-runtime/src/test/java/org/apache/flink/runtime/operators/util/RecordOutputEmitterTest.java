@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -30,7 +30,7 @@ import junit.framework.TestCase;
 
 import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.distributions.UniformIntegerDistribution;
-import org.apache.flink.api.java.typeutils.runtime.record.RecordComparator;
+import org.apache.flink.api.common.typeutils.record.RecordComparator;
 import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
 import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
 import org.apache.flink.runtime.io.network.api.ChannelSelector;

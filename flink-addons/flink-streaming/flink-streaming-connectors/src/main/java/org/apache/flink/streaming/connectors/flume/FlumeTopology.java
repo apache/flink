@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -18,14 +18,15 @@
 package org.apache.flink.streaming.connectors.flume;
 
 import org.apache.commons.lang.SerializationUtils;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
 
 public class FlumeTopology {
-	private static final Log LOG = LogFactory.getLog(FlumeTopology.class);
+	private static final Logger LOG = LoggerFactory.getLogger(FlumeTopology.class);
+
 	public static class MyFlumeSink extends FlumeSink<String> {
 		private static final long serialVersionUID = 1L;
 
@@ -39,8 +40,8 @@ public class FlumeTopology {
 				try {
 					sendAndClose();
 				} catch (Exception e) {
-					throw new RuntimeException("Error while closing Flume connection with " + port + " at "
-							+ host, e);
+					throw new RuntimeException("Error while closing Flume connection with " + port
+							+ " at " + host, e);
 				}
 			}
 			return SerializationUtils.serialize(tuple);
@@ -53,12 +54,13 @@ public class FlumeTopology {
 
 		@Override
 		public void invoke(String value) {
-			LOG.info("String: <" + value + "> arrived from Flume");
-			
+			if (LOG.isInfoEnabled()) {
+				LOG.info("String: <{}> arrived from Flume", value);
+			}
 		}
-		
+
 	}
-	
+
 	public static class MyFlumeSource extends FlumeSource<String> {
 		private static final long serialVersionUID = 1L;
 
@@ -82,14 +84,12 @@ public class FlumeTopology {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 
 		@SuppressWarnings("unused")
-		DataStream<String> dataStream1 = env
-			.addSource(new MyFlumeSource("localhost", 41414))
-			.addSink(new MyFlumePrintSink());
+		DataStream<String> dataStream1 = env.addSource(new MyFlumeSource("localhost", 41414))
+				.addSink(new MyFlumePrintSink());
 
 		@SuppressWarnings("unused")
-		DataStream<String> dataStream2 = env
-			.fromElements("one", "two", "three", "four", "five", "q")
-			.addSink(new MyFlumeSink("localhost", 42424));
+		DataStream<String> dataStream2 = env.fromElements("one", "two", "three", "four", "five",
+				"q").addSink(new MyFlumeSink("localhost", 42424));
 
 		env.execute();
 	}

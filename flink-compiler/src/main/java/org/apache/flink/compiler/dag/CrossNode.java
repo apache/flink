@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 
 package org.apache.flink.compiler.dag;
 
@@ -39,31 +38,15 @@ import org.apache.flink.configuration.Configuration;
  */
 public class CrossNode extends TwoInputNode {
 	
+	private final List<OperatorDescriptorDual> dataProperties;
+	
 	/**
 	 * Creates a new CrossNode for the given operator.
 	 * 
-	 * @param pactContract The Cross contract object.
+	 * @param operation The Cross operator object.
 	 */
-	public CrossNode(CrossOperatorBase<?, ?, ?, ?> pactContract) {
-		super(pactContract);
-	}
-
-	// ------------------------------------------------------------------------
-
-	@Override
-	public CrossOperatorBase<?, ?, ?, ?> getPactContract() {
-		return (CrossOperatorBase<?, ?, ?, ?>) super.getPactContract();
-	}
-
-	@Override
-	public String getName() {
-		return "Cross";
-	}
-	
-	@Override
-	protected List<OperatorDescriptorDual> getPossibleProperties() {
-		
-		CrossOperatorBase<?, ?, ?, ?> operation = getPactContract();
+	public CrossNode(CrossOperatorBase<?, ?, ?, ?> operation) {
+		super(operation);
 		
 		// check small / large hints to decide upon which side is to be broadcasted
 		boolean allowBCfirst = true;
@@ -93,19 +76,19 @@ public class CrossNode extends TwoInputNode {
 				throw new CompilerException("Invalid local strategy hint for cross contract: " + localStrategy);
 			}
 			
-			return Collections.singletonList(fixedDriverStrat);
+			this.dataProperties = Collections.singletonList(fixedDriverStrat);
 		}
 		else if (operation instanceof CrossOperatorBase.CrossWithSmall) {
 			ArrayList<OperatorDescriptorDual> list = new ArrayList<OperatorDescriptorDual>();
 			list.add(new CrossBlockOuterSecondDescriptor(false, true));
 			list.add(new CrossStreamOuterFirstDescriptor(false, true));
-			return list;
+			this.dataProperties = list;
 		}
 		else if (operation instanceof CrossOperatorBase.CrossWithLarge) {
 			ArrayList<OperatorDescriptorDual> list = new ArrayList<OperatorDescriptorDual>();
 			list.add(new CrossBlockOuterFirstDescriptor(true, false));
 			list.add(new CrossStreamOuterSecondDescriptor(true, false));
-			return list;
+			this.dataProperties = list;
 		}
 		else {
 			ArrayList<OperatorDescriptorDual> list = new ArrayList<OperatorDescriptorDual>();
@@ -113,8 +96,25 @@ public class CrossNode extends TwoInputNode {
 			list.add(new CrossBlockOuterSecondDescriptor());
 			list.add(new CrossStreamOuterFirstDescriptor());
 			list.add(new CrossStreamOuterSecondDescriptor());
-			return list;
+			this.dataProperties = list;
 		}
+	}
+
+	// ------------------------------------------------------------------------
+
+	@Override
+	public CrossOperatorBase<?, ?, ?, ?> getPactContract() {
+		return (CrossOperatorBase<?, ?, ?, ?>) super.getPactContract();
+	}
+
+	@Override
+	public String getName() {
+		return "Cross";
+	}
+	
+	@Override
+	protected List<OperatorDescriptorDual> getPossibleProperties() {
+		return this.dataProperties;
 	}
 
 	/**

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,8 +23,8 @@ import java.security.PrivilegedAction;
 import java.util.Arrays;
 import java.util.Map;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.yarn.Client;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -35,7 +35,7 @@ import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
 
 public class YarnTaskManagerRunner {
 
-	private static final Log LOG = LogFactory.getLog(YarnTaskManagerRunner.class);
+	private static final Logger LOG = LoggerFactory.getLogger(YarnTaskManagerRunner.class);
 
 	public static void main(final String[] args) throws IOException {
 		Map<String, String> envs = System.getenv();
@@ -59,7 +59,7 @@ public class YarnTaskManagerRunner {
 				try {
 					TaskManager.main(newArgs);
 				} catch (Exception e) {
-					LOG.fatal("Error while running the TaskManager", e);
+					LOG.error("Error while running the TaskManager", e);
 				}
 				return null;
 			}

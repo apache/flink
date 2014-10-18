@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,8 +23,8 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -48,7 +48,7 @@ public class WebInterfaceServer {
 	/**
 	 * The log for this class.
 	 */
-	private static final Log LOG = LogFactory.getLog(WebInterfaceServer.class);
+	private static final Logger LOG = LoggerFactory.getLogger(WebInterfaceServer.class);
 
 	/**
 	 * The jetty server serving all requests.

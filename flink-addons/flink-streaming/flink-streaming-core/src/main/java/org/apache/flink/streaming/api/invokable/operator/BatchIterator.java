@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -17,8 +17,9 @@
 
 package org.apache.flink.streaming.api.invokable.operator;
 
+import java.io.Serializable;
 import java.util.Iterator;
 
-public interface BatchIterator<IN> extends Iterator<IN> {
+public interface BatchIterator<IN> extends Iterator<IN>, Serializable {
 	public void reset();
 }

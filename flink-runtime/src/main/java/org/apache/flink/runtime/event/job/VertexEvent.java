@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,54 +16,46 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.event.job;
 
 import java.io.IOException;
 
-import org.apache.flink.core.io.StringRecord;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.util.EnumUtils;
+import org.apache.flink.util.StringUtils;
+
+import com.google.common.base.Preconditions;
 
 /**
- * Vertex events are transmitted from the job manager
- * to the job client in order to inform the user about
+ * Vertex events are transmitted from the job manager to the job client in order to inform the user about
  * changes in terms of a tasks execution state.
- * 
  */
 public class VertexEvent extends AbstractEvent {
 
-	/**
-	 * The ID of the job vertex this event belongs to.
-	 */
+	private static final long serialVersionUID = -521556020344465262L;
+
+	/** The ID of the job vertex this event belongs to. */
 	private JobVertexID jobVertexID;
 
-	/**
-	 * The name of the job vertex this event belongs to.
-	 */
+	/** The name of the job vertex this event belongs to. */
 	private String jobVertexName;
 
-	/**
-	 * The number of subtasks the corresponding vertex has been split into at runtime.
-	 */
+	/** The number of subtasks the corresponding vertex has been split into at runtime. */
 	private int totalNumberOfSubtasks;
 
-	/**
-	 * The index of the subtask that this event belongs to.
-	 */
+	/** The index of the subtask that this event belongs to. */
 	private int indexOfSubtask;
+	
+	/** The id of the execution attempt */
+	private ExecutionAttemptID executionAttemptId;
 
-	/**
-	 * The current execution state of the subtask this event belongs to.
-	 */
+	/** The current execution state of the subtask this event belongs to. */
 	private ExecutionState currentExecutionState;
 
-	/**
-	 * An optional more detailed description of the event.
-	 */
+	/** An optional more detailed description of the event. */
 	private String description;
 
 	/**
@@ -84,14 +76,20 @@ public class VertexEvent extends AbstractEvent {
 	 * @param description
 	 *        an optional description
 	 */
-	public VertexEvent(final long timestamp, final JobVertexID jobVertexID, final String jobVertexName,
-			final int totalNumberOfSubtasks, final int indexOfSubtask, final ExecutionState currentExecutionState,
-			final String description) {
+	public VertexEvent(long timestamp, JobVertexID jobVertexID, String jobVertexName,
+			int totalNumberOfSubtasks, int indexOfSubtask, ExecutionAttemptID executionAttemptId,
+			ExecutionState currentExecutionState, String description)
+	{
 		super(timestamp);
+		
+		Preconditions.checkNotNull(jobVertexID);
+		Preconditions.checkNotNull(currentExecutionState);
+		
 		this.jobVertexID = jobVertexID;
 		this.jobVertexName = jobVertexName;
 		this.totalNumberOfSubtasks = totalNumberOfSubtasks;
 		this.indexOfSubtask = indexOfSubtask;
+		this.executionAttemptId = executionAttemptId;
 		this.currentExecutionState = currentExecutionState;
 		this.description = description;
 	}
@@ -105,39 +103,10 @@ public class VertexEvent extends AbstractEvent {
 		super();
 
 		this.jobVertexID = new JobVertexID();
-		this.jobVertexName = null;
 		this.totalNumberOfSubtasks = -1;
 		this.indexOfSubtask = -1;
+		this.executionAttemptId = new ExecutionAttemptID();
 		this.currentExecutionState = ExecutionState.CREATED;
-		this.description = null;
-	}
-
-
-	@Override
-	public void read(final DataInputView in) throws IOException {
-
-		super.read(in);
-
-		this.jobVertexID.read(in);
-		this.jobVertexName = StringRecord.readString(in);
-		this.totalNumberOfSubtasks = in.readInt();
-		this.indexOfSubtask = in.readInt();
-		this.currentExecutionState = EnumUtils.readEnum(in, ExecutionState.class);
-		this.description = StringRecord.readString(in);
-	}
-
-
-	@Override
-	public void write(final DataOutputView out) throws IOException {
-
-		super.write(out);
-
-		this.jobVertexID.write(out);
-		StringRecord.writeString(out, this.jobVertexName);
-		out.writeInt(this.totalNumberOfSubtasks);
-		out.writeInt(this.indexOfSubtask);
-		EnumUtils.writeEnum(out, this.currentExecutionState);
-		StringRecord.writeString(out, this.description);
 	}
 
 	/**
@@ -195,73 +164,76 @@ public class VertexEvent extends AbstractEvent {
 	public String getDescription() {
 		return description;
 	}
+	
+	public ExecutionAttemptID getExecutionAttemptId() {
+		return executionAttemptId;
+	}
 
+	// --------------------------------------------------------------------------------------------
+	// Utilities
+	// --------------------------------------------------------------------------------------------
+	
+	@Override
+	public void read(DataInputView in) throws IOException {
+		super.read(in);
 
-	public String toString() {
-
-		return timestampToString(getTimestamp()) + ":\t" + this.jobVertexName + " (" + (this.indexOfSubtask + 1) + "/"
-			+ this.totalNumberOfSubtasks + ") switched to " + this.currentExecutionState
-			+ ((this.description != null) ? ("\n" + this.description) : "");
+		this.jobVertexID.read(in);
+		this.executionAttemptId.read(in);
+		this.totalNumberOfSubtasks = in.readInt();
+		this.indexOfSubtask = in.readInt();
+		this.currentExecutionState = ExecutionState.values()[in.readInt()];
+		this.jobVertexName = StringUtils.readNullableString(in);
+		this.description = StringUtils.readNullableString(in);
 	}
 
 
 	@Override
-	public boolean equals(final Object obj) {
+	public void write(DataOutputView out) throws IOException {
+		super.write(out);
 
-		if (!super.equals(obj)) {
-			return false;
-		}
-
-		if (!(obj instanceof VertexEvent)) {
-			return false;
-		}
-
-		final VertexEvent vertexEvent = (VertexEvent) obj;
-
-		if (!this.jobVertexID.equals(vertexEvent.getJobVertexID())) {
-			return false;
-		}
-
-		if (this.jobVertexName != null && vertexEvent.getJobVertexName() != null) {
-			if (!this.jobVertexName.equals(vertexEvent.getJobVertexName())) {
-				return false;
-			}
-		} else {
-			if (this.jobVertexName != vertexEvent.getJobVertexName()) {
-				return false;
-			}
-		}
-
-		if (this.totalNumberOfSubtasks != vertexEvent.getTotalNumberOfSubtasks()) {
-			return false;
-		}
-
-		if (this.indexOfSubtask != vertexEvent.getIndexOfSubtask()) {
-			return false;
-		}
-
-		if (!this.currentExecutionState.equals(vertexEvent.getCurrentExecutionState())) {
-			return false;
-		}
-
-		if (this.description != null && vertexEvent.getDescription() != null) {
-
-			if (!this.description.equals(vertexEvent.getDescription())) {
-				return false;
-			}
-		} else {
-			if (this.description != vertexEvent.getDescription()) {
-				return false;
-			}
-		}
-
-		return true;
+		this.jobVertexID.write(out);
+		this.executionAttemptId.write(out);
+		out.writeInt(this.totalNumberOfSubtasks);
+		out.writeInt(this.indexOfSubtask);
+		out.writeInt(this.currentExecutionState.ordinal());
+		StringUtils.writeNullableString(jobVertexName, out);
+		StringUtils.writeNullableString(description, out);
 	}
 
+	// --------------------------------------------------------------------------------------------
+	// Utilities
+	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public boolean equals(Object obj) {
+		if (obj instanceof VertexEvent) {
+			final VertexEvent other = (VertexEvent) obj;
+			
+			return super.equals(other) &&
+					this.jobVertexID.equals(other.jobVertexID) && 
+					this.totalNumberOfSubtasks == other.totalNumberOfSubtasks &&
+					this.indexOfSubtask == other.indexOfSubtask &&
+					this.currentExecutionState == other.currentExecutionState &&
+					
+					(this.jobVertexName == null ? other.jobVertexName == null :
+						(other.jobVertexName != null && this.jobVertexName.equals(other.jobVertexName))) &&
+						
+					(this.description == null ? other.description == null :
+						(other.description != null && this.description.equals(other.description)));
+		}
+		else {
+			return false;
+		}
+	}
 
 	@Override
 	public int hashCode() {
-
-		return super.hashCode();
+		return super.hashCode() ^ jobVertexID.hashCode() ^ (31*indexOfSubtask) ^ (17*currentExecutionState.ordinal());
+	}
+	
+	public String toString() {
+		return timestampToString(getTimestamp()) + ":\t" + this.jobVertexName + " (" + (this.indexOfSubtask + 1) + "/"
+			+ this.totalNumberOfSubtasks + ") switched to " + this.currentExecutionState
+			+ ((this.description != null) ? ("\n" + this.description) : "");
 	}
 }

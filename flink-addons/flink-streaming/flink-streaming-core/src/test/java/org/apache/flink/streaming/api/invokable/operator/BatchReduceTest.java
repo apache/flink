@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -20,79 +20,66 @@ package org.apache.flink.streaming.api.invokable.operator;
 import static org.junit.Assert.assertEquals;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
-import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.streaming.util.MockInvokable;
-import org.apache.flink.util.Collector;
 import org.junit.Test;
-
 
 public class BatchReduceTest {
 
-	public static final class MySlidingBatchReduce implements GroupReduceFunction<Integer, String> {
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public void reduce(Iterable<Integer> values, Collector<String> out) throws Exception {
-			for (Integer value : values) {
-				out.collect(value.toString());
-			}
-			out.collect(END_OF_BATCH);
-		}
-	}
-
-	private final static String END_OF_BATCH = "end of batch";
-	private final static int SLIDING_BATCH_SIZE = 3;
-	private final static int SLIDE_SIZE = 2;
-
 	@Test
-	public void slidingBatchReduceTest() {
-		BatchReduceInvokable<Integer, String> invokable = new BatchReduceInvokable<Integer, String>(
-				new MySlidingBatchReduce(), SLIDING_BATCH_SIZE, SLIDE_SIZE);
+	public void BatchReduceInvokableTest() {
 
-		List<String> expected = Arrays.asList("1", "2", "3", END_OF_BATCH, "3", "4", "5",
-				END_OF_BATCH, "5", "6", "7", END_OF_BATCH);
-		List<String> actual = MockInvokable.createAndExecute(invokable,
-				Arrays.asList(1, 2, 3, 4, 5, 6, 7));
-
-		assertEquals(expected, actual);
-	}
-
-	public static final class MyBatchReduce implements GroupReduceFunction<Double, Double> {
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public void reduce(Iterable<Double> values, Collector<Double> out) throws Exception {
-
-			Double sum = 0.;
-			Double count = 0.;
-			for (Double value : values) {
-				sum += value;
-				count++;
-			}
-			if (count > 0) {
-				out.collect(new Double(sum / count));
-			}
-		}
-	}
-	
-	private static final int BATCH_SIZE = 5;
-
-	@Test
-	public void nonSlidingBatchReduceTest() {
-		List<Double> inputs = new ArrayList<Double>();
-		for (Double i = 1.; i <= 100; i++) {
+		List<Integer> inputs = new ArrayList<Integer>();
+		for (Integer i = 1; i <= 10; i++) {
 			inputs.add(i);
 		}
-		
-		BatchReduceInvokable<Double, Double> invokable = new BatchReduceInvokable<Double, Double>(new MyBatchReduce(), BATCH_SIZE, BATCH_SIZE);
-		
-		List<Double> avgs = MockInvokable.createAndExecute(invokable, inputs);
+		BatchReduceInvokable<Integer> invokable = new BatchReduceInvokable<Integer>(
+				new ReduceFunction<Integer>() {
+					private static final long serialVersionUID = 1L;
 
-		for (int i = 0; i < avgs.size(); i++) {
-			assertEquals(3.0 + i * BATCH_SIZE, avgs.get(i), 0);
-		}
+					@Override
+					public Integer reduce(Integer value1, Integer value2) throws Exception {
+						return value1 + value2;
+					}
+				}, 3, 2);
+
+		List<Integer> expected = new ArrayList<Integer>();
+		expected.add(6);
+		expected.add(12);
+		expected.add(18);
+		expected.add(24);
+		expected.add(19);
+		assertEquals(expected, MockInvokable.createAndExecute(invokable, inputs));
+
+		List<Integer> inputs2 = new ArrayList<Integer>();
+		inputs2.add(1);
+		inputs2.add(2);
+		inputs2.add(-1);
+		inputs2.add(-3);
+		inputs2.add(-4);
+
+		BatchReduceInvokable<Integer> invokable2 = new BatchReduceInvokable<Integer>(
+				new ReduceFunction<Integer>() {
+					private static final long serialVersionUID = 1L;
+
+					@Override
+					public Integer reduce(Integer value1, Integer value2) throws Exception {
+						if (value1 <= value2) {
+							return value1;
+						} else {
+							return value2;
+						}
+					}
+				}, 2, 3);
+
+		List<Integer> expected2 = new ArrayList<Integer>();
+		expected2.add(1);
+		expected2.add(-4);
+
+		assertEquals(expected2, MockInvokable.createAndExecute(invokable2, inputs2));
+
 	}
+
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,8 +21,8 @@ package org.apache.flink.runtime.operators.resettable;
 
 import java.io.IOException;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memorymanager.MemoryAllocationException;
@@ -38,7 +38,7 @@ import org.apache.flink.util.MutableObjectIterator;
 public class BlockResettableMutableObjectIterator<T> extends AbstractBlockResettableIterator<T>
 	implements ResettableMutableObjectIterator<T>
 {
-	public static final Log LOG = LogFactory.getLog(BlockResettableMutableObjectIterator.class);
+	public static final Logger LOG = LoggerFactory.getLogger(BlockResettableMutableObjectIterator.class);
 	
 	// ------------------------------------------------------------------------
 	

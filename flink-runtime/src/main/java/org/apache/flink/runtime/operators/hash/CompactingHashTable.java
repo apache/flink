@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,8 +24,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -73,7 +73,7 @@ import org.apache.flink.util.MutableObjectIterator;
  */
 public class CompactingHashTable<T> extends AbstractMutableHashTable<T>{
 
-	private static final Log LOG = LogFactory.getLog(CompactingHashTable.class);
+	private static final Logger LOG = LoggerFactory.getLogger(CompactingHashTable.class);
 	
 	// ------------------------------------------------------------------------
 	//                         Internal Constants
@@ -462,7 +462,7 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T>{
 					
 					// deserialize the key to check whether it is really equal, or whether we had only a hash collision
 					try {
-						partition.readRecordAt(pointer, tempHolder);
+						tempHolder = partition.readRecordAt(pointer, tempHolder);
 						if (this.buildSideComparator.equalToReference(tempHolder)) {
 							long newPointer = partition.appendRecord(record);
 							bucket.putLong(pointerOffset, newPointer);
@@ -1115,7 +1115,7 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T>{
 				while (true) {
 					while (numInSegment < countInSegment) {
 						pointer = segment.getLong(pointerOffset);
-						partition.readRecordAt(pointer, tempHolder);
+						tempHolder = partition.readRecordAt(pointer, tempHolder);
 						pointer = this.compactionMemory.appendRecord(tempHolder);
 						segment.putLong(pointerOffset, pointer);
 						pointerOffset += POINTER_LEN;
@@ -1267,7 +1267,7 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T>{
 					numInSegment++;
 					T target = table.buildSideSerializer.createInstance();
 					try {
-						partition.readRecordAt(pointer, target);
+						target = partition.readRecordAt(pointer, target);
 						cache.add(target);
 					} catch (IOException e) {
 							throw new RuntimeException("Error deserializing record from the Hash Table: " + e.getMessage(), e);
@@ -1311,9 +1311,9 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T>{
 			super(probeTypeComparator, pairComparator);
 		}
 		
-		public boolean getMatchFor(PT probeSideRecord, T targetForMatch) {
+		public T getMatchFor(PT probeSideRecord, T targetForMatch) {
 			if(closed.get()) {
-				return false;
+				return null;
 			}
 			final int searchHashCode = hash(this.probeTypeComparator.hash(probeSideRecord));
 			
@@ -1351,13 +1351,13 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T>{
 						
 						// deserialize the key to check whether it is really equal, or whether we had only a hash collision
 						try {
-							p.readRecordAt(pointer, targetForMatch);
+							targetForMatch = p.readRecordAt(pointer, targetForMatch);
 							
 							if (this.pairComparator.equalToReference(targetForMatch)) {
 								this.partition = p;
 								this.bucket = bucket;
 								this.pointerOffsetInBucket = pointerOffset;
-								return true;
+								return targetForMatch;
 							}
 						}
 						catch (IOException e) {
@@ -1372,7 +1372,7 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T>{
 				// this segment is done. check if there is another chained bucket
 				final long forwardPointer = bucket.getLong(bucketInSegmentOffset + HEADER_FORWARD_OFFSET);
 				if (forwardPointer == BUCKET_FORWARD_POINTER_NOT_SET) {
-					return false;
+					return null;
 				}
 				
 				final int overflowSegNum = (int) (forwardPointer >>> 32);

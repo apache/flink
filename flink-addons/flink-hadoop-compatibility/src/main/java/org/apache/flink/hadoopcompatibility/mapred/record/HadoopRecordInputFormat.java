@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,9 +23,11 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
+import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.hadoopcompatibility.mapred.record.datatypes.HadoopTypeConverter;
 import org.apache.flink.hadoopcompatibility.mapred.utils.HadoopUtils;
 import org.apache.flink.hadoopcompatibility.mapred.wrapper.HadoopDummyReporter;
@@ -84,8 +86,8 @@ public class HadoopRecordInputFormat<K, V> implements InputFormat<Record, Hadoop
 	}
 
 	@Override
-	public Class<? extends HadoopInputSplit> getInputSplitType() {
-		return HadoopInputSplit.class;
+	public InputSplitAssigner getInputSplitAssigner(HadoopInputSplit[] inputSplits) {
+		return new DefaultInputSplitAssigner(inputSplits);
 	}
 
 	@Override
@@ -129,7 +131,7 @@ public class HadoopRecordInputFormat<K, V> implements InputFormat<Record, Hadoop
 	
 	/**
 	 * Custom serialization methods.
-	 *  @see http://docs.oracle.com/javase/7/docs/api/java/io/Serializable.html
+	 *  @see "http://docs.oracle.com/javase/7/docs/api/java/io/Serializable.html"
 	 */
 	private void writeObject(ObjectOutputStream out) throws IOException {
 		out.writeUTF(hadoopInputFormatName);

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.io.network;
 
 import java.io.IOException;
@@ -28,18 +27,17 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
 /**
- * Objects of this class uniquely identify a connection to a remote {@link TaskManager}.
- * 
+ * Objects of this class uniquely identify a connection to a remote {@link org.apache.flink.runtime.taskmanager.TaskManager}.
  */
-public class RemoteReceiver implements IOReadableWritable {
+public final class RemoteReceiver implements IOReadableWritable {
 
 	/**
-	 * The address of the connection to the remote {@link TaskManager}.
+	 * The address of the connection to the remote TaskManager.
 	 */
 	private InetSocketAddress connectionAddress;
 
 	/**
-	 * The index of the connection to the remote {@link TaskManager}.
+	 * The index of the connection to the remote TaskManager.
 	 */
 	private int connectionIndex;
 
@@ -47,9 +45,9 @@ public class RemoteReceiver implements IOReadableWritable {
 	 * Constructs a new remote receiver object.
 	 * 
 	 * @param connectionAddress
-	 *        the address of the connection to the remote {@link TaskManager}
+	 *        the address of the connection to the remote TaskManager
 	 * @param connectionIndex
-	 *        the index of the connection to the remote {@link TaskManager}
+	 *        the index of the connection to the remote TaskManager
 	 */
 	public RemoteReceiver(final InetSocketAddress connectionAddress, final int connectionIndex) {
 		if (connectionAddress == null) {
@@ -72,18 +70,18 @@ public class RemoteReceiver implements IOReadableWritable {
 	}
 
 	/**
-	 * Returns the address of the connection to the remote {@link TaskManager}.
+	 * Returns the address of the connection to the remote TaskManager.
 	 * 
-	 * @return the address of the connection to the remote {@link TaskManager}
+	 * @return the address of the connection to the remote TaskManager
 	 */
 	public InetSocketAddress getConnectionAddress() {
 		return this.connectionAddress;
 	}
 
 	/**
-	 * Returns the index of the connection to the remote {@link TaskManager}.
+	 * Returns the index of the connection to the remote TaskManager.
 	 * 
-	 * @return the index of the connection to the remote {@link TaskManager}
+	 * @return the index of the connection to the remote TaskManager
 	 */
 	public int getConnectionIndex() {
 		return this.connectionIndex;

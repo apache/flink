@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,7 +22,6 @@ import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.java.operators.translation.PlanFilterOperator;
-
 import org.apache.flink.api.java.DataSet;
 
 /**
@@ -34,8 +33,7 @@ import org.apache.flink.api.java.DataSet;
 public class FilterOperator<T> extends SingleInputUdfOperator<T, T, FilterOperator<T>> {
 	
 	protected final FilterFunction<T> function;
-	
-	
+
 	public FilterOperator(DataSet<T> input, FilterFunction<T> function) {
 		super(input, input.getType());
 		
@@ -45,7 +43,7 @@ public class FilterOperator<T> extends SingleInputUdfOperator<T, T, FilterOperat
 	
 	@Override
 	protected org.apache.flink.api.common.operators.base.FilterOperatorBase<T, FlatMapFunction<T,T>> translateToDataFlow(Operator<T> input) {
-		
+
 		String name = getName() != null ? getName() : function.getClass().getName();
 		// create operator
 		PlanFilterOperator<T> po = new PlanFilterOperator<T>(function, name, getInputType());

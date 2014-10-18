@@ -25,3 +25,7 @@ The `quickstart.sh` script always points to the current stable release (v0.4, v0
 
 
 (Use `-DarchetypeCatalog=local` for local testing during archetype development)
+
+# Java 8 with Lambda Expressions
+
+If you are planning to use Java 8 and want to use Lambda Expression, please open the generated "pom.xml" file and modify/uncomment the mentioned lines.

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,8 +28,8 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.apache.flink.util.StringUtils;
 
@@ -42,7 +42,7 @@ public class LogfileInfoServlet extends HttpServlet {
 	/**
 	 * The log for this class.
 	 */
-	private static final Log LOG = LogFactory.getLog(LogfileInfoServlet.class);
+	private static final Logger LOG = LoggerFactory.getLogger(LogfileInfoServlet.class);
 
 	private File[] logDirs;
 
@@ -58,11 +58,11 @@ public class LogfileInfoServlet extends HttpServlet {
 		try {
 			if("stdout".equals(req.getParameter("get"))) {
 				// Find current stdout file
-				sendFile("jobmanager-stdout.log", resp);
+				sendFile(".*-jobmanager-[^\\.]*\\.out", resp);
 			}
 			else {
 				// Find current logfile
-				sendFile("jobmanager-log4j.log", resp);
+				sendFile(".*-jobmanager-[^\\.]*\\.log", resp);
 			}
 		} catch (Throwable t) {
 			resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
@@ -73,14 +73,11 @@ public class LogfileInfoServlet extends HttpServlet {
 		}
 	}
 
-	private void sendFile(String fileName, HttpServletResponse resp) throws IOException {
+	private void sendFile(String fileNamePattern, HttpServletResponse resp) throws IOException {
 		for(File logDir: logDirs) {
 			for(File f : logDir.listFiles()) {
 				// contains "jobmanager" ".log" and no number in the end ->needs improvement
-				if( f.getName().equals(fileName) /*||
-						(f.getName().indexOf("jobmanager") != -1 && f.getName().indexOf(".log") != -1 && ! Character.isDigit(f.getName().charAt(f.getName().length() - 1) )) */
-						) {
-
+				if( f.getName().matches(fileNamePattern)) {
 					resp.setStatus(HttpServletResponse.SC_OK);
 					resp.setContentType("text/plain");
 					writeFile(resp.getOutputStream(), f);

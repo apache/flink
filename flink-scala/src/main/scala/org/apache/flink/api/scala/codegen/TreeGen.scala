@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,19 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-
 package org.apache.flink.api.scala.codegen
 
 import scala.language.implicitConversions
 
 import scala.reflect.macros.Context
 
-trait TreeGen[C <: Context] { this: MacroContextHolder[C] with UDTDescriptors[C] with Loggers[C] =>
+private[flink] trait TreeGen[C <: Context] { this: MacroContextHolder[C] with TypeDescriptors[C] =>
   import c.universe._
 
     def mkDefault(tpe: Type): Tree = {
-      import definitions._
       tpe match {
         case definitions.BooleanTpe => Literal(Constant(false))
         case definitions.ByteTpe    => Literal(Constant(0: Byte))
@@ -47,24 +44,37 @@ trait TreeGen[C <: Context] { this: MacroContextHolder[C] with UDTDescriptors[C]
     def mkZero = reify( 0 ).tree
     def mkOne = reify( 1 ).tree
 
-    def mkAsInstanceOf[T: c.WeakTypeTag](source: Tree): Tree = reify(c.Expr(source).splice.asInstanceOf[T]).tree
+    def mkAsInstanceOf[T: c.WeakTypeTag](source: Tree): Tree =
+      reify(c.Expr(source).splice.asInstanceOf[T]).tree
 
     def maybeMkAsInstanceOf[S: c.WeakTypeTag, T: c.WeakTypeTag](source: Tree): Tree = {
-      if (weakTypeOf[S] <:< weakTypeOf[T])
+      if (weakTypeOf[S] <:< weakTypeOf[T]) {
         source
-      else
+      } else {
         mkAsInstanceOf[T](source)
+      }
     }
 
 //    def mkIdent(target: Symbol): Tree = Ident(target) setType target.tpe
-    def mkSelect(rootModule: String, path: String*): Tree = mkSelect(Ident(newTermName(rootModule)), path: _*)
-    def mkSelect(source: Tree, path: String*): Tree = path.foldLeft(source) { (ret, item) => Select(ret, newTermName(item)) }
-    def mkSelectSyms(source: Tree, path: Symbol*): Tree = path.foldLeft(source) { (ret, item) => Select(ret, item) }
+    def mkSelect(rootModule: String, path: String*): Tree =
+      mkSelect(Ident(newTermName(rootModule)), path: _*)
+
+    def mkSelect(source: Tree, path: String*): Tree =
+      path.foldLeft(source) { (ret, item) => Select(ret, newTermName(item)) }
+
+    def mkSelectSyms(source: Tree, path: Symbol*): Tree =
+      path.foldLeft(source) { (ret, item) => Select(ret, item) }
     
     def mkCall(root: Tree, path: String*)(args: List[Tree]) = Apply(mkSelect(root, path: _*), args)
 
-    def mkSeq(items: List[Tree]): Tree = Apply(mkSelect("scala", "collection", "Seq", "apply"), items)
-    def mkList(items: List[Tree]): Tree = Apply(mkSelect("scala", "collection", "immutable", "List", "apply"), items)
+    def mkSeq(items: List[Tree]): Tree =
+      Apply(mkSelect("scala", "collection", "Seq", "apply"), items)
+
+    def mkList(items: List[Tree]): Tree =
+      Apply(mkSelect("scala", "collection", "immutable", "List", "apply"), items)
+
+    def mkMap(items: List[Tree]): Tree =
+      Apply(mkSelect("scala", "collection", "immutable", "Map", "apply"), items)
 
     def mkVal(name: String, flags: FlagSet, transient: Boolean, valTpe: Type, value: Tree): Tree = {
       ValDef(Modifiers(flags), newTermName(name), TypeTree(valTpe), value)
@@ -81,7 +91,11 @@ trait TreeGen[C <: Context] { this: MacroContextHolder[C] with UDTDescriptors[C]
       List(valDef, defDef)
     }
 
-    def mkVarAndLazyGetter(name: String, flags: FlagSet, valTpe: Type, value: Tree): (Tree, Tree) = {
+    def mkVarAndLazyGetter(
+        name: String,
+        flags: FlagSet,
+        valTpe: Type,
+        value: Tree): (Tree, Tree) = {
       val fieldName = name + " "
       val field = mkVar(fieldName, NoFlags, false, valTpe, mkNull)
       val fieldSel = Ident(newTermName(fieldName))
@@ -117,20 +131,35 @@ trait TreeGen[C <: Context] { this: MacroContextHolder[C] with UDTDescriptors[C]
       }
     }
 
-    def mkMethod(name: String, flags: FlagSet, args: List[(String, Type)], ret: Type, impl: Tree): Tree = {
-      val valParams = args map { case (name, tpe) => ValDef(Modifiers(Flag.PARAM), newTermName(name), TypeTree(tpe), EmptyTree) }
+    def mkMethod(
+        name: String,
+        flags: FlagSet,
+        args: List[(String, Type)],
+        ret: Type,
+        impl: Tree): Tree = {
+      val valParams = args map { case (name, tpe) =>
+        ValDef(Modifiers(Flag.PARAM), newTermName(name), TypeTree(tpe), EmptyTree)
+      }
       DefDef(Modifiers(flags), newTermName(name), Nil, List(valParams), TypeTree(ret), impl)
     }
 
-    def mkClass(name: TypeName, flags: FlagSet, parents: List[Type], members: List[Tree]): ClassDef = {
+    def mkClass(
+        name: TypeName,
+        flags: FlagSet,
+        parents: List[Type],
+        members: List[Tree]): ClassDef = {
       val parentTypeTrees = parents map { TypeTree(_) }
       val selfType = ValDef(Modifiers(), nme.WILDCARD, TypeTree(NoType), EmptyTree)
       ClassDef(Modifiers(flags), name, Nil, Template(parentTypeTrees, selfType, members))
     }
 
-    def mkThrow(tpe: Type, msg: Tree): Tree = Throw(Apply(Select(New(TypeTree(tpe)), nme.CONSTRUCTOR), List(msg)))
+    def mkThrow(tpe: Type, msg: Tree): Tree =
+      Throw(Apply(Select(New(TypeTree(tpe)), nme.CONSTRUCTOR), List(msg)))
+
 //    def mkThrow(tpe: Type, msg: Tree): Tree = Throw(New(TypeTree(tpe)), List(List(msg))))
+
     def mkThrow(tpe: Type, msg: String): Tree = mkThrow(tpe, c.literal(msg).tree)
+
     def mkThrow(msg: String): Tree = mkThrow(typeOf[java.lang.RuntimeException], msg)
 
     implicit def tree2Ops[T <: Tree](tree: T) = new {
@@ -165,17 +194,24 @@ trait TreeGen[C <: Context] { this: MacroContextHolder[C] with UDTDescriptors[C]
     }
     
     def mkBuilderOf(elemTpe: Type, listTpe: Type) = {
-      def makeIt[ElemTpe: c.WeakTypeTag, ListTpe: c.WeakTypeTag] = weakTypeOf[scala.collection.mutable.Builder[ElemTpe, ListTpe]]
+      def makeIt[ElemTpe: c.WeakTypeTag, ListTpe: c.WeakTypeTag] =
+        weakTypeOf[scala.collection.mutable.Builder[ElemTpe, ListTpe]]
+
       makeIt(c.WeakTypeTag(elemTpe), c.WeakTypeTag(listTpe))
     }
     
     def mkCanBuildFromOf(fromTpe: Type, elemTpe: Type, toTpe: Type) = {
-      def makeIt[From: c.WeakTypeTag, Elem: c.WeakTypeTag, To: c.WeakTypeTag] = weakTypeOf[scala.collection.generic.CanBuildFrom[From, Elem, To]]
+      def makeIt[From: c.WeakTypeTag, Elem: c.WeakTypeTag, To: c.WeakTypeTag] =
+        weakTypeOf[scala.collection.generic.CanBuildFrom[From, Elem, To]]
+
       makeIt(c.WeakTypeTag(fromTpe), c.WeakTypeTag(elemTpe), c.WeakTypeTag(toTpe))
     }
     
-    def mkCtorCall(tpe: Type, args: List[Tree]) = Apply(Select(New(TypeTree(tpe)), nme.CONSTRUCTOR), args)
-    def mkSuperCall(args: List[Tree] = List()) = Apply(Select(Super(This(tpnme.EMPTY), tpnme.EMPTY), nme.CONSTRUCTOR), args)
+    def mkCtorCall(tpe: Type, args: List[Tree]) =
+      Apply(Select(New(TypeTree(tpe)), nme.CONSTRUCTOR), args)
+
+    def mkSuperCall(args: List[Tree] = List()) =
+      Apply(Select(Super(This(tpnme.EMPTY), tpnme.EMPTY), nme.CONSTRUCTOR), args)
 
     def mkWhile(cond: Tree)(body: Tree): Tree = {
       val lblName = c.fresh[TermName]("while")
@@ -202,7 +238,8 @@ trait TreeGen[C <: Context] { this: MacroContextHolder[C] with UDTDescriptors[C]
     def extractOneInputUdf(fun: Tree) = {
       val (paramName, udfBody) = fun match {
         case Function(List(param), body) => (param.name.toString, body)
-        case _ => c.abort(c.enclosingPosition, "Could not extract user defined function, got: " + show(fun))
+        case _ =>
+          c.abort(c.enclosingPosition, "Could not extract user defined function, got: " + show(fun))
       }
       val uncheckedUdfBody = c.resetAllAttrs(udfBody)
       (paramName, uncheckedUdfBody)
@@ -210,8 +247,10 @@ trait TreeGen[C <: Context] { this: MacroContextHolder[C] with UDTDescriptors[C]
     
     def extractTwoInputUdf(fun: Tree) = {
       val (param1Name, param2Name, udfBody) = fun match {
-        case Function(List(param1, param2), body) => (param1.name.toString, param2.name.toString, body)
-        case _ => c.abort(c.enclosingPosition, "Could not extract user defined function, got: " + show(fun))
+        case Function(List(param1, param2), body) =>
+          (param1.name.toString, param2.name.toString, body)
+        case _ =>
+          c.abort(c.enclosingPosition, "Could not extract user defined function, got: " + show(fun))
       }
       val uncheckedUdfBody = c.resetAllAttrs(udfBody)
       (param1Name, param2Name, uncheckedUdfBody)

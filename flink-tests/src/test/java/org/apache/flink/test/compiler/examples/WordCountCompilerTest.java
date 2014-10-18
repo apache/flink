@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -47,9 +47,7 @@ import org.apache.flink.types.StringValue;
 import org.junit.Assert;
 import org.junit.Test;
 
-/**
- *
- */
+@SuppressWarnings("deprecation")
 public class WordCountCompilerTest extends CompilerTestBase {
 	
 	/**
@@ -91,12 +89,12 @@ public class WordCountCompilerTest extends CompilerTestBase {
 			FieldList l = new FieldList(0);
 			Assert.assertEquals(l, c.getShipStrategyKeys());
 			Assert.assertEquals(l, c.getLocalStrategyKeys());
-			Assert.assertTrue(Arrays.equals(c.getLocalStrategySortOrder(), reducer.getSortOrders()));
+			Assert.assertTrue(Arrays.equals(c.getLocalStrategySortOrder(), reducer.getSortOrders(0)));
 			
 			// check the combiner
 			SingleInputPlanNode combiner = (SingleInputPlanNode) reducer.getPredecessor();
 			Assert.assertEquals(DriverStrategy.SORTED_GROUP_COMBINE, combiner.getDriverStrategy());
-			Assert.assertEquals(l, combiner.getKeys());
+			Assert.assertEquals(l, combiner.getKeys(0));
 			Assert.assertEquals(ShipStrategyType.FORWARD, combiner.getInput().getShipStrategy());
 			
 		} catch (Exception e) {
@@ -169,7 +167,8 @@ public class WordCountCompilerTest extends CompilerTestBase {
 			// check the combiner
 			SingleInputPlanNode combiner = (SingleInputPlanNode) reducer.getPredecessor();
 			Assert.assertEquals(DriverStrategy.SORTED_GROUP_COMBINE, combiner.getDriverStrategy());
-			Assert.assertEquals(l, combiner.getKeys());
+			Assert.assertEquals(l, combiner.getKeys(0));
+			Assert.assertEquals(l, combiner.getKeys(1));
 			Assert.assertEquals(ShipStrategyType.FORWARD, combiner.getInput().getShipStrategy());
 		} catch (Exception e) {
 			e.printStackTrace();

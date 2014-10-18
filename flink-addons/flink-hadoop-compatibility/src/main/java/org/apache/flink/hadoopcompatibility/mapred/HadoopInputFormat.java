@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,11 +24,13 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.FileInputFormat.FileBaseStatistics;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -37,10 +39,11 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.hadoopcompatibility.mapred.utils.HadoopUtils;
 import org.apache.flink.hadoopcompatibility.mapred.wrapper.HadoopDummyReporter;
 import org.apache.flink.hadoopcompatibility.mapred.wrapper.HadoopInputSplit;
-import org.apache.flink.types.TypeInformation;
+import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapred.FileInputFormat;
 import org.apache.hadoop.mapred.JobConf;
@@ -51,7 +54,7 @@ public class HadoopInputFormat<K extends Writable, V extends Writable> implement
 	
 	private static final long serialVersionUID = 1L;
 	
-	private static final Log LOG = LogFactory.getLog(HadoopInputFormat.class);
+	private static final Logger LOG = LoggerFactory.getLogger(HadoopInputFormat.class);
 	
 	private org.apache.hadoop.mapred.InputFormat<K, V> mapredInputFormat;
 	private Class<K> keyClass;
@@ -64,7 +67,7 @@ public class HadoopInputFormat<K extends Writable, V extends Writable> implement
 	private transient RecordReader<K, V> recordReader;
 	private transient boolean fetched = false;
 	private transient boolean hasNext;
-	
+
 	public HadoopInputFormat() {
 		super();
 	}
@@ -76,6 +79,7 @@ public class HadoopInputFormat<K extends Writable, V extends Writable> implement
 		this.valueClass = value;
 		HadoopUtils.mergeHadoopConf(job);
 		this.jobConf = job;
+		ReflectionUtils.setConf(mapredInputFormat, jobConf);
 	}
 	
 	public void setJobConf(JobConf job) {
@@ -145,13 +149,16 @@ public class HadoopInputFormat<K extends Writable, V extends Writable> implement
 	}
 	
 	@Override
-	public Class<? extends HadoopInputSplit> getInputSplitType() {
-		return HadoopInputSplit.class;
+	public InputSplitAssigner getInputSplitAssigner(HadoopInputSplit[] inputSplits) {
+		return new DefaultInputSplitAssigner(inputSplits);
 	}
 	
 	@Override
 	public void open(HadoopInputSplit split) throws IOException {
 		this.recordReader = this.mapredInputFormat.getRecordReader(split.getHadoopInputSplit(), jobConf, new HadoopDummyReporter());
+		if (this.recordReader instanceof Configurable) {
+			((Configurable) this.recordReader).setConf(jobConf);
+		}
 		key = this.recordReader.createKey();
 		value = this.recordReader.createValue();
 		this.fetched = false;

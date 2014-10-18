@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -17,55 +17,92 @@
 
 package org.apache.flink.streaming.api.invokable.operator;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-
 import org.apache.flink.api.common.functions.GroupReduceFunction;
-import org.apache.flink.streaming.api.invokable.util.Timestamp;
-import org.apache.flink.streaming.api.streamrecord.StreamRecord;
-import org.apache.flink.streaming.state.MutableTableState;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.invokable.util.DefaultTimeStamp;
+import org.apache.flink.streaming.api.invokable.util.TimeStamp;
 
-public class WindowGroupReduceInvokable<IN, OUT> extends WindowReduceInvokable<IN, OUT> {
+public class WindowGroupReduceInvokable<IN, OUT> extends BatchGroupReduceInvokable<IN, OUT> {
 
-	int keyPosition;
-	protected GroupReduceFunction<IN, OUT> reducer;
-	private Iterator<StreamRecord<IN>> iterator;
-	private MutableTableState<Object, List<IN>> values;
+	private static final long serialVersionUID = 1L;
+	private long startTime;
+	protected long nextRecordTime;
+	protected TimeStamp<IN> timestamp;
+	protected StreamWindow window;
 
 	public WindowGroupReduceInvokable(GroupReduceFunction<IN, OUT> reduceFunction, long windowSize,
-			long slideInterval, int keyPosition, Timestamp<IN> timestamp) {
-		super(reduceFunction, windowSize, slideInterval, timestamp);
-		this.keyPosition = keyPosition;
-		this.reducer = reduceFunction;
-		values = new MutableTableState<Object, List<IN>>();
+			long slideInterval, TimeStamp<IN> timestamp) {
+		super(reduceFunction, windowSize, slideInterval);
+		this.timestamp = timestamp;
+		this.startTime = timestamp.getStartTime();
+		this.window = new StreamWindow();
+		this.batch = this.window;
 	}
-
-	private IN nextValue;
 
 	@Override
-	protected void reduce() {
-		iterator = state.getStreamRecordIterator();
-		while (iterator.hasNext()) {
-			StreamRecord<IN> nextRecord = iterator.next();
-			Object key = nextRecord.getField(keyPosition);
-			nextValue = nextRecord.getObject();
+	public void open(Configuration config) throws Exception {
+		super.open(config);
+		if (timestamp instanceof DefaultTimeStamp) {
+			(new TimeCheck()).start();
+		}
+	}
 
-			List<IN> group = values.get(key);
-			if (group != null) {
-				group.add(nextValue);
-			} else {
-				group = new ArrayList<IN>();
-				group.add(nextValue);
-				values.put(key, group);
+	protected class StreamWindow extends StreamBatch {
+
+		private static final long serialVersionUID = 1L;
+
+		public StreamWindow() {
+			super();
+		}
+
+		@Override
+		public void addToBuffer(IN nextValue) throws Exception {
+			checkWindowEnd(timestamp.getTimestamp(nextValue));
+			if (minibatchCounter >= 0) {
+				circularList.add(nextValue);
 			}
 		}
-		for (List<IN> group : values.values()) {
-			userIterable = group;
-			callUserFunctionAndLogException();
+
+		protected synchronized void checkWindowEnd(long timeStamp) {
+			nextRecordTime = timeStamp;
+
+			while (miniBatchEnd()) {
+				circularList.newSlide();
+				minibatchCounter++;
+				if (batchEnd()) {
+					reduceBatch();
+					circularList.shiftWindow(batchPerSlide);
+				}
+			}
 		}
-		values.clear();
+
+		@Override
+		protected boolean miniBatchEnd() {
+			if (nextRecordTime < startTime + granularity) {
+				return false;
+			} else {
+				startTime += granularity;
+				return true;
+			}
+		}
+
 	}
-	private static final long serialVersionUID = 1L;
+
+	private class TimeCheck extends Thread {
+		@Override
+		public void run() {
+			while (true) {
+				try {
+					Thread.sleep(slideSize);
+				} catch (InterruptedException e) {
+				}
+				if (isRunning) {
+					window.checkWindowEnd(System.currentTimeMillis());
+				} else {
+					break;
+				}
+			}
+		}
+	}
 
 }

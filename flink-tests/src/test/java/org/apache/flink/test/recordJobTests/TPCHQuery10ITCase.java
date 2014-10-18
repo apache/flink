@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 
 package org.apache.flink.test.recordJobTests;
 
@@ -181,7 +180,7 @@ public class TPCHQuery10ITCase extends RecordAPITestBase {
 	protected Plan getTestJob() {
 		TPCHQuery10 tpchq10 = new TPCHQuery10();
 		return tpchq10.getPlan(
-				config.getString("TPCHQuery10Test#NoSubtasks", "1"),
+				String.valueOf(config.getInteger("TPCHQuery10Test#NoSubtasks", 1)),
 				ordersPath,
 				lineitemsPath,
 				customersPath,

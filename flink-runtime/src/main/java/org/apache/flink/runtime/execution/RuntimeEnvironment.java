@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,16 +16,27 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.execution;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import java.io.IOException;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Queue;
+import java.util.Set;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.runtime.deployment.GateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.Buffer;
 import org.apache.flink.runtime.io.network.bufferprovider.BufferAvailabilityListener;
@@ -43,177 +54,144 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
 import org.apache.flink.runtime.protocols.AccumulatorProtocol;
-import org.apache.flink.util.StringUtils;
+import org.apache.flink.runtime.taskmanager.Task;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.util.ArrayDeque;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Queue;
-import java.util.Set;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.FutureTask;
+import com.google.common.base.Preconditions;
 
-/**
- * The user code of every Nephele task runs inside a <code>RuntimeEnvironment</code> object. The environment provides
- * important services to the task. It keeps track of setting up the communication channels and provides access to input
- * splits, memory manager, etc.
- * <p/>
- * This class is thread-safe.
- */
+
 public class RuntimeEnvironment implements Environment, BufferProvider, LocalBufferPoolOwner, Runnable {
 
-	/**
-	 * The log object used for debugging.
-	 */
-	private static final Log LOG = LogFactory.getLog(RuntimeEnvironment.class);
+	/** The log object used for debugging. */
+	private static final Logger LOG = LoggerFactory.getLogger(RuntimeEnvironment.class);
 
-	/**
-	 * The interval to sleep in case a communication channel is not yet entirely set up (in milliseconds).
-	 */
+	private static final ThreadGroup TASK_THREADS = new ThreadGroup("Task Threads");
+	
+	/** The interval to sleep in case a communication channel is not yet entirely set up (in milliseconds). */
 	private static final int SLEEPINTERVAL = 100;
+	
+	
+	
+	// --------------------------------------------------------------------------------------------
 
-	/**
-	 * List of output gates created by the task.
-	 */
-	private final List<OutputGate> outputGates = new CopyOnWriteArrayList<OutputGate>();
-
-	/**
-	 * List of input gates created by the task.
-	 */
-	private final List<InputGate<? extends IOReadableWritable>> inputGates = new CopyOnWriteArrayList<InputGate<? extends IOReadableWritable>>();
-
-	/**
-	 * Queue of unbound input gate IDs which are required for deserializing an environment in the course of an RPC
-	 * call.
-	 */
-	private final Queue<GateID> unboundInputGateIDs = new ArrayDeque<GateID>();
-
-	/**
-	 * The memory manager of the current environment (currently the one associated with the executing TaskManager).
-	 */
-	private final MemoryManager memoryManager;
-
-	/**
-	 * The io manager of the current environment (currently the one associated with the executing TaskManager).
-	 */
-	private final IOManager ioManager;
-
-	/**
-	 * Class of the task to run in this environment.
-	 */
-	private final Class<? extends AbstractInvokable> invokableClass;
-
-	/**
-	 * Instance of the class to be run in this environment.
-	 */
-	private final AbstractInvokable invokable;
-
-	/**
-	 * The ID of the job this task belongs to.
-	 */
-	private final JobID jobID;
-
-	/**
-	 * The job configuration encapsulated in the environment object.
-	 */
+	/** The task that owns this environment */
+	private final Task owner;
+	
+	
+	/** The job configuration encapsulated in the environment object. */
 	private final Configuration jobConfiguration;
 
-	/**
-	 * The task configuration encapsulated in the environment object.
-	 */
+	/** The task configuration encapsulated in the environment object. */
 	private final Configuration taskConfiguration;
+	
+	
+	/** ClassLoader for all user code classes */
+	private final ClassLoader userCodeClassLoader;
+	
+	/** Class of the task to run in this environment. */
+	private final Class<? extends AbstractInvokable> invokableClass;
 
-	/**
-	 * The input split provider that can be queried for new input splits.
-	 */
+	/** Instance of the class to be run in this environment. */
+	private final AbstractInvokable invokable;
+	
+	
+	/** List of output gates created by the task. */
+	private final ArrayList<OutputGate> outputGates = new ArrayList<OutputGate>();
+
+	/** List of input gates created by the task. */
+	private final ArrayList<InputGate<? extends IOReadableWritable>> inputGates = new ArrayList<InputGate<? extends IOReadableWritable>>();
+
+	/** Unbound input gate IDs which are required for deserializing an environment in the course of an RPC call. */
+	private final Queue<GateID> unboundInputGateIDs = new ArrayDeque<GateID>();
+
+	/** The memory manager of the current environment (currently the one associated with the executing TaskManager). */
+	private final MemoryManager memoryManager;
+
+	/** The I/O manager of the current environment (currently the one associated with the executing TaskManager). */
+	private final IOManager ioManager;
+
+	/** The input split provider that can be queried for new input splits.  */
 	private final InputSplitProvider inputSplitProvider;
 
-	/**
-	 * The observer object for the task's execution.
-	 */
-	private volatile ExecutionObserver executionObserver = null;
 	
-	/**
-	 * The thread executing the task in the environment.
-	 */
-	private volatile Thread executingThread;
+	/** The thread executing the task in the environment. */
+	private Thread executingThread;
 
 	/**
 	 * The RPC proxy to report accumulators to JobManager
 	 */
-	private AccumulatorProtocol accumulatorProtocolProxy = null;
+	private final AccumulatorProtocol accumulatorProtocolProxy;
 
-	/**
-	 * The index of this subtask in the subtask group.
-	 */
-	private final int indexInSubtaskGroup;
-
-	/**
-	 * The current number of subtasks the respective task is split into.
-	 */
-	private final int currentNumberOfSubtasks;
-
-	/**
-	 * The name of the task running in this environment.
-	 */
-	private final String taskName;
-
-	private LocalBufferPool outputBufferPool;
-
-	private final Map<String,FutureTask<Path>> cacheCopyTasks;
+	private final Map<String,FutureTask<Path>> cacheCopyTasks = new HashMap<String, FutureTask<Path>>();
 	
-	private volatile boolean canceled;
+	private LocalBufferPool outputBufferPool;
+	
+	private AtomicBoolean canceled = new AtomicBoolean();
 
-	/**
-	 * Constructs a runtime environment from a task deployment description.
-	 * 
-	 * @param tdd
-	 *        the task deployment description
-	 * @param memoryManager
-	 *        the task manager's memory manager component
-	 * @param ioManager
-	 *        the task manager's I/O manager component
-	 * @param inputSplitProvider
-	 *        the input split provider for this environment
-	 * @throws Exception
-	 *         thrown if an error occurs while instantiating the invokable class
-	 */
-	public RuntimeEnvironment(final TaskDeploymentDescriptor tdd,
-							final MemoryManager memoryManager, final IOManager ioManager,
-							final InputSplitProvider inputSplitProvider,
-							AccumulatorProtocol accumulatorProtocolProxy, Map<String, FutureTask<Path>> cpTasks) throws Exception {
 
-		this.jobID = tdd.getJobID();
-		this.taskName = tdd.getTaskName();
-		this.invokableClass = tdd.getInvokableClass();
-		this.jobConfiguration = tdd.getJobConfiguration();
-		this.taskConfiguration = tdd.getTaskConfiguration();
-		this.indexInSubtaskGroup = tdd.getIndexInSubtaskGroup();
-		this.currentNumberOfSubtasks = tdd.getCurrentNumberOfSubtasks();
+	public RuntimeEnvironment(Task owner, TaskDeploymentDescriptor tdd,
+							ClassLoader userCodeClassLoader,
+							MemoryManager memoryManager, IOManager ioManager,
+							InputSplitProvider inputSplitProvider,
+							AccumulatorProtocol accumulatorProtocolProxy)
+		throws Exception
+	{
+		Preconditions.checkNotNull(owner);
+		Preconditions.checkNotNull(memoryManager);
+		Preconditions.checkNotNull(ioManager);
+		Preconditions.checkNotNull(inputSplitProvider);
+		Preconditions.checkNotNull(accumulatorProtocolProxy);
+		Preconditions.checkNotNull(userCodeClassLoader);
+		
+		this.owner = owner;
+
 		this.memoryManager = memoryManager;
 		this.ioManager = ioManager;
 		this.inputSplitProvider = inputSplitProvider;
 		this.accumulatorProtocolProxy = accumulatorProtocolProxy;
-		this.cacheCopyTasks = cpTasks;
 
-		this.invokable = this.invokableClass.newInstance();
+		// load and instantiate the invokable class
+		this.userCodeClassLoader = userCodeClassLoader;
+		try {
+			final String className = tdd.getInvokableClassName();
+			this.invokableClass = Class.forName(className, true, userCodeClassLoader).asSubclass(AbstractInvokable.class);
+		}
+		catch (Throwable t) {
+			throw new Exception("Could not load invokable class.", t);
+		}
+		
+		try {
+			this.invokable = this.invokableClass.newInstance();
+		}
+		catch (Throwable t) {
+			throw new Exception("Could not instantiate the invokable class.", t);
+		}
+		
+		this.jobConfiguration = tdd.getJobConfiguration();
+		this.taskConfiguration = tdd.getTaskConfiguration();
+		
 		this.invokable.setEnvironment(this);
 		this.invokable.registerInputOutput();
 
-		int numOutputGates = tdd.getNumberOfOutputGateDescriptors();
-
-		for (int i = 0; i < numOutputGates; ++i) {
-			this.outputGates.get(i).initializeChannels(tdd.getOutputGateDescriptor(i));
+		List<GateDeploymentDescriptor> inGates = tdd.getInputGates();
+		List<GateDeploymentDescriptor> outGates = tdd.getOutputGates();
+		
+		
+		if (this.inputGates.size() != inGates.size()) {
+			throw new Exception("The number of readers created in 'registerInputOutput()' "
+					+ "is different than the number of connected incoming edges in the job graph.");
 		}
-
-		int numInputGates = tdd.getNumberOfInputGateDescriptors();
-
-		for (int i = 0; i < numInputGates; i++) {
-			this.inputGates.get(i).initializeChannels(tdd.getInputGateDescriptor(i));
+		if (this.outputGates.size() != outGates.size()) {
+			throw new Exception("The number of writers created in 'registerInputOutput()' "
+					+ "is different than the number of connected outgoing edges in the job graph.");
+		}
+		
+		for (int i = 0; i < inGates.size(); i++) {
+			this.inputGates.get(i).initializeChannels(inGates.get(i));
+		}
+		for (int i = 0; i < outGates.size(); i++) {
+			this.outputGates.get(i).initializeChannels(outGates.get(i));
 		}
 	}
 
@@ -228,7 +206,7 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 
 	@Override
 	public JobID getJobID() {
-		return this.jobID;
+		return this.owner.getJobID();
 	}
 
 	@Override
@@ -246,56 +224,21 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 
 	@Override
 	public void run() {
-		if (invokable == null) {
-			LOG.fatal("ExecutionEnvironment has no Invokable set");
-		}
-
-		// Now the actual program starts to run
-		changeExecutionState(ExecutionState.RUNNING, null);
-
-		// If the task has been canceled in the mean time, do not even start it
-		if (this.executionObserver.isCanceled()) {
-			changeExecutionState(ExecutionState.CANCELED, null);
+		// quick fail in case the task was cancelled while the tread was started
+		if (owner.isCanceledOrFailed()) {
+			owner.cancelingDone();
 			return;
 		}
-
+		
 		try {
-			ClassLoader cl = LibraryCacheManager.getClassLoader(jobID);
-			Thread.currentThread().setContextClassLoader(cl);
+			Thread.currentThread().setContextClassLoader(userCodeClassLoader);
 			this.invokable.invoke();
 
 			// Make sure, we enter the catch block when the task has been canceled
-			if (this.executionObserver.isCanceled()) {
-				throw new InterruptedException();
+			if (this.owner.isCanceledOrFailed()) {
+				throw new CancelTaskException();
 			}
-		} catch (Throwable t) {
-			if (!this.executionObserver.isCanceled()) {
-
-				// Perform clean up when the task failed and has been not canceled by the user
-				try {
-					this.invokable.cancel();
-				} catch (Throwable t2) {
-					LOG.error(StringUtils.stringifyException(t2));
-				}
-			}
-
-			// Release all resources that may currently be allocated by the individual channels
-			releaseAllChannelResources();
-
-			if (this.executionObserver.isCanceled() || t instanceof CancelTaskException) {
-				changeExecutionState(ExecutionState.CANCELED, null);
-			}
-			else {
-				changeExecutionState(ExecutionState.FAILED, StringUtils.stringifyException(t));
-			}
-
-			return;
-		}
-
-		// Task finished running, but there may be unconsumed output data in some of the channels
-		changeExecutionState(ExecutionState.FINISHING, null);
-
-		try {
+			
 			// If there is any unclosed input gate, close it and propagate close operation to corresponding output gate
 			closeInputGates();
 
@@ -307,26 +250,45 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 
 			// Now we wait until all output channels have written out their data and are closed
 			waitForOutputChannelsToBeClosed();
-		} catch (Throwable t) {
+			
+			if (this.owner.isCanceledOrFailed()) {
+				throw new CancelTaskException();
+			}
+			
+			// Finally, switch execution state to FINISHED and report to job manager
+			if (!owner.markAsFinished()) {
+				throw new Exception("Could notify job manager that the task is finished.");
+			}
+		}
+		catch (Throwable t) {
+			
+			if (!this.owner.isCanceledOrFailed()) {
+
+				// Perform clean up when the task failed and has been not canceled by the user
+				try {
+					this.invokable.cancel();
+				} catch (Throwable t2) {
+					LOG.error("Error while canceling the task", t2);
+				}
+			}
 
 			// Release all resources that may currently be allocated by the individual channels
 			releaseAllChannelResources();
 
-			if (this.executionObserver.isCanceled() || t instanceof CancelTaskException) {
-				changeExecutionState(ExecutionState.CANCELED, null);
+			// if we are already set as cancelled or failed (when failure is triggered externally),
+			// mark that the thread is done.
+			if (this.owner.isCanceledOrFailed() || t instanceof CancelTaskException) {
+				this.owner.cancelingDone();
 			}
 			else {
-				changeExecutionState(ExecutionState.FAILED, StringUtils.stringifyException(t));
+				// failure from inside the task thread. notify the task of teh failure
+				this.owner.markFailed(t);
 			}
-
-			return;
 		}
-
-		// Release all resources that may currently be allocated by the individual channels
-		releaseAllChannelResources();
-
-		// Finally, switch execution state to FINISHED and report to job manager
-		changeExecutionState(ExecutionState.FINISHED, null);
+		finally {
+			// Release all resources that may currently be allocated by the individual channels
+			releaseAllChannelResources();
+		}
 	}
 
 	@Override
@@ -403,12 +365,8 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 		synchronized (this) {
 
 			if (this.executingThread == null) {
-				if (this.taskName == null) {
-					this.executingThread = new Thread(this);
-				}
-				else {
-					this.executingThread = new Thread(this, getTaskNameWithIndex());
-				}
+				String name = owner.getTaskNameWithSubtasks();
+				this.executingThread = new Thread(TASK_THREADS, this, name);
 			}
 
 			return this.executingThread;
@@ -416,9 +374,11 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 	}
 	
 	public void cancelExecution() {
-		canceled = true;
+		if (!canceled.compareAndSet(false, true)) {
+			return;
+		}
 
-		LOG.info("Canceling " + getTaskNameWithIndex());
+		LOG.info("Canceling " + owner.getTaskNameWithSubtasks());
 
 		// Request user code to shut down
 		if (this.invokable != null) {
@@ -429,48 +389,50 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 			}
 		}
 		
-		// interrupt the running thread and wait for it to die
-		executingThread.interrupt();
-		
-		try {
-			executingThread.join(5000);
-		} catch (InterruptedException e) {}
-		
-		if (!executingThread.isAlive()) {
-			return;
-		}
-		
-		// Continuously interrupt the user thread until it changed to state CANCELED
-		while (executingThread != null && executingThread.isAlive()) {
-			LOG.warn("Task " + getTaskName() + " did not react to cancelling signal. Sending repeated interrupt.");
-
-			if (LOG.isDebugEnabled()) {
-				StringBuilder bld = new StringBuilder("Task ").append(getTaskName()).append(" is stuck in method:\n");
-				
-				StackTraceElement[] stack = executingThread.getStackTrace();
-				for (StackTraceElement e : stack) {
-					bld.append(e).append('\n');
-				}
-				LOG.debug(bld.toString());
-			}
-			
+		final Thread executingThread = this.executingThread;
+		if (executingThread != null) {
+			// interrupt the running thread and wait for it to die
 			executingThread.interrupt();
 			
 			try {
-				executingThread.join(1000);
+				executingThread.join(5000);
 			} catch (InterruptedException e) {}
+			
+			if (!executingThread.isAlive()) {
+				return;
+			}
+			
+			// Continuously interrupt the user thread until it changed to state CANCELED
+			while (executingThread != null && executingThread.isAlive()) {
+				LOG.warn("Task " + owner.getTaskNameWithSubtasks() + " did not react to cancelling signal. Sending repeated interrupt.");
+	
+				if (LOG.isDebugEnabled()) {
+					StringBuilder bld = new StringBuilder("Task ").append(owner.getTaskNameWithSubtasks()).append(" is stuck in method:\n");
+					
+					StackTraceElement[] stack = executingThread.getStackTrace();
+					for (StackTraceElement e : stack) {
+						bld.append(e).append('\n');
+					}
+					LOG.debug(bld.toString());
+				}
+				
+				executingThread.interrupt();
+				
+				try {
+					executingThread.join(1000);
+				} catch (InterruptedException e) {}
+			}
 		}
 	}
 
 	/**
 	 * Blocks until all output channels are closed.
 	 *
-	 * @throws IOException          thrown if an error occurred while closing the output channels
 	 * @throws InterruptedException thrown if the thread waiting for the channels to be closed is interrupted
 	 */
 	private void waitForOutputChannelsToBeClosed() throws InterruptedException {
 		// Make sure, we leave this method with an InterruptedException when the task has been canceled
-		if (this.executionObserver.isCanceled()) {
+		if (this.owner.isCanceledOrFailed()) {
 			return;
 		}
 
@@ -487,10 +449,10 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 	 */
 	private void waitForInputChannelsToBeClosed() throws IOException, InterruptedException {
 		// Wait for disconnection of all output gates
-		while (!canceled) {
+		while (!canceled.get()) {
 
 			// Make sure, we leave this method with an InterruptedException when the task has been canceled
-			if (this.executionObserver.isCanceled()) {
+			if (this.owner.isCanceledOrFailed()) {
 				throw new InterruptedException();
 			}
 
@@ -554,60 +516,22 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 
 	@Override
 	public int getCurrentNumberOfSubtasks() {
-		return this.currentNumberOfSubtasks;
+		return owner.getNumberOfSubtasks();
 	}
 
 	@Override
 	public int getIndexInSubtaskGroup() {
-		return this.indexInSubtaskGroup;
-	}
-
-	private void changeExecutionState(final ExecutionState newExecutionState, final String optionalMessage) {
-		if (this.executionObserver != null) {
-			this.executionObserver.executionStateChanged(newExecutionState, optionalMessage);
-		}
+		return owner.getSubtaskIndex();
 	}
 
 	@Override
 	public String getTaskName() {
-		return this.taskName;
-	}
-
-	/**
-	 * Returns the name of the task with its index in the subtask group and the total number of subtasks.
-	 *
-	 * @return the name of the task with its index in the subtask group and the total number of subtasks
-	 */
-	public String getTaskNameWithIndex() {
-		return String.format("%s (%d/%d)", this.taskName, getIndexInSubtaskGroup() + 1, getCurrentNumberOfSubtasks());
-	}
-
-	/**
-	 * Sets the execution observer for this environment.
-	 *
-	 * @param executionObserver the execution observer for this environment
-	 */
-	public void setExecutionObserver(final ExecutionObserver executionObserver) {
-		this.executionObserver = executionObserver;
+		return owner.getTaskName();
 	}
 
 	@Override
 	public InputSplitProvider getInputSplitProvider() {
 		return this.inputSplitProvider;
-	}
-
-	@Override
-	public void userThreadStarted(final Thread userThread) {
-		if (this.executionObserver != null) {
-			this.executionObserver.userThreadStarted(userThread);
-		}
-	}
-
-	@Override
-	public void userThreadFinished(final Thread userThread) {
-		if (this.executionObserver != null) {
-			this.executionObserver.userThreadFinished(userThread);
-		}
 	}
 
 	/**
@@ -742,6 +666,15 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 		return accumulatorProtocolProxy;
 	}
 
+	@Override
+	public ClassLoader getUserClassLoader() {
+		return userCodeClassLoader;
+	}
+
+	public void addCopyTasksForCacheFile(Map<String, FutureTask<Path>> copyTasks) {
+		this.cacheCopyTasks.putAll(copyTasks);
+	}
+	
 	public void addCopyTaskForCacheFile(String name, FutureTask<Path> copyTask) {
 		this.cacheCopyTasks.put(name, copyTask);
 	}
@@ -809,7 +742,7 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 	@Override
 	public void logBufferUtilization() {
 		LOG.info(String.format("\t%s: %d available, %d requested, %d designated",
-				getTaskNameWithIndex(),
+				owner.getTaskNameWithSubtasks(),
 				this.outputBufferPool.numAvailableBuffers(),
 				this.outputBufferPool.numRequestedBuffers(),
 				this.outputBufferPool.numDesignatedBuffers()));

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,6 +21,7 @@ package org.apache.flink.runtime;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Random;
 
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
@@ -32,13 +33,19 @@ import io.netty.buffer.ByteBuf;
 /**
  * A statistically unique identification number.
  */
-public class AbstractID implements IOReadableWritable {
+public class AbstractID implements IOReadableWritable, Comparable<AbstractID>, java.io.Serializable {
+
+	private static final long serialVersionUID = 1L;
+	
+	private static final Random RND = new Random();
+	
 
 	/** The size of a long in bytes */
 	private static final int SIZE_OF_LONG = 8;
 
 	/** The size of the ID in byte */
 	public static final int SIZE = 2 * SIZE_OF_LONG;
+	
 
 	/** The upper part of the actual ID */
 	private long upperPart;
@@ -46,11 +53,13 @@ public class AbstractID implements IOReadableWritable {
 	/** The lower part of the actual ID */
 	private long lowerPart;
 
+	// --------------------------------------------------------------------------------------------
+	
 	/**
 	 * Constructs a new ID with a specific bytes value.
 	 */
 	public AbstractID(byte[] bytes) {
-		if (bytes.length != SIZE) {
+		if (bytes == null || bytes.length != SIZE) {
 			throw new IllegalArgumentException("Argument bytes must by an array of " + SIZE + " bytes");
 		}
 
@@ -78,6 +87,9 @@ public class AbstractID implements IOReadableWritable {
 	 * @param id the abstract ID to copy
 	 */
 	public AbstractID(AbstractID id) {
+		if (id == null) {
+			throw new IllegalArgumentException("Id must not be null.");
+		}
 		this.lowerPart = id.lowerPart;
 		this.upperPart = id.upperPart;
 	}
@@ -86,18 +98,21 @@ public class AbstractID implements IOReadableWritable {
 	 * Constructs a new random ID from a uniform distribution.
 	 */
 	public AbstractID() {
-		this.lowerPart = generateRandomLong();
-		this.upperPart = generateRandomLong();
+		this.lowerPart = RND.nextLong();
+		this.upperPart = RND.nextLong();
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	public long getLowerPart() {
+		return lowerPart;
+	}
+	
+	public long getUpperPart() {
+		return upperPart;
 	}
 
-	/**
-	 * Generates a uniformly distributed random positive long.
-	 *
-	 * @return a uniformly distributed random positive long
-	 */
-	protected static long generateRandomLong() {
-		return (long) (Math.random() * Long.MAX_VALUE);
-	}
+	// --------------------------------------------------------------------------------------------
 
 	/**
 	 * Converts the given byte array to a long.
@@ -129,34 +144,8 @@ public class AbstractID implements IOReadableWritable {
 			ba[offset + SIZE_OF_LONG - 1 - i] = (byte) ((l & (0xffL << shift)) >>> shift);
 		}
 	}
-
-	/**
-	 * Sets an ID from another ID by copying its internal byte representation.
-	 *
-	 * @param src source ID
-	 */
-	public void setID(AbstractID src) {
-		this.lowerPart = src.lowerPart;
-		this.upperPart = src.upperPart;
-	}
-
-	@Override
-	public boolean equals(Object obj) {
-		if (obj != null && obj instanceof AbstractID) {
-			AbstractID src = (AbstractID) obj;
-			return src.lowerPart == this.lowerPart && src.upperPart == this.upperPart;
-		} else {
-			return false;
-		}
-	}
-
-	@Override
-	public int hashCode() {
-		return ((int)  this.lowerPart) ^
-				((int) (this.lowerPart >>> 32)) ^
-				((int)  this.upperPart) ^
-				((int) (this.upperPart >>> 32));
-	}
+	
+	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public void read(DataInputView in) throws IOException {
@@ -180,11 +169,38 @@ public class AbstractID implements IOReadableWritable {
 		buf.writeLong(this.upperPart);
 	}
 
+	// --------------------------------------------------------------------------------------------
+	
+	@Override
+	public boolean equals(Object obj) {
+		if (obj != null && obj instanceof AbstractID) {
+			AbstractID src = (AbstractID) obj;
+			return src.lowerPart == this.lowerPart && src.upperPart == this.upperPart;
+		} else {
+			return false;
+		}
+	}
+
+	@Override
+	public int hashCode() {
+		return ((int)  this.lowerPart) ^
+				((int) (this.lowerPart >>> 32)) ^
+				((int)  this.upperPart) ^
+				((int) (this.upperPart >>> 32));
+	}
+	
 	@Override
 	public String toString() {
 		final byte[] ba = new byte[SIZE];
 		longToByteArray(this.lowerPart, ba, 0);
 		longToByteArray(this.upperPart, ba, SIZE_OF_LONG);
 		return StringUtils.byteToHexString(ba);
+	}
+	
+	@Override
+	public int compareTo(AbstractID o) {
+		int diff1 = (this.upperPart < o.upperPart) ? -1 : ((this.upperPart == o.upperPart) ? 0 : 1);
+		int diff2 = (this.lowerPart < o.lowerPart) ? -1 : ((this.lowerPart == o.lowerPart) ? 0 : 1);
+		return diff1 == 0 ? diff2 : diff1;
 	}
 }

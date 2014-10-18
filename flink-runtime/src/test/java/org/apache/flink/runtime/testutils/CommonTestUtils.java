@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,6 +27,8 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -35,8 +37,7 @@ import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
 import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
 
 /**
- * This class contains auxiliary methods for unit tests in the Nephele common module.
- * 
+ * This class contains auxiliary methods for unit tests.
  */
 public class CommonTestUtils {
 
@@ -82,7 +83,6 @@ public class CommonTestUtils {
 	 * @return the path to the directory for temporary files
 	 */
 	public static String getTempDir() {
-
 		return GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
 			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(File.pathSeparator)[0];
 	}
@@ -98,7 +98,7 @@ public class CommonTestUtils {
 	 *         thrown if an error occurs while creating the copy of the object
 	 */
 	@SuppressWarnings("unchecked")
-	public static <T extends IOReadableWritable> T createCopy(final T original) throws IOException {
+	public static <T extends IOReadableWritable> T createCopyWritable(final T original) throws IOException {
 
 		final ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		final DataOutputStream dos = new DataOutputStream(baos);
@@ -106,9 +106,6 @@ public class CommonTestUtils {
 		original.write(new OutputViewDataOutputStreamWrapper(dos));
 
 		final String className = original.getClass().getName();
-		if (className == null) {
-			fail("Class name is null");
-		}
 
 		Class<T> clazz = null;
 
@@ -118,28 +115,68 @@ public class CommonTestUtils {
 			fail(e.getMessage());
 		}
 
-		if (clazz == null) {
-			fail("Cannot find class with name " + className);
-		}
-
 		T copy = null;
 		try {
 			copy = clazz.newInstance();
-		} catch (InstantiationException e) {
-			fail(e.getMessage());
-		} catch (IllegalAccessException e) {
-			fail(e.getMessage());
-		}
-
-		if (copy == null) {
-			fail("Copy of object of type " + className + " is null");
+		} catch (Throwable t) {
+			t.printStackTrace();
+			fail(t.getMessage());
 		}
 
 		final ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
 		final DataInputStream dis = new DataInputStream(bais);
 
 		copy.read(new InputViewDataInputStreamWrapper(dis));
+		if (dis.available() > 0) {
+			throw new IOException("The coped result was not fully consumed.");
+		}
 
 		return copy;
+	}
+	
+	@SuppressWarnings("unchecked")
+	public static <T extends java.io.Serializable> T createCopySerializable(T original) throws IOException {
+		if (original == null) {
+			throw new IllegalArgumentException();
+		}
+		
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		ObjectOutputStream oos = new ObjectOutputStream(baos);
+		oos.writeObject(original);
+		oos.close();
+		baos.close();
+		
+		ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
+		ObjectInputStream ois = new ObjectInputStream(bais);
+		
+		T copy;
+		try {
+			copy = (T) ois.readObject();
+		}
+		catch (ClassNotFoundException e) {
+			throw new IOException(e);
+		}
+		
+		ois.close();
+		bais.close();
+		
+		return copy;
+	}
+	
+	
+	public static void sleepUninterruptibly(long msecs) {
+		
+		long now = System.currentTimeMillis();
+		long sleepUntil = now + msecs;
+		long remaining;
+		
+		while ((remaining = sleepUntil - now) > 0) {
+			try {
+				Thread.sleep(remaining);
+			}
+			catch (InterruptedException e) {}
+			
+			now = System.currentTimeMillis();
+		}
 	}
 }

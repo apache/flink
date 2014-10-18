@@ -1,4 +1,4 @@
- /**
+ /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,7 +22,10 @@ package org.apache.flink.api.java.typeutils;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.apache.flink.types.TypeInformation;
+import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.types.Value;
 
 
@@ -84,7 +87,7 @@ public class TypeInfoParser {
 			}
 			return (TypeInformation<X>) parse(new StringBuilder(clearedString));
 		} catch (Exception e) {
-			throw new IllegalArgumentException("String could not be parsed: " + e.getMessage());
+			throw new IllegalArgumentException("String could not be parsed: " + e.getMessage(), e);
 		}
 	}
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -18,15 +18,15 @@
 package org.apache.flink.streaming.connectors.rabbitmq;
 
 import org.apache.commons.lang.SerializationUtils;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
 import org.apache.flink.streaming.connectors.kafka.KafkaTopology;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class RMQTopology {
-	private static final Log LOG = LogFactory.getLog(KafkaTopology.class);
+	private static final Logger LOG = LoggerFactory.getLogger(KafkaTopology.class);
 	
 	public static final class MyRMQSink extends RMQSink<String> {
 		public MyRMQSink(String HOST_NAME, String QUEUE_NAME) {
@@ -50,8 +50,9 @@ public class RMQTopology {
 
 		@Override
 		public void invoke(String value) {
-			LOG.info("String: <" + value + "> arrived from RMQ");
-			
+			if (LOG.isInfoEnabled()) {
+				LOG.info("String: <{}> arrived from RMQ", value);
+			}
 		}
 		
 	}

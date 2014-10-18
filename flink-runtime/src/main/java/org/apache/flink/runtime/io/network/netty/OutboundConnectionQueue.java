@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,125 +23,50 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
-import io.netty.handler.timeout.IdleStateEvent;
-import io.netty.handler.timeout.IdleStateHandler;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.flink.runtime.io.network.Envelope;
-import org.apache.flink.runtime.io.network.NetworkConnectionManager;
-import org.apache.flink.runtime.io.network.RemoteReceiver;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayDeque;
-import java.util.Queue;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
-public class OutboundConnectionQueue extends ChannelInboundHandlerAdapter {
+public class OutboundConnectionQueue extends ChannelInboundHandlerAdapter implements ChannelFutureListener {
 
-	private static enum QueueEvent {
-		TRIGGER_WRITE
-	}
-
-	private static final Log LOG = LogFactory.getLog(OutboundConnectionQueue.class);
-
-	private final ChannelWriteListener writeListener = new ChannelWriteListener();
+	private static final Logger LOG = LoggerFactory.getLogger(OutboundConnectionQueue.class);
 
 	private final Channel channel;
 
-	private final Queue<Envelope> queuedEnvelopes = new ArrayDeque<Envelope>();
+	private final ArrayDeque<Envelope> queuedEnvelopes = new ArrayDeque<Envelope>();
 
-	private final RemoteReceiver receiver;
+	private final AtomicInteger numQueuedEnvelopes = new AtomicInteger(0);
 
-	private final NetworkConnectionManager connectionManager;
-
-	// Flag to indicate whether a channel close was requested. This flag is true,
-	// iff there are no queued envelopes, when the channel is idling. After a
-	// successful close request, enqueue should return false.
-	private boolean hasRequestedClose = false;
-
-	public OutboundConnectionQueue(
-			Channel channel,
-			RemoteReceiver receiver,
-			NetworkConnectionManager connectionManager,
-			int closeAfterIdleForMs) {
-
+	public OutboundConnectionQueue(Channel channel) {
 		this.channel = channel;
-		this.receiver = receiver;
-		this.connectionManager = connectionManager;
 
-		channel.pipeline().addFirst("Outbound Connection Queue", this);
-		channel.pipeline().addFirst("Idle State Handler",
-				new IdleStateHandler(0, 0, closeAfterIdleForMs, TimeUnit.MILLISECONDS));
+		channel.pipeline().addFirst(this);
 	}
 
 	/**
-	 * Enqueues an envelope to be sent.
+	 * Enqueues an envelope to be sent later.
 	 * <p/>
 	 * This method is always invoked by the task thread that wants the envelope sent.
-	 * <p/>
-	 * If this method returns <code>false</code>, the channel cannot be used to enqueue
-	 * envelopes any more and the caller needs to establish a new connection to the target.
-	 * The current envelope needs to be enqueued at the new channel.
 	 *
-	 * @param env the envelope to be sent
-	 * @return true, if successfully enqueued or false, if the channel was requested to be closed
+	 * @param env The envelope to be sent.
 	 */
-	public boolean enqueue(Envelope env) {
-		boolean triggerWrite;
-
-		synchronized (channel) {
-			if (hasRequestedClose) {
-				// The caller has to ensure that the envelope gets queued to
-				// a new channel.
-				return false;
-			}
-
-			// Initiate envelope processing, after the queue state has
-			// changed from empty to non-empty.
-			triggerWrite = queuedEnvelopes.isEmpty();
-
-			queuedEnvelopes.add(env);
-		}
-
-		if (triggerWrite) {
-			channel.pipeline().fireUserEventTriggered(QueueEvent.TRIGGER_WRITE);
-		}
-
-		return true;
+	public void enqueue(Envelope env) {
+		// the user event trigger ensure thread-safe hand-over of the envelope
+		this.channel.pipeline().fireUserEventTriggered(env);
 	}
 
 	@Override
-	public void userEventTriggered(ChannelHandlerContext ctx, Object event) throws Exception {
-		if (event.getClass() == QueueEvent.class) {
-			// Initiate envelope processing, after the queue state has
-			// changed from empty to non-empty.
+	public void userEventTriggered(ChannelHandlerContext ctx, Object envelopeToEnqueue) throws Exception {
+		boolean triggerWrite = this.queuedEnvelopes.isEmpty();
+
+		this.queuedEnvelopes.addLast((Envelope) envelopeToEnqueue);
+		this.numQueuedEnvelopes.incrementAndGet();
+
+		if (triggerWrite) {
 			writeAndFlushNextEnvelopeIfPossible();
-		}
-		else if (event.getClass() == IdleStateEvent.class) {
-			// Channel idle => try to close
-			boolean closeConnection = false;
-
-			// Only close the connection, if there are no queued envelopes. We have
-			// to ensure that there is no race between closing the channel and
-			// enqueuing a new envelope.
-			synchronized (channel) {
-				if (queuedEnvelopes.isEmpty() && !hasRequestedClose) {
-
-					hasRequestedClose = true;
-
-					closeConnection = true;
-
-					// Notify the connection manager that this channel has been
-					// closed.
-					connectionManager.close(receiver);
-				}
-			}
-
-			if (closeConnection) {
-				ctx.close().addListener(new ChannelCloseListener());
-			}
-		}
-		else {
-			throw new IllegalStateException("Triggered unknown event.");
 		}
 	}
 
@@ -150,10 +75,21 @@ public class OutboundConnectionQueue extends ChannelInboundHandlerAdapter {
 		writeAndFlushNextEnvelopeIfPossible();
 	}
 
-	public int getNumQueuedEnvelopes() {
-		synchronized (channel) {
-			return queuedEnvelopes.size();
+	@Override
+	public void operationComplete(ChannelFuture future) throws Exception {
+		if (future.isSuccess()) {
+			writeAndFlushNextEnvelopeIfPossible();
 		}
+		else if (future.cause() != null) {
+			exceptionOccurred(future.cause());
+		}
+		else {
+			exceptionOccurred(new Exception("Envelope send aborted."));
+		}
+	}
+
+	public int getNumQueuedEnvelopes() {
+		return this.numQueuedEnvelopes.intValue();
 	}
 
 	@Override
@@ -162,48 +98,16 @@ public class OutboundConnectionQueue extends ChannelInboundHandlerAdapter {
 	}
 
 	private void writeAndFlushNextEnvelopeIfPossible() {
-		Envelope nextEnvelope = null;
+		if (this.channel.isWritable() && !this.queuedEnvelopes.isEmpty()) {
+			Envelope nextEnvelope = this.queuedEnvelopes.pollFirst();
+			this.numQueuedEnvelopes.decrementAndGet();
 
-		synchronized (channel) {
-			if (channel.isWritable() && !queuedEnvelopes.isEmpty()) {
-				nextEnvelope = queuedEnvelopes.poll();
-			}
-		}
-
-		if (nextEnvelope != null) {
-			channel.writeAndFlush(nextEnvelope).addListener(writeListener);
-		}
-	}
-
-	private class ChannelWriteListener implements ChannelFutureListener {
-
-		@Override
-		public void operationComplete(ChannelFuture future) throws Exception {
-			if (future.isSuccess()) {
-				writeAndFlushNextEnvelopeIfPossible();
-			}
-			else {
-				exceptionOccurred(future.cause() == null
-						? new Exception("Envelope send aborted.")
-						: future.cause());
-			}
-		}
-	}
-
-	private class ChannelCloseListener implements ChannelFutureListener {
-
-		@Override
-		public void operationComplete(ChannelFuture future) throws Exception {
-			if (!future.isSuccess()) {
-				exceptionOccurred(future.cause() == null
-						? new Exception("Close failed.")
-						: future.cause());
-			}
+			this.channel.writeAndFlush(nextEnvelope).addListener(this);
 		}
 	}
 
 	private void exceptionOccurred(Throwable t) throws Exception {
-		LOG.error(String.format("Exception in Channel %s: %s", channel, t.getMessage()));
+		LOG.error("An exception occurred in Channel {}: {}", channel, t.getMessage());
 		throw new Exception(t);
 	}
 }

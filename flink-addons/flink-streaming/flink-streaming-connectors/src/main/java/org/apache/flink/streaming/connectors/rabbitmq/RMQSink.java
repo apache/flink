@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -19,8 +19,8 @@ package org.apache.flink.streaming.connectors.rabbitmq;
 
 import java.io.IOException;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
 
 import com.rabbitmq.client.Channel;
@@ -30,7 +30,7 @@ import com.rabbitmq.client.ConnectionFactory;
 public abstract class RMQSink<IN> implements SinkFunction<IN> {
 	private static final long serialVersionUID = 1L;
 
-	private static final Log LOG = LogFactory.getLog(RMQSink.class);
+	private static final Logger LOG = LoggerFactory.getLogger(RMQSink.class);
 
 	private boolean sendAndClose = false;
 	private boolean closeWithoutSend = false;
@@ -84,7 +84,7 @@ public abstract class RMQSink<IN> implements SinkFunction<IN> {
 			}
 		} catch (IOException e) {
 			if (LOG.isErrorEnabled()) {
-				LOG.error("Cannot send RMQ message " + QUEUE_NAME + " at " + HOST_NAME);
+				LOG.error("Cannot send RMQ message {} at {}", QUEUE_NAME, HOST_NAME);
 			}
 		}
 

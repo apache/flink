@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.event.job;
 
 import java.io.IOException;
@@ -24,23 +23,24 @@ import java.io.IOException;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.managementgraph.ManagementVertexID;
-import org.apache.flink.runtime.util.EnumUtils;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+
+import com.google.common.base.Preconditions;
 
 /**
- * An {@link ExecutionStateChangeEvent} can be used to notify other objects about an execution state change of a vertex.
- * 
+ * An ecutionStateChangeEvent can be used to notify other objects about an execution state change of a vertex. 
  */
 public final class ExecutionStateChangeEvent extends AbstractEvent implements ManagementEvent {
 
-	/**
-	 * The ID identifies the vertex this events refers to.
-	 */
-	private ManagementVertexID managementVertexID;
+	private static final long serialVersionUID = 1L;
 
-	/**
-	 * The new execution state of the vertex this event refers to.
-	 */
+	private JobVertexID vertexId;
+	
+	private int subtask;
+	
+	private ExecutionAttemptID executionAttemptId;
+
 	private ExecutionState newExecutionState;
 
 	/**
@@ -48,15 +48,24 @@ public final class ExecutionStateChangeEvent extends AbstractEvent implements Ma
 	 * 
 	 * @param timestamp
 	 *        the timestamp of the event
-	 * @param managementVertexID
+	 * @param executionAttemptId
 	 *        identifies the vertex this event refers to
 	 * @param newExecutionState
 	 *        the new execution state of the vertex this event refers to
 	 */
-	public ExecutionStateChangeEvent(final long timestamp, final ManagementVertexID managementVertexID,
-			final ExecutionState newExecutionState) {
+	public ExecutionStateChangeEvent(long timestamp, JobVertexID vertexId, int subtask,
+			ExecutionAttemptID executionAttemptId, ExecutionState newExecutionState)
+	{
 		super(timestamp);
-		this.managementVertexID = managementVertexID;
+		
+		Preconditions.checkNotNull(vertexId);
+		Preconditions.checkArgument(subtask >= 0);
+		Preconditions.checkNotNull(executionAttemptId);
+		Preconditions.checkNotNull(newExecutionState);
+		
+		this.vertexId = vertexId;
+		this.subtask = subtask;
+		this.executionAttemptId = executionAttemptId;
 		this.newExecutionState = newExecutionState;
 	}
 
@@ -68,17 +77,28 @@ public final class ExecutionStateChangeEvent extends AbstractEvent implements Ma
 	public ExecutionStateChangeEvent() {
 		super();
 
-		this.managementVertexID = new ManagementVertexID();
+		this.vertexId = new JobVertexID();
+		this.executionAttemptId = new ExecutionAttemptID();
 		this.newExecutionState = ExecutionState.CREATED;
 	}
 
+	// --------------------------------------------------------------------------------------------
+	
+	public JobVertexID getVertexId() {
+		return vertexId;
+	}
+	
+	public int getSubtaskIndex() {
+		return subtask;
+	}
+	
 	/**
 	 * Returns the ID of the vertex this event refers to.
 	 * 
 	 * @return the ID of the vertex this event refers to
 	 */
-	public ManagementVertexID getVertexID() {
-		return this.managementVertexID;
+	public ExecutionAttemptID getExecutionAttemptID() {
+		return this.executionAttemptId;
 	}
 
 	/**
@@ -90,62 +110,53 @@ public final class ExecutionStateChangeEvent extends AbstractEvent implements Ma
 		return this.newExecutionState;
 	}
 
-
+	// --------------------------------------------------------------------------------------------
+	
 	@Override
-	public void read(final DataInputView in) throws IOException {
-
+	public void read(DataInputView in) throws IOException {
 		super.read(in);
-
-		this.managementVertexID.read(in);
-		this.newExecutionState = EnumUtils.readEnum(in, ExecutionState.class);
+		this.vertexId.read(in);
+		this.executionAttemptId.read(in);
+		this.subtask = in.readInt();
+		this.newExecutionState = ExecutionState.values()[in.readInt()];
 	}
 
 
 	@Override
-	public void write(final DataOutputView out) throws IOException {
-
+	public void write(DataOutputView out) throws IOException {
 		super.write(out);
-
-		this.managementVertexID.write(out);
-		EnumUtils.writeEnum(out, this.newExecutionState);
+		this.vertexId.write(out);
+		this.executionAttemptId.write(out);
+		out.writeInt(subtask);
+		out.writeInt(this.newExecutionState.ordinal());
 	}
 
-
+	// --------------------------------------------------------------------------------------------
+	
 	@Override
-	public boolean equals(final Object obj) {
-
-		if (!super.equals(obj)) {
+	public boolean equals(Object obj) {
+		if (obj instanceof ExecutionStateChangeEvent) {
+			ExecutionStateChangeEvent other = (ExecutionStateChangeEvent) obj;
+			
+			return other.newExecutionState == this.newExecutionState &&
+					other.executionAttemptId.equals(this.executionAttemptId) &&
+					super.equals(obj);
+			
+		} else {
 			return false;
 		}
-
-		if (!(obj instanceof ExecutionStateChangeEvent)) {
-			return false;
-		}
-
-		ExecutionStateChangeEvent stateChangeEvent = (ExecutionStateChangeEvent) obj;
-		if (!stateChangeEvent.getNewExecutionState().equals(this.newExecutionState)) {
-			return false;
-		}
-
-		if (!stateChangeEvent.getVertexID().equals(this.managementVertexID)) {
-			return false;
-		}
-
-		return true;
 	}
-
 
 	@Override
 	public int hashCode() {
-
-		if (this.newExecutionState != null) {
-			return this.newExecutionState.hashCode();
-		}
-
-		if (this.managementVertexID != null) {
-			return this.managementVertexID.hashCode();
-		}
-
-		return super.hashCode();
+		return super.hashCode() ^ 
+				(127 * newExecutionState.ordinal()) ^ 
+				this.executionAttemptId.hashCode();
+	}
+	
+	@Override
+	public String toString() {
+		return String.format("ExecutionStateChangeEvent %d at %d , executionAttempt=%s, newState=%s", getSequenceNumber(), getTimestamp(),
+				executionAttemptId, newExecutionState);
 	}
 }

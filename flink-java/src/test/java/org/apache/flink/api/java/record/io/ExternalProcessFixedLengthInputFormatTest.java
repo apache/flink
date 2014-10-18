@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,7 +22,7 @@ package org.apache.flink.api.java.record.io;
 import java.io.IOException;
 
 import org.junit.Assert;
-
+import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.api.java.record.io.ExternalProcessFixedLengthInputFormat;
 import org.apache.flink.api.java.record.io.ExternalProcessInputFormat;
@@ -286,8 +286,8 @@ private ExternalProcessFixedLengthInputFormat<ExternalProcessInputSplit> format;
 		}
 
 		@Override
-		public Class<GenericInputSplit> getInputSplitType() {
-			return GenericInputSplit.class;
+		public DefaultInputSplitAssigner getInputSplitAssigner(GenericInputSplit[] splits) {
+			return new DefaultInputSplitAssigner(splits);
 		}
 
 		@Override

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -34,66 +34,66 @@ import org.apache.flink.runtime.operators.chaining.SynchronousChainedCombineDriv
  */
 public enum DriverStrategy {
 	// no local strategy, as for sources and sinks
-	NONE(null, null, PIPELINED, false),
+	NONE(null, null, PIPELINED, 0),
 	// a unary no-op operator
-	UNARY_NO_OP(NoOpDriver.class, null, PIPELINED, PIPELINED, false),
+	UNARY_NO_OP(NoOpDriver.class, null, PIPELINED, PIPELINED, 0),
 	// a binary no-op operator. non implementation available
-	BINARY_NO_OP(null, null, PIPELINED, PIPELINED, false),
+	BINARY_NO_OP(null, null, PIPELINED, PIPELINED, 0),
 
 	// the old mapper
-	COLLECTOR_MAP(CollectorMapDriver.class, ChainedCollectorMapDriver.class, PIPELINED, false),
+	COLLECTOR_MAP(CollectorMapDriver.class, ChainedCollectorMapDriver.class, PIPELINED, 0),
 	// the proper mapper
-	MAP(MapDriver.class, ChainedMapDriver.class, PIPELINED, false),
+	MAP(MapDriver.class, ChainedMapDriver.class, PIPELINED, 0),
 
 	// the proper map partition
-	MAP_PARTITION(MapPartitionDriver.class, null, PIPELINED, false),
+	MAP_PARTITION(MapPartitionDriver.class, null, PIPELINED, 0),
 
 	// the flat mapper
-	FLAT_MAP(FlatMapDriver.class, ChainedFlatMapDriver.class, PIPELINED, false),
+	FLAT_MAP(FlatMapDriver.class, ChainedFlatMapDriver.class, PIPELINED, 0),
 
 	// group everything together into one group and apply the Reduce function
-	ALL_REDUCE(AllReduceDriver.class, null, PIPELINED, false),
+	ALL_REDUCE(AllReduceDriver.class, null, PIPELINED, 0),
 	// group everything together into one group and apply the GroupReduce function
-	ALL_GROUP_REDUCE(AllGroupReduceDriver.class, null, PIPELINED, false),
+	ALL_GROUP_REDUCE(AllGroupReduceDriver.class, null, PIPELINED, 0),
 	// group everything together into one group and apply the GroupReduce's combine function
-	ALL_GROUP_COMBINE(AllGroupReduceDriver.class, null, PIPELINED, false),
+	ALL_GROUP_COMBINE(AllGroupReduceDriver.class, null, PIPELINED, 0),
 
 	// grouping the inputs and apply the Reduce Function
-	SORTED_REDUCE(ReduceDriver.class, null, PIPELINED, true),
+	SORTED_REDUCE(ReduceDriver.class, null, PIPELINED, 1),
 	// sorted partial reduce is the combiner for the Reduce. same function, but potentially not fully sorted
-	SORTED_PARTIAL_REDUCE(ReduceCombineDriver.class, null, MATERIALIZING, true),
+	SORTED_PARTIAL_REDUCE(ReduceCombineDriver.class, null, MATERIALIZING, 1),
 	
 	// grouping the inputs and apply the GroupReduce function
-	SORTED_GROUP_REDUCE(GroupReduceDriver.class, null, PIPELINED, true),
+	SORTED_GROUP_REDUCE(GroupReduceDriver.class, null, PIPELINED, 1),
 	// partially grouping inputs (best effort resulting possibly in duplicates --> combiner)
-	SORTED_GROUP_COMBINE(GroupReduceCombineDriver.class, SynchronousChainedCombineDriver.class, MATERIALIZING, true),
+	SORTED_GROUP_COMBINE(GroupReduceCombineDriver.class, SynchronousChainedCombineDriver.class, MATERIALIZING, 2),
 
 	// both inputs are merged, but materialized to the side for block-nested-loop-join among values with equal key
-	MERGE(MatchDriver.class, null, MATERIALIZING, MATERIALIZING, true),
+	MERGE(MatchDriver.class, null, MATERIALIZING, MATERIALIZING, 2),
 
 	// co-grouping inputs
-	CO_GROUP(CoGroupDriver.class, null, PIPELINED, PIPELINED, true),
+	CO_GROUP(CoGroupDriver.class, null, PIPELINED, PIPELINED, 2),
 	
 	// the first input is build side, the second side is probe side of a hybrid hash table
-	HYBRIDHASH_BUILD_FIRST(MatchDriver.class, null, FULL_DAM, MATERIALIZING, true),
+	HYBRIDHASH_BUILD_FIRST(MatchDriver.class, null, FULL_DAM, MATERIALIZING, 2),
 	// the second input is build side, the first side is probe side of a hybrid hash table
-	HYBRIDHASH_BUILD_SECOND(MatchDriver.class, null, MATERIALIZING, FULL_DAM, true),
+	HYBRIDHASH_BUILD_SECOND(MatchDriver.class, null, MATERIALIZING, FULL_DAM, 2),
 	// a cached variant of HYBRIDHASH_BUILD_FIRST, that can only be used inside of iterations
-	HYBRIDHASH_BUILD_FIRST_CACHED(BuildFirstCachedMatchDriver.class, null, FULL_DAM, MATERIALIZING, true),
+	HYBRIDHASH_BUILD_FIRST_CACHED(BuildFirstCachedMatchDriver.class, null, FULL_DAM, MATERIALIZING, 2),
 	//  cached variant of HYBRIDHASH_BUILD_SECOND, that can only be used inside of iterations
-	HYBRIDHASH_BUILD_SECOND_CACHED(BuildSecondCachedMatchDriver.class, null, MATERIALIZING, FULL_DAM, true),
+	HYBRIDHASH_BUILD_SECOND_CACHED(BuildSecondCachedMatchDriver.class, null, MATERIALIZING, FULL_DAM, 2),
 	
 	// the second input is inner loop, the first input is outer loop and block-wise processed
-	NESTEDLOOP_BLOCKED_OUTER_FIRST(CrossDriver.class, null, MATERIALIZING, FULL_DAM, false),
+	NESTEDLOOP_BLOCKED_OUTER_FIRST(CrossDriver.class, null, MATERIALIZING, FULL_DAM, 0),
 	// the first input is inner loop, the second input is outer loop and block-wise processed
-	NESTEDLOOP_BLOCKED_OUTER_SECOND(CrossDriver.class, null, FULL_DAM, MATERIALIZING, false),
+	NESTEDLOOP_BLOCKED_OUTER_SECOND(CrossDriver.class, null, FULL_DAM, MATERIALIZING, 0),
 	// the second input is inner loop, the first input is outer loop and stream-processed
-	NESTEDLOOP_STREAMED_OUTER_FIRST(CrossDriver.class, null, PIPELINED, FULL_DAM, false),
+	NESTEDLOOP_STREAMED_OUTER_FIRST(CrossDriver.class, null, PIPELINED, FULL_DAM, 0),
 	// the first input is inner loop, the second input is outer loop and stream-processed
-	NESTEDLOOP_STREAMED_OUTER_SECOND(CrossDriver.class, null, FULL_DAM, PIPELINED, false),
+	NESTEDLOOP_STREAMED_OUTER_SECOND(CrossDriver.class, null, FULL_DAM, PIPELINED, 0),
 	
 	// union utility op. unions happen implicitly on the network layer (in the readers) when bundeling streams
-	UNION(null, null, FULL_DAM, FULL_DAM, false);
+	UNION(null, null, FULL_DAM, FULL_DAM, 0);
 	// explicit binary union between a streamed and a cached input
 //	UNION_WITH_CACHED(UnionWithTempOperator.class, null, FULL_DAM, PIPELINED, false);
 	
@@ -108,35 +108,35 @@ public enum DriverStrategy {
 	
 	private final int numInputs;
 	
-	private final boolean requiresComparator;
+	private final int numRequiredComparators;
 	
 
 	@SuppressWarnings("unchecked")
 	private DriverStrategy(
 			@SuppressWarnings("rawtypes") Class<? extends PactDriver> driverClass, 
 			@SuppressWarnings("rawtypes") Class<? extends ChainedDriver> pushChainDriverClass, 
-			DamBehavior dam, boolean comparator)
+			DamBehavior dam, int numComparator)
 	{
 		this.driverClass = (Class<? extends PactDriver<?, ?>>) driverClass;
 		this.pushChainDriver = (Class<? extends ChainedDriver<?, ?>>) pushChainDriverClass;
 		this.numInputs = 1;
 		this.dam1 = dam;
 		this.dam2 = null;
-		this.requiresComparator = comparator;
+		this.numRequiredComparators = numComparator;
 	}
 	
 	@SuppressWarnings("unchecked")
 	private DriverStrategy(
 			@SuppressWarnings("rawtypes") Class<? extends PactDriver> driverClass, 
 			@SuppressWarnings("rawtypes") Class<? extends ChainedDriver> pushChainDriverClass, 
-			DamBehavior firstDam, DamBehavior secondDam, boolean comparator)
+			DamBehavior firstDam, DamBehavior secondDam, int numComparator)
 	{
 		this.driverClass = (Class<? extends PactDriver<?, ?>>) driverClass;
 		this.pushChainDriver = (Class<? extends ChainedDriver<?, ?>>) pushChainDriverClass;
 		this.numInputs = 2;
 		this.dam1 = firstDam;
 		this.dam2 = secondDam;
-		this.requiresComparator = comparator;
+		this.numRequiredComparators = numComparator;
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -180,7 +180,7 @@ public enum DriverStrategy {
 		return this.dam1.isMaterializing() || (this.dam2 != null && this.dam2.isMaterializing());
 	}
 	
-	public boolean requiresComparator() {
-		return this.requiresComparator;
+	public int getNumRequiredComparators() {
+		return this.numRequiredComparators;
 	}
 }

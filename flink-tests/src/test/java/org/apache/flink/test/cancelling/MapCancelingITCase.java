@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.cancelling;
 
 //import org.junit.Test;
@@ -32,6 +31,7 @@ import org.apache.flink.test.recordJobs.util.InfiniteIntegerInputFormat;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 
+@SuppressWarnings("deprecation")
 public class MapCancelingITCase extends CancellingTestBase {
 	private static final int DOP = 4;
 

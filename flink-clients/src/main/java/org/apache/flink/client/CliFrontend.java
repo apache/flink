@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -541,7 +541,7 @@ public class CliFrontend {
 				if (running && rje.getJobStatus().equals(JobStatus.RUNNING)) {
 					runningJobs.add(rje);
 				}
-				if (scheduled && rje.getJobStatus().equals(JobStatus.SCHEDULED)) {
+				if (scheduled && rje.getJobStatus().equals(JobStatus.CREATED)) {
 					scheduledJobs.add(rje);
 				}
 			}

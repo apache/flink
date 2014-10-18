@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -40,12 +40,8 @@ import java.util.List;
 import org.apache.commons.io.FileUtils;
 import org.apache.flink.client.minicluster.NepheleMiniCluster;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.util.LogUtils;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.log4j.Level;
-import org.junit.After;
 import org.junit.Assert;
-import org.junit.Before;
 
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
@@ -57,7 +53,7 @@ public abstract class AbstractTestBase {
 
 	protected static final int DEFAULT_TASK_MANAGER_NUM_SLOTS = 1;
 
-	protected static final int DEFAULT_NUM_TASK_TRACKER = 1;
+	protected static final int DEFAULT_NUM_TASK_MANAGER = 1;
 
 	protected final Configuration config;
 	
@@ -67,14 +63,12 @@ public abstract class AbstractTestBase {
 
 	protected int taskManagerNumSlots = DEFAULT_TASK_MANAGER_NUM_SLOTS;
 
-	protected int numTaskTracker = DEFAULT_NUM_TASK_TRACKER;
+	protected int numTaskManager = DEFAULT_NUM_TASK_MANAGER;
 
 	public AbstractTestBase(Configuration config) {
 		verifyJvmOptions();
 		this.config = config;
 		this.tempFiles = new ArrayList<File>();
-
-		LogUtils.initializeDefaultConsoleLogger(Level.WARN);
 	}
 
 	private void verifyJvmOptions() {
@@ -86,18 +80,16 @@ public abstract class AbstractTestBase {
 	//  Local Test Cluster Life Cycle
 	// --------------------------------------------------------------------------------------------
 	
-	@Before
 	public void startCluster() throws Exception {
 		this.executor = new NepheleMiniCluster();
 		this.executor.setDefaultOverwriteFiles(true);
 		this.executor.setLazyMemoryAllocation(true);
 		this.executor.setMemorySize(TASK_MANAGER_MEMORY_SIZE);
 		this.executor.setTaskManagerNumSlots(taskManagerNumSlots);
-		this.executor.setNumTaskTracker(this.numTaskTracker);
+		this.executor.setNumTaskManager(this.numTaskManager);
 		this.executor.start();
 	}
-
-	@After
+	
 	public void stopCluster() throws Exception {
 		try {
 			if (this.executor != null) {
@@ -119,9 +111,9 @@ public abstract class AbstractTestBase {
 
 	public void setTaskManagerNumSlots(int taskManagerNumSlots) { this.taskManagerNumSlots = taskManagerNumSlots; }
 
-	public int getNumTaskTracker() { return numTaskTracker; }
+	public int getNumTaskManager() { return numTaskManager; }
 
-	public void setNumTaskTracker(int numTaskTracker) { this.numTaskTracker = numTaskTracker; }
+	public void setNumTaskManager(int numTaskManager) { this.numTaskManager = numTaskManager; }
 
 	
 	// --------------------------------------------------------------------------------------------

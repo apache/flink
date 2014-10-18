@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -20,7 +20,9 @@ package org.apache.flink.streaming.state;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
@@ -35,7 +37,7 @@ public class SlidingWindowStateTest {
 
 	@SuppressWarnings("unchecked")
 	@Test
-	public void test() {
+	public void basicSlidingWindowStateTest() {
 		SlidingWindowState<Integer> state = new SlidingWindowState<Integer>(SLIDING_BATCH_SIZE,
 				SLIDE_SIZE, UNIT);
 		state.pushBack(Arrays.asList(new StreamRecord<Integer>().setObject(0)));
@@ -64,6 +66,52 @@ public class SlidingWindowStateTest {
 			actualSet.add(iterator.next());
 		}
 		assertEquals(getExpectedSet(2, 4), actualSet);
+	}
+	
+	private final static int WINDOW_SIZE = 10;
+	private final static int WINDOW_SLIDE_SIZE = 4;
+	private static final int WINDOW_UNIT = 2;
+	
+	@SuppressWarnings("unchecked")
+	@Test
+	public void slidingWithGreaterUnit() {
+		SlidingWindowState<Integer> state = new SlidingWindowState<Integer>(WINDOW_SIZE,
+				WINDOW_SLIDE_SIZE, WINDOW_UNIT);
+		state.pushBack(new ArrayList<StreamRecord<Integer>>());
+		state.pushBack(Arrays.asList(new StreamRecord<Integer>().setObject(1)));
+		state.pushBack(new ArrayList<StreamRecord<Integer>>());
+		state.pushBack(Arrays.asList(new StreamRecord<Integer>().setObject(2), new StreamRecord<Integer>().setObject(3)));
+		state.pushBack(new ArrayList<StreamRecord<Integer>>());
+
+		SortedSet<Integer> actualSet = new TreeSet<Integer>();
+		SlidingWindowStateIterator<Integer> iterator = state.getIterator();
+		
+		iterator.hasNext();
+		iterator.hasNext();
+		while (iterator.hasNext()) {
+			iterator.hasNext();
+			iterator.hasNext();
+			actualSet.add(iterator.next());
+			iterator.hasNext();
+			iterator.hasNext();
+		}
+		
+		assertEquals(getExpectedSet(1, 3), actualSet);
+		actualSet.clear();
+		
+		Iterator<StreamRecord<Integer>> streamRecordIterator = state.getStreamRecordIterator();
+		
+		streamRecordIterator.hasNext();
+		streamRecordIterator.hasNext();
+		while (streamRecordIterator.hasNext()) {
+			streamRecordIterator.hasNext();
+			streamRecordIterator.hasNext();
+			actualSet.add(streamRecordIterator.next().getObject());
+			streamRecordIterator.hasNext();
+			streamRecordIterator.hasNext();
+		}
+		
+		assertEquals(getExpectedSet(1, 3), actualSet);
 	}
 
 	private SortedSet<Integer> getExpectedSet(int from, int to) {

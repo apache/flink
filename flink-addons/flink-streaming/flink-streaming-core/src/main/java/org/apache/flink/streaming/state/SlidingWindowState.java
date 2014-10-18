@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -52,6 +52,16 @@ public class SlidingWindowState<T> {
 		currentRecordCount += 1;
 	}
 
+	public void pushBack(Object value) {
+		buffer.add(value);
+		currentRecordCount += 1;
+	}
+
+	@SuppressWarnings("unchecked")
+	public Iterator<T> getBufferIterator() {
+		return buffer.iterator();
+	}
+
 	@SuppressWarnings("unchecked")
 	public List<StreamRecord<T>> popFront() {
 		List<StreamRecord<T>> frontRecord = (List<StreamRecord<T>>) buffer.get();
@@ -80,7 +90,7 @@ public class SlidingWindowState<T> {
 		}
 		return false;
 	}
-	
+
 	@Override
 	public String toString() {
 		return buffer.toString();

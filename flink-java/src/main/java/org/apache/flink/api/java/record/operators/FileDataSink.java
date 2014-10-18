@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,17 +27,24 @@ import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.FileDataSinkBase;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
+import org.apache.flink.api.common.typeinfo.NothingTypeInfo;
 import org.apache.flink.api.java.typeutils.RecordTypeInfo;
 import org.apache.flink.types.Nothing;
-import org.apache.flink.types.NothingTypeInfo;
 import org.apache.flink.types.Record;
 
 /**
+ * 
+ * <b>NOTE: The Record API is marked as deprecated. It is not being developed anymore and will be removed from
+ * the code at some point.
+ * See <a href="https://issues.apache.org/jira/browse/FLINK-1106">FLINK-1106</a> for more details.</b>
+ * 
+ * 
  * Operator for nodes which act as data sinks, storing the data they receive in a file instead of sending it to another
  * contract. The encoding of the data in the file is handled by the {@link FileOutputFormat}.
  * 
  * @see FileOutputFormat
  */
+@Deprecated
 public class FileDataSink extends FileDataSinkBase<Record> {
 
 	private static String DEFAULT_NAME = "<Unnamed File Data Sink>";

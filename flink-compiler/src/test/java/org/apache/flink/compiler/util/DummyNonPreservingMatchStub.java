@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.compiler.util;
 
 import java.io.Serializable;
@@ -25,7 +24,7 @@ import org.apache.flink.api.java.record.functions.JoinFunction;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 
-
+@SuppressWarnings("deprecation")
 public class DummyNonPreservingMatchStub extends JoinFunction implements Serializable {
 	private static final long serialVersionUID = 1L;
 

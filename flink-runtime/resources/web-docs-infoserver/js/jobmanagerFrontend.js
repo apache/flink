@@ -194,10 +194,10 @@ function fillTable(table, json) {
 		$.each(job.groupvertices, function(j, groupvertex) {
 			countGroups++;
 			countTasks += groupvertex.numberofgroupmembers;
-			starting = (groupvertex.CREATED + groupvertex.SCHEDULED + groupvertex.ASSIGNED + groupvertex.READY + groupvertex.STARTING);
+			starting = (groupvertex.CREATED + groupvertex.SCHEDULED + groupvertex.DEPLOYING);
 			countStarting += starting;
 			countRunning += groupvertex.RUNNING;
-			countFinished += groupvertex.FINISHING + groupvertex.FINISHED;
+			countFinished += groupvertex.FINISHED;
 			countCanceled += groupvertex.CANCELING + groupvertex.CANCELED;
 			countFailed += groupvertex.FAILED;
 			jobtable += "<tr>\
@@ -209,7 +209,7 @@ function fillTable(table, json) {
 							<td class=\"nummembers\">"+ groupvertex.numberofgroupmembers+ "</td>";
 			jobtable += progressBar(groupvertex.numberofgroupmembers, starting, 'starting');
 			jobtable += progressBar(groupvertex.numberofgroupmembers, groupvertex.RUNNING, 'running');
-			jobtable += progressBar(groupvertex.numberofgroupmembers, (groupvertex.FINISHING + groupvertex.FINISHED), 'success finished');
+			jobtable += progressBar(groupvertex.numberofgroupmembers, (groupvertex.FINISHED), 'success finished');
 			jobtable += progressBar(groupvertex.numberofgroupmembers, (groupvertex.CANCELING + groupvertex.CANCELED), 'warning canceled');
 			jobtable += progressBar(groupvertex.numberofgroupmembers, groupvertex.FAILED, 'danger failed');
 			jobtable +=	"</tr><tr>\
@@ -304,18 +304,14 @@ function updateTable(json) {
 		{
 			// not very nice
 			var oldstatus = ""+$("#"+event.vertexid).children(".status").html();
-			if(oldstatus == "CREATED" ||  oldstatus == "SCHEDULED" ||oldstatus == "ASSIGNED" ||oldstatus == "READY" ||oldstatus == "STARTING")
+			if (oldstatus == "CREATED" ||  oldstatus == "SCHEDULED" ||  oldstatus == "DEPLOYING")
 				oldstatus = "starting";
-			else if(oldstatus == "FINISHING")
-				oldstatus = "finished";
 			else if(oldstatus == "CANCELING")
 				oldstatus = "canceled";
 			
 			var newstate = event.newstate;
-			if(newstate == "CREATED" ||  newstate == "SCHEDULED" ||newstate == "ASSIGNED" ||newstate == "READY" ||newstate == "STARTING")
+			if(newstate == "CREATED" ||  newstate == "SCHEDULED" || newstate == "DEPLOYING")
 				newstate = "starting";
-			else if(newstate == "FINISHING")
-				newstate = "finished";
 			else if(newstate == "CANCELING")
 				newstate = "canceled";
 			

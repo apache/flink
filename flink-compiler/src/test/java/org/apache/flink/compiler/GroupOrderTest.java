@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 
 package org.apache.flink.compiler;
 
@@ -48,13 +47,12 @@ import org.apache.flink.types.StringValue;
 import org.junit.Assert;
 import org.junit.Test;
 
-
 /**
  * This test case has been created to validate that correct strategies are used if orders within groups are
  * requested.
  */
-@SuppressWarnings("serial")
-public class GroupOrderTest extends CompilerTestBase  {
+@SuppressWarnings({"serial", "deprecation"})
+public class GroupOrderTest extends CompilerTestBase {
 
 	@Test
 	public void testReduceWithGroupOrder() {
@@ -95,7 +93,7 @@ public class GroupOrderTest extends CompilerTestBase  {
 		FieldList local = new FieldList(2, 5);
 		Assert.assertEquals(ship, c.getShipStrategyKeys());
 		Assert.assertEquals(local, c.getLocalStrategyKeys());
-		Assert.assertTrue(c.getLocalStrategySortOrder()[0] == reducer.getSortOrders()[0]);
+		Assert.assertTrue(c.getLocalStrategySortOrder()[0] == reducer.getSortOrders(0)[0]);
 		
 		// check that we indeed sort descending
 		Assert.assertTrue(c.getLocalStrategySortOrder()[1] == groupOrder.getFieldSortDirections()[0]);

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -59,8 +59,8 @@ public abstract class AbstractCachedBuildSideMatchDriver<IT1, IT2, OT> extends M
 		
 		TypeSerializer<IT1> serializer1 = this.taskContext.<IT1>getInputSerializer(0).getSerializer();
 		TypeSerializer<IT2> serializer2 = this.taskContext.<IT2>getInputSerializer(1).getSerializer();
-		TypeComparator<IT1> comparator1 = this.taskContext.getInputComparator(0);
-		TypeComparator<IT2> comparator2 = this.taskContext.getInputComparator(1);
+		TypeComparator<IT1> comparator1 = this.taskContext.getDriverComparator(0);
+		TypeComparator<IT2> comparator2 = this.taskContext.getDriverComparator(1);
 		MutableObjectIterator<IT1> input1 = this.taskContext.getInput(0);
 		MutableObjectIterator<IT2> input2 = this.taskContext.getInput(1);
 

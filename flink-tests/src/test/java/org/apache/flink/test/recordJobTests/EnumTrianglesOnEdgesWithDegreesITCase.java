@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 
 package org.apache.flink.test.recordJobTests;
 
@@ -54,7 +53,7 @@ public class EnumTrianglesOnEdgesWithDegreesITCase extends RecordAPITestBase {
 	protected Plan getTestJob() {
 		EnumTrianglesOnEdgesWithDegrees enumTriangles = new EnumTrianglesOnEdgesWithDegrees();
 		return enumTriangles.getPlan(
-				config.getString("EnumTrianglesTest#NumSubtasks", "4"),
+				String.valueOf(config.getInteger("NumSubtasks", 4)),
 				edgesPath, resultPath);
 	}
 
@@ -66,7 +65,7 @@ public class EnumTrianglesOnEdgesWithDegreesITCase extends RecordAPITestBase {
 	@Parameters
 	public static Collection<Object[]> getConfigurations() {
 		Configuration config = new Configuration();
-		config.setInteger("EnumTrianglesTest#NumSubtasks", DOP);
+		config.setInteger("NumSubtasks", DOP);
 		return toParameterList(config);
 	}
 }

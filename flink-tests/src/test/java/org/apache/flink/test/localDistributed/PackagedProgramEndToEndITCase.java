@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,7 +24,6 @@ import java.io.FileWriter;
 import org.apache.flink.client.RemoteExecutor;
 import org.apache.flink.client.minicluster.NepheleMiniCluster;
 import org.apache.flink.test.testdata.KMeansData;
-import org.apache.flink.util.LogUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -33,10 +32,6 @@ import org.junit.Test;
 
 public class PackagedProgramEndToEndITCase {
 
-	static {
-		LogUtils.initializeDefaultTestConsoleLogger();
-	}
-	
 	@Test
 	public void testEverything() {
 		NepheleMiniCluster cluster = new NepheleMiniCluster();
@@ -64,7 +59,7 @@ public class PackagedProgramEndToEndITCase {
 			String jarPath = "target/maven-test-jar.jar";
 
 			// run KMeans
-			cluster.setNumTaskTracker(2);
+			cluster.setNumTaskManager(2);
 			cluster.setTaskManagerNumSlots(2);
 			cluster.start();
 

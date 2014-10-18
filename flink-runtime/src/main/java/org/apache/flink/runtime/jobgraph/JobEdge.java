@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,91 +16,126 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.jobgraph;
 
-import org.apache.flink.runtime.io.network.channels.ChannelType;
-
 /**
- * Objects of this class represent edges in the user's job graph.
- * The edges can be annotated by a specific channel and compression level.
- * 
+ * This class represent edges (communication channels) in a job graph.
+ * The edges always go from an intermediate result partition to a job vertex.
+ * An edge is parameterized with its {@link DistributionPattern}.
  */
-public class JobEdge {
+public class JobEdge implements java.io.Serializable {
+
+	private static final long serialVersionUID = 1L;
+	
+	
+	/** The vertex connected to this edge. */
+	private final AbstractJobVertex target;
+
+	/** The distribution pattern that should be used for this job edge. */
+	private final DistributionPattern distributionPattern;
+	
+	/** The data set at the source of the edge, may be null if the edge is not yet connected*/
+	private IntermediateDataSet source;
+	
+	/** The id of the source intermediate data set */
+	private IntermediateDataSetID sourceId;
 
 	/**
-	 * The channel type to be used for the resulting channel.
+	 * Constructs a new job edge, that connects an intermediate result to a consumer task.
+	 * 
+	 * @param source The data set that is at the source of this edge.
+	 * @param target The operation that is at the target of this edge.
+	 * @param distributionPattern The pattern that defines how the connection behaves in parallel.
 	 */
-	private final ChannelType channelType;
-
-	/**
-	 * The vertex connected to this edge.
-	 */
-	private final AbstractJobVertex connectedVertex;
-
-	/**
-	 * The index of the consuming task's input gate.
-	 */
-	private final int indexOfInputGate;
+	public JobEdge(IntermediateDataSet source, AbstractJobVertex target, DistributionPattern distributionPattern) {
+		if (source == null || target == null || distributionPattern == null) {
+			throw new NullPointerException();
+		}
+		this.target = target;
+		this.distributionPattern = distributionPattern;
+		this.source = source;
+		this.sourceId = source.getId();
+	}
 	
 	/**
-	 * The distribution pattern that should be used for this job edge.
-	 */
-	private final DistributionPattern distributionPattern;
-
-	/**
-	 * Constructs a new job edge.
+	 * Constructs a new job edge that refers to an intermediate result via the Id, rather than directly through
+	 * the intermediate data set structure.
 	 * 
-	 * @param connectedVertex
-	 *        the vertex this edge should connect to
-	 * @param channelType
-	 *        the channel type this edge should be translated to at runtime
-	 * @param compressionLevel
-	 *        the compression level the corresponding channel should have at runtime
-	 * @param indexOfInputGate
-	 *        index of the consuming task's input gate that this edge connects to
+	 * @param sourceId The id of the data set that is at the source of this edge.
+	 * @param target The operation that is at the target of this edge.
+	 * @param distributionPattern The pattern that defines how the connection behaves in parallel.
 	 */
-	public JobEdge(final AbstractJobVertex connectedVertex, final ChannelType channelType,
-			final int indexOfInputGate, final DistributionPattern distributionPattern) {
-		this.connectedVertex = connectedVertex;
-		this.channelType = channelType;
-		this.indexOfInputGate = indexOfInputGate;
+	public JobEdge(IntermediateDataSetID sourceId, AbstractJobVertex target, DistributionPattern distributionPattern) {
+		if (sourceId == null || target == null || distributionPattern == null) {
+			throw new NullPointerException();
+		}
+		this.target = target;
 		this.distributionPattern = distributionPattern;
+		this.sourceId = sourceId;
+	}
+
+
+	/**
+	 * Returns the data set at the source of the edge. May be null, if the edge refers to the source via an ID
+	 * and has not been connected.
+	 * 
+	 * @return The data set at the source of the edge
+	 */
+	public IntermediateDataSet getSource() {
+		return source;
 	}
 
 	/**
-	 * Returns the channel type assigned to this edge.
+	 * Returns the vertex connected to this edge.
 	 * 
-	 * @return the channel type assigned to this edge
+	 * @return The vertex connected to this edge.
 	 */
-	public ChannelType getChannelType() {
-		return this.channelType;
-	}
-
-	/**
-	 * Returns the vertex this edge is connected to.
-	 * 
-	 * @return the vertex this edge is connected to
-	 */
-	public AbstractJobVertex getConnectedVertex() {
-		return this.connectedVertex;
-	}
-
-	/**
-	 * Returns the index of the consuming task's input gate that this edge connects to.
-	 * 
-	 * @return the index of the consuming task's input gate that this edge connects to
-	 */
-	public int getIndexOfInputGate() {
-		return this.indexOfInputGate;
+	public AbstractJobVertex getTarget() {
+		return target;
 	}
 	
 	/**
 	 * Returns the distribution pattern used for this edge.
 	 * 
-	 * @return
+	 * @return The distribution pattern used for this edge.
 	 */
 	public DistributionPattern getDistributionPattern(){
 		return this.distributionPattern;
+	}
+	
+	/**
+	 * Gets the ID of the consumed data set.
+	 * 
+	 * @return The ID of the consumed data set.
+	 */
+	public IntermediateDataSetID getSourceId() {
+		return sourceId;
+	}
+	
+	public boolean isIdReference() {
+		return this.source == null;
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	public void connecDataSet(IntermediateDataSet dataSet) {
+		if (dataSet == null) {
+			throw new NullPointerException();
+		}
+		if (this.source != null) {
+			throw new IllegalStateException("The edge is already connected.");
+		}
+		if (!dataSet.getId().equals(sourceId)) {
+			throw new IllegalArgumentException("The data set to connect does not match the sourceId.");
+		}
+		
+		this.source = dataSet;
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	@Override
+	public String toString() {
+		return String.format("%s --> %s []", sourceId, target, distributionPattern.name());
 	}
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,8 +27,8 @@ import java.net.InetSocketAddress;
 import java.util.List;
 
 import org.apache.commons.lang3.StringEscapeUtils;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.compiler.CompilerException;
@@ -58,7 +58,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
  */
 public class Client {
 	
-	private static final Log LOG = LogFactory.getLog(Client.class);
+	private static final Logger LOG = LoggerFactory.getLogger(Client.class);
 	
 	
 	private final Configuration configuration;	// the configuration describing the job manager address
@@ -253,7 +253,7 @@ public class Client {
 						catch (Throwable t) {
 							LOG.error("The program execution failed.", t);
 						}
-					};
+					}
 				};
 				backGroundRunner.start();
 			}

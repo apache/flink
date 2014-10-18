@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,23 +16,21 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.jobgraph.tasks;
 
 import org.apache.flink.core.io.InputSplit;
 
 /**
- * An input split provider can be successively queried to provide a series of {@link InputSplit} objects an
- * {@link AbstractInputTask} is supposed to consume in the course of its execution.
- * 
+ * An input split provider can be successively queried to provide a series of {@link InputSplit} objects a
+ * task is supposed to consume in the course of its execution.
  */
 public interface InputSplitProvider {
 
 	/**
-	 * Requests the next input split to be consumed by the calling {@link AbstractInputTask}.
+	 * Requests the next input split to be consumed by the calling task.
 	 * 
-	 * @return the next input split to be consumed by the calling {@link AbstractInputTask} or <code>null</code> if the
-	 *         {@link AbstractInputTask} shall not consume any further input splits.
+	 * @return the next input split to be consumed by the calling task or <code>null</code> if the
+	 *         task shall not consume any further input splits.
 	 */
 	InputSplit getNextInputSplit();
 }

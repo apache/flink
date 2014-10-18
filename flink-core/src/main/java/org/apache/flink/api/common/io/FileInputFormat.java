@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.io;
 
 import java.io.IOException;
@@ -26,10 +25,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
-import org.apache.flink.api.common.operators.base.GenericDataSourceBase;
+import org.apache.flink.api.common.operators.GenericDataSourceBase;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -44,7 +43,7 @@ import org.apache.flink.core.fs.Path;
  * The base class for {@link InputFormat}s that read from files. For specific input types the 
  * <tt>nextRecord()</tt> and <tt>reachedEnd()</tt> methods need to be implemented.
  * Additionally, one may override {@link #open(FileInputSplit)} and {@link #close()} to
- * change the lifecycle behavior.
+ * change the life cycle behavior.
  * <p>
  * After the {@link #open(FileInputSplit)} method completed, the file input data is available
  * from the {@link #stream} field.
@@ -53,7 +52,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	
 	// -------------------------------------- Constants -------------------------------------------
 	
-	private static final Log LOG = LogFactory.getLog(FileInputFormat.class);
+	private static final Logger LOG = LoggerFactory.getLogger(FileInputFormat.class);
 	
 	private static final long serialVersionUID = 1L;
 	
@@ -358,8 +357,8 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	}
 
 	@Override
-	public Class<FileInputSplit> getInputSplitType() {
-		return FileInputSplit.class;
+	public LocatableInputSplitAssigner getInputSplitAssigner(FileInputSplit[] splits) {
+		return new LocatableInputSplitAssigner(splits);
 	}
 
 	/**
@@ -566,13 +565,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	 * working on the input format do not reach the file system.
 	 */
 	@Override
-	public void open(FileInputSplit split) throws IOException {
-		
-		if (!(split instanceof FileInputSplit)) {
-			throw new IllegalArgumentException("File Input Formats can only be used with FileInputSplits.");
-		}
-		
-		final FileInputSplit fileSplit = (FileInputSplit) split;
+	public void open(FileInputSplit fileSplit) throws IOException {
 		
 		this.splitStart = fileSplit.getStart();
 		this.splitLength = fileSplit.getLength();

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,12 +17,6 @@
  */
 
 package org.apache.flink.runtime.operators.hash;
-
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -53,6 +47,8 @@ import org.apache.flink.runtime.operators.testutils.types.StringPairSerializer;
 import org.apache.flink.util.MutableObjectIterator;
 import org.junit.Test;
 import org.powermock.reflect.Whitebox;
+
+import static org.junit.Assert.*;
 
 
 public class MemoryHashTableTest {
@@ -134,7 +130,7 @@ public class MemoryHashTableTest {
 			IntPair target = new IntPair();
 			
 			for (int i = 0; i < NUM_PAIRS; i++) {
-				assertTrue(prober.getMatchFor(pairs[i], target));
+				assertNotNull(prober.getMatchFor(pairs[i], target));
 				assertEquals(pairs[i].getValue(), target.getValue());
 			}
 			
@@ -197,8 +193,8 @@ public class MemoryHashTableTest {
 			
 			IntList target = new IntList();
 			for (int i = 0; i < NUM_LISTS; i++) {
-				assertTrue(pairProber.getMatchFor(pairs[i], target));
-				assertTrue(listProber.getMatchFor(lists[i], target));
+				assertNotNull(pairProber.getMatchFor(pairs[i], target));
+				assertNotNull(listProber.getMatchFor(lists[i], target));
 				assertArrayEquals(lists[i].getValue(), target.getValue());
 			}
 			table.close();
@@ -232,7 +228,7 @@ public class MemoryHashTableTest {
 			IntList target = new IntList();
 			
 			for (int i = 0; i < NUM_LISTS; i++) {
-				assertTrue(prober.getMatchFor(lists[i], target));
+				assertNotNull(prober.getMatchFor(lists[i], target));
 				assertArrayEquals(lists[i].getValue(), target.getValue());
 			}
 			
@@ -245,7 +241,7 @@ public class MemoryHashTableTest {
 			}
 			
 			for (int i = 0; i < NUM_LISTS; i++) {
-				assertTrue("" + i, prober.getMatchFor(overwriteLists[i], target));
+				assertNotNull("" + i, prober.getMatchFor(overwriteLists[i], target));
 				assertArrayEquals(overwriteLists[i].getValue(), target.getValue());
 			}
 			
@@ -275,7 +271,7 @@ public class MemoryHashTableTest {
 			IntList target = new IntList();
 			
 			for (int i = 0; i < NUM_LISTS; i++) {
-				assertTrue(prober.getMatchFor(lists[i], target));
+				assertNotNull(prober.getMatchFor(lists[i], target));
 				assertArrayEquals(lists[i].getValue(), target.getValue());
 			}
 			
@@ -291,7 +287,7 @@ public class MemoryHashTableTest {
 			}
 			
 			for (int i = 0; i < NUM_LISTS; i++) {
-				assertTrue("" + i, prober.getMatchFor(lists[i], target));
+				assertNotNull("" + i, prober.getMatchFor(lists[i], target));
 				assertArrayEquals(lists[i].getValue(), target.getValue());
 			}
 			
@@ -324,7 +320,7 @@ public class MemoryHashTableTest {
 			IntList target = new IntList();
 			
 			for (int i = 0; i < NUM_LISTS; i++) {
-				assertTrue(prober.getMatchFor(lists[i], target));
+				assertNotNull(prober.getMatchFor(lists[i], target));
 				assertArrayEquals(lists[i].getValue(), target.getValue());
 			}
 			
@@ -339,7 +335,7 @@ public class MemoryHashTableTest {
 			}
 			
 			for (int i = 0; i < NUM_LISTS; i++) {
-				assertTrue(prober.getMatchFor(lists[i], target));
+				assertNotNull(prober.getMatchFor(lists[i], target));
 				assertArrayEquals(lists[i].getValue(), target.getValue());
 			}
 			
@@ -374,7 +370,7 @@ public class MemoryHashTableTest {
 			IntList target = new IntList();
 			
 			for (int i = 0; i < NUM_LISTS; i++) {
-				assertTrue(prober.getMatchFor(lists[i], target));
+				assertNotNull(prober.getMatchFor(lists[i], target));
 				assertArrayEquals(lists[i].getValue(), target.getValue());
 			}
 			
@@ -389,7 +385,7 @@ public class MemoryHashTableTest {
 				}
 			
 				for (int i = 0; i < NUM_LISTS; i++) {
-					assertTrue("" + i, prober.getMatchFor(overwriteLists[i], target));
+					assertNotNull("" + i, prober.getMatchFor(overwriteLists[i], target));
 					assertArrayEquals(overwriteLists[i].getValue(), target.getValue());
 				}
 			}
@@ -426,13 +422,13 @@ public class MemoryHashTableTest {
 			IntList target = new IntList();
 			
 			for (int i = 0; i < NUM_LISTS; i++) {
-				assertTrue(""+i,prober.getMatchFor(lists[i], target));
+				assertNotNull(""+i,prober.getMatchFor(lists[i], target));
 				assertArrayEquals(lists[i].getValue(), target.getValue());
 				prober.updateMatch(overwriteLists[i]);
 			}
 			
 			for (int i = 0; i < NUM_LISTS; i++) {
-				assertTrue("" + i, prober.getMatchFor(overwriteLists[i], target));
+				assertNotNull("" + i, prober.getMatchFor(overwriteLists[i], target));
 				assertArrayEquals(overwriteLists[i].getValue(), target.getValue());
 			}
 			
@@ -462,7 +458,7 @@ public class MemoryHashTableTest {
 			IntPair target = new IntPair();
 			
 			for (int i = 0; i < NUM_PAIRS; i++) {
-				assertTrue(prober.getMatchFor(pairs[i], target));
+				assertNotNull(prober.getMatchFor(pairs[i], target));
 				assertEquals(pairs[i].getValue(), target.getValue());
 			}
 			
@@ -472,7 +468,7 @@ public class MemoryHashTableTest {
 			assertTrue(b.booleanValue());
 			
 			for (int i = 0; i < NUM_PAIRS; i++) {
-				assertTrue(pairs[i].getKey() + " " + pairs[i].getValue(), prober.getMatchFor(pairs[i], target));
+				assertNotNull(pairs[i].getKey() + " " + pairs[i].getValue(), prober.getMatchFor(pairs[i], target));
 				assertEquals(pairs[i].getValue(), target.getValue());
 			}
 			
@@ -502,7 +498,7 @@ public class MemoryHashTableTest {
 			IntPair target = new IntPair();
 			
 			for (int i = 0; i < NUM_PAIRS; i++) {
-				assertTrue(prober.getMatchFor(pairs[i], target));
+				assertNotNull(prober.getMatchFor(pairs[i], target));
 				assertEquals(pairs[i].getValue(), target.getValue());
 			}
 			
@@ -512,7 +508,7 @@ public class MemoryHashTableTest {
 			assertTrue(b.booleanValue());
 			
 			for (int i = 0; i < NUM_PAIRS; i++) {
-				assertTrue(pairs[i].getKey() + " " + pairs[i].getValue(), prober.getMatchFor(pairs[i], target));
+				assertNotNull(pairs[i].getKey() + " " + pairs[i].getValue(), prober.getMatchFor(pairs[i], target));
 				assertEquals(pairs[i].getValue(), target.getValue());
 			}
 			
@@ -522,7 +518,7 @@ public class MemoryHashTableTest {
 			assertTrue(b.booleanValue());
 						
 			for (int i = 0; i < NUM_PAIRS; i++) {
-				assertTrue(pairs[i].getKey() + " " + pairs[i].getValue(), prober.getMatchFor(pairs[i], target));
+				assertNotNull(pairs[i].getKey() + " " + pairs[i].getValue(), prober.getMatchFor(pairs[i], target));
 				assertEquals(pairs[i].getValue(), target.getValue());
 			}
 						
@@ -552,7 +548,7 @@ public class MemoryHashTableTest {
 			IntPair target = new IntPair();
 			
 			for (int i = 0; i < NUM_PAIRS; i++) {
-				assertTrue(prober.getMatchFor(pairs[i], target));
+				assertNotNull(prober.getMatchFor(pairs[i], target));
 				assertEquals(pairs[i].getValue(), target.getValue());
 			}
 			
@@ -562,7 +558,7 @@ public class MemoryHashTableTest {
 			assertTrue(b.booleanValue());
 			
 			for (int i = 0; i < NUM_PAIRS; i++) {
-				assertTrue(pairs[i].getKey() + " " + pairs[i].getValue(), prober.getMatchFor(pairs[i], target));
+				assertNotNull(pairs[i].getKey() + " " + pairs[i].getValue(), prober.getMatchFor(pairs[i], target));
 				assertEquals(pairs[i].getValue(), target.getValue());
 			}
 			
@@ -572,7 +568,7 @@ public class MemoryHashTableTest {
 			assertTrue(b.booleanValue());
 						
 			for (int i = 0; i < NUM_PAIRS; i++) {
-				assertTrue(pairs[i].getKey() + " " + pairs[i].getValue(), prober.getMatchFor(pairs[i], target));
+				assertNotNull(pairs[i].getKey() + " " + pairs[i].getValue(), prober.getMatchFor(pairs[i], target));
 				assertEquals(pairs[i].getValue(), target.getValue());
 			}
 			
@@ -582,7 +578,7 @@ public class MemoryHashTableTest {
 			assertTrue(b.booleanValue());
 									
 			for (int i = 0; i < NUM_PAIRS; i++) {
-				assertTrue(pairs[i].getKey() + " " + pairs[i].getValue(), prober.getMatchFor(pairs[i], target));
+				assertNotNull(pairs[i].getKey() + " " + pairs[i].getValue(), prober.getMatchFor(pairs[i], target));
 				assertEquals(pairs[i].getValue(), target.getValue());
 			}
 						
@@ -617,7 +613,7 @@ public class MemoryHashTableTest {
 			IntList target = new IntList();
 			
 			for (int i = 0; i < NUM_LISTS; i++) {
-				assertTrue(prober.getMatchFor(lists[i], target));
+				assertNotNull(prober.getMatchFor(lists[i], target));
 				assertArrayEquals(lists[i].getValue(), target.getValue());
 			}
 			
@@ -627,7 +623,7 @@ public class MemoryHashTableTest {
 			assertTrue(b.booleanValue());
 						
 			for (int i = 0; i < NUM_LISTS; i++) {
-				assertTrue(prober.getMatchFor(lists[i], target));
+				assertNotNull(prober.getMatchFor(lists[i], target));
 				assertArrayEquals(lists[i].getValue(), target.getValue());
 			}
 			
@@ -653,7 +649,7 @@ public class MemoryHashTableTest {
 			assertTrue(b.booleanValue());									
 			
 			for (int i = 0; i < NUM_LISTS; i++) {
-				assertTrue("" + i, prober.getMatchFor(overwriteLists[i], target));
+				assertNotNull("" + i, prober.getMatchFor(overwriteLists[i], target));
 				assertArrayEquals(overwriteLists[i].getValue(), target.getValue());
 			}
 			
@@ -689,7 +685,7 @@ public class MemoryHashTableTest {
 			AbstractHashTableProber<StringPair, StringPair> prober = table.getProber(comparatorS, pairComparatorS);
 			StringPair temp = new StringPair();
 			while(probeTester.next(target) != null) {
-				assertTrue("" + target.getKey(), prober.getMatchFor(target, temp));
+				assertNotNull("" + target.getKey(), prober.getMatchFor(target, temp));
 				assertEquals(temp.getValue(), target.getValue());
 			}
 			
@@ -699,7 +695,7 @@ public class MemoryHashTableTest {
 			}
 			
 			while (updateTester.next(target) != null) {
-				assertTrue(prober.getMatchFor(target, temp));
+				assertNotNull(prober.getMatchFor(target, temp));
 				assertEquals(target.getValue(), temp.getValue());
 			}
 			

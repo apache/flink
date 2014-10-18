@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,17 +22,15 @@ import java.util.Arrays;
 
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.CrossFunction;
-import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.operators.BinaryOperatorInformation;
 import org.apache.flink.api.common.operators.DualInputSemanticProperties;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.base.CrossOperatorBase;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.functions.SemanticPropUtil;
-import org.apache.flink.api.java.functions.UnsupportedLambdaExpressionException;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.types.TypeInformation;
 
 //CHECKSTYLE.OFF: AvoidStarImport - Needed for TupleGenerator
 import org.apache.flink.api.java.tuple.*;
@@ -51,7 +49,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 
 	private final CrossFunction<I1, I2, OUT> function;
 
-	protected CrossOperator(DataSet<I1> input1, DataSet<I2> input2,
+	public CrossOperator(DataSet<I1> input1, DataSet<I2> input2,
 							CrossFunction<I1, I2, OUT> function,
 							TypeInformation<OUT> returnType)
 	{
@@ -134,9 +132,6 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			if (function == null) {
 				throw new NullPointerException("Cross function must not be null.");
 			}
-			if (FunctionUtils.isLambdaFunction(function)) {
-				throw new UnsupportedLambdaExpressionException();
-			}
 			TypeInformation<R> returnType = TypeExtractor.getCrossReturnTypes(function, input1.getType(), input2.getType());
 			return new CrossOperator<I1, I2, R>(input1, input2, function, returnType);
 		}
@@ -157,7 +152,8 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		 * 					   The order of fields in the output tuple is defined by to the order of field indexes.
 		 * @return A CrossProjection that needs to be converted into a 
 		 *           {@link org.apache.flink.api.java.operators.CrossOperator.ProjectCross} to complete the
-		 *           Cross transformation by calling {@link CrossProjection#types()}.
+		 *           Cross transformation by calling
+		 *           {@link org.apache.flink.api.java.operators.CrossOperator.CrossProjection#types(Class)}.
 		 *
 		 * @see Tuple
 		 * @see DataSet
@@ -182,7 +178,8 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		 * 					   The order of fields in the output tuple is defined by to the order of field indexes.
 		 * @return A CrossProjection that needs to be converted into a
 		 *           {@link org.apache.flink.api.java.operators.CrossOperator.ProjectCross} to complete the
-		 *           Cross transformation by calling {@link CrossProjection#types()}.
+		 *           Cross transformation by calling
+		 *           {@link org.apache.flink.api.java.operators.CrossOperator.CrossProjection#types(Class)}.
 		 *
 		 * @see Tuple
 		 * @see DataSet
@@ -384,7 +381,8 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		 * 					   For a non-Tuple DataSet, do not provide parameters.
 		 * 					   The order of fields in the output tuple is defined by to the order of field indexes.
 		 * @return A CrossProjection that needs to be converted into a {@link ProjectOperator} to complete the
-		 *           ProjectCross transformation by calling {@link CrossProjection#types()}.
+		 *           Cross transformation by calling
+		 *           {@link org.apache.flink.api.java.operators.CrossOperator.CrossProjection#types(Class)}.
 		 *
 		 * @see Tuple
 		 * @see DataSet
@@ -452,7 +450,8 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		 * 					   For a non-Tuple DataSet, do not provide parameters.
 		 * 					   The order of fields in the output tuple is defined by to the order of field indexes.
 		 * @return A CrossProjection that needs to be converted into a {@link ProjectOperator} to complete the
-		 *           ProjectCross transformation by calling {@link CrossProjection#types()}.
+		 *           Cross transformation by calling
+		 *           {@link org.apache.flink.api.java.operators.CrossOperator.CrossProjection#types(Class)}.
 		 *
 		 * @see Tuple
 		 * @see DataSet

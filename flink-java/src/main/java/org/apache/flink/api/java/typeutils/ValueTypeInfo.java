@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,15 +18,16 @@
 
 package org.apache.flink.api.java.typeutils;
 
+import org.apache.flink.api.common.functions.InvalidTypesException;
+import org.apache.flink.api.common.typeinfo.AtomicType;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.functions.InvalidTypesException;
 import org.apache.flink.api.java.typeutils.runtime.CopyableValueComparator;
 import org.apache.flink.api.java.typeutils.runtime.CopyableValueSerializer;
 import org.apache.flink.api.java.typeutils.runtime.ValueComparator;
 import org.apache.flink.api.java.typeutils.runtime.ValueSerializer;
 import org.apache.flink.types.CopyableValue;
-import org.apache.flink.types.TypeInformation;
 import org.apache.flink.types.Value;
 
 
@@ -51,6 +52,11 @@ public class ValueTypeInfo<T extends Value> extends TypeInformation<T> implement
 		return 1;
 	}
 
+	@Override
+	public int getTotalFields() {
+		return 1;
+	}
+	
 	@Override
 	public Class<T> getTypeClass() {
 		return this.type;

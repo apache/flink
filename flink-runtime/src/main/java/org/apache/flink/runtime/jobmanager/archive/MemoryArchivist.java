@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.jobmanager.archive;
 
 import java.util.ArrayList;
@@ -26,141 +25,112 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.flink.runtime.event.job.AbstractEvent;
-import org.apache.flink.runtime.event.job.ExecutionStateChangeEvent;
-import org.apache.flink.runtime.event.job.JobEvent;
 import org.apache.flink.runtime.event.job.RecentJobEvent;
-import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobID;
-import org.apache.flink.runtime.jobgraph.JobStatus;
-import org.apache.flink.runtime.managementgraph.ManagementGraph;
-import org.apache.flink.runtime.managementgraph.ManagementVertexID;
-import org.apache.flink.runtime.topology.NetworkTopology;
 
 /**
- * Implementation of the ArchiveListener, that archives old data of the jobmanager in memory
- *
+ * Implementation of the ArchiveListener, that archives old data of the JobManager in memory.
+ * 
+ * This class must be thread safe, because it is accessed by the JobManager events and by the
+ * web server concurrently.
  */
 public class MemoryArchivist implements ArchiveListener {
 	
+	/** The global lock */
+	private final Object lock = new Object();
 	
-	private int max_entries;
 	/**
 	 * The map which stores all collected events until they are either
 	 * fetched by the client or discarded.
 	 */
 	private final Map<JobID, List<AbstractEvent>> collectedEvents = new HashMap<JobID, List<AbstractEvent>>();
 	
-	/**
-	 * Map of recently started jobs with the time stamp of the last received job event.
-	 */
+	/** Map of recently started jobs with the time stamp of the last received job event. */
 	private final Map<JobID, RecentJobEvent> oldJobs = new HashMap<JobID, RecentJobEvent>();
 	
-	/**
-	 * Map of management graphs belonging to recently started jobs with the time stamp of the last received job event.
-	 */
-	private final Map<JobID, ManagementGraph> managementGraphs = new HashMap<JobID, ManagementGraph>();
-
-	/**
-	 * Map of network topologies belonging to recently started jobs with the time stamp of the last received job event.
-	 */
-	private final Map<JobID, NetworkTopology> networkTopologies = new HashMap<JobID, NetworkTopology>();
+	/** Map of management graphs belonging to recently started jobs with the time stamp of the last received job event. */
+	private final Map<JobID, ExecutionGraph> graphs = new HashMap<JobID, ExecutionGraph>();
 	
 	private final LinkedList<JobID> lru = new LinkedList<JobID>();
+	
+	private final int max_entries;
+	
+	// --------------------------------------------------------------------------------------------
 	
 	public MemoryArchivist(int max_entries) {
 		this.max_entries = max_entries;
 	}
 	
+	// --------------------------------------------------------------------------------------------
 	
-	public void archiveEvent(JobID jobId, AbstractEvent event) {
-		
-		if(!collectedEvents.containsKey(jobId)) {
-			collectedEvents.put(jobId, new ArrayList<AbstractEvent>());
+	@Override
+	public void archiveExecutionGraph(JobID jobId, ExecutionGraph graph) {
+		synchronized (lock) {
+			graphs.put(jobId, graph);
+			cleanup(jobId);
 		}
-		
-		collectedEvents.get(jobId).add(event);
-		
-		cleanup(jobId);
 	}
 	
+	@Override
+	public void archiveEvent(JobID jobId, AbstractEvent event) {
+		synchronized (lock) {
+			if(!collectedEvents.containsKey(jobId)) {
+				collectedEvents.put(jobId, new ArrayList<AbstractEvent>());
+			}
+			
+			collectedEvents.get(jobId).add(event);
+			cleanup(jobId);
+		}
+	}
+	
+	@Override
 	public void archiveJobevent(JobID jobId, RecentJobEvent event) {
-		
-		oldJobs.put(jobId, event);
-		
-		cleanup(jobId);
-	}
-	
-	public void archiveManagementGraph(JobID jobId, ManagementGraph graph) {
-		
-		managementGraphs.put(jobId, graph);
-		
-		cleanup(jobId);
-	}
-	
-	public void archiveNetworkTopology(JobID jobId, NetworkTopology topology) {
-		
-		networkTopologies.put(jobId, topology);
-		
-		cleanup(jobId);
+		synchronized (lock) {
+			oldJobs.put(jobId, event);
+			cleanup(jobId);
+		}
 	}
 
+	@Override
 	public List<RecentJobEvent> getJobs() {
-
-		return new ArrayList<RecentJobEvent>(oldJobs.values());
+		synchronized (lock) {
+			return new ArrayList<RecentJobEvent>(oldJobs.values());
+		}
 	}
+	
+	@Override
+	public RecentJobEvent getJob(JobID jobId) {
+		synchronized (lock) {
+			return oldJobs.get(jobId);
+		}
+	}
+	
+	@Override
+	public List<AbstractEvent> getEvents(JobID jobID) {
+		synchronized (graphs) {
+			return collectedEvents.get(jobID);
+		}
+	}
+
+	@Override
+	public ExecutionGraph getExecutionGraph(JobID jid) {
+		synchronized (lock) {
+			return graphs.get(jid);
+		}
+	}
+	
+	
 	
 	private void cleanup(JobID jobId) {
-		if(!lru.contains(jobId)) {
+		if (!lru.contains(jobId)) {
 			lru.addFirst(jobId);
 		}
-		if(lru.size() > this.max_entries) {
+		if (lru.size() > this.max_entries) {
 			JobID toRemove = lru.removeLast();
 			collectedEvents.remove(toRemove);
 			oldJobs.remove(toRemove);
-			managementGraphs.remove(toRemove);
-			networkTopologies.remove(toRemove);
+			graphs.remove(toRemove);
 		}
 	}
-	
-	public RecentJobEvent getJob(JobID jobId) {
-
-		return oldJobs.get(jobId);
-	}
-	
-	public ManagementGraph getManagementGraph(final JobID jobID) {
-
-		synchronized (this.managementGraphs) {
-			return this.managementGraphs.get(jobID);
-		}
-	}
-	
-	public List<AbstractEvent> getEvents(JobID jobID) {
-		return collectedEvents.get(jobID);
-	}
-	
-	public long getJobTime(JobID jobID, JobStatus jobStatus) {
-		for(AbstractEvent event : this.getEvents(jobID)) {
-			if(event instanceof JobEvent)
-			{
-				if(((JobEvent) event).getCurrentJobStatus() == jobStatus) {
-					return event.getTimestamp();
-				}
-			}
-		}
-		return 0;
-	}
-	
-	public long getVertexTime(JobID jobID, ManagementVertexID jobVertexID, ExecutionState executionState) {
-		for(AbstractEvent event : this.getEvents(jobID)) {
-			if(event instanceof ExecutionStateChangeEvent)
-			{
-				if(((ExecutionStateChangeEvent) event).getVertexID().equals(jobVertexID) && ((ExecutionStateChangeEvent) event).getNewExecutionState().equals(executionState)) {
-					return event.getTimestamp();
-				}
-			}
-		}
-		return 0;
-	}
-
-
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 
 package org.apache.flink.test.recordJobTests;
 
@@ -82,11 +81,11 @@ public class MergeOnlyJoinITCase extends RecordAPITestBase {
 	protected Plan getTestJob() {
 		MergeOnlyJoin mergeOnlyJoin = new MergeOnlyJoin();
 		return mergeOnlyJoin.getPlan(
-				config.getString("MergeOnlyJoinTest#NoSubtasks", "1"), 
+				String.valueOf(config.getInteger("MergeOnlyJoinTest#NoSubtasks", 1)), 
 				input1Path,
 				input2Path,
 				resultPath,
-				config.getString("MergeOnlyJoinTest#NoSubtasksInput2", "1"));
+				String.valueOf(config.getInteger("MergeOnlyJoinTest#NoSubtasksInput2", 1)));
 	}
 
 	@Override

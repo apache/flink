@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,16 +19,42 @@
 
 package org.apache.flink.test.exampleScalaPrograms;
 
-import org.apache.flink.api.common.Plan;
 import org.apache.flink.examples.scala.graph.ConnectedComponents;
+import org.apache.flink.test.testdata.ConnectedComponentsData;
+import org.apache.flink.test.util.JavaProgramTestBase;
 
-public class ConnectedComponentsITCase extends org.apache.flink.test.iterative.ConnectedComponentsITCase {
+import java.io.BufferedReader;
+
+public class ConnectedComponentsITCase extends JavaProgramTestBase {
+	
+	private static final long SEED = 0xBADC0FFEEBEEFL;
+	
+	private static final int NUM_VERTICES = 1000;
+	
+	private static final int NUM_EDGES = 10000;
+
+	
+	private String verticesPath;
+	private String edgesPath;
+	private String resultPath;
+	
+	
+	@Override
+	protected void preSubmit() throws Exception {
+		verticesPath = createTempFile("vertices.txt", ConnectedComponentsData.getEnumeratingVertices(NUM_VERTICES));
+		edgesPath = createTempFile("edges.txt", ConnectedComponentsData.getRandomOddEvenEdges(NUM_EDGES, NUM_VERTICES, SEED));
+		resultPath = getTempFilePath("results");
+	}
+	
+	@Override
+	protected void testProgram() throws Exception {
+		ConnectedComponents.main(new String[] {verticesPath, edgesPath, resultPath, "100"});
+	}
 
 	@Override
-	protected Plan getTestJob() {
-		ConnectedComponents cc = new ConnectedComponents();
-		Plan plan = cc.getScalaPlan(verticesPath, edgesPath, resultPath, 100);
-		plan.setDefaultParallelism(DOP);
-		return plan;
+	protected void postSubmit() throws Exception {
+		for (BufferedReader reader : getResultReader(resultPath)) {
+			ConnectedComponentsData.checkOddEvenResult(reader);
+		}
 	}
 }

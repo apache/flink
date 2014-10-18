@@ -52,6 +52,7 @@ under the License.
 	</scm>
 
 	<modules>
+		<module>flink-shaded</module>
 		<module>flink-core</module>
 		<module>flink-java</module>
 		<module>flink-scala</module>
@@ -76,37 +77,33 @@ under the License.
 			 it on the "mvn" commandline in travis. -->
 		<flink.forkCount>1.5C</flink.forkCount>
 		<flink.reuseForks>true</flink.reuseForks>
+		<slf4j.version>1.7.7</slf4j.version>
+		<guava.version>17.0</guava.version>
 	</properties>
 
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-lang3</artifactId>
-			<version>3.1</version>
+			<version>3.3.2</version>
 		</dependency>
 
 		<dependency>
-			<groupId>commons-logging</groupId>
-			<artifactId>commons-logging</artifactId>
-			<version>1.1.3</version>
-			<type>jar</type>
-			<scope>compile</scope>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-api</artifactId>
+			<version>${slf4j.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-log4j12</artifactId>
+			<version>${slf4j.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>log4j</groupId>
 			<artifactId>log4j</artifactId>
 			<version>1.2.17</version>
-			<type>jar</type>
-			<scope>compile</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>com.google.guava</groupId>
-			<artifactId>guava</artifactId>
-			<version>17.0</version>
-			<type>jar</type>
-			<scope>compile</scope>
 		</dependency>
 
 		<dependency>
@@ -148,8 +145,75 @@ under the License.
 			<type>jar</type>
 			<scope>test</scope>
 		</dependency>
-
 	</dependencies>
+	
+	<!-- this section defines the module versions that are used if nothing else is specified. -->
+	<dependencyManagement>
+		<dependencies>
+
+			<!-- Make sure we use a consistent jetty version throughout the project -->
+			<dependency>
+				<groupId>org.eclipse.jetty</groupId>
+				<artifactId>jetty-server</artifactId>
+				<version>8.0.0.M1</version>
+			</dependency>
+			<dependency>
+				<groupId>org.eclipse.jetty</groupId>
+				<artifactId>jetty-security</artifactId>
+				<version>8.0.0.M1</version>
+			</dependency>
+			<dependency>
+				<groupId>org.eclipse.jetty</groupId>
+				<artifactId>jetty-servlet</artifactId>
+				<version>8.0.0.M1</version>
+			</dependency>
+			<dependency>
+				<groupId>org.eclipse.jetty</groupId>
+				<artifactId>jetty-util</artifactId>
+				<version>8.0.0.M1</version>
+			</dependency>
+			
+			<!-- Make sure we use a consistent avro version throughout the project -->
+			<dependency>
+				<groupId>org.apache.avro</groupId>
+				<artifactId>avro</artifactId>
+				<version>1.7.6</version>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.avro</groupId>
+				<artifactId>avro-ipc</artifactId>
+				<version>1.7.6</version>
+			</dependency>
+			
+			<!-- Make sure we use a consistent commons-cli version throughout the project -->
+			<dependency>
+				<groupId>commons-cli</groupId>
+				<artifactId>commons-cli</artifactId>
+				<version>1.2</version>
+			</dependency>
+			
+			<!-- common-collections is used by us and by hadoop, so we need to define a common version -->
+			<dependency>
+				<groupId>commons-collections</groupId>
+				<artifactId>commons-collections</artifactId>
+				<version>3.2.1</version>
+			</dependency>
+			
+			<!-- Managed dependency required for HBase in flink-hbase  -->
+			<dependency>
+				<groupId>org.javassist</groupId>
+				<artifactId>javassist</artifactId>
+				<version>3.18.1-GA</version>
+			</dependency>
+			
+			<!-- stax is pulled in different versions by different transitive dependencies-->
+			<dependency>
+				<groupId>stax</groupId>
+				<artifactId>stax-api</artifactId>
+				<version>1.0.1</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
 
 	<profiles>
 		<profile>
@@ -328,7 +392,7 @@ under the License.
 					<jdk>1.8</jdk>
 				</activation>
 				<modules>
-					<module>flink-java8-tests</module>
+					<module>flink-java8</module>
 				</modules>
 				<build>
 					<plugins>
@@ -355,55 +419,6 @@ under the License.
 				</build>
 		</profile>
 	</profiles>
-
-	<dependencyManagement>
-		<!-- this section defines the module versions that are used if nothing else is specified. -->
-		<dependencies>
-			<!-- Make sure we use a consistent jetty version throughout the project -->
-			<dependency>
-				<groupId>org.eclipse.jetty</groupId>
-				<artifactId>jetty-server</artifactId>
-				<version>8.0.0.M1</version>
-			</dependency>
-			<dependency>
-				<groupId>org.eclipse.jetty</groupId>
-				<artifactId>jetty-security</artifactId>
-				<version>8.0.0.M1</version>
-			</dependency>
-			<dependency>
-				<groupId>org.eclipse.jetty</groupId>
-				<artifactId>jetty-servlet</artifactId>
-				<version>8.0.0.M1</version>
-			</dependency>
-			<!-- Make sure we use a consistent avro version throughout the project -->
-			<dependency>
-				<groupId>org.apache.avro</groupId>
-				<artifactId>avro</artifactId>
-				<version>1.7.6</version>
-			</dependency>
-			<dependency>
-				<groupId>org.apache.avro</groupId>
-				<artifactId>avro-mapred</artifactId>
-				<version>1.7.6</version>
-			</dependency>
-			<!-- Managed dependency required for HBase in pact-hbase  -->
-			<dependency>
-				<groupId>org.slf4j</groupId>
-				<artifactId>slf4j-api</artifactId>
-				<version>1.6.6</version>
-			</dependency>
-			<dependency>
-				<groupId>org.slf4j</groupId>
-				<artifactId>slf4j-log4j12</artifactId>
-				<version>1.6.6</version>
-			</dependency>
-			<dependency>
-				<groupId>org.javassist</groupId>
-				<artifactId>javassist</artifactId>
-				<version>3.18.1-GA</version>
-			</dependency>
-		</dependencies>
-	</dependencyManagement>
 
 	<reporting>
 		<plugins>
@@ -443,10 +458,42 @@ under the License.
 					</archive>
 				</configuration>
 			</plugin>
+			
+			<!-- Relocate references to Google Guava classes into a different namespace -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<version>2.3</version>
+				<executions>
+					<execution>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<shadedArtifactAttached>false</shadedArtifactAttached>
+					<createDependencyReducedPom>false</createDependencyReducedPom>
+					<artifactSet>
+						<includes>
+							<include>org.apache.flink:${project.artifact}</include>
+						</includes>
+					</artifactSet>
+					<relocations>
+						<relocation>
+							<pattern>com.google</pattern>
+							<shadedPattern>org.apache.flink.shaded.com.google</shadedPattern>
+						</relocation>
+					</relocations>
+				</configuration>
+			</plugin>
+			
 			<plugin>
 				<groupId>org.apache.rat</groupId>
 				<artifactId>apache-rat-plugin</artifactId>
 				<version>0.10</version><!--$NO-MVN-MAN-VER$-->
+				<inherited>false</inherited>
 				<executions>
 					<execution>
 						<phase>verify</phase>
@@ -495,6 +542,7 @@ under the License.
 						<!-- Additional files like .gitignore etc.-->
 						<exclude>**/.*</exclude>
 						<exclude>**/*.prefs</exclude>
+						<exclude>**/*.log</exclude>
 						<!-- Resource files which have values. -->
 						<exclude>**/resources/**</exclude>
 						<!-- Configuration Files. -->
@@ -506,8 +554,11 @@ under the License.
 						<exclude>**/*.creole</exclude>
 						<exclude>CONTRIBUTORS</exclude>
 						<exclude>DEPENDENCIES</exclude>
-						<!-- Build fiels -->
+						<!-- Build files -->
 						<exclude>tools/maven/checkstyle.xml</exclude>
+						<exclude>tools/maven/scalastyle-config.xml</exclude>
+						<exclude>**/scalastyle-output.xml</exclude>
+						<exclude>**/dependency-reduced-pom.xml</exclude>
 						<exclude>tools/maven/suppressions.xml</exclude>
 						<exclude>**/pom.xml</exclude>
 						<exclude>**/pom.hadoop2.xml</exclude>
@@ -570,7 +621,7 @@ under the License.
 						  the property is null when we have just the variable-->
 						<forkNumber>0${surefire.forkNumber}</forkNumber>
 					</systemPropertyVariables>
-					<argLine>-Xmx800m</argLine>
+					<argLine>-Xmx800m -Dlog4j.configuration=log4j-test.properties</argLine>
 				</configuration>
 			</plugin>
 			<plugin>
@@ -583,7 +634,7 @@ under the License.
 					<systemPropertyVariables>
 						<forkNumber>0${surefire.forkNumber}</forkNumber>
 					</systemPropertyVariables>
-					<argLine>-Xmx800m</argLine>
+					<argLine>-Xmx800m -Dlog4j.configuration=log4j-test.properties</argLine>
 				</configuration>
 			</plugin>
 			<plugin>

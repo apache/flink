@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -29,7 +29,8 @@ import org.apache.flink.test.recordJobs.util.Tuple;
 import org.apache.flink.types.Record;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.Collector;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Filters the line item tuples according to the filter condition
@@ -43,7 +44,7 @@ public class LineItemFilter extends MapFunction {
 
 	private static final long serialVersionUID = 1L;
 	
-	private static final Logger LOGGER = Logger.getLogger(LineItemFilter.class);
+	private static final Logger LOG = LoggerFactory.getLogger(LineItemFilter.class);
 	private static final String DATE_CONSTANT = "1998-09-03";
 	
 	private static final DateFormat format = new SimpleDateFormat("yyyy-MM-dd");
@@ -57,7 +58,7 @@ public class LineItemFilter extends MapFunction {
 			this.constantDate = format.parse(DATE_CONSTANT);
 		}
 		catch (ParseException e) {
-			LOGGER.error("Date constant could not be parsed.", e);
+			LOG.error("Date constant could not be parsed.", e);
 			throw new RuntimeException("Date constant could not be parsed.");
 		}
 	}
@@ -80,7 +81,7 @@ public class LineItemFilter extends MapFunction {
 				}
 			}
 			catch (ParseException e) {
-				LOGGER.error(e);
+				LOG.warn("ParseException while parsing the shipping date.", e);
 			}
 
 		}

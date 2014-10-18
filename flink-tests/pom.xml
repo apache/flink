@@ -35,7 +35,6 @@ under the License.
 
 	<packaging>jar</packaging>
 
-
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -90,6 +89,14 @@ under the License.
 			<artifactId>flink-scala-examples</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
+		</dependency>
+		
+		<!--  guava needs to be in "provided" scope, to make sure it is not included into the jars by the shading -->
+		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava</artifactId>
+			<version>${guava.version}</version>
+			<scope>provided</scope>
 		</dependency>
 	</dependencies>
 

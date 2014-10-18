@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -17,91 +17,108 @@
 
 package org.apache.flink.streaming.api.invokable.operator;
 
-import java.io.IOException;
-import java.util.ArrayList;
-
-import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.invokable.util.Timestamp;
-import org.apache.flink.streaming.api.streamrecord.StreamRecord;
+import org.apache.flink.streaming.api.invokable.util.DefaultTimeStamp;
+import org.apache.flink.streaming.api.invokable.util.TimeStamp;
 
-public class WindowReduceInvokable<IN, OUT> extends BatchReduceInvokable<IN, OUT> {
+public class WindowReduceInvokable<OUT> extends BatchReduceInvokable<OUT> {
 	private static final long serialVersionUID = 1L;
-	private long startTime;
-	private long nextRecordTime;
-	private Timestamp<IN> timestamp;
+	protected long startTime;
+	protected long nextRecordTime;
+	protected TimeStamp<OUT> timestamp;
+	protected StreamWindow window;
 
-	public WindowReduceInvokable(GroupReduceFunction<IN, OUT> reduceFunction, long windowSize,
-			long slideInterval, Timestamp<IN> timestamp) {
+	public WindowReduceInvokable(ReduceFunction<OUT> reduceFunction, long windowSize,
+			long slideInterval, TimeStamp<OUT> timestamp) {
 		super(reduceFunction, windowSize, slideInterval);
 		this.timestamp = timestamp;
+		this.startTime = timestamp.getStartTime();
 	}
 
 	@Override
-	protected void immutableInvoke() throws Exception {
-		if ((reuse = recordIterator.next(reuse)) == null) {
-			throw new RuntimeException("DataStream must not be empty");
+	public void open(Configuration config) throws Exception {
+		super.open(config);
+		this.window = new StreamWindow();
+		this.batch = this.window;
+		if (timestamp instanceof DefaultTimeStamp) {
+			(new TimeCheck()).start();
+		}
+	}
+
+	protected class StreamWindow extends StreamBatch {
+
+		private static final long serialVersionUID = 1L;
+
+		public StreamWindow() {
+			super();
+
 		}
 
-		nextRecordTime = timestamp.getTimestamp(reuse.getObject()); // **
-		startTime = nextRecordTime - (nextRecordTime % granularity); // **
+		@Override
+		public void reduceToBuffer(OUT nextValue) throws Exception {
 
-		while (reuse != null && !state.isFull()) {
-			collectOneUnit();
+			checkWindowEnd(timestamp.getTimestamp(nextValue));
+
+			if (currentValue != null) {
+				currentValue = reducer.reduce(serializer.copy(currentValue), serializer.copy(nextValue));
+			} else {
+				currentValue = nextValue;
+			}
 		}
-		reduce();
 
-		while (reuse != null) {
-			for (int i = 0; i < slideSize / granularity; i++) {
-				if (reuse != null) {
-					collectOneUnit();
+		protected synchronized void checkWindowEnd(long timeStamp) {
+			nextRecordTime = timeStamp;
+
+			while (miniBatchEnd()) {
+				addToBuffer();
+				if (batchEnd()) {
+					reduceBatch();
 				}
 			}
-			reduce();
 		}
-	}
+		
+		@Override
+		public void reduceBatch() {
+			reduce(this);
+		}
 
-	@Override
-	protected void collectOneUnit() throws IOException {
-		ArrayList<StreamRecord<IN>> list;
-		if (nextRecordTime > startTime + granularity - 1) {
-			list = new ArrayList<StreamRecord<IN>>();
-			startTime += granularity;
-		} else {
-			list = new ArrayList<StreamRecord<IN>>(listSize);
-
-			list.add(reuse);
-			resetReuse();
-
-			while ((reuse = recordIterator.next(reuse)) != null && batchNotFull()) {
-				list.add(reuse);
-				resetReuse();
+		@Override
+		protected boolean miniBatchEnd() {
+			if (nextRecordTime < startTime + granularity) {
+				return false;
+			} else {
+				startTime += granularity;
+				return true;
 			}
 		}
-		state.pushBack(list);
-//		System.out.println(list);
-//		System.out.println(startTime + " - " + (startTime + granularity - 1) + " ("
-//				+ nextRecordTime + ")");
-	}
 
-	@Override
-	protected boolean batchNotFull() {
-		nextRecordTime = timestamp.getTimestamp(reuse.getObject());
-		if (nextRecordTime < startTime + granularity) {
-			return true;
-		} else {
-			startTime += granularity;
+		@Override
+		public boolean batchEnd() {
+			if (minibatchCounter == numberOfBatches) {
+				minibatchCounter -= batchPerSlide;
+				return true;
+			}
 			return false;
 		}
+
 	}
 
-	@Override
-	public void open(Configuration parameters) throws Exception {
-		super.open(parameters);
-	}
-
-	protected void mutableInvoke() throws Exception {
-		throw new RuntimeException("Reducing mutable sliding window is not supported.");
+	private class TimeCheck extends Thread {
+		@Override
+		public void run() {
+			while (true) {
+				try {
+					Thread.sleep(slideSize);
+				} catch (InterruptedException e) {
+				}
+				if (isRunning) {
+					window.checkWindowEnd(System.currentTimeMillis());
+				} else {
+					break;
+				}
+			}
+		}
 	}
 
 }

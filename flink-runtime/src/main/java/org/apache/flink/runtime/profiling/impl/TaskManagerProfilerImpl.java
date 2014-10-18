@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,17 +16,17 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.profiling.impl;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.executiongraph.ExecutionVertexID;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.ipc.RPC;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.net.NetUtils;
 import org.apache.flink.runtime.profiling.ProfilingException;
 import org.apache.flink.runtime.profiling.ProfilingUtils;
@@ -50,7 +50,7 @@ import java.util.TimerTask;
 
 public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerProfiler {
 
-	private static final Log LOG = LogFactory.getLog(TaskManagerProfilerImpl.class);
+	private static final Logger LOG = LoggerFactory.getLogger(TaskManagerProfilerImpl.class);
 
 	private final ProfilerImplProtocol jobManagerProfiler;
 
@@ -107,11 +107,11 @@ public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerPro
 	public void registerExecutionListener(final Task task, final Configuration jobConfiguration) {
 
 		// Register profiling hook for the environment
-		task.registerExecutionListener(new EnvironmentListenerImpl(this, task.getRuntimeEnvironment()));
+		task.registerExecutionListener(new EnvironmentListenerImpl(this, task.getEnvironment()));
 	}
 
 	@Override
-	public void unregisterExecutionListener(ExecutionVertexID id) {
+	public void unregisterExecutionListener(ExecutionAttemptID id) {
 		/*
 		 * Nothing to do here, the task will unregister itself when its
 		 * execution state has either switched to FINISHED, CANCELLED,
@@ -121,7 +121,6 @@ public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerPro
 
 	@Override
 	public void shutdown() {
-
 		// Stop the timer task
 		this.timer.cancel();
 	}
@@ -168,23 +167,22 @@ public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerPro
 					this.jobManagerProfiler.reportProfilingData(this.profilingDataContainer);
 					this.profilingDataContainer.clear();
 				} catch (IOException e) {
-					LOG.error(e);
+					LOG.error("Could not report profiling data.", e);
 				}
 			}
 		}
 	}
 
-	public void registerMainThreadForCPUProfiling(Environment environment, Thread thread,
-			ExecutionVertexID executionVertexID) {
+	public void registerMainThreadForCPUProfiling(Environment environment, Thread thread, JobVertexID vertexId, int subtask, ExecutionAttemptID executionID) {
 
 		synchronized (this.monitoredThreads) {
-			LOG.debug("Registering thread " + thread.getName() + " for CPU monitoring");
+			LOG.debug("Registering thread {} for CPU monitoring", thread);
 			if (this.monitoredThreads.containsKey(environment)) {
 				LOG.error("There is already a main thread registered for environment object "
 					+ environment.getTaskName());
 			}
 
-			this.monitoredThreads.put(environment, new EnvironmentThreadSet(this.tmx, thread, executionVertexID));
+			this.monitoredThreads.put(environment, new EnvironmentThreadSet(this.tmx, thread, vertexId, subtask, executionID));
 		}
 	}
 
@@ -206,7 +204,7 @@ public class TaskManagerProfilerImpl extends TimerTask implements TaskManagerPro
 	public void unregisterMainThreadFromCPUProfiling(Environment environment, Thread thread) {
 
 		synchronized (this.monitoredThreads) {
-			LOG.debug("Unregistering thread " + thread.getName() + " from CPU monitoring");
+			LOG.debug("Unregistering thread {} from CPU monitoring", thread);
 			final EnvironmentThreadSet environmentThreadSet = this.monitoredThreads.remove(environment);
 			if (environmentThreadSet != null) {
 

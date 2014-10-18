@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -29,17 +29,13 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
-import org.apache.flink.api.java.record.io.FixedLengthInputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
-import org.apache.flink.util.LogUtils;
-import org.apache.log4j.Level;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 public class FixedLenghtInputFormatTest {
@@ -51,12 +47,7 @@ public class FixedLenghtInputFormatTest {
 	private final FixedLengthInputFormat format = new MyFixedLengthInputFormat();
 	
 	// --------------------------------------------------------------------------------------------
-	
-	@BeforeClass
-	public static void initialize() {
-		LogUtils.initializeDefaultConsoleLogger(Level.WARN);
-	}
-	
+
 	@Before
 	public void setup() {
 		format.setFilePath("file:///some/file/that/will/not/be/read");

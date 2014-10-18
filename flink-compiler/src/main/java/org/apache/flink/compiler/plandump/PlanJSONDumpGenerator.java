@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -326,6 +326,9 @@ public class PlanJSONDumpGenerator {
 							break;
 						case PARTITION_RANDOM:
 							shipStrategy = "Redistribute";
+							break;
+						case PARTITION_FORCED_REBALANCE:
+							shipStrategy = "Rebalance";
 							break;
 						default:
 							throw new CompilerException("Unknown ship strategy '" + conn.getShipStrategy().name()

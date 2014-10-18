@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -26,14 +26,16 @@ import java.util.LinkedList;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.functions.RichFlatJoinFunction;
+import org.apache.flink.api.common.functions.RichFlatJoinFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.tuple.Tuple6;
+import org.apache.flink.api.java.tuple.Tuple7;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.CustomType;
+import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.POJO;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.util.Collector;
 import org.junit.runner.RunWith;
@@ -46,7 +48,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 @RunWith(Parameterized.class)
 public class JoinITCase extends JavaProgramTestBase {
 	
-	private static int NUM_PROGRAMS = 13;
+	private static int NUM_PROGRAMS = 22;
 	
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -162,9 +164,9 @@ public class JoinITCase extends JavaProgramTestBase {
 				env.execute();
 				
 				// return expected result
-				return "(1, 1, Hi),(2, 2, 1, Hallo Welt, 2)\n" +
-						"(2, 2, Hello),(2, 3, 2, Hallo Welt wie, 1)\n" +
-						"(3, 2, Hello world),(3, 4, 3, Hallo Welt wie gehts?, 2)\n";
+				return "(1,1,Hi),(2,2,1,Hallo Welt,2)\n" +
+						"(2,2,Hello),(2,3,2,Hallo Welt wie,1)\n" +
+						"(3,2,Hello world),(3,4,3,Hallo Welt wie gehts?,2)\n";
 			
 			}
 			case 4: {
@@ -453,8 +455,215 @@ public class JoinITCase extends JavaProgramTestBase {
 						"2,2,Hello world,2,2,Hello world\n";
 	
 			}
+			case 14: {
+				/*
+				 * UDF Join on tuples with tuple-returning key selectors
+				 */
+				
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				
+				DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.get3TupleDataSet(env);
+				DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.get5TupleDataSet(env);
+				DataSet<Tuple2<String, String>> joinDs = 
+						ds1.join(ds2)
+						   .where(new KeySelector<Tuple3<Integer,Long,String>, Tuple2<Integer, Long>>() {
+								private static final long serialVersionUID = 1L;
+								
+								@Override
+								public Tuple2<Integer, Long> getKey(Tuple3<Integer,Long,String> t) {
+									return new Tuple2<Integer, Long>(t.f0, t.f1);
+								}
+							})
+						   .equalTo(new KeySelector<Tuple5<Integer,Long,Integer,String,Long>, Tuple2<Integer, Long>>() {
+								private static final long serialVersionUID = 1L;
+								
+								@Override
+								public Tuple2<Integer, Long> getKey(Tuple5<Integer,Long,Integer,String,Long> t) {
+									return new Tuple2<Integer, Long>(t.f0, t.f4);
+								}
+							})
+						   .with(new T3T5FlatJoin());
+				
+				joinDs.writeAsCsv(resultPath);
+				env.execute();
+				
+				// return expected result
+				return "Hi,Hallo\n" +
+						"Hello,Hallo Welt\n" +
+						"Hello world,Hallo Welt wie gehts?\n" +
+						"Hello world,ABC\n" +
+						"I am fine.,HIJ\n" +
+						"I am fine.,IJK\n";
+			}
+			/**
+			 *  Joins with POJOs
+			 */
+			case 15: {
+				/*
+				 * Join nested pojo against tuple (selected using a string)
+				 */
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				
+				DataSet<POJO> ds1 = CollectionDataSets.getSmallPojoDataSet(env);
+				DataSet<Tuple7<Integer, String, Integer, Integer, Long, String, Long>> ds2 = CollectionDataSets.getSmallTuplebasedDataSet(env);
+				DataSet<Tuple2<POJO, Tuple7<Integer, String, Integer, Integer, Long, String, Long> >> joinDs = 
+						ds1.join(ds2).where("nestedPojo.longNumber").equalTo("f6");
+				
+				joinDs.writeAsCsv(resultPath);
+				env.execute();
+				
+				// return expected result
+				return "1 First (10,100,1000,One) 10000,(1,First,10,100,1000,One,10000)\n" +
+					   "2 Second (20,200,2000,Two) 20000,(2,Second,20,200,2000,Two,20000)\n" +
+					   "3 Third (30,300,3000,Three) 30000,(3,Third,30,300,3000,Three,30000)\n";
+			}
+			
+			case 16: {
+				/*
+				 * Join nested pojo against tuple (selected as an integer)
+				 */
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				
+				DataSet<POJO> ds1 = CollectionDataSets.getSmallPojoDataSet(env);
+				DataSet<Tuple7<Integer, String, Integer, Integer, Long, String, Long>> ds2 = CollectionDataSets.getSmallTuplebasedDataSet(env);
+				DataSet<Tuple2<POJO, Tuple7<Integer, String, Integer, Integer, Long, String, Long> >> joinDs = 
+						ds1.join(ds2).where("nestedPojo.longNumber").equalTo(6); // <--- difference!
+				
+				joinDs.writeAsCsv(resultPath);
+				env.execute();
+				
+				// return expected result
+				return "1 First (10,100,1000,One) 10000,(1,First,10,100,1000,One,10000)\n" +
+					   "2 Second (20,200,2000,Two) 20000,(2,Second,20,200,2000,Two,20000)\n" +
+					   "3 Third (30,300,3000,Three) 30000,(3,Third,30,300,3000,Three,30000)\n";
+			}
+			case 17: {
+				/*
+				 * selecting multiple fields using expression language
+				 */
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				
+				DataSet<POJO> ds1 = CollectionDataSets.getSmallPojoDataSet(env);
+				DataSet<Tuple7<Integer, String, Integer, Integer, Long, String, Long>> ds2 = CollectionDataSets.getSmallTuplebasedDataSet(env);
+				DataSet<Tuple2<POJO, Tuple7<Integer, String, Integer, Integer, Long, String, Long> >> joinDs = 
+						ds1.join(ds2).where("nestedPojo.longNumber", "number", "str").equalTo("f6","f0","f1");
+				
+				joinDs.writeAsCsv(resultPath);
+				env.setDegreeOfParallelism(1);
+				env.execute();
+				
+				// return expected result
+				return "1 First (10,100,1000,One) 10000,(1,First,10,100,1000,One,10000)\n" +
+					   "2 Second (20,200,2000,Two) 20000,(2,Second,20,200,2000,Two,20000)\n" +
+					   "3 Third (30,300,3000,Three) 30000,(3,Third,30,300,3000,Three,30000)\n";
+				
+			}
+			case 18: {
+				/*
+				 * nested into tuple
+				 */
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				
+				DataSet<POJO> ds1 = CollectionDataSets.getSmallPojoDataSet(env);
+				DataSet<Tuple7<Integer, String, Integer, Integer, Long, String, Long>> ds2 = CollectionDataSets.getSmallTuplebasedDataSet(env);
+				DataSet<Tuple2<POJO, Tuple7<Integer, String, Integer, Integer, Long, String, Long> >> joinDs = 
+						ds1.join(ds2).where("nestedPojo.longNumber", "number","nestedTupleWithCustom.f0").equalTo("f6","f0","f2");
+				
+				joinDs.writeAsCsv(resultPath);
+				env.setDegreeOfParallelism(1);
+				env.execute();
+				
+				// return expected result
+				return "1 First (10,100,1000,One) 10000,(1,First,10,100,1000,One,10000)\n" +
+					   "2 Second (20,200,2000,Two) 20000,(2,Second,20,200,2000,Two,20000)\n" +
+					   "3 Third (30,300,3000,Three) 30000,(3,Third,30,300,3000,Three,30000)\n";
+				
+			}
+			case 19: {
+				/*
+				 * nested into tuple into pojo
+				 */
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				
+				DataSet<POJO> ds1 = CollectionDataSets.getSmallPojoDataSet(env);
+				DataSet<Tuple7<Integer, String, Integer, Integer, Long, String, Long>> ds2 = CollectionDataSets.getSmallTuplebasedDataSet(env);
+				DataSet<Tuple2<POJO, Tuple7<Integer, String, Integer, Integer, Long, String, Long> >> joinDs = 
+						ds1.join(ds2).where("nestedTupleWithCustom.f0","nestedTupleWithCustom.f1.myInt","nestedTupleWithCustom.f1.myLong").equalTo("f2","f3","f4");
+				
+				joinDs.writeAsCsv(resultPath);
+				env.setDegreeOfParallelism(1);
+				env.execute();
+				
+				// return expected result
+				return "1 First (10,100,1000,One) 10000,(1,First,10,100,1000,One,10000)\n" +
+					   "2 Second (20,200,2000,Two) 20000,(2,Second,20,200,2000,Two,20000)\n" +
+					   "3 Third (30,300,3000,Three) 30000,(3,Third,30,300,3000,Three,30000)\n";
+				
+			}
+			case 20: {
+				/*
+				 * Non-POJO test to verify that full-tuple keys are working.
+				 */
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				
+				DataSet<Tuple2<Tuple2<Integer, Integer>, String>> ds1 = CollectionDataSets.getSmallNestedTupleDataSet(env);
+				DataSet<Tuple2<Tuple2<Integer, Integer>, String>> ds2 = CollectionDataSets.getSmallNestedTupleDataSet(env);
+				DataSet<Tuple2<Tuple2<Tuple2<Integer, Integer>, String>, Tuple2<Tuple2<Integer, Integer>, String> >> joinDs = 
+						ds1.join(ds2).where(0).equalTo("f0.f0", "f0.f1"); // key is now Tuple2<Integer, Integer>
+				
+				joinDs.writeAsCsv(resultPath);
+				env.setDegreeOfParallelism(1);
+				env.execute();
+				
+				// return expected result
+				return "((1,1),one),((1,1),one)\n" +
+					   "((2,2),two),((2,2),two)\n" +
+					   "((3,3),three),((3,3),three)\n";
+				
+			}
+			case 21: {
+				/*
+				 * Non-POJO test to verify "nested" tuple-element selection.
+				 */
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				
+				DataSet<Tuple2<Tuple2<Integer, Integer>, String>> ds1 = CollectionDataSets.getSmallNestedTupleDataSet(env);
+				DataSet<Tuple2<Tuple2<Integer, Integer>, String>> ds2 = CollectionDataSets.getSmallNestedTupleDataSet(env);
+				DataSet<Tuple2<Tuple2<Tuple2<Integer, Integer>, String>, Tuple2<Tuple2<Integer, Integer>, String> >> joinDs = 
+						ds1.join(ds2).where("f0.f0").equalTo("f0.f0"); // key is now Integer from Tuple2<Integer, Integer>
+				
+				joinDs.writeAsCsv(resultPath);
+				env.setDegreeOfParallelism(1);
+				env.execute();
+				
+				// return expected result
+				return "((1,1),one),((1,1),one)\n" +
+					   "((2,2),two),((2,2),two)\n" +
+					   "((3,3),three),((3,3),three)\n";
+				
+			}
+			case 22: {
+				/*
+				 * full pojo with full tuple
+				 */
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				
+				DataSet<POJO> ds1 = CollectionDataSets.getSmallPojoDataSet(env);
+				DataSet<Tuple7<Long, Integer, Integer, Long, String, Integer, String>> ds2 = CollectionDataSets.getSmallTuplebasedDataSetMatchingPojo(env);
+				DataSet<Tuple2<POJO, Tuple7<Long, Integer, Integer, Long, String, Integer, String> >> joinDs = 
+						ds1.join(ds2).where("*").equalTo("*");
+				
+				joinDs.writeAsCsv(resultPath);
+				env.setDegreeOfParallelism(1);
+				env.execute();
+				
+				// return expected result
+				return "1 First (10,100,1000,One) 10000,(10000,10,100,1000,One,1,First)\n"+
+						"2 Second (20,200,2000,Two) 20000,(20000,20,200,2000,Two,2,Second)\n"+
+						"3 Third (30,300,3000,Three) 30000,(30000,30,300,3000,Three,3,Third)\n";
+			}
 			default: 
-				throw new IllegalArgumentException("Invalid program id");
+				throw new IllegalArgumentException("Invalid program id: "+progId);
 			}
 			
 		}

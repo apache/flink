@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,10 +19,8 @@
 
 package org.apache.flink.runtime.operators;
 
-import java.io.IOException;
-
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -30,7 +28,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.execution.CancelTaskException;
-import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.io.network.api.MutableReader;
 import org.apache.flink.runtime.io.network.api.MutableRecordReader;
 import org.apache.flink.runtime.io.network.api.MutableUnionRecordReader;
@@ -46,7 +43,7 @@ import org.apache.flink.types.Record;
 import org.apache.flink.util.MutableObjectIterator;
 
 /**
- * DataSinkTask which is executed by a Nephele task manager.
+ * DataSinkTask which is executed by a Flink task manager.
  * The task hands the data to an output format.
  * 
  * @see OutputFormat
@@ -56,7 +53,7 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 	public static final String DEGREE_OF_PARALLELISM_KEY = "sink.dop";
 	
 	// Obtain DataSinkTask Logger
-	private static final Log LOG = LogFactory.getLog(DataSinkTask.class);
+	private static final Logger LOG = LoggerFactory.getLogger(DataSinkTask.class);
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -78,9 +75,6 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 	// task configuration
 	private TaskConfig config;
 	
-	// class loader for user code
-	private ClassLoader userCodeClassLoader;
-
 	// cancel flag
 	private volatile boolean taskCanceled;
 	
@@ -128,7 +122,8 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 				// initialize sort local strategy
 				try {
 					// get type comparator
-					TypeComparatorFactory<IT> compFact = this.config.getInputComparator(0, this.userCodeClassLoader);
+					TypeComparatorFactory<IT> compFact = this.config.getInputComparator(0,
+							getUserCodeClassLoader());
 					if (compFact == null) {
 						throw new Exception("Missing comparator factory for local strategy on input " + 0);
 					}
@@ -250,15 +245,6 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 	}
 	
 	/**
-	 * Sets the class-loader to be used to load the user code.
-	 * 
-	 * @param cl The class-loader to be used to load the user code.
-	 */
-	public void setUserCodeClassLoader(ClassLoader cl) {
-		this.userCodeClassLoader = cl;
-	}
-
-	/**
 	 * Initializes the OutputFormat implementation and configuration.
 	 * 
 	 * @throws RuntimeException
@@ -266,20 +252,13 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 	 *         obtained.
 	 */
 	private void initOutputFormat() {
-		if (this.userCodeClassLoader == null) {
-			try {
-				this.userCodeClassLoader = LibraryCacheManager.getClassLoader(getEnvironment().getJobID());
-			} catch (IOException ioe) {
-				throw new RuntimeException("Library cache manager could not be instantiated.", ioe);
-			}
-		}
+		ClassLoader userCodeClassLoader = getUserCodeClassLoader();
 		// obtain task configuration (including stub parameters)
 		Configuration taskConf = getTaskConfiguration();
-		taskConf.setClassLoader(this.userCodeClassLoader);
 		this.config = new TaskConfig(taskConf);
 
 		try {
-			this.format = config.<OutputFormat<IT>>getStubWrapper(this.userCodeClassLoader).getUserCodeObject(OutputFormat.class, this.userCodeClassLoader);
+			this.format = config.<OutputFormat<IT>>getStubWrapper(userCodeClassLoader).getUserCodeObject(OutputFormat.class, userCodeClassLoader);
 
 			// check if the class is a subclass, if the check is required
 			if (!OutputFormat.class.isAssignableFrom(this.format.getClass())) {
@@ -332,7 +311,7 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 			throw new Exception("Illegal input group size in task configuration: " + groupSize);
 		}
 		
-		this.inputTypeSerializerFactory = this.config.getInputSerializer(0, this.userCodeClassLoader);
+		this.inputTypeSerializerFactory = this.config.getInputSerializer(0, getUserCodeClassLoader());
 		
 		if (this.inputTypeSerializerFactory.getDataType() == Record.class) {
 			// record specific deserialization

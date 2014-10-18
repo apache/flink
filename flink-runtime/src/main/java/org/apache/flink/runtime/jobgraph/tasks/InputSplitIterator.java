@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,7 +24,7 @@ import java.util.Iterator;
 import org.apache.flink.core.io.InputSplit;
 
 /**
- * The input split iterator allows an {@link AbstractInputTask} to iterator over all input splits it is supposed to
+ * The input split iterator allows a task to iterate over all input splits it is supposed to
  * consume. Internally, the input split iterator calls an {@link InputSplitProvider} on each <code>next</code> call in
  * order to facilitate lazy split assignment.
  * 
@@ -72,7 +72,6 @@ public class InputSplitIterator<T extends InputSplit> implements Iterator<T> {
 	@SuppressWarnings("unchecked")
 	@Override
 	public T next() {
-
 		T retVal = null;
 
 		if (this.nextInputSplit == null) {
@@ -88,8 +87,6 @@ public class InputSplitIterator<T extends InputSplit> implements Iterator<T> {
 
 	@Override
 	public void remove() {
-
 		throw new RuntimeException("The InputSplitIterator does not implement the remove method");
 	}
-
 }

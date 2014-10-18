@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,8 +25,8 @@ import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.UnsupportedCharsetException;
 import java.util.ArrayList;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.api.common.operators.base.FileDataSourceBase;
 import org.apache.flink.configuration.ConfigConstants;
@@ -55,7 +55,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 	/**
 	 * The log.
 	 */
-	private static final Log LOG = LogFactory.getLog(DelimitedInputFormat.class);
+	private static final Logger LOG = LoggerFactory.getLogger(DelimitedInputFormat.class);
 	
 	/**
 	 * The default read buffer size = 1MB.

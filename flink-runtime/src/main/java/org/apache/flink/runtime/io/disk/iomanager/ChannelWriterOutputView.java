@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.io.disk.iomanager;
 
 import java.io.IOException;
@@ -27,15 +26,14 @@ import java.util.concurrent.LinkedBlockingQueue;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.memorymanager.AbstractPagedOutputView;
 
-
 /**
- * A {@link DataOutputView} that is backed by a {@link BlockChannelWriter}, making it effectively a data output
+ * A {@link org.apache.flink.core.memory.DataOutputView} that is backed by a
+ * {@link BlockChannelWriter}, making it effectively a data output
  * stream. The view writes it data in blocks to the underlying channel, adding a minimal header to each block.
  * The data can be re-read by a {@link ChannelReaderInputView}, if it uses the same block size.
- *
  */
-public final class ChannelWriterOutputView extends AbstractPagedOutputView
-{
+public final class ChannelWriterOutputView extends AbstractPagedOutputView {
+	
 	/**
 	 * The magic number that identifies blocks as blocks from a ChannelWriterOutputView.
 	 */

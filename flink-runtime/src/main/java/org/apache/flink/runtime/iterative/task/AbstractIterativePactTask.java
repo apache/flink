@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,15 +16,16 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.iterative.task;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.aggregators.LongSumAggregator;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
+import org.apache.flink.api.common.functions.util.RuntimeUDFContext;
+import org.apache.flink.api.common.operators.util.JoinHashMap;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.core.memory.DataOutputView;
@@ -36,13 +37,13 @@ import org.apache.flink.runtime.iterative.concurrent.Broker;
 import org.apache.flink.runtime.iterative.concurrent.IterationAggregatorBroker;
 import org.apache.flink.runtime.iterative.concurrent.SolutionSetBroker;
 import org.apache.flink.runtime.iterative.convergence.WorksetEmptyConvergenceCriterion;
+import org.apache.flink.runtime.iterative.io.SolutionSetObjectsUpdateOutputCollector;
 import org.apache.flink.runtime.iterative.io.SolutionSetUpdateOutputCollector;
 import org.apache.flink.runtime.iterative.io.WorksetUpdateOutputCollector;
 import org.apache.flink.runtime.operators.PactDriver;
 import org.apache.flink.runtime.operators.RegularPactTask;
 import org.apache.flink.runtime.operators.ResettablePactDriver;
 import org.apache.flink.runtime.operators.hash.CompactingHashTable;
-import org.apache.flink.runtime.operators.udf.RuntimeUDFContext;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
@@ -57,7 +58,7 @@ import java.io.IOException;
 public abstract class AbstractIterativePactTask<S extends Function, OT> extends RegularPactTask<S, OT>
 		implements Terminable
 {
-	private static final Log log = LogFactory.getLog(AbstractIterativePactTask.class);
+	private static final Logger log = LoggerFactory.getLogger(AbstractIterativePactTask.class);
 	
 	protected LongSumAggregator worksetAggregator;
 
@@ -157,7 +158,8 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 	@Override
 	public RuntimeUDFContext createRuntimeContext(String taskName) {
 		Environment env = getEnvironment();
-		return new IterativeRuntimeUdfContext(taskName, env.getCurrentNumberOfSubtasks(), env.getIndexInSubtaskGroup());
+		return new IterativeRuntimeUdfContext(taskName, env.getCurrentNumberOfSubtasks(),
+				env.getIndexInSubtaskGroup(), getUserCodeClassLoader());
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -311,19 +313,22 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 	 * {@link SolutionSetUpdateOutputCollector}
 	 */
 	protected Collector<OT> createSolutionSetUpdateOutputCollector(Collector<OT> delegate) {
-		Broker<CompactingHashTable<?>> solutionSetBroker = SolutionSetBroker.instance();
-
-		/*if (config.getIsSolutionSetUpdateWithoutReprobe()) {
+		Broker<Object> solutionSetBroker = SolutionSetBroker.instance();
+		
+		Object ss = solutionSetBroker.get(brokerKey());
+		if (ss instanceof CompactingHashTable) {
 			@SuppressWarnings("unchecked")
-			MutableHashTable<OT, ?> solutionSet = (MutableHashTable<OT, ?>) solutionSetBroker.get(brokerKey());
-
-			return new SolutionSetFastUpdateOutputCollector<OT>(solutionSet, delegate);
-		} else {*/
-			@SuppressWarnings("unchecked")
-			CompactingHashTable<OT> solutionSet = (CompactingHashTable<OT>) solutionSetBroker.get(brokerKey());
+			CompactingHashTable<OT> solutionSet = (CompactingHashTable<OT>) ss;
 			TypeSerializer<OT> serializer = getOutputSerializer();
 			return new SolutionSetUpdateOutputCollector<OT>(solutionSet, serializer, delegate);
-		//}
+		}
+		else if (ss instanceof JoinHashMap) {
+			@SuppressWarnings("unchecked")
+			JoinHashMap<OT> map = (JoinHashMap<OT>) ss;
+			return new SolutionSetObjectsUpdateOutputCollector<OT>(map, delegate);
+		} else {
+			throw new RuntimeException("Unrecognized solution set handle: " + ss);
+		}
 	}
 
 	/**
@@ -332,7 +337,8 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 	private TypeSerializer<OT> getOutputSerializer() {
 		TypeSerializerFactory<OT> serializerFactory;
 
-		if ((serializerFactory = getLastTasksConfig().getOutputSerializer(userCodeClassLoader)) == null) {
+		if ((serializerFactory = getLastTasksConfig().getOutputSerializer(getUserCodeClassLoader())) ==
+				null) {
 			throw new RuntimeException("Missing output serializer for workset update.");
 		}
 
@@ -343,8 +349,8 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 
 	private class IterativeRuntimeUdfContext extends RuntimeUDFContext implements IterationRuntimeContext {
 
-		public IterativeRuntimeUdfContext(String name, int numParallelSubtasks, int subtaskIndex) {
-			super(name, numParallelSubtasks, subtaskIndex);
+		public IterativeRuntimeUdfContext(String name, int numParallelSubtasks, int subtaskIndex, ClassLoader userCodeClassLoader) {
+			super(name, numParallelSubtasks, subtaskIndex, userCodeClassLoader);
 		}
 
 		@Override

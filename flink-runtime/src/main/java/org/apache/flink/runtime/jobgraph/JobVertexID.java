@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,15 +16,28 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.jobgraph;
+
+import javax.xml.bind.DatatypeConverter;
 
 import org.apache.flink.runtime.AbstractID;
 
 /**
  * A class for statistically unique job vertex IDs.
- * 
  */
 public class JobVertexID extends AbstractID {
-
+	
+	private static final long serialVersionUID = 1L;
+	
+	public JobVertexID() {
+		super();
+	}
+	
+	public JobVertexID(byte[] bytes) {
+		super(bytes);
+	}
+	
+	public static JobVertexID fromHexString(String hexString) {
+		return new JobVertexID(DatatypeConverter.parseHexBinary(hexString));
+	}
 }

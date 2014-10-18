@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -61,7 +61,7 @@ public class StringRecordTest {
 
 		try {
 
-			final StringRecord copy = (StringRecord) CommonTestUtils.createCopy(orig);
+			final StringRecord copy = (StringRecord) CommonTestUtils.createCopyWritable(orig);
 			
 			assertEquals(orig.getLength(), copy.getLength());
 			assertEquals(orig.toString(), copy.toString());
