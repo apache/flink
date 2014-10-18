@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.compiler.plandump;
 
 import java.io.File;
@@ -26,7 +25,6 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -47,7 +45,6 @@ import org.apache.flink.compiler.dataproperties.GlobalProperties;
 import org.apache.flink.compiler.dataproperties.LocalProperties;
 import org.apache.flink.compiler.plan.BulkIterationPlanNode;
 import org.apache.flink.compiler.plan.Channel;
-import org.apache.flink.compiler.plan.NAryUnionPlanNode;
 import org.apache.flink.compiler.plan.OptimizedPlan;
 import org.apache.flink.compiler.plan.PlanNode;
 import org.apache.flink.compiler.plan.SingleInputPlanNode;
@@ -265,121 +262,104 @@ public class PlanJSONDumpGenerator {
 		if (inConns != null && inConns.hasNext()) {
 			// start predecessor list
 			writer.print(",\n\t\t\"predecessors\": [");
-			int connNum = 0;
 			int inputNum = 0;
 			
 			while (inConns.hasNext()) {
-				final DumpableConnection<?> conn = inConns.next();
+				final DumpableConnection<?> inConn = inConns.next();
+				final DumpableNode<?> source = inConn.getSource();
+				writer.print(inputNum == 0 ? "\n" : ",\n");
+				if (inputNum == 0) {
+					child1name += child1name.length() > 0 ? ", " : ""; 
+					child1name += source.getOptimizerNode().getPactContract().getName();
+				} else if (inputNum == 1) {
+					child2name += child2name.length() > 0 ? ", " : ""; 
+					child2name = source.getOptimizerNode().getPactContract().getName();
+				}
+
+				// output predecessor id
+				writer.print("\t\t\t{\"id\": " + this.nodeIds.get(source));
+
+				// output connection side
+				if (inConns.hasNext() || inputNum > 0) {
+					writer.print(", \"side\": \"" + (inputNum == 0 ? "first" : "second") + "\"");
+				}
+				// output shipping strategy and channel type
+				final Channel channel = (inConn instanceof Channel) ? (Channel) inConn : null; 
+				final ShipStrategyType shipType = channel != null ? channel.getShipStrategy() :
+						((PactConnection) inConn).getShipStrategy();
+					
+				String shipStrategy = null;
+				if (shipType != null) {
+					switch (shipType) {
+					case NONE:
+						// nothing
+						break;
+					case FORWARD:
+						shipStrategy = "Forward";
+						break;
+					case BROADCAST:
+						shipStrategy = "Broadcast";
+						break;
+					case PARTITION_HASH:
+						shipStrategy = "Hash Partition";
+						break;
+					case PARTITION_RANGE:
+						shipStrategy = "Range Partition";
+						break;
+					case PARTITION_RANDOM:
+						shipStrategy = "Redistribute";
+						break;
+					case PARTITION_FORCED_REBALANCE:
+						shipStrategy = "Rebalance";
+						break;
+					default:
+						throw new CompilerException("Unknown ship strategy '" + inConn.getShipStrategy().name()
+							+ "' in JSON generator.");
+					}
+				}
 				
-				final Collection<DumpableConnection<?>> inConnsForInput;
-				if (conn.getSource() instanceof NAryUnionPlanNode) {
-					inConnsForInput = new ArrayList<DumpableConnection<?>>();
-					
-					for (DumpableConnection<?> inputOfUnion : conn.getSource().getDumpableInputs()) {
-						inConnsForInput.add(inputOfUnion);
-					}
+				if (channel != null && channel.getShipStrategyKeys() != null && channel.getShipStrategyKeys().size() > 0) {
+					shipStrategy += " on " + (channel.getShipStrategySortOrder() == null ?
+							channel.getShipStrategyKeys().toString() :
+							Utils.createOrdering(channel.getShipStrategyKeys(), channel.getShipStrategySortOrder()).toString());
 				}
-				else {
-					inConnsForInput = Collections.<DumpableConnection<?>>singleton(conn);
+
+				if (shipStrategy != null) {
+					writer.print(", \"ship_strategy\": \"" + shipStrategy + "\"");
 				}
 				
-				for (DumpableConnection<?> inConn : inConnsForInput) {
-					final DumpableNode<?> source = inConn.getSource();
-					writer.print(connNum == 0 ? "\n" : ",\n");
-					if (connNum == 0) {
-						child1name += child1name.length() > 0 ? ", " : ""; 
-						child1name += source.getOptimizerNode().getPactContract().getName();
-					} else if (connNum == 1) {
-						child2name += child2name.length() > 0 ? ", " : ""; 
-						child2name = source.getOptimizerNode().getPactContract().getName();
-					}
-	
-					// output predecessor id
-					writer.print("\t\t\t{\"id\": " + this.nodeIds.get(source));
-	
-					// output connection side
-					if (inConns.hasNext() || inputNum > 0) {
-						writer.print(", \"side\": \"" + (inputNum == 0 ? "first" : "second") + "\"");
-					}
-					// output shipping strategy and channel type
-					final Channel channel = (inConn instanceof Channel) ? (Channel) inConn : null; 
-					final ShipStrategyType shipType = channel != null ? channel.getShipStrategy() :
-							((PactConnection) inConn).getShipStrategy();
-						
-					String shipStrategy = null;
-					if (shipType != null) {
-						switch (shipType) {
-						case NONE:
-							// nothing
-							break;
-						case FORWARD:
-							shipStrategy = "Forward";
-							break;
-						case BROADCAST:
-							shipStrategy = "Broadcast";
-							break;
-						case PARTITION_HASH:
-							shipStrategy = "Hash Partition";
-							break;
-						case PARTITION_RANGE:
-							shipStrategy = "Range Partition";
-							break;
-						case PARTITION_RANDOM:
-							shipStrategy = "Redistribute";
-							break;
-						case PARTITION_FORCED_REBALANCE:
-							shipStrategy = "Rebalance";
-							break;
-						default:
-							throw new CompilerException("Unknown ship strategy '" + conn.getShipStrategy().name()
-								+ "' in JSON generator.");
-						}
+				if (channel != null) {
+					String localStrategy = null;
+					switch (channel.getLocalStrategy()) {
+					case NONE:
+						break;
+					case SORT:
+						localStrategy = "Sort";
+						break;
+					case COMBININGSORT:
+						localStrategy = "Sort (combining)";
+						break;
+					default:
+						throw new CompilerException("Unknown local strategy " + channel.getLocalStrategy().name());
 					}
 					
-					if (channel != null && channel.getShipStrategyKeys() != null && channel.getShipStrategyKeys().size() > 0) {
-						shipStrategy += " on " + (channel.getShipStrategySortOrder() == null ?
-								channel.getShipStrategyKeys().toString() :
-								Utils.createOrdering(channel.getShipStrategyKeys(), channel.getShipStrategySortOrder()).toString());
-					}
-	
-					if (shipStrategy != null) {
-						writer.print(", \"ship_strategy\": \"" + shipStrategy + "\"");
+					if (channel != null && channel.getLocalStrategyKeys() != null && channel.getLocalStrategyKeys().size() > 0) {
+						localStrategy += " on " + (channel.getLocalStrategySortOrder() == null ?
+								channel.getLocalStrategyKeys().toString() :
+								Utils.createOrdering(channel.getLocalStrategyKeys(), channel.getLocalStrategySortOrder()).toString());
 					}
 					
-					if (channel != null) {
-						String localStrategy = null;
-						switch (channel.getLocalStrategy()) {
-						case NONE:
-							break;
-						case SORT:
-							localStrategy = "Sort";
-							break;
-						case COMBININGSORT:
-							localStrategy = "Sort (combining)";
-							break;
-						default:
-							throw new CompilerException("Unknown local strategy " + channel.getLocalStrategy().name());
-						}
-						
-						if (channel != null && channel.getLocalStrategyKeys() != null && channel.getLocalStrategyKeys().size() > 0) {
-							localStrategy += " on " + (channel.getLocalStrategySortOrder() == null ?
-									channel.getLocalStrategyKeys().toString() :
-									Utils.createOrdering(channel.getLocalStrategyKeys(), channel.getLocalStrategySortOrder()).toString());
-						}
-						
-						if (localStrategy != null) {
-							writer.print(", \"local_strategy\": \"" + localStrategy + "\"");
-						}
-						
-						if (channel != null && channel.getTempMode() != TempMode.NONE) {
-							String tempMode = channel.getTempMode().toString();
-							writer.print(", \"temp_mode\": \"" + tempMode + "\"");
-						}
+					if (localStrategy != null) {
+						writer.print(", \"local_strategy\": \"" + localStrategy + "\"");
 					}
 					
-					writer.print('}');
-					connNum++;
+					if (channel != null && channel.getTempMode() != TempMode.NONE) {
+						String tempMode = channel.getTempMode().toString();
+						writer.print(", \"temp_mode\": \"" + tempMode + "\"");
+					}
 				}
+				
+				writer.print('}');
 				inputNum++;
 			}
 			// finish predecessors
