@@ -26,6 +26,9 @@ public class NetUtils {
 	 * @return
 	 */
 	public static String getHostnameFromFQDN(String fqdn) {
+		if(fqdn == null) {
+			throw new IllegalArgumentException("Input string is null (fqdn)");
+		}
 		int dotPos = fqdn.indexOf('.');
 		if(dotPos == -1) {
 			return fqdn;
