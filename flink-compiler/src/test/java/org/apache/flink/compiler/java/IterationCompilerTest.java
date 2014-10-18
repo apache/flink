@@ -29,8 +29,8 @@ import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.compiler.CompilerTestBase;
 import org.apache.flink.compiler.plan.OptimizedPlan;
-import org.apache.flink.compiler.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.compiler.plantranslate.NepheleJobGraphGenerator;
+import org.apache.flink.compiler.testfunctions.IdentityMapper;
 import org.junit.Test;
 
 @SuppressWarnings("serial")
@@ -57,7 +57,7 @@ public class IterationCompilerTest extends CompilerTestBase {
 	}
 	
 	@Test
-	public void testIdentityWorksetIteration() {
+	public void testEmptyWorksetIteration() {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 			env.setDegreeOfParallelism(43);
@@ -76,7 +76,63 @@ public class IterationCompilerTest extends CompilerTestBase {
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
 			
-			System.out.println(new PlanJSONDumpGenerator().getOptimizerPlanAsJSON(op));
+			new NepheleJobGraphGenerator().compileJobGraph(op);
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testIterationWithUnionRoot() {
+		try {
+			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+			env.setDegreeOfParallelism(43);
+			
+			IterativeDataSet<Long> iteration = env.generateSequence(-4, 1000).iterate(100);
+			
+			iteration.closeWith(
+					iteration.map(new IdentityMapper<Long>()).union(iteration.map(new IdentityMapper<Long>())))
+					.print();
+			
+			Plan p = env.createProgramPlan();
+			OptimizedPlan op = compileNoStats(p);
+			
+			new NepheleJobGraphGenerator().compileJobGraph(op);
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testWorksetIterationWithUnionRoot() {
+		try {
+			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+			env.setDegreeOfParallelism(43);
+			
+			DataSet<Tuple2<Long, Long>> input = env.generateSequence(1, 20)
+					.map(new MapFunction<Long, Tuple2<Long, Long>>() {
+						@Override
+						public Tuple2<Long, Long> map(Long value){ return null; }
+					});
+					
+					
+			DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iter = input.iterateDelta(input, 100, 0);
+			iter.closeWith(
+					iter.getWorkset().map(new IdentityMapper<Tuple2<Long,Long>>())
+				.union(
+					iter.getWorkset().map(new IdentityMapper<Tuple2<Long,Long>>()))
+				, iter.getWorkset().map(new IdentityMapper<Tuple2<Long,Long>>())
+				.union(
+						iter.getWorkset().map(new IdentityMapper<Tuple2<Long,Long>>()))
+				)
+			.print();
+			
+			Plan p = env.createProgramPlan();
+			OptimizedPlan op = compileNoStats(p);
 			
 			new NepheleJobGraphGenerator().compileJobGraph(op);
 		}

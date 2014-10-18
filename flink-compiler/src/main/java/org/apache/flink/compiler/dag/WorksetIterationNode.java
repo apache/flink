@@ -160,7 +160,7 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 		
 		// there needs to be at least one node in the workset path, so
 		// if the next workset is equal to the workset, we need to inject a no-op node
-		if (nextWorkset == worksetNode) {
+		if (nextWorkset == worksetNode || nextWorkset instanceof BinaryUnionNode) {
 			NoOpNode noop = new NoOpNode();
 			noop.setDegreeOfParallelism(getDegreeOfParallelism());
 
