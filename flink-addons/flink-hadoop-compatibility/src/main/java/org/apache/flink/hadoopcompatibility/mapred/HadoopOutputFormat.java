@@ -141,7 +141,8 @@ public class HadoopOutputFormat<K extends Writable,V extends Writable> implement
 		if (this.fileOutputCommitter.needsTaskCommit(this.context)) {
 			this.fileOutputCommitter.commitTask(this.context);
 		}
-		this.fileOutputCommitter.commitJob(this.jobContext);
+		// Job commit should be done after all the tasks are finished.
+//		this.fileOutputCommitter.commitJob(this.jobContext);
 	}
 	
 	// --------------------------------------------------------------------------------------------
