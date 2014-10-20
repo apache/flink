@@ -60,9 +60,9 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
             BoxedPrimitiveDescriptor(id, tpe, default, wrapper, box, unbox)
           case ListType(elemTpe, iter) =>
             analyzeList(id, tpe, elemTpe, iter)
-          case CaseClassType() => analyzeCaseClass(id, tpe)
           case ValueType() => ValueDescriptor(id, tpe)
           case WritableType() => WritableDescriptor(id, tpe)
+          case CaseClassType() => analyzeCaseClass(id, tpe)
           case JavaType() =>
             // It's a Java Class, let the TypeExtractor deal with it...
             c.warning(c.enclosingPosition, s"Type $tpe is a java class. Will be analyzed by " +
