@@ -88,7 +88,7 @@ public class GenericCsvInputFormatTest {
 		
 			final Configuration parameters = new Configuration();
 			
-			format.setFieldDelimiter('|');
+			format.setFieldDelimiter(new char[] {'|'});
 			format.setFieldTypesGeneric(IntValue.class, IntValue.class, IntValue.class, IntValue.class, IntValue.class);
 			
 			format.configure(parameters);
@@ -128,7 +128,7 @@ public class GenericCsvInputFormatTest {
 		
 			final Configuration parameters = new Configuration();
 			
-			format.setFieldDelimiter('|');
+			format.setFieldDelimiter(new char[] {'|'});
 			format.setFieldTypesGeneric(IntValue.class, IntValue.class);
 			
 			format.configure(parameters);
@@ -165,7 +165,7 @@ public class GenericCsvInputFormatTest {
 		
 			final Configuration parameters = new Configuration();
 			
-			format.setFieldDelimiter('|');
+			format.setFieldDelimiter(new char[] {'|'});
 			format.setFieldTypesGeneric(IntValue.class, null, null, IntValue.class, null, null, null, IntValue.class);
 			
 			format.configure(parameters);
@@ -203,7 +203,7 @@ public class GenericCsvInputFormatTest {
 
 			final Configuration parameters = new Configuration();
 
-			format.setFieldDelimiter(',');
+			format.setFieldDelimiter(new char[] {','});
 			format.setFieldTypesGeneric(LongValue.class, LongValue.class, LongValue.class);
 			format.configure(parameters);
 			format.open(split);
@@ -241,7 +241,7 @@ public class GenericCsvInputFormatTest {
 
 			final Configuration parameters = new Configuration();
 
-			format.setFieldDelimiter('|');
+			format.setFieldDelimiter(new char[] {'|'});
 			format.setFieldsGeneric(new int[] { 0, 3, 7 },
 				(Class<? extends Value>[]) new Class[] { IntValue.class, IntValue.class, IntValue.class });
 			format.configure(parameters);
@@ -277,7 +277,7 @@ public class GenericCsvInputFormatTest {
 			final FileInputSplit split = createTempFile(fileContent);	
 		
 			final Configuration parameters = new Configuration();
-			format.setFieldDelimiter('|');
+			format.setFieldDelimiter(new char[] {'|'});
 			format.setFieldTypesGeneric(IntValue.class, IntValue.class, IntValue.class, IntValue.class, IntValue.class);
 			
 			format.configure(parameters);
@@ -305,7 +305,7 @@ public class GenericCsvInputFormatTest {
 			final FileInputSplit split = createTempFile(fileContent);	
 		
 			final Configuration parameters = new Configuration();
-			format.setFieldDelimiter('|');
+			format.setFieldDelimiter(new char[] {'|'});
 			format.setFieldTypesGeneric(IntValue.class, IntValue.class, IntValue.class, IntValue.class, IntValue.class);
 			format.setLenient(true);
 			
@@ -331,7 +331,7 @@ public class GenericCsvInputFormatTest {
 		
 			final Configuration parameters = new Configuration();
 
-			format.setFieldDelimiter('|');
+			format.setFieldDelimiter(new char[] {'|'});
 			format.setFieldTypesGeneric(StringValue.class, IntValue.class, StringValue.class, IntValue.class);
 			
 			format.configure(parameters);
@@ -362,7 +362,7 @@ public class GenericCsvInputFormatTest {
 		
 			final Configuration parameters = new Configuration();
 
-			format.setFieldDelimiter('|');
+			format.setFieldDelimiter(new char[] {'|'});
 			format.setFieldTypesGeneric(StringValue.class, IntValue.class, StringValue.class, IntValue.class);
 			format.setLenient(true);
 			
@@ -390,7 +390,7 @@ public class GenericCsvInputFormatTest {
 		
 			final Configuration parameters = new Configuration();
 
-			format.setFieldDelimiter('|');
+			format.setFieldDelimiter(new char[] {'|'});
 			format.setFieldTypesGeneric(StringValue.class, null, IntValue.class);
 			format.setLenient(true);
 			
@@ -417,7 +417,7 @@ public class GenericCsvInputFormatTest {
 		
 			final Configuration parameters = new Configuration();
 
-			format.setFieldDelimiter('|');
+			format.setFieldDelimiter(new char[] {'|'});
 			format.setFieldTypesGeneric(StringValue.class, StringValue.class, StringValue.class);
 			
 			format.configure(parameters);
@@ -460,7 +460,7 @@ public class GenericCsvInputFormatTest {
 		
 			final Configuration parameters = new Configuration();
 
-			format.setFieldDelimiter('|');
+			format.setFieldDelimiter(new char[] {'|'});
 			format.setFieldTypesGeneric(IntValue.class, StringValue.class, IntValue.class, StringValue.class);
 			format.setSkipFirstLineAsHeader(true);
 			
@@ -492,7 +492,7 @@ public class GenericCsvInputFormatTest {
 		
 			final Configuration parameters = new Configuration();
 
-			format.setFieldDelimiter('|');
+			format.setFieldDelimiter(new char[] {'|'});
 			format.setFieldTypesGeneric(IntValue.class, StringValue.class, IntValue.class, StringValue.class);
 			format.setSkipFirstLineAsHeader(true);
 			

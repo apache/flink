@@ -38,7 +38,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 	
 	private static final boolean[] EMPTY_INCLUDED = new boolean[0];
 	
-	private static final char DEFAULT_FIELD_DELIMITER = ',';
+	private static final char[] DEFAULT_FIELD_DELIMITER = new char[] {','};
 	
 	
 	// --------------------------------------------------------------------------------------------
@@ -57,7 +57,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 	
 	private boolean[] fieldIncluded = EMPTY_INCLUDED;
 		
-	private char fieldDelim = DEFAULT_FIELD_DELIMITER;
+	private char[] fieldDelim = DEFAULT_FIELD_DELIMITER;
 	
 	private boolean lenient;
 	
@@ -86,13 +86,15 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 		return this.fieldTypes.length;
 	}
 
-	public char getFieldDelimiter() {
+	public char[] getFieldDelimiter() {
 		return fieldDelim;
 	}
 
-	public void setFieldDelimiter(char fieldDelim) {
-		if (fieldDelim > Byte.MAX_VALUE) {
-			throw new IllegalArgumentException("The field delimiter must be an ASCII character.");
+	public void setFieldDelimiter(char[] fieldDelim) {
+		for(int i=0; i<fieldDelim.length; i++) {
+			if (fieldDelim[i] > Byte.MAX_VALUE) {
+				throw new IllegalArgumentException("The field delimiter may only contain ASCII characters.");
+			}
 		}
 		
 		this.fieldDelim = fieldDelim;
@@ -333,10 +335,9 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 		return string.toString();
 	}
 
-	protected int skipFields(byte[] bytes, int startPos, int limit, char delim) {
+	protected int skipFields(byte[] bytes, int startPos, int limit, char[] delim) {
 		int i = startPos;
 		
-		final byte delByte = (byte) delim;
 		byte current;
 		
 		// skip over initial whitespace lines
@@ -358,7 +359,8 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 				i++; // the quote
 				
 				// skip trailing whitespace characters 
-				while (i < limit && (current = bytes[i]) != delByte) {
+				while (i <= limit-delim.length && !FieldParser.delimiterNext(bytes, i, delim)) {
+					current = bytes[i];
 					if (current == ' ' || current == '\t') {
 						i++;
 					}
@@ -375,7 +377,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 		}
 		else {
 			// unquoted field
-			while (i < limit && bytes[i] != delByte) {
+			while (i <= limit-delim.length && !FieldParser.delimiterNext(bytes, i, delim)) {
 				i++;
 			}
 			return (i == limit ? limit : i+1);

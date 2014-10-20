@@ -104,7 +104,7 @@ public class CsvInputFormatTest {
 		
 			final CsvInputFormat<Tuple3<String, String, String>> format = new CsvInputFormat<Tuple3<String, String, String>>(PATH);
 			
-			format.setFieldDelimiter('|');
+			format.setFieldDelimiter(new char[] {'|'});
 			format.setFieldTypes(String.class, String.class, String.class);
 			
 			format.configure(new Configuration());
@@ -147,7 +147,7 @@ public class CsvInputFormatTest {
 		
 			final CsvInputFormat<Tuple5<Integer, Integer, Integer, Integer, Integer>> format = new CsvInputFormat<Tuple5<Integer, Integer, Integer, Integer, Integer>>(PATH);
 			
-			format.setFieldDelimiter('|');
+			format.setFieldDelimiter(new char[] {'|'});
 			format.setFieldTypes(Integer.class, Integer.class, Integer.class, Integer.class, Integer.class);
 			
 			format.configure(new Configuration());
@@ -188,7 +188,7 @@ public class CsvInputFormatTest {
 		
 			final CsvInputFormat<Tuple2<Integer, Integer>> format = new CsvInputFormat<Tuple2<Integer, Integer>>(PATH);
 			
-			format.setFieldDelimiter('|');
+			format.setFieldDelimiter(new char[] {'|'});
 			format.setFieldTypes(Integer.class, Integer.class);
 			
 			format.configure(new Configuration());
@@ -224,7 +224,7 @@ public class CsvInputFormatTest {
 			
 			final CsvInputFormat<Tuple3<Integer, Integer, Integer>> format = new CsvInputFormat<Tuple3<Integer, Integer, Integer>>(PATH);
 			
-			format.setFieldDelimiter('|');
+			format.setFieldDelimiter(new char[] {'|'});
 			format.setFieldTypes(Integer.class, null, null, Integer.class, null, null, null, Integer.class);
 			
 			format.configure(new Configuration());
@@ -261,7 +261,7 @@ public class CsvInputFormatTest {
 			
 			final CsvInputFormat<Tuple3<Integer, Integer, Integer>> format = new CsvInputFormat<Tuple3<Integer, Integer, Integer>>(PATH);
 			
-			format.setFieldDelimiter('|');
+			format.setFieldDelimiter(new char[] {'|'});
 			
 			format.setFields(new int[] {0, 3, 7}, new Class<?>[] {Integer.class, Integer.class, Integer.class});
 			
@@ -300,7 +300,7 @@ public class CsvInputFormatTest {
 			
 			final CsvInputFormat<Tuple3<Integer, Integer, Integer>> format = new CsvInputFormat<Tuple3<Integer, Integer, Integer>>(PATH);
 			
-			format.setFieldDelimiter('|');
+			format.setFieldDelimiter(new char[] {'|'});
 
 			format.setFields(new boolean[] { true, false, false, true, false, false, false, true }, new Class<?>[] { Integer.class,
 					Integer.class, Integer.class });
@@ -336,7 +336,7 @@ public class CsvInputFormatTest {
 		try {
 			final CsvInputFormat<Tuple3<Integer, Integer, Integer>> format = new CsvInputFormat<Tuple3<Integer, Integer, Integer>>(PATH);
 			
-			format.setFieldDelimiter('|');
+			format.setFieldDelimiter(new char[] {'|'});
 			
 			try {
 				format.setFields(new int[] {8, 1, 3}, new Class<?>[] {Integer.class, Integer.class, Integer.class});
@@ -363,7 +363,7 @@ public class CsvInputFormatTest {
 		for (Object[] failure : failures) {
 			String input = (String) failure[0];
 
-			int result = stringParser.parseField(input.getBytes(), 0, input.length(), '|', null);
+			int result = stringParser.parseField(input.getBytes(), 0, input.length(), new char[]{'|'}, null);
 
 			assertThat(result, is(-1));
 			assertThat(stringParser.getErrorState(), is(failure[1]));
@@ -390,7 +390,7 @@ public class CsvInputFormatTest {
 				new CsvInputFormat<Tuple5<Integer, String, String, String, Double>>(PATH);
 
 		format.setSkipFirstLineAsHeader(true);
-		format.setFieldDelimiter(',');
+		format.setFieldDelimiter(new char[]{','});
 
 		format.setFields(new boolean[] { true, true, true, true, true }, new Class<?>[] {
 				Integer.class, String.class, String.class, String.class, Double.class });

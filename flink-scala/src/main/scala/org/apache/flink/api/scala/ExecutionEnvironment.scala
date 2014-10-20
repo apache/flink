@@ -171,7 +171,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
 
     val inputFormat = new ScalaCsvInputFormat[T](new Path(filePath), typeInfo)
     inputFormat.setDelimiter(lineDelimiter)
-    inputFormat.setFieldDelimiter(fieldDelimiter)
+    inputFormat.setFieldDelimiter(Array(fieldDelimiter))
     inputFormat.setSkipFirstLineAsHeader(ignoreFirstLine)
     inputFormat.setLenient(lenient)
 

@@ -27,12 +27,11 @@ public class FloatParser extends FieldParser<Float> {
 	private float result;
 	
 	@Override
-	public int parseField(byte[] bytes, int startPos, int limit, char delim, Float reusable) {
+	public int parseField(byte[] bytes, int startPos, int limit, char[] delim, Float reusable) {
 		
 		int i = startPos;
-		final byte delByte = (byte) delim;
 		
-		while (i < limit && bytes[i] != delByte) {
+		while (i <= limit-delim.length && !delimiterNext(bytes, i, delim)) {
 			i++;
 		}
 		

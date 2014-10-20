@@ -33,7 +33,7 @@ public class IntValueParser extends FieldParser<IntValue> {
 	private IntValue result;
 	
 	@Override
-	public int parseField(byte[] bytes, int startPos, int limit, char delimiter, IntValue reusable) {
+	public int parseField(byte[] bytes, int startPos, int limit, char[] delimiter, IntValue reusable) {
 		long val = 0;
 		boolean neg = false;
 		
@@ -44,14 +44,14 @@ public class IntValueParser extends FieldParser<IntValue> {
 			startPos++;
 			
 			// check for empty field with only the sign
-			if (startPos == limit || bytes[startPos] == delimiter) {
+			if (startPos > limit-delimiter.length || delimiterNext(bytes, startPos, delimiter)) {
 				setErrorState(ParseErrorState.NUMERIC_VALUE_ORPHAN_SIGN);
 				return -1;
 			}
 		}
 		
-		for (int i = startPos; i < limit; i++) {
-			if (bytes[i] == delimiter) {
+		for (int i = startPos; i <= limit-delimiter.length; i++) {
+			if (delimiterNext(bytes, i, delimiter)) {
 				reusable.setValue((int) (neg ? -val : val));
 				return i+1;
 			}

@@ -83,7 +83,7 @@ public abstract class ParserTestBase<T> {
 				FieldParser<T> parser = getParser();
 				
 				byte[] bytes = testValues[i].getBytes();
-				int numRead = parser.parseField(bytes, 0, bytes.length, '|', parser.createValue());
+				int numRead = parser.parseField(bytes, 0, bytes.length, new char[] {'|'}, parser.createValue());
 				
 				assertTrue("Parser declared the valid value " + testValues[i] + " as invalid.", numRead != -1);
 				assertEquals("Invalid number of bytes read returned.", bytes.length, numRead);
@@ -120,8 +120,8 @@ public abstract class ParserTestBase<T> {
 			int pos2 = 0;
 			
 			for (int i = 0; i < results.length; i++) {
-				pos1 = parser1.parseField(allBytesWithDelimiter, pos1, allBytesWithDelimiter.length, '|', val1);
-				pos2 = parser2.parseField(allBytesNoDelimiterEnd, pos2, allBytesNoDelimiterEnd.length, ',', val2);
+				pos1 = parser1.parseField(allBytesWithDelimiter, pos1, allBytesWithDelimiter.length, new char[] {'|'}, val1);
+				pos2 = parser2.parseField(allBytesNoDelimiterEnd, pos2, allBytesNoDelimiterEnd.length, new char[] {','}, val2);
 				
 				assertTrue("Parser declared the valid value " + testValues[i] + " as invalid.", pos1 != -1);
 				assertTrue("Parser declared the valid value " + testValues[i] + " as invalid.", pos2 != -1);
@@ -150,7 +150,7 @@ public abstract class ParserTestBase<T> {
 				FieldParser<T> parser = getParser();
 				
 				byte[] bytes = testValues[i].getBytes();
-				int numRead = parser.parseField(bytes, 0, bytes.length, '|', parser.createValue());
+				int numRead = parser.parseField(bytes, 0, bytes.length, new char[] {'|'}, parser.createValue());
 				
 				assertTrue("Parser accepted the invalid value " + testValues[i] + ".", numRead == -1);
 			}
@@ -188,7 +188,7 @@ public abstract class ParserTestBase<T> {
 				// read the valid parts
 				int pos = 0;
 				for (int i = 0; i < splitPoint; i++) {
-					pos = parser.parseField(bytes, pos, bytes.length, '%', value);
+					pos = parser.parseField(bytes, pos, bytes.length, new char[] {'%'}, value);
 					
 					assertTrue("Parser declared the valid value " + validValues[i] + " as invalid.", pos != -1);
 					T result = parser.getLastResult();
@@ -196,7 +196,7 @@ public abstract class ParserTestBase<T> {
 				}
 				
 				// fail on the invalid part
-				pos = parser.parseField(bytes, pos, bytes.length, '%', value);
+				pos = parser.parseField(bytes, pos, bytes.length, new char[] {'%'}, value);
 				assertTrue("Parser accepted the invalid value " + invalid + ".", pos == -1);
 			}
 		}

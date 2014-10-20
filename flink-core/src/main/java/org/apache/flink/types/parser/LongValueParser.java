@@ -30,7 +30,7 @@ public class LongValueParser extends FieldParser<LongValue> {
 	private LongValue result;
 	
 	@Override
-	public int parseField(byte[] bytes, int startPos, int limit, char delimiter, LongValue reusable) {
+	public int parseField(byte[] bytes, int startPos, int limit, char[] delimiter, LongValue reusable) {
 		long val = 0;
 		boolean neg = false;
 		
@@ -41,14 +41,14 @@ public class LongValueParser extends FieldParser<LongValue> {
 			startPos++;
 			
 			// check for empty field with only the sign
-			if (startPos == limit || bytes[startPos] == delimiter) {
+			if (startPos > limit-delimiter.length || delimiterNext(bytes, startPos, delimiter)) {
 				setErrorState(ParseErrorState.NUMERIC_VALUE_ORPHAN_SIGN);
 				return -1;
 			}
 		}
 		
-		for (int i = startPos; i < limit; i++) {
-			if (bytes[i] == delimiter) {
+		for (int i = startPos; i <= limit-delimiter.length; i++) {
+			if (delimiterNext(bytes, i, delimiter)) {
 				reusable.setValue(neg ? -val : val);
 				return i+1;
 			}
@@ -67,7 +67,7 @@ public class LongValueParser extends FieldParser<LongValue> {
 					
 					if (i+1 >= limit) {
 						return limit; 
-					} else if (bytes[i+1] == delimiter) {
+					} else if (delimiterNext(bytes, i+1, delimiter)) {
 						return i+2;
 					} else {
 						setErrorState(ParseErrorState.NUMERIC_VALUE_OVERFLOW_UNDERFLOW);

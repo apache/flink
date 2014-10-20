@@ -32,7 +32,7 @@ public class ShortParser extends FieldParser<Short> {
 	private short result;
 
 	@Override
-	public int parseField(byte[] bytes, int startPos, int limit, char delimiter, Short reusable) {
+	public int parseField(byte[] bytes, int startPos, int limit, char[] delimiter, Short reusable) {
 		int val = 0;
 		boolean neg = false;
 		
@@ -41,14 +41,14 @@ public class ShortParser extends FieldParser<Short> {
 			startPos++;
 			
 			// check for empty field with only the sign
-			if (startPos == limit || bytes[startPos] == delimiter) {
+			if (startPos > limit-delimiter.length || delimiterNext(bytes, startPos, delimiter)) {
 				setErrorState(ParseErrorState.NUMERIC_VALUE_ORPHAN_SIGN);
 				return -1;
 			}
 		}
 		
-		for (int i = startPos; i < limit; i++) {
-			if (bytes[i] == delimiter) {
+		for (int i = startPos; i <= limit-delimiter.length; i++) {
+			if (delimiterNext(bytes, i, delimiter)) {
 				this.result = (short) (neg ? -val : val);
 				return i+1;
 			}

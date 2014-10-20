@@ -38,11 +38,10 @@ public class StringParser extends FieldParser<String> {
 	private String result;
 	
 	@Override
-	public int parseField(byte[] bytes, int startPos, int limit, char delim, String reusable) {
+	public int parseField(byte[] bytes, int startPos, int limit, char[] delim, String reusable) {
 		
 		int i = startPos;
 		
-		final byte delByte = (byte) delim;
 		byte current;
 		
 		// count initial whitespace lines
@@ -54,19 +53,19 @@ public class StringParser extends FieldParser<String> {
 		ParserStates parserState = ParserStates.NONE;
 
 		// the current position evaluated against the cell boundary
-		int endOfCellPosition = i - 1;
+		int curPos = i - 1;
 
-		while (parserState != ParserStates.STOP && endOfCellPosition < limit) {
-			endOfCellPosition++;
+		while (parserState != ParserStates.STOP && curPos < limit) {
+			curPos++;
 			// make sure we don't step over the end of the buffer
-			if(endOfCellPosition == limit) {
+			if(curPos == limit) {
 				break;
 			}
-			current = bytes[endOfCellPosition];
-			if(current == delByte) {
+			if(delimiterNext(bytes, curPos, delim)) {
 				// if we are in a quote do nothing, otherwise we reached the end
 				parserState = parserState == ParserStates.IN_QUOTE ? parserState: ParserStates.STOP;
-			} else if(current == QUOTE_DOUBLE) {
+				curPos += delim.length-1;
+			} else if(bytes[curPos] == QUOTE_DOUBLE) {
 				// we entered a quote
 				if(parserState == ParserStates.IN_QUOTE) {
 					// we end the quote
@@ -77,13 +76,13 @@ public class StringParser extends FieldParser<String> {
 				}
 			}
 		}
+		int endOfCellPosition = curPos;
 
 		if(parserState == ParserStates.IN_QUOTE) {
 			// exited due to line end without quote termination
 			setErrorState(ParseErrorState.UNTERMINATED_QUOTED_STRING);
 			return -1;
 		}
-
 
 		// boundary of the cell is now
 		// i --> endOfCellPosition
@@ -92,7 +91,7 @@ public class StringParser extends FieldParser<String> {
 		if (i < limit && bytes[i] == QUOTE_DOUBLE) {
 
 			// check if there are characters at the end
-			current = bytes[endOfCellPosition - 1];
+			current = bytes[curPos - 1];
 
 			// if the character preceding the end of the cell is not a WHITESPACE or the end QUOTE_DOUBLE
 			// there are unquoted characters at the end
@@ -104,7 +103,7 @@ public class StringParser extends FieldParser<String> {
 
 			// skip trailing whitespace after quote .. by moving the cursor backwards
 			int skipAtEnd = 0;
-			while (bytes[endOfCellPosition - 1 - skipAtEnd] == WHITESPACE_SPACE || bytes[endOfCellPosition - 1 - skipAtEnd] == WHITESPACE_TAB) {
+			while (bytes[curPos - 1 - skipAtEnd] == WHITESPACE_SPACE || bytes[curPos - 1 - skipAtEnd] == WHITESPACE_TAB) {
 				skipAtEnd++;
 			}
 

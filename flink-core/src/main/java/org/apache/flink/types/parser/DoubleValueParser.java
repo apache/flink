@@ -29,12 +29,11 @@ public class DoubleValueParser extends FieldParser<DoubleValue> {
 	private DoubleValue result;
 	
 	@Override
-	public int parseField(byte[] bytes, int startPos, int limit, char delim, DoubleValue reusable) {
+	public int parseField(byte[] bytes, int startPos, int limit, char[] delim, DoubleValue reusable) {
 		
 		int i = startPos;
-		final byte delByte = (byte) delim;
 		
-		while (i < limit && bytes[i] != delByte) {
+		while (i <= limit-delim.length && !delimiterNext(bytes, i, delim)) {
 			i++;
 		}
 		

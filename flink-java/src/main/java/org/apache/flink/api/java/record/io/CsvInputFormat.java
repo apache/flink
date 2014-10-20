@@ -80,7 +80,7 @@ public class CsvInputFormat extends GenericCsvInputFormat<Record> {
 	
 	public CsvInputFormat(char fieldDelimiter) {
 		super();
-		setFieldDelimiter(fieldDelimiter);
+		setFieldDelimiter(new char[] {fieldDelimiter});
 	}
 	
 	public CsvInputFormat(Class<? extends Value> ... fields) {
@@ -90,7 +90,7 @@ public class CsvInputFormat extends GenericCsvInputFormat<Record> {
 	
 	public CsvInputFormat(char fieldDelimiter, Class<? extends Value> ... fields) {
 		super();
-		setFieldDelimiter(fieldDelimiter);
+		setFieldDelimiter(new char[] {fieldDelimiter});
 		setFieldTypes(fields);
 	}
 	
@@ -146,7 +146,7 @@ public class CsvInputFormat extends GenericCsvInputFormat<Record> {
 				throw new IllegalArgumentException("Invalid configuration for CsvInputFormat: " +
 						"Field delimiter must be a single character");
 			} else {
-				setFieldDelimiter(fieldDelimStr.charAt(0));
+				setFieldDelimiter(new char[] {fieldDelimStr.charAt(0)});
 			}
 		}
 		

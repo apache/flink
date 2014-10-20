@@ -38,13 +38,12 @@ public class StringValueParser extends FieldParser<StringValue> {
 	private StringValue result;
 	
 	@Override
-	public int parseField(byte[] bytes, int startPos, int length, char delim, StringValue reusable) {
+	public int parseField(byte[] bytes, int startPos, int length, char[] delim, StringValue reusable) {
 		
 		this.result = reusable;
 		
 		int i = startPos;
 		
-		final byte delByte = (byte) delim;
 		byte current;
 		
 		// count initial whitespace lines
@@ -70,7 +69,8 @@ public class StringValueParser extends FieldParser<StringValue> {
 				i++; // the quote
 				
 				// skip trailing whitespace characters 
-				while (i < length && (current = bytes[i]) != delByte) {
+				while (i <= length-delim.length && !delimiterNext(bytes, i, delim)) {
+					current = bytes[i];
 					if (current == WHITESPACE_SPACE || current == WHITESPACE_TAB) {
 						i++;
 					}
@@ -89,7 +89,7 @@ public class StringValueParser extends FieldParser<StringValue> {
 		}
 		else {
 			// unquoted string
-			while (i < length && bytes[i] != delByte) {
+			while (i <= length-delim.length && !delimiterNext(bytes, i, delim)) {
 				i++;
 			}
 			
