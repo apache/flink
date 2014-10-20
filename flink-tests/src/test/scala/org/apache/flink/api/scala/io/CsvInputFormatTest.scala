@@ -162,6 +162,47 @@ class CsvInputFormatTest {
   }
 
   @Test
+  def readMixedQuotedStringFields():Unit = {
+    try {
+      val fileContent = "abc|\"de|f\"|ghijk\n\"a|bc\"||hhg\n|||"
+      val split = createTempFile(fileContent)
+      val format = new ScalaCsvInputFormat[(String, String, String)](
+        PATH, createTypeInformation[(String, String, String)])
+      format.setDelimiter("\n")
+      format.enableQuotedStringParsing('"')
+      format.setFieldDelimiter("|")
+      val parameters = new Configuration
+      format.configure(parameters)
+      format.open(split)
+      var result: (String, String, String) = null
+      result = format.nextRecord(result)
+      assertNotNull(result)
+      assertEquals("abc", result._1)
+      assertEquals("de|f", result._2)
+      assertEquals("ghijk", result._3)
+      result = format.nextRecord(result)
+      assertNotNull(result)
+      assertEquals("a|bc", result._1)
+      assertEquals("", result._2)
+      assertEquals("hhg", result._3)
+      result = format.nextRecord(result)
+      assertNotNull(result)
+      assertEquals("", result._1)
+      assertEquals("", result._2)
+      assertEquals("", result._3)
+      result = format.nextRecord(result)
+      assertNull(result)
+      assertTrue(format.reachedEnd)
+    }
+    catch {
+      case ex: Exception => {
+        ex.printStackTrace()
+        fail("Test failed due to a " + ex.getClass.getName + ": " + ex.getMessage)
+      }
+    }
+  }
+
+  @Test
   def readStringFieldsWithTrailingDelimiters(): Unit = {
     try {
       val fileContent = "abc|-def|-ghijk\nabc|-|-hhg\n|-|-|-\n"

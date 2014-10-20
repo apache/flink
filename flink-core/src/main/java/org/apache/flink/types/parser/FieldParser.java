@@ -59,10 +59,10 @@ public abstract class FieldParser<T> {
 		
 		/** The field was not in a correct format for the numeric type. */
 		NUMERIC_VALUE_FORMAT_ERROR,
-		
+
 		/** A quoted string was not terminated until the line end. */
 		UNTERMINATED_QUOTED_STRING,
-		
+
 		/** The parser found characters between the end of the quoted string and the delimiter. */
 		UNQUOTED_CHARS_AFTER_QUOTED_STRING
 	}

@@ -197,6 +197,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    *                 "hdfs://host:port/file/path").   * @param lineDelimiter
    * @param lineDelimiter The string that separates lines, defaults to newline.
    * @param fieldDelimiter The string that separates individual fields, defaults to ",".
+   * @param quoteCharacter The character to use for quoted String parsing, disabled by default.
    * @param ignoreFirstLine Whether the first line in the file should be ignored.
    * @param ignoreComments Lines that start with the given String are ignored, disabled by default.
    * @param lenient Whether the parser should silently ignore malformed lines.
@@ -207,6 +208,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
       filePath: String,
       lineDelimiter: String = "\n",
       fieldDelimiter: String = ",",
+      quoteCharacter: Character = null,
       ignoreFirstLine: Boolean = false,
       ignoreComments: String = null,
       lenient: Boolean = false,
@@ -220,6 +222,10 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
     inputFormat.setSkipFirstLineAsHeader(ignoreFirstLine)
     inputFormat.setLenient(lenient)
     inputFormat.setCommentPrefix(ignoreComments)
+
+    if (quoteCharacter != null) {
+      inputFormat.enableQuotedStringParsing(quoteCharacter);
+    }
 
     val classes: Array[Class[_]] = new Array[Class[_]](typeInfo.getArity)
     for (i <- 0 until typeInfo.getArity) {

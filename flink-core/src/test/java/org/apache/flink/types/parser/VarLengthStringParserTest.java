@@ -38,6 +38,8 @@ public class VarLengthStringParserTest {
 	
 	@Test
 	public void testParseValidUnquotedStrings() {
+
+		this.parser = new StringValueParser();
 		
 		// check valid strings with out whitespaces and trailing delimiter
 		byte[] recBytes = "abcdefgh|i|jklmno|".getBytes();
@@ -77,8 +79,11 @@ public class VarLengthStringParserTest {
 	}
 	
 	@Test
-	public void testParseValidQuotedStringsWithoutWhitespaces() {
-		
+	public void testParseValidQuotedStrings() {
+
+		this.parser = new StringValueParser();
+		this.parser.enableQuotedStringParsing((byte)'"');
+
 		// check valid strings with out whitespaces and trailing delimiter
 		byte[] recBytes = "\"abcdefgh\"|\"i\"|\"jklmno\"|".getBytes();
 		StringValue s = new StringValue();
@@ -137,67 +142,56 @@ public class VarLengthStringParserTest {
 		assertTrue(startPos == 25);
 		assertTrue(s.getValue().equals("hij|kl|mn|op"));
 	}
-	
+
 	@Test
-	public void testParseValidQuotedStringsWithWhitespaces() {
-		
+	public void testParseValidMixedStrings() {
+
+		this.parser = new StringValueParser();
+		this.parser.enableQuotedStringParsing((byte)'@');
+
 		// check valid strings with out whitespaces and trailing delimiter
-		byte[] recBytes = "  \"abcdefgh\"|     \"i\"\t\t\t|\t \t\"jklmno\"  |".getBytes();
+		byte[] recBytes = "@abcde|gh@|@i@|jklmnopq|@rs@|tuv".getBytes();
 		StringValue s = new StringValue();
-		
+
 		int startPos = 0;
 		startPos = parser.parseField(recBytes, startPos, recBytes.length, new byte[] {'|'}, s);
-		assertTrue(startPos == 13);
-		assertTrue(s.getValue().equals("abcdefgh"));
-		
+		assertTrue(startPos == 11);
+		assertTrue(s.getValue().equals("abcde|gh"));
+
 		startPos = parser.parseField(recBytes, startPos, recBytes.length, new byte[] {'|'}, s);
-		assertTrue(startPos == 25);
+		assertTrue(startPos == 15);
 		assertTrue(s.getValue().equals("i"));
-		
+
 		startPos = parser.parseField(recBytes, startPos, recBytes.length, new byte[] {'|'}, s);
-		assertTrue(startPos == 39);
-		assertTrue(s.getValue().equals("jklmno"));
-		
-		// check valid strings with out whitespaces without trailing delimiter
-		recBytes = "  \"abcdefgh\"|     \"i\"\t\t\t|\t \t\"jklmno\"  ".getBytes();
-		s = new StringValue();
-		
-		startPos = 0;
+		assertTrue(startPos == 24);
+		assertTrue(s.getValue().equals("jklmnopq"));
+
 		startPos = parser.parseField(recBytes, startPos, recBytes.length, new byte[] {'|'}, s);
-		assertTrue(startPos == 13);
-		assertTrue(s.getValue().equals("abcdefgh"));
-		
+		assertTrue(startPos == 29);
+		assertTrue(s.getValue().equals("rs"));
+
 		startPos = parser.parseField(recBytes, startPos, recBytes.length, new byte[] {'|'}, s);
-		assertTrue(startPos == 25);
-		assertTrue(s.getValue().equals("i"));
-		
-		startPos = parser.parseField(recBytes, startPos, recBytes.length, new byte[] {'|'}, s);
-		assertTrue(startPos == 38);
-		assertTrue(s.getValue().equals("jklmno"));
-		
-		// check single field not terminated
-		recBytes = "  \t\"abcde\"\t\t  \t ".getBytes();
-		startPos = 0;
-		startPos = parser.parseField(recBytes, startPos, recBytes.length, new byte[] {'|'}, s);
-		assertTrue(startPos == 16);
-		assertTrue(s.getValue().equals("abcde"));
-		
-		// check single field terminated
-		recBytes = "  \t\"abcde\"\t\t  \t |".getBytes();
-		startPos = 0;
-		startPos = parser.parseField(recBytes, startPos, recBytes.length, new byte[] {'|'}, s);
-		assertTrue(startPos == 17);
-		assertTrue(s.getValue().equals("abcde"));
+		assertTrue(startPos == 32);
+		assertTrue(s.getValue().equals("tuv"));
+
 	}
-	
+
+
 	@Test
 	public void testParseInvalidQuotedStrings() {
-		
+
+		this.parser = new StringValueParser();
+		this.parser.enableQuotedStringParsing((byte)'"');
+
 		// check valid strings with out whitespaces and trailing delimiter
-		byte[] recBytes = "  \"abcdefgh\" gh |     \"i\"\t\t\t|\t \t\"jklmno\"  |".getBytes();
+		byte[] recBytes = "\"abcdefgh\"-|\"jklmno  ".getBytes();
 		StringValue s = new StringValue();
-		
+
 		int startPos = 0;
+		startPos = parser.parseField(recBytes, startPos, recBytes.length, new byte[] {'|'}, s);
+		assertTrue(startPos < 0);
+
+		startPos = 12;
 		startPos = parser.parseField(recBytes, startPos, recBytes.length, new byte[] {'|'}, s);
 		assertTrue(startPos < 0);
 	}

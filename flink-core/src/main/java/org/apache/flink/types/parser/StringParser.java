@@ -25,112 +25,70 @@ package org.apache.flink.types.parser;
  * strings, whitespaces (space and tab) leading and trailing before and after the quotes are removed.
  */
 public class StringParser extends FieldParser<String> {
-	
-	private static final byte WHITESPACE_SPACE = (byte) ' ';
-	private static final byte WHITESPACE_TAB = (byte) '\t';
 
-	private static final byte QUOTE_CHARACTER = (byte) '"';
-
-	private static enum ParserStates {
-		NONE, IN_QUOTE, STOP
-	}
+	private boolean quotedStringParsing = false;
+	private byte quoteCharacter;
 
 	private String result;
-	
+
+	public void enableQuotedStringParsing(byte quoteCharacter) {
+		this.quotedStringParsing = true;
+		this.quoteCharacter = quoteCharacter;
+	}
+
 	@Override
 	public int parseField(byte[] bytes, int startPos, int limit, byte[] delimiter, String reusable) {
-		
+
 		int i = startPos;
 		byte current;
-		boolean delimiterFound = false;
 
 		final int delimLimit = limit-delimiter.length+1;
-		
-		// count initial whitespace lines
-		while (i < limit && ((current = bytes[i]) == WHITESPACE_SPACE || current == WHITESPACE_TAB)) {
+
+		if(quotedStringParsing == true && bytes[i] == quoteCharacter) {
+			// quoted string parsing enabled and first character Vis a quote
 			i++;
-		}
 
-		// first determine the boundaries of the cell
-		ParserStates parserState = ParserStates.NONE;
-
-		// the current position evaluated against the cell boundary
-		int endOfCellPosition = i - 1;
-
-		while (parserState != ParserStates.STOP && endOfCellPosition < limit) {
-			endOfCellPosition++;
-			// make sure we don't step over the end of the buffer
-			if(endOfCellPosition == limit) {
-				break;
+			// search for ending quote character
+			while(i < limit && bytes[i] != quoteCharacter) {
+				i++;
 			}
-			if(endOfCellPosition < delimLimit && delimiterNext(bytes, endOfCellPosition, delimiter)) {
-				// if we are in a quote do nothing, otherwise we reached the end
-				if (parserState != ParserStates.IN_QUOTE) {
-					parserState = ParserStates.STOP;
-					delimiterFound = true;
-				}
-				endOfCellPosition += delimiter.length - 1;
-			} else if(bytes[endOfCellPosition] == QUOTE_CHARACTER) {
-				// we entered a quote
-				if(parserState == ParserStates.IN_QUOTE) {
-					// we end the quote
-					parserState = ParserStates.NONE;
+
+			if (i == limit) {
+				setErrorState(ParseErrorState.UNTERMINATED_QUOTED_STRING);
+				return -1;
+			} else {
+				i++;
+				// check for proper termination
+				if (i == limit) {
+					// either by end of line
+					this.result = new String(bytes, startPos+1, i - startPos - 2);
+					return limit;
+				} else if ( i < delimLimit && delimiterNext(bytes, i, delimiter)) {
+					// or following field delimiter
+					this.result = new String(bytes, startPos+1, i - startPos - 2);
+					return i + delimiter.length;
 				} else {
-					// we start a new quote
-					parserState = ParserStates.IN_QUOTE;
+					// no proper termination
+					setErrorState(ParseErrorState.UNQUOTED_CHARS_AFTER_QUOTED_STRING);
+					return -1;
 				}
 			}
-		}
-		int delimCorrection = delimiterFound ? delimiter.length : 1;
+		} else {
 
-		if(parserState == ParserStates.IN_QUOTE) {
-			// exited due to line end without quote termination
-			setErrorState(ParseErrorState.UNTERMINATED_QUOTED_STRING);
-			return -1;
-		}
-
-		// boundary of the cell is now
-		// i --> endOfCellPosition
-
-		// first none whitespace character
-		if (i < limit && bytes[i] == QUOTE_CHARACTER) {
-
-			// check if there are characters at the end
-			current = bytes[endOfCellPosition - delimCorrection];
-
-			// if the character preceding the end of the cell is not a WHITESPACE or the end QUOTE_DOUBLE
-			// there are unquoted characters at the end
-
-			if (!(current == WHITESPACE_SPACE || current == WHITESPACE_TAB || current == QUOTE_CHARACTER)) {
-				setErrorState(ParseErrorState.UNQUOTED_CHARS_AFTER_QUOTED_STRING);
-				return -1;	// illegal case of non-whitespace characters trailing
+			// look for delimiter
+			while( i < delimLimit && !delimiterNext(bytes, i, delimiter)) {
+				i++;
 			}
 
-			// skip trailing whitespace after quote .. by moving the cursor backwards
-			int skipAtEnd = 0;
-			while (bytes[endOfCellPosition - delimCorrection - skipAtEnd] == WHITESPACE_SPACE ||
-					bytes[endOfCellPosition - delimCorrection - skipAtEnd] == WHITESPACE_TAB) {
-				skipAtEnd++;
+			if (i >= delimLimit) {
+				// no delimiter found. Take the full string
+				this.result = new String(bytes, startPos, limit - startPos);
+				return limit;
+			} else {
+				// delimiter found.
+				this.result = new String(bytes, startPos, i - startPos);
+				return i + delimiter.length;
 			}
-
-			// now unescape
-			boolean notEscaped = true;
-			int endOfContent = i + 1;
-			for(int counter = endOfContent; counter < endOfCellPosition - delimCorrection - skipAtEnd; counter++) {
-				notEscaped = bytes[counter] != QUOTE_CHARACTER || !notEscaped;
-				if (notEscaped) {
-					// realign
-					bytes[endOfContent++] = bytes[counter];
-				}
-			}
-			this.result = new String(bytes, i + 1, endOfContent - i - 1);
-			return (endOfCellPosition == limit ? limit : endOfCellPosition + 1);
-		}
-		else {
-			// unquoted string
-			// set from the beginning. unquoted strings include the leading whitespaces
-			this.result = new String(bytes, i, endOfCellPosition - i - (delimCorrection - 1));
-			return (endOfCellPosition == limit ? limit : endOfCellPosition + 1);
 		}
 	}
 

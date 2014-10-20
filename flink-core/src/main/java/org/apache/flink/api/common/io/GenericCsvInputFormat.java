@@ -25,6 +25,8 @@ import com.google.common.primitives.Ints;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.parser.FieldParser;
+import org.apache.flink.types.parser.StringParser;
+import org.apache.flink.types.parser.StringValueParser;
 import org.apache.flink.util.InstantiationUtil;
 
 import java.io.IOException;
@@ -41,15 +43,12 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 	
 	private static final byte[] DEFAULT_FIELD_DELIMITER = new byte[] {','};
 
-	private static final char QUOTE_CHARACTER = '"';
-	
-	
 	// --------------------------------------------------------------------------------------------
 	//  Variables for internal operation.
 	//  They are all transient, because we do not want them so be serialized 
 	// --------------------------------------------------------------------------------------------
 
-	private transient FieldParser<Object>[] fieldParsers;
+	private transient FieldParser<?>[] fieldParsers;
 	
 	
 	// --------------------------------------------------------------------------------------------
@@ -65,6 +64,10 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 	private boolean lenient;
 	
 	private boolean skipFirstLineAsHeader;
+
+	private boolean quotedStringParsing = false;
+
+	private byte quoteCharacter;
 	
 	
 	// --------------------------------------------------------------------------------------------
@@ -123,6 +126,11 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 
 	public void setSkipFirstLineAsHeader(boolean skipFirstLine) {
 		this.skipFirstLineAsHeader = skipFirstLine;
+	}
+
+	public void enableQuotedStringParsing(char quoteCharacter) {
+		quotedStringParsing = true;
+		this.quoteCharacter = (byte)quoteCharacter;
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -254,7 +262,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 		
 		// instantiate the parsers
 		@SuppressWarnings("unchecked")
-		FieldParser<Object>[] parsers = new FieldParser[fieldTypes.length];
+		FieldParser<?>[] parsers = new FieldParser[fieldTypes.length];
 		
 		for (int i = 0; i < fieldTypes.length; i++) {
 			if (fieldTypes[i] != null) {
@@ -265,7 +273,16 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 				
 
 				@SuppressWarnings("unchecked")
-				FieldParser<Object> p = (FieldParser<Object>) InstantiationUtil.instantiate(parserType, FieldParser.class);
+				FieldParser<?> p = (FieldParser<?>) InstantiationUtil.instantiate(parserType, FieldParser.class);
+
+				if (this.quotedStringParsing) {
+					if (p instanceof StringParser) {
+						((StringParser)p).enableQuotedStringParsing(this.quoteCharacter);
+					} else if (p instanceof StringValueParser) {
+						((StringValueParser)p).enableQuotedStringParsing(this.quoteCharacter);
+					}
+				}
+
 				parsers[i] = p;
 			}
 		}
@@ -347,50 +364,42 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 	protected int skipFields(byte[] bytes, int startPos, int limit, byte[] delim) {
 
 		int i = startPos;
-		
 		byte current;
+
 		final int delimLimit = limit - delim.length + 1;
-		
-		// skip over initial whitespace lines
-		while (i < limit && ((current = bytes[i]) == ' ' || current == '\t')) {
-			i++;
-		}
-		
-		// first none whitespace character
-		if (i < limit && bytes[i] == QUOTE_CHARACTER) {
-			// quoted string
-			i++; // the quote
-			
-			while (i < limit && bytes[i] != QUOTE_CHARACTER) {
+
+		if(quotedStringParsing == true && bytes[i] == quoteCharacter) {
+
+			// quoted string parsing enabled and field is quoted
+			// search for ending quote character
+			while(i < limit && bytes[i] != quoteCharacter) {
 				i++;
 			}
-			
-			if (i < limit) {
-				// end of the quoted field
-				i++; // the quote
-				
-				// skip trailing whitespace characters 
-				while (i < delimLimit && !FieldParser.delimiterNext(bytes, i, delim)) {
-					current = bytes[i];
-					if (current == ' ' || current == '\t') {
-						i++;
-					} else {
-						return -1;	// illegal case of non-whitespace characters trailing
-					}
-				}
-				
-				return (i >= delimLimit ? limit : i + delim.length);
+			i++;
+
+			if (i == limit) {
+				// we are at the end of the record
+				return limit;
+			} else if ( i < delimLimit && FieldParser.delimiterNext(bytes, i, delim)) {
+				// we are not at the end, check if delimiter comes next
+				return i + delim.length;
 			} else {
-				// exited due to line end without quote termination
+				// delimiter did not follow end quote. Error...
 				return -1;
 			}
-		}
-		else {
-			// unquoted field
-			while (i < delimLimit && !FieldParser.delimiterNext(bytes, i, delim)) {
+		} else {
+			// field is not quoted
+			while(i < delimLimit && !FieldParser.delimiterNext(bytes, i, delim)) {
 				i++;
 			}
-			return (i >= delimLimit ? limit : i + delim.length);
+
+			if (i >= delimLimit) {
+				// no delimiter found. We are at the end of the record
+				return limit;
+			} else {
+				// delimiter found.
+				return i + delim.length;
+			}
 		}
 	}
 }

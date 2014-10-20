@@ -30,13 +30,16 @@ import org.apache.flink.types.StringValue;
  */
 public class StringValueParser extends FieldParser<StringValue> {
 
-	private static final byte WHITESPACE_SPACE = (byte) ' ';
-	private static final byte WHITESPACE_TAB = (byte) '\t';
-	
-	private static final byte QUOTE_DOUBLE = (byte) '"';
-	
+	private boolean quotedStringParsing = false;
+	private byte quoteCharacter;
+
 	private StringValue result;
 
+	public void enableQuotedStringParsing(byte quoteCharacter) {
+		this.quotedStringParsing = true;
+		this.quoteCharacter = quoteCharacter;
+	}
+	
 	@Override
 	public int parseField(byte[] bytes, int startPos, int limit, byte[] delimiter, StringValue reusable) {
 
@@ -46,64 +49,53 @@ public class StringValueParser extends FieldParser<StringValue> {
 
 		final int delimLimit = limit-delimiter.length+1;
 
-		// count initial whitespace lines
-		while (i < limit && ((current = bytes[i]) == WHITESPACE_SPACE || current == WHITESPACE_TAB)) {
+		if(quotedStringParsing == true && bytes[i] == quoteCharacter) {
+			// quoted string parsing enabled and first character is a quote
 			i++;
-		}
-		
-		// first none whitespace character
-		if (i < limit && bytes[i] == QUOTE_DOUBLE) {
-			// quoted string
-			i++; // the quote
-			
-			// we count only from after the quote
-			int quoteStart = i;
-			while (i < limit && bytes[i] != QUOTE_DOUBLE) {
+
+			// search for ending quote character
+			while(i < limit && bytes[i] != quoteCharacter) {
 				i++;
 			}
-			
-			if (i < limit) {
-				// end of the string
-				reusable.setValueAscii(bytes, quoteStart, i-quoteStart);
-				
-				i++; // the quote
-				
-				// skip trailing whitespace characters
-				while (i < limit) {
 
-					if (i < delimLimit && delimiterNext(bytes, i, delimiter)) {
-						return i+delimiter.length;
-					}
-					current = bytes[i];
-					if (current == WHITESPACE_SPACE || current == WHITESPACE_TAB) {
-						i++;
-					}
-					else {
-						setErrorState(ParseErrorState.UNQUOTED_CHARS_AFTER_QUOTED_STRING);
-						return -1;	// illegal case of non-whitespace characters trailing
-					}
-				}
-				if( i > limit ){
-					i--;
-				}
-				return (i == limit ? limit : i + delimiter.length);
-			} else {
-				// exited due to line end without quote termination
+			if (i == limit) {
 				setErrorState(ParseErrorState.UNTERMINATED_QUOTED_STRING);
 				return -1;
-			}
-		}
-		else {
-			// unquoted string -delim.length
-			while (i < limit) {
-				if (i < delimLimit && delimiterNext(bytes, i, delimiter)) {
-					break;
+			} else {
+				i++;
+				// check for proper termination
+				if (i == limit) {
+					// either by end of line
+					reusable.setValueAscii(bytes, startPos+1, i - startPos - 2);
+					return limit;
+				} else if ( i < delimLimit && delimiterNext(bytes, i, delimiter)) {
+					// or following field delimiter
+					reusable.setValueAscii(bytes, startPos+1, i - startPos - 2);
+					return i + delimiter.length;
+				} else {
+					// no proper termination
+					setErrorState(ParseErrorState.UNQUOTED_CHARS_AFTER_QUOTED_STRING);
+					return -1;
 				}
+
+			}
+
+		} else {
+
+			// look for delimiter
+			while( i < delimLimit && !delimiterNext(bytes, i, delimiter)) {
 				i++;
 			}
-			// set from the beginning. unquoted strings include the leading whitespaces
-			reusable.setValueAscii(bytes, startPos, i-startPos);
-			return (i == limit ? limit : i + delimiter.length);
+
+			if (i >= delimLimit) {
+				// no delimiter found. Take the full string
+				reusable.setValueAscii(bytes, startPos, limit - startPos);
+				return limit;
+			} else {
+				// delimiter found.
+				reusable.setValueAscii(bytes, startPos, i - startPos);
+				return i + delimiter.length;
+			}
 		}
 	}
 	

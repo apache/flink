@@ -23,42 +23,34 @@ import org.apache.flink.types.parser.StringParser;
 import org.apache.flink.types.parser.FieldParser;
 
 
-public class StringParserTest extends ParserTestBase<String> {
+public class UnquotedStringParserTest extends ParserTestBase<String> {
 
-	@Override
-	public String[] getValidTestValues() {
-		return new String[] {
-			"abcdefgh", "i", "jklmno", "\"abcdefgh\"", "\"i\"", "\"jklmno\"", 
-			"\"ab,cde|fg\"", "\"hij|m|n|op\"", "\"hij&&m&&n&&op\"",
-			"  \"abcdefgh\"", "     \"i\"\t\t\t", "\t \t\"jklmno\"  ",
-			"  \"     abcd    \" \t ", "Hello9"
-		};
-	}
-	
-	@Override
-	public String[] getValidTestResults() {
-		return new String[] {
-			"abcdefgh", "i", "jklmno", "abcdefgh", "i", "jklmno",
-			"ab,cde|fg", "hij|m|n|op", "hij&&m&&n&&op",
-			"abcdefgh", "i", "jklmno",
-			"     abcd    ", "Hello9"
-		};
-	}
+    @Override
+    public String[] getValidTestValues() {
+        return new String[] {
+                "abcdefgh", "i", "jklmno", "\"abc\"defgh\"", "\"i\"", "Hello9"
+        };
+    }
 
-	@Override
-	public String[] getInvalidTestValues() {
-		return new String[] {
-			"  \"abcdefgh ", "  \"ijklmno\" hj"
-		};
-	}
+    @Override
+    public String[] getValidTestResults() {
+        return new String[] {
+                "abcdefgh", "i", "jklmno", "\"abc\"defgh\"", "\"i\"", "Hello9"
+        };
+    }
 
-	@Override
-	public FieldParser<String> getParser() {
-		return new StringParser();
-	}
+    @Override
+    public String[] getInvalidTestValues() {
+        return new String[] { };
+    }
 
-	@Override
-	public Class<String> getTypeClass() {
-		return String.class;
-	}
+    @Override
+    public FieldParser<String> getParser() {
+        return new StringParser();
+    }
+
+    @Override
+    public Class<String> getTypeClass() {
+        return String.class;
+    }
 }
