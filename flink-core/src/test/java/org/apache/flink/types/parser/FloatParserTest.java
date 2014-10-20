@@ -32,7 +32,7 @@ public class FloatParserTest extends ParserTestBase<Float> {
 			String.valueOf(Float.MAX_VALUE), String.valueOf(Float.MIN_VALUE),
 			String.valueOf(Float.NEGATIVE_INFINITY), String.valueOf(Float.POSITIVE_INFINITY),
 			String.valueOf(Float.NaN),
-			"1.234E2", "1.234e3", "1.234E-2"
+			"1.234E2", "1.234e3", "1.234E-2", "1239"
 		};
 	}
 	
@@ -43,7 +43,7 @@ public class FloatParserTest extends ParserTestBase<Float> {
 			Float.MAX_VALUE, Float.MIN_VALUE,
 			Float.NEGATIVE_INFINITY, Float.POSITIVE_INFINITY,
 			Float.NaN,
-			1.234E2f, 1.234e3f, 1.234E-2f
+			1.234E2f, 1.234e3f, 1.234E-2f, 1239f
 		};
 	}
 

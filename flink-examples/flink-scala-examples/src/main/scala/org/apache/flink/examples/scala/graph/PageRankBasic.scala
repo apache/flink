@@ -179,7 +179,7 @@ object PageRankBasic {
 
   private def getPagesDataSet(env: ExecutionEnvironment): DataSet[Long] = {
     if (fileOutput) {
-      env.readCsvFile[Tuple1[Long]](pagesInputPath, fieldDelimiter = ' ', lineDelimiter = "\n")
+      env.readCsvFile[Tuple1[Long]](pagesInputPath, fieldDelimiter = " ", lineDelimiter = "\n")
         .map(x => x._1)
     } else {
       env.generateSequence(1, 15)
@@ -188,7 +188,7 @@ object PageRankBasic {
 
   private def getLinksDataSet(env: ExecutionEnvironment): DataSet[Link] = {
     if (fileOutput) {
-      env.readCsvFile[Link](linksInputPath, fieldDelimiter = ' ',
+      env.readCsvFile[Link](linksInputPath, fieldDelimiter = " ",
         includedFields = Array(0, 1))
     } else {
       val edges = PageRankData.EDGES.map { case Array(v1, v2) => Link(v1.asInstanceOf[Long],

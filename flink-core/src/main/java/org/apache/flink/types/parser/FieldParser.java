@@ -78,16 +78,16 @@ public abstract class FieldParser<T> {
 	 * @param startPos The index where the field starts
 	 * @param limit The limit unto which the byte contents is valid for the parser. The limit is the
 	 *              position one after the last valid byte.
-	 * @param delim Field delimiter character
-	 * @param reuse The an optional reusable field to hold the value
+	 * @param delim The field delimiter character
+	 * @param reuse An optional reusable field to hold the value
 	 * 
 	 * @return The index of the next delimiter, if the field was parsed correctly. A value less than 0 otherwise.
 	 */
-	public abstract int parseField(byte[] bytes, int startPos, int limit, char delim, T reuse);
+	public abstract int parseField(byte[] bytes, int startPos, int limit, byte[] delim, T reuse);
 	
 	/**
 	 * Gets the parsed field. This method returns the value parsed by the last successful invocation of
-	 * {@link #parseField(byte[], int, int, char, Object)}. It objects are mutable and reused, it will return
+	 * {@link #parseField(byte[], int, int, byte[], Object)}. It objects are mutable and reused, it will return
 	 * the object instance that was passed the the parse function.
 	 * 
 	 * @return The latest parsed field.
@@ -100,6 +100,29 @@ public abstract class FieldParser<T> {
 	 * @return An instance of the parsed value type. 
 	 */
 	public abstract T createValue();
+	
+	/**
+	 * Checks if the delimiter starts at the given start position of the byte array.
+	 * 
+	 * Attention: This method assumes that enough characters follow the start position for the delimiter check!
+	 * 
+	 * @param bytes The byte array that holds the value.
+	 * @param startPos The index of the byte array where the check for the delimiter starts.
+	 * @param delim The delimiter to check for.
+	 * 
+	 * @return true if a delimiter starts at the given start position, false otherwise.
+	 */
+	public static final boolean delimiterNext(byte[] bytes, int startPos, byte[] delim) {
+
+		for(int pos = 0; pos < delim.length; pos++) {
+			// check each position
+			if(delim[pos] != bytes[startPos+pos]) {
+				return false;
+			}
+		}
+		return true;
+		
+	}
 	
 	/**
 	 * Sets the error state of the parser. Called by subclasses of the parser to set the type of error
@@ -155,7 +178,7 @@ public abstract class FieldParser<T> {
 		PARSERS.put(String.class, StringParser.class);
 		PARSERS.put(Float.class, FloatParser.class);
 		PARSERS.put(Double.class, DoubleParser.class);
-		
+
 		// value types
 		PARSERS.put(ByteValue.class, ByteValueParser.class);
 		PARSERS.put(ShortValue.class, ShortValueParser.class);

@@ -143,7 +143,7 @@ object ConnectedComponents {
     if (fileOutput) {
       env.readCsvFile[(Long, Long)](
         edgesPath,
-        fieldDelimiter = ' ',
+        fieldDelimiter = " ",
         includedFields = Array(0, 1))
         .map { x => (x._1, x._2)}
     }

@@ -32,7 +32,7 @@ public class DoubleParserTest extends ParserTestBase<Double> {
 			String.valueOf(Double.MAX_VALUE), String.valueOf(Double.MIN_VALUE),
 			String.valueOf(Double.NEGATIVE_INFINITY), String.valueOf(Double.POSITIVE_INFINITY),
 			String.valueOf(Double.NaN),
-			"1.234E2", "1.234e3", "1.234E-2"
+			"1.234E2", "1.234e3", "1.234E-2", "1239"
 		};
 	}
 	
@@ -43,7 +43,7 @@ public class DoubleParserTest extends ParserTestBase<Double> {
 			Double.MAX_VALUE, Double.MIN_VALUE,
 			Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY,
 			Double.NaN,
-			1.234E2, 1.234e3, 1.234E-2
+			1.234E2, 1.234e3, 1.234E-2, 1239d
 		};
 	}
 

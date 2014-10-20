@@ -29,19 +29,19 @@ public class StringParserTest extends ParserTestBase<String> {
 	public String[] getValidTestValues() {
 		return new String[] {
 			"abcdefgh", "i", "jklmno", "\"abcdefgh\"", "\"i\"", "\"jklmno\"", 
-			"\"ab,cde|fg\"", "\"hij|m|n|op\"",
+			"\"ab,cde|fg\"", "\"hij|m|n|op\"", "\"hij&&m&&n&&op\"",
 			"  \"abcdefgh\"", "     \"i\"\t\t\t", "\t \t\"jklmno\"  ",
-			"  \"     abcd    \" \t "
+			"  \"     abcd    \" \t ", "Hello9"
 		};
 	}
 	
 	@Override
 	public String[] getValidTestResults() {
 		return new String[] {
-			"abcdefgh", "i", "jklmno", "abcdefgh", "i", "jklmno", 
-			"ab,cde|fg", "hij|m|n|op",
+			"abcdefgh", "i", "jklmno", "abcdefgh", "i", "jklmno",
+			"ab,cde|fg", "hij|m|n|op", "hij&&m&&n&&op",
 			"abcdefgh", "i", "jklmno",
-			"     abcd    "
+			"     abcd    ", "Hello9"
 		};
 	}
 

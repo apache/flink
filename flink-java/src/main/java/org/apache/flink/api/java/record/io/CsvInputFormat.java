@@ -142,12 +142,7 @@ public class CsvInputFormat extends GenericCsvInputFormat<Record> {
 		
 		final String fieldDelimStr = config.getString(FIELD_DELIMITER_PARAMETER, null);
 		if (fieldDelimStr != null) {
-			if (fieldDelimStr.length() != 1) {
-				throw new IllegalArgumentException("Invalid configuration for CsvInputFormat: " +
-						"Field delimiter must be a single character");
-			} else {
-				setFieldDelimiter(fieldDelimStr.charAt(0));
-			}
+			setFieldDelimiter(fieldDelimStr);
 		}
 		
 		// read number of field configured via configuration

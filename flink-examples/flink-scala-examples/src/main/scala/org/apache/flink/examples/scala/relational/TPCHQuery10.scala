@@ -155,14 +155,14 @@ object TPCHQuery10 {
                          DataSet[Tuple5[Int, String, String, Int, Double]] = {
     env.readCsvFile[Tuple5[Int, String, String, Int, Double]](
         customerPath,
-        fieldDelimiter = '|',
+        fieldDelimiter = "|",
         includedFields = Array(0,1,2,3,5) )
   }
   
   private def getOrdersDataSet(env: ExecutionEnvironment): DataSet[Tuple3[Int, Int, String]] = {
     env.readCsvFile[Tuple3[Int, Int, String]](
         ordersPath,
-        fieldDelimiter = '|',
+        fieldDelimiter = "|",
         includedFields = Array(0, 1, 4) )
   }
   
@@ -170,14 +170,14 @@ object TPCHQuery10 {
                          DataSet[Tuple4[Int, Double, Double, String]] = {
     env.readCsvFile[Tuple4[Int, Double, Double, String]](
         lineitemPath,
-        fieldDelimiter = '|',
+        fieldDelimiter = "|",
         includedFields = Array(0, 5, 6, 8) )
   }
 
   private def getNationDataSet(env: ExecutionEnvironment): DataSet[Tuple2[Int, String]] = {
     env.readCsvFile[Tuple2[Int, String]](
         nationPath,
-        fieldDelimiter = '|',
+        fieldDelimiter = "|",
         includedFields = Array(0, 1) )
   }
   

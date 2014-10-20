@@ -263,7 +263,7 @@ public class PageRankBasic {
 		if(fileOutput) {
 			return env
 						.readCsvFile(pagesInputPath)
-							.fieldDelimiter(' ')
+							.fieldDelimiter(" ")
 							.lineDelimiter("\n")
 							.types(Long.class)
 						.map(new MapFunction<Tuple1<Long>, Long>() {
@@ -278,7 +278,7 @@ public class PageRankBasic {
 	private static DataSet<Tuple2<Long, Long>> getLinksDataSet(ExecutionEnvironment env) {
 		if(fileOutput) {
 			return env.readCsvFile(linksInputPath)
-						.fieldDelimiter(' ')
+						.fieldDelimiter(" ")
 						.lineDelimiter("\n")
 						.types(Long.class, Long.class);
 		} else {

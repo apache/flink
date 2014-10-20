@@ -76,7 +76,7 @@ public class ExecutionPlanCreationTest {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 			
 			DataSet<Tuple2<Long, Long>> input = env.readCsvFile(args[0])
-					.fieldDelimiter('\t').types(Long.class, Long.class);
+					.fieldDelimiter("\t").types(Long.class, Long.class);
 			
 			DataSet<Tuple2<Long, Long>> result = input.map(
 					new MapFunction<Tuple2<Long,Long>, Tuple2<Long,Long>>() {

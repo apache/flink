@@ -137,7 +137,7 @@ public class CsvInputFormatTest {
 			new CsvInputFormat.ConfigBuilder(null, parameters)
 				.field(StringValue.class, 0).field(StringValue.class, 1).field(StringValue.class, 2);
 			
-			format.setFieldDelimiter('|');
+			format.setFieldDelimiter("|");
 			
 			format.configure(parameters);
 			format.open(split);

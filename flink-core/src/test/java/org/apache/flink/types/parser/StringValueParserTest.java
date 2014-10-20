@@ -30,9 +30,9 @@ public class StringValueParserTest extends ParserTestBase<StringValue> {
 	public String[] getValidTestValues() {
 		return new String[] {
 			"abcdefgh", "i", "jklmno", "\"abcdefgh\"", "\"i\"", "\"jklmno\"", 
-			"\"ab,cde|fg\"", "\"hij|m|n|op\"",
+			"\"ab,cde|fg\"", "\"hij|m|n|op\"", "\"hij&&m&&n&&op\"",
 			"  \"abcdefgh\"", "     \"i\"\t\t\t", "\t \t\"jklmno\"  ",
-			"  \"     abcd    \" \t "
+			"  \"     abcd    \" \t ", "Hello9"
 		};
 	}
 	
@@ -41,9 +41,9 @@ public class StringValueParserTest extends ParserTestBase<StringValue> {
 		return new StringValue[] {
 			new StringValue("abcdefgh"), new StringValue("i"), new StringValue("jklmno"),
 			new StringValue("abcdefgh"), new StringValue("i"), new StringValue("jklmno"), 
-			new StringValue("ab,cde|fg"), new StringValue("hij|m|n|op"),
+			new StringValue("ab,cde|fg"), new StringValue("hij|m|n|op"), new StringValue("hij&&m&&n&&op"),
 			new StringValue("abcdefgh"), new StringValue("i"), new StringValue("jklmno"),
-			new StringValue("     abcd    ")
+			new StringValue("     abcd    "), new StringValue("Hello9")
 		};
 	}
 

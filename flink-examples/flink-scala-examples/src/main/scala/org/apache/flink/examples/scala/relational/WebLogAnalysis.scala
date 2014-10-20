@@ -167,7 +167,7 @@ object WebLogAnalysis {
     if (fileOutput) {
       env.readCsvFile[(String, String)](
         documentsPath,
-        fieldDelimiter = '|',
+        fieldDelimiter = "|",
         includedFields = Array(0, 1))
     }
     else {
@@ -182,7 +182,7 @@ object WebLogAnalysis {
     if (fileOutput) {
       env.readCsvFile[(Int, String, Int)](
         ranksPath,
-        fieldDelimiter = '|',
+        fieldDelimiter = "|",
         includedFields = Array(0, 1, 2))
     }
     else {
@@ -197,7 +197,7 @@ object WebLogAnalysis {
     if (fileOutput) {
       env.readCsvFile[(String, String)](
         visitsPath,
-        fieldDelimiter = '|',
+        fieldDelimiter = "|",
         includedFields = Array(1, 2))
     }
     else {

@@ -297,7 +297,7 @@ public class LinearRegression {
 		if(fileOutput) {
 			// read data from CSV file
 			return env.readCsvFile(dataPath)
-					.fieldDelimiter(' ')
+					.fieldDelimiter(" ")
 					.includeFields(true, true)
 					.types(Double.class, Double.class)
 					.map(new TupleDataConverter());

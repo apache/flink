@@ -160,7 +160,7 @@ object EnumTrianglesBasic {
 
   private def getEdgeDataSet(env: ExecutionEnvironment): DataSet[Edge] = {
     if (fileOutput) {
-      env.readCsvFile[Edge](edgePath, fieldDelimiter = ' ', includedFields = Array(0, 1))
+      env.readCsvFile[Edge](edgePath, fieldDelimiter = " ", includedFields = Array(0, 1))
     } else {
       val edges = EnumTrianglesData.EDGES.map {
         case Array(v1, v2) => new Edge(v1.asInstanceOf[Int], v2.asInstanceOf[Int])

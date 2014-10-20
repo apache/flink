@@ -50,7 +50,7 @@ public class CsvInputFormat<OUT extends Tuple> extends GenericCsvInputFormat<OUT
 	
 	public static final String DEFAULT_LINE_DELIMITER = "\n";
 	
-	public static final char DEFAULT_FIELD_DELIMITER = ',';
+	public static final String DEFAULT_FIELD_DELIMITER = ",";
 
 
 	private transient Object[] parsedValues;
@@ -74,7 +74,7 @@ public class CsvInputFormat<OUT extends Tuple> extends GenericCsvInputFormat<OUT
 		this(filePath, DEFAULT_LINE_DELIMITER, DEFAULT_FIELD_DELIMITER, types);
 	}	
 	
-	public CsvInputFormat(Path filePath, String lineDelimiter, char fieldDelimiter, Class<?>... types) {
+	public CsvInputFormat(Path filePath, String lineDelimiter, String fieldDelimiter, Class<?>... types) {
 		super(filePath);
 
 		setDelimiter(lineDelimiter);

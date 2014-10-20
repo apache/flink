@@ -64,13 +64,13 @@ public class KMeansForTest implements Program {
 
 		// get input data
 		DataSet<Point> points = env.readCsvFile(pointsPath)
-				.fieldDelimiter('|')
+				.fieldDelimiter("|")
 				.includeFields(true, true)
 				.types(Double.class, Double.class)
 				.map(new TuplePointConverter());
 
 		DataSet<Centroid> centroids = env.readCsvFile(centersPath)
-				.fieldDelimiter('|')
+				.fieldDelimiter("|")
 				.includeFields(true, true, true)
 				.types(Integer.class, Double.class, Double.class)
 				.map(new TupleCentroidConverter());

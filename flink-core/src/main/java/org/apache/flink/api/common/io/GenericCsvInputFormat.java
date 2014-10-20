@@ -19,6 +19,7 @@
 
 package org.apache.flink.api.common.io;
 
+import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 import org.apache.flink.core.fs.FileInputSplit;
@@ -38,7 +39,9 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 	
 	private static final boolean[] EMPTY_INCLUDED = new boolean[0];
 	
-	private static final char DEFAULT_FIELD_DELIMITER = ',';
+	private static final byte[] DEFAULT_FIELD_DELIMITER = new byte[] {','};
+
+	private static final char QUOTE_CHARACTER = '"';
 	
 	
 	// --------------------------------------------------------------------------------------------
@@ -57,7 +60,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 	
 	private boolean[] fieldIncluded = EMPTY_INCLUDED;
 		
-	private char fieldDelim = DEFAULT_FIELD_DELIMITER;
+	private byte[] fieldDelim = DEFAULT_FIELD_DELIMITER;
 	
 	private boolean lenient;
 	
@@ -86,16 +89,24 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 		return this.fieldTypes.length;
 	}
 
-	public char getFieldDelimiter() {
+	public byte[] getFieldDelimiter() {
 		return fieldDelim;
 	}
 
-	public void setFieldDelimiter(char fieldDelim) {
-		if (fieldDelim > Byte.MAX_VALUE) {
-			throw new IllegalArgumentException("The field delimiter must be an ASCII character.");
+	public void setFieldDelimiter(byte[] delimiter) {
+		if (delimiter == null) {
+			throw new IllegalArgumentException("Delimiter must not be null");
 		}
-		
-		this.fieldDelim = fieldDelim;
+
+		this.fieldDelim = delimiter;
+	}
+
+	public void setFieldDelimiter(char delimiter) {
+		setFieldDelimiter(String.valueOf(delimiter));
+	}
+
+	public void setFieldDelimiter(String delimiter) {
+		this.fieldDelim = delimiter.getBytes(Charsets.UTF_8);
 	}
 
 	public boolean isLenient() {
@@ -308,7 +319,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 			}
 			else {
 				// skip field
-				startPos = skipFields(bytes, startPos, limit, fieldDelim);
+				startPos = skipFields(bytes, startPos, limit, this.fieldDelim);
 				if (startPos < 0) {
 					if (!lenient) {
 						String lineAsString = new String(bytes, offset, numBytes);
@@ -325,7 +336,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 	private String fieldTypesToString() {
 		StringBuilder string = new StringBuilder();
 		string.append(this.fieldTypes[0].toString());
-		
+
 		for (int i = 1; i < this.fieldTypes.length; i++) {
 			string.append(", ").append(this.fieldTypes[i]);
 		}
@@ -333,11 +344,12 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 		return string.toString();
 	}
 
-	protected int skipFields(byte[] bytes, int startPos, int limit, char delim) {
+	protected int skipFields(byte[] bytes, int startPos, int limit, byte[] delim) {
+
 		int i = startPos;
 		
-		final byte delByte = (byte) delim;
 		byte current;
+		final int delimLimit = limit - delim.length + 1;
 		
 		// skip over initial whitespace lines
 		while (i < limit && ((current = bytes[i]) == ' ' || current == '\t')) {
@@ -345,11 +357,11 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 		}
 		
 		// first none whitespace character
-		if (i < limit && bytes[i] == '"') {
+		if (i < limit && bytes[i] == QUOTE_CHARACTER) {
 			// quoted string
 			i++; // the quote
 			
-			while (i < limit && bytes[i] != '"') {
+			while (i < limit && bytes[i] != QUOTE_CHARACTER) {
 				i++;
 			}
 			
@@ -358,16 +370,16 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 				i++; // the quote
 				
 				// skip trailing whitespace characters 
-				while (i < limit && (current = bytes[i]) != delByte) {
+				while (i < delimLimit && !FieldParser.delimiterNext(bytes, i, delim)) {
+					current = bytes[i];
 					if (current == ' ' || current == '\t') {
 						i++;
-					}
-					else {
+					} else {
 						return -1;	// illegal case of non-whitespace characters trailing
 					}
 				}
 				
-				return (i == limit ? limit : i+1);
+				return (i >= delimLimit ? limit : i + delim.length);
 			} else {
 				// exited due to line end without quote termination
 				return -1;
@@ -375,10 +387,10 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 		}
 		else {
 			// unquoted field
-			while (i < limit && bytes[i] != delByte) {
+			while (i < delimLimit && !FieldParser.delimiterNext(bytes, i, delim)) {
 				i++;
 			}
-			return (i == limit ? limit : i+1);
+			return (i >= delimLimit ? limit : i + delim.length);
 		}
 	}
 }

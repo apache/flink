@@ -294,7 +294,7 @@ public class WebLogAnalysis {
 		// Create DataSet for documents relation (URL, Doc-Text)
 		if(fileOutput) {
 			return env.readCsvFile(documentsPath)
-						.fieldDelimiter('|')
+						.fieldDelimiter("|")
 						.types(String.class, String.class);
 		} else {
 			return WebLogData.getDocumentDataSet(env);
@@ -305,7 +305,7 @@ public class WebLogAnalysis {
 		// Create DataSet for ranks relation (Rank, URL, Avg-Visit-Duration)
 		if(fileOutput) {
 			return env.readCsvFile(ranksPath)
-						.fieldDelimiter('|')
+						.fieldDelimiter("|")
 						.types(Integer.class, String.class, Integer.class);
 		} else {
 			return WebLogData.getRankDataSet(env);
@@ -316,7 +316,7 @@ public class WebLogAnalysis {
 		// Create DataSet for visits relation (URL, Date)
 		if(fileOutput) {
 			return env.readCsvFile(visitsPath)
-						.fieldDelimiter('|')
+						.fieldDelimiter("|")
 						.includeFields("011000000")
 						.types(String.class, String.class);
 		} else {

@@ -29,7 +29,7 @@ public class ByteValueParserTest extends ParserTestBase<ByteValue> {
 	@Override
 	public String[] getValidTestValues() {
 		return new String[] {
-			"0", "1", "76", "-66", String.valueOf(Byte.MAX_VALUE), String.valueOf(Byte.MIN_VALUE)
+			"0", "1", "76", "-66", String.valueOf(Byte.MAX_VALUE), String.valueOf(Byte.MIN_VALUE), "19"
 		};
 	}
 	
@@ -37,7 +37,7 @@ public class ByteValueParserTest extends ParserTestBase<ByteValue> {
 	public ByteValue[] getValidTestResults() {
 		return new ByteValue[] {
 			new ByteValue((byte) 0), new ByteValue((byte) 1), new ByteValue((byte) 76), new ByteValue((byte) -66),
-			new ByteValue(Byte.MAX_VALUE), new ByteValue(Byte.MIN_VALUE)
+			new ByteValue(Byte.MAX_VALUE), new ByteValue(Byte.MIN_VALUE), new ByteValue((byte) 19)
 		};
 	}
 

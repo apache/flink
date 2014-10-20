@@ -69,7 +69,7 @@ public class CsvInputFormatTest {
 			final FileInputSplit split = createTempFile(fileContent);
 			
 			CsvInputFormat<Tuple3<String, Integer, Double>> format = 
-					new CsvInputFormat<Tuple3<String, Integer, Double>>(PATH, "\n", '|',  String.class, Integer.class, Double.class);
+					new CsvInputFormat<Tuple3<String, Integer, Double>>(PATH, "\n", "|",  String.class, Integer.class, Double.class);
 			format.setLenient(true);
 		
 			final Configuration parameters = new Configuration();
@@ -117,7 +117,7 @@ public class CsvInputFormatTest {
 			final FileInputSplit split = createTempFile(fileContent);
 			
 			CsvInputFormat<Tuple3<String, Integer, Double>> format = 
-					new CsvInputFormat<Tuple3<String, Integer, Double>>(PATH, "\n", '|', String.class, Integer.class, Double.class);
+					new CsvInputFormat<Tuple3<String, Integer, Double>>(PATH, "\n", "|", String.class, Integer.class, Double.class);
 			format.setCommentPrefix("#");
 		
 			final Configuration parameters = new Configuration();
@@ -161,7 +161,7 @@ public class CsvInputFormatTest {
 			final FileInputSplit split = createTempFile(fileContent);
 			
 			CsvInputFormat<Tuple3<String, Integer, Double>> format = 
-					new CsvInputFormat<Tuple3<String, Integer, Double>>(PATH, "\n", '|', String.class, Integer.class, Double.class);
+					new CsvInputFormat<Tuple3<String, Integer, Double>>(PATH, "\n", "|", String.class, Integer.class, Double.class);
 			format.setCommentPrefix("//");
 		
 			final Configuration parameters = new Configuration();
@@ -197,7 +197,7 @@ public class CsvInputFormatTest {
 			final String fileContent = "abc|def|ghijk\nabc||hhg\n|||";
 			final FileInputSplit split = createTempFile(fileContent);
 			
-			final CsvInputFormat<Tuple3<String, String, String>> format = new CsvInputFormat<Tuple3<String, String, String>>(PATH, "\n", '|', String.class, String.class, String.class);
+			final CsvInputFormat<Tuple3<String, String, String>> format = new CsvInputFormat<Tuple3<String, String, String>>(PATH, "\n", "|", String.class, String.class, String.class);
 		
 			final Configuration parameters = new Configuration();
 			format.configure(parameters);
@@ -236,12 +236,12 @@ public class CsvInputFormatTest {
 	@Test
 	public void readStringFieldsWithTrailingDelimiters() {
 		try {
-			final String fileContent = "abc|def|ghijk\nabc||hhg\n|||\n";
+			final String fileContent = "abc|-def|-ghijk\nabc|-|-hhg\n|-|-|-\n";
 			final FileInputSplit split = createTempFile(fileContent);
 		
 			final CsvInputFormat<Tuple3<String, String, String>> format = new CsvInputFormat<Tuple3<String, String, String>>(PATH);
 			
-			format.setFieldDelimiter('|');
+			format.setFieldDelimiter("|-");
 			format.setFieldTypes(String.class, String.class, String.class);
 			
 			format.configure(new Configuration());
@@ -284,7 +284,7 @@ public class CsvInputFormatTest {
 		
 			final CsvInputFormat<Tuple5<Integer, Integer, Integer, Integer, Integer>> format = new CsvInputFormat<Tuple5<Integer, Integer, Integer, Integer, Integer>>(PATH);
 			
-			format.setFieldDelimiter('|');
+			format.setFieldDelimiter("|");
 			format.setFieldTypes(Integer.class, Integer.class, Integer.class, Integer.class, Integer.class);
 			
 			format.configure(new Configuration());
@@ -325,7 +325,7 @@ public class CsvInputFormatTest {
 		
 			final CsvInputFormat<Tuple2<Integer, Integer>> format = new CsvInputFormat<Tuple2<Integer, Integer>>(PATH);
 			
-			format.setFieldDelimiter('|');
+			format.setFieldDelimiter("|");
 			format.setFieldTypes(Integer.class, Integer.class);
 			
 			format.configure(new Configuration());
@@ -356,12 +356,13 @@ public class CsvInputFormatTest {
 	@Test
 	public void testReadSparseWithNullFieldsForTypes() throws IOException {
 		try {
-			final String fileContent = "111|222|333|444|555|666|777|888|999|000|\n000|999|888|777|666|555|444|333|222|111|";
+			final String fileContent = "111|x|222|x|333|x|444|x|555|x|666|x|777|x|888|x|999|x|000|x|\n" +
+					"000|x|999|x|888|x|777|x|666|x|555|x|444|x|333|x|222|x|111|x|";
 			final FileInputSplit split = createTempFile(fileContent);	
 			
 			final CsvInputFormat<Tuple3<Integer, Integer, Integer>> format = new CsvInputFormat<Tuple3<Integer, Integer, Integer>>(PATH);
 			
-			format.setFieldDelimiter('|');
+			format.setFieldDelimiter("|x|");
 			format.setFieldTypes(Integer.class, null, null, Integer.class, null, null, null, Integer.class);
 			
 			format.configure(new Configuration());
@@ -398,7 +399,7 @@ public class CsvInputFormatTest {
 			
 			final CsvInputFormat<Tuple3<Integer, Integer, Integer>> format = new CsvInputFormat<Tuple3<Integer, Integer, Integer>>(PATH);
 			
-			format.setFieldDelimiter('|');
+			format.setFieldDelimiter("|");
 			
 			format.setFields(new int[] {0, 3, 7}, new Class<?>[] {Integer.class, Integer.class, Integer.class});
 			
@@ -432,12 +433,13 @@ public class CsvInputFormatTest {
 	@Test
 	public void testReadSparseWithMask() throws IOException {
 		try {
-			final String fileContent = "111|222|333|444|555|666|777|888|999|000|\n000|999|888|777|666|555|444|333|222|111|";
+			final String fileContent = "111&&222&&333&&444&&555&&666&&777&&888&&999&&000&&\n" +
+					"000&&999&&888&&777&&666&&555&&444&&333&&222&&111&&";
 			final FileInputSplit split = createTempFile(fileContent);	
 			
 			final CsvInputFormat<Tuple3<Integer, Integer, Integer>> format = new CsvInputFormat<Tuple3<Integer, Integer, Integer>>(PATH);
 			
-			format.setFieldDelimiter('|');
+			format.setFieldDelimiter("&&");
 
 			format.setFields(new boolean[] { true, false, false, true, false, false, false, true }, new Class<?>[] { Integer.class,
 					Integer.class, Integer.class });
@@ -473,7 +475,7 @@ public class CsvInputFormatTest {
 		try {
 			final CsvInputFormat<Tuple3<Integer, Integer, Integer>> format = new CsvInputFormat<Tuple3<Integer, Integer, Integer>>(PATH);
 			
-			format.setFieldDelimiter('|');
+			format.setFieldDelimiter("|");
 			
 			try {
 				format.setFields(new int[] {8, 1, 3}, new Class<?>[] {Integer.class, Integer.class, Integer.class});
@@ -500,7 +502,7 @@ public class CsvInputFormatTest {
 		for (Object[] failure : failures) {
 			String input = (String) failure[0];
 
-			int result = stringParser.parseField(input.getBytes(), 0, input.length(), '|', null);
+			int result = stringParser.parseField(input.getBytes(), 0, input.length(), new byte[]{'|'}, null);
 
 			assertThat(result, is(-1));
 			assertThat(stringParser.getErrorState(), is(failure[1]));
