@@ -72,7 +72,7 @@ public class ConnectedComponentsWithObjectMapITCase extends JavaProgramTestBase 
 		// read vertex and edge data
 		DataSet<Tuple1<Long>> vertices = env.readCsvFile(verticesPath).types(Long.class);
 		
-		DataSet<Tuple2<Long, Long>> edges = env.readCsvFile(edgesPath).fieldDelimiter(' ').types(Long.class, Long.class)
+		DataSet<Tuple2<Long, Long>> edges = env.readCsvFile(edgesPath).fieldDelimiter(" ").types(Long.class, Long.class)
 												.flatMap(new UndirectEdge());
 				
 		// assign the initial components (equal to the vertex id)

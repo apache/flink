@@ -28,14 +28,14 @@ public class ByteParserTest extends ParserTestBase<Byte> {
 	@Override
 	public String[] getValidTestValues() {
 		return new String[] {
-			"0", "1", "76", "-66", String.valueOf(Byte.MAX_VALUE), String.valueOf(Byte.MIN_VALUE)
+			"0", "1", "76", "-66", String.valueOf(Byte.MAX_VALUE), String.valueOf(Byte.MIN_VALUE), "19"
 		};
 	}
 	
 	@Override
 	public Byte[] getValidTestResults() {
 		return new Byte[] {
-			(byte) 0, (byte)1, (byte)76, (byte) -66, Byte.MAX_VALUE, Byte.MIN_VALUE
+			(byte) 0, (byte)1, (byte)76, (byte) -66, Byte.MAX_VALUE, Byte.MIN_VALUE, (byte)19
 		};
 	}
 

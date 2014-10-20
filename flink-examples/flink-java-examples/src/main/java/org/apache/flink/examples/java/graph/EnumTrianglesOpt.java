@@ -342,7 +342,7 @@ public class EnumTrianglesOpt {
 	private static DataSet<Edge> getEdgeDataSet(ExecutionEnvironment env) {
 		if(fileOutput) {
 			return env.readCsvFile(edgePath)
-						.fieldDelimiter(' ')
+						.fieldDelimiter(" ")
 						.includeFields(true, true)
 						.types(Integer.class, Integer.class)
 						.map(new TupleEdgeConverter());

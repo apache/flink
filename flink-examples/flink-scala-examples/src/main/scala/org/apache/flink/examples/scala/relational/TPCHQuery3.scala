@@ -151,21 +151,21 @@ object TPCHQuery3 {
   private def getLineitemDataSet(env: ExecutionEnvironment): DataSet[Lineitem] = {
     env.readCsvFile[Lineitem](
         lineitemPath,
-        fieldDelimiter = '|',
+        fieldDelimiter = "|",
         includedFields = Array(0, 5, 6, 10) )
   }
 
   private def getCustomerDataSet(env: ExecutionEnvironment): DataSet[Customer] = {
     env.readCsvFile[Customer](
         customerPath,
-        fieldDelimiter = '|',
+        fieldDelimiter = "|",
         includedFields = Array(0, 6) )
   }
   
   private def getOrdersDataSet(env: ExecutionEnvironment): DataSet[Order] = {
     env.readCsvFile[Order](
         ordersPath,
-        fieldDelimiter = '|',
+        fieldDelimiter = "|",
         includedFields = Array(0, 1, 4, 7) )
   }
   

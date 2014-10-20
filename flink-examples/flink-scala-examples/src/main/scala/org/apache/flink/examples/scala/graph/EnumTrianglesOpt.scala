@@ -229,7 +229,7 @@ object EnumTrianglesOpt {
     if (fileOutput) {
       env.readCsvFile[Edge](
         edgePath,
-        fieldDelimiter = ' ',
+        fieldDelimiter = " ",
         includedFields = Array(0, 1))
     } else {
       val edges = EnumTrianglesData.EDGES.map {

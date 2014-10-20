@@ -49,7 +49,7 @@ public class CsvReader {
 	
 	protected String lineDelimiter = CsvInputFormat.DEFAULT_LINE_DELIMITER;
 	
-	protected char fieldDelimiter = CsvInputFormat.DEFAULT_FIELD_DELIMITER;
+	protected String fieldDelimiter = CsvInputFormat.DEFAULT_FIELD_DELIMITER;
 	
 	protected String commentPrefix = null; //default: no comments
 
@@ -100,7 +100,20 @@ public class CsvReader {
 	 * @param delimiter The delimiter that separates the fields in one row.
 	 * @return The CSV reader instance itself, to allow for fluent function chaining.
 	 */
+	@Deprecated
 	public CsvReader fieldDelimiter(char delimiter) {
+		this.fieldDelimiter = String.valueOf(delimiter);
+		return this;
+	}
+
+	/**
+	 * Configures the delimiter that separates the fields within a row. The comma character
+	 * ({@code ','}) is used by default.
+	 *
+	 * @param delimiter The delimiter that separates the fields in one row.
+	 * @return The CSV reader instance itself, to allow for fluent function chaining.
+	 */
+	public CsvReader fieldDelimiter(String delimiter) {
 		this.fieldDelimiter = delimiter;
 		return this;
 	}

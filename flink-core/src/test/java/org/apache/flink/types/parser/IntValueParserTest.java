@@ -29,7 +29,7 @@ public class IntValueParserTest extends ParserTestBase<IntValue> {
 	@Override
 	public String[] getValidTestValues() {
 		return new String[] {
-			"0", "1", "576", "-877678", String.valueOf(Integer.MAX_VALUE), String.valueOf(Integer.MIN_VALUE)
+			"0", "1", "576", "-877678", String.valueOf(Integer.MAX_VALUE), String.valueOf(Integer.MIN_VALUE), "1239"
 		};
 	}
 	
@@ -37,7 +37,7 @@ public class IntValueParserTest extends ParserTestBase<IntValue> {
 	public IntValue[] getValidTestResults() {
 		return new IntValue[] {
 			new IntValue(0), new IntValue(1), new IntValue(576), new IntValue(-877678),
-			new IntValue(Integer.MAX_VALUE), new IntValue(Integer.MIN_VALUE)
+			new IntValue(Integer.MAX_VALUE), new IntValue(Integer.MIN_VALUE), new IntValue(1239)
 		};
 	}
 

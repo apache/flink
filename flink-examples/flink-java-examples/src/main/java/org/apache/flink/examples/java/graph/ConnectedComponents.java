@@ -234,7 +234,7 @@ public class ConnectedComponents implements ProgramDescription {
 	private static DataSet<Tuple2<Long, Long>> getEdgeDataSet(ExecutionEnvironment env) {
 		
 		if(fileOutput) {
-			return env.readCsvFile(edgesPath).fieldDelimiter(' ').types(Long.class, Long.class); 
+			return env.readCsvFile(edgesPath).fieldDelimiter(" ").types(Long.class, Long.class);
 		} else {
 			return ConnectedComponentsData.getDefaultEdgeDataSet(env);
 		}

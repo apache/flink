@@ -250,21 +250,21 @@ public class TPCHQuery3 {
 	
 	private static DataSet<Lineitem> getLineitemDataSet(ExecutionEnvironment env) {
 		return env.readCsvFile(lineitemPath)
-					.fieldDelimiter('|')
+					.fieldDelimiter("|")
 					.includeFields("1000011000100000")
 					.tupleType(Lineitem.class);
 	}
 	
 	private static DataSet<Customer> getCustomerDataSet(ExecutionEnvironment env) {
 		return env.readCsvFile(customerPath)
-					.fieldDelimiter('|')
+					.fieldDelimiter("|")
 					.includeFields("10000010")
 					.tupleType(Customer.class);
 	}
 	
 	private static DataSet<Order> getOrdersDataSet(ExecutionEnvironment env) {
 		return env.readCsvFile(ordersPath)
-					.fieldDelimiter('|')
+					.fieldDelimiter("|")
 					.includeFields("110010010")
 					.tupleType(Order.class);
 	}

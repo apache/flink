@@ -25,25 +25,27 @@ public class ByteParser extends FieldParser<Byte> {
 	private byte result;
 	
 	@Override
-	public int parseField(byte[] bytes, int startPos, int limit, char delimiter, Byte reusable) {
+	public int parseField(byte[] bytes, int startPos, int limit, byte[] delimiter, Byte reusable) {
 		int val = 0;
 		boolean neg = false;
+
+		final int delimLimit = limit-delimiter.length+1;
 		
 		if (bytes[startPos] == '-') {
 			neg = true;
 			startPos++;
 			
 			// check for empty field with only the sign
-			if (startPos == limit || bytes[startPos] == delimiter) {
+			if (startPos == limit || (startPos < delimLimit && delimiterNext(bytes, startPos, delimiter))) {
 				setErrorState(ParseErrorState.NUMERIC_VALUE_ORPHAN_SIGN);
 				return -1;
 			}
 		}
-		
+
 		for (int i = startPos; i < limit; i++) {
-			if (bytes[i] == delimiter) {
+			if (i < delimLimit && delimiterNext(bytes, i, delimiter)) {
 				this.result = (byte) (neg ? -val : val);
-				return i+1;
+				return i + delimiter.length;
 			}
 			if (bytes[i] < 48 || bytes[i] > 57) {
 				setErrorState(ParseErrorState.NUMERIC_VALUE_ILLEGAL_CHARACTER);

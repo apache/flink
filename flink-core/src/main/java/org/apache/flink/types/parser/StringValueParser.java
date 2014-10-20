@@ -36,41 +36,45 @@ public class StringValueParser extends FieldParser<StringValue> {
 	private static final byte QUOTE_DOUBLE = (byte) '"';
 	
 	private StringValue result;
-	
+
 	@Override
-	public int parseField(byte[] bytes, int startPos, int length, char delim, StringValue reusable) {
-		
+	public int parseField(byte[] bytes, int startPos, int limit, byte[] delimiter, StringValue reusable) {
+
 		this.result = reusable;
-		
 		int i = startPos;
-		
-		final byte delByte = (byte) delim;
 		byte current;
-		
+
+		final int delimLimit = limit-delimiter.length+1;
+
 		// count initial whitespace lines
-		while (i < length && ((current = bytes[i]) == WHITESPACE_SPACE || current == WHITESPACE_TAB)) {
+		while (i < limit && ((current = bytes[i]) == WHITESPACE_SPACE || current == WHITESPACE_TAB)) {
 			i++;
 		}
 		
 		// first none whitespace character
-		if (i < length && bytes[i] == QUOTE_DOUBLE) {
+		if (i < limit && bytes[i] == QUOTE_DOUBLE) {
 			// quoted string
 			i++; // the quote
 			
 			// we count only from after the quote
 			int quoteStart = i;
-			while (i < length && bytes[i] != QUOTE_DOUBLE) {
+			while (i < limit && bytes[i] != QUOTE_DOUBLE) {
 				i++;
 			}
 			
-			if (i < length) {
+			if (i < limit) {
 				// end of the string
 				reusable.setValueAscii(bytes, quoteStart, i-quoteStart);
 				
 				i++; // the quote
 				
-				// skip trailing whitespace characters 
-				while (i < length && (current = bytes[i]) != delByte) {
+				// skip trailing whitespace characters
+				while (i < limit) {
+
+					if (i < delimLimit && delimiterNext(bytes, i, delimiter)) {
+						return i+delimiter.length;
+					}
+					current = bytes[i];
 					if (current == WHITESPACE_SPACE || current == WHITESPACE_TAB) {
 						i++;
 					}
@@ -79,8 +83,10 @@ public class StringValueParser extends FieldParser<StringValue> {
 						return -1;	// illegal case of non-whitespace characters trailing
 					}
 				}
-				
-				return (i == length ? length : i+1);
+				if( i > limit ){
+					i--;
+				}
+				return (i == limit ? limit : i + delimiter.length);
 			} else {
 				// exited due to line end without quote termination
 				setErrorState(ParseErrorState.UNTERMINATED_QUOTED_STRING);
@@ -88,14 +94,16 @@ public class StringValueParser extends FieldParser<StringValue> {
 			}
 		}
 		else {
-			// unquoted string
-			while (i < length && bytes[i] != delByte) {
+			// unquoted string -delim.length
+			while (i < limit) {
+				if (i < delimLimit && delimiterNext(bytes, i, delimiter)) {
+					break;
+				}
 				i++;
 			}
-			
 			// set from the beginning. unquoted strings include the leading whitespaces
 			reusable.setValueAscii(bytes, startPos, i-startPos);
-			return (i == length ? length : i+1);
+			return (i == limit ? limit : i + delimiter.length);
 		}
 	}
 	

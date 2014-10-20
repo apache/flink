@@ -30,7 +30,7 @@ public class LongValueParserTest extends ParserTestBase<LongValue> {
 	public String[] getValidTestValues() {
 		return new String[] {
 			"0", "1", "576", "-877678", String.valueOf(Integer.MAX_VALUE), String.valueOf(Integer.MIN_VALUE),
-			String.valueOf(Long.MAX_VALUE), String.valueOf(Long.MIN_VALUE), "7656"
+			String.valueOf(Long.MAX_VALUE), String.valueOf(Long.MIN_VALUE), "7656", "1239"
 		};
 	}
 	
@@ -39,7 +39,7 @@ public class LongValueParserTest extends ParserTestBase<LongValue> {
 		return new LongValue[] {
 			new LongValue(0L), new LongValue(1L), new LongValue(576L), new LongValue(-877678L),
 			new LongValue((long) Integer.MAX_VALUE), new LongValue((long) Integer.MIN_VALUE),
-			new LongValue(Long.MAX_VALUE), new LongValue(Long.MIN_VALUE), new LongValue(7656L)
+			new LongValue(Long.MAX_VALUE), new LongValue(Long.MIN_VALUE), new LongValue(7656L), new LongValue(1239L)
 		};
 	}
 

@@ -172,7 +172,7 @@ object LinearRegression {
     if (fileOutput) {
       env.readCsvFile[(Double, Double)](
         dataPath,
-        fieldDelimiter = ' ',
+        fieldDelimiter = " ",
         includedFields = Array(0, 1))
         .map { t => new Data(t._1, t._2) }
     }

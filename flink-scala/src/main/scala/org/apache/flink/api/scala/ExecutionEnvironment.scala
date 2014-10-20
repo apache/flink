@@ -196,7 +196,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * @param filePath The path of the file, as a URI (e.g., "file:///some/local/file" or
    *                 "hdfs://host:port/file/path").   * @param lineDelimiter
    * @param lineDelimiter The string that separates lines, defaults to newline.
-   * @param fieldDelimiter The char that separates individual fields, defaults to ','.
+   * @param fieldDelimiter The string that separates individual fields, defaults to ",".
    * @param ignoreFirstLine Whether the first line in the file should be ignored.
    * @param ignoreComments Lines that start with the given String are ignored, disabled by default.
    * @param lenient Whether the parser should silently ignore malformed lines.
@@ -206,7 +206,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   def readCsvFile[T <: Product : ClassTag : TypeInformation](
       filePath: String,
       lineDelimiter: String = "\n",
-      fieldDelimiter: Char = ',',
+      fieldDelimiter: String = ",",
       ignoreFirstLine: Boolean = false,
       ignoreComments: String = null,
       lenient: Boolean = false,

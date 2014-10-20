@@ -135,7 +135,7 @@ object KMeans {
     if (fileOutput) {
       env.readCsvFile[(Double, Double)](
         pointsPath,
-        fieldDelimiter = ' ',
+        fieldDelimiter = " ",
         includedFields = Array(0, 1))
         .map { x => new Point(x._1, x._2)}
     }
@@ -151,7 +151,7 @@ object KMeans {
     if (fileOutput) {
       env.readCsvFile[(Int, Double, Double)](
         centersPath,
-        fieldDelimiter = ' ',
+        fieldDelimiter = " ",
         includedFields = Array(0, 1, 2))
         .map { x => new Centroid(x._1, x._2, x._3)}
     }

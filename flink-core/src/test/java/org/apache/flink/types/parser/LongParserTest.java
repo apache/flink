@@ -29,14 +29,15 @@ public class LongParserTest extends ParserTestBase<Long> {
 	public String[] getValidTestValues() {
 		return new String[] {
 			"0", "1", "576", "-877678", String.valueOf(Integer.MAX_VALUE), String.valueOf(Integer.MIN_VALUE),
-			String.valueOf(Long.MAX_VALUE), String.valueOf(Long.MIN_VALUE), "7656"
+			String.valueOf(Long.MAX_VALUE), String.valueOf(Long.MIN_VALUE), "7656", "1239"
 		};
 	}
 	
 	@Override
 	public Long[] getValidTestResults() {
 		return new Long[] {
-			0L, 1L, 576L, -877678L, (long) Integer.MAX_VALUE, (long) Integer.MIN_VALUE, Long.MAX_VALUE, Long.MIN_VALUE, 7656L
+			0L, 1L, 576L, -877678L, (long) Integer.MAX_VALUE, (long) Integer.MIN_VALUE, Long.MAX_VALUE, Long.MIN_VALUE,
+			7656L, 1239L
 		};
 	}
 

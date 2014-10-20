@@ -88,7 +88,7 @@ public class GenericCsvInputFormatTest {
 		
 			final Configuration parameters = new Configuration();
 			
-			format.setFieldDelimiter('|');
+			format.setFieldDelimiter("|");
 			format.setFieldTypesGeneric(IntValue.class, IntValue.class, IntValue.class, IntValue.class, IntValue.class);
 			
 			format.configure(parameters);
@@ -128,7 +128,7 @@ public class GenericCsvInputFormatTest {
 		
 			final Configuration parameters = new Configuration();
 			
-			format.setFieldDelimiter('|');
+			format.setFieldDelimiter("|");
 			format.setFieldTypesGeneric(IntValue.class, IntValue.class);
 			
 			format.configure(parameters);
@@ -160,12 +160,14 @@ public class GenericCsvInputFormatTest {
 	@Test
 	public void testSparseParse() {
 		try {
-			final String fileContent = "111|222|333|444|555|666|777|888|999|000|\n000|999|888|777|666|555|444|333|222|111|";
+			final String fileContent =
+					"111|222|333|444|555|666|777|888|999|000|\n"+
+					"000|999|888|777|666|555|444|333|222|111|";
 			final FileInputSplit split = createTempFile(fileContent);	
 		
 			final Configuration parameters = new Configuration();
 			
-			format.setFieldDelimiter('|');
+			format.setFieldDelimiter("|");
 			format.setFieldTypesGeneric(IntValue.class, null, null, IntValue.class, null, null, null, IntValue.class);
 			
 			format.configure(parameters);
@@ -203,7 +205,7 @@ public class GenericCsvInputFormatTest {
 
 			final Configuration parameters = new Configuration();
 
-			format.setFieldDelimiter(',');
+			format.setFieldDelimiter(",");
 			format.setFieldTypesGeneric(LongValue.class, LongValue.class, LongValue.class);
 			format.configure(parameters);
 			format.open(split);
@@ -241,7 +243,7 @@ public class GenericCsvInputFormatTest {
 
 			final Configuration parameters = new Configuration();
 
-			format.setFieldDelimiter('|');
+			format.setFieldDelimiter("|");
 			format.setFieldsGeneric(new int[] { 0, 3, 7 },
 				(Class<? extends Value>[]) new Class[] { IntValue.class, IntValue.class, IntValue.class });
 			format.configure(parameters);
@@ -269,7 +271,62 @@ public class GenericCsvInputFormatTest {
 			fail("Test erroneous");
 		}
 	}
-	
+
+	@SuppressWarnings("unchecked")
+	@Test
+	public void testSparseParseWithIndicesMultiCharDelimiter() {
+		try {
+			final String fileContent =
+					"111|-|222|-|333|-|444|-|555|-|666|-|777|-|888|-|999|-|000|-|\n"+
+					"000|-|999|-|888|-|777|-|666|-|555|-|444|-|333|-|222|-|111\n"+
+					"555|-|999|-|888|-|111|-|666|-|555|-|444|-|777|-|222|-|111|-|\n"+
+					"22222|-|99999|-|8|-|99999999|-|6666666|-|5|-|4444|-|8|-|22222|-|1\n";
+
+			final FileInputSplit split = createTempFile(fileContent);
+
+			final Configuration parameters = new Configuration();
+
+			format.setFieldDelimiter("|-|");
+			format.setFieldsGeneric(new int[] { 0, 3, 7 },
+					(Class<? extends Value>[]) new Class[] { IntValue.class, IntValue.class, IntValue.class });
+			format.configure(parameters);
+			format.open(split);
+
+			Value[] values = createIntValues(3);
+
+			values = format.nextRecord(values);
+			assertNotNull(values);
+			assertEquals(111, ((IntValue) values[0]).getValue());
+			assertEquals(444, ((IntValue) values[1]).getValue());
+			assertEquals(888, ((IntValue) values[2]).getValue());
+
+			values = format.nextRecord(values);
+			assertNotNull(values);
+			assertEquals(000, ((IntValue) values[0]).getValue());
+			assertEquals(777, ((IntValue) values[1]).getValue());
+			assertEquals(333, ((IntValue) values[2]).getValue());
+
+			values = format.nextRecord(values);
+			assertNotNull(values);
+			assertEquals(555, ((IntValue) values[0]).getValue());
+			assertEquals(111, ((IntValue) values[1]).getValue());
+			assertEquals(777, ((IntValue) values[2]).getValue());
+
+			values = format.nextRecord(values);
+			assertNotNull(values);
+			assertEquals(22222, ((IntValue) values[0]).getValue());
+			assertEquals(99999999, ((IntValue) values[1]).getValue());
+			assertEquals(8, ((IntValue) values[2]).getValue());
+
+			assertNull(format.nextRecord(values));
+			assertTrue(format.reachedEnd());
+		} catch (Exception ex) {
+			System.err.println(ex.getMessage());
+			ex.printStackTrace();
+			fail("Test erroneous");
+		}
+	}
+
 	@Test
 	public void testReadTooShortInput() throws IOException {
 		try {
@@ -277,7 +334,7 @@ public class GenericCsvInputFormatTest {
 			final FileInputSplit split = createTempFile(fileContent);	
 		
 			final Configuration parameters = new Configuration();
-			format.setFieldDelimiter('|');
+			format.setFieldDelimiter("|");
 			format.setFieldTypesGeneric(IntValue.class, IntValue.class, IntValue.class, IntValue.class, IntValue.class);
 			
 			format.configure(parameters);
@@ -305,7 +362,7 @@ public class GenericCsvInputFormatTest {
 			final FileInputSplit split = createTempFile(fileContent);	
 		
 			final Configuration parameters = new Configuration();
-			format.setFieldDelimiter('|');
+			format.setFieldDelimiter("|");
 			format.setFieldTypesGeneric(IntValue.class, IntValue.class, IntValue.class, IntValue.class, IntValue.class);
 			format.setLenient(true);
 			
@@ -331,7 +388,7 @@ public class GenericCsvInputFormatTest {
 		
 			final Configuration parameters = new Configuration();
 
-			format.setFieldDelimiter('|');
+			format.setFieldDelimiter("|");
 			format.setFieldTypesGeneric(StringValue.class, IntValue.class, StringValue.class, IntValue.class);
 			
 			format.configure(parameters);
@@ -362,7 +419,7 @@ public class GenericCsvInputFormatTest {
 		
 			final Configuration parameters = new Configuration();
 
-			format.setFieldDelimiter('|');
+			format.setFieldDelimiter("|");
 			format.setFieldTypesGeneric(StringValue.class, IntValue.class, StringValue.class, IntValue.class);
 			format.setLenient(true);
 			
@@ -390,7 +447,7 @@ public class GenericCsvInputFormatTest {
 		
 			final Configuration parameters = new Configuration();
 
-			format.setFieldDelimiter('|');
+			format.setFieldDelimiter("|");
 			format.setFieldTypesGeneric(StringValue.class, null, IntValue.class);
 			format.setLenient(true);
 			
@@ -417,7 +474,7 @@ public class GenericCsvInputFormatTest {
 		
 			final Configuration parameters = new Configuration();
 
-			format.setFieldDelimiter('|');
+			format.setFieldDelimiter("|");
 			format.setFieldTypesGeneric(StringValue.class, StringValue.class, StringValue.class);
 			
 			format.configure(parameters);
@@ -460,7 +517,7 @@ public class GenericCsvInputFormatTest {
 		
 			final Configuration parameters = new Configuration();
 
-			format.setFieldDelimiter('|');
+			format.setFieldDelimiter("|");
 			format.setFieldTypesGeneric(IntValue.class, StringValue.class, IntValue.class, StringValue.class);
 			format.setSkipFirstLineAsHeader(true);
 			
@@ -492,7 +549,7 @@ public class GenericCsvInputFormatTest {
 		
 			final Configuration parameters = new Configuration();
 
-			format.setFieldDelimiter('|');
+			format.setFieldDelimiter("|");
 			format.setFieldTypesGeneric(IntValue.class, StringValue.class, IntValue.class, StringValue.class);
 			format.setSkipFirstLineAsHeader(true);
 			
@@ -516,7 +573,6 @@ public class GenericCsvInputFormatTest {
 			fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
 		}
 	}
-	
 
 	private FileInputSplit createTempFile(String content) throws IOException {
 		this.tempFile = File.createTempFile("test_contents", "tmp");
@@ -558,4 +614,5 @@ public class GenericCsvInputFormatTest {
 			return parseRecord(target, bytes, offset, numBytes) ? target : null;
 		}
 	}
+
 }

@@ -189,28 +189,28 @@ public class TPCHQuery10 {
 	
 	private static DataSet<Tuple5<Integer, String, String, Integer, Double>> getCustomerDataSet(ExecutionEnvironment env) {
 		return env.readCsvFile(customerPath)
-					.fieldDelimiter('|')
+					.fieldDelimiter("|")
 					.includeFields("11110100")
 					.types(Integer.class, String.class, String.class, Integer.class, Double.class);
 	}
 	
 	private static DataSet<Tuple3<Integer, Integer, String>> getOrdersDataSet(ExecutionEnvironment env) {
 		return env.readCsvFile(ordersPath)
-					.fieldDelimiter('|')
+					.fieldDelimiter("|")
 					.includeFields("110010000")
 					.types(Integer.class, Integer.class, String.class);
 	}
 
 	private static DataSet<Tuple4<Integer, Double, Double, String>> getLineitemDataSet(ExecutionEnvironment env) {
 		return env.readCsvFile(lineitemPath)
-					.fieldDelimiter('|')
+					.fieldDelimiter("|")
 					.includeFields("1000011010000000")
 					.types(Integer.class, Double.class, Double.class, String.class);
 	}
 	
 	private static DataSet<Tuple2<Integer, String>> getNationsDataSet(ExecutionEnvironment env) {
 		return env.readCsvFile(nationPath)
-					.fieldDelimiter('|')
+					.fieldDelimiter("|")
 					.includeFields("1100")
 					.types(Integer.class, String.class);
 	}

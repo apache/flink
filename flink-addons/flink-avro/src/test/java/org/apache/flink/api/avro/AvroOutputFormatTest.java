@@ -63,7 +63,7 @@ public class AvroOutputFormatTest extends JavaProgramTestBase {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<Tuple3<String, Integer, String>> input = env.readCsvFile(inputPath)
-			.fieldDelimiter('|')
+			.fieldDelimiter("|")
 			.types(String.class, Integer.class, String.class);
 
 		//output the data with AvroOutputFormat for specific user type

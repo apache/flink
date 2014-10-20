@@ -313,7 +313,7 @@ public class KMeans {
 		if(fileOutput) {
 			// read points from CSV file
 			return env.readCsvFile(pointsPath)
-						.fieldDelimiter(' ')
+						.fieldDelimiter(" ")
 						.includeFields(true, true)
 						.types(Double.class, Double.class)
 						.map(new TuplePointConverter());
@@ -325,7 +325,7 @@ public class KMeans {
 	private static DataSet<Centroid> getCentroidDataSet(ExecutionEnvironment env) {
 		if(fileOutput) {
 			return env.readCsvFile(centersPath)
-						.fieldDelimiter(' ')
+						.fieldDelimiter(" ")
 						.includeFields(true, true, true)
 						.types(Integer.class, Double.class, Double.class)
 						.map(new TupleCentroidConverter());

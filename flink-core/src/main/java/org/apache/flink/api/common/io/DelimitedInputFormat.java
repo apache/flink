@@ -20,9 +20,6 @@
 package org.apache.flink.api.common.io;
 
 import java.io.IOException;
-import java.nio.charset.Charset;
-import java.nio.charset.IllegalCharsetNameException;
-import java.nio.charset.UnsupportedCharsetException;
 import java.util.ArrayList;
 
 import org.slf4j.Logger;
@@ -188,27 +185,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 	}
 	
 	public void setDelimiter(String delimiter) {
-		setDelimiter(delimiter, Charsets.UTF_8);
-	}
-	
-	public void setDelimiter(String delimiter, String charsetName) throws IllegalCharsetNameException, UnsupportedCharsetException {
-		if (charsetName == null) {
-			throw new IllegalArgumentException("Charset name must not be null");
-		}
-		
-		Charset charset = Charset.forName(charsetName);
-		setDelimiter(delimiter, charset);
-	}
-	
-	public void setDelimiter(String delimiter, Charset charset) {
-		if (delimiter == null) {
-			throw new IllegalArgumentException("Delimiter must not be null");
-		}
-		if (charset == null) {
-			throw new IllegalArgumentException("Charset must not be null");
-		}
-		
-		this.delimiter = delimiter.getBytes(charset);
+		this.delimiter = delimiter.getBytes(Charsets.UTF_8);
 	}
 	
 	public int getLineLengthLimit() {
@@ -281,19 +258,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 		
 		String delimString = parameters.getString(RECORD_DELIMITER, null);
 		if (delimString != null) {
-			String charsetName = parameters.getString(RECORD_DELIMITER_ENCODING, null);
-
-			if (charsetName == null) {
-				setDelimiter(delimString);
-			} else {
-				try {
-					setDelimiter(delimString, charsetName);
-				}
-				catch (UnsupportedCharsetException e) {
-					throw new IllegalArgumentException("The charset with the name '" + charsetName + 
-							"' is not supported on this TaskManager instance.", e);
-				}
-			}
+			setDelimiter(delimString);
 		}
 		
 		// set the number of samples
@@ -639,11 +604,6 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 	protected static final String RECORD_DELIMITER = "delimited-format.delimiter";
 	
 	/**
-	 * The configuration key to set the record delimiter encoding.
-	 */
-	private static final String RECORD_DELIMITER_ENCODING = "delimited-format.delimiter-encoding";
-	
-	/**
 	 * The configuration key to set the number of samples to take for the statistics.
 	 */
 	private static final String NUM_STATISTICS_SAMPLES = "delimited-format.numSamples";
@@ -707,24 +667,6 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 		 */
 		public T recordDelimiter(String delimiter) {
 			this.config.setString(RECORD_DELIMITER, delimiter);
-			@SuppressWarnings("unchecked")
-			T ret = (T) this;
-			return ret;
-		}
-		
-		/**
-		 * Sets the delimiter to be the given string. The string will be converted to bytes for more efficient
-		 * comparison during input parsing. The conversion will be done using the charset with the given name.
-		 * The charset must be available on the processing nodes, otherwise an exception will be raised at
-		 * runtime.
-		 * 
-		 * @param delimiter The delimiter string.
-		 * @param charsetName The name of the encoding character set.
-		 * @return The builder itself.
-		 */
-		public T recordDelimiter(String delimiter, String charsetName) {
-			this.config.setString(RECORD_DELIMITER, delimiter);
-			this.config.setString(RECORD_DELIMITER_ENCODING, charsetName);
 			@SuppressWarnings("unchecked")
 			T ret = (T) this;
 			return ret;

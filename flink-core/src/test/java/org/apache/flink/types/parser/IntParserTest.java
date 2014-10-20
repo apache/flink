@@ -28,14 +28,14 @@ public class IntParserTest extends ParserTestBase<Integer> {
 	@Override
 	public String[] getValidTestValues() {
 		return new String[] {
-			"0", "1", "576", "-877678", String.valueOf(Integer.MAX_VALUE), String.valueOf(Integer.MIN_VALUE)
+			"0", "1", "576", "-877678", String.valueOf(Integer.MAX_VALUE), String.valueOf(Integer.MIN_VALUE), "1239"
 		};
 	}
 	
 	@Override
 	public Integer[] getValidTestResults() {
 		return new Integer[] {
-			0, 1, 576, -877678, Integer.MAX_VALUE, Integer.MIN_VALUE
+			0, 1, 576, -877678, Integer.MAX_VALUE, Integer.MIN_VALUE, 1239
 		};
 	}
 

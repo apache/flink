@@ -125,7 +125,7 @@ public class EmptyFieldsCountAccumulator {
 		} else {
 			source = env
 					.readCsvFile(filePath)
-					.fieldDelimiter(';')
+					.fieldDelimiter(";")
 					.types(String.class, String.class, String.class);
 
 		}
