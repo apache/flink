@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.api.datastream;
 
 import java.io.Serializable;
-import java.util.List;
 
 import org.apache.commons.lang3.SerializationException;
 import org.apache.commons.lang3.SerializationUtils;
@@ -32,6 +31,7 @@ import org.apache.flink.streaming.api.function.co.CoFlatMapFunction;
 import org.apache.flink.streaming.api.function.co.CoMapFunction;
 import org.apache.flink.streaming.api.function.co.CoReduceFunction;
 import org.apache.flink.streaming.api.function.co.CoWindowFunction;
+import org.apache.flink.streaming.api.function.co.CrossWindowFunction;
 import org.apache.flink.streaming.api.function.co.RichCoMapFunction;
 import org.apache.flink.streaming.api.function.co.RichCoReduceFunction;
 import org.apache.flink.streaming.api.invokable.operator.co.CoFlatMapInvokable;
@@ -46,7 +46,6 @@ import org.apache.flink.streaming.util.serialization.ClassTypeWrapper;
 import org.apache.flink.streaming.util.serialization.CombineTypeWrapper;
 import org.apache.flink.streaming.util.serialization.FunctionTypeWrapper;
 import org.apache.flink.streaming.util.serialization.TypeWrapper;
-import org.apache.flink.util.Collector;
 
 /**
  * The ConnectedDataStream represents a stream for two different data types. It
@@ -482,24 +481,7 @@ public class ConnectedDataStream<IN1, IN2> {
 		return invokable;
 	}
 
-	private static class CrossWindowFunction<IN1, IN2> implements
-			CoWindowFunction<IN1, IN2, Tuple2<IN1, IN2>> {
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public void coWindow(List<IN1> first, List<IN2> second, Collector<Tuple2<IN1, IN2>> out)
-				throws Exception {
-
-			for (IN1 item1 : first) {
-				for (IN2 item2 : second) {
-					out.collect(new Tuple2<IN1, IN2>(item1, item2));
-				}
-			}
-		}
-	}
-
 	SingleOutputStreamOperator<Tuple2<IN1, IN2>, ?> windowCross(long windowSize, long slideInterval) {
-
 		return windowCross(windowSize, slideInterval, new DefaultTimeStamp<IN1>(),
 				new DefaultTimeStamp<IN2>());
 	}
