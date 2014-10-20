@@ -53,7 +53,7 @@ public class IntValueParser extends FieldParser<IntValue> {
 		for (int i = startPos; i <= limit-delimiter.length; i++) {
 			if (delimiterNext(bytes, i, delimiter)) {
 				reusable.setValue((int) (neg ? -val : val));
-				return i+1;
+				return i+delimiter.length;
 			}
 			if (bytes[i] < 48 || bytes[i] > 57) {
 				setErrorState(ParseErrorState.NUMERIC_VALUE_ILLEGAL_CHARACTER);
