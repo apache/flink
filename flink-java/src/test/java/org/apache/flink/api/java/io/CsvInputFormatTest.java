@@ -232,6 +232,49 @@ public class CsvInputFormatTest {
 			fail("Test failed due to a " + ex.getClass().getName() + ": " + ex.getMessage());
 		}
 	}
+
+	@Test
+	public void readMixedQuotedStringFields() {
+		try {
+			final String fileContent = "@a|b|c@|def|@ghijk@\nabc||@|hhg@\n|||";
+			final FileInputSplit split = createTempFile(fileContent);
+
+			final CsvInputFormat<Tuple3<String, String, String>> format = new CsvInputFormat<Tuple3<String, String, String>>(PATH, "\n", "|", String.class, String.class, String.class);
+
+			final Configuration parameters = new Configuration();
+			format.configure(parameters);
+			format.enableQuotedStringParsing('@');
+			format.open(split);
+
+			Tuple3<String, String, String> result = new Tuple3<String, String, String>();
+
+			result = format.nextRecord(result);
+			assertNotNull(result);
+			assertEquals("a|b|c", result.f0);
+			assertEquals("def", result.f1);
+			assertEquals("ghijk", result.f2);
+
+			result = format.nextRecord(result);
+			assertNotNull(result);
+			assertEquals("abc", result.f0);
+			assertEquals("", result.f1);
+			assertEquals("|hhg", result.f2);
+
+			result = format.nextRecord(result);
+			assertNotNull(result);
+			assertEquals("", result.f0);
+			assertEquals("", result.f1);
+			assertEquals("", result.f2);
+
+			result = format.nextRecord(result);
+			assertNull(result);
+			assertTrue(format.reachedEnd());
+		}
+		catch (Exception ex) {
+			ex.printStackTrace();
+			fail("Test failed due to a " + ex.getClass().getName() + ": " + ex.getMessage());
+		}
+	}
 	
 	@Test
 	public void readStringFieldsWithTrailingDelimiters() {
@@ -493,6 +536,7 @@ public class CsvInputFormatTest {
 	@Test
 	public void testParseStringErrors() throws Exception {
 		StringParser stringParser = new StringParser();
+		stringParser.enableQuotedStringParsing((byte)'"');
 
 		Object[][] failures = {
 				{"\"string\" trailing", FieldParser.ParseErrorState.UNQUOTED_CHARS_AFTER_QUOTED_STRING},
@@ -511,7 +555,8 @@ public class CsvInputFormatTest {
 
 	}
 
-	@Test
+	// Test disabled becase we do not support double-quote escaped quotes right now.
+	// @Test
 	public void testParserCorrectness() throws Exception {
 		// RFC 4180 Compliance Test content
 		// Taken from http://en.wikipedia.org/wiki/Comma-separated_values#Example

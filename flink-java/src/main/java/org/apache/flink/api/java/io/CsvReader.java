@@ -50,8 +50,12 @@ public class CsvReader {
 	protected String lineDelimiter = CsvInputFormat.DEFAULT_LINE_DELIMITER;
 	
 	protected String fieldDelimiter = CsvInputFormat.DEFAULT_FIELD_DELIMITER;
-	
+
 	protected String commentPrefix = null; //default: no comments
+
+	protected boolean parseQuotedStrings = false;
+
+	protected char quoteCharacter = '"';
 
 	protected boolean skipFirstLineAsHeader = false;
 	
@@ -117,7 +121,21 @@ public class CsvReader {
 		this.fieldDelimiter = delimiter;
 		return this;
 	}
-	
+
+	/**
+	 * Enables quoted String parsing. Field delimiters in quoted Strings are ignored.
+	 * A String is parsed as quoted if it starts and ends with a quoting character and as unquoted otherwise.
+	 * Leading or tailing whitespaces are not allowed.
+	 *
+	 * @param quoteCharacter The character which is used as quoting character.
+	 * @return The CSV reader instance itself, to allow for fluent function chaining.
+	 */
+	public CsvReader parseQuotedStrings(char quoteCharacter) {
+		this.parseQuotedStrings = true;
+		this.quoteCharacter = quoteCharacter;
+		return this;
+	}
+
 	/**
 	 * Configures the string that starts comments.
 	 * By default comments will be treated as invalid lines.
@@ -297,6 +315,9 @@ public class CsvReader {
 		format.setCommentPrefix(this.commentPrefix);
 		format.setSkipFirstLineAsHeader(skipFirstLineAsHeader);
 		format.setLenient(ignoreInvalidLines);
+		if (this.parseQuotedStrings) {
+			format.enableQuotedStringParsing(this.quoteCharacter);
+		}
 		if (this.includedMask == null) {
 			format.setFieldTypes(types);
 		} else {
