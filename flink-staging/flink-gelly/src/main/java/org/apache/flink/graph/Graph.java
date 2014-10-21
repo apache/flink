@@ -21,21 +21,29 @@ package flink.graphs;
 
 import org.apache.flink.api.common.functions.*;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.aggregation.Aggregations;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.io.CsvReader;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.spargel.java.VertexCentricIteration;
 import org.apache.flink.util.Collector;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import java.io.Serializable;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
 
 
 @SuppressWarnings("serial")
 public class Graph<K extends Comparable<K> & Serializable, VV extends Serializable,
 	EV extends Serializable> implements Serializable{
+
+    private final ExecutionEnvironment context;
 
 	private final DataSet<Tuple2<K, VV>> vertices;
 
@@ -46,15 +54,17 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	private boolean isUndirected = false;
 
 
-	public Graph(DataSet<Tuple2<K, VV>> vertices, DataSet<Tuple3<K, K, EV>> edges) {
+	public Graph(DataSet<Tuple2<K, VV>> vertices, DataSet<Tuple3<K, K, EV>> edges, ExecutionEnvironment context) {
 		this.vertices = vertices;
 		this.edges = edges;
+        this.context = context;
 	}
 
-	public Graph(DataSet<Tuple2<K, VV>> vertices, DataSet<Tuple3<K, K, EV>> edges,
+	public Graph(DataSet<Tuple2<K, VV>> vertices, DataSet<Tuple3<K, K, EV>> edges, ExecutionEnvironment context,
 			boolean undirected) {
 		this.vertices = vertices;
 		this.edges = edges;
+        this.context = context;
 		this.isUndirected = undirected;
 	}
 
@@ -110,7 +120,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
             }
         });
 
-        return new Graph<K, VV, EV>(filteredVertices, filteredEdges);
+        return new Graph<K, VV, EV>(filteredVertices, filteredEdges, this.context);
     }
 
 
@@ -166,7 +176,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 
         DataSet<Tuple2<K, VV>> result = iteration.closeWith(a, a);
 
-        return new Graph<>(result, this.edges);
+        return new Graph<>(result, this.edges, this.context);
     }
 
 	/**
@@ -186,7 +196,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 					out.collect(new Tuple3<K, K, EV>(edge.f1, edge.f0, edge.f2));
 				}
 			});
-			return new Graph<K, VV, EV>(vertices, (DataSet<Tuple3<K, K, EV>>) undirectedEdges, true);
+			return new Graph<K, VV, EV>(vertices, (DataSet<Tuple3<K, K, EV>>) undirectedEdges, this.context, true);
 		}
 	}
 
@@ -206,14 +216,14 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 					return new Tuple3<K, K, EV>(edge.f1, edge.f0, edge.f2);
 				}
 			});
-			return new Graph<K, VV, EV>(vertices, (DataSet<Tuple3<K, K, EV>>) undirectedEdges, true);
+			return new Graph<K, VV, EV>(vertices, (DataSet<Tuple3<K, K, EV>>) undirectedEdges, this.context, true);
 		}
 	}
 
 	public static <K extends Comparable<K> & Serializable, VV extends Serializable,
 		EV extends Serializable> Graph<K, VV, EV>
-		create(DataSet<Tuple2<K, VV>> vertices, DataSet<Tuple3<K, K, EV>> edges) {
-		return new Graph<K, VV, EV>(vertices, edges);
+		create(DataSet<Tuple2<K, VV>> vertices, DataSet<Tuple3<K, K, EV>> edges, ExecutionEnvironment context) {
+		return new Graph<K, VV, EV>(vertices, edges, context);
 
 	}
 
@@ -282,7 +292,8 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	public static <K extends Comparable<K> & Serializable, VV extends Serializable,
 		EV extends Serializable> Graph<K, VV, EV> readGraphFromCsvFile(ExecutionEnvironment env,
 				String Tuple2Filepath, char Tuple2Delimiter, String edgeFilepath, char edgeDelimiter,
-				Class<K> Tuple2IdClass, Class<VV> Tuple2ValueClass,	Class<EV> edgeValueClass) {
+				Class<K> Tuple2IdClass, Class<VV> Tuple2ValueClass,	Class<EV> edgeValueClass,
+                ExecutionEnvironment context) {
 
 		CsvReader Tuple2Reader = new CsvReader(Tuple2Filepath, env);
 		DataSet<Tuple2<K, VV>> vertices = Tuple2Reader.fieldDelimiter(Tuple2Delimiter)
@@ -304,7 +315,182 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 			}
 		});
 
-		return Graph.create(vertices, edges);
+		return Graph.create(vertices, edges, context);
 	}
+
+    /**
+     * @return Singleton DataSet containing the vertex count
+     */
+    public DataSet<Integer> numberOfVertices () {
+        return GraphUtils.count((DataSet<Object>) (DataSet<?>) vertices);
+
+    }
+
+    /**
+     *
+     * @return Singleton DataSet containing the edge count
+     */
+    public DataSet<Integer> numberOfEdges () {
+        return GraphUtils.count((DataSet<Object>) (DataSet<?>) edges);
+    }
+
+
+    /**
+     *
+     * @return The IDs of the vertices as DataSet
+     */
+    public DataSet<K> getVertexIds () {
+        return vertices.map(new MapFunction<Tuple2<K, VV>, K>() {
+            @Override
+            public K map(Tuple2<K, VV> vertex) throws Exception {
+                return vertex.f0;
+            }
+        });
+    }
+
+    public DataSet<Tuple2<K,K>> getEdgeIds () {
+        return edges.map(new MapFunction<Tuple3<K, K, EV>, Tuple2<K, K>>() {
+            @Override
+            public Tuple2<K, K> map(Tuple3<K, K, EV> edge) throws Exception {
+                return new Tuple2<K,K>(edge.f0, edge.f1);
+            }
+        });
+    }
+
+    public DataSet<Boolean> isWeaklyConnected () {
+
+        DataSet<K> vertexIds = this.getVertexIds();
+        DataSet<Tuple2<K,K>> verticesWithInitialIds = vertexIds
+                .map(new MapFunction<K, Tuple2<K, K>>() {
+                    @Override
+                    public Tuple2<K, K> map(K k) throws Exception {
+                        return new Tuple2<K, K>(k, k);
+                    }
+                });
+
+        DataSet<Tuple2<K,K>> edgeIds = this.getEdgeIds();
+
+        DeltaIteration<Tuple2<K,K>, Tuple2<K,K>> iteration = verticesWithInitialIds
+                .iterateDelta(verticesWithInitialIds, 10, 0);
+
+        DataSet<Tuple2<K, K>> changes = iteration.getWorkset()
+                .join(edgeIds).where(0).equalTo(0)
+                .with(new JoinFunction<Tuple2<K, K>, Tuple2<K, K>, Tuple2<K, K>>() {
+                    @Override
+                    public Tuple2<K, K> join(Tuple2<K, K> vertexWithComponent, Tuple2<K, K> edge) throws Exception {
+                        return new Tuple2<K,K>(edge.f1, vertexWithComponent.f1);
+                    }
+                })
+                .groupBy(0)
+                .aggregate(Aggregations.MIN, 1)
+                .join(iteration.getSolutionSet()).where(0).equalTo(0)
+                .with(new FlatJoinFunction<Tuple2<K, K>, Tuple2<K, K>, Tuple2<K, K>>() {
+                    @Override
+                    public void join(Tuple2<K, K> candidate, Tuple2<K, K> old, Collector<Tuple2<K, K>> out) throws Exception {
+                        if (candidate.f1.compareTo(old.f1) < 0) {
+                            out.collect(candidate);
+                        }
+                    }
+                });
+
+        DataSet<Tuple2<K, K>> components = iteration.closeWith(changes, changes);
+
+        DataSet<Boolean> result = GraphUtils.count((DataSet<Object>) (DataSet<?>) components)
+                .map(new MapFunction<Integer, Boolean>() {
+                    @Override
+                    public Boolean map(Integer n) throws Exception {
+                        if (n == 1)
+                            return false;
+                        else
+                            return true;
+                    }
+                });
+
+        return result;
+    }
+
+    //TODO kostas add functionality
+    public Graph<K, VV, EV> fromCollection (Collection<Tuple2<K,VV>> vertices, Collection<Tuple3<K,K,EV>> edges) {
+        return null;
+    }
+
+    //TODO kostas add functionality
+    public DataSet<Tuple2<K, VV>> fromCollection (Collection<Tuple2<K,VV>> vertices) {
+        return null;
+    }
+
+
+    public Graph<K, VV, EV> addVertex (Tuple2<K,VV> vertex, List<Tuple3<K,K,EV>> edges) {
+        Graph<K,VV,EV> newVertex = this.fromCollection(Arrays.asList(vertex), edges);
+        return this.union(newVertex);
+    }
+
+    public Graph<K, VV, EV> removeVertex (Tuple2<K,VV> vertex) {
+
+        DataSet<Tuple2<K,VV>> vertexToRemove = fromCollection(Arrays.asList(vertex));
+
+        DataSet<Tuple2<K,VV>> newVertices = getVertices()
+                .filter(new RichFilterFunction<Tuple2<K, VV>>() {
+                    private Tuple2<K, VV> vertexToRemove;
+
+                    @Override
+                    public void open(Configuration parameters) throws Exception {
+                        super.open(parameters);
+                        this.vertexToRemove = (Tuple2<K, VV>) getRuntimeContext().getBroadcastVariable("vertexToRemove").get(0);
+                    }
+
+                    @Override
+                    public boolean filter(Tuple2<K, VV> vertex) throws Exception {
+                        if (vertex.f0.equals(vertexToRemove.f0)) {
+                            return false;
+                        } else {
+                            return true;
+                        }
+                    }
+                }).withBroadcastSet(vertexToRemove, "vertexToRemove");
+
+        DataSet<Tuple3<K,K,EV>> newEdges = getEdges()
+                .filter(new RichFilterFunction<Tuple3<K,K,EV>>() {
+                    private Tuple2<K, VV> vertexToRemove;
+
+                    @Override
+                    public void open(Configuration parameters) throws Exception {
+                        super.open(parameters);
+                        this.vertexToRemove = (Tuple2<K, VV>) getRuntimeContext().getBroadcastVariable("vertexToRemove").get(0);
+                    }
+
+                    @Override
+                    public boolean filter(Tuple3<K,K,EV> edge) throws Exception {
+                        if (edge.f0.equals(vertexToRemove.f0)) {
+                            return false;
+                        }
+                        if (edge.f1.equals(vertexToRemove.f0)) {
+                            return false;
+                        }
+                        return true;
+                    }
+                }).withBroadcastSet(vertexToRemove, "vertexToRemove");
+
+        return new Graph<K, VV, EV>(newVertices, newEdges, this.context);
+    }
+
+
+    public Graph<K, VV, EV> addEdge (Tuple3<K,K,EV> edge, Tuple2<K,VV> source, Tuple2<K,VV> target) {
+        Graph<K,VV,EV> newEdges = this.fromCollection(Arrays.asList(source, target), Arrays.asList(edge));
+        return this.union(newEdges);
+    }
+
+    public Graph<K, VV, EV> union (Graph<K, VV, EV> graph) {
+        DataSet<Tuple2<K,VV>> unionedVertices = graph.getVertices().union(this.getVertices());
+        DataSet<Tuple3<K,K,EV>> unionedEdges = graph.getEdges().union(this.getEdges());
+        return new Graph<K,VV,EV>(unionedVertices, unionedEdges, this.context);
+    }
+
+
+    public Graph<K, VV, EV> passMessages (VertexCentricIteration<K, VV, ?, EV> iteration) {
+        DataSet<Tuple2<K,VV>> newVertices = iteration.createResult();
+        return new Graph<K,VV,EV>(newVertices, edges, this.context);
+    }
+
 
 }
