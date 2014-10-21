@@ -17,32 +17,33 @@
 
 package org.apache.flink.streaming.api.invokable.operator.co;
 
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.function.co.CoReduceFunction;
 import org.apache.flink.streaming.state.MutableTableState;
 
 public class CoGroupedReduceInvokable<IN1, IN2, OUT> extends CoReduceInvokable<IN1, IN2, OUT> {
 	private static final long serialVersionUID = 1L;
 
-	private int keyPosition1;
-	private int keyPosition2;
+	protected KeySelector<IN1, ?> keySelector1;
+	protected KeySelector<IN2, ?> keySelector2;
 	private MutableTableState<Object, IN1> values1;
 	private MutableTableState<Object, IN2> values2;
 	IN1 reduced1;
 	IN2 reduced2;
 
-	public CoGroupedReduceInvokable(CoReduceFunction<IN1, IN2, OUT> coReducer, int keyPosition1,
-			int keyPosition2) {
+	public CoGroupedReduceInvokable(CoReduceFunction<IN1, IN2, OUT> coReducer,
+			KeySelector<IN1, ?> keySelector1, KeySelector<IN2, ?> keySelector2) {
 		super(coReducer);
 		this.coReducer = coReducer;
-		this.keyPosition1 = keyPosition1;
-		this.keyPosition2 = keyPosition2;
+		this.keySelector1 = keySelector1;
+		this.keySelector2 = keySelector2;
 		values1 = new MutableTableState<Object, IN1>();
 		values2 = new MutableTableState<Object, IN2>();
 	}
 
 	@Override
 	public void handleStream1() throws Exception {
-		Object key = reuse1.getField(keyPosition1);
+		Object key = reuse1.getKey(keySelector1);
 		currentValue1 = values1.get(key);
 		nextValue1 = reuse1.getObject();
 		if (currentValue1 != null) {
@@ -57,7 +58,7 @@ public class CoGroupedReduceInvokable<IN1, IN2, OUT> extends CoReduceInvokable<I
 
 	@Override
 	public void handleStream2() throws Exception {
-		Object key = reuse2.getField(keyPosition2);
+		Object key = reuse2.getKey(keySelector2);
 		currentValue2 = values2.get(key);
 		nextValue2 = reuse2.getObject();
 		if (currentValue2 != null) {

@@ -33,6 +33,7 @@ import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.functions.RichReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -65,6 +66,7 @@ import org.apache.flink.streaming.partitioner.FieldsPartitioner;
 import org.apache.flink.streaming.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.partitioner.StreamPartitioner;
+import org.apache.flink.streaming.util.keys.FieldsKeySelector;
 import org.apache.flink.streaming.util.serialization.FunctionTypeWrapper;
 import org.apache.flink.streaming.util.serialization.ObjectTypeWrapper;
 import org.apache.flink.streaming.util.serialization.TypeWrapper;
@@ -311,18 +313,20 @@ public class DataStream<OUT> {
 
 	/**
 	 * Sets the partitioning of the {@link DataStream} so that the output tuples
-	 * are partitioned by their hashcode and are sent to only one component.
+	 * are partitioned by the hashcodes of the selected fields.
 	 * 
-	 * @param keyPosition
-	 *            The field used to compute the hashcode.
-	 * @return The DataStream with field partitioning set.
+	 * @param fields
+	 *            The fields to partition by.
+	 * @return The DataStream with fields partitioning set.
 	 */
-	public DataStream<OUT> partitionBy(int keyPosition) {
-		if (keyPosition < 0) {
-			throw new IllegalArgumentException("The position of the field must be non-negative");
-		}
+	public DataStream<OUT> partitionBy(int... fields) {
 
-		return setConnectionType(new FieldsPartitioner<OUT>(keyPosition));
+		return setConnectionType(new FieldsPartitioner<OUT>(new FieldsKeySelector<OUT>(
+				getOutputType(), fields)));
+	}
+
+	public DataStream<OUT> partitionBy(KeySelector<OUT, ?> keySelector) {
+		return setConnectionType(new FieldsPartitioner<OUT>(keySelector));
 	}
 
 	/**
@@ -395,8 +399,8 @@ public class DataStream<OUT> {
 	 * transformation calls a {@link FlatMapFunction} for each element of the
 	 * DataStream. Each FlatMapFunction call can return any number of elements
 	 * including none. The user can also extend {@link RichFlatMapFunction} to
-	 * gain access to other features provided by the {@link org.apache.flink.api.common.functions.RichFunction}
-	 * interface.
+	 * gain access to other features provided by the
+	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
 	 * 
 	 * @param flatMapper
 	 *            The FlatMapFunction that is called for each element of the
@@ -419,7 +423,8 @@ public class DataStream<OUT> {
 	/**
 	 * Applies a reduce transformation on the data stream. The user can also
 	 * extend the {@link RichReduceFunction} to gain access to other features
-	 * provided by the {@link org.apache.flink.api.common.functions.RichFunction} interface.
+	 * provided by the
+	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
 	 * 
 	 * @param reducer
 	 *            The {@link ReduceFunction} that will be called for every
@@ -456,17 +461,31 @@ public class DataStream<OUT> {
 	}
 
 	/**
-	 * Groups the elements of a {@link DataStream} by the given key position to
+	 * Groups the elements of a {@link DataStream} by the given key positions to
 	 * be used with grouped operators like
 	 * {@link GroupedDataStream#reduce(ReduceFunction)}
 	 * 
-	 * @param keyPosition
-	 *            The position of the field on which the {@link DataStream} will
-	 *            be grouped.
+	 * @param fields
+	 *            The position of the fields on which the {@link DataStream}
+	 *            will be grouped.
 	 * @return The transformed {@link DataStream}
 	 */
-	public GroupedDataStream<OUT> groupBy(int keyPosition) {
-		return new GroupedDataStream<OUT>(this, keyPosition);
+	public GroupedDataStream<OUT> groupBy(int... fields) {
+		return groupBy(new FieldsKeySelector<OUT>(getOutputType(), fields));
+	}
+
+	/**
+	 * Groups the elements of a {@link DataStream} by the key extracted by the
+	 * {@link KeySelector} to be used with grouped operators like
+	 * {@link GroupedDataStream#reduce(ReduceFunction)}
+	 * 
+	 * @param keySelector
+	 *            The {@link KeySelector} that will be used to extract keys for
+	 *            the values
+	 * @return The transformed {@link DataStream}
+	 */
+	public GroupedDataStream<OUT> groupBy(KeySelector<OUT, ?> keySelector) {
+		return new GroupedDataStream<OUT>(this, keySelector);
 	}
 
 	/**
@@ -724,7 +743,8 @@ public class DataStream<OUT> {
 	 * DataStream and retains only those element for which the function returns
 	 * true. Elements for which the function returns false are filtered. The
 	 * user can also extend {@link RichFilterFunction} to gain access to other
-	 * features provided by the {@link org.apache.flink.api.common.functions.RichFunction} interface.
+	 * features provided by the
+	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
 	 * 
 	 * @param filter
 	 *            The FilterFunction that is called for each element of the

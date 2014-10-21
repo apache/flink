@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.streamrecord;
 
 import java.io.Serializable;
 
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple;
 
 /**
@@ -95,6 +96,21 @@ public class StreamRecord<T> implements Serializable {
 			} else {
 				throw new IndexOutOfBoundsException();
 			}
+		}
+	}
+
+	/**
+	 * Extracts key for the stored object using the keySelector provided.
+	 * 
+	 * @param keySelector
+	 *            KeySelector for extracting the key
+	 * @return The extracted key
+	 */
+	public <R> R getKey(KeySelector<T, R> keySelector) {
+		try {
+			return keySelector.getKey(streamObject);
+		} catch (Exception e) {
+			throw new RuntimeException("Failed to extract key: " + e.getMessage());
 		}
 	}
 

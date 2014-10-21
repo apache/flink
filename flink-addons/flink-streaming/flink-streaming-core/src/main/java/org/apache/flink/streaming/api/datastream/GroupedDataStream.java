@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.datastream;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichReduceFunction;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.function.aggregation.AggregationFunction;
 import org.apache.flink.streaming.api.invokable.operator.GroupedReduceInvokable;
 import org.apache.flink.streaming.partitioner.StreamPartitioner;
@@ -26,7 +27,7 @@ import org.apache.flink.streaming.util.serialization.FunctionTypeWrapper;
 
 /**
  * A GroupedDataStream represents a {@link DataStream} which has been
- * partitioned by the given key in the values. Operators like {@link #reduce},
+ * partitioned by the given {@link KeySelector}. Operators like {@link #reduce},
  * {@link #batchReduce} etc. can be applied on the {@link GroupedDataStream} to
  * get additional functionality by the grouping.
  *
@@ -35,16 +36,16 @@ import org.apache.flink.streaming.util.serialization.FunctionTypeWrapper;
  */
 public class GroupedDataStream<OUT> extends DataStream<OUT> {
 
-	int keyPosition;
+	KeySelector<OUT, ?> keySelector;
 
-	protected GroupedDataStream(DataStream<OUT> dataStream, int keyPosition) {
-		super(dataStream.partitionBy(keyPosition));
-		this.keyPosition = keyPosition;
+	protected GroupedDataStream(DataStream<OUT> dataStream, KeySelector<OUT, ?> keySelector) {
+		super(dataStream.partitionBy(keySelector));
+		this.keySelector = keySelector;
 	}
 
 	protected GroupedDataStream(GroupedDataStream<OUT> dataStream) {
 		super(dataStream);
-		this.keyPosition = dataStream.keyPosition;
+		this.keySelector = dataStream.keySelector;
 	}
 
 	/**
@@ -63,7 +64,7 @@ public class GroupedDataStream<OUT> extends DataStream<OUT> {
 	public SingleOutputStreamOperator<OUT, ?> reduce(ReduceFunction<OUT> reducer) {
 		return addFunction("groupReduce", reducer, new FunctionTypeWrapper<OUT>(reducer,
 				ReduceFunction.class, 0), new FunctionTypeWrapper<OUT>(reducer,
-				ReduceFunction.class, 0), new GroupedReduceInvokable<OUT>(reducer, keyPosition));
+				ReduceFunction.class, 0), new GroupedReduceInvokable<OUT>(reducer, keySelector));
 	}
 
 	/**
@@ -180,7 +181,7 @@ public class GroupedDataStream<OUT> extends DataStream<OUT> {
 	protected SingleOutputStreamOperator<OUT, ?> aggregate(AggregationFunction<OUT> aggregate) {
 
 		GroupedReduceInvokable<OUT> invokable = new GroupedReduceInvokable<OUT>(aggregate,
-				keyPosition);
+				keySelector);
 
 		SingleOutputStreamOperator<OUT, ?> returnStream = addFunction("groupReduce", aggregate,
 				outTypeWrapper, outTypeWrapper, invokable);

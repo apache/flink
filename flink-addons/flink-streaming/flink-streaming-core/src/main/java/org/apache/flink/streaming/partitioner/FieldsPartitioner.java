@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.partitioner;
 
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
@@ -30,19 +31,20 @@ import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 public class FieldsPartitioner<T> implements StreamPartitioner<T> {
 	private static final long serialVersionUID = 1L;
 
-	private int keyPosition;
 	private int[] returnArray;
+	KeySelector<T, ?> keySelector;
 
-	public FieldsPartitioner(int keyPosition) {
-		this.keyPosition = keyPosition;
+	public FieldsPartitioner(KeySelector<T, ?> keySelector) {
+		this.keySelector = keySelector;
 		this.returnArray = new int[1];
 	}
 
 	@Override
 	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record,
 			int numberOfOutputChannels) {
-		returnArray[0] = Math.abs(record.getInstance().getField(keyPosition).hashCode()
+		returnArray[0] = Math.abs(record.getInstance().getKey(keySelector).hashCode()
 				% numberOfOutputChannels);
+
 		return returnArray;
 	}
 }

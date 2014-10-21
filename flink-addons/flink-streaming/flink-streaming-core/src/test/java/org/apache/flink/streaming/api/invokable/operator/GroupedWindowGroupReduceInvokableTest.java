@@ -27,11 +27,13 @@ import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.invokable.util.TimeStamp;
 import org.apache.flink.streaming.util.MockInvokable;
+import org.apache.flink.streaming.util.keys.FieldsKeySelector;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
 
 public class GroupedWindowGroupReduceInvokableTest {
 
+	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
 	public void windowReduceTest() {
 		List<Tuple2<String, Integer>> inputs2 = new ArrayList<Tuple2<String, Integer>>();
@@ -43,7 +45,7 @@ public class GroupedWindowGroupReduceInvokableTest {
 		inputs2.add(new Tuple2<String, Integer>("a", 7));
 		inputs2.add(new Tuple2<String, Integer>("b", 9));
 		inputs2.add(new Tuple2<String, Integer>("b", 10));
-		//1,2-4,5-7,8-10
+		// 1,2-4,5-7,8-10
 
 		List<Tuple2<String, Integer>> expected2 = new ArrayList<Tuple2<String, Integer>>();
 		expected2.add(new Tuple2<String, Integer>("a", 3));
@@ -60,17 +62,19 @@ public class GroupedWindowGroupReduceInvokableTest {
 					public void reduce(Iterable<Tuple2<String, Integer>> values,
 							Collector<Tuple2<String, Integer>> out) throws Exception {
 						Tuple2<String, Integer> outTuple = new Tuple2<String, Integer>("", 0);
-						
-						for (@SuppressWarnings("unused") Tuple2<String, Integer> value : values) {
+
+						for (@SuppressWarnings("unused")
+						Tuple2<String, Integer> value : values) {
 						}
-						
+
 						for (Tuple2<String, Integer> value : values) {
 							outTuple.f0 = value.f0;
 							outTuple.f1 += value.f1;
 						}
 						out.collect(outTuple);
 					}
-				}, 2, 3, 0, new TimeStamp<Tuple2<String, Integer>>() {
+				}, 2, 3, new FieldsKeySelector(true, false, 0),
+				new TimeStamp<Tuple2<String, Integer>>() {
 					private static final long serialVersionUID = 1L;
 
 					@Override
@@ -86,7 +90,6 @@ public class GroupedWindowGroupReduceInvokableTest {
 
 		List<Tuple2<String, Integer>> actual2 = MockInvokable.createAndExecute(invokable2, inputs2);
 
-		
 		assertEquals(new HashSet<Tuple2<String, Integer>>(expected2),
 				new HashSet<Tuple2<String, Integer>>(actual2));
 		assertEquals(expected2.size(), actual2.size());

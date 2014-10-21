@@ -89,7 +89,7 @@ public class CoBatchedDataStream<IN1, IN2> extends ConnectedDataStream<IN1, IN2>
 		CoBatchReduceInvokable<IN1, IN2, OUT> invokable;
 		if (isGrouped) {
 			invokable = new CoGroupedBatchReduceInvokable<IN1, IN2, OUT>(coReducer, batchSize1,
-					batchSize2, slideSize1, slideSize2, keyPosition1, keyPosition2);
+					batchSize2, slideSize1, slideSize2, keySelector1, keySelector2);
 		} else {
 			invokable = new CoBatchReduceInvokable<IN1, IN2, OUT>(coReducer, batchSize1,
 					batchSize2, slideSize1, slideSize2);

@@ -33,6 +33,7 @@ import org.apache.flink.streaming.api.function.aggregation.SumAggregationFunctio
 import org.apache.flink.streaming.api.invokable.operator.GroupedReduceInvokable;
 import org.apache.flink.streaming.api.invokable.operator.StreamReduceInvokable;
 import org.apache.flink.streaming.util.MockInvokable;
+import org.apache.flink.streaming.util.keys.FieldsKeySelector;
 import org.junit.Test;
 
 public class AggregationFunctionTest {
@@ -107,15 +108,18 @@ public class AggregationFunctionTest {
 				new StreamReduceInvokable<Tuple2<Integer, Integer>>(maxFunction), getInputList());
 
 		List<Tuple2<Integer, Integer>> groupedSumList = MockInvokable.createAndExecute(
-				new GroupedReduceInvokable<Tuple2<Integer, Integer>>(sumFunction, 0),
+				new GroupedReduceInvokable<Tuple2<Integer, Integer>>(sumFunction,
+						new FieldsKeySelector<Tuple2<Integer, Integer>>(true, false, 0)),
 				getInputList());
 
 		List<Tuple2<Integer, Integer>> groupedMinList = MockInvokable.createAndExecute(
-				new GroupedReduceInvokable<Tuple2<Integer, Integer>>(minFunction, 0),
+				new GroupedReduceInvokable<Tuple2<Integer, Integer>>(minFunction,
+						new FieldsKeySelector<Tuple2<Integer, Integer>>(true, false, 0)),
 				getInputList());
 
 		List<Tuple2<Integer, Integer>> groupedMaxList = MockInvokable.createAndExecute(
-				new GroupedReduceInvokable<Tuple2<Integer, Integer>>(maxFunction, 0),
+				new GroupedReduceInvokable<Tuple2<Integer, Integer>>(maxFunction,
+						new FieldsKeySelector<Tuple2<Integer, Integer>>(true, false, 0)),
 				getInputList());
 
 		assertEquals(expectedSumList, sumList);

@@ -24,6 +24,7 @@ import org.apache.commons.lang3.SerializationUtils;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.JobGraphBuilder;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -65,8 +66,8 @@ public class ConnectedDataStream<IN1, IN2> {
 	protected DataStream<IN2> dataStream2;
 
 	protected boolean isGrouped;
-	protected int keyPosition1;
-	protected int keyPosition2;
+	protected KeySelector<IN1, ?> keySelector1;
+	protected KeySelector<IN2, ?> keySelector2;
 
 	protected ConnectedDataStream(DataStream<IN1> input1, DataStream<IN2> input2) {
 		this.jobGraphBuilder = input1.jobGraphBuilder;
@@ -76,12 +77,12 @@ public class ConnectedDataStream<IN1, IN2> {
 
 		if ((input1 instanceof GroupedDataStream) && (input2 instanceof GroupedDataStream)) {
 			this.isGrouped = true;
-			this.keyPosition1 = ((GroupedDataStream<IN1>) input1).keyPosition;
-			this.keyPosition2 = ((GroupedDataStream<IN2>) input2).keyPosition;
+			this.keySelector1 = ((GroupedDataStream<IN1>) input1).keySelector;
+			this.keySelector2 = ((GroupedDataStream<IN2>) input2).keySelector;
 		} else {
 			this.isGrouped = false;
-			this.keyPosition1 = 0;
-			this.keyPosition2 = 0;
+			this.keySelector1 = null;
+			this.keySelector2 = null;
 		}
 	}
 
@@ -91,8 +92,8 @@ public class ConnectedDataStream<IN1, IN2> {
 		this.dataStream1 = coDataStream.getFirst();
 		this.dataStream2 = coDataStream.getSecond();
 		this.isGrouped = coDataStream.isGrouped;
-		this.keyPosition1 = coDataStream.keyPosition1;
-		this.keyPosition2 = coDataStream.keyPosition2;
+		this.keySelector1 = coDataStream.keySelector1;
+		this.keySelector2 = coDataStream.keySelector2;
 	}
 
 	/**
@@ -146,12 +147,26 @@ public class ConnectedDataStream<IN1, IN2> {
 	 * @return @return The transformed {@link ConnectedDataStream}
 	 */
 	public ConnectedDataStream<IN1, IN2> groupBy(int keyPosition1, int keyPosition2) {
-		if (keyPosition1 < 0 || keyPosition2 < 0) {
-			throw new IllegalArgumentException("The position of the field must be non-negative");
-		}
-
 		return new ConnectedDataStream<IN1, IN2>(dataStream1.groupBy(keyPosition1),
 				dataStream2.groupBy(keyPosition2));
+	}
+
+	/**
+	 * GroupBy operation for connected data stream. Groups the elements of
+	 * input1 and input2 using keySelector1 and keySelector2. Used for applying
+	 * function on grouped data streams for example
+	 * {@link ConnectedDataStream#reduce}
+	 * 
+	 * @param keySelector1
+	 *            The {@link KeySelector} used for grouping the first input
+	 * @param keySelector2
+	 *            The {@link KeySelector} used for grouping the second input
+	 * @return @return The transformed {@link ConnectedDataStream}
+	 */
+	public ConnectedDataStream<IN1, IN2> groupBy(KeySelector<IN1, ?> keySelector1,
+			KeySelector<IN2, ?> keySelector2) {
+		return new ConnectedDataStream<IN1, IN2>(dataStream1.groupBy(keySelector1),
+				dataStream2.groupBy(keySelector2));
 	}
 
 	/**
@@ -473,8 +488,8 @@ public class ConnectedDataStream<IN1, IN2> {
 			CoReduceFunction<IN1, IN2, OUT> coReducer) {
 		CoReduceInvokable<IN1, IN2, OUT> invokable;
 		if (isGrouped) {
-			invokable = new CoGroupedReduceInvokable<IN1, IN2, OUT>(coReducer, keyPosition1,
-					keyPosition2);
+			invokable = new CoGroupedReduceInvokable<IN1, IN2, OUT>(coReducer, keySelector1,
+					keySelector2);
 		} else {
 			invokable = new CoReduceInvokable<IN1, IN2, OUT>(coReducer);
 		}

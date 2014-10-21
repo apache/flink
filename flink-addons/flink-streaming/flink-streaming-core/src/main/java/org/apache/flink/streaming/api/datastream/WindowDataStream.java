@@ -60,7 +60,7 @@ public class WindowDataStream<OUT> extends BatchedDataStream<OUT> {
 		WindowReduceInvokable<OUT> invokable;
 		if (isGrouped) {
 			invokable = new GroupedWindowReduceInvokable<OUT>(reducer, batchSize, slideSize,
-					keyPosition, timeStamp);
+					keySelector, timeStamp);
 		} else {
 			invokable = new WindowReduceInvokable<OUT>(reducer, batchSize, slideSize, timeStamp);
 		}
@@ -72,7 +72,7 @@ public class WindowDataStream<OUT> extends BatchedDataStream<OUT> {
 		BatchGroupReduceInvokable<OUT, R> invokable;
 		if (isGrouped) {
 			invokable = new GroupedWindowGroupReduceInvokable<OUT, R>(reducer, batchSize,
-					slideSize, keyPosition, timeStamp);
+					slideSize, keySelector, timeStamp);
 		} else {
 			invokable = new WindowGroupReduceInvokable<OUT, R>(reducer, batchSize, slideSize,
 					timeStamp);

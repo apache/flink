@@ -22,6 +22,7 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.functions.RichReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.function.aggregation.AggregationFunction;
 import org.apache.flink.streaming.api.function.aggregation.MaxAggregationFunction;
 import org.apache.flink.streaming.api.function.aggregation.MaxByAggregationFunction;
@@ -48,14 +49,14 @@ public class BatchedDataStream<OUT> {
 
 	protected DataStream<OUT> dataStream;
 	protected boolean isGrouped;
-	protected int keyPosition;
+	protected KeySelector<OUT, ?> keySelector;
 	protected long batchSize;
 	protected long slideSize;
 
 	protected BatchedDataStream(DataStream<OUT> dataStream, long batchSize, long slideSize) {
 		if (dataStream instanceof GroupedDataStream) {
 			this.isGrouped = true;
-			this.keyPosition = ((GroupedDataStream<OUT>) dataStream).keyPosition;
+			this.keySelector = ((GroupedDataStream<OUT>) dataStream).keySelector;
 		} else {
 			this.isGrouped = false;
 		}
@@ -67,7 +68,7 @@ public class BatchedDataStream<OUT> {
 	protected BatchedDataStream(BatchedDataStream<OUT> batchedDataStream) {
 		this.dataStream = batchedDataStream.dataStream.copy();
 		this.isGrouped = batchedDataStream.isGrouped;
-		this.keyPosition = batchedDataStream.keyPosition;
+		this.keySelector = batchedDataStream.keySelector;
 		this.batchSize = batchedDataStream.batchSize;
 		this.slideSize = batchedDataStream.slideSize;
 	}
@@ -277,7 +278,7 @@ public class BatchedDataStream<OUT> {
 		BatchReduceInvokable<OUT> invokable;
 		if (isGrouped) {
 			invokable = new GroupedBatchReduceInvokable<OUT>(reducer, batchSize, slideSize,
-					keyPosition);
+					keySelector);
 		} else {
 			invokable = new BatchReduceInvokable<OUT>(reducer, batchSize, slideSize);
 		}
@@ -289,7 +290,7 @@ public class BatchedDataStream<OUT> {
 		BatchGroupReduceInvokable<OUT, R> invokable;
 		if (isGrouped) {
 			invokable = new GroupedBatchGroupReduceInvokable<OUT, R>(reducer, batchSize, slideSize,
-					keyPosition);
+					keySelector);
 		} else {
 			invokable = new BatchGroupReduceInvokable<OUT, R>(reducer, batchSize, slideSize);
 		}

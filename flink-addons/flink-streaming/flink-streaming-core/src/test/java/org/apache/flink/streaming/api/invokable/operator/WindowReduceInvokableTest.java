@@ -27,6 +27,7 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.invokable.util.TimeStamp;
 import org.apache.flink.streaming.util.MockInvokable;
+import org.apache.flink.streaming.util.keys.FieldsKeySelector;
 import org.junit.Test;
 
 public class WindowReduceInvokableTest {
@@ -95,6 +96,7 @@ public class WindowReduceInvokableTest {
 		expected2.add(new Tuple2<String, Integer>("a", 7));
 		expected2.add(new Tuple2<String, Integer>("b", 10));
 
+		@SuppressWarnings({ "unchecked", "rawtypes" })
 		GroupedWindowReduceInvokable<Tuple2<String, Integer>> invokable2 = new GroupedWindowReduceInvokable<Tuple2<String, Integer>>(
 				new ReduceFunction<Tuple2<String, Integer>>() {
 					private static final long serialVersionUID = 1L;
@@ -104,7 +106,8 @@ public class WindowReduceInvokableTest {
 							Tuple2<String, Integer> value2) throws Exception {
 						return new Tuple2<String, Integer>(value1.f0, value1.f1 + value2.f1);
 					}
-				}, 2, 3, 0, new TimeStamp<Tuple2<String, Integer>>() {
+				}, 2, 3, new FieldsKeySelector(true, false, 0),
+				new TimeStamp<Tuple2<String, Integer>>() {
 					private static final long serialVersionUID = 1L;
 
 					@Override

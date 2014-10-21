@@ -18,24 +18,25 @@
 package org.apache.flink.streaming.api.invokable.operator;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.state.MutableTableState;
 
 public class GroupedReduceInvokable<IN> extends StreamReduceInvokable<IN> {
 	private static final long serialVersionUID = 1L;
 
-	private int keyPosition;
+	private KeySelector<IN, ?> keySelector;
 	private MutableTableState<Object, IN> values;
 	private IN reduced;
 
-	public GroupedReduceInvokable(ReduceFunction<IN> reducer, int keyPosition) {
+	public GroupedReduceInvokable(ReduceFunction<IN> reducer, KeySelector<IN, ?> keySelector) {
 		super(reducer);
-		this.keyPosition = keyPosition;
+		this.keySelector = keySelector;
 		values = new MutableTableState<Object, IN>();
 	}
 
 	@Override
 	protected void reduce() throws Exception {
-		Object key = reuse.getField(keyPosition);
+		Object key = reuse.getKey(keySelector);
 		currentValue = values.get(key);
 		nextValue = reuse.getObject();
 		if (currentValue != null) {

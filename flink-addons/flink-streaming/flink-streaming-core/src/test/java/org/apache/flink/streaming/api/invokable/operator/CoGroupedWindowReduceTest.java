@@ -30,6 +30,7 @@ import org.apache.flink.streaming.api.function.co.CoReduceFunction;
 import org.apache.flink.streaming.api.invokable.operator.co.CoGroupedWindowReduceInvokable;
 import org.apache.flink.streaming.api.invokable.util.TimeStamp;
 import org.apache.flink.streaming.util.MockCoInvokable;
+import org.apache.flink.streaming.util.keys.FieldsKeySelector;
 import org.junit.Test;
 
 public class CoGroupedWindowReduceTest {
@@ -84,6 +85,7 @@ public class CoGroupedWindowReduceTest {
 		}
 	}
 
+	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
 	public void coGroupedWindowReduceTest1() {
 
@@ -123,9 +125,9 @@ public class CoGroupedWindowReduceTest {
 		expected.add("i");
 
 		CoGroupedWindowReduceInvokable<Tuple2<String, Integer>, Tuple2<String, String>, String> invokable = new CoGroupedWindowReduceInvokable<Tuple2<String, Integer>, Tuple2<String, String>, String>(
-				new MyCoReduceFunction(), 4L, 3L, 4L, 3L, 0, 0,
-				new MyTimeStamp<Tuple2<String, Integer>>(timestamps1),
-				new MyTimeStamp<Tuple2<String, String>>(timestamps2));
+				new MyCoReduceFunction(), 4L, 3L, 4L, 3L, new FieldsKeySelector(true, false, 0),
+				new FieldsKeySelector(true, false, 0), new MyTimeStamp<Tuple2<String, Integer>>(
+						timestamps1), new MyTimeStamp<Tuple2<String, String>>(timestamps2));
 
 		List<String> result = MockCoInvokable.createAndExecute(invokable, inputs1, inputs2);
 
@@ -134,6 +136,7 @@ public class CoGroupedWindowReduceTest {
 		assertEquals(expected, result);
 	}
 
+	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
 	public void coGroupedWindowReduceTest2() {
 
@@ -175,9 +178,9 @@ public class CoGroupedWindowReduceTest {
 		expected.add("fh");
 
 		CoGroupedWindowReduceInvokable<Tuple2<String, Integer>, Tuple2<String, String>, String> invokable = new CoGroupedWindowReduceInvokable<Tuple2<String, Integer>, Tuple2<String, String>, String>(
-				new MyCoReduceFunction(), 4L, 3L, 2L, 2L, 0, 0,
-				new MyTimeStamp<Tuple2<String, Integer>>(timestamps1),
-				new MyTimeStamp<Tuple2<String, String>>(timestamps2));
+				new MyCoReduceFunction(), 4L, 3L, 2L, 2L, new FieldsKeySelector(true, false, 0),
+				new FieldsKeySelector(true, false, 0), new MyTimeStamp<Tuple2<String, Integer>>(
+						timestamps1), new MyTimeStamp<Tuple2<String, String>>(timestamps2));
 
 		List<String> result = MockCoInvokable.createAndExecute(invokable, inputs1, inputs2);
 

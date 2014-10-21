@@ -21,26 +21,27 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.invokable.util.TimeStamp;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
 public class GroupedWindowReduceInvokable<OUT> extends WindowReduceInvokable<OUT> {
 
 	private static final long serialVersionUID = 1L;
-	private int keyPosition;
+	private KeySelector<OUT, ?> keySelector;
 	private Map<Object, StreamWindow> streamWindows;
 	private long currentMiniBatchCount = 0;
 
 	public GroupedWindowReduceInvokable(ReduceFunction<OUT> reduceFunction, long windowSize,
-			long slideInterval, int keyPosition, TimeStamp<OUT> timestamp) {
+			long slideInterval, KeySelector<OUT, ?> keySelector, TimeStamp<OUT> timestamp) {
 		super(reduceFunction, windowSize, slideInterval, timestamp);
-		this.keyPosition = keyPosition;
+		this.keySelector = keySelector;
 		this.streamWindows = new HashMap<Object, StreamWindow>();
 	}
 
 	@Override
 	protected StreamBatch getBatch(StreamRecord<OUT> next) {
-		Object key = next.getField(keyPosition);
+		Object key = next.getKey(keySelector);
 		StreamWindow window = streamWindows.get(key);
 		if (window == null) {
 			window = new GroupedStreamWindow();

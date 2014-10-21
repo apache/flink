@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.invokable.operator.co;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.function.co.CoReduceFunction;
 import org.apache.flink.streaming.api.invokable.util.TimeStamp;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
@@ -27,8 +28,8 @@ import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 public class CoGroupedWindowReduceInvokable<IN1, IN2, OUT> extends
 		CoWindowReduceInvokable<IN1, IN2, OUT> {
 	private static final long serialVersionUID = 1L;
-	private int keyPosition1;
-	private int keyPosition2;
+	protected KeySelector<IN1, ?> keySelector1;
+	protected KeySelector<IN2, ?> keySelector2;
 	private Map<Object, StreamWindow<IN1>> streamWindows1;
 	private Map<Object, StreamWindow<IN2>> streamWindows2;
 	private long currentMiniBatchCount1 = 0;
@@ -36,18 +37,19 @@ public class CoGroupedWindowReduceInvokable<IN1, IN2, OUT> extends
 
 	public CoGroupedWindowReduceInvokable(CoReduceFunction<IN1, IN2, OUT> coReducer,
 			long windowSize1, long windowSize2, long slideInterval1, long slideInterval2,
-			int keyPosition1, int keyPosition2, TimeStamp<IN1> timestamp1, TimeStamp<IN2> timestamp2) {
+			KeySelector<IN1, ?> keySelector1, KeySelector<IN2, ?> keySelector2,
+			TimeStamp<IN1> timestamp1, TimeStamp<IN2> timestamp2) {
 		super(coReducer, windowSize1, windowSize2, slideInterval1, slideInterval2, timestamp1,
 				timestamp2);
-		this.keyPosition1 = keyPosition1;
-		this.keyPosition2 = keyPosition2;
+		this.keySelector1 = keySelector1;
+		this.keySelector2 = keySelector2;
 		this.streamWindows1 = new HashMap<Object, StreamWindow<IN1>>();
 		this.streamWindows2 = new HashMap<Object, StreamWindow<IN2>>();
 	}
 
 	@Override
 	protected StreamBatch<IN1> getBatch1(StreamRecord<IN1> next) {
-		Object key = next.getField(keyPosition1);
+		Object key = next.getKey(keySelector1);
 		StreamWindow<IN1> window = streamWindows1.get(key);
 		if (window == null) {
 			window = new GroupedStreamWindow<IN1>(batchSize1, slideSize1);
@@ -60,7 +62,7 @@ public class CoGroupedWindowReduceInvokable<IN1, IN2, OUT> extends
 
 	@Override
 	protected StreamBatch<IN2> getBatch2(StreamRecord<IN2> next) {
-		Object key = next.getField(keyPosition2);
+		Object key = next.getKey(keySelector2);
 		StreamWindow<IN2> window = streamWindows2.get(key);
 		if (window == null) {
 			window = new GroupedStreamWindow<IN2>(batchSize2, slideSize2);

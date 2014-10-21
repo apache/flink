@@ -21,24 +21,25 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
 public class GroupedBatchReduceInvokable<OUT> extends BatchReduceInvokable<OUT> {
 
 	private static final long serialVersionUID = 1L;
-	int keyPosition;
+	KeySelector<OUT, ?> keySelector;
 	Map<Object, StreamBatch> streamBatches;
 
 	public GroupedBatchReduceInvokable(ReduceFunction<OUT> reduceFunction, long batchSize,
-			long slideSize, int keyPosition) {
+			long slideSize, KeySelector<OUT, ?> keySelector) {
 		super(reduceFunction, batchSize, slideSize);
-		this.keyPosition = keyPosition;
+		this.keySelector = keySelector;
 		this.streamBatches = new HashMap<Object, StreamBatch>();
 	}
 
 	@Override
 	protected StreamBatch getBatch(StreamRecord<OUT> next) {
-		Object key = next.getField(keyPosition);
+		Object key = next.getKey(keySelector);
 		StreamBatch batch = streamBatches.get(key);
 		if (batch == null) {
 			batch = new StreamBatch();

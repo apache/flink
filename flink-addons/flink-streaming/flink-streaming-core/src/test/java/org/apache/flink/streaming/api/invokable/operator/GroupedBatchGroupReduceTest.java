@@ -27,6 +27,7 @@ import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.util.MockInvokable;
+import org.apache.flink.streaming.util.keys.FieldsKeySelector;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
 
@@ -72,7 +73,7 @@ public class GroupedBatchGroupReduceTest {
 	@Test
 	public void slidingBatchGroupReduceTest() {
 		GroupedBatchGroupReduceInvokable<Integer, String> invokable1 = new GroupedBatchGroupReduceInvokable<Integer, String>(
-				new MySlidingBatchReduce1(), 2, 2, 0);
+				new MySlidingBatchReduce1(), 2, 2, new FieldsKeySelector<Integer>(false, false, 0));
 
 		List<String> expected = Arrays.asList("1", "1", END_OF_GROUP, "3", "3", END_OF_GROUP, "2",
 				END_OF_GROUP);
@@ -82,7 +83,8 @@ public class GroupedBatchGroupReduceTest {
 		assertEquals(expected, actual);
 
 		GroupedBatchGroupReduceInvokable<Tuple2<Integer, String>, String> invokable2 = new GroupedBatchGroupReduceInvokable<Tuple2<Integer, String>, String>(
-				new MySlidingBatchReduce2(), 2, 2, 1);
+				new MySlidingBatchReduce2(), 2, 2, new FieldsKeySelector<Tuple2<Integer, String>>(
+						true, false, 1));
 
 		expected = Arrays.asList("open", "1", "2", END_OF_GROUP, "open", "3", "3", END_OF_GROUP,
 				"open", "4", END_OF_GROUP);
