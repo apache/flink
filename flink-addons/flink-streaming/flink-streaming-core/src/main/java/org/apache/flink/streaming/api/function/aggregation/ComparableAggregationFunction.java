@@ -17,35 +17,54 @@
 
 package org.apache.flink.streaming.api.function.aggregation;
 
+import java.lang.reflect.Array;
+
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple;
 
 public abstract class ComparableAggregationFunction<T> extends AggregationFunction<T> {
 
 	private static final long serialVersionUID = 1L;
 
-	public ComparableAggregationFunction(int positionToAggregate) {
-		super(positionToAggregate);
+	public ComparableAggregationFunction(int positionToAggregate, TypeInformation<?> type) {
+		super(positionToAggregate, type);
 	}
 
 	@SuppressWarnings("unchecked")
 	@Override
 	public T reduce(T value1, T value2) throws Exception {
-		if (value1 instanceof Tuple) {
+		if (isTuple) {
 			Tuple t1 = (Tuple) value1;
 			Tuple t2 = (Tuple) value2;
 
 			compare(t1, t2);
 
 			return (T) returnTuple;
+		} else if (isArray) {
+			return compareArray(value1, value2);
 		} else if (value1 instanceof Comparable) {
 			if (isExtremal((Comparable<Object>) value1, value2)) {
 				return value1;
-			}else{
+			} else {
 				return value2;
 			}
 		} else {
-			throw new RuntimeException("The values " + value1 +  " and "+ value2 + " cannot be compared.");
+			throw new RuntimeException("The values " + value1 + " and " + value2
+					+ " cannot be compared.");
 		}
+	}
+
+	@SuppressWarnings("unchecked")
+	public T compareArray(T array1, T array2) {
+		Object v1 = Array.get(array1, position);
+		Object v2 = Array.get(array2, position);
+		if (isExtremal((Comparable<Object>) v1, v2)) {
+			Array.set(array2, position, v1);
+		} else {
+			Array.set(array2, position, v2);
+		}
+
+		return array2;
 	}
 
 	public <R> void compare(Tuple tuple1, Tuple tuple2) throws InstantiationException,

@@ -17,20 +17,23 @@
 
 package org.apache.flink.streaming.api.function.aggregation;
 
+import java.lang.reflect.Array;
+
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple;
 
 public abstract class SumAggregationFunction<T> extends AggregationFunction<T> {
 
 	private static final long serialVersionUID = 1L;
 
-	public SumAggregationFunction(int pos) {
-		super(pos);
+	public SumAggregationFunction(int pos, TypeInformation<?> type) {
+		super(pos, type);
 	}
 
 	@SuppressWarnings("unchecked")
 	@Override
 	public T reduce(T value1, T value2) throws Exception {
-		if (value1 instanceof Tuple) {
+		if (isTuple) {
 			Tuple tuple1 = (Tuple) value1;
 			Tuple tuple2 = (Tuple) value2;
 
@@ -39,6 +42,11 @@ public abstract class SumAggregationFunction<T> extends AggregationFunction<T> {
 					position);
 
 			return (T) returnTuple;
+		} else if (isArray) {
+			Object v1 = Array.get(value1, position);
+			Object v2 = Array.get(value2, position);
+			Array.set(value2, position, add(v1, v2));
+			return value2;
 		} else {
 			return (T) add(value1, value2);
 		}
@@ -47,23 +55,24 @@ public abstract class SumAggregationFunction<T> extends AggregationFunction<T> {
 	protected abstract Object add(Object value1, Object value2);
 
 	@SuppressWarnings("rawtypes")
-	public static <T> SumAggregationFunction getSumFunction(int pos, Class<T> type) {
+	public static <T> SumAggregationFunction getSumFunction(int pos, Class<T> classAtPos,
+			TypeInformation<?> typeInfo) {
 
-		if (type == Integer.class) {
-			return new IntSum<T>(pos);
-		} else if (type == Long.class) {
-			return new LongSum<T>(pos);
-		} else if (type == Short.class) {
-			return new ShortSum<T>(pos);
-		} else if (type == Double.class) {
-			return new DoubleSum<T>(pos);
-		} else if (type == Float.class) {
-			return new FloatSum<T>(pos);
-		} else if (type == Byte.class) {
-			return new ByteSum<T>(pos);
+		if (classAtPos == Integer.class) {
+			return new IntSum<T>(pos, typeInfo);
+		} else if (classAtPos == Long.class) {
+			return new LongSum<T>(pos, typeInfo);
+		} else if (classAtPos == Short.class) {
+			return new ShortSum<T>(pos, typeInfo);
+		} else if (classAtPos == Double.class) {
+			return new DoubleSum<T>(pos, typeInfo);
+		} else if (classAtPos == Float.class) {
+			return new FloatSum<T>(pos, typeInfo);
+		} else if (classAtPos == Byte.class) {
+			return new ByteSum<T>(pos, typeInfo);
 		} else {
 			throw new RuntimeException("DataStream cannot be summed because the class "
-					+ type.getSimpleName() + " does not support the + operator.");
+					+ classAtPos.getSimpleName() + " does not support the + operator.");
 		}
 
 	}
@@ -71,8 +80,8 @@ public abstract class SumAggregationFunction<T> extends AggregationFunction<T> {
 	private static class IntSum<T> extends SumAggregationFunction<T> {
 		private static final long serialVersionUID = 1L;
 
-		public IntSum(int pos) {
-			super(pos);
+		public IntSum(int pos, TypeInformation<?> type) {
+			super(pos, type);
 		}
 
 		@Override
@@ -84,8 +93,8 @@ public abstract class SumAggregationFunction<T> extends AggregationFunction<T> {
 	private static class LongSum<T> extends SumAggregationFunction<T> {
 		private static final long serialVersionUID = 1L;
 
-		public LongSum(int pos) {
-			super(pos);
+		public LongSum(int pos, TypeInformation<?> type) {
+			super(pos, type);
 		}
 
 		@Override
@@ -98,8 +107,8 @@ public abstract class SumAggregationFunction<T> extends AggregationFunction<T> {
 
 		private static final long serialVersionUID = 1L;
 
-		public DoubleSum(int pos) {
-			super(pos);
+		public DoubleSum(int pos, TypeInformation<?> type) {
+			super(pos, type);
 		}
 
 		@Override
@@ -111,8 +120,8 @@ public abstract class SumAggregationFunction<T> extends AggregationFunction<T> {
 	private static class ShortSum<T> extends SumAggregationFunction<T> {
 		private static final long serialVersionUID = 1L;
 
-		public ShortSum(int pos) {
-			super(pos);
+		public ShortSum(int pos, TypeInformation<?> type) {
+			super(pos, type);
 		}
 
 		@Override
@@ -124,8 +133,8 @@ public abstract class SumAggregationFunction<T> extends AggregationFunction<T> {
 	private static class FloatSum<T> extends SumAggregationFunction<T> {
 		private static final long serialVersionUID = 1L;
 
-		public FloatSum(int pos) {
-			super(pos);
+		public FloatSum(int pos, TypeInformation<?> type) {
+			super(pos, type);
 		}
 
 		@Override
@@ -137,8 +146,8 @@ public abstract class SumAggregationFunction<T> extends AggregationFunction<T> {
 	private static class ByteSum<T> extends SumAggregationFunction<T> {
 		private static final long serialVersionUID = 1L;
 
-		public ByteSum(int pos) {
-			super(pos);
+		public ByteSum(int pos, TypeInformation<?> type) {
+			super(pos, type);
 		}
 
 		@Override

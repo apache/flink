@@ -17,12 +17,14 @@
 
 package org.apache.flink.streaming.api.function.aggregation;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+
 public class MinAggregationFunction<T> extends ComparableAggregationFunction<T> {
 
 	private static final long serialVersionUID = 1L;
 
-	public MinAggregationFunction(int pos) {
-		super(pos);
+	public MinAggregationFunction(int pos, TypeInformation<?> type) {
+		super(pos, type);
 	}
 
 	@Override

@@ -137,7 +137,7 @@ public class BatchedDataStream<OUT> {
 	public SingleOutputStreamOperator<OUT, ?> sum(int positionToSum) {
 		dataStream.checkFieldRange(positionToSum);
 		return aggregate((AggregationFunction<OUT>) SumAggregationFunction.getSumFunction(
-				positionToSum, dataStream.getClassAtPos(positionToSum)));
+				positionToSum, dataStream.getClassAtPos(positionToSum), dataStream.getOutputType()));
 	}
 
 	/**
@@ -159,7 +159,7 @@ public class BatchedDataStream<OUT> {
 	 */
 	public SingleOutputStreamOperator<OUT, ?> min(int positionToMin) {
 		dataStream.checkFieldRange(positionToMin);
-		return aggregate(new MinAggregationFunction<OUT>(positionToMin));
+		return aggregate(new MinAggregationFunction<OUT>(positionToMin, dataStream.getOutputType()));
 	}
 
 	/**
@@ -191,7 +191,8 @@ public class BatchedDataStream<OUT> {
 	 */
 	public SingleOutputStreamOperator<OUT, ?> minBy(int positionToMinBy, boolean first) {
 		dataStream.checkFieldRange(positionToMinBy);
-		return aggregate(new MinByAggregationFunction<OUT>(positionToMinBy, first));
+		return aggregate(new MinByAggregationFunction<OUT>(positionToMinBy, first,
+				dataStream.getOutputType()));
 	}
 
 	/**
@@ -213,7 +214,7 @@ public class BatchedDataStream<OUT> {
 	 */
 	public SingleOutputStreamOperator<OUT, ?> max(int positionToMax) {
 		dataStream.checkFieldRange(positionToMax);
-		return aggregate(new MaxAggregationFunction<OUT>(positionToMax));
+		return aggregate(new MaxAggregationFunction<OUT>(positionToMax, dataStream.getOutputType()));
 	}
 
 	/**
@@ -244,7 +245,8 @@ public class BatchedDataStream<OUT> {
 	 */
 	public SingleOutputStreamOperator<OUT, ?> maxBy(int positionToMaxBy, boolean first) {
 		dataStream.checkFieldRange(positionToMaxBy);
-		return aggregate(new MaxByAggregationFunction<OUT>(positionToMaxBy, first));
+		return aggregate(new MaxByAggregationFunction<OUT>(positionToMaxBy, first,
+				dataStream.getOutputType()));
 	}
 
 	/**

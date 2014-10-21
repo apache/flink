@@ -17,12 +17,14 @@
 
 package org.apache.flink.streaming.api.function.aggregation;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+
 public class MaxByAggregationFunction<T> extends MinByAggregationFunction<T> {
 
 	private static final long serialVersionUID = 1L;
 
-	public MaxByAggregationFunction(int pos, boolean first) {
-		super(pos, first);
+	public MaxByAggregationFunction(int pos, boolean first, TypeInformation<?> type) {
+		super(pos, first, type);
 	}
 
 	@Override

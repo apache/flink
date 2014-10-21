@@ -17,6 +17,9 @@
 
 package org.apache.flink.streaming.api.function.aggregation;
 
+import java.lang.reflect.Array;
+
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple;
 
 public class MinByAggregationFunction<T> extends ComparableAggregationFunction<T> {
@@ -24,8 +27,8 @@ public class MinByAggregationFunction<T> extends ComparableAggregationFunction<T
 	private static final long serialVersionUID = 1L;
 	protected boolean first;
 
-	public MinByAggregationFunction(int pos, boolean first) {
-		super(pos);
+	public MinByAggregationFunction(int pos, boolean first, TypeInformation<?> type) {
+		super(pos, type);
 		this.first = first;
 	}
 
@@ -40,6 +43,18 @@ public class MinByAggregationFunction<T> extends ComparableAggregationFunction<T
 			returnTuple = tuple1;
 		} else {
 			returnTuple = tuple2;
+		}
+	}
+
+	@Override
+	@SuppressWarnings("unchecked")
+	public T compareArray(T array1, T array2) {
+		Object v1 = Array.get(array1, position);
+		Object v2 = Array.get(array2, position);
+		if (isExtremal((Comparable<Object>) v1, v2)) {
+			return array1;
+		} else {
+			return array2;
 		}
 	}
 
