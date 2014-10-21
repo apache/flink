@@ -52,55 +52,62 @@ class CaseClassComparator[T <: Product](
   def hash(value: T): Int = {
     val comparator = comparators(0).asInstanceOf[TypeComparator[Any]]
     var code: Int = comparator.hash(value.productElement(keyPositions(0)))
-    for (i <- 1 until keyPositions.length) {
-      try {
-        code *= TupleComparatorBase.HASH_SALT(i & 0x1F)
-        val comparator = comparators(i).asInstanceOf[TypeComparator[Any]]
-        code += comparator.hash(value.productElement(keyPositions(i)))
-      } catch {
-        case npex: NullPointerException =>
-          throw new NullKeyFieldException(keyPositions(i))
-        case iobex: IndexOutOfBoundsException =>
-          throw new KeyFieldOutOfBoundsException(keyPositions(i))
+    var i = 1
+    try {
+      while(i < keyPositions.length) {
+          code *= TupleComparatorBase.HASH_SALT(i & 0x1F)
+          val comparator = comparators(i).asInstanceOf[TypeComparator[Any]]
+          code += comparator.hash(value.productElement(keyPositions(i)))
+        i += 1
       }
+    } catch {
+      case npex: NullPointerException =>
+        throw new NullKeyFieldException(keyPositions(i))
+      case iobex: IndexOutOfBoundsException =>
+        throw new KeyFieldOutOfBoundsException(keyPositions(i))
     }
     code
   }
 
   def setReference(toCompare: T) {
-    for (i <- 0 until keyPositions.length) {
-      try {
+    var i = 0
+    try {
+      while(i < keyPositions.length) {
         val comparator = comparators(i).asInstanceOf[TypeComparator[Any]]
         comparator.setReference(toCompare.productElement(keyPositions(i)))
-      } catch {
-        case npex: NullPointerException =>
-          throw new NullKeyFieldException(keyPositions(i))
-        case iobex: IndexOutOfBoundsException =>
-          throw new KeyFieldOutOfBoundsException(keyPositions(i))
+        i += 1
       }
+    } catch {
+      case npex: NullPointerException =>
+        throw new NullKeyFieldException(keyPositions(i))
+      case iobex: IndexOutOfBoundsException =>
+        throw new KeyFieldOutOfBoundsException(keyPositions(i))
     }
   }
 
   def equalToReference(candidate: T): Boolean = {
-    for (i <- 0 until keyPositions.length) {
-      try {
+    var i = 0
+    try {
+      while(i < keyPositions.length) {
         val comparator = comparators(i).asInstanceOf[TypeComparator[Any]]
         if (!comparator.equalToReference(candidate.productElement(keyPositions(i)))) {
           return false
         }
-      } catch {
-        case npex: NullPointerException =>
-          throw new NullKeyFieldException(keyPositions(i))
-        case iobex: IndexOutOfBoundsException =>
-          throw new KeyFieldOutOfBoundsException(keyPositions(i))
+        i += 1
       }
+    } catch {
+      case npex: NullPointerException =>
+        throw new NullKeyFieldException(keyPositions(i))
+      case iobex: IndexOutOfBoundsException =>
+        throw new KeyFieldOutOfBoundsException(keyPositions(i))
     }
     true
   }
 
   def compare(first: T, second: T): Int = {
-    for (i <- 0 until keyPositions.length) {
-      try {
+    var i = 0
+    try {
+      while(i < keyPositions.length) {
         val keyPos: Int = keyPositions(i)
         val comparator = comparators(i).asInstanceOf[TypeComparator[Any]]
         val cmp: Int = comparator.compare(
@@ -109,12 +116,13 @@ class CaseClassComparator[T <: Product](
         if (cmp != 0) {
           return cmp
         }
-      } catch {
-        case npex: NullPointerException =>
-          throw new NullKeyFieldException(keyPositions(i))
-        case iobex: IndexOutOfBoundsException =>
-          throw new KeyFieldOutOfBoundsException(keyPositions(i))
+        i += 1
       }
+    } catch {
+      case npex: NullPointerException =>
+        throw new NullKeyFieldException(keyPositions(i))
+      case iobex: IndexOutOfBoundsException =>
+        throw new KeyFieldOutOfBoundsException(keyPositions(i))
     }
     0
   }
@@ -144,11 +152,14 @@ class CaseClassComparator[T <: Product](
     val in = value.asInstanceOf[T]
 
     var localIndex: Int = index
-    for (i <- 0 until comparators.length) {
+    var i = 0
+    while (i < comparators.length) {
       localIndex += comparators(i).extractKeys(
         in.productElement(keyPositions(i)),
         target,
         localIndex)
+
+      i += 1
     }
 
     localIndex - index

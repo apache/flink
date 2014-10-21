@@ -36,8 +36,10 @@ abstract class CaseClassSerializer[T <: Product](
   
   def createInstance: T = {
     initArray()
-    for (i <- 0 until arity) {
+    var i = 0
+    while (i < arity) {
       fields(i) = fieldSerializers(i).createInstance()
+      i += 1
     }
     createInstance(fields)
   }
@@ -48,32 +50,40 @@ abstract class CaseClassSerializer[T <: Product](
   
   def copy(from: T): T = {
     initArray()
-    for (i <- 0 until arity) {
+    var i = 0
+    while (i < arity) {
       fields(i) = from.productElement(i).asInstanceOf[AnyRef]
+      i += 1
     }
     createInstance(fields)
   }
 
   def serialize(value: T, target: DataOutputView) {
-    for (i <- 0 until arity) {
+    var i = 0
+    while (i < arity) {
       val serializer = fieldSerializers(i).asInstanceOf[TypeSerializer[Any]]
       serializer.serialize(value.productElement(i), target)
+      i += 1
     }
   }
 
   def deserialize(reuse: T, source: DataInputView): T = {
     initArray()
-    for (i <- 0 until arity) {
+    var i = 0
+    while (i < arity) {
       val field = reuse.productElement(i).asInstanceOf[AnyRef]
       fields(i) = fieldSerializers(i).deserialize(field, source)
+      i += 1
     }
     createInstance(fields)
   }
   
   def deserialize(source: DataInputView): T = {
     initArray()
-    for (i <- 0 until arity) {
+    var i = 0
+    while (i < arity) {
       fields(i) = fieldSerializers(i).deserialize(source)
+      i += 1
     }
     createInstance(fields)
   }
