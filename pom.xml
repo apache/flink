@@ -79,6 +79,9 @@ under the License.
 		<flink.reuseForks>true</flink.reuseForks>
 		<slf4j.version>1.7.7</slf4j.version>
 		<guava.version>17.0</guava.version>
+	   <scala.version>2.10.4</scala.version>
+	   <scala.binary.version>2.10</scala.binary.version>
+	   <scala.macros.version>2.0.1</scala.macros.version>
 	</properties>
 
 	<dependencies>
