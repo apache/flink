@@ -17,21 +17,23 @@
 
 package org.apache.flink.streaming.api.invokable.operator;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.streaming.state.MutableTableState;
 
 public class GroupedReduceInvokable<IN> extends StreamReduceInvokable<IN> {
 	private static final long serialVersionUID = 1L;
 
 	private KeySelector<IN, ?> keySelector;
-	private MutableTableState<Object, IN> values;
+	private Map<Object, IN> values;
 	private IN reduced;
 
 	public GroupedReduceInvokable(ReduceFunction<IN> reducer, KeySelector<IN, ?> keySelector) {
 		super(reducer);
 		this.keySelector = keySelector;
-		values = new MutableTableState<Object, IN>();
+		values = new HashMap<Object, IN>();
 	}
 
 	@Override

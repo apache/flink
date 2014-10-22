@@ -17,17 +17,19 @@
 
 package org.apache.flink.streaming.api.invokable.operator.co;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.function.co.CoReduceFunction;
-import org.apache.flink.streaming.state.MutableTableState;
 
 public class CoGroupedReduceInvokable<IN1, IN2, OUT> extends CoReduceInvokable<IN1, IN2, OUT> {
 	private static final long serialVersionUID = 1L;
 
 	protected KeySelector<IN1, ?> keySelector1;
 	protected KeySelector<IN2, ?> keySelector2;
-	private MutableTableState<Object, IN1> values1;
-	private MutableTableState<Object, IN2> values2;
+	private Map<Object, IN1> values1;
+	private Map<Object, IN2> values2;
 	IN1 reduced1;
 	IN2 reduced2;
 
@@ -37,8 +39,8 @@ public class CoGroupedReduceInvokable<IN1, IN2, OUT> extends CoReduceInvokable<I
 		this.coReducer = coReducer;
 		this.keySelector1 = keySelector1;
 		this.keySelector2 = keySelector2;
-		values1 = new MutableTableState<Object, IN1>();
-		values2 = new MutableTableState<Object, IN2>();
+		values1 = new HashMap<Object, IN1>();
+		values2 = new HashMap<Object, IN2>();
 	}
 
 	@Override
