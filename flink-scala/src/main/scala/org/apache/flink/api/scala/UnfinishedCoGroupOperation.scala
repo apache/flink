@@ -42,8 +42,8 @@ import scala.reflect.ClassTag
  * @tparam R The type of the right input of the coGroup.
  */
 class UnfinishedCoGroupOperation[L: ClassTag, R: ClassTag](
-    leftInput: DataSet[L],
-    rightInput: DataSet[R])
+                                                            leftInput: DataSet[L],
+                                                            rightInput: DataSet[R])
   extends UnfinishedKeyPairOperation[L, R, CoGroupDataSet[L, R]](leftInput, rightInput) {
 
   private[flink] def finish(leftKey: Keys[L], rightKey: Keys[R]) = {
@@ -67,7 +67,10 @@ class UnfinishedCoGroupOperation[L: ClassTag, R: ClassTag](
       ObjectArrayTypeInfo.getInfoFor(new Array[R](0).getClass, rightInput.getType)
 
     val returnType = new CaseClassTypeInfo[(Array[L], Array[R])](
-      classOf[(Array[L], Array[R])], Seq(leftArrayType, rightArrayType), Array("_1", "_2")) {
+      classOf[(Array[L], Array[R])],
+      Array(leftArrayType, rightArrayType),
+      Seq(leftArrayType, rightArrayType),
+      Array("_1", "_2")) {
 
       override def createSerializer(
           executionConfig: ExecutionConfig): TypeSerializer[(Array[L], Array[R])] = {

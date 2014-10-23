@@ -113,7 +113,10 @@ private[flink] object CrossDataSet {
       }
     }
     val returnType = new CaseClassTypeInfo[(L, R)](
-      classOf[(L, R)], Seq(leftInput.getType, rightInput.getType), Array("_1", "_2")) {
+      classOf[(L, R)],
+      Array(leftInput.getType, rightInput.getType),
+      Seq(leftInput.getType, rightInput.getType),
+      Array("_1", "_2")) {
 
       override def createSerializer(executionConfig: ExecutionConfig): TypeSerializer[(L, R)] = {
         val fieldSerializers: Array[TypeSerializer[_]] = new Array[TypeSerializer[_]](getArity)

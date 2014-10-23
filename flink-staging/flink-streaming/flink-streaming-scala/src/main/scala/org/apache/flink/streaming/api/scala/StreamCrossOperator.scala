@@ -43,8 +43,10 @@ class StreamCrossOperator[I1, I2](i1: JavaStream[I1], i2: JavaStream[I2]) extend
       (l: I1, r: I2) => (l, r))
 
     val returnType = new CaseClassTypeInfo[(I1, I2)](
-
-      classOf[(I1, I2)], Seq(input1.getType, input2.getType), Array("_1", "_2")) {
+      classOf[(I1, I2)],
+      Array(input1.getType, input2.getType),
+      Seq(input1.getType, input2.getType),
+      Array("_1", "_2")) {
 
       override def createSerializer(executionConfig: ExecutionConfig): TypeSerializer[(I1, I2)] = {
         val fieldSerializers: Array[TypeSerializer[_]] = new Array[TypeSerializer[_]](getArity)

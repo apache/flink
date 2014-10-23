@@ -89,6 +89,15 @@ private[flink] trait TypeInformationGen[C <: Context] {
   def mkCaseClassTypeInfo[T <: Product : c.WeakTypeTag](
       desc: CaseClassDescriptor): c.Expr[TypeInformation[T]] = {
     val tpeClazz = c.Expr[Class[T]](Literal(Constant(desc.tpe)))
+
+    val genericTypeInfos = desc.tpe match {
+      case TypeRef(_, _, typeParams) =>
+        val typeInfos = typeParams map { tpe => mkTypeInfo(c.WeakTypeTag[T](tpe)).tree }
+        c.Expr[List[TypeInformation[_]]](mkList(typeInfos))
+      case _ =>
+        reify { List[TypeInformation[_]]() }
+    }
+
     val fields = desc.getters.toList map { field =>
       mkTypeInfo(field.desc)(c.WeakTypeTag(field.tpe)).tree
     }
@@ -98,7 +107,12 @@ private[flink] trait TypeInformationGen[C <: Context] {
     val fieldNames = desc.getters map { f => Literal(Constant(f.getter.name.toString)) } toList
     val fieldNamesExpr = c.Expr[Seq[String]](mkSeq(fieldNames))
     reify {
-      new CaseClassTypeInfo[T](tpeClazz.splice, fieldsExpr.splice, fieldNamesExpr.splice) {
+      new CaseClassTypeInfo[T](
+        tpeClazz.splice,
+        genericTypeInfos.splice.toArray,
+        fieldsExpr.splice,
+        fieldNamesExpr.splice) {
+
         override def createSerializer(executionConfig: ExecutionConfig): TypeSerializer[T] = {
           val fieldSerializers: Array[TypeSerializer[_]] = new Array[TypeSerializer[_]](getArity)
           for (i <- 0 until getArity) {

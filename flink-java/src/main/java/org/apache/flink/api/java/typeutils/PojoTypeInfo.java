@@ -290,6 +290,23 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 		return new PojoComparator<T>(finalKeyFields, finalFieldComparators, createSerializer(config), typeClass);
 	}
 
+	public String[] getFieldNames() {
+		String[] result = new String[fields.length];
+		for (int i = 0; i < fields.length; i++) {
+			result[i] = fields[i].field.getName();
+		}
+		return result;
+	}
+
+	@Override
+	public int getFieldIndex(String fieldName) {
+		for (int i = 0; i < fields.length; i++) {
+			if (fields[i].field.getName().equals(fieldName)) {
+				return i;
+			}
+		}
+		return -1;
+	}
 
 	@Override
 	public TypeSerializer<T> createSerializer(ExecutionConfig config) {

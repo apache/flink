@@ -39,7 +39,9 @@ import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 public final class TupleTypeInfo<T extends Tuple> extends TupleTypeInfoBase<T> {
 	
 	private static final long serialVersionUID = 1L;
-	
+
+	protected final String[] fieldNames;
+
 	@SuppressWarnings("unchecked")
 	public TupleTypeInfo(TypeInformation<?>... types) {
 		this((Class<T>) Tuple.getTupleClass(types.length), types);
@@ -50,6 +52,24 @@ public final class TupleTypeInfo<T extends Tuple> extends TupleTypeInfoBase<T> {
 		if (types == null || types.length == 0 || types.length > Tuple.MAX_ARITY) {
 			throw new IllegalArgumentException();
 		}
+		this.fieldNames = new String[types.length];
+		for (int i = 0; i < types.length; i++) {
+			fieldNames[i] = "f" + i;
+		}
+	}
+
+	@Override
+	public String[] getFieldNames() {
+		return fieldNames;
+	}
+
+	@Override
+	public int getFieldIndex(String fieldName) {
+		int fieldIndex = Integer.parseInt(fieldName.substring(1));
+		if (fieldIndex >= getArity()) {
+			return -1;
+		}
+		return fieldIndex;
 	}
 
 	@Override
