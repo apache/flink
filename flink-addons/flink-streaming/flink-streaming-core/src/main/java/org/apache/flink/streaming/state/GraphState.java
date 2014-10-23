@@ -19,31 +19,43 @@ package org.apache.flink.streaming.state;
 
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 
-public class GraphState {
-	public Map<Integer, Set<Integer>> vertices = null;
+/**
+ * GraphState represents a special {@link MapState} for storing graph
+ * structures.
+ *
+ */
+public class GraphState extends MapState<Integer, Set<Integer>> {
+
+	private static final long serialVersionUID = 1L;
 
 	public GraphState() {
-		vertices = new HashMap<Integer, Set<Integer>>();
+		state = new HashMap<Integer, Set<Integer>>();
 	}
 
 	public void insertDirectedEdge(int sourceNode, int targetNode) {
-		if (!vertices.containsKey(sourceNode)) {
-			vertices.put(sourceNode, new HashSet<Integer>());
+		if (!containsKey(sourceNode)) {
+			state.put(sourceNode, new HashSet<Integer>());
 		}
-		vertices.get(sourceNode).add(targetNode);
+		state.get(sourceNode).add(targetNode);
+		updatedItems.add(sourceNode);
+		removedItems.remove(sourceNode);
 	}
-	
-	public void insertUndirectedEdge(int sourceNode, int targetNode){
-		if(!vertices.containsKey(sourceNode)){
-			vertices.put(sourceNode, new HashSet<Integer>());
+
+	public void insertUndirectedEdge(int sourceNode, int targetNode) {
+		if (!state.containsKey(sourceNode)) {
+			state.put(sourceNode, new HashSet<Integer>());
 		}
-		if(!vertices.containsKey(targetNode)){
-			vertices.put(targetNode, new HashSet<Integer>());
+		if (!state.containsKey(targetNode)) {
+			state.put(targetNode, new HashSet<Integer>());
 		}
-		vertices.get(sourceNode).add(targetNode);
-		vertices.get(targetNode).add(sourceNode);
+		state.get(sourceNode).add(targetNode);
+		state.get(targetNode).add(sourceNode);
+
+		updatedItems.add(sourceNode);
+		removedItems.remove(sourceNode);
+		updatedItems.add(targetNode);
+		removedItems.remove(targetNode);
 	}
 }
