@@ -45,19 +45,19 @@ USER_NAME=${USER_NAME:-pwendell}
 MVN=${MVN:-mvn}
 GPG=${GPG:-gpg}
 SHASUM=${SHASUM:-sha512sum}
-MD5SUM=${MD5SUM:-$MD5SUM}
+MD5SUM=${MD5SUM:-md5sum}
 sonatype_user=${sonatype_user:-rmetzger}
 sonatype_pw=${sonatype_pw:-XXX}
 
-echo $NEW_VERSION_HADOOP2
-sleep 5
+#echo $NEW_VERSION_HADOOP2
+#sleep 5
 #set -e
 
 # create source package
 
 git clone https://github.com/apache/incubator-flink.git flink
 cd flink
-git checkout -b $RELEASE_BRANCH origin/$RELEASE_BRANCH
+git checkout -b "$RELEASE_BRANCH-$RELEASE_CANDIDATE" origin/$RELEASE_BRANCH
 rm .gitignore
 rm .travis.yml
 rm deploysettings.xml
@@ -65,7 +65,9 @@ rm CHANGELOG
 #rm -rf .git
 
 #find . -name 'pom.xml' -type f -exec sed -i 's#<version>$OLD_VERSION</version>#<version>$NEW_VERSION</version>#' {} \;
-find . -name 'pom.xml' -type f -exec sed -i "" 's#<version>'$OLD_VERSION'</version>#<version>'$NEW_VERSION'</version>#' {} \;
+# FOR MAC: find . -name 'pom.xml' -type f -exec sed -i "" 's#<version>'$OLD_VERSION'</version>#<version>'$NEW_VERSION'</version>#' {} \;
+find . -name 'pom.xml' -type f -exec sed -i 's#<version>'$OLD_VERSION'</version>#<version>'$NEW_VERSION'</version>#' {} \;
+
 git commit --author="Robert Metzger <rmetzger@apache.org>" -am "Commit for release $RELEASE_VERSION"
 # sry for hardcoding my name, but this makes releasing even faster
 git remote add asf_push https://rmetzger@git-wip-us.apache.org/repos/asf/incubator-flink.git
