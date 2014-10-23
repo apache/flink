@@ -17,8 +17,7 @@
  */
 package org.apache.flink.api.scala.codegen
 
-import scala.collection.GenTraversableOnce
-import scala.collection.mutable
+import scala.collection.{BitSet, GenTraversableOnce, mutable}
 import scala.reflect.macros.Context
 import scala.util.DynamicVariable
 
@@ -243,6 +242,13 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
             // TODO make sure this works as it should
             tpe match {
               case TypeRef(_, _, elemTpe :: Nil) => Some(elemTpe.asSeenFrom(tpe, tpe.typeSymbol))
+
+              // Special case for BitSet, which is a Set[Int] but does not have a
+              // type parameter.
+              case tpe if tpe <:< typeOf[BitSet] => Some(typeOf[Int])
+
+              case _ => // dont support collections with more than one type parameter, such as Maps
+                None
             }
 
           case _ => None
