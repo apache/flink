@@ -17,10 +17,16 @@
 
 package org.apache.flink.streaming.api.datastream;
 
+import java.util.Map;
+import java.util.Map.Entry;
+
 import org.apache.commons.lang3.SerializationException;
 import org.apache.commons.lang3.SerializationUtils;
+import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.streaming.api.collector.OutputSelector;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.streamvertex.StreamingRuntimeContext;
+import org.apache.flink.streaming.state.OperatorState;
 import org.apache.flink.streaming.util.serialization.TypeWrapper;
 
 /**
@@ -114,6 +120,43 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 		}
 
 		return new SplitDataStream<OUT>(this);
+	}
+
+	/**
+	 * Register an operator state for this operator by the given name. This name
+	 * can be used to retrieve the state during runtime using
+	 * {@link StreamingRuntimeContext#getState(String)}. To obtain the
+	 * {@link StreamingRuntimeContext} from the user-defined function use the
+	 * {@link RichFunction#getRuntimeContext()} method.
+	 * 
+	 * @param name
+	 *            The name of the operator state.
+	 * @param state
+	 *            The state to be registered for this name.
+	 * @return The data stream with state registered.
+	 */
+	public SingleOutputStreamOperator<OUT, O> registerState(String name, OperatorState<?> state) {
+		jobGraphBuilder.addOperatorState(getId(), name, state);
+		return this;
+	}
+
+	/**
+	 * Register operator states for this operator provided in a map. The
+	 * registered states can be retrieved during runtime using
+	 * {@link StreamingRuntimeContext#getState(String)}. To obtain the
+	 * {@link StreamingRuntimeContext} from the user-defined function use the
+	 * {@link RichFunction#getRuntimeContext()} method.
+	 * 
+	 * @param states
+	 *            The map containing the states that will be registered.
+	 * @return The data stream with states registered.
+	 */
+	public SingleOutputStreamOperator<OUT, O> registerState(Map<String, OperatorState<?>> states) {
+		for (Entry<String, OperatorState<?>> entry : states.entrySet()) {
+			jobGraphBuilder.addOperatorState(getId(), entry.getKey(), entry.getValue());
+		}
+
+		return this;
 	}
 
 	@SuppressWarnings("unchecked")

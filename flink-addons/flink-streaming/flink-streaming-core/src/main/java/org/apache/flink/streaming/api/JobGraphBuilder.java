@@ -39,6 +39,7 @@ import org.apache.flink.streaming.api.streamvertex.StreamIterationTail;
 import org.apache.flink.streaming.api.streamvertex.StreamVertex;
 import org.apache.flink.streaming.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.partitioner.StreamPartitioner;
+import org.apache.flink.streaming.state.OperatorState;
 import org.apache.flink.streaming.util.serialization.TypeWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -77,6 +78,7 @@ public class JobGraphBuilder {
 	private Map<String, String> iterationIDtoTailName;
 	private Map<String, Integer> iterationTailCount;
 	private Map<String, Long> iterationWaitTime;
+	private Map<String, Map<String, OperatorState<?>>> operatorStates;
 
 	private int degreeOfParallelism;
 	private int executionParallelism;
@@ -111,6 +113,7 @@ public class JobGraphBuilder {
 		iterationIDtoTailName = new HashMap<String, String>();
 		iterationTailCount = new HashMap<String, Integer>();
 		iterationWaitTime = new HashMap<String, Long>();
+		operatorStates = new HashMap<String, Map<String, OperatorState<?>>>();
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("JobGraph created");
@@ -309,6 +312,7 @@ public class JobGraphBuilder {
 		byte[] serializedFunction = serializedFunctions.get(vertexName);
 		int parallelism = vertexParallelism.get(vertexName);
 		byte[] outputSelector = outputSelectors.get(vertexName);
+		Map<String, OperatorState<?>> state = operatorStates.get(vertexName);
 
 		// Create vertex object
 		AbstractJobVertex vertex = new AbstractJobVertex(vertexName);
@@ -336,6 +340,7 @@ public class JobGraphBuilder {
 		config.setVertexName(vertexName);
 		config.setFunction(serializedFunction, operatorName);
 		config.setOutputSelector(outputSelector);
+		config.setOperatorStates(state);
 
 		if (vertexClass.equals(StreamIterationHead.class)
 				|| vertexClass.equals(StreamIterationTail.class)) {
@@ -403,6 +408,22 @@ public class JobGraphBuilder {
 
 	public void setBufferTimeout(String vertexName, long bufferTimeout) {
 		this.bufferTimeout.put(vertexName, bufferTimeout);
+	}
+
+	public void addOperatorState(String veretxName, String stateName, OperatorState<?> state) {
+		Map<String, OperatorState<?>> states = operatorStates.get(veretxName);
+		if (states == null) {
+			states = new HashMap<String, OperatorState<?>>();
+			states.put(stateName, state);
+		} else {
+			if (states.containsKey(stateName)) {
+				throw new RuntimeException("State has already been registered with this name: "
+						+ stateName);
+			} else {
+				states.put(stateName, state);
+			}
+		}
+		operatorStates.put(veretxName, states);
 	}
 
 	/**
@@ -543,7 +564,8 @@ public class JobGraphBuilder {
 	 * Gets the assembled {@link JobGraph} and adds a user specified name for
 	 * it.
 	 * 
-	 * @param jobGraphName name of the jobGraph
+	 * @param jobGraphName
+	 *            name of the jobGraph
 	 */
 	public JobGraph getJobGraph(String jobGraphName) {
 		jobGraph = new JobGraph(jobGraphName);

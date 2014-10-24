@@ -21,6 +21,8 @@ import java.io.Serializable;
 
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.RichFunction;
+import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
@@ -56,8 +58,7 @@ public abstract class StreamInvokable<IN, OUT> implements Serializable {
 	}
 
 	/**
-	 * Initializes the {@link StreamInvokable} for input and output
-	 * handling
+	 * Initializes the {@link StreamInvokable} for input and output handling
 	 * 
 	 * @param collector
 	 *            Collector object for collecting the outputs for the operator
@@ -74,7 +75,7 @@ public abstract class StreamInvokable<IN, OUT> implements Serializable {
 		this.collector = collector;
 		this.recordIterator = recordIterator;
 		this.inSerializer = serializer;
-		if(this.inSerializer != null){
+		if (this.inSerializer != null) {
 			this.reuse = serializer.createInstance();
 		}
 		this.isMutable = isMutable;
@@ -154,5 +155,9 @@ public abstract class StreamInvokable<IN, OUT> implements Serializable {
 		if (userFunction instanceof RichFunction) {
 			((RichFunction) userFunction).close();
 		}
+	}
+
+	public void setRuntimeContext(RuntimeContext t) {
+		FunctionUtils.setFunctionRuntimeContext(userFunction, t);
 	}
 }

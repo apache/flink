@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.commons.lang3.SerializationException;
 import org.apache.commons.lang3.SerializationUtils;
@@ -31,6 +32,7 @@ import org.apache.flink.streaming.api.invokable.StreamInvokable;
 import org.apache.flink.streaming.api.streamvertex.StreamVertexException;
 import org.apache.flink.streaming.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.partitioner.StreamPartitioner;
+import org.apache.flink.streaming.state.OperatorState;
 import org.apache.flink.streaming.util.serialization.TypeWrapper;
 
 public class StreamConfig {
@@ -50,6 +52,7 @@ public class StreamConfig {
 	private static final String SERIALIZEDUDF = "serializedudf";
 	private static final String USER_FUNCTION = "userfunction";
 	private static final String BUFFER_TIMEOUT = "bufferTimeout";
+	private static final String OPERATOR_STATES = "operatorStates";
 
 	// DEFAULT VALUES
 
@@ -150,7 +153,7 @@ public class StreamConfig {
 		return config.getLong(BUFFER_TIMEOUT, DEFAULT_TIMEOUT);
 	}
 
-	public void setUserInvokable(StreamInvokable<?,?> invokableObject) {
+	public void setUserInvokable(StreamInvokable<?, ?> invokableObject) {
 		if (invokableObject != null) {
 			config.setClass(USER_FUNCTION, invokableObject.getClass());
 
@@ -165,7 +168,7 @@ public class StreamConfig {
 
 	public <T> T getUserInvokable() {
 		try {
-			return deserializeObject(config.getBytes(SERIALIZEDUDF, null));
+			return SerializationUtils.deserialize(config.getBytes(SERIALIZEDUDF, null));
 		} catch (Exception e) {
 			throw new StreamVertexException("Cannot instantiate user function", e);
 		}
@@ -215,10 +218,9 @@ public class StreamConfig {
 
 	public <T> OutputSelector<T> getOutputSelector() {
 		try {
-			return deserializeObject(config.getBytes(OUTPUT_SELECTOR, null));
+			return SerializationUtils.deserialize(config.getBytes(OUTPUT_SELECTOR, null));
 		} catch (Exception e) {
-			throw new StreamVertexException("Cannot deserialize and instantiate OutputSelector",
-					e);
+			throw new StreamVertexException("Cannot deserialize and instantiate OutputSelector", e);
 		}
 	}
 
@@ -254,7 +256,7 @@ public class StreamConfig {
 
 	public <T> StreamPartitioner<T> getPartitioner(int outputIndex) throws ClassNotFoundException,
 			IOException {
-		return deserializeObject(config.getBytes(PARTITIONER_OBJECT + outputIndex,
+		return SerializationUtils.deserialize(config.getBytes(PARTITIONER_OBJECT + outputIndex,
 				SerializationUtils.serialize(new ShufflePartitioner<T>())));
 	}
 
@@ -312,16 +314,17 @@ public class StreamConfig {
 	public Class<? extends AbstractRichFunction> getFunctionClass(ClassLoader cl) {
 		try {
 			return config.getClass("functionClass", null, cl);
-		}
-		catch (ClassNotFoundException e) {
+		} catch (ClassNotFoundException e) {
 			throw new RuntimeException("Could not load function class", e);
 		}
 	}
 
-	@SuppressWarnings("unchecked")
-	protected static <T> T deserializeObject(byte[] serializedObject) throws IOException,
-			ClassNotFoundException {
-		return (T) SerializationUtils.deserialize(serializedObject);
+	public void setOperatorStates(Map<String, OperatorState<?>> states) {
+		config.setBytes(OPERATOR_STATES, SerializationUtils.serialize((Serializable) states));
+	}
+
+	public Map<String, OperatorState<?>> getOperatorStates() {
+		return SerializationUtils.deserialize(config.getBytes(OPERATOR_STATES, null));
 	}
 
 }
