@@ -21,15 +21,20 @@ package flink.graphs;
 
 import org.apache.flink.api.common.functions.*;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFields;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.io.CsvReader;
 import org.apache.flink.util.Collector;
-import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ExecutionEnvironment;
+
 import java.io.Serializable;
 
 
@@ -41,6 +46,9 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 
 	private final DataSet<Tuple3<K, K, EV>> edges;
 
+	private final TypeInformation<Tuple2<K, VV>> verticesType;
+
+	private final TypeInformation<Tuple3<K, K, EV>> edgesType;
 
 	/** a graph is directed by default */
 	private boolean isUndirected = false;
@@ -49,12 +57,31 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	public Graph(DataSet<Tuple2<K, VV>> vertices, DataSet<Tuple3<K, K, EV>> edges) {
 		this.vertices = vertices;
 		this.edges = edges;
+
+		TypeInformation<K> keyType = ((TupleTypeInfo<?>) vertices.getType()).getTypeAt(0);
+		TypeInformation<VV> vertexValueType = ((TupleTypeInfo<?>) vertices.getType()).getTypeAt(1);
+		TypeInformation<EV> edgeValueType = ((TupleTypeInfo<?>) edges.getType()).getTypeAt(2);
+
+		TypeInformation<?>[] vertexTypes = {(BasicTypeInfo<?>)keyType, vertexValueType};
+		this.verticesType = new TupleTypeInfo<Tuple2<K, VV>>(vertexTypes);
+
+		TypeInformation<?>[] edgeTypes = {(BasicTypeInfo<?>)keyType, (BasicTypeInfo<?>)keyType, edgeValueType};
+		this.edgesType = new TupleTypeInfo<Tuple3<K, K, EV>>(edgeTypes);
 	}
 
-	public Graph(DataSet<Tuple2<K, VV>> vertices, DataSet<Tuple3<K, K, EV>> edges,
-			boolean undirected) {
+	public Graph(DataSet<Tuple2<K, VV>> vertices, DataSet<Tuple3<K, K, EV>> edges, boolean undirected) {
 		this.vertices = vertices;
 		this.edges = edges;
+
+		TypeInformation<K> keyType = ((TupleTypeInfo<?>) vertices.getType()).getTypeAt(0);
+		TypeInformation<VV> vertexValueType = ((TupleTypeInfo<?>) vertices.getType()).getTypeAt(1);
+		TypeInformation<EV> edgeValueType = ((TupleTypeInfo<?>) edges.getType()).getTypeAt(2);
+
+		TypeInformation<?>[] vertexTypes = {(BasicTypeInfo<?>)keyType, (BasicTypeInfo<?>)keyType, vertexValueType};
+		this.verticesType = new TupleTypeInfo<Tuple2<K, VV>>(vertexTypes);
+
+		TypeInformation<?>[] edgeTypes = {(BasicTypeInfo<?>)keyType, (BasicTypeInfo<?>)keyType, edgeValueType};
+		this.edgesType = new TupleTypeInfo<Tuple3<K, K, EV>>(edgeTypes);
 		this.isUndirected = undirected;
 	}
 
@@ -71,7 +98,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
      * @param mapper A function that transforms the attribute of each Tuple2
      * @return A DataSet of Tuple2 which contains the new values of all vertices
      */
-    //TODO(thvasilo): Make it possible for the function to change the attribute type
+	//TODO(thvasilo): Make it possible for the function to change the attribute type
     public DataSet<Tuple2<K, VV>> mapVertices(final MapFunction<VV, VV> mapper) {
         // Return a Tuple2 Dataset or a new Graph?
         return vertices.map(new MapFunction<Tuple2<K, VV>, Tuple2<K, VV>>() {
@@ -179,14 +206,31 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 			throw new UnsupportedOperationException("");
 		}
 		else {
-			DataSet<Tuple3<K, K, EV>> undirectedEdges = edges.flatMap(
-					new FlatMapFunction<Tuple3<K, K, EV>, Tuple3<K, K, EV>>() {
-				public void flatMap(Tuple3<K, K, EV> edge, Collector<Tuple3<K, K, EV>> out){
-					out.collect(edge);
-					out.collect(new Tuple3<K, K, EV>(edge.f1, edge.f0, edge.f2));
-				}
-			});
-			return new Graph<K, VV, EV>(vertices, (DataSet<Tuple3<K, K, EV>>) undirectedEdges, true);
+			DataSet<Tuple3<K, K, EV>> undirectedEdges =
+					edges.union(edges.map(new ReverseEdgesMap<K, EV>(edgesType)));
+			return new Graph<K, VV, EV>(vertices, undirectedEdges, true);
+		}
+	}
+
+	@ConstantFields("0->1;1->0;2->2")
+	private static final class ReverseEdgesMap<K, EV> implements MapFunction<Tuple3<K, K, EV>,
+		Tuple3<K, K, EV>>, ResultTypeQueryable<Tuple3<K, K, EV>> {
+
+		private transient TypeInformation<Tuple3<K, K, EV>> resultType;
+
+		private ReverseEdgesMap(TypeInformation<Tuple3<K, K, EV>> resultType)
+		{
+			this.resultType = resultType;
+		}
+
+		@Override
+		public TypeInformation<Tuple3<K, K, EV>> getProducedType() {
+			return this.resultType;
+		}
+
+		@Override
+		public Tuple3<K, K, EV> map(Tuple3<K, K, EV> value) {
+			return new Tuple3<K, K, EV>(value.f1, value.f0, value.f2);
 		}
 	}
 
