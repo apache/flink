@@ -9,6 +9,11 @@ MESOS_BUILD_DIR=/home/sebastian/IdeaProjects/mesos-0.20.1/build
 JAVA_HOME=${JAVA_HOME-/usr/lib/jvm/java-7-oracle/}
 JAVA=${JAVA-${JAVA_HOME}/bin/java}
 
+FLINK_LIB=/home/sebastian/IdeaProjects/incubator-flink/flink-dist/target/flink-0.7-incubating-SNAPSHOT-bin/flink-0.7-incubating-SNAPSHOT/lib
+FLINK_CORE=${FLINK_LIB}/flink-core-0.7-incubating-SNAPSHOT.jar
+FLINK_RUNTIME=${FLINK_LIB}/flink-runtime-0.7-incubating-SNAPSHOT.jar
+FLINK_UBERJAR=/home/sebastian/IdeaProjects/incubator-flink/flink-dist/target/flink-dist-0.7-incubating-SNAPSHOT-yarn-uberjar.jar
+
 # Use colors for errors.
 . ${MESOS_SOURCE_DIR}/support/colors.sh
 
@@ -30,6 +35,6 @@ test ! -e ${EXAMPLES_JAR} && \
   echo "${RED}Failed to find ${EXAMPLES_JAR}${NORMAL}" && \
   exit 1
 
-exec ${JAVA} -cp ${PROTOBUF_JAR}:${MESOS_JAR}:${EXAMPLES_JAR}:/home/sebastian/IdeaProjects/incubator-flink/flink-mesos/target/classes \
+exec ${JAVA} -cp ${PROTOBUF_JAR}:${MESOS_JAR}:${EXAMPLES_JAR}:${FLINK_UBERJAR}:/home/sebastian/IdeaProjects/incubator-flink/flink-mesos/target/classes \
   -Djava.library.path=${MESOS_BUILD_DIR}/src/.libs \
  develop.FlinkMesosEx "${@}"

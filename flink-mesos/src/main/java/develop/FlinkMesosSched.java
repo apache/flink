@@ -5,6 +5,8 @@ import org.apache.mesos.Scheduler;
 import org.apache.mesos.SchedulerDriver;
 import org.apache.mesos.Protos.ExecutorInfo;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -13,11 +15,6 @@ import java.util.List;
  * Created by sebastian on 10/7/14.
  */
 public class FlinkMesosSched implements Scheduler {
-	private ExecutorInfo executor;
-
-	public FlinkMesosSched(ExecutorInfo executor) {
-		this.executor = executor;
-	}
 
 	@Override
 	public void registered(SchedulerDriver schedulerDriver, Protos.FrameworkID frameworkID, Protos.MasterInfo masterInfo) {
@@ -35,11 +32,24 @@ public class FlinkMesosSched implements Scheduler {
 				Protos.TaskID taskId = Protos.TaskID.newBuilder()
 						.setValue("1").build();
 
-
+			
 				List<Protos.TaskInfo> tasks = new LinkedList<Protos.TaskInfo>();
 				List<Protos.OfferID> offerIDs = new LinkedList<Protos.OfferID>();
 
 			System.out.println("Launching task " + taskId.getValue());
+
+
+			String uri = null;
+			try {
+				uri = new File("/home/sebastian/IdeaProjects/incubator-flink/flink-mesos/src/main/java/develop/executor.sh").getCanonicalPath();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			ExecutorInfo executor = Protos.ExecutorInfo.newBuilder()
+					.setCommand(Protos.CommandInfo.newBuilder().setValue(uri))
+					.setName("Flink Executor")
+					.setExecutorId(Protos.ExecutorID.newBuilder().setValue("default"))
+					.build();
 
 				Protos.TaskInfo task = Protos.TaskInfo.newBuilder()
 						.setName("task " + taskId.getValue())

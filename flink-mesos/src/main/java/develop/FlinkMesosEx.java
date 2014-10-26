@@ -1,11 +1,19 @@
 package develop;
 
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.runtime.ExecutionMode;
+import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.mesos.Executor;
 import org.apache.mesos.ExecutorDriver;
 import org.apache.mesos.MesosExecutorDriver;
 import org.apache.mesos.Protos;
 
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.Writer;
 import java.util.logging.FileHandler;
 
 /**
@@ -28,29 +36,49 @@ public class FlinkMesosEx implements Executor {
 
 	}
 
+	public File writeConfig() {
+		Writer output = null;
+		File result = null;
+		try {
+			output = new BufferedWriter(new FileWriter("./flink-conf-modified.yaml"));
+
+
+			// just to make sure.
+			output.append(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY + ": localhost\n");
+			output.append(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY + ": 6123\n"); // already offsetted here.
+
+			output.append(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY + ": 8090\n");
+			output.flush();
+			output.close();
+			result = new File("./flink-conf-modified.yaml");
+		} catch (IOException e) {
+			e.printStackTrace();
+
+		}
+		return result;
+	}
+
 	@Override
 	public void launchTask(final ExecutorDriver executorDriver, final Protos.TaskInfo taskInfo) {
-		new Thread() { public void run() {
-			try {
-				Protos.TaskStatus status = Protos.TaskStatus.newBuilder()
-						.setTaskId(taskInfo.getTaskId())
-						.setState(Protos.TaskState.TASK_RUNNING).build();
+		System.out.println(taskInfo.getData().toStringUtf8());
+		setStatus(executorDriver, taskInfo, Protos.TaskState.TASK_RUNNING);
+		JobManager jobManager = null;
+		try {
+			System.out.println("JobManager about to start");
+			File config = writeConfig();
+			String[] args = {"-executionMode","local", "-configDir", config.getCanonicalPath()};
+			GlobalConfiguration.loadConfiguration(config.getCanonicalPath());
+			jobManager = new JobManager(ExecutionMode.LOCAL);
+			jobManager.initialize(args);
 
-				executorDriver.sendStatusUpdate(status);
-				System.out.println("Location: " + new File(".").getAbsolutePath());
-				System.out.println("Running task " + taskInfo.getTaskId());
+			jobManager.startInfoServer();
+			jobManager.shutdown();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 
-				// This is where one would perform the requested task.
 
-				status = Protos.TaskStatus.newBuilder()
-						.setTaskId(taskInfo.getTaskId())
-						.setState(Protos.TaskState.TASK_FINISHED).build();
-
-				executorDriver.sendStatusUpdate(status);
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-		}}.start();
+		setStatus(executorDriver, taskInfo, Protos.TaskState.TASK_FINISHED);
 	}
 
 	@Override
@@ -71,6 +99,13 @@ public class FlinkMesosEx implements Executor {
 	@Override
 	public void error(ExecutorDriver executorDriver, String s) {
 
+	}
+
+	private void setStatus(ExecutorDriver ex, Protos.TaskInfo taskInfo, Protos.TaskState newState) {
+		Protos.TaskStatus status = Protos.TaskStatus.newBuilder()
+				.setTaskId(taskInfo.getTaskId())
+				.setState(newState).build();
+		ex.sendStatusUpdate(status);
 	}
 
 	public static void main(String[] args) throws Exception {

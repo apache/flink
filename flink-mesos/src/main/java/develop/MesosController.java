@@ -1,5 +1,6 @@
 package develop;
 
+import com.google.protobuf.ByteString;
 import org.apache.mesos.MesosSchedulerDriver;
 import org.apache.mesos.Protos;
 
@@ -8,15 +9,6 @@ import java.io.IOException;
 
 public class MesosController {
 	public static void main(String[] args) throws IOException {
-
-		String uri = new File("./executor.sh").getCanonicalPath();
-		Protos.ExecutorInfo executor = Protos.ExecutorInfo.newBuilder()
-				.setExecutorId(Protos.ExecutorID.newBuilder().setValue("default"))
-				.setCommand(Protos.CommandInfo.newBuilder().setValue(uri))
-				//.setCommand(Protos.CommandInfo.newBuilder().)
-				.setName("Flink Executor (Java)")
-				.build();
-		System.out.println(new File(".").getAbsolutePath());
 		Protos.FrameworkInfo framework = Protos.FrameworkInfo.newBuilder()
 				.setUser("") // Have Mesos fill in the current user.
 				.setName("Flink Test")
@@ -24,7 +16,7 @@ public class MesosController {
 				.build();
 
 		MesosSchedulerDriver driver = new MesosSchedulerDriver(
-				new FlinkMesosSched(executor),
+				new FlinkMesosSched(),
 				framework,
 				args[0]);
 
