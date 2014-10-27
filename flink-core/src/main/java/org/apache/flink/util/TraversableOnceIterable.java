@@ -15,27 +15,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.util;
 
+import java.util.Iterator;
 
-public class NetUtils {
+public class TraversableOnceIterable<T> implements Iterable<T> {
 	
-	/**
-	 * Turn a fully qualified domain name (fqdn) into a hostname. If the fqdn has multiple subparts
-	 * (separated by a period '.'), it will take the first part. Otherwise it takes the entire fqdn.
-	 * 
-	 * @param fqdn The fully qualified domain name.
-	 * @return The hostname.
-	 */
-	public static String getHostnameFromFQDN(String fqdn) {
-		if (fqdn == null) {
-			throw new IllegalArgumentException("fqdn is null");
+	private final Iterator<T> iterator;
+
+	public TraversableOnceIterable(Iterator<T> iterator) {
+		if (iterator == null) {
+			throw new NullPointerException("The iterator must not be null.");
 		}
-		int dotPos = fqdn.indexOf('.');
-		if(dotPos == -1) {
-			return fqdn;
+		this.iterator = iterator;
+	}
+	
+	@Override
+	public Iterator<T> iterator() {
+		if (iterator != null) {
+			return iterator;
 		} else {
-			return fqdn.substring(0, dotPos);
+			throw new TraversableOnceException();
 		}
 	}
 }

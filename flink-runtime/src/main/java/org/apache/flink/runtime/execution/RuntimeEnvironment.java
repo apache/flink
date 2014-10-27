@@ -50,6 +50,7 @@ import org.apache.flink.runtime.io.network.gates.GateID;
 import org.apache.flink.runtime.io.network.gates.InputGate;
 import org.apache.flink.runtime.io.network.gates.OutputGate;
 import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
@@ -70,8 +71,6 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 	
 	/** The interval to sleep in case a communication channel is not yet entirely set up (in milliseconds). */
 	private static final int SLEEPINTERVAL = 100;
-	
-	
 	
 	// --------------------------------------------------------------------------------------------
 
@@ -207,6 +206,11 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 	@Override
 	public JobID getJobID() {
 		return this.owner.getJobID();
+	}
+	
+	@Override
+	public JobVertexID getJobVertexId() {
+		return this.owner.getVertexID();
 	}
 
 	@Override

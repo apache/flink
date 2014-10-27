@@ -130,12 +130,18 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 			// re-read the iterative broadcast variables
 			for (int i : this.iterativeBroadcastInputs) {
 				final String name = getTaskConfig().getBroadcastInputName(i);
-				readAndSetBroadcastInput(i, name, this.runtimeUdfContext);
+				readAndSetBroadcastInput(i, name, this.runtimeUdfContext, superstepNum);
 			}
 		}
 
 		// call the parent to execute the superstep
 		super.run();
+		
+		// release the iterative broadcast variables
+		for (int i : this.iterativeBroadcastInputs) {
+			final String name = getTaskConfig().getBroadcastInputName(i);
+			releaseBroadcastVariables(name, superstepNum, this.runtimeUdfContext);
+		}
 	}
 
 	@Override

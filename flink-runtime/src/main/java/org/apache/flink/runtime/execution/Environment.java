@@ -34,6 +34,7 @@ import org.apache.flink.runtime.io.network.gates.InputGate;
 import org.apache.flink.runtime.io.network.gates.OutputGate;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
 import org.apache.flink.runtime.protocols.AccumulatorProtocol;
@@ -44,6 +45,7 @@ import org.apache.flink.runtime.protocols.AccumulatorProtocol;
  * splits, memory manager, etc.
  */
 public interface Environment {
+	
 	/**
 	 * Returns the ID of the job from the original job graph. It is used by the library cache manager to find the
 	 * required
@@ -52,6 +54,13 @@ public interface Environment {
 	 * @return the ID of the job from the original job graph
 	 */
 	JobID getJobID();
+	
+	/**
+	 * Gets the ID of the jobVertex that this task corresponds to.
+	 * 
+	 * @return The JobVertexID of this task.
+	 */
+	JobVertexID getJobVertexId();
 
 	/**
 	 * Returns the task configuration object which was attached to the original JobVertex.

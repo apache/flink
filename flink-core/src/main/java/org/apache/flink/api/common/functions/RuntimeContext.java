@@ -119,11 +119,37 @@ public interface RuntimeContext {
 	/**
 	 * Returns the result bound to the broadcast variable identified by the 
 	 * given {@code name}.
+	 * <p>
+	 * IMPORTANT: The broadcast variable data structure is shared between the parallel
+	 *            tasks on one machine. Any access that modifies its internal state needs to
+	 *            be manually synchronized by the caller.
+	 * 
+	 * @param name The name under which the broadcast variable is registered;
+	 * @return The broadcast variable, materialized as a list of elements.
 	 */
 	<RT> List<RT> getBroadcastVariable(String name);
+	
+	/**
+	 * Returns the result bound to the broadcast variable identified by the 
+	 * given {@code name}. The broadcast variable is returned as a shared data structure
+	 * that is initialized with the given {@link BroadcastVariableInitializer}.
+	 * <p>
+	 * IMPORTANT: The broadcast variable data structure is shared between the parallel
+	 *            tasks on one machine. Any access that modifies its internal state needs to
+	 *            be manually synchronized by the caller.
+	 * 
+	 * @param name The name under which the broadcast variable is registered;
+	 * @param initializer The initializer that creates the shared data structure of the broadcast
+	 *                    variable from the sequence of elements.
+	 * @return The broadcast variable, materialized as a list of elements.
+	 */
+	<T, C> C getBroadcastVariableWithInitializer(String name, BroadcastVariableInitializer<T, C> initializer);
 
 	/**
-	 * Returns the distributed cache to get the local tmp file.
+	 * Returns the {@link DistributedCache} to get the local temporary file copies of files otherwise not
+	 * locally accessible.
+	 * 
+	 * @return The distributed cache of the worker executing this instance.
 	 */
 	DistributedCache getDistributedCache();
 }

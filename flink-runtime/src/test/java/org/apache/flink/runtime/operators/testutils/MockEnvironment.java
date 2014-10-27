@@ -47,6 +47,7 @@ import org.apache.flink.runtime.io.network.serialization.AdaptiveSpanningRecordD
 import org.apache.flink.runtime.io.network.serialization.RecordDeserializer;
 import org.apache.flink.runtime.io.network.serialization.RecordDeserializer.DeserializationResult;
 import org.apache.flink.runtime.jobgraph.JobID;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
@@ -344,5 +345,10 @@ public class MockEnvironment implements Environment, BufferProvider, LocalBuffer
 	@Override
 	public Map<String, FutureTask<Path>> getCopyTask() {
 		return null;
+	}
+
+	@Override
+	public JobVertexID getJobVertexId() {
+		return new JobVertexID(new byte[16]);
 	}
 }

@@ -76,6 +76,7 @@ import org.junit.runners.Parameterized.Parameters;
  * - intermediate workset update and solution set tail
  * - intermediate solution set update and workset tail
  */
+@SuppressWarnings("deprecation")
 @RunWith(Parameterized.class)
 public class ConnectedComponentsNepheleITCase extends RecordAPITestBase {
 

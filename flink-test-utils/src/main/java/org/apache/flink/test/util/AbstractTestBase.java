@@ -40,6 +40,7 @@ import java.util.List;
 import org.apache.commons.io.FileUtils;
 import org.apache.flink.client.minicluster.NepheleMiniCluster;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.hadoop.fs.FileSystem;
 import org.junit.Assert;
 
@@ -101,6 +102,9 @@ public abstract class AbstractTestBase {
 		} finally {
 			deleteAllTempFiles();
 		}
+		
+		Assert.assertEquals("Not all broadcast variables were released.",
+				0, BroadcastVariableManager.INSTANCE.getNumberOfVariablesWithReferences());
 	}
 
 	//------------------

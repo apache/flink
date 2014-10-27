@@ -20,7 +20,6 @@ package org.apache.flink.test.recordJobs.kmeans;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
@@ -47,7 +46,7 @@ import org.apache.flink.types.Record;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
 
-
+@SuppressWarnings("deprecation")
 public class KMeansBroadcast implements Program, ProgramDescription {
 	
 	private static final long serialVersionUID = 1L;
@@ -197,11 +196,13 @@ public class KMeansBroadcast implements Program, ProgramDescription {
 		 */
 		@Override
 		public void open(Configuration parameters) throws Exception {
-			Collection<Record> clusterCenters = this.getRuntimeContext().getBroadcastVariable("centers");
+			List<Record> clusterCenters = this.getRuntimeContext().getBroadcastVariable("centers");
 			
 			centers.clear();
-			for (Record r : clusterCenters) {
-				centers.add(new PointWithId(r.getField(0, IntValue.class).getValue(), r.getField(1, Point.class)));
+			synchronized (clusterCenters) {
+				for (Record r : clusterCenters) {
+					centers.add(new PointWithId(r.getField(0, IntValue.class).getValue(), r.getField(1, Point.class)));
+				}
 			}
 		}
 

@@ -30,11 +30,12 @@ import org.apache.flink.api.common.accumulators.Histogram;
 import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.cache.DistributedCache;
+import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.core.fs.Path;
 
 /**
- * Implementation of the {@link RuntimeContext}, created by runtime UDF operators.
+ * A standalone implementation of the {@link RuntimeContext}, created by runtime UDF operators.
  */
 public class RuntimeUDFContext implements RuntimeContext {
 
@@ -45,20 +46,23 @@ public class RuntimeUDFContext implements RuntimeContext {
 	private final int subtaskIndex;
 
 	private final ClassLoader userCodeClassLoader;
+
+	private final HashMap<String, Accumulator<?, ?>> accumulators = new HashMap<String, Accumulator<?, ?>>();
 	
 	private final DistributedCache distributedCache = new DistributedCache();
 
-	private final HashMap<String, Accumulator<?, ?>> accumulators = new HashMap<String, Accumulator<?, ?>>();
-
-	private final HashMap<String, List<?>> broadcastVars = new HashMap<String, List<?>>();
-
+	private final HashMap<String, Object> initializedBroadcastVars = new HashMap<String, Object>();
+	
+	private final HashMap<String, List<?>> uninitializedBroadcastVars = new HashMap<String, List<?>>();
+	
+	
 	public RuntimeUDFContext(String name, int numParallelSubtasks, int subtaskIndex, ClassLoader userCodeClassLoader) {
 		this.name = name;
 		this.numParallelSubtasks = numParallelSubtasks;
 		this.subtaskIndex = subtaskIndex;
 		this.userCodeClassLoader = userCodeClassLoader;
 	}
-
+	
 	public RuntimeUDFContext(String name, int numParallelSubtasks, int subtaskIndex, ClassLoader userCodeClassLoader, Map<String, FutureTask<Path>> cpTasks) {
 		this.name = name;
 		this.numParallelSubtasks = numParallelSubtasks;
@@ -66,6 +70,7 @@ public class RuntimeUDFContext implements RuntimeContext {
 		this.userCodeClassLoader = userCodeClassLoader;
 		this.distributedCache.setCopyTasks(cpTasks);
 	}
+
 	
 	@Override
 	public String getTaskName() {
@@ -117,6 +122,72 @@ public class RuntimeUDFContext implements RuntimeContext {
 		return (Accumulator<V, A>) accumulators.get(name);
 	}
 
+	@Override
+	public HashMap<String, Accumulator<?, ?>> getAllAccumulators() {
+		return this.accumulators;
+	}
+
+	@Override
+	@SuppressWarnings("unchecked")
+	public <RT> List<RT> getBroadcastVariable(String name) {
+		
+		// check if we have an initialized version
+		Object o = this.initializedBroadcastVars.get(name);
+		if (o != null) {
+			if (o instanceof List) {
+				return (List<RT>) o;
+			}
+			else {
+				throw new IllegalStateException("The broadcast variable with name '" + name + 
+						"' is not a List. A different call must have requested this variable with a BroadcastVariableInitializer.");
+			}
+		}
+		else {
+			List<?> uninitialized = this.uninitializedBroadcastVars.remove(name);
+			if (uninitialized != null) {
+				this.initializedBroadcastVars.put(name, uninitialized);
+				return (List<RT>) uninitialized;
+			}
+			else {
+				throw new IllegalArgumentException("The broadcast variable with name '" + name + "' has not been set.");
+			}
+		}
+	}
+	
+	@SuppressWarnings("unchecked")
+	@Override
+	public <T, C> C getBroadcastVariableWithInitializer(String name, BroadcastVariableInitializer<T, C> initializer) {
+		
+		// check if we have an initialized version
+		Object o = this.initializedBroadcastVars.get(name);
+		if (o != null) {
+			return (C) o;
+		}
+		else {
+			List<T> uninitialized = (List<T>) this.uninitializedBroadcastVars.remove(name);
+			if (uninitialized != null) {
+				C result = initializer.initializeBroadcastVariable(uninitialized);
+				this.initializedBroadcastVars.put(name, result);
+				return result;
+			}
+			else {
+				throw new IllegalArgumentException("The broadcast variable with name '" + name + "' has not been set.");
+			}
+		}
+	}
+
+	@Override
+	public DistributedCache getDistributedCache() {
+		return this.distributedCache;
+	}
+	
+	@Override
+	public ClassLoader getUserCodeClassLoader() {
+		return this.userCodeClassLoader;
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
 	@SuppressWarnings("unchecked")
 	private <V, A> Accumulator<V, A> getAccumulator(String name,
 			Class<? extends Accumulator<V, A>> accumulatorClass) {
@@ -138,34 +209,18 @@ public class RuntimeUDFContext implements RuntimeContext {
 		}
 		return (Accumulator<V, A>) accumulator;
 	}
-
-	@Override
-	public HashMap<String, Accumulator<?, ?>> getAllAccumulators() {
-		return this.accumulators;
-	}
-
+	
 	public void setBroadcastVariable(String name, List<?> value) {
-		this.broadcastVars.put(name, value);
-	}
-
-
-	@Override
-	@SuppressWarnings("unchecked")
-	public <RT> List<RT> getBroadcastVariable(String name) {
-		if (!this.broadcastVars.containsKey(name)) {
-			throw new IllegalArgumentException("Trying to access an unbound broadcast variable '" 
-					+ name + "'.");
-		}
-		return (List<RT>) this.broadcastVars.get(name);
-	}
-
-	@Override
-	public DistributedCache getDistributedCache() {
-		return this.distributedCache;
+		this.uninitializedBroadcastVars.put(name, value);
 	}
 	
-	@Override
-	public ClassLoader getUserCodeClassLoader() {
-		return this.userCodeClassLoader;
+	public void clearBroadcastVariable(String name) {
+		this.uninitializedBroadcastVars.remove(name);
+		this.initializedBroadcastVars.remove(name);
+	}
+	
+	public void clearAllBroadcastVariables() {
+		this.uninitializedBroadcastVars.clear();
+		this.initializedBroadcastVars.clear();
 	}
 }

@@ -36,6 +36,7 @@ import org.apache.flink.util.Visitor;
 /**
  * Utility to get operator instances from plans via name.
  */
+@SuppressWarnings("deprecation")
 public class OperatorResolver implements Visitor<Operator<?>> {
 	
 	private final Map<String, List<Operator<?>>> map;

@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators;
 
 import org.slf4j.Logger;
@@ -30,11 +29,11 @@ import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.functions.util.RuntimeUDFContext;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.accumulators.AccumulatorEvent;
+import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -80,7 +79,7 @@ import java.util.Map;
 public class RegularPactTask<S extends Function, OT> extends AbstractInvokable implements PactTaskContext<S, OT> {
 
 	protected static final Logger LOG = LoggerFactory.getLogger(RegularPactTask.class);
-
+	
 	// --------------------------------------------------------------------------------------------
 
 	/**
@@ -127,13 +126,13 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	protected MutableObjectIterator<?>[] inputIterators;
 
 	/**
-	 * The input readers for the configured broadcast variables, wrapped in an iterator. 
-	 * Prior to the local strategies, etc...
+	 * The indices of the iterative inputs. Empty, if the task is not iterative. 
 	 */
-	protected MutableObjectIterator<?>[] broadcastInputIterators;
-	
 	protected int[] iterativeInputs;
 	
+	/**
+	 * The indices of the iterative broadcast inputs. Empty, if non of the inputs is iteratve. 
+	 */
 	protected int[] iterativeBroadcastInputs;
 	
 	/**
@@ -210,6 +209,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	 */
 	protected volatile boolean running = true;
 
+	
 	// --------------------------------------------------------------------------------------------
 	//                                  Task Interface
 	// --------------------------------------------------------------------------------------------
@@ -334,7 +334,8 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 				}
 				
 				initLocalStrategies(numInputs);
-			} catch (Exception e) {
+			}
+			catch (Exception e) {
 				throw new RuntimeException("Initializing the input processing failed" +
 					e.getMessage() == null ? "." : ": " + e.getMessage(), e);
 			}
@@ -349,10 +350,10 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 			// pre main-function initialization
 			initialize();
 
-			// read the broadcast variables
+			// read the broadcast variables. they will be released in the finally clause 
 			for (int i = 0; i < this.config.getNumBroadcastInputs(); i++) {
 				final String name = this.config.getBroadcastInputName(i);
-				readAndSetBroadcastInput(i, name, this.runtimeUdfContext);
+				readAndSetBroadcastInput(i, name, this.runtimeUdfContext, 1 /* superstep one for the start */);
 			}
 
 			// the work goes here
@@ -420,24 +421,33 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		}
 	}
 	
-	protected <X> void readAndSetBroadcastInput(int inputNum, String bcVarName, RuntimeUDFContext context) throws IOException {
-		// drain the broadcast inputs
-
-		@SuppressWarnings("unchecked")
-		final MutableObjectIterator<X> reader =  (MutableObjectIterator<X>) this.broadcastInputIterators[inputNum];
+	protected <X> void readAndSetBroadcastInput(int inputNum, String bcVarName, RuntimeUDFContext context, int superstep) throws IOException {
 		
-		@SuppressWarnings("unchecked")
-		final TypeSerializer<X> serializer =  (TypeSerializer<X>) this.broadcastInputSerializers[inputNum].getSerializer();
-
-		ArrayList<X> collection = new ArrayList<X>();
-		
-		X record = serializer.createInstance();
-		while (this.running && ((record = reader.next(record)) != null)) {
-			collection.add(record);
-			record = serializer.createInstance();
+		if (LOG.isDebugEnabled()) {
+			LOG.debug(formatLogString("Setting broadcast variable '" + bcVarName + "'" + 
+				(superstep > 1 ? ", superstep " + superstep : "")));
 		}
-		context.setBroadcastVariable(bcVarName, collection);
+		
+		@SuppressWarnings("unchecked")
+		final TypeSerializerFactory<X> serializerFactory =  (TypeSerializerFactory<X>) this.broadcastInputSerializers[inputNum];
+		
+		final MutableReader<?> reader = this.broadcastInputReaders[inputNum];
+
+		List<X> variable = BroadcastVariableManager.INSTANCE.getBroadcastVariable(bcVarName, superstep, this, reader, serializerFactory);
+		
+		context.setBroadcastVariable(bcVarName, variable);
 	}
+	
+	protected void releaseBroadcastVariables(String bcVarName, int superstep, RuntimeUDFContext context) {
+		if (LOG.isDebugEnabled()) {
+			LOG.debug(formatLogString("Releasing broadcast variable '" + bcVarName + "'" + 
+				(superstep > 1 ? ", superstep " + superstep : "")));
+		}
+		
+		BroadcastVariableManager.INSTANCE.releaseReference(bcVarName, superstep, this);
+		context.clearBroadcastVariable(bcVarName);
+	}
+	
 
 	protected void run() throws Exception {
 		// ---------------------------- Now, the actual processing starts ------------------------
@@ -515,7 +525,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 				catch (Throwable t) {}
 			}
 			
-			// if resettable driver invoke treardown
+			// if resettable driver invoke teardown
 			if (this.driver instanceof ResettablePactDriver) {
 				final ResettablePactDriver<?, ?> resDriver = (ResettablePactDriver<?, ?>) this.driver;
 				try {
@@ -594,6 +604,19 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	}
 
 	protected void closeLocalStrategiesAndCaches() {
+		
+		// make sure that all broadcast variable references held by this task are released
+		if (LOG.isDebugEnabled()) {
+			LOG.debug(formatLogString("Releasing all broadcast variables."));
+		}
+		
+		BroadcastVariableManager.INSTANCE.releaseAllReferencesFromTask(this);
+		if (runtimeUdfContext != null) {
+			runtimeUdfContext.clearAllBroadcastVariables();
+		}
+		
+		// clean all local strategies and caches/pipeline breakers. 
+		
 		if (this.localStrategies != null) {
 			for (int i = 0; i < this.localStrategies.length; i++) {
 				if (this.localStrategies[i] != null) {
@@ -786,7 +809,6 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	 */
 	protected void initBroadcastInputsSerializers(int numBroadcastInputs) throws Exception {
 		this.broadcastInputSerializers = new TypeSerializerFactory[numBroadcastInputs];
-		this.broadcastInputIterators = new MutableObjectIterator[numBroadcastInputs];
 
 		ClassLoader userCodeClassLoader = getUserCodeClassLoader();
 
@@ -794,8 +816,6 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 			//  ---------------- create the serializer first ---------------------
 			final TypeSerializerFactory<?> serializerFactory = this.config.getBroadcastInputSerializer(i, userCodeClassLoader);
 			this.broadcastInputSerializers[i] = serializerFactory;
-
-			this.broadcastInputIterators[i] = createInputIterator(this.broadcastInputReaders[i], this.broadcastInputSerializers[i]);
 		}
 	}
 
@@ -1493,6 +1513,4 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		}
 		return a;
 	}
-
-
 }
