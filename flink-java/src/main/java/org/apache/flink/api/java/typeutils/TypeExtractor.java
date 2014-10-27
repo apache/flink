@@ -1031,7 +1031,7 @@ public class TypeExtractor {
 			} catch (InvalidTypesException e) {
 				//pojoFields.add(new PojoField(field, new GenericTypeInfo( Object.class ))); // we need kryo to properly serialize this
 				throw new InvalidTypesException("Flink is currently unable to serialize this type: "+fieldType+""
-						+ "\nThe system is using the Avro serializer which is not able to handle all types.", e);
+						+ "\nThe system is internally using the Avro serializer which is not able to handle that type.", e);
 			}
 		}
 
@@ -1054,7 +1054,7 @@ public class TypeExtractor {
 		try {
 			clazz.getDeclaredConstructor();
 		} catch (NoSuchMethodException e) {
-			LOG.warn("Class "+clazz+" does not have a default constructor. You can not use it as a POJO");
+			LOG.warn("Class " + clazz + " must have a default constructor to be used as a POJO.");
 			return null;
 		}
 		
