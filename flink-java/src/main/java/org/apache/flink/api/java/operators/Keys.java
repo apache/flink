@@ -246,8 +246,7 @@ public abstract class Keys<T> {
 		 */
 		public ExpressionKeys(String[] expressionsIn, TypeInformation<T> type) {
 			if(!(type instanceof CompositeType<?>)) {
-				throw new IllegalArgumentException("Type "+type+" is not a composite type. "
-						+ "Key expressions are only supported on POJO types and Tuples. "
+				throw new IllegalArgumentException("Key expressions are only supported on POJO types and Tuples. "
 						+ "A type is considered a POJO if all its fields are public, or have both getters and setters defined");
 			}
 			CompositeType<T> cType = (CompositeType<T>) type;
