@@ -101,7 +101,7 @@ public abstract class PlanExecutor {
 		}
 	}
 	
-	private static final Class<? extends PlanExecutor> loadExecutorClass(String className) {
+	private static Class<? extends PlanExecutor> loadExecutorClass(String className) {
 		try {
 			Class<?> leClass = Class.forName(className);
 			return leClass.asSubclass(PlanExecutor.class);
