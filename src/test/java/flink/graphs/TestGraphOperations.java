@@ -4,7 +4,11 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.LinkedList;
+
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.junit.runner.RunWith;
@@ -14,7 +18,7 @@ import org.junit.runners.Parameterized.Parameters;
 @RunWith(Parameterized.class)
 public class TestGraphOperations extends JavaProgramTestBase {
 	
-	private static int NUM_PROGRAMS = 3;
+	private static int NUM_PROGRAMS = 4;
 	
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -55,6 +59,7 @@ public class TestGraphOperations extends JavaProgramTestBase {
 	
 	private static class GraphProgs {
 		
+		@SuppressWarnings("serial")
 		public static String runProgram(int progId, String resultPath) throws Exception {
 			
 			switch(progId) {
@@ -112,6 +117,34 @@ public class TestGraphOperations extends JavaProgramTestBase {
 					"3,2\n" +
 					"4,1\n" +
 					"5,1\n";
+			}
+			case 4: {
+				/*
+				 * Test mapVertices() keeping the same value type
+				 */
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				
+				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+						TestGraphUtils.getLongLongEdgeData(env));
+				
+				DataSet<Tuple2<Long, Long>> mappedVertices = graph.mapVertices(new MapFunction<Long, Long>() {
+					public Long map(Long value) throws Exception {
+						return value+1;
+					}
+				});
+				
+				mappedVertices.writeAsCsv(resultPath);
+				env.execute();
+				return "1,2\n" +
+				"2,3\n" +
+				"3,4\n" +
+				"4,5\n" +
+				"5,6\n";
+			}
+			case 5: {
+				/*
+				 * Test subgraph:  
+				 */
 			}
 			default: 
 				throw new IllegalArgumentException("Invalid program id");
