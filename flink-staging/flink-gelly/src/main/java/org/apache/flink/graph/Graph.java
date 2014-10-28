@@ -69,7 +69,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
      * @return A DataSet of Tuple2 which contains the new values of all vertices
      */
 	//TODO: support changing the vertex value type
-    public <NV extends Serializable> DataSet<Tuple2<K, VV>> mapVertices(final MapFunction<VV, VV> mapper) {
+    public DataSet<Tuple2<K, VV>> mapVertices(final MapFunction<VV, VV> mapper) {
         return vertices.map(new ApplyMapperToVertex<K, VV>(mapper));
     }
     
