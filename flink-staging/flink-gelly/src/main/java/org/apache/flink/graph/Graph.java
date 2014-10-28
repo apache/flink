@@ -28,6 +28,7 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.io.CsvReader;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.ExecutionEnvironment;
+
 import java.io.Serializable;
 
 
@@ -67,16 +68,23 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
      * @param mapper A function that transforms the attribute of each Tuple2
      * @return A DataSet of Tuple2 which contains the new values of all vertices
      */
-	//TODO(thvasilo): Make it possible for the function to change the attribute type
-    public DataSet<Tuple2<K, VV>> mapVertices(final MapFunction<VV, VV> mapper) {
-        // Return a Tuple2 Dataset or a new Graph?
-        return vertices.map(new MapFunction<Tuple2<K, VV>, Tuple2<K, VV>>() {
-            @Override
-            public Tuple2<K, VV> map(Tuple2<K, VV> kvvTuple2) throws Exception {
-                // Return new object for every Tuple2 not a good idea probably
-                return new Tuple2<>(kvvTuple2.f0, mapper.map(kvvTuple2.f1));
-            }
-        });
+	//TODO: support changing the vertex value type
+    public <NV extends Serializable> DataSet<Tuple2<K, VV>> mapVertices(final MapFunction<VV, VV> mapper) {
+        return vertices.map(new ApplyMapperToVertex<K, VV>(mapper));
+    }
+    
+    private static final class ApplyMapperToVertex<K, VV> implements MapFunction
+    	<Tuple2<K, VV>, Tuple2<K, VV>> {
+    	
+    	private MapFunction<VV, VV> innerMapper;
+    	
+    	public ApplyMapperToVertex(MapFunction<VV, VV> theMapper) {
+    		this.innerMapper = theMapper;
+    	}
+    	
+		public Tuple2<K, VV> map(Tuple2<K, VV> value) throws Exception {
+			return new Tuple2<K, VV>(value.f0, innerMapper.map(value.f1));
+		}    	
     }
 
     /**
