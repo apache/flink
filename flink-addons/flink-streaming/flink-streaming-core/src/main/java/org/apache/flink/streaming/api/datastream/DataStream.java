@@ -60,6 +60,10 @@ import org.apache.flink.streaming.api.invokable.operator.MapInvokable;
 import org.apache.flink.streaming.api.invokable.operator.StreamReduceInvokable;
 import org.apache.flink.streaming.api.invokable.util.DefaultTimeStamp;
 import org.apache.flink.streaming.api.invokable.util.TimeStamp;
+import org.apache.flink.streaming.api.windowing.helper.Count;
+import org.apache.flink.streaming.api.windowing.helper.Delta;
+import org.apache.flink.streaming.api.windowing.helper.Time;
+import org.apache.flink.streaming.api.windowing.helper.WindowingHelper;
 import org.apache.flink.streaming.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.partitioner.DistributePartitioner;
 import org.apache.flink.streaming.partitioner.FieldsPartitioner;
@@ -659,6 +663,22 @@ public class DataStream<OUT> {
 		return new GroupedDataStream<OUT>(this, keySelector);
 	}
 
+
+	/**
+	 * This allows you to set up windowing through a nice API using
+	 * {@link WindowingHelper} such as {@link Time}, {@link Count} and
+	 * {@link Delta}.
+	 * 
+	 * @param policyHelpers
+	 *            Any {@link WindowingHelper} such as {@link Time},
+	 *            {@link Count} and {@link Delta}.
+	 * @return A {@link WindowedDataStream} providing further operations.
+	 */
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	public WindowedDataStream<OUT> window(WindowingHelper... policyHelpers) {
+		return new WindowedDataStream<OUT>(this, policyHelpers);
+	}
+	
 	/**
 	 * Collects the data stream elements into sliding batches creating a new
 	 * {@link BatchedDataStream}. The user can apply transformations like
