@@ -19,7 +19,9 @@
 package org.apache.flink.util;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.io.IOReadableWritable;
@@ -109,9 +111,19 @@ public final class ClassUtils {
 		}
 	}
 	
+	public static boolean isPrimitiveOrBoxedOrString(Class<?> clazz) {
+		return clazz != null && (clazz.isPrimitive() || ClassUtils.isBoxedTypeOrString(clazz));
+	}
+	
+	public static boolean isBoxedTypeOrString(Class<?> clazz) {
+		return BOXED_TYPES.contains(clazz);
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	
 	private static final Map<String, Class<?>> PRIMITIVE_TYPES = new HashMap<String, Class<?>>(9);
+	
+	private static final Set<Class<?>> BOXED_TYPES = new HashSet<Class<?>>();
 	
 	static {
 		PRIMITIVE_TYPES.put("byte", byte.class);
@@ -123,5 +135,16 @@ public final class ClassUtils {
 		PRIMITIVE_TYPES.put("boolean", boolean.class);
 		PRIMITIVE_TYPES.put("char", char.class);
 		PRIMITIVE_TYPES.put("void", void.class);
+		
+		BOXED_TYPES.add(Byte.class);
+		BOXED_TYPES.add(Short.class);
+		BOXED_TYPES.add(Integer.class);
+		BOXED_TYPES.add(Long.class);
+		BOXED_TYPES.add(Float.class);
+		BOXED_TYPES.add(Double.class);
+		BOXED_TYPES.add(Boolean.class);
+		BOXED_TYPES.add(Character.class);
+		BOXED_TYPES.add(Void.class);
+		BOXED_TYPES.add(String.class);
 	}
 }

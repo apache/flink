@@ -22,11 +22,9 @@ import static org.apache.flink.runtime.jobgraph.JobManagerTestUtils.startJobMana
 import static org.apache.flink.runtime.jobgraph.JobManagerTestUtils.waitForTaskThreadsToBeTerminated;
 import static org.junit.Assert.*;
 
-import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.client.AbstractJobResult;
 import org.apache.flink.runtime.client.JobSubmissionResult;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.instance.LocalInstanceManager;
@@ -39,8 +37,6 @@ import org.apache.flink.runtime.jobmanager.tasks.BlockingReceiver;
 import org.apache.flink.runtime.jobmanager.tasks.Sender;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.junit.Test;
-
-import java.util.ArrayList;
 
 public class TaskManagerFailsWithSlotSharingITCase {
 
