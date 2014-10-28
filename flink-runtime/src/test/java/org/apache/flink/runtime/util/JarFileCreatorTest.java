@@ -23,6 +23,10 @@ import org.apache.flink.runtime.util.jartestprogram.WordCountWithAnonymousClass;
 import org.apache.flink.runtime.util.jartestprogram.WordCountWithExternalClass;
 import org.apache.flink.runtime.util.jartestprogram.WordCountWithExternalClass2;
 import org.apache.flink.runtime.util.jartestprogram.WordCountWithInnerClass;
+import org.apache.flink.runtime.util.jartestprogram.AnonymousInStaticMethod;
+import org.apache.flink.runtime.util.jartestprogram.AnonymousInNonStaticMethod;
+import org.apache.flink.runtime.util.jartestprogram.AnonymousInNonStaticMethod2;
+import org.apache.flink.runtime.util.jartestprogram.NestedAnonymousInnerClass;
 import org.junit.Assert;
 import org.junit.Test;
 import java.io.File;
@@ -36,118 +40,180 @@ import java.util.zip.ZipEntry;
 
 public class JarFileCreatorTest {
 
+	//anonymous inner class in static method accessing a local variable in its closure.
+	@Test
+	public void TestAnonymousInnerClassTrick1() throws Exception {
+		File out = new File(System.getProperty("java.io.tmpdir"), "jarcreatortest.jar");
+		JarFileCreator jfc = new JarFileCreator(out);
+		jfc.addClass(AnonymousInStaticMethod.class)
+			.createJarFile();
+
+		Set<String> ans = new HashSet<String>();
+		ans.add("org/apache/flink/runtime/util/jartestprogram/AnonymousInStaticMethod$1.class");
+		ans.add("org/apache/flink/runtime/util/jartestprogram/AnonymousInStaticMethod$A.class");
+		ans.add("org/apache/flink/runtime/util/jartestprogram/AnonymousInStaticMethod.class");
+
+		Assert.assertTrue("Jar file for Anonymous Inner Class is not correct", validate(ans, out));
+
+		out.delete();
+	}
+
+	//anonymous inner class in non static method accessing a local variable in its closure.
+	@Test
+	public void TestAnonymousInnerClassTrick2() throws Exception {
+		File out = new File(System.getProperty("java.io.tmpdir"), "jarcreatortest.jar");
+		JarFileCreator jfc = new JarFileCreator(out);
+		jfc.addClass(AnonymousInNonStaticMethod.class)
+			.createJarFile();
+
+		Set<String> ans = new HashSet<String>();
+		ans.add("org/apache/flink/runtime/util/jartestprogram/AnonymousInNonStaticMethod$1.class");
+		ans.add("org/apache/flink/runtime/util/jartestprogram/AnonymousInNonStaticMethod$A.class");
+		ans.add("org/apache/flink/runtime/util/jartestprogram/AnonymousInNonStaticMethod.class");
+
+		Assert.assertTrue("Jar file for Anonymous Inner Class is not correct", validate(ans, out));
+
+		out.delete();
+	}
+
+	//anonymous inner class in non static method accessing a field of its enclosing class.
+	@Test
+	public void TestAnonymousInnerClassTrick3() throws Exception {
+		File out = new File(System.getProperty("java.io.tmpdir"), "jarcreatortest.jar");
+		JarFileCreator jfc = new JarFileCreator(out);
+		jfc.addClass(AnonymousInNonStaticMethod2.class)
+			.createJarFile();
+
+		Set<String> ans = new HashSet<String>();
+		ans.add("org/apache/flink/runtime/util/jartestprogram/AnonymousInNonStaticMethod2$1.class");
+		ans.add("org/apache/flink/runtime/util/jartestprogram/AnonymousInNonStaticMethod2$A.class");
+		ans.add("org/apache/flink/runtime/util/jartestprogram/AnonymousInNonStaticMethod2.class");
+
+		Assert.assertTrue("Jar file for Anonymous Inner Class is not correct", validate(ans, out));
+
+		out.delete();
+	}
+
+	//anonymous inner class in an anonymous inner class accessing a field of the outermost enclosing class.
+	@Test
+	public void TestAnonymousInnerClassTrick4() throws Exception {
+		File out = new File(System.getProperty("java.io.tmpdir"), "jarcreatortest.jar");
+		JarFileCreator jfc = new JarFileCreator(out);
+		jfc.addClass(NestedAnonymousInnerClass.class)
+			.createJarFile();
+
+		Set<String> ans = new HashSet<String>();
+		ans.add("org/apache/flink/runtime/util/jartestprogram/NestedAnonymousInnerClass.class");
+		ans.add("org/apache/flink/runtime/util/jartestprogram/NestedAnonymousInnerClass$1$1.class");
+		ans.add("org/apache/flink/runtime/util/jartestprogram/NestedAnonymousInnerClass$1.class");
+		ans.add("org/apache/flink/runtime/util/jartestprogram/NestedAnonymousInnerClass$A.class");
+
+		Assert.assertTrue("Jar file for Anonymous Inner Class is not correct", validate(ans, out));
+
+		out.delete();
+	}
+
+	//----------------------------------------------------------------------------------------------
+	//Word Count Example
+
 	@Test
 	public void TestExternalClass() throws IOException {
-		File out = new File("/tmp/jarcreatortest1.jar");
+		File out = new File(System.getProperty("java.io.tmpdir"), "jarcreatortest.jar");
 		JarFileCreator jfc = new JarFileCreator(out);
-		jfc.addClass(WordCountWithExternalClass.class).createJarFile();
+		jfc.addClass(WordCountWithExternalClass.class)
+			.createJarFile();
 
 		Set<String> ans = new HashSet<String>();
 		ans.add("org/apache/flink/runtime/util/jartestprogram/StaticData.class");
 		ans.add("org/apache/flink/runtime/util/jartestprogram/WordCountWithExternalClass.class");
 		ans.add("org/apache/flink/runtime/util/jartestprogram/ExternalTokenizer.class");
-		JarInputStream jis = new JarInputStream(new FileInputStream(out));
-		ZipEntry ze;
-		int count = 3;
-		while ((ze = jis.getNextEntry()) != null) {
-			count--;
-			ans.remove(ze.getName());
-		}
-		Assert.assertTrue("Jar file for External Class is not correct", count == 0 && ans.size() == 0);
+
+		Assert.assertTrue("Jar file for External Class is not correct", validate(ans, out));
 
 		out.delete();
 	}
 
 	@Test
 	public void TestInnerClass() throws IOException {
-		File out = new File("/tmp/jarcreatortest2.jar");
+		File out = new File(System.getProperty("java.io.tmpdir"), "jarcreatortest.jar");
 		JarFileCreator jfc = new JarFileCreator(out);
-		jfc.addClass(WordCountWithInnerClass.class).createJarFile();
+		jfc.addClass(WordCountWithInnerClass.class)
+			.createJarFile();
 
 		Set<String> ans = new HashSet<String>();
 		ans.add("org/apache/flink/runtime/util/jartestprogram/StaticData.class");
 		ans.add("org/apache/flink/runtime/util/jartestprogram/WordCountWithInnerClass.class");
 		ans.add("org/apache/flink/runtime/util/jartestprogram/WordCountWithInnerClass$Tokenizer.class");
-		JarInputStream jis = new JarInputStream(new FileInputStream(out));
-		ZipEntry ze;
-		int count = 3;
-		while ((ze = jis.getNextEntry()) != null) {
-			count--;
-			ans.remove(ze.getName());
-		}
-		Assert.assertTrue("Jar file for Inner Class is not correct", count == 0 && ans.size() == 0);
+
+		Assert.assertTrue("Jar file for Inner Class is not correct", validate(ans, out));
 
 		out.delete();
 	}
 
 	@Test
 	public void TestAnonymousClass() throws IOException {
-		File out = new File("/tmp/jarcreatortest3.jar");
+		File out = new File(System.getProperty("java.io.tmpdir"), "jarcreatortest.jar");
 		JarFileCreator jfc = new JarFileCreator(out);
-		jfc.addClass(WordCountWithAnonymousClass.class).createJarFile();
+		jfc.addClass(WordCountWithAnonymousClass.class)
+			.createJarFile();
 
 		Set<String> ans = new HashSet<String>();
 		ans.add("org/apache/flink/runtime/util/jartestprogram/StaticData.class");
 		ans.add("org/apache/flink/runtime/util/jartestprogram/WordCountWithAnonymousClass.class");
 		ans.add("org/apache/flink/runtime/util/jartestprogram/WordCountWithAnonymousClass$1.class");
-		JarInputStream jis = new JarInputStream(new FileInputStream(out));
-		ZipEntry ze;
-		int count = 3;
-		while ((ze = jis.getNextEntry()) != null) {
-			count--;
-			ans.remove(ze.getName());
-		}
-		Assert.assertTrue("Jar file for Anonymous Class is not correct", count == 0 && ans.size() == 0);
+
+		Assert.assertTrue("Jar file for Anonymous Class is not correct", validate(ans, out));
 
 		out.delete();
 	}
 
 	@Test
 	public void TestExtendIdentifier() throws IOException {
-		File out = new File("/tmp/jarcreatortest4.jar");
+		File out = new File(System.getProperty("java.io.tmpdir"), "jarcreatortest.jar");
 		JarFileCreator jfc = new JarFileCreator(out);
-		jfc.addClass(WordCountWithExternalClass2.class).createJarFile();
+		jfc.addClass(WordCountWithExternalClass2.class)
+			.createJarFile();
 
 		Set<String> ans = new HashSet<String>();
 		ans.add("org/apache/flink/runtime/util/jartestprogram/StaticData.class");
 		ans.add("org/apache/flink/runtime/util/jartestprogram/WordCountWithExternalClass2.class");
 		ans.add("org/apache/flink/runtime/util/jartestprogram/ExternalTokenizer2.class");
 		ans.add("org/apache/flink/runtime/util/jartestprogram/ExternalTokenizer.class");
-		JarInputStream jis = new JarInputStream(new FileInputStream(out));
-		ZipEntry ze;
-		int count = 4;
-		while ((ze = jis.getNextEntry()) != null) {
-			count--;
-			ans.remove(ze.getName());
-		}
-		Assert.assertTrue("Jar file for Extend Identifier is not correct", count == 0 && ans.size() == 0);
+
+		Assert.assertTrue("Jar file for Extend Identifier is not correct", validate(ans, out));
 
 		out.delete();
 	}
 
 	@Test
 	public void TestUDFPackage() throws IOException {
-		File out = new File("/tmp/jarcreatortest5.jar");
+		File out = new File(System.getProperty("java.io.tmpdir"), "jarcreatortest.jar");
 		JarFileCreator jfc = new JarFileCreator(out);
 		jfc.addClass(WordCountWithInnerClass.class)
-			.addPackage("org.apache.flink.util").createJarFile();
+			.addPackage("org.apache.flink.util")
+			.createJarFile();
 
 		Set<String> ans = new HashSet<String>();
 		ans.add("org/apache/flink/runtime/util/jartestprogram/StaticData.class");
 		ans.add("org/apache/flink/runtime/util/jartestprogram/WordCountWithInnerClass.class");
 		ans.add("org/apache/flink/runtime/util/jartestprogram/WordCountWithInnerClass$Tokenizer.class");
 		ans.add("org/apache/flink/util/Collector.class");
-		JarInputStream jis = new JarInputStream(new FileInputStream(out));
-		ZipEntry ze;
-		int count = 4;
-		while ((ze = jis.getNextEntry()) != null) {
-			count--;
-			ans.remove(ze.getName());
-		}
-		Assert.assertTrue("Jar file for UDF package is not correct", count == 0 && ans.size() == 0);
+
+		Assert.assertTrue("Jar file for UDF package is not correct", validate(ans, out));
 
 		out.delete();
 	}
 
+	private boolean validate(Set<String> expected, File out) throws IOException {
+
+		JarInputStream jis = new JarInputStream(new FileInputStream(out));
+		ZipEntry ze;
+		int count = expected.size();
+		while ((ze = jis.getNextEntry()) != null) {
+			count--;
+			expected.remove(ze.getName());
+		}
+		return count == 0 && expected.size() == 0;
+	}
 }
 

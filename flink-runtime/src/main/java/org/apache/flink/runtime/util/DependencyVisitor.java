@@ -23,15 +23,12 @@ import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.FieldVisitor;
 import org.objectweb.asm.MethodVisitor;
-import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.TypePath;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.signature.SignatureReader;
 import org.objectweb.asm.signature.SignatureVisitor;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -43,11 +40,7 @@ import java.util.Set;
  */
 public class DependencyVisitor extends ClassVisitor {
 
-	private static final String CLASS_EXTENSION = ".class";
-
 	private Set<String> packages = new HashSet<String>();
-
-	private Set<String> innerClasses = new HashSet<String>();
 
 	private Set<String> nameSpace = new HashSet<String>();
 
@@ -98,29 +91,6 @@ public class DependencyVisitor extends ClassVisitor {
 		}
 		addInternalNames(exceptions);
 		return new MethodVisitorImpl(Opcodes.ASM5);
-	}
-
-	@Override
-	public void visitInnerClass(String name, String outerName, String innerName, int access) {
-		if (!innerClasses.contains(name)) {
-			try {
-				innerClasses.add(name);
-				Class clazz = Class.forName(name.replace('/', '.'));
-				int n = name.lastIndexOf('/');
-				String className = null;
-				if (n > -1) {
-					className = name.substring(n + 1, name.length());
-				}
-
-				InputStream classInputStream = clazz.getResourceAsStream(className + CLASS_EXTENSION);
-				new ClassReader(classInputStream).accept(this, 0);
-				classInputStream.close();
-			} catch (ClassNotFoundException e) {
-				e.printStackTrace();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
 	}
 
 	// ---------------------------------------------------------------------------------------------

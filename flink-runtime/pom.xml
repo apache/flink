@@ -119,7 +119,7 @@ under the License.
 		<dependency>
 			<groupId>org.ow2.asm</groupId>
 			<artifactId>asm-all</artifactId>
-			<version>5.0.3</version>
+			<version>${asm.version}</version>
 		</dependency>
 		
 		<dependency>
