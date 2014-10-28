@@ -41,7 +41,12 @@ public final class IntValueSerializer extends TypeSerializerSingleton<IntValue> 
 	public boolean isStateful() {
 		return false;
 	}
-	
+
+	@Override
+	public boolean canCreateInstance() {
+		return true;
+	}
+
 	@Override
 	public IntValue createInstance() {
 		return new IntValue();

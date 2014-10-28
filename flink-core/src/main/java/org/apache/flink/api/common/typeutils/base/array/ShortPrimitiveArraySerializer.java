@@ -31,8 +31,6 @@ public final class ShortPrimitiveArraySerializer extends TypeSerializerSingleton
 
 	private static final long serialVersionUID = 1L;
 	
-	private static final short[] EMPTY = new short[0];
-
 	public static final ShortPrimitiveArraySerializer INSTANCE = new ShortPrimitiveArraySerializer();
 	
 	
@@ -45,10 +43,16 @@ public final class ShortPrimitiveArraySerializer extends TypeSerializerSingleton
 	public boolean isStateful() {
 		return false;
 	}
-	
+
+	@Override
+	public boolean canCreateInstance() {
+		return false;
+	}
+
 	@Override
 	public short[] createInstance() {
-		return EMPTY;
+		throw new UnsupportedOperationException("ShortPrimitiveArraySerializer cannot create an " +
+				"instance.");
 	}
 
 	@Override

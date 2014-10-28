@@ -31,8 +31,6 @@ public class IntPrimitiveArraySerializer extends TypeSerializerSingleton<int[]>{
 
 	private static final long serialVersionUID = 1L;
 	
-	private static final int[] EMPTY = new int[0];
-
 	public static final IntPrimitiveArraySerializer INSTANCE = new IntPrimitiveArraySerializer();
 	
 	
@@ -45,10 +43,16 @@ public class IntPrimitiveArraySerializer extends TypeSerializerSingleton<int[]>{
 	public boolean isStateful() {
 		return false;
 	}
-	
+
+	@Override
+	public boolean canCreateInstance() {
+		return false;
+	}
+
 	@Override
 	public int[] createInstance() {
-		return EMPTY;
+		throw new UnsupportedOperationException("IntPrimitiveArraySerializer cannot create an " +
+				"instance.");
 	}
 
 	@Override

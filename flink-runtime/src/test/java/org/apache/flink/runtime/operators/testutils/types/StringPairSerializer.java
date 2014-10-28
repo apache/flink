@@ -38,7 +38,12 @@ public class StringPairSerializer extends TypeSerializer<StringPair> {
 	public boolean isStateful() {
 		return false;
 	}
-	
+
+	@Override
+	public boolean canCreateInstance() {
+		return true;
+	}
+
 	@Override
 	public StringPair createInstance() {
 		return new StringPair();

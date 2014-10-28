@@ -38,6 +38,8 @@ public abstract class TupleSerializerBase<T> extends TypeSerializer<T> {
 
 	protected final boolean stateful;
 
+	protected final boolean canCreateInstance;
+
 
 	@SuppressWarnings("unchecked")
 	public TupleSerializerBase(Class<T> tupleClass, TypeSerializer<?>[] fieldSerializers) {
@@ -46,13 +48,16 @@ public abstract class TupleSerializerBase<T> extends TypeSerializer<T> {
 		this.arity = fieldSerializers.length;
 		
 		boolean stateful = false;
+		boolean canCreateInstance = true;
 		for (TypeSerializer<?> ser : fieldSerializers) {
 			if (ser.isStateful()) {
 				stateful = true;
-				break;
 			}
+
+			canCreateInstance &= ser.canCreateInstance();
 		}
 		this.stateful = stateful;
+		this.canCreateInstance = canCreateInstance;
 	}
 	
 	
@@ -64,6 +69,11 @@ public abstract class TupleSerializerBase<T> extends TypeSerializer<T> {
 	@Override
 	public boolean isStateful() {
 		return this.stateful;
+	}
+
+	@Override
+	public boolean canCreateInstance(){
+		return canCreateInstance;
 	}
 
 	@Override

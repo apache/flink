@@ -31,8 +31,6 @@ public final class FloatPrimitiveArraySerializer extends TypeSerializerSingleton
 
 	private static final long serialVersionUID = 1L;
 	
-	private static final float[] EMPTY = new float[0];
-
 	public static final FloatPrimitiveArraySerializer INSTANCE = new FloatPrimitiveArraySerializer();
 	
 	
@@ -45,10 +43,16 @@ public final class FloatPrimitiveArraySerializer extends TypeSerializerSingleton
 	public boolean isStateful() {
 		return false;
 	}
-	
+
+	@Override
+	public boolean canCreateInstance() {
+		return false;
+	}
+
 	@Override
 	public float[] createInstance() {
-		return EMPTY;
+		throw new UnsupportedOperationException("FloatPrimitiveArraySerializer cannot create an " +
+				"instance.");
 	}
 
 	@Override

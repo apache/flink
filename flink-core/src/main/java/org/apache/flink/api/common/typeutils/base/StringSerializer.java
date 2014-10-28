@@ -31,8 +31,6 @@ public final class StringSerializer extends TypeSerializerSingleton<String> {
 	
 	public static final StringSerializer INSTANCE = new StringSerializer();
 	
-	private static final String EMPTY = "";
-
 	@Override
 	public boolean isImmutableType() {
 		return true;
@@ -44,8 +42,13 @@ public final class StringSerializer extends TypeSerializerSingleton<String> {
 	}
 
 	@Override
+	public boolean canCreateInstance() {
+		return false;
+	}
+
+	@Override
 	public String createInstance() {
-		return EMPTY;
+		throw new UnsupportedOperationException("StringSerializer cannot create an instance.");
 	}
 
 	@Override

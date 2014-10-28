@@ -38,7 +38,12 @@ public final class VertexWithRankSerializer extends TypeSerializerSingleton<Vert
 	public boolean isStateful() {
 		return false;
 	}
-	
+
+	@Override
+	public boolean canCreateInstance() {
+		return true;
+	}
+
 	@Override
 	public VertexWithRank createInstance() {
 		return new VertexWithRank();

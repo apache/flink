@@ -31,8 +31,6 @@ public final class LongPrimitiveArraySerializer extends TypeSerializerSingleton<
 
 	private static final long serialVersionUID = 1L;
 	
-	private static final long[] EMPTY = new long[0];
-
 	public static final LongPrimitiveArraySerializer INSTANCE = new LongPrimitiveArraySerializer();
 	
 	
@@ -45,10 +43,16 @@ public final class LongPrimitiveArraySerializer extends TypeSerializerSingleton<
 	public boolean isStateful() {
 		return false;
 	}
-	
+
+	@Override
+	public boolean canCreateInstance() {
+		return false;
+	}
+
 	@Override
 	public long[] createInstance() {
-		return EMPTY;
+		throw new UnsupportedOperationException("LongPrimitiveArraySerializer cannot create an " +
+				"instance.");
 	}
 
 	@Override

@@ -44,6 +44,8 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
 	private final boolean stateful;
 
+	private final boolean canCreateInstance;
+
 
 	@SuppressWarnings("unchecked")
 	public PojoSerializer(Class<T> clazz, TypeSerializer<?>[] fieldSerializers, Field[] fields) {
@@ -57,13 +59,16 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 		}
 
 		boolean stateful = false;
+		boolean canCreateInstance = true;
 		for (TypeSerializer<?> ser : fieldSerializers) {
 			if (ser.isStateful()) {
 				stateful = true;
-				break;
 			}
+
+			canCreateInstance &= ser.canCreateInstance();
 		}
 		this.stateful = stateful;
+		this.canCreateInstance = canCreateInstance;
 	}
 
 	private void writeObject(ObjectOutputStream out)
@@ -112,8 +117,12 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 	public boolean isStateful() {
 		return this.stateful;
 	}
-	
-	
+
+	@Override
+	public boolean canCreateInstance() {
+		return canCreateInstance;
+	}
+
 	@Override
 	public T createInstance() {
 		try {

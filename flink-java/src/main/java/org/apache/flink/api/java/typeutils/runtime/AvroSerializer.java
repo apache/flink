@@ -82,7 +82,12 @@ public final class AvroSerializer<T> extends TypeSerializer<T> {
 	public boolean isStateful() {
 		return true;
 	}
-	
+
+	@Override
+	public boolean canCreateInstance() {
+		return true;
+	}
+
 	@Override
 	public T createInstance() {
 		return InstantiationUtil.instantiate(this.typeToInstantiate);
