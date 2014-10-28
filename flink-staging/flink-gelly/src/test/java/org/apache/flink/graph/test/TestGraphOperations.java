@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.LinkedList;
 
+import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -18,7 +19,7 @@ import org.junit.runners.Parameterized.Parameters;
 @RunWith(Parameterized.class)
 public class TestGraphOperations extends JavaProgramTestBase {
 	
-	private static int NUM_PROGRAMS = 4;
+	private static int NUM_PROGRAMS = 5;
 	
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -143,8 +144,26 @@ public class TestGraphOperations extends JavaProgramTestBase {
 			}
 			case 5: {
 				/*
-				 * Test subgraph:  
+				 * Test subgraph:
 				 */
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				
+				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+						TestGraphUtils.getLongLongEdgeData(env));
+				graph.subgraph(new FilterFunction<Long>() {
+					public boolean filter(Long value) throws Exception {
+						return (value > 2);
+					}
+				}, 
+				new FilterFunction<Long>() {
+					public boolean filter(Long value) throws Exception {
+						return (value > 34);
+					}
+				}).getEdges().writeAsCsv(resultPath);
+				
+				env.execute();
+				return "3,5,35\n" +
+				"4,5,45\n";
 			}
 			default: 
 				throw new IllegalArgumentException("Invalid program id");

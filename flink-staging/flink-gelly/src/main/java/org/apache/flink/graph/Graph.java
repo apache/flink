@@ -22,12 +22,14 @@ package flink.graphs;
 import org.apache.flink.api.common.functions.*;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFields;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFieldsFirst;
 import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.io.CsvReader;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.util.Collector;
 
 import java.io.Serializable;
 
@@ -88,35 +90,64 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
     }
 
     /**
-     * Apply filtering functions to the graph and return a sub-graph that satisfies
-     * the predicates
-     * @param Tuple2Filter
+     * Apply value-based filtering functions to the graph 
+     * and return a sub-graph that satisfies the predicates
+     * for both vertex values and edge values.
+     * @param vertexFilter
      * @param edgeFilter
      * @return
      */
-    // TODO(thvasilo): Add proper edge filtering functionality
-    public Graph<K, VV, EV> subgraph(final FilterFunction<VV> Tuple2Filter, final FilterFunction<EV> edgeFilter) {
+    public Graph<K, VV, EV> subgraph(FilterFunction<VV> vertexFilter, FilterFunction<EV> edgeFilter) {
 
-        DataSet<Tuple2<K, VV>> filteredVertices = this.vertices.filter(new FilterFunction<Tuple2<K, VV>>() {
-            @Override
-            public boolean filter(Tuple2<K, VV> kvvTuple2) throws Exception {
-                return Tuple2Filter.filter(kvvTuple2.f1);
-            }
-        });
+        DataSet<Tuple2<K, VV>> filteredVertices = this.vertices.filter(
+        		new ApplyVertexFilter<K, VV>(vertexFilter));
 
-        // Should combine with Tuple2 filter function as well, so that only
-        // edges that satisfy edge filter *and* connect vertices that satisfy Tuple2
-        // filter are returned
-        DataSet<Tuple3<K, K, EV>> filteredEdges = this.edges.filter(new FilterFunction<Tuple3<K, K, EV>>() {
-            @Override
-            public boolean filter(Tuple3<K, K, EV> kevEdge) throws Exception {
-                return edgeFilter.filter(kevEdge.f2);
-            }
-        });
+        DataSet<Tuple3<K, K, EV>> remainingEdges = this.edges.join(filteredVertices)
+        		.where(0).equalTo(0)
+        		.with(new ProjectEdge<K, VV, EV>())
+        		.join(filteredVertices).where(1).equalTo(0)
+        		.with(new ProjectEdge<K, VV, EV>());
+
+        DataSet<Tuple3<K, K, EV>> filteredEdges = remainingEdges.filter(
+        		new ApplyEdgeFilter<K, EV>(edgeFilter));
 
         return new Graph<K, VV, EV>(filteredVertices, filteredEdges);
     }
+    
+    @ConstantFieldsFirst("0->0;1->1;2->2")
+    private static final class ProjectEdge<K, VV, EV> implements FlatJoinFunction<Tuple3<K,K,EV>, Tuple2<K,VV>, 
+		Tuple3<K,K,EV>> {
+		public void join(Tuple3<K, K, EV> first,
+				Tuple2<K, VV> second, Collector<Tuple3<K, K, EV>> out) {
+			out.collect(first);
+		}
+    }
+    
+    private static final class ApplyVertexFilter<K, VV> implements FilterFunction<Tuple2<K, VV>> {
 
+    	private FilterFunction<VV> innerFilter;
+    	
+    	public ApplyVertexFilter(FilterFunction<VV> theFilter) {
+    		this.innerFilter = theFilter;
+    	}
+
+		public boolean filter(Tuple2<K, VV> value) throws Exception {
+			return innerFilter.filter(value.f1);
+		}
+    	
+    }
+
+    private static final class ApplyEdgeFilter<K, EV> implements FilterFunction<Tuple3<K, K, EV>> {
+
+    	private FilterFunction<EV> innerFilter;
+    	
+    	public ApplyEdgeFilter(FilterFunction<EV> theFilter) {
+    		this.innerFilter = theFilter;
+    	}    	
+        public boolean filter(Tuple3<K, K, EV> value) throws Exception {
+            return innerFilter.filter(value.f2);
+        }
+    }
 
     /**
      * Return the out-degree of all vertices in the graph
