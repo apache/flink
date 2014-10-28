@@ -285,6 +285,25 @@ The transformation calls a `GroupReduceFunction` for each data batch or data win
 dataStream.batch(1000, 100).reduceGroup(reducer);
 ~~~
 
+#### Policy based windowing
+The policy based windowing is an highly flexible way to specify your stream discretisation also called windowing semantics. Two types of policies are used for such a specification:
+
+1) `TriggerPolicy` This policy defines when to trigger the reduce UDF on the current window and emit the result. In the API it completes a window statement such as: `.window(..).every(...)`, while we pass the triggering policy within `every`. Several predefind policies are provided in the API, including delta-based, punctuation based, count-based and time-based policies. Anyhow, policies are in general UDFs and can implement any custom behaviour as well.
+
+2) `Eviction Policy` This policy defines the length of a window as a means of a predicate for evicting tuples when they are no longer needed. In the API this can be defined by the `.window(..)` operation on a stream. There are mostely the same predefined policy types provided as for trigger policies.
+
+For example, if we want a fife tuples long sliding window that triggers every second we can write the following:
+~~~java
+myStream.window(Count.of(5)).every(Time.of(1,TimeUnit.SECOND))
+~~~
+
+In addition to this, multiple policies can be added to a `LinkedList` and then be used in parallel by writing the following:
+~~~java
+myStream.window(ListOfTriggerPolicies,ListOfEvictionPolicies)
+~~~
+
+Especially when time based windowing is used, you may want to trigger not only when an element arrives but also in between. Active policies provide this functionality. The predefined time-based policies are already implemented in such an active way and can hold as an example in case you want to implement your own user defined active policy. Anyhow, as our time-based trigger and eviction policies can work with user defined `TimeStamp` implementations, this policies already cover most use cases.
+
 ### Co operators
 
 Co operators allow the users to jointly transform two `DataStreams` of different types providing a simple way to jointly manipulate a shared state. It is designed to support joint stream transformations where merging is not appropriate due to different data types or the in cases when user needs explicit track of the datas origin.
