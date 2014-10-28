@@ -48,7 +48,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 @RunWith(Parameterized.class)
 public class JoinITCase extends JavaProgramTestBase {
 	
-	private static int NUM_PROGRAMS = 22;
+	private static int NUM_PROGRAMS = 23;
 	
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -662,6 +662,27 @@ public class JoinITCase extends JavaProgramTestBase {
 						"2 Second (20,200,2000,Two) 20000,(20000,20,200,2000,Two,2,Second)\n"+
 						"3 Third (30,300,3000,Three) 30000,(30000,30,300,3000,Three,3,Third)\n";
 			}
+			case 23: {
+				/*
+				 * Non-POJO test to verify "nested" tuple-element selection with the first key field greater than 0.
+				 */
+					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+					DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.getSmall3TupleDataSet(env);
+					DataSet<Tuple2<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>>> ds2 = ds1.join(ds1).where(0).equalTo(0);
+					DataSet<Tuple2<Tuple2<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>>, Tuple2<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>>>> joinDs =
+						ds2.join(ds2).where("f1.f0").equalTo("f0.f0");
+
+					joinDs.writeAsCsv(resultPath);
+					env.setDegreeOfParallelism(1);
+					env.execute();
+
+					// return expected result
+					return "((1,1,Hi),(1,1,Hi)),((1,1,Hi),(1,1,Hi))\n" +
+						"((2,2,Hello),(2,2,Hello)),((2,2,Hello),(2,2,Hello))\n" +
+						"((3,2,Hello world),(3,2,Hello world)),((3,2,Hello world),(3,2,Hello world))\n";
+
+				}
 			default: 
 				throw new IllegalArgumentException("Invalid program id: "+progId);
 			}

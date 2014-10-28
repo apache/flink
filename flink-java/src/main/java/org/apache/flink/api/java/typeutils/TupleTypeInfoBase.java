@@ -145,7 +145,11 @@ public abstract class TupleTypeInfoBase<T> extends CompositeType<T> {
 				throw new RuntimeException("Element at position "+pos+" is not a composite type. There are no nested types to select");
 			}
 			CompositeType<?> cType = (CompositeType<?>) types[pos];
-			cType.getKey(rem, offset + pos, result);
+			// count nested fields before "pos"
+			for (int i = 0; i < pos; i++) {
+				offset += types[i].getTotalFields();
+			}
+			cType.getKey(rem, offset, result);
 			return;
 		}
 		
