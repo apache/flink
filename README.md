@@ -8,12 +8,7 @@ Graph API for Apache Flink
 ###Graph Class
 * getVertices()
 * getEdges()
-* mapVertices()
-* subGraph()
-* outDegrees()
 * pga()
-* getUndirected()
-* reverse()
 * create(vertices, edges)
 * readTuple2CsvFile
 * readEdgesCsvFile
@@ -36,6 +31,11 @@ Graph API for Apache Flink
 * reverse()
 
 ##Tested Operations
+* mapVertices()
+* subGraph()
+* outDegrees()
+* getUndirected()
+* reverse()
 
 ##Wishlist
 
