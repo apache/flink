@@ -206,7 +206,7 @@ public class TupleSerializerTest {
 		runTests(testTuples);
 	}
 
-	private final <T extends Tuple> void runTests(T... instances) {
+	private <T extends Tuple> void runTests(T... instances) {
 		try {
 			TupleTypeInfo<T> tupleTypeInfo = (TupleTypeInfo<T>) TypeExtractor.getForObject(instances[0]);
 			TypeSerializer<T> serializer = tupleTypeInfo.createSerializer();

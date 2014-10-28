@@ -1017,7 +1017,7 @@ public class TaskConfig {
 	//                                    Miscellaneous
 	// --------------------------------------------------------------------------------------------
 	
-	private final void setTypeSerializerFactory(TypeSerializerFactory<?> factory, 
+	private void setTypeSerializerFactory(TypeSerializerFactory<?> factory,
 			String classNameKey, String parametersPrefix)
 	{
 		// sanity check the factory type
@@ -1030,7 +1030,7 @@ public class TaskConfig {
 		factory.writeParametersToConfig(parameters);
 	}
 	
-	private final <T> TypeSerializerFactory<T> getTypeSerializerFactory(String classNameKey, String parametersPrefix, ClassLoader cl) {
+	private <T> TypeSerializerFactory<T> getTypeSerializerFactory(String classNameKey, String parametersPrefix, ClassLoader cl) {
 		// check the class name
 		final String className = this.config.getString(classNameKey, null);
 		if (className == null) {
@@ -1066,7 +1066,7 @@ public class TaskConfig {
 		return factory;
 	}
 	
-	private final void setTypeComparatorFactory(TypeComparatorFactory<?> factory, 
+	private void setTypeComparatorFactory(TypeComparatorFactory<?> factory,
 			String classNameKey, String parametersPrefix)
 	{
 		// sanity check the factory type
@@ -1079,7 +1079,7 @@ public class TaskConfig {
 		factory.writeParametersToConfig(parameters);
 	}
 	
-	private final <T> TypeComparatorFactory<T> getTypeComparatorFactory(String classNameKey, String parametersPrefix, ClassLoader cl) {
+	private <T> TypeComparatorFactory<T> getTypeComparatorFactory(String classNameKey, String parametersPrefix, ClassLoader cl) {
 		// check the class name
 		final String className = this.config.getString(classNameKey, null);
 		if (className == null) {

@@ -259,7 +259,7 @@ public class WebInterfaceServer {
 	 * @throws IOException
 	 *         Thrown, if the directory could not be created, or if one of the checks failed.
 	 */
-	private final void checkAndCreateDirectories(File f, boolean needWritePermission) throws IOException {
+	private void checkAndCreateDirectories(File f, boolean needWritePermission) throws IOException {
 		String dir = f.getAbsolutePath();
 
 		// check if it exists and it is not a directory

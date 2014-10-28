@@ -114,7 +114,7 @@ public class ValueSerializer<T extends Value> extends TypeSerializer<T> {
 		this.copyInstance.write(target);
 	}
 	
-	private final void checkKryoInitialized() {
+	private void checkKryoInitialized() {
 		if (this.kryo == null) {
 			this.kryo = new Kryo();
 			this.kryo.setAsmEnabled(true);

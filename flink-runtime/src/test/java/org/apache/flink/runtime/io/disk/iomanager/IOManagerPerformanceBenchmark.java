@@ -108,7 +108,7 @@ public class IOManagerPerformanceBenchmark
 		}
 	}
 
-	private final void testChannelWithSegments(int numSegments) throws Exception
+	private void testChannelWithSegments(int numSegments) throws Exception
 	{
 		final List<MemorySegment> memory = this.memManager.allocatePages(memoryOwner, numSegments);
 		final Channel.ID channel = this.ioManager.createChannel();
@@ -245,7 +245,7 @@ public class IOManagerPerformanceBenchmark
 		
 	}
 		
-	private final void speedTestStream(int bufferSize) throws IOException {
+	private void speedTestStream(int bufferSize) throws IOException {
 		final Channel.ID tmpChannel = ioManager.createChannel();
 		final IntegerRecord rec = new IntegerRecord(0);
 		
@@ -340,7 +340,7 @@ public class IOManagerPerformanceBenchmark
 	}
 		
 	@SuppressWarnings("resource")
-	private final void speedTestNIO(int bufferSize, boolean direct) throws IOException
+	private void speedTestNIO(int bufferSize, boolean direct) throws IOException
 	{
 		final Channel.ID tmpChannel = ioManager.createChannel();
 		

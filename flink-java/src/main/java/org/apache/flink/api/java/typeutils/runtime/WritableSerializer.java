@@ -99,13 +99,13 @@ public class WritableSerializer<T extends Writable> extends TypeSerializer<T> {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	private final void ensureInstanceInstantiated() {
+	private void ensureInstanceInstantiated() {
 		if (copyInstance == null) {
 			copyInstance = createInstance();
 		}
 	}
 	
-	private final void checkKryoInitialized() {
+	private void checkKryoInitialized() {
 		if (this.kryo == null) {
 			this.kryo = new Kryo();
 			this.kryo.setAsmEnabled(true);

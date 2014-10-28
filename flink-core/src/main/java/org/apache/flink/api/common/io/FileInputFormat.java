@@ -785,7 +785,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 		/**
 		 * Double checked procedure setting the abort flag and closing the stream.
 		 */
-		private final void abortWait() {
+		private void abortWait() {
 			this.aborted = true;
 			final FSDataInputStream inStream = this.fdis;
 			this.fdis = null;
