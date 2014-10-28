@@ -152,7 +152,7 @@ public class RPC {
 		public void doTypeConversion() throws IOException {
 			try {
 				for (int i = 0; i < parameterClasses.length; i++) {
-					if (!IOReadableWritable.class.isAssignableFrom(parameterClasses[i])) {
+					if (parameters[i] != null && ClassUtils.isPrimitiveOrBoxedOrString(parameterClasses[i])) {
 						try {
 							parameters[i] = JavaToValueConverter.convertBoxedJavaType(parameters[i]);
 						}
@@ -175,7 +175,7 @@ public class RPC {
 		
 		public void undoTypeConversion() {
 			for (int i = 0; i < parameterClasses.length; i++) {
-				if (!IOReadableWritable.class.isAssignableFrom(parameterClasses[i])) {
+				if (parameters[i] != null &&  ClassUtils.isPrimitiveOrBoxedOrString(parameterClasses[i])) {
 					parameters[i] = JavaToValueConverter.convertValueType((Value) parameters[i]);
 				}
 			}
@@ -252,13 +252,16 @@ public class RPC {
 			Invocation invocation = new Invocation(method, args);
 			invocation.doTypeConversion();
 			
-			Object retValue = this.client.call(invocation, this.address, method.getDeclaringClass());
+			IOReadableWritable retValue = this.client.call(invocation, this.address, method.getDeclaringClass());
 			
-			if (IOReadableWritable.class.isAssignableFrom(method.getReturnType())) {
-				return retValue;
+			if (retValue == null) {
+				return null;
+			}
+			else if (ClassUtils.isPrimitiveOrBoxedOrString(method.getReturnType())) {
+				return JavaToValueConverter.convertValueType((Value) retValue);
 			}
 			else {
-				return JavaToValueConverter.convertValueType((Value) retValue);
+				return retValue;
 			}
 		}
 
@@ -404,8 +407,7 @@ public class RPC {
 			this.instance = instance;
 		}
 
-		public IOReadableWritable call(Class<?> protocol, IOReadableWritable param, long receivedTime)
-				throws IOException {
+		public IOReadableWritable call(Class<?> protocol, IOReadableWritable param, long receivedTime) throws IOException {
 			
 			try {
 				
@@ -417,20 +419,24 @@ public class RPC {
 
 				final Object value = method.invoke((Object) instance, (Object[]) call.getParameters());
 
-				if (IOReadableWritable.class.isAssignableFrom(method.getReturnType())) {
+				final Class<?> retType = method.getReturnType();
+				
+				if (value == null || retType == null || retType == void.class || retType == Void.class) {
+					return null;
+				}
+				
+				if (ClassUtils.isPrimitiveOrBoxedOrString(method.getReturnType())) {
+					return JavaToValueConverter.convertBoxedJavaType(value);
+				}
+				else if (value instanceof IOReadableWritable) {
 					return (IOReadableWritable) value;
 				}
 				else {
-					try {
-						return JavaToValueConverter.convertBoxedJavaType(value);
-					}
-					catch (IllegalArgumentException e) {
-						throw new IOException("The return type of method " + method.getName()
-								+ " is not a primitive type (or boxed primitive) and not of type IOReadableWriteable");
-					}
+					throw new IOException("The return type of method " + method.getName()
+							+ " is not a primitive type (or boxed primitive) and not of type IOReadableWriteable");
 				}
-
-			} catch (InvocationTargetException e) {
+			}
+			catch (InvocationTargetException e) {
 				
 				final Throwable target = e.getTargetException();
 				if (target instanceof IOException) {
