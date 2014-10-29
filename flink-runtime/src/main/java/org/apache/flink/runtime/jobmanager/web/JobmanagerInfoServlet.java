@@ -125,13 +125,13 @@ public class JobmanagerInfoServlet extends HttpServlet {
 				}
 			}
 			else if("taskmanagers".equals(req.getParameter("get"))) {
-				int numberOfTaskManagrs = AkkaUtils.<Integer>ask(jobmanager,
+				int numberOfTaskManagers = AkkaUtils.<Integer>ask(jobmanager,
 						RequestNumberRegisteredTaskManager$.MODULE$);
-				int numberOfRegisteredSltos = AkkaUtils.<Integer>ask(jobmanager,
+				int numberOfRegisteredSlots = AkkaUtils.<Integer>ask(jobmanager,
 						RequestTotalNumberOfSlots$.MODULE$);
 
-				resp.getWriter().write("{\"taskmanagers\": " + numberOfTaskManagrs +", " +
-						"\"slots\": "+numberOfRegisteredSltos+"}");
+				resp.getWriter().write("{\"taskmanagers\": " + numberOfTaskManagers +", " +
+						"\"slots\": "+numberOfRegisteredSlots+"}");
 			}
 			else if("cancel".equals(req.getParameter("get"))) {
 				String jobId = req.getParameter("job");

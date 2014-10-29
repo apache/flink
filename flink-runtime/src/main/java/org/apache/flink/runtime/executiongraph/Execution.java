@@ -33,6 +33,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import akka.dispatch.OnComplete;
+import akka.pattern.Patterns;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
@@ -46,6 +47,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotAllocationFuture;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotAllocationFutureAction;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.runtime.messages.TaskManagerMessages;
 import org.apache.flink.runtime.messages.TaskManagerMessages.TaskOperationResult;
 import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
@@ -276,7 +278,11 @@ public class Execution {
 				@Override
 				public TaskOperationResult call() throws Exception {
 					Instance instance = slot.getInstance();
-					return instance.submitTask(deployment);
+//					return instance.submitTask(deployment);
+
+					//TODO realize as an actor
+					return (TaskOperationResult)Patterns.ask(instance.getTaskManager(), new TaskManagerMessages
+							.SubmitTask(deployment), AkkaUtils.FUTURE_TIMEOUT());
 				}
 			}, AkkaUtils.globalExecutionContext());
 
