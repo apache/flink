@@ -16,7 +16,7 @@ public class MesosController {
 				.build();
 
 		MesosSchedulerDriver driver = new MesosSchedulerDriver(
-				new FlinkMesosSched(),
+				new FlinkMesosSched("/home/sebastian/Daten/workspace/incubator-flink/flink-dist/target/flink-dist-0.7-incubating-SNAPSHOT-yarn-uberjar.jar"),
 				framework,
 				args[0]);
 

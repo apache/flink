@@ -16,6 +16,14 @@ import java.util.List;
  */
 public class FlinkMesosSched implements Scheduler {
 
+	private String uberJarPath = null;
+	private boolean jm_running = false;
+	private boolean tm_running = false;
+
+	public FlinkMesosSched(String uberJarPath) {
+		this.uberJarPath = uberJarPath;
+	}
+
 	@Override
 	public void registered(SchedulerDriver schedulerDriver, Protos.FrameworkID frameworkID, Protos.MasterInfo masterInfo) {
 		System.out.println("Flink was registered: " + frameworkID.getValue() + " " + masterInfo.getHostname());
@@ -29,30 +37,23 @@ public class FlinkMesosSched implements Scheduler {
 	@Override
 	public void resourceOffers(SchedulerDriver schedulerDriver, List<Protos.Offer> offers) {
 		for (Protos.Offer offer : offers) {
+			for (Protos.Resource r: offers.get(0).getResourcesList()) {
+				System.out.println(r.getName() + " " + r.getScalar());
+			}
+			if (!jm_running) {
 				Protos.TaskID taskId = Protos.TaskID.newBuilder()
 						.setValue("1").build();
 
-			
+
 				List<Protos.TaskInfo> tasks = new LinkedList<Protos.TaskInfo>();
 				List<Protos.OfferID> offerIDs = new LinkedList<Protos.OfferID>();
 
-			System.out.println("Launching task " + taskId.getValue());
-
-
-			String uri = null;
-			try {
-				uri = new File("/home/sebastian/IdeaProjects/incubator-flink/flink-mesos/src/main/java/develop/executor.sh").getCanonicalPath();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-			ExecutorInfo executor = Protos.ExecutorInfo.newBuilder()
-					.setCommand(Protos.CommandInfo.newBuilder().setValue(uri))
-					.setName("Flink Executor")
-					.setExecutorId(Protos.ExecutorID.newBuilder().setValue("default"))
-					.build();
+				System.out.println("Launching JobManager");
+				System.out.println(offers.size());
+				String command = "java -cp " + uberJarPath + " org.apache.flink.runtime.jobmanager.JobManager -executionMode cluster -configDir /home/sebastian/Daten/workspace/incubator-flink/flink-mesos/src/main/java/conf";
 
 				Protos.TaskInfo task = Protos.TaskInfo.newBuilder()
-						.setName("task " + taskId.getValue())
+						.setName("Jobmanager")
 						.setTaskId(taskId)
 						.setSlaveId(offer.getSlaveId())
 						.addResources(Protos.Resource.newBuilder()
@@ -62,14 +63,48 @@ public class FlinkMesosSched implements Scheduler {
 						.addResources(Protos.Resource.newBuilder()
 								.setName("mem")
 								.setType(Protos.Value.Type.SCALAR)
-								.setScalar(Protos.Value.Scalar.newBuilder().setValue(128)))
-						.setExecutor(ExecutorInfo.newBuilder(executor))
+								.setScalar(Protos.Value.Scalar.newBuilder().setValue(512)))
+						.setCommand(Protos.CommandInfo.newBuilder().setValue(command))
 						.build();
-			tasks.add(task);
-			offerIDs.add(offer.getId());
-			Protos.Filters filters = Protos.Filters.newBuilder().setRefuseSeconds(1).build();
-			schedulerDriver.launchTasks(offerIDs, tasks);
-			break;
+				tasks.add(task);
+				offerIDs.add(offer.getId());
+				Protos.Filters filters = Protos.Filters.newBuilder().setRefuseSeconds(1).build();
+				schedulerDriver.launchTasks(offerIDs, tasks);
+				jm_running = true;
+				break;
+			} else if(!tm_running) {
+				Protos.TaskID taskId = Protos.TaskID.newBuilder()
+						.setValue("2").build();
+
+
+				List<Protos.TaskInfo> tasks = new LinkedList<Protos.TaskInfo>();
+				List<Protos.OfferID> offerIDs = new LinkedList<Protos.OfferID>();
+
+				System.out.println("Launching TaskManager");
+				System.out.println(offers.size());
+				String command = "java -cp " + uberJarPath + " org.apache.flink.runtime.taskmanager.TaskManager -configDir /home/sebastian/Daten/workspace/incubator-flink/flink-mesos/src/main/java/conf";
+
+				Protos.TaskInfo task = Protos.TaskInfo.newBuilder()
+						.setName("TaskManager")
+						.setTaskId(taskId)
+						.setSlaveId(offer.getSlaveId())
+						.addResources(Protos.Resource.newBuilder()
+								.setName("cpus")
+								.setType(Protos.Value.Type.SCALAR)
+								.setScalar(Protos.Value.Scalar.newBuilder().setValue(1)))
+						.addResources(Protos.Resource.newBuilder()
+								.setName("mem")
+								.setType(Protos.Value.Type.SCALAR)
+								.setScalar(Protos.Value.Scalar.newBuilder().setValue(512)))
+						.setCommand(Protos.CommandInfo.newBuilder().setValue(command))
+						.build();
+				tasks.add(task);
+				offerIDs.add(offer.getId());
+				Protos.Filters filters = Protos.Filters.newBuilder().setRefuseSeconds(1).build();
+				schedulerDriver.launchTasks(offerIDs, tasks);
+				tm_running = true;
+				break;
+			}
 		}
 	}
 
