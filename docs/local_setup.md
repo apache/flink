@@ -9,7 +9,7 @@ This documentation is intended to provide instructions on how to run Flink local
 
 ## Download
 
-Go to the [downloads page]({{site.baseurl}}/downloads/) and get the ready to run package. If you want to interact with Hadoop (e.g. HDFS or HBase), make sure to pick the Flink package **matching your Hadoop version**. When in doubt or you plan to just work with the local file system pick the package for Hadoop 1.2.x.
+Go to the [downloads page]({{site.baseurl}}/downloads.html) and get the ready to run package. If you want to interact with Hadoop (e.g. HDFS or HBase), make sure to pick the Flink package **matching your Hadoop version**. When in doubt or you plan to just work with the local file system pick the package for Hadoop 1.2.x.
 
 ## Requirements
 

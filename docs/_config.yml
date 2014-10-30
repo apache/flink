@@ -19,6 +19,7 @@ FLINK_DOWNLOAD_URL: http://flink.incubator.apache.org/downloads.html
 FLINK_DOWNLOAD_URL_HADOOP_1_STABLE: http://www.apache.org/dyn/closer.cgi/incubator/flink/flink-0.7.0-incubating/flink-0.7.0-incubating-bin-hadoop1.tgz
 FLINK_DOWNLOAD_URL_HADOOP_2_STABLE: http://www.apache.org/dyn/closer.cgi/incubator/flink/flink-0.7.0-incubating/flink-0.7.0-incubating-bin-hadoop2.tgz
 FLINK_DOWNLOAD_URL_YARN_STABLE: http://www.apache.org/dyn/closer.cgi/incubator/flink/flink-0.7.0-incubating/flink-0.7.0-incubating-bin-hadoop2-yarn.tgz
+FLINK_WGET_URL_YARN_STABLE: http://artfiles.org/apache.org/incubator/flink/flink-0.7.0-incubating/flink-0.7.0-incubating-bin-hadoop2-yarn.tgz
 
 #------------------------------------------------------------------------------
 # BUILD CONFIG

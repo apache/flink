@@ -79,6 +79,7 @@ In particular, if your function is an inner class, or anonymous inner class,
 it contains a hidden reference to the enclosing class (usually called `this$0`, if you look
 at the function in the debugger). If the enclosing class is not serializable, this is probably
 the source of the error. Solutions are to
+
 - make the function a standalone class, or a static inner class (no more reference to the enclosing class)
 - make the enclosing class serializable
 - use a Java 8 lambda function.
