@@ -10,7 +10,7 @@ title:  "YARN Setup"
 Start YARN session with 4 Task Managers (each with 4 GB of Heapspace):
 
 ~~~bash
-wget {{ site.FLINK_DOWNLOAD_URL_YARN_STABLE }}
+wget {{ site.FLINK_WGET_URL_YARN_STABLE }}
 tar xvzf flink-{{ site.FLINK_VERSION_STABLE }}-bin-hadoop2-yarn.tgz
 cd flink-yarn-{{ site.FLINK_VERSION_STABLE }}/
 ./bin/yarn-session.sh -n 4 -jm 1024 -tm 4096
@@ -27,7 +27,7 @@ Apache [Hadoop YARN](http://hadoop.apache.org/) is a cluster resource management
 - Apache Hadoop 2.2
 - HDFS (Hadoop Distributed File System)
 
-If you have troubles using the Flink YARN client, have a look in the [FAQ section]({{site.baseurl}}/docs/0.5/general/faq.html).
+If you have troubles using the Flink YARN client, have a look in the [FAQ section](faq.html).
 
 ### Start Flink Session
 
@@ -37,17 +37,17 @@ A session will start all required Flink services (JobManager and TaskManagers) s
 
 #### Download Flink for YARN
 
-Download the YARN tgz package on the [download page]({{site.baseurl}}/downloads/). It contains the required files.
-
-
-If you want to build the YARN .tgz file from sources, follow the [build instructions](building.html). Make sure to use the `-Dhadoop.profile=2` profile. You can find the file in `flink-dist/target/flink-dist-{{site.docs_05_stable}}-yarn.tar.gz` (*Note: The version might be different for you* ).
+Download the YARN tgz package on the [download page]({{site.baseurl}}/downloads.html). It contains the required files.
 
 Extract the package using:
 
 ~~~bash
-tar xvzf flink-dist-{{site.FLINK_VERSION_STABLE }}-yarn.tar.gz
+tar xvzf flink-{{ site.FLINK_VERSION_STABLE }}-bin-hadoop2-yarn.tgz
 cd flink-yarn-{{site.FLINK_VERSION_STABLE }}/
 ~~~
+
+If you want to build the YARN .tgz file from sources, follow the [build instructions](building.html). Make sure to use the `-Dhadoop.profile=2` profile. You can find the result of the build in `flink-dist/target/flink-{{ site.FLINK_VERSION_STABLE }}-bin/flink-yarn-{{ site.FLINK_VERSION_STABLE }}/` (*Note: The version might be different for you* ).
+
 
 #### Start a Session
 
@@ -203,3 +203,4 @@ The next step of the client is to request (step 2) a YARN container to start the
 The *JobManager* and AM are running in the same container. Once they successfully started, the AM knows the address of the JobManager (its own host). It is generating a new Flink configuration file for the TaskManagers (so that they can connect to the JobManager). The file is also uploaded to HDFS. Additionally, the *AM* container is also serving Flink's web interface. The ports Flink is using for its services are the standard ports configured by the user + the application id as an offset. This allows users to execute multiple Flink YARN sessions in parallel.
 
 After that, the AM starts allocating the containers for Flink's TaskManagers, which will download the jar file and the modified configuration from the HDFS. Once these steps are completed, Flink is set up and ready to accept Jobs.
+

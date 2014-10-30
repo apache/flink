@@ -251,7 +251,7 @@ guide.
 
 ## Flink Setup
 
-Go to the [downloads page](downloads/) and get the ready to run
+Go to the [downloads page]({{site.baseurl}}/downloads.html) and get the ready to run
 package. Make sure to pick the Flink package **matching your Hadoop
 version**.
 
