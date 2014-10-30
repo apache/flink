@@ -101,11 +101,11 @@ public class LocalFileSystem extends FileSystem {
 		final File path = pathToFile(f);
 		if (path.exists()) {
 			return new LocalFileStatus(pathToFile(f), this);
-		} else {
+		}
+		else {
 			throw new FileNotFoundException("File " + f + " does not exist or the user running "
 					+ "Flink ('"+System.getProperty("user.name")+"') has insufficient permissions to access it.");
 		}
-
 	}
 
 

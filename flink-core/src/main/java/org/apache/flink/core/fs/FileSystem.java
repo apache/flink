@@ -209,9 +209,16 @@ public abstract class FileSystem {
 				}
 				catch (URISyntaxException e) {
 					// we tried to repair it, but could not. report the scheme error
-					throw new IOException("FileSystem: Scheme is null. file:// or hdfs:// are example schemes. "
-							+ "Failed for " + uri.toString() + ".");
+					throw new IOException("The file URI '" + uri.toString() + "' is not valid. "
+							+ " File URIs need to specify aboslute file paths.");
 				}
+			}
+			
+			if (uri.getScheme().equals("file") && uri.getAuthority() != null && !uri.getAuthority().isEmpty()) {
+				String supposedUri = "file:///" + uri.getAuthority() + uri.getPath();
+				
+				throw new IOException("Found local file path with authority '" + uri.getAuthority() + "' in path '"
+						+ uri.toString() + "'. Hint: Did you forget a slash? (correct path would be '" + supposedUri + "')");
 			}
 
 			final FSKey key = new FSKey(uri.getScheme(), uri.getAuthority());
@@ -224,7 +231,7 @@ public abstract class FileSystem {
 			// Try to create a new file system
 			if (!FSDIRECTORY.containsKey(uri.getScheme())) {
 				throw new IOException("No file system found with scheme " + uri.getScheme()
-				+ ". Failed for " + uri.toString() + ".");
+						+ ", referenced in file URI '" + uri.toString() + "'.");
 			}
 
 			Class<? extends FileSystem> fsClass = null;
