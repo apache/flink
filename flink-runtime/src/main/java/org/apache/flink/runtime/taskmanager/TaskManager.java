@@ -1122,19 +1122,26 @@ public class TaskManager implements TaskOperationProtocol {
 		for (int i = 0; i < tempDirs.length; ++i) {
 			final String dir = tempDirs[i];
 			if (dir == null) {
-				throw new Exception("Temporary file directory #" + (i + 1) + " is null.");
+				throw new IllegalArgumentException("Temporary file directory #" + (i + 1) + " is null.");
 			}
 
 			final File f = new File(dir);
 
 			if (!f.exists()) {
-				throw new Exception("Temporary file directory '" + f.getAbsolutePath() + "' does not exist.");
+				throw new IllegalArgumentException("Temporary file directory '" + f.getAbsolutePath() + "' does not exist.");
 			}
 			if (!f.isDirectory()) {
-				throw new Exception("Temporary file directory '" + f.getAbsolutePath() + "' is not a directory.");
+				throw new IllegalArgumentException("Temporary file directory '" + f.getAbsolutePath() + "' is not a directory.");
 			}
 			if (!f.canWrite()) {
-				throw new Exception("Temporary file directory '" + f.getAbsolutePath() + "' is not writable.");
+				throw new IllegalArgumentException("Temporary file directory '" + f.getAbsolutePath() + "' is not writable.");
+			}
+			if (LOG.isInfoEnabled()) {
+				float totalSpace = f.getTotalSpace() / (1024 * 1024);
+				float usableSpace = f.getUsableSpace() / (1024 * 1024);
+				float percentage = (usableSpace / totalSpace) * 100;
+				LOG.info(String.format("Temporary file directory '%s' total space: %.0f MB usable space: %.0f MB [%.2f%% usable]",
+						f.getAbsolutePath(), totalSpace, usableSpace, percentage));
 			}
 		}
 	}
