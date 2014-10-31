@@ -20,7 +20,6 @@ package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.api.common.typeutils.SerializerTestInstance;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.typeutils.runtime.AvroSerializer;
 import org.apache.flink.util.StringUtils;
 import org.junit.Test;
 
@@ -115,7 +114,36 @@ abstract public class AbstractGenericTypeSerializerTest {
 		}
 	}
 
-	private <T> void runTests(T... instances) {
+	@Test
+	public void testNestedInterfaces() {
+		{
+
+			SimpleWithNestedInterfaces s1 = new SimpleWithNestedInterfaces("Hello", 1);
+			SimpleWithNestedInterfaces s2 = new SimpleWithNestedInterfaces("Ciao", 2);
+			SimpleWithNestedInterfaces s3 = new SimpleWithNestedInterfaces("Foo", 3);
+
+			runTests(s1, s2, s3);
+		}
+
+		// object with collection
+		{
+			ArrayList<String> list = new ArrayList<String>();
+			list.add("A");
+			list.add("B");
+			list.add("C");
+			list.add("D");
+			list.add("E");
+
+			BookAuthor b1 = new BookAuthor(976243875L, list, "Arno Nym");
+
+			ArrayList<String> list2 = new ArrayList<String>();
+			BookAuthor b2 = new BookAuthor(987654321L, list2, "The Saurus");
+
+			runTests(b1, b2);
+		}
+	}
+
+	private final <T> void runTests(T... instances) {
 		if (instances == null || instances.length == 0) {
 			throw new IllegalArgumentException();
 		}
@@ -135,6 +163,43 @@ abstract public class AbstractGenericTypeSerializerTest {
 	//  Test Objects
 	// --------------------------------------------------------------------------------------------
 
+	public static final class SimpleWithNestedInterfaces {
+		Map<String, Integer> map1;
+		List<String> list;
+
+		public SimpleWithNestedInterfaces() {
+			map1 = new HashMap<String, Integer>();
+			list = new ArrayList<String>();
+		}
+
+
+		public SimpleWithNestedInterfaces(String str, Integer i) {
+			map1 = new HashMap<String, Integer>();
+			map1.put(str, i);
+			list = new ArrayList<String>();
+			list.add(str);
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) { return true; }
+			if (o == null || getClass() != o.getClass()) { return false; }
+
+			SimpleWithNestedInterfaces that = (SimpleWithNestedInterfaces) o;
+
+			if (!list.equals(that.list)) { return false; }
+			if (!map1.equals(that.map1)) { return false; }
+
+			return true;
+		}
+
+		@Override
+		public int hashCode() {
+			int result = map1.hashCode();
+			result = 31 * result + list.hashCode();
+			return result;
+		}
+	}
 
 	public static final class SimpleTypes {
 
