@@ -115,7 +115,7 @@ abstract public class AbstractGenericTypeSerializerTest {
 		}
 	}
 
-	private final <T> void runTests(T... instances) {
+	private <T> void runTests(T... instances) {
 		if (instances == null || instances.length == 0) {
 			throw new IllegalArgumentException();
 		}

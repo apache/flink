@@ -370,7 +370,7 @@ public final class Record implements Value, CopyableValue<Record> {
 	 * @param offset The offset in the binary string.
 	 * @param limit The limit in the binary string.
 	 */
-	private final <T extends Value> void deserialize(T target, int offset, int limit, int fieldNumber) {
+	private <T extends Value> void deserialize(T target, int offset, int limit, int fieldNumber) {
 		final InternalDeSerializer serializer = this.serializer;
 		serializer.memory = this.binaryData;
 		serializer.position = offset;
@@ -419,20 +419,20 @@ public final class Record implements Value, CopyableValue<Record> {
 		internallySetField(num, value);
 	}
 	
-	private final void internallySetField(int fieldNum, Value value) {
+	private void internallySetField(int fieldNum, Value value) {
 		// check if we modify an existing field
 		this.offsets[fieldNum] = value != null ? MODIFIED_INDICATOR_OFFSET : NULL_INDICATOR_OFFSET;
 		this.writeFields[fieldNum] = value;
 		markModified(fieldNum);
 	}
 	
-	private final void markModified(int field) {
+	private void markModified(int field) {
 		if (this.firstModifiedPos > field) {
 			this.firstModifiedPos = field;
 		}
 	}
 	
-	private final boolean isModified() {
+	private boolean isModified() {
 		return this.firstModifiedPos != Integer.MAX_VALUE;
 	}
 	
@@ -1001,7 +1001,7 @@ public final class Record implements Value, CopyableValue<Record> {
 		this.firstModifiedPos = Integer.MAX_VALUE;
 	}
 	
-	private final void serializeHeader(final InternalDeSerializer serializer, final int[] offsets, final int numFields) {
+	private void serializeHeader(final InternalDeSerializer serializer, final int[] offsets, final int numFields) {
 		try {
 			if (numFields > 0) {
 				int slp = serializer.position;	// track the last position of the serializer
@@ -1102,7 +1102,7 @@ public final class Record implements Value, CopyableValue<Record> {
 		initFields(data, 0, len);
 	}
 	
-	private final void initFields(final byte[] data, final int begin, final int len) {
+	private void initFields(final byte[] data, final int begin, final int len) {
 		try {
 			// read number of fields, variable length encoded reverse at the back
 			int pos = begin + len - 2;
@@ -1734,7 +1734,7 @@ public final class Record implements Value, CopyableValue<Record> {
 			this.position = count;
 		}
 		
-		private final void writeValLenIntBackwards(int value) throws IOException {
+		private void writeValLenIntBackwards(int value) throws IOException {
 			if (this.position > this.memory.length - 4) {
 				resize(4);
 			}
@@ -1766,7 +1766,7 @@ public final class Record implements Value, CopyableValue<Record> {
 			}
 		}
 		
-		private final void resize(int minCapacityAdd) throws IOException {
+		private void resize(int minCapacityAdd) throws IOException {
 			try {
 				final int newLen = Math.max(this.memory.length * 2, this.memory.length + minCapacityAdd);
 				final byte[] nb = new byte[newLen];

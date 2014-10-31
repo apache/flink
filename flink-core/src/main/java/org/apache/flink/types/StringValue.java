@@ -717,7 +717,7 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 	//                                      Utilities
 	// --------------------------------------------------------------------------------------------
 
-	private final void ensureSize(int size) {
+	private void ensureSize(int size) {
 		if (this.value.length < size) {
 			this.value = new char[size];
 		}
@@ -726,7 +726,7 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 	/**
 	 * Grow and retain content.
 	 */
-	private final void grow(int size) {
+	private void grow(int size) {
 		if (this.value.length < size) {
 			char[] value = new char[ Math.max(this.value.length * 3 / 2, size)];
 			System.arraycopy(this.value, 0, value, 0, this.len);
@@ -738,7 +738,7 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 	//                           Static Helpers for String Serialization
 	// --------------------------------------------------------------------------------------------
 	
-	public static final String readString(DataInput in) throws IOException {
+	public static String readString(DataInput in) throws IOException {
 		// the length we read is offset by one, because a length of zero indicates a null value
 		int len = in.readUnsignedByte();
 		

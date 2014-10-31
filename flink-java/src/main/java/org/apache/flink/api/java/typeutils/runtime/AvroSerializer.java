@@ -142,7 +142,7 @@ public final class AvroSerializer<T> extends TypeSerializer<T> {
 	}
 	
 	
-	private final void checkAvroInitialized() {
+	private void checkAvroInitialized() {
 		if (this.reader == null) {
 			this.reader = new ReflectDatumReader<T>(type);
 			this.writer = new ReflectDatumWriter<T>(type);
@@ -151,7 +151,7 @@ public final class AvroSerializer<T> extends TypeSerializer<T> {
 		}
 	}
 	
-	private final void checkKryoInitialized() {
+	private void checkKryoInitialized() {
 		if (this.kryo == null) {
 			this.kryo = new Kryo();
 			this.kryo.setAsmEnabled(true);

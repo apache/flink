@@ -159,7 +159,7 @@ public class WritableComparator<T extends Writable & Comparable<T>> extends Type
 	
 	// --------------------------------------------------------------------------------------------
 	
-	private final void checkKryoInitialized() {
+	private void checkKryoInitialized() {
 		if (this.kryo == null) {
 			this.kryo = new Kryo();
 			this.kryo.setAsmEnabled(true);
@@ -167,13 +167,13 @@ public class WritableComparator<T extends Writable & Comparable<T>> extends Type
 		}
 	}
 	
-	private final void ensureReferenceInstantiated() {
+	private void ensureReferenceInstantiated() {
 		if (reference == null) {
 			reference = InstantiationUtil.instantiate(type, Writable.class);
 		}
 	}
 	
-	private final void ensureTempReferenceInstantiated() {
+	private void ensureTempReferenceInstantiated() {
 		if (tempReference == null) {
 			tempReference = InstantiationUtil.instantiate(type, Writable.class);
 		}

@@ -151,7 +151,7 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 	
 	// --------------------------------------------------------------------------------------------
 
-	private final void checkKryoInitialized() {
+	private void checkKryoInitialized() {
 		if (this.kryo == null) {
 			this.kryo = new Kryo();
 			this.kryo.setAsmEnabled(true);

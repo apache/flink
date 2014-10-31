@@ -776,7 +776,7 @@ public class RecordTest {
 		}
 	}
 	
-	private final void testUnionFieldsForValues(Value[] rec1fields, Value[] rec2fields, Random rnd)
+	private void testUnionFieldsForValues(Value[] rec1fields, Value[] rec2fields, Random rnd)
 	{
 		// fully in binary sync
 		Record rec1 = createRecord(rec1fields);

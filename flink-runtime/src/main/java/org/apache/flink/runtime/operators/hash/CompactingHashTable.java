@@ -542,7 +542,7 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T>{
 		}
 	}
 
-	private final void insertBucketEntryFromStart(InMemoryPartition<T> p, MemorySegment bucket, 
+	private void insertBucketEntryFromStart(InMemoryPartition<T> p, MemorySegment bucket,
 			int bucketInSegmentPos, int hashCode, long pointer)
 	throws IOException
 	{
@@ -639,7 +639,7 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T>{
 		}
 	}
 	
-	private final void insertBucketEntryFromSearch(InMemoryPartition<T> partition, MemorySegment originalBucket, MemorySegment currentBucket, int originalBucketOffset, int currentBucketOffset, int countInCurrentBucket, long currentForwardPointer, int hashCode, long pointer) throws IOException {
+	private void insertBucketEntryFromSearch(InMemoryPartition<T> partition, MemorySegment originalBucket, MemorySegment currentBucket, int originalBucketOffset, int currentBucketOffset, int countInCurrentBucket, long currentForwardPointer, int hashCode, long pointer) throws IOException {
 		boolean checkForResize = false;
 		if (countInCurrentBucket < NUM_ENTRIES_PER_BUCKET) {
 			// we are good in our current bucket, put the values

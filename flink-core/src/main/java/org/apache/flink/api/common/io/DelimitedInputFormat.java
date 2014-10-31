@@ -586,13 +586,13 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 		}
 	}
 	
-	private final void setResult(byte[] buffer, int offset, int len) {
+	private void setResult(byte[] buffer, int offset, int len) {
 		this.currBuffer = buffer;
 		this.currOffset = offset;
 		this.currLen = len;
 	}
 
-	private final boolean fillBuffer() throws IOException {
+	private boolean fillBuffer() throws IOException {
 		// special case for reading the whole split.
 		if(this.splitLength == FileInputFormat.READ_WHOLE_SPLIT_FLAG) {
 			int read = this.stream.read(this.readBuffer, 0, readBuffer.length);

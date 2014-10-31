@@ -98,7 +98,7 @@ abstract public class AbstractGenericTypeComparatorTest {
 
 	// ------------------------------------------------------------------------
 
-	private final <T> void runTests(T... sortedTestData) {
+	private <T> void runTests(T... sortedTestData) {
 		ComparatorTestInstance<T> testBase = new ComparatorTestInstance<T>(sortedTestData);
 		testBase.testAll();
 	}
