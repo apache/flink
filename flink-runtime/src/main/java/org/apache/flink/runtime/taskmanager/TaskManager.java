@@ -31,6 +31,8 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketAddress;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -253,10 +255,10 @@ public class TaskManager implements TaskOperationProtocol {
 		}
 
 		// Get the directory for storing temporary files
-		final String[] tmpDirPaths = GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
+		String[] tmpDirPaths = GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
 				ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(",|" + File.pathSeparator);
 
-		checkTempDirs(tmpDirPaths);
+		tmpDirPaths = checkTempDirs(tmpDirPaths);
 
 		int numBuffers = GlobalConfiguration.getInteger(
 				ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY,
@@ -1115,27 +1117,54 @@ public class TaskManager implements TaskOperationProtocol {
 	 * the case, an exception is raised.
 	 * 
 	 * @param tempDirs An array of strings which are checked to be paths to writable directories.
+	 * @return Checked and cleaned array of paths to the temporary file directories.
 	 * @throws Exception Thrown, if any of the mentioned checks fails.
 	 */
-	private static final void checkTempDirs(final String[] tempDirs) throws Exception {
+	private static final String[] checkTempDirs(final String[] tempDirs) throws Exception {
+		
+		final int threshold = GlobalConfiguration.getInteger(ConfigConstants.TASK_MANAGER_TMP_DIR_THRESHOLD_KEY, 
+				ConfigConstants.DEFAULT_TASK_MANAGER_TMP_DIR_THRESHOLD);
+		
+		List<String> tempDirsList = new ArrayList<String>(Arrays.asList(tempDirs));
+		
 		for (int i = 0; i < tempDirs.length; ++i) {
 			final String dir = tempDirs[i];
 			if (dir == null) {
-				throw new Exception("Temporary file directory #" + (i + 1) + " is null.");
+				throw new IllegalArgumentException("Temporary file directory #" + (i + 1) + " is null.");
 			}
 
 			final File f = new File(dir);
 
 			if (!f.exists()) {
-				throw new Exception("Temporary file directory '" + f.getAbsolutePath() + "' does not exist.");
+				throw new IllegalArgumentException("Temporary file directory '" + f.getAbsolutePath() + "' does not exist.");
 			}
 			if (!f.isDirectory()) {
-				throw new Exception("Temporary file directory '" + f.getAbsolutePath() + "' is not a directory.");
+				throw new IllegalArgumentException("Temporary file directory '" + f.getAbsolutePath() + "' is not a directory.");
 			}
 			if (!f.canWrite()) {
-				throw new Exception("Temporary file directory '" + f.getAbsolutePath() + "' is not writable.");
+				throw new IllegalArgumentException("Temporary file directory '" + f.getAbsolutePath() + "' is not writable.");
+			}
+			if (LOG.isInfoEnabled()) {
+				float totalSpace = f.getTotalSpace() / (1024 * 1024);
+				float usableSpace = f.getUsableSpace() / (1024 * 1024);
+				float percentage = (usableSpace / totalSpace) * 100;
+				LOG.info(String.format("Temporary file directory '%s' total space: %,.2f MB usable space: %,.2f MB [%.2f%% usable]",
+						f.getAbsolutePath(), totalSpace, usableSpace, percentage));
+			}
+			if((f.getUsableSpace() / (1024 * 1024)) < threshold)
+			{
+				LOG.warn(String.format("Temporary file directory '%s' was removed from the list "
+						+ "because it has less storage than the defined threshold (%d MB) left.", f.getAbsolutePath(), threshold));
+				tempDirsList.remove(dir);
 			}
 		}
+		
+		if(tempDirsList.size() == 0)
+		{
+			throw new IllegalArgumentException("No temporary file directory with enough storage available.");
+		}
+		
+		return tempDirsList.toArray(new String[0]);
 	}
 	
 	/**

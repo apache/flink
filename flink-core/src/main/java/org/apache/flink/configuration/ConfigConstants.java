@@ -91,6 +91,11 @@ public final class ConfigConstants {
 	 * The config parameter defining the directories for temporary files.
 	 */
 	public static final String TASK_MANAGER_TMP_DIR_KEY = "taskmanager.tmp.dirs";
+	
+	/**
+	 * The config parameter defining the threshold (in MB) for the temporary file directories.
+	 */
+	public static final String TASK_MANAGER_TMP_DIR_THRESHOLD_KEY = "taskmanager.tmp.dirs.threshold";
 
 	/**
 	 * The config parameter defining the amount of memory to be allocated by the task manager's
@@ -362,6 +367,11 @@ public final class ConfigConstants {
 	 * The default directory for temporary files of the task manager.
 	 */
 	public static final String DEFAULT_TASK_MANAGER_TMP_PATH = System.getProperty("java.io.tmpdir");
+	
+	/**
+	 * The default value for the threshold (in MB) of the temporary file directories in the taskmanager.
+	 */
+	public static final int DEFAULT_TASK_MANAGER_TMP_DIR_THRESHOLD = 100;
 	
 	/**
 	 * The default fraction of the free memory allocated by the task manager's memory manager.

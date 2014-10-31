@@ -65,6 +65,15 @@ webclient.port: 8080
 #
 # taskmanager.tmp.dirs: /tmp
 
+# Storage threshold (in MB) for directories for temporary files.
+#
+# If the usable space in a directory is smaller than this threshold it will be
+# removed from the list of directories for temporary files.
+#
+# If not specified, the default value (100 MB) is taken.
+#
+# taskmanager.tmp.dirs.threshold: 100
+
 # Path to the Hadoop configuration directory.
 #
 # This configuration is used when writing into HDFS. Unless specified otherwise,

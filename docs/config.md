@@ -85,6 +85,10 @@ directory. A directory may be listed multiple times to have the I/O manager use
 multiple threads for it (for example if it is physically stored on a very fast
 disc or RAID) (DEFAULT: The system's tmp dir).
 
+- `taskmanager.tmp.dirs.threshold`: Threshold (in MB) for the temporary file 
+directories. Directories with less storage left will be removed from the 
+list of directories for temporary files. (DEFAULT: 100 MB)
+
 - `jobmanager.web.port`: Port of the JobManager's web interface (DEFAULT: 8081).
 
 - `fs.overwrite-files`: Specifies whether file output writers should overwrite
