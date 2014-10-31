@@ -23,19 +23,14 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.flink.addons.hbase.common.HBaseKey;
 import org.apache.flink.addons.hbase.common.HBaseResult;
-import org.apache.flink.addons.hbase.common.HBaseUtil;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.LocatableInputSplitAssigner;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.types.Record;
-import org.apache.flink.util.OperatingSystem;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Result;
@@ -45,6 +40,8 @@ import org.apache.hadoop.hbase.mapreduce.TableRecordReader;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.Pair;
 import org.apache.hadoop.util.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * {@link InputFormat} subclass that wraps the access for HTables.
@@ -55,12 +52,6 @@ public class TableInputFormat implements InputFormat<Record, TableInputSplit> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(TableInputFormat.class);
 
-	/** A handle on an HBase table */
-	private HTable table;
-
-	/** The scanner that performs the actual access on the table. HBase object */
-	private Scan scan;
-
 	/** Hbase' iterator wrapper */
 	private TableRecordReader tableRecordReader;
 
@@ -69,15 +60,6 @@ public class TableInputFormat implements InputFormat<Record, TableInputSplit> {
 
 	/** Job parameter that specifies the input table. */
 	public static final String INPUT_TABLE = "hbase.inputtable";
-
-	/** Location of the hbase-site.xml. If set, the HBaseAdmin will build inside */
-	public static final String CONFIG_LOCATION = "hbase.config.location";
-
-	/**
-	 * Base-64 encoded scanner. All other SCAN_ confs are ignored if this is specified.
-	 * See TableMapReduceUtil.convertScanToString(Scan) for more details.
-	 */
-	public static final String SCAN = "hbase.scan";
 
 	/** Column Family to Scan */
 	public static final String SCAN_COLUMN_FAMILY = "hbase.scan.column.family";
@@ -108,14 +90,16 @@ public class TableInputFormat implements InputFormat<Record, TableInputSplit> {
 
 	protected HBaseResult hbaseResult;
 
-	private org.apache.hadoop.conf.Configuration hConf;
+	private Configuration parameters;
 
+//	private org.apache.hadoop.conf.Configuration hConf;
+	public TableInputFormat(Configuration parameters){
+		this.parameters = parameters;
+	}
+	
 	@Override
 	public void configure(Configuration parameters) {
-		HTable table = createTable(parameters);
-		setTable(table);
-		Scan scan = createScanner(parameters);
-		setScan(scan);
+		//TODO why parameters gets empty after execution??
 	}
 
 	/**
@@ -126,48 +110,40 @@ public class TableInputFormat implements InputFormat<Record, TableInputSplit> {
 	 */
 	protected Scan createScanner(Configuration parameters) {
 		Scan scan = null;
-		if (parameters.getString(SCAN, null) != null) {
-			try {
-				scan = HBaseUtil.convertStringToScan(parameters.getString(SCAN, null));
-			} catch (IOException e) {
-				LOG.error("An error occurred.", e);
+		try {
+			scan = new Scan();
+
+			// if (parameters.getString(SCAN_COLUMNS, null) != null) {
+			// scan.addColumns(parameters.getString(SCAN_COLUMNS, null));
+			// }
+
+			if (parameters.getString(SCAN_COLUMN_FAMILY, null) != null) {
+				scan.addFamily(Bytes.toBytes(parameters.getString(SCAN_COLUMN_FAMILY, null)));
 			}
-		} else {
-			try {
-				scan = new Scan();
 
-				// if (parameters.getString(SCAN_COLUMNS, null) != null) {
-				// scan.addColumns(parameters.getString(SCAN_COLUMNS, null));
-				// }
-
-				if (parameters.getString(SCAN_COLUMN_FAMILY, null) != null) {
-					scan.addFamily(Bytes.toBytes(parameters.getString(SCAN_COLUMN_FAMILY, null)));
-				}
-
-				if (parameters.getString(SCAN_TIMESTAMP, null) != null) {
-					scan.setTimeStamp(Long.parseLong(parameters.getString(SCAN_TIMESTAMP, null)));
-				}
-
-				if (parameters.getString(SCAN_TIMERANGE_START, null) != null
-					&& parameters.getString(SCAN_TIMERANGE_END, null) != null) {
-					scan.setTimeRange(
-						Long.parseLong(parameters.getString(SCAN_TIMERANGE_START, null)),
-						Long.parseLong(parameters.getString(SCAN_TIMERANGE_END, null)));
-				}
-
-				if (parameters.getString(SCAN_MAXVERSIONS, null) != null) {
-					scan.setMaxVersions(Integer.parseInt(parameters.getString(SCAN_MAXVERSIONS, null)));
-				}
-
-				if (parameters.getString(SCAN_CACHEDROWS, null) != null) {
-					scan.setCaching(Integer.parseInt(parameters.getString(SCAN_CACHEDROWS, null)));
-				}
-
-				// false by default, full table scans generate too much BC churn
-				scan.setCacheBlocks((parameters.getBoolean(SCAN_CACHEBLOCKS, false)));
-			} catch (Exception e) {
-				LOG.error(StringUtils.stringifyException(e));
+			if (parameters.getString(SCAN_TIMESTAMP, null) != null) {
+				scan.setTimeStamp(Long.parseLong(parameters.getString(SCAN_TIMESTAMP, null)));
 			}
+
+			if (parameters.getString(SCAN_TIMERANGE_START, null) != null
+				&& parameters.getString(SCAN_TIMERANGE_END, null) != null) {
+				scan.setTimeRange(
+					Long.parseLong(parameters.getString(SCAN_TIMERANGE_START, null)),
+					Long.parseLong(parameters.getString(SCAN_TIMERANGE_END, null)));
+			}
+
+			if (parameters.getString(SCAN_MAXVERSIONS, null) != null) {
+				scan.setMaxVersions(Integer.parseInt(parameters.getString(SCAN_MAXVERSIONS, null)));
+			}
+
+			if (parameters.getString(SCAN_CACHEDROWS, null) != null) {
+				scan.setCaching(Integer.parseInt(parameters.getString(SCAN_CACHEDROWS, null)));
+			}
+
+			// false by default, full table scans generate too much BC churn
+			scan.setCacheBlocks((parameters.getBoolean(SCAN_CACHEBLOCKS, false)));
+		} catch (Exception e) {
+			LOG.error(StringUtils.stringifyException(e));
 		}
 		return scan;
 	}
@@ -179,26 +155,13 @@ public class TableInputFormat implements InputFormat<Record, TableInputSplit> {
 	 *        a {@link Configuration} that holds at least the table name.
 	 */
 	protected HTable createTable(Configuration parameters) {
-		String configLocation = parameters.getString(TableInputFormat.CONFIG_LOCATION, null);
-		LOG.info("Got config location: " + configLocation);
-		if (configLocation != null)
-		{
-			org.apache.hadoop.conf.Configuration dummyConf = new org.apache.hadoop.conf.Configuration();
-			if(OperatingSystem.isWindows()) {
-				dummyConf.addResource(new Path("file:/" + configLocation));
-			} else {
-				dummyConf.addResource(new Path("file://" + configLocation));
-			}
-			hConf = HBaseConfiguration.create(dummyConf);
-			;
-			// hConf.set("hbase.master", "im1a5.internetmemory.org");
-			LOG.info("hbase master: " + hConf.get("hbase.master"));
-			LOG.info("zookeeper quorum: " + hConf.get("hbase.zookeeper.quorum"));
-
-		}
+		LOG.info("Initializing HBaseConfiguration");
+		//use files found in the classpath
+		org.apache.hadoop.conf.Configuration hConf = HBaseConfiguration.create();
+		
 		String tableName = parameters.getString(INPUT_TABLE, "");
 		try {
-			return new HTable(this.hConf, tableName);
+			return new HTable(hConf, tableName);
 		} catch (Exception e) {
 			LOG.error(StringUtils.stringifyException(e));
 		}
@@ -273,26 +236,17 @@ public class TableInputFormat implements InputFormat<Record, TableInputSplit> {
 
 	@Override
 	public void open(TableInputSplit split) throws IOException {
+		HTable table = createTable(parameters);
 		if (split == null)
 		{
 			throw new IOException("Input split is null!");
 		}
 
-		if (this.table == null)
-		{
-			throw new IOException("No HTable provided!");
-		}
-
-		if (this.scan == null)
-		{
-			throw new IOException("No Scan instance provided");
-		}
-
 		this.tableRecordReader = new TableRecordReader();
 
-		this.tableRecordReader.setHTable(this.table);
+		this.tableRecordReader.setHTable(table);
 
-		Scan sc = new Scan(this.scan);
+		Scan sc = createScanner(parameters);
 		sc.setStartRow(split.getStartRow());
 		LOG.info("split start row: " + new String(split.getStartRow()));
 		sc.setStopRow(split.getEndRow());
@@ -310,17 +264,13 @@ public class TableInputFormat implements InputFormat<Record, TableInputSplit> {
 
 	@Override
 	public TableInputSplit[] createInputSplits(final int minNumSplits) throws IOException {
+		HTable table = createTable(parameters);
 
-		if (this.table == null) {
-			throw new IOException("No table was provided.");
-		}
-
-		final Pair<byte[][], byte[][]> keys = this.table.getStartEndKeys();
-
+		final Pair<byte[][], byte[][]> keys = table.getStartEndKeys();
 		if (keys == null || keys.getFirst() == null || keys.getFirst().length == 0) {
-
 			throw new IOException("Expecting at least one region.");
 		}
+		Scan scan = createScanner(parameters);
 		int count = 0;
 		final List<TableInputSplit> splits = new ArrayList<TableInputSplit>(keys.getFirst().length);
 		for (int i = 0; i < keys.getFirst().length; i++) {
@@ -329,9 +279,9 @@ public class TableInputFormat implements InputFormat<Record, TableInputSplit> {
 				continue;
 			}
 
-			final String regionLocation = this.table.getRegionLocation(keys.getFirst()[i], false).getHostnamePort();
-			final byte[] startRow = this.scan.getStartRow();
-			final byte[] stopRow = this.scan.getStopRow();
+			final String regionLocation = table.getRegionLocation(keys.getFirst()[i], false).getHostnamePort();
+			final byte[] startRow = scan.getStartRow();
+			final byte[] stopRow = scan.getStopRow();
 
 			// determine if the given start an stop key fall into the region
 			if ((startRow.length == 0 || keys.getSecond()[i].length == 0 ||
@@ -347,7 +297,7 @@ public class TableInputFormat implements InputFormat<Record, TableInputSplit> {
 					keys.getSecond()[i].length > 0 ?
 					keys.getSecond()[i] : stopRow;
 				final TableInputSplit split = new TableInputSplit(splits.size(), new String[] { regionLocation },
-					this.table.getTableName(), splitStart, splitStop);
+					table.getTableName(), splitStart, splitStop);
 				splits.add(split);
 				if (LOG.isDebugEnabled()) {
 					LOG.debug("getSplits: split -> " + (count++) + " -> " + split);
@@ -386,20 +336,5 @@ public class TableInputFormat implements InputFormat<Record, TableInputSplit> {
 	public InputSplitAssigner getInputSplitAssigner(TableInputSplit[] inputSplits) {
 		return new LocatableInputSplitAssigner(inputSplits);
 	}
-	
-	public void setTable(HTable table) {
-		this.table = table;
-	}
 
-	public HTable getTable() {
-		return table;
-	}
-
-	public void setScan(Scan scan) {
-		this.scan = scan;
-	}
-
-	public Scan getScan() {
-		return scan;
-	}
 }

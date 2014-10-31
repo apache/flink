@@ -21,10 +21,15 @@ package org.apache.flink.addons.hbase.common;
 
 import java.io.IOException;
 
+import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.core.memory.DataOutputViewStream;
 import org.apache.flink.types.Value;
 import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.mapreduce.ResultSerialization;
+import org.apache.hadoop.io.serializer.Deserializer;
+import org.apache.hadoop.io.serializer.Serializer;
 
 public class HBaseResult implements Value {
 	
@@ -59,11 +64,18 @@ public class HBaseResult implements Value {
 	
 	@Override
 	public void read(DataInputView in) throws IOException {
-		this.result.readFields(in);
+		Deserializer<Result> deser = new ResultSerialization().getDeserializer(Result.class);
+		deser.open(new DataInputViewStream(in));
+		result = deser.deserialize(null);
+		deser.close();
 	}
 	
 	@Override
 	public void write(DataOutputView out) throws IOException {
-		this.result.write(out);	
+		Serializer<Result> ser = new ResultSerialization().getSerializer(Result.class);
+		ser.open(new DataOutputViewStream(out));
+		ser.serialize(result);
+		ser.close();
+//		this.result..write(out);	
 	}
 }

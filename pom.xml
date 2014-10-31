@@ -225,7 +225,7 @@ under the License.
 				</property>
 			</activation>
 			<properties>
-				<hadoop.version>${hadoop-one.version}</hadoop.version>
+				<hadoop.core.version>${hadoop-one.version}</hadoop.core.version>
 			</properties>
 			<dependencyManagement>
 				<dependencies>
@@ -233,7 +233,7 @@ under the License.
 					<dependency>
 						<groupId>org.apache.hadoop</groupId>
 						<artifactId>hadoop-core</artifactId>
-						<version>${hadoop.version}</version>
+						<version>${hadoop.core.version}</version>
 					</dependency>
 				</dependencies>
 			</dependencyManagement>
@@ -248,9 +248,15 @@ under the License.
 			</activation>
 			<properties>
 				<hadoop.version>${hadoop-two.version}</hadoop.version>
+				<hadoop.core.version>${hadoop-two.version}</hadoop.core.version>
 			</properties>
 			<dependencyManagement>
 				<dependencies>
+					<dependency>
+						<groupId>org.apache.hadoop</groupId>
+						<artifactId>hadoop-core</artifactId>
+						<version>${hadoop.core.version}</version>
+					</dependency>
 					<!-- YARN -->
 					<dependency>
 						<groupId>org.apache.hadoop</groupId>

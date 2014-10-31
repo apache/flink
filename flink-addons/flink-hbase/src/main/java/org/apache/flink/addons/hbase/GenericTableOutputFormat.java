@@ -24,9 +24,10 @@ import java.io.IOException;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.types.Record;
+import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
-import org.apache.hadoop.hbase.mapreduce.HFileOutputFormat;
+import org.apache.hadoop.hbase.mapreduce.HFileOutputFormat2;
 import org.apache.hadoop.mapreduce.RecordWriter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
@@ -40,7 +41,7 @@ public abstract class GenericTableOutputFormat implements OutputFormat<Record> {
 
 	public static final String JOB_ID_KEY = "pact.job.id";
 
-	private RecordWriter<ImmutableBytesWritable, KeyValue> writer;
+	private RecordWriter<ImmutableBytesWritable, Cell> writer;
 
 	private Configuration config;
 
@@ -83,7 +84,7 @@ public abstract class GenericTableOutputFormat implements OutputFormat<Record> {
 		final TaskAttemptID attemptId = new TaskAttemptID(this.jtID, this.jobId, TaskType.MAP, taskNumber - 1, 0);
 
 		this.context = new org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl(this.hadoopConfig, attemptId);
-		final HFileOutputFormat outFormat = new HFileOutputFormat();
+		final HFileOutputFormat2 outFormat = new HFileOutputFormat2();
 		try {
 			this.writer = outFormat.getRecordWriter(this.context);
 		} catch (InterruptedException iex) {
@@ -93,7 +94,7 @@ public abstract class GenericTableOutputFormat implements OutputFormat<Record> {
 
 	@Override
 	public void close() throws IOException {
-		final RecordWriter<ImmutableBytesWritable, KeyValue> writer = this.writer;
+		final RecordWriter<ImmutableBytesWritable, Cell> writer = this.writer;
 		this.writer = null;
 		if (writer != null) {
 			try {
