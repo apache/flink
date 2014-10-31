@@ -102,6 +102,9 @@ import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+
 /**
  * A task manager receives tasks from the job manager and executes them. After having executed them
  * (or in case of an execution error) it reports the execution result back to the job manager.
@@ -1120,21 +1123,21 @@ public class TaskManager implements TaskOperationProtocol {
 	 */
 	private static final void checkTempDirs(final String[] tempDirs) throws Exception {
 		for (int i = 0; i < tempDirs.length; ++i) {
-			final String dir = tempDirs[i];
-			if (dir == null) {
-				throw new Exception("Temporary file directory #" + (i + 1) + " is null.");
-			}
+			final String dir = checkNotNull(tempDirs[i], "Temporary file directory #" + (i + 1) + " is null.");
 
 			final File f = new File(dir);
 
-			if (!f.exists()) {
-				throw new Exception("Temporary file directory '" + f.getAbsolutePath() + "' does not exist.");
-			}
-			if (!f.isDirectory()) {
-				throw new Exception("Temporary file directory '" + f.getAbsolutePath() + "' is not a directory.");
-			}
-			if (!f.canWrite()) {
-				throw new Exception("Temporary file directory '" + f.getAbsolutePath() + "' is not writable.");
+			checkArgument(f.exists(), "Temporary file directory '" + f.getAbsolutePath() + "' does not exist.");
+			checkArgument(f.isDirectory(), "Temporary file directory '" + f.getAbsolutePath() + "' is not a directory.");
+			checkArgument(f.canWrite(), "Temporary file directory '" + f.getAbsolutePath() + "' is not writable.");
+
+			if (LOG.isInfoEnabled()) {
+				long totalSpaceGb = f.getTotalSpace() >>  30;
+				long usableSpaceGb = f.getUsableSpace() >> 30;
+				double usablePercentage = ((double) usableSpaceGb) / totalSpaceGb * 100;
+
+				LOG.info(String.format("Temporary file directory '%s': total %d GB, usable %d GB [%.2f%% usable]",
+						f.getAbsolutePath(), totalSpaceGb, usableSpaceGb, usablePercentage));
 			}
 		}
 	}
