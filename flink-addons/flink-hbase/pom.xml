@@ -49,23 +49,15 @@ under the License.
 
 	<properties>
 		<hbase.hadoop1.version>0.98.6.1-hadoop1</hbase.hadoop1.version>
-		<!-- <hbase.hadoop2.version>0.98.6.1-hadoop2</hbase.hadoop2.version> -->
+		<hbase.hadoop2.version>0.98.6.1-hadoop2</hbase.hadoop2.version>
 		<!-- decomment the following lines to enable cloudera dependencies 
 		<hadoop.profile>2</hadoop.profile>
 		<hadoop.version>2.3.0-cdh5.1.3</hadoop.version>
-		<hadoop.core.version>2.3.0-mr1-cdh5.1.3</hadoop.core.version>
 		<hbase.hadoop2.version>0.98.1-cdh5.1.3</hbase.hadoop2.version>
 		-->
 	</properties>
 
 	<dependencies>
-		<!-- Uncomment this to fix Eclipse compilation problems..
-		<dependency>
-			<groupId>org.apache.hadoop</groupId>
-			<artifactId>hadoop-common</artifactId>
-			<version>${hadoop.version}</version>
-		</dependency>
-		 -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-core</artifactId>
@@ -155,12 +147,6 @@ under the License.
 			<properties>
 				<hbase.version>${hbase.hadoop2.version}</hbase.version>
 			</properties>
-			<dependencies>
-				<dependency>
-					<groupId>org.apache.hadoop</groupId>
-					<artifactId>hadoop-common</artifactId>
-				</dependency>
-			</dependencies>
 		</profile>
 
 	</profiles>
