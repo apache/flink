@@ -36,7 +36,6 @@ import org.apache.flink.runtime.deployment.ChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.GateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
@@ -78,7 +77,7 @@ public class TaskManagerTest {
 					new ArrayList<BlobKey>(), 0);
 			
 			TaskOperationResult result = tm.submitTask(tdd);
-			assertTrue(result.isSuccess());
+			assertTrue(result.getDescription(), result.isSuccess());
 			assertEquals(eid, result.getExecutionId());
 
 			jobManager.shutdown();
@@ -130,8 +129,8 @@ public class TaskManagerTest {
 			TaskOperationResult result1 = tm.submitTask(tdd1);
 			TaskOperationResult result2 = tm.submitTask(tdd2);
 			
-			assertTrue(result1.isSuccess());
-			assertTrue(result2.isSuccess());
+			assertTrue(result1.getDescription(), result1.isSuccess());
+			assertTrue(result2.getDescription(), result2.isSuccess());
 			assertEquals(eid1, result1.getExecutionId());
 			assertEquals(eid2, result2.getExecutionId());
 			
@@ -301,12 +300,13 @@ public class TaskManagerTest {
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
-		}finally{
-			if(jobManager != null){
+		}
+		finally {
+			if (jobManager != null) {
 				jobManager.shutdown();
 			}
 
-			if(tm != null){
+			if (tm != null) {
 				tm.shutdown();
 			}
 		}
@@ -431,7 +431,14 @@ public class TaskManagerTest {
 		cfg.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 10);
 		GlobalConfiguration.includeConfiguration(cfg);
 		
-		return new TaskManager(ExecutionMode.LOCAL, jm, jm, jm, jm, jmMockAddress, localhost);
+		TaskManager tm = new TaskManager(ExecutionMode.LOCAL, jm, jm, jm, jm, jmMockAddress, localhost);
+		
+		// wait until the task manager is registered
+		while (tm.getRegisteredId() == null) {
+			Thread.sleep(10);
+		}
+		
+		return tm;
 	}
 	
 	// --------------------------------------------------------------------------------------------

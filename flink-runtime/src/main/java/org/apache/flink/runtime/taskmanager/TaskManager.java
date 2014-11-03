@@ -425,6 +425,8 @@ public class TaskManager implements TaskOperationProtocol {
 			this.heartbeatThread.join(1000);
 		} catch (InterruptedException e) {}
 
+		this.registeredId = null;
+		
 		// Stop RPC proxy for the task manager
 		stopProxy(this.jobManager);
 
@@ -574,6 +576,14 @@ public class TaskManager implements TaskOperationProtocol {
 		Task task = null;
 		boolean jarsRegistered = false;
 		
+		// check if the taskmanager is shut down or disconnected
+		if (shutdownStarted.get()) {
+			return new TaskOperationResult(executionId, false, "TaskManager is shut down.");
+		}
+		if (registeredId == null) {
+			return new TaskOperationResult(executionId, false, "TaskManager lost connection to JobManager.");
+		}
+		
 		try {
 			// Now register data with the library manager
 			libraryCacheManager.register(jobID, tdd.getRequiredJarFiles());
@@ -621,8 +631,8 @@ public class TaskManager implements TaskOperationProtocol {
 		
 			// final check that we can go (we do this after the registration, so the the "happen's before"
 			// relationship ensures that either the shutdown removes this task, or we are aware of the shutdown
-			if (shutdownStarted.get()) {
-				throw new Exception("Task Manager is shut down.");
+			if (shutdownStarted.get() || this.registeredId == null) {
+				throw new Exception("Task Manager is shut down or is not connected to a JobManager.");
 			}
 
 			return new TaskOperationResult(executionId, true);
@@ -637,6 +647,13 @@ public class TaskManager implements TaskOperationProtocol {
 			}
 			
 			try {
+				try {
+					task.failExternally(t);
+				}
+				catch (Throwable t2) {
+					LOG.error("Error during cleanup of task deployment", t2);
+				}
+				
 				this.runningTasks.remove(executionId);
 				
 				if (task != null) {
