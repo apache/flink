@@ -50,7 +50,7 @@ public class FlinkMesosSched implements Scheduler {
 
 				System.out.println("Launching JobManager");
 				System.out.println(offers.size());
-				String command = "java -cp " + uberJarPath + " org.apache.flink.runtime.jobmanager.JobManager -executionMode cluster -configDir /home/sebastian/Daten/workspace/incubator-flink/flink-mesos/src/main/java/conf";
+				String command = "java -cp " + uberJarPath + " org.apache.flink.runtime.jobmanager.JobManager -executionMode cluster -configDir /home/sebastian/Daten/workspace/incubator-flink/flink-addons/flink-mesos/src/main/java/conf";
 
 				Protos.TaskInfo task = Protos.TaskInfo.newBuilder()
 						.setName("Jobmanager")
@@ -82,7 +82,7 @@ public class FlinkMesosSched implements Scheduler {
 
 				System.out.println("Launching TaskManager");
 				System.out.println(offers.size());
-				String command = "java -cp " + uberJarPath + " org.apache.flink.runtime.taskmanager.TaskManager -configDir /home/sebastian/Daten/workspace/incubator-flink/flink-mesos/src/main/java/conf";
+				String command = "java -cp " + uberJarPath + " org.apache.flink.runtime.taskmanager.TaskManager -configDir /home/sebastian/Daten/workspace/incubator-flink/flink-addons/flink-mesos/src/main/java/conf";
 
 				Protos.TaskInfo task = Protos.TaskInfo.newBuilder()
 						.setName("TaskManager")
