@@ -76,7 +76,7 @@ under the License.
 			 forkCount is not exposed as a property. With this we can set
 			 it on the "mvn" commandline in travis. -->
 		<flink.forkCount>1.5C</flink.forkCount>
-		<flink.reuseForks>false</flink.reuseForks>
+		<flink.reuseForks>true</flink.reuseForks>
 		<slf4j.version>1.7.7</slf4j.version>
 		<guava.version>17.0</guava.version>
 	</properties>
