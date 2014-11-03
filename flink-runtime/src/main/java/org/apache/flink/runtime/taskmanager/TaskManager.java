@@ -60,6 +60,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.protocols.VersionedProtocol;
 import org.apache.flink.runtime.ExecutionMode;
 import org.apache.flink.runtime.blob.BlobCache;
+import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -140,6 +141,8 @@ public class TaskManager implements TaskOperationProtocol {
 	private final AccumulatorProtocol accumulatorProtocolProxy;
 
 	private final LibraryCacheManager libraryCacheManager;
+	
+	private final BroadcastVariableManager bcVarManager = new BroadcastVariableManager();
 	
 	private final Server taskManagerServer;
 
@@ -538,6 +541,10 @@ public class TaskManager implements TaskOperationProtocol {
 		return channelManager;
 	}
 	
+	public BroadcastVariableManager getBroadcastVariableManager() {
+		return this.bcVarManager;
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	//  Task Operation
 	// --------------------------------------------------------------------------------------------
@@ -599,7 +606,7 @@ public class TaskManager implements TaskOperationProtocol {
 			}
 			
 			final InputSplitProvider splitProvider = new TaskInputSplitProvider(this.globalInputSplitProvider, jobID, vertexId, executionId);
-			final RuntimeEnvironment env = new RuntimeEnvironment(task, tdd, userCodeClassLoader, this.memoryManager, this.ioManager, splitProvider, this.accumulatorProtocolProxy);
+			final RuntimeEnvironment env = new RuntimeEnvironment(task, tdd, userCodeClassLoader, this.memoryManager, this.ioManager, splitProvider, this.accumulatorProtocolProxy, this.bcVarManager);
 			task.setEnvironment(env);
 			
 			// register the task with the network stack and profilers

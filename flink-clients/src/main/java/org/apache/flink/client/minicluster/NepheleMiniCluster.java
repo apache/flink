@@ -29,8 +29,11 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.ExecutionMode;
 import org.apache.flink.runtime.client.JobClient;
+import org.apache.flink.runtime.instance.InstanceManager;
+import org.apache.flink.runtime.instance.LocalInstanceManager;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.JobManager;
+import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 
 
@@ -237,6 +240,18 @@ public class NepheleMiniCluster {
 				jobManager = null;
 			}
 		}
+	}
+	
+	public TaskManager[] getTaskManagers() {
+		JobManager jm = this.jobManager;
+		if (jm != null) {
+			InstanceManager im = jm.getInstanceManager();
+			if (im instanceof LocalInstanceManager) {
+				return ((LocalInstanceManager) im).getTaskManagers();
+			}
+		}
+		
+		return null;
 	}
 
 	// ------------------------------------------------------------------------

@@ -33,7 +33,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.accumulators.AccumulatorEvent;
-import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -433,7 +432,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		
 		final MutableReader<?> reader = this.broadcastInputReaders[inputNum];
 
-		List<X> variable = BroadcastVariableManager.INSTANCE.getBroadcastVariable(bcVarName, superstep, this, reader, serializerFactory);
+		List<X> variable = getEnvironment().getBroadcastVariableManager().getBroadcastVariable(bcVarName, superstep, this, reader, serializerFactory);
 		
 		context.setBroadcastVariable(bcVarName, variable);
 	}
@@ -444,7 +443,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 				(superstep > 1 ? ", superstep " + superstep : "")));
 		}
 		
-		BroadcastVariableManager.INSTANCE.releaseReference(bcVarName, superstep, this);
+		getEnvironment().getBroadcastVariableManager().releaseReference(bcVarName, superstep, this);
 		context.clearBroadcastVariable(bcVarName);
 	}
 	
@@ -610,7 +609,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 			LOG.debug(formatLogString("Releasing all broadcast variables."));
 		}
 		
-		BroadcastVariableManager.INSTANCE.releaseAllReferencesFromTask(this);
+		getEnvironment().getBroadcastVariableManager().releaseAllReferencesFromTask(this);
 		if (runtimeUdfContext != null) {
 			runtimeUdfContext.clearAllBroadcastVariables();
 		}

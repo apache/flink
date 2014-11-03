@@ -26,6 +26,7 @@ import java.util.concurrent.FutureTask;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.bufferprovider.BufferProvider;
 import org.apache.flink.runtime.io.network.channels.ChannelID;
@@ -231,4 +232,7 @@ public interface Environment {
 	BufferProvider getOutputBufferProvider();
 
 	Map<String, FutureTask<Path>> getCopyTask();
+	
+	
+	BroadcastVariableManager getBroadcastVariableManager();
 }

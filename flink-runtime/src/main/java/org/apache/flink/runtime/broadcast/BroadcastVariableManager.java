@@ -29,15 +29,6 @@ import org.apache.flink.runtime.operators.RegularPactTask;
 
 public class BroadcastVariableManager {
 	
-	/** The singleton instance that keeps track of the shared broadcast variables. */
-	public static final BroadcastVariableManager INSTANCE = new BroadcastVariableManager();
-	
-	/** Prevent external instantiation. */
-	private BroadcastVariableManager() {}
-	
-	
-	// --------------------------------------------------------------------------------------------
-	
 	private final ConcurrentHashMap<BroadcastVariableKey, BroadcastVariableMaterialization<?>> variables =
 							new ConcurrentHashMap<BroadcastVariableKey, BroadcastVariableMaterialization<?>>(16);
 	

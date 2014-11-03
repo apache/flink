@@ -40,7 +40,7 @@ import java.util.List;
 import org.apache.commons.io.FileUtils;
 import org.apache.flink.client.minicluster.NepheleMiniCluster;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.hadoop.fs.FileSystem;
 import org.junit.Assert;
 
@@ -93,18 +93,31 @@ public abstract class AbstractTestBase {
 	
 	public void stopCluster() throws Exception {
 		try {
+			
+			int numUnreleasedBCVars = 0;
+			{
+				TaskManager[] tms = executor.getTaskManagers();
+				if (tms != null) {
+					for (TaskManager tm : tms) {
+						numUnreleasedBCVars += tm.getBroadcastVariableManager().getNumberOfVariablesWithReferences();
+					}
+				}
+			}
+			
 			if (this.executor != null) {
 				this.executor.stop();
 				this.executor = null;
 				FileSystem.closeAll();
 				System.gc();
 			}
-		} finally {
+			
+			Assert.assertEquals("Not all broadcast variables were released.", 0, numUnreleasedBCVars);
+		}
+		finally {
 			deleteAllTempFiles();
 		}
 		
-		Assert.assertEquals("Not all broadcast variables were released.",
-				0, BroadcastVariableManager.INSTANCE.getNumberOfVariablesWithReferences());
+		
 	}
 
 	//------------------

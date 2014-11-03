@@ -30,6 +30,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.Buffer;
@@ -74,6 +75,9 @@ public class MockEnvironment implements Environment, BufferProvider, LocalBuffer
 	private final JobID jobID = new JobID();
 
 	private final Buffer mockBuffer;
+	
+	private final BroadcastVariableManager bcVarManager = new BroadcastVariableManager();
+	
 
 	public MockEnvironment(long memorySize, MockInputSplitProvider inputSplitProvider, int bufferSize) {
 		this.jobConfiguration = new Configuration();
@@ -350,5 +354,10 @@ public class MockEnvironment implements Environment, BufferProvider, LocalBuffer
 	@Override
 	public JobVertexID getJobVertexId() {
 		return new JobVertexID(new byte[16]);
+	}
+	
+	@Override
+	public BroadcastVariableManager getBroadcastVariableManager() {
+		return this.bcVarManager;
 	}
 }

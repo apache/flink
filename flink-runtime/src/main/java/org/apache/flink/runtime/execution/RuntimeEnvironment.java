@@ -35,6 +35,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.deployment.GateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -124,6 +125,8 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 
 	private final Map<String,FutureTask<Path>> cacheCopyTasks = new HashMap<String, FutureTask<Path>>();
 	
+	private final BroadcastVariableManager bcVarManager;
+	
 	private LocalBufferPool outputBufferPool;
 	
 	private AtomicBoolean canceled = new AtomicBoolean();
@@ -133,7 +136,8 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 							ClassLoader userCodeClassLoader,
 							MemoryManager memoryManager, IOManager ioManager,
 							InputSplitProvider inputSplitProvider,
-							AccumulatorProtocol accumulatorProtocolProxy)
+							AccumulatorProtocol accumulatorProtocolProxy,
+							BroadcastVariableManager bcVarManager)
 		throws Exception
 	{
 		Preconditions.checkNotNull(owner);
@@ -142,6 +146,7 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 		Preconditions.checkNotNull(inputSplitProvider);
 		Preconditions.checkNotNull(accumulatorProtocolProxy);
 		Preconditions.checkNotNull(userCodeClassLoader);
+		Preconditions.checkNotNull(bcVarManager);
 		
 		this.owner = owner;
 
@@ -149,6 +154,7 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 		this.ioManager = ioManager;
 		this.inputSplitProvider = inputSplitProvider;
 		this.accumulatorProtocolProxy = accumulatorProtocolProxy;
+		this.bcVarManager = bcVarManager;
 
 		// load and instantiate the invokable class
 		this.userCodeClassLoader = userCodeClassLoader;
@@ -508,6 +514,11 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 		return this.memoryManager;
 	}
 
+	@Override
+	public BroadcastVariableManager getBroadcastVariableManager() {
+		return this.bcVarManager;
+	}
+	
 	@Override
 	public Configuration getTaskConfiguration() {
 		return this.taskConfiguration;
