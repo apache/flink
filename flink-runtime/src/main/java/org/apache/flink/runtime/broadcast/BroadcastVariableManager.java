@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.broadcast;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -29,26 +28,27 @@ import org.apache.flink.runtime.operators.RegularPactTask;
 
 public class BroadcastVariableManager {
 	
-	private final ConcurrentHashMap<BroadcastVariableKey, BroadcastVariableMaterialization<?>> variables =
-							new ConcurrentHashMap<BroadcastVariableKey, BroadcastVariableMaterialization<?>>(16);
+	private final ConcurrentHashMap<BroadcastVariableKey, BroadcastVariableMaterialization<?, ?>> variables =
+							new ConcurrentHashMap<BroadcastVariableKey, BroadcastVariableMaterialization<?, ?>>(16);
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public <T> List<T> getBroadcastVariable(String name, int superstep, RegularPactTask<?, ?> holder, 
+	public <T> BroadcastVariableMaterialization<T, ?> materializeBroadcastVariable(String name, int superstep, RegularPactTask<?, ?> holder, 
 			MutableReader<?> reader, TypeSerializerFactory<T> serializerFactory) throws IOException
 	{
 		final BroadcastVariableKey key = new BroadcastVariableKey(holder.getEnvironment().getJobVertexId(), name, superstep);
 		
 		while (true) {
-			final BroadcastVariableMaterialization<T> newMat = new BroadcastVariableMaterialization<T>(key);
+			final BroadcastVariableMaterialization<T, Object> newMat = new BroadcastVariableMaterialization<T, Object>(key);
 			
-			final BroadcastVariableMaterialization<?> previous = variables.putIfAbsent(key, newMat);
+			final BroadcastVariableMaterialization<?, ?> previous = variables.putIfAbsent(key, newMat);
 			
 			@SuppressWarnings("unchecked")
-			final BroadcastVariableMaterialization<T> materialization = (previous == null) ? newMat : (BroadcastVariableMaterialization<T>) previous;
+			final BroadcastVariableMaterialization<T, ?> materialization = (previous == null) ? newMat : (BroadcastVariableMaterialization<T, ?>) previous;
 			
 			try {
-				return materialization.getMaterializedVariable(reader, serializerFactory, holder);
+				materialization.materializeVariable(reader, serializerFactory, holder);
+				return materialization;
 			}
 			catch (MaterializationExpiredException e) {
 				// concurrent release. as an optimization, try to replace the previous one with our version. otherwise we might spin for a while
@@ -56,7 +56,8 @@ public class BroadcastVariableManager {
 				// NOTE: This would also catch a bug prevented an expired materialization from ever being removed, so it acts as a future safeguard
 				if (variables.replace(key, previous, newMat)) {
 					try {
-						return newMat.getMaterializedVariable(reader, serializerFactory, holder);
+						newMat.materializeVariable(reader, serializerFactory, holder);
+						return newMat;
 					}
 					catch (MaterializationExpiredException ee) {
 						// can still happen in cases of extreme races and fast tasks
@@ -75,7 +76,7 @@ public class BroadcastVariableManager {
 	}
 	
 	public void releaseReference(BroadcastVariableKey key, RegularPactTask<?, ?> referenceHolder) {
-		BroadcastVariableMaterialization<?> mat = variables.get(key);
+		BroadcastVariableMaterialization<?, ?> mat = variables.get(key);
 		
 		// release this reference
 		if (mat.decrementReference(referenceHolder)) {
@@ -87,8 +88,8 @@ public class BroadcastVariableManager {
 	
 	public void releaseAllReferencesFromTask(RegularPactTask<?, ?> referenceHolder) {
 		// go through all registered variables 
-		for (Map.Entry<BroadcastVariableKey, BroadcastVariableMaterialization<?>> entry : variables.entrySet()) {
-			BroadcastVariableMaterialization<?> mat = entry.getValue();
+		for (Map.Entry<BroadcastVariableKey, BroadcastVariableMaterialization<?, ?>> entry : variables.entrySet()) {
+			BroadcastVariableMaterialization<?, ?> mat = entry.getValue();
 			
 			// release the reference
 			if (mat.decrementReferenceIfHeld(referenceHolder)) {
@@ -97,6 +98,8 @@ public class BroadcastVariableManager {
 			}
 		}
 	}
+	
+	// --------------------------------------------------------------------------------------------
 	
 	public int getNumberOfVariablesWithReferences() {
 		return this.variables.size();

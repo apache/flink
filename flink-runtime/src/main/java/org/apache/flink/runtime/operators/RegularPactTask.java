@@ -26,13 +26,13 @@ import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.functions.FlatCombineFunction;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
-import org.apache.flink.api.common.functions.util.RuntimeUDFContext;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.accumulators.AccumulatorEvent;
+import org.apache.flink.runtime.broadcast.BroadcastVariableMaterialization;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -55,6 +55,7 @@ import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.sort.CombiningUnilateralSortMerger;
 import org.apache.flink.runtime.operators.sort.UnilateralSortMerger;
 import org.apache.flink.runtime.operators.util.CloseableInputProvider;
+import org.apache.flink.runtime.operators.util.DistributedRuntimeUDFContext;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.apache.flink.runtime.operators.util.ReaderIterator;
 import org.apache.flink.runtime.operators.util.RecordReaderIterator;
@@ -95,7 +96,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	/**
 	 * The udf's runtime context.
 	 */
-	protected RuntimeUDFContext runtimeUdfContext;
+	protected DistributedRuntimeUDFContext runtimeUdfContext;
 
 	/**
 	 * The collector that forwards the user code's results. May forward to a channel or to chained drivers within
@@ -420,7 +421,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		}
 	}
 	
-	protected <X> void readAndSetBroadcastInput(int inputNum, String bcVarName, RuntimeUDFContext context, int superstep) throws IOException {
+	protected <X> void readAndSetBroadcastInput(int inputNum, String bcVarName, DistributedRuntimeUDFContext context, int superstep) throws IOException {
 		
 		if (LOG.isDebugEnabled()) {
 			LOG.debug(formatLogString("Setting broadcast variable '" + bcVarName + "'" + 
@@ -432,12 +433,11 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		
 		final MutableReader<?> reader = this.broadcastInputReaders[inputNum];
 
-		List<X> variable = getEnvironment().getBroadcastVariableManager().getBroadcastVariable(bcVarName, superstep, this, reader, serializerFactory);
-		
+		BroadcastVariableMaterialization<X, ?> variable = getEnvironment().getBroadcastVariableManager().materializeBroadcastVariable(bcVarName, superstep, this, reader, serializerFactory);
 		context.setBroadcastVariable(bcVarName, variable);
 	}
 	
-	protected void releaseBroadcastVariables(String bcVarName, int superstep, RuntimeUDFContext context) {
+	protected void releaseBroadcastVariables(String bcVarName, int superstep, DistributedRuntimeUDFContext context) {
 		if (LOG.isDebugEnabled()) {
 			LOG.debug(formatLogString("Releasing broadcast variable '" + bcVarName + "'" + 
 				(superstep > 1 ? ", superstep " + superstep : "")));
@@ -1063,9 +1063,9 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 		this.output = initOutputs(this, userCodeClassLoader, this.config, this.chainedTasks, this.eventualOutputs);
 	}
 
-	public RuntimeUDFContext createRuntimeContext(String taskName) {
+	public DistributedRuntimeUDFContext createRuntimeContext(String taskName) {
 		Environment env = getEnvironment();
-		return new RuntimeUDFContext(taskName, env.getCurrentNumberOfSubtasks(),
+		return new DistributedRuntimeUDFContext(taskName, env.getCurrentNumberOfSubtasks(),
 				env.getIndexInSubtaskGroup(), getUserCodeClassLoader(), env.getCopyTask());
 	}
 

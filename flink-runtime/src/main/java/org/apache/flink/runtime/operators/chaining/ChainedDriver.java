@@ -16,15 +16,14 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators.chaining;
 
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.api.common.functions.util.RuntimeUDFContext;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.RegularPactTask;
+import org.apache.flink.runtime.operators.util.DistributedRuntimeUDFContext;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.util.Collector;
 
@@ -42,7 +41,7 @@ public abstract class ChainedDriver<IT, OT> implements Collector<IT> {
 	
 	protected ClassLoader userCodeClassLoader;
 	
-	private RuntimeUDFContext udfContext;
+	private DistributedRuntimeUDFContext udfContext;
 
 	
 	public void setup(TaskConfig config, String taskName, Collector<OT> outputCollector,
@@ -57,7 +56,7 @@ public abstract class ChainedDriver<IT, OT> implements Collector<IT> {
 			this.udfContext = ((RegularPactTask<?, ?>) parent).createRuntimeContext(taskName);
 		} else {
 			Environment env = parent.getEnvironment();
-			this.udfContext = new RuntimeUDFContext(taskName, env.getCurrentNumberOfSubtasks(), 
+			this.udfContext = new DistributedRuntimeUDFContext(taskName, env.getCurrentNumberOfSubtasks(), 
 					env.getIndexInSubtaskGroup(), userCodeClassLoader, env.getCopyTask());
 		}
 

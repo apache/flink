@@ -120,6 +120,29 @@ public class RuntimeUDFContextTest {
 	}
 	
 	@Test
+	public void testResetBroadcastVariableWithInitializer() {
+		try {
+			RuntimeUDFContext ctx = new RuntimeUDFContext("test name", 3, 1, getClass().getClassLoader());
+			
+			ctx.setBroadcastVariable("name", Arrays.asList(1, 2, 3, 4));
+			
+			// access it the first time with an initializer
+			List<Double> list = ctx.getBroadcastVariableWithInitializer("name", new ConvertingInitializer());
+			assertEquals(Arrays.asList(1.0, 2.0, 3.0, 4.0), list);
+			
+			// set it again to something different
+			ctx.setBroadcastVariable("name", Arrays.asList(2, 3, 4, 5));
+			
+			List<Double> list2 = ctx.getBroadcastVariableWithInitializer("name", new ConvertingInitializer());
+			assertEquals(Arrays.asList(2.0, 3.0, 4.0, 5.0), list2);
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	@Test
 	public void testBroadcastVariableWithInitializerAndMismatch() {
 		try {
 			RuntimeUDFContext ctx = new RuntimeUDFContext("test name", 3, 1, getClass().getClassLoader());

@@ -24,7 +24,6 @@ import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.aggregators.LongSumAggregator;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
-import org.apache.flink.api.common.functions.util.RuntimeUDFContext;
 import org.apache.flink.api.common.operators.util.JoinHashMap;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
@@ -44,6 +43,7 @@ import org.apache.flink.runtime.operators.PactDriver;
 import org.apache.flink.runtime.operators.RegularPactTask;
 import org.apache.flink.runtime.operators.ResettablePactDriver;
 import org.apache.flink.runtime.operators.hash.CompactingHashTable;
+import org.apache.flink.runtime.operators.util.DistributedRuntimeUDFContext;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
@@ -162,7 +162,7 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 	}
 
 	@Override
-	public RuntimeUDFContext createRuntimeContext(String taskName) {
+	public DistributedRuntimeUDFContext createRuntimeContext(String taskName) {
 		Environment env = getEnvironment();
 		return new IterativeRuntimeUdfContext(taskName, env.getCurrentNumberOfSubtasks(),
 				env.getIndexInSubtaskGroup(), getUserCodeClassLoader());
@@ -353,7 +353,7 @@ public abstract class AbstractIterativePactTask<S extends Function, OT> extends 
 
 	// -----------------------------------------------------------------------------------------------------------------
 
-	private class IterativeRuntimeUdfContext extends RuntimeUDFContext implements IterationRuntimeContext {
+	private class IterativeRuntimeUdfContext extends DistributedRuntimeUDFContext implements IterationRuntimeContext {
 
 		public IterativeRuntimeUdfContext(String name, int numParallelSubtasks, int subtaskIndex, ClassLoader userCodeClassLoader) {
 			super(name, numParallelSubtasks, subtaskIndex, userCodeClassLoader);

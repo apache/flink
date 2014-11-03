@@ -21,18 +21,16 @@ package org.apache.flink.runtime.broadcast;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.Set;
 
+import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.runtime.io.network.api.MutableReader;
 import org.apache.flink.runtime.operators.RegularPactTask;
 import org.apache.flink.runtime.operators.util.ReaderIterator;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
-import org.apache.flink.util.MutableObjectIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,7 +39,7 @@ import com.google.common.base.Preconditions;
 /**
  * @param <T> The type of the elements in the broadcasted data set.
  */
-public class BroadcastVariableMaterialization<T> {
+public class BroadcastVariableMaterialization<T, C> {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(BroadcastVariableMaterialization.class);
 	
@@ -54,6 +52,8 @@ public class BroadcastVariableMaterialization<T> {
 	
 	private ArrayList<T> data;
 	
+	private C transformed;
+	
 	private boolean materialized;
 	
 	private boolean disposed;
@@ -62,9 +62,10 @@ public class BroadcastVariableMaterialization<T> {
 	public BroadcastVariableMaterialization(BroadcastVariableKey key) {
 		this.key = key;
 	}
-	
 
-	public List<T> getMaterializedVariable(MutableReader<?> reader, TypeSerializerFactory<?> serializerFactory, RegularPactTask<?, ?> referenceHolder)
+	// --------------------------------------------------------------------------------------------
+	
+	public void materializeVariable(MutableReader<?> reader, TypeSerializerFactory<?> serializerFactory, RegularPactTask<?, ?> referenceHolder)
 			throws MaterializationExpiredException, IOException
 	{
 		Preconditions.checkNotNull(reader);
@@ -141,8 +142,6 @@ public class BroadcastVariableMaterialization<T> {
 				}
 				
 			}
-			
-			return this.data;
 		}
 		catch (Throwable t) {
 			// in case of an exception, we need to clean up big time
@@ -200,57 +199,44 @@ public class BroadcastVariableMaterialization<T> {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	@SuppressWarnings("unused")
-	private static final class NewObjectCreatingIterator<T> implements Iterator<T> {
-		
-		private final TypeSerializer<T> serializer;
-		
-		private MutableObjectIterator<T> iterator;
-		
-		private T next;
-		
-		
-		public NewObjectCreatingIterator(TypeSerializer<T> serializer, MutableObjectIterator<T> iterator) {
-			this.serializer = serializer;
-			this.iterator = iterator;
+	public List<T> getVariable() throws InitializationTypeConflictException {
+		if (!materialized) {
+			throw new IllegalStateException("The Broadcast Variable has not yet been materialized.");
 		}
-
+		if (disposed) {
+			throw new IllegalStateException("The Broadcast Variable has been disposed");
+		}
 		
-		@Override
-		public boolean hasNext() {
-			if (next != null) {
-				return true;
-			}
-			else if (iterator != null) {
-				try {
-					next = iterator.next(serializer.createInstance());
-					if (next != null) {
-						return true;
-					} else {
-						iterator = null;
-						return false;
-					}
-				} catch (IOException e) {
-					throw new RuntimeException("Error getting element for broadcast variable.", e);
+		synchronized (this) {
+			if (transformed != null) {
+				if (transformed instanceof List) {
+					@SuppressWarnings("unchecked")
+					List<T> casted = (List<T>) transformed;
+					return casted;
+				} else {
+					throw new InitializationTypeConflictException(transformed.getClass());
 				}
 			}
 			else {
-				return false;
+				return data;
 			}
 		}
-		
-		@Override
-		public T next() {
-			if (hasNext()) {
-				return next;
-			} else {
-				throw new NoSuchElementException();
-			}
+	}
+	
+	public C getVariable(BroadcastVariableInitializer<T, C> initializer) {
+		if (!materialized) {
+			throw new IllegalStateException("The Broadcast Variable has not yet been materialized.");
+		}
+		if (disposed) {
+			throw new IllegalStateException("The Broadcast Variable has been disposed");
 		}
 		
-		@Override
-		public void remove() {
-			throw new UnsupportedOperationException();
+		synchronized (this) {
+			if (transformed == null) {
+				transformed = initializer.initializeBroadcastVariable(data);
+				data = null;
+			}
+			return transformed;
 		}
 	}
 }
