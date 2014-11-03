@@ -68,6 +68,15 @@ under the License.
 			</modules>
 		</profile>
 		<profile>
+			<id>mesos</id>
+			<activation>
+				<activeByDefault>false</activeByDefault>
+			</activation>
+			<modules>
+				<module>flink-mesos</module>
+			</modules>
+		</profile>
+		<profile>
 			<id>include-yarn</id>
 			<activation>
 				<property>
