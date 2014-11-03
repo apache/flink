@@ -21,6 +21,7 @@ package org.apache.flink.runtime.operators;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.apache.flink.api.common.io.CleanupWhenUnsuccessful;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -77,6 +78,8 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 	
 	// cancel flag
 	private volatile boolean taskCanceled;
+	
+	private volatile boolean cleanupCalled;
 	
 
 	@Override
@@ -180,6 +183,18 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 			}
 		}
 		catch (Exception ex) {
+			
+			// make a best effort to clean up
+			try {
+				if (!cleanupCalled && format instanceof CleanupWhenUnsuccessful) {
+					cleanupCalled = true;
+					((CleanupWhenUnsuccessful) format).tryCleanupOnError();
+				}
+			}
+			catch (Throwable t) {
+				LOG.error("Cleanup on error failed.", t);
+			}
+			
 			ex = ExceptionInChainedStubException.exceptionUnwrap(ex);
 
 			if (ex instanceof CancelTaskException) {
@@ -237,6 +252,17 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 			try {
 				this.format.close();
 			} catch (Throwable t) {}
+			
+			// make a best effort to clean up
+			try {
+				if (!cleanupCalled && format instanceof CleanupWhenUnsuccessful) {
+					cleanupCalled = true;
+					((CleanupWhenUnsuccessful) format).tryCleanupOnError();
+				}
+			}
+			catch (Throwable t) {
+				LOG.error("Cleanup on error failed.", t);
+			}
 		}
 		
 		if (LOG.isDebugEnabled()) {

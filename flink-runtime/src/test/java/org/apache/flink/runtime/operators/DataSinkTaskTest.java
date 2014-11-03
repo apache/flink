@@ -306,7 +306,7 @@ public class DataSinkTaskTest extends TaskTestBase
 		
 		// assert that temp file was created
 		File tempTestFile = new File(this.tempTestPath);
-		Assert.assertTrue("Temp output file does not exist",tempTestFile.exists());
+		Assert.assertFalse("Temp output file has not been removed", tempTestFile.exists());
 		
 	}
 	
@@ -347,7 +347,7 @@ public class DataSinkTaskTest extends TaskTestBase
 		
 		// assert that temp file was created
 		File tempTestFile = new File(this.tempTestPath);
-		Assert.assertTrue("Temp output file does not exist",tempTestFile.exists());
+		Assert.assertFalse("Temp output file has not been removed", tempTestFile.exists());
 		
 	}
 	
@@ -388,8 +388,7 @@ public class DataSinkTaskTest extends TaskTestBase
 		
 		// assert that temp file was created
 		File tempTestFile = new File(this.tempTestPath);
-		Assert.assertTrue("Temp output file does not exist",tempTestFile.exists());
-				
+		Assert.assertFalse("Temp output file has not been removed", tempTestFile.exists());
 	}
 	
 	@Test
