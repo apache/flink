@@ -60,18 +60,18 @@ public class BlobLibraryCacheManagerTest {
 			keys.add(bc.put(buf));
 
 			libraryCacheManager = new BlobLibraryCacheManager(server, GlobalConfiguration.getConfiguration());
-			libraryCacheManager.register(jid, keys);
+			libraryCacheManager.registerJob(jid, keys);
 
 			List<File> files = new ArrayList<File>();
 
-			for(BlobKey key: keys){
+			for (BlobKey key: keys){
 				files.add(libraryCacheManager.getFile(key));
 			}
 
 			assertEquals(2, files.size());
 			files.clear();
 
-			libraryCacheManager.unregister(jid);
+			libraryCacheManager.unregisterJob(jid);
 
 			Thread.sleep(1500);
 

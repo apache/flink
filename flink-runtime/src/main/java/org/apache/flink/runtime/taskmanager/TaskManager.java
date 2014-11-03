@@ -574,7 +574,6 @@ public class TaskManager implements TaskOperationProtocol {
 		final int numSubtasks = tdd.getCurrentNumberOfSubtasks();
 		
 		Task task = null;
-		boolean jarsRegistered = false;
 		
 		// check if the taskmanager is shut down or disconnected
 		if (shutdownStarted.get()) {
@@ -586,8 +585,7 @@ public class TaskManager implements TaskOperationProtocol {
 		
 		try {
 			// Now register data with the library manager
-			libraryCacheManager.register(jobID, tdd.getRequiredJarFiles());
-			jarsRegistered = true;
+			libraryCacheManager.registerTask(jobID, executionId, tdd.getRequiredJarFiles());
 			
 			// library and classloader issues first
 			final ClassLoader userCodeClassLoader = libraryCacheManager.getClassLoader(jobID);
@@ -659,9 +657,8 @@ public class TaskManager implements TaskOperationProtocol {
 				if (task != null) {
 					removeAllTaskResources(task);
 				}
-				if (jarsRegistered) {
-					libraryCacheManager.unregister(jobID);
-				}
+				
+				libraryCacheManager.unregisterTask(jobID, executionId);
 			}
 			catch (Throwable t2) {
 				LOG.error("Error during cleanup of task deployment", t2);
@@ -690,7 +687,7 @@ public class TaskManager implements TaskOperationProtocol {
 		removeAllTaskResources(task);
 
 		// Unregister task from library cache manager
-		libraryCacheManager.unregister(task.getJobID());
+		libraryCacheManager.unregisterTask(task.getJobID(), executionId);
 	}
 	
 	private void removeAllTaskResources(Task task) {

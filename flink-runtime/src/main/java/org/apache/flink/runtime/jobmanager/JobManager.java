@@ -327,7 +327,7 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 			}
 
 			// Register this job with the library cache manager
-			libraryCacheManager.register(job.getJobID(), job.getUserJarBlobKeys());
+			libraryCacheManager.registerJob(job.getJobID(), job.getUserJarBlobKeys());
 			
 			// get the existing execution graph (if we attach), or construct a new empty one to attach
 			executionGraph = this.currentJobs.get(job.getJobID());
@@ -425,7 +425,7 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 			// job was not prperly removed by the fail call
 			if(currentJobs.contains(job.getJobID())){
 				currentJobs.remove(job.getJobID());
-				libraryCacheManager.unregister(job.getJobID());
+				libraryCacheManager.unregisterJob(job.getJobID());
 			}
 
 			return new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR, StringUtils.stringifyException(t));
@@ -524,7 +524,7 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 			this.currentJobs.remove(jid);
 			
 			try {
-				libraryCacheManager.unregister(jid);
+				libraryCacheManager.unregisterJob(jid);
 			}
 			catch (Throwable t) {
 				LOG.warn("Could not properly unregister job " + jid + " from the library cache.");
