@@ -54,7 +54,14 @@ public class BroadcastVariableManager {
 				// concurrent release. as an optimization, try to replace the previous one with our version. otherwise we might spin for a while
 				// until the releaser removes the variable
 				// NOTE: This would also catch a bug prevented an expired materialization from ever being removed, so it acts as a future safeguard
-				if (variables.replace(key, previous, newMat)) {
+				
+				boolean replaceSuccessful = false;
+				try {
+					replaceSuccessful = variables.replace(key, materialization, newMat);
+				}
+				catch (Throwable t) {}
+				
+				if (replaceSuccessful) {
 					try {
 						newMat.materializeVariable(reader, serializerFactory, holder);
 						return newMat;
