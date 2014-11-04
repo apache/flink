@@ -177,9 +177,9 @@ public class Client {
 			}
 			
 			throw new ProgramInvocationException(
-					"The program plan could not be fetched. The program silently swallowed the control flow exceptions.\n"
-					+ "System.err: "+StringEscapeUtils.escapeHtml4(baes.toString())+" \n"
-					+ "System.out: "+StringEscapeUtils.escapeHtml4(baos.toString())+" \n" );
+					"The program plan could not be fetched - the program aborted pre-maturely. <br/><br/>"
+					+ "System.err: "+StringEscapeUtils.escapeHtml4(baes.toString())+" <br/>"
+					+ "System.out: "+StringEscapeUtils.escapeHtml4(baos.toString())+" <br/>" );
 		}
 		else {
 			throw new RuntimeException();

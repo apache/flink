@@ -165,6 +165,43 @@ public class PackagedProgram {
 		}
 	}
 	
+	public PackagedProgram(Class<?> entryPointClass, String... args) throws ProgramInvocationException {
+		this.jarFile = null;
+		this.args = args == null ? new String[0] : args;
+		
+		this.extractedTempLibraries = Collections.emptyList();
+		this.userCodeClassLoader = entryPointClass.getClassLoader();
+		
+		// load the entry point class
+		this.mainClass = entryPointClass;
+		
+		// if the entry point is a program, instantiate the class and get the plan
+		if (Program.class.isAssignableFrom(this.mainClass)) {
+			Program prg = null;
+			try {
+				prg = InstantiationUtil.instantiate(this.mainClass.asSubclass(Program.class), Program.class);
+			} catch (Exception e) {
+				// validate that the class has a main method at least.
+				// the main method possibly instantiates the program properly
+				if (!hasMainMethod(mainClass)) {
+					throw new ProgramInvocationException("The given program class implements the " + 
+							Program.class.getName() + " interface, but cannot be instantiated. " +
+							"It also declares no main(String[]) method as alternative entry point", e);
+				}
+			} catch (Throwable t) {
+				throw new ProgramInvocationException("Error while trying to instantiate program class.", t);
+			}
+			this.program = prg;
+		} else if (hasMainMethod(mainClass)) {
+			this.program = null;
+		} else {
+			throw new ProgramInvocationException("The given program class neither has a main(String[]) method, nor does it implement the " + 
+					Program.class.getName() + " interface.");
+		}
+	}
+	
+	
+	
 	public String[] getArguments() {
 		return this.args;
 	}
@@ -191,7 +228,9 @@ public class PackagedProgram {
 		if (isUsingProgramEntryPoint()) {
 			List<File> allJars = new ArrayList<File>();
 			
-			allJars.add(jarFile);
+			if (this.jarFile != null) {
+				allJars.add(jarFile);
+			}
 			allJars.addAll(extractedTempLibraries);
 			
 			return new JobWithJars(getPlan(), allJars, userCodeClassLoader);
@@ -321,7 +360,9 @@ public class PackagedProgram {
 
 	public List<File> getAllLibraries() {
 		List<File> libs = new ArrayList<File>(this.extractedTempLibraries.size() + 1);
-		libs.add(jarFile);
+		if (jarFile != null) {
+			libs.add(jarFile);
+		}
 		libs.addAll(this.extractedTempLibraries);
 		return libs;
 	}
