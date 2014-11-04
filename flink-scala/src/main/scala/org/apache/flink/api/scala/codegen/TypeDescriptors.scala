@@ -80,6 +80,27 @@ private[flink] trait TypeDescriptors[C <: Context] { this: MacroContextHolder[C]
     override def canBeKey = wrapper <:< typeOf[org.apache.flink.types.Key[_]]
   }
 
+  case class NothingDesciptor(id: Int, tpe: Type)
+    extends UDTDescriptor {
+    override val isPrimitiveProduct = false
+    override def flatten = Seq(this)
+    override def canBeKey = false
+  }
+
+  case class EitherDescriptor(id: Int, tpe: Type, left: UDTDescriptor, right: UDTDescriptor)
+    extends UDTDescriptor {
+    override val isPrimitiveProduct = false
+    override def flatten = Seq(this)
+    override def canBeKey = false
+  }
+
+  case class OptionDescriptor(id: Int, tpe: Type, elem: UDTDescriptor)
+    extends UDTDescriptor {
+    override val isPrimitiveProduct = false
+    override def flatten = Seq(this)
+    override def canBeKey = false
+  }
+
   case class BoxedPrimitiveDescriptor(
       id: Int, tpe: Type, default: Literal, wrapper: Type, box: Tree => Tree, unbox: Tree => Tree)
     extends UDTDescriptor {
@@ -96,19 +117,32 @@ private[flink] trait TypeDescriptors[C <: Context] { this: MacroContextHolder[C]
     }
   }
 
-  case class ListDescriptor(id: Int, tpe: Type, iter: Tree => Tree, elem: UDTDescriptor)
+  case class ArrayDescriptor(id: Int, tpe: Type, elem: UDTDescriptor)
+    extends UDTDescriptor {
+    override def canBeKey = false
+    override def flatten = this +: elem.flatten
+
+    override def hashCode() = (id, tpe, elem).hashCode()
+    override def equals(that: Any) = that match {
+      case that @ ArrayDescriptor(thatId, thatTpe, thatElem) =>
+        (id, tpe, elem).equals((thatId, thatTpe, thatElem))
+      case _ => false
+    }
+  }
+
+  case class TraversableDescriptor(id: Int, tpe: Type, elem: UDTDescriptor)
     extends UDTDescriptor {
     override def canBeKey = false
     override def flatten = this +: elem.flatten
 
     def getInnermostElem: UDTDescriptor = elem match {
-      case list: ListDescriptor => list.getInnermostElem
+      case list: TraversableDescriptor => list.getInnermostElem
       case _                    => elem
     }
 
     override def hashCode() = (id, tpe, elem).hashCode()
     override def equals(that: Any) = that match {
-      case that @ ListDescriptor(thatId, thatTpe,  _, thatElem) =>
+      case that @ TraversableDescriptor(thatId, thatTpe, thatElem) =>
         (id, tpe, elem).equals((thatId, thatTpe, thatElem))
       case _ => false
     }
