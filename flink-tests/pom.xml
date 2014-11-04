@@ -278,6 +278,7 @@ under the License.
 					<excludes>
 						<exclude>**/*TestBase*.class</exclude>
 					</excludes>
+					<reuseForks>false</reuseForks>
 				</configuration>
 			</plugin>
 			
