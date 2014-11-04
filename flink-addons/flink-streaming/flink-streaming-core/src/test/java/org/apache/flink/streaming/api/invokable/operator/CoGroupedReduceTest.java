@@ -27,7 +27,7 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.streaming.api.function.co.CoReduceFunction;
 import org.apache.flink.streaming.api.invokable.operator.co.CoGroupedReduceInvokable;
 import org.apache.flink.streaming.util.MockCoInvokable;
-import org.apache.flink.streaming.util.keys.FieldsKeySelector;
+import org.apache.flink.streaming.util.keys.TupleKeySelector;
 import org.junit.Test;
 
 public class CoGroupedReduceTest {
@@ -72,8 +72,7 @@ public class CoGroupedReduceTest {
 		Tuple2<Integer, Integer> int5 = new Tuple2<Integer, Integer>(1, 5);
 
 		CoGroupedReduceInvokable<Tuple3<String, String, String>, Tuple2<Integer, Integer>, String> invokable = new CoGroupedReduceInvokable<Tuple3<String, String, String>, Tuple2<Integer, Integer>, String>(
-				new MyCoReduceFunction(), new FieldsKeySelector(true, false, 0),
-				new FieldsKeySelector(true, false, 0));
+				new MyCoReduceFunction(), new TupleKeySelector(0), new TupleKeySelector(0));
 
 		List<String> expected = Arrays.asList("word1", "1", "word2", "2", "word1word3", "3", "5",
 				"7");
@@ -84,8 +83,7 @@ public class CoGroupedReduceTest {
 		assertEquals(expected, actualList);
 
 		invokable = new CoGroupedReduceInvokable<Tuple3<String, String, String>, Tuple2<Integer, Integer>, String>(
-				new MyCoReduceFunction(), new FieldsKeySelector(true, false, 2),
-				new FieldsKeySelector(true, false, 0));
+				new MyCoReduceFunction(), new TupleKeySelector(2), new TupleKeySelector(0));
 
 		expected = Arrays.asList("word1", "1", "word2", "2", "word2word3", "3", "5", "7");
 

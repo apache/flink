@@ -192,7 +192,7 @@ public final class PojoComparator<T> extends CompositeTypeComparator<T> implemen
 	/**
 	 * This method is handling the IllegalAccess exceptions of Field.get()
 	 */
-	private final Object accessField(Field field, Object object) {
+	public final Object accessField(Field field, Object object) {
 		try {
 			object = field.get(object);
 		} catch (NullPointerException npex) {

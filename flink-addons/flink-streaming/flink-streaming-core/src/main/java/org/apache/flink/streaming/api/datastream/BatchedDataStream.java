@@ -75,15 +75,33 @@ public class BatchedDataStream<OUT> {
 
 	/**
 	 * Groups the elements of the {@link BatchedDataStream} by the given key
-	 * position to be used with grouped operators.
+	 * positions to be used with grouped operators.
 	 * 
-	 * @param keyPosition
-	 *            The position of the field on which the
+	 * @param fields
+	 *            The position of the fields on which the
 	 *            {@link BatchedDataStream} will be grouped.
 	 * @return The transformed {@link BatchedDataStream}
 	 */
-	public BatchedDataStream<OUT> groupBy(int keyPosition) {
-		return new BatchedDataStream<OUT>(dataStream.groupBy(keyPosition), batchSize, slideSize);
+	public BatchedDataStream<OUT> groupBy(int... fields) {
+		return new BatchedDataStream<OUT>(dataStream.groupBy(fields), batchSize, slideSize);
+	}
+
+	/**
+	 * Groups a {@link BatchedDataStream} using field expressions. A field
+	 * expression is either the name of a public field or a getter method with
+	 * parentheses of the {@link BatchedDataStream}S underlying type. A dot can
+	 * be used to drill down into objects, as in
+	 * {@code "field1.getInnerField2()" }.
+	 * 
+	 * @param fields
+	 *            One or more field expressions on which the DataStream will be
+	 *            grouped.
+	 * @return The grouped {@link BatchedDataStream}
+	 **/
+	public BatchedDataStream<OUT> groupBy(String... fields) {
+
+		return new BatchedDataStream<OUT>(dataStream.groupBy(fields), batchSize, slideSize);
+
 	}
 
 	/**

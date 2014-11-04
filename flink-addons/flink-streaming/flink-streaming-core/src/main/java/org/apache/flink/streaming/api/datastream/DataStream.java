@@ -69,6 +69,7 @@ import org.apache.flink.streaming.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.util.keys.FieldsKeySelector;
+import org.apache.flink.streaming.util.keys.PojoKeySelector;
 import org.apache.flink.streaming.util.serialization.FunctionTypeWrapper;
 import org.apache.flink.streaming.util.serialization.ObjectTypeWrapper;
 import org.apache.flink.streaming.util.serialization.TypeWrapper;
@@ -373,6 +374,30 @@ public class DataStream<OUT> {
 	 * @param slideInterval
 	 *            After every function call the windows will be slid by this
 	 *            interval.
+	 * @param fieldIn1
+	 *            The field in the first stream to be matched.
+	 * @param fieldIn2
+	 *            The field in the second stream to be matched.
+	 * @return The transformed {@link DataStream}.
+	 */
+	public <IN2> SingleOutputStreamOperator<Tuple2<OUT, IN2>, ?> windowJoin(
+			DataStream<IN2> dataStreamToJoin, long windowSize, long slideInterval, String fieldIn1,
+			String fieldIn2) {
+		return this.windowJoin(dataStreamToJoin, windowSize, slideInterval,
+				new DefaultTimeStamp<OUT>(), new DefaultTimeStamp<IN2>(), fieldIn1, fieldIn2);
+	}
+
+	/**
+	 * Creates a join of a data stream based on the given positions.
+	 * 
+	 * @param dataStreamToJoin
+	 *            {@link DataStream} to join with.
+	 * @param windowSize
+	 *            Size of the windows that will be aligned for both streams in
+	 *            milliseconds.
+	 * @param slideInterval
+	 *            After every function call the windows will be slid by this
+	 *            interval.
 	 * @param timestamp1
 	 *            User defined time stamps for the first input.
 	 * @param timestamp2
@@ -391,8 +416,36 @@ public class DataStream<OUT> {
 	}
 
 	/**
-	 * Sets the partitioning of the {@link DataStream} so that the output tuples
-	 * are partitioned by the hashcodes of the selected fields.
+	 * Creates a join of a data stream based on the given positions.
+	 * 
+	 * @param dataStreamToJoin
+	 *            {@link DataStream} to join with.
+	 * @param windowSize
+	 *            Size of the windows that will be aligned for both streams in
+	 *            milliseconds.
+	 * @param slideInterval
+	 *            After every function call the windows will be slid by this
+	 *            interval.
+	 * @param timestamp1
+	 *            User defined time stamps for the first input.
+	 * @param timestamp2
+	 *            User defined time stamps for the second input.
+	 * @param fieldIn1
+	 *            The field in the first stream to be matched.
+	 * @param fieldIn2
+	 *            The field in the second stream to be matched.
+	 * @return The transformed {@link DataStream}.
+	 */
+	public <IN2> SingleOutputStreamOperator<Tuple2<OUT, IN2>, ?> windowJoin(
+			DataStream<IN2> dataStreamToJoin, long windowSize, long slideInterval,
+			TimeStamp<OUT> timestamp1, TimeStamp<IN2> timestamp2, String fieldIn1, String fieldIn2) {
+		return this.connect(dataStreamToJoin).windowJoin(windowSize, slideInterval, timestamp1,
+				timestamp2, fieldIn1, fieldIn2);
+	}
+
+	/**
+	 * Sets the partitioning of the {@link DataStream} so that the output is
+	 * partitioned by the selected fields.
 	 * 
 	 * @param fields
 	 *            The fields to partition by.
@@ -400,10 +453,31 @@ public class DataStream<OUT> {
 	 */
 	public DataStream<OUT> partitionBy(int... fields) {
 
-		return setConnectionType(new FieldsPartitioner<OUT>(new FieldsKeySelector<OUT>(
+		return setConnectionType(new FieldsPartitioner<OUT>(FieldsKeySelector.getSelector(
 				getOutputType(), fields)));
 	}
 
+	/**
+	 * Sets the partitioning of the {@link DataStream} so that the output is
+	 * partitioned by the given field expressions.
+	 * 
+	 * @param fields
+	 *            The fields expressions to partition by.
+	 * @return The DataStream with fields partitioning set.
+	 */
+	public DataStream<OUT> partitionBy(String... fields) {
+
+		return setConnectionType(new FieldsPartitioner<OUT>(new PojoKeySelector<OUT>(
+				getOutputType(), fields)));
+	}
+
+	/**
+	 * Sets the partitioning of the {@link DataStream} so that the output is
+	 * partitioned using the given {@link KeySelector}.
+	 * 
+	 * @param keySelector
+	 * @return
+	 */
 	public DataStream<OUT> partitionBy(KeySelector<OUT, ?> keySelector) {
 		return setConnectionType(new FieldsPartitioner<OUT>(keySelector));
 	}
@@ -547,10 +621,30 @@ public class DataStream<OUT> {
 	 * @param fields
 	 *            The position of the fields on which the {@link DataStream}
 	 *            will be grouped.
-	 * @return The transformed {@link DataStream}
+	 * @return The grouped {@link DataStream}
 	 */
 	public GroupedDataStream<OUT> groupBy(int... fields) {
-		return groupBy(new FieldsKeySelector<OUT>(getOutputType(), fields));
+
+		return groupBy(FieldsKeySelector.getSelector(getOutputType(), fields));
+
+	}
+
+	/**
+	 * Groups a {@link DataStream} using field expressions. A field expression
+	 * is either the name of a public field or a getter method with parentheses
+	 * of the {@link DataStream}S underlying type. A dot can be used to drill
+	 * down into objects, as in {@code "field1.getInnerField2()" }. This method
+	 * returns an {@link GroupedDataStream}.
+	 * 
+	 * @param fields
+	 *            One or more field expressions on which the DataStream will be
+	 *            grouped.
+	 * @return The grouped {@link DataStream}
+	 **/
+	public GroupedDataStream<OUT> groupBy(String... fields) {
+
+		return groupBy(new PojoKeySelector<OUT>(getOutputType(), fields));
+
 	}
 
 	/**
@@ -561,7 +655,7 @@ public class DataStream<OUT> {
 	 * @param keySelector
 	 *            The {@link KeySelector} that will be used to extract keys for
 	 *            the values
-	 * @return The transformed {@link DataStream}
+	 * @return The grouped {@link DataStream}
 	 */
 	public GroupedDataStream<OUT> groupBy(KeySelector<OUT, ?> keySelector) {
 		return new GroupedDataStream<OUT>(this, keySelector);

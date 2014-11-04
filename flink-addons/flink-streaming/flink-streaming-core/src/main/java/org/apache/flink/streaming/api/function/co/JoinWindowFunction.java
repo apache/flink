@@ -24,21 +24,28 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.util.keys.FieldsKeySelector;
+import org.apache.flink.streaming.util.keys.PojoKeySelector;
 import org.apache.flink.util.Collector;
 
 public class JoinWindowFunction<IN1, IN2> implements CoWindowFunction<IN1, IN2, Tuple2<IN1, IN2>> {
 	private static final long serialVersionUID = 1L;
 
-	private KeySelector<IN1, Object> keySelector1;
-	private KeySelector<IN2, Object> keySelector2;
+	private KeySelector<IN1, ?> keySelector1;
+	private KeySelector<IN2, ?> keySelector2;
 
 	public JoinWindowFunction() {
 	}
 
 	public JoinWindowFunction(TypeInformation<IN1> inType1, TypeInformation<IN2> inType2,
 			int positionIn1, int positionIn2) {
-		keySelector1 = new FieldsKeySelector<IN1>(inType1, positionIn1);
-		keySelector2 = new FieldsKeySelector<IN2>(inType2, positionIn2);
+		keySelector1 = FieldsKeySelector.getSelector(inType1, positionIn1);
+		keySelector2 = FieldsKeySelector.getSelector(inType2, positionIn2);
+	}
+
+	public JoinWindowFunction(TypeInformation<IN1> inType1, TypeInformation<IN2> inType2,
+			String field1, String field2) {
+		keySelector1 = new PojoKeySelector<IN1>(inType1, field1);
+		keySelector2 = new PojoKeySelector<IN2>(inType2, field2);
 	}
 
 	@Override

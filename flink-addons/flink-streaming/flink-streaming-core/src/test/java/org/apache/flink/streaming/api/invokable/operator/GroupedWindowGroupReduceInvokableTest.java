@@ -27,7 +27,7 @@ import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.invokable.util.TimeStamp;
 import org.apache.flink.streaming.util.MockInvokable;
-import org.apache.flink.streaming.util.keys.FieldsKeySelector;
+import org.apache.flink.streaming.util.keys.TupleKeySelector;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
 
@@ -73,7 +73,7 @@ public class GroupedWindowGroupReduceInvokableTest {
 						}
 						out.collect(outTuple);
 					}
-				}, 2, 3, new FieldsKeySelector(true, false, 0),
+				}, 2, 3, new TupleKeySelector( 0),
 				new TimeStamp<Tuple2<String, Integer>>() {
 					private static final long serialVersionUID = 1L;
 

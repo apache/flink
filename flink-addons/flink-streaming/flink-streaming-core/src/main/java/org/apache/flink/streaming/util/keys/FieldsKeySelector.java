@@ -17,8 +17,6 @@
 
 package org.apache.flink.streaming.util.keys;
 
-import java.lang.reflect.Array;
-
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -50,15 +48,13 @@ import org.apache.flink.api.java.tuple.Tuple7;
 import org.apache.flink.api.java.tuple.Tuple8;
 import org.apache.flink.api.java.tuple.Tuple9;
 
-public class FieldsKeySelector<IN> implements KeySelector<IN, Object> {
+public abstract class FieldsKeySelector<IN> implements KeySelector<IN, Object> {
 
 	private static final long serialVersionUID = 1L;
 
-	int[] keyFields;
-	boolean isTuple;
-	boolean isArray;
-	int numberOfKeys;
-	Object key;
+	protected int[] keyFields;
+	protected Object key;
+	protected boolean simpleKey;
 
 	public static Class<?>[] tupleClasses = new Class[] { Tuple1.class, Tuple2.class, Tuple3.class,
 			Tuple4.class, Tuple5.class, Tuple6.class, Tuple7.class, Tuple8.class, Tuple9.class,
@@ -67,73 +63,40 @@ public class FieldsKeySelector<IN> implements KeySelector<IN, Object> {
 			Tuple20.class, Tuple21.class, Tuple22.class, Tuple23.class, Tuple24.class,
 			Tuple25.class };
 
-	public FieldsKeySelector(boolean isTuple, boolean isArray, int... fields) {
+	public FieldsKeySelector(int... fields) {
 		this.keyFields = fields;
-		this.numberOfKeys = fields.length;
-		this.isTuple = isTuple;
-		this.isArray = isArray;
-
+		this.simpleKey = fields.length == 1;
 		for (int i : fields) {
 			if (i < 0) {
 				throw new RuntimeException("Grouping fields must be non-negative");
 			}
 		}
 
-		if (numberOfKeys > 1) {
-			if (!this.isTuple && !this.isArray) {
+		try {
+			key = (Tuple) tupleClasses[fields.length - 1].newInstance();
+		} catch (Exception e) {
+			throw new RuntimeException(e.getMessage());
+		}
+
+	}
+
+	public static <R> KeySelector<R, ?> getSelector(TypeInformation<R> type, int... fields) {
+		if (type.isTupleType()) {
+			return new TupleKeySelector<R>(fields);
+		} else if (type instanceof BasicArrayTypeInfo || type instanceof PrimitiveArrayTypeInfo) {
+			return new ArrayKeySelector<R>(fields);
+		} else {
+			if (fields.length > 1) {
 				throw new RuntimeException(
 						"For non-tuple types use single field 0 or KeyExctractor for grouping");
-			} else {
-				try {
-					key = tupleClasses[fields.length - 1].newInstance();
-				} catch (Exception e) {
-					throw new RuntimeException(e.getMessage());
-				}
-			}
-		} else {
-			if (!this.isTuple && !this.isArray) {
-				if (fields[0] > 0) {
-					throw new RuntimeException(
-							"For simple objects grouping only allowed on the first field");
-				}
-			}
-			key = null;
-		}
-	}
 
-	public FieldsKeySelector(TypeInformation<IN> type, int... fields) {
-		this(type.isTupleType(),
-				(type instanceof BasicArrayTypeInfo || type instanceof PrimitiveArrayTypeInfo),
-				fields);
-	}
-
-	@Override
-	public Object getKey(IN value) throws Exception {
-		if (numberOfKeys > 1) {
-			int c = 0;
-			if (isTuple) {
-				for (int pos : keyFields) {
-					((Tuple) key).setField(((Tuple) value).getField(pos), c);
-					c++;
-				}
+			} else if (fields[0] > 0) {
+				throw new RuntimeException(
+						"For simple objects grouping only allowed on the first field");
 			} else {
-				// if array type
-				for (int pos : keyFields) {
-					((Tuple) key).setField(Array.get(value, pos), c);
-					c++;
-				}
-
-			}
-		} else {
-			if (isTuple) {
-				key = ((Tuple) value).getField(keyFields[0]);
-			} else if (isArray) {
-				key = Array.get(value, keyFields[0]);
-			} else {
-				key = value;
+				return new ObjectKeySelector<R>();
 			}
 		}
-		return key;
 	}
 
 }

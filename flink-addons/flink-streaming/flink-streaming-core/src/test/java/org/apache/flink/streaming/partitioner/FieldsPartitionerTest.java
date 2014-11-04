@@ -24,7 +24,7 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
-import org.apache.flink.streaming.util.keys.FieldsKeySelector;
+import org.apache.flink.streaming.util.keys.TupleKeySelector;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -42,8 +42,7 @@ public class FieldsPartitionerTest {
 
 	@Before
 	public void setPartitioner() {
-		fieldsPartitioner = new FieldsPartitioner<Tuple>(new FieldsKeySelector<Tuple>(true, false,
-				0));
+		fieldsPartitioner = new FieldsPartitioner<Tuple>(new TupleKeySelector<Tuple>(0));
 	}
 
 	@Test

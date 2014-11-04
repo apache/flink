@@ -51,8 +51,13 @@ public class WindowDataStream<OUT> extends BatchedDataStream<OUT> {
 		this.timeStamp = windowDataStream.timeStamp;
 	}
 
-	public WindowDataStream<OUT> groupBy(int keyPosition) {
-		return new WindowDataStream<OUT>(dataStream.groupBy(keyPosition), batchSize, slideSize,
+	public WindowDataStream<OUT> groupBy(int... keyPositions) {
+		return new WindowDataStream<OUT>(dataStream.groupBy(keyPositions), batchSize, slideSize,
+				timeStamp);
+	}
+
+	public WindowDataStream<OUT> groupBy(String... fields) {
+		return new WindowDataStream<OUT>(dataStream.groupBy(fields), batchSize, slideSize,
 				timeStamp);
 	}
 

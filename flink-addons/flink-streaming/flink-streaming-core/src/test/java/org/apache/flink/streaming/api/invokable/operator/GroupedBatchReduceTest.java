@@ -26,7 +26,8 @@ import java.util.List;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.util.MockInvokable;
-import org.apache.flink.streaming.util.keys.FieldsKeySelector;
+import org.apache.flink.streaming.util.keys.ObjectKeySelector;
+import org.apache.flink.streaming.util.keys.TupleKeySelector;
 import org.junit.Test;
 
 public class GroupedBatchReduceTest {
@@ -60,7 +61,7 @@ public class GroupedBatchReduceTest {
 					public Integer reduce(Integer value1, Integer value2) throws Exception {
 						return value1 + value2;
 					}
-				}, 3, 2, new FieldsKeySelector<Integer>(false, false, 0));
+				}, 3, 2, new ObjectKeySelector<Integer>());
 
 		List<Integer> actual = MockInvokable.createAndExecute(invokable, inputs);
 		assertEquals(new HashSet<Integer>(expected), new HashSet<Integer>(actual));
@@ -94,7 +95,7 @@ public class GroupedBatchReduceTest {
 							return value2;
 						}
 					}
-				}, 3, 3, new FieldsKeySelector<Tuple2<Integer, String>>(true, false, 1));
+				}, 3, 3, new TupleKeySelector<Tuple2<Integer, String>>(1));
 
 		List<Tuple2<Integer, String>> actual2 = MockInvokable.createAndExecute(invokable2, inputs2);
 

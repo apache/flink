@@ -154,6 +154,60 @@ public class ConnectedDataStream<IN1, IN2> {
 
 	/**
 	 * GroupBy operation for connected data stream. Groups the elements of
+	 * input1 and input2 according to keyPositions1 and keyPositions2. Used for
+	 * applying function on grouped data streams for example
+	 * {@link ConnectedDataStream#reduce}
+	 * 
+	 * @param keyPositions1
+	 *            The fields used to group the first input stream.
+	 * @param keyPositions2
+	 *            The fields used to group the second input stream.
+	 * @return @return The transformed {@link ConnectedDataStream}
+	 */
+	public ConnectedDataStream<IN1, IN2> groupBy(int[] keyPositions1, int[] keyPositions2) {
+		return new ConnectedDataStream<IN1, IN2>(dataStream1.groupBy(keyPositions1),
+				dataStream2.groupBy(keyPositions2));
+	}
+
+	/**
+	 * GroupBy operation for connected data stream using key expressions. Groups
+	 * the elements of input1 and input2 according to field1 and field2. A field
+	 * expression is either the name of a public field or a getter method with
+	 * parentheses of the {@link DataStream}S underlying type. A dot can be used
+	 * to drill down into objects, as in {@code "field1.getInnerField2()" }.
+	 * 
+	 * @param field1
+	 *            The grouping expression for the first input
+	 * @param field2
+	 *            The grouping expression for the second input
+	 * @return The grouped {@link ConnectedDataStream}
+	 */
+	public ConnectedDataStream<IN1, IN2> groupBy(String field1, String field2) {
+		return new ConnectedDataStream<IN1, IN2>(dataStream1.groupBy(field1),
+				dataStream2.groupBy(field2));
+	}
+
+	/**
+	 * GroupBy operation for connected data stream using key expressions. Groups
+	 * the elements of input1 and input2 according to fields1 and fields2. A
+	 * field expression is either the name of a public field or a getter method
+	 * with parentheses of the {@link DataStream}S underlying type. A dot can be
+	 * used to drill down into objects, as in {@code "field1.getInnerField2()" }
+	 * .
+	 * 
+	 * @param fields1
+	 *            The grouping expressions for the first input
+	 * @param fields2
+	 *            The grouping expressions for the second input
+	 * @return The grouped {@link ConnectedDataStream}
+	 */
+	public ConnectedDataStream<IN1, IN2> groupBy(String[] fields1, String[] fields2) {
+		return new ConnectedDataStream<IN1, IN2>(dataStream1.groupBy(fields1),
+				dataStream2.groupBy(fields2));
+	}
+
+	/**
+	 * GroupBy operation for connected data stream. Groups the elements of
 	 * input1 and input2 using keySelector1 and keySelector2. Used for applying
 	 * function on grouped data streams for example
 	 * {@link ConnectedDataStream#reduce}
@@ -510,6 +564,13 @@ public class ConnectedDataStream<IN1, IN2> {
 	}
 
 	SingleOutputStreamOperator<Tuple2<IN1, IN2>, ?> windowJoin(long windowSize, long slideInterval,
+			String fieldIn1, String fieldIn2) {
+
+		return windowJoin(windowSize, slideInterval, new DefaultTimeStamp<IN1>(),
+				new DefaultTimeStamp<IN2>(), fieldIn1, fieldIn2);
+	}
+
+	SingleOutputStreamOperator<Tuple2<IN1, IN2>, ?> windowJoin(long windowSize, long slideInterval,
 			int fieldIn1, int fieldIn2) {
 
 		return windowJoin(windowSize, slideInterval, new DefaultTimeStamp<IN1>(),
@@ -518,6 +579,16 @@ public class ConnectedDataStream<IN1, IN2> {
 
 	SingleOutputStreamOperator<Tuple2<IN1, IN2>, ?> windowJoin(long windowSize, long slideInterval,
 			TimeStamp<IN1> timestamp1, TimeStamp<IN2> timestamp2, int fieldIn1, int fieldIn2) {
+
+		JoinWindowFunction<IN1, IN2> joinWindowFunction = new JoinWindowFunction<IN1, IN2>(
+				dataStream1.getOutputType(), dataStream2.getOutputType(), fieldIn1, fieldIn2);
+
+		return addGeneralWindowJoin(joinWindowFunction, windowSize, slideInterval, timestamp1,
+				timestamp2);
+	}
+
+	SingleOutputStreamOperator<Tuple2<IN1, IN2>, ?> windowJoin(long windowSize, long slideInterval,
+			TimeStamp<IN1> timestamp1, TimeStamp<IN2> timestamp2, String fieldIn1, String fieldIn2) {
 
 		JoinWindowFunction<IN1, IN2> joinWindowFunction = new JoinWindowFunction<IN1, IN2>(
 				dataStream1.getOutputType(), dataStream2.getOutputType(), fieldIn1, fieldIn2);
