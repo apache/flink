@@ -846,12 +846,22 @@ public class PactCompiler {
 				final WorksetIterationNode iterNode = (WorksetIterationNode) n;
 				final DeltaIterationBase<?, ?> iter = iterNode.getIterationContract();
 
+				// we need to ensure that both the next-workset and the solution-set-delta depend on the workset. One check is for free
+				// during the translation, we do the other check here as a pre-condition
+				{
+					WorksetFinder wsf = new WorksetFinder();
+					iter.getNextWorkset().accept(wsf);
+					if (!wsf.foundWorkset) {
+						throw new CompilerException("In the given program, the next workset does not depend on the workset. This is a prerequisite in delta iterations.");
+					}
+				}
+				
 				// calculate the closure of the anonymous function
 				HashMap<Operator<?>, OptimizerNode> closure = new HashMap<Operator<?>, OptimizerNode>(con2node);
 
 				// first, recursively build the data flow for the step function
-				final GraphCreatingVisitor recursiveCreator = new GraphCreatingVisitor(this, true,
-					iterNode.getDegreeOfParallelism(), closure);
+				final GraphCreatingVisitor recursiveCreator = new GraphCreatingVisitor(this, true, iterNode.getDegreeOfParallelism(), closure);
+				
 				// descend from the solution set delta. check that it depends on both the workset
 				// and the solution set. If it does depend on both, this descend should create both nodes
 				iter.getSolutionSetDelta().accept(recursiveCreator);
@@ -859,7 +869,7 @@ public class PactCompiler {
 				final WorksetNode worksetNode = (WorksetNode) recursiveCreator.con2node.get(iter.getWorkset());
 				
 				if (worksetNode == null) {
-					throw new CompilerException("In the given plan, the solution set delta does not depend on the workset. This is a prerequisite in delta iterations.");
+					throw new CompilerException("In the given program, the solution set delta does not depend on the workset. This is a prerequisite in delta iterations.");
 				}
 				
 				iter.getNextWorkset().accept(recursiveCreator);
@@ -1283,6 +1293,25 @@ public class PactCompiler {
 				inputs.add(in);
 			}
 		}
+	}
+	
+	private static final class WorksetFinder implements Visitor<Operator<?>> {
+
+		private final Set<Operator<?>> seenBefore = new HashSet<Operator<?>>();
+		
+		private boolean foundWorkset;
+		
+		@Override
+		public boolean preVisit(Operator<?> visitable) {
+			if (visitable instanceof WorksetPlaceHolder) {
+				foundWorkset = true;
+			}
+			
+			return (!foundWorkset) && seenBefore.add(visitable);
+		}
+
+		@Override
+		public void postVisit(Operator<?> visitable) {}
 	}
 
 	// ------------------------------------------------------------------------
