@@ -15,9 +15,12 @@ public class FlinkMesosSched implements Scheduler {
 	private String uberJarPath = null;
 	private boolean jm_running = false;
 	private boolean tm_running = false;
+	String FLINK_CONF_DIR = null;
 
-	public FlinkMesosSched(String uberJarPath) {
+	public FlinkMesosSched(String uberJarPath, String FLINK_CONF_DIR) {
+
 		this.uberJarPath = uberJarPath;
+		this.FLINK_CONF_DIR = FLINK_CONF_DIR;
 	}
 
 	@Override
@@ -42,7 +45,7 @@ public class FlinkMesosSched implements Scheduler {
 				List<Protos.OfferID> offerIDs = new LinkedList<Protos.OfferID>();
 
 				System.out.println("Launching JobManager");
-				String command = "java -cp " + uberJarPath + " org.apache.flink.runtime.jobmanager.JobManager -executionMode cluster -configDir /home/sebastian/Daten/workspace/incubator-flink/flink-addons/flink-mesos/src/main/java/conf";
+				String command = "java -cp " + uberJarPath + " org.apache.flink.runtime.jobmanager.JobManager -executionMode cluster -configDir " + FLINK_CONF_DIR;
 
 				Protos.TaskInfo task = Protos.TaskInfo.newBuilder()
 						.setName("Jobmanager")
@@ -73,7 +76,7 @@ public class FlinkMesosSched implements Scheduler {
 				List<Protos.OfferID> offerIDs = new LinkedList<Protos.OfferID>();
 
 				System.out.println("Launching TaskManager");
-				String command = "java -cp " + uberJarPath + " org.apache.flink.runtime.taskmanager.TaskManager -configDir /home/sebastian/Daten/workspace/incubator-flink/flink-addons/flink-mesos/src/main/java/conf";
+				String command = "java -cp " + uberJarPath + " org.apache.flink.runtime.taskmanager.TaskManager -configDir " + FLINK_CONF_DIR;
 
 				Protos.TaskInfo task = Protos.TaskInfo.newBuilder()
 						.setName("TaskManager")

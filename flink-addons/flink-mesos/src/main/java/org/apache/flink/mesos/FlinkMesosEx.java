@@ -17,6 +17,12 @@ import java.io.Writer;
 
 public class FlinkMesosEx implements Executor {
 
+	String FLINK_CONF_DIR = null;
+
+	public FlinkMesosEx(String FLINK_CONF_DIR) {
+		this.FLINK_CONF_DIR = FLINK_CONF_DIR;
+	}
+
 	@Override
 	public void registered(ExecutorDriver executorDriver, Protos.ExecutorInfo executorInfo, Protos.FrameworkInfo frameworkInfo, Protos.SlaveInfo slaveInfo) {
 		System.out.println("Registered Executor");
@@ -32,26 +38,6 @@ public class FlinkMesosEx implements Executor {
 
 	}
 
-	public File writeConfig() {
-		Writer output = null;
-		File result = null;
-		try {
-			output = new BufferedWriter(new FileWriter("./flink-conf-modified.yaml"));
-			// just to make sure.
-			output.append(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY + ": localhost\n");
-			output.append(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY + ": 6123\n"); // already offsetted here.
-
-			output.append(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY + ": 8090\n");
-			output.flush();
-			output.close();
-			result = new File("./flink-conf-modified.yaml");
-		} catch (IOException e) {
-			e.printStackTrace();
-
-		}
-		return result;
-	}
-
 	@Override
 	public void launchTask(final ExecutorDriver executorDriver, final Protos.TaskInfo taskInfo) {
 		System.out.println(taskInfo.getData().toStringUtf8());
@@ -60,19 +46,14 @@ public class FlinkMesosEx implements Executor {
 		new Thread() {
 			@Override
 			public void run() {
-				JobManager jobManager = null;
+				JobManager jobManager;
 				try {
-					System.out.println("JobManager about to start");
-					File config = writeConfig();
-					String[] args = {"-executionMode","local", "-configDir", config.getCanonicalPath()};
-					GlobalConfiguration.loadConfiguration(config.getCanonicalPath());
-					jobManager = new JobManager(ExecutionMode.LOCAL);
-					jobManager.initialize(args);
-
+					String[] args = {"-configDir", FLINK_CONF_DIR};
+					jobManager = JobManager.initialize(args);
+					// Start info server for jobmanager
 					jobManager.startInfoServer();
-					jobManager.shutdown();
-				} catch (Exception e) {
-					e.printStackTrace();
+				}
+				catch (Exception e) {
 				}
 			}
 		}.run();
@@ -108,7 +89,7 @@ public class FlinkMesosEx implements Executor {
 	}
 
 	public static void main(String[] args) throws Exception {
-		MesosExecutorDriver driver = new MesosExecutorDriver(new FlinkMesosEx());
+		MesosExecutorDriver driver = new MesosExecutorDriver(new FlinkMesosEx(args[0]));
 		System.exit(driver.run() == Protos.Status.DRIVER_STOPPED ? 0 : 1);
 	}
 }

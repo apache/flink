@@ -17,7 +17,7 @@ public class MesosController {
 		System.out.println("Creating Driver");
 		System.out.println("Parameters: " + args[0] + " " + args[1]);
 		MesosSchedulerDriver driver = new MesosSchedulerDriver(
-				new FlinkMesosSched(args[1]),
+				new FlinkMesosSched(args[1], args[2]),
 				framework,
 				args[0]);
 
