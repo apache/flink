@@ -1,5 +1,6 @@
 package flink.graphs;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -34,5 +35,77 @@ public class TestGraphUtils {
 		edges.add(new Tuple3<Long,Long, Long>(5L, 1L, 51L));
 		
 		return env.fromCollection(edges);
+	}
+	
+	public static class DummyCustomType implements Serializable {
+		private static final long serialVersionUID = 1L;
+		
+		private int intField;
+		private boolean booleanField;
+		
+		public DummyCustomType(int intF, boolean boolF) {
+			this.intField = intF;
+			this.booleanField = boolF;
+		}
+		
+		public DummyCustomType() {
+			this.intField = 0;
+			this.booleanField = true;
+		}
+
+		public int getIntField() {
+			return intField;
+		}
+		
+		public void setIntField(int intF) {
+			this.intField = intF;
+		}
+		
+		public boolean getBooleanField() {
+			return booleanField;
+		}
+		
+		@Override
+		public String toString() {
+			return booleanField ? "(T," + intField + ")" : "(F," + intField + ")";
+		}
+	}
+	
+	public static class DummyCustomParameterizedType<T> implements Serializable {
+		private static final long serialVersionUID = 1L;
+		
+		private int intField;
+		private T tField;
+		
+		public DummyCustomParameterizedType(int intF, T tF) {
+			this.intField = intF;
+			this.tField = tF;
+		}
+		
+		public DummyCustomParameterizedType() {
+			this.intField = 0;
+			this.tField = null;
+		}
+
+		public int getIntField() {
+			return intField;
+		}
+		
+		public void setIntField(int intF) {
+			this.intField = intF;
+		}
+		
+		public void setTField(T tF) {
+			this.tField = tF;
+		}
+		
+		public T getTField() {
+			return tField;
+		}
+		
+		@Override
+		public String toString() {
+			return "(" + tField.toString() + "," + intField + ")";
+		}
 	}
 }
