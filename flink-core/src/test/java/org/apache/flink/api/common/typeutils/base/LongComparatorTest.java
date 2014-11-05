@@ -52,13 +52,13 @@ public class LongComparatorTest extends ComparatorTestBase<Long> {
 			rndLong += 3;
 		}
 		return new Long[]{
-			new Long(Long.MIN_VALUE),
-			new Long(-rndLong),
-			new Long(-1L),
-			new Long(0L),
-			new Long(1L),
-			new Long(2L),
-			new Long(rndLong),
-			new Long(Long.MAX_VALUE)};
+			Long.valueOf(Long.MIN_VALUE),
+			Long.valueOf(-rndLong),
+			Long.valueOf(-1L),
+			Long.valueOf(0L),
+			Long.valueOf(1L),
+			Long.valueOf(2L),
+			Long.valueOf(rndLong),
+			Long.valueOf(Long.MAX_VALUE)};
 	}
 }

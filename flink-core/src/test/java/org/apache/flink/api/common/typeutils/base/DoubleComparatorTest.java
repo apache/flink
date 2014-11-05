@@ -52,11 +52,11 @@ public class DoubleComparatorTest extends ComparatorTestBase<Double> {
 			rndDouble += 3;
 		}
 		return new Double[]{
-			new Double(-rndDouble),
-			new Double(-1.0D),
-			new Double(0.0D),
-			new Double(2.0D),
-			new Double(rndDouble),
-			new Double(Double.MAX_VALUE)};
+			Double.valueOf(-rndDouble),
+			Double.valueOf(-1.0D),
+			Double.valueOf(0.0D),
+			Double.valueOf(2.0D),
+			Double.valueOf(rndDouble),
+			Double.valueOf(Double.MAX_VALUE)};
 	}
 }

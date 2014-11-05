@@ -31,12 +31,12 @@ public class DBStateTest {
 	
 	public void stateTest(DBState<String, Integer> state) {
 		state.put("k1", 1);
-		assertEquals(new Integer(1), state.get("k1"));
+		assertEquals(Integer.valueOf(1), state.get("k1"));
 
 		state.put("k2", 2);
 		state.put("k3", 3);
-		assertEquals(new Integer(2), state.get("k2"));
-		assertEquals(new Integer(3), state.get("k3"));
+		assertEquals(Integer.valueOf(2), state.get("k2"));
+		assertEquals(Integer.valueOf(3), state.get("k3"));
 		state.remove("k2");
 		
 		try {

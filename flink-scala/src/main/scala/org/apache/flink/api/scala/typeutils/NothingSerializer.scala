@@ -30,7 +30,7 @@ class NothingSerializer extends TypeSerializer[Any] {
   override def isStateful: Boolean = false
 
   override def createInstance: Any = {
-    new Integer(-1)
+    Integer.valueOf(-1)
   }
 
   override def isImmutableType: Boolean = true

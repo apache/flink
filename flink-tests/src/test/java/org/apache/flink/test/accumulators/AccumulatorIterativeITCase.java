@@ -73,7 +73,7 @@ public class AccumulatorIterativeITCase extends RecordAPITestBase {
 		compareResultsByLinesInMemory(EXPECTED, resultPath);
 		
 		Integer res = (Integer) getJobExecutionResult().getAccumulatorResult("test");
-		Assert.assertEquals(new Integer(NUM_ITERATIONS * 6), res);
+		Assert.assertEquals(Integer.valueOf(NUM_ITERATIONS * 6), res);
 	}
 
 	@Override

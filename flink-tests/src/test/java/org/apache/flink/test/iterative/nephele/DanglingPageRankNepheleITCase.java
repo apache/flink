@@ -54,7 +54,7 @@ public class DanglingPageRankNepheleITCase extends RecordAPITestBase {
 	@Override
 	protected JobGraph getJobGraph() throws Exception {
 		String[] parameters = new String[] {
-			new Integer(DOP).toString(),
+			Integer.valueOf(DOP).toString(),
 			pagesWithRankPath,
 			edgesPath,
 			resultPath,

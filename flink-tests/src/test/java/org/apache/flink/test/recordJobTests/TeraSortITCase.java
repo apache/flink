@@ -49,7 +49,7 @@ public class TeraSortITCase extends RecordAPITestBase {
 		String testDataPath = getClass().getResource(INPUT_DATA_FILE).toString();
 		
 		TeraSort ts = new TeraSort();
-		return ts.getPlan(new Integer(DOP).toString(), testDataPath, resultPath);
+		return ts.getPlan(Integer.valueOf(DOP).toString(), testDataPath, resultPath);
 	}
 
 	@Override

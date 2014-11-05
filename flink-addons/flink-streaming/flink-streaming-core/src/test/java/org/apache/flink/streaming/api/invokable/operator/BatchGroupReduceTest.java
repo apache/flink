@@ -72,7 +72,7 @@ public class BatchGroupReduceTest {
 				count++;
 			}
 			if (count > 0) {
-				out.collect(new Double(sum / count));
+				out.collect(Double.valueOf(sum / count));
 			}
 		}
 	}

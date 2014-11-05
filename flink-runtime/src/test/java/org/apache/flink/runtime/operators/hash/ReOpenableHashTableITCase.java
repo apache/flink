@@ -373,10 +373,10 @@ public class ReOpenableHashTableITCase {
 				
 				Long contained = map.get(key);
 				if (contained == null) {
-					contained = new Long(numBuildValues);
+					contained = Long.valueOf(numBuildValues);
 				}
 				else {
-					contained = new Long(contained.longValue() + numBuildValues);
+					contained = Long.valueOf(contained.longValue() + numBuildValues);
 				}
 				
 				map.put(key, contained);
@@ -487,10 +487,10 @@ public class ReOpenableHashTableITCase {
 				
 				Long contained = map.get(key);
 				if (contained == null) {
-					contained = new Long(numBuildValues);
+					contained = Long.valueOf(numBuildValues);
 				}
 				else {
-					contained = new Long(contained.longValue() + numBuildValues);
+					contained = Long.valueOf(contained.longValue() + numBuildValues);
 				}
 				
 				map.put(key, contained);
