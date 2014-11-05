@@ -307,6 +307,10 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
     wrap(source).asInstanceOf[DataSet[Long]]
   }
 
+  def union[T](sets: Seq[DataSet[T]]): DataSet[T] = {
+    sets.reduce( (l, r) => l.union(r) )
+  }
+
   /**
    * Registers a file at the distributed cache under the given name. The file will be accessible
    * from any user-defined function in the (distributed) runtime under a local path. Files
