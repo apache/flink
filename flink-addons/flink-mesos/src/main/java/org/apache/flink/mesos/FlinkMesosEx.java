@@ -1,4 +1,4 @@
-package develop;
+package org.apache.flink.mesos;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -14,17 +14,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Writer;
-import java.net.InetAddress;
-import java.net.Socket;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.logging.FileHandler;
 
-/**
- * Created by sebastian on 10/7/14.
- */
 public class FlinkMesosEx implements Executor {
 
 	@Override

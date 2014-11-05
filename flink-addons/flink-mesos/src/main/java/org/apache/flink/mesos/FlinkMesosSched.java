@@ -1,13 +1,9 @@
-package develop;
+package org.apache.flink.mesos;
 
 import org.apache.mesos.Protos;
 import org.apache.mesos.Scheduler;
 import org.apache.mesos.SchedulerDriver;
-import org.apache.mesos.Protos.ExecutorInfo;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -37,9 +33,6 @@ public class FlinkMesosSched implements Scheduler {
 	@Override
 	public void resourceOffers(SchedulerDriver schedulerDriver, List<Protos.Offer> offers) {
 		for (Protos.Offer offer : offers) {
-			for (Protos.Resource r: offers.get(0).getResourcesList()) {
-				System.out.println(r.getName() + " " + r.getScalar());
-			}
 			if (!jm_running) {
 				Protos.TaskID taskId = Protos.TaskID.newBuilder()
 						.setValue("1").build();
@@ -49,7 +42,6 @@ public class FlinkMesosSched implements Scheduler {
 				List<Protos.OfferID> offerIDs = new LinkedList<Protos.OfferID>();
 
 				System.out.println("Launching JobManager");
-				System.out.println(offers.size());
 				String command = "java -cp " + uberJarPath + " org.apache.flink.runtime.jobmanager.JobManager -executionMode cluster -configDir /home/sebastian/Daten/workspace/incubator-flink/flink-addons/flink-mesos/src/main/java/conf";
 
 				Protos.TaskInfo task = Protos.TaskInfo.newBuilder()
@@ -81,7 +73,6 @@ public class FlinkMesosSched implements Scheduler {
 				List<Protos.OfferID> offerIDs = new LinkedList<Protos.OfferID>();
 
 				System.out.println("Launching TaskManager");
-				System.out.println(offers.size());
 				String command = "java -cp " + uberJarPath + " org.apache.flink.runtime.taskmanager.TaskManager -configDir /home/sebastian/Daten/workspace/incubator-flink/flink-addons/flink-mesos/src/main/java/conf";
 
 				Protos.TaskInfo task = Protos.TaskInfo.newBuilder()
