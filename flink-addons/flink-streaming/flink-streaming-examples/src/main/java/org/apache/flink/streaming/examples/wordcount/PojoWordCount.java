@@ -15,104 +15,102 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.examples.java.wordcount;
+package org.apache.flink.streaming.examples.wordcount;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.examples.java.wordcount.util.WordCountData;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.Collector;
 
-
 /**
- * This example shows an implementation of Wordcount without using the
- * Tuple2 type, but a custom class.
+ * This example shows an implementation of Wordcount without using the Tuple2
+ * type, but a custom class.
  *
  */
-@SuppressWarnings("serial")
-public class PojoExample {
-	
+public class PojoWordCount {
+
 	/**
-	 * This is the POJO (Plain Old Java Object) that is being used
-	 * for all the operations.
-	 * As long as all fields are public or have a getter/setter, the system can handle them
+	 * This is the POJO (Plain Old Java Object) that is being used for all the
+	 * operations. As long as all fields are public or have a getter/setter, the
+	 * system can handle them
 	 */
 	public static class Word {
 		// fields
 		private String word;
 		private Integer frequency;
-		
+
 		// constructors
 		public Word() {
 		}
+
 		public Word(String word, int i) {
 			this.word = word;
 			this.frequency = i;
 		}
+
 		// getters setters
 		public String getWord() {
 			return word;
 		}
+
 		public void setWord(String word) {
 			this.word = word;
 		}
+
 		public Integer getFrequency() {
 			return frequency;
 		}
+
 		public void setFrequency(Integer frequency) {
 			this.frequency = frequency;
 		}
+
 		// to String
 		@Override
 		public String toString() {
-			return "Word="+word+" freq="+frequency;
+			return "Word=" + word + " freq=" + frequency;
 		}
 	}
-	
+
 	public static void main(String[] args) throws Exception {
-		
-		if(!parseParameters(args)) {
+
+		if (!parseParameters(args)) {
 			return;
 		}
-		
+
 		// set up the execution environment
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
 		// get input data
-		DataSet<String> text = getTextDataSet(env);
-		
-		DataSet<Word> counts = 
-			// split up the lines into Word objects (with frequency = 1)
-			text.flatMap(new Tokenizer())
-			// group by the field word and sum up the frequency
-			.groupBy("word")
-			.reduce(new ReduceFunction<Word>() {
-				@Override
-				public Word reduce(Word value1, Word value2) throws Exception {
-					return new Word(value1.word,value1.frequency + value2.frequency);
-				}
-			});
-		
-		if(fileOutput) {
-			counts.writeAsText(outputPath, WriteMode.OVERWRITE);
+		DataStream<String> text = getTextDataStream(env);
+
+		DataStream<Word> counts =
+		// split up the lines into Word objects
+		text.flatMap(new Tokenizer())
+		// group by the field word and sum up the frequency
+		.groupBy("word")
+		.sum("frequency");
+
+		if (fileOutput) {
+			counts.writeAsText(outputPath);
 		} else {
 			counts.print();
 		}
-		
+
 		// execute program
 		env.execute("WordCount-Pojo Example");
 	}
-	
+
 	// *************************************************************************
-	//     USER FUNCTIONS
+	// USER FUNCTIONS
 	// *************************************************************************
-	
+
 	/**
-	 * Implements the string tokenizer that splits sentences into words as a user-defined
-	 * FlatMapFunction. The function takes a line (String) and splits it into 
-	 * multiple pairs in the form of "(word,1)" (Tuple2<String, Integer>).
+	 * Implements the string tokenizer that splits sentences into words as a
+	 * user-defined FlatMapFunction. The function takes a line (String) and
+	 * splits it into multiple pairs in the form of "(word,1)" (Tuple2<String,
+	 * Integer>).
 	 */
 	public static final class Tokenizer implements FlatMapFunction<String, Word> {
 		private static final long serialVersionUID = 1L;
@@ -121,7 +119,7 @@ public class PojoExample {
 		public void flatMap(String value, Collector<Word> out) {
 			// normalize and split the line
 			String[] tokens = value.toLowerCase().split("\\W+");
-			
+
 			// emit the pairs
 			for (String token : tokens) {
 				if (token.length() > 0) {
@@ -130,21 +128,21 @@ public class PojoExample {
 			}
 		}
 	}
-	
+
 	// *************************************************************************
-	//     UTIL METHODS
+	// UTIL METHODS
 	// *************************************************************************
-	
+
 	private static boolean fileOutput = false;
 	private static String textPath;
 	private static String outputPath;
-	
+
 	private static boolean parseParameters(String[] args) {
-		
-		if(args.length > 0) {
+
+		if (args.length > 0) {
 			// parse input arguments
 			fileOutput = true;
-			if(args.length == 2) {
+			if (args.length == 2) {
 				textPath = args[0];
 				outputPath = args[1];
 			} else {
@@ -158,14 +156,14 @@ public class PojoExample {
 		}
 		return true;
 	}
-	
-	private static DataSet<String> getTextDataSet(ExecutionEnvironment env) {
-		if(fileOutput) {
+
+	private static DataStream<String> getTextDataStream(StreamExecutionEnvironment env) {
+		if (fileOutput) {
 			// read the text file from given input path
 			return env.readTextFile(textPath);
 		} else {
 			// get default test text data
-			return WordCountData.getDefaultTextLineDataSet(env);
+			return env.fromElements(WordCountData.WORDS);
 		}
 	}
 }
