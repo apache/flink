@@ -304,6 +304,7 @@ public class Client {
 					try {
 						this.socket = socketFactory.createSocket();
 						this.socket.setTcpNoDelay(tcpNoDelay);
+						this.socket.setKeepAlive(true);
 						// connection time out is 20s
 						NetUtils.connect(this.socket, remoteId.getAddress(), 20000);
 						this.socket.setSoTimeout(pingInterval);
