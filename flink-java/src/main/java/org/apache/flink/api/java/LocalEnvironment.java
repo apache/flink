@@ -53,7 +53,7 @@ public class LocalEnvironment extends ExecutionEnvironment {
 	
 	@Override
 	public String getExecutionPlan() throws Exception {
-		Plan p = createProgramPlan();
+		Plan p = createProgramPlan(null, false);
 		
 		PlanExecutor executor = PlanExecutor.createLocalExecutor();
 		return executor.getOptimizerPlanAsJSON(p);

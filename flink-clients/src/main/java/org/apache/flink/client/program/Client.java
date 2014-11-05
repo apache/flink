@@ -352,7 +352,7 @@ public class Client {
 
 		@Override
 		public String getExecutionPlan() throws Exception {
-			Plan plan = createProgramPlan();
+			Plan plan = createProgramPlan(null, false);
 			this.optimizerPlan = compiler.compile(plan);
 			
 			// do not go on with anything now!
