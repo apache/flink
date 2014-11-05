@@ -55,7 +55,7 @@ public class TypeSerializationTest {
 	@SuppressWarnings("unchecked")
 	@Test
 	public void objectTypeSerializationTest() {
-		Integer instance = new Integer(22);
+		Integer instance = Integer.valueOf(22);
 		
 		TypeWrapper<Integer> ser = new ObjectTypeWrapper<Integer>(instance);
 		

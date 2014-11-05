@@ -169,7 +169,7 @@ public class WebLogAnalysisITCase extends RecordAPITestBase {
 	@Override
 	protected Plan getTestJob() {
 		WebLogAnalysis relOLAP = new WebLogAnalysis();
-		return relOLAP.getPlan(new Integer(DOP).toString(), docsPath, ranksPath, visitsPath, resultPath);
+		return relOLAP.getPlan(Integer.valueOf(DOP).toString(), docsPath, ranksPath, visitsPath, resultPath);
 	}
 
 	@Override

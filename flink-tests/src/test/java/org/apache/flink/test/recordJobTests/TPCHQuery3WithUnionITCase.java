@@ -146,7 +146,7 @@ public class TPCHQuery3WithUnionITCase extends RecordAPITestBase {
 	protected Plan getTestJob() {
 		TPCHQuery3Unioned tpch3 = new TPCHQuery3Unioned();
 		return tpch3.getPlan(
-				new Integer(DOP).toString(),
+				Integer.valueOf(DOP).toString(),
 				orders1Path,
 				orders2Path,
 				partJoin1Path,

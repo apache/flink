@@ -53,13 +53,13 @@ public class IntComparatorTest extends ComparatorTestBase<Integer> {
 			rndInt += 3;
 		}
 		return new Integer[]{
-			new Integer(Integer.MIN_VALUE),
-			new Integer(-rndInt),
-			new Integer(-1),
-			new Integer(0),
-			new Integer(1),
-			new Integer(2),
-			new Integer(rndInt),
-			new Integer(Integer.MAX_VALUE)};
+			Integer.valueOf(Integer.MIN_VALUE),
+			Integer.valueOf(-rndInt),
+			Integer.valueOf(-1),
+			Integer.valueOf(0),
+			Integer.valueOf(1),
+			Integer.valueOf(2),
+			Integer.valueOf(rndInt),
+			Integer.valueOf(Integer.MAX_VALUE)};
 	}
 }

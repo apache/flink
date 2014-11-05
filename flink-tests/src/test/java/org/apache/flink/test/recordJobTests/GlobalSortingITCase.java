@@ -86,7 +86,7 @@ public class GlobalSortingITCase extends RecordAPITestBase {
 	@Override
 	protected Plan getTestJob() {
 		GlobalSort globalSort = new GlobalSort();
-		return globalSort.getPlan(new Integer(DOP).toString(), recordsPath, resultPath);
+		return globalSort.getPlan(Integer.valueOf(DOP).toString(), recordsPath, resultPath);
 	}
 
 	@Override

@@ -83,7 +83,7 @@ public class TPCHQueryAsterixITCase extends RecordAPITestBase {
 	@Override
 	protected Plan getTestJob() {
 		TPCHQueryAsterix tpchBench = new TPCHQueryAsterix();
-		return tpchBench.getPlan(new Integer(DOP).toString(), ordersPath, custPath, resultPath);
+		return tpchBench.getPlan(Integer.valueOf(DOP).toString(), ordersPath, custPath, resultPath);
 	}
 
 	@Override

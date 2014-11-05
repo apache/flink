@@ -41,9 +41,9 @@ public class ShortComparatorTest extends ComparatorTestBase<Short> {
 	@Override
 	protected Short[] getSortedTestData() {
 		Random rnd = new Random(874597969123412338L);
-		short rndShort = new Integer(rnd.nextInt()).shortValue();
+		short rndShort = Integer.valueOf(rnd.nextInt()).shortValue();
 		if (rndShort < 0) {
-			rndShort = new Integer(-rndShort).shortValue();
+			rndShort = Integer.valueOf(-rndShort).shortValue();
 		}
 		if (rndShort == Short.MAX_VALUE) {
 			rndShort -= 3;
@@ -52,13 +52,13 @@ public class ShortComparatorTest extends ComparatorTestBase<Short> {
 			rndShort += 3;
 		}
 		return new Short[]{
-			new Short(Short.MIN_VALUE),
-			new Short(new Integer(-rndShort).shortValue()),
-			new Short(new Integer(-1).shortValue()),
-			new Short(new Integer(0).shortValue()),
-			new Short(new Integer(1).shortValue()),
-			new Short(new Integer(2).shortValue()),
-			new Short(new Integer(rndShort).shortValue()),
-			new Short(Short.MAX_VALUE)};
+			Short.valueOf(Short.MIN_VALUE),
+			Short.valueOf(Integer.valueOf(-rndShort).shortValue()),
+			Short.valueOf(Integer.valueOf(-1).shortValue()),
+			Short.valueOf(Integer.valueOf(0).shortValue()),
+			Short.valueOf(Integer.valueOf(1).shortValue()),
+			Short.valueOf(Integer.valueOf(2).shortValue()),
+			Short.valueOf(Integer.valueOf(rndShort).shortValue()),
+			Short.valueOf(Short.MAX_VALUE)};
 	}
 }

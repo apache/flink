@@ -44,7 +44,7 @@ public class AggregateTranslationTest {
 			
 			@SuppressWarnings("unchecked")
 			DataSet<Tuple3<Double, StringValue, Long>> initialData = 
-					env.fromElements(new Tuple3<Double, StringValue, Long>(3.141592, new StringValue("foobar"), new Long(77)));
+					env.fromElements(new Tuple3<Double, StringValue, Long>(3.141592, new StringValue("foobar"), Long.valueOf(77)));
 			
 			initialData.groupBy(0).aggregate(Aggregations.MIN, 1).and(Aggregations.SUM, 2).print();
 			

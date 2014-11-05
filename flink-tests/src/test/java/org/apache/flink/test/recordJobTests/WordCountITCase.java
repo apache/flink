@@ -43,7 +43,7 @@ public class WordCountITCase extends RecordAPITestBase {
 	@Override
 	protected Plan getTestJob() {
 		WordCount wc = new WordCount();
-		return wc.getPlan(new Integer(DOP).toString(), textPath, resultPath);
+		return wc.getPlan(Integer.valueOf(DOP).toString(), textPath, resultPath);
 	}
 
 	@Override

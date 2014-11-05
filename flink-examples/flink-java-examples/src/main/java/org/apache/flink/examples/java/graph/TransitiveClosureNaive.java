@@ -63,8 +63,8 @@ public class TransitiveClosureNaive implements ProgramDescription {
 					 */
 					public Tuple2<Long, Long> join(Tuple2<Long, Long> left, Tuple2<Long, Long> right) throws Exception {
 						return new Tuple2<Long, Long>(
-								new Long(left.f0),
-								new Long(right.f1));
+								Long.valueOf(left.f0),
+								Long.valueOf(right.f1));
 					}
 				})
 				.union(paths)

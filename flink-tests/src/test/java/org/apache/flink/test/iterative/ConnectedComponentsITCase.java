@@ -55,7 +55,7 @@ public class ConnectedComponentsITCase extends RecordAPITestBase {
 	@Override
 	protected Plan getTestJob() {
 		WorksetConnectedComponents cc = new WorksetConnectedComponents();
-		return cc.getPlan(new Integer(DOP).toString(),  verticesPath, edgesPath, resultPath, "100");
+		return cc.getPlan(Integer.valueOf(DOP).toString(),  verticesPath, edgesPath, resultPath, "100");
 	}
 
 	@Override

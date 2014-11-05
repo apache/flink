@@ -800,7 +800,7 @@ public class DataStream<OUT> {
 	 */
 	public SingleOutputStreamOperator<Long, ?> count() {
 		TypeWrapper<OUT> inTypeWrapper = outTypeWrapper;
-		TypeWrapper<Long> outTypeWrapper = new ObjectTypeWrapper<Long>(new Long(0));
+		TypeWrapper<Long> outTypeWrapper = new ObjectTypeWrapper<Long>(Long.valueOf(0));
 
 		return addFunction("counter", null, inTypeWrapper, outTypeWrapper,
 				new CounterInvokable<OUT>());
