@@ -18,23 +18,18 @@
 package org.apache.flink.streaming.api.function.aggregation;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
-import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.tuple.Tuple;
 
 public abstract class AggregationFunction<T> implements ReduceFunction<T> {
 	private static final long serialVersionUID = 1L;
 
-	public int position;
-	protected Tuple returnTuple;
-	protected boolean isTuple;
-	protected boolean isArray;
+	int position;
 
-	public AggregationFunction(int pos, TypeInformation<?> type) {
+	public AggregationFunction(int pos) {
 		this.position = pos;
-		this.isTuple = type.isTupleType();
-		this.isArray = type instanceof BasicArrayTypeInfo || type instanceof PrimitiveArrayTypeInfo;
+	}
+
+	public static enum AggregationType {
+		SUM, MIN, MAX, MINBY, MAXBY,
 	}
 
 }
