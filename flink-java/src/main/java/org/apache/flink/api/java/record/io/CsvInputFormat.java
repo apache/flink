@@ -19,8 +19,7 @@
 
 package org.apache.flink.api.java.record.io;
 
-import java.io.IOException;
-
+import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.io.GenericCsvInputFormat;
 import org.apache.flink.api.common.io.ParseException;
 import org.apache.flink.api.common.operators.CompilerHints;
@@ -36,7 +35,7 @@ import org.apache.flink.types.Record;
 import org.apache.flink.types.Value;
 import org.apache.flink.types.parser.FieldParser;
 
-import com.google.common.base.Preconditions;
+import java.io.IOException;
 
 /**
  * Input format to parse text files and generate Records. 
@@ -267,7 +266,7 @@ public class CsvInputFormat extends GenericCsvInputFormat<Record> {
 		/*
 		 * Fix to support windows line endings in CSVInputFiles with standard delimiter setup = \n
 		 */
-		//Find windows end line, so find chariage return before the newline 
+		//Find windows end line, so find carriage return before the newline
 		if(this.lineDelimiterIsLinebreak == true && bytes[offset + numBytes -1] == '\r') {
 			//reduce the number of bytes so that the Carriage return is not taken as data
 			numBytes--;

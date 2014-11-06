@@ -19,16 +19,15 @@
 
 package org.apache.flink.api.common.io;
 
-import java.io.IOException;
-import java.util.ArrayList;
-
+import com.google.common.base.Preconditions;
+import com.google.common.primitives.Ints;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.parser.FieldParser;
 import org.apache.flink.util.InstantiationUtil;
 
-import com.google.common.base.Preconditions;
-import com.google.common.primitives.Ints;
+import java.io.IOException;
+import java.util.ArrayList;
 
 
 public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT> {
@@ -299,9 +298,10 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 						return false;
 					} else {
 						String lineAsString = new String(bytes, offset, numBytes);
-						throw new ParseException("Line could not be parsed: '" + lineAsString+"'\n"
-								+ "Expect field types: "+fieldTypesToString()+" \n"
-								+ "in file: "+filePath);
+						throw new ParseException("Line could not be parsed: '" + lineAsString + "'\n"
+								+ "ParserError " + parser.getErrorState() + " \n"
+								+ "Expect field types: "+fieldTypesToString() + " \n"
+								+ "in file: " + filePath);
 					}
 				}
 				output++;
