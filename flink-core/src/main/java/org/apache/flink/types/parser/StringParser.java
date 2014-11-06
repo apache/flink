@@ -30,7 +30,11 @@ public class StringParser extends FieldParser<String> {
 	private static final byte WHITESPACE_TAB = (byte) '\t';
 	
 	private static final byte QUOTE_DOUBLE = (byte) '"';
-	
+
+	private static enum ParserStates {
+		NONE, IN_QUOTE, STOP
+	}
+
 	private String result;
 	
 	@Override
@@ -45,51 +49,86 @@ public class StringParser extends FieldParser<String> {
 		while (i < limit && ((current = bytes[i]) == WHITESPACE_SPACE || current == WHITESPACE_TAB)) {
 			i++;
 		}
-		
+
+		// first determine the boundaries of the cell
+		ParserStates parserState = ParserStates.NONE;
+
+		// the current position evaluated against the cell boundary
+		int endOfCellPosition = i - 1;
+
+		while (parserState != ParserStates.STOP && endOfCellPosition < limit) {
+			endOfCellPosition++;
+			// make sure we don't step over the end of the buffer
+			if(endOfCellPosition == limit) {
+				break;
+			}
+			current = bytes[endOfCellPosition];
+			if(current == delByte) {
+				// if we are in a quote do nothing, otherwise we reached the end
+				parserState = parserState == ParserStates.IN_QUOTE ? parserState: ParserStates.STOP;
+			} else if(current == QUOTE_DOUBLE) {
+				// we entered a quote
+				if(parserState == ParserStates.IN_QUOTE) {
+					// we end the quote
+					parserState = ParserStates.NONE;
+				} else {
+					// we start a new quote
+					parserState = ParserStates.IN_QUOTE;
+				}
+			}
+		}
+
+		if(parserState == ParserStates.IN_QUOTE) {
+			// exited due to line end without quote termination
+			setErrorState(ParseErrorState.UNTERMINATED_QUOTED_STRING);
+			return -1;
+		}
+
+
+		// boundary of the cell is now
+		// i --> endOfCellPosition
+
 		// first none whitespace character
 		if (i < limit && bytes[i] == QUOTE_DOUBLE) {
-			// quoted string
-			i++; // the quote
-			
-			// we count only from after the quote
-			int quoteStart = i;
-			while (i < limit && bytes[i] != QUOTE_DOUBLE) {
-				i++;
+
+			// check if there are characters at the end
+			current = bytes[endOfCellPosition - 1];
+
+			// if the character preceding the end of the cell is not a WHITESPACE or the end QUOTE_DOUBLE
+			// there are unquoted characters at the end
+
+			if (!(current == WHITESPACE_SPACE || current == WHITESPACE_TAB || current == QUOTE_DOUBLE)) {
+				setErrorState(ParseErrorState.UNQUOTED_CHARS_AFTER_QUOTED_STRING);
+				return -1;	// illegal case of non-whitespace characters trailing
 			}
-			
-			if (i < limit) {
-				// end of the string
-				this.result = new String(bytes, quoteStart, i-quoteStart);
-				
-				i++; // the quote
-				
-				// skip trailing whitespace characters 
-				while (i < limit && (current = bytes[i]) != delByte) {
-					if (current == WHITESPACE_SPACE || current == WHITESPACE_TAB) {
-						i++;
-					}
-					else {
-						setErrorState(ParseErrorState.UNQUOTED_CHARS_AFTER_QUOTED_STRING);
-						return -1;	// illegal case of non-whitespace characters trailing
-					}
+
+			// skip trailing whitespace after quote .. by moving the cursor backwards
+			int skipAtEnd = 0;
+			while (bytes[endOfCellPosition - 1 - skipAtEnd] == WHITESPACE_SPACE || bytes[endOfCellPosition - 1 - skipAtEnd] == WHITESPACE_TAB) {
+				skipAtEnd++;
+			}
+
+			// now unescape
+			boolean notEscaped = true;
+			int endOfContent = i + 1;
+			for(int counter = endOfContent; counter < endOfCellPosition - skipAtEnd; counter++) {
+				notEscaped = bytes[counter] != QUOTE_DOUBLE || !notEscaped;
+				if (notEscaped) {
+					// realign
+					bytes[endOfContent++] = bytes[counter];
 				}
-				
-				return (i == limit ? limit : i+1);
-			} else {
-				// exited due to line end without quote termination
-				setErrorState(ParseErrorState.UNTERMINATED_QUOTED_STRING);
-				return -1;
 			}
+
+			this.result = new String(bytes, i + 1, endOfContent - i - 1);
+
+			return (endOfCellPosition == limit ? limit : endOfCellPosition + 1);
 		}
 		else {
 			// unquoted string
-			while (i < limit && bytes[i] != delByte) {
-				i++;
-			}
-			
+
 			// set from the beginning. unquoted strings include the leading whitespaces
-			this.result = new String(bytes, startPos, i-startPos);
-			return (i == limit ? limit : i+1);
+			this.result = new String(bytes, i, endOfCellPosition - i);
+			return (endOfCellPosition == limit ? limit : endOfCellPosition + 1);
 		}
 	}
 	
