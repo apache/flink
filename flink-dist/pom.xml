@@ -252,7 +252,7 @@ under the License.
 								</configuration>
 							</execution>
 
-							<!-- yarn bin directory -->
+							<!-- mesos bin directory -->
 							<execution>
 								<id>mesos-bin</id>
 								<phase>package</phase>

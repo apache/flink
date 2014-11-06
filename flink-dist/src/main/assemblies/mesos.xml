@@ -106,6 +106,27 @@ under the License.
 				<exclude>flink-scala-examples-${project.version}-sources.jar</exclude>
 			</excludes>
 		</fileSet>
+
+
+		<fileSet>
+			<!-- copy files for compiler web frontend -->
+			<directory>../flink-clients/resources</directory>
+			<outputDirectory>resources</outputDirectory>
+			<fileMode>0644</fileMode>
+			<excludes>
+				<exclude>*etc/users</exclude>
+			</excludes>
+		</fileSet>
+
+		<fileSet>
+			<!-- copy files for Jobmanager web frontend -->
+			<directory>../flink-runtime/resources</directory>
+			<outputDirectory>resources</outputDirectory>
+			<fileMode>0644</fileMode>
+			<excludes>
+				<exclude>*etc/users</exclude>
+			</excludes>
+		</fileSet>
 	</fileSets>
 
 	<files>
