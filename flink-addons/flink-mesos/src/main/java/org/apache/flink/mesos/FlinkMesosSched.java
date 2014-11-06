@@ -45,7 +45,13 @@ public class FlinkMesosSched implements Scheduler {
 				List<Protos.OfferID> offerIDs = new LinkedList<Protos.OfferID>();
 
 				System.out.println("Launching JobManager");
-				String command = "java -cp " + uberJarPath + " org.apache.flink.runtime.jobmanager.JobManager -executionMode cluster -configDir " + FLINK_CONF_DIR;
+				String command = "java -cp " + uberJarPath + " org.apache.flink.mesos.FlinkMesosEx " + FLINK_CONF_DIR;
+				System.out.println("Command = " + command);
+
+				Protos.ExecutorInfo exinfo = Protos.ExecutorInfo.newBuilder()
+						.setExecutorId(Protos.ExecutorID.newBuilder().setValue("default"))
+						.setCommand(Protos.CommandInfo.newBuilder().setValue("java -cp " + uberJarPath + " org.apache.flink.runtime.jobmanager.JobManager -executionMode cluster -configDir " + FLINK_CONF_DIR))
+						.build();
 
 				Protos.TaskInfo task = Protos.TaskInfo.newBuilder()
 						.setName("Jobmanager")
@@ -59,7 +65,8 @@ public class FlinkMesosSched implements Scheduler {
 								.setName("mem")
 								.setType(Protos.Value.Type.SCALAR)
 								.setScalar(Protos.Value.Scalar.newBuilder().setValue(512)))
-						.setCommand(Protos.CommandInfo.newBuilder().setValue(command))
+						.setExecutor(exinfo)
+						//.setCommand(Protos.CommandInfo.newBuilder().setValue(command))
 						.build();
 				tasks.add(task);
 				offerIDs.add(offer.getId());

@@ -1,19 +1,10 @@
 package org.apache.flink.mesos;
 
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.runtime.ExecutionMode;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.mesos.Executor;
 import org.apache.mesos.ExecutorDriver;
 import org.apache.mesos.MesosExecutorDriver;
 import org.apache.mesos.Protos;
-
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.Writer;
 
 public class FlinkMesosEx implements Executor {
 
@@ -42,12 +33,13 @@ public class FlinkMesosEx implements Executor {
 	public void launchTask(final ExecutorDriver executorDriver, final Protos.TaskInfo taskInfo) {
 		System.out.println(taskInfo.getData().toStringUtf8());
 		setStatus(executorDriver, taskInfo, Protos.TaskState.TASK_RUNNING);
-
+		System.out.println("Starting JM thread");
 		new Thread() {
 			@Override
 			public void run() {
 				JobManager jobManager;
 				try {
+					System.out.println("starting Jobmanager...really");
 					String[] args = {"-configDir", FLINK_CONF_DIR};
 					jobManager = JobManager.initialize(args);
 					// Start info server for jobmanager
