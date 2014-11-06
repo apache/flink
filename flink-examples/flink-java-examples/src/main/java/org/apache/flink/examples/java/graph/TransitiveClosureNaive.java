@@ -62,9 +62,7 @@ public class TransitiveClosureNaive implements ProgramDescription {
 						out: Path (z,y) - y is reachable by z
 					 */
 					public Tuple2<Long, Long> join(Tuple2<Long, Long> left, Tuple2<Long, Long> right) throws Exception {
-						return new Tuple2<Long, Long>(
-								Long.valueOf(left.f0),
-								Long.valueOf(right.f1));
+						return new Tuple2<Long, Long>(left.f0, right.f1);
 					}
 				})
 				.union(paths)
