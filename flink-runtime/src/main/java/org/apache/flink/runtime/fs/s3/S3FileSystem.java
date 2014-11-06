@@ -762,6 +762,15 @@ public final class S3FileSystem extends FileSystem {
 
 		throw new UnsupportedOperationException("This method is not yet implemented");
 	}
+
+	@Override
+	public boolean initOutPathDistFS(Path outPath, WriteMode writeMode, boolean createDirectory) throws IOException {
+		if (createDirectory) {
+			// make sure that the path is terminated with a slash, S3 is very particular about this
+			outPath = outPath.suffix("/");
+		}
+		return super.initOutPathDistFS(outPath, writeMode, createDirectory);
+	}
 	
 	@Override
 	public boolean isDistributedFS() {
