@@ -256,6 +256,11 @@ public class Execution {
 				return;
 			}
 			
+			if (LOG.isInfoEnabled()) {
+				LOG.info(String.format("Deploying %s (attempt #%d) to %s", vertex.getSimpleName(),
+						attemptNumber, slot.getInstance().getInstanceConnectionInfo().getHostname()));
+			}
+			
 			final TaskDeploymentDescriptor deployment = vertex.createDeploymentDescriptor(attemptId, slot);
 			
 			// register this execution at the execution graph, to receive call backs
