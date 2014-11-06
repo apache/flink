@@ -517,24 +517,54 @@ public abstract class FileSystem {
 		
 		if (createDirectory) {
 			// Output directory needs to be created
-			try {
-				if(!this.exists(outPath)) {
-					this.mkdirs(outPath);
+			
+			// NOTE: we sometimes see this code block fail due to a race:
+			// - the check whether the directory exists returns false
+			// - the call to create the directory fails (some concurrent thread is creating the directory)
+			// - the call to check whether the directory exists does not yet see the new directory
+			
+			// try for 30 seconds
+			long now = System.currentTimeMillis();
+			long deadline = now + 30000;
+			
+			do {
+				try {
+					if(!this.exists(outPath)) {
+						this.mkdirs(outPath);
+					}
 				}
-			} catch(IOException ioe) {
-				// Some other thread might already have created the directory.
-				// If - for some other reason - the directory could not be created  
-				// and the path does not exist, this will be handled later.
+				catch (IOException ioe) {
+					// Some other thread might already have created the directory.
+					// If - for some other reason - the directory could not be created  
+					// and the path does not exist, this will be handled later.
+				}
+		
+				// double check that the output directory exists
+				try {
+					FileStatus check = getFileStatus(outPath);
+					if (check != null) {
+						if (check.isDir()) {
+							return true;
+						} else {
+							throw new IOException("FileSystem should create an output directory, but the path points to a file instead.");
+						}
+					}
+					// else: fall through the loop
+				}
+				catch (FileNotFoundException e) {
+					// fall though the loop
+				}
+				
+				// delay to allow other threads to make progress in the I/O calls
+				try {
+					Thread.sleep(1000);
+				} catch (InterruptedException ie) {}
 			}
-	
-			// double check that the output directory exists
-			try {
-				FileStatus check = getFileStatus(outPath);
-				return check.isDir();
-			} catch (FileNotFoundException e) {
-				return false;
-			}
-		} else {
+			while (System.currentTimeMillis() < deadline);
+			
+			return false;
+		}
+		else {
 			// check that the output path does not exist and an output file can be created by the output format.
 			return !this.exists(outPath);
 		}
