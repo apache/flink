@@ -267,6 +267,15 @@ public class NepheleMiniCluster {
 		while (jobManager.getNumberOfSlotsAvailableToScheduler() < numSlots) {
 			Thread.sleep(50);
 		}
+		
+		// make sure that not just the jobmanager has the slots, but also the taskmanager
+		// has figured out its registration. under rare races, calls can be scheduled before that otherwise
+		TaskManager[] tms = getTaskManagers();
+		for (TaskManager tm : tms) {
+			while (tm.getRegisteredId() == null) {
+				Thread.sleep(10);
+			}
+		}
 	}
 	
 	private static void initializeIOFormatClasses() {
