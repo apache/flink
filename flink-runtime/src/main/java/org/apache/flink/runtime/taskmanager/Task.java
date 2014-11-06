@@ -384,6 +384,10 @@ public final class Task {
 	}
 	
 	private void notifyObservers(ExecutionState newState, String message) {
+		if (LOG.isInfoEnabled()) {
+			LOG.info(getTaskNameWithSubtasks() + " switched to " + newState + (message == null ? "" : " : " + message));
+		}
+		
 		for (ExecutionListener listener : this.executionListeners) {
 			try {
 				listener.executionStateChanged(jobId, vertexId, subtaskIndex, executionId, newState, message);
