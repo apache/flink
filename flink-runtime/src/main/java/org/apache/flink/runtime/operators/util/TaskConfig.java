@@ -344,7 +344,7 @@ public class TaskConfig {
 	}
 	
 	public boolean getMutableObjectMode() {
-		return this.config.getBoolean(DRIVER_MUTABLE_OBJECT_MODE, true);
+		return this.config.getBoolean(DRIVER_MUTABLE_OBJECT_MODE, false);
 	}
 	
 	public void setDriverComparator(TypeComparatorFactory<?> factory, int inputNum) {
