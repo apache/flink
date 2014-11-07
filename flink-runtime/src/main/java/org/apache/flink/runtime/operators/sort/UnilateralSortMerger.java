@@ -37,14 +37,13 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.ChannelReaderInputViewIterator;
-import org.apache.flink.runtime.io.disk.iomanager.BlockChannelAccess;
+import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 import org.apache.flink.runtime.io.disk.iomanager.BlockChannelReader;
 import org.apache.flink.runtime.io.disk.iomanager.BlockChannelWriter;
-import org.apache.flink.runtime.io.disk.iomanager.Channel;
 import org.apache.flink.runtime.io.disk.iomanager.ChannelReaderInputView;
 import org.apache.flink.runtime.io.disk.iomanager.ChannelWriterOutputView;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.disk.iomanager.Channel.ID;
+import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel.ID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memorymanager.MemoryAllocationException;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
@@ -135,12 +134,12 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 	/**
 	 * Collection of all currently open channels, to be closed and deleted during cleanup.
 	 */
-	private final HashSet<BlockChannelAccess<?, ?>> openChannels;
+	private final HashSet<FileIOChannel> openChannels;
 	
 	/**
 	 * Collection of all temporary files created and to be removed when closing the sorter.
 	 */
-	private final HashSet<Channel.ID> channelsToDeleteAtShutdown;
+	private final HashSet<FileIOChannel.ID> channelsToDeleteAtShutdown;
 	
 	/**
 	 * The monitor which guards the iterator field.
@@ -387,8 +386,8 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 		};
 		
 		// create sets that track the channels we need to clean up when closing the sorter
-		this.channelsToDeleteAtShutdown = new HashSet<Channel.ID>(64);
-		this.openChannels = new HashSet<BlockChannelAccess<?,?>>(64);
+		this.channelsToDeleteAtShutdown = new HashSet<FileIOChannel.ID>(64);
+		this.openChannels = new HashSet<FileIOChannel>(64);
 
 		// start the thread that reads the input channels
 		this.readThread = getReadingThread(exceptionHandler, input, circularQueues, parentTask,
@@ -519,8 +518,8 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 			// we have to loop this, because it may fail with a concurrent modification exception
 			while (!this.openChannels.isEmpty()) {
 				try {
-					for (Iterator<BlockChannelAccess<?, ?>> channels = this.openChannels.iterator(); channels.hasNext(); ) {
-						final BlockChannelAccess<?, ?> channel = channels.next();
+					for (Iterator<FileIOChannel> channels = this.openChannels.iterator(); channels.hasNext(); ) {
+						final FileIOChannel channel = channels.next();
 						channels.remove();
 						channel.closeAndDelete();
 					}
@@ -531,8 +530,8 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 			// we have to loop this, because it may fail with a concurrent modification exception
 			while (!this.channelsToDeleteAtShutdown.isEmpty()) {
 				try {
-					for (Iterator<Channel.ID> channels = this.channelsToDeleteAtShutdown.iterator(); channels.hasNext(); ) {
-						final Channel.ID channel = channels.next();
+					for (Iterator<FileIOChannel.ID> channels = this.channelsToDeleteAtShutdown.iterator(); channels.hasNext(); ) {
+						final FileIOChannel.ID channel = channels.next();
 						channels.remove();
 						try {
 							final File f = new File(channel.getPath());
@@ -1257,7 +1256,7 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 			
 			// ------------------- Spilling Phase ------------------------
 			
-			final Channel.Enumerator enumerator = this.ioManager.createChannelEnumerator();			
+			final FileIOChannel.Enumerator enumerator = this.ioManager.createChannelEnumerator();			
 			List<ChannelWithBlockCount> channelIDs = new ArrayList<ChannelWithBlockCount>();
 
 			
@@ -1286,12 +1285,11 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 				}
 				
 				// open next channel
-				Channel.ID channel = enumerator.next();
+				FileIOChannel.ID channel = enumerator.next();
 				registerChannelToBeRemovedAtShudown(channel);
 
 				// create writer
-				final BlockChannelWriter writer = this.ioManager.createBlockChannelWriter(
-																channel, this.numWriteBuffersToCluster);
+				final BlockChannelWriter writer = this.ioManager.createBlockChannelWriter(channel);
 				registerOpenChannelToBeRemovedAtShudown(writer);
 				final ChannelWriterOutputView output = new ChannelWriterOutputView(writer, this.writeMemory,
 																			this.memManager.getPageSize());
@@ -1351,7 +1349,7 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 				getSegmentsForReaders(readBuffers, this.sortReadMemory, channelIDs.size());
 				
 				// get the readers and register them to be released
-				setResultIterator(getMergingIterator(channelIDs, readBuffers, new ArrayList<BlockChannelAccess<?, ?>>(channelIDs.size())));
+				setResultIterator(getMergingIterator(channelIDs, readBuffers, new ArrayList<FileIOChannel>(channelIDs.size())));
 			}
 
 			// done
@@ -1405,7 +1403,7 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 		 * @throws IOException Thrown, if the readers encounter an I/O problem.
 		 */
 		protected final MergeIterator<E> getMergingIterator(final List<ChannelWithBlockCount> channelIDs,
-				final List<List<MemorySegment>> inputSegments, List<BlockChannelAccess<?, ?>> readerList)
+				final List<List<MemorySegment>> inputSegments, List<FileIOChannel> readerList)
 			throws IOException
 		{
 			// create one iterator per channel id
@@ -1420,9 +1418,7 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 				final List<MemorySegment> segsForChannel = inputSegments.get(i);
 				
 				// create a reader. if there are multiple segments for the reader, issue multiple together per I/O request
-				final BlockChannelReader reader = segsForChannel.size() >= 4 ? 
-					this.ioManager.createBlockChannelReader(channel.getChannel(), segsForChannel.size() / 2) :
-					this.ioManager.createBlockChannelReader(channel.getChannel());
+				final BlockChannelReader reader = this.ioManager.createBlockChannelReader(channel.getChannel());
 					
 				readerList.add(reader);
 				registerOpenChannelToBeRemovedAtShudown(reader);
@@ -1495,16 +1491,15 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 		throws IOException
 		{
 			// the list with the readers, to be closed at shutdown
-			final List<BlockChannelAccess<?, ?>> channelAccesses = new ArrayList<BlockChannelAccess<?, ?>>(channelIDs.size());
+			final List<FileIOChannel> channelAccesses = new ArrayList<FileIOChannel>(channelIDs.size());
 
 			// the list with the target iterators
 			final MergeIterator<E> mergeIterator = getMergingIterator(channelIDs, readBuffers, channelAccesses);
 
 			// create a new channel writer
-			final Channel.ID mergedChannelID = this.ioManager.createChannel();
+			final FileIOChannel.ID mergedChannelID = this.ioManager.createChannel();
 			registerChannelToBeRemovedAtShudown(mergedChannelID);
-			final BlockChannelWriter writer = this.ioManager.createBlockChannelWriter(
-															mergedChannelID, this.numWriteBuffersToCluster);
+			final BlockChannelWriter writer = this.ioManager.createBlockChannelWriter(mergedChannelID);
 			registerOpenChannelToBeRemovedAtShudown(writer);
 			final ChannelWriterOutputView output = new ChannelWriterOutputView(writer, writeBuffers, 
 																			this.memManager.getPageSize());
@@ -1523,7 +1518,7 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 			
 			// remove the merged channel readers from the clear-at-shutdown list
 			for (int i = 0; i < channelAccesses.size(); i++) {
-				BlockChannelAccess<?, ?> access = channelAccesses.get(i);
+				FileIOChannel access = channelAccesses.get(i);
 				access.closeAndDelete();
 				unregisterOpenChannelToBeRemovedAtShudown(access);
 			}
@@ -1577,7 +1572,7 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 		 * 
 		 * @param channel The channel id.
 		 */
-		protected void registerChannelToBeRemovedAtShudown(Channel.ID channel) {
+		protected void registerChannelToBeRemovedAtShudown(FileIOChannel.ID channel) {
 			UnilateralSortMerger.this.channelsToDeleteAtShutdown.add(channel);
 		}
 
@@ -1586,7 +1581,7 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 		 * 
 		 * @param channel The channel id.
 		 */
-		protected void unregisterChannelToBeRemovedAtShudown(Channel.ID channel) {
+		protected void unregisterChannelToBeRemovedAtShudown(FileIOChannel.ID channel) {
 			UnilateralSortMerger.this.channelsToDeleteAtShutdown.remove(channel);
 		}
 		
@@ -1595,7 +1590,7 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 		 * 
 		 * @param channel The channel reader/writer.
 		 */
-		protected void registerOpenChannelToBeRemovedAtShudown(BlockChannelAccess<?, ?> channel) {
+		protected void registerOpenChannelToBeRemovedAtShudown(FileIOChannel channel) {
 			UnilateralSortMerger.this.openChannels.add(channel);
 		}
 
@@ -1604,7 +1599,7 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 		 * 
 		 * @param channel The channel reader/writer.
 		 */
-		protected void unregisterOpenChannelToBeRemovedAtShudown(BlockChannelAccess<?, ?> channel) {
+		protected void unregisterOpenChannelToBeRemovedAtShudown(FileIOChannel channel) {
 			UnilateralSortMerger.this.openChannels.remove(channel);
 		}
 	}
@@ -1769,7 +1764,7 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 	
 	protected static final class ChannelWithBlockCount
 	{
-		private final Channel.ID channel;
+		private final FileIOChannel.ID channel;
 		private final int blockCount;
 		
 		public ChannelWithBlockCount(ID channel, int blockCount) {
@@ -1777,7 +1772,7 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 			this.blockCount = blockCount;
 		}
 
-		public Channel.ID getChannel() {
+		public FileIOChannel.ID getChannel() {
 			return channel;
 		}
 

@@ -18,35 +18,30 @@
 
 package org.apache.flink.runtime.io.disk.iomanager;
 
-import java.io.Closeable;
+import java.io.IOException;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import org.apache.flink.core.memory.MemorySegment;
+
 /**
- * A {@link LinkedBlockingQueue} that is extended with closing methods.
+ * A {@link RequestDoneCallback} that adds the memory segments to a blocking queue.
  */
-public final class RequestQueue<E> extends LinkedBlockingQueue<E> implements Closeable {
+public class QueuingCallback implements RequestDoneCallback {
+
+	private final LinkedBlockingQueue<MemorySegment> queue;
 	
-	private static final long serialVersionUID = 3804115535778471680L;
-	
-	/** Flag marking this queue as closed. */
-	private volatile boolean closed = false;
-	
-	/**
-	 * Closes this request queue.
-	 * 
-	 * @see java.io.Closeable#close()
-	 */
-	@Override
-	public void close() {
-		this.closed = true;
+	public QueuingCallback(LinkedBlockingQueue<MemorySegment> queue) {
+		this.queue = queue;
 	}
-	
-	/**
-	 * Checks whether this request queue is closed.
-	 * 
-	 * @return True, if the queue is closed, false otherwise.
-	 */
-	public boolean isClosed() {
-		return this.closed;
+
+	@Override
+	public void requestSuccessful(MemorySegment buffer) {
+		queue.add(buffer);
+	}
+
+	@Override
+	public void requestFailed(MemorySegment buffer, IOException e) {
+		// the I/O error is recorded in the writer already
+		queue.add(buffer);
 	}
 }

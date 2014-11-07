@@ -25,6 +25,7 @@ import org.junit.Assert;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.record.RecordSerializer;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
@@ -57,7 +58,7 @@ public class SpillingResettableMutableObjectIteratorTest {
 	public void startup() {
 		// set up IO and memory manager
 		this.memman = new DefaultMemoryManager(MEMORY_CAPACITY, 32 * 1024);
-		this.ioman = new IOManager();
+		this.ioman = new IOManagerAsync();
 
 		// create test objects
 		final ArrayList<Record> objects = new ArrayList<Record>(NUM_TESTRECORDS);

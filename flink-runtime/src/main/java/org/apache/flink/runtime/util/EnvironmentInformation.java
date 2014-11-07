@@ -27,6 +27,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.hadoop.security.UserGroupInformation;
 
+/**
+ * Utility class that gives access to the execution environment of the JVM, like
+ * the executing user, startup options, or the JVM version.
+ */
 public class EnvironmentInformation {
 
 	private static final Logger LOG = LoggerFactory.getLogger(EnvironmentInformation.class);
@@ -182,6 +186,10 @@ public class EnvironmentInformation {
 		catch (Throwable t) {
 			return UNKNOWN;
 		}
+	}
+	
+	public static String getTemporaryFileDirectory() {
+		return System.getProperty("java.io.tmpdir");
 	}
 
 	public static void logEnvironmentInfo(Logger log, String componentName) {

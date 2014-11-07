@@ -164,8 +164,7 @@ public class ChannelReaderInputView extends AbstractPagedInputView {
 	 * @return A list containing all memory segments originally supplied to this view.
 	 * @throws IOException Thrown, if the underlying reader could not be properly closed.
 	 */
-	public List<MemorySegment> close() throws IOException
-	{	
+	public List<MemorySegment> close() throws IOException {	
 		if (this.closed) {
 			throw new IllegalStateException("Already closed.");
 		}

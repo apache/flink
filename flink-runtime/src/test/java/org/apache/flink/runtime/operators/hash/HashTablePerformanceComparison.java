@@ -26,6 +26,7 @@ import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.operators.hash.AbstractHashTableProber;
 import org.apache.flink.runtime.operators.hash.AbstractMutableHashTable;
 import org.apache.flink.runtime.operators.hash.CompactingHashTable;
@@ -55,7 +56,7 @@ public class HashTablePerformanceComparison {
 	
 	private final TypePairComparator<IntPair, IntPair> pairComparator = new IntPairPairComparator();
 	
-	private IOManager ioManager = new IOManager();
+	private IOManager ioManager = new IOManagerAsync();
 	
 	@Test
 	public void testCompactingHashMapPerformance() {

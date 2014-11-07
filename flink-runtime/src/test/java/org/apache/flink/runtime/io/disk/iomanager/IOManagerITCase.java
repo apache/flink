@@ -64,7 +64,7 @@ public class IOManagerITCase {
 	@Before
 	public void beforeTest() {
 		memoryManager = new DefaultMemoryManager(NUMBER_OF_SEGMENTS * SEGMENT_SIZE, 1);
-		ioManager = new IOManager();
+		ioManager = new IOManagerAsync();
 	}
 
 	@After
@@ -91,7 +91,7 @@ public class IOManagerITCase {
 		final Random rnd = new Random(SEED);
 		final AbstractInvokable memOwner = new DefaultMemoryManagerTest.DummyInvokable();
 		
-		Channel.ID[] ids = new Channel.ID[NUM_CHANNELS];
+		FileIOChannel.ID[] ids = new FileIOChannel.ID[NUM_CHANNELS];
 		BlockChannelWriter[] writers = new BlockChannelWriter[NUM_CHANNELS];
 		BlockChannelReader[] readers = new BlockChannelReader[NUM_CHANNELS];
 		ChannelWriterOutputView[] outs = new ChannelWriterOutputView[NUM_CHANNELS];

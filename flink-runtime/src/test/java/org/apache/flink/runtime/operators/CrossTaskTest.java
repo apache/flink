@@ -16,13 +16,11 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.junit.Assert;
-
 import org.apache.flink.api.common.functions.CrossFunction;
 import org.apache.flink.runtime.operators.testutils.DelayingInfinitiveInputIterator;
 import org.apache.flink.runtime.operators.testutils.DriverTestBase;
@@ -32,8 +30,9 @@ import org.apache.flink.runtime.operators.testutils.UniformRecordGenerator;
 import org.apache.flink.types.Record;
 import org.junit.Test;
 
-public class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, Record>>
-{
+@SuppressWarnings("deprecation")
+public class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, Record>> {
+	
 	private static final long CROSS_MEM = 1024 * 1024;
 
 	private final double cross_frac;
