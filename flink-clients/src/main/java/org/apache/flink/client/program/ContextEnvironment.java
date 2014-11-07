@@ -79,4 +79,8 @@ public class ContextEnvironment extends ExecutionEnvironment {
 	public static void disableLocalExecution() {
 		ExecutionEnvironment.disableLocalExecution();
 	}
+	
+	public Client getClient() {
+		return this.client;
+	}
 }

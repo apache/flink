@@ -123,14 +123,15 @@ public abstract class StreamExecutionEnvironment {
 	 * <li>
 	 * 0 triggers flushing after every record thus minimizing latency</li>
 	 * <li>
-	 * -1 triggers flushing only when the output buffer is full thus maximizing throughput</li>
+	 * -1 triggers flushing only when the output buffer is full thus maximizing
+	 * throughput</li>
 	 * </ul>
 	 * 
 	 * @param timeoutMillis
 	 *            The maximum time between two output flushes.
 	 */
 	public StreamExecutionEnvironment setBufferTimeout(long timeoutMillis) {
-		if (timeoutMillis < -1 ) {
+		if (timeoutMillis < -1) {
 			throw new IllegalArgumentException("Timeout of buffer must be non-negative or -1");
 		}
 
@@ -350,7 +351,8 @@ public abstract class StreamExecutionEnvironment {
 	 *         executed.
 	 */
 	public static StreamExecutionEnvironment getExecutionEnvironment() {
-		return contextEnvironment == null ? createLocalEnvironment() : contextEnvironment;
+		allowLocalExecution = ExecutionEnvironment.localExecutionIsAllowed();
+		return createLocalEnvironment();
 	}
 
 	/**

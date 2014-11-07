@@ -39,8 +39,14 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 	 */
 	@Override
 	public void execute(String jobName) throws Exception {
-		ClusterUtil.runOnMiniCluster(this.jobGraphBuilder.getJobGraph(jobName),
-				getExecutionParallelism());
+		if (localExecutionIsAllowed()) {
+			ClusterUtil.runOnMiniCluster(this.jobGraphBuilder.getJobGraph(jobName),
+					getExecutionParallelism());
+		} else {
+			ClusterUtil.runOnLocalCluster(this.jobGraphBuilder.getJobGraph(jobName),
+					getExecutionParallelism());
+		}
+
 	}
 
 	public void executeTest(long memorySize) throws Exception {
