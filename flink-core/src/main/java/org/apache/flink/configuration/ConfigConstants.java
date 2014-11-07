@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.configuration;
 
 /**
@@ -35,6 +34,12 @@ public final class ConfigConstants {
 	 * The config parameter defining the default degree of parallelism for jobs.
 	 */
 	public static final String DEFAULT_PARALLELIZATION_DEGREE_KEY = "parallelization.degree.default";
+	
+	/**
+	 * Config parameter for the number of re-tries for failed tasks. Setting this
+	 * value to 0 effectively disables fault tolerance.
+	 */
+	public static final String DEFAULT_EXECUTION_RETRIES_KEY = "execution-retries.default";
 	
 	// -------------------------------- Runtime -------------------------------
 
@@ -313,6 +318,11 @@ public final class ConfigConstants {
 	 */
 	public static final int DEFAULT_PARALLELIZATION_DEGREE = 1;
 	
+	/**
+	 * The default number of execution retries.
+	 */
+	public static final int DEFAULT_EXECUTION_RETRIES = 0;
+	
 	// ------------------------------ Runtime ---------------------------------
 
 	/**
@@ -334,7 +344,7 @@ public final class ConfigConstants {
 	 * Default number of seconds after which a task manager is marked as failed.
 	 */
 	// 30 seconds (its enough to get to mars, should be enough to detect failure)
-	public static final int DEFAULT_JOB_MANAGER_DEAD_TASKMANAGER_TIMEOUT = 30;
+	public static final int DEFAULT_JOB_MANAGER_DEAD_TASKMANAGER_TIMEOUT = 30*1000;
 	
 	/**
 	 * The default network port the task manager expects incoming IPC connections. The {@code -1} means that

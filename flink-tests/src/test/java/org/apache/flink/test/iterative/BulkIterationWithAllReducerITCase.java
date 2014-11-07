@@ -42,7 +42,6 @@ public class BulkIterationWithAllReducerITCase extends JavaProgramTestBase {
 	protected void testProgram() throws Exception {
 		
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setDegreeOfParallelism(1);
 		
 		DataSet<Integer> data = env.fromElements(1, 2, 3, 4, 5, 6, 7, 8);
 		
@@ -66,7 +65,9 @@ public class BulkIterationWithAllReducerITCase extends JavaProgramTestBase {
 		@Override
 		public void open(Configuration parameters) {
 			Collection<Integer> bc = getRuntimeContext().getBroadcastVariable("bc");
-			this.bcValue = bc.isEmpty() ? null : bc.iterator().next();
+			synchronized (bc) {
+				this.bcValue = bc.isEmpty() ? null : bc.iterator().next();
+			}
 		}
 
 		@Override

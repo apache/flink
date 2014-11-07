@@ -23,149 +23,92 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.FutureTask;
 
-import org.apache.flink.api.common.accumulators.Accumulator;
-import org.apache.flink.api.common.accumulators.AccumulatorHelper;
-import org.apache.flink.api.common.accumulators.DoubleCounter;
-import org.apache.flink.api.common.accumulators.Histogram;
-import org.apache.flink.api.common.accumulators.IntCounter;
-import org.apache.flink.api.common.accumulators.LongCounter;
-import org.apache.flink.api.common.cache.DistributedCache;
+import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.core.fs.Path;
 
 /**
- * Implementation of the {@link RuntimeContext}, created by runtime UDF operators.
+ * A standalone implementation of the {@link RuntimeContext}, created by runtime UDF operators.
  */
-public class RuntimeUDFContext implements RuntimeContext {
+public class RuntimeUDFContext extends AbstractRuntimeUDFContext {
 
-	private final String name;
-
-	private final int numParallelSubtasks;
-
-	private final int subtaskIndex;
-
-	private final ClassLoader userCodeClassLoader;
+	private final HashMap<String, Object> initializedBroadcastVars = new HashMap<String, Object>();
 	
-	private final DistributedCache distributedCache = new DistributedCache();
-
-	private final HashMap<String, Accumulator<?, ?>> accumulators = new HashMap<String, Accumulator<?, ?>>();
-
-	private final HashMap<String, List<?>> broadcastVars = new HashMap<String, List<?>>();
-
+	private final HashMap<String, List<?>> uninitializedBroadcastVars = new HashMap<String, List<?>>();
+	
+	
 	public RuntimeUDFContext(String name, int numParallelSubtasks, int subtaskIndex, ClassLoader userCodeClassLoader) {
-		this.name = name;
-		this.numParallelSubtasks = numParallelSubtasks;
-		this.subtaskIndex = subtaskIndex;
-		this.userCodeClassLoader = userCodeClassLoader;
-	}
-
-	public RuntimeUDFContext(String name, int numParallelSubtasks, int subtaskIndex, ClassLoader userCodeClassLoader, Map<String, FutureTask<Path>> cpTasks) {
-		this.name = name;
-		this.numParallelSubtasks = numParallelSubtasks;
-		this.subtaskIndex = subtaskIndex;
-		this.userCodeClassLoader = userCodeClassLoader;
-		this.distributedCache.setCopyTasks(cpTasks);
+		super(name, numParallelSubtasks, subtaskIndex, userCodeClassLoader);
 	}
 	
-	@Override
-	public String getTaskName() {
-		return this.name;
+	public RuntimeUDFContext(String name, int numParallelSubtasks, int subtaskIndex, ClassLoader userCodeClassLoader, Map<String, FutureTask<Path>> cpTasks) {
+		super(name, numParallelSubtasks, subtaskIndex, userCodeClassLoader, cpTasks);
 	}
-
-	@Override
-	public int getNumberOfParallelSubtasks() {
-		return this.numParallelSubtasks;
-	}
-
-	@Override
-	public int getIndexOfThisSubtask() {
-		return this.subtaskIndex;
-	}
-
-	@Override
-	public IntCounter getIntCounter(String name) {
-		return (IntCounter) getAccumulator(name, IntCounter.class);
-	}
-
-	@Override
-	public LongCounter getLongCounter(String name) {
-		return (LongCounter) getAccumulator(name, LongCounter.class);
-	}
-
-	@Override
-	public Histogram getHistogram(String name) {
-		return (Histogram) getAccumulator(name, Histogram.class);
-	}
-
-	@Override
-	public DoubleCounter getDoubleCounter(String name) {
-		return (DoubleCounter) getAccumulator(name, DoubleCounter.class);
-	}
-
-	@Override
-	public <V, A> void addAccumulator(String name, Accumulator<V, A> accumulator) {
-		if (accumulators.containsKey(name)) {
-			throw new UnsupportedOperationException("The counter '" + name
-					+ "' already exists and cannot be added.");
-		}
-		accumulators.put(name, accumulator);
-	}
-
-	@SuppressWarnings("unchecked")
-	@Override
-	public <V, A> Accumulator<V, A> getAccumulator(String name) {
-		return (Accumulator<V, A>) accumulators.get(name);
-	}
-
-	@SuppressWarnings("unchecked")
-	private <V, A> Accumulator<V, A> getAccumulator(String name,
-			Class<? extends Accumulator<V, A>> accumulatorClass) {
-
-		Accumulator<?, ?> accumulator = accumulators.get(name);
-
-		if (accumulator != null) {
-			AccumulatorHelper.compareAccumulatorTypes(name, accumulator.getClass(), accumulatorClass);
-		} else {
-			// Create new accumulator
-			try {
-				accumulator = accumulatorClass.newInstance();
-			} catch (InstantiationException e) {
-				e.printStackTrace();
-			} catch (IllegalAccessException e) {
-				e.printStackTrace();
-			}
-			accumulators.put(name, accumulator);
-		}
-		return (Accumulator<V, A>) accumulator;
-	}
-
-	@Override
-	public HashMap<String, Accumulator<?, ?>> getAllAccumulators() {
-		return this.accumulators;
-	}
-
-	public void setBroadcastVariable(String name, List<?> value) {
-		this.broadcastVars.put(name, value);
-	}
-
+	
 
 	@Override
 	@SuppressWarnings("unchecked")
 	public <RT> List<RT> getBroadcastVariable(String name) {
-		if (!this.broadcastVars.containsKey(name)) {
-			throw new IllegalArgumentException("Trying to access an unbound broadcast variable '" 
-					+ name + "'.");
+		
+		// check if we have an initialized version
+		Object o = this.initializedBroadcastVars.get(name);
+		if (o != null) {
+			if (o instanceof List) {
+				return (List<RT>) o;
+			}
+			else {
+				throw new IllegalStateException("The broadcast variable with name '" + name + 
+						"' is not a List. A different call must have requested this variable with a BroadcastVariableInitializer.");
+			}
 		}
-		return (List<RT>) this.broadcastVars.get(name);
-	}
-
-	@Override
-	public DistributedCache getDistributedCache() {
-		return this.distributedCache;
+		else {
+			List<?> uninitialized = this.uninitializedBroadcastVars.remove(name);
+			if (uninitialized != null) {
+				this.initializedBroadcastVars.put(name, uninitialized);
+				return (List<RT>) uninitialized;
+			}
+			else {
+				throw new IllegalArgumentException("The broadcast variable with name '" + name + "' has not been set.");
+			}
+		}
 	}
 	
+	@SuppressWarnings("unchecked")
 	@Override
-	public ClassLoader getUserCodeClassLoader() {
-		return this.userCodeClassLoader;
+	public <T, C> C getBroadcastVariableWithInitializer(String name, BroadcastVariableInitializer<T, C> initializer) {
+		
+		// check if we have an initialized version
+		Object o = this.initializedBroadcastVars.get(name);
+		if (o != null) {
+			return (C) o;
+		}
+		else {
+			List<T> uninitialized = (List<T>) this.uninitializedBroadcastVars.remove(name);
+			if (uninitialized != null) {
+				C result = initializer.initializeBroadcastVariable(uninitialized);
+				this.initializedBroadcastVars.put(name, result);
+				return result;
+			}
+			else {
+				throw new IllegalArgumentException("The broadcast variable with name '" + name + "' has not been set.");
+			}
+		}
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	public void setBroadcastVariable(String name, List<?> value) {
+		this.uninitializedBroadcastVars.put(name, value);
+		this.initializedBroadcastVars.remove(name);
+	}
+	
+	public void clearBroadcastVariable(String name) {
+		this.uninitializedBroadcastVars.remove(name);
+		this.initializedBroadcastVars.remove(name);
+	}
+	
+	public void clearAllBroadcastVariables() {
+		this.uninitializedBroadcastVars.clear();
+		this.initializedBroadcastVars.clear();
 	}
 }

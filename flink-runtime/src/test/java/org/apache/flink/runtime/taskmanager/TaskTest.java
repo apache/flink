@@ -27,6 +27,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.deployment.GateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -264,7 +265,7 @@ public class TaskTest {
 			
 			RuntimeEnvironment env = new RuntimeEnvironment(task, tdd, getClass().getClassLoader(),
 					mock(MemoryManager.class), mock(IOManager.class), mock(InputSplitProvider.class),
-					mock(AccumulatorProtocol.class));
+					mock(AccumulatorProtocol.class), new BroadcastVariableManager());
 			
 			task.setEnvironment(env);
 			
@@ -302,7 +303,7 @@ public class TaskTest {
 			
 			RuntimeEnvironment env = new RuntimeEnvironment(task, tdd, getClass().getClassLoader(),
 					mock(MemoryManager.class), mock(IOManager.class), mock(InputSplitProvider.class),
-					mock(AccumulatorProtocol.class));
+					mock(AccumulatorProtocol.class), new BroadcastVariableManager());
 			
 			task.setEnvironment(env);
 			

@@ -86,7 +86,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   /**
    * Returns the TypeInformation for the elements of this DataSet.
    */
-  private[flink] def getType: TypeInformation[T] = set.getType
+  def getType: TypeInformation[T] = set.getType
 
   /**
    * Returns the underlying Java DataSet.

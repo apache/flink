@@ -39,7 +39,7 @@ import org.slf4j.LoggerFactory;
 public class OutputHandler<OUT> {
 	private static final Logger LOG = LoggerFactory.getLogger(OutputHandler.class);
 
-	private StreamVertex<?,OUT> streamVertex;
+	private StreamVertex<?, OUT> streamVertex;
 	private StreamConfig configuration;
 
 	private List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> outputs;
@@ -50,7 +50,7 @@ public class OutputHandler<OUT> {
 	StreamRecordSerializer<OUT> outSerializer = null;
 	SerializationDelegate<StreamRecord<OUT>> outSerializationDelegate = null;
 
-	public OutputHandler(StreamVertex<?,OUT> streamComponent) {
+	public OutputHandler(StreamVertex<?, OUT> streamComponent) {
 		this.streamVertex = streamComponent;
 		this.outputs = new LinkedList<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>>();
 		this.configuration = new StreamConfig(streamComponent.getTaskConfiguration());
@@ -119,12 +119,22 @@ public class OutputHandler<OUT> {
 
 		RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output;
 
-		if (bufferTimeout > 0) {
-			output = new StreamRecordWriter<SerializationDelegate<StreamRecord<OUT>>>(
-					streamVertex, outputPartitioner, bufferTimeout);
+		if (bufferTimeout >= 0) {
+			output = new StreamRecordWriter<SerializationDelegate<StreamRecord<OUT>>>(streamVertex,
+					outputPartitioner, bufferTimeout);
+
+			if (LOG.isTraceEnabled()) {
+				LOG.trace("StreamRecordWriter initiated with {} bufferTimeout for {}",
+						bufferTimeout, streamVertex.getClass().getSimpleName());
+			}
+
 		} else {
 			output = new RecordWriter<SerializationDelegate<StreamRecord<OUT>>>(streamVertex,
 					outputPartitioner);
+
+			if (LOG.isTraceEnabled()) {
+				LOG.trace("RecordWriter initiated for {}", streamVertex.getClass().getSimpleName());
+			}
 		}
 
 		outputs.add(output);
@@ -136,8 +146,8 @@ public class OutputHandler<OUT> {
 		}
 
 		if (LOG.isTraceEnabled()) {
-			LOG.trace("Partitioner set: {} with {} outputs", outputPartitioner.getClass()
-					.getSimpleName(), outputNumber);
+			LOG.trace("Partitioner set: {} with {} outputs for {}", outputPartitioner.getClass()
+					.getSimpleName(), outputNumber, streamVertex.getClass().getSimpleName());
 		}
 	}
 
@@ -155,7 +165,7 @@ public class OutputHandler<OUT> {
 
 	long startTime;
 
-	public void invokeUserFunction(String componentTypeName, StreamInvokable<?,OUT> userInvokable)
+	public void invokeUserFunction(String componentTypeName, StreamInvokable<?, OUT> userInvokable)
 			throws IOException, InterruptedException {
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("{} {} invoked with instance id {}", componentTypeName,

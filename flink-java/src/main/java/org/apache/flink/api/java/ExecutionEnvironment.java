@@ -96,6 +96,8 @@ public abstract class ExecutionEnvironment {
 
 	private int degreeOfParallelism = -1;
 	
+	private int numberOfExecutionRetries = -1;
+	
 	
 	// --------------------------------------------------------------------------------------------
 	//  Constructor and Properties
@@ -141,6 +143,31 @@ public abstract class ExecutionEnvironment {
 		}
 		
 		this.degreeOfParallelism = degreeOfParallelism;
+	}
+	
+	/**
+	 * Sets the number of times that failed tasks are re-executed. A value of zero
+	 * effectively disables fault tolerance. A value of {@code -1} indicates that the system
+	 * default value (as defined in the configuration) should be used.
+	 * 
+	 * @param numberOfExecutionRetries The number of times the system will try to re-execute failed tasks.
+	 */
+	public void setNumberOfExecutionRetries(int numberOfExecutionRetries) {
+		if (numberOfExecutionRetries < -1) {
+			throw new IllegalArgumentException("The number of execution retries must be non-negative, or -1 (use system default)");
+		}
+		this.numberOfExecutionRetries = numberOfExecutionRetries;
+	}
+	
+	/**
+	 * Gets the number of times the system will try to re-execute failed tasks. A value
+	 * of {@code -1} indicates that the system default value (as defined in the configuration)
+	 * should be used.
+	 * 
+	 * @return The number of times the system will try to re-execute failed tasks.
+	 */
+	public int getNumberOfExecutionRetries() {
+		return numberOfExecutionRetries;
 	}
 	
 	/**
@@ -652,6 +679,7 @@ public abstract class ExecutionEnvironment {
 		if (getDegreeOfParallelism() > 0) {
 			plan.setDefaultParallelism(getDegreeOfParallelism());
 		}
+		plan.setNumberOfExecutionRetries(this.numberOfExecutionRetries);
 		
 		try {
 			registerCachedFilesWithPlan(plan);

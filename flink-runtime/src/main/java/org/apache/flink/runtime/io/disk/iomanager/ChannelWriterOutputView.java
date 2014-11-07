@@ -209,7 +209,7 @@ public final class ChannelWriterOutputView extends AbstractPagedOutputView {
 		return next;
 	}
 	
-	private final void writeSegment(MemorySegment segment, int writePosition, boolean lastSegment) throws IOException
+	private void writeSegment(MemorySegment segment, int writePosition, boolean lastSegment) throws IOException
 	{
 		segment.putShort(0, HEADER_MAGIC_NUMBER);
 		segment.putShort(HEADER_FLAGS_OFFSET, lastSegment ? FLAG_LAST_BLOCK : 0);

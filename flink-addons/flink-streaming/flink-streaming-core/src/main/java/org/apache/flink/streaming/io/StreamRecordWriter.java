@@ -46,12 +46,12 @@ public class StreamRecordWriter<T extends IOReadableWritable> extends
 	// -----------------------------------------------------------------------------------------------------------------
 
 	public StreamRecordWriter(AbstractInvokable invokable) {
-		this(invokable, new RoundRobinChannelSelector<T>(), 1000);
+		this(invokable, new RoundRobinChannelSelector<T>(), 100);
 	}
 
 	public StreamRecordWriter(AbstractInvokable invokable,
 			ChannelSelector<T> channelSelector) {
-		this(invokable, channelSelector, 1000);
+		this(invokable, channelSelector, 100);
 	}
 
 	public StreamRecordWriter(AbstractInvokable invokable,
@@ -74,7 +74,11 @@ public class StreamRecordWriter<T extends IOReadableWritable> extends
 		for (int i = 0; i < this.numChannels; i++) {
 			this.serializers[i] = new SpanningRecordSerializer<T>();
 		}
-		(new OutputFlusher()).start();
+		
+		//start a separate thread to handle positive flush intervals
+		if (timeout > 0) {
+			(new OutputFlusher()).start();
+		}
 	}
 
 	@Override
@@ -99,6 +103,10 @@ public class StreamRecordWriter<T extends IOReadableWritable> extends
 									.getBufferSize());
 					result = serializer.setNextBuffer(buffer);
 				}
+			}
+			
+			if (timeout == 0){
+				flush();
 			}
 		}
 	}

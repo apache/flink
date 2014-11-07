@@ -19,7 +19,9 @@
 package org.apache.flink.test.broadcastvars;
 
 import java.io.BufferedReader;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Random;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -198,7 +200,13 @@ public class BroadcastVarsNepheleITCase extends RecordAPITestBase {
 
 		@Override
 		public void open(Configuration parameters) throws Exception {
-			this.models = this.getRuntimeContext().getBroadcastVariable("models");
+			List<Record> shared = this.getRuntimeContext().getBroadcastVariable("models");
+			this.models = new ArrayList<Record>(shared.size());
+			synchronized (shared) {
+				for (Record r : shared) {
+					this.models.add(r.createCopy());
+				}
+			}
 		}
 
 		@Override

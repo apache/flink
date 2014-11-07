@@ -159,7 +159,7 @@ public class GenericTypeComparator<T extends Comparable<T>> extends TypeComparat
 		return new GenericTypeComparator<T>(this);
 	}
 
-	private final void checkKryoInitialized() {
+	private void checkKryoInitialized() {
 		if (this.kryo == null) {
 			this.kryo = new Kryo();
 			this.kryo.setAsmEnabled(true);

@@ -56,18 +56,19 @@ public class ExecutionJobVertex {
 	
 	private final List<IntermediateResult> inputs;
 	
-	private final InputSplitAssigner splitAssigner;
-	
 	private final int parallelism;
 	
 	private final boolean[] finishedSubtasks;
 			
 	private volatile int numSubtasksInFinalState;
 	
-	
 	private final SlotSharingGroup slotSharingGroup;
 	
 	private final CoLocationGroup coLocationGroup;
+	
+	private final InputSplit[] inputSplits;
+	
+	private InputSplitAssigner splitAssigner;
 	
 	
 	public ExecutionJobVertex(ExecutionGraph graph, AbstractJobVertex jobVertex, int defaultParallelism) throws JobException {
@@ -126,9 +127,10 @@ public class ExecutionJobVertex {
 			@SuppressWarnings("unchecked")
 			InputSplitSource<InputSplit> splitSource = (InputSplitSource<InputSplit>) jobVertex.getInputSplitSource();
 			if (splitSource != null) {
-				InputSplit[] splits = splitSource.createInputSplits(numTaskVertices);
-				this.splitAssigner = splitSource.getInputSplitAssigner(splits);
+				this.inputSplits = splitSource.createInputSplits(numTaskVertices);
+				this.splitAssigner = splitSource.getInputSplitAssigner(this.inputSplits);
 			} else {
+				this.inputSplits = null;
 				this.splitAssigner = null;
 			}
 		}
@@ -255,6 +257,48 @@ public class ExecutionJobVertex {
 		synchronized (stateMonitor) {
 			while (numSubtasksInFinalState < parallelism) {
 				stateMonitor.wait();
+			}
+		}
+	}
+	
+	public void resetForNewExecution() {
+		if (!(numSubtasksInFinalState == 0 || numSubtasksInFinalState == parallelism)) {
+			throw new IllegalStateException("Cannot reset vertex that is not in final state");
+		}
+		
+		synchronized (stateMonitor) {
+			// check and reset the sharing groups with scheduler hints
+			if (slotSharingGroup != null) {
+				slotSharingGroup.clearTaskAssignment();
+			}
+			if (coLocationGroup != null) {
+				coLocationGroup.resetConstraints();
+			}
+			
+			// reset vertices one by one. if one reset fails, the "vertices in final state"
+			// fields will be consistent to handle triggered cancel calls
+			for (int i = 0; i < parallelism; i++) {
+				taskVertices[i].resetForNewExecution();
+				if (finishedSubtasks[i]) {
+					finishedSubtasks[i] = false;
+					numSubtasksInFinalState--;
+				}
+			}
+			
+			if (numSubtasksInFinalState != 0) {
+				throw new RuntimeException("Bug: resetting the execution job vertex failed.");
+			}
+			
+			// set up the input splits again
+			try {
+				if (this.inputSplits != null) {
+					@SuppressWarnings("unchecked")
+					InputSplitSource<InputSplit> splitSource = (InputSplitSource<InputSplit>) jobVertex.getInputSplitSource();
+					this.splitAssigner = splitSource.getInputSplitAssigner(this.inputSplits);
+				}
+			}
+			catch (Throwable t) {
+				throw new RuntimeException("Re-creating the input split assigner failed: " + t.getMessage(), t);
 			}
 		}
 	}

@@ -74,8 +74,8 @@ public final class LocatableInputSplitAssigner implements InputSplitAssigner {
 					LocatableInputSplit next = iter.next();
 					iter.remove();
 					
-					if (LOG.isDebugEnabled()) {
-						LOG.debug("Assigning arbitrary split to null host.");
+					if (LOG.isInfoEnabled()) {
+						LOG.info("Assigning split to null host (random assignment).");
 					}
 					
 					remoteAssignments++;
@@ -141,8 +141,8 @@ public final class LocatableInputSplitAssigner implements InputSplitAssigner {
 						LocatableInputSplit split = localSplits.remove(size);
 						if (this.unassigned.remove(split)) {
 							
-							if (LOG.isDebugEnabled()) {
-								LOG.debug("Assigning local split to host " + host);
+							if (LOG.isInfoEnabled()) {
+								LOG.info("Assigning local split to host " + host);
 							}
 							
 							localAssignments++;
@@ -160,8 +160,8 @@ public final class LocatableInputSplitAssigner implements InputSplitAssigner {
 				LocatableInputSplit next = iter.next();
 				iter.remove();
 				
-				if (LOG.isDebugEnabled()) {
-					LOG.debug("Assigning remote split to host " + host);
+				if (LOG.isInfoEnabled()) {
+					LOG.info("Assigning remote split to host " + host);
 				}
 				
 				remoteAssignments++;

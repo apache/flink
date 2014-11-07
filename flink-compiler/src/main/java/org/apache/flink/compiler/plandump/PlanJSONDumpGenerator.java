@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.flink.api.common.operators.CompilerHints;
 import org.apache.flink.compiler.CompilerException;
 import org.apache.flink.compiler.dag.BinaryUnionNode;
@@ -53,6 +54,7 @@ import org.apache.flink.compiler.plan.WorksetIterationPlanNode;
 import org.apache.flink.compiler.util.Utils;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
+import org.apache.flink.util.StringUtils;
 
 /**
  * 
@@ -62,8 +64,19 @@ public class PlanJSONDumpGenerator {
 	private Map<DumpableNode<?>, Integer> nodeIds; // resolves pact nodes to ids
 
 	private int nodeCnt;
+	
+	private boolean encodeForHTML;
 
 	// --------------------------------------------------------------------------------------------
+	
+	public void setEncodeForHTML(boolean encodeForHTML) {
+		this.encodeForHTML = encodeForHTML;
+	}
+	
+	public boolean isEncodeForHTML() {
+		return encodeForHTML;
+	}
+	
 	
 	public void dumpPactPlanAsJSON(List<DataSinkNode> nodes, PrintWriter writer) {
 		@SuppressWarnings("unchecked")
@@ -215,26 +228,37 @@ public class PlanJSONDumpGenerator {
 
 		
 		final String type;
-		final String contents;
+		String contents;
 		if (n instanceof DataSinkNode) {
 			type = "sink";
 			contents = n.getPactContract().toString();
 		} else if (n instanceof DataSourceNode) {
 			type = "source";
 			contents = n.getPactContract().toString();
-		} else if (n instanceof BulkIterationNode) {
+		}
+		else if (n instanceof BulkIterationNode) {
 			type = "bulk_iteration";
 			contents = n.getPactContract().getName();
-		} else if (n instanceof WorksetIterationNode) {
+		}
+		else if (n instanceof WorksetIterationNode) {
 			type = "workset_iteration";
 			contents = n.getPactContract().getName();
-		} else if (n instanceof BinaryUnionNode) {
+		}
+		else if (n instanceof BinaryUnionNode) {
 			type = "pact";
 			contents = "";
-		} else {
+		}
+		else {
 			type = "pact";
 			contents = n.getPactContract().getName();
 		}
+		
+		contents = StringUtils.showControlCharacters(contents);
+		if (encodeForHTML) {
+			contents = StringEscapeUtils.escapeHtml4(contents);
+			contents = contents.replace("\\", "&#92;");
+		}
+		
 		
 		String name = n.getName();
 		if (name.equals("Reduce") && (node instanceof SingleInputPlanNode) && 

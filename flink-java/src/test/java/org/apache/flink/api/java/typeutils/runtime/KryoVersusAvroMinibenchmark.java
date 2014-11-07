@@ -393,7 +393,7 @@ public class KryoVersusAvroMinibenchmark {
 		}
 		
 		
-		private final void resize(int minCapacityAdd) throws IOException {
+		private void resize(int minCapacityAdd) throws IOException {
 			try {
 				final int newLen = Math.max(this.buffer.length * 2, this.buffer.length + minCapacityAdd);
 				final byte[] nb = new byte[newLen];

@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.io;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 
 import org.slf4j.Logger;
@@ -35,7 +36,7 @@ import org.apache.flink.core.fs.FileSystem.WriteMode;
  * The abstract base class for all output formats that are file based. Contains the logic to open/close the target
  * file streams.
  */
-public abstract class FileOutputFormat<IT> implements OutputFormat<IT>, InitializeOnMaster {
+public abstract class FileOutputFormat<IT> implements OutputFormat<IT>, InitializeOnMaster, CleanupWhenUnsuccessful {
 	
 	private static final long serialVersionUID = 1L;
 
@@ -106,10 +107,14 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT>, Initiali
 	
 	// --------------------------------------------------------------------------------------------
 	
-	/**
-	 * The stream to which the data is written;
-	 */
+	/** The stream to which the data is written; */
 	protected transient FSDataOutputStream stream;
+	
+	/** The path that is actually written to (may a a file in a the directory defined by {@code outputFilePath} ) */
+	private transient Path actualFilePath;
+	
+	/** Flag indicating whether this format actually created a file, which should be removed on cleanup. */
+	private transient boolean fileCreated;
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -231,12 +236,13 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT>, Initiali
 			
 			
 		// Suffix the path with the parallel instance index, if needed
-		if (numTasks > 1 || outputDirectoryMode == OutputDirectoryMode.ALWAYS) {
-			p = p.suffix("/" + (taskNumber+1));
-		}
+		this.actualFilePath = (numTasks > 1 || outputDirectoryMode == OutputDirectoryMode.ALWAYS) ? p.suffix("/" + (taskNumber+1)) : p;
 
 		// create output file
-		this.stream = fs.create(p, writeMode == WriteMode.OVERWRITE);
+		this.stream = fs.create(this.actualFilePath, writeMode == WriteMode.OVERWRITE);
+		
+		// at this point, the file creation must have succeeded, or an exception has been thrown
+		this.fileCreated = true;
 	}
 
 	@Override
@@ -279,6 +285,21 @@ public abstract class FileOutputFormat<IT> implements OutputFormat<IT>, Initiali
 				if(!fs.initOutPathDistFS(path, writeMode, true)) {
 					throw new IOException("Output directory could not be created.");
 				}
+			}
+		}
+	}
+	
+	@Override
+	public void tryCleanupOnError() {
+		if (this.fileCreated) {
+			this.fileCreated = false;
+			
+			try {
+				FileSystem.get(this.actualFilePath.toUri()).delete(actualFilePath, false);
+			} catch (FileNotFoundException e) {
+				// ignore, may not be visible yet or may be already removed
+			} catch (Throwable t) {
+				LOG.error("Could not remove the incomplete file " + actualFilePath);
 			}
 		}
 	}

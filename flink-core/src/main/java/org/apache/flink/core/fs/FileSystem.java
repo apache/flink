@@ -209,9 +209,16 @@ public abstract class FileSystem {
 				}
 				catch (URISyntaxException e) {
 					// we tried to repair it, but could not. report the scheme error
-					throw new IOException("FileSystem: Scheme is null. file:// or hdfs:// are example schemes. "
-							+ "Failed for " + uri.toString() + ".");
+					throw new IOException("The file URI '" + uri.toString() + "' is not valid. "
+							+ " File URIs need to specify aboslute file paths.");
 				}
+			}
+			
+			if (uri.getScheme().equals("file") && uri.getAuthority() != null && !uri.getAuthority().isEmpty()) {
+				String supposedUri = "file:///" + uri.getAuthority() + uri.getPath();
+				
+				throw new IOException("Found local file path with authority '" + uri.getAuthority() + "' in path '"
+						+ uri.toString() + "'. Hint: Did you forget a slash? (correct path would be '" + supposedUri + "')");
 			}
 
 			final FSKey key = new FSKey(uri.getScheme(), uri.getAuthority());
@@ -224,7 +231,7 @@ public abstract class FileSystem {
 			// Try to create a new file system
 			if (!FSDIRECTORY.containsKey(uri.getScheme())) {
 				throw new IOException("No file system found with scheme " + uri.getScheme()
-				+ ". Failed for " + uri.toString() + ".");
+						+ ", referenced in file URI '" + uri.toString() + "'.");
 			}
 
 			Class<? extends FileSystem> fsClass = null;
@@ -510,24 +517,54 @@ public abstract class FileSystem {
 		
 		if (createDirectory) {
 			// Output directory needs to be created
-			try {
-				if(!this.exists(outPath)) {
-					this.mkdirs(outPath);
+			
+			// NOTE: we sometimes see this code block fail due to a race:
+			// - the check whether the directory exists returns false
+			// - the call to create the directory fails (some concurrent thread is creating the directory)
+			// - the call to check whether the directory exists does not yet see the new directory
+			
+			// try for 30 seconds
+			long now = System.currentTimeMillis();
+			long deadline = now + 30000;
+			
+			do {
+				try {
+					if(!this.exists(outPath)) {
+						this.mkdirs(outPath);
+					}
 				}
-			} catch(IOException ioe) {
-				// Some other thread might already have created the directory.
-				// If - for some other reason - the directory could not be created  
-				// and the path does not exist, this will be handled later.
+				catch (IOException ioe) {
+					// Some other thread might already have created the directory.
+					// If - for some other reason - the directory could not be created  
+					// and the path does not exist, this will be handled later.
+				}
+		
+				// double check that the output directory exists
+				try {
+					FileStatus check = getFileStatus(outPath);
+					if (check != null) {
+						if (check.isDir()) {
+							return true;
+						} else {
+							throw new IOException("FileSystem should create an output directory, but the path points to a file instead.");
+						}
+					}
+					// else: fall through the loop
+				}
+				catch (FileNotFoundException e) {
+					// fall though the loop
+				}
+				
+				// delay to allow other threads to make progress in the I/O calls
+				try {
+					Thread.sleep(1000);
+				} catch (InterruptedException ie) {}
 			}
-	
-			// double check that the output directory exists
-			try {
-				FileStatus check = getFileStatus(outPath);
-				return check.isDir();
-			} catch (FileNotFoundException e) {
-				return false;
-			}
-		} else {
+			while (System.currentTimeMillis() < deadline);
+			
+			return false;
+		}
+		else {
 			// check that the output path does not exist and an output file can be created by the output format.
 			return !this.exists(outPath);
 		}

@@ -94,7 +94,7 @@ setFinalState(state);
 
 <div class="panel panel-default">
 	<div class="panel-body">
-	See the <strong><a href="scala_api_guide.html">Scala</a> and <a href="java_api_guide.html#iterations">Java</a> programming guides</strong> for details and code examples.</div>
+	See the <strong><a href="programming_guide.html">Programming Guide</a> </strong> for details and code examples.</div>
 </div>
 
 ### Example: Incrementing Numbers

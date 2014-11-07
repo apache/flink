@@ -26,7 +26,6 @@ import org.apache.flink.runtime.iterative.concurrent.SolutionSetUpdateBarrierBro
 import org.apache.flink.runtime.iterative.concurrent.SuperstepKickoffLatch;
 import org.apache.flink.runtime.iterative.concurrent.SuperstepKickoffLatchBroker;
 import org.apache.flink.runtime.iterative.io.WorksetUpdateOutputCollector;
-import org.apache.flink.runtime.operators.PactTaskContext;
 import org.apache.flink.util.Collector;
 
 /**
@@ -39,8 +38,7 @@ import org.apache.flink.util.Collector;
  * <p/>
  * If there is a separate solution set tail, the iteration head has to make sure to wait for it to finish.
  */
-public class IterationTailPactTask<S extends Function, OT> extends AbstractIterativePactTask<S, OT>
-		implements PactTaskContext<S, OT> {
+public class IterationTailPactTask<S extends Function, OT> extends AbstractIterativePactTask<S, OT> {
 
 	private static final Logger log = LoggerFactory.getLogger(IterationTailPactTask.class);
 

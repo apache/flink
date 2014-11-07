@@ -23,6 +23,7 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.URI;
+import java.net.UnknownHostException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -255,6 +256,7 @@ public final class DistributedFileSystem extends FileSystem {
 
 	@Override
 	public void initialize(URI path) throws IOException {
+		
 		// For HDFS we have to have an authority
 		if (path.getAuthority() == null) {
 			
@@ -301,8 +303,20 @@ public final class DistributedFileSystem extends FileSystem {
 			try {
 				this.fs.initialize(path, this.conf);
 			}
+			catch (UnknownHostException e) {
+				String message = "The HDFS namenode host at '" + path.getAuthority()
+						+ "', specified by file path '" + path.toString() + "', cannot be resolved"
+						+ (e.getMessage() != null ? ": " + e.getMessage() : ".");
+				
+				if (path.getPort() == -1) {
+					message += " Hint: Have you forgotten a slash? (correct URI would be 'hdfs:///" + path.getAuthority() + path.getPath() + "' ?)";
+				}
+				
+				throw new IOException(message, e);
+			}
 			catch (Exception e) {
-				throw new IOException("The given file URI (" + path.toString() + ") described the host and port of an HDFS Namenode, but the File System could not be initialized with that address"
+				throw new IOException("The given file URI (" + path.toString() + ") points to the HDFS Namenode at "
+						+ path.getAuthority() + ", but the File System could not be initialized with that address"
 					+ (e.getMessage() != null ? ": " + e.getMessage() : "."), e);
 			}
 		}

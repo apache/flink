@@ -97,7 +97,7 @@ public class CopyableValueSerializer<T extends CopyableValue<T>> extends TypeSer
 	
 	// --------------------------------------------------------------------------------------------
 	
-	private final void ensureInstanceInstantiated() {
+	private void ensureInstanceInstantiated() {
 		if (instance == null) {
 			instance = createInstance();
 		}

@@ -28,10 +28,8 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.times;
 import static org.mockito.Matchers.any;
 
-import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.jobgraph.JobID;
@@ -42,8 +40,6 @@ import org.apache.flink.runtime.taskmanager.TaskOperationResult;
 import org.junit.Test;
 
 import org.mockito.Matchers;
-
-import java.util.ArrayList;
 
 public class ExecutionVertexDeploymentTest {
 	

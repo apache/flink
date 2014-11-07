@@ -77,7 +77,7 @@ public class InstanceManager {
 	 * where a task manager is still considered alive.
 	 */
 	public InstanceManager() {
-		this(1000 * GlobalConfiguration.getLong(
+		this(GlobalConfiguration.getLong(
 				ConfigConstants.JOB_MANAGER_DEAD_TASKMANAGER_TIMEOUT_KEY,
 				ConfigConstants.DEFAULT_JOB_MANAGER_DEAD_TASKMANAGER_TIMEOUT));
 	}
@@ -97,6 +97,10 @@ public class InstanceManager {
 		this.heartbeatTimeout = heartbeatTimeout;
 
 		new Timer(true).schedule(cleanupStaleMachines, cleanupInterval, cleanupInterval);
+	}
+	
+	public long getHeartbeatTimeout() {
+		return heartbeatTimeout;
 	}
 
 	public void shutdown() {
@@ -126,7 +130,7 @@ public class InstanceManager {
 		
 		synchronized (this.lock) {
 			if (this.shutdown) {
-				throw new IllegalStateException("InstanceManager is shut down.");
+				return false;
 			}
 			
 			Instance host = registeredHostsById.get(instanceId);

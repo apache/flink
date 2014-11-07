@@ -60,6 +60,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.protocols.VersionedProtocol;
 import org.apache.flink.runtime.ExecutionMode;
 import org.apache.flink.runtime.blob.BlobCache;
+import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -140,6 +141,8 @@ public class TaskManager implements TaskOperationProtocol {
 	private final AccumulatorProtocol accumulatorProtocolProxy;
 
 	private final LibraryCacheManager libraryCacheManager;
+	
+	private final BroadcastVariableManager bcVarManager = new BroadcastVariableManager();
 	
 	private final Server taskManagerServer;
 
@@ -425,6 +428,8 @@ public class TaskManager implements TaskOperationProtocol {
 			this.heartbeatThread.join(1000);
 		} catch (InterruptedException e) {}
 
+		this.registeredId = null;
+		
 		// Stop RPC proxy for the task manager
 		stopProxy(this.jobManager);
 
@@ -536,6 +541,10 @@ public class TaskManager implements TaskOperationProtocol {
 		return channelManager;
 	}
 	
+	public BroadcastVariableManager getBroadcastVariableManager() {
+		return this.bcVarManager;
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	//  Task Operation
 	// --------------------------------------------------------------------------------------------
@@ -572,12 +581,18 @@ public class TaskManager implements TaskOperationProtocol {
 		final int numSubtasks = tdd.getCurrentNumberOfSubtasks();
 		
 		Task task = null;
-		boolean jarsRegistered = false;
+		
+		// check if the taskmanager is shut down or disconnected
+		if (shutdownStarted.get()) {
+			return new TaskOperationResult(executionId, false, "TaskManager is shut down.");
+		}
+		if (registeredId == null) {
+			return new TaskOperationResult(executionId, false, "TaskManager lost connection to JobManager.");
+		}
 		
 		try {
 			// Now register data with the library manager
-			libraryCacheManager.register(jobID, tdd.getRequiredJarFiles());
-			jarsRegistered = true;
+			libraryCacheManager.registerTask(jobID, executionId, tdd.getRequiredJarFiles());
 			
 			// library and classloader issues first
 			final ClassLoader userCodeClassLoader = libraryCacheManager.getClassLoader(jobID);
@@ -591,7 +606,7 @@ public class TaskManager implements TaskOperationProtocol {
 			}
 			
 			final InputSplitProvider splitProvider = new TaskInputSplitProvider(this.globalInputSplitProvider, jobID, vertexId, executionId);
-			final RuntimeEnvironment env = new RuntimeEnvironment(task, tdd, userCodeClassLoader, this.memoryManager, this.ioManager, splitProvider, this.accumulatorProtocolProxy);
+			final RuntimeEnvironment env = new RuntimeEnvironment(task, tdd, userCodeClassLoader, this.memoryManager, this.ioManager, splitProvider, this.accumulatorProtocolProxy, this.bcVarManager);
 			task.setEnvironment(env);
 			
 			// register the task with the network stack and profilers
@@ -621,8 +636,8 @@ public class TaskManager implements TaskOperationProtocol {
 		
 			// final check that we can go (we do this after the registration, so the the "happen's before"
 			// relationship ensures that either the shutdown removes this task, or we are aware of the shutdown
-			if (shutdownStarted.get()) {
-				throw new Exception("Task Manager is shut down.");
+			if (shutdownStarted.get() || this.registeredId == null) {
+				throw new Exception("Task Manager is shut down or is not connected to a JobManager.");
 			}
 
 			return new TaskOperationResult(executionId, true);
@@ -637,14 +652,20 @@ public class TaskManager implements TaskOperationProtocol {
 			}
 			
 			try {
+				try {
+					task.failExternally(t);
+				}
+				catch (Throwable t2) {
+					LOG.error("Error during cleanup of task deployment", t2);
+				}
+				
 				this.runningTasks.remove(executionId);
 				
 				if (task != null) {
 					removeAllTaskResources(task);
 				}
-				if (jarsRegistered) {
-					libraryCacheManager.unregister(jobID);
-				}
+				
+				libraryCacheManager.unregisterTask(jobID, executionId);
 			}
 			catch (Throwable t2) {
 				LOG.error("Error during cleanup of task deployment", t2);
@@ -673,7 +694,7 @@ public class TaskManager implements TaskOperationProtocol {
 		removeAllTaskResources(task);
 
 		// Unregister task from library cache manager
-		libraryCacheManager.unregister(task.getJobID());
+		libraryCacheManager.unregisterTask(task.getJobID(), executionId);
 	}
 	
 	private void removeAllTaskResources(Task task) {

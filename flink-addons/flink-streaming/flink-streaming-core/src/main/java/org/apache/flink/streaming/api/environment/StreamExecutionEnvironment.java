@@ -59,7 +59,7 @@ public abstract class StreamExecutionEnvironment {
 
 	private int executionParallelism = -1;
 
-	private long buffertimeout = 0;;
+	private long bufferTimeout = 100;
 
 	protected JobGraphBuilder jobGraphBuilder;
 
@@ -112,23 +112,34 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
-	 * Sets the maximum time frequency (ms) for the flushing of the output
-	 * buffers. By default the output buffers flush only when they are full.
+	 * Sets the maximum time frequency (milliseconds) for the flushing of the
+	 * output buffers. By default the output buffers flush frequently to provide
+	 * low latency and to aid smooth developer experience. Setting the parameter
+	 * can result in three logical modes:
+	 * 
+	 * <ul>
+	 * <li>
+	 * A positive integer triggers flushing periodically by that integer</li>
+	 * <li>
+	 * 0 triggers flushing after every record thus minimizing latency</li>
+	 * <li>
+	 * -1 triggers flushing only when the output buffer is full thus maximizing throughput</li>
+	 * </ul>
 	 * 
 	 * @param timeoutMillis
 	 *            The maximum time between two output flushes.
 	 */
 	public StreamExecutionEnvironment setBufferTimeout(long timeoutMillis) {
-		if (timeoutMillis < 0) {
-			throw new IllegalArgumentException("Timeout of buffer must be non-negative");
+		if (timeoutMillis < -1 ) {
+			throw new IllegalArgumentException("Timeout of buffer must be non-negative or -1");
 		}
 
-		this.buffertimeout = timeoutMillis;
+		this.bufferTimeout = timeoutMillis;
 		return this;
 	}
 
 	public long getBufferTimeout() {
-		return this.buffertimeout;
+		return this.bufferTimeout;
 	}
 
 	/**
@@ -465,10 +476,10 @@ public abstract class StreamExecutionEnvironment {
 	 * the program that have resulted in a "sink" operation. Sink operations are
 	 * for example printing results or forwarding them to a message queue.
 	 * <p>
-	 * The program execution will be logged and displayed with the provided
-	 * name
+	 * The program execution will be logged and displayed with the provided name
 	 * 
-	 * @param jobName Desired name of the job
+	 * @param jobName
+	 *            Desired name of the job
 	 * 
 	 * @throws Exception
 	 **/

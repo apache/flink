@@ -70,6 +70,15 @@ public class SlotSharingGroup implements java.io.Serializable {
 		return this.taskAssignment;
 	}
 	
+	public void clearTaskAssignment() {
+		if (this.taskAssignment != null) {
+			if (this.taskAssignment.getNumberOfSlots() > 0) {
+				throw new IllegalStateException("SlotSharingGroup cannot clear task assignment, group still has allocated resources.");
+			}
+		}
+		this.taskAssignment = null;
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	
 	@Override

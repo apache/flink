@@ -135,7 +135,7 @@ public class ValueComparator<T extends Value & Comparable<T>> extends TypeCompar
 		return new ValueComparator<T>(ascendingComparison, type);
 	}
 	
-	private final void checkKryoInitialized() {
+	private void checkKryoInitialized() {
 		if (this.kryo == null) {
 			this.kryo = new Kryo();
 			this.kryo.setAsmEnabled(true);

@@ -34,12 +34,12 @@ under the License.
 	<packaging>pom</packaging>
 
 	<modules>
+		<module>flink-hbase</module>
 		<module>flink-avro</module>
 		<module>flink-jdbc</module>
 		<module>flink-spargel</module>
 		<module>flink-hadoop-compatibility</module>
 		<module>flink-streaming</module>
-		<module>flink-hbase</module>
 	</modules>
 	
 	<!-- See main pom.xml for explanation of profiles -->
@@ -52,6 +52,9 @@ under the License.
 					<!--hadoop1--><name>!hadoop.profile</name>
 				</property>
 			</activation>
+			<modules>
+				<!-- No extra modules: pact-hbase is currently not compatible with Hadoop v1 -->
+			</modules>
 		</profile>
 		<profile>
 			<id>hadoop-2</id>
@@ -61,6 +64,9 @@ under the License.
 					<!--hadoop2--><name>hadoop.profile</name><value>2</value>
 				</property>
 			</activation>
+			<modules>
+				<!-- No extra modules: pact-hbase is currently not compatible with Hadoop v1 -->
+			</modules>
 		</profile>
 		<profile>
 			<id>include-yarn</id>

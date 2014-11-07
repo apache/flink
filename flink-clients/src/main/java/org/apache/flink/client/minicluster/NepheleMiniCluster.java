@@ -29,8 +29,11 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.ExecutionMode;
 import org.apache.flink.runtime.client.JobClient;
+import org.apache.flink.runtime.instance.InstanceManager;
+import org.apache.flink.runtime.instance.LocalInstanceManager;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.JobManager;
+import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 
 
@@ -238,6 +241,18 @@ public class NepheleMiniCluster {
 			}
 		}
 	}
+	
+	public TaskManager[] getTaskManagers() {
+		JobManager jm = this.jobManager;
+		if (jm != null) {
+			InstanceManager im = jm.getInstanceManager();
+			if (im instanceof LocalInstanceManager) {
+				return ((LocalInstanceManager) im).getTaskManagers();
+			}
+		}
+		
+		return null;
+	}
 
 	// ------------------------------------------------------------------------
 	// Network utility methods
@@ -251,6 +266,15 @@ public class NepheleMiniCluster {
 		
 		while (jobManager.getNumberOfSlotsAvailableToScheduler() < numSlots) {
 			Thread.sleep(50);
+		}
+		
+		// make sure that not just the jobmanager has the slots, but also the taskmanager
+		// has figured out its registration. under rare races, calls can be scheduled before that otherwise
+		TaskManager[] tms = getTaskManagers();
+		for (TaskManager tm : tms) {
+			while (tm.getRegisteredId() == null) {
+				Thread.sleep(10);
+			}
 		}
 	}
 	

@@ -144,7 +144,7 @@ abstract public class AbstractGenericArraySerializerTest {
 		}
 	}
 
-	private final <T> void runTests(T[]... instances) {
+	private <T> void runTests(T[]... instances) {
 		try {
 			@SuppressWarnings("unchecked")
 			Class<T> type = (Class<T>) instances[0][0].getClass();
@@ -158,7 +158,7 @@ abstract public class AbstractGenericArraySerializerTest {
 		}
 	}
 	
-	private final <T> void runTests(Class<T> type, TypeSerializer<T> componentSerializer, T[]... instances) {
+	private <T> void runTests(Class<T> type, TypeSerializer<T> componentSerializer, T[]... instances) {
 		try {
 			if (type == null || componentSerializer == null || instances == null || instances.length == 0) {
 				throw new IllegalArgumentException();
@@ -178,7 +178,7 @@ abstract public class AbstractGenericArraySerializerTest {
 		}
 	}
 	
-	private final <T> GenericArraySerializer<T> createSerializer(Class<T> type, TypeSerializer<T> componentSerializer) {
+	private <T> GenericArraySerializer<T> createSerializer(Class<T> type, TypeSerializer<T> componentSerializer) {
 		return new GenericArraySerializer<T>(type, componentSerializer);
 	}
 

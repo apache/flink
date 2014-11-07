@@ -224,7 +224,10 @@ public class JobSubmissionServlet extends HttpServlet {
 				// dump the job to a JSON file
 				String planName = uid + ".json";
 				File jsonFile = new File(this.planDumpDirectory, planName);
-				new PlanJSONDumpGenerator().dumpOptimizerPlanAsJSON(optPlan, jsonFile);
+				
+				PlanJSONDumpGenerator jsonGen = new PlanJSONDumpGenerator();
+				jsonGen.setEncodeForHTML(true);
+				jsonGen.dumpOptimizerPlanAsJSON(optPlan, jsonFile);
 
 				// submit the job only, if it should not be suspended
 				if (!suspend) {

@@ -256,6 +256,11 @@ public class Execution {
 				return;
 			}
 			
+			if (LOG.isInfoEnabled()) {
+				LOG.info(String.format("Deploying %s (attempt #%d) to %s", vertex.getSimpleName(),
+						attemptNumber, slot.getInstance().getInstanceConnectionInfo().getHostname()));
+			}
+			
 			final TaskDeploymentDescriptor deployment = vertex.createDeploymentDescriptor(attemptId, slot);
 			
 			// register this execution at the execution graph, to receive call backs
@@ -391,13 +396,13 @@ public class Execution {
 			
 				if (transitionState(current, FINISHED)) {
 					try {
-						vertex.executionFinished();
-						return;
+						assignedResource.releaseSlot();
+						vertex.getExecutionGraph().deregisterExecution(this);
 					}
 					finally {
-						vertex.getExecutionGraph().deregisterExecution(this);
-						assignedResource.releaseSlot();
+						vertex.executionFinished();
 					}
+					return;
 				}
 			}
 			else if (current == CANCELING) {
@@ -433,14 +438,14 @@ public class Execution {
 			if (current == CANCELED) {
 				return;
 			}
-			else if (current == CANCELING || current == RUNNING) {
+			else if (current == CANCELING || current == RUNNING || current == DEPLOYING) {
 				if (transitionState(current, CANCELED)) {
 					try {
-						vertex.executionCanceled();
+						assignedResource.releaseSlot();
+						vertex.getExecutionGraph().deregisterExecution(this);
 					}
 					finally {
-						vertex.getExecutionGraph().deregisterExecution(this);
-						assignedResource.releaseSlot();
+						vertex.executionCanceled();
 					}
 					return;
 				}
@@ -493,13 +498,13 @@ public class Execution {
 				this.failureCause = t;
 				
 				try {
-					vertex.getExecutionGraph().deregisterExecution(this);
-					vertex.executionFailed(t);
-				}
-				finally {
 					if (assignedResource != null) {
 						assignedResource.releaseSlot();
 					}
+					vertex.getExecutionGraph().deregisterExecution(this);
+				}
+				finally {
+					vertex.executionFailed(t);
 				}
 				
 				if (!isCallback && (current == RUNNING || current == DEPLOYING)) {

@@ -115,8 +115,7 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 	
 	
 	/** Executor service for asynchronous commands (to relieve the RPC threads of work) */
-	private final ExecutorService executorService = Executors.newFixedThreadPool(2 * Hardware
-			.getNumberCPUCores(), ExecutorThreadFactory.INSTANCE);
+	private final ExecutorService executorService = Executors.newFixedThreadPool(2 * Hardware.getNumberCPUCores(), ExecutorThreadFactory.INSTANCE);
 	
 
 	/** The RPC end point through which the JobManager gets its calls */
@@ -140,7 +139,11 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 	
 	private final int recommendedClientPollingInterval;
 	// end: these will be consolidated / removed
-
+	
+	private final int defaultExecutionRetries;
+	
+	private final long delayBetweenRetries;
+	
 	private final AtomicBoolean isShutdownInProgress = new AtomicBoolean(false);
 	
 	private volatile boolean isShutDown;
@@ -173,7 +176,16 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 		// Read the suggested client polling interval
 		this.recommendedClientPollingInterval = GlobalConfiguration.getInteger(
 			ConfigConstants.JOBCLIENT_POLLING_INTERVAL_KEY, ConfigConstants.DEFAULT_JOBCLIENT_POLLING_INTERVAL);
+		
+		// read the default number of times that failed tasks should be re-executed
+		this.defaultExecutionRetries = GlobalConfiguration.getInteger(
+			ConfigConstants.DEFAULT_EXECUTION_RETRIES_KEY, ConfigConstants.DEFAULT_EXECUTION_RETRIES);
 
+		// delay between retries should be one heartbeat timeout
+		this.delayBetweenRetries = 2 * GlobalConfiguration.getLong(
+				ConfigConstants.JOB_MANAGER_DEAD_TASKMANAGER_TIMEOUT_KEY,
+				ConfigConstants.DEFAULT_JOB_MANAGER_DEAD_TASKMANAGER_TIMEOUT);
+		
 		// Load the job progress collector
 		this.eventCollector = new EventCollector(this.recommendedClientPollingInterval);
 
@@ -315,7 +327,7 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 			}
 
 			// Register this job with the library cache manager
-			libraryCacheManager.register(job.getJobID(), job.getUserJarBlobKeys());
+			libraryCacheManager.registerJob(job.getJobID(), job.getUserJarBlobKeys());
 			
 			// get the existing execution graph (if we attach), or construct a new empty one to attach
 			executionGraph = this.currentJobs.get(job.getJobID());
@@ -326,6 +338,11 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 				
 				executionGraph = new ExecutionGraph(job.getJobID(), job.getName(),
 						job.getJobConfiguration(), job.getUserJarBlobKeys(), this.executorService);
+
+				executionGraph.setNumberOfRetriesLeft(job.getNumberOfExecutionRetries() >= 0 ?
+						job.getNumberOfExecutionRetries() : this.defaultExecutionRetries);
+				executionGraph.setDelayBeforeRetrying(this.delayBetweenRetries);
+
 				ExecutionGraph previous = this.currentJobs.putIfAbsent(job.getJobID(), executionGraph);
 				if (previous != null) {
 					throw new JobException("Concurrent submission of a job with the same jobId: " + job.getJobID());
@@ -408,7 +425,7 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 			// job was not prperly removed by the fail call
 			if(currentJobs.contains(job.getJobID())){
 				currentJobs.remove(job.getJobID());
-				libraryCacheManager.unregister(job.getJobID());
+				libraryCacheManager.unregisterJob(job.getJobID());
 			}
 
 			return new JobSubmissionResult(AbstractJobResult.ReturnCode.ERROR, StringUtils.stringifyException(t));
@@ -507,7 +524,7 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 			this.currentJobs.remove(jid);
 			
 			try {
-				libraryCacheManager.unregister(jid);
+				libraryCacheManager.unregisterJob(jid);
 			}
 			catch (Throwable t) {
 				LOG.warn("Could not properly unregister job " + jid + " from the library cache.");

@@ -585,7 +585,7 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 			}
 		}
 		
-		private final void finalizeSegment(MemorySegment seg, int bytesUsed) {
+		private void finalizeSegment(MemorySegment seg, int bytesUsed) {
 		}
 	}
 	

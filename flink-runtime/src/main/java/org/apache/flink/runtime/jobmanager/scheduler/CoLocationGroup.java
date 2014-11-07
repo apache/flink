@@ -74,7 +74,7 @@ public class CoLocationGroup implements java.io.Serializable {
 		return constraints.get(subtask);
 	}
 	
-	public void ensureConstraints(int num) {
+	private void ensureConstraints(int num) {
 		if (constraints == null) {
 			constraints = new ArrayList<CoLocationConstraint>(num);
 		} else {
@@ -91,5 +91,14 @@ public class CoLocationGroup implements java.io.Serializable {
 	
 	public AbstractID getId() {
 		return id;
+	}
+	
+	public void resetConstraints() {
+		for (CoLocationConstraint c : this.constraints) {
+			if (!c.isUnassignedOrDisposed()) {
+				throw new IllegalStateException("Cannot reset co-location group: some constraints still have executing vertices.");
+			}
+		}
+		this.constraints.clear();
 	}
 }

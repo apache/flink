@@ -19,15 +19,12 @@ package org.apache.flink.api.scala.codegen
 
 import java.lang.reflect.{Field, Modifier}
 
-import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo
-import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+import org.apache.flink.api.common.typeinfo._
 
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.java.typeutils._
 import org.apache.flink.api.scala.typeutils.{CaseClassSerializer, CaseClassTypeInfo}
 import org.apache.flink.types.Value
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.hadoop.io.Writable
 
 import scala.collection.JavaConverters._
@@ -54,22 +51,36 @@ private[flink] trait TypeInformationGen[C <: Context] {
   // TypeInformation from a tree of UDTDescriptor
   def mkTypeInfo[T: c.WeakTypeTag](desc: UDTDescriptor): c.Expr[TypeInformation[T]] = desc match {
     case cc@CaseClassDescriptor(_, tpe, _, _, _) =>
-      mkTupleTypeInfo(cc)(c.WeakTypeTag(tpe).asInstanceOf[c.WeakTypeTag[Product]])
+      mkCaseClassTypeInfo(cc)(c.WeakTypeTag(tpe).asInstanceOf[c.WeakTypeTag[Product]])
         .asInstanceOf[c.Expr[TypeInformation[T]]]
+
     case p : PrimitiveDescriptor => mkPrimitiveTypeInfo(p.tpe)
     case p : BoxedPrimitiveDescriptor => mkPrimitiveTypeInfo(p.tpe)
-    case l : ListDescriptor if l.tpe <:< typeOf[Array[_]] => mkListTypeInfo(l)
+
+    case n: NothingDesciptor => reify { null.asInstanceOf[TypeInformation[T]] }
+
+    case e: EitherDescriptor => mkEitherTypeInfo(e)
+
+    case o: OptionDescriptor => mkOptionTypeInfo(o)
+
+    case a : ArrayDescriptor => mkArrayTypeInfo(a)
+
+    case l : TraversableDescriptor => mkTraversableTypeInfo(l)
+
     case v : ValueDescriptor =>
       mkValueTypeInfo(v)(c.WeakTypeTag(v.tpe).asInstanceOf[c.WeakTypeTag[Value]])
         .asInstanceOf[c.Expr[TypeInformation[T]]]
+
     case d : WritableDescriptor =>
       mkWritableTypeInfo(d)(c.WeakTypeTag(d.tpe).asInstanceOf[c.WeakTypeTag[Writable]])
         .asInstanceOf[c.Expr[TypeInformation[T]]]
+
     case pojo: PojoDescriptor => mkPojo(pojo)
+
     case d => mkGenericTypeInfo(d)
   }
 
-  def mkTupleTypeInfo[T <: Product : c.WeakTypeTag](
+  def mkCaseClassTypeInfo[T <: Product : c.WeakTypeTag](
       desc: CaseClassDescriptor): c.Expr[TypeInformation[T]] = {
     val tpeClazz = c.Expr[Class[T]](Literal(Constant(desc.tpe)))
     val fields = desc.getters.toList map { field =>
@@ -98,10 +109,69 @@ private[flink] trait TypeInformationGen[C <: Context] {
     }
   }
 
-  def mkListTypeInfo[T: c.WeakTypeTag](desc: ListDescriptor): c.Expr[TypeInformation[T]] = {
+  def mkEitherTypeInfo[T: c.WeakTypeTag](desc: EitherDescriptor): c.Expr[TypeInformation[T]] = {
+
+    val eitherClass = c.Expr[Class[T]](Literal(Constant(weakTypeOf[T])))
+    val leftTypeInfo = mkTypeInfo(desc.left)(c.WeakTypeTag(desc.left.tpe))
+    val rightTypeInfo = mkTypeInfo(desc.right)(c.WeakTypeTag(desc.right.tpe))
+
+    val result = q"""
+      import org.apache.flink.api.scala.typeutils.EitherTypeInfo
+
+      new EitherTypeInfo[${desc.left.tpe}, ${desc.right.tpe}, ${desc.tpe}](
+        $eitherClass,
+        $leftTypeInfo,
+        $rightTypeInfo)
+    """
+
+    c.Expr[TypeInformation[T]](result)
+  }
+
+  def mkOptionTypeInfo[T: c.WeakTypeTag](desc: OptionDescriptor): c.Expr[TypeInformation[T]] = {
+
+    val elemTypeInfo = mkTypeInfo(desc.elem)(c.WeakTypeTag(desc.elem.tpe))
+
+    val result = q"""
+      import org.apache.flink.api.scala.typeutils.OptionTypeInfo
+
+      new OptionTypeInfo[${desc.elem.tpe}, ${desc.tpe}]($elemTypeInfo)
+    """
+
+    c.Expr[TypeInformation[T]](result)
+  }
+
+  def mkTraversableTypeInfo[T: c.WeakTypeTag](
+      desc: TraversableDescriptor): c.Expr[TypeInformation[T]] = {
+    val collectionClass = c.Expr[Class[T]](Literal(Constant(desc.tpe)))
+    val elementClazz = c.Expr[Class[T]](Literal(Constant(desc.elem.tpe)))
+    val elementTypeInfo = mkTypeInfo(desc.elem)(c.WeakTypeTag(desc.elem.tpe))
+
+    val cbf = q"implicitly[CanBuildFrom[${desc.tpe}, ${desc.elem.tpe}, ${desc.tpe}]]"
+
+    val result = q"""
+      import scala.collection.generic.CanBuildFrom
+      import org.apache.flink.api.scala.typeutils.TraversableTypeInfo
+      import org.apache.flink.api.scala.typeutils.TraversableSerializer
+
+      val elementTpe = $elementTypeInfo
+      new TraversableTypeInfo($collectionClass, elementTpe) {
+        def createSerializer() = {
+          new TraversableSerializer[${desc.tpe}, ${desc.elem.tpe}](
+              elementTpe.createSerializer) {
+            def getCbf = implicitly[CanBuildFrom[${desc.tpe}, ${desc.elem.tpe}, ${desc.tpe}]]
+          }
+        }
+      }
+    """
+
+    c.Expr[TypeInformation[T]](result)
+  }
+
+  def mkArrayTypeInfo[T: c.WeakTypeTag](desc: ArrayDescriptor): c.Expr[TypeInformation[T]] = {
     val arrayClazz = c.Expr[Class[T]](Literal(Constant(desc.tpe)))
     val elementClazz = c.Expr[Class[T]](Literal(Constant(desc.elem.tpe)))
     val elementTypeInfo = mkTypeInfo(desc.elem)(c.WeakTypeTag(desc.elem.tpe))
+
     desc.elem match {
       // special case for string, which in scala is a primitive, but not in java
       case p: PrimitiveDescriptor if p.tpe <:< typeOf[String] =>

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.examples.java.remotecollectoroutputformat;
+package org.apache.flink.examples.java.misc;
 
 import java.util.HashSet;
 import java.util.Set;

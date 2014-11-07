@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -30,16 +31,17 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.BlobService;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Preconditions;
 
 /**
  * For each job graph that is submitted to the system the library cache manager maintains
@@ -52,43 +54,25 @@ import org.slf4j.LoggerFactory;
 public final class BlobLibraryCacheManager extends TimerTask implements LibraryCacheManager {
 
 	private static Logger LOG = LoggerFactory.getLogger(BlobLibraryCacheManager.class);
-
-	/**
-	 * Dummy object used in the lock map.
-	 */
+	
+	private static ExecutionAttemptID JOB_ATTEMPT_ID = new ExecutionAttemptID();
+	
+	// --------------------------------------------------------------------------------------------
+	
+	/** The global lock to synchronize operations */
 	private final Object lockObject = new Object();
 
-	/**
-	 * Map to translate a job ID to the responsible class loaders.
-	 */
-	private final ConcurrentMap<JobID, URLClassLoader> classLoaders = new
-			ConcurrentHashMap<JobID, URLClassLoader>();
+	/** Registered entries per job */
+	private final Map<JobID, LibraryCacheEntry> cacheEntries = new HashMap<JobID, LibraryCacheEntry>();
+	
+	/** Map to store the number of reference to a specific file */
+	private final Map<BlobKey, Integer> blobKeyReferenceCounters = new HashMap<BlobKey, Integer>();
 
-	/**
-	 * Map to store the number of references to a specific library manager entry.
-	 */
-	private final Map<JobID, Integer> libraryReferenceCounter = new HashMap<JobID,
-			Integer>();
-
-	/**
-	 * Map to store the blob keys referenced by a specific job
-	 */
-	private final Map<JobID, Collection<BlobKey>> requiredJars = new
-			HashMap<JobID, Collection<BlobKey>>();
-
-	/**
-	 * Map to store the number of reference to a specific file
-	 */
-	private final Map<BlobKey, Integer> blobKeyReferenceCounter = new
-			HashMap<BlobKey, Integer>();
-
-	/**
-	 * All registered blobs
-	 */
-	private final Set<BlobKey> registeredBlobs = new HashSet<BlobKey>();
-
+	/** The blob service to download libraries */
 	private final BlobService blobService;
-
+	
+	// --------------------------------------------------------------------------------------------
+	
 	public BlobLibraryCacheManager(BlobService blobService, Configuration configuration){
 		this.blobService = blobService;
 
@@ -100,143 +84,82 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 		timer.schedule(this, cleanupInterval);
 	}
 
-	/**
-	 * Increments the reference counter of the corrsponding map
-	 *
-	 * @param key
-	 *        the key identifying the counter to increment
-	 * @return the increased reference counter
-	 */
-	private <K> int incrementReferenceCounter(final K key, final Map<K,
-	Integer> map) {
-
-		if(!map.containsKey(key)){
-			map.put(key, 1);
-
-			return 1;
-		}else{
-			int counter = map.get(key) + 1;
-			map.put(key, counter);
-
-			return counter;
-		}
-	}
-
-	/**
-	 * Decrements the reference counter associated with the key
-	 *
-	 * @param key
-	 *        the key identifying the counter to decrement
-	 * @return the decremented reference counter
-	 */
-	private <K> int decrementReferenceCounter(final K key, final Map<K,
-			Integer> map) {
-
-		if (!map.containsKey(key)) {
-			throw new IllegalStateException("Cannot find reference counter entry for key " + key);
-		}else{
-			int counter = map.get(key) -1;
-
-			if(counter == 0){
-				map.remove(key);
-			}else{
-				map.put(key, counter);
-			}
-
-			return counter;
-		}
-	}
-
-	/**
-	 * Registers a job ID with a set of library paths that are required to run the job. For every registered
-	 * job the library cache manager creates a class loader that is used to instantiate the vertex's environment later
-	 * on.
-	 * 
-	 * @param id
-	 *        the ID of the job to be registered.
-	 * @param requiredJarFiles
-	 *        the client path's of the required libraries
-	 * @throws IOException
-	 *         thrown if one of the requested libraries is not in the cache
-	 */
+	// --------------------------------------------------------------------------------------------
+	
 	@Override
-	public void register(final JobID id, final Collection<BlobKey> requiredJarFiles) throws
-			IOException {
-
-		synchronized (lockObject) {
-			if (incrementReferenceCounter(id, libraryReferenceCounter) > 1) {
-				return;
-			}
-
-			// Check if library manager entry for this id already exists
-			if (this.classLoaders.containsKey(id)) {
-				throw new IllegalStateException("Library cache manager already contains " +
-						"class loader entry for job ID " + id);
-			}
-
-			if (requiredJars.containsKey(id)) {
-				throw new IllegalStateException("Library cache manager already contains blob keys" +
-						" entry for job ID " + id);
-			}
-
-			requiredJars.put(id, requiredJarFiles);
-
-			URL[] urls = new URL[requiredJarFiles.size()];
-			int count = 0;
-
-			for (BlobKey blobKey : requiredJarFiles) {
-				urls[count++] = registerBlobKeyAndGetURL(blobKey);
-			}
-
-			final URLClassLoader classLoader = new URLClassLoader(urls);
-			this.classLoaders.put(id, classLoader);
-		}
+	public void registerJob(JobID id, Collection<BlobKey> requiredJarFiles) throws IOException {
+		registerTask(id, JOB_ATTEMPT_ID, requiredJarFiles);
 	}
-
-	private URL registerBlobKeyAndGetURL(BlobKey key) throws IOException{
-		if(incrementReferenceCounter(key, blobKeyReferenceCounter) == 1){
-			// registration might happen even if the file is already stored locally
-			registeredBlobs.add(key);
-		}
-
-		return blobService.getURL(key);
-	}
-
-	/**
-	 * Unregisters a job ID and releases the resources associated with it.
-	 * 
-	 * @param id
-	 *        the job ID to unregister
-	 */
+	
 	@Override
-	public void unregister(final JobID id) {
+	public void registerTask(JobID jobId, ExecutionAttemptID task, Collection<BlobKey> requiredJarFiles) throws IOException {
+		Preconditions.checkNotNull(jobId, "The JobId must not be null.");
+		Preconditions.checkNotNull(task, "The task execution id must not be null.");
+		
+		if (requiredJarFiles == null) {
+			requiredJarFiles = Collections.emptySet();
+		}
+		
 		synchronized (lockObject) {
-			if (decrementReferenceCounter(id, libraryReferenceCounter) == 0) {
-				this.classLoaders.remove(id);
+			LibraryCacheEntry entry = cacheEntries.get(jobId);
+			
+			if (entry == null) {
+				URL[] urls = new URL[requiredJarFiles.size()];
 
-				Collection<BlobKey> keys = requiredJars.get(id);
-
-				for (BlobKey key : keys) {
-					decrementReferenceCounter(key, blobKeyReferenceCounter);
+				int count = 0;
+				for (BlobKey blobKey : requiredJarFiles) {
+					urls[count++] = registerReferenceToBlobKeyAndGetURL(blobKey);
 				}
-
-				requiredJars.remove(id);
+				
+				URLClassLoader classLoader = new URLClassLoader(urls);
+				cacheEntries.put(jobId, new LibraryCacheEntry(requiredJarFiles, classLoader, task));
+			}
+			else {
+				entry.register(task, requiredJarFiles);
 			}
 		}
-
 	}
 
-	/**
-	 * Returns the class loader to the specified vertex.
-	 * 
-	 * @param id
-	 *        the ID of the job to return the class loader for
-	 * @return the class loader of requested vertex or <code>null</code> if no class loader has been registered with the
-	 *         given ID.
-	 */
 	@Override
-	public ClassLoader getClassLoader(final JobID id) {
-		return this.classLoaders.get(id);
+	public void unregisterJob(JobID id) {
+		unregisterTask(id, JOB_ATTEMPT_ID);
+	}
+	
+	@Override
+	public void unregisterTask(JobID jobId, ExecutionAttemptID task) {
+		Preconditions.checkNotNull(jobId, "The JobId must not be null.");
+		Preconditions.checkNotNull(task, "The task execution id must not be null.");
+		
+		synchronized (lockObject) {
+			LibraryCacheEntry entry = cacheEntries.get(jobId);
+			
+			if (entry != null) {
+				if (entry.unregister(task)) {
+					cacheEntries.remove(jobId);
+					
+					for (BlobKey key : entry.getLibraries()) {
+						unregisterReferenceToBlobKey(key);
+					}
+				}
+			}
+			// else has already been unregistered
+		}
+	}
+
+	@Override
+	public ClassLoader getClassLoader(JobID id) {
+		if (id == null) {
+			throw new IllegalArgumentException("The JobId must not be null.");
+		}
+		
+		synchronized (lockObject) {
+			LibraryCacheEntry entry = cacheEntries.get(id);
+			if (entry != null) {
+				return entry.getClassLoader();
+			} else {
+				throw new IllegalStateException("No libraries are registered for job " + id);
+			}
+		}
 	}
 
 	@Override
@@ -252,27 +175,100 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 	public void shutdown() throws IOException{
 		blobService.shutdown();
 	}
-
+	
 	/**
 	 * Cleans up blobs which are not referenced anymore
 	 */
 	@Override
 	public void run() {
 		synchronized (lockObject) {
-			Iterator<BlobKey> it = registeredBlobs.iterator();
-
-			while (it.hasNext()) {
-				BlobKey key = it.next();
-
+			
+			Iterator<Map.Entry<BlobKey, Integer>> entryIter = blobKeyReferenceCounters.entrySet().iterator();
+			
+			while (entryIter.hasNext()) {
+				Map.Entry<BlobKey, Integer> entry = entryIter.next();
+				BlobKey key = entry.getKey();
+				int references = entry.getValue();
+				
 				try {
-					if (!blobKeyReferenceCounter.containsKey(key)) {
+					if (references <= 0) {
 						blobService.delete(key);
-						it.remove();
+						entryIter.remove();
 					}
-				} catch (IOException ioe) {
-					LOG.warn("Could not delete file with blob key" + key, ioe);
+				} catch (Throwable t) {
+					LOG.warn("Could not delete file with blob key" + key, t);
 				}
 			}
+		}
+	}
+	
+	public int getNumberOfReferenceHolders(JobID jobId) {
+		synchronized (lockObject) {
+			LibraryCacheEntry entry = cacheEntries.get(jobId);
+			return entry == null ? 0 : entry.getNumberOfReferenceHolders();
+		}
+	}
+	
+	private URL registerReferenceToBlobKeyAndGetURL(BlobKey key) throws IOException {
+		
+		Integer references = blobKeyReferenceCounters.get(key);
+		int newReferences = references == null ? 1 : references.intValue() + 1;
+		
+		blobKeyReferenceCounters.put(key, newReferences);
+
+		return blobService.getURL(key);
+	}
+	
+	private void unregisterReferenceToBlobKey(BlobKey key) {
+		Integer references = blobKeyReferenceCounters.get(key);
+		if (references != null) {
+			int newReferences = Math.max(references.intValue() - 1, 0);
+			blobKeyReferenceCounters.put(key, newReferences);
+		}
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	private static class LibraryCacheEntry {
+		
+		private final ClassLoader classLoader;
+		
+		private final Set<ExecutionAttemptID> referenceHolders;
+		
+		private final Set<BlobKey> libraries;
+		
+		
+		public LibraryCacheEntry(Collection<BlobKey> libraries, ClassLoader classLoader, ExecutionAttemptID initialReference) {
+			this.classLoader = classLoader;
+			this.libraries = new HashSet<BlobKey>(libraries);
+			this.referenceHolders = new HashSet<ExecutionAttemptID>();
+			this.referenceHolders.add(initialReference);
+		}
+		
+		
+		public ClassLoader getClassLoader() {
+			return classLoader;
+		}
+		
+		public Set<BlobKey> getLibraries() {
+			return libraries;
+		}
+		
+		public void register(ExecutionAttemptID task, Collection<BlobKey> keys) {
+			if (!libraries.containsAll(keys)) {
+				throw new IllegalStateException("The library registration references a different set of libraries than previous registrations for this job.");
+			}
+			
+			this.referenceHolders.add(task);
+		}
+		
+		public boolean unregister(ExecutionAttemptID task) {
+			referenceHolders.remove(task);
+			return referenceHolders.isEmpty();
+		}
+		
+		public int getNumberOfReferenceHolders() {
+			return referenceHolders.size();
 		}
 	}
 }
