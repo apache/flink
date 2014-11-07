@@ -123,6 +123,13 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 		this.keys1 = keys1;
 		this.keys2 = keys2;
 		
+		if (isTypeValid()) {
+			updateTypeDependentProperties();
+		}
+	}
+	
+	@Override
+	protected void updateTypeDependentProperties() {
 		extractSemanticAnnotationsFromUdf(function.getClass());
 	}
 

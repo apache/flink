@@ -19,6 +19,8 @@
                                            
 package org.apache.flink.api.java.typeutils;
 
+import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -36,6 +38,7 @@ public class TypeInfoParser {
 
 	private static final Pattern tuplePattern = Pattern.compile("^((" + TUPLE_PACKAGE.replaceAll("\\.", "\\\\.") + "\\.)?Tuple[0-9]+)<");
 	private static final Pattern writablePattern = Pattern.compile("^((" + WRITABLE_PACKAGE.replaceAll("\\.", "\\\\.") + "\\.)?Writable)<([^\\s,>]*)(,|>|$)");
+	private static final Pattern enumPattern = Pattern.compile("^((java\\.lang\\.)?Enum)<([^\\s,>]*)(,|>|$)");
 	private static final Pattern basicTypePattern = Pattern
 			.compile("^((java\\.lang\\.)?(String|Integer|Byte|Short|Character|Double|Float|Long|Boolean))(,|>|$)");
 	private static final Pattern basicType2Pattern = Pattern.compile("^(int|byte|short|char|double|float|long|boolean)(,|>|$)");
@@ -44,7 +47,8 @@ public class TypeInfoParser {
 	private static final Pattern basicArrayTypePattern = Pattern
 			.compile("^((java\\.lang\\.)?(String|Integer|Byte|Short|Character|Double|Float|Long|Boolean))\\[\\](,|>|$)");
 	private static final Pattern basicArrayType2Pattern = Pattern.compile("^(int|byte|short|char|double|float|long|boolean)\\[\\](,|>|$)");
-	private static final Pattern customObjectPattern = Pattern.compile("^([^\\s,>]+)(,|>|$)");
+	private static final Pattern pojoGenericObjectPattern = Pattern.compile("^([^\\s,<>]+)(<)?");
+	private static final Pattern fieldPattern = Pattern.compile("^([^\\s,<>]+)=");
 
 	/**
 	 * Generates an instance of <code>TypeInformation</code> by parsing a type
@@ -57,18 +61,19 @@ public class TypeInfoParser {
 	 * <code>String[]</code>, etc.
 	 * <li>Tuple types such as <code>Tuple1&lt;TYPE0&gt;</code>,
 	 * <code>Tuple2&lt;TYPE0, TYPE1&gt;</code>, etc.</li>
-	 * <li>Custom types such as <code>org.my.CustomClass</code>,
-	 * <code>org.my.CustomClass$StaticInnerClass</code>, etc.
+	 * <li>Pojo types such as <code>org.my.MyPojo&lt;myFieldName=TYPE0,myFieldName2=TYPE1&gt;</code>, etc.</li>
+	 * <li>Generic types such as <code>java.lang.Class</code>, etc.
 	 * <li>Custom type arrays such as <code>org.my.CustomClass[]</code>,
 	 * <code>org.my.CustomClass$StaticInnerClass[]</code>, etc.
 	 * <li>Value types such as <code>DoubleValue</code>,
 	 * <code>StringValue</code>, <code>IntegerValue</code>, etc.</li>
-	 * <li>Tuple array types such as <code>Tuple2<TYPE0,TYPE1>[], etc.</code></li>
+	 * <li>Tuple array types such as <code>Tuple2&lt;TYPE0,TYPE1&gt;[], etc.</code></li>
 	 * <li>Writable types such as <code>Writable&lt;org.my.CustomWritable&gt;</code></li>
+	 * <li>Enum types such as <code>Enum&lt;org.my.CustomEnum&gt;</code></li>
 	 * </ul>
 	 *
 	 * Example:
-	 * <code>"Tuple2&lt;String,Tuple2&lt;Integer,org.my.MyClass&gt;&gt;"</code>
+	 * <code>"Tuple2&lt;String,Tuple2&lt;Integer,org.my.MyJob$Pojo&lt;word=String&gt;&gt;&gt;"</code>
 	 *
 	 * @param infoString
 	 *            type information string to be parsed
@@ -97,6 +102,7 @@ public class TypeInfoParser {
 		final Matcher tupleMatcher = tuplePattern.matcher(infoString);
 
 		final Matcher writableMatcher = writablePattern.matcher(infoString);
+		final Matcher enumMatcher = enumPattern.matcher(infoString);
 
 		final Matcher basicTypeMatcher = basicTypePattern.matcher(infoString);
 		final Matcher basicType2Matcher = basicType2Pattern.matcher(infoString);
@@ -106,7 +112,7 @@ public class TypeInfoParser {
 		final Matcher basicArrayTypeMatcher = basicArrayTypePattern.matcher(infoString);
 		final Matcher basicArrayType2Matcher = basicArrayType2Pattern.matcher(infoString);
 
-		final Matcher customObjectMatcher = customObjectPattern.matcher(infoString);
+		final Matcher pojoGenericMatcher = pojoGenericObjectPattern.matcher(infoString);
 
 		if (infoString.length() == 0) {
 			return null;
@@ -163,15 +169,17 @@ public class TypeInfoParser {
 		else if (writableMatcher.find()) {
 			String className = writableMatcher.group(1);
 			String fullyQualifiedName = writableMatcher.group(3);
-			sb.delete(0, className.length() + 1 + fullyQualifiedName.length());
-
-			try {
-				Class<?> clazz = Class.forName(fullyQualifiedName);
-				returnType = WritableTypeInfo.getWritableTypeInfo((Class) clazz);
-			} catch (ClassNotFoundException e) {
-				throw new IllegalArgumentException("Class '" + fullyQualifiedName
-						+ "' could not be found for use as writable type. Please note that inner classes must be declared static.");
-			}
+			sb.delete(0, className.length() + 1 + fullyQualifiedName.length() + 1);
+			Class<?> clazz = loadClass(fullyQualifiedName);
+			returnType = WritableTypeInfo.getWritableTypeInfo((Class) clazz);
+		}
+		// enum types
+		else if (enumMatcher.find()) {
+			String className = enumMatcher.group(1);
+			String fullyQualifiedName = enumMatcher.group(3);
+			sb.delete(0, className.length() + 1 + fullyQualifiedName.length() + 1);
+			Class<?> clazz = loadClass(fullyQualifiedName);
+			returnType = new EnumTypeInfo(clazz);
 		}
 		// basic types of classes
 		else if (basicTypeMatcher.find()) {
@@ -225,7 +233,7 @@ public class TypeInfoParser {
 			}
 			returnType = ValueTypeInfo.getValueTypeInfo((Class<Value>) clazz);
 		}
-		// array of classes
+		// array of basic classes
 		else if (basicArrayTypeMatcher.find()) {
 			String className = basicArrayTypeMatcher.group(1);
 			sb.delete(0, className.length() + 2);
@@ -263,32 +271,43 @@ public class TypeInfoParser {
 			}
 			returnType = PrimitiveArrayTypeInfo.getInfoFor(clazz);
 		}
-		// custom objects
-		else if (customObjectMatcher.find()) {
-			String fullyQualifiedName = customObjectMatcher.group(1);
+		// pojo objects or generic types
+		else if (pojoGenericMatcher.find()) {
+			String fullyQualifiedName = pojoGenericMatcher.group(1);
 			sb.delete(0, fullyQualifiedName.length());
 
-			if (fullyQualifiedName.contains("<")) {
-				throw new IllegalArgumentException("Parameterized custom classes are not supported by parser.");
-			}
+			boolean isPojo = pojoGenericMatcher.group(2) != null;
 
-			// custom object array
-			if (fullyQualifiedName.endsWith("[]")) {
-				fullyQualifiedName = fullyQualifiedName.substring(0, fullyQualifiedName.length() - 2);
-				try {
-					Class<?> clazz = Class.forName("[L" + fullyQualifiedName + ";");
-					returnType = ObjectArrayTypeInfo.getInfoFor(clazz);
-				} catch (ClassNotFoundException e) {
-					throw new IllegalArgumentException("Class '" + fullyQualifiedName
-							+ "' could not be found for use as object array. Please note that inner classes must be declared static.");
+			if (isPojo) {
+				sb.deleteCharAt(0);
+				Class<?> clazz = loadClass(fullyQualifiedName);
+
+				ArrayList<PojoField> fields = new ArrayList<PojoField>();
+				while (sb.charAt(0) != '>') {
+					final Matcher fieldMatcher = fieldPattern.matcher(sb);
+					if (!fieldMatcher.find()) {
+						throw new IllegalArgumentException("Field name missing.");
+					}
+					String fieldName = fieldMatcher.group(1);
+					sb.delete(0, fieldName.length() + 1);
+
+					Field field = null;
+					try {
+						field = clazz.getDeclaredField(fieldName);
+					} catch (Exception e) {
+						throw new IllegalArgumentException("Field '" + fieldName + "'could not be accessed.");
+					}
+					fields.add(new PojoField(field, parse(sb)));
 				}
-			} else {
-				try {
-					Class<?> clazz = Class.forName(fullyQualifiedName);
-					returnType = new GenericTypeInfo(clazz);
-				} catch (ClassNotFoundException e) {
-					throw new IllegalArgumentException("Class '" + fullyQualifiedName
-							+ "' could not be found for use as custom object. Please note that inner classes must be declared static.");
+				returnType = new PojoTypeInfo(clazz, fields);
+			}
+			else {
+				// custom object array
+				if (fullyQualifiedName.endsWith("[]")) {
+					fullyQualifiedName = fullyQualifiedName.substring(0, fullyQualifiedName.length() - 2);
+					returnType = ObjectArrayTypeInfo.getInfoFor(loadClass("[L" + fullyQualifiedName + ";"));
+				} else {
+					returnType = new GenericTypeInfo(loadClass(fullyQualifiedName));
 				}
 			}
 		}
@@ -301,6 +320,15 @@ public class TypeInfoParser {
 				sb.deleteCharAt(0);
 			}
 			return returnType;
+		}
+	}
+
+	private static Class<?> loadClass(String fullyQualifiedName) {
+		try {
+			return Class.forName(fullyQualifiedName);
+		} catch (ClassNotFoundException e) {
+			throw new IllegalArgumentException("Class '" + fullyQualifiedName
+					+ "' could not be found. Please note that inner classes must be declared static.");
 		}
 	}
 

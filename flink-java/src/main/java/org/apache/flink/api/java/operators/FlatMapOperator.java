@@ -43,6 +43,14 @@ public class FlatMapOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT, Fl
 		
 		this.function = function;
 		this.defaultName = defaultName;
+
+		if (isTypeValid()) {
+			updateTypeDependentProperties();
+		}
+	}
+	
+	@Override
+	protected void updateTypeDependentProperties() {
 		extractSemanticAnnotationsFromUdf(function.getClass());
 	}
 	

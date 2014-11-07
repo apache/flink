@@ -63,6 +63,13 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		this.function = function;
 		this.defaultName = defaultName;
 
+		if (isTypeValid()) {
+			updateTypeDependentProperties();
+		}
+	}
+	
+	@Override
+	protected void updateTypeDependentProperties() {
 		if (!(function instanceof ProjectCrossFunction)) {
 			extractSemanticAnnotationsFromUdf(function.getClass());
 		} else {
