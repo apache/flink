@@ -83,7 +83,16 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 
 		checkCombinability();
 
-		extractSemanticAnnotationsFromUdf(function.getClass());
+		if (isTypeValid()) {
+			updateTypeDependentProperties();
+		}
+	}
+
+	@Override
+	protected void updateTypeDependentProperties() {
+		if (grouper != null) {
+			extractSemanticAnnotationsFromUdf(function.getClass());
+		}
 	}
 
 	private void checkCombinability() {

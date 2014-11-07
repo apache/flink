@@ -41,6 +41,14 @@ public class FilterOperator<T> extends SingleInputUdfOperator<T, T, FilterOperat
 		
 		this.function = function;
 		this.defaultName = defaultName;
+
+		if (isTypeValid()) {
+			updateTypeDependentProperties();
+		}
+	}
+	
+	@Override
+	protected void updateTypeDependentProperties() {
 		extractSemanticAnnotationsFromUdf(function.getClass());
 	}
 	

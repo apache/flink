@@ -626,7 +626,7 @@ public class TypeExtractorTest {
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
-	public void testMissingTupleGenericsException() {
+	public void testMissingTupleGenerics() {
 		RichMapFunction<?, ?> function = new RichMapFunction<String, Tuple2>() {
 			private static final long serialVersionUID = 1L;
 
@@ -636,12 +636,8 @@ public class TypeExtractorTest {
 			}
 		};
 
-		try {
-			TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("String"));
-			Assert.fail("exception expected");
-		} catch (InvalidTypesException e) {
-			// right
-		}
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("String"));
+		Assert.assertEquals(ti, null);
 	}
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
@@ -795,12 +791,8 @@ public class TypeExtractorTest {
 			}
 		};
 
-		try {
-			TypeExtractor.getMapReturnTypes(function, TypeInfoParser.parse("String"));
-			Assert.fail("exception expected");
-		} catch (InvalidTypesException e) {
-			// right
-		}
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, TypeInfoParser.parse("String"));
+		Assert.assertEquals(ti, null);
 	}
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
@@ -893,15 +885,11 @@ public class TypeExtractorTest {
 	}
 
 	@Test
-	public void testFunctionDependingOnInputException() {
+	public void testFunctionDependingOnUnknownInput() {
 		IdentityMapper3<Boolean, String> function = new IdentityMapper3<Boolean, String>();
 
-		try {
-			TypeExtractor.getMapReturnTypes(function, BasicTypeInfo.BOOLEAN_TYPE_INFO);
-			Assert.fail("exception expected");
-		} catch (InvalidTypesException e) {
-			// right
-		}
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, BasicTypeInfo.BOOLEAN_TYPE_INFO);
+		Assert.assertEquals(ti, null);
 	}
 
 	public class IdentityMapper4<D> extends IdentityMapper<D> {
@@ -1366,15 +1354,10 @@ public class TypeExtractorTest {
 	
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
-	public void testTypeErasureException() {
-		try {
-			TypeExtractor.getFlatMapReturnTypes(new DummyFlatMapFunction<String, Integer, String, Boolean>(), 
+	public void testTypeErasure() {
+		TypeInformation<?> ti = TypeExtractor.getFlatMapReturnTypes(new DummyFlatMapFunction<String, Integer, String, Boolean>(), 
 					(TypeInformation) TypeInfoParser.parse("Tuple2<String, Integer>"));
-			Assert.fail("exception expected");
-		}
-		catch (InvalidTypesException e) {
-			// right
-		}
+		Assert.assertEquals(ti, null);
 	}
 
 	public static class MyQueryableMapper<A> extends RichMapFunction<String, A> implements ResultTypeQueryable<A> {

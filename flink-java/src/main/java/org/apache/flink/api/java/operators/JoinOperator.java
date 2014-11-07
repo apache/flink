@@ -201,10 +201,8 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			this.function = function;
 			this.joinLocationName = joinLocationName;
 
-			if (!(function instanceof ProjectFlatJoinFunction)) {
-				extractSemanticAnnotationsFromUdf(function.getClass());
-			} else {
-				generateProjectionProperties(((ProjectFlatJoinFunction<?, ?, ?>) function));
+			if (isTypeValid()) {
+				updateTypeDependentProperties();
 			}
 		}
 
@@ -222,10 +220,17 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 
 			this.function = generatedFunction;
 
-			if (!(generatedFunction instanceof ProjectFlatJoinFunction)) {
+			if (isTypeValid()) {
+				updateTypeDependentProperties();
+			}
+		}
+
+		@Override
+		protected void updateTypeDependentProperties() {
+			if (!(function instanceof ProjectFlatJoinFunction)) {
 				extractSemanticAnnotationsFromUdf(function.getClass());
 			} else {
-				generateProjectionProperties(((ProjectFlatJoinFunction<?, ?, ?>) generatedFunction));
+				generateProjectionProperties(((ProjectFlatJoinFunction<?, ?, ?>) function));
 			}
 		}
 
