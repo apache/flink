@@ -21,26 +21,91 @@ package org.apache.flink.mesos;
 import org.apache.mesos.Protos;
 import org.apache.mesos.Scheduler;
 import org.apache.mesos.SchedulerDriver;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 
 public class FlinkMesosScheduler implements Scheduler {
 
-	private String uberJarPath = null;
-	private boolean jm_running = false;
-	private boolean tm_running = false;
-	String FLINK_CONF_DIR = null;
+	final private String FLINK_JOBMANAGER_COMMAND;
+	final private String FLINK_TASKMANAGER_COMMAND;
+	final private Protos.ExecutorInfo JOBMANAGER_EXECUTOR;
+	final private Protos.ExecutorInfo TASKMANAGER_EXECUTOR;
 
-	public FlinkMesosScheduler(String uberJarPath, String FLINK_CONF_DIR) {
+	private static final Logger LOG = LoggerFactory.getLogger(FlinkMesosScheduler.class);
 
-		this.uberJarPath = uberJarPath;
-		this.FLINK_CONF_DIR = FLINK_CONF_DIR;
+	private HashMap<Protos.SlaveID, Protos.TaskInfo> taskManagers = new HashMap<Protos.SlaveID, Protos.TaskInfo>();
+	private Protos.TaskInfo jobManager = null;
+	private Protos.SlaveID jobManagerSlave = null;
+
+	public FlinkMesosScheduler(String uberJarPath, String flinkConfDir) {
+		LOG.debug("Scheduler launched");
+		LOG.debug("jar dir: " + uberJarPath);
+		LOG.debug("conf dir: " + flinkConfDir);
+
+		FLINK_JOBMANAGER_COMMAND = "java -cp " + uberJarPath + " org.apache.flink.mesos.FlinkJMExecutor " + flinkConfDir;
+		FLINK_TASKMANAGER_COMMAND = "java -cp " + uberJarPath + " org.apache.flink.mesos.FlinkTMExecutor " + flinkConfDir;
+		JOBMANAGER_EXECUTOR = MesosUtils.createExecutorInfo("jm", "JobManager Executor", FLINK_JOBMANAGER_COMMAND);
+		TASKMANAGER_EXECUTOR = MesosUtils.createExecutorInfo("tm", "TaskManager Executor", FLINK_TASKMANAGER_COMMAND);
+	}
+
+	private void startJobManagerTask(Protos.Offer offer, SchedulerDriver schedulerDriver) {
+		LOG.info("---- Launching Flink JobManager----");
+		LOG.info("Hostname: " + offer.getHostname());
+		LOG.info("SlaveID: " + offer.getSlaveId().getValue());
+
+		List<Protos.TaskInfo> tasks = new LinkedList<Protos.TaskInfo>();
+		List<Protos.OfferID> offerIDs = new LinkedList<Protos.OfferID>();
+
+		HashMap<String, Double> resources = new HashMap<String, Double>();
+		resources.put("cpus", 1.0);
+		resources.put("mem", 512.0);
+
+		LOG.info("JobManager cpus: " + resources.get("cpus"));
+		LOG.info("JobManager memory: " + resources.get("mem"));
+
+		Protos.TaskInfo task = MesosUtils.createTaskInfo("JobManager", resources, JOBMANAGER_EXECUTOR, offer.getSlaveId(), Protos.TaskID.newBuilder().setValue("jm_task").build());
+
+		tasks.add(task);
+		jobManager = task;
+		jobManagerSlave = offer.getSlaveId();
+
+		offerIDs.add(offer.getId());
+		schedulerDriver.launchTasks(offerIDs, tasks);
+	}
+
+	private void startTaskManager(Protos.Offer offer, SchedulerDriver schedulerDriver) {
+		LOG.info("---- Launching TaskManager ----");
+		LOG.info("Hostname: " + offer.getHostname());
+		LOG.info("SlaveID: " + offer.getSlaveId().getValue());
+
+		List<Protos.TaskInfo> tasks = new LinkedList<Protos.TaskInfo>();
+		List<Protos.OfferID> offerIDs = new LinkedList<Protos.OfferID>();
+
+
+
+		HashMap<String, Double> resources = new HashMap<String, Double>();
+		resources.put("cpus", 1.0);
+		resources.put("mem", 512.0);
+
+		LOG.info("TaskManager cpus: " + resources.get("cpus"));
+		LOG.info("TaskManager memory: " + resources.get("mem"));
+
+		Protos.TaskInfo task = MesosUtils.createTaskInfo("TaskManager", resources, TASKMANAGER_EXECUTOR, offer.getSlaveId(), Protos.TaskID.newBuilder().setValue("tm_task" + taskManagers.size()).build());
+
+		tasks.add(task);
+		taskManagers.put(offer.getSlaveId(), task);
+
+		offerIDs.add(offer.getId());
+		schedulerDriver.launchTasks(offerIDs, tasks);
 	}
 
 	@Override
 	public void registered(SchedulerDriver schedulerDriver, Protos.FrameworkID frameworkID, Protos.MasterInfo masterInfo) {
-		System.out.println("Flink was registered: " + frameworkID.getValue() + " " + masterInfo.getHostname());
+		LOG.info("Flink was registered: " + frameworkID.getValue() + " " + masterInfo.getHostname());
 	}
 
 	@Override
@@ -51,82 +116,12 @@ public class FlinkMesosScheduler implements Scheduler {
 	@Override
 	public void resourceOffers(SchedulerDriver schedulerDriver, List<Protos.Offer> offers) {
 		for (Protos.Offer offer : offers) {
-			if (!jm_running) {
-				Protos.TaskID taskId = Protos.TaskID.newBuilder()
-						.setValue("1").build();
-
-
-				List<Protos.TaskInfo> tasks = new LinkedList<Protos.TaskInfo>();
-				List<Protos.OfferID> offerIDs = new LinkedList<Protos.OfferID>();
-
-				System.out.println("Launching JobManager");
-				String executorCommand = "java -cp " + uberJarPath + " org.apache.flink.mesos.FlinkJMExecutor " + FLINK_CONF_DIR;
-				String directCommand = "java -cp " + uberJarPath + " org.apache.flink.runtime.jobmanager.JobManager -executionMode cluster -configDir " + FLINK_CONF_DIR;
-				Protos.ExecutorInfo exinfo = Protos.ExecutorInfo.newBuilder()
-						.setExecutorId(Protos.ExecutorID.newBuilder().setValue("jm"))
-						.setCommand(Protos.CommandInfo.newBuilder().setValue(executorCommand))
-						.setName("JobManager Executor")
-						.build();
-
-				Protos.TaskInfo task = Protos.TaskInfo.newBuilder()
-						.setName("Jobmanager")
-						.setTaskId(taskId)
-						.setSlaveId(offer.getSlaveId())
-						.addResources(Protos.Resource.newBuilder()
-								.setName("cpus")
-								.setType(Protos.Value.Type.SCALAR)
-								.setScalar(Protos.Value.Scalar.newBuilder().setValue(1)))
-						.addResources(Protos.Resource.newBuilder()
-								.setName("mem")
-								.setType(Protos.Value.Type.SCALAR)
-								.setScalar(Protos.Value.Scalar.newBuilder().setValue(512)))
-						.setExecutor(exinfo)
-						//.setCommand(Protos.CommandInfo.newBuilder().setValue(directCommand))
-						.build();
-				tasks.add(task);
-				offerIDs.add(offer.getId());
-				Protos.Filters filters = Protos.Filters.newBuilder().setRefuseSeconds(1).build();
-				schedulerDriver.launchTasks(offerIDs, tasks);
-				jm_running = true;
-				break;
-			} else if(!tm_running) {
-				Protos.TaskID taskId = Protos.TaskID.newBuilder()
-						.setValue("2").build();
-
-
-				List<Protos.TaskInfo> tasks = new LinkedList<Protos.TaskInfo>();
-				List<Protos.OfferID> offerIDs = new LinkedList<Protos.OfferID>();
-
-				System.out.println("Launching TaskManager");
-				String executorCommand = "java -cp " + uberJarPath + " org.apache.flink.mesos.FlinkTMExecutor " + FLINK_CONF_DIR;
-
-				Protos.ExecutorInfo exinfo = Protos.ExecutorInfo.newBuilder()
-						.setExecutorId(Protos.ExecutorID.newBuilder().setValue("tm"))
-						.setCommand(Protos.CommandInfo.newBuilder().setValue(executorCommand))
-						.setName("TaskManager Executor")
-						.build();
-
-				Protos.TaskInfo task = Protos.TaskInfo.newBuilder()
-						.setName("TaskManager")
-						.setTaskId(taskId)
-						.setSlaveId(offer.getSlaveId())
-						.addResources(Protos.Resource.newBuilder()
-								.setName("cpus")
-								.setType(Protos.Value.Type.SCALAR)
-								.setScalar(Protos.Value.Scalar.newBuilder().setValue(1)))
-						.addResources(Protos.Resource.newBuilder()
-								.setName("mem")
-								.setType(Protos.Value.Type.SCALAR)
-								.setScalar(Protos.Value.Scalar.newBuilder().setValue(512)))
-						.setExecutor(exinfo)
-						.build();
-				tasks.add(task);
-				offerIDs.add(offer.getId());
-				Protos.Filters filters = Protos.Filters.newBuilder().setRefuseSeconds(1).build();
-				schedulerDriver.launchTasks(offerIDs, tasks);
-				tm_running = true;
-				break;
+			if (jobManager == null && !taskManagers.containsKey(offer.getSlaveId())) {
+				startJobManagerTask(offer, schedulerDriver);
+			} else if (!taskManagers.containsKey(offer.getSlaveId())) {
+				startTaskManager(offer, schedulerDriver);
 			}
+
 		}
 	}
 
@@ -137,11 +132,13 @@ public class FlinkMesosScheduler implements Scheduler {
 
 	@Override
 	public void statusUpdate(SchedulerDriver schedulerDriver, Protos.TaskStatus taskStatus) {
+		Protos.TaskInfo taskInfo = taskStatus.getSlaveId().equals(jobManagerSlave) ? jobManager : taskManagers.get(taskStatus.getSlaveId());;
 
-		System.out.println("Task is in state " + taskStatus.getState());
-		if (taskStatus.getState() == Protos.TaskState.TASK_FINISHED) {
-			schedulerDriver.stop();
+		if (taskInfo == null) {
+			return;
 		}
+
+		LOG.info("Task " + taskInfo.getExecutor().getName() + " is in state: " + taskStatus.getState());
 	}
 
 	@Override
@@ -156,12 +153,12 @@ public class FlinkMesosScheduler implements Scheduler {
 
 	@Override
 	public void slaveLost(SchedulerDriver schedulerDriver, Protos.SlaveID slaveID) {
-
+		LOG.info("Lost Connection to slave: " + slaveID.getValue());
 	}
 
 	@Override
 	public void executorLost(SchedulerDriver schedulerDriver, Protos.ExecutorID executorID, Protos.SlaveID slaveID, int i) {
-
+		LOG.info("The following task has exited: " + taskManagers.get(slaveID).getExecutor().getName());
 	}
 
 	@Override

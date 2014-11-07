@@ -21,6 +21,9 @@ package org.apache.flink.mesos;
 import org.apache.mesos.ExecutorDriver;
 import org.apache.mesos.Protos;
 
+import java.util.HashMap;
+import java.util.Map;
+
 public class MesosUtils {
 	public static void setTaskState(final ExecutorDriver executorDriver, final Protos.TaskID taskID, final Protos.TaskState newState) {
 		Protos.TaskStatus state = Protos.TaskStatus.newBuilder()
@@ -30,4 +33,27 @@ public class MesosUtils {
 		executorDriver.sendStatusUpdate(state);
 	}
 
+	public static Protos.ExecutorInfo createExecutorInfo(String id, String name, String command) {
+		return Protos.ExecutorInfo.newBuilder()
+				.setExecutorId(Protos.ExecutorID.newBuilder().setValue(id))
+				.setCommand(Protos.CommandInfo.newBuilder().setValue(command))
+				.setName(name)
+				.build();
+	}
+
+	public static Protos.TaskInfo createTaskInfo(String name, HashMap<String, Double> resources, Protos.ExecutorInfo exinfo, Protos.SlaveID slaveID, Protos.TaskID taskID) {
+		Protos.TaskInfo.Builder taskInfo = Protos.TaskInfo.newBuilder()
+				.setName(name)
+				.setTaskId(taskID)
+				.setSlaveId(slaveID)
+				.setExecutor(exinfo);
+		for (Map.Entry<String, Double> resource: resources.entrySet()) {
+			taskInfo.addResources(Protos.Resource.newBuilder()
+					.setName(resource.getKey())
+					.setType(Protos.Value.Type.SCALAR)
+					.setScalar(Protos.Value.Scalar.newBuilder().setValue(resource.getValue())));
+		}
+
+		return taskInfo.build();
+	}
 }
