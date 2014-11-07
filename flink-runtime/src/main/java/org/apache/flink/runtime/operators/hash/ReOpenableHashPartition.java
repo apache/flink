@@ -28,14 +28,14 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentSource;
 import org.apache.flink.runtime.io.disk.iomanager.BlockChannelWriter;
 import org.apache.flink.runtime.io.disk.iomanager.BulkBlockChannelReader;
-import org.apache.flink.runtime.io.disk.iomanager.Channel;
+import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 
 public class ReOpenableHashPartition<BT, PT> extends HashPartition<BT, PT> {
 
 	protected int initialPartitionBuffersCount = -1; 						// stores the number of buffers used for an in-memory partition after the build phase has finished.
 
-	private Channel.ID initialBuildSideChannel = null;			// path to initial build side contents (only for in-memory partitions)
+	private FileIOChannel.ID initialBuildSideChannel = null;			// path to initial build side contents (only for in-memory partitions)
 	
 	private BlockChannelWriter initialBuildSideWriter = null;
 
@@ -97,7 +97,7 @@ public class ReOpenableHashPartition<BT, PT> extends HashPartition<BT, PT> {
 	 * 
 	 * @return Number of memorySegments in the writeBehindBuffers!
 	 */
-	int spillInMemoryPartition(Channel.ID targetChannel, IOManager ioManager, LinkedBlockingQueue<MemorySegment> writeBehindBuffers) throws IOException {
+	int spillInMemoryPartition(FileIOChannel.ID targetChannel, IOManager ioManager, LinkedBlockingQueue<MemorySegment> writeBehindBuffers) throws IOException {
 		this.initialPartitionBuffersCount = partitionBuffers.length; // for ReOpenableHashMap
 		this.initialBuildSideChannel = targetChannel;
 		

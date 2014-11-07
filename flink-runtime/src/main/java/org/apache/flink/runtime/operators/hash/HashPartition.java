@@ -33,7 +33,7 @@ import org.apache.flink.core.memory.SeekableDataInputView;
 import org.apache.flink.core.memory.SeekableDataOutputView;
 import org.apache.flink.runtime.io.disk.RandomAccessOutputView;
 import org.apache.flink.runtime.io.disk.iomanager.BlockChannelWriter;
-import org.apache.flink.runtime.io.disk.iomanager.Channel;
+import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 import org.apache.flink.runtime.io.disk.iomanager.ChannelWriterOutputView;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.memorymanager.AbstractPagedInputView;
@@ -282,7 +282,7 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 	 * @return The number of buffers that were freed by spilling this partition.
 	 * @throws IOException Thrown, if the writing failed.
 	 */
-	public int spillPartition(List<MemorySegment> target, IOManager ioAccess, Channel.ID targetChannel,
+	public int spillPartition(List<MemorySegment> target, IOManager ioAccess, FileIOChannel.ID targetChannel,
 			LinkedBlockingQueue<MemorySegment> bufferReturnQueue)
 	throws IOException
 	{
@@ -311,7 +311,7 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 		return this.buildSideWriteBuffer.spill(this.buildSideChannel);
 	}
 	
-	public void finalizeBuildPhase(IOManager ioAccess, Channel.Enumerator probeChannelEnumerator,
+	public void finalizeBuildPhase(IOManager ioAccess, FileIOChannel.Enumerator probeChannelEnumerator,
 			LinkedBlockingQueue<MemorySegment> bufferReturnQueue)
 	throws IOException
 	{
@@ -449,7 +449,7 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
 	//                   ReOpenableHashTable related methods
 	// --------------------------------------------------------------------------------------------------
 	
-	public void prepareProbePhase(IOManager ioAccess, Channel.Enumerator probeChannelEnumerator,
+	public void prepareProbePhase(IOManager ioAccess, FileIOChannel.Enumerator probeChannelEnumerator,
 			LinkedBlockingQueue<MemorySegment> bufferReturnQueue) throws IOException {
 		if (isInMemory()) {
 			return;

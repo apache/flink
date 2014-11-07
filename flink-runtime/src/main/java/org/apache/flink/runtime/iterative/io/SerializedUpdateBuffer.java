@@ -30,7 +30,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.iomanager.BlockChannelReader;
 import org.apache.flink.runtime.io.disk.iomanager.BlockChannelWriter;
-import org.apache.flink.runtime.io.disk.iomanager.Channel;
+import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.memorymanager.AbstractPagedInputView;
 import org.apache.flink.runtime.memorymanager.AbstractPagedOutputView;
@@ -49,7 +49,7 @@ public class SerializedUpdateBuffer extends AbstractPagedOutputView {
 
 	private final IOManager ioManager;
 
-	private final Channel.Enumerator channelEnumerator;
+	private final FileIOChannel.Enumerator channelEnumerator;
 
 	private final int numSegmentsSpillingThreshold;
 

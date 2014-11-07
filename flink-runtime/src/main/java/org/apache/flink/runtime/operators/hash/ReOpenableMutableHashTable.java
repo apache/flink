@@ -27,7 +27,7 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.io.disk.iomanager.Channel;
+import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.util.MutableObjectIterator;
 
@@ -36,7 +36,7 @@ public class ReOpenableMutableHashTable<BT, PT> extends MutableHashTable<BT, PT>
 	/**
 	 * Channel for the spilled partitions
 	 */
-	private final Channel.Enumerator spilledInMemoryPartitions;
+	private final FileIOChannel.Enumerator spilledInMemoryPartitions;
 	
 	/**
 	 * Stores the initial partitions and a list of the files that contain the spilled contents
