@@ -381,9 +381,8 @@ public class CsvInputFormatTest {
 				"1999,Chevy,\"Venture \"\"Extended Edition\"\"\",\"\",4900.00\n" +
 				"1996,Jeep,Grand Cherokee,\"MUST SELL! air, moon roof, loaded\",4799.00\n" +
 				"1999,Chevy,\"Venture \"\"Extended Edition, Very Large\"\"\",,5000.00\n" +
-				",,\"Venture \"\"Extended Edition\"\"\",\"\",4900.00"
+				",,\"Venture \"\"Extended Edition\"\"\",\"\",4900.00";
 
-;
 		final FileInputSplit split = createTempFile(fileContent);
 
 		final CsvInputFormat<Tuple5<Integer, String, String, String, Double>> format =

@@ -19,10 +19,6 @@
 
 package org.apache.flink.types.parser;
 
-import com.google.common.collect.Sets;
-
-import java.util.Set;
-
 /**
  * Converts a variable length field of a byte array into a {@link String}. The byte contents between
  * delimiters is interpreted as an ASCII string. The string may be quoted in double quotes. For quoted
@@ -34,9 +30,6 @@ public class StringParser extends FieldParser<String> {
 	private static final byte WHITESPACE_TAB = (byte) '\t';
 	
 	private static final byte QUOTE_DOUBLE = (byte) '"';
-
-	private static final Set<Byte> trailingCheckSet = Sets.newHashSet(
-			WHITESPACE_SPACE, WHITESPACE_TAB, QUOTE_DOUBLE);
 
 	private static enum ParserStates {
 		NONE, IN_QUOTE, STOP
@@ -101,10 +94,10 @@ public class StringParser extends FieldParser<String> {
 			// check if there are characters at the end
 			current = bytes[endOfCellPosition - 1];
 
-			// if the next character is not "del" we are either at the end of the line or
+			// if the character preceding the end of the cell is not a WHITESPACE or the end QUOTE_DOUBLE
 			// there are unquoted characters at the end
 
-			if (!trailingCheckSet.contains(current)) {
+			if (!(current == WHITESPACE_SPACE || current == WHITESPACE_TAB || current == QUOTE_DOUBLE)) {
 				setErrorState(ParseErrorState.UNQUOTED_CHARS_AFTER_QUOTED_STRING);
 				return -1;	// illegal case of non-whitespace characters trailing
 			}
