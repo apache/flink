@@ -194,7 +194,7 @@ public class TPCHQuery10ITCase extends RecordAPITestBase {
 		lineitemsPath = createTempFile("line_items.txt", LINEITEMS);
 		customersPath = createTempFile("customers.txt", CUSTOMERS);
 		nationsPath = createTempFile("nations.txt", NATIONS);
-		resultPath = createTempFile("result.txt", EXPECTED_RESULT);
+		resultPath = getTempDirPath("result");
 	}
 
 	@Override
