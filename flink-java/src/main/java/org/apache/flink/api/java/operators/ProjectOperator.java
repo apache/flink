@@ -101,10 +101,6 @@ public class ProjectOperator<IN, OUT extends Tuple>
 	}
 	/**
 	 * Deprecated method only kept for compatibility.
-	 *
-	 * @param types
-	 *
-	 * @return
 	 */
 	@SuppressWarnings({ "unchecked", "hiding" })
 	@Deprecated
@@ -180,11 +176,12 @@ public class ProjectOperator<IN, OUT extends Tuple>
 	// GENERATED FROM org.apache.flink.api.java.tuple.TupleGenerator.
 
 		/**
-		 * Chooses a projectTupleX according to the length of {@link Projection#fieldIndexes} 
+		 * Chooses a projectTupleX according to the length of
+		 * {@link org.apache.flink.api.java.operators.ProjectOperator.Projection#fieldIndexes} 
 		 * 
 		 * @return The projected DataSet.
 		 * 
-		 * @see Projection
+		 * @see org.apache.flink.api.java.operators.ProjectOperator.Projection
 		 */
 		@SuppressWarnings("unchecked")
 		public <OUT extends Tuple> ProjectOperator<T, OUT> projectTupleX() {

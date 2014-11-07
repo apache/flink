@@ -51,6 +51,7 @@ import com.google.common.base.Preconditions;
 public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT, CrossOperator<I1, I2, OUT>> {
 
 	private final CrossFunction<I1, I2, OUT> function;
+	
 	private final String defaultName;
 
 	public CrossOperator(DataSet<I1> input1, DataSet<I2> input2,
@@ -62,17 +63,15 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 
 		this.function = function;
 		this.defaultName = defaultName;
-
-		if (!(function instanceof ProjectCrossFunction)) {
-			extractSemanticAnnotationsFromUdf(function.getClass());
-		} else {
-			generateProjectionProperties(((ProjectCrossFunction<?, ?, ?>) function));
-		}
 	}
-
-	public void generateProjectionProperties(ProjectCrossFunction<?, ?, ?> pcf) {
-		DualInputSemanticProperties props = SemanticPropUtil.createProjectionPropertiesDual(pcf.getFields(), pcf.getIsFromFirst());
-		setSemanticProperties(props);
+	
+	@Override
+	protected CrossFunction<I1, I2, OUT> getFunction() {
+		return function;
+	}
+	
+	private String getDefaultName() {
+		return defaultName;
 	}
 
 	@Override
@@ -112,7 +111,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		private final DataSet<I2> input2;
 
 		public DefaultCross(DataSet<I1> input1, DataSet<I2> input2, String defaultName) {
-			super(input1, input2, (CrossFunction<I1, I2, Tuple2<I1, I2>>) new DefaultCrossFunction<I1, I2>(),
+			super(input1, input2, new DefaultCrossFunction<I1, I2>(),
 					new TupleTypeInfo<Tuple2<I1, I2>>(input1.getType(), input2.getType()), defaultName);
 
 			if (input1 == null || input2 == null) {
@@ -137,7 +136,8 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			if (function == null) {
 				throw new NullPointerException("Cross function must not be null.");
 			}
-			TypeInformation<R> returnType = TypeExtractor.getCrossReturnTypes(function, input1.getType(), input2.getType());
+			TypeInformation<R> returnType = TypeExtractor.getCrossReturnTypes(function, input1.getType(), input2.getType(),
+					super.getDefaultName(), true);
 			return new CrossOperator<I1, I2, R>(input1, input2, clean(function), returnType, Utils.getCallLocationName());
 		}
 		
@@ -221,6 +221,11 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			this.crossProjection = crossProjection;
 		}
 
+		@Override
+		protected ProjectCrossFunction<I1, I2, OUT> getFunction() {
+			return (ProjectCrossFunction<I1, I2, OUT>) super.getFunction();
+		}
+		
 		/**
 		 * Continues a ProjectCross transformation and adds fields of the first cross input to the projection.<br/>
 		 * If the first cross input is a {@link Tuple} {@link DataSet}, fields can be selected by their index.
@@ -277,10 +282,6 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 
 		/**
 		 * Deprecated method only kept for compatibility.
-		 *
-		 * @param types
-		 *
-		 * @return
 		 */
 		@SuppressWarnings({ "hiding", "unchecked" })
 		@Deprecated
@@ -307,6 +308,12 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		@Override
 		public CrossOperator<I1, I2, OUT> withConstantSetSecond(String... constantSetSecond) {
 			throw new InvalidProgramException("The semantic properties (constant fields and forwarded fields) are automatically calculated.");
+		}
+		
+		@Override
+		protected DualInputSemanticProperties extractSemanticAnnotationsFromUdf(Class<?> udfClass) {
+			// we do not extract anything, but construct the properties from the projection
+			return SemanticPropUtil.createProjectionPropertiesDual(getFunction().getFields(), getFunction().getIsFromFirst());
 		}
 	}
 
@@ -597,11 +604,9 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 	// GENERATED FROM org.apache.flink.api.java.tuple.TupleGenerator.
 
 		/**
-		 * Chooses a projectTupleX according to the length of {@link CrossProjection#fieldIndexes} 
+		 * Chooses a projectTupleX according to the length of {@link org.apache.flink.api.java.operators.CrossOperator.CrossProjection#fieldIndexes} 
 		 * 
 		 * @return The projected DataSet.
-		 * 
-		 * @see ProjectCross
 		 */
 		@SuppressWarnings("unchecked")
 		public <OUT extends Tuple> ProjectCross<I1, I2, OUT> projectTupleX() {

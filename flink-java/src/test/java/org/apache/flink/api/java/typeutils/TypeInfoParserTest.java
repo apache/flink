@@ -27,6 +27,7 @@ import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -149,10 +150,53 @@ public class TypeInfoParserTest {
 	}
 	
 	@Test
-	public void testCustomType() {
+	public void testGenericType() {
 		TypeInformation<?> ti = TypeInfoParser.parse("java.lang.Class");
 		Assert.assertTrue(ti instanceof GenericTypeInfo);
 		Assert.assertEquals(Class.class, ((GenericTypeInfo<?>) ti).getTypeClass());
+	}
+	
+	public static class MyPojo {
+		public Integer basic;
+		public Tuple2<String, Integer> tuple;
+		public MyWritable hadoopCitizen;
+		public String[] array;
+	}
+	
+	@Test
+	public void testPojoType() {
+		TypeInformation<?> ti = TypeInfoParser.parse(
+				"org.apache.flink.api.java.typeutils.TypeInfoParserTest$MyPojo<"
+				+ "basic=Integer,"
+				+ "tuple=Tuple2<String, Integer>,"
+				+ "hadoopCitizen=Writable<org.apache.flink.api.java.typeutils.TypeInfoParserTest$MyWritable>,"
+				+ "array=String[]"
+				+ ">");
+		Assert.assertTrue(ti instanceof PojoTypeInfo);
+		PojoTypeInfo<?> pti = (PojoTypeInfo<?>) ti;
+		Assert.assertEquals("array", pti.getPojoFieldAt(0).field.getName());
+		Assert.assertTrue(pti.getPojoFieldAt(0).type instanceof BasicArrayTypeInfo);
+		Assert.assertEquals("basic", pti.getPojoFieldAt(1).field.getName());
+		Assert.assertTrue(pti.getPojoFieldAt(1).type instanceof BasicTypeInfo);
+		Assert.assertEquals("hadoopCitizen", pti.getPojoFieldAt(2).field.getName());
+		Assert.assertTrue(pti.getPojoFieldAt(2).type instanceof WritableTypeInfo);
+		Assert.assertEquals("tuple", pti.getPojoFieldAt(3).field.getName());
+		Assert.assertTrue(pti.getPojoFieldAt(3).type instanceof TupleTypeInfo);
+	}
+	
+	@Test
+	public void testPojoType2() {
+		TypeInformation<?> ti = TypeInfoParser.parse("Tuple2<String,Tuple2<Integer,org.apache.flink.api.java.typeutils.TypeInfoParserTest$MyPojo<basic=String>>>");
+		Assert.assertTrue(ti instanceof TupleTypeInfo);
+		TupleTypeInfo<?> tti = (TupleTypeInfo<?>) ti;
+		Assert.assertTrue(tti.getTypeAt(0) instanceof BasicTypeInfo);
+		Assert.assertTrue(tti.getTypeAt(1) instanceof TupleTypeInfo);
+		TupleTypeInfo<?> tti2 = (TupleTypeInfo<?>) tti.getTypeAt(1);
+		Assert.assertTrue(tti2.getTypeAt(0) instanceof BasicTypeInfo);
+		Assert.assertTrue(tti2.getTypeAt(1) instanceof PojoTypeInfo);
+		PojoTypeInfo<?> pti = (PojoTypeInfo<?>) tti2.getTypeAt(1);
+		Assert.assertEquals("basic", pti.getPojoFieldAt(0).field.getName());
+		Assert.assertTrue(pti.getPojoFieldAt(0).type instanceof BasicTypeInfo);
 	}
 	
 	public static class MyWritable implements Writable {
@@ -196,6 +240,19 @@ public class TypeInfoParserTest {
 	public void testLargeMixedTuple() {
 		TypeInformation<?> ti = TypeInfoParser.parse("org.apache.flink.api.java.tuple.Tuple4<Double,java.lang.Class[],StringValue,Tuple1<int>>[]");
 		Assert.assertEquals("ObjectArrayTypeInfo<Java Tuple4<Double, ObjectArrayTypeInfo<GenericType<java.lang.Class>>, ValueType<org.apache.flink.types.StringValue>, Java Tuple1<Integer>>>", ti.toString());
+	}
+	
+	public static enum MyEnum {
+		ONE, TWO, THREE
+	}
+	
+	@Test
+	public void testEnumType() {
+		TypeInformation<?> ti = TypeInfoParser.parse("Enum<org.apache.flink.api.java.typeutils.TypeInfoParserTest$MyEnum>");
+		Assert.assertEquals("EnumTypeInfo<org.apache.flink.api.java.typeutils.TypeInfoParserTest$MyEnum>", ti.toString());
+		
+		TypeInformation<?> ti2 = TypeInfoParser.parse("java.lang.Enum<org.apache.flink.api.java.typeutils.TypeInfoParserTest$MyEnum>");
+		Assert.assertEquals("EnumTypeInfo<org.apache.flink.api.java.typeutils.TypeInfoParserTest$MyEnum>", ti2.toString());
 	}
 	
 	@Test

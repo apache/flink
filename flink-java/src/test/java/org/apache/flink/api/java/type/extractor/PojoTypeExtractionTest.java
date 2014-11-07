@@ -27,7 +27,6 @@ import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType.FlatFieldDescriptor;
-import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -53,6 +52,7 @@ import com.google.common.collect.HashMultiset;
 public class PojoTypeExtractionTest {
 
 	public static class HasDuplicateField extends WC {
+		@SuppressWarnings("unused")
 		private int count; // duplicate
 	}
 
@@ -614,6 +614,6 @@ public class PojoTypeExtractionTest {
 	@Test
 	public void testGetterSetterWithVertex() {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		DataSet<VertexTyped> set = env.fromElements(new VertexTyped(0L, 3.0), new VertexTyped(1L, 1.0));
+		env.fromElements(new VertexTyped(0L, 3.0), new VertexTyped(1L, 1.0));
 	}
 }

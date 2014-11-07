@@ -46,7 +46,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 @SuppressWarnings("serial")
-public class DistrinctTranslationTest {
+public class DistinctTranslationTest {
 
 	@Test
 	public void testCombinable() {

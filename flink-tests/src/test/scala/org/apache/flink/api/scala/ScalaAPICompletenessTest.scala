@@ -57,6 +57,10 @@ class ScalaAPICompletenessTest {
       "org.apache.flink.api.java.ExecutionEnvironment.localExecutionIsAllowed",
       "org.apache.flink.api.java.ExecutionEnvironment.setDefaultLocalParallelism",
 
+      // TypeHints are only needed for Java API, Scala API doesn't need them
+      "org.apache.flink.api.java.operators.SingleInputUdfOperator.returns",
+      "org.apache.flink.api.java.operators.TwoInputUdfOperator.returns",
+
       // This is really just a mapper, which in Scala can easily expressed as a map lambda
       "org.apache.flink.api.java.DataSet.writeAsFormattedText",
 

@@ -45,6 +45,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple9;
 import org.apache.flink.api.java.typeutils.EnumTypeInfo;
+import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
@@ -626,7 +627,7 @@ public class TypeExtractorTest {
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
-	public void testMissingTupleGenericsException() {
+	public void testMissingTupleGenerics() {
 		RichMapFunction<?, ?> function = new RichMapFunction<String, Tuple2>() {
 			private static final long serialVersionUID = 1L;
 
@@ -636,11 +637,15 @@ public class TypeExtractorTest {
 			}
 		};
 
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("String"), "name", true);
+		Assert.assertTrue(ti instanceof MissingTypeInfo);
+		
 		try {
 			TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("String"));
-			Assert.fail("exception expected");
-		} catch (InvalidTypesException e) {
-			// right
+			Assert.fail("Expected an exception");
+		}
+		catch (InvalidTypesException e) {
+			// expected
 		}
 	}
 
@@ -656,11 +661,15 @@ public class TypeExtractorTest {
 			}
 		};
 
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("String"), "name", true);
+		Assert.assertTrue(ti instanceof MissingTypeInfo);
+		
 		try {
 			TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("String"));
-			Assert.fail("exception expected");
-		} catch (InvalidTypesException e) {
-			// right
+			Assert.fail("Expected an exception");
+		}
+		catch (InvalidTypesException e) {
+			// expected
 		}
 	}
 
@@ -795,11 +804,15 @@ public class TypeExtractorTest {
 			}
 		};
 
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, TypeInfoParser.parse("String"), "name", true);
+		Assert.assertTrue(ti instanceof MissingTypeInfo);
+		
 		try {
 			TypeExtractor.getMapReturnTypes(function, TypeInfoParser.parse("String"));
-			Assert.fail("exception expected");
-		} catch (InvalidTypesException e) {
-			// right
+			Assert.fail("Expected an exception");
+		}
+		catch (InvalidTypesException e) {
+			// expected
 		}
 	}
 
@@ -893,14 +906,18 @@ public class TypeExtractorTest {
 	}
 
 	@Test
-	public void testFunctionDependingOnInputException() {
+	public void testFunctionDependingOnUnknownInput() {
 		IdentityMapper3<Boolean, String> function = new IdentityMapper3<Boolean, String>();
 
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, BasicTypeInfo.BOOLEAN_TYPE_INFO, "name", true);
+		Assert.assertTrue(ti instanceof MissingTypeInfo);
+		
 		try {
 			TypeExtractor.getMapReturnTypes(function, BasicTypeInfo.BOOLEAN_TYPE_INFO);
-			Assert.fail("exception expected");
-		} catch (InvalidTypesException e) {
-			// right
+			Assert.fail("Expected an exception");
+		}
+		catch (InvalidTypesException e) {
+			// expected
 		}
 	}
 
@@ -1072,12 +1089,8 @@ public class TypeExtractorTest {
 			}
 		};
 		
-		try {
-			TypeExtractor.getMapReturnTypes(function, BasicTypeInfo.STRING_TYPE_INFO);
-			Assert.fail("exception expected");
-		} catch (InvalidTypesException e) {
-			// good
-		}
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, BasicTypeInfo.STRING_TYPE_INFO, null, true);
+		Assert.assertTrue(ti instanceof MissingTypeInfo);
 
 		RichMapFunction<String, ?> function2 = new RichMapFunction<String, AbstractClass>() {
 			private static final long serialVersionUID = 1L;
@@ -1088,12 +1101,8 @@ public class TypeExtractorTest {
 			}
 		};
 
-		try {
-			TypeExtractor.getMapReturnTypes(function2, BasicTypeInfo.STRING_TYPE_INFO);
-			Assert.fail("exception expected");
-		} catch (InvalidTypesException e) {
-			// slick!
-		}
+		TypeInformation<?> ti2 = TypeExtractor.getMapReturnTypes(function2, BasicTypeInfo.STRING_TYPE_INFO, null, true);
+		Assert.assertTrue(ti2 instanceof MissingTypeInfo);
 	}
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
@@ -1108,11 +1117,15 @@ public class TypeExtractorTest {
 			}
 		};
 
+		TypeInformation<?> ti =TypeExtractor.getMapReturnTypes(function, (TypeInformation)TypeInfoParser.parse("StringValue"), "name", true);
+		Assert.assertTrue(ti instanceof MissingTypeInfo);
+		
 		try {
 			TypeExtractor.getMapReturnTypes(function, (TypeInformation)TypeInfoParser.parse("StringValue"));
-			Assert.fail("exception expected");
-		} catch (InvalidTypesException e) {
-			// bam! go type extractor!
+			Assert.fail("Expected an exception");
+		}
+		catch (InvalidTypesException e) {
+			// expected
 		}
 	}
 
@@ -1366,14 +1379,19 @@ public class TypeExtractorTest {
 	
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
-	public void testTypeErasureException() {
+	public void testTypeErasure() {
+		TypeInformation<?> ti = TypeExtractor.getFlatMapReturnTypes(new DummyFlatMapFunction<String, Integer, String, Boolean>(), 
+					(TypeInformation) TypeInfoParser.parse("Tuple2<String, Integer>"), "name", true);
+		Assert.assertTrue(ti instanceof MissingTypeInfo);
+		
 		try {
 			TypeExtractor.getFlatMapReturnTypes(new DummyFlatMapFunction<String, Integer, String, Boolean>(), 
 					(TypeInformation) TypeInfoParser.parse("Tuple2<String, Integer>"));
-			Assert.fail("exception expected");
+			
+			Assert.fail("Expected an exception");
 		}
 		catch (InvalidTypesException e) {
-			// right
+			// expected
 		}
 	}
 

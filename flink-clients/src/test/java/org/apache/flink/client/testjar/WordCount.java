@@ -27,8 +27,7 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 
 /**
- * Wordcount for placing at least something into the jar file.
- * 
+ * WordCount for placing at least something into the jar file.
  */
 public class WordCount {
 	
@@ -98,7 +97,7 @@ public class WordCount {
 	// *************************************************************************
 	
 	private static boolean fileOutput = false;
-	private static boolean verbose = false;
+	
 	private static String textPath;
 	private static String outputPath;
 	
@@ -111,7 +110,7 @@ public class WordCount {
 				textPath = args[0];
 				outputPath = args[1];
 			} else if(args.length == 4 && (args[0].startsWith("-v") || args[0].startsWith("--verbose"))) { // cli line: program {optArg} {optVal} {textPath} {outputPath}
-				verbose = Boolean.valueOf(args[1]);
+				Boolean.valueOf(args[1]); // parse verbosity flag
 				textPath = args[2];
 				outputPath = args[3];
 			} else {

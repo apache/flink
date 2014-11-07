@@ -75,7 +75,7 @@ public abstract class TupleTypeInfoBase<T> extends CompositeType<T> {
 	/**
 	 * Recursively add all fields in this tuple type. We need this in particular to get all
 	 * the types.
-	 * @param keyId
+	 * @param startKeyId
 	 * @param keyFields
 	 */
 	public void addAllFields(int startKeyId, List<FlatFieldDescriptor> keyFields) {
