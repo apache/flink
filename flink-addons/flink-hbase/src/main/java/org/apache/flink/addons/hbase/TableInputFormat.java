@@ -19,6 +19,7 @@
 
 package org.apache.flink.addons.hbase;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,9 +35,11 @@ import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
+import org.apache.hadoop.hbase.mapreduce.ResultSerialization;
 import org.apache.hadoop.hbase.mapreduce.TableRecordReader;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.Pair;
+import org.apache.hadoop.io.serializer.Serializer;
 import org.apache.hadoop.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,7 +47,7 @@ import org.slf4j.LoggerFactory;
 /**
  * {@link InputFormat} subclass that wraps the access for HTables.
  */
-public abstract class TableInputFormat implements InputFormat<Tuple2<ImmutableBytesWritable, Result>, TableInputSplit>{
+public abstract class TableInputFormat implements InputFormat<Tuple2<ImmutableBytesWritable, byte[]>, TableInputSplit>{
 
 	private static final long serialVersionUID = 1L;
 
@@ -94,16 +97,24 @@ public abstract class TableInputFormat implements InputFormat<Tuple2<ImmutableBy
 	}
 
 	@Override
-	public Tuple2<ImmutableBytesWritable, Result> nextRecord(
-			Tuple2<ImmutableBytesWritable, Result> reuse) throws IOException {
+	public Tuple2<ImmutableBytesWritable, byte[]> nextRecord(
+			Tuple2<ImmutableBytesWritable, byte[]> reuse) throws IOException {
 		if (this.tableRecordReader == null){
 			throw new IOException("No table record reader provided!");
 		}
 
 		try {
 			if (this.tableRecordReader.nextKeyValue()){
-				reuse.setField(tableRecordReader.getCurrentKey(), 0);
-				reuse.setField(tableRecordReader.getCurrentValue(), 1);
+				//TODO fix Flink GenericType serialization to avoid to manually ser/deser
+				ImmutableBytesWritable key = tableRecordReader.getCurrentKey();
+				Result res = tableRecordReader.getCurrentValue();
+				Serializer<Result> serializer = new ResultSerialization().getSerializer(Result.class);
+				ByteArrayOutputStream baos = new ByteArrayOutputStream();
+				serializer.open(baos);
+				serializer.serialize(res);
+				baos.close();
+				reuse.setField(key, 0);
+				reuse.setField(baos.toByteArray(), 1);
 				return reuse;
 			} 
 			this.endReached = true;

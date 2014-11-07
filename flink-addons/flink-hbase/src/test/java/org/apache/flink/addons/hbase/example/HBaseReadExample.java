@@ -18,16 +18,23 @@
 
 package org.apache.flink.addons.hbase.example;
 
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+
 import org.apache.flink.addons.hbase.TableInputFormat;
 import org.apache.flink.api.common.functions.FilterFunction;
+import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.types.StringValue;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
+import org.apache.hadoop.hbase.mapreduce.ResultSerialization;
+import org.apache.hadoop.io.serializer.Deserializer;
 
 /**
  * Simple stub for HBase DataSet
@@ -36,7 +43,7 @@ public class HBaseReadExample {
 	public static void main(String[] args) throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		@SuppressWarnings("serial")
-		DataSet<Tuple2<ImmutableBytesWritable, Result>> hbaseDs = env.createInput(new TableInputFormat() {
+		DataSet<String> hbaseDs = env.createInput(new TableInputFormat() {
 				@Override
 				public String getTableName() {
 					return "test-table";
@@ -48,23 +55,42 @@ public class HBaseReadExample {
 					scan.addColumn("someCf".getBytes(), "someQual".getBytes());
 					return scan;
 				}
-		}).filter(new FilterFunction<Tuple2<ImmutableBytesWritable,Result>>() {
+		})
+		.map(new RichMapFunction<Tuple2<ImmutableBytesWritable,byte[]>, String>() {
+			transient Deserializer<Result> deserializer;
+			
 			@Override
-			public boolean filter(Tuple2<ImmutableBytesWritable, Result> value)
-					throws Exception {
+			public void open(Configuration parameters) throws Exception {
+				super.open(parameters);
+				deserializer = new ResultSerialization().getDeserializer(Result.class);
+			}
+
+			@Override
+			public String map(Tuple2<ImmutableBytesWritable, byte[]> value) throws Exception {
 				StringValue s = new StringValue();
-				Result result = value.getField(1);
-				byte[] row = result.getRow();
-				s.setValueAscii(row, 0, row.length);
-				if(s.toString().startsWith("someStr"))
+				byte[] resBytes = value.getField(1);
+		        InputStream bais = new ByteArrayInputStream(resBytes);
+				deserializer.open(bais);
+				//TODO fix Flink GenericType serialization to avoid to manually ser/deser
+		        Result result = deserializer.deserialize(null);
+		        deserializer.close();
+		        byte[] row = result.getRow();
+		        s.setValueAscii(row, 0, row.length);
+		        return s.toString();
+			}
+		})
+		.filter(new FilterFunction<String>() {
+			@Override
+			public boolean filter(String value)
+					throws Exception {
+				if(value.startsWith("someStr"))
 					return true;
 				return false;
 			}
 		});
 
 		String output = "file:///tmp/flink-test";
-		// HBase String dump
-		hbaseDs.writeAsCsv(output, "\n", " ", WriteMode.OVERWRITE);
+		hbaseDs.writeAsText(output, WriteMode.OVERWRITE);
 //		hbaseDs.output(new GenericTableOutputFormat());
 		env.execute();
 	}
