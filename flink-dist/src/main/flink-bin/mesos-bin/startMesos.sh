@@ -28,4 +28,4 @@ shift $((OPTIND-1))
 
 CLASSPATH_MESOS=$FLINK_LIB_DIR/*yarn-uberjar.jar
 
-$JAVA_RUN $JVM_ARGS -Djava.library.path=$MESOS_LIB -classpath $CLASSPATH_MESOS org.apache.flink.mesos.MesosController $MESOS_MASTER $CLASSPATH_MESOS $FLINK_CONF_DIR
+$JAVA_RUN $JVM_ARGS -Djava.library.path=$MESOS_LIB -classpath $CLASSPATH_MESOS org.apache.flink.mesos.MesosController --master $MESOS_MASTER --jar $CLASSPATH_MESOS --confDir $FLINK_CONF_DIR
