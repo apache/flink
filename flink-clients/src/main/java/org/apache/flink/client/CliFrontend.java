@@ -67,7 +67,6 @@ public class CliFrontend {
 
 	//actions
 	private static final String ACTION_RUN = "run";
-	private static final String ACTION_INFO = "info";
 	private static final String ACTION_LIST = "list";
 	private static final String ACTION_CANCEL = "cancel";
 	
@@ -82,11 +81,7 @@ public class CliFrontend {
 	private static final Option ARGS_OPTION = new Option("a", "arguments", true, "Program arguments. Arguments can also be added without -a, simply as trailing parameters.");
 	
 	private static final Option ADDRESS_OPTION = new Option("m", "jobmanager", true, "Address of the JobManager (master) to which to connect. Use this flag to connect to a different JobManager than the one specified in the configuration.");
-	
-	// info specific options
-	private static final Option DESCR_OPTION = new Option("d", "description", false, "Show description of expected program arguments");
-	private static final Option PLAN_OPTION = new Option("e", "executionplan", false, "Show optimized execution plan of the program (JSON)");
-	
+
 	// list specific options
 	private static final Option RUNNING_OPTION = new Option("r", "running", false, "Show running programs and their JobIDs");
 	private static final Option SCHEDULED_OPTION = new Option("s", "scheduled", false, "Show scheduled prorgrams and their JobIDs");
@@ -103,7 +98,6 @@ public class CliFrontend {
 	
 	// action options all include the general options
 	private static final Options RUN_OPTIONS = getRunOptions(createGeneralOptions());
-	private static final Options INFO_OPTIONS = getInfoOptions(createGeneralOptions());
 	private static final Options LIST_OPTIONS = getListOptions(createGeneralOptions());
 	private static final Options CANCEL_OPTIONS = getCancelOptions(createGeneralOptions());
 	
@@ -164,10 +158,7 @@ public class CliFrontend {
 		ARGS_OPTION.setRequired(false);
 		ARGS_OPTION.setArgName("programArgs");
 		ARGS_OPTION.setArgs(Option.UNLIMITED_VALUES);
-		
-		PLAN_OPTION.setRequired(false);
-		DESCR_OPTION.setRequired(false);
-		
+
 		RUNNING_OPTION.setRequired(false);
 		SCHEDULED_OPTION.setRequired(false);
 		
@@ -216,27 +207,6 @@ public class CliFrontend {
 	
 	static Options getJobManagerAddressOption(Options options) {
 		options.addOption(ADDRESS_OPTION);
-		return options;
-	}
-	
-	/**
-	 * Builds command line options for the info action.
-	 * 
-	 * @return Command line options for the info action.
-	 */
-	static Options getInfoOptions(Options options) {
-		options = getProgramSpecificOptions(options);
-		options = getJobManagerAddressOption(options);
-		options.addOption(DESCR_OPTION);
-		options.addOption(PLAN_OPTION);
-		return options;
-	}
-	
-	static Options getInfoOptionsWithoutDeprecatedOptions(Options options) {
-		options = getProgramSpecificOptionsWithoutDeprecatedOptions(options);
-		options = getJobManagerAddressOption(options);
-		options.addOption(DESCR_OPTION);
-		options.addOption(PLAN_OPTION);
 		return options;
 	}
 	
@@ -366,116 +336,6 @@ public class CliFrontend {
 	}
 	
 	// --------------------------------------------------------------------------------------------
-	
-	/**
-	 * Executes the info action.
-	 * 
-	 * @param args Command line arguments for the info action. 
-	 */
-	protected int info(String[] args) {
-		// Parse command line options
-		CommandLine line;
-		try {
-			line = parser.parse(INFO_OPTIONS, args, false);
-			evaluateGeneralOptions(line);
-		}
-		catch (MissingOptionException e) {
-			System.out.println(e.getMessage());
-			printHelpForInfo();
-			return 1;
-		}
-		catch (UnrecognizedOptionException e) {
-			System.out.println(e.getMessage());
-			printHelpForInfo();
-			return 2;
-		}
-		catch (Exception e) {
-			return handleError(e);
-		}
-
-		if (printHelp) {
-			printHelpForInfo();
-			return 0;
-		}
-		
-		boolean description = line.hasOption(DESCR_OPTION.getOpt());
-		boolean plan = line.hasOption(PLAN_OPTION.getOpt());
-		
-		if (!description && !plan) {
-			System.out.println("ERROR: Specify the information to display.");
-			printHelpForInfo();
-			return 1;
-		}
-
-		// -------- build the packaged program -------------
-		
-		PackagedProgram program;
-		try {
-			program = buildProgram(line);
-		} catch (Throwable t) {
-			return handleError(t);
-		}
-		
-		if (program == null) {
-			printHelpForInfo();
-			return 1;
-		}
-		
-		int parallelism = -1;
-		if (line.hasOption(PARALLELISM_OPTION.getOpt())) {
-			String parString = line.getOptionValue(PARALLELISM_OPTION.getOpt());
-			try {
-				parallelism = Integer.parseInt(parString);
-			} catch (NumberFormatException e) {
-				System.out.println("The value " + parString + " is invalid for the degree of parallelism.");
-				printHelpForRun();
-				return 1;
-			}
-			
-			if (parallelism <= 0) {
-				System.out.println("Invalid value for the degree-of-parallelism. Parallelism must be greater than zero.");
-				printHelpForRun();
-				return 1;
-			}
-		}
-		
-		try {
-			// check for description request
-			if (description) {
-				String descr = program.getDescription();
-				
-				if (descr != null) {
-					System.out.println("-------------------- Program Description ---------------------");
-					System.out.println(descr);
-					System.out.println("--------------------------------------------------------------");
-				} else {
-					System.out.println("No description available for this program.");
-				}
-			}
-			
-			// check for json plan request
-			if (plan) {
-				Client client = getClient(line, program.getUserCodeClassLoader());
-				String jsonPlan = client.getOptimizedPlanAsJson(program, parallelism);
-				
-				if (jsonPlan != null) {
-					System.out.println("----------------------- Execution Plan -----------------------");
-					System.out.println(jsonPlan);
-					System.out.println("--------------------------------------------------------------");
-				} else {
-					System.out.println("JSON plan could not be compiled.");
-				}
-			}
-			
-			return 0;
-		}
-		catch (Throwable t) {
-			return handleError(t);
-		}
-		finally {
-			program.deleteExtractedLibraries();
-		}
-	}
 
 	/**
 	 * Executes the list action.
@@ -902,7 +762,6 @@ public class CliFrontend {
 		formatter.printHelp(" ", GENRAL_OPTIONS);
 		
 		printHelpForRun();
-		printHelpForInfo();
 		printHelpForList();
 		printHelpForCancel();
 	}
@@ -916,16 +775,6 @@ public class CliFrontend {
 		System.out.println("\n  Syntax: run [OPTIONS] <jar-file> <arguments>");
 		formatter.setSyntaxPrefix("  \"run\" action arguments:");
 		formatter.printHelp(" ", getRunOptionsWithoutDeprecatedOptions(new Options()));
-	}
-	
-	private void printHelpForInfo() {
-		HelpFormatter formatter = new HelpFormatter();
-		formatter.setLeftPadding(5);
-		formatter.setWidth(80);
-		
-		System.out.println("\nAction \"info\" displays information about a program.");
-		formatter.setSyntaxPrefix("  \"info\" action arguments:");
-		formatter.printHelp(" ", getInfoOptionsWithoutDeprecatedOptions(new Options()));
 	}
 	
 	private void printHelpForList() {
@@ -1001,8 +850,6 @@ public class CliFrontend {
 			return run(params);
 		} else if (action.equals(ACTION_LIST)) {
 			return list(params);
-		} else if (action.equals(ACTION_INFO)) {
-			return info(params);
 		} else if (action.equals(ACTION_CANCEL)) {
 			return cancel(params);
 		} else if (action.equals("-h") || action.equals("--help")) {
