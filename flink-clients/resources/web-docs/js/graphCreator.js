@@ -389,24 +389,22 @@ function tableRow(nameX, valueX) {
 	return htmlCode;
 }
 
-//Shortens a string to be shorter than 30 letters.
-//If the string is an URL it shortens it in a way that "looks nice"
+//Split a string into multiple lines so that each line has less than 30 letters.
 function shortenString(s) {
-	var lastLength = s.length;
-	do {
-		lastLength = s.length;
-		s = s.substring(s.indexOf("/")+1, s.length);
-	} while (s.indexOf("/") != -1 && s.length > 30 && lastLength != s.length)
 	//make sure that name does not contain a < (because of html)
 	if (s.charAt(0) == "<") {
 			s = s.replace("<", "&lt;");
 			s = s.replace(">", "&gt;");
 	}
 	
-	if (s.length > 30) {
-		s = "..." + s.substring(s.length-30, s.length);
+	sbr = ""
+	while (s.length > 30) {
+		sbr = sbr + s.substring(0, 30) + "<br>"
+		s = s.substring(30, s.length)
 	}
-	return s;
+	sbr = sbr + s
+
+	return sbr;
 }
 
 //activates the zoom buttons
