@@ -424,6 +424,7 @@ public abstract class Server {
 
 				channel.configureBlocking(false);
 				channel.socket().setTcpNoDelay(tcpNoDelay);
+				channel.socket().setKeepAlive(true);
 				SelectionKey readKey = channel.register(selector, SelectionKey.OP_READ);
 				c = new Connection(readKey, channel, System.currentTimeMillis());
 				readKey.attach(c);
