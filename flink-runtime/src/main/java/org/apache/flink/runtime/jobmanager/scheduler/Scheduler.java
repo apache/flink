@@ -217,7 +217,7 @@ public class Scheduler implements InstanceListener, SlotAvailablilityListener {
 						if (slotFromGroup == null) {
 							// both null
 							if (constraint == null || constraint.isUnassigned()) {
-								throw new NoResourceAvailableException(getNumberOfAvailableInstances(), getTotalNumberOfSlots());
+								throw new NoResourceAvailableException(task, getNumberOfAvailableInstances(), getTotalNumberOfSlots());
 							} else {
 								throw new NoResourceAvailableException("Could not allocate a slot on instance " + 
 											constraint.getLocation() + ", as required by the co-location constraint.");

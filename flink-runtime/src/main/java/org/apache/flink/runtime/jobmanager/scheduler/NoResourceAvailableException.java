@@ -40,6 +40,11 @@ public class NoResourceAvailableException extends JobException {
 		super(String.format("%s Resources available to scheduler: Number of instances=%d, total number of slots=%d", 
 				BASE_MESSAGE, numInstances, numSlotsTotal));
 	}
+	
+	NoResourceAvailableException(ScheduledUnit task, int numInstances, int numSlotsTotal) {
+		super(String.format("%s Task to schedule: < %s > in sharing group < %s >. Resources available to scheduler: Number of instances=%d, total number of slots=%d", 
+				BASE_MESSAGE, task.getTaskToExecute(), task.getSlotSharingGroup(), numInstances, numSlotsTotal));
+	}
 
 	public NoResourceAvailableException(String message) {
 		super(message);

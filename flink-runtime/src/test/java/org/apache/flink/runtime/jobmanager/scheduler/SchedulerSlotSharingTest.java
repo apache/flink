@@ -22,10 +22,16 @@ import static org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils.a
 import static org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils.getTestVertex;
 import static org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils.getTestVertexWithLocation;
 import static org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils.getRandomInstance;
+import static org.apache.flink.runtime.testutils.CommonTestUtils.sleepUninterruptibly;
 import static org.junit.Assert.*;
 
-import org.junit.Test;
+import java.util.Random;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
+import org.junit.Test;
 import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -765,6 +771,247 @@ public class SchedulerSlotSharingTest {
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testSequentialAllocateAndRelease() {
+		final ExecutorService exec = Executors.newFixedThreadPool(8);
+		try {
+			final JobVertexID jid1 = new JobVertexID();
+			final JobVertexID jid2 = new JobVertexID();
+			final JobVertexID jid3 = new JobVertexID();
+			final JobVertexID jid4 = new JobVertexID();
+			
+			final SlotSharingGroup sharingGroup = new SlotSharingGroup(jid1, jid2, jid3, jid4);
+			
+			final Scheduler scheduler = new Scheduler(exec);
+			scheduler.newInstanceAvailable(getRandomInstance(4));
+			
+			// allocate something from group 1 and 2 interleaved with schedule for group 3
+			AllocatedSlot slot_1_1 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(jid1, 0, 4), sharingGroup));
+			AllocatedSlot slot_1_2 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(jid1, 1, 4), sharingGroup));
+
+			AllocatedSlot slot_2_1 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(jid2, 0, 4), sharingGroup));
+			AllocatedSlot slot_2_2 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(jid2, 1, 4), sharingGroup));
+			
+			AllocatedSlot slot_3 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(jid3, 0, 1), sharingGroup));
+			
+			AllocatedSlot slot_1_3 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(jid1, 2, 4), sharingGroup));
+			AllocatedSlot slot_1_4 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(jid1, 3, 4), sharingGroup));
+			
+			AllocatedSlot slot_2_3 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(jid2, 2, 4), sharingGroup));
+			AllocatedSlot slot_2_4 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(jid2, 3, 4), sharingGroup));
+			
+			// release groups 1 and 2
+			
+			slot_1_1.releaseSlot();
+			slot_1_2.releaseSlot();
+			slot_1_3.releaseSlot();
+			slot_1_4.releaseSlot();
+			
+			slot_2_1.releaseSlot();
+			slot_2_2.releaseSlot();
+			slot_2_3.releaseSlot();
+			slot_2_4.releaseSlot();
+			
+			// allocate group 4
+			
+			AllocatedSlot slot_4_1 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(jid4, 0, 4), sharingGroup));
+			AllocatedSlot slot_4_2 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(jid4, 1, 4), sharingGroup));
+			AllocatedSlot slot_4_3 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(jid4, 2, 4), sharingGroup));
+			AllocatedSlot slot_4_4 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(jid4, 3, 4), sharingGroup));
+			
+			// release groups 3 and 4
+			
+			slot_3.releaseSlot();
+			
+			slot_4_1.releaseSlot();
+			slot_4_2.releaseSlot();
+			slot_4_3.releaseSlot();
+			slot_4_4.releaseSlot();
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+		finally {
+			exec.shutdownNow();
+		}
+	}
+	
+	@Test
+	public void testConcurrentAllocateAndRelease() {
+		final ExecutorService executor = Executors.newFixedThreadPool(20);
+		try {
+			for (int run = 0; run < 50; run++) {
+				final JobVertexID jid1 = new JobVertexID();
+				final JobVertexID jid2 = new JobVertexID();
+				final JobVertexID jid3 = new JobVertexID();
+				final JobVertexID jid4 = new JobVertexID();
+				
+				final SlotSharingGroup sharingGroup = new SlotSharingGroup(jid1, jid2, jid3, jid4);
+				
+				final Scheduler scheduler = new Scheduler(executor);
+				scheduler.newInstanceAvailable(getRandomInstance(4));
+				
+				final AtomicInteger enumerator1 = new AtomicInteger();
+				final AtomicInteger enumerator2 = new AtomicInteger();
+				final AtomicBoolean flag3 = new AtomicBoolean();
+				final AtomicInteger enumerator4 = new AtomicInteger();
+				
+				final Random rnd = new Random();
+				
+				// use atomic boolean as a mutable boolean reference
+				final AtomicBoolean failed = new AtomicBoolean(false);
+				
+				// use atomic integer as a mutable integer reference
+				final AtomicInteger completed = new AtomicInteger();
+				
+				
+				final Runnable deploy4 = new Runnable() {
+					@Override
+					public void run() {
+						try {
+							AllocatedSlot slot = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(jid4, enumerator4.getAndIncrement(), 4), sharingGroup));
+							
+							sleepUninterruptibly(rnd.nextInt(5));
+							slot.releaseSlot();
+							
+							if (completed.incrementAndGet() == 13) {
+								synchronized (completed) {
+									completed.notifyAll();
+								}
+							}
+						}
+						catch (Throwable t) {
+							t.printStackTrace();
+							failed.set(true);
+						}
+					}
+				};
+				
+				final Runnable deploy3 = new Runnable() {
+					@Override
+					public void run() {
+						try {
+							if (flag3.compareAndSet(false, true)) {
+								AllocatedSlot slot = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(jid3, 0, 1), sharingGroup));
+								
+								sleepUninterruptibly(5);
+								
+								executor.execute(deploy4);
+								executor.execute(deploy4);
+								executor.execute(deploy4);
+								executor.execute(deploy4);
+								
+								slot.releaseSlot();
+								
+								if (completed.incrementAndGet() == 13) {
+									synchronized (completed) {
+										completed.notifyAll();
+									}
+								}
+							}
+						}
+						catch (Throwable t) {
+							t.printStackTrace();
+							failed.set(true);
+						}
+					}
+				};
+				
+				final Runnable deploy2 = new Runnable() {
+					@Override
+					public void run() {
+						try {
+							AllocatedSlot slot = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(jid2, enumerator2.getAndIncrement(), 4), sharingGroup));
+							
+							// wait a bit till scheduling the successor
+							sleepUninterruptibly(rnd.nextInt(5));
+							executor.execute(deploy3);
+							
+							// wait a bit until release
+							sleepUninterruptibly(rnd.nextInt(5));
+							slot.releaseSlot();
+							
+							if (completed.incrementAndGet() == 13) {
+								synchronized (completed) {
+									completed.notifyAll();
+								}
+							}
+						}
+						catch (Throwable t) {
+							t.printStackTrace();
+							failed.set(true);
+						}
+					}
+				};
+				
+				final Runnable deploy1 = new Runnable() {
+					@Override
+					public void run() {
+						try {
+							AllocatedSlot slot = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(jid1, enumerator1.getAndIncrement(), 4), sharingGroup));
+							
+							// wait a bit till scheduling the successor
+							sleepUninterruptibly(rnd.nextInt(5));
+							executor.execute(deploy2);
+							
+							// wait a bit until release
+							sleepUninterruptibly(rnd.nextInt(5));
+							slot.releaseSlot();
+							
+							if (completed.incrementAndGet() == 13) {
+								synchronized (completed) {
+									completed.notifyAll();
+								}
+							}
+						}
+						catch (Throwable t) {
+							t.printStackTrace();
+							failed.set(true);
+						}
+					}
+				};
+				
+				final Runnable deploy0 = new Runnable() {
+					@Override
+					public void run() {
+						sleepUninterruptibly(rnd.nextInt(10));
+						executor.execute(deploy1);
+					}
+				};
+				executor.execute(deploy0);
+				executor.execute(deploy0);
+				executor.execute(deploy0);
+				executor.execute(deploy0);
+				
+				// wait until all tasks have finished
+				synchronized (completed) {
+					while (!failed.get() && completed.get() < 13) {
+						completed.wait(1000);
+					}
+				}
+				
+				assertFalse("Thread failed", failed.get());
+				
+				while (scheduler.getNumberOfAvailableSlots() < 4) {
+					sleepUninterruptibly(5);
+				}
+				
+				assertEquals(1, scheduler.getNumberOfAvailableInstances());
+				assertEquals(1, scheduler.getNumberOfInstancesWithAvailableSlots());
+				assertEquals(4, scheduler.getNumberOfAvailableSlots());
+				assertEquals(13, scheduler.getNumberOfUnconstrainedAssignments());
+			}
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+		finally {
+			executor.shutdownNow();
 		}
 	}
 }
