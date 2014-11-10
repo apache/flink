@@ -146,9 +146,9 @@ public class TPCHQuery10 {
 		DataSet<Tuple2<Integer, Double>> revenueByCustomer = 
 				ordersFilteredByYear.joinWithHuge(lineitemsFilteredByFlag)
 									.where(0).equalTo(0)
-									.projectFirst(1).projectSecond(1)
-									.types(Integer.class, Double.class)
-									.groupBy(0).aggregate(Aggregations.SUM, 1);
+									.projectFirst(1).projectSecond(1);
+		
+		revenueByCustomer = revenueByCustomer.groupBy(0).aggregate(Aggregations.SUM, 1);
 
 		// join customer with nation (custkey, name, address, nationname, acctbal)
 		DataSet<Tuple5<Integer, String, String, String, Double>> customerWithNation = customers

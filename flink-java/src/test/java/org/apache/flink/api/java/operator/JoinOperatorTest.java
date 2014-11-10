@@ -595,6 +595,42 @@ public class JoinOperatorTest {
 	}
 	
 	@Test
+	public void testJoinProjection21() {
+		
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+
+		// should work
+		try {
+			ds1.join(ds2).where(0).equalTo(0)
+			.projectFirst(0);
+		} catch(Exception e) {
+			Assert.fail();
+		}
+		
+		// should not work: field index is out of bounds of input tuple
+		try {
+			ds1.join(ds2).where(0).equalTo(0).projectFirst(-1);
+			Assert.fail();
+		} catch(IndexOutOfBoundsException iob) {
+			// we're good here
+		} catch(Exception e) {
+			Assert.fail();
+		}
+		
+		// should not work: field index is out of bounds of input tuple
+		try {
+			ds1.join(ds2).where(0).equalTo(0).project(9);
+			Assert.fail();
+		} catch(IndexOutOfBoundsException iob) {
+			// we're good here
+		} catch(Exception e) {
+			Assert.fail();
+		}
+	}
+	
+	@Test
 	public void testJoinProjection2() {
 		
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -706,6 +742,42 @@ public class JoinOperatorTest {
 	}
 	
 	@Test
+	public void testJoinProjection26() {
+		
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<CustomType> ds1 = env.fromCollection(customTypeData);
+		DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
+		// should work
+		try {
+			ds1.join(ds2)
+			.where(
+					new KeySelector<CustomType, Long>() {
+							
+							@Override
+							public Long getKey(CustomType value) {
+								return value.myLong;
+							}
+						}
+					)
+			.equalTo(
+					new KeySelector<CustomType, Long>() {
+							
+							@Override
+							public Long getKey(CustomType value) {
+								return value.myLong;
+							}
+						}
+					)
+				.projectFirst()
+				.projectSecond();
+		} catch(Exception e) {
+			System.out.println("FAILED: " + e);
+			e.printStackTrace();
+			Assert.fail();
+		}
+	}
+	
+	@Test
 	public void testJoinProjection7() {
 		
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -718,6 +790,23 @@ public class JoinOperatorTest {
 			.projectSecond()
 			.projectFirst(1,4)
 			.types(Tuple5.class, Long.class, Integer.class);
+		} catch(Exception e) {
+			Assert.fail();
+		}
+	}
+	
+	@Test
+	public void testJoinProjection27() {
+		
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+
+		// should work
+		try {
+			ds1.join(ds2).where(0).equalTo(0)
+			.projectSecond()
+			.projectFirst(1,4);
 		} catch(Exception e) {
 			Assert.fail();
 		}
@@ -737,6 +826,18 @@ public class JoinOperatorTest {
 	}
 	
 	@Test(expected=IndexOutOfBoundsException.class)
+	public void testJoinProjection28() {
+		
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+
+		// should not work, index out of range
+		ds1.join(ds2).where(0).equalTo(0)
+		.projectFirst(5);
+	}
+	
+	@Test(expected=IndexOutOfBoundsException.class)
 	public void testJoinProjection9() {
 		
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -749,8 +850,31 @@ public class JoinOperatorTest {
 		.types(Integer.class);
 	}
 	
-	@Test(expected=IllegalArgumentException.class)
+	@Test(expected=IndexOutOfBoundsException.class)
+	public void testJoinProjection29() {
+		
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+
+		// should not work, index out of range
+		ds1.join(ds2).where(0).equalTo(0)
+		.projectSecond(5);
+	}
+	
 	public void testJoinProjection10() {
+		
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+
+		// should work
+		ds1.join(ds2).where(0).equalTo(0)
+		.projectFirst(2);
+	}
+	
+	@Test(expected=IndexOutOfBoundsException.class)
+	public void testJoinProjection30() {
 		
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
@@ -758,11 +882,9 @@ public class JoinOperatorTest {
 
 		// should not work, type does not match
 		ds1.join(ds2).where(0).equalTo(0)
-		.projectFirst(2)
-		.types(Integer.class);
+		.projectFirst(-1);
 	}
 	
-	@Test(expected=IllegalArgumentException.class)
 	public void testJoinProjection11() {
 		
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -771,18 +893,16 @@ public class JoinOperatorTest {
 
 		// should not work, type does not match
 		ds1.join(ds2).where(0).equalTo(0)
-		.projectSecond(2)
-		.types(Integer.class);
+		.projectSecond(2);
 	}
 	
-	@Test(expected=IllegalArgumentException.class)
 	public void testJoinProjection12() {
 		
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
 		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
 
-		// should not work, number of types and fields does not match
+		// should  work
 		ds1.join(ds2).where(0).equalTo(0)
 		.projectSecond(2)
 		.projectFirst(1)
@@ -804,6 +924,19 @@ public class JoinOperatorTest {
 	}
 	
 	@Test(expected=IndexOutOfBoundsException.class)
+	public void testJoinProjection33() {
+		
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+
+		// should not work, index out of range
+		ds1.join(ds2).where(0).equalTo(0)
+		.projectSecond(-1)
+		.projectFirst(3);
+	}
+	
+	@Test(expected=IndexOutOfBoundsException.class)
 	public void testJoinProjection14() {
 		
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -815,6 +948,19 @@ public class JoinOperatorTest {
 		.projectFirst(0)
 		.projectSecond(5)
 		.types(Integer.class);
+	}
+	
+	@Test(expected=IndexOutOfBoundsException.class)
+	public void testJoinProjection34() {
+		
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
+
+		// should not work, index out of range
+		ds1.join(ds2).where(0).equalTo(0)
+		.projectFirst(0)
+		.projectSecond(-1);
 	}
 	
 	/*
