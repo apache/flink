@@ -160,6 +160,75 @@ class TupleGenerator {
 	private static void modifyCrossProjectOperator(File root) throws IOException {
 		// generate code
 		StringBuilder sb = new StringBuilder();
+		
+		// method begin
+		sb.append("\n");
+		
+		// method comment
+		sb.append("\t\t/**\n");
+		sb.append("\t\t * Chooses a projectTupleX according to the length of {@link CrossProjection#fieldIndexes} \n");
+		sb.append("\t\t * \n");
+		sb.append("\t\t * @return The projected DataSet.\n");
+		sb.append("\t\t * \n");
+		sb.append("\t\t * @see Projection\n");
+		sb.append("\t\t */\n");
+		
+		// method signature
+		sb.append("\t\t@SuppressWarnings(\"unchecked\")\n");
+		sb.append("\t\tpublic <OUT extends Tuple> ProjectCross<I1, I2, OUT> types() {\n");
+		sb.append("\t\t\tProjectCross<I1, I2, OUT> projectionCross = null;\n\n");
+		sb.append("\t\t\tswitch (fieldIndexes.length) {\n");
+		for (int numFields = FIRST; numFields <= LAST; numFields++) {
+			sb.append("\t\t\tcase " + numFields +":" + " projectionCross = (ProjectCross<I1, I2, OUT>) projectTuple"+numFields+"(); break;\n");	
+		}
+		sb.append("\t\t\t}\n\n");
+		sb.append("\t\t\treturn projectionCross;\n");
+		
+		// method end
+		sb.append("\t\t}\n");
+		
+		for (int numFields = FIRST; numFields <= LAST; numFields++) {
+
+			// method begin
+			sb.append("\n");
+
+			// method comment
+			sb.append("\t\t/**\n");
+			sb.append("\t\t * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. \n");
+			sb.append("\t\t * \n");
+			sb.append("\t\t * @return The projected data set.\n");
+			sb.append("\t\t * \n");
+			sb.append("\t\t * @see Tuple\n");
+			sb.append("\t\t * @see DataSet\n");
+			sb.append("\t\t */\n");
+
+			// method signature
+			sb.append("\t\tpublic <");
+			appendTupleTypeGenerics(sb, numFields);
+			sb.append("> ProjectCross<I1, I2, Tuple"+numFields+"<");
+			appendTupleTypeGenerics(sb, numFields);
+			sb.append(">> projectTuple"+numFields+"(");
+			sb.append(") {\n");
+
+			// extract field types
+			sb.append("\t\t\tTypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);\n");
+
+			// create new tuple type info
+			sb.append("\t\t\tTupleTypeInfo<Tuple"+numFields+"<");
+			appendTupleTypeGenerics(sb, numFields);
+			sb.append(">> tType = new TupleTypeInfo<Tuple"+numFields+"<");
+			appendTupleTypeGenerics(sb, numFields);
+			sb.append(">>(fTypes);\n\n");
+
+			// create and return new project operator
+			sb.append("\t\t\treturn new ProjectCross<I1, I2, Tuple"+numFields+"<");
+			appendTupleTypeGenerics(sb, numFields);
+			sb.append(">>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);\n");
+
+			// method end
+			sb.append("\t\t}\n");
+
+		}
 
 		for (int numFields = FIRST; numFields <= LAST; numFields++) {
 
@@ -239,6 +308,78 @@ class TupleGenerator {
 	private static void modifyProjectOperator(File root) throws IOException {
 		// generate code
 		StringBuilder sb = new StringBuilder();
+		
+		// method begin
+		sb.append("\n");
+		
+		// method comment
+		sb.append("\t\t/**\n");
+		sb.append("\t\t * Chooses a projectTupleX according to the length of {@link Projection#fieldIndexes} \n");
+		sb.append("\t\t * \n");
+		sb.append("\t\t * @return The projected DataSet.\n");
+		sb.append("\t\t * \n");
+		sb.append("\t\t * @see Projection\n");
+		sb.append("\t\t */\n");
+		
+		// method signature
+		sb.append("\t\t@SuppressWarnings(\"unchecked\")\n");
+		sb.append("\t\tpublic <OUT extends Tuple> ProjectOperator<T, OUT> types() {\n");
+		sb.append("\t\t\tProjectOperator<T, OUT> projOperator = null;\n\n");
+		sb.append("\t\t\tswitch (fieldIndexes.length) {\n");
+		for (int numFields = FIRST; numFields <= LAST; numFields++) {
+			sb.append("\t\t\tcase " + numFields +":" + " projOperator = (ProjectOperator<T, OUT>) projectTuple"+numFields+"(); break;\n");	
+		}
+		sb.append("\t\t\t}\n\n");
+/*		sb.append("\t\t\tif (projOperator != null) {\n");
+		sb.append("\t\t\t\tprojOperator.updateProjection(this);\n");
+		sb.append("\t\t\t}\n\n");	*/
+		sb.append("\t\t\treturn projOperator;\n");
+		
+		// method end
+		sb.append("\t\t}\n");
+		
+		for (int numFields = FIRST; numFields <= LAST; numFields++) {
+
+			// method begin
+			sb.append("\n");
+
+			// method comment
+			sb.append("\t\t/**\n");
+			sb.append("\t\t * Projects a {@link Tuple} {@link DataSet} to the previously selected fields. \n");
+			sb.append("\t\t * \n");
+			sb.append("\t\t * @return The projected DataSet.\n");
+			sb.append("\t\t * \n");
+			sb.append("\t\t * @see Tuple\n");
+			sb.append("\t\t * @see DataSet\n");
+			sb.append("\t\t */\n");
+
+			// method signature
+			sb.append("\t\tpublic <");
+			appendTupleTypeGenerics(sb, numFields);
+			sb.append("> ProjectOperator<T, Tuple"+numFields+"<");
+			appendTupleTypeGenerics(sb, numFields);
+			sb.append(">> projectTuple"+numFields+"(");
+			sb.append(") {\n");
+			
+			// extract field types
+			sb.append("\t\t\tTypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, ds.getType());\n");
+
+			// create new tuple type info
+			sb.append("\t\t\tTupleTypeInfo<Tuple"+numFields+"<");
+			appendTupleTypeGenerics(sb, numFields);
+			sb.append(">> tType = new TupleTypeInfo<Tuple"+numFields+"<");
+			appendTupleTypeGenerics(sb, numFields);
+			sb.append(">>(fTypes);\n\n");
+
+			// create and return new project operator
+			sb.append("\t\t\treturn new ProjectOperator<T, Tuple"+numFields+"<");
+			appendTupleTypeGenerics(sb, numFields);
+			sb.append(">>(this.ds, this.fieldIndexes, tType, this);\n");
+
+			// method end
+			sb.append("\t\t}\n");
+
+		}
 
 		for (int numFields = FIRST; numFields <= LAST; numFields++) {
 
@@ -318,6 +459,76 @@ class TupleGenerator {
 	private static void modifyJoinProjectOperator(File root) throws IOException {
 		// generate code
 		StringBuilder sb = new StringBuilder();
+		
+		// method begin
+		sb.append("\n");
+		
+		// method comment
+		sb.append("\t\t/**\n");
+		sb.append("\t\t * Chooses a projectTupleX according to the length of {@link JoinProjection#fieldIndexes} \n");
+		sb.append("\t\t * \n");
+		sb.append("\t\t * @return The projected DataSet.\n");
+		sb.append("\t\t * \n");
+		sb.append("\t\t * @see Projection\n");
+		sb.append("\t\t */\n");
+		
+		// method signature
+		sb.append("\t\t@SuppressWarnings(\"unchecked\")\n");
+		sb.append("\t\tpublic <OUT extends Tuple> ProjectJoin<I1, I2, OUT> types() {\n");
+		sb.append("\t\t\tProjectJoin<I1, I2, OUT> projectJoin = null;\n\n");
+		sb.append("\t\t\tswitch (fieldIndexes.length) {\n");
+		for (int numFields = FIRST; numFields <= LAST; numFields++) {
+			sb.append("\t\t\tcase " + numFields +":" + " projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple"+numFields+"();\n");	
+		}
+		sb.append("\t\t\t}\n\n");
+		sb.append("\t\t\treturn projectJoin;\n");
+		
+		// method end
+		sb.append("\t\t}\n");
+		
+		for (int numFields = FIRST; numFields <= LAST; numFields++) {
+
+			// method begin
+			sb.append("\n");
+
+			// method comment
+			sb.append("\t\t/**\n");
+			sb.append("\t\t * Projects a pair of joined elements to a {@link Tuple} with the previously selected fields. \n");
+			sb.append("\t\t * Requires the classes of the fields of the resulting tuples. \n");
+			sb.append("\t\t * \n");
+			sb.append("\t\t * @return The projected data set.\n");
+			sb.append("\t\t * \n");
+			sb.append("\t\t * @see Tuple\n");
+			sb.append("\t\t * @see DataSet\n");
+			sb.append("\t\t */\n");
+
+			// method signature
+			sb.append("\t\tpublic <");
+			appendTupleTypeGenerics(sb, numFields);
+			sb.append("> ProjectJoin<I1, I2, Tuple"+numFields+"<");
+			appendTupleTypeGenerics(sb, numFields);
+			sb.append(">> projectTuple"+numFields+"(");
+			sb.append(") {\n");
+
+			// extract field types
+			sb.append("\t\t\tTypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);\n");
+
+			// create new tuple type info
+			sb.append("\t\t\tTupleTypeInfo<Tuple"+numFields+"<");
+			appendTupleTypeGenerics(sb, numFields);
+			sb.append(">> tType = new TupleTypeInfo<Tuple"+numFields+"<");
+			appendTupleTypeGenerics(sb, numFields);
+			sb.append(">>(fTypes);\n\n");
+
+			// create and return new project operator
+			sb.append("\t\t\treturn new ProjectJoin<I1, I2, Tuple"+numFields+"<");
+			appendTupleTypeGenerics(sb, numFields);
+			sb.append(">>(this.ds1, this.ds2, this.keys1, this.keys2, this.hint, this.fieldIndexes, this.isFieldInFirst, tType, this);\n");
+
+			// method end
+			sb.append("\t\t}\n");
+
+		}
 
 		for (int numFields = FIRST; numFields <= LAST; numFields++) {
 
@@ -329,9 +540,12 @@ class TupleGenerator {
 			sb.append("\t\t * Projects a pair of joined elements to a {@link Tuple} with the previously selected fields. \n");
 			sb.append("\t\t * Requires the classes of the fields of the resulting tuples. \n");
 			sb.append("\t\t * \n");
+			sb.append("\t\t *");
 			for (int i = 0; i < numFields; i++) {
-				sb.append("\t\t * @param type" + i + " The class of field '"+i+"' of the result tuples.\n");
+				sb.append(" @param type" + i + " The class of field '"+i+"' of the result tuples. ");
 			}
+			sb.append("\n");
+//			sb.append("\t\t * \n");
 			sb.append("\t\t * @return The projected data set.\n");
 			sb.append("\t\t * \n");
 			sb.append("\t\t * @see Tuple\n");

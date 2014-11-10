@@ -90,7 +90,6 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		return po;
 	}
 
-
 	// --------------------------------------------------------------------------------------------
 	// Builder classes for incremental construction
 	// --------------------------------------------------------------------------------------------
@@ -167,6 +166,31 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		public CrossProjection<I1, I2> projectFirst(int... firstFieldIndexes) {
 			return new CrossProjection<I1, I2>(input1, input2, firstFieldIndexes, null);
 		}
+		
+		
+		/**
+		 * Initiates a ProjectCross transformation and projects the first cross input<br/>
+		 * If the first cross input is a {@link Tuple} {@link DataSet}, fields can be selected by their index.
+		 * If the first cross input is not a Tuple DataSet, no parameters should be passed.<br/>
+		 *
+		 * Fields of the first and second input can be added by chaining the method calls of
+		 * {@link org.apache.flink.api.java.operators.CrossOperator.ProjectCross#projectionFirst(int...)} and
+		 * {@link org.apache.flink.api.java.operators.CrossOperator.ProjectCross#projectionSecond(int...)}.
+		 *
+		 * @param firstFieldIndexes If the first input is a Tuple DataSet, the indexes of the selected fields.
+		 * 					   For a non-Tuple DataSet, do not provide parameters.
+		 * 					   The order of fields in the output tuple is defined by to the order of field indexes.
+		 * @return A CrossProjection to complete the Cross transformation.
+		 *
+		 * @see Tuple
+		 * @see DataSet
+		 * @see org.apache.flink.api.java.operators.CrossOperator.CrossProjection
+		 * @see org.apache.flink.api.java.operators.CrossOperator.ProjectCross
+		 */
+		public <OUT extends Tuple> ProjectCross<I1, I2, OUT> projectionFirst(int... firstFieldIndexes) {
+			return new CrossProjection<I1, I2>(getInput1(), getInput2(), firstFieldIndexes, null).types();
+		}
+		
 
 		/**
 		 * Initiates a ProjectCross transformation and projects the second cross input<br/>
@@ -193,6 +217,30 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		public CrossProjection<I1, I2> projectSecond(int... secondFieldIndexes) {
 			return new CrossProjection<I1, I2>(input1, input2, null, secondFieldIndexes);
 		}
+		
+		/**
+		 * Initiates a ProjectCross transformation and projects the second cross input<br/>
+		 * If the second cross input is a {@link Tuple} {@link DataSet}, fields can be selected by their index.
+		 * If the second cross input is not a Tuple DataSet, no parameters should be passed.<br/>
+		 *
+		 * Fields of the first and second input can be added by chaining the method calls of
+		 * {@link org.apache.flink.api.java.operators.CrossOperator.ProjectCross#projectionFirst(int...)} and
+		 * {@link org.apache.flink.api.java.operators.CrossOperator.ProjectCross#projectionSecond(int...)}.
+		 *
+		 * @param secondFieldIndexes If the second input is a Tuple DataSet, the indexes of the selected fields.
+		 * 					   For a non-Tuple DataSet, do not provide parameters.
+		 * 					   The order of fields in the output tuple is defined by to the order of field indexes.
+		 * @return A CrossProjection complete the Cross transformation by calling.
+		 *
+		 * @see Tuple
+		 * @see DataSet
+		 * @see org.apache.flink.api.java.operators.CrossOperator.CrossProjection
+		 * @see org.apache.flink.api.java.operators.CrossOperator.ProjectCross
+		 */
+		public <OUT extends Tuple> ProjectCross<I1, I2, OUT> projectionSecond(int... secondFieldIndexes) {
+			return new CrossProjection<I1, I2>(getInput1(), getInput2(), null, secondFieldIndexes).types();
+		}
+		
 	}
 
 	/**
@@ -207,12 +255,39 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 	 * @see Tuple
 	 * @see DataSet
 	 */
-	private static final class ProjectCross<I1, I2, OUT extends Tuple> extends CrossOperator<I1, I2, OUT> {
+//	private static final class ProjectCross<I1, I2, OUT extends Tuple> extends CrossOperator<I1, I2, OUT> {
+	public static final class ProjectCross<I1, I2, OUT extends Tuple> extends CrossOperator<I1, I2, OUT> {
+		
+		private CrossProjection<I1, I2> crossProjection;
 
 		protected ProjectCross(DataSet<I1> input1, DataSet<I2> input2, int[] fields, boolean[] isFromFirst, TupleTypeInfo<OUT> returnType) {
 			super(input1, input2,
-				new ProjectCrossFunction<I1, I2, OUT>(fields, isFromFirst, returnType.createSerializer().createInstance()), returnType, "<unknown>");
+				new ProjectCrossFunction<I1, I2, OUT>(fields, isFromFirst, returnType.createSerializer().createInstance()), returnType, "unknown");
+			
+			crossProjection = null;
 		}
+		
+		protected ProjectCross(DataSet<I1> input1, DataSet<I2> input2, int[] fields, boolean[] isFromFirst, TupleTypeInfo<OUT> returnType, CrossProjection<I1, I2> crossProjection) {
+			super(input1, input2,
+				new ProjectCrossFunction<I1, I2, OUT>(fields, isFromFirst, returnType.createSerializer().createInstance()), returnType, "unknown");
+			
+			this.crossProjection = crossProjection;
+		}
+		
+		@SuppressWarnings("hiding")
+		public <OUT extends Tuple> ProjectCross<I1, I2, OUT> projectionFirst(int... firstFieldIndexes) {
+			crossProjection = crossProjection.projectFirst(firstFieldIndexes);
+			
+			return crossProjection.types();
+		}
+
+		@SuppressWarnings("hiding")
+		public <OUT extends Tuple> ProjectCross<I1, I2, OUT> projectionSecond(int... secondFieldIndexes) {
+			crossProjection = crossProjection.projectSecond(secondFieldIndexes);
+			
+			return crossProjection.types();
+		}
+		
 
 		@Override
 		public CrossOperator<I1, I2, OUT> withConstantSetFirst(String... constantSetFirst) {
@@ -231,6 +306,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 
 		private final int[] fields;
 		private final boolean[] isFromFirst;
+		
 		private final R outTuple;
 
 		/**
@@ -278,6 +354,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		protected boolean[] getIsFromFirst() {
 			return isFromFirst;
 		}
+		
 	}
 
 	public static final class CrossProjection<I1, I2> {
@@ -356,7 +433,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 				// check field indexes and adapt to position in tuple
 				int maxFieldIndex = firstInput ? numFieldsDs1 : numFieldsDs2;
 				for(int i=0; i<this.fieldIndexes.length; i++) {
-					if(this.fieldIndexes[i] > maxFieldIndex - 1) {
+					if(this.fieldIndexes[i] > maxFieldIndex - 1 || this.fieldIndexes[i] < 0) {
 						throw new IndexOutOfBoundsException("Provided field index is out of bounds of input tuple.");
 					}
 					if(firstInput) {
@@ -422,7 +499,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 				int maxFieldIndex = numFieldsDs1;
 				for(int i = 0; i < firstFieldIndexes.length; i++) {
 					// check if indexes in range
-					if(firstFieldIndexes[i] > maxFieldIndex - 1) {
+					if(firstFieldIndexes[i] > maxFieldIndex - 1 || firstFieldIndexes[i] < 0) {
 						throw new IndexOutOfBoundsException("Provided field index is out of bounds of input tuple.");
 					}
 					this.isFieldInFirst[offset + i] = true;
@@ -491,7 +568,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 				int maxFieldIndex = numFieldsDs2;
 				for(int i = 0; i < secondFieldIndexes.length; i++) {
 					// check if indexes in range
-					if(secondFieldIndexes[i] > maxFieldIndex - 1) {
+					if(secondFieldIndexes[i] > maxFieldIndex - 1 || secondFieldIndexes[i] < 0) {
 						throw new IndexOutOfBoundsException("Provided field index is out of bounds of input tuple.");
 					}
 					this.isFieldInFirst[offset + i] = false;
@@ -509,12 +586,429 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 
 			return this;
 		}
-
+		
 		// --------------------------------------------------------------------------------------------
 		// The following lines are generated.
 		// --------------------------------------------------------------------------------------------
 		// BEGIN_OF_TUPLE_DEPENDENT_CODE
 	// GENERATED FROM org.apache.flink.api.java.tuple.TupleGenerator.
+
+		/**
+		 * Chooses a projectTupleX according to the length of {@link CrossProjection#fieldIndexes} 
+		 * 
+		 * @return The projected DataSet.
+		 * 
+		 * @see Projection
+		 */
+		@SuppressWarnings("unchecked")
+		public <OUT extends Tuple> ProjectCross<I1, I2, OUT> types() {
+			ProjectCross<I1, I2, OUT> projectionCross = null;
+
+			switch (fieldIndexes.length) {
+			case 1: projectionCross = (ProjectCross<I1, I2, OUT>) projectTuple1(); break;
+			case 2: projectionCross = (ProjectCross<I1, I2, OUT>) projectTuple2(); break;
+			case 3: projectionCross = (ProjectCross<I1, I2, OUT>) projectTuple3(); break;
+			case 4: projectionCross = (ProjectCross<I1, I2, OUT>) projectTuple4(); break;
+			case 5: projectionCross = (ProjectCross<I1, I2, OUT>) projectTuple5(); break;
+			case 6: projectionCross = (ProjectCross<I1, I2, OUT>) projectTuple6(); break;
+			case 7: projectionCross = (ProjectCross<I1, I2, OUT>) projectTuple7(); break;
+			case 8: projectionCross = (ProjectCross<I1, I2, OUT>) projectTuple8(); break;
+			case 9: projectionCross = (ProjectCross<I1, I2, OUT>) projectTuple9(); break;
+			case 10: projectionCross = (ProjectCross<I1, I2, OUT>) projectTuple10(); break;
+			case 11: projectionCross = (ProjectCross<I1, I2, OUT>) projectTuple11(); break;
+			case 12: projectionCross = (ProjectCross<I1, I2, OUT>) projectTuple12(); break;
+			case 13: projectionCross = (ProjectCross<I1, I2, OUT>) projectTuple13(); break;
+			case 14: projectionCross = (ProjectCross<I1, I2, OUT>) projectTuple14(); break;
+			case 15: projectionCross = (ProjectCross<I1, I2, OUT>) projectTuple15(); break;
+			case 16: projectionCross = (ProjectCross<I1, I2, OUT>) projectTuple16(); break;
+			case 17: projectionCross = (ProjectCross<I1, I2, OUT>) projectTuple17(); break;
+			case 18: projectionCross = (ProjectCross<I1, I2, OUT>) projectTuple18(); break;
+			case 19: projectionCross = (ProjectCross<I1, I2, OUT>) projectTuple19(); break;
+			case 20: projectionCross = (ProjectCross<I1, I2, OUT>) projectTuple20(); break;
+			case 21: projectionCross = (ProjectCross<I1, I2, OUT>) projectTuple21(); break;
+			case 22: projectionCross = (ProjectCross<I1, I2, OUT>) projectTuple22(); break;
+			case 23: projectionCross = (ProjectCross<I1, I2, OUT>) projectTuple23(); break;
+			case 24: projectionCross = (ProjectCross<I1, I2, OUT>) projectTuple24(); break;
+			case 25: projectionCross = (ProjectCross<I1, I2, OUT>) projectTuple25(); break;
+			}
+
+			return projectionCross;
+		}
+
+		/**
+		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. 
+		 * 
+		 * @return The projected data set.
+		 * 
+		 * @see Tuple
+		 * @see DataSet
+		 */
+		public <T0> ProjectCross<I1, I2, Tuple1<T0>> projectTuple1() {
+			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
+			TupleTypeInfo<Tuple1<T0>> tType = new TupleTypeInfo<Tuple1<T0>>(fTypes);
+
+			return new ProjectCross<I1, I2, Tuple1<T0>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+		}
+
+		/**
+		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. 
+		 * 
+		 * @return The projected data set.
+		 * 
+		 * @see Tuple
+		 * @see DataSet
+		 */
+		public <T0, T1> ProjectCross<I1, I2, Tuple2<T0, T1>> projectTuple2() {
+			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
+			TupleTypeInfo<Tuple2<T0, T1>> tType = new TupleTypeInfo<Tuple2<T0, T1>>(fTypes);
+
+			return new ProjectCross<I1, I2, Tuple2<T0, T1>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+		}
+
+		/**
+		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. 
+		 * 
+		 * @return The projected data set.
+		 * 
+		 * @see Tuple
+		 * @see DataSet
+		 */
+		public <T0, T1, T2> ProjectCross<I1, I2, Tuple3<T0, T1, T2>> projectTuple3() {
+			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
+			TupleTypeInfo<Tuple3<T0, T1, T2>> tType = new TupleTypeInfo<Tuple3<T0, T1, T2>>(fTypes);
+
+			return new ProjectCross<I1, I2, Tuple3<T0, T1, T2>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+		}
+
+		/**
+		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. 
+		 * 
+		 * @return The projected data set.
+		 * 
+		 * @see Tuple
+		 * @see DataSet
+		 */
+		public <T0, T1, T2, T3> ProjectCross<I1, I2, Tuple4<T0, T1, T2, T3>> projectTuple4() {
+			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
+			TupleTypeInfo<Tuple4<T0, T1, T2, T3>> tType = new TupleTypeInfo<Tuple4<T0, T1, T2, T3>>(fTypes);
+
+			return new ProjectCross<I1, I2, Tuple4<T0, T1, T2, T3>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+		}
+
+		/**
+		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. 
+		 * 
+		 * @return The projected data set.
+		 * 
+		 * @see Tuple
+		 * @see DataSet
+		 */
+		public <T0, T1, T2, T3, T4> ProjectCross<I1, I2, Tuple5<T0, T1, T2, T3, T4>> projectTuple5() {
+			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
+			TupleTypeInfo<Tuple5<T0, T1, T2, T3, T4>> tType = new TupleTypeInfo<Tuple5<T0, T1, T2, T3, T4>>(fTypes);
+
+			return new ProjectCross<I1, I2, Tuple5<T0, T1, T2, T3, T4>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+		}
+
+		/**
+		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. 
+		 * 
+		 * @return The projected data set.
+		 * 
+		 * @see Tuple
+		 * @see DataSet
+		 */
+		public <T0, T1, T2, T3, T4, T5> ProjectCross<I1, I2, Tuple6<T0, T1, T2, T3, T4, T5>> projectTuple6() {
+			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
+			TupleTypeInfo<Tuple6<T0, T1, T2, T3, T4, T5>> tType = new TupleTypeInfo<Tuple6<T0, T1, T2, T3, T4, T5>>(fTypes);
+
+			return new ProjectCross<I1, I2, Tuple6<T0, T1, T2, T3, T4, T5>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+		}
+
+		/**
+		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. 
+		 * 
+		 * @return The projected data set.
+		 * 
+		 * @see Tuple
+		 * @see DataSet
+		 */
+		public <T0, T1, T2, T3, T4, T5, T6> ProjectCross<I1, I2, Tuple7<T0, T1, T2, T3, T4, T5, T6>> projectTuple7() {
+			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
+			TupleTypeInfo<Tuple7<T0, T1, T2, T3, T4, T5, T6>> tType = new TupleTypeInfo<Tuple7<T0, T1, T2, T3, T4, T5, T6>>(fTypes);
+
+			return new ProjectCross<I1, I2, Tuple7<T0, T1, T2, T3, T4, T5, T6>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+		}
+
+		/**
+		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. 
+		 * 
+		 * @return The projected data set.
+		 * 
+		 * @see Tuple
+		 * @see DataSet
+		 */
+		public <T0, T1, T2, T3, T4, T5, T6, T7> ProjectCross<I1, I2, Tuple8<T0, T1, T2, T3, T4, T5, T6, T7>> projectTuple8() {
+			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
+			TupleTypeInfo<Tuple8<T0, T1, T2, T3, T4, T5, T6, T7>> tType = new TupleTypeInfo<Tuple8<T0, T1, T2, T3, T4, T5, T6, T7>>(fTypes);
+
+			return new ProjectCross<I1, I2, Tuple8<T0, T1, T2, T3, T4, T5, T6, T7>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+		}
+
+		/**
+		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. 
+		 * 
+		 * @return The projected data set.
+		 * 
+		 * @see Tuple
+		 * @see DataSet
+		 */
+		public <T0, T1, T2, T3, T4, T5, T6, T7, T8> ProjectCross<I1, I2, Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8>> projectTuple9() {
+			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
+			TupleTypeInfo<Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8>> tType = new TupleTypeInfo<Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8>>(fTypes);
+
+			return new ProjectCross<I1, I2, Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+		}
+
+		/**
+		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. 
+		 * 
+		 * @return The projected data set.
+		 * 
+		 * @see Tuple
+		 * @see DataSet
+		 */
+		public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9> ProjectCross<I1, I2, Tuple10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>> projectTuple10() {
+			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
+			TupleTypeInfo<Tuple10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>> tType = new TupleTypeInfo<Tuple10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>>(fTypes);
+
+			return new ProjectCross<I1, I2, Tuple10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+		}
+
+		/**
+		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. 
+		 * 
+		 * @return The projected data set.
+		 * 
+		 * @see Tuple
+		 * @see DataSet
+		 */
+		public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10> ProjectCross<I1, I2, Tuple11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>> projectTuple11() {
+			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
+			TupleTypeInfo<Tuple11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>> tType = new TupleTypeInfo<Tuple11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>>(fTypes);
+
+			return new ProjectCross<I1, I2, Tuple11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+		}
+
+		/**
+		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. 
+		 * 
+		 * @return The projected data set.
+		 * 
+		 * @see Tuple
+		 * @see DataSet
+		 */
+		public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11> ProjectCross<I1, I2, Tuple12<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>> projectTuple12() {
+			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
+			TupleTypeInfo<Tuple12<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>> tType = new TupleTypeInfo<Tuple12<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>>(fTypes);
+
+			return new ProjectCross<I1, I2, Tuple12<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+		}
+
+		/**
+		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. 
+		 * 
+		 * @return The projected data set.
+		 * 
+		 * @see Tuple
+		 * @see DataSet
+		 */
+		public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12> ProjectCross<I1, I2, Tuple13<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>> projectTuple13() {
+			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
+			TupleTypeInfo<Tuple13<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>> tType = new TupleTypeInfo<Tuple13<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>>(fTypes);
+
+			return new ProjectCross<I1, I2, Tuple13<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+		}
+
+		/**
+		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. 
+		 * 
+		 * @return The projected data set.
+		 * 
+		 * @see Tuple
+		 * @see DataSet
+		 */
+		public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13> ProjectCross<I1, I2, Tuple14<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>> projectTuple14() {
+			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
+			TupleTypeInfo<Tuple14<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>> tType = new TupleTypeInfo<Tuple14<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>>(fTypes);
+
+			return new ProjectCross<I1, I2, Tuple14<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+		}
+
+		/**
+		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. 
+		 * 
+		 * @return The projected data set.
+		 * 
+		 * @see Tuple
+		 * @see DataSet
+		 */
+		public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14> ProjectCross<I1, I2, Tuple15<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>> projectTuple15() {
+			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
+			TupleTypeInfo<Tuple15<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>> tType = new TupleTypeInfo<Tuple15<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>>(fTypes);
+
+			return new ProjectCross<I1, I2, Tuple15<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+		}
+
+		/**
+		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. 
+		 * 
+		 * @return The projected data set.
+		 * 
+		 * @see Tuple
+		 * @see DataSet
+		 */
+		public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15> ProjectCross<I1, I2, Tuple16<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>> projectTuple16() {
+			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
+			TupleTypeInfo<Tuple16<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>> tType = new TupleTypeInfo<Tuple16<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>>(fTypes);
+
+			return new ProjectCross<I1, I2, Tuple16<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+		}
+
+		/**
+		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. 
+		 * 
+		 * @return The projected data set.
+		 * 
+		 * @see Tuple
+		 * @see DataSet
+		 */
+		public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16> ProjectCross<I1, I2, Tuple17<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>> projectTuple17() {
+			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
+			TupleTypeInfo<Tuple17<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>> tType = new TupleTypeInfo<Tuple17<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>>(fTypes);
+
+			return new ProjectCross<I1, I2, Tuple17<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+		}
+
+		/**
+		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. 
+		 * 
+		 * @return The projected data set.
+		 * 
+		 * @see Tuple
+		 * @see DataSet
+		 */
+		public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17> ProjectCross<I1, I2, Tuple18<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17>> projectTuple18() {
+			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
+			TupleTypeInfo<Tuple18<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17>> tType = new TupleTypeInfo<Tuple18<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17>>(fTypes);
+
+			return new ProjectCross<I1, I2, Tuple18<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+		}
+
+		/**
+		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. 
+		 * 
+		 * @return The projected data set.
+		 * 
+		 * @see Tuple
+		 * @see DataSet
+		 */
+		public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18> ProjectCross<I1, I2, Tuple19<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18>> projectTuple19() {
+			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
+			TupleTypeInfo<Tuple19<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18>> tType = new TupleTypeInfo<Tuple19<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18>>(fTypes);
+
+			return new ProjectCross<I1, I2, Tuple19<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+		}
+
+		/**
+		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. 
+		 * 
+		 * @return The projected data set.
+		 * 
+		 * @see Tuple
+		 * @see DataSet
+		 */
+		public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19> ProjectCross<I1, I2, Tuple20<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19>> projectTuple20() {
+			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
+			TupleTypeInfo<Tuple20<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19>> tType = new TupleTypeInfo<Tuple20<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19>>(fTypes);
+
+			return new ProjectCross<I1, I2, Tuple20<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+		}
+
+		/**
+		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. 
+		 * 
+		 * @return The projected data set.
+		 * 
+		 * @see Tuple
+		 * @see DataSet
+		 */
+		public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20> ProjectCross<I1, I2, Tuple21<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20>> projectTuple21() {
+			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
+			TupleTypeInfo<Tuple21<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20>> tType = new TupleTypeInfo<Tuple21<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20>>(fTypes);
+
+			return new ProjectCross<I1, I2, Tuple21<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+		}
+
+		/**
+		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. 
+		 * 
+		 * @return The projected data set.
+		 * 
+		 * @see Tuple
+		 * @see DataSet
+		 */
+		public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21> ProjectCross<I1, I2, Tuple22<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21>> projectTuple22() {
+			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
+			TupleTypeInfo<Tuple22<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21>> tType = new TupleTypeInfo<Tuple22<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21>>(fTypes);
+
+			return new ProjectCross<I1, I2, Tuple22<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+		}
+
+		/**
+		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. 
+		 * 
+		 * @return The projected data set.
+		 * 
+		 * @see Tuple
+		 * @see DataSet
+		 */
+		public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22> ProjectCross<I1, I2, Tuple23<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22>> projectTuple23() {
+			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
+			TupleTypeInfo<Tuple23<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22>> tType = new TupleTypeInfo<Tuple23<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22>>(fTypes);
+
+			return new ProjectCross<I1, I2, Tuple23<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+		}
+
+		/**
+		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. 
+		 * 
+		 * @return The projected data set.
+		 * 
+		 * @see Tuple
+		 * @see DataSet
+		 */
+		public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23> ProjectCross<I1, I2, Tuple24<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23>> projectTuple24() {
+			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
+			TupleTypeInfo<Tuple24<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23>> tType = new TupleTypeInfo<Tuple24<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23>>(fTypes);
+
+			return new ProjectCross<I1, I2, Tuple24<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+		}
+
+		/**
+		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. 
+		 * 
+		 * @return The projected data set.
+		 * 
+		 * @see Tuple
+		 * @see DataSet
+		 */
+		public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24> ProjectCross<I1, I2, Tuple25<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24>> projectTuple25() {
+			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes);
+			TupleTypeInfo<Tuple25<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24>> tType = new TupleTypeInfo<Tuple25<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24>>(fTypes);
+
+			return new ProjectCross<I1, I2, Tuple25<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24>>(this.ds1, this.ds2, this.fieldIndexes, this.isFieldInFirst, tType, this);
+		}
 
 		/**
 		 * Projects a pair of crossed elements to a {@link Tuple} with the previously selected fields. 
@@ -1392,6 +1886,33 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 
 				if(typeInfo.getTypeClass() != givenTypes[i]) {
 					throw new IllegalArgumentException("Given types do not match types of input data set.");
+				}
+
+				fieldTypes[i] = typeInfo;
+			}
+
+			return fieldTypes;
+		}
+		
+		private TypeInformation<?>[] extractFieldTypes(int[] fields) {
+
+			TypeInformation<?>[] fieldTypes = new TypeInformation[fields.length];
+
+			for(int i=0; i<fields.length; i++) {
+
+				TypeInformation<?> typeInfo;
+				if(isFieldInFirst[i]) {
+					if(fields[i] >= 0) {
+						typeInfo = ((TupleTypeInfo<?>)ds1.getType()).getTypeAt(fields[i]);
+					} else {
+						typeInfo = ds1.getType();
+					}
+				} else {
+					if(fields[i] >= 0) {
+						typeInfo = ((TupleTypeInfo<?>)ds2.getType()).getTypeAt(fields[i]);
+					} else {
+						typeInfo = ds2.getType();
+					}
 				}
 
 				fieldTypes[i] = typeInfo;

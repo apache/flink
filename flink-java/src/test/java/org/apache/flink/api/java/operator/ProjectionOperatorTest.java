@@ -130,4 +130,39 @@ public class ProjectionOperatorTest {
 		
 	}
 	
+	@Test
+	public void testProjectionWithoutTypes() {
+		
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs = env.fromCollection(emptyTupleData, tupleTypeInfo);
+
+		// should work
+		try {
+			tupleDs.projection(2,0,4);
+		} catch(Exception e) {
+			Assert.fail();
+		}
+		
+		// should not work: field index is out of bounds of input tuple
+		try {
+			tupleDs.project(2,-1,4);
+			Assert.fail();
+		} catch(IndexOutOfBoundsException iob) {
+			// we're good here
+		} catch(Exception e) {
+			Assert.fail();
+		}
+		
+		// should not work: field index is out of bounds of input tuple
+		try {
+			tupleDs.project(2,1,4,5,8,9);
+			Assert.fail();
+		} catch(IndexOutOfBoundsException iob) {
+			// we're good here
+		} catch(Exception e) {
+			Assert.fail();
+		}
+		
+	}
+	
 }
