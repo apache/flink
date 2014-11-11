@@ -63,4 +63,11 @@ package object scala {
           "supported on Case Classes (for now).")
     }
   }
+  def getCallLocationName(depth: Int = 3) : String = {
+    val st = Thread.currentThread().getStackTrace();
+    if(st.length < depth) {
+      return "<unknown>"
+    }
+    st(depth).toString
+  }
 }

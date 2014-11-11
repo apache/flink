@@ -20,6 +20,7 @@ package org.apache.flink.api.java.operators;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
+import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.FirstReducer;
 
 import java.util.Arrays;
@@ -110,7 +111,7 @@ public class SortedGrouping<T> extends Grouping<T> {
 		}
 		TypeInformation<R> resultType = TypeExtractor.getGroupReduceReturnTypes(reducer,
 				this.getDataSet().getType());
-		return new GroupReduceOperator<T, R>(this, resultType, reducer);
+		return new GroupReduceOperator<T, R>(this, resultType, reducer, Utils.getCallLocationName() );
 	}
 
 	

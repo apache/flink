@@ -118,7 +118,8 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
     Validate.notNull(filePath, "The file path may not be null.")
     val format = new TextInputFormat(new Path(filePath))
     format.setCharsetName(charsetName)
-    val source = new DataSource[String](javaEnv, format, BasicTypeInfo.STRING_TYPE_INFO)
+    val source = new DataSource[String](javaEnv, format, BasicTypeInfo.STRING_TYPE_INFO,
+      getCallLocationName())
     wrap(source)
   }
 
@@ -139,7 +140,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
     val format = new TextValueInputFormat(new Path(filePath))
     format.setCharsetName(charsetName)
     val source = new DataSource[StringValue](
-      javaEnv, format, new ValueTypeInfo[StringValue](classOf[StringValue]))
+      javaEnv, format, new ValueTypeInfo[StringValue](classOf[StringValue]), getCallLocationName())
     wrap(source)
   }
 
@@ -186,7 +187,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
       inputFormat.setFieldTypes(classes)
     }
 
-    wrap(new DataSource[T](javaEnv, inputFormat, typeInfo))
+    wrap(new DataSource[T](javaEnv, inputFormat, typeInfo, getCallLocationName()))
   }
 
   /**
@@ -224,7 +225,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
       throw new IllegalArgumentException("InputFormat must not be null.")
     }
     Validate.notNull(producedType, "Produced type must not be null")
-    wrap(new DataSource[T](javaEnv, inputFormat, producedType))
+    wrap(new DataSource[T](javaEnv, inputFormat, producedType, getCallLocationName()))
   }
 
   /**
@@ -243,7 +244,8 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
     val dataSource = new DataSource[T](
       javaEnv,
       new CollectionInputFormat[T](data.asJavaCollection, typeInfo.createSerializer),
-      typeInfo)
+      typeInfo,
+      getCallLocationName())
     wrap(dataSource)
   }
 
@@ -262,7 +264,8 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
     val dataSource = new DataSource[T](
       javaEnv,
       new IteratorInputFormat[T](data.asJava),
-      typeInfo)
+      typeInfo,
+      getCallLocationName())
     wrap(dataSource)
   }
 
@@ -288,7 +291,10 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   def fromParallelCollection[T: ClassTag : TypeInformation](
       iterator: SplittableIterator[T]): DataSet[T] = {
     val typeInfo = implicitly[TypeInformation[T]]
-    wrap(new DataSource[T](javaEnv, new ParallelIteratorInputFormat[T](iterator), typeInfo))
+    wrap(new DataSource[T](javaEnv,
+      new ParallelIteratorInputFormat[T](iterator),
+      typeInfo,
+      getCallLocationName()))
   }
 
   /**
@@ -303,7 +309,8 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
     val source = new DataSource(
       javaEnv,
       new ParallelIteratorInputFormat[java.lang.Long](iterator),
-      BasicTypeInfo.LONG_TYPE_INFO)
+      BasicTypeInfo.LONG_TYPE_INFO,
+      getCallLocationName())
     wrap(source).asInstanceOf[DataSet[Long]]
   }
 

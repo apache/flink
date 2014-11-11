@@ -199,7 +199,7 @@ class GroupedDataSet[T: ClassTag](
         fun(v1, v2)
       }
     }
-    wrap(new ReduceOperator[T](createUnsortedGrouping(), reducer))
+    wrap(new ReduceOperator[T](createUnsortedGrouping(), reducer, getCallLocationName()))
   }
 
   /**
@@ -208,7 +208,7 @@ class GroupedDataSet[T: ClassTag](
    */
   def reduce(reducer: ReduceFunction[T]): DataSet[T] = {
     Validate.notNull(reducer, "Reduce function must not be null.")
-    wrap(new ReduceOperator[T](createUnsortedGrouping(), reducer))
+    wrap(new ReduceOperator[T](createUnsortedGrouping(), reducer, getCallLocationName()))
   }
 
   /**
@@ -226,7 +226,7 @@ class GroupedDataSet[T: ClassTag](
     }
     wrap(
       new GroupReduceOperator[T, R](maybeCreateSortedGrouping(),
-        implicitly[TypeInformation[R]], reducer))
+        implicitly[TypeInformation[R]], reducer, getCallLocationName()))
   }
 
   /**
@@ -244,7 +244,7 @@ class GroupedDataSet[T: ClassTag](
     }
     wrap(
       new GroupReduceOperator[T, R](maybeCreateSortedGrouping(),
-        implicitly[TypeInformation[R]], reducer))
+        implicitly[TypeInformation[R]], reducer, getCallLocationName()))
   }
 
   /**
@@ -256,7 +256,7 @@ class GroupedDataSet[T: ClassTag](
     Validate.notNull(reducer, "GroupReduce function must not be null.")
     wrap(
       new GroupReduceOperator[T, R](maybeCreateSortedGrouping(),
-        implicitly[TypeInformation[R]], reducer))
+        implicitly[TypeInformation[R]], reducer, getCallLocationName()))
   }
 
   /**

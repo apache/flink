@@ -54,14 +54,17 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 	
 	private final Grouping<IN> grouping;
 	
+	private final String aggregateLocationName;
+	
 	/**
 	 * <p>
 	 * Non grouped aggregation
 	 */
-	public AggregateOperator(DataSet<IN> input, Aggregations function, int field) {
+	public AggregateOperator(DataSet<IN> input, Aggregations function, int field, String aggregateLocationName) {
 		super(Validate.notNull(input), input.getType());
-		
 		Validate.notNull(function);
+		
+		this.aggregateLocationName = aggregateLocationName;
 		
 		if (!input.getType().isTupleType()) {
 			throw new InvalidProgramException("Aggregating on field positions is only possible on tuple data types.");
@@ -90,10 +93,11 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 	 * @param function
 	 * @param field
 	 */
-	public AggregateOperator(Grouping<IN> input, Aggregations function, int field) {
+	public AggregateOperator(Grouping<IN> input, Aggregations function, int field, String aggregateLocationName) {
 		super(Validate.notNull(input).getDataSet(), input.getDataSet().getType());
-		
 		Validate.notNull(function);
+		
+		this.aggregateLocationName = aggregateLocationName;
 		
 		if (!input.getDataSet().getType().isTupleType()) {
 			throw new InvalidProgramException("Aggregating on field positions is only possible on tuple data types.");
@@ -157,7 +161,6 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 			throw new IllegalStateException();
 		}
 		
-		
 		// construct the aggregation function
 		AggregationFunction<Object>[] aggFunctions = new AggregationFunction[this.aggregationFunctions.size()];
 		int[] fields = new int[this.fields.size()];
@@ -169,6 +172,7 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 			
 			genName.append(aggFunctions[i].toString()).append('(').append(fields[i]).append(')').append(',');
 		}
+		genName.append(" at ").append(aggregateLocationName);
 		genName.setLength(genName.length()-1);
 		
 		

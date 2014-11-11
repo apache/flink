@@ -47,8 +47,12 @@ public class DistinctOperator<T> extends SingleInputOperator<T, T, DistinctOpera
 	
 	private final Keys<T> keys;
 	
-	public DistinctOperator(DataSet<T> input, Keys<T> keys) {
+	private final String distinctLocationName;
+	
+	public DistinctOperator(DataSet<T> input, Keys<T> keys, String distinctLocationName) {
 		super(input, input.getType());
+		
+		this.distinctLocationName = distinctLocationName;
 		
 		// if keys is null distinction is done on all tuple fields
 		if (keys == null) {
@@ -80,7 +84,7 @@ public class DistinctOperator<T> extends SingleInputOperator<T, T, DistinctOpera
 		
 		final RichGroupReduceFunction<T, T> function = new DistinctFunction<T>();
 
-		String name = function.getClass().getName();
+		String name = "Distinct at "+distinctLocationName;
 		
 		if (keys instanceof Keys.ExpressionKeys) {
 

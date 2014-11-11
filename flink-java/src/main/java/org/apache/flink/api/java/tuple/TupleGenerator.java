@@ -78,7 +78,13 @@ class TupleGenerator {
 	private static final int LAST = 25;
 
 	public static void main(String[] args) throws Exception {
-		File root = new File(ROOT_DIRECTORY);
+		System.err.println("Current directory "+System.getProperty("user.dir"));
+		String rootDir = ROOT_DIRECTORY;
+		if(args.length > 0) {
+			rootDir = args[0] + "/" + ROOT_DIRECTORY;
+		}
+		System.err.println("Using root directory: "+rootDir);
+		File root = new File(rootDir);
 
 		createTupleClasses(root);
 
@@ -478,7 +484,7 @@ class TupleGenerator {
 			// return
 			sb.append("\t\treturn new DataSource<Tuple" + numFields + "<");
 			appendTupleTypeGenerics(sb, numFields);
-			sb.append(">>(executionContext, inputFormat, types);\n");
+			sb.append(">>(executionContext, inputFormat, types, DataSet.getCallLocationName());\n");
 
 			// end of method
 			sb.append("\t}\n");
@@ -834,7 +840,7 @@ class TupleGenerator {
 	}
 
 	private static String HEADER =
-		"/**\n"
+		"/*\n"
 		+ " * Licensed to the Apache Software Foundation (ASF) under one\n"
 		+ " * or more contributor license agreements.  See the NOTICE file\n"
 		+ " * distributed with this work for additional information\n"

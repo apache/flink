@@ -35,6 +35,8 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 public class DataSource<OUT> extends Operator<OUT, DataSource<OUT>> {
 	
 	private final InputFormat<OUT, ?> inputFormat;
+	
+	private final String dataSourceLocationName;
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -45,8 +47,10 @@ public class DataSource<OUT> extends Operator<OUT, DataSource<OUT>> {
 	 * @param inputFormat The input format that the data source executes.
 	 * @param type The type of the elements produced by this input format.
 	 */
-	public DataSource(ExecutionEnvironment context, InputFormat<OUT, ?> inputFormat, TypeInformation<OUT> type) {
+	public DataSource(ExecutionEnvironment context, InputFormat<OUT, ?> inputFormat, TypeInformation<OUT> type, String dataSourceLocationName) {
 		super(context, type);
+		
+		this.dataSourceLocationName = dataSourceLocationName;
 		
 		if (inputFormat == null) {
 			throw new IllegalArgumentException("The input format may not be null.");
@@ -71,9 +75,9 @@ public class DataSource<OUT> extends Operator<OUT, DataSource<OUT>> {
 	// --------------------------------------------------------------------------------------------
 	
 	protected GenericDataSourceBase<OUT, ?> translateToDataFlow() {
-		String name = this.name != null ? this.name : this.inputFormat.toString();
-		if (name.length() > 100) {
-			name = name.substring(0, 100);
+		String name = this.name != null ? this.name : "at "+dataSourceLocationName+" ("+inputFormat.getClass().getName()+")";
+		if (name.length() > 150) {
+			name = name.substring(0, 150);
 		}
 		
 		@SuppressWarnings({ "unchecked", "rawtypes" })

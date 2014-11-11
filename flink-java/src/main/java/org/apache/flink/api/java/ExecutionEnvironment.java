@@ -207,7 +207,7 @@ public abstract class ExecutionEnvironment {
 	public DataSource<String> readTextFile(String filePath) {
 		Validate.notNull(filePath, "The file path may not be null.");
 		
-		return new DataSource<String>(this, new TextInputFormat(new Path(filePath)), BasicTypeInfo.STRING_TYPE_INFO );
+		return new DataSource<String>(this, new TextInputFormat(new Path(filePath)), BasicTypeInfo.STRING_TYPE_INFO, Utils.getCallLocationName());
 	}
 	
 	/**
@@ -223,7 +223,7 @@ public abstract class ExecutionEnvironment {
 
 		TextInputFormat format = new TextInputFormat(new Path(filePath));
 		format.setCharsetName(charsetName);
-		return new DataSource<String>(this, format, BasicTypeInfo.STRING_TYPE_INFO );
+		return new DataSource<String>(this, format, BasicTypeInfo.STRING_TYPE_INFO, Utils.getCallLocationName());
 	}
 	
 	// -------------------------- Text Input Format With String Value------------------------------
@@ -242,7 +242,7 @@ public abstract class ExecutionEnvironment {
 	public DataSource<StringValue> readTextFileWithValue(String filePath) {
 		Validate.notNull(filePath, "The file path may not be null.");
 		
-		return new DataSource<StringValue>(this, new TextValueInputFormat(new Path(filePath)), new ValueTypeInfo<StringValue>(StringValue.class) );
+		return new DataSource<StringValue>(this, new TextValueInputFormat(new Path(filePath)), new ValueTypeInfo<StringValue>(StringValue.class), Utils.getCallLocationName());
 	}
 	
 	/**
@@ -265,7 +265,7 @@ public abstract class ExecutionEnvironment {
 		TextValueInputFormat format = new TextValueInputFormat(new Path(filePath));
 		format.setCharsetName(charsetName);
 		format.setSkipInvalidLines(skipInvalidLines);
-		return new DataSource<StringValue>(this, format, new ValueTypeInfo<StringValue>(StringValue.class) );
+		return new DataSource<StringValue>(this, format, new ValueTypeInfo<StringValue>(StringValue.class), Utils.getCallLocationName());
 	}
 	
 	// ----------------------------------- CSV Input Format ---------------------------------------
@@ -357,7 +357,7 @@ public abstract class ExecutionEnvironment {
 			throw new IllegalArgumentException("Produced type information must not be null.");
 		}
 		
-		return new DataSource<X>(this, inputFormat, producedType);
+		return new DataSource<X>(this, inputFormat, producedType, Utils.getCallLocationName());
 	}
 	
 	// ----------------------------------- Collection ---------------------------------------
@@ -390,7 +390,9 @@ public abstract class ExecutionEnvironment {
 		
 		X firstValue = data.iterator().next();
 		
-		return fromCollection(data, TypeExtractor.getForObject(firstValue));
+		TypeInformation<X> type = TypeExtractor.getForObject(firstValue);
+		CollectionInputFormat.checkCollection(data, type.getTypeClass());
+		return new DataSource<X>(this, new CollectionInputFormat<X>(data, type.createSerializer()), type, Utils.getCallLocationName(4));
 	}
 	
 	/**
@@ -411,9 +413,13 @@ public abstract class ExecutionEnvironment {
 	 * @see #fromCollection(Collection)
 	 */
 	public <X> DataSource<X> fromCollection(Collection<X> data, TypeInformation<X> type) {
+		return fromCollection(data, type, Utils.getCallLocationName());
+	}
+	
+	private <X> DataSource<X> fromCollection(Collection<X> data, TypeInformation<X> type, String callLocationName) {
 		CollectionInputFormat.checkCollection(data, type.getTypeClass());
 		
-		return new DataSource<X>(this, new CollectionInputFormat<X>(data, type.createSerializer()), type);
+		return new DataSource<X>(this, new CollectionInputFormat<X>(data, type.createSerializer()), type, callLocationName);
 	}
 	
 	/**
@@ -462,7 +468,7 @@ public abstract class ExecutionEnvironment {
 			throw new IllegalArgumentException("The iterator must be serializable.");
 		}
 		
-		return new DataSource<X>(this, new IteratorInputFormat<X>(data), type);
+		return new DataSource<X>(this, new IteratorInputFormat<X>(data), type, Utils.getCallLocationName());
 	}
 	
 	
@@ -490,7 +496,7 @@ public abstract class ExecutionEnvironment {
 			throw new IllegalArgumentException("The number of elements must not be zero.");
 		}
 		
-		return fromCollection(Arrays.asList(data), TypeExtractor.getForObject(data[0]));
+		return fromCollection(Arrays.asList(data), TypeExtractor.getForObject(data[0]), Utils.getCallLocationName());
 	}
 	
 	
@@ -532,7 +538,12 @@ public abstract class ExecutionEnvironment {
 	 * @see #fromParallelCollection(SplittableIterator, Class)
 	 */
 	public <X> DataSource<X> fromParallelCollection(SplittableIterator<X> iterator, TypeInformation<X> type) {
-		return new DataSource<X>(this, new ParallelIteratorInputFormat<X>(iterator), type);
+		return fromParallelCollection(iterator, type, Utils.getCallLocationName(4));
+	}
+	
+	// private helper for passing different call location names
+	private <X> DataSource<X> fromParallelCollection(SplittableIterator<X> iterator, TypeInformation<X> type, String callLocationName) {
+		return new DataSource<X>(this, new ParallelIteratorInputFormat<X>(iterator), type, callLocationName);
 	}
 	
 	/**
@@ -544,7 +555,7 @@ public abstract class ExecutionEnvironment {
 	 * @return A DataSet, containing all number in the {@code [from, to]} interval.
 	 */
 	public DataSource<Long> generateSequence(long from, long to) {
-		return fromParallelCollection(new NumberSequenceIterator(from, to), BasicTypeInfo.LONG_TYPE_INFO);
+		return fromParallelCollection(new NumberSequenceIterator(from, to), BasicTypeInfo.LONG_TYPE_INFO, Utils.getCallLocationName(3));
 	}	
 	
 	// --------------------------------------------------------------------------------------------
