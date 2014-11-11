@@ -24,6 +24,7 @@ import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.typeinfo.NothingTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.types.Nothing;
 import org.apache.flink.api.java.DataSet;
 
@@ -39,7 +40,9 @@ public class DataSink<T> {
 	private String name;
 	
 	private int dop = -1;
-	
+
+	private Configuration parameters;
+
 	public DataSink(DataSet<T> data, OutputFormat<T> format, TypeInformation<T> type) {
 		if (format == null) {
 			throw new IllegalArgumentException("The output format must not be null.");
@@ -69,6 +72,22 @@ public class DataSink<T> {
 	public DataSet<T> getDataSet() {
 		return data;
 	}
+
+	/**
+	 * Pass a configuration to the OutputFormat
+	 * @param parameters Configuration parameters
+	 */
+	public DataSink<T> withParameters(Configuration parameters) {
+		this.parameters = parameters;
+		return this;
+	}
+
+	/**
+	 * @return Configuration for the OutputFormat.
+	 */
+	public Configuration getParameters() {
+		return this.parameters;
+	}
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -85,6 +104,10 @@ public class DataSink<T> {
 		GenericDataSinkBase<T> sink = new GenericDataSinkBase<T>(this.format, new UnaryOperatorInformation<T, Nothing>(this.type, new NothingTypeInfo()), name);
 		// set input
 		sink.setInput(input);
+		// set parameters
+		if(this.parameters != null) {
+			sink.getParameters().addAll(this.parameters);
+		}
 		// set dop
 		if(this.dop > 0) {
 			// use specified dop
