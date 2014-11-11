@@ -24,6 +24,7 @@ import org.apache.flink.api.common.operators.GenericDataSourceBase;
 import org.apache.flink.api.common.operators.OperatorInformation;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.configuration.Configuration;
 
 /**
  * An operation that creates a new data set (data source). The operation acts as the
@@ -35,6 +36,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 public class DataSource<OUT> extends Operator<OUT, DataSource<OUT>> {
 	
 	private final InputFormat<OUT, ?> inputFormat;
+	private Configuration parameters;
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -68,6 +70,22 @@ public class DataSource<OUT> extends Operator<OUT, DataSource<OUT>> {
 		return this.inputFormat;
 	}
 	
+	/**
+	 * Pass a configuration to the InputFormat
+	 * @param parameters Configuration parameters
+	 */
+	public DataSource<OUT> withParameters(Configuration parameters) {
+		this.parameters = parameters;
+		return this;
+	}
+	
+	/**
+	 * @return Configuration for the InputFormat.
+	 */
+	public Configuration getParameters() {
+		return this.parameters;
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	
 	protected GenericDataSourceBase<OUT, ?> translateToDataFlow() {
@@ -80,7 +98,9 @@ public class DataSource<OUT> extends Operator<OUT, DataSource<OUT>> {
 		GenericDataSourceBase<OUT, ?> source = new GenericDataSourceBase(this.inputFormat,
 				new OperatorInformation<OUT>(getType()), name);
 		source.setDegreeOfParallelism(dop);
-		
+		if(this.parameters != null) {
+			source.getParameters().addAll(this.parameters);
+		}
 		return source;
 	}
 }
