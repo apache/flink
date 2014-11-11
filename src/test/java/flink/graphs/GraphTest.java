@@ -58,7 +58,7 @@ public class GraphTest implements Serializable{
         DataSet<Tuple2<Integer, Integer>> vertices = env.fromCollection(Tuple2List);
         DataSet<Tuple3<Integer, Integer, Integer>> edges = env.fromCollection(edgeList);
 
-        graph = new Graph<Integer, Integer, Integer>(vertices, edges);
+        graph = new Graph<Integer, Integer, Integer>(vertices, edges, env);
     }
 
     @Test
@@ -82,7 +82,7 @@ public class GraphTest implements Serializable{
         DataSet<Tuple2<Integer, Integer>> vertices = env.fromCollection(Tuple2List);
         DataSet<Tuple3<Integer, Integer, Integer>> edges = env.fromCollection(edgeList);
 
-        Graph<Integer, Integer, Integer> g = Graph.create(vertices, edges);
+        Graph<Integer, Integer, Integer> g = Graph.create(vertices, edges, env);
 
         g.getVertices().print();
 
