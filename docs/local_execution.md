@@ -2,20 +2,22 @@
 title:  "Local Execution"
 ---
 
-## Local Execution/Debugging
+## Local Execution
 
 Flink can run on a single machine, even in a single Java Virtual Machine. This allows users to test and debug Flink programs locally. This section gives an overview of the local execution mechanisms.
 
-**NOTE:** Please also refer to the [debugging section](java_api_guide.html#debugging) in the Java API documentation for a guide to testing and local debugging utilities in the Java API.
+The local environments and executors allow you to run Flink programs in a local Java Virtual Machine, or with within any JVM as part of existing programs. Most examples can be launched locally by simply hitting the "Run" button of your IDE.
 
-The local environments and executors allow you to run Flink programs in local Java Virtual Machine, or with within any JVM as part of existing programs. Most examples can be launched locally by simply hitting the "Run" button of your IDE.
+
+There are two different kinds of local execution supported in Flink. The `LocalExecutionEnvironment` is starting the full Flink runtime, including a JobManager and a TaskManager. These include memory management and all the internal algorithms that are executed in the cluster mode.
+
+The `CollectionEnvironment` is executing the Flink program on Java collections. This mode will not start the full Flink runtime, so the execution is very low-overhead and lightweight. For example a `DataSet.map()`-transformation will be executed by applying the `map()` function to all elements in a Java list.
+
+
+## Debugging
 
 If you are running Flink programs locally, you can also debug your program like any other Java program. You can either use `System.out.println()` to write out some internal variables or you can use the debugger. It is possible to set breakpoints within `map()`, `reduce()` and all the other methods.
-
-The `JobExecutionResult` object, which is returned after the execution finished, contains the program runtime and the accumulator results.
-
-*Note:* The local execution environments do not start any web frontend to monitor the execution.
-
+Please also refer to the [debugging section](programming_guide.html#debugging) in the Java API documentation for a guide to testing and local debugging utilities in the Java API.
 
 ## Maven Dependency
 
@@ -51,56 +53,45 @@ public static void main(String[] args) throws Exception {
         })
         .writeAsText("file:///path/to/result");
 
-    env.execute();
+    JobExecutionResult res = env.execute();
 }
 ~~~
 
+The `JobExecutionResult` object, which is returned after the execution finished, contains the program runtime and the accumulator results.
 
-## Local Executor
+*Note:* The local execution environments do not start any web frontend to monitor the execution.
 
-The *LocalExecutor* is similar to the local environment, but it takes a *Plan* object, which describes the program as a single executable unit. The *LocalExecutor* is typically used with the Scala API. 
+## Collection Environment
 
-The following code shows how you would use the `LocalExecutor` with the Wordcount example for Scala Programs:
+The execution on Java Collections using the `CollectionEnvironment` is a low-overhead approach for executing Flink programs. Typical use-cases for this mode are automated tests, debugging and code re-use.
 
-~~~scala
-public static void main(String[] args) throws Exception {
-    val input = TextFile("hdfs://path/to/file")
+Users can use algorithms implemented for batch processing also for cases that are more interactive. A slightly changed variant of a Flink program could be used in a Java Application Server for processing incoming requests.
 
-    val words = input flatMap { _.toLowerCase().split("""\W+""") filter { _ != "" } }
-    val counts = words groupBy { x => x } count()
-
-    val output = counts.write(wordsOutput, CsvOutputFormat())
-  
-    val plan = new ScalaPlan(Seq(output), "Word Count")
-    LocalExecutor.executePlan(p);
-}
-~~~
-
-
-## LocalDistributedExecutor
-
-Flink also offers a `LocalDistributedExecutor` which starts multiple TaskManagers within one JVM. The standard `LocalExecutor` starts one JobManager and one TaskManager in one JVM.
-With the `LocalDistributedExecutor` you can define the number of TaskManagers to start. This is useful for debugging network related code and more of a developer tool than a user tool.
+**Skeleton for Collection-based execution**
 
 ~~~java
 public static void main(String[] args) throws Exception {
-    ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+    // initialize a new Collection-based execution environment
+    final ExecutionEnvironment env = new CollectionEnvironment();
+    
+    DataSet<User> users = env.fromCollection( /* get elements from a Java Collection */);
 
-    DataSet<String> data = env.readTextFile("hdfs://path/to/file");
+    /* Data Set transformations ... */
 
-    data
-        .filter(new FilterFunction<String>() {
-            public boolean filter(String value) {
-                return value.startsWith("http://");
-            }
-        })
-        .writeAsText("hdfs://path/to/result");
-
-    Plan p = env.createProgramPlan();
-    LocalDistributedExecutor lde = new LocalDistributedExecutor();
-    lde.startNephele(2); // start two TaskManagers
-    lde.run(p);
+    // retrieve the resulting Tuple2 elements into a ArrayList.
+    Collection<...> result = new ArrayList<...>();
+    resultDataSet.output(new LocalCollectionOutputFormat<...>(result));
+    
+    // kick off execution.
+    env.execute();
+    
+    // Do some work with the resulting ArrayList (=Collection).
+    for(... t : result) {
+        System.err.println("Result = "+t);
+    }
 }
 ~~~
 
+The `flink-java-examples` module contains a full example, called `CollectionExecutionExample`.
 
+Please note that the execution of the collection-based Flink programs is only possible on small data, which fits into the JVM heap. The execution on collections is not multi-threaded, only one thread is used.
