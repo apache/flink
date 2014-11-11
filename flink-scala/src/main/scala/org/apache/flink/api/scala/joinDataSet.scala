@@ -84,7 +84,8 @@ class JoinDataSet[L, R](
       rightKeys,
       joiner,
       implicitly[TypeInformation[O]],
-      defaultJoin.getJoinHint)
+      defaultJoin.getJoinHint,
+      getCallLocationName())
 
     wrap(joinOperator)
   }
@@ -108,7 +109,8 @@ class JoinDataSet[L, R](
       rightKeys,
       joiner,
       implicitly[TypeInformation[O]],
-      defaultJoin.getJoinHint)
+      defaultJoin.getJoinHint,
+      getCallLocationName())
 
     wrap(joinOperator)
   }
@@ -131,7 +133,8 @@ class JoinDataSet[L, R](
       rightKeys,
       joiner,
       implicitly[TypeInformation[O]],
-      defaultJoin.getJoinHint)
+      defaultJoin.getJoinHint,
+      getCallLocationName())
 
     wrap(joinOperator)
   }
@@ -155,7 +158,8 @@ class JoinDataSet[L, R](
       rightKeys,
       generatedFunction, fun,
       implicitly[TypeInformation[O]],
-      defaultJoin.getJoinHint)
+      defaultJoin.getJoinHint,
+      getCallLocationName())
 
     wrap(joinOperator)
   }
@@ -202,7 +206,8 @@ class UnfinishedJoinOperation[L, R](
       }
     }
     val joinOperator = new EquiJoin[L, R, (L, R)](
-      leftSet.javaSet, rightSet.javaSet, leftKey, rightKey, joiner, returnType, joinHint)
+      leftSet.javaSet, rightSet.javaSet, leftKey, rightKey, joiner, returnType, joinHint,
+        getCallLocationName())
 
     new JoinDataSet(joinOperator, leftSet, rightSet, leftKey, rightKey)
   }

@@ -244,7 +244,7 @@ public abstract class Operator<OUT> implements Visitable<Operator<?>> {
 		}
 
 		// Otherwise construct union cascade
-		Union<T> lastUnion = new Union<T>(new BinaryOperatorInformation<T, T, T>(type, type, type));
+		Union<T> lastUnion = new Union<T>(new BinaryOperatorInformation<T, T, T>(type, type, type), "<unknown>");
 
 		int i;
 		if (input2[0] == null) {
@@ -263,7 +263,7 @@ public abstract class Operator<OUT> implements Visitable<Operator<?>> {
 			i = 2;
 		}
 		for (; i < input2.length; i++) {
-			Union<T> tmpUnion = new Union<T>(new BinaryOperatorInformation<T, T, T>(type, type, type));
+			Union<T> tmpUnion = new Union<T>(new BinaryOperatorInformation<T, T, T>(type, type, type), "<unknown>");
 			tmpUnion.setSecondInput(lastUnion);
 			if (input2[i] == null) {
 				throw new IllegalArgumentException("The input may not contain null elements.");

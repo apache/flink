@@ -36,17 +36,20 @@ public class FlatMapOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT, Fl
 	
 	protected final FlatMapFunction<IN, OUT> function;
 	
-	public FlatMapOperator(DataSet<IN> input, TypeInformation<OUT> resultType, FlatMapFunction<IN, OUT> function) {
+	protected final String defaultName;
+	
+	public FlatMapOperator(DataSet<IN> input, TypeInformation<OUT> resultType, FlatMapFunction<IN, OUT> function, String defaultName) {
 		super(input, resultType);
 		
 		this.function = function;
+		this.defaultName = defaultName;
 		extractSemanticAnnotationsFromUdf(function.getClass());
 	}
 	
 	@Override
 	protected org.apache.flink.api.common.operators.base.FlatMapOperatorBase<IN, OUT, FlatMapFunction<IN,OUT>> translateToDataFlow(Operator<IN> input) {
 		
-		String name = getName() != null ? getName() : function.getClass().getName();
+		String name = getName() != null ? getName() : "FlatMap at "+defaultName;
 		// create operator
 		FlatMapOperatorBase<IN, OUT, FlatMapFunction<IN, OUT>> po = new FlatMapOperatorBase<IN, OUT, FlatMapFunction<IN, OUT>>(function, new UnaryOperatorInformation<IN, OUT>(getInputType(), getResultType()), name);
 		// set input

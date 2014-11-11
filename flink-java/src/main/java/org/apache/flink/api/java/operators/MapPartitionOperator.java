@@ -38,17 +38,20 @@ public class MapPartitionOperator<IN, OUT> extends SingleInputUdfOperator<IN, OU
 	
 	protected final MapPartitionFunction<IN, OUT> function;
 	
-	public MapPartitionOperator(DataSet<IN> input, TypeInformation<OUT> resultType, MapPartitionFunction<IN, OUT> function) {
+	protected final String defaultName;
+	
+	public MapPartitionOperator(DataSet<IN> input, TypeInformation<OUT> resultType, MapPartitionFunction<IN, OUT> function, String defaultName) {
 		super(input, resultType);
 		
 		this.function = function;
+		this.defaultName = defaultName;
 		extractSemanticAnnotationsFromUdf(function.getClass());
 	}
 	
 	@Override
 	protected MapPartitionOperatorBase<IN, OUT, MapPartitionFunction<IN, OUT>> translateToDataFlow(Operator<IN> input) {
 		
-		String name = getName() != null ? getName() : function.getClass().getName();
+		String name = getName() != null ? getName() : "MapPartition at "+defaultName;
 		// create operator
 		MapPartitionOperatorBase<IN, OUT, MapPartitionFunction<IN, OUT>> po = new MapPartitionOperatorBase<IN, OUT, MapPartitionFunction<IN, OUT>>(function, new UnaryOperatorInformation<IN, OUT>(getInputType(), getResultType()), name);
 		// set input

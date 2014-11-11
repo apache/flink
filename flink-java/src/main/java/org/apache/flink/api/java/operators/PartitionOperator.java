@@ -41,9 +41,11 @@ public class PartitionOperator<T> extends SingleInputUdfOperator<T, T, Partition
 	
 	private final Keys<T> pKeys;
 	private final PartitionMethod pMethod;
+	private final String partitionLocationName;
 	
-	public PartitionOperator(DataSet<T> input, PartitionMethod pMethod, Keys<T> pKeys) {
+	public PartitionOperator(DataSet<T> input, PartitionMethod pMethod, Keys<T> pKeys, String partitionLocationName) {
 		super(input, input.getType());
+		this.partitionLocationName = partitionLocationName;
 
 		if(pMethod == PartitionMethod.HASH && pKeys == null) {
 			throw new IllegalArgumentException("Hash Partitioning requires keys");
@@ -59,8 +61,8 @@ public class PartitionOperator<T> extends SingleInputUdfOperator<T, T, Partition
 		this.pKeys = pKeys;
 	}
 	
-	public PartitionOperator(DataSet<T> input, PartitionMethod pMethod) {
-		this(input, pMethod, null);
+	public PartitionOperator(DataSet<T> input, PartitionMethod pMethod, String partitionLocationName) {
+		this(input, pMethod, null, partitionLocationName);
 	}
 	
 	/*
@@ -68,7 +70,7 @@ public class PartitionOperator<T> extends SingleInputUdfOperator<T, T, Partition
 	 */
 	protected org.apache.flink.api.common.operators.SingleInputOperator<?, T, ?> translateToDataFlow(Operator<T> input) {
 	
-		String name = "Partition";
+		String name = "Partition at "+partitionLocationName;
 		
 		// distinguish between partition types
 		if (pMethod == PartitionMethod.REBALANCE) {

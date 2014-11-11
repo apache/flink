@@ -148,7 +148,7 @@ public abstract class DataSet<T> {
 
 		TypeInformation<R> resultType = TypeExtractor.getMapReturnTypes(mapper, this.getType());
 
-		return new MapOperator<T, R>(this, resultType, mapper);
+		return new MapOperator<T, R>(this, resultType, mapper, Utils.getCallLocationName());
 	}
 
 
@@ -176,7 +176,7 @@ public abstract class DataSet<T> {
 			throw new NullPointerException("MapPartition function must not be null.");
 		}
 		TypeInformation<R> resultType = TypeExtractor.getMapPartitionReturnTypes(mapPartition, this.getType());
-		return new MapPartitionOperator<T, R>(this, resultType, mapPartition);
+		return new MapPartitionOperator<T, R>(this, resultType, mapPartition, Utils.getCallLocationName());
 	}
 	
 	/**
@@ -197,7 +197,7 @@ public abstract class DataSet<T> {
 		}
 
 		TypeInformation<R> resultType = TypeExtractor.getFlatMapReturnTypes(flatMapper, this.getType());
-		return new FlatMapOperator<T, R>(this, resultType, flatMapper);
+		return new FlatMapOperator<T, R>(this, resultType, flatMapper, Utils.getCallLocationName());
 	}
 	
 	/**
@@ -217,7 +217,7 @@ public abstract class DataSet<T> {
 		if (filter == null) {
 			throw new NullPointerException("Filter function must not be null.");
 		}
-		return new FilterOperator<T>(this, filter);
+		return new FilterOperator<T>(this, filter, Utils.getCallLocationName());
 	}
 
 	
@@ -267,7 +267,7 @@ public abstract class DataSet<T> {
 	 * @see DataSet
 	 */
 	public AggregateOperator<T> aggregate(Aggregations agg, int field) {
-		return new AggregateOperator<T>(this, agg, field);
+		return new AggregateOperator<T>(this, agg, field, Utils.getCallLocationName());
 	}
 
 	/**
@@ -320,7 +320,7 @@ public abstract class DataSet<T> {
 		if (reducer == null) {
 			throw new NullPointerException("Reduce function must not be null.");
 		}
-		return new ReduceOperator<T>(this, reducer);
+		return new ReduceOperator<T>(this, reducer, Utils.getCallLocationName());
 	}
 	
 	/**
@@ -341,7 +341,7 @@ public abstract class DataSet<T> {
 			throw new NullPointerException("GroupReduce function must not be null.");
 		}
 		TypeInformation<R> resultType = TypeExtractor.getGroupReduceReturnTypes(reducer, this.getType());
-		return new GroupReduceOperator<T, R>(this, resultType, reducer);
+		return new GroupReduceOperator<T, R>(this, resultType, reducer, Utils.getCallLocationName());
 	}
 
 /**
@@ -362,7 +362,7 @@ public abstract class DataSet<T> {
 		}
 			
 		return new ReduceOperator<T>(this, new SelectByMinFunction(
-				(TupleTypeInfo) this.type, fields));
+				(TupleTypeInfo) this.type, fields), Utils.getCallLocationName());
 	}
 	
 	/**
@@ -383,7 +383,7 @@ public abstract class DataSet<T> {
 		}
 			
 		return new ReduceOperator<T>(this, new SelectByMaxFunction(
-				(TupleTypeInfo) this.type, fields));
+				(TupleTypeInfo) this.type, fields), Utils.getCallLocationName());
 	}
 
 	/**
@@ -415,7 +415,7 @@ public abstract class DataSet<T> {
 	 */
 	public <K> DistinctOperator<T> distinct(KeySelector<T, K> keyExtractor) {
 		TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keyExtractor, type);
-		return new DistinctOperator<T>(this, new Keys.SelectorFunctionKeys<T, K>(keyExtractor, getType(), keyType));
+		return new DistinctOperator<T>(this, new Keys.SelectorFunctionKeys<T, K>(keyExtractor, getType(), keyType), Utils.getCallLocationName());
 	}
 	
 	/**
@@ -430,7 +430,7 @@ public abstract class DataSet<T> {
 	 * @return A DistinctOperator that represents the distinct DataSet.
 	 */
 	public DistinctOperator<T> distinct(int... fields) {
-		return new DistinctOperator<T>(this, new Keys.ExpressionKeys<T>(fields, getType(), true));
+		return new DistinctOperator<T>(this, new Keys.ExpressionKeys<T>(fields, getType(), true), Utils.getCallLocationName());
 	}
 	
 	/**
@@ -444,7 +444,7 @@ public abstract class DataSet<T> {
 	 * @return A DistinctOperator that represents the distinct DataSet.
 	 */
 	public DistinctOperator<T> distinct(String... fields) {
-		return new DistinctOperator<T>(this, new Keys.ExpressionKeys<T>(fields, getType()));
+		return new DistinctOperator<T>(this, new Keys.ExpressionKeys<T>(fields, getType()), Utils.getCallLocationName());
 	}
 	
 	/**
@@ -455,7 +455,7 @@ public abstract class DataSet<T> {
 	 * @return A DistinctOperator that represents the distinct DataSet.
 	 */
 	public DistinctOperator<T> distinct() {
-		return new DistinctOperator<T>(this, null);
+		return new DistinctOperator<T>(this, null, Utils.getCallLocationName());
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -698,7 +698,7 @@ public abstract class DataSet<T> {
 	 * @see Tuple2
 	 */
 	public <R> CrossOperator.DefaultCross<T, R> cross(DataSet<R> other) {
-		return new CrossOperator.DefaultCross<T, R>(this, other);
+		return new CrossOperator.DefaultCross<T, R>(this, other, Utils.getCallLocationName());
 	}
 	
 	/**
@@ -728,7 +728,7 @@ public abstract class DataSet<T> {
 	 * @see Tuple2
 	 */
 	public <R> CrossOperator.DefaultCross<T, R> crossWithTiny(DataSet<R> other) {
-		return new CrossOperator.DefaultCross<T, R>(this, other);
+		return new CrossOperator.DefaultCross<T, R>(this, other, Utils.getCallLocationName());
 	}
 	
 	/**
@@ -758,7 +758,7 @@ public abstract class DataSet<T> {
 	 * @see Tuple2
 	 */
 	public <R> CrossOperator.DefaultCross<T, R> crossWithHuge(DataSet<R> other) {
-		return new CrossOperator.DefaultCross<T, R>(this, other);
+		return new CrossOperator.DefaultCross<T, R>(this, other, Utils.getCallLocationName());
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -879,7 +879,7 @@ public abstract class DataSet<T> {
 	 * @return The resulting DataSet.
 	 */
 	public UnionOperator<T> union(DataSet<T> other){
-		return new UnionOperator<T>(this, other);
+		return new UnionOperator<T>(this, other, Utils.getCallLocationName());
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -895,7 +895,7 @@ public abstract class DataSet<T> {
 	 * @return The partitioned DataSet.
 	 */
 	public PartitionOperator<T> partitionByHash(int... fields) {
-		return new PartitionOperator<T>(this, PartitionMethod.HASH, new Keys.ExpressionKeys<T>(fields, getType(), false));
+		return new PartitionOperator<T>(this, PartitionMethod.HASH, new Keys.ExpressionKeys<T>(fields, getType(), false), Utils.getCallLocationName());
 	}
 	
 	/**
@@ -907,7 +907,7 @@ public abstract class DataSet<T> {
 	 * @return The partitioned DataSet.
 	 */
 	public PartitionOperator<T> partitionByHash(String... fields) {
-		return new PartitionOperator<T>(this, PartitionMethod.HASH, new Keys.ExpressionKeys<T>(fields, getType()));
+		return new PartitionOperator<T>(this, PartitionMethod.HASH, new Keys.ExpressionKeys<T>(fields, getType()), Utils.getCallLocationName());
 	}
 	
 	/**
@@ -922,7 +922,7 @@ public abstract class DataSet<T> {
 	 */
 	public <K extends Comparable<K>> PartitionOperator<T> partitionByHash(KeySelector<T, K> keyExtractor) {
 		final TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keyExtractor, type);
-		return new PartitionOperator<T>(this, PartitionMethod.HASH, new Keys.SelectorFunctionKeys<T, K>(keyExtractor, this.getType(), keyType));
+		return new PartitionOperator<T>(this, PartitionMethod.HASH, new Keys.SelectorFunctionKeys<T, K>(keyExtractor, this.getType(), keyType), Utils.getCallLocationName());
 	}
 	
 	/**
@@ -934,7 +934,7 @@ public abstract class DataSet<T> {
 	 * @return The rebalanced DataSet.
 	 */
 	public PartitionOperator<T> rebalance() {
-		return new PartitionOperator<T>(this, PartitionMethod.REBALANCE);
+		return new PartitionOperator<T>(this, PartitionMethod.REBALANCE, Utils.getCallLocationName());
 	}
 		
 	// --------------------------------------------------------------------------------------------
@@ -1174,4 +1174,5 @@ public abstract class DataSet<T> {
 			throw new IllegalArgumentException("The two inputs have different execution contexts.");
 		}
 	}
+
 }

@@ -37,11 +37,13 @@ import org.apache.flink.api.java.DataSet;
 public class MapOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT, MapOperator<IN, OUT>> {
 	
 	protected final MapFunction<IN, OUT> function;
+	
+	protected final String defaultName;
 
-	public MapOperator(DataSet<IN> input, TypeInformation<OUT> resultType, MapFunction<IN, OUT> function) {
-
+	public MapOperator(DataSet<IN> input, TypeInformation<OUT> resultType, MapFunction<IN, OUT> function, String defaultName) {
 		super(input, resultType);
 		
+		this.defaultName = defaultName;
 		this.function = function;
 		extractSemanticAnnotationsFromUdf(function.getClass());
 	}
@@ -49,7 +51,7 @@ public class MapOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT, MapOpe
 	@Override
 	protected org.apache.flink.api.common.operators.base.MapOperatorBase<IN, OUT, MapFunction<IN, OUT>> translateToDataFlow(Operator<IN> input) {
 		
-		String name = getName() != null ? getName() : function.getClass().getName();
+		String name = getName() != null ? getName() : "Map at "+defaultName;
 		// create operator
 		MapOperatorBase<IN, OUT, MapFunction<IN, OUT>> po = new MapOperatorBase<IN, OUT, MapFunction<IN, OUT>>(function, new UnaryOperatorInformation<IN, OUT>(getInputType(), getResultType()), name);
 		// set input

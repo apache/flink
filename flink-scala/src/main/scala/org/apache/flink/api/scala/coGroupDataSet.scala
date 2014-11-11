@@ -83,7 +83,8 @@ class CoGroupDataSet[L, R](
       leftKeys,
       rightKeys,
       coGrouper,
-      implicitly[TypeInformation[O]])
+      implicitly[TypeInformation[O]],
+      getCallLocationName())
 
     wrap(coGroupOperator)
   }
@@ -107,7 +108,8 @@ class CoGroupDataSet[L, R](
       leftKeys,
       rightKeys,
       coGrouper,
-      implicitly[TypeInformation[O]])
+      implicitly[TypeInformation[O]],
+      getCallLocationName())
 
     wrap(coGroupOperator)
   }
@@ -128,7 +130,8 @@ class CoGroupDataSet[L, R](
       leftKeys,
       rightKeys,
       coGrouper,
-      implicitly[TypeInformation[O]])
+      implicitly[TypeInformation[O]],
+      getCallLocationName())
 
     wrap(coGroupOperator)
   }
@@ -190,7 +193,8 @@ class UnfinishedCoGroupOperation[L: ClassTag, R: ClassTag](
       }
     }
     val coGroupOperator = new CoGroupOperator[L, R, (Array[L], Array[R])](
-      leftInput.javaSet, rightInput.javaSet, leftKey, rightKey, coGrouper, returnType)
+      leftInput.javaSet, rightInput.javaSet, leftKey, rightKey, coGrouper, returnType,
+      getCallLocationName())
 
     new CoGroupDataSet(coGroupOperator, leftInput, rightInput, leftKey, rightKey)
   }

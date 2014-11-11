@@ -28,6 +28,7 @@ import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.base.CrossOperatorBase;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.SemanticPropUtil;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
@@ -48,14 +49,17 @@ import org.apache.flink.api.java.tuple.*;
 public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT, CrossOperator<I1, I2, OUT>> {
 
 	private final CrossFunction<I1, I2, OUT> function;
+	private final String defaultName;
 
 	public CrossOperator(DataSet<I1> input1, DataSet<I2> input2,
 							CrossFunction<I1, I2, OUT> function,
-							TypeInformation<OUT> returnType)
+							TypeInformation<OUT> returnType,
+							String defaultName)
 	{
 		super(input1, input2, returnType);
 
 		this.function = function;
+		this.defaultName = defaultName;
 
 		if (!(function instanceof ProjectCrossFunction)) {
 			extractSemanticAnnotationsFromUdf(function.getClass());
@@ -72,7 +76,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 	@Override
 	protected org.apache.flink.api.common.operators.base.CrossOperatorBase<I1, I2, OUT, CrossFunction<I1,I2,OUT>> translateToDataFlow(Operator<I1> input1, Operator<I2> input2) {
 		
-		String name = getName() != null ? getName() : function.getClass().getName();
+		String name = getName() != null ? getName() : "Cross at "+defaultName;
 		// create operator
 		CrossOperatorBase<I1, I2, OUT, CrossFunction<I1, I2, OUT>> po =
 				new CrossOperatorBase<I1, I2, OUT, CrossFunction<I1, I2, OUT>>(function, new BinaryOperatorInformation<I1, I2, OUT>(getInput1Type(), getInput2Type(), getResultType()), name);
@@ -106,9 +110,9 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		private final DataSet<I1> input1;
 		private final DataSet<I2> input2;
 
-		public DefaultCross(DataSet<I1> input1, DataSet<I2> input2) {
+		public DefaultCross(DataSet<I1> input1, DataSet<I2> input2, String defaultName) {
 			super(input1, input2, (CrossFunction<I1, I2, Tuple2<I1, I2>>) new DefaultCrossFunction<I1, I2>(),
-					new TupleTypeInfo<Tuple2<I1, I2>>(input1.getType(), input2.getType()));
+					new TupleTypeInfo<Tuple2<I1, I2>>(input1.getType(), input2.getType()), defaultName);
 
 			if (input1 == null || input2 == null) {
 				throw new NullPointerException();
@@ -133,7 +137,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 				throw new NullPointerException("Cross function must not be null.");
 			}
 			TypeInformation<R> returnType = TypeExtractor.getCrossReturnTypes(function, input1.getType(), input2.getType());
-			return new CrossOperator<I1, I2, R>(input1, input2, function, returnType);
+			return new CrossOperator<I1, I2, R>(input1, input2, function, returnType, Utils.getCallLocationName());
 		}
 
 
@@ -207,7 +211,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 
 		protected ProjectCross(DataSet<I1> input1, DataSet<I2> input2, int[] fields, boolean[] isFromFirst, TupleTypeInfo<OUT> returnType) {
 			super(input1, input2,
-				new ProjectCrossFunction<I1, I2, OUT>(fields, isFromFirst, returnType.createSerializer().createInstance()), returnType);
+				new ProjectCrossFunction<I1, I2, OUT>(fields, isFromFirst, returnType.createSerializer().createInstance()), returnType, "<unknown>");
 		}
 
 		@Override

@@ -46,6 +46,8 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 	
 	private final Grouping<IN> grouper;
 	
+	private final String defaultName;
+	
 	/**
 	 * 
 	 * This is the case for a reduce-all case (in contrast to the reduce-per-group case).
@@ -53,21 +55,23 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 	 * @param input
 	 * @param function
 	 */
-	public ReduceOperator(DataSet<IN> input, ReduceFunction<IN> function) {
+	public ReduceOperator(DataSet<IN> input, ReduceFunction<IN> function, String defaultName) {
 		super(input, input.getType());
 		
 		this.function = function;
 		this.grouper = null;
+		this.defaultName = defaultName;
 		
 		extractSemanticAnnotationsFromUdf(function.getClass());
 	}
 	
 	
-	public ReduceOperator(Grouping<IN> input, ReduceFunction<IN> function) {
+	public ReduceOperator(Grouping<IN> input, ReduceFunction<IN> function, String defaultName) {
 		super(input.getDataSet(), input.getDataSet().getType());
 		
 		this.function = function;
 		this.grouper = input;
+		this.defaultName = defaultName;
 		
 		extractSemanticAnnotationsFromUdf(function.getClass());
 	}
@@ -75,7 +79,7 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 	@Override
 	protected org.apache.flink.api.common.operators.SingleInputOperator<?, IN, ?> translateToDataFlow(Operator<IN> input) {
 		
-		String name = getName() != null ? getName() : function.getClass().getName();
+		String name = getName() != null ? getName() : "Reduce at "+defaultName;
 		
 		// distinguish between grouped reduce and non-grouped reduce
 		if (grouper == null) {

@@ -47,6 +47,8 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 	private final GroupReduceFunction<IN, OUT> function;
 
 	private final Grouping<IN> grouper;
+	
+	private final String defaultName;
 
 	private boolean combinable;
 
@@ -56,11 +58,12 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 	 * @param input The input data set to the groupReduce function.
 	 * @param function The user-defined GroupReduce function.
 	 */
-	public GroupReduceOperator(DataSet<IN> input, TypeInformation<OUT> resultType, GroupReduceFunction<IN, OUT> function) {
+	public GroupReduceOperator(DataSet<IN> input, TypeInformation<OUT> resultType, GroupReduceFunction<IN, OUT> function, String defaultName) {
 		super(input, resultType);
 		
 		this.function = function;
 		this.grouper = null;
+		this.defaultName = defaultName;
 
 		checkCombinability();
 	}
@@ -71,11 +74,12 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 	 * @param input The grouped input to be processed group-wise by the groupReduce function.
 	 * @param function The user-defined GroupReduce function.
 	 */
-	public GroupReduceOperator(Grouping<IN> input, TypeInformation<OUT> resultType, GroupReduceFunction<IN, OUT> function) {
+	public GroupReduceOperator(Grouping<IN> input, TypeInformation<OUT> resultType, GroupReduceFunction<IN, OUT> function, String defaultName) {
 		super(input != null ? input.getDataSet() : null, resultType);
 		
 		this.function = function;
 		this.grouper = input;
+		this.defaultName = defaultName;
 
 		checkCombinability();
 
@@ -110,7 +114,7 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 	@Override
 	protected org.apache.flink.api.common.operators.base.GroupReduceOperatorBase<?, OUT, ?> translateToDataFlow(Operator<IN> input) {
 
-		String name = getName() != null ? getName() : function.getClass().getName();
+		String name = getName() != null ? getName() : "GroupReduce at "+defaultName;
 		
 		// distinguish between grouped reduce and non-grouped reduce
 		if (grouper == null) {

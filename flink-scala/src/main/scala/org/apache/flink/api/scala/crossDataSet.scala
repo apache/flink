@@ -67,7 +67,8 @@ class CrossDataSet[L, R](
       leftInput.javaSet,
       rightInput.javaSet,
       crosser,
-      implicitly[TypeInformation[O]])
+      implicitly[TypeInformation[O]],
+      getCallLocationName())
     wrap(crossOperator)
   }
 
@@ -85,7 +86,8 @@ class CrossDataSet[L, R](
       leftInput.javaSet,
       rightInput.javaSet,
       crosser,
-      implicitly[TypeInformation[O]])
+      implicitly[TypeInformation[O]],
+      getCallLocationName())
     wrap(crossOperator)
   }
 }
@@ -121,7 +123,8 @@ private[flink] object CrossDataSet {
       leftInput.javaSet,
       rightInput.javaSet,
       crosser,
-      returnType)
+      returnType,
+      getCallLocationName())
 
     new CrossDataSet(crossOperator, leftInput, rightInput)
   }

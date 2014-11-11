@@ -21,7 +21,6 @@ package org.apache.flink.api.java.operators;
 
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.Union;
-
 import org.apache.flink.api.java.DataSet;
 
 /**
@@ -31,14 +30,17 @@ import org.apache.flink.api.java.DataSet;
  */
 public class UnionOperator<T> extends TwoInputOperator<T, T, T, UnionOperator<T>> {
 
+	private final String unionLocationName;
 	/**
 	 * Create an operator that produces the union of the two given data sets.
 	 * 
 	 * @param input1 The first data set to be unioned.
 	 * @param input2 The second data set to be unioned.
 	 */
-	public UnionOperator(DataSet<T> input1, DataSet<T> input2) {
+	public UnionOperator(DataSet<T> input1, DataSet<T> input2, String unionLocationName) {
 		super(input1, input2, input1.getType());
+		
+		this.unionLocationName = unionLocationName;
 	}
 	
 	/**
@@ -50,6 +52,6 @@ public class UnionOperator<T> extends TwoInputOperator<T, T, T, UnionOperator<T>
 	 */
 	@Override
 	protected Union<T> translateToDataFlow(Operator<T> input1, Operator<T> input2) {
-		return new Union<T>(input1, input2);
+		return new Union<T>(input1, input2, unionLocationName);
 	}
 }

@@ -24,6 +24,7 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.aggregation.Aggregations;
 import org.apache.flink.api.java.functions.FirstReducer;
 import org.apache.flink.api.java.functions.SelectByMaxFunction;
@@ -58,7 +59,12 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	 * @see DataSet
 	 */
 	public AggregateOperator<T> aggregate(Aggregations agg, int field) {
-		return new AggregateOperator<T>(this, agg, field);
+		return aggregate(agg, field, Utils.getCallLocationName());
+	}
+	
+	// private helper that allows to set a different call location name
+	private AggregateOperator<T> aggregate(Aggregations agg, int field, String callLocationName) {
+		return new AggregateOperator<T>(this, agg, field, callLocationName);
 	}
 
 	/**
@@ -69,7 +75,7 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	 * @see org.apache.flink.api.java.operators.AggregateOperator
 	 */
 	public AggregateOperator<T> sum (int field) {
-		return this.aggregate (Aggregations.SUM, field);
+		return this.aggregate (Aggregations.SUM, field, Utils.getCallLocationName());
 	}
 
 	/**
@@ -80,7 +86,7 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	 * @see org.apache.flink.api.java.operators.AggregateOperator
 	 */
 	public AggregateOperator<T> max (int field) {
-		return this.aggregate (Aggregations.MAX, field);
+		return this.aggregate (Aggregations.MAX, field, Utils.getCallLocationName());
 	}
 
 	/**
@@ -91,7 +97,7 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	 * @see org.apache.flink.api.java.operators.AggregateOperator
 	 */
 	public AggregateOperator<T> min (int field) {
-		return this.aggregate (Aggregations.MIN, field);
+		return this.aggregate (Aggregations.MIN, field, Utils.getCallLocationName());
 	}
 	
 	/**
@@ -111,7 +117,7 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 		if (reducer == null) {
 			throw new NullPointerException("Reduce function must not be null.");
 		}
-		return new ReduceOperator<T>(this, reducer);
+		return new ReduceOperator<T>(this, reducer, Utils.getCallLocationName());
 	}
 	
 	/**
@@ -133,7 +139,7 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 		}
 		TypeInformation<R> resultType = TypeExtractor.getGroupReduceReturnTypes(reducer, this.getDataSet().getType());
 
-		return new GroupReduceOperator<T, R>(this, resultType, reducer);
+		return new GroupReduceOperator<T, R>(this, resultType, reducer, Utils.getCallLocationName());
 	}
 	
 	/**
@@ -167,7 +173,7 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 		}
 			
 		return new ReduceOperator<T>(this, new SelectByMinFunction(
-				(TupleTypeInfo) this.dataSet.getType(), fields));
+				(TupleTypeInfo) this.dataSet.getType(), fields), Utils.getCallLocationName());
 	}
 	
 	/**
@@ -188,7 +194,7 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 		}
 			
 		return new ReduceOperator<T>(this, new SelectByMaxFunction(
-				(TupleTypeInfo) this.dataSet.getType(), fields));
+				(TupleTypeInfo) this.dataSet.getType(), fields), Utils.getCallLocationName());
 	}
 	// --------------------------------------------------------------------------------------------
 	//  Group Operations

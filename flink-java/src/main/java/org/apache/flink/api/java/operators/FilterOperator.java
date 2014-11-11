@@ -33,18 +33,22 @@ import org.apache.flink.api.java.DataSet;
 public class FilterOperator<T> extends SingleInputUdfOperator<T, T, FilterOperator<T>> {
 	
 	protected final FilterFunction<T> function;
+	
+	protected final String defaultName;
 
-	public FilterOperator(DataSet<T> input, FilterFunction<T> function) {
+	public FilterOperator(DataSet<T> input, FilterFunction<T> function, String defaultName) {
 		super(input, input.getType());
 		
 		this.function = function;
+		this.defaultName = defaultName;
 		extractSemanticAnnotationsFromUdf(function.getClass());
 	}
 	
 	@Override
 	protected org.apache.flink.api.common.operators.base.FilterOperatorBase<T, FlatMapFunction<T,T>> translateToDataFlow(Operator<T> input) {
-
-		String name = getName() != null ? getName() : function.getClass().getName();
+		
+		String name = getName() != null ? getName() : "Filter at "+defaultName;
+		
 		// create operator
 		PlanFilterOperator<T> po = new PlanFilterOperator<T>(function, name, getInputType());
 		// set input
