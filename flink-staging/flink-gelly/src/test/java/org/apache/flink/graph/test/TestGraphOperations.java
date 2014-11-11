@@ -75,7 +75,7 @@ public class TestGraphOperations extends JavaProgramTestBase {
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				
 				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
-						TestGraphUtils.getLongLongEdgeData(env));
+						TestGraphUtils.getLongLongEdgeData(env), env);
 								
 				graph.getUndirected().getEdges().writeAsCsv(resultPath);
 				env.execute();
@@ -94,7 +94,7 @@ public class TestGraphOperations extends JavaProgramTestBase {
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				
 				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
-						TestGraphUtils.getLongLongEdgeData(env));
+						TestGraphUtils.getLongLongEdgeData(env), env);
 								
 				graph.reverse().getEdges().writeAsCsv(resultPath);
 				env.execute();
@@ -113,7 +113,7 @@ public class TestGraphOperations extends JavaProgramTestBase {
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				
 				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
-						TestGraphUtils.getLongLongEdgeData(env));
+						TestGraphUtils.getLongLongEdgeData(env), env);
 								
 				graph.outDegrees().writeAsCsv(resultPath);
 				env.execute();
@@ -130,7 +130,7 @@ public class TestGraphOperations extends JavaProgramTestBase {
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				
 				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
-						TestGraphUtils.getLongLongEdgeData(env));
+						TestGraphUtils.getLongLongEdgeData(env), env);
 				
 				DataSet<Tuple2<Long, Long>> mappedVertices = graph.mapVertices(new MapFunction<Long, Long>() {
 					public Long map(Long value) throws Exception {
@@ -273,7 +273,7 @@ public class TestGraphOperations extends JavaProgramTestBase {
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				
 				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
-						TestGraphUtils.getLongLongEdgeData(env));
+						TestGraphUtils.getLongLongEdgeData(env), env);
 				graph.subgraph(new FilterFunction<Long>() {
 					public boolean filter(Long value) throws Exception {
 						return (value > 2);
