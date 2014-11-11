@@ -18,7 +18,6 @@
 
 package flink.graphs;
 
-
 import org.apache.flink.api.common.functions.*;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFields;
@@ -347,19 +346,19 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
     /**
      * @return Singleton DataSet containing the vertex count
      */
-    public DataSet<Integer> numberOfVertices () {
+    @SuppressWarnings("unchecked")
+	public DataSet<Integer> numberOfVertices () {
         return GraphUtils.count((DataSet<Object>) (DataSet<?>) vertices);
-
     }
 
     /**
      *
      * @return Singleton DataSet containing the edge count
      */
-    public DataSet<Integer> numberOfEdges () {
+    @SuppressWarnings("unchecked")
+	public DataSet<Integer> numberOfEdges () {
         return GraphUtils.count((DataSet<Object>) (DataSet<?>) edges);
     }
-
 
     /**
      *
@@ -383,7 +382,8 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
         });
     }
 
-    public DataSet<Boolean> isWeaklyConnected () {
+    @SuppressWarnings("unchecked")
+	public DataSet<Boolean> isWeaklyConnected () {
 
         DataSet<K> vertexIds = this.getVertexIds();
         DataSet<Tuple2<K,K>> verticesWithInitialIds = vertexIds
@@ -451,6 +451,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
         return this.union(newVertex);
     }
 
+    @SuppressWarnings("unchecked")
     public Graph<K, VV, EV> removeVertex (Tuple2<K,VV> vertex) {
 
         DataSet<Tuple2<K,VV>> vertexToRemove = fromCollection(Arrays.asList(vertex));
@@ -459,7 +460,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
                 .filter(new RichFilterFunction<Tuple2<K, VV>>() {
                     private Tuple2<K, VV> vertexToRemove;
 
-                    @Override
+					@Override
                     public void open(Configuration parameters) throws Exception {
                         super.open(parameters);
                         this.vertexToRemove = (Tuple2<K, VV>) getRuntimeContext().getBroadcastVariable("vertexToRemove").get(0);
@@ -511,7 +512,6 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
         DataSet<Tuple3<K,K,EV>> unionedEdges = graph.getEdges().union(this.getEdges());
         return new Graph<K,VV,EV>(unionedVertices, unionedEdges, this.context);
     }
-
 
     public Graph<K, VV, EV> passMessages (VertexCentricIteration<K, VV, ?, EV> iteration) {
         DataSet<Tuple2<K,VV>> newVertices = iteration.createResult();

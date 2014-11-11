@@ -7,7 +7,8 @@ import org.apache.flink.api.java.DataSet;
 
 public class GraphUtils {
 
-    public static DataSet<Integer> count (DataSet<Object> set) {
+    @SuppressWarnings("serial")
+	public static DataSet<Integer> count (DataSet<Object> set) {
         return set
                 .map(new MapFunction<Object, Integer>() {
                     @Override
