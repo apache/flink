@@ -79,9 +79,9 @@ under the License.
 		<flink.reuseForks>true</flink.reuseForks>
 		<slf4j.version>1.7.7</slf4j.version>
 		<guava.version>17.0</guava.version>
-	   <scala.version>2.10.4</scala.version>
-	   <scala.binary.version>2.10</scala.binary.version>
-	   <scala.macros.version>2.0.1</scala.macros.version>
+		<scala.version>2.10.4</scala.version>
+		<scala.binary.version>2.10</scala.binary.version>
+		<scala.macros.version>2.0.1</scala.macros.version>
 	</properties>
 
 	<dependencies>
@@ -202,7 +202,7 @@ under the License.
 				<version>3.2.1</version>
 			</dependency>
 			
-			<!-- Managed dependency required for HBase in flink-hbase  -->
+			<!-- Managed dependency required for HBase in flink-hbase -->
 			<dependency>
 				<groupId>org.javassist</groupId>
 				<artifactId>javassist</artifactId>
@@ -222,6 +222,39 @@ under the License.
 				<artifactId>stax-api</artifactId>
 				<version>1.0.1</version>
 			</dependency>
+
+			<!-- "Old" stable Hadoop = MapReduce v1 -->
+			<dependency>
+				<groupId>org.apache.hadoop</groupId>
+				<artifactId>hadoop-core</artifactId>
+				<version>${hadoop.version}</version>
+			</dependency>
+			<!-- YARN -->
+			<dependency>
+				<groupId>org.apache.hadoop</groupId>
+				<artifactId>hadoop-common</artifactId>
+				<version>${hadoop.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.hadoop</groupId>
+				<artifactId>hadoop-hdfs</artifactId>
+				<version>${hadoop.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.hadoop</groupId>
+				<artifactId>hadoop-client</artifactId>
+				<version>${hadoop.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.hadoop</groupId>
+				<artifactId>hadoop-mapreduce-client-core</artifactId>
+				<version>${hadoop.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.hadoop</groupId>
+				<artifactId>hadoop-yarn-client</artifactId>
+				<version>${hadoop.version}</version>
+			</dependency>
 		</dependencies>
 	</dependencyManagement>
 
@@ -231,54 +264,24 @@ under the License.
 			<activation>
 				<property>
 					<!-- Please do not remove the 'hadoop1' comment. See ./tools/generate_specific_pom.sh -->
-					<!--hadoop1--><name>!hadoop.profile</name>
+					<!--hadoop1--><name>hadoop.profile</name><value>1</value>
 				</property>
 			</activation>
 			<properties>
 				<hadoop.version>${hadoop-one.version}</hadoop.version>
 			</properties>
-			<dependencyManagement>
-				<dependencies>
-					<!-- "Old" stable Hadoop = MapReduce v1 -->
-					<dependency>
-						<groupId>org.apache.hadoop</groupId>
-						<artifactId>hadoop-core</artifactId>
-						<version>${hadoop.version}</version>
-					</dependency>
-				</dependencies>
-			</dependencyManagement>
 		</profile>
 		<profile>
 			<id>hadoop-2</id>
 			<activation>
 				<property>
-					<!-- Please do not remove the 'hadoop1' comment. See ./tools/generate_specific_pom.sh -->
-					<!--hadoop2--><name>hadoop.profile</name><value>2</value>
+					<!-- Please do not remove the 'hadoop2' comment. See ./tools/generate_specific_pom.sh -->
+					<!--hadoop2--><name>!hadoop.profile</name>
 				</property>
 			</activation>
 			<properties>
 				<hadoop.version>${hadoop-two.version}</hadoop.version>
 			</properties>
-			<dependencyManagement>
-				<dependencies>
-					<!-- YARN -->
-					<dependency>
-						<groupId>org.apache.hadoop</groupId>
-						<artifactId>hadoop-common</artifactId>
-						<version>${hadoop.version}</version>
-					</dependency>
-					<dependency>
-						<groupId>org.apache.hadoop</groupId>
-						<artifactId>hadoop-hdfs</artifactId>
-						<version>${hadoop.version}</version>
-					</dependency>
-					<dependency>
-						<groupId>org.apache.hadoop</groupId>
-						<artifactId>hadoop-client</artifactId>
-						<version>${hadoop.version}</version>
-					</dependency>
-				</dependencies>
-			</dependencyManagement>
 		</profile>
 
 		<profile>
@@ -498,7 +501,6 @@ under the License.
 					</relocations>
 				</configuration>
 			</plugin>
-			
 			<plugin>
 				<groupId>org.apache.rat</groupId>
 				<artifactId>apache-rat-plugin</artifactId>

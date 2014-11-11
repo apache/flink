@@ -7,15 +7,15 @@ language: java
 matrix:
   include:
     - jdk: "openjdk6"
-      env: PROFILE=
+      env: PROFILE="-Dhadoop.profile=1"
     - jdk: "oraclejdk7"
-      env: PROFILE=
+      env: PROFILE="-Dhadoop.profile=1"
     - jdk: "openjdk6"
-      env: PROFILE="-P!include-yarn -Dhadoop.profile=2 -Dhadoop.version=2.0.0-alpha"
+      env: PROFILE="-P!include-yarn -Dhadoop.version=2.0.0-alpha"
     - jdk: "oraclejdk7"
-      env: PROFILE="-Dhadoop.profile=2 -Dhadoop.version=2.2.0"
+      env: PROFILE="-Dhadoop.version=2.2.0"
     - jdk: "oraclejdk8"
-      env: PROFILE="-Dhadoop.profile=2 -Dhadoop.version=2.5.0"
+      env: PROFILE="-Dhadoop.version=2.5.1"
 
 
 git:

@@ -21,12 +21,11 @@
 #Please ask @rmetzger (on GitHub) before changing anything here. It contains some magic.
 
 # Build Responsibilities
-# 1. Deploy to sonatype (old hadoop)
-# 2. Nothing
-# 3. Deploy to s3 (old hadoop)
-# 4. deploy to sonatype (yarn hadoop) (this build will also generate specific poms for yarn hadoop)
-# 5. Nothing (formerly: Deploy Javadocs.)
-# 6. deploy to s3 (yarn hadoop)
+# 1. Deploy snapshot (hadoop1)
+# 2. Deploy to s3  (hadoop1)
+# 3. Nothing (hadoop200alpha)
+# 4. deploy snapshot and s3 (hadoop2 - 2.2.0)
+# 5. Nothing (hadoop2 - 2.5.1)
 
 # Changes (since travis changed the id assignment)
 # switched 2. with 3.
@@ -54,12 +53,12 @@ function getVersion() {
 # this will take a while
 CURRENT_FLINK_VERSION=`getVersion`
 if [[ "$CURRENT_FLINK_VERSION" == *-SNAPSHOT ]]; then
-	CURRENT_FLINK_VERSION_YARN=${CURRENT_FLINK_VERSION/-incubating-SNAPSHOT/-hadoop2-incubating-SNAPSHOT}
+	CURRENT_FLINK_VERSION_HADOOP1=${CURRENT_FLINK_VERSION/-incubating-SNAPSHOT/-hadoop1-incubating-SNAPSHOT}
 else
-	CURRENT_FLINK_VERSION_YARN="$CURRENT_FLINK_VERSION-hadoop2"
+	CURRENT_FLINK_VERSION_HADOOP1="$CURRENT_FLINK_VERSION-hadoop1"
 fi
 
-echo "detected current version as: '$CURRENT_FLINK_VERSION' ; yarn: $CURRENT_FLINK_VERSION_YARN "
+echo "detected current version as: '$CURRENT_FLINK_VERSION' ; hadoop1: $CURRENT_FLINK_VERSION_HADOOP1 "
 
 # Check if push/commit is eligible for pushing
 echo "Job: $TRAVIS_JOB_NUMBER ; isPR: $TRAVIS_PULL_REQUEST"
@@ -71,18 +70,16 @@ if [[ $TRAVIS_PULL_REQUEST == "false" ]] ; then
 	# 
 
 	if [[ $TRAVIS_JOB_NUMBER == *1 ]] && [[ $TRAVIS_PULL_REQUEST == "false" ]] && [[ $CURRENT_FLINK_VERSION == *SNAPSHOT* ]] ; then 
-		# Deploy regular hadoop v1 to maven
-		mvn -Pdocs-and-source -DskipTests -Drat.ignoreErrors=true deploy --settings deploysettings.xml; 
+		# Deploy hadoop v1 to maven
+		echo "Generating poms for hadoop1"
+		./tools/generate_specific_pom.sh $CURRENT_FLINK_VERSION $CURRENT_FLINK_VERSION_HADOOP1 pom.hadoop1.xml
+		mvn -B -f pom.hadoop1.xml -Pdocs-and-source -DskipTests -Drat.ignoreErrors=true deploy --settings deploysettings.xml; 
 	fi
 
 	if [[ $TRAVIS_JOB_NUMBER == *4 ]] && [[ $TRAVIS_PULL_REQUEST == "false" ]] && [[ $CURRENT_FLINK_VERSION == *SNAPSHOT* ]] ; then 
 		# deploy hadoop v2 (yarn)
-		echo "Generating poms for hadoop-yarn."
-		./tools/generate_specific_pom.sh $CURRENT_FLINK_VERSION $CURRENT_FLINK_VERSION_YARN
-		# all these tweaks assume a yarn build.
-		# performance tweaks here: no "clean deploy" so that actually nothing is being rebuild (could cause wrong poms inside the jars?)
-		# skip tests (they were running already)
-		mvn -B -f pom.hadoop2.xml -DskipTests -Pdocs-and-source -Drat.ignoreErrors=true deploy --settings deploysettings.xml; 
+		echo "deploy standard version (hadoop2)"
+		mvn -B -DskipTests -Pdocs-and-source -Drat.ignoreErrors=true deploy --settings deploysettings.xml; 
 	fi
 
 	# The block below took care of deploying javadoc to github.io. We now host the javadocs on the website.
@@ -105,21 +102,11 @@ if [[ $TRAVIS_PULL_REQUEST == "false" ]] ; then
 	# 	cd ..
 	# fi
 
-	#
-	# Deploy binaries to S3
-	# The TRAVIS_JOB_NUMBER here is kinda hacked. 
-	# Currently, there are Builds 1-6. Build 1 is deploying to maven sonatype
-	# Build 2 has no special meaning, it is the openjdk7, hadoop 1.2.1 build
-	# Build 5 is openjdk7, hadoop yarn (2.0.5-beta) build.
-	# Please be sure not to use Build 1 as it will always be the yarn build.
-	#
-
-
-	if [[ $TRAVIS_JOB_NUMBER == *3 ]] || [[ $TRAVIS_JOB_NUMBER == *6 ]] ; then
+	if [[ $TRAVIS_JOB_NUMBER == *2 ]] || [[ $TRAVIS_JOB_NUMBER == *4 ]] ; then
 		echo "Uploading build to amazon s3. Job Number: $TRAVIS_JOB_NUMBER"
 		HD="hadoop1"
-		# job nr 6 is YARN
-		if [[ $TRAVIS_JOB_NUMBER == *6 ]] ; then
+		# job nr 4 is YARN
+		if [[ $TRAVIS_JOB_NUMBER == *4 ]] ; then
 			# move to current dir
 			mkdir flink-$CURRENT_FLINK_VERSION
 			cp -r flink-dist/target/flink-*-bin/flink-yarn*/* flink-$CURRENT_FLINK_VERSION/
@@ -136,7 +123,6 @@ if [[ $TRAVIS_PULL_REQUEST == "false" ]] ; then
 		echo "doing a ls -lisah:"
 		ls -lisah
 	fi
-
 fi # pull request check
 
 
