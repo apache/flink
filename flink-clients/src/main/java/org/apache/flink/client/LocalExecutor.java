@@ -59,8 +59,6 @@ public class LocalExecutor extends PlanExecutor {
 
 	private int taskManagerNumSlots = DEFAULT_TASK_MANAGER_NUM_SLOTS;
 
-	private String configDir;
-
 	private boolean defaultOverwriteFiles = DEFAULT_OVERWRITE;
 	
 	// --------------------------------------------------------------------------------------------
@@ -92,12 +90,11 @@ public class LocalExecutor extends PlanExecutor {
 			if (this.flink == null) {
 				
 				// create the embedded runtime
-				this.flink = new LocalFlinkMiniCluster(configDir);
 				Configuration configuration = new Configuration();
 				configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, getTaskManagerNumSlots());
 				configuration.setBoolean(ConfigConstants.FILESYSTEM_DEFAULT_OVERWRITE_KEY, isDefaultOverwriteFiles());
 				// start it up
-				this.flink.start(configuration);
+				this.flink = new LocalFlinkMiniCluster(configuration);
 			} else {
 				throw new IllegalStateException("The local executor was already started.");
 			}

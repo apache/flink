@@ -48,7 +48,7 @@ public class ClusterUtil {
 
 		Configuration configuration = jobGraph.getJobConfiguration();
 
-		LocalFlinkMiniCluster exec = new LocalFlinkMiniCluster(null);
+		LocalFlinkMiniCluster exec = null;
 
 		configuration.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, memorySize);
 		configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, degreeOfParallelism);
@@ -57,7 +57,7 @@ public class ClusterUtil {
 		}
 
 		try {
-			exec.start(configuration);
+			exec = new LocalFlinkMiniCluster(configuration);
 
 			Client client = new Client(new InetSocketAddress("localhost", exec.getJobManagerRPCPort()),
 					configuration, ClusterUtil.class.getClassLoader());
@@ -71,7 +71,9 @@ public class ClusterUtil {
 		} catch (Exception e) {
 			throw e;
 		} finally {
-			exec.stop();
+				if(exec != null) {
+					exec.stop();
+				}
 		}
 	}
 

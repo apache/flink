@@ -84,14 +84,13 @@ public abstract class AbstractTestBase {
 	
 	public void startCluster() throws Exception {
 		Thread.sleep(250);
-		this.executor = new LocalFlinkMiniCluster(null);
 		Configuration config = new Configuration();
 		config.setBoolean(ConfigConstants.FILESYSTEM_DEFAULT_OVERWRITE_KEY, true);
 		config.setBoolean(ConfigConstants.TASK_MANAGER_MEMORY_LAZY_ALLOCATION_KEY, true);
 		config.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, TASK_MANAGER_MEMORY_SIZE);
 		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, taskManagerNumSlots);
 		config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, numTaskManagers);
-		this.executor.start(config);
+		this.executor = new LocalFlinkMiniCluster(config);
 	}
 	
 	public void stopCluster() throws Exception {

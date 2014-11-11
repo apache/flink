@@ -22,19 +22,15 @@ import java.io.IOException
 import java.util.concurrent.Callable
 
 import akka.actor.{ActorSelection, ActorRef, ActorSystem}
-import akka.pattern.Patterns
+import akka.pattern.{Patterns, ask => akkaAsk}
 import akka.util.Timeout
 import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
-import org.apache.flink.core.io.IOReadableWritable
-import org.apache.flink.runtime.akka.serialization.{WritableSerializer,
-IOReadableWritableSerializer}
-import org.apache.hadoop.io.Writable
 import scala.concurrent.{ExecutionContext, Future, Await}
 import scala.concurrent.duration._
 
 object AkkaUtils {
-  implicit val FUTURE_TIMEOUT: Timeout = 1 minute
+  implicit val FUTURE_TIMEOUT: Timeout = 100 minute
   implicit val AWAIT_DURATION: FiniteDuration = 1 minute
   implicit val FUTURE_DURATION: FiniteDuration = 1 minute
 
@@ -175,5 +171,17 @@ object AkkaUtils {
   def retry[T](callable: Callable[T], tries: Int)(implicit executionContext: ExecutionContext):
   Future[T] = {
     retry(callable.call(), tries)
+  }
+
+  def retry(target: ActorRef, message: Any, tries: Int)(implicit executionContext:
+  ExecutionContext): Future[Any] = {
+    (target ? message) recoverWith{
+      case t: Throwable =>
+        if(tries > 0){
+          retry(target, message, tries-1)
+        }else{
+          Future.failed(t)
+        }
+    }
   }
 }

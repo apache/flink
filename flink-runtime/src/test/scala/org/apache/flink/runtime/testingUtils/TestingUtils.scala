@@ -71,9 +71,7 @@ object TestingUtils {
     val config = new Configuration()
     config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlots)
     config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, numTaskManagers)
-    val cluster = new TestingCluster
-    cluster.start(config)
-
+    val cluster = new TestingCluster(config)
     cluster
   }
 
@@ -97,9 +95,9 @@ object TestingUtils {
     }
 
     override def execute(runnable: Runnable): Unit = {
-      if(runnable.getClass.getName.equals("scala.concurrent.impl.CallbackRunnable")) {
+      if(automaticExecution){
         runnable.run()
-      }else{
+      }else {
         queue.queueAction(runnable)
       }
     }

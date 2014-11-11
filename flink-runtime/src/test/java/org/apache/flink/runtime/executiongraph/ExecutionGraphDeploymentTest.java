@@ -22,7 +22,6 @@ import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.ge
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
@@ -32,7 +31,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
@@ -50,15 +48,10 @@ import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.operators.RegularPactTask;
-import org.apache.flink.runtime.messages.TaskManagerMessages.TaskOperationResult;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.mockito.Matchers;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-
 public class ExecutionGraphDeploymentTest {
 	private static ActorSystem system;
 
@@ -111,35 +104,26 @@ public class ExecutionGraphDeploymentTest {
 			
 			ExecutionJobVertex ejv = eg.getAllVertices().get(jid2);
 			ExecutionVertex vertex = ejv.getTaskVertices()[3];
-			
-			// just some reference (needs not be atomic)
-			final AtomicReference<TaskDeploymentDescriptor> reference = new AtomicReference<TaskDeploymentDescriptor>();
 
 			// create synchronous task manager
 			final TestActorRef simpleTaskManager = TestActorRef.create(system,
 					Props.create(ExecutionGraphTestUtils
 					.SimpleAcknowledgingTaskManager.class));
 
-			final Instance instance = spy(getInstance(simpleTaskManager));
-			doAnswer(new Answer<TaskOperationResult>() {
+			ExecutionGraphTestUtils.SimpleAcknowledgingTaskManager tm = (ExecutionGraphTestUtils
+					.SimpleAcknowledgingTaskManager) simpleTaskManager.underlyingActor();
 
-				@Override
-				public TaskOperationResult answer(InvocationOnMock invocation) throws Throwable {
-					TaskDeploymentDescriptor tdd = (TaskDeploymentDescriptor)invocation.getArguments()[0];
-					reference.set(tdd);
-					return (TaskOperationResult) invocation.callRealMethod();
-				}
-			}).when(instance).submitTask(Matchers
-					.<TaskDeploymentDescriptor>any());
+			final Instance instance = getInstance(simpleTaskManager);
+
 			final AllocatedSlot slot = instance.allocateSlot(jobId);
 			
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
-			
+
 			vertex.deployToSlot(slot);
 			
 			assertEquals(ExecutionState.RUNNING, vertex.getExecutionState());
 			
-			TaskDeploymentDescriptor descr = reference.get();
+			TaskDeploymentDescriptor descr = tm.lastTDD;
 			assertNotNull(descr);
 			
 			assertEquals(jobId, descr.getJobID());

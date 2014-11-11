@@ -208,7 +208,8 @@ public class ExecutionVertexCancelTest {
 
 					// task manager mock actor
 					// first return NOT SUCCESS (task not found, cancel call overtook deploy call), then success (cancel call after deploy call)
-					ActorRef taskManager = system.actorOf(Props.create(new CancelSequenceTaskManagerCreator(new
+					TestActorRef taskManager = TestActorRef.create(system, Props.create(new
+							CancelSequenceTaskManagerCreator(new
 							TaskOperationResult(execId, false), new TaskOperationResult(execId, true))));
 
 					Instance instance = getInstance(taskManager);
@@ -228,6 +229,8 @@ public class ExecutionVertexCancelTest {
 
 					// cancel call first
 					cancelAction.run();
+					// process onComplete callback
+					actions.triggerNextAction();
 
 					// did not find the task, not properly cancelled, stay in canceling
 					assertEquals(ExecutionState.CANCELING, vertex.getExecutionState());
@@ -241,6 +244,9 @@ public class ExecutionVertexCancelTest {
 
 					// trigger the correcting cancel call, should properly set state to cancelled
 					actions.triggerNextAction();
+					// process onComplete callback
+					actions.triggerNextAction();
+
 					vertex.getCurrentExecutionAttempt().cancelingComplete();
 
 					assertEquals(ExecutionState.CANCELED, vertex.getExecutionState());

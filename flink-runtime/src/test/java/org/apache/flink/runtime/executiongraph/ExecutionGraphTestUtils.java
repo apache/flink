@@ -24,14 +24,13 @@ import static org.mockito.Mockito.spy;
 
 import java.lang.reflect.Field;
 import java.net.InetAddress;
-import java.util.Deque;
 import java.util.LinkedList;
-import java.util.concurrent.LinkedBlockingQueue;
 
 import akka.actor.ActorRef;
 import akka.actor.UntypedActor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.instance.HardwareDescription;
@@ -109,13 +108,31 @@ public class ExecutionGraphTestUtils {
 	}
 
 	public static class SimpleAcknowledgingTaskManager extends UntypedActor {
+		public TaskDeploymentDescriptor lastTDD;
+		@Override
+		public void onReceive(Object msg) throws Exception {
+			if (msg instanceof TaskManagerMessages.SubmitTask) {
+				TaskManagerMessages.SubmitTask submitTask = (TaskManagerMessages.SubmitTask) msg;
+				lastTDD = submitTask.tasks();
 
+				getSender().tell(new TaskOperationResult(submitTask.tasks().getExecutionId(), true), getSelf());
+			} else if (msg instanceof TaskManagerMessages.CancelTask) {
+				TaskManagerMessages.CancelTask cancelTask = (TaskManagerMessages.CancelTask) msg;
+				getSender().tell(new TaskOperationResult(cancelTask.attemptID(), true), getSelf());
+			}
+		}
+	}
+
+	public static final String ERROR_MESSAGE = "test_failure_error_message";
+
+	public static class SimpleFailingTaskManager extends UntypedActor {
 		@Override
 		public void onReceive(Object msg) throws Exception {
 			if (msg instanceof TaskManagerMessages.SubmitTask) {
 				TaskManagerMessages.SubmitTask submitTask = (TaskManagerMessages.SubmitTask) msg;
 
-				getSender().tell(new TaskOperationResult(submitTask.tasks().getExecutionId(), true), getSelf());
+				getSender().tell(new TaskOperationResult(submitTask.tasks().getExecutionId(),
+						false, ERROR_MESSAGE),	getSelf());
 			} else if (msg instanceof TaskManagerMessages.CancelTask) {
 				TaskManagerMessages.CancelTask cancelTask = (TaskManagerMessages.CancelTask) msg;
 				getSender().tell(new TaskOperationResult(cancelTask.attemptID(), true), getSelf());

@@ -22,16 +22,11 @@ import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.*;
 
 import static org.junit.Assert.*;
 
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.times;
-import static org.mockito.Matchers.any;
-
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
+import akka.actor.Props;
 import akka.testkit.JavaTestKit;
-import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
+import akka.testkit.TestActorRef;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.instance.Instance;
@@ -42,8 +37,6 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-
-import org.mockito.Matchers;
 
 public class ExecutionVertexDeploymentTest {
 	private static ActorSystem system;
@@ -100,17 +93,17 @@ public class ExecutionVertexDeploymentTest {
 			TestingUtils.setCallingThreadDispatcher(system);
 
 			final JobVertexID jid = new JobVertexID();
+
+			final TestActorRef simpleTaskManager = TestActorRef.create(system,
+					Props.create(SimpleAcknowledgingTaskManager.class));
 			
-			final Instance instance = spy(getInstance(ActorRef.noSender()));
+			final Instance instance = getInstance(simpleTaskManager);
 
 			final AllocatedSlot slot = instance.allocateSlot(new JobID());
 			
 			final ExecutionJobVertex ejv = getExecutionVertex(jid);
 			
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
-
-			doReturn(new TaskOperationResult(vertex.getCurrentExecutionAttempt().getAttemptId(),
-					true)).when(instance).submitTask(Matchers.<TaskDeploymentDescriptor>any());
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			
@@ -124,8 +117,6 @@ public class ExecutionVertexDeploymentTest {
 				fail("Scheduled from wrong state");
 			}
 			catch (IllegalStateException e) {}
-			
-			verify(instance).submitTask(Matchers.any(TaskDeploymentDescriptor.class));
 			
 			assertNull(vertex.getFailureCause());
 			
@@ -145,17 +136,17 @@ public class ExecutionVertexDeploymentTest {
 	public void testDeployWithAsynchronousAnswer() {
 		try {
 			final JobVertexID jid = new JobVertexID();
+
+			final TestActorRef simpleTaskManager = TestActorRef.create(system,
+					Props.create(SimpleAcknowledgingTaskManager.class));
 			
-			final Instance instance = spy(getInstance(ActorRef.noSender()));
+			final Instance instance = getInstance(simpleTaskManager);
 
 			final AllocatedSlot slot = instance.allocateSlot(new JobID());
 			
 			final ExecutionJobVertex ejv = getExecutionVertex(jid);
 			
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
-
-			doReturn(new TaskOperationResult(vertex.getCurrentExecutionAttempt().getAttemptId(),
-					true)).when(instance).submitTask(Matchers.<TaskDeploymentDescriptor>any());
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			
@@ -184,8 +175,6 @@ public class ExecutionVertexDeploymentTest {
 			}
 			catch (IllegalStateException e) {}
 			
-			verify(instance).submitTask(Matchers.any(TaskDeploymentDescriptor.class));
-			
 			assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
 			assertTrue(vertex.getStateTimestamp(ExecutionState.DEPLOYING) > 0);
 			assertTrue(vertex.getStateTimestamp(ExecutionState.RUNNING) > 0);
@@ -198,22 +187,20 @@ public class ExecutionVertexDeploymentTest {
 	
 	@Test
 	public void testDeployFailedSynchronous() {
-		final String ERROR_MESSAGE = "test_failure_error_message";
-		
 		try {
 			TestingUtils.setCallingThreadDispatcher(system);
 
 			final JobVertexID jid = new JobVertexID();
+
+			final TestActorRef simpleTaskManager = TestActorRef.create(system,
+					Props.create(SimpleFailingTaskManager.class));
 			
-			final Instance instance = spy(getInstance(ActorRef.noSender()));
+			final Instance instance = getInstance(simpleTaskManager);
 			final AllocatedSlot slot = instance.allocateSlot(new JobID());
 			
 			final ExecutionJobVertex ejv = getExecutionVertex(jid);
 			
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
-
-			doReturn(new TaskOperationResult(vertex.getCurrentExecutionAttempt().getAttemptId(), false,
-					ERROR_MESSAGE)).when(instance).submitTask(Matchers.<TaskDeploymentDescriptor>any());
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			
@@ -237,20 +224,18 @@ public class ExecutionVertexDeploymentTest {
 	
 	@Test
 	public void testDeployFailedAsynchronously() {
-		final String ERROR_MESSAGE = "test_failure_error_message";
-		
 		try {
 			final JobVertexID jid = new JobVertexID();
+
+			final TestActorRef simpleTaskManager = TestActorRef.create(system,
+					Props.create(SimpleFailingTaskManager.class));
 			
-			final Instance instance = spy(getInstance(ActorRef.noSender()));
+			final Instance instance = getInstance(simpleTaskManager);
 
 			final AllocatedSlot slot = instance.allocateSlot(new JobID());
 
 			final ExecutionJobVertex ejv = getExecutionVertex(jid);
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
-
-			doReturn(new TaskOperationResult(vertex.getCurrentExecutionAttempt().getAttemptId(), false,
-					ERROR_MESSAGE)).when(instance).submitTask(Matchers.<TaskDeploymentDescriptor>any());
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			
@@ -290,15 +275,15 @@ public class ExecutionVertexDeploymentTest {
 
 			TestingUtils.setExecutionContext(ec);
 
-			final Instance instance = spy(getInstance(ActorRef.noSender()));
+			final TestActorRef simpleTaskManager = TestActorRef.create(system,
+					Props.create(SimpleAcknowledgingTaskManager.class));
+
+			final Instance instance = getInstance(simpleTaskManager);
 			final AllocatedSlot slot = instance.allocateSlot(new JobID());
 
 			final ExecutionJobVertex ejv = getExecutionVertex(jid);
 
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
-
-			doReturn(new TaskOperationResult(vertex.getCurrentExecutionAttempt()
-					.getAttemptId(), true)).when(instance).submitTask(Matchers.<TaskDeploymentDescriptor>any());
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			vertex.deployToSlot(slot);
@@ -327,32 +312,28 @@ public class ExecutionVertexDeploymentTest {
 	public void testFailCallOvertakesDeploymentAnswer() {
 		
 		try {
-			final ActionQueue queue = new ActionQueue();
-			final JobVertexID jid = new JobVertexID();
-			final TestingUtils.QueuedActionExecutionContext ec = new TestingUtils
+			ActionQueue queue = new ActionQueue();
+			TestingUtils.QueuedActionExecutionContext context = new TestingUtils
 					.QueuedActionExecutionContext(queue);
 
-			TestingUtils.setExecutionContext(ec);
-			
-			final Instance instance = spy(getInstance(ActorRef.noSender()));
+			TestingUtils.setExecutionContext(context);
+
+			final JobVertexID jid = new JobVertexID();
+
+			final ExecutionJobVertex ejv = getExecutionVertex(jid);
+			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
+			final ExecutionAttemptID eid = vertex.getCurrentExecutionAttempt().getAttemptId();
+
+			final TestActorRef simpleTaskManager = TestActorRef.create(system, Props.create(new
+					ExecutionVertexCancelTest.CancelSequenceTaskManagerCreator(new
+					TaskOperationResult(eid, false), new TaskOperationResult(eid, true))));
+
+			final Instance instance = getInstance(simpleTaskManager);
 
 			final AllocatedSlot slot = instance.allocateSlot(new JobID());
 
-			final ExecutionJobVertex ejv = getExecutionVertex(jid);
-			
-			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0]);
-			final ExecutionAttemptID eid = vertex.getCurrentExecutionAttempt().getAttemptId();
-			
-			// the deployment call succeeds regularly
-			doReturn(new TaskOperationResult(eid, true)).when(instance).submitTask(Matchers
-					.<TaskDeploymentDescriptor>any());
-
-			// first cancel call does not find a task, second one finds it
-			doReturn(new TaskOperationResult(eid, false)).doReturn(new TaskOperationResult(eid,
-					true)).when(instance).cancelTask(Matchers.<ExecutionAttemptID>any());
-
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
-			
+
 			vertex.deployToSlot(slot);
 			assertEquals(ExecutionState.DEPLOYING, vertex.getExecutionState());
 			
@@ -360,20 +341,24 @@ public class ExecutionVertexDeploymentTest {
 			vertex.fail(testError);
 			
 			assertEquals(ExecutionState.FAILED, vertex.getExecutionState());
-			
-			// now the deploy call returns
+
+			// cancel call overtakes deploy call
 			Runnable deploy = queue.popNextAction();
 			Runnable cancel1 = queue.popNextAction();
 
-			// cancel call overtakes
 			cancel1.run();
+			// execute onComplete callback
+			queue.triggerNextAction();
+
 			deploy.run();
 
 			assertEquals(ExecutionState.FAILED, vertex.getExecutionState());
 
 			// should have sent another cancel call
 			queue.triggerNextAction();
-			
+			// execute onComplete callback
+			queue.triggerNextAction();
+
 			assertEquals(testError, vertex.getFailureCause());
 			
 			assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
@@ -381,10 +366,6 @@ public class ExecutionVertexDeploymentTest {
 			assertTrue(vertex.getStateTimestamp(ExecutionState.FAILED) > 0);
 
 			assertTrue(queue.isEmpty());
-			
-			// should have received two cancel calls
-			verify(instance, times(2)).cancelTask(eid);
-			verify(instance, times(1)).submitTask(any(TaskDeploymentDescriptor.class));
 		}
 		catch (Exception e) {
 			e.printStackTrace();

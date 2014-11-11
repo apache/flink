@@ -36,7 +36,7 @@ public class PackagedProgramEndToEndITCase {
 
 	@Test
 	public void testEverything() {
-		LocalFlinkMiniCluster cluster = new LocalFlinkMiniCluster(null);
+		LocalFlinkMiniCluster cluster = null;
 
 		File points = null;
 		File clusters = null;
@@ -64,7 +64,7 @@ public class PackagedProgramEndToEndITCase {
 			Configuration config = new Configuration();
 			config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 2);
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 2);
-			cluster.start(config);
+			cluster = new LocalFlinkMiniCluster(config);
 
 			RemoteExecutor ex = new RemoteExecutor("localhost", cluster.getJobManagerRPCPort());
 
@@ -92,7 +92,9 @@ public class PackagedProgramEndToEndITCase {
 			}
 			
 			try {
-				cluster.stop();
+				if(cluster != null) {
+					cluster.stop();
+				}
 			} catch (Exception e) {
 				e.printStackTrace();
 				Assert.fail(e.getMessage());

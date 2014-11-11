@@ -27,9 +27,6 @@ import static org.apache.flink.runtime.execution.ExecutionState.FINISHED;
 import static org.apache.flink.runtime.execution.ExecutionState.RUNNING;
 import static org.apache.flink.runtime.execution.ExecutionState.SCHEDULED;
 
-import static akka.dispatch.Futures.future;
-
-import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import akka.dispatch.OnComplete;
@@ -274,38 +271,31 @@ public class Execution {
 			// register this execution at the execution graph, to receive call backs
 			vertex.getExecutionGraph().registerExecution(this);
 
-			Future<TaskOperationResult> deployAction = future(new Callable<TaskOperationResult>() {
-				@Override
-				public TaskOperationResult call() throws Exception {
-					Instance instance = slot.getInstance();
-//					return instance.submitTask(deployment);
+			Instance instance = slot.getInstance();
+			Future<Object> deployAction = Patterns.ask(instance.getTaskManager(),
+					new TaskManagerMessages.SubmitTask(deployment),AkkaUtils.FUTURE_TIMEOUT());
 
-					//TODO realize as an actor
-					return (TaskOperationResult)Patterns.ask(instance.getTaskManager(), new TaskManagerMessages
-							.SubmitTask(deployment), AkkaUtils.FUTURE_TIMEOUT());
-				}
-			}, AkkaUtils.globalExecutionContext());
-
-			deployAction.onComplete(new OnComplete<TaskOperationResult>(){
+			deployAction.onComplete(new OnComplete<Object>(){
 
 				@Override
-				public void onComplete(Throwable failure, TaskOperationResult success) throws Throwable {
+				public void onComplete(Throwable failure, Object success) throws Throwable {
 					if(failure != null){
 						markFailed(failure);
 					}else{
+						TaskOperationResult result = (TaskOperationResult) success;
 						if (success == null) {
 							markFailed(new Exception("Failed to deploy the task to slot " + slot + ": TaskOperationResult was null"));
 						}
-						else if (!success.executionID().equals(attemptId)) {
+						else if (!result.executionID().equals(attemptId)) {
 							markFailed(new Exception("Answer execution id does not match the request execution id."));
 						}
-						else if (success.success()) {
+						else if (result.success()) {
 							switchToRunning();
 						}
 						else {
 							// deployment failed :(
 							markFailed(new Exception("Failed to deploy the task " +
-									getVertexWithAttempt() + " to slot " + slot + ": " + success
+									getVertexWithAttempt() + " to slot " + slot + ": " + result
 									.description()));
 						}
 					}
@@ -591,24 +581,19 @@ public class Execution {
 			return;
 		}
 
-		Callable<TaskOperationResult> cancelAction = new Callable<TaskOperationResult>() {
-			@Override
-			public TaskOperationResult call() throws Exception {
-				return slot.getInstance().cancelTask(attemptId);
-			}
-		};
+		Future<Object> cancelResult = AkkaUtils.retry(slot.getInstance().getTaskManager(), new
+				TaskManagerMessages.CancelTask(attemptId), NUM_CANCEL_CALL_TRIES,
+				AkkaUtils.globalExecutionContext());
 
-		Future<TaskOperationResult> cancelResult = AkkaUtils.retry(cancelAction,
-				NUM_CANCEL_CALL_TRIES, AkkaUtils.globalExecutionContext());
-
-		cancelResult.onComplete(new OnComplete<TaskOperationResult>(){
+		cancelResult.onComplete(new OnComplete<Object>(){
 
 			@Override
-			public void onComplete(Throwable failure, TaskOperationResult success) throws Throwable {
+			public void onComplete(Throwable failure, Object success) throws Throwable {
 				if(failure != null){
 					fail(new Exception("Task could not be canceled.", failure));
 				}else{
-					if(!success.success()){
+					TaskOperationResult result = (TaskOperationResult)success;
+					if(!result.success()){
 						LOG.debug("Cancel task call did not find task. Probably akka message call" +
 								" race.");
 					}

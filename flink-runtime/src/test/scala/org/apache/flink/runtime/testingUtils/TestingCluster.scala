@@ -26,7 +26,7 @@ import org.apache.flink.runtime.minicluster.FlinkMiniCluster
 import org.apache.flink.runtime.net.NetUtils
 import org.apache.flink.runtime.taskmanager.TaskManager
 
-class TestingCluster extends FlinkMiniCluster {
+class TestingCluster(userConfiguration: Configuration) extends FlinkMiniCluster(userConfiguration) {
   override def generateConfiguration(userConfig: Configuration): Configuration = {
     val cfg = new Configuration()
     cfg.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost")
@@ -37,14 +37,14 @@ class TestingCluster extends FlinkMiniCluster {
     cfg
   }
 
-  override def startJobManager(system: ActorSystem, config: Configuration) = {
-    system.actorOf(Props(new JobManager(config) with TestingJobManager),
+  override def startJobManager(implicit system: ActorSystem) = {
+    system.actorOf(Props(new JobManager(configuration) with TestingJobManager),
       JobManager.JOB_MANAGER_NAME)
   }
 
-  override def startTaskManager(system: ActorSystem, config: Configuration, index: Int) = {
+  override def startTaskManager(index: Int)(implicit system: ActorSystem) = {
     val (connectionInfo, jobManagerURL, taskManagerConfig, networkConnectionConfig) =
-      TaskManager.parseConfiguration(FlinkMiniCluster.HOSTNAME, config, true)
+      TaskManager.parseConfiguration(FlinkMiniCluster.HOSTNAME, configuration, true)
 
     system.actorOf(Props(new TaskManager(connectionInfo, jobManagerURL, taskManagerConfig,
       networkConnectionConfig)), TaskManager.TASK_MANAGER_NAME + index)

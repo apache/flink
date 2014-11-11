@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.instance;
 
-import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -27,14 +26,8 @@ import java.util.Queue;
 import java.util.Set;
 
 import akka.actor.ActorRef;
-import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotAvailabilityListener;
-import org.apache.flink.runtime.messages.TaskManagerMessages.TaskOperationResult;
-import org.apache.flink.runtime.messages.TaskManagerMessages.SubmitTask;
-import org.apache.flink.runtime.messages.TaskManagerMessages.CancelTask;
 
 /**
  * An taskManager represents a resource a {@link org.apache.flink.runtime.taskmanager.TaskManager} runs on.
@@ -169,21 +162,6 @@ public class Instance {
 		}
 	}
 
-
-	public TaskOperationResult submitTask(TaskDeploymentDescriptor tdd) throws IOException{
-		try{
-			return AkkaUtils.ask(taskManager, new SubmitTask(tdd));
-		}catch(IOException ioe) {
-			throw ioe;
-		}
-	}
-	public TaskOperationResult cancelTask(ExecutionAttemptID attemptID) throws IOException {
-		try {
-			return AkkaUtils.ask(taskManager, new CancelTask(attemptID));
-		} catch (IOException ioe) {
-			throw ioe;
-		}
-	}
 
 	// --------------------------------------------------------------------------------------------
 	// Heartbeats

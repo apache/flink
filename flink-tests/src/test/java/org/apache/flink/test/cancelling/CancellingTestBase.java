@@ -85,11 +85,10 @@ public abstract class CancellingTestBase {
 	@Before
 	public void startCluster() throws Exception {
 		verifyJvmOptions();
-		this.executor = new LocalFlinkMiniCluster(null);
 		Configuration config = new Configuration();
 		config.setBoolean(ConfigConstants.FILESYSTEM_DEFAULT_OVERWRITE_KEY, true);
 
-		this.executor.start(config);
+		this.executor = new LocalFlinkMiniCluster(config);
 	}
 
 	@After

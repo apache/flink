@@ -42,10 +42,9 @@ public class AvroExternalJarProgramITCase {
 		LocalFlinkMiniCluster testMiniCluster = null;
 		
 		try {
-			testMiniCluster = new LocalFlinkMiniCluster(null);
 			Configuration config = new Configuration();
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 4);
-			testMiniCluster.start(config);
+			testMiniCluster = new LocalFlinkMiniCluster(config);
 			
 			String jarFile = JAR_FILE;
 			String testData = getClass().getResource(TEST_DATA_FILE).toString();

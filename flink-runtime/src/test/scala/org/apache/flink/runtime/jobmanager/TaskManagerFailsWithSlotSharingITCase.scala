@@ -79,7 +79,7 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
           expectMsg(AllVerticesRunning(jobID))
 
           //kill task manager
-          taskManagers.get(0) ! PoisonPill
+          taskManagers(0) ! PoisonPill
 
           expectMsgType[JobResultFailed]
         }
