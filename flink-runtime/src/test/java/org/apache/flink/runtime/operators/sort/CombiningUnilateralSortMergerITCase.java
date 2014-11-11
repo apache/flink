@@ -35,6 +35,7 @@ import org.apache.flink.api.common.typeutils.record.RecordSerializerFactory;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
@@ -80,7 +81,7 @@ public class CombiningUnilateralSortMergerITCase {
 	@Before
 	public void beforeTest() {
 		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE, 1);
-		this.ioManager = new IOManager();
+		this.ioManager = new IOManagerAsync();
 		
 		this.serializerFactory = RecordSerializerFactory.get();
 		this.comparator = new RecordComparator(new int[] {0}, new Class[] {TestData.Key.class});

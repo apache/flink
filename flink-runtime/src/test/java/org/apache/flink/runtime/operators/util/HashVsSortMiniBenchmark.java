@@ -26,6 +26,7 @@ import org.apache.flink.api.common.typeutils.record.RecordPairComparator;
 import org.apache.flink.api.common.typeutils.record.RecordSerializerFactory;
 import org.apache.flink.api.java.record.functions.JoinFunction;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
@@ -47,7 +48,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-
+@SuppressWarnings("deprecation")
 public class HashVsSortMiniBenchmark {
 	
 	// total memory
@@ -94,7 +95,7 @@ public class HashVsSortMiniBenchmark {
 		this.pairComparator11 = new RecordPairComparator(new int[] {0}, new int[] {0}, new Class[] {TestData.Key.class});
 		
 		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE, PAGE_SIZE);
-		this.ioManager = new IOManager();
+		this.ioManager = new IOManagerAsync();
 	}
 
 	@After

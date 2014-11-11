@@ -41,7 +41,7 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
 import org.apache.flink.runtime.io.disk.iomanager.BlockChannelReader;
 import org.apache.flink.runtime.io.disk.iomanager.BlockChannelWriter;
-import org.apache.flink.runtime.io.disk.iomanager.Channel;
+import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 import org.apache.flink.runtime.io.disk.iomanager.ChannelReaderInputView;
 import org.apache.flink.runtime.io.disk.iomanager.ChannelWriterOutputView;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -57,8 +57,8 @@ import org.junit.Test;
  *
  *
  */
-public class IOManagerPerformanceBenchmark
-{
+public class IOManagerPerformanceBenchmark {
+	
 	private static final Logger LOG = LoggerFactory.getLogger(IOManagerPerformanceBenchmark.class);
 	
 	private static final int[] SEGMENT_SIZES_ALIGNED = { 4096, 16384, 524288 };
@@ -80,10 +80,9 @@ public class IOManagerPerformanceBenchmark
 	
 	
 	@Before
-	public void startup()
-	{
+	public void startup() {
 		memManager = new DefaultMemoryManager(MEMORY_SIZE,1);
-		ioManager = new IOManager();
+		ioManager = new IOManagerAsync();
 	}
 	
 	@After
@@ -111,7 +110,7 @@ public class IOManagerPerformanceBenchmark
 	private void testChannelWithSegments(int numSegments) throws Exception
 	{
 		final List<MemorySegment> memory = this.memManager.allocatePages(memoryOwner, numSegments);
-		final Channel.ID channel = this.ioManager.createChannel();
+		final FileIOChannel.ID channel = this.ioManager.createChannel();
 		
 		BlockChannelWriter writer = null;
 		BlockChannelReader reader = null;
@@ -246,7 +245,7 @@ public class IOManagerPerformanceBenchmark
 	}
 		
 	private void speedTestStream(int bufferSize) throws IOException {
-		final Channel.ID tmpChannel = ioManager.createChannel();
+		final FileIOChannel.ID tmpChannel = ioManager.createChannel();
 		final IntegerRecord rec = new IntegerRecord(0);
 		
 		File tempFile = null;
@@ -342,7 +341,7 @@ public class IOManagerPerformanceBenchmark
 	@SuppressWarnings("resource")
 	private void speedTestNIO(int bufferSize, boolean direct) throws IOException
 	{
-		final Channel.ID tmpChannel = ioManager.createChannel();
+		final FileIOChannel.ID tmpChannel = ioManager.createChannel();
 		
 		File tempFile = null;
 		FileChannel fs = null;

@@ -55,7 +55,7 @@ public final class BlobKeyTest {
 	}
 
 	/**
-	 * Tests the serialization/deserialization of BLOB keys using the regular {@link IOReadableWritable} API.
+	 * Tests the serialization/deserialization of BLOB keys using the regular {@link org.apache.flink.core.io.IOReadableWritable} API.
 	 */
 	@Test
 	public void testSerialization() {

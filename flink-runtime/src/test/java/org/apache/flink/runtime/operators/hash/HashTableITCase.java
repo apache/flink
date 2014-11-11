@@ -34,6 +34,7 @@ import org.apache.flink.api.common.typeutils.record.RecordComparator;
 import org.apache.flink.api.common.typeutils.record.RecordSerializer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
 import org.apache.flink.runtime.memorymanager.MemoryAllocationException;
@@ -96,7 +97,7 @@ public class HashTableITCase {
 		this.pairComparator = new IntPairPairComparator();
 		
 		this.memManager = new DefaultMemoryManager(32 * 1024 * 1024,1);
-		this.ioManager = new IOManager();
+		this.ioManager = new IOManagerAsync();
 	}
 	
 	@After
@@ -756,7 +757,7 @@ public class HashTableITCase {
 		}
 		
 		// create the I/O access for spilling
-		final IOManager ioManager = new IOManager();
+		final IOManager ioManager = new IOManagerAsync();
 		
 		// ----------------------------------------------------------------------------------------
 		
@@ -857,7 +858,7 @@ public class HashTableITCase {
 		}
 		
 		// create the I/O access for spilling
-		IOManager ioManager = new IOManager();
+		IOManager ioManager = new IOManagerAsync();
 		
 		// create the map for validating the results
 		HashMap<Integer, Long> map = new HashMap<Integer, Long>(NUM_KEYS);
@@ -972,7 +973,7 @@ public class HashTableITCase {
 		}
 		
 		// create the I/O access for spilling
-		IOManager ioManager = new IOManager();
+		IOManager ioManager = new IOManagerAsync();
 		
 		// create the map for validating the results
 		HashMap<Integer, Long> map = new HashMap<Integer, Long>(NUM_KEYS);

@@ -33,6 +33,7 @@ import org.apache.flink.api.common.typeutils.record.RecordPairComparator;
 import org.apache.flink.api.common.typeutils.record.RecordSerializer;
 import org.apache.flink.api.java.record.functions.JoinFunction;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
@@ -53,7 +54,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-
+@SuppressWarnings("deprecation")
 public class SortMergeMatchIteratorITCase {
 	
 	// total memory
@@ -85,8 +86,7 @@ public class SortMergeMatchIteratorITCase {
 
 	@SuppressWarnings("unchecked")
 	@Before
-	public void beforeTest()
-	{
+	public void beforeTest() {
 		this.serializer1 = RecordSerializer.get();
 		this.serializer2 = RecordSerializer.get();
 		this.comparator1 = new RecordComparator(new int[] {0}, new Class[]{TestData.Key.class});
@@ -94,12 +94,11 @@ public class SortMergeMatchIteratorITCase {
 		this.pairComparator = new RecordPairComparator(new int[] {0}, new int[] {0}, new Class[]{TestData.Key.class});
 		
 		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE, 1);
-		this.ioManager = new IOManager();
+		this.ioManager = new IOManagerAsync();
 	}
 
 	@After
-	public void afterTest()
-	{
+	public void afterTest() {
 		if (this.ioManager != null) {
 			this.ioManager.shutdown();
 			if (!this.ioManager.isProperlyShutDown()) {

@@ -75,6 +75,7 @@ import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.ChannelManager;
 import org.apache.flink.runtime.io.network.LocalConnectionManager;
 import org.apache.flink.runtime.io.network.NetworkConnectionManager;
@@ -354,7 +355,7 @@ public class TaskManager implements TaskOperationProtocol {
 						(blobServerAddress), GlobalConfiguration.getConfiguration());
 			}
 		}
-		this.ioManager = new IOManager(tmpDirPaths);
+		this.ioManager = new IOManagerAsync(tmpDirPaths);
 		
 		// start the heart beats
 		{

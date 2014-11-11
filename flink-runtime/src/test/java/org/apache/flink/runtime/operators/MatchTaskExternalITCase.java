@@ -32,8 +32,9 @@ import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
 
-public class MatchTaskExternalITCase extends DriverTestBase<FlatJoinFunction<Record, Record, Record>>
-{
+@SuppressWarnings("deprecation")
+public class MatchTaskExternalITCase extends DriverTestBase<FlatJoinFunction<Record, Record, Record>> {
+	
 	private static final long HASH_MEM = 4*1024*1024;
 	
 	private static final long SORT_MEM = 3*1024*1024;

@@ -16,17 +16,14 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.io.disk.iomanager;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.util.Collection;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.flink.core.memory.MemorySegment;
-
 
 /**
  * A base class for readers and writers that accept read or write requests for whole blocks.
@@ -35,35 +32,27 @@ import org.apache.flink.core.memory.MemorySegment;
  * <p>
  * The asynchrony of the access makes it possible to implement read-ahead or write-behind types of I/O accesses.
  * 
- * 
- * @param <R> The type of request (e.g. <tt>ReadRequest</tt> or <tt>WriteRequest</tt> issued by this access to
- *            the I/O threads.
- * @param <C> The type of collection used to collect the segments from completed requests. Those segments are for
- *            example for write requests the written and reusable segments, and for read requests the now full
- *            and usable segments. The collection type may for example be a synchronized queue or an unsynchronized
- *            list. 
+ * @param <R> The type of request (e.g. <tt>ReadRequest</tt> or <tt>WriteRequest</tt> issued by this access to the I/O threads.
  */
-public abstract class BlockChannelAccess<R extends IORequest, C extends Collection<MemorySegment>> extends ChannelAccess<MemorySegment, R>
-{	
-	/**
-	 * The lock that is used during closing to synchronize the thread that waits for all
-	 * requests to be handled with the asynchronous I/O thread.
-	 */
+public abstract class AsynchronousFileIOChannel<R extends IORequest> extends AbstractFileIOChannel {
+	
+	/** The lock that is used during closing to synchronize the thread that waits for all
+	 * requests to be handled with the asynchronous I/O thread. */
 	protected final Object closeLock = new Object();
 	
-	/**
-	 * An atomic integer that counts the number of buffers we still wait for to return.
-	 */
+	/** A request queue for submitting asynchronous requests to the corresponding IO worker thread. */
+	protected final RequestQueue<R> requestQueue;
+	
+	/** An atomic integer that counts the number of requests that we still wait for to return. */
 	protected final AtomicInteger requestsNotReturned = new AtomicInteger(0);
 	
-	/**
-	 * The collection gathering the processed buffers that are ready to be (re)used.
-	 */
-	protected final C returnBuffers;
+	/** Hander for completed requests */
+	protected final RequestDoneCallback resultHander;
 	
-	/**
-	 * Flag marking this channel as closed;
-	 */
+	/** An exception that was encountered by the asynchronous request handling thread.*/
+	protected volatile IOException exception;
+	
+	/** Flag marking this channel as closed */
 	protected volatile boolean closed;
 
 	// --------------------------------------------------------------------------------------------
@@ -75,53 +64,39 @@ public abstract class BlockChannelAccess<R extends IORequest, C extends Collecti
 	 * 
 	 * @param channelID The id describing the path of the file that the channel accessed.
 	 * @param requestQueue The queue that this channel hands its IO requests to.
-	 * @param returnQueue The queue to which the segments are added after their buffer was written.
+	 * @param callback The callback to be invoked when a request is done.
 	 * @param writeEnabled Flag describing whether the channel should be opened in read/write mode, rather
 	 *                     than in read-only mode.
 	 * @throws IOException Thrown, if the channel could no be opened.
 	 */
-	protected BlockChannelAccess(Channel.ID channelID, RequestQueue<R> requestQueue,
-			C returnQueue, boolean writeEnabled)
-	throws IOException
+	protected AsynchronousFileIOChannel(FileIOChannel.ID channelID, RequestQueue<R> requestQueue, 
+			RequestDoneCallback callback, boolean writeEnabled) throws IOException
 	{
-		super(channelID, requestQueue, writeEnabled);
+		super(channelID, writeEnabled);
 		
 		if (requestQueue == null) {
 			throw new NullPointerException();
 		}
 		
-		this.returnBuffers = returnQueue;
+		this.requestQueue = requestQueue;
+		this.resultHander = callback;
 	}
 	
 	// --------------------------------------------------------------------------------------------
 	
-	/**
-	 * Gets the queue (or list) to which the asynchronous reader adds its elements.
-	 * 
-	 * @return The queue (or list) to which the asynchronous reader adds its elements.
-	 */
-	public C getReturnQueue()
-	{
-		return this.returnBuffers;
-	}
-	
-
 	@Override
-	public boolean isClosed()
-	{
+	public boolean isClosed() {
 		return this.closed;
 	}
 	
 	/**
 	 * Closes the reader and waits until all pending asynchronous requests are
-	 * handled. Even if an exception interrupts the closing, the underlying <tt>FileChannel</tt> is
-	 * closed.
+	 * handled. Even if an exception interrupts the closing, the underlying <tt>FileChannel</tt> is closed.
 	 * 
 	 * @throws IOException Thrown, if an I/O exception occurred while waiting for the buffers, or if
 	 *                     the closing was interrupted.
 	 */
-	public void close() throws IOException
-	{
+	public void close() throws IOException {
 		// atomically set the close flag
 		synchronized (this.closeLock) {
 			if (this.closed) {
@@ -155,15 +130,13 @@ public abstract class BlockChannelAccess<R extends IORequest, C extends Collecti
 	/**
 	 * This method waits for all pending asynchronous requests to return. When the
 	 * last request has returned, the channel is closed and deleted.
-	 * 
+	 * <p>
 	 * Even if an exception interrupts the closing, such that not all request are handled,
 	 * the underlying <tt>FileChannel</tt> is closed and deleted.
 	 * 
-	 * @throws IOException Thrown, if an I/O exception occurred while waiting for the buffers, or if
-	 *                     the closing was interrupted.
+	 * @throws IOException Thrown, if an I/O exception occurred while waiting for the buffers, or if the closing was interrupted.
 	 */
-	public void closeAndDelete() throws IOException
-	{
+	public void closeAndDelete() throws IOException {
 		try {
 			close();
 		}
@@ -172,23 +145,52 @@ public abstract class BlockChannelAccess<R extends IORequest, C extends Collecti
 		}
 	}
 	
-
-	@Override
-	protected void returnBuffer(MemorySegment buffer)
-	{
-		this.returnBuffers.add(buffer);
-		
-		// decrement the number of missing buffers. If we are currently closing, notify the 
-		if (this.closed) {
-			synchronized (this.closeLock) {
-				int num = this.requestsNotReturned.decrementAndGet();
-				if (num == 0) {
-					this.closeLock.notifyAll();
-				}
+	/**
+	 * Checks the exception state of this channel. The channel is erroneous, if one of its requests could not
+	 * be processed correctly.
+	 * 
+	 * @throws IOException Thrown, if the channel is erroneous. The thrown exception contains the original exception
+	 *                     that defined the erroneous state as its cause.
+	 */
+	public final void checkErroneous() throws IOException {
+		if (this.exception != null) {
+			throw this.exception;
+		}
+	}
+	
+	/**
+	 * Handles a processed <tt>Buffer</tt>. This method is invoked by the
+	 * asynchronous IO worker threads upon completion of the IO request with the
+	 * provided buffer and/or an exception that occurred while processing the request
+	 * for that buffer.
+	 * 
+	 * @param buffer The buffer to be processed.
+	 * @param ex The exception that occurred in the I/O threads when processing the buffer's request.
+	 */
+	final void handleProcessedBuffer(MemorySegment buffer, IOException ex) {
+		// even if the callbacks throw an error, we need to maintain our bookkeeping
+		try {
+			if (ex != null && this.exception == null) {
+				this.exception = ex;
+				this.resultHander.requestFailed(buffer, ex);
+			}
+			else {
+				this.resultHander.requestSuccessful(buffer);
 			}
 		}
-		else {
-			this.requestsNotReturned.decrementAndGet();
+		finally {
+			// decrement the number of missing buffers. If we are currently closing, notify the 
+			if (this.closed) {
+				synchronized (this.closeLock) {
+					int num = this.requestsNotReturned.decrementAndGet();
+					if (num == 0) {
+						this.closeLock.notifyAll();
+					}
+				}
+			}
+			else {
+				this.requestsNotReturned.decrementAndGet();
+			}
 		}
 	}
 }
@@ -196,40 +198,35 @@ public abstract class BlockChannelAccess<R extends IORequest, C extends Collecti
 //--------------------------------------------------------------------------------------------
 
 /**
- * Special read request that reads an entire memory segment from a block reader.
+ * Read request that reads an entire memory segment from a block reader.
  */
-final class SegmentReadRequest implements ReadRequest
-{
-	private final BlockChannelAccess<ReadRequest, ?> channel;
+final class SegmentReadRequest implements ReadRequest {
+	
+	private final AsynchronousFileIOChannel<ReadRequest> channel;
 	
 	private final MemorySegment segment;
 	
-	protected SegmentReadRequest(BlockChannelAccess<ReadRequest, ?> targetChannel, MemorySegment segment)
-	{
+	protected SegmentReadRequest(AsynchronousFileIOChannel<ReadRequest> targetChannel, MemorySegment segment) {
 		this.channel = targetChannel;
 		this.segment = segment;
 	}
 
-
 	@Override
-	public void read() throws IOException
-	{
+	public void read() throws IOException {
 		final FileChannel c = this.channel.fileChannel;
 		if (c.size() - c.position() > 0) {
 			try {
 				final ByteBuffer wrapper = this.segment.wrap(0, this.segment.size());
 				this.channel.fileChannel.read(wrapper);
-			} catch (NullPointerException npex) {
-				// the memory has been cleared asynchronouosly through task failing or canceling
-				// ignore the request, since the result cannot be read
+			}
+			catch (NullPointerException npex) {
+				throw new IOException("Memory segment has been released.");
 			}
 		}
 	}
 
-
 	@Override
-	public void requestDone(IOException ioex)
-	{
+	public void requestDone(IOException ioex) {
 		this.channel.handleProcessedBuffer(this.segment, ioex);
 	}
 }
@@ -237,36 +234,31 @@ final class SegmentReadRequest implements ReadRequest
 //--------------------------------------------------------------------------------------------
 
 /**
- * Special write request that writes an entire memory segment to the block writer.
+ * Write request that writes an entire memory segment to the block writer.
  */
-final class SegmentWriteRequest implements WriteRequest
-{
-	private final BlockChannelAccess<WriteRequest, ?> channel;
+final class SegmentWriteRequest implements WriteRequest {
+	
+	private final AsynchronousFileIOChannel<WriteRequest> channel;
 	
 	private final MemorySegment segment;
 	
-	protected SegmentWriteRequest(BlockChannelAccess<WriteRequest, ?> targetChannel, MemorySegment segment)
-	{
+	protected SegmentWriteRequest(AsynchronousFileIOChannel<WriteRequest> targetChannel, MemorySegment segment) {
 		this.channel = targetChannel;
 		this.segment = segment;
 	}
 
-
 	@Override
-	public void write() throws IOException
-	{
+	public void write() throws IOException {
 		try {
 			this.channel.fileChannel.write(this.segment.wrap(0, this.segment.size()));
-		} catch (NullPointerException npex) {
-			// the memory has been cleared asynchronouosly through task failing or canceling
-			// ignore the request, since there is nothing to write.
+		}
+		catch (NullPointerException npex) {
+			throw new IOException("Memory segment has been released.");
 		}
 	}
 
-
 	@Override
-	public void requestDone(IOException ioex)
-	{
+	public void requestDone(IOException ioex) {
 		this.channel.handleProcessedBuffer(this.segment, ioex);
 	}
 }

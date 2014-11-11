@@ -23,14 +23,14 @@ import java.io.EOFException;
 import java.util.List;
 
 import org.junit.Assert;
-
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.iomanager.BlockChannelReader;
 import org.apache.flink.runtime.io.disk.iomanager.BlockChannelWriter;
-import org.apache.flink.runtime.io.disk.iomanager.Channel;
+import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 import org.apache.flink.runtime.io.disk.iomanager.ChannelReaderInputView;
 import org.apache.flink.runtime.io.disk.iomanager.ChannelWriterOutputView;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
@@ -79,7 +79,7 @@ public class ChannelViewsTest
 	@Before
 	public void beforeTest() {
 		this.memoryManager = new DefaultMemoryManager(MEMORY_SIZE, 1, MEMORY_PAGE_SIZE);
-		this.ioManager = new IOManager();
+		this.ioManager = new IOManagerAsync();
 	}
 
 	@After
@@ -103,7 +103,7 @@ public class ChannelViewsTest
 	public void testWriteReadSmallRecords() throws Exception
 	{
 		final TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_SHORT_LENGTH, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
-		final Channel.ID channel = this.ioManager.createChannel();
+		final FileIOChannel.ID channel = this.ioManager.createChannel();
 		
 		// create the writer output view
 		List<MemorySegment> memory = this.memoryManager.allocatePages(this.parentTask, NUM_MEMORY_SEGMENTS);
@@ -147,7 +147,7 @@ public class ChannelViewsTest
 	public void testWriteAndReadLongRecords() throws Exception
 	{
 		final TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_LONG_LENGTH, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
-		final Channel.ID channel = this.ioManager.createChannel();
+		final FileIOChannel.ID channel = this.ioManager.createChannel();
 		
 		// create the writer output view
 		List<MemorySegment> memory = this.memoryManager.allocatePages(this.parentTask, NUM_MEMORY_SEGMENTS);
@@ -188,7 +188,7 @@ public class ChannelViewsTest
 	public void testReadTooMany() throws Exception
 	{
 		final TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_SHORT_LENGTH, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
-		final Channel.ID channel = this.ioManager.createChannel();
+		final FileIOChannel.ID channel = this.ioManager.createChannel();
 		
 		// create the writer output view
 		List<MemorySegment> memory = this.memoryManager.allocatePages(this.parentTask, NUM_MEMORY_SEGMENTS);
@@ -239,7 +239,7 @@ public class ChannelViewsTest
 	public void testReadWithoutKnownBlockCount() throws Exception
 	{
 		final TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_SHORT_LENGTH, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
-		final Channel.ID channel = this.ioManager.createChannel();
+		final FileIOChannel.ID channel = this.ioManager.createChannel();
 		
 		// create the writer output view
 		List<MemorySegment> memory = this.memoryManager.allocatePages(this.parentTask, NUM_MEMORY_SEGMENTS);
@@ -283,7 +283,7 @@ public class ChannelViewsTest
 	public void testWriteReadOneBufferOnly() throws Exception
 	{
 		final TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_SHORT_LENGTH, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
-		final Channel.ID channel = this.ioManager.createChannel();
+		final FileIOChannel.ID channel = this.ioManager.createChannel();
 		
 		// create the writer output view
 		List<MemorySegment> memory = this.memoryManager.allocatePages(this.parentTask, 1);
@@ -327,7 +327,7 @@ public class ChannelViewsTest
 	public void testWriteReadNotAll() throws Exception
 	{
 		final TestData.Generator generator = new TestData.Generator(SEED, KEY_MAX, VALUE_SHORT_LENGTH, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
-		final Channel.ID channel = this.ioManager.createChannel();
+		final FileIOChannel.ID channel = this.ioManager.createChannel();
 		
 		// create the writer output view
 		List<MemorySegment> memory = this.memoryManager.allocatePages(this.parentTask, NUM_MEMORY_SEGMENTS);
