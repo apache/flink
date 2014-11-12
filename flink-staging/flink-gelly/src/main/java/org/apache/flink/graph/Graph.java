@@ -49,20 +49,17 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	/** a graph is directed by default */
 	private boolean isUndirected = false;
 
-	private static TypeInformation<?> vertexKeyType;
+	private static TypeInformation<?> keyType;
 	private static TypeInformation<?> vertexValueType;
-
-	private static TypeInformation<?> edgeKeyType;
 	private static TypeInformation<?> edgeValueType;
 
 
 	public Graph(DataSet<Tuple2<K, VV>> vertices, DataSet<Tuple3<K, K, EV>> edges) {
 		this.vertices = vertices;
 		this.edges = edges;
-		Graph.vertexKeyType = ((TupleTypeInfo<?>) vertices.getType()).getTypeAt(0);
+		
+		Graph.keyType = ((TupleTypeInfo<?>) vertices.getType()).getTypeAt(0);
 		Graph.vertexValueType = ((TupleTypeInfo<?>) vertices.getType()).getTypeAt(1);
-
-		Graph.edgeKeyType = ((TupleTypeInfo<?>) edges.getType()).getTypeAt(0);
 		Graph.edgeValueType = ((TupleTypeInfo<?>) edges.getType()).getTypeAt(2);
 	}
 
@@ -70,10 +67,9 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		this.vertices = vertices;
 		this.edges = edges;
 		this.isUndirected = undirected;
-		Graph.vertexKeyType = ((TupleTypeInfo<?>) vertices.getType()).getTypeAt(0);
+		
+		Graph.keyType = ((TupleTypeInfo<?>) vertices.getType()).getTypeAt(0);
 		Graph.vertexValueType = ((TupleTypeInfo<?>) vertices.getType()).getTypeAt(1);
-
-		Graph.edgeKeyType = ((TupleTypeInfo<?>) edges.getType()).getTypeAt(0);
 		Graph.edgeValueType = ((TupleTypeInfo<?>) edges.getType()).getTypeAt(2);
 	}
 
@@ -113,7 +109,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 			TypeInformation<NV> newVertexValueType = TypeExtractor.getMapReturnTypes(innerMapper, 
 					(TypeInformation<VV>)vertexValueType);
 			
-			return new TupleTypeInfo<Tuple2<K, NV>>(vertexKeyType, newVertexValueType);
+			return new TupleTypeInfo<Tuple2<K, NV>>(keyType, newVertexValueType);
 		}
     }
     
@@ -145,7 +141,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 			TypeInformation<NV> newEdgeValueType = TypeExtractor.getMapReturnTypes(innerMapper, 
 					(TypeInformation<EV>)edgeValueType);
 			
-			return new TupleTypeInfo<Tuple3<K, K, NV>>(edgeKeyType, edgeKeyType, newEdgeValueType);
+			return new TupleTypeInfo<Tuple3<K, K, NV>>(keyType, keyType, newEdgeValueType);
 		}
     }
 
