@@ -24,54 +24,27 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.Collector;
 
 /**
- * This example shows an implementation of Wordcount without using the Tuple2
+ * This example shows an implementation of WordCount without using the Tuple2
  * type, but a custom class.
- *
+ * 
+ * <p>
+ * Usage: <code>WordCount &lt;text path&gt; &lt;result path&gt;</code><br>
+ * If no parameters are provided, the program is run with default data from
+ * {@link WordCountData}.
+ * 
+ * <p>
+ * This example shows how to:
+ * <ul>
+ * <li>use POJO data types,
+ * <li>write a simple Flink program,
+ * <li>write and use user-defined functions. 
+ * </ul>
  */
-public class PojoWordCount {
-
-	/**
-	 * This is the POJO (Plain Old Java Object) that is being used for all the
-	 * operations. As long as all fields are public or have a getter/setter, the
-	 * system can handle them
-	 */
-	public static class Word {
-		// fields
-		private String word;
-		private Integer frequency;
-
-		// constructors
-		public Word() {
-		}
-
-		public Word(String word, int i) {
-			this.word = word;
-			this.frequency = i;
-		}
-
-		// getters setters
-		public String getWord() {
-			return word;
-		}
-
-		public void setWord(String word) {
-			this.word = word;
-		}
-
-		public Integer getFrequency() {
-			return frequency;
-		}
-
-		public void setFrequency(Integer frequency) {
-			this.frequency = frequency;
-		}
-
-		// to String
-		@Override
-		public String toString() {
-			return "Word=" + word + " freq=" + frequency;
-		}
-	}
+public class PojoExample {
+	
+	// *************************************************************************
+	// PROGRAM
+	// *************************************************************************
 
 	public static void main(String[] args) throws Exception {
 
@@ -89,8 +62,7 @@ public class PojoWordCount {
 		// split up the lines into Word objects
 		text.flatMap(new Tokenizer())
 		// group by the field word and sum up the frequency
-		.groupBy("word")
-		.sum("frequency");
+				.groupBy("word").sum("frequency");
 
 		if (fileOutput) {
 			counts.writeAsText(outputPath);
@@ -99,7 +71,51 @@ public class PojoWordCount {
 		}
 
 		// execute program
-		env.execute("WordCount-Pojo Example");
+		env.execute("WordCount Pojo Example");
+	}
+
+	// *************************************************************************
+	// DATA TYPES
+	// *************************************************************************
+
+	/**
+	 * This is the POJO (Plain Old Java Object) that is being used for all the
+	 * operations. As long as all fields are public or have a getter/setter, the
+	 * system can handle them
+	 */
+	public static class Word {
+
+		private String word;
+		private Integer frequency;
+
+		public Word() {
+		}
+
+		public Word(String word, int i) {
+			this.word = word;
+			this.frequency = i;
+		}
+
+		public String getWord() {
+			return word;
+		}
+
+		public void setWord(String word) {
+			this.word = word;
+		}
+
+		public Integer getFrequency() {
+			return frequency;
+		}
+
+		public void setFrequency(Integer frequency) {
+			this.frequency = frequency;
+		}
+
+		@Override
+		public String toString() {
+			return "(" + word + ", " + frequency + ")";
+		}
 	}
 
 	// *************************************************************************
@@ -146,13 +162,13 @@ public class PojoWordCount {
 				textPath = args[0];
 				outputPath = args[1];
 			} else {
-				System.err.println("Usage: WordCount <text path> <result path>");
+				System.err.println("Usage: PojoExample <text path> <result path>");
 				return false;
 			}
 		} else {
-			System.out.println("Executing WordCount example with built-in default data.");
+			System.out.println("Executing PojoExample example with built-in default data.");
 			System.out.println("  Provide parameters to read input data from a file.");
-			System.out.println("  Usage: WordCount <text path> <result path>");
+			System.out.println("  Usage: PojoExample <text path> <result path>");
 		}
 		return true;
 	}

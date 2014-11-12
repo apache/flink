@@ -65,7 +65,7 @@ under the License.
          			<executions>
            				<execution>
              					<id>unpack</id>
-             					<phase>package</phase>
+             					<phase>prepare-package</phase>
              					<goals>
                						<goal>unpack</goal>
              					</goals>
@@ -92,50 +92,6 @@ under the License.
 				<artifactId>maven-jar-plugin</artifactId>
 				
 				<executions>
-					<!-- Basic -->
-					<execution>
-						<id>Basic</id>
-						<phase>package</phase>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-						<configuration>
-							<classifier>Basic</classifier>
-
-							<archive>
-								<manifestEntries>
-									<program-class>org.apache.flink.streaming.examples.basictopology.BasicTopology</program-class>
-								</manifestEntries>
-							</archive>
-
-							<includes>
-								<include>org/apache/flink/streaming/examples/basictopology/BasicTopology.class</include>
-								<include>org/apache/flink/examples/java/wordcount/util/WordCountData.class</include>				
-							</includes>
-						</configuration>
-					</execution>
-
-					<!-- CellInfo -->
-					<execution>
-						<id>CellInfo</id>
-						<phase>package</phase>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-						<configuration>
-							<classifier>CellInfo</classifier>
-
-							<archive>
-								<manifestEntries>
-									<program-class>org.apache.flink.streaming.examples.cellinfo.CellInfoLocal</program-class>
-								</manifestEntries>
-							</archive>
-
-							<includes>
-								<include>org/apache/flink/streaming/examples/cellinfo/*.class</include>			
-							</includes>
-						</configuration>
-					</execution>
 
 					<!-- Iteration -->
 					<execution>
@@ -216,7 +172,7 @@ under the License.
 
 							<archive>
 								<manifestEntries>
-									<program-class>org.apache.flink.streaming.examples.window.join.WindowJoinLocal</program-class>
+									<program-class>org.apache.flink.streaming.examples.window.join.WindowJoin</program-class>
 								</manifestEntries>
 							</archive>
 
@@ -238,13 +194,13 @@ under the License.
 
 							<archive>
 								<manifestEntries>
-									<program-class>org.apache.flink.streaming.examples.wordcount.PojoWordCount</program-class>
+									<program-class>org.apache.flink.streaming.examples.wordcount.PojoExample</program-class>
 								</manifestEntries>
 							</archive>
 
 							<includes>
-								<include>org/apache/flink/streaming/examples/wordcount/PojoWordCount.class</include>
-								<include>org/apache/flink/streaming/examples/wordcount/PojoWordCount$*.class</include>
+								<include>org/apache/flink/streaming/examples/wordcount/PojoExample.class</include>
+								<include>org/apache/flink/streaming/examples/wordcount/PojoExample$*.class</include>
 								<include>org/apache/flink/examples/java/wordcount/util/WordCountData.class</include>			
 							</includes>
 						</configuration>

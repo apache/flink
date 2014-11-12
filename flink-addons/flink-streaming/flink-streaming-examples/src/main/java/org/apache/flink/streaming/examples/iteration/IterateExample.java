@@ -23,70 +23,97 @@ import java.util.List;
 import java.util.Random;
 
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.collector.OutputSelector;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.IterativeDataStream;
 import org.apache.flink.streaming.api.datastream.SplitDataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 /**
- * Example illustrating iterations in Flink streaming programs. The program will
- * sum up random numbers and counts how many additions it needs to reach a
- * specific threshold in an iterative streaming fashion.
- *
+ * Example illustrating iterations in Flink streaming.
+ * 
+ * <p>
+ * The program sums up random numbers and counts additions it performs to reach
+ * a specific threshold in an iterative streaming fashion.
+ * </p>
+ * 
+ * <p>
+ * This example shows how to use:
+ * <ul>
+ * <li>streaming iterations,
+ * <li>buffer timeout to enhance latency,
+ * <li>directed outputs.
+ * </ul>
  */
 public class IterateExample {
 
+	// *************************************************************************
+	// PROGRAM
+	// *************************************************************************
+
 	public static void main(String[] args) throws Exception {
 
-		// Set up our input for the stream of (0,0)s
+		if (!parseParameters(args)) {
+			return;
+		}
+
+		// set up input for the stream of (0,0) pairs
 		List<Tuple2<Double, Integer>> input = new ArrayList<Tuple2<Double, Integer>>();
 		for (int i = 0; i < 1000; i++) {
 			input.add(new Tuple2<Double, Integer>(0., 0));
 		}
 
-		// Obtain execution environment and use setBufferTimeout(0) to enable
-		// continuous flushing of the output buffers (lowest latency).
+		// obtain execution environment and set setBufferTimeout(0) to enable
+		// continuous flushing of the output buffers (lowest latency)
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment()
 				.setBufferTimeout(0);
 
-		// Create an iterative datastream from the input.
+		// create an iterative data stream from the input
 		IterativeDataStream<Tuple2<Double, Integer>> it = env.fromCollection(input).shuffle()
 				.iterate();
 
-		// We make sure that the iteration terminates if no new data received in
-		// the stream for 5 seconds
+		// trigger iteration termination if no new data received for 5 seconds
 		it.setMaxWaitTime(5000);
 
-		// We apply the stepfunction to add a new random value to the tuple and
-		// increment the counter, then we split the output with our
-		// outputselector.
+		// apply the step function to add new random value to the tuple and to
+		// increment the counter and split the output with the output selector
 		SplitDataStream<Tuple2<Double, Integer>> step = it.map(new Step()).shuffle()
 				.split(new MySelector());
 
-		// We close the iteration be selecting the tuples that was directed to
-		// 'iterate' in the outputselector
+		// close the iteration by selecting the tuples that were directed to the
+		// 'iterate' channel in the output selector
 		it.closeWith(step.select("iterate"));
 
-		// To produce the final output we select he tuples directed to 'output'
-		// than project it to the second field
-		step.select("output").project(1).types(Integer.class).print();
+		// to produce the final output select the tuples directed to the
+		// 'output' channel then project it to the desired second field
 
-		// Execute the streaming program
-		env.execute();
+		DataStream<Tuple1<Integer>> numbers = step.select("output").project(1).types(Integer.class);
+
+		// emit result
+		if (fileOutput) {
+			numbers.writeAsText(outputPath, 1);
+		} else {
+			numbers.print();
+		}
+
+		// execute the program
+		env.execute("Streaming Iteration Example");
 	}
+
+	// *************************************************************************
+	// USER FUNCTIONS
+	// *************************************************************************
 
 	/**
 	 * Iteration step function which takes an input (Double , Integer) and
-	 * produces an output (Double+random, Integer +1)
-	 *
+	 * produces an output (Double + random, Integer + 1).
 	 */
 	public static class Step implements
 			MapFunction<Tuple2<Double, Integer>, Tuple2<Double, Integer>> {
-
 		private static final long serialVersionUID = 1L;
-
-		Random rnd;
+		private Random rnd;
 
 		public Step() {
 			rnd = new Random();
@@ -101,10 +128,9 @@ public class IterateExample {
 	}
 
 	/**
-	 * s OutputSelector test which tuple needed to be iterated again.
+	 * OutputSelector testing which tuple needs to be iterated again.
 	 */
 	public static class MySelector extends OutputSelector<Tuple2<Double, Integer>> {
-
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -116,5 +142,31 @@ public class IterateExample {
 			}
 		}
 
+	}
+
+	// *************************************************************************
+	// UTIL METHODS
+	// *************************************************************************
+
+	private static boolean fileOutput = false;
+	private static String outputPath;
+
+	private static boolean parseParameters(String[] args) {
+
+		if (args.length > 0) {
+			// parse input arguments
+			fileOutput = true;
+			if (args.length == 1) {
+				outputPath = args[0];
+			} else {
+				System.err.println("Usage: IterateExample <result path>");
+				return false;
+			}
+		} else {
+			System.out.println("Executing IterateExample with generated data.");
+			System.out.println("  Provide parameter to write to file.");
+			System.out.println("  Usage: IterateExample <result path>");
+		}
+		return true;
 	}
 }
