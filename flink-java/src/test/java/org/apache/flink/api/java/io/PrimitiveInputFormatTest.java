@@ -99,6 +99,7 @@ public class PrimitiveInputFormatTest {
 			fail("Test failed due to a " + ex.getClass().getName() + ": " + ex.getMessage());
 		}
 	}
+	
 
 	@Test
 	public void testDoubleInputLinewise() throws IOException {
@@ -151,6 +152,27 @@ public class PrimitiveInputFormatTest {
 		catch (Exception ex) {
 			fail("Test failed due to a " + ex.getClass().getName() + ": " + ex.getMessage());
 		}
+	}
+	
+	@Test(expected = IOException.class)
+	public void testFailingInput() throws IOException {
+		
+		final String fileContent = "111|222|asdf|17";
+		final FileInputSplit split = createInputSplit(fileContent);
+
+		final PrimitiveInputFormat<Integer> format = new PrimitiveInputFormat<Integer>(PATH,"|", Integer.class);
+
+		format.configure(new Configuration());
+		format.open(split);
+
+		Integer result = null;
+		result = format.nextRecord(result);
+		assertEquals(Integer.valueOf(111), result);
+
+		result = format.nextRecord(result);
+		assertEquals(Integer.valueOf(222), result);
+
+		result = format.nextRecord(result);
 	}
 
 	private FileInputSplit createInputSplit(String content) throws IOException {

@@ -1580,6 +1580,7 @@ File-based:
 - `readCsvFile(path)` / `CsvInputFormat` - Parses files of comma (or another char) delimited fields.
   Returns a DataSet of tuples. Supports the basic java types and their Value counterparts as field
   types.
+- `readFileOfPrimitives(path, Class)` / `PrimitiveInputFormat` - Parses files of new-line (or another char sequence) delimited primitive data types such as `String` or `Integer`. 
 
 Collection-based:
 

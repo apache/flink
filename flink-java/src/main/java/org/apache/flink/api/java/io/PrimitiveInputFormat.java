@@ -65,15 +65,19 @@ public class PrimitiveInputFormat<OT> extends DelimitedInputFormat<OT> {
 	}
 
 	@Override
-	public OT readRecord(OT reuse, byte[] bytes, int offset, int numBytes) {
-		//Check if \n is used as delimiter and the end of this line is a \r, then remove \r from the line
+	public OT readRecord(OT reuse, byte[] bytes, int offset, int numBytes) throws IOException {
+		// Check if \n is used as delimiter and the end of this line is a \r, then remove \r from the line
 		if (this.getDelimiter().length == 1 && this.getDelimiter()[0] == NEW_LINE
 			&& offset+numBytes >= 1 && bytes[offset+numBytes-1] == CARRIAGE_RETURN){
 			numBytes -= 1;
 		}
 
-		//Null character as delimiter is used because there's only 1 field to be parsed
-		parser.parseField(bytes, offset, numBytes + offset, '\0', reuse);
-		return parser.getLastResult();
+		// Null character as delimiter is used because there's only 1 field to be parsed
+		if (parser.parseField(bytes, offset, numBytes + offset, '\0', reuse) >= 0) {
+			return parser.getLastResult();
+		} else {
+			String s = new String(bytes, offset, numBytes);
+			throw new IOException("Could not parse value: \""+s+"\" as type "+primitiveClass.getSimpleName());
+		}
 	}
 }

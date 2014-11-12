@@ -252,16 +252,16 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> {
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * This function parses the given byte array which represents a serialized records.
-	 * The parsed content is then returned by setting the pair variables. If the
-	 * byte array contains invalid content the record can be skipped by returning <tt>false</tt>.
+	 * This function parses the given byte array which represents a serialized record.
+	 * The function returns a valid record or throws an IOException.
 	 * 
 	 * @param reuse An optionally reusable object.
 	 * @param bytes Binary data of serialized records.
 	 * @param offset The offset where to start to read the record data. 
 	 * @param numBytes The number of bytes that can be read starting at the offset position.
 	 * 
-	 * @return returns whether the record was successfully deserialized or not.
+	 * @return Returns the read record if it was successfully deserialized.
+	 * @throws IOException if the record could not be read.
 	 */
 	public abstract OT readRecord(OT reuse, byte[] bytes, int offset, int numBytes) throws IOException;
 	

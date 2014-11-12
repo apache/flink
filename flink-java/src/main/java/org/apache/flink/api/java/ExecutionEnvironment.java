@@ -283,7 +283,7 @@ public abstract class ExecutionEnvironment {
 	public <X> DataSource<X> readFileOfPrimitives(String filePath, Class<X> typeClass) {
 		Validate.notNull(filePath, "The file path may not be null.");
 
-		return new DataSource<X>(this, new PrimitiveInputFormat<X>(new Path(filePath), typeClass), TypeExtractor.getForClass(typeClass));
+		return new DataSource<X>(this, new PrimitiveInputFormat<X>(new Path(filePath), typeClass), TypeExtractor.getForClass(typeClass), Utils.getCallLocationName());
 	}
 
 	/**
@@ -299,7 +299,7 @@ public abstract class ExecutionEnvironment {
 	public <X> DataSource<X> readFileOfPrimitives(String filePath, String delimiter, Class<X> typeClass) {
 		Validate.notNull(filePath, "The file path may not be null.");
 
-		return new DataSource<X>(this, new PrimitiveInputFormat<X>(new Path(filePath), delimiter, typeClass), TypeExtractor.getForClass(typeClass));
+		return new DataSource<X>(this, new PrimitiveInputFormat<X>(new Path(filePath), delimiter, typeClass), TypeExtractor.getForClass(typeClass), Utils.getCallLocationName());
 	}
 
 	// ----------------------------------- CSV Input Format ---------------------------------------

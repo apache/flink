@@ -208,7 +208,8 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
     val datasource = new DataSource[T](
       javaEnv,
       new PrimitiveInputFormat(new Path(filePath), delimiter, typeInfo.getTypeClass),
-      typeInfo)
+      typeInfo,
+      getCallLocationName())
     wrap(datasource)
   }
 
