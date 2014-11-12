@@ -120,7 +120,9 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 	
 	private int iterationIdEnumerator = 1;
 	
-	private IterationPlanNode currentIteration;	// hack: as long as no nesting is possible, remember the enclosing iteration
+	private IterationPlanNode currentIteration; // the current the enclosing iteration
+	
+	private List<IterationPlanNode> iterationStack;  // stack of enclosing iterations
 	
 	private SlotSharingGroup sharingGroup;
 	
@@ -156,11 +158,17 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		this.chainedTasksInSequence = new ArrayList<TaskInChain>();
 		this.auxVertices = new ArrayList<AbstractJobVertex>();
 		this.iterations = new HashMap<IterationPlanNode, IterationDescriptor>();
+		this.iterationStack = new ArrayList<IterationPlanNode>();
 		
 		this.sharingGroup = new SlotSharingGroup();
 		
 		// generate Nephele job graph
 		program.accept(this);
+		
+		// sanity check that we are not somehow in an iteration at the end
+		if (this.currentIteration != null) {
+			throw new CompilerException("The graph translation ended prematurely, leaving an unclosed iteration.");
+		}
 		
 		// finalize the iterations
 		for (IterationDescriptor iteration : this.iterations.values()) {
@@ -207,7 +215,8 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		this.chainedTasksInSequence = null;
 		this.auxVertices = null;
 		this.iterations = null;
-
+		this.iterationStack = null;
+		
 		// return job graph
 		return graph;
 	}
@@ -391,13 +400,26 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 			
 			// check if we have an iteration. in that case, translate the step function now
 			if (node instanceof IterationPlanNode) {
-				// for now, prevent nested iterations
-				if (this.currentIteration != null) {
+				// prevent nested iterations
+				if (node.isOnDynamicPath()) {
 					throw new CompilerException("Nested Iterations are not possible at the moment!");
 				}
+				
+				// if we recursively go into an iteration (because the constant path of one iteration contains
+				// another one), we push the current one onto the stack
+				if (this.currentIteration != null) {
+					this.iterationStack.add(this.currentIteration);
+				}
+				
 				this.currentIteration = (IterationPlanNode) node;
 				this.currentIteration.acceptForStepFunction(this);
-				this.currentIteration = null;
+				
+				// pop the current iteration from the stack
+				if (this.iterationStack.isEmpty()) {
+					this.currentIteration = null;
+				} else {
+					this.currentIteration = this.iterationStack.remove(this.iterationStack.size() - 1);
+				}
 				
 				// inputs for initial bulk partial solution or initial workset are already connected to the iteration head in the head's post visit.
 				// connect the initial solution set now.

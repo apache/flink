@@ -22,7 +22,6 @@ import static org.junit.Assert.*;
 
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.junit.Test;
-
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.operators.DeltaIteration;
@@ -40,6 +39,7 @@ import org.apache.flink.compiler.plan.Channel;
 import org.apache.flink.compiler.plan.OptimizedPlan;
 import org.apache.flink.compiler.plan.WorksetIterationPlanNode;
 import org.apache.flink.compiler.plandump.PlanJSONDumpGenerator;
+import org.apache.flink.compiler.plantranslate.NepheleJobGraphGenerator;
 import org.apache.flink.compiler.testfunctions.IdentityMapper;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.util.Collector;
@@ -71,7 +71,11 @@ public class IterationsCompilerTest extends CompilerTestBase {
 			
 			OptimizedPlan p = compileNoStats(env.createProgramPlan());
 			
+			// check that the JSON generator accepts this plan
 			new PlanJSONDumpGenerator().getOptimizerPlanAsJSON(p);
+			
+			// check that the JobGraphGenerator accepts the plan
+			new NepheleJobGraphGenerator().compileJobGraph(p);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -107,6 +111,8 @@ public class IterationsCompilerTest extends CompilerTestBase {
 			
 			assertEquals(ShipStrategyType.PARTITION_HASH, wipn.getInput1().getShipStrategy());
 			assertTrue(wipn.getInput2().getTempMode().breaksPipeline());
+			
+			new NepheleJobGraphGenerator().compileJobGraph(op);
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -141,6 +147,8 @@ public class IterationsCompilerTest extends CompilerTestBase {
 			
 			assertEquals(ShipStrategyType.PARTITION_HASH, wipn.getInput1().getShipStrategy());
 			assertTrue(wipn.getInput2().getTempMode().breaksPipeline());
+			
+			new NepheleJobGraphGenerator().compileJobGraph(op);
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -175,6 +183,8 @@ public class IterationsCompilerTest extends CompilerTestBase {
 			
 			assertEquals(ShipStrategyType.FORWARD, wipn.getInput1().getShipStrategy());
 			assertTrue(wipn.getInput2().getTempMode().breaksPipeline());
+			
+			new NepheleJobGraphGenerator().compileJobGraph(op);
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -207,6 +217,8 @@ public class IterationsCompilerTest extends CompilerTestBase {
 			for (Channel c : bipn.getPartialSolutionPlanNode().getOutgoingChannels()) {
 				assertEquals(ShipStrategyType.PARTITION_HASH, c.getShipStrategy());
 			}
+			
+			new NepheleJobGraphGenerator().compileJobGraph(op);
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());

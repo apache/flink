@@ -290,6 +290,16 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 		this.input1.setInterestingProperties(partitionedIP);
 	}
 	
+	@Override
+	public void clearInterestingProperties() {
+		super.clearInterestingProperties();
+		
+		this.nextWorksetRootConnection.clearInterestingProperties();
+		this.solutionSetDeltaRootConnection.clearInterestingProperties();
+		
+		this.nextWorkset.accept(InterestingPropertiesClearer.INSTANCE);
+		this.solutionSetDelta.accept(InterestingPropertiesClearer.INSTANCE);
+	}
 	
 	@Override
 	protected void instantiate(OperatorDescriptorDual operator, Channel solutionSetIn, Channel worksetIn,
