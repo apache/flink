@@ -112,11 +112,6 @@ public class StreamVertexTest {
 		}
 
 		try {
-			env.setExecutionParallelism(-10);
-			fail();
-		} catch (IllegalArgumentException e) {
-		}
-		try {
 			env.generateSequence(1, 10).project(2);
 			fail();
 		} catch (RuntimeException e) {

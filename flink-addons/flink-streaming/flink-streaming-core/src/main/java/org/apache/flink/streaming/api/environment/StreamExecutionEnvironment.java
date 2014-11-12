@@ -20,10 +20,13 @@ package org.apache.flink.streaming.api.environment;
 import java.io.File;
 import java.io.Serializable;
 import java.util.Collection;
+import java.util.List;
 
 import org.apache.commons.lang3.SerializationException;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.client.program.Client;
+import org.apache.flink.client.program.ContextEnvironment;
 import org.apache.flink.streaming.api.JobGraphBuilder;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
@@ -44,20 +47,9 @@ import org.apache.flink.streaming.util.serialization.TypeWrapper;
  */
 public abstract class StreamExecutionEnvironment {
 
-	/**
-	 * The environment of the context (local by default, cluster if invoked
-	 * through command line)
-	 */
-	private static StreamExecutionEnvironment contextEnvironment;
-
-	/** flag to disable local executor when using the ContextEnvironment */
-	private static boolean allowLocalExecution = true;
-
 	private static int defaultLocalDop = Runtime.getRuntime().availableProcessors();
 
 	private int degreeOfParallelism = 1;
-
-	private int executionParallelism = -1;
 
 	private long bufferTimeout = 100;
 
@@ -72,10 +64,6 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	protected StreamExecutionEnvironment() {
 		jobGraphBuilder = new JobGraphBuilder();
-	}
-
-	public int getExecutionParallelism() {
-		return executionParallelism == -1 ? degreeOfParallelism : executionParallelism;
 	}
 
 	/**
@@ -141,21 +129,6 @@ public abstract class StreamExecutionEnvironment {
 
 	public long getBufferTimeout() {
 		return this.bufferTimeout;
-	}
-
-	/**
-	 * Sets the number of hardware contexts (CPU cores / threads) used when
-	 * executed in {@link LocalStreamEnvironment}.
-	 * 
-	 * @param degreeOfParallelism
-	 *            The degree of parallelism in local environment
-	 */
-	public void setExecutionParallelism(int degreeOfParallelism) {
-		if (degreeOfParallelism < 1) {
-			throw new IllegalArgumentException("Degree of parallelism must be at least one.");
-		}
-
-		this.executionParallelism = degreeOfParallelism;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -351,8 +324,19 @@ public abstract class StreamExecutionEnvironment {
 	 *         executed.
 	 */
 	public static StreamExecutionEnvironment getExecutionEnvironment() {
-		allowLocalExecution = ExecutionEnvironment.localExecutionIsAllowed();
-		return createLocalEnvironment();
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		if (env instanceof ContextEnvironment) {
+			ContextEnvironment ctx = (ContextEnvironment) env;
+			return createContextEnvironment(ctx.getClient(), ctx.getJars(),
+					ctx.getDegreeOfParallelism());
+		} else {
+			return createLocalEnvironment();
+		}
+	}
+
+	private static StreamExecutionEnvironment createContextEnvironment(Client client,
+			List<File> jars, int dop) {
+		return new StreamContextEnvironment(client, jars, dop);
 	}
 
 	/**
@@ -438,27 +422,6 @@ public abstract class StreamExecutionEnvironment {
 		RemoteStreamEnvironment rec = new RemoteStreamEnvironment(host, port, jarFiles);
 		rec.setDegreeOfParallelism(degreeOfParallelism);
 		return rec;
-	}
-
-	// --------------------------------------------------------------------------------------------
-	// Methods to control the context and local environments for execution from
-	// packaged programs
-	// --------------------------------------------------------------------------------------------
-
-	protected static void initializeContextEnvironment(StreamExecutionEnvironment ctx) {
-		contextEnvironment = ctx;
-	}
-
-	protected static boolean isContextEnvironmentSet() {
-		return contextEnvironment != null;
-	}
-
-	protected static void disableLocalExecution() {
-		allowLocalExecution = false;
-	}
-
-	public static boolean localExecutionIsAllowed() {
-		return allowLocalExecution;
 	}
 
 	/**

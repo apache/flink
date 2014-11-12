@@ -73,13 +73,13 @@ public class IterateExample {
 			input.add(new Tuple2<Double, Integer>(0., 0));
 		}
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(2)
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment()
 				.setBufferTimeout(1);
 
 		IterativeDataStream<Tuple2<Double, Integer>> it = env.fromCollection(input).iterate()
 				.setMaxWaitTime(3000);
 		
-		SplitDataStream<Tuple2<Double,Integer>> step = it.map(new Step()).shuffle().setParallelism(2).split(new MySelector());
+		SplitDataStream<Tuple2<Double,Integer>> step = it.map(new Step()).shuffle().split(new MySelector());
 		
 		it.closeWith(step.select("iterate"));
 		

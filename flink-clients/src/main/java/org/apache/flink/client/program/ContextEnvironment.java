@@ -83,4 +83,8 @@ public class ContextEnvironment extends ExecutionEnvironment {
 	public Client getClient() {
 		return this.client;
 	}
+	
+	public List<File> getJars(){
+		return jarFilesToAttach;
+	}
 }

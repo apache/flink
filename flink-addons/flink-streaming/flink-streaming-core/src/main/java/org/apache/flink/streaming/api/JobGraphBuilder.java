@@ -80,8 +80,6 @@ public class JobGraphBuilder {
 	private Map<String, Long> iterationWaitTime;
 	private Map<String, Map<String, OperatorState<?>>> operatorStates;
 
-	private int degreeOfParallelism;
-	private int executionParallelism;
 
 	/**
 	 * Creates an new {@link JobGraph} with the given name. A JobGraph is a DAG
@@ -118,22 +116,6 @@ public class JobGraphBuilder {
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("JobGraph created");
 		}
-	}
-
-	public int getDefaultParallelism() {
-		return degreeOfParallelism;
-	}
-
-	public void setDefaultParallelism(int defaultParallelism) {
-		this.degreeOfParallelism = defaultParallelism;
-	}
-
-	public int getExecutionParallelism() {
-		return executionParallelism;
-	}
-
-	public void setExecutionParallelism(int executionParallelism) {
-		this.executionParallelism = executionParallelism;
 	}
 
 	/**

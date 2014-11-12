@@ -44,6 +44,8 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable {
 	private StreamingRuntimeContext context;
 	private Map<String, OperatorState<?>> states;
 
+	protected ClassLoader userClassLoader;
+
 	public StreamVertex() {
 		userInvokable = null;
 		numTasks = newVertex();
@@ -63,12 +65,13 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable {
 	}
 
 	protected void initialize() {
+		this.userClassLoader = getUserCodeClassLoader();
 		this.configuration = new StreamConfig(getTaskConfiguration());
 		this.name = configuration.getVertexName();
 		this.isMutable = configuration.getMutability();
 		this.functionName = configuration.getFunctionName();
-		this.function = configuration.getFunction();
-		this.states = configuration.getOperatorStates();
+		this.function = configuration.getFunction(userClassLoader);
+		this.states = configuration.getOperatorStates(userClassLoader);
 		this.context = createRuntimeContext(name, this.states);
 	}
 
@@ -85,7 +88,7 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable {
 	}
 
 	protected void setInvokable() {
-		userInvokable = configuration.getUserInvokable();
+		userInvokable = configuration.getUserInvokable(userClassLoader);
 		userInvokable.initialize(outputHandler.getCollector(), inputHandler.getInputIter(),
 				inputHandler.getInputSerializer(), isMutable);
 	}

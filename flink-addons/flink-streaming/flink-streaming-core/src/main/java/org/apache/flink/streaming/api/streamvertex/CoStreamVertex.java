@@ -29,8 +29,7 @@ import org.apache.flink.streaming.io.CoReaderIterator;
 import org.apache.flink.streaming.io.CoRecordReader;
 import org.apache.flink.util.MutableObjectIterator;
 
-public class CoStreamVertex<IN1, IN2, OUT> extends
-		StreamVertex<IN1,OUT> {
+public class CoStreamVertex<IN1, IN2, OUT> extends StreamVertex<IN1, OUT> {
 
 	private OutputHandler<OUT> outputHandler;
 
@@ -53,10 +52,10 @@ public class CoStreamVertex<IN1, IN2, OUT> extends
 	}
 
 	private void setDeserializers() {
-		TypeInformation<IN1> inputTypeInfo1 = configuration.getTypeInfoIn1();
+		TypeInformation<IN1> inputTypeInfo1 = configuration.getTypeInfoIn1(userClassLoader);
 		inputDeserializer1 = new StreamRecordSerializer<IN1>(inputTypeInfo1);
 
-		TypeInformation<IN2> inputTypeInfo2 = configuration.getTypeInfoIn2();
+		TypeInformation<IN2> inputTypeInfo2 = configuration.getTypeInfoIn2(userClassLoader);
 		inputDeserializer2 = new StreamRecordSerializer<IN2>(inputTypeInfo2);
 	}
 
@@ -72,7 +71,7 @@ public class CoStreamVertex<IN1, IN2, OUT> extends
 
 	@Override
 	protected void setInvokable() {
-		userInvokable = configuration.getUserInvokable();
+		userInvokable = configuration.getUserInvokable(userClassLoader);
 		userInvokable.initialize(outputHandler.getCollector(), coIter, inputDeserializer1,
 				inputDeserializer2, isMutable);
 	}

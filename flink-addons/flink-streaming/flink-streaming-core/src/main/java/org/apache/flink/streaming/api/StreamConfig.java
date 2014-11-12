@@ -34,6 +34,7 @@ import org.apache.flink.streaming.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.state.OperatorState;
 import org.apache.flink.streaming.util.serialization.TypeWrapper;
+import org.apache.flink.util.InstantiationUtil;
 
 public class StreamConfig {
 	private static final String INPUT_TYPE = "inputType_";
@@ -98,20 +99,20 @@ public class StreamConfig {
 		setTypeWrapper(TYPE_WRAPPER_OUT_2, typeWrapper);
 	}
 
-	public <T> TypeInformation<T> getTypeInfoIn1() {
-		return getTypeInfo(TYPE_WRAPPER_IN_1);
+	public <T> TypeInformation<T> getTypeInfoIn1(ClassLoader cl) {
+		return getTypeInfo(TYPE_WRAPPER_IN_1, cl);
 	}
 
-	public <T> TypeInformation<T> getTypeInfoIn2() {
-		return getTypeInfo(TYPE_WRAPPER_IN_2);
+	public <T> TypeInformation<T> getTypeInfoIn2(ClassLoader cl) {
+		return getTypeInfo(TYPE_WRAPPER_IN_2, cl);
 	}
 
-	public <T> TypeInformation<T> getTypeInfoOut1() {
-		return getTypeInfo(TYPE_WRAPPER_OUT_1);
+	public <T> TypeInformation<T> getTypeInfoOut1(ClassLoader cl) {
+		return getTypeInfo(TYPE_WRAPPER_OUT_1, cl);
 	}
 
-	public <T> TypeInformation<T> getTypeInfoOut2() {
-		return getTypeInfo(TYPE_WRAPPER_OUT_2);
+	public <T> TypeInformation<T> getTypeInfoOut2(ClassLoader cl) {
+		return getTypeInfo(TYPE_WRAPPER_OUT_2, cl);
 	}
 
 	private void setTypeWrapper(String key, TypeWrapper<?> typeWrapper) {
@@ -119,18 +120,17 @@ public class StreamConfig {
 	}
 
 	@SuppressWarnings("unchecked")
-	private <T> TypeInformation<T> getTypeInfo(String key) {
-		byte[] serializedWrapper = config.getBytes(key, null);
+	private <T> TypeInformation<T> getTypeInfo(String key, ClassLoader cl) {
 
-		if (serializedWrapper == null) {
-			throw new RuntimeException("TypeSerializationWrapper must be set");
+		TypeWrapper<T> typeWrapper;
+		try {
+			typeWrapper = (TypeWrapper<T>) InstantiationUtil.readObjectFromConfig(this.config, key,
+					cl);
+		} catch (Exception e) {
+			throw new RuntimeException("Cannot load typeinfo");
 		}
-
-		TypeWrapper<T> typeWrapper = (TypeWrapper<T>) SerializationUtils
-				.deserialize(serializedWrapper);
 		if (typeWrapper != null) {
 			return typeWrapper.getTypeInfo();
-
 		} else {
 			return null;
 		}
@@ -166,9 +166,10 @@ public class StreamConfig {
 		}
 	}
 
-	public <T> T getUserInvokable() {
+	@SuppressWarnings({ "unchecked" })
+	public <T> T getUserInvokable(ClassLoader cl) {
 		try {
-			return SerializationUtils.deserialize(config.getBytes(SERIALIZEDUDF, null));
+			return (T) InstantiationUtil.readObjectFromConfig(this.config, SERIALIZEDUDF, cl);
 		} catch (Exception e) {
 			throw new StreamVertexException("Cannot instantiate user function", e);
 		}
@@ -189,10 +190,10 @@ public class StreamConfig {
 		}
 	}
 
-	public Object getFunction() {
+	public Object getFunction(ClassLoader cl) {
 		try {
-			return SerializationUtils.deserialize(config.getBytes(FUNCTION, null));
-		} catch (SerializationException e) {
+			return InstantiationUtil.readObjectFromConfig(this.config, FUNCTION, cl);
+		} catch (Exception e) {
 			throw new RuntimeException("Cannot deserialize invokable object", e);
 		}
 	}
@@ -216,9 +217,11 @@ public class StreamConfig {
 		}
 	}
 
-	public <T> OutputSelector<T> getOutputSelector() {
+	@SuppressWarnings("unchecked")
+	public <T> OutputSelector<T> getOutputSelector(ClassLoader cl) {
 		try {
-			return SerializationUtils.deserialize(config.getBytes(OUTPUT_SELECTOR, null));
+			return (OutputSelector<T>) InstantiationUtil.readObjectFromConfig(this.config,
+					OUTPUT_SELECTOR, cl);
 		} catch (Exception e) {
 			throw new StreamVertexException("Cannot deserialize and instantiate OutputSelector", e);
 		}
@@ -254,10 +257,16 @@ public class StreamConfig {
 				SerializationUtils.serialize(partitionerObject));
 	}
 
-	public <T> StreamPartitioner<T> getPartitioner(int outputIndex) throws ClassNotFoundException,
-			IOException {
-		return SerializationUtils.deserialize(config.getBytes(PARTITIONER_OBJECT + outputIndex,
-				SerializationUtils.serialize(new ShufflePartitioner<T>())));
+	public <T> StreamPartitioner<T> getPartitioner(ClassLoader cl, int outputIndex)
+			throws ClassNotFoundException, IOException {
+		@SuppressWarnings("unchecked")
+		StreamPartitioner<T> partitioner = (StreamPartitioner<T>) InstantiationUtil
+				.readObjectFromConfig(this.config, PARTITIONER_OBJECT + outputIndex, cl);
+		if (partitioner != null) {
+			return partitioner;
+		} else {
+			return new ShufflePartitioner<T>();
+		}
 	}
 
 	public void setSelectAll(int outputIndex, Boolean selectAll) {
@@ -323,8 +332,14 @@ public class StreamConfig {
 		config.setBytes(OPERATOR_STATES, SerializationUtils.serialize((Serializable) states));
 	}
 
-	public Map<String, OperatorState<?>> getOperatorStates() {
-		return SerializationUtils.deserialize(config.getBytes(OPERATOR_STATES, null));
+	@SuppressWarnings("unchecked")
+	public Map<String, OperatorState<?>> getOperatorStates(ClassLoader cl) {
+		try {
+			return (Map<String, OperatorState<?>>) InstantiationUtil.readObjectFromConfig(
+					this.config, OPERATOR_STATES, cl);
+		} catch (Exception e) {
+			throw new RuntimeException("Could not load operator state");
+		}
 	}
 
 }

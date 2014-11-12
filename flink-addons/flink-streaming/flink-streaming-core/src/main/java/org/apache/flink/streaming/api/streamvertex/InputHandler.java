@@ -35,10 +35,10 @@ public class InputHandler<IN> {
 	private MutableObjectIterator<StreamRecord<IN>> inputIter;
 	private MutableReader<IOReadableWritable> inputs;
 
-	private StreamVertex<IN,?> streamVertex;
+	private StreamVertex<IN, ?> streamVertex;
 	private StreamConfig configuration;
 
-	public InputHandler(StreamVertex<IN,?> streamComponent) {
+	public InputHandler(StreamVertex<IN, ?> streamComponent) {
 		this.streamVertex = streamComponent;
 		this.configuration = new StreamConfig(streamComponent.getTaskConfiguration());
 		try {
@@ -75,7 +75,8 @@ public class InputHandler<IN> {
 	}
 
 	private void setDeserializer() {
-		TypeInformation<IN> inTupleTypeInfo = configuration.getTypeInfoIn1();
+		TypeInformation<IN> inTupleTypeInfo = configuration
+				.getTypeInfoIn1(streamVertex.userClassLoader);
 		if (inTupleTypeInfo != null) {
 			inputSerializer = new StreamRecordSerializer<IN>(inTupleTypeInfo);
 		}
