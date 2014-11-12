@@ -32,7 +32,7 @@ import org.apache.sling.commons.json.JSONException;
 
 /**
  * Implements the "TwitterStream" program that computes a most used word occurrence
- * histogram over JSON files in a streaming fashion.
+ * over JSON files in a streaming fashion.
  * 
  * <p>
  * The input is a JSON text file with lines separated by newline characters.
@@ -52,7 +52,6 @@ import org.apache.sling.commons.json.JSONException;
  * 
  */
 public class TwitterStream {
-	private static final int PARALLELISM = 1;
 	
 	// *************************************************************************
 	// PROGRAM
@@ -65,7 +64,7 @@ public class TwitterStream {
 
 		// set up the execution environment
 		StreamExecutionEnvironment env = StreamExecutionEnvironment
-				.createLocalEnvironment(PARALLELISM);
+				.getExecutionEnvironment();
 
 		env.setBufferTimeout(1000);
 		

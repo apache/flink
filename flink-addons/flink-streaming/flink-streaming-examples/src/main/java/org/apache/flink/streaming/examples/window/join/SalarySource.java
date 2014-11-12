@@ -19,29 +19,27 @@ package org.apache.flink.streaming.examples.window.join;
 
 import java.util.Random;
 
-import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.function.source.SourceFunction;
 import org.apache.flink.util.Collector;
 
-public class SalarySource implements SourceFunction<Tuple3<String, Integer, Long>> {
+public class SalarySource implements SourceFunction<Tuple2<String, Integer>> {
 
 	private static final long serialVersionUID = 6670933703432267728L;
 
 	private String[] names = { "tom", "jerry", "alice", "bob", "john", "grace", "sasa", "lawrance",
-			"andrew", "jean", "richard", "smith", "gorge", "black", "peter" };
+			"andrew", "jean", "richard", "smith", "gorge", "black", "peter", "mark", "eric" };
 	private Random rand = new Random();
-	private Tuple3<String, Integer, Long> outTuple = new Tuple3<String, Integer, Long>();
-	private Long progress = 0L;
+	private Tuple2<String, Integer> outTuple = new Tuple2<String, Integer>();
 
 	@Override
-	public void invoke(Collector<Tuple3<String, Integer, Long>> out) throws Exception {
+	public void invoke(Collector<Tuple2<String, Integer>> out) throws Exception {
 		// Continuously emit tuples with random names and integers (salaries).
 		while (true) {
 			outTuple.f0 = names[rand.nextInt(names.length)];
 			outTuple.f1 = rand.nextInt(10000);
-			outTuple.f2 = progress;
 			out.collect(outTuple);
-			progress += 1;
+			Thread.sleep(rand.nextInt(10) + 1);
 		}
 	}
 }

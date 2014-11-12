@@ -39,7 +39,7 @@ public class IncrementalLearningSkeleton {
 
 		// Method for pulling new data for prediction
 		private Integer getNewData() throws InterruptedException {
-			Thread.sleep(1000);
+			Thread.sleep(100);
 			return 1;
 		}
 	}
@@ -59,7 +59,7 @@ public class IncrementalLearningSkeleton {
 
 		// Method for pulling new training data
 		private Integer getTrainingData() throws InterruptedException {
-			Thread.sleep(1000);
+			Thread.sleep(100);
 			return 1;
 
 		}
@@ -114,13 +114,13 @@ public class IncrementalLearningSkeleton {
 
 	}
 
-	private static final int PARALLELISM = 1;
-	private static final int SOURCE_PARALLELISM = 1;
+	private static int SOURCE_PARALLELISM = 1;
 
 	public static void main(String[] args) throws Exception {
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(
-				PARALLELISM).setBufferTimeout(1000);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		IncrementalLearningSkeleton.SOURCE_PARALLELISM = env.getDegreeOfParallelism();
 
 		// Build new model on every second of new data
 		DataStream<Double[]> model = env.addSource(new TrainingDataSource(), SOURCE_PARALLELISM)
@@ -130,11 +130,10 @@ public class IncrementalLearningSkeleton {
 		DataStream<Integer> prediction = env.addSource(new NewDataSource(), SOURCE_PARALLELISM)
 				.connect(model).map(new Predictor());
 
+		// We pring the output
 		prediction.print();
 
 		env.execute();
 	}
-
-
 
 }

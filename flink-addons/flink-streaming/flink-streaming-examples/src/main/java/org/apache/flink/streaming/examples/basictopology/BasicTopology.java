@@ -22,28 +22,40 @@ import org.apache.flink.examples.java.wordcount.util.WordCountData;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
+/**
+ * 
+ * Very basic Flink streaming topology for local testing.
+ *
+ */
 public class BasicTopology {
+
+	private static final int PARALLELISM = 1;
+
+	public static void main(String[] args) throws Exception {
+
+		// We create a new Local environment. The program will be executed using
+		// a new mini-cluster that is set up at execution.
+		StreamExecutionEnvironment env = StreamExecutionEnvironment
+				.createLocalEnvironment(PARALLELISM);
+
+		// We create a new data stream from a collection of words then apply a
+		// simple map.
+		DataStream<String> stream = env.fromElements(WordCountData.WORDS).map(new IdentityMap());
+
+		// Print the results
+		stream.print();
+
+		env.execute();
+	}
 
 	public static class IdentityMap implements MapFunction<String, String> {
 		private static final long serialVersionUID = 1L;
+
 		// map to the same value
 		@Override
 		public String map(String value) throws Exception {
 			return value;
 		}
 
-	}
-
-	private static final int PARALLELISM = 1;
-
-	public static void main(String[] args) throws Exception {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment
-				.createLocalEnvironment(PARALLELISM);
-
-		DataStream<String> stream = env.fromElements(WordCountData.WORDS).map(new IdentityMap());
-
-		stream.print();
-
-		env.execute();
 	}
 }
