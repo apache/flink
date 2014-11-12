@@ -24,7 +24,13 @@ import org.apache.mesos.ExecutorDriver;
 import org.apache.mesos.MesosExecutorDriver;
 import org.apache.mesos.Protos;
 
+/**
+ * The Executor class is responsible for executing the actual commands on the Mesos slaves.
+ */
 public class FlinkJMExecutor implements Executor {
+	/**
+	 * Thread that is started in launchTask(). It launches the JobManager and its web interface.
+	 */
 	private class JobManagerThread extends Thread{
 		private final ExecutorDriver executorDriver;
 		private final Protos.TaskInfo taskInfo ;
