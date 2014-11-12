@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.compiler.dag;
 
 import java.util.ArrayList;
@@ -60,9 +59,9 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 	
 	private OptimizerNode nextPartialSolution;
 	
-	private PactConnection rootConnection;
+	private PactConnection rootConnection;		// connection out of the next partial solution
 	
-	private PactConnection terminationCriterionRootConnection;
+	private PactConnection terminationCriterionRootConnection;	// connection out of the term. criterion
 	
 	private OptimizerNode singleRoot;
 	
@@ -130,7 +129,7 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 	public void setNextPartialSolution(OptimizerNode nextPartialSolution, OptimizerNode terminationCriterion) {
 		
 		// check if the root of the step function has the same DOP as the iteration
-		// or if the steo function has any operator at all
+		// or if the step function has any operator at all
 		if (nextPartialSolution.getDegreeOfParallelism() != getDegreeOfParallelism() ||
 			nextPartialSolution == partialSolution || nextPartialSolution instanceof BinaryUnionNode)
 		{
@@ -245,6 +244,14 @@ public class BulkIterationNode extends SingleInputNode implements IterationNode 
 		inProps.addGlobalProperties(new RequestedGlobalProperties());
 		inProps.addLocalProperties(new RequestedLocalProperties());
 		this.inConn.setInterestingProperties(inProps);
+	}
+	
+	@Override
+	public void clearInterestingProperties() {
+		super.clearInterestingProperties();
+		
+		this.singleRoot.accept(InterestingPropertiesClearer.INSTANCE);
+		this.rootConnection.clearInterestingProperties();
 	}
 
 	@Override

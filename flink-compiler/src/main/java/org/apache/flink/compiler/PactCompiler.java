@@ -849,7 +849,7 @@ public class PactCompiler {
 				// we need to ensure that both the next-workset and the solution-set-delta depend on the workset. One check is for free
 				// during the translation, we do the other check here as a pre-condition
 				{
-					WorksetFinder wsf = new WorksetFinder();
+					StepFunctionValidator wsf = new StepFunctionValidator();
 					iter.getNextWorkset().accept(wsf);
 					if (!wsf.foundWorkset) {
 						throw new CompilerException("In the given program, the next workset does not depend on the workset. This is a prerequisite in delta iterations.");
@@ -943,6 +943,11 @@ public class PactCompiler {
 		@Override
 		public void postVisit(OptimizerNode visitable) {
 			visitable.identifyDynamicPath(this.costWeight);
+			
+			// check that there is no nested iteration on the dynamic path
+			if (visitable.isOnDynamicPath() && visitable instanceof IterationNode) {
+				throw new CompilerException("Nested iterations are currently not supported.");
+			}
 		}
 	}
 	
@@ -1295,7 +1300,7 @@ public class PactCompiler {
 		}
 	}
 	
-	private static final class WorksetFinder implements Visitor<Operator<?>> {
+	private static final class StepFunctionValidator implements Visitor<Operator<?>> {
 
 		private final Set<Operator<?>> seenBefore = new HashSet<Operator<?>>();
 		
