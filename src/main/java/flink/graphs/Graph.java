@@ -26,8 +26,12 @@ import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFieldsFirs
 import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.io.CsvReader;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.util.Collector;
 
@@ -44,17 +48,24 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 
 	/** a graph is directed by default */
 	private boolean isUndirected = false;
+	
+	private static TypeInformation<?> vertexKeyType;
+	private static TypeInformation<?> vertexValueType;
 
 
 	public Graph(DataSet<Tuple2<K, VV>> vertices, DataSet<Tuple3<K, K, EV>> edges) {
 		this.vertices = vertices;
 		this.edges = edges;
+		Graph.vertexKeyType = ((TupleTypeInfo<?>) vertices.getType()).getTypeAt(0);
+		Graph.vertexValueType = ((TupleTypeInfo<?>) vertices.getType()).getTypeAt(1);
 	}
 
 	public Graph(DataSet<Tuple2<K, VV>> vertices, DataSet<Tuple3<K, K, EV>> edges, boolean undirected) {
 		this.vertices = vertices;
 		this.edges = edges;
 		this.isUndirected = undirected;
+		Graph.vertexKeyType = ((TupleTypeInfo<?>) vertices.getType()).getTypeAt(0);
+		Graph.vertexValueType = ((TupleTypeInfo<?>) vertices.getType()).getTypeAt(1);
 	}
 
 	public DataSet<Tuple2<K, VV>> getVertices() {
@@ -64,29 +75,37 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	public DataSet<Tuple3<K, K, EV>> getEdges() {
 		return edges;
 	}
-
+    
     /**
-     * Apply a function to the attribute of each Tuple2 in the graph
-     * @param mapper A function that transforms the attribute of each Tuple2
-     * @return A DataSet of Tuple2 which contains the new values of all vertices
+     * Apply a function to the attribute of each vertex in the graph.
+     * @param mapper
+     * @return
      */
-	//TODO: support changing the vertex value type
-    public DataSet<Tuple2<K, VV>> mapVertices(final MapFunction<VV, VV> mapper) {
-        return vertices.map(new ApplyMapperToVertex<K, VV>(mapper));
+    public <NV extends Serializable> DataSet<Tuple2<K, NV>> mapVertices(final MapFunction<VV, NV> mapper) {
+        return vertices.map(new ApplyMapperToVertexWithType<K, VV, NV>(mapper));
     }
     
-    private static final class ApplyMapperToVertex<K, VV> implements MapFunction
-    	<Tuple2<K, VV>, Tuple2<K, VV>> {
-    	
-    	private MapFunction<VV, VV> innerMapper;
-    	
-    	public ApplyMapperToVertex(MapFunction<VV, VV> theMapper) {
-    		this.innerMapper = theMapper;
-    	}
-    	
-		public Tuple2<K, VV> map(Tuple2<K, VV> value) throws Exception {
-			return new Tuple2<K, VV>(value.f0, innerMapper.map(value.f1));
-		}    	
+    private static final class ApplyMapperToVertexWithType<K, VV, NV> implements MapFunction
+		<Tuple2<K, VV>, Tuple2<K, NV>>, ResultTypeQueryable<Tuple2<K, NV>> {
+	
+		private MapFunction<VV, NV> innerMapper;
+		
+		public ApplyMapperToVertexWithType(MapFunction<VV, NV> theMapper) {
+			this.innerMapper = theMapper;
+		}
+		
+		public Tuple2<K, NV> map(Tuple2<K, VV> value) throws Exception {
+			return new Tuple2<K, NV>(value.f0, innerMapper.map(value.f1));
+		}
+	
+		@Override
+		public TypeInformation<Tuple2<K, NV>> getProducedType() {
+			@SuppressWarnings("unchecked")
+			TypeInformation<NV> newVertexValueType = TypeExtractor.getMapReturnTypes(innerMapper, 
+					(TypeInformation<VV>)vertexValueType);
+			
+			return new TupleTypeInfo<Tuple2<K, NV>>(vertexKeyType, newVertexValueType);
+		}
     }
 
     /**
