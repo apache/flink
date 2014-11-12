@@ -48,9 +48,12 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 
 	/** a graph is directed by default */
 	private boolean isUndirected = false;
-	
+
 	private static TypeInformation<?> vertexKeyType;
 	private static TypeInformation<?> vertexValueType;
+
+	private static TypeInformation<?> edgeKeyType;
+	private static TypeInformation<?> edgeValueType;
 
 
 	public Graph(DataSet<Tuple2<K, VV>> vertices, DataSet<Tuple3<K, K, EV>> edges) {
@@ -58,6 +61,9 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		this.edges = edges;
 		Graph.vertexKeyType = ((TupleTypeInfo<?>) vertices.getType()).getTypeAt(0);
 		Graph.vertexValueType = ((TupleTypeInfo<?>) vertices.getType()).getTypeAt(1);
+
+		Graph.edgeKeyType = ((TupleTypeInfo<?>) edges.getType()).getTypeAt(0);
+		Graph.edgeValueType = ((TupleTypeInfo<?>) edges.getType()).getTypeAt(2);
 	}
 
 	public Graph(DataSet<Tuple2<K, VV>> vertices, DataSet<Tuple3<K, K, EV>> edges, boolean undirected) {
@@ -66,6 +72,9 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		this.isUndirected = undirected;
 		Graph.vertexKeyType = ((TupleTypeInfo<?>) vertices.getType()).getTypeAt(0);
 		Graph.vertexValueType = ((TupleTypeInfo<?>) vertices.getType()).getTypeAt(1);
+
+		Graph.edgeKeyType = ((TupleTypeInfo<?>) edges.getType()).getTypeAt(0);
+		Graph.edgeValueType = ((TupleTypeInfo<?>) edges.getType()).getTypeAt(2);
 	}
 
 	public DataSet<Tuple2<K, VV>> getVertices() {
@@ -105,6 +114,38 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 					(TypeInformation<VV>)vertexValueType);
 			
 			return new TupleTypeInfo<Tuple2<K, NV>>(vertexKeyType, newVertexValueType);
+		}
+    }
+    
+    /**
+     * Apply a function to the attribute of each edge in the graph.
+     * @param mapper
+     * @return 
+     */
+    public <NV extends Serializable> DataSet<Tuple3<K, K, NV>> mapEdges(final MapFunction<EV, NV> mapper) {
+        return edges.map(new ApplyMapperToEdgeWithType<K, EV, NV>(mapper));
+    }
+    
+    private static final class ApplyMapperToEdgeWithType<K, EV, NV> implements MapFunction
+		<Tuple3<K, K, EV>, Tuple3<K, K, NV>>, ResultTypeQueryable<Tuple3<K, K, NV>> {
+	
+		private MapFunction<EV, NV> innerMapper;
+		
+		public ApplyMapperToEdgeWithType(MapFunction<EV, NV> theMapper) {
+			this.innerMapper = theMapper;
+		}
+		
+		public Tuple3<K, K, NV> map(Tuple3<K, K, EV> value) throws Exception {
+			return new Tuple3<K, K, NV>(value.f0, value.f1, innerMapper.map(value.f2));
+		}
+	
+		@Override
+		public TypeInformation<Tuple3<K, K, NV>> getProducedType() {
+			@SuppressWarnings("unchecked")
+			TypeInformation<NV> newEdgeValueType = TypeExtractor.getMapReturnTypes(innerMapper, 
+					(TypeInformation<EV>)edgeValueType);
+			
+			return new TupleTypeInfo<Tuple3<K, K, NV>>(edgeKeyType, edgeKeyType, newEdgeValueType);
 		}
     }
 
