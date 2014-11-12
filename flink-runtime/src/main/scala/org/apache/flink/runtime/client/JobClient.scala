@@ -35,13 +35,14 @@ import org.apache.flink.runtime.messages.JobClientMessages.{SubmitJobDetached, S
 import org.apache.flink.runtime.messages.JobManagerMessages._
 
 import scala.concurrent.Await
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration.{FiniteDuration, Duration}
 
 
-class JobClient(jobManagerURL: String) extends Actor with ActorLogMessages with ActorLogging{
+class JobClient(jobManagerURL: String, timeout: FiniteDuration) extends Actor with ActorLogMessages
+with  ActorLogging{
   import context._
 
-  val jobManager = AkkaUtils.getReference(jobManagerURL)
+  val jobManager = AkkaUtils.getReference(jobManagerURL)(system, timeout)
 
   override def receiveWithLogMessages: Receive = {
     case SubmitJobDetached(jobGraph) =>
@@ -120,15 +121,16 @@ object JobClient{
   }
 
 
-  def submitJobDetached(jobGraph: JobGraph, jobClient: ActorRef): SubmissionResponse = {
-    import AkkaUtils.FUTURE_TIMEOUT
-    val response = jobClient ? SubmitJobDetached(jobGraph)
+  def submitJobDetached(jobGraph: JobGraph, jobClient: ActorRef)(implicit timeout: FiniteDuration):
+  SubmissionResponse = {
+    val response = (jobClient ? SubmitJobDetached(jobGraph))(timeout)
 
-    Await.result(response.mapTo[SubmissionResponse],AkkaUtils.FUTURE_DURATION)
+    Await.result(response.mapTo[SubmissionResponse],timeout)
   }
 
   @throws(classOf[IOException])
-  def uploadJarFiles(jobGraph: JobGraph, hostname: String, jobClient: ActorRef): Unit = {
+  def uploadJarFiles(jobGraph: JobGraph, hostname: String, jobClient: ActorRef)(implicit timeout:
+   FiniteDuration): Unit = {
     val port = AkkaUtils.ask[Int](jobClient, RequestBlobManagerPort)
 
     val serverAddress = new InetSocketAddress(hostname, port)

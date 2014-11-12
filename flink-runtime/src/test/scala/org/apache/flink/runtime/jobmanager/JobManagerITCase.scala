@@ -37,6 +37,8 @@ import scala.concurrent.duration._
 @RunWith(classOf[JUnitRunner])
 class JobManagerITCase(_system: ActorSystem) extends TestKit(_system) with ImplicitSender with
 WordSpecLike with Matchers with BeforeAndAfterAll {
+  implicit val timeout = 1 minute
+
   def this() = this(ActorSystem("TestingActorSystem", TestingUtils.testConfig))
 
   override def afterAll: Unit = {

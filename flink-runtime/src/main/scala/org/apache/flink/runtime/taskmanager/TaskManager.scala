@@ -69,8 +69,9 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
   extends Actor with ActorLogMessages with ActorLogging with DecorateAsScala with WrapAsScala {
 
   import context._
-  import AkkaUtils.FUTURE_TIMEOUT
-  import taskManagerConfig._
+  import taskManagerConfig.{timeout => tmTimeout, _}
+  implicit val timeout = tmTimeout
+
 
   log.info(s"Starting task manager at ${self.path}.")
 
@@ -172,7 +173,7 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
         jobManager ! RegisterTaskManager(connectionInfo, hardwareDescription, numberOfSlots)
       } else {
         log.error("TaskManager could not register at JobManager.");
-        throw new RuntimeException("TaskManager could not register at JobManager");
+        self ! PoisonPill
       }
     }
 
@@ -181,6 +182,8 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
         registered = true
         currentJobManager = sender()
         instanceID = id
+
+        context.watch(currentJobManager)
 
         log.info(s"TaskManager successfully registered at JobManager ${
           currentJobManager.path
@@ -247,7 +250,7 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
           case None =>
         }
 
-        val splitProvider = new TaskInputSplitProvider(currentJobManager, jobID, vertexID)
+        val splitProvider = new TaskInputSplitProvider(currentJobManager, jobID, vertexID, timeout)
         val env = new RuntimeEnvironment(task, tdd, userCodeClassLoader, memoryManager,
           ioManager, splitProvider,currentJobManager)
 
@@ -356,14 +359,19 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
           log.error(s"Cannot find task with ID ${executionID} to unregister.")
       }
     }
+
+    case Terminated(jobManager) => {
+      log.info(s"Job manager ${jobManager.path} is no longer reachable. Try to reregister.")
+      tryJobManagerRegistration()
+    }
   }
 
   def notifyExecutionStateChange(jobID: JobID, executionID: ExecutionAttemptID,
                                  executionState: ExecutionState,
                                  optionalError: Throwable): Unit = {
     log.info(s"Update execution state to ${executionState}.")
-    val futureResponse = currentJobManager ? UpdateTaskExecutionState(new TaskExecutionState
-    (jobID, executionID, executionState, optionalError))
+    val futureResponse = (currentJobManager ? UpdateTaskExecutionState(new TaskExecutionState
+    (jobID, executionID, executionState, optionalError)))(timeout)
 
     val receiver = this.self
 
@@ -402,7 +410,7 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
       }
 
       channelManager = Some(new ChannelManager(currentJobManager, connectionInfo, numBuffers,
-        bufferSize, connectionManager))
+        bufferSize, connectionManager, timeout))
     } catch {
       case ioe: IOException =>
         log.error(ioe, "Failed to instantiate ChannelManager.")
@@ -412,7 +420,8 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
 
   def setupLibraryCacheManager(blobPort: Int): Unit = {
     if(blobPort > 0){
-      val address = new InetSocketAddress(currentJobManager.path.address.host.get, blobPort)
+      val address = new InetSocketAddress(currentJobManager.path.address.host.getOrElse
+        ("localhost"), blobPort)
       libraryCacheManager = new BlobLibraryCacheManager(new BlobCache(address), cleanupInterval)
     }else{
       libraryCacheManager = new FallbackLibraryCacheManager
@@ -598,8 +607,11 @@ object TaskManager {
       .LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL,
       ConfigConstants.DEFAULT_LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL) * 1000
 
+    val timeout = FiniteDuration(configuration.getInteger(ConfigConstants.AKKA_ASK_TIMEOUT,
+      ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT), TimeUnit.SECONDS)
+
     val taskManagerConfig = TaskManagerConfiguration(numberOfSlots, memorySize, pageSize,
-      tmpDirs, cleanupInterval, memoryLoggingIntervalMs, profilingInterval)
+      tmpDirs, cleanupInterval, memoryLoggingIntervalMs, profilingInterval, timeout)
 
     (connectionInfo, jobManagerURL, taskManagerConfig, networkConnectionConfiguration)
   }

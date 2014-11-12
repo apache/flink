@@ -27,10 +27,13 @@ import static org.apache.flink.runtime.execution.ExecutionState.FINISHED;
 import static org.apache.flink.runtime.execution.ExecutionState.RUNNING;
 import static org.apache.flink.runtime.execution.ExecutionState.SCHEDULED;
 
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import akka.dispatch.OnComplete;
 import akka.pattern.Patterns;
+import akka.util.Timeout;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
@@ -51,6 +54,7 @@ import org.slf4j.Logger;
 
 import com.google.common.base.Preconditions;
 import scala.concurrent.Future;
+import scala.concurrent.duration.FiniteDuration;
 
 /**
  * A single execution of a vertex. While an {@link ExecutionVertex} can be executed multiple times (for recovery,
@@ -78,6 +82,9 @@ public class Execution {
 	private static final Logger LOG = ExecutionGraph.LOG;
 	
 	private static final int NUM_CANCEL_CALL_TRIES = 3;
+
+	public static FiniteDuration timeout = new FiniteDuration(ConfigConstants
+			.DEFAULT_AKKA_ASK_TIMEOUT, TimeUnit.SECONDS);
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -273,7 +280,7 @@ public class Execution {
 
 			Instance instance = slot.getInstance();
 			Future<Object> deployAction = Patterns.ask(instance.getTaskManager(),
-					new TaskManagerMessages.SubmitTask(deployment),AkkaUtils.FUTURE_TIMEOUT());
+					new TaskManagerMessages.SubmitTask(deployment), new Timeout(timeout));
 
 			deployAction.onComplete(new OnComplete<Object>(){
 
@@ -583,7 +590,7 @@ public class Execution {
 
 		Future<Object> cancelResult = AkkaUtils.retry(slot.getInstance().getTaskManager(), new
 				TaskManagerMessages.CancelTask(attemptId), NUM_CANCEL_CALL_TRIES,
-				AkkaUtils.globalExecutionContext());
+				AkkaUtils.globalExecutionContext(), timeout);
 
 		cancelResult.onComplete(new OnComplete<Object>(){
 

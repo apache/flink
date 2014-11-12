@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.minicluster
 
+import java.util.concurrent.TimeUnit
+
 import akka.pattern.ask
 import akka.actor.{ActorRef, ActorSystem}
 import org.apache.flink.api.common.io.FileOutputFormat
@@ -27,10 +29,14 @@ import org.apache.flink.runtime.messages.TaskManagerMessages.NotifyWhenRegistere
 import org.apache.flink.runtime.util.EnvironmentInformation
 import org.slf4j.LoggerFactory
 
+import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{Future, Await}
 
 abstract class FlinkMiniCluster(userConfiguration: Configuration) {
   import FlinkMiniCluster._
+
+  implicit val timeout = FiniteDuration(userConfiguration.getInteger(ConfigConstants
+    .AKKA_ASK_TIMEOUT, ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT), TimeUnit.SECONDS)
 
   val configuration = generateConfiguration(userConfiguration)
 
@@ -92,19 +98,18 @@ abstract class FlinkMiniCluster(userConfiguration: Configuration) {
   }
 
   def awaitTermination(): Unit = {
-    taskManagerActorSystems foreach { _.awaitTermination(AkkaUtils.AWAIT_DURATION)}
-    jobManagerActorSystem.awaitTermination(AkkaUtils.AWAIT_DURATION)
+    taskManagerActorSystems foreach { _.awaitTermination()}
+    jobManagerActorSystem.awaitTermination()
   }
 
   def waitForTaskManagersToBeRegistered(): Unit = {
-    implicit val timeout = AkkaUtils.FUTURE_TIMEOUT
     implicit val executionContext = AkkaUtils.globalExecutionContext
 
     val futures = taskManagerActors map {
-      _ ? NotifyWhenRegisteredAtJobManager
+      taskManager => (taskManager ? NotifyWhenRegisteredAtJobManager)(timeout)
     }
 
-    Await.ready(Future.sequence(futures), AkkaUtils.AWAIT_DURATION)
+    Await.ready(Future.sequence(futures), timeout)
   }
 }
 

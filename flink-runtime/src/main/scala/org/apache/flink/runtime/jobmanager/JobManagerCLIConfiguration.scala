@@ -18,5 +18,11 @@
 
 package org.apache.flink.runtime.jobmanager
 
-case class JobManagerCLIConfiguration(configDir: String = null) {
+object ExecutionMode extends Enumeration{
+  type ExecutionMode = Value
+  val LOCAL = Value
+  val CLUSTER = Value
 }
+
+case class JobManagerCLIConfiguration(configDir: String = null, executionMode: ExecutionMode
+.ExecutionMode = ExecutionMode.CLUSTER) {}

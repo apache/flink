@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobmanager
 
 import java.io.File
 import java.net.{InetSocketAddress}
+import java.util.concurrent.TimeUnit
 
 import akka.actor._
 import akka.pattern.Patterns
@@ -28,10 +29,11 @@ import com.google.common.base.Preconditions
 import org.apache.flink.configuration.{ConfigConstants, GlobalConfiguration, Configuration}
 import org.apache.flink.core.io.InputSplitAssigner
 import org.apache.flink.runtime.blob.BlobServer
-import org.apache.flink.runtime.executiongraph.{ExecutionJobVertex, ExecutionGraph}
+import org.apache.flink.runtime.executiongraph.{Execution, ExecutionJobVertex, ExecutionGraph}
 import org.apache.flink.runtime.io.network.ConnectionInfoLookupResponse
 import org.apache.flink.runtime.messages.ArchiveMessages.ArchiveExecutionGraph
 import org.apache.flink.runtime.messages.ExecutionGraphMessages.JobStatusChanged
+import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.{JobException, ActorLogMessages}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
@@ -52,7 +54,10 @@ import scala.concurrent.duration._
 class JobManager(val configuration: Configuration) extends
 Actor with ActorLogMessages with ActorLogging with WrapAsScala {
   import context._
-  import AkkaUtils.FUTURE_TIMEOUT
+  implicit val timeout = FiniteDuration(configuration.getInteger(ConfigConstants.AKKA_ASK_TIMEOUT,
+    ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT), TimeUnit.SECONDS)
+
+  Execution.timeout = timeout;
 
   log.info("Starting job manager.")
 
@@ -329,7 +334,7 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
     case RequestJobStatus(jobID) => {
       currentJobs.get(jobID) match {
         case Some((executionGraph,_)) => sender() ! CurrentJobStatus(jobID, executionGraph.getState)
-        case None => archive ? RequestJobStatus(jobID) pipeTo sender()
+        case None => (archive ? RequestJobStatus(jobID))(timeout) pipeTo sender()
       }
     }
 
@@ -344,7 +349,7 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
     case RequestJob(jobID) => {
       currentJobs.get(jobID) match {
         case Some((eg, _)) => sender() ! JobFound(jobID, eg)
-        case None => archive ? RequestJob(jobID) pipeTo sender()
+        case None => (archive ? RequestJob(jobID))(timeout) pipeTo sender()
       }
     }
 
@@ -384,6 +389,7 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
 }
 
 object JobManager {
+  import ExecutionMode._
   val LOG = LoggerFactory.getLogger(classOf[JobManager])
   val FAILURE_RETURN_CODE = 1
   val JOB_MANAGER_NAME = "jobmanager"
@@ -392,19 +398,34 @@ object JobManager {
   val PROFILER_NAME = "profiler"
 
   def main(args: Array[String]): Unit = {
-    val (hostname, port, configuration) = parseArgs(args)
+    val (hostname, port, configuration, executionMode) = parseArgs(args)
 
     val jobManagerSystem = AkkaUtils.createActorSystem(hostname, port, configuration)
 
     startActor(Props(new JobManager(configuration) with WithWebServer))(jobManagerSystem)
+
+    if(executionMode.equals(LOCAL)){
+      TaskManager.startActorWithConfiguration(hostname, configuration, true)(jobManagerSystem)
+    }
+
     jobManagerSystem.awaitTermination()
+    println("Shutting down.")
   }
 
-  def parseArgs(args: Array[String]): (String, Int, Configuration) = {
+  def parseArgs(args: Array[String]): (String, Int, Configuration, ExecutionMode) = {
     val parser = new scopt.OptionParser[JobManagerCLIConfiguration]("jobmanager") {
       head("flink jobmanager")
       opt[String]("configDir") action { (x, c) => c.copy(configDir = x) } text ("Specify " +
         "configuration directory.")
+      opt[String]("executionMode") optional() action { (x, c) =>
+        if(x.equals("local")){
+          c.copy(executionMode = LOCAL)
+        }else{
+          c.copy(executionMode = CLUSTER)
+        }
+      } text {
+        "Specify execution mode of job manager"
+      }
     }
 
     parser.parse(args, JobManagerCLIConfiguration()) map {
@@ -419,7 +440,7 @@ object JobManager {
         val port = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
           ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
 
-        (hostname, port, configuration)
+        (hostname, port, configuration, config.executionMode)
     } getOrElse {
       LOG.error("CLI Parsing failed. Usage: " + parser.usage)
       sys.exit(FAILURE_RETURN_CODE)
@@ -456,19 +477,23 @@ object JobManager {
     s"akka.tcp://flink@${address}/user/${JOB_MANAGER_NAME}"
   }
 
-  def getProfiler(jobManager: ActorRef)(implicit system: ActorSystem): ActorRef = {
+  def getProfiler(jobManager: ActorRef)(implicit system: ActorSystem, timeout: FiniteDuration):
+  ActorRef = {
     AkkaUtils.getChild(jobManager, PROFILER_NAME)
   }
 
-  def getEventCollector(jobManager: ActorRef)(implicit system: ActorSystem): ActorRef = {
+  def getEventCollector(jobManager: ActorRef)(implicit system: ActorSystem, timeout:
+  FiniteDuration): ActorRef = {
     AkkaUtils.getChild(jobManager, EVENT_COLLECTOR_NAME)
   }
 
-  def getArchivist(jobManager: ActorRef)(implicit system: ActorSystem): ActorRef = {
+  def getArchivist(jobManager: ActorRef)(implicit system: ActorSystem, timeout: FiniteDuration):
+  ActorRef = {
     AkkaUtils.getChild(jobManager, ARCHIVE_NAME)
   }
 
-  def getJobManager(address: InetSocketAddress)(implicit system: ActorSystem): ActorRef = {
+  def getJobManager(address: InetSocketAddress)(implicit system: ActorSystem, timeout:
+  FiniteDuration): ActorRef = {
     AkkaUtils.getReference(getAkkaURL(address.getHostName + ":" + address.getPort))
   }
 }

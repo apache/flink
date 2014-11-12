@@ -64,6 +64,7 @@ import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.StringUtils;
 import org.eclipse.jetty.io.EofException;
+import scala.concurrent.duration.FiniteDuration;
 
 
 public class JobmanagerInfoServlet extends HttpServlet {
@@ -75,11 +76,13 @@ public class JobmanagerInfoServlet extends HttpServlet {
 	/** Underlying JobManager */
 	private final ActorRef jobmanager;
 	private final ActorRef archive;
+	private final FiniteDuration timeout;
 	
 	
-	public JobmanagerInfoServlet(ActorRef jobmanager, ActorRef archive) {
+	public JobmanagerInfoServlet(ActorRef jobmanager, ActorRef archive, FiniteDuration timeout) {
 		this.jobmanager = jobmanager;
 		this.archive = archive;
+		this.timeout = timeout;
 	}
 	
 	
@@ -92,14 +95,15 @@ public class JobmanagerInfoServlet extends HttpServlet {
 		try {
 			if("archive".equals(req.getParameter("get"))) {
 				List<ExecutionGraph> archivedJobs = new ArrayList<ExecutionGraph>(AkkaUtils
-						.<ArchivedJobs>ask(archive,RequestArchivedJobs$.MODULE$).asJavaCollection());
+						.<ArchivedJobs>ask(archive,RequestArchivedJobs$.MODULE$, timeout)
+						.asJavaCollection());
 
 				writeJsonForArchive(resp.getWriter(), archivedJobs);
 			}
 			else if("job".equals(req.getParameter("get"))) {
 				String jobId = req.getParameter("job");
 				JobResponse response = AkkaUtils.ask(archive,
-						new RequestJob(JobID.fromHexString(jobId)));
+						new RequestJob(JobID.fromHexString(jobId)), timeout);
 
 				if(response instanceof JobFound){
 					ExecutionGraph archivedJob = ((JobFound)response).executionGraph();
@@ -113,7 +117,7 @@ public class JobmanagerInfoServlet extends HttpServlet {
 				String groupvertexId = req.getParameter("groupvertex");
 
 				JobResponse response = AkkaUtils.ask(archive,
-						new RequestJob(JobID.fromHexString(jobId)));
+						new RequestJob(JobID.fromHexString(jobId)), timeout);
 
 				if(response instanceof JobFound && groupvertexId != null){
 					ExecutionGraph archivedJob = ((JobFound)response).executionGraph();
@@ -126,9 +130,9 @@ public class JobmanagerInfoServlet extends HttpServlet {
 			}
 			else if("taskmanagers".equals(req.getParameter("get"))) {
 				int numberOfTaskManagers = AkkaUtils.<Integer>ask(jobmanager,
-						RequestNumberRegisteredTaskManager$.MODULE$);
+						RequestNumberRegisteredTaskManager$.MODULE$, timeout);
 				int numberOfRegisteredSlots = AkkaUtils.<Integer>ask(jobmanager,
-						RequestTotalNumberOfSlots$.MODULE$);
+						RequestTotalNumberOfSlots$.MODULE$, timeout);
 
 				resp.getWriter().write("{\"taskmanagers\": " + numberOfTaskManagers +", " +
 						"\"slots\": "+numberOfRegisteredSlots+"}");
@@ -136,7 +140,7 @@ public class JobmanagerInfoServlet extends HttpServlet {
 			else if("cancel".equals(req.getParameter("get"))) {
 				String jobId = req.getParameter("job");
 				AkkaUtils.<CancellationResponse>ask(jobmanager,
-						new CancelJob(JobID.fromHexString(jobId)));
+						new CancelJob(JobID.fromHexString(jobId)), timeout);
 			}
 			else if("updates".equals(req.getParameter("get"))) {
 				String jobId = req.getParameter("job");
@@ -146,7 +150,7 @@ public class JobmanagerInfoServlet extends HttpServlet {
 			}
 			else{
 				Iterable<ExecutionGraph> runningJobs = AkkaUtils.<RunningJobs>ask
-						(jobmanager, RequestRunningJobs$.MODULE$).asJavaIterable();
+						(jobmanager, RequestRunningJobs$.MODULE$, timeout).asJavaIterable();
 				writeJsonForJobs(resp.getWriter(), runningJobs);
 			}
 			
@@ -324,7 +328,7 @@ public class JobmanagerInfoServlet extends HttpServlet {
 			
 			// write accumulators
 			AccumulatorResultsResponse response = AkkaUtils.ask(jobmanager,
-					new RequestAccumulatorResults(graph.getJobID()));
+					new RequestAccumulatorResults(graph.getJobID()), timeout);
 
 			if(response instanceof AccumulatorResultsFound){
 				Map<String, Object> accMap = ((AccumulatorResultsFound)response).asJavaMap();
@@ -417,7 +421,7 @@ public class JobmanagerInfoServlet extends HttpServlet {
 		
 		try {
 			Iterable<ExecutionGraph> graphs = AkkaUtils.<RunningJobs>ask(jobmanager,
-					RequestRunningJobs$.MODULE$).asJavaIterable();
+					RequestRunningJobs$.MODULE$, timeout).asJavaIterable();
 			
 			//Serialize job to json
 			wrt.write("{");
@@ -439,7 +443,7 @@ public class JobmanagerInfoServlet extends HttpServlet {
 
 			wrt.write("],");
 
-			JobResponse response = AkkaUtils.ask(jobmanager, new RequestJob(jobId));
+			JobResponse response = AkkaUtils.ask(jobmanager, new RequestJob(jobId), timeout);
 
 			if(response instanceof JobFound){
 				ExecutionGraph graph = ((JobFound)response).executionGraph();

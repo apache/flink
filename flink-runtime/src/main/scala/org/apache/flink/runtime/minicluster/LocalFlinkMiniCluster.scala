@@ -118,40 +118,4 @@ FlinkMiniCluster(userConfiguration){
 
 object LocalFlinkMiniCluster{
   val LOG = LoggerFactory.getLogger(classOf[LocalFlinkMiniCluster])
-  val FAILURE_RETURN_CODE = 1
-
-  def main(args: Array[String]): Unit = {
-    val configuration = parseArgs(args)
-
-    val cluster = new LocalFlinkMiniCluster(configuration)
-
-    cluster.awaitTermination()
-  }
-
-  def parseArgs(args: Array[String]): Configuration = {
-    val parser = new OptionParser[LocalFlinkMiniClusterConfiguration]("LocalFlinkMiniCluster") {
-      head("LocalFlinkMiniCluster")
-      opt[String]("configDir") action { (value, config) => config.copy(configDir = value) } text
-        {"Specify configuration directory."}
-    }
-
-    parser.parse(args, LocalFlinkMiniClusterConfiguration()) map {
-      config =>{
-        GlobalConfiguration.loadConfiguration(config.configDir)
-        val configuration = GlobalConfiguration.getConfiguration
-
-        if(config.configDir != null && new File(config.configDir).isDirectory){
-          configuration.setString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY, config.configDir + "/..")
-        }
-
-        configuration
-      }
-    } getOrElse{
-      LOG.error("CLI parsing failed. Usage: " + parser.usage)
-      sys.exit(FAILURE_RETURN_CODE)
-    }
-  }
-
-
-  case class LocalFlinkMiniClusterConfiguration(val configDir: String = "")
 }

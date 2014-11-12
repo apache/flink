@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.net.InetSocketAddress;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
@@ -53,6 +54,7 @@ import com.google.common.base.Preconditions;
 
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironmentFactory;
+import scala.concurrent.duration.FiniteDuration;
 
 /**
  * Encapsulates the functionality necessary to submit a program to a remote cluster.
@@ -301,12 +303,15 @@ public class Client {
 		String hostname = configuration.getString(ConfigConstants
 				.JOB_MANAGER_IPC_ADDRESS_KEY, null);
 
+		FiniteDuration timeout = new FiniteDuration(configuration.getInteger(ConfigConstants
+				.AKKA_ASK_TIMEOUT, ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT), TimeUnit.SECONDS);
+
 		if(hostname == null){
 			throw new ProgramInvocationException("Could not find hostname of job manager.");
 		}
 
 		try {
-			JobClient.uploadJarFiles(jobGraph, hostname, client);
+			JobClient.uploadJarFiles(jobGraph, hostname, client, timeout);
 		}catch(IOException e){
 			throw new ProgramInvocationException("Could not upload blobs.", e);
 		}
@@ -317,7 +322,7 @@ public class Client {
 				return JobClient.submitJobAndWait(jobGraph, printStatusDuringExecution, client);
 			}
 			else {
-				SubmissionResponse response =JobClient.submitJobDetached(jobGraph, client);
+				SubmissionResponse response =JobClient.submitJobDetached(jobGraph, client, timeout);
 
 				if(response instanceof SubmissionFailure){
 					SubmissionFailure failure = (SubmissionFailure) response;

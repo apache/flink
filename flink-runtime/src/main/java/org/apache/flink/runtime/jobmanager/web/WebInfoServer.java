@@ -40,6 +40,7 @@ import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.HandlerList;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
+import scala.concurrent.duration.FiniteDuration;
 
 
 /**
@@ -64,6 +65,11 @@ public class WebInfoServer {
 	private final Server server;
 
 	/**
+	 * Timeout for akka requests
+	 */
+	private final FiniteDuration timeout;
+
+	/**
 	 * Port for info server
 	 */
 	private int port;
@@ -78,9 +84,11 @@ public class WebInfoServer {
 	 *         Thrown, if the server setup failed for an I/O related reason.
 	 */
 	public WebInfoServer(Configuration config, ActorRef jobmanager,
-						ActorRef archive) throws IOException {
+						ActorRef archive, FiniteDuration timeout) throws IOException {
 		this.port = config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY,
 				ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT);
+
+		this.timeout = timeout;
 
 		// if no explicit configuration is given, use the global configuration
 		if (config == null) {
@@ -122,9 +130,10 @@ public class WebInfoServer {
 		ServletContextHandler servletContext = new ServletContextHandler(ServletContextHandler.SESSIONS);
 		servletContext.setContextPath("/");
 		servletContext.addServlet(new ServletHolder(new JobmanagerInfoServlet(jobmanager,
-				archive)), "/jobsInfo");
+				archive, timeout)), "/jobsInfo");
 		servletContext.addServlet(new ServletHolder(new LogfileInfoServlet(logDirFiles)), "/logInfo");
-		servletContext.addServlet(new ServletHolder(new SetupInfoServlet(jobmanager)), "/setupInfo");
+		servletContext.addServlet(new ServletHolder(new SetupInfoServlet(jobmanager, timeout)),
+				"/setupInfo");
 		servletContext.addServlet(new ServletHolder(new MenuServlet()), "/menu");
 
 

@@ -30,9 +30,7 @@ import scala.concurrent.{ExecutionContext, Future, Await}
 import scala.concurrent.duration._
 
 object AkkaUtils {
-  implicit val FUTURE_TIMEOUT: Timeout = 100 minute
-  implicit val AWAIT_DURATION: FiniteDuration = 1 minute
-  implicit val FUTURE_DURATION: FiniteDuration = 1 minute
+  val DEFAULT_TIMEOUT: FiniteDuration = 1 minute
 
   val INF_TIMEOUT = 21474835 seconds
 
@@ -122,34 +120,27 @@ object AkkaUtils {
     ConfigFactory.parseString(getDefaultActorSystemConfigString)
   }
 
-  def getChild(parent: ActorRef, child: String)(implicit system: ActorSystem): ActorRef = {
-    Await.result(system.actorSelection(parent.path / child).resolveOne(), AWAIT_DURATION)
+  def getChild(parent: ActorRef, child: String)(implicit system: ActorSystem, timeout:
+  FiniteDuration): ActorRef = {
+    Await.result(system.actorSelection(parent.path / child).resolveOne()(timeout), timeout)
   }
 
-  def getReference(path: String)(implicit system: ActorSystem): ActorRef = {
-    Await.result(system.actorSelection(path).resolveOne(), AWAIT_DURATION)
-  }
-
-  @throws(classOf[IOException])
-  def ask[T](actorSelection: ActorSelection, msg: Any): T = {
-    ask(actorSelection, msg, FUTURE_TIMEOUT, FUTURE_DURATION)
+  def getReference(path: String)(implicit system: ActorSystem, timeout: FiniteDuration): ActorRef
+  = {
+    Await.result(system.actorSelection(path).resolveOne()(timeout), timeout)
   }
 
   @throws(classOf[IOException])
-  def ask[T](actor: ActorRef, msg: Any): T = {
-    ask(actor, msg, FUTURE_TIMEOUT, FUTURE_DURATION)
-  }
-
-  @throws(classOf[IOException])
-  def ask[T](actorSelection: ActorSelection, msg: Any, timeout: Timeout, duration: Duration): T = {
+  def ask[T](actorSelection: ActorSelection, msg: Any)(implicit timeout: FiniteDuration): T
+    = {
     val future = Patterns.ask(actorSelection, msg, timeout)
-    Await.result(future, duration).asInstanceOf[T]
+    Await.result(future, timeout).asInstanceOf[T]
   }
 
   @throws(classOf[IOException])
-  def ask[T](actor: ActorRef, msg: Any, timeout: Timeout, duration: Duration): T = {
+  def ask[T](actor: ActorRef, msg: Any)(implicit timeout: FiniteDuration): T = {
     val future = Patterns.ask(actor, msg, timeout)
-    Await.result(future, duration).asInstanceOf[T]
+    Await.result(future, timeout).asInstanceOf[T]
   }
 
   def askInf[T](actor: ActorRef, msg: Any): T = {
@@ -174,8 +165,8 @@ object AkkaUtils {
   }
 
   def retry(target: ActorRef, message: Any, tries: Int)(implicit executionContext:
-  ExecutionContext): Future[Any] = {
-    (target ? message) recoverWith{
+  ExecutionContext, timeout: FiniteDuration): Future[Any] = {
+    (target ? message)(timeout) recoverWith{
       case t: Throwable =>
         if(tries > 0){
           retry(target, message, tries-1)

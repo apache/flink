@@ -95,7 +95,7 @@ public class WebInterfaceServer {
 			throw new FileNotFoundException("Cannot start web interface server because the web " +
 					"root dir " + WEB_ROOT_DIR + " is not included in the jar.");
 		}
-		
+
 		String tmpDirPath = config.getString(ConfigConstants.WEB_TMP_DIR_KEY,
 			ConfigConstants.DEFAULT_WEB_TMP_DIR);
 		
@@ -155,7 +155,8 @@ public class WebInterfaceServer {
 		ServletContextHandler servletContext = new ServletContextHandler(ServletContextHandler.SESSIONS);
 		servletContext.setContextPath("/");
 		servletContext.addServlet(new ServletHolder(new PactJobJSONServlet(uploadDir)), "/pactPlan");
-		servletContext.addServlet(new ServletHolder(new JobsInfoServlet(nepheleConfig)), "/jobsInfo");
+		servletContext.addServlet(new ServletHolder(new JobsInfoServlet(nepheleConfig)),
+				"/jobsInfo");
 		servletContext.addServlet(new ServletHolder(new PlanDisplayServlet(jobManagerWebPort)), "/showPlan");
 		servletContext.addServlet(new ServletHolder(new JobsServlet(uploadDir, tmpDir, "launch.html")), "/jobs");
 		servletContext.addServlet(new ServletHolder(new JobSubmissionServlet(nepheleConfig, uploadDir, planDumpDir)),

@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.InetSocketAddress;
 import java.util.Iterator;
+import java.util.concurrent.TimeUnit;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -38,6 +39,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.messages.JobManagerMessages.RequestRunningJobs$;
 import org.apache.flink.runtime.messages.JobManagerMessages.RunningJobs;
+import scala.concurrent.duration.FiniteDuration;
 
 
 public class JobsInfoServlet extends HttpServlet {
@@ -51,11 +53,15 @@ public class JobsInfoServlet extends HttpServlet {
 	private final Configuration config;
 
 	private final ActorSystem system;
+
+	private final FiniteDuration timeout;
 	
 	public JobsInfoServlet(Configuration flinkConfig) {
 		this.config = flinkConfig;
 		system = ActorSystem.create("JobsInfoServletActorSystem",
 				AkkaUtils.getDefaultActorSystemConfig());
+		this.timeout = new FiniteDuration(flinkConfig.getInteger(ConfigConstants
+				.AKKA_ASK_TIMEOUT, ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT), TimeUnit.SECONDS);
 	}
 
 	@Override
@@ -67,10 +73,11 @@ public class JobsInfoServlet extends HttpServlet {
 			int jmPort = config.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
 					ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
 
-			ActorRef jm = JobManager.getJobManager(new InetSocketAddress(jmHost, jmPort), system);
+			ActorRef jm = JobManager.getJobManager(new InetSocketAddress(jmHost, jmPort), system,
+					timeout);
 
 			Iterator<ExecutionGraph> graphs = AkkaUtils.<RunningJobs>ask(jm,
-					RequestRunningJobs$.MODULE$).asJavaIterable().iterator();
+					RequestRunningJobs$.MODULE$, timeout).asJavaIterable().iterator();
 
 
 			resp.setStatus(HttpServletResponse.SC_OK);

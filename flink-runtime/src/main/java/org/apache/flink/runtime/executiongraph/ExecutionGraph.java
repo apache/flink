@@ -103,7 +103,6 @@ public class ExecutionGraph {
 	
 	private final long[] stateTimestamps;
 	
-	
 	private final Object progressLock = new Object();
 	
 	private int nextVertexToFinish;

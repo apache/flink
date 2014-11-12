@@ -23,9 +23,8 @@ import java.util.concurrent.TimeUnit;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
-import akka.dispatch.ExecutionContexts;
 import akka.pattern.Patterns;
-import com.amazonaws.http.ExecutionContext;
+import akka.util.Timeout;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -116,7 +115,7 @@ public abstract class CancellingTestBase {
 			boolean jobSuccessfullyCancelled = false;
 
 			Future<Object> result = Patterns.ask(client, new JobClientMessages.SubmitJobAndWait
-					(jobGraph, false), AkkaUtils.FUTURE_TIMEOUT());
+					(jobGraph, false), new Timeout(AkkaUtils.DEFAULT_TIMEOUT()));
 
 			actorSystem.scheduler().scheduleOnce(new FiniteDuration(msecsTillCanceling,
 							TimeUnit.MILLISECONDS), client, new JobManagerMessages.CancelJob(jobGraph.getJobID()),
@@ -125,7 +124,7 @@ public abstract class CancellingTestBase {
 							throw new IllegalStateException("Job restarted");
 
 			try {
-				Await.result(result, AkkaUtils.AWAIT_DURATION());
+				Await.result(result, AkkaUtils.DEFAULT_TIMEOUT());
 			} catch (JobExecutionException exception) {
 				if (!exception.isJobCanceledByUser()) {
 					throw new IllegalStateException("Job Failed.");

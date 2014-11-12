@@ -46,6 +46,7 @@ import org.codehaus.jettison.json.JSONObject;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.concurrent.duration.FiniteDuration;
 
 /**
  * A Servlet that displays the Configuration in the web interface.
@@ -59,13 +60,15 @@ public class SetupInfoServlet extends HttpServlet {
 	private static final Logger LOG = LoggerFactory.getLogger(SetupInfoServlet.class);
 	
 	
-	private Configuration globalC;
-	private ActorRef jobmanager;
+	final private Configuration globalC;
+	final private ActorRef jobmanager;
+	final private FiniteDuration timeout;
 	
 	
-	public SetupInfoServlet(ActorRef jm) {
+	public SetupInfoServlet(ActorRef jm, FiniteDuration timeout) {
 		globalC = GlobalConfiguration.getConfiguration();
 		this.jobmanager = jm;
+		this.timeout = timeout;
 	}
 	
 	@Override
@@ -104,7 +107,7 @@ public class SetupInfoServlet extends HttpServlet {
 	private void writeTaskmanagers(HttpServletResponse resp) throws IOException {
 
 		List<Instance> instances = new ArrayList<Instance>(AkkaUtils.<RegisteredTaskManagers>ask
-				(jobmanager, RequestRegisteredTaskManagers$.MODULE$).asJavaCollection());
+				(jobmanager, RequestRegisteredTaskManagers$.MODULE$, timeout).asJavaCollection());
 
 		Collections.sort(instances, INSTANCE_SORTER);
 				

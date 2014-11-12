@@ -346,6 +346,11 @@ public final class ConfigConstants {
 	 * Log level for akka
 	 */
 	public static final String AKKA_LOG_LEVEL = "akka.loglevel";
+
+	/**
+	 * Timeout for all blocking calls
+	 */
+	public static final String AKKA_ASK_TIMEOUT = "akka.ask.timeout";
 	
 	// ----------------------------- Miscellaneous ----------------------------
 	
@@ -594,6 +599,8 @@ public final class ConfigConstants {
 	public static String DEFAULT_AKKA_FRAMESIZE = "10485760b";
 
 	public static String DEFAULT_AKKA_LOG_LEVEL = "OFF";
+
+	public static int DEFAULT_AKKA_ASK_TIMEOUT = 100;
 	
 
 	// ----------------------------- LocalExecution ----------------------------

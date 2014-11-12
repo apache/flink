@@ -33,6 +33,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
@@ -63,6 +64,7 @@ import org.apache.flink.runtime.messages.JobManagerMessages.CancelJob;
 import org.apache.flink.runtime.messages.JobManagerMessages.RequestRunningJobs$;
 import org.apache.flink.runtime.messages.JobManagerMessages.RunningJobs;
 import org.apache.flink.util.StringUtils;
+import scala.concurrent.duration.FiniteDuration;
 
 /**
  * Implementation of a simple command line fronted for executing programs.
@@ -511,7 +513,7 @@ public class CliFrontend {
 			}
 
 			Iterable<ExecutionGraph> jobs = AkkaUtils.<RunningJobs>ask(jobManager,
-					RequestRunningJobs$.MODULE$).asJavaIterable();
+					RequestRunningJobs$.MODULE$, getAkkaTimeout()).asJavaIterable();
 
 			ArrayList<ExecutionGraph> runningJobs = null;
 			ArrayList<ExecutionGraph> scheduledJobs = null;
@@ -632,7 +634,7 @@ public class CliFrontend {
 				return 1;
 			}
 
-			AkkaUtils.ask(jobManager, new CancelJob(jobId));
+			AkkaUtils.ask(jobManager, new CancelJob(jobId), getAkkaTimeout());
 			return 0;
 		}
 		catch (Throwable t) {
@@ -756,7 +758,8 @@ public class CliFrontend {
 		}
 
 		return JobManager.getJobManager(jobManagerAddress,
-				ActorSystem.create("CliFrontendActorSystem", AkkaUtils.getDefaultActorSystemConfig()));
+				ActorSystem.create("CliFrontendActorSystem", AkkaUtils
+						.getDefaultActorSystemConfig()),getAkkaTimeout());
 	}
 	
 	
@@ -814,6 +817,13 @@ public class CliFrontend {
 			globalConfigurationLoaded = true;
 		}
 		return GlobalConfiguration.getConfiguration();
+	}
+
+	protected FiniteDuration getAkkaTimeout(){
+		Configuration config = getGlobalConfiguration();
+
+		return new FiniteDuration(config.getInteger(ConfigConstants.AKKA_ASK_TIMEOUT,
+				ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT), TimeUnit.SECONDS);
 	}
 	
 	public static List<Tuple2<String, String>> getDynamicProperties(String dynamicPropertiesEncoded) {

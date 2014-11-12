@@ -43,8 +43,10 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 import org.powermock.reflect.Whitebox;
 import scala.Tuple2;
+import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
@@ -105,7 +107,7 @@ public class ClientTest {
 	@Test
 	public void shouldSubmitToJobClient() throws ProgramInvocationException, IOException {
 		when(mockJobClient.submitJobDetached(any(JobGraph.class),
-				any(ActorRef.class))).thenReturn(mockSubmissionSuccess);
+				any(ActorRef.class), any(FiniteDuration.class))).thenReturn(mockSubmissionSuccess);
 
 		Client out = new Client(configMock, getClass().getClassLoader());
 		out.run(program.getPlanWithJars(), -1, false);
@@ -118,7 +120,7 @@ public class ClientTest {
 	@Test(expected = ProgramInvocationException.class)
 	public void shouldThrowException() throws Exception {
 		when(mockJobClient.submitJobDetached(any(JobGraph.class),
-				any(ActorRef.class))).thenReturn(mockSubmissionFailure);
+				any(ActorRef.class), any(FiniteDuration.class))).thenReturn(mockSubmissionFailure);
 
 		Client out = new Client(configMock, getClass().getClassLoader());
 		out.run(program.getPlanWithJars(), -1, false);

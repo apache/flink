@@ -44,6 +44,7 @@ import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.util.ExceptionUtils;
+import scala.concurrent.duration.FiniteDuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -78,13 +79,18 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 	
 	private final DiscardBufferPool discardBufferPool;
 
+	private final FiniteDuration timeout;
+
 	// -----------------------------------------------------------------------------------------------------------------
 
 	public ChannelManager(ActorRef channelLookup, InstanceConnectionInfo connectionInfo, int numNetworkBuffers,
-						int networkBufferSize, NetworkConnectionManager networkConnectionManager) throws IOException {
+						int networkBufferSize, NetworkConnectionManager networkConnectionManager,
+						FiniteDuration timeout) throws IOException {
 
 		this.channelLookup= channelLookup;
 		this.connectionInfo = connectionInfo;
+
+		this.timeout = timeout;
 
 		try {
 			this.globalBufferPool = new GlobalBufferPool(numNetworkBuffers, networkBufferSize);
@@ -378,7 +384,7 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 				try{
 					lookupResponse = AkkaUtils.<JobManagerMessages.ConnectionInformation>ask(channelLookup,
 							new JobManagerMessages.LookupConnectionInformation(connectionInfo, jobID,
-									sourceChannelID)).response();
+									sourceChannelID), timeout).response();
 				}catch(IOException ioe) {
 					throw ioe;
 				}
