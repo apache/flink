@@ -212,7 +212,7 @@ public class Utils {
 		localResource.setSize(jarStat.getLen());
 		localResource.setTimestamp(jarStat.getModificationTime());
 		localResource.setType(LocalResourceType.FILE);
-		localResource.setVisibility(LocalResourceVisibility.PUBLIC);
+		localResource.setVisibility(LocalResourceVisibility.APPLICATION);
 	}
 
 	public static void setTokensFor(ContainerLaunchContext amContainer, Path[] paths, Configuration conf) throws IOException {

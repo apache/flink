@@ -1297,4 +1297,10 @@ public class TaskManager implements TaskOperationProtocol {
 			return timeout;
 		}
 	}
+
+	@Override
+	public void killTaskManager() throws IOException {
+		LOG.info("Killing TaskManager");
+		System.exit(0); // returning 0 because the TM is not stopping in an error condition.
+	}
 }
