@@ -139,6 +139,66 @@ public class TestGraphOperations extends JavaProgramTestBase {
 				return "3,5,35\n" +
 				"4,5,45\n";
 			}
+			/*
+			 * Test numberOfVertices()
+			 */
+			case 5: {
+				
+			}
+			/*
+			 * Test numberOfEdges()
+			 */
+			case 6: {
+				
+			}
+			/*
+			 * Test getVertexIds()
+			 */
+			case 7: {
+				
+			}
+			/*
+			 * Test getEdgeIds()
+			 */
+			case 8: {
+				
+			}
+			/*
+			 * Test isWeaklyConnected()
+			 */
+			case 9: {
+				
+			}
+			/*
+			 * Test addVertex()
+			 */
+			case 10: {
+				
+			}
+			/*
+			 * Test removeVertex()
+			 */
+			case 11: {
+				
+			}
+			/*
+			 * Test addEdge()
+			 */
+			case 12: {
+				
+			}
+			/*
+			 * Test union()
+			 */
+			case 13: {
+				
+			}
+			/*
+			 * Test passMessages()
+			 */
+			case 14: {
+				
+			}
 			default: 
 				throw new IllegalArgumentException("Invalid program id");
 			}
