@@ -45,7 +45,7 @@ import java.util.List;
 
 @SuppressWarnings("serial")
 public class Graph<K extends Comparable<K> & Serializable, VV extends Serializable,
-	EV extends Serializable> implements Serializable{
+	EV extends Serializable> implements Serializable {
 
     private final ExecutionEnvironment context;
 
@@ -365,18 +365,18 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
     /**
      * @return Singleton DataSet containing the vertex count
      */
-    @SuppressWarnings("unchecked")
+//    @SuppressWarnings("unchecked")
 	public DataSet<Integer> numberOfVertices () {
-        return GraphUtils.count((DataSet<Object>) (DataSet<?>) vertices);
+        return GraphUtils.count(vertices);
     }
 
     /**
      *
      * @return Singleton DataSet containing the edge count
      */
-    @SuppressWarnings("unchecked")
+//    @SuppressWarnings("unchecked")
 	public DataSet<Integer> numberOfEdges () {
-        return GraphUtils.count((DataSet<Object>) (DataSet<?>) edges);
+        return GraphUtils.count(edges);
     }
 
     /**
