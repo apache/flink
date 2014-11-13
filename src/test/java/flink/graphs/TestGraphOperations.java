@@ -16,7 +16,7 @@ import org.junit.runners.Parameterized.Parameters;
 @RunWith(Parameterized.class)
 public class TestGraphOperations extends JavaProgramTestBase {
 
-	private static int NUM_PROGRAMS = 6;
+	private static int NUM_PROGRAMS = 8;
 	
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -165,53 +165,59 @@ public class TestGraphOperations extends JavaProgramTestBase {
 				env.execute();
 				return "7";
 			}
-			/*
-			 * Test getVertexIds()
-			 */
 			case 7: {
+				/*
+				 * Test getVertexIds()
+				 */
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				
+				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+						TestGraphUtils.getLongLongEdgeData(env), env);
+				graph.getVertexIds().writeAsText(resultPath);
+				
+				env.execute();
+				return "1\n2\n3\n4\n5\n";
 			}
-			/*
-			 * Test getEdgeIds()
-			 */
 			case 8: {
+				/*
+				 * Test getEdgeIds()
+				 */
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				
+				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+						TestGraphUtils.getLongLongEdgeData(env), env);
+				graph.getEdgeIds().writeAsCsv(resultPath);
+				
+				env.execute();
+				return "1,2\n" + "1,3\n" +
+						"2,3\n" + "3,4\n" +
+						"3,5\n" + "4,5\n" +
+						"5,1\n";
 			}
-			/*
-			 * Test isWeaklyConnected()
-			 */
 			case 9: {
-				
+				/*
+				 * Test addVertex()
+				 */	
 			}
-			/*
-			 * Test addVertex()
-			 */
 			case 10: {
-				
+				/*
+				 * Test removeVertex()
+				 */	
 			}
-			/*
-			 * Test removeVertex()
-			 */
 			case 11: {
-				
+				/*
+				 * Test addEdge()
+				 */				
 			}
-			/*
-			 * Test addEdge()
-			 */
 			case 12: {
-				
+				/*
+				 * Test union()
+				 */				
 			}
-			/*
-			 * Test union()
-			 */
 			case 13: {
-				
-			}
-			/*
-			 * Test passMessages()
-			 */
-			case 14: {
-				
+				/*
+				 * Test passMessages()
+				 */				
 			}
 			default: 
 				throw new IllegalArgumentException("Invalid program id");
