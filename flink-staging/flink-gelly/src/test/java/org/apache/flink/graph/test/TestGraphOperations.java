@@ -16,7 +16,7 @@ import org.junit.runners.Parameterized.Parameters;
 @RunWith(Parameterized.class)
 public class TestGraphOperations extends JavaProgramTestBase {
 
-	private static int NUM_PROGRAMS = 4;
+	private static int NUM_PROGRAMS = 6;
 	
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -139,17 +139,31 @@ public class TestGraphOperations extends JavaProgramTestBase {
 				return "3,5,35\n" +
 				"4,5,45\n";
 			}
-			/*
-			 * Test numberOfVertices()
-			 */
 			case 5: {
+				/*
+				 * Test numberOfVertices()
+				 */
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				
+				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+						TestGraphUtils.getLongLongEdgeData(env), env);
+				graph.numberOfVertices().writeAsText(resultPath);
+				
+				env.execute();
+				return "5";
 			}
+			case 6: {
 			/*
 			 * Test numberOfEdges()
 			 */
-			case 6: {
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				
+				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+						TestGraphUtils.getLongLongEdgeData(env), env);
+				graph.numberOfEdges().writeAsText(resultPath);
+				
+				env.execute();
+				return "7";
 			}
 			/*
 			 * Test getVertexIds()
