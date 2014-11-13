@@ -20,6 +20,7 @@
 package org.apache.flink.runtime.operators.shipping;
 
 import org.apache.flink.api.common.distributions.DataDistribution;
+import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.runtime.io.network.api.ChannelSelector;
 import org.apache.flink.types.Key;
@@ -43,7 +44,11 @@ public class RecordOutputEmitter implements ChannelSelector<Record> {
 	
 	private final DataDistribution distribution; // the data distribution to create the partition boundaries for range partitioning
 	
+	private final Partitioner<Object> partitioner;
+	
 	private int nextChannelToSendTo;				// counter to go over channels round robin
+	
+	private Object[] extractedKeys;
 
 	// ------------------------------------------------------------------------
 	// Constructors
@@ -66,7 +71,7 @@ public class RecordOutputEmitter implements ChannelSelector<Record> {
 	 * @param comparator The comparator used to hash / compare the records.
 	 */
 	public RecordOutputEmitter(ShipStrategyType strategy, TypeComparator<Record> comparator) {
-		this(strategy, comparator, null);
+		this(strategy, comparator, null, null);
 	}
 
 	/**
@@ -78,6 +83,15 @@ public class RecordOutputEmitter implements ChannelSelector<Record> {
 	 * @param distr The distribution pattern used in the case of a range partitioning.
 	 */
 	public RecordOutputEmitter(ShipStrategyType strategy, TypeComparator<Record> comparator, DataDistribution distr) {
+		this(strategy, comparator, null, distr);
+	}
+	
+	public RecordOutputEmitter(ShipStrategyType strategy, TypeComparator<Record> comparator, Partitioner<?> partitioner) {
+		this(strategy, comparator, partitioner, null);
+	}
+		
+	@SuppressWarnings("unchecked")
+	public RecordOutputEmitter(ShipStrategyType strategy, TypeComparator<Record> comparator, Partitioner<?> partitioner, DataDistribution distr) {
 		if (strategy == null) { 
 			throw new NullPointerException();
 		}
@@ -85,6 +99,7 @@ public class RecordOutputEmitter implements ChannelSelector<Record> {
 		this.strategy = strategy;
 		this.comparator = comparator;
 		this.distribution = distr;
+		this.partitioner = (Partitioner<Object>) partitioner;
 		
 		switch (strategy) {
 		case FORWARD:
@@ -94,6 +109,7 @@ public class RecordOutputEmitter implements ChannelSelector<Record> {
 			this.channels = new int[1];
 			break;
 		case BROADCAST:
+		case PARTITION_CUSTOM:
 			break;
 		default:
 			throw new IllegalArgumentException("Invalid shipping strategy for OutputEmitter: " + strategy.name());
@@ -101,6 +117,9 @@ public class RecordOutputEmitter implements ChannelSelector<Record> {
 		
 		if ((strategy == ShipStrategyType.PARTITION_RANGE) && distr == null) {
 			throw new NullPointerException("Data distribution must not be null when the ship strategy is range partitioning.");
+		}
+		if (strategy == ShipStrategyType.PARTITION_CUSTOM && partitioner == null) {
+			throw new NullPointerException("Partitioner must not be null when the ship strategy is set to custom partitioning.");
 		}
 	}
 
@@ -113,13 +132,16 @@ public class RecordOutputEmitter implements ChannelSelector<Record> {
 		switch (strategy) {
 		case FORWARD:
 		case PARTITION_RANDOM:
+		case PARTITION_FORCED_REBALANCE:
 			return robin(numberOfChannels);
 		case PARTITION_HASH:
 			return hashPartitionDefault(record, numberOfChannels);
-		case PARTITION_RANGE:
-			return rangePartition(record, numberOfChannels);
+		case PARTITION_CUSTOM:
+			return customPartition(record, numberOfChannels);
 		case BROADCAST:
 			return broadcast(numberOfChannels);
+		case PARTITION_RANGE:
+			return rangePartition(record, numberOfChannels);
 		default:
 			throw new UnsupportedOperationException("Unsupported distribution strategy: " + strategy.name());
 		}
@@ -198,6 +220,27 @@ public class RecordOutputEmitter implements ChannelSelector<Record> {
 		} else {
 			throw new IllegalStateException(
 			"The number of channels to partition among is inconsistent with the partitioners state.");
+		}
+	}
+	
+	private final int[] customPartition(Record record, int numberOfChannels) {
+		if (channels == null) {
+			channels = new int[1];
+			extractedKeys = new Object[1];
+		}
+		
+		try {
+			if (comparator.extractKeys(record, extractedKeys, 0) == 1) {
+				final Object key = extractedKeys[0];
+				channels[0] = partitioner.partition(key, numberOfChannels);
+				return channels;
+			}
+			else {
+				throw new RuntimeException("Inconsistency in the key comparator - comparator extracted more than one field.");
+			}
+		}
+		catch (Throwable t) {
+			throw new RuntimeException("Error while calling custom partitioner.", t);
 		}
 	}
 }

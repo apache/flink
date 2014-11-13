@@ -42,6 +42,7 @@ import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.MapPartitionFunction;
+import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
@@ -113,6 +114,10 @@ public class TypeExtractor {
 	
 	public static <IN, OUT> TypeInformation<OUT> getKeySelectorTypes(KeySelector<IN, OUT> selectorInterface, TypeInformation<IN> inType) {
 		return getUnaryOperatorReturnType((Function) selectorInterface, KeySelector.class, false, false, inType);
+	}
+	
+	public static <T> TypeInformation<T> getPartitionerTypes(Partitioner<T> partitioner) {
+		return new TypeExtractor().privateCreateTypeInfo(Partitioner.class, partitioner.getClass(), 0, null, null);
 	}
 	
 	@SuppressWarnings("unchecked")

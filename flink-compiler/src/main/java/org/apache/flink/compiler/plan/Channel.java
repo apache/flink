@@ -16,10 +16,10 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.compiler.plan;
 
 import org.apache.flink.api.common.distributions.DataDistribution;
+import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
@@ -36,7 +36,7 @@ import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
 
 /**
- * 
+ * A Channel is a data exchange between two operators.
  */
 public class Channel implements EstimateProvider, Cloneable, DumpableConnection<PlanNode> {
 	
@@ -71,6 +71,8 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 	private TypeComparatorFactory<?> localStrategyComparator;
 	
 	private DataDistribution dataDistribution;
+	
+	private Partitioner<?> partitioner;
 	
 	private TempMode tempMode;
 	
@@ -125,17 +127,27 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 	}
 	
 	public void setShipStrategy(ShipStrategyType strategy) {
-		setShipStrategy(strategy, null, null);
+		setShipStrategy(strategy, null, null, null);
 	}
 	
 	public void setShipStrategy(ShipStrategyType strategy, FieldList keys) {
-		setShipStrategy(strategy, keys, null);
+		setShipStrategy(strategy, keys, null, null);
 	}
 	
 	public void setShipStrategy(ShipStrategyType strategy, FieldList keys, boolean[] sortDirection) {
+		setShipStrategy(strategy, keys, sortDirection, null);
+	}
+	
+	public void setShipStrategy(ShipStrategyType strategy, FieldList keys, Partitioner<?> partitioner) {
+		setShipStrategy(strategy, keys, null, partitioner);
+	}
+	
+	public void setShipStrategy(ShipStrategyType strategy, FieldList keys, boolean[] sortDirection, Partitioner<?> partitioner) {
 		this.shipStrategy = strategy;
 		this.shipKeys = keys;
 		this.shipSortOrder = sortDirection;
+		this.partitioner = partitioner;
+		
 		this.globalProps = null;		// reset the global properties
 	}
 	
@@ -185,6 +197,10 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 	
 	public DataDistribution getDataDistribution() {
 		return this.dataDistribution;
+	}
+	
+	public Partitioner<?> getPartitioner() {
+		return partitioner;
 	}
 	
 	public TempMode getTempMode() {
@@ -245,7 +261,6 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 	public TypeSerializerFactory<?> getSerializer() {
 		return serializer;
 	}
-
 	
 	/**
 	 * Sets the serializer for this Channel.
@@ -381,6 +396,9 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 				case PARTITION_FORCED_REBALANCE:
 					this.globalProps.setForcedRebalanced();
 					break;
+				case PARTITION_CUSTOM:
+					this.globalProps.setCustomPartitioned(this.shipKeys, this.partitioner);
+					break;
 				case NONE:
 					throw new CompilerException("Cannot produce GlobalProperties before ship strategy is set.");
 			}
@@ -411,6 +429,7 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 		switch (this.shipStrategy) {
 			case BROADCAST:
 			case PARTITION_HASH:
+			case PARTITION_CUSTOM:
 			case PARTITION_RANGE:
 			case PARTITION_RANDOM:
 			case PARTITION_FORCED_REBALANCE:
@@ -448,6 +467,7 @@ public class Channel implements EstimateProvider, Cloneable, DumpableConnection<
 		case PARTITION_RANGE:
 		case PARTITION_RANDOM:
 		case PARTITION_FORCED_REBALANCE:
+		case PARTITION_CUSTOM:
 			return;
 		}
 		throw new CompilerException("Unrecognized Ship Strategy Type: " + this.shipStrategy);

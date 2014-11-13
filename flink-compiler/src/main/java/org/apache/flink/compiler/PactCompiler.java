@@ -67,7 +67,7 @@ import org.apache.flink.compiler.dag.GroupReduceNode;
 import org.apache.flink.compiler.dag.IterationNode;
 import org.apache.flink.compiler.dag.MapNode;
 import org.apache.flink.compiler.dag.MapPartitionNode;
-import org.apache.flink.compiler.dag.MatchNode;
+import org.apache.flink.compiler.dag.JoinNode;
 import org.apache.flink.compiler.dag.OptimizerNode;
 import org.apache.flink.compiler.dag.PactConnection;
 import org.apache.flink.compiler.dag.PartitionNode;
@@ -696,7 +696,7 @@ public class PactCompiler {
 				n = new GroupReduceNode((GroupReduceOperatorBase<?, ?, ?>) c);
 			}
 			else if (c instanceof JoinOperatorBase) {
-				n = new MatchNode((JoinOperatorBase<?, ?, ?, ?>) c);
+				n = new JoinNode((JoinOperatorBase<?, ?, ?, ?>) c);
 			}
 			else if (c instanceof CoGroupOperatorBase) {
 				n = new CoGroupNode((CoGroupOperatorBase<?, ?, ?, ?>) c);
@@ -883,9 +883,9 @@ public class PactCompiler {
 					for (PactConnection conn : solutionSetNode.getOutgoingConnections()) {
 						OptimizerNode successor = conn.getTarget();
 					
-						if (successor.getClass() == MatchNode.class) {
+						if (successor.getClass() == JoinNode.class) {
 							// find out which input to the match the solution set is
-							MatchNode mn = (MatchNode) successor;
+							JoinNode mn = (JoinNode) successor;
 							if (mn.getFirstPredecessorNode() == solutionSetNode) {
 								mn.makeJoinWithSolutionSet(0);
 							} else if (mn.getSecondPredecessorNode() == solutionSetNode) {

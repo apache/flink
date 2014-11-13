@@ -21,6 +21,7 @@ package org.apache.flink.compiler.operators;
 import java.util.Collections;
 import java.util.List;
 
+import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.util.FieldSet;
@@ -42,12 +43,22 @@ public final class GroupReduceWithCombineProperties extends OperatorDescriptorSi
 	
 	private final Ordering ordering;		// ordering that we need to use if an additional ordering is requested 
 	
+	private final Partitioner<?> customPartitioner;
 	
-	public GroupReduceWithCombineProperties(FieldSet keys) {
-		this(keys, null);
+	
+	public GroupReduceWithCombineProperties(FieldSet groupKeys) {
+		this(groupKeys, null, null);
 	}
 	
 	public GroupReduceWithCombineProperties(FieldSet groupKeys, Ordering additionalOrderKeys) {
+		this(groupKeys, additionalOrderKeys, null);
+	}
+	
+	public GroupReduceWithCombineProperties(FieldSet groupKeys, Partitioner<?> customPartitioner) {
+		this(groupKeys, null, customPartitioner);
+	}
+	
+	public GroupReduceWithCombineProperties(FieldSet groupKeys, Ordering additionalOrderKeys, Partitioner<?> customPartitioner) {
 		super(groupKeys);
 		
 		// if we have an additional ordering, construct the ordering to have primarily the grouping fields
@@ -66,6 +77,8 @@ public final class GroupReduceWithCombineProperties extends OperatorDescriptorSi
 		} else {
 			this.ordering = null;
 		}
+		
+		this.customPartitioner = customPartitioner;
 	}
 	
 	@Override
@@ -111,7 +124,11 @@ public final class GroupReduceWithCombineProperties extends OperatorDescriptorSi
 	@Override
 	protected List<RequestedGlobalProperties> createPossibleGlobalProperties() {
 		RequestedGlobalProperties props = new RequestedGlobalProperties();
-		props.setAnyPartitioning(this.keys);
+		if (customPartitioner == null) {
+			props.setAnyPartitioning(this.keys);
+		} else {
+			props.setCustomPartitioned(this.keys, this.customPartitioner);
+		}
 		return Collections.singletonList(props);
 	}
 

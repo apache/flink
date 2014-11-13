@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.compiler.dag;
 
 import java.util.Collections;
@@ -32,13 +31,17 @@ import org.apache.flink.compiler.operators.OperatorDescriptorSingle;
  */
 public class MapNode extends SingleInputNode {
 	
+	private final List<OperatorDescriptorSingle> possibleProperties;
+	
 	/**
-	 * Creates a new MapNode for the given contract.
+	 * Creates a new MapNode for the given operator.
 	 * 
-	 * @param operator The map contract object.
+	 * @param operator The map operator.
 	 */
 	public MapNode(SingleInputOperator<?, ?, ?> operator) {
 		super(operator);
+		
+		this.possibleProperties = Collections.<OperatorDescriptorSingle>singletonList(new MapDescriptor());
 	}
 
 	@Override
@@ -48,7 +51,7 @@ public class MapNode extends SingleInputNode {
 
 	@Override
 	protected List<OperatorDescriptorSingle> getPossibleProperties() {
-		return Collections.<OperatorDescriptorSingle>singletonList(new MapDescriptor());
+		return this.possibleProperties;
 	}
 
 	/**

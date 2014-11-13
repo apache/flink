@@ -232,6 +232,7 @@ public class ScalaAggregateOperator<IN> extends SingleInputOperator<IN, IN, Scal
 			}
 
 			po.setSemanticProperties(props);
+			po.setCustomPartitioner(grouping.getCustomPartitioner());
 
 			return po;
 		}

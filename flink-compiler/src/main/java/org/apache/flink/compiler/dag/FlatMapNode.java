@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.compiler.dag;
 
 import java.util.Collections;
@@ -32,9 +31,12 @@ import org.apache.flink.compiler.operators.OperatorDescriptorSingle;
  */
 public class FlatMapNode extends SingleInputNode {
 	
-
+	private final List<OperatorDescriptorSingle> possibleProperties;
+	
 	public FlatMapNode(FlatMapOperatorBase<?, ?, ?> operator) {
 		super(operator);
+		
+		this.possibleProperties = Collections.<OperatorDescriptorSingle>singletonList(new FlatMapDescriptor());
 	}
 
 	@Override
@@ -49,7 +51,7 @@ public class FlatMapNode extends SingleInputNode {
 
 	@Override
 	protected List<OperatorDescriptorSingle> getPossibleProperties() {
-		return Collections.<OperatorDescriptorSingle>singletonList(new FlatMapDescriptor());
+		return this.possibleProperties;
 	}
 
 	/**

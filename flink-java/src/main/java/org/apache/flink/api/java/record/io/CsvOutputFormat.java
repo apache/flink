@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.java.record.io;
 
 import java.io.BufferedOutputStream;
@@ -52,6 +51,7 @@ import org.apache.flink.types.Value;
  * @see Configuration
  * @see Record
  */
+@SuppressWarnings("deprecation")
 public class CsvOutputFormat extends FileOutputFormat {
 	private static final long serialVersionUID = 1L;
 

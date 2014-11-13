@@ -25,6 +25,7 @@ import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.RichFlatJoinFunction;
 import org.apache.flink.api.common.operators.BinaryOperatorInformation;
 import org.apache.flink.api.common.operators.DualInputSemanticProperties;
@@ -46,12 +47,15 @@ import org.apache.flink.api.java.operators.translation.PlanBothUnwrappingJoinOpe
 import org.apache.flink.api.java.operators.translation.PlanLeftUnwrappingJoinOperator;
 import org.apache.flink.api.java.operators.translation.PlanRightUnwrappingJoinOperator;
 import org.apache.flink.api.java.operators.translation.WrappingFunction;
-//CHECKSTYLE.OFF: AvoidStarImport - Needed for TupleGenerator
-import org.apache.flink.api.java.tuple.*;
-//CHECKSTYLE.ON: AvoidStarImport
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.util.Collector;
+
+//CHECKSTYLE.OFF: AvoidStarImport - Needed for TupleGenerator
+import org.apache.flink.api.java.tuple.*;
+
+import com.google.common.base.Preconditions;
+//CHECKSTYLE.ON: AvoidStarImport
 
 /**
  * A {@link DataSet} that is the result of a Join transformation. 
@@ -69,14 +73,25 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 	
 	private final JoinHint joinHint;
 	
+	private Partitioner<?> customPartitioner;
+	
+	
 	protected JoinOperator(DataSet<I1> input1, DataSet<I2> input2, 
 			Keys<I1> keys1, Keys<I2> keys2,
 			TypeInformation<OUT> returnType, JoinHint hint)
 	{
 		super(input1, input2, returnType);
 		
-		if (keys1 == null || keys2 == null) {
-			throw new NullPointerException();
+		Preconditions.checkNotNull(keys1);
+		Preconditions.checkNotNull(keys2);
+		
+		try {
+			if (!keys1.areCompatible(keys2)) {
+				throw new InvalidProgramException("The types of the key fields do not match.");
+			}
+		}
+		catch (IncompatibleKeysException ike) {
+			throw new InvalidProgramException("The types of the key fields do not match: " + ike.getMessage(), ike);
 		}
 
 		// sanity check solution set key mismatches
@@ -110,8 +125,41 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		return this.keys2;
 	}
 	
+	/**
+	 * Gets the JoinHint that describes how the join is executed.
+	 * 
+	 * @return The JoinHint.
+	 */
 	public JoinHint getJoinHint() {
 		return this.joinHint;
+	}
+	
+	/**
+	 * Sets a custom partitioner for this join. The partitioner will be called on the join keys to determine
+	 * the partition a key should be assigned to. The partitioner is evaluated on both join inputs in the
+	 * same way.
+	 * <p>
+	 * NOTE: A custom partitioner can only be used with single-field join keys, not with composite join keys.
+	 * 
+	 * @param partitioner The custom partitioner to be used.
+	 * @return This join operator, to allow for function chaining.
+	 */
+	public JoinOperator<I1, I2, OUT> withPartitioner(Partitioner<?> partitioner) {
+		if (partitioner != null) {
+			keys1.validateCustomPartitioner(partitioner, null);
+			keys2.validateCustomPartitioner(partitioner, null);
+		}
+		this.customPartitioner = partitioner;
+		return this;
+	}
+	
+	/**
+	 * Gets the custom partitioner used by this join, or {@code null}, if none is set.
+	 * 
+	 * @return The custom partitioner used by this join;
+	 */
+	public Partitioner<?> getPartitioner() {
+		return customPartitioner;
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -206,30 +254,20 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 //		}
 		
 		@Override
-		protected JoinOperatorBase<?, ?, OUT, ?> translateToDataFlow(
-				Operator<I1> input1,
-				Operator<I2> input2) {
+		protected JoinOperatorBase<?, ?, OUT, ?> translateToDataFlow(Operator<I1> input1, Operator<I2> input2) {
 
 			String name = getName() != null ? getName() : "Join at "+joinLocationName;
-			try {
-				keys1.areCompatible(super.keys2);
-			} catch(IncompatibleKeysException ike) {
-				throw new InvalidProgramException("The types of the key fields do not match.", ike);
-			}
 
 			final JoinOperatorBase<?, ?, OUT, ?> translated;
 			
-			if (keys1 instanceof Keys.SelectorFunctionKeys
-					&& keys2 instanceof Keys.SelectorFunctionKeys) {
+			if (keys1 instanceof Keys.SelectorFunctionKeys && keys2 instanceof Keys.SelectorFunctionKeys) {
 				// Both join sides have a key selector function, so we need to do the
 				// tuple wrapping/unwrapping on both sides.
 
 				@SuppressWarnings("unchecked")
-				Keys.SelectorFunctionKeys<I1, ?> selectorKeys1 =
-						(Keys.SelectorFunctionKeys<I1, ?>) keys1;
+				Keys.SelectorFunctionKeys<I1, ?> selectorKeys1 = (Keys.SelectorFunctionKeys<I1, ?>) keys1;
 				@SuppressWarnings("unchecked")
-				Keys.SelectorFunctionKeys<I2, ?> selectorKeys2 =
-						(Keys.SelectorFunctionKeys<I2, ?>) keys2;
+				Keys.SelectorFunctionKeys<I2, ?> selectorKeys2 = (Keys.SelectorFunctionKeys<I2, ?>) keys2;
 				
 				PlanBothUnwrappingJoinOperator<I1, I2, OUT, ?> po =
 						translateSelectorFunctionJoin(selectorKeys1, selectorKeys2, function, 
@@ -304,6 +342,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			}
 			
 			translated.setJoinHint(getJoinHint());
+			translated.setCustomPartitioner(getPartitioner());
 			
 			return translated;
 		}
@@ -506,22 +545,6 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 				out.collect (this.wrappedFunction.join(left, right));
 			}
 		}
-
-		/*
-		private static class GeneratedFlatJoinFunction<IN1, IN2, OUT> extends FlatJoinFunction<IN1, IN2, OUT> {
-
-			private Joinable<IN1,IN2,OUT> function;
-
-			private GeneratedFlatJoinFunction(Joinable<IN1, IN2, OUT> function) {
-				this.function = function;
-			}
-
-			@Override
-			public void join(IN1 first, IN2 second, Collector<OUT> out) throws Exception {
-				out.collect(function.join(first, second));
-			}
-		}
-		*/
 		
 		/**
 		 * Initiates a ProjectJoin transformation and projects the first join input<br/>
@@ -930,32 +953,6 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 				}
 			}
 			out.collect(outTuple);
-		}
-	}
-	
-	public static final class LeftSemiFlatJoinFunction<T1, T2> extends RichFlatJoinFunction<T1, T2, T1> {
-
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		//public T1 join(T1 left, T2 right) throws Exception {
-		//	return left;
-		//}
-		public void join (T1 left, T2 right, Collector<T1> out) {
-			out.collect(left);
-		}
-	}
-	
-	public static final class RightSemiFlatJoinFunction<T1, T2> extends RichFlatJoinFunction<T1, T2, T2> {
-
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		//public T2 join(T1 left, T2 right) throws Exception {
-		//	return right;
-		//}
-		public void join (T1 left, T2 right, Collector<T2> out) {
-			out.collect(right);
 		}
 	}
 	

@@ -25,6 +25,7 @@ import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.functions.FlatCombineFunction;
 import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
@@ -1269,7 +1270,9 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 						throw new Exception("Incompatibe serializer-/comparator factories.");
 					}
 					final DataDistribution distribution = config.getOutputDataDistribution(i, cl);
-					oe = new RecordOutputEmitter(strategy, comparator, distribution);
+					final Partitioner<?> partitioner = config.getOutputPartitioner(i, cl);
+					
+					oe = new RecordOutputEmitter(strategy, comparator, partitioner, distribution);
 				}
 
 				writers.add(new RecordWriter<Record>(task, oe));
@@ -1292,17 +1295,17 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 				// create the OutputEmitter from output ship strategy
 				final ShipStrategyType strategy = config.getOutputShipStrategy(i);
 				final TypeComparatorFactory<T> compFactory = config.getOutputComparator(i, cl);
-				final DataDistribution dataDist = config.getOutputDataDistribution(i, cl);
 
 				final ChannelSelector<SerializationDelegate<T>> oe;
 				if (compFactory == null) {
 					oe = new OutputEmitter<T>(strategy);
-				} else if (dataDist == null){
+				}
+				else {
+					final DataDistribution dataDist = config.getOutputDataDistribution(i, cl);
+					final Partitioner<?> partitioner = config.getOutputPartitioner(i, cl);
+					
 					final TypeComparator<T> comparator = compFactory.createComparator();
-					oe = new OutputEmitter<T>(strategy, comparator);
-				} else {
-					final TypeComparator<T> comparator = compFactory.createComparator();
-					oe = new OutputEmitter<T>(strategy, comparator, dataDist);
+					oe = new OutputEmitter<T>(strategy, comparator, partitioner, dataDist);
 				}
 
 				writers.add(new RecordWriter<SerializationDelegate<T>>(task, oe));

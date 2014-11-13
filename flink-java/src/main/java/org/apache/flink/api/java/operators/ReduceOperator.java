@@ -87,9 +87,8 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 			UnaryOperatorInformation<IN, IN> operatorInfo = new UnaryOperatorInformation<IN, IN>(getInputType(), getInputType());
 			ReduceOperatorBase<IN, ReduceFunction<IN>> po =
 					new ReduceOperatorBase<IN, ReduceFunction<IN>>(function, operatorInfo, new int[0], name);
-			// set input
-			po.setInput(input);
 			
+			po.setInput(input);
 			// the degree of parallelism for a non grouped reduce can only be 1
 			po.setDegreeOfParallelism(1);
 			
@@ -102,7 +101,9 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 			@SuppressWarnings("unchecked")
 			Keys.SelectorFunctionKeys<IN, ?> selectorKeys = (Keys.SelectorFunctionKeys<IN, ?>) grouper.getKeys();
 			
-			MapOperatorBase<?, IN, ?> po = translateSelectorFunctionReducer(selectorKeys, function, getInputType(), name, input, this.getParallelism());
+			MapOperatorBase<?, IN, ?> po = translateSelectorFunctionReducer(selectorKeys, function, getInputType(), name, input, getParallelism());
+			((PlanUnwrappingReduceOperator<?, ?>) po.getInput()).setCustomPartitioner(grouper.getCustomPartitioner());
+			
 			return po;
 		}
 		else if (grouper.getKeys() instanceof Keys.ExpressionKeys) {
@@ -113,17 +114,16 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 			ReduceOperatorBase<IN, ReduceFunction<IN>> po =
 					new ReduceOperatorBase<IN, ReduceFunction<IN>>(function, operatorInfo, logicalKeyPositions, name);
 			
-			// set input
+			po.setCustomPartitioner(grouper.getCustomPartitioner());
+			
 			po.setInput(input);
-			// set dop
-			po.setDegreeOfParallelism(this.getParallelism());
+			po.setDegreeOfParallelism(getParallelism());
 			
 			return po;
 		}
 		else {
 			throw new UnsupportedOperationException("Unrecognized key type.");
 		}
-		
 	}
 	
 	// --------------------------------------------------------------------------------------------

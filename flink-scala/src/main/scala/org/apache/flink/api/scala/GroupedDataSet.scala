@@ -20,9 +20,7 @@ package org.apache.flink.api.scala
 import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.java.functions.FirstReducer
 import org.apache.flink.api.scala.operators.ScalaAggregateOperator
-
 import scala.collection.JavaConverters._
-
 import org.apache.commons.lang3.Validate
 import org.apache.flink.api.common.functions.{GroupReduceFunction, ReduceFunction}
 import org.apache.flink.api.common.operators.Order
@@ -30,9 +28,10 @@ import org.apache.flink.api.java.aggregation.Aggregations
 import org.apache.flink.api.java.operators._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.util.Collector
-
 import scala.collection.mutable
 import scala.reflect.ClassTag
+import org.apache.flink.api.common.functions.Partitioner
+import com.google.common.base.Preconditions
 
 /**
  * A [[DataSet]] to which a grouping key was added. Operations work on groups of elements with the
@@ -49,6 +48,8 @@ class GroupedDataSet[T: ClassTag](
   // when using a group-at-a-time reduce function.
   private val groupSortKeyPositions = mutable.MutableList[Either[Int, String]]()
   private val groupSortOrders = mutable.MutableList[Order]()
+  
+  private var partitioner : Partitioner[_] = _
 
   /**
    * Adds a secondary sort key to this [[GroupedDataSet]]. This will only have an effect if you
@@ -113,15 +114,50 @@ class GroupedDataSet[T: ClassTag](
 
         }
       }
-      grouping
+      
+      if (partitioner == null) {
+        grouping
+      } else {
+        grouping.withPartitioner(partitioner)
+      }
+    
     } else {
-      new UnsortedGrouping[T](set.javaSet, keys)
+      createUnsortedGrouping()
     }
   }
 
   /** Convenience methods for creating the [[UnsortedGrouping]] */
-  private def createUnsortedGrouping(): Grouping[T] = new UnsortedGrouping[T](set.javaSet, keys)
+  private def createUnsortedGrouping(): Grouping[T] = {
+    val grp = new UnsortedGrouping[T](set.javaSet, keys)
+    if (partitioner == null) {
+      grp
+    } else {
+      grp.withPartitioner(partitioner)
+    }
+  }
 
+  /**
+   * Sets a custom partitioner for the grouping.
+   */
+  def withPartitioner[K : TypeInformation](partitioner: Partitioner[K]) : GroupedDataSet[T] = {
+    Preconditions.checkNotNull(partitioner)
+    keys.validateCustomPartitioner(partitioner, implicitly[TypeInformation[K]])
+    this.partitioner = partitioner
+    this
+  }
+  
+  /**
+   * Gets the custom partitioner to be used for this grouping, or null, if
+   * none was defined.
+   */
+  def getCustomPartitioner[K]() : Partitioner[K] = {
+    partitioner.asInstanceOf[Partitioner[K]]
+  }
+  
+  // ----------------------------------------------------------------------------------------------
+  //  Operations
+  // ----------------------------------------------------------------------------------------------
+  
   /**
    * Creates a new [[DataSet]] by aggregating the specified tuple field using the given aggregation
    * function. Since this is a keyed DataSet the aggregation will be performed on groups of
