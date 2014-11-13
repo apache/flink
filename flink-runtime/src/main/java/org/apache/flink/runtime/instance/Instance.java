@@ -130,6 +130,15 @@ public class Instance {
 		return !isDead;
 	}
 	
+	public void stopInstance() {
+		try {
+			this.getTaskManagerProxy().stop();
+		} catch (IOException e) {
+			if(Log.isDebugEnabled()) {
+				Log.debug("Error while stopping TaskManager", e);
+			}
+		}
+	}
 	public void markDead() {
 		if (isDead) {
 			return;

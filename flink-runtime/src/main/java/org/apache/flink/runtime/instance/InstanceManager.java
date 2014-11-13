@@ -113,6 +113,7 @@ public class InstanceManager {
 			this.cleanupStaleMachines.cancel();
 
 			for (Instance i : this.registeredHostsById.values()) {
+				i.stopInstance();
 				i.markDead();
 			}
 			
