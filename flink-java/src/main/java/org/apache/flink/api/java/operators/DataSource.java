@@ -36,6 +36,8 @@ import org.apache.flink.configuration.Configuration;
 public class DataSource<OUT> extends Operator<OUT, DataSource<OUT>> {
 
 	private final InputFormat<OUT, ?> inputFormat;
+	
+	private final String dataSourceLocationName;
 
 	private final String dataSourceLocationName;
 
