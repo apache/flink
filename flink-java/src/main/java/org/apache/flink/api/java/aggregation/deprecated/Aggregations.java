@@ -16,15 +16,30 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.java.aggregation;
+package org.apache.flink.api.java.aggregation.deprecated;
 
-
-public class UnsupportedAggregationTypeException extends RuntimeException {
-
-	private static final long serialVersionUID = -1721898801986321005L;
-
-	public UnsupportedAggregationTypeException(String message) {
-		super(message);
+/**
+ *
+ */
+public enum Aggregations {
+	
+	SUM (new SumAggregationFunction.SumAggregationFunctionFactory()),
+	MIN (new MinAggregationFunction.MinAggregationFunctionFactory()),
+	MAX (new MaxAggregationFunction.MaxAggregationFunctionFactory()),
+//	AVG (new AvgAggregationFunction.AvgAggregationFunctionFactory())
+	;
+//	STD_DEV;
+	
+	// --------------------------------------------------------------------------------------------
+	
+	private final AggregationFunctionFactory factory;
+		
+	private Aggregations(AggregationFunctionFactory factory) {
+		this.factory = factory;
 	}
 
+	public AggregationFunctionFactory getFactory() {
+		return this.factory;
+	}
+	
 }

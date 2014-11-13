@@ -16,10 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.java.aggregation;
+package org.apache.flink.api.java.aggregation.deprecated;
 
 
-public class MaxAggregationFunction<T extends Comparable<T>> extends AggregationFunction<T> {
+public class MinAggregationFunction<T extends Comparable<T>> extends AggregationFunction<T> {
 	private static final long serialVersionUID = 1L;
 
 	private T value;
@@ -33,7 +33,7 @@ public class MaxAggregationFunction<T extends Comparable<T>> extends Aggregation
 	public void aggregate(T val) {
 		if (value != null) {
 			int cmp = value.compareTo(val);
-			value = (cmp > 0) ? value : val;
+			value = (cmp < 0) ? value : val;
 		} else {
 			value = val;
 		}
@@ -46,23 +46,23 @@ public class MaxAggregationFunction<T extends Comparable<T>> extends Aggregation
 	
 	@Override
 	public String toString() {
-		return "MAX";
+		return "MIN";
 	}
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public static final class MaxAggregationFunctionFactory implements AggregationFunctionFactory {
+	public static final class MinAggregationFunctionFactory implements AggregationFunctionFactory {
 		private static final long serialVersionUID = 1L;
 		
 		@SuppressWarnings({ "unchecked", "rawtypes" })
 		@Override
 		public <T> AggregationFunction<T> createAggregationFunction(Class<T> type) {
 			if (Comparable.class.isAssignableFrom(type)) {
-				return (AggregationFunction<T>) new MaxAggregationFunction();
+				return (AggregationFunction<T>) new MinAggregationFunction();
 			} else {
 				throw new UnsupportedAggregationTypeException("The type " + type.getName() + 
-					" is not supported for maximum aggregation. " +
-					"Maximum aggregatable types must implement the Comparable interface.");
+					" is not supported for minimum aggregation. " +
+					"Minimum aggregatable types must implement the Comparable interface.");
 			}
 		}
 	}

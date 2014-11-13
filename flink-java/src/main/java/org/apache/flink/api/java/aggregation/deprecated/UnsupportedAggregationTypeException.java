@@ -16,18 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.java.aggregation;
+package org.apache.flink.api.java.aggregation.deprecated;
 
 
-/**
- * @param <T> The type to be aggregated.
- */
-public abstract class AggregationFunction<T> implements java.io.Serializable {
-	private static final long serialVersionUID = 1L;
+public class UnsupportedAggregationTypeException extends RuntimeException {
 
-	public abstract void initializeAggregate();
-	
-	public abstract void aggregate(T value);
-	
-	public abstract T getAggregate();
+	private static final long serialVersionUID = -1721898801986321005L;
+
+	public UnsupportedAggregationTypeException(String message) {
+		super(message);
+	}
+
 }

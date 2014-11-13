@@ -26,7 +26,7 @@ import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.Utils;
-import org.apache.flink.api.java.aggregation.Aggregations;
+import org.apache.flink.api.java.aggregation.deprecated.Aggregations;
 import org.apache.flink.api.java.functions.FirstReducer;
 import org.apache.flink.api.java.functions.SelectByMaxFunction;
 import org.apache.flink.api.java.functions.SelectByMinFunction;
@@ -75,6 +75,7 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	 * @see AggregateOperator
 	 * @see DataSet
 	 */
+	@Deprecated
 	public AggregateOperator<T> aggregate(Aggregations agg, int field) {
 		return aggregate(agg, field, Utils.getCallLocationName());
 	}
@@ -91,6 +92,7 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	 *
 	 * @see org.apache.flink.api.java.operators.AggregateOperator
 	 */
+	@Deprecated
 	public AggregateOperator<T> sum (int field) {
 		return this.aggregate (Aggregations.SUM, field, Utils.getCallLocationName());
 	}
@@ -102,6 +104,7 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	 *
 	 * @see org.apache.flink.api.java.operators.AggregateOperator
 	 */
+	@Deprecated
 	public AggregateOperator<T> max (int field) {
 		return this.aggregate (Aggregations.MAX, field, Utils.getCallLocationName());
 	}
@@ -113,6 +116,7 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	 *
 	 * @see org.apache.flink.api.java.operators.AggregateOperator
 	 */
+	@Deprecated
 	public AggregateOperator<T> min (int field) {
 		return this.aggregate (Aggregations.MIN, field, Utils.getCallLocationName());
 	}

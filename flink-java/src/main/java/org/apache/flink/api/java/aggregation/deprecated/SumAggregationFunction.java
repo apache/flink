@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.java.aggregation;
+package org.apache.flink.api.java.aggregation.deprecated;
 
 
 public abstract class SumAggregationFunction<T> extends AggregationFunction<T> {

@@ -22,7 +22,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 import org.apache.flink.api.common.Plan;
-import org.apache.flink.api.java.aggregation.Aggregations;
+import org.apache.flink.api.java.aggregation.deprecated.Aggregations;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichJoinFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;

@@ -23,7 +23,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.LinkedList;
 
-import org.apache.flink.api.java.aggregation.Aggregations;
+import org.apache.flink.api.java.aggregation.deprecated.Aggregations;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;

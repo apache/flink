@@ -16,30 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.java.aggregation;
+package org.apache.flink.api.java.aggregation.deprecated;
 
-/**
- *
- */
-public enum Aggregations {
-	
-	SUM (new SumAggregationFunction.SumAggregationFunctionFactory()),
-	MIN (new MinAggregationFunction.MinAggregationFunctionFactory()),
-	MAX (new MaxAggregationFunction.MaxAggregationFunctionFactory()),
-//	AVG (new AvgAggregationFunction.AvgAggregationFunctionFactory())
-	;
-//	STD_DEV;
-	
-	// --------------------------------------------------------------------------------------------
-	
-	private final AggregationFunctionFactory factory;
-		
-	private Aggregations(AggregationFunctionFactory factory) {
-		this.factory = factory;
-	}
 
-	public AggregationFunctionFactory getFactory() {
-		return this.factory;
-	}
+public interface AggregationFunctionFactory extends java.io.Serializable {
+
+	<T> AggregationFunction<T> createAggregationFunction(Class<T> type);
 	
 }

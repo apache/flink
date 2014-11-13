@@ -16,11 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.java.aggregation;
+package org.apache.flink.api.java.aggregation.deprecated;
 
 
-public interface AggregationFunctionFactory extends java.io.Serializable {
+/**
+ * @param <T> The type to be aggregated.
+ */
+public abstract class AggregationFunction<T> implements java.io.Serializable {
+	private static final long serialVersionUID = 1L;
 
-	<T> AggregationFunction<T> createAggregationFunction(Class<T> type);
+	public abstract void initializeAggregate();
 	
+	public abstract void aggregate(T value);
+	
+	public abstract T getAggregate();
 }
