@@ -37,6 +37,18 @@ public class TestGraphUtils {
 		return env.fromCollection(edges);
 	}
 	
+	public static final DataSet<Tuple3<Long, Long, Long>> getDisconnectedLongLongEdgeData(
+			ExecutionEnvironment env) {
+		List<Tuple3<Long, Long, Long>> edges = new ArrayList<Tuple3<Long, Long, Long>>();
+		edges.add(new Tuple3<Long,Long, Long>(1L, 2L, 12L));
+		edges.add(new Tuple3<Long,Long, Long>(1L, 3L, 13L));
+		edges.add(new Tuple3<Long,Long, Long>(2L, 3L, 23L));
+		edges.add(new Tuple3<Long,Long, Long>(4L, 5L, 45L));
+		
+		return env.fromCollection(edges);
+	}
+	
+
 	public static class DummyCustomType implements Serializable {
 		private static final long serialVersionUID = 1L;
 		
