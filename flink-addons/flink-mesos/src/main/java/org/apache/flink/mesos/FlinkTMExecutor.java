@@ -18,6 +18,8 @@
 
 package org.apache.flink.mesos;
 
+import com.google.protobuf.ByteString;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.ExecutionMode;
 import org.apache.flink.runtime.taskmanager.TaskManager;
@@ -25,25 +27,36 @@ import org.apache.mesos.Executor;
 import org.apache.mesos.ExecutorDriver;
 import org.apache.mesos.MesosExecutorDriver;
 import org.apache.mesos.Protos;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 
 public class FlinkTMExecutor implements Executor {
 	private class TaskManagerThread extends Thread{
 		private final ExecutorDriver executorDriver;
 		private final Protos.TaskInfo taskInfo ;
+		//private final MesosConfiguration config;
 		private final String flinkConfDir;
-
-		public TaskManagerThread(ExecutorDriver executorDriver, Protos.TaskInfo taskInfo, String flinkConfDir) {
+		public TaskManagerThread(ExecutorDriver executorDriver, Protos.TaskInfo taskInfo, String flinkConfDir /*, MesosConfiguration config*/) {
 			this.executorDriver = executorDriver;
 			this.taskInfo = taskInfo;
+			//this.config = config;
 			this.flinkConfDir = flinkConfDir;
 		}
 
 		@Override
 		public void run() {
-			String configDir = flinkConfDir;
+			double cpus = 1.0;
+
+			for (Protos.Resource resource: taskInfo.getResourcesList()){
+				if (resource.getName().equals("cpus")) {
+					cpus = resource.getScalar().getValue();
+				}
+			}
 
 			// First, try to load global configuration
-			GlobalConfiguration.loadConfiguration(configDir);
+			GlobalConfiguration.loadConfiguration(flinkConfDir);
+			GlobalConfiguration.getConfiguration().setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, (int) cpus);
 
 			// Create a new task manager object
 			try {
@@ -52,18 +65,22 @@ public class FlinkTMExecutor implements Executor {
 				MesosUtils.setTaskState(executorDriver, taskInfo.getTaskId(), Protos.TaskState.TASK_FAILED);
 			}
 		}
+
 	}
 
+	private static final Logger LOG = LoggerFactory.getLogger(FlinkTMExecutor.class);
+	private String flinkConfDir;
 
-	final String flinkConfDir;
-
-	public FlinkTMExecutor(String FLINK_CONF_DIR) {
-		this.flinkConfDir = FLINK_CONF_DIR;
+	public FlinkTMExecutor(String config) {
+		flinkConfDir = config;
 	}
 
 	@Override
 	public void registered(ExecutorDriver executorDriver, Protos.ExecutorInfo executorInfo, Protos.FrameworkInfo frameworkInfo, Protos.SlaveInfo slaveInfo) {
-		System.out.println("JobManager Executor was registered");
+		LOG.info("TaskManager Executor was registered on host " + slaveInfo.getHostname());
+		ByteString data = executorInfo.getData();
+		System.out.println("Test Data:");
+		System.out.println(data.toString());
 	}
 
 	@Override

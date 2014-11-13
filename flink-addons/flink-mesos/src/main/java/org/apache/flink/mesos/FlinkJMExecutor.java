@@ -68,6 +68,7 @@ public class FlinkJMExecutor implements Executor {
 	@Override
 	public void registered(ExecutorDriver executorDriver, Protos.ExecutorInfo executorInfo, Protos.FrameworkInfo frameworkInfo, Protos.SlaveInfo slaveInfo) {
 		System.out.println("JobManager Executor was registered");
+		System.out.println("yolo");
 	}
 
 	@Override

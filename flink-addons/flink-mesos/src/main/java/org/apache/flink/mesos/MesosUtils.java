@@ -18,6 +18,7 @@
 
 package org.apache.flink.mesos;
 
+import com.google.protobuf.ByteString;
 import org.apache.mesos.ExecutorDriver;
 import org.apache.mesos.Protos;
 
@@ -38,6 +39,7 @@ public class MesosUtils {
 				.setExecutorId(Protos.ExecutorID.newBuilder().setValue(id))
 				.setCommand(Protos.CommandInfo.newBuilder().setValue(command))
 				.setName(name)
+				.setData(ByteString.copyFromUtf8("Hello World"))
 				.build();
 	}
 

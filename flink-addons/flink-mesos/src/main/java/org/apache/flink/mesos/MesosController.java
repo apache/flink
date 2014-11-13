@@ -47,7 +47,7 @@ public class MesosController {
 	private static final Option FLINK_JAR = new Option("j","jar",true, "Path to Flink jar file");
 	private static final Option JM_MEMORY = new Option("jm","jobManagerMemory",true, "Memory for JobManager Container [in MB]");
 	private static final Option TM_MEMORY = new Option("tm","taskManagerMemory",true, "Memory per TaskManager Container [in MB]");
-	private static final Option TM_CORES = new Option("tmc","taskManagerCores",true, "Virtual CPU cores per TaskManager");
+	private static final Option TM_CORES = new Option("tmc","taskManagerCores",true, "CPU cores per TaskManager (if not specified a greedy approach is taken)");
 	private static final Option NUM_TM = new Option("n","container",true, "Number of Task Managers, greedy behaviour if not specified");
 	private static final Option SLOTS = new Option("s","slots",true, "Number of slots per TaskManager");
 	private static final Option MASTER = new Option("m","master",true, "Address of the Mesos master node");
