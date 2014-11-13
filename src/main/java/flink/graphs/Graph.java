@@ -46,8 +46,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 
 	private final DataSet<Tuple3<K, K, EV>> edges;
 
-	/** a graph is directed by default */
-	private boolean isUndirected = false;
+	private boolean isUndirected;
 
 	private static TypeInformation<?> keyType;
 	private static TypeInformation<?> vertexValueType;
@@ -55,12 +54,9 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 
 
 	public Graph(DataSet<Tuple2<K, VV>> vertices, DataSet<Tuple3<K, K, EV>> edges) {
-		this.vertices = vertices;
-		this.edges = edges;
-		
-		Graph.keyType = ((TupleTypeInfo<?>) vertices.getType()).getTypeAt(0);
-		Graph.vertexValueType = ((TupleTypeInfo<?>) vertices.getType()).getTypeAt(1);
-		Graph.edgeValueType = ((TupleTypeInfo<?>) edges.getType()).getTypeAt(2);
+
+		/** a graph is directed by default */
+		this(vertices, edges, false);
 	}
 
 	public Graph(DataSet<Tuple2<K, VV>> vertices, DataSet<Tuple3<K, K, EV>> edges, boolean undirected) {
