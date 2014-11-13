@@ -365,7 +365,6 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
     /**
      * @return Singleton DataSet containing the vertex count
      */
-//    @SuppressWarnings("unchecked")
 	public DataSet<Integer> numberOfVertices () {
         return GraphUtils.count(vertices);
     }
@@ -374,7 +373,6 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
      *
      * @return Singleton DataSet containing the edge count
      */
-//    @SuppressWarnings("unchecked")
 	public DataSet<Integer> numberOfEdges () {
         return GraphUtils.count(edges);
     }
@@ -384,76 +382,98 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
      * @return The IDs of the vertices as DataSet
      */
     public DataSet<K> getVertexIds () {
-        return vertices.map(new MapFunction<Tuple2<K, VV>, K>() {
+        return vertices.map(new ExtractVertexIDMapper<K, VV>());
+    }
+    
+    private static final class ExtractVertexIDMapper<K, VV> implements MapFunction<Tuple2<K, VV>, K> {
             @Override
             public K map(Tuple2<K, VV> vertex) throws Exception {
                 return vertex.f0;
             }
-        });
     }
 
-    public DataSet<Tuple2<K,K>> getEdgeIds () {
-        return edges.map(new MapFunction<Tuple3<K, K, EV>, Tuple2<K, K>>() {
+    public DataSet<Tuple2<K, K>> getEdgeIds () {
+        return edges.map(new ExtractEdgeIDsMapper<K, EV>());
+    }
+    
+    private static final class ExtractEdgeIDsMapper<K, EV> implements MapFunction<Tuple3<K, K, EV>, Tuple2<K, K>> {
             @Override
             public Tuple2<K, K> map(Tuple3<K, K, EV> edge) throws Exception {
                 return new Tuple2<K,K>(edge.f0, edge.f1);
             }
-        });
     }
 
-    @SuppressWarnings("unchecked")
+    /**
+     * Checks the weak connectivity of a graph.
+     * @return true if the graph is weakly connected.
+     */
 	public DataSet<Boolean> isWeaklyConnected () {
+		Graph<K, VV, EV> graph;
+		
+		if (!(this.isUndirected)) {
+			// first, convert to an undirected graph
+			graph = this.getUndirected();
+		}
+		else {
+			graph = this;
+		}
 
-        DataSet<K> vertexIds = this.getVertexIds();
+        DataSet<K> vertexIds = graph.getVertexIds();
         DataSet<Tuple2<K,K>> verticesWithInitialIds = vertexIds
-                .map(new MapFunction<K, Tuple2<K, K>>() {
-                    @Override
-                    public Tuple2<K, K> map(K k) throws Exception {
-                        return new Tuple2<K, K>(k, k);
-                    }
-                });
+                .map(new DuplicateVertexIDMapper<K>());
 
-        DataSet<Tuple2<K,K>> edgeIds = this.getEdgeIds();
+        DataSet<Tuple2<K,K>> edgeIds = graph.getEdgeIds();
 
         DeltaIteration<Tuple2<K,K>, Tuple2<K,K>> iteration = verticesWithInitialIds
-                .iterateDelta(verticesWithInitialIds, 10, 0);
+                .iterateDelta(verticesWithInitialIds, 0);
 
         DataSet<Tuple2<K, K>> changes = iteration.getWorkset()
                 .join(edgeIds).where(0).equalTo(0)
-                .with(new JoinFunction<Tuple2<K, K>, Tuple2<K, K>, Tuple2<K, K>>() {
-                    @Override
-                    public Tuple2<K, K> join(Tuple2<K, K> vertexWithComponent, Tuple2<K, K> edge) throws Exception {
-                        return new Tuple2<K,K>(edge.f1, vertexWithComponent.f1);
-                    }
-                })
+                .with(new FindNeighborsJoin<K>())
                 .groupBy(0)
                 .aggregate(Aggregations.MIN, 1)
                 .join(iteration.getSolutionSet()).where(0).equalTo(0)
-                .with(new FlatJoinFunction<Tuple2<K, K>, Tuple2<K, K>, Tuple2<K, K>>() {
-                    @Override
-                    public void join(Tuple2<K, K> candidate, Tuple2<K, K> old, Collector<Tuple2<K, K>> out) throws Exception {
-                        if (candidate.f1.compareTo(old.f1) < 0) {
-                            out.collect(candidate);
-                        }
-                    }
-                });
+                .with(new VertexWithNewComponentJoin<K>());
 
         DataSet<Tuple2<K, K>> components = iteration.closeWith(changes, changes);
 
-        DataSet<Boolean> result = GraphUtils.count((DataSet<Object>) (DataSet<?>) components)
-                .map(new MapFunction<Integer, Boolean>() {
-                    @Override
-                    public Boolean map(Integer n) throws Exception {
-                        if (n == 1)
-                            return false;
-                        else
-                            return true;
-                    }
-                });
-
+        DataSet<Boolean> result = GraphUtils.count(components)
+                .map(new CheckIfOneComponentMapper());
         return result;
     }
+	
+	private static final class DuplicateVertexIDMapper<K> implements MapFunction<K, Tuple2<K, K>> {
+            @Override
+            public Tuple2<K, K> map(K k) {
+                return new Tuple2<K, K>(k, k);
+            }
+	}
+	
+	private static final class FindNeighborsJoin<K> implements JoinFunction<Tuple2<K, K>, Tuple2<K, K>, 
+		Tuple2<K, K>> {
+        @Override
+        public Tuple2<K, K> join(Tuple2<K, K> vertexWithComponent, Tuple2<K, K> edge) {
+            return new Tuple2<K,K>(edge.f1, vertexWithComponent.f1);
+        }
+	}
 
+	private static final class VertexWithNewComponentJoin<K extends Comparable<K>> 
+		implements FlatJoinFunction<Tuple2<K, K>, Tuple2<K, K>, Tuple2<K, K>> {
+        @Override
+        public void join(Tuple2<K, K> candidate, Tuple2<K, K> old, Collector<Tuple2<K, K>> out) {
+            if (candidate.f1.compareTo(old.f1) < 0) {
+                out.collect(candidate);
+            }
+        }
+	}
+	
+	private static final class CheckIfOneComponentMapper implements MapFunction<Integer, Boolean> {
+        @Override
+        public Boolean map(Integer n) {
+        	return (!(n == 1));
+        }
+	}
+	
     //TODO kostas add functionality
     public Graph<K, VV, EV> fromCollection (Collection<Tuple2<K,VV>> vertices, Collection<Tuple3<K,K,EV>> edges) {
         return null;
@@ -536,6 +556,4 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
         DataSet<Tuple2<K,VV>> newVertices = iteration.createResult();
         return new Graph<K,VV,EV>(newVertices, edges, this.context);
     }
-
-
 }
