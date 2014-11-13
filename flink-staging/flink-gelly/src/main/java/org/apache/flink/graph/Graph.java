@@ -405,9 +405,10 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 
     /**
      * Checks the weak connectivity of a graph.
+     * @param maxIterations the maximum number of iterations for the inner delta iteration
      * @return true if the graph is weakly connected.
      */
-	public DataSet<Boolean> isWeaklyConnected () {
+	public DataSet<Boolean> isWeaklyConnected (int maxIterations) {
 		Graph<K, VV, EV> graph;
 		
 		if (!(this.isUndirected)) {
@@ -425,7 +426,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
         DataSet<Tuple2<K,K>> edgeIds = graph.getEdgeIds();
 
         DeltaIteration<Tuple2<K,K>, Tuple2<K,K>> iteration = verticesWithInitialIds
-                .iterateDelta(verticesWithInitialIds, 0);
+                .iterateDelta(verticesWithInitialIds, maxIterations, 0);
 
         DataSet<Tuple2<K, K>> changes = iteration.getWorkset()
                 .join(edgeIds).where(0).equalTo(0)
@@ -436,9 +437,8 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
                 .with(new VertexWithNewComponentJoin<K>());
 
         DataSet<Tuple2<K, K>> components = iteration.closeWith(changes, changes);
-
-        DataSet<Boolean> result = GraphUtils.count(components)
-                .map(new CheckIfOneComponentMapper());
+        DataSet<Boolean> result = GraphUtils.count(components.groupBy(1).reduceGroup(
+        		new EmitFirstReducer<K>())).map(new CheckIfOneComponentMapper());	
         return result;
     }
 	
@@ -467,10 +467,17 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
         }
 	}
 	
+	private static final class EmitFirstReducer<K> implements 
+		GroupReduceFunction<Tuple2<K, K>, Tuple2<K, K>> {
+		public void reduce(Iterable<Tuple2<K, K>> values, Collector<Tuple2<K, K>> out) {
+			out.collect(values.iterator().next());			
+		}
+	}
+	
 	private static final class CheckIfOneComponentMapper implements MapFunction<Integer, Boolean> {
         @Override
         public Boolean map(Integer n) {
-        	return (!(n == 1));
+        	return (n == 1);
         }
 	}
 	
