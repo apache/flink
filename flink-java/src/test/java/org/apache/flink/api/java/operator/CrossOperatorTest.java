@@ -80,7 +80,7 @@ public class CrossOperatorTest {
 		// should work
 		try {
 			ds1.cross(ds2)
-				.projectionFirst(0);
+				.projectFirst(0);
 		} catch(Exception e) {
 			Assert.fail();
 		}
@@ -148,8 +148,8 @@ public class CrossOperatorTest {
 		// should work
 		try {
 			ds1.cross(ds2)
-				.projectionFirst(0)
-				.projectionSecond(3);
+				.projectFirst(0)
+				.projectSecond(3);
 		} catch(Exception e) {
 			Assert.fail();
 		}
@@ -185,9 +185,9 @@ public class CrossOperatorTest {
 		// should work
 		try {
 			ds1.cross(ds2)
-				.projectionFirst(0,2)
-				.projectionSecond(1,4)
-				.projectionFirst(1);
+				.projectFirst(0,2)
+				.projectSecond(1,4)
+				.projectFirst(1);
 		} catch(Exception e) {
 			Assert.fail();
 		}
@@ -223,9 +223,9 @@ public class CrossOperatorTest {
 		// should work
 		try {
 			ds1.cross(ds2)
-				.projectionSecond(0,2)
-				.projectionFirst(1,4)
-				.projectionFirst(1);
+				.projectSecond(0,2)
+				.projectFirst(1,4)
+				.projectFirst(1);
 		} catch(Exception e) {
 			Assert.fail();
 		}
@@ -259,8 +259,8 @@ public class CrossOperatorTest {
 		// should work
 		try {
 			ds1.cross(ds2)
-				.projectionFirst()
-				.projectionSecond();
+				.projectFirst()
+				.projectSecond();
 		} catch(Exception e) {
 			Assert.fail();
 		}
@@ -294,8 +294,8 @@ public class CrossOperatorTest {
 		// should work
 		try {
 			ds1.cross(ds2)
-				.projectionSecond()
-				.projectionFirst(1,4);
+				.projectSecond()
+				.projectFirst(1,4);
 		} catch(Exception e) {
 			Assert.fail();
 		}
@@ -323,7 +323,7 @@ public class CrossOperatorTest {
 
 		// should not work, index out of range
 		ds1.cross(ds2)
-			.projectionFirst(5);
+			.projectFirst(5);
 	}
 
 	@Test(expected=IndexOutOfBoundsException.class)
@@ -348,20 +348,18 @@ public class CrossOperatorTest {
 
 		// should not work, index out of range
 		ds1.cross(ds2)
-			.projectionSecond(5);
+			.projectSecond(5);
 	}
 
-	@Test(expected=IllegalArgumentException.class)
 	public void testCrossProjection10() {
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
 		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
 
-		// should not work, type does not match
+		// should work
 		ds1.cross(ds2)
-			.projectFirst(2)
-			.types(Integer.class);
+			.projectFirst(2);
 	}
 	
 	@Test(expected=IndexOutOfBoundsException.class)
@@ -373,20 +371,18 @@ public class CrossOperatorTest {
 
 		// should not work, type does not match
 		ds1.cross(ds2)
-			.projectionFirst(-1);
+			.projectFirst(-1);
 	}
 
-	@Test(expected=IllegalArgumentException.class)
 	public void testCrossProjection11() {
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
 		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
 
-		// should not work, type does not match
+		// should work
 		ds1.cross(ds2)
-			.projectSecond(2)
-			.types(Integer.class);
+			.projectSecond(2);
 	}
 
 	@Test(expected=IndexOutOfBoundsException.class)
@@ -398,21 +394,19 @@ public class CrossOperatorTest {
 
 		// should not work, type does not match
 		ds1.cross(ds2)
-			.projectionSecond(-1);
+			.projectSecond(-1);
 	}
 	
-	@Test(expected=IllegalArgumentException.class)
 	public void testCrossProjection12() {
 
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
 		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
 
-		// should not work, number of types and fields does not match
+		// should work
 		ds1.cross(ds2)
 			.projectSecond(2)
-			.projectFirst(1)
-			.types(String.class);
+			.projectFirst(1);
 	}
 	
 	@Test(expected=IndexOutOfBoundsException.class)
@@ -424,8 +418,8 @@ public class CrossOperatorTest {
 
 		// should not work, number of types and fields does not match
 		ds1.cross(ds2)
-			.projectionSecond(2)
-			.projectionFirst(-1);
+			.projectSecond(2)
+			.projectFirst(-1);
 	}
 
 	@Test(expected=IndexOutOfBoundsException.class)

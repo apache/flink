@@ -768,8 +768,8 @@ public class JoinOperatorTest {
 							}
 						}
 					)
-				.projectionFirst()
-				.projectionSecond();
+				.projectFirst()
+				.projectSecond();
 		} catch(Exception e) {
 			System.out.println("FAILED: " + e);
 			e.printStackTrace();
@@ -805,8 +805,8 @@ public class JoinOperatorTest {
 		// should work
 		try {
 			ds1.join(ds2).where(0).equalTo(0)
-			.projectionSecond()
-			.projectionFirst(1,4);
+			.projectSecond()
+			.projectFirst(1,4);
 		} catch(Exception e) {
 			Assert.fail();
 		}
@@ -834,7 +834,7 @@ public class JoinOperatorTest {
 
 		// should not work, index out of range
 		ds1.join(ds2).where(0).equalTo(0)
-		.projectionFirst(5);
+		.projectFirst(5);
 	}
 	
 	@Test(expected=IndexOutOfBoundsException.class)
@@ -859,20 +859,18 @@ public class JoinOperatorTest {
 
 		// should not work, index out of range
 		ds1.join(ds2).where(0).equalTo(0)
-		.projectionSecond(5);
+		.projectSecond(5);
 	}
 	
-	@Test(expected=IllegalArgumentException.class)
 	public void testJoinProjection10() {
 		
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
 		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
 
-		// should not work, type does not match
+		// should work
 		ds1.join(ds2).where(0).equalTo(0)
-		.projectFirst(2)
-		.types(Integer.class);
+		.projectFirst(2);
 	}
 	
 	@Test(expected=IndexOutOfBoundsException.class)
@@ -884,10 +882,9 @@ public class JoinOperatorTest {
 
 		// should not work, type does not match
 		ds1.join(ds2).where(0).equalTo(0)
-		.projectionFirst(-1);
+		.projectFirst(-1);
 	}
 	
-	@Test(expected=IllegalArgumentException.class)
 	public void testJoinProjection11() {
 		
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -896,18 +893,16 @@ public class JoinOperatorTest {
 
 		// should not work, type does not match
 		ds1.join(ds2).where(0).equalTo(0)
-		.projectSecond(2)
-		.types(Integer.class);
+		.projectSecond(2);
 	}
 	
-	@Test(expected=IllegalArgumentException.class)
 	public void testJoinProjection12() {
 		
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 = env.fromCollection(emptyTupleData, tupleTypeInfo);
 		DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 = env.fromCollection(emptyTupleData, tupleTypeInfo);
 
-		// should not work, number of types and fields does not match
+		// should  work
 		ds1.join(ds2).where(0).equalTo(0)
 		.projectSecond(2)
 		.projectFirst(1)
@@ -937,8 +932,8 @@ public class JoinOperatorTest {
 
 		// should not work, index out of range
 		ds1.join(ds2).where(0).equalTo(0)
-		.projectionSecond(-1)
-		.projectionFirst(3);
+		.projectSecond(-1)
+		.projectFirst(3);
 	}
 	
 	@Test(expected=IndexOutOfBoundsException.class)
@@ -964,8 +959,8 @@ public class JoinOperatorTest {
 
 		// should not work, index out of range
 		ds1.join(ds2).where(0).equalTo(0)
-		.projectionFirst(0)
-		.projectionSecond(-1);
+		.projectFirst(0)
+		.projectSecond(-1);
 	}
 	
 	/*

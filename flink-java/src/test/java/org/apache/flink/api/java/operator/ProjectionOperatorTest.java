@@ -108,22 +108,9 @@ public class ProjectionOperatorTest {
 			Assert.fail();
 		}
 		
-		// should not work: too few types
+		// should work: dummy types() here
 		try {
 			tupleDs.project(2,1,4).types(String.class, Long.class);
-			Assert.fail();
-		} catch(IllegalArgumentException iae) {
-			// we're good here
-		} catch(Exception e) {
-			Assert.fail();
-		}
-		
-		// should not work: given types do not match input types
-		try {
-			tupleDs.project(2,1,4).types(String.class, Long.class, Long.class);
-			Assert.fail();
-		} catch(IllegalArgumentException iae) {
-			// we're good here
 		} catch(Exception e) {
 			Assert.fail();
 		}
@@ -138,7 +125,7 @@ public class ProjectionOperatorTest {
 
 		// should work
 		try {
-			tupleDs.projection(2,0,4);
+			tupleDs.project(2,0,4);
 		} catch(Exception e) {
 			Assert.fail();
 		}

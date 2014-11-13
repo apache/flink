@@ -571,7 +571,6 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			return new JoinProjection<I1, I2>(getInput1(), getInput2(), getKeys1(), getKeys2(), getJoinHint(), firstFieldIndexes, null);
 		}
 		
-		
 		/**
 		 * Initiates a ProjectJoin transformation and projects the first join input<br/>
 		 * If the first join input is a {@link Tuple} {@link DataSet}, fields can be selected by their index.
@@ -591,38 +590,12 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		 * @see org.apache.flink.api.java.operators.JoinOperator.JoinProjection
 		 * @see org.apache.flink.api.java.operators.JoinOperator.ProjectJoin
 		 */
-		public <OUT extends Tuple> ProjectJoin<I1, I2, OUT> projectionFirst(int... firstFieldIndexes) {
+		public <OUT extends Tuple> ProjectJoin<I1, I2, OUT> projectFirst(int... firstFieldIndexes) {
 			JoinProjection<I1, I2> joinProjection = new JoinProjection<I1, I2>(getInput1(), getInput2(), getKeys1(), getKeys2(), getJoinHint(), firstFieldIndexes, null);
 			
-			return joinProjection.types();
+			return joinProjection.projectTupleX();
 		}
 		
-		
-		/**
-		 * Initiates a ProjectJoin transformation and projects the second join input<br/>
-		 * If the second join input is a {@link Tuple} {@link DataSet}, fields can be selected by their index.
-		 * If the second join input is not a Tuple DataSet, no parameters should be passed.<br/>
-		 * 
-		 * Fields of the first and second input can be added by chaining the method calls of
-		 * {@link org.apache.flink.api.java.operators.JoinOperator.JoinProjection#projectFirst(int...)} and
-		 * {@link org.apache.flink.api.java.operators.JoinOperator.JoinProjection#projectSecond(int...)}.
-		 * 
-		 * @param secondFieldIndexes If the second input is a Tuple DataSet, the indexes of the selected fields. 
-		 * 					   For a non-Tuple DataSet, do not provide parameters.
-		 * 					   The order of fields in the output tuple is defined by to the order of field indexes.
-		 * @return A JoinProjection that needs to be converted into a
-		 *           {@link org.apache.flink.api.java.operators.JoinOperator.ProjectJoin} to complete the 
-		 *           Join transformation by calling the corresponding {@code types()} function.
-		 * 
-		 * @see Tuple
-		 * @see DataSet
-		 * @see org.apache.flink.api.java.operators.JoinOperator.JoinProjection
-		 * @see org.apache.flink.api.java.operators.JoinOperator.ProjectJoin
-		 */
-		public JoinProjection<I1, I2> projectSecond(int... secondFieldIndexes) {
-			return new JoinProjection<I1, I2>(getInput1(), getInput2(), getKeys1(), getKeys2(), getJoinHint(), null, secondFieldIndexes);
-		}
-	
 		/**
 		 * Initiates a ProjectJoin transformation and projects the second join input<br/>
 		 * If the second join input is a {@link Tuple} {@link DataSet}, fields can be selected by their index.
@@ -642,11 +615,12 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		 * @see org.apache.flink.api.java.operators.JoinOperator.JoinProjection
 		 * @see org.apache.flink.api.java.operators.JoinOperator.ProjectJoin
 		 */
-		public <OUT extends Tuple> ProjectJoin<I1, I2, OUT> projectionSecond(int... secondFieldIndexes) {
+		public <OUT extends Tuple> ProjectJoin<I1, I2, OUT> projectSecond(int... secondFieldIndexes) {
 			JoinProjection<I1, I2> joinProjection = new JoinProjection<I1, I2>(getInput1(), getInput2(), getKeys1(), getKeys2(), getJoinHint(), null, secondFieldIndexes);
 			
-			return joinProjection.types();
+			return joinProjection.projectTupleX();
 		}
+		
 //		public JoinOperator<I1, I2, I1> leftSemiJoin() {
 //			return new LeftSemiJoin<I1, I2>(getInput1(), getInput2(), getKeys1(), getKeys2(), getJoinHint());
 //		}
@@ -698,19 +672,25 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		}
 		
 		@SuppressWarnings("hiding")
-		public <OUT extends Tuple> ProjectJoin<I1, I2, OUT> projectionFirst(int... firstFieldIndexes) {	
+		public <OUT extends Tuple> ProjectJoin<I1, I2, OUT> projectFirst(int... firstFieldIndexes) {	
 			joinProj = joinProj.projectFirst(firstFieldIndexes);
 			
-			return joinProj.types();
+			return joinProj.projectTupleX();
 		}
 		
 		@SuppressWarnings("hiding")
-		public <OUT extends Tuple> ProjectJoin<I1, I2, OUT> projectionSecond(int... secondFieldIndexes) {
+		public <OUT extends Tuple> ProjectJoin<I1, I2, OUT> projectSecond(int... secondFieldIndexes) {
 			joinProj = joinProj.projectSecond(secondFieldIndexes);
 			
-			return joinProj.types();
+			return joinProj.projectTupleX();
 		}
 
+		@SuppressWarnings({ "unchecked", "hiding" })
+		@Deprecated
+		public <OUT extends Tuple> ProjectJoin<I1, I2, OUT> types(Class<?>... types) {
+			return (ProjectJoin<I1, I2, OUT>) this;
+		}
+		
 		@Override
 		public JoinOperator<I1, I2, OUT> withConstantSetFirst(String... constantSetFirst) {
 			throw new InvalidProgramException("The semantic properties (constant fields and forwarded fields) are automatically calculated.");
@@ -1279,7 +1259,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		 * @see Projection
 		 */
 		@SuppressWarnings("unchecked")
-		public <OUT extends Tuple> ProjectJoin<I1, I2, OUT> types() {
+		public <OUT extends Tuple> ProjectJoin<I1, I2, OUT> projectTupleX() {
 			ProjectJoin<I1, I2, OUT> projectJoin = null;
 
 			switch (fieldIndexes.length) {
@@ -1713,591 +1693,8 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			return new ProjectJoin<I1, I2, Tuple25<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24>>(this.ds1, this.ds2, this.keys1, this.keys2, this.hint, this.fieldIndexes, this.isFieldInFirst, tType, this);
 		}
 
-		/**
-		 * Projects a pair of joined elements to a {@link Tuple} with the previously selected fields. 
-		 * Requires the classes of the fields of the resulting tuples. 
-		 * 
-		 * @param type0 The class of field '0' of the result tuples. 
-		 * @return The projected data set.
-		 * 
-		 * @see Tuple
-		 * @see DataSet
-		 */
-		public <T0> ProjectJoin<I1, I2, Tuple1<T0>> types(Class<T0> type0) {
-			Class<?>[] types = {type0};
-			if(types.length != this.fieldIndexes.length) {
-				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
-			}
-			
-			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types);
-			TupleTypeInfo<Tuple1<T0>> tType = new TupleTypeInfo<Tuple1<T0>>(fTypes);
-
-			return new ProjectJoin<I1, I2, Tuple1<T0>>(this.ds1, this.ds2, this.keys1, this.keys2, this.hint, this.fieldIndexes, this.isFieldInFirst, tType);
-		}
-
-		/**
-		 * Projects a pair of joined elements to a {@link Tuple} with the previously selected fields. 
-		 * Requires the classes of the fields of the resulting tuples. 
-		 * 
-		 * @param type0 The class of field '0' of the result tuples.  @param type1 The class of field '1' of the result tuples. 
-		 * @return The projected data set.
-		 * 
-		 * @see Tuple
-		 * @see DataSet
-		 */
-		public <T0, T1> ProjectJoin<I1, I2, Tuple2<T0, T1>> types(Class<T0> type0, Class<T1> type1) {
-			Class<?>[] types = {type0, type1};
-			if(types.length != this.fieldIndexes.length) {
-				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
-			}
-			
-			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types);
-			TupleTypeInfo<Tuple2<T0, T1>> tType = new TupleTypeInfo<Tuple2<T0, T1>>(fTypes);
-
-			return new ProjectJoin<I1, I2, Tuple2<T0, T1>>(this.ds1, this.ds2, this.keys1, this.keys2, this.hint, this.fieldIndexes, this.isFieldInFirst, tType);
-		}
-
-		/**
-		 * Projects a pair of joined elements to a {@link Tuple} with the previously selected fields. 
-		 * Requires the classes of the fields of the resulting tuples. 
-		 * 
-		 * @param type0 The class of field '0' of the result tuples.  @param type1 The class of field '1' of the result tuples.  @param type2 The class of field '2' of the result tuples. 
-		 * @return The projected data set.
-		 * 
-		 * @see Tuple
-		 * @see DataSet
-		 */
-		public <T0, T1, T2> ProjectJoin<I1, I2, Tuple3<T0, T1, T2>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2) {
-			Class<?>[] types = {type0, type1, type2};
-			if(types.length != this.fieldIndexes.length) {
-				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
-			}
-			
-			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types);
-			TupleTypeInfo<Tuple3<T0, T1, T2>> tType = new TupleTypeInfo<Tuple3<T0, T1, T2>>(fTypes);
-
-			return new ProjectJoin<I1, I2, Tuple3<T0, T1, T2>>(this.ds1, this.ds2, this.keys1, this.keys2, this.hint, this.fieldIndexes, this.isFieldInFirst, tType);
-		}
-
-		/**
-		 * Projects a pair of joined elements to a {@link Tuple} with the previously selected fields. 
-		 * Requires the classes of the fields of the resulting tuples. 
-		 * 
-		 * @param type0 The class of field '0' of the result tuples.  @param type1 The class of field '1' of the result tuples.  @param type2 The class of field '2' of the result tuples.  @param type3 The class of field '3' of the result tuples. 
-		 * @return The projected data set.
-		 * 
-		 * @see Tuple
-		 * @see DataSet
-		 */
-		public <T0, T1, T2, T3> ProjectJoin<I1, I2, Tuple4<T0, T1, T2, T3>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3) {
-			Class<?>[] types = {type0, type1, type2, type3};
-			if(types.length != this.fieldIndexes.length) {
-				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
-			}
-			
-			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types);
-			TupleTypeInfo<Tuple4<T0, T1, T2, T3>> tType = new TupleTypeInfo<Tuple4<T0, T1, T2, T3>>(fTypes);
-
-			return new ProjectJoin<I1, I2, Tuple4<T0, T1, T2, T3>>(this.ds1, this.ds2, this.keys1, this.keys2, this.hint, this.fieldIndexes, this.isFieldInFirst, tType);
-		}
-
-		/**
-		 * Projects a pair of joined elements to a {@link Tuple} with the previously selected fields. 
-		 * Requires the classes of the fields of the resulting tuples. 
-		 * 
-		 * @param type0 The class of field '0' of the result tuples.  @param type1 The class of field '1' of the result tuples.  @param type2 The class of field '2' of the result tuples.  @param type3 The class of field '3' of the result tuples.  @param type4 The class of field '4' of the result tuples. 
-		 * @return The projected data set.
-		 * 
-		 * @see Tuple
-		 * @see DataSet
-		 */
-		public <T0, T1, T2, T3, T4> ProjectJoin<I1, I2, Tuple5<T0, T1, T2, T3, T4>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4) {
-			Class<?>[] types = {type0, type1, type2, type3, type4};
-			if(types.length != this.fieldIndexes.length) {
-				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
-			}
-			
-			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types);
-			TupleTypeInfo<Tuple5<T0, T1, T2, T3, T4>> tType = new TupleTypeInfo<Tuple5<T0, T1, T2, T3, T4>>(fTypes);
-
-			return new ProjectJoin<I1, I2, Tuple5<T0, T1, T2, T3, T4>>(this.ds1, this.ds2, this.keys1, this.keys2, this.hint, this.fieldIndexes, this.isFieldInFirst, tType);
-		}
-
-		/**
-		 * Projects a pair of joined elements to a {@link Tuple} with the previously selected fields. 
-		 * Requires the classes of the fields of the resulting tuples. 
-		 * 
-		 * @param type0 The class of field '0' of the result tuples.  @param type1 The class of field '1' of the result tuples.  @param type2 The class of field '2' of the result tuples.  @param type3 The class of field '3' of the result tuples.  @param type4 The class of field '4' of the result tuples.  @param type5 The class of field '5' of the result tuples. 
-		 * @return The projected data set.
-		 * 
-		 * @see Tuple
-		 * @see DataSet
-		 */
-		public <T0, T1, T2, T3, T4, T5> ProjectJoin<I1, I2, Tuple6<T0, T1, T2, T3, T4, T5>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5) {
-			Class<?>[] types = {type0, type1, type2, type3, type4, type5};
-			if(types.length != this.fieldIndexes.length) {
-				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
-			}
-			
-			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types);
-			TupleTypeInfo<Tuple6<T0, T1, T2, T3, T4, T5>> tType = new TupleTypeInfo<Tuple6<T0, T1, T2, T3, T4, T5>>(fTypes);
-
-			return new ProjectJoin<I1, I2, Tuple6<T0, T1, T2, T3, T4, T5>>(this.ds1, this.ds2, this.keys1, this.keys2, this.hint, this.fieldIndexes, this.isFieldInFirst, tType);
-		}
-
-		/**
-		 * Projects a pair of joined elements to a {@link Tuple} with the previously selected fields. 
-		 * Requires the classes of the fields of the resulting tuples. 
-		 * 
-		 * @param type0 The class of field '0' of the result tuples.  @param type1 The class of field '1' of the result tuples.  @param type2 The class of field '2' of the result tuples.  @param type3 The class of field '3' of the result tuples.  @param type4 The class of field '4' of the result tuples.  @param type5 The class of field '5' of the result tuples.  @param type6 The class of field '6' of the result tuples. 
-		 * @return The projected data set.
-		 * 
-		 * @see Tuple
-		 * @see DataSet
-		 */
-		public <T0, T1, T2, T3, T4, T5, T6> ProjectJoin<I1, I2, Tuple7<T0, T1, T2, T3, T4, T5, T6>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6) {
-			Class<?>[] types = {type0, type1, type2, type3, type4, type5, type6};
-			if(types.length != this.fieldIndexes.length) {
-				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
-			}
-			
-			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types);
-			TupleTypeInfo<Tuple7<T0, T1, T2, T3, T4, T5, T6>> tType = new TupleTypeInfo<Tuple7<T0, T1, T2, T3, T4, T5, T6>>(fTypes);
-
-			return new ProjectJoin<I1, I2, Tuple7<T0, T1, T2, T3, T4, T5, T6>>(this.ds1, this.ds2, this.keys1, this.keys2, this.hint, this.fieldIndexes, this.isFieldInFirst, tType);
-		}
-
-		/**
-		 * Projects a pair of joined elements to a {@link Tuple} with the previously selected fields. 
-		 * Requires the classes of the fields of the resulting tuples. 
-		 * 
-		 * @param type0 The class of field '0' of the result tuples.  @param type1 The class of field '1' of the result tuples.  @param type2 The class of field '2' of the result tuples.  @param type3 The class of field '3' of the result tuples.  @param type4 The class of field '4' of the result tuples.  @param type5 The class of field '5' of the result tuples.  @param type6 The class of field '6' of the result tuples.  @param type7 The class of field '7' of the result tuples. 
-		 * @return The projected data set.
-		 * 
-		 * @see Tuple
-		 * @see DataSet
-		 */
-		public <T0, T1, T2, T3, T4, T5, T6, T7> ProjectJoin<I1, I2, Tuple8<T0, T1, T2, T3, T4, T5, T6, T7>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7) {
-			Class<?>[] types = {type0, type1, type2, type3, type4, type5, type6, type7};
-			if(types.length != this.fieldIndexes.length) {
-				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
-			}
-			
-			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types);
-			TupleTypeInfo<Tuple8<T0, T1, T2, T3, T4, T5, T6, T7>> tType = new TupleTypeInfo<Tuple8<T0, T1, T2, T3, T4, T5, T6, T7>>(fTypes);
-
-			return new ProjectJoin<I1, I2, Tuple8<T0, T1, T2, T3, T4, T5, T6, T7>>(this.ds1, this.ds2, this.keys1, this.keys2, this.hint, this.fieldIndexes, this.isFieldInFirst, tType);
-		}
-
-		/**
-		 * Projects a pair of joined elements to a {@link Tuple} with the previously selected fields. 
-		 * Requires the classes of the fields of the resulting tuples. 
-		 * 
-		 * @param type0 The class of field '0' of the result tuples.  @param type1 The class of field '1' of the result tuples.  @param type2 The class of field '2' of the result tuples.  @param type3 The class of field '3' of the result tuples.  @param type4 The class of field '4' of the result tuples.  @param type5 The class of field '5' of the result tuples.  @param type6 The class of field '6' of the result tuples.  @param type7 The class of field '7' of the result tuples.  @param type8 The class of field '8' of the result tuples. 
-		 * @return The projected data set.
-		 * 
-		 * @see Tuple
-		 * @see DataSet
-		 */
-		public <T0, T1, T2, T3, T4, T5, T6, T7, T8> ProjectJoin<I1, I2, Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8) {
-			Class<?>[] types = {type0, type1, type2, type3, type4, type5, type6, type7, type8};
-			if(types.length != this.fieldIndexes.length) {
-				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
-			}
-			
-			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types);
-			TupleTypeInfo<Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8>> tType = new TupleTypeInfo<Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8>>(fTypes);
-
-			return new ProjectJoin<I1, I2, Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8>>(this.ds1, this.ds2, this.keys1, this.keys2, this.hint, this.fieldIndexes, this.isFieldInFirst, tType);
-		}
-
-		/**
-		 * Projects a pair of joined elements to a {@link Tuple} with the previously selected fields. 
-		 * Requires the classes of the fields of the resulting tuples. 
-		 * 
-		 * @param type0 The class of field '0' of the result tuples.  @param type1 The class of field '1' of the result tuples.  @param type2 The class of field '2' of the result tuples.  @param type3 The class of field '3' of the result tuples.  @param type4 The class of field '4' of the result tuples.  @param type5 The class of field '5' of the result tuples.  @param type6 The class of field '6' of the result tuples.  @param type7 The class of field '7' of the result tuples.  @param type8 The class of field '8' of the result tuples.  @param type9 The class of field '9' of the result tuples. 
-		 * @return The projected data set.
-		 * 
-		 * @see Tuple
-		 * @see DataSet
-		 */
-		public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9> ProjectJoin<I1, I2, Tuple10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9) {
-			Class<?>[] types = {type0, type1, type2, type3, type4, type5, type6, type7, type8, type9};
-			if(types.length != this.fieldIndexes.length) {
-				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
-			}
-			
-			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types);
-			TupleTypeInfo<Tuple10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>> tType = new TupleTypeInfo<Tuple10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>>(fTypes);
-
-			return new ProjectJoin<I1, I2, Tuple10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>>(this.ds1, this.ds2, this.keys1, this.keys2, this.hint, this.fieldIndexes, this.isFieldInFirst, tType);
-		}
-
-		/**
-		 * Projects a pair of joined elements to a {@link Tuple} with the previously selected fields. 
-		 * Requires the classes of the fields of the resulting tuples. 
-		 * 
-		 * @param type0 The class of field '0' of the result tuples.  @param type1 The class of field '1' of the result tuples.  @param type2 The class of field '2' of the result tuples.  @param type3 The class of field '3' of the result tuples.  @param type4 The class of field '4' of the result tuples.  @param type5 The class of field '5' of the result tuples.  @param type6 The class of field '6' of the result tuples.  @param type7 The class of field '7' of the result tuples.  @param type8 The class of field '8' of the result tuples.  @param type9 The class of field '9' of the result tuples.  @param type10 The class of field '10' of the result tuples. 
-		 * @return The projected data set.
-		 * 
-		 * @see Tuple
-		 * @see DataSet
-		 */
-		public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10> ProjectJoin<I1, I2, Tuple11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10) {
-			Class<?>[] types = {type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10};
-			if(types.length != this.fieldIndexes.length) {
-				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
-			}
-			
-			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types);
-			TupleTypeInfo<Tuple11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>> tType = new TupleTypeInfo<Tuple11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>>(fTypes);
-
-			return new ProjectJoin<I1, I2, Tuple11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>>(this.ds1, this.ds2, this.keys1, this.keys2, this.hint, this.fieldIndexes, this.isFieldInFirst, tType);
-		}
-
-		/**
-		 * Projects a pair of joined elements to a {@link Tuple} with the previously selected fields. 
-		 * Requires the classes of the fields of the resulting tuples. 
-		 * 
-		 * @param type0 The class of field '0' of the result tuples.  @param type1 The class of field '1' of the result tuples.  @param type2 The class of field '2' of the result tuples.  @param type3 The class of field '3' of the result tuples.  @param type4 The class of field '4' of the result tuples.  @param type5 The class of field '5' of the result tuples.  @param type6 The class of field '6' of the result tuples.  @param type7 The class of field '7' of the result tuples.  @param type8 The class of field '8' of the result tuples.  @param type9 The class of field '9' of the result tuples.  @param type10 The class of field '10' of the result tuples.  @param type11 The class of field '11' of the result tuples. 
-		 * @return The projected data set.
-		 * 
-		 * @see Tuple
-		 * @see DataSet
-		 */
-		public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11> ProjectJoin<I1, I2, Tuple12<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11) {
-			Class<?>[] types = {type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11};
-			if(types.length != this.fieldIndexes.length) {
-				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
-			}
-			
-			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types);
-			TupleTypeInfo<Tuple12<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>> tType = new TupleTypeInfo<Tuple12<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>>(fTypes);
-
-			return new ProjectJoin<I1, I2, Tuple12<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>>(this.ds1, this.ds2, this.keys1, this.keys2, this.hint, this.fieldIndexes, this.isFieldInFirst, tType);
-		}
-
-		/**
-		 * Projects a pair of joined elements to a {@link Tuple} with the previously selected fields. 
-		 * Requires the classes of the fields of the resulting tuples. 
-		 * 
-		 * @param type0 The class of field '0' of the result tuples.  @param type1 The class of field '1' of the result tuples.  @param type2 The class of field '2' of the result tuples.  @param type3 The class of field '3' of the result tuples.  @param type4 The class of field '4' of the result tuples.  @param type5 The class of field '5' of the result tuples.  @param type6 The class of field '6' of the result tuples.  @param type7 The class of field '7' of the result tuples.  @param type8 The class of field '8' of the result tuples.  @param type9 The class of field '9' of the result tuples.  @param type10 The class of field '10' of the result tuples.  @param type11 The class of field '11' of the result tuples.  @param type12 The class of field '12' of the result tuples. 
-		 * @return The projected data set.
-		 * 
-		 * @see Tuple
-		 * @see DataSet
-		 */
-		public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12> ProjectJoin<I1, I2, Tuple13<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11, Class<T12> type12) {
-			Class<?>[] types = {type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12};
-			if(types.length != this.fieldIndexes.length) {
-				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
-			}
-			
-			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types);
-			TupleTypeInfo<Tuple13<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>> tType = new TupleTypeInfo<Tuple13<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>>(fTypes);
-
-			return new ProjectJoin<I1, I2, Tuple13<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>>(this.ds1, this.ds2, this.keys1, this.keys2, this.hint, this.fieldIndexes, this.isFieldInFirst, tType);
-		}
-
-		/**
-		 * Projects a pair of joined elements to a {@link Tuple} with the previously selected fields. 
-		 * Requires the classes of the fields of the resulting tuples. 
-		 * 
-		 * @param type0 The class of field '0' of the result tuples.  @param type1 The class of field '1' of the result tuples.  @param type2 The class of field '2' of the result tuples.  @param type3 The class of field '3' of the result tuples.  @param type4 The class of field '4' of the result tuples.  @param type5 The class of field '5' of the result tuples.  @param type6 The class of field '6' of the result tuples.  @param type7 The class of field '7' of the result tuples.  @param type8 The class of field '8' of the result tuples.  @param type9 The class of field '9' of the result tuples.  @param type10 The class of field '10' of the result tuples.  @param type11 The class of field '11' of the result tuples.  @param type12 The class of field '12' of the result tuples.  @param type13 The class of field '13' of the result tuples. 
-		 * @return The projected data set.
-		 * 
-		 * @see Tuple
-		 * @see DataSet
-		 */
-		public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13> ProjectJoin<I1, I2, Tuple14<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11, Class<T12> type12, Class<T13> type13) {
-			Class<?>[] types = {type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13};
-			if(types.length != this.fieldIndexes.length) {
-				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
-			}
-			
-			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types);
-			TupleTypeInfo<Tuple14<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>> tType = new TupleTypeInfo<Tuple14<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>>(fTypes);
-
-			return new ProjectJoin<I1, I2, Tuple14<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>>(this.ds1, this.ds2, this.keys1, this.keys2, this.hint, this.fieldIndexes, this.isFieldInFirst, tType);
-		}
-
-		/**
-		 * Projects a pair of joined elements to a {@link Tuple} with the previously selected fields. 
-		 * Requires the classes of the fields of the resulting tuples. 
-		 * 
-		 * @param type0 The class of field '0' of the result tuples.  @param type1 The class of field '1' of the result tuples.  @param type2 The class of field '2' of the result tuples.  @param type3 The class of field '3' of the result tuples.  @param type4 The class of field '4' of the result tuples.  @param type5 The class of field '5' of the result tuples.  @param type6 The class of field '6' of the result tuples.  @param type7 The class of field '7' of the result tuples.  @param type8 The class of field '8' of the result tuples.  @param type9 The class of field '9' of the result tuples.  @param type10 The class of field '10' of the result tuples.  @param type11 The class of field '11' of the result tuples.  @param type12 The class of field '12' of the result tuples.  @param type13 The class of field '13' of the result tuples.  @param type14 The class of field '14' of the result tuples. 
-		 * @return The projected data set.
-		 * 
-		 * @see Tuple
-		 * @see DataSet
-		 */
-		public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14> ProjectJoin<I1, I2, Tuple15<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11, Class<T12> type12, Class<T13> type13, Class<T14> type14) {
-			Class<?>[] types = {type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14};
-			if(types.length != this.fieldIndexes.length) {
-				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
-			}
-			
-			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types);
-			TupleTypeInfo<Tuple15<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>> tType = new TupleTypeInfo<Tuple15<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>>(fTypes);
-
-			return new ProjectJoin<I1, I2, Tuple15<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>>(this.ds1, this.ds2, this.keys1, this.keys2, this.hint, this.fieldIndexes, this.isFieldInFirst, tType);
-		}
-
-		/**
-		 * Projects a pair of joined elements to a {@link Tuple} with the previously selected fields. 
-		 * Requires the classes of the fields of the resulting tuples. 
-		 * 
-		 * @param type0 The class of field '0' of the result tuples.  @param type1 The class of field '1' of the result tuples.  @param type2 The class of field '2' of the result tuples.  @param type3 The class of field '3' of the result tuples.  @param type4 The class of field '4' of the result tuples.  @param type5 The class of field '5' of the result tuples.  @param type6 The class of field '6' of the result tuples.  @param type7 The class of field '7' of the result tuples.  @param type8 The class of field '8' of the result tuples.  @param type9 The class of field '9' of the result tuples.  @param type10 The class of field '10' of the result tuples.  @param type11 The class of field '11' of the result tuples.  @param type12 The class of field '12' of the result tuples.  @param type13 The class of field '13' of the result tuples.  @param type14 The class of field '14' of the result tuples.  @param type15 The class of field '15' of the result tuples. 
-		 * @return The projected data set.
-		 * 
-		 * @see Tuple
-		 * @see DataSet
-		 */
-		public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15> ProjectJoin<I1, I2, Tuple16<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11, Class<T12> type12, Class<T13> type13, Class<T14> type14, Class<T15> type15) {
-			Class<?>[] types = {type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14, type15};
-			if(types.length != this.fieldIndexes.length) {
-				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
-			}
-			
-			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types);
-			TupleTypeInfo<Tuple16<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>> tType = new TupleTypeInfo<Tuple16<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>>(fTypes);
-
-			return new ProjectJoin<I1, I2, Tuple16<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>>(this.ds1, this.ds2, this.keys1, this.keys2, this.hint, this.fieldIndexes, this.isFieldInFirst, tType);
-		}
-
-		/**
-		 * Projects a pair of joined elements to a {@link Tuple} with the previously selected fields. 
-		 * Requires the classes of the fields of the resulting tuples. 
-		 * 
-		 * @param type0 The class of field '0' of the result tuples.  @param type1 The class of field '1' of the result tuples.  @param type2 The class of field '2' of the result tuples.  @param type3 The class of field '3' of the result tuples.  @param type4 The class of field '4' of the result tuples.  @param type5 The class of field '5' of the result tuples.  @param type6 The class of field '6' of the result tuples.  @param type7 The class of field '7' of the result tuples.  @param type8 The class of field '8' of the result tuples.  @param type9 The class of field '9' of the result tuples.  @param type10 The class of field '10' of the result tuples.  @param type11 The class of field '11' of the result tuples.  @param type12 The class of field '12' of the result tuples.  @param type13 The class of field '13' of the result tuples.  @param type14 The class of field '14' of the result tuples.  @param type15 The class of field '15' of the result tuples.  @param type16 The class of field '16' of the result tuples. 
-		 * @return The projected data set.
-		 * 
-		 * @see Tuple
-		 * @see DataSet
-		 */
-		public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16> ProjectJoin<I1, I2, Tuple17<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11, Class<T12> type12, Class<T13> type13, Class<T14> type14, Class<T15> type15, Class<T16> type16) {
-			Class<?>[] types = {type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14, type15, type16};
-			if(types.length != this.fieldIndexes.length) {
-				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
-			}
-			
-			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types);
-			TupleTypeInfo<Tuple17<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>> tType = new TupleTypeInfo<Tuple17<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>>(fTypes);
-
-			return new ProjectJoin<I1, I2, Tuple17<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>>(this.ds1, this.ds2, this.keys1, this.keys2, this.hint, this.fieldIndexes, this.isFieldInFirst, tType);
-		}
-
-		/**
-		 * Projects a pair of joined elements to a {@link Tuple} with the previously selected fields. 
-		 * Requires the classes of the fields of the resulting tuples. 
-		 * 
-		 * @param type0 The class of field '0' of the result tuples.  @param type1 The class of field '1' of the result tuples.  @param type2 The class of field '2' of the result tuples.  @param type3 The class of field '3' of the result tuples.  @param type4 The class of field '4' of the result tuples.  @param type5 The class of field '5' of the result tuples.  @param type6 The class of field '6' of the result tuples.  @param type7 The class of field '7' of the result tuples.  @param type8 The class of field '8' of the result tuples.  @param type9 The class of field '9' of the result tuples.  @param type10 The class of field '10' of the result tuples.  @param type11 The class of field '11' of the result tuples.  @param type12 The class of field '12' of the result tuples.  @param type13 The class of field '13' of the result tuples.  @param type14 The class of field '14' of the result tuples.  @param type15 The class of field '15' of the result tuples.  @param type16 The class of field '16' of the result tuples.  @param type17 The class of field '17' of the result tuples. 
-		 * @return The projected data set.
-		 * 
-		 * @see Tuple
-		 * @see DataSet
-		 */
-		public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17> ProjectJoin<I1, I2, Tuple18<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11, Class<T12> type12, Class<T13> type13, Class<T14> type14, Class<T15> type15, Class<T16> type16, Class<T17> type17) {
-			Class<?>[] types = {type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14, type15, type16, type17};
-			if(types.length != this.fieldIndexes.length) {
-				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
-			}
-			
-			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types);
-			TupleTypeInfo<Tuple18<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17>> tType = new TupleTypeInfo<Tuple18<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17>>(fTypes);
-
-			return new ProjectJoin<I1, I2, Tuple18<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17>>(this.ds1, this.ds2, this.keys1, this.keys2, this.hint, this.fieldIndexes, this.isFieldInFirst, tType);
-		}
-
-		/**
-		 * Projects a pair of joined elements to a {@link Tuple} with the previously selected fields. 
-		 * Requires the classes of the fields of the resulting tuples. 
-		 * 
-		 * @param type0 The class of field '0' of the result tuples.  @param type1 The class of field '1' of the result tuples.  @param type2 The class of field '2' of the result tuples.  @param type3 The class of field '3' of the result tuples.  @param type4 The class of field '4' of the result tuples.  @param type5 The class of field '5' of the result tuples.  @param type6 The class of field '6' of the result tuples.  @param type7 The class of field '7' of the result tuples.  @param type8 The class of field '8' of the result tuples.  @param type9 The class of field '9' of the result tuples.  @param type10 The class of field '10' of the result tuples.  @param type11 The class of field '11' of the result tuples.  @param type12 The class of field '12' of the result tuples.  @param type13 The class of field '13' of the result tuples.  @param type14 The class of field '14' of the result tuples.  @param type15 The class of field '15' of the result tuples.  @param type16 The class of field '16' of the result tuples.  @param type17 The class of field '17' of the result tuples.  @param type18 The class of field '18' of the result tuples. 
-		 * @return The projected data set.
-		 * 
-		 * @see Tuple
-		 * @see DataSet
-		 */
-		public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18> ProjectJoin<I1, I2, Tuple19<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11, Class<T12> type12, Class<T13> type13, Class<T14> type14, Class<T15> type15, Class<T16> type16, Class<T17> type17, Class<T18> type18) {
-			Class<?>[] types = {type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14, type15, type16, type17, type18};
-			if(types.length != this.fieldIndexes.length) {
-				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
-			}
-			
-			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types);
-			TupleTypeInfo<Tuple19<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18>> tType = new TupleTypeInfo<Tuple19<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18>>(fTypes);
-
-			return new ProjectJoin<I1, I2, Tuple19<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18>>(this.ds1, this.ds2, this.keys1, this.keys2, this.hint, this.fieldIndexes, this.isFieldInFirst, tType);
-		}
-
-		/**
-		 * Projects a pair of joined elements to a {@link Tuple} with the previously selected fields. 
-		 * Requires the classes of the fields of the resulting tuples. 
-		 * 
-		 * @param type0 The class of field '0' of the result tuples.  @param type1 The class of field '1' of the result tuples.  @param type2 The class of field '2' of the result tuples.  @param type3 The class of field '3' of the result tuples.  @param type4 The class of field '4' of the result tuples.  @param type5 The class of field '5' of the result tuples.  @param type6 The class of field '6' of the result tuples.  @param type7 The class of field '7' of the result tuples.  @param type8 The class of field '8' of the result tuples.  @param type9 The class of field '9' of the result tuples.  @param type10 The class of field '10' of the result tuples.  @param type11 The class of field '11' of the result tuples.  @param type12 The class of field '12' of the result tuples.  @param type13 The class of field '13' of the result tuples.  @param type14 The class of field '14' of the result tuples.  @param type15 The class of field '15' of the result tuples.  @param type16 The class of field '16' of the result tuples.  @param type17 The class of field '17' of the result tuples.  @param type18 The class of field '18' of the result tuples.  @param type19 The class of field '19' of the result tuples. 
-		 * @return The projected data set.
-		 * 
-		 * @see Tuple
-		 * @see DataSet
-		 */
-		public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19> ProjectJoin<I1, I2, Tuple20<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11, Class<T12> type12, Class<T13> type13, Class<T14> type14, Class<T15> type15, Class<T16> type16, Class<T17> type17, Class<T18> type18, Class<T19> type19) {
-			Class<?>[] types = {type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14, type15, type16, type17, type18, type19};
-			if(types.length != this.fieldIndexes.length) {
-				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
-			}
-			
-			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types);
-			TupleTypeInfo<Tuple20<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19>> tType = new TupleTypeInfo<Tuple20<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19>>(fTypes);
-
-			return new ProjectJoin<I1, I2, Tuple20<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19>>(this.ds1, this.ds2, this.keys1, this.keys2, this.hint, this.fieldIndexes, this.isFieldInFirst, tType);
-		}
-
-		/**
-		 * Projects a pair of joined elements to a {@link Tuple} with the previously selected fields. 
-		 * Requires the classes of the fields of the resulting tuples. 
-		 * 
-		 * @param type0 The class of field '0' of the result tuples.  @param type1 The class of field '1' of the result tuples.  @param type2 The class of field '2' of the result tuples.  @param type3 The class of field '3' of the result tuples.  @param type4 The class of field '4' of the result tuples.  @param type5 The class of field '5' of the result tuples.  @param type6 The class of field '6' of the result tuples.  @param type7 The class of field '7' of the result tuples.  @param type8 The class of field '8' of the result tuples.  @param type9 The class of field '9' of the result tuples.  @param type10 The class of field '10' of the result tuples.  @param type11 The class of field '11' of the result tuples.  @param type12 The class of field '12' of the result tuples.  @param type13 The class of field '13' of the result tuples.  @param type14 The class of field '14' of the result tuples.  @param type15 The class of field '15' of the result tuples.  @param type16 The class of field '16' of the result tuples.  @param type17 The class of field '17' of the result tuples.  @param type18 The class of field '18' of the result tuples.  @param type19 The class of field '19' of the result tuples.  @param type20 The class of field '20' of the result tuples. 
-		 * @return The projected data set.
-		 * 
-		 * @see Tuple
-		 * @see DataSet
-		 */
-		public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20> ProjectJoin<I1, I2, Tuple21<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11, Class<T12> type12, Class<T13> type13, Class<T14> type14, Class<T15> type15, Class<T16> type16, Class<T17> type17, Class<T18> type18, Class<T19> type19, Class<T20> type20) {
-			Class<?>[] types = {type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14, type15, type16, type17, type18, type19, type20};
-			if(types.length != this.fieldIndexes.length) {
-				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
-			}
-			
-			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types);
-			TupleTypeInfo<Tuple21<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20>> tType = new TupleTypeInfo<Tuple21<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20>>(fTypes);
-
-			return new ProjectJoin<I1, I2, Tuple21<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20>>(this.ds1, this.ds2, this.keys1, this.keys2, this.hint, this.fieldIndexes, this.isFieldInFirst, tType);
-		}
-
-		/**
-		 * Projects a pair of joined elements to a {@link Tuple} with the previously selected fields. 
-		 * Requires the classes of the fields of the resulting tuples. 
-		 * 
-		 * @param type0 The class of field '0' of the result tuples.  @param type1 The class of field '1' of the result tuples.  @param type2 The class of field '2' of the result tuples.  @param type3 The class of field '3' of the result tuples.  @param type4 The class of field '4' of the result tuples.  @param type5 The class of field '5' of the result tuples.  @param type6 The class of field '6' of the result tuples.  @param type7 The class of field '7' of the result tuples.  @param type8 The class of field '8' of the result tuples.  @param type9 The class of field '9' of the result tuples.  @param type10 The class of field '10' of the result tuples.  @param type11 The class of field '11' of the result tuples.  @param type12 The class of field '12' of the result tuples.  @param type13 The class of field '13' of the result tuples.  @param type14 The class of field '14' of the result tuples.  @param type15 The class of field '15' of the result tuples.  @param type16 The class of field '16' of the result tuples.  @param type17 The class of field '17' of the result tuples.  @param type18 The class of field '18' of the result tuples.  @param type19 The class of field '19' of the result tuples.  @param type20 The class of field '20' of the result tuples.  @param type21 The class of field '21' of the result tuples. 
-		 * @return The projected data set.
-		 * 
-		 * @see Tuple
-		 * @see DataSet
-		 */
-		public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21> ProjectJoin<I1, I2, Tuple22<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11, Class<T12> type12, Class<T13> type13, Class<T14> type14, Class<T15> type15, Class<T16> type16, Class<T17> type17, Class<T18> type18, Class<T19> type19, Class<T20> type20, Class<T21> type21) {
-			Class<?>[] types = {type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14, type15, type16, type17, type18, type19, type20, type21};
-			if(types.length != this.fieldIndexes.length) {
-				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
-			}
-			
-			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types);
-			TupleTypeInfo<Tuple22<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21>> tType = new TupleTypeInfo<Tuple22<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21>>(fTypes);
-
-			return new ProjectJoin<I1, I2, Tuple22<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21>>(this.ds1, this.ds2, this.keys1, this.keys2, this.hint, this.fieldIndexes, this.isFieldInFirst, tType);
-		}
-
-		/**
-		 * Projects a pair of joined elements to a {@link Tuple} with the previously selected fields. 
-		 * Requires the classes of the fields of the resulting tuples. 
-		 * 
-		 * @param type0 The class of field '0' of the result tuples.  @param type1 The class of field '1' of the result tuples.  @param type2 The class of field '2' of the result tuples.  @param type3 The class of field '3' of the result tuples.  @param type4 The class of field '4' of the result tuples.  @param type5 The class of field '5' of the result tuples.  @param type6 The class of field '6' of the result tuples.  @param type7 The class of field '7' of the result tuples.  @param type8 The class of field '8' of the result tuples.  @param type9 The class of field '9' of the result tuples.  @param type10 The class of field '10' of the result tuples.  @param type11 The class of field '11' of the result tuples.  @param type12 The class of field '12' of the result tuples.  @param type13 The class of field '13' of the result tuples.  @param type14 The class of field '14' of the result tuples.  @param type15 The class of field '15' of the result tuples.  @param type16 The class of field '16' of the result tuples.  @param type17 The class of field '17' of the result tuples.  @param type18 The class of field '18' of the result tuples.  @param type19 The class of field '19' of the result tuples.  @param type20 The class of field '20' of the result tuples.  @param type21 The class of field '21' of the result tuples.  @param type22 The class of field '22' of the result tuples. 
-		 * @return The projected data set.
-		 * 
-		 * @see Tuple
-		 * @see DataSet
-		 */
-		public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22> ProjectJoin<I1, I2, Tuple23<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11, Class<T12> type12, Class<T13> type13, Class<T14> type14, Class<T15> type15, Class<T16> type16, Class<T17> type17, Class<T18> type18, Class<T19> type19, Class<T20> type20, Class<T21> type21, Class<T22> type22) {
-			Class<?>[] types = {type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14, type15, type16, type17, type18, type19, type20, type21, type22};
-			if(types.length != this.fieldIndexes.length) {
-				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
-			}
-			
-			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types);
-			TupleTypeInfo<Tuple23<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22>> tType = new TupleTypeInfo<Tuple23<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22>>(fTypes);
-
-			return new ProjectJoin<I1, I2, Tuple23<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22>>(this.ds1, this.ds2, this.keys1, this.keys2, this.hint, this.fieldIndexes, this.isFieldInFirst, tType);
-		}
-
-		/**
-		 * Projects a pair of joined elements to a {@link Tuple} with the previously selected fields. 
-		 * Requires the classes of the fields of the resulting tuples. 
-		 * 
-		 * @param type0 The class of field '0' of the result tuples.  @param type1 The class of field '1' of the result tuples.  @param type2 The class of field '2' of the result tuples.  @param type3 The class of field '3' of the result tuples.  @param type4 The class of field '4' of the result tuples.  @param type5 The class of field '5' of the result tuples.  @param type6 The class of field '6' of the result tuples.  @param type7 The class of field '7' of the result tuples.  @param type8 The class of field '8' of the result tuples.  @param type9 The class of field '9' of the result tuples.  @param type10 The class of field '10' of the result tuples.  @param type11 The class of field '11' of the result tuples.  @param type12 The class of field '12' of the result tuples.  @param type13 The class of field '13' of the result tuples.  @param type14 The class of field '14' of the result tuples.  @param type15 The class of field '15' of the result tuples.  @param type16 The class of field '16' of the result tuples.  @param type17 The class of field '17' of the result tuples.  @param type18 The class of field '18' of the result tuples.  @param type19 The class of field '19' of the result tuples.  @param type20 The class of field '20' of the result tuples.  @param type21 The class of field '21' of the result tuples.  @param type22 The class of field '22' of the result tuples.  @param type23 The class of field '23' of the result tuples. 
-		 * @return The projected data set.
-		 * 
-		 * @see Tuple
-		 * @see DataSet
-		 */
-		public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23> ProjectJoin<I1, I2, Tuple24<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11, Class<T12> type12, Class<T13> type13, Class<T14> type14, Class<T15> type15, Class<T16> type16, Class<T17> type17, Class<T18> type18, Class<T19> type19, Class<T20> type20, Class<T21> type21, Class<T22> type22, Class<T23> type23) {
-			Class<?>[] types = {type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14, type15, type16, type17, type18, type19, type20, type21, type22, type23};
-			if(types.length != this.fieldIndexes.length) {
-				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
-			}
-			
-			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types);
-			TupleTypeInfo<Tuple24<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23>> tType = new TupleTypeInfo<Tuple24<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23>>(fTypes);
-
-			return new ProjectJoin<I1, I2, Tuple24<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23>>(this.ds1, this.ds2, this.keys1, this.keys2, this.hint, this.fieldIndexes, this.isFieldInFirst, tType);
-		}
-
-		/**
-		 * Projects a pair of joined elements to a {@link Tuple} with the previously selected fields. 
-		 * Requires the classes of the fields of the resulting tuples. 
-		 * 
-		 * @param type0 The class of field '0' of the result tuples.  @param type1 The class of field '1' of the result tuples.  @param type2 The class of field '2' of the result tuples.  @param type3 The class of field '3' of the result tuples.  @param type4 The class of field '4' of the result tuples.  @param type5 The class of field '5' of the result tuples.  @param type6 The class of field '6' of the result tuples.  @param type7 The class of field '7' of the result tuples.  @param type8 The class of field '8' of the result tuples.  @param type9 The class of field '9' of the result tuples.  @param type10 The class of field '10' of the result tuples.  @param type11 The class of field '11' of the result tuples.  @param type12 The class of field '12' of the result tuples.  @param type13 The class of field '13' of the result tuples.  @param type14 The class of field '14' of the result tuples.  @param type15 The class of field '15' of the result tuples.  @param type16 The class of field '16' of the result tuples.  @param type17 The class of field '17' of the result tuples.  @param type18 The class of field '18' of the result tuples.  @param type19 The class of field '19' of the result tuples.  @param type20 The class of field '20' of the result tuples.  @param type21 The class of field '21' of the result tuples.  @param type22 The class of field '22' of the result tuples.  @param type23 The class of field '23' of the result tuples.  @param type24 The class of field '24' of the result tuples. 
-		 * @return The projected data set.
-		 * 
-		 * @see Tuple
-		 * @see DataSet
-		 */
-		public <T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24> ProjectJoin<I1, I2, Tuple25<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24>> types(Class<T0> type0, Class<T1> type1, Class<T2> type2, Class<T3> type3, Class<T4> type4, Class<T5> type5, Class<T6> type6, Class<T7> type7, Class<T8> type8, Class<T9> type9, Class<T10> type10, Class<T11> type11, Class<T12> type12, Class<T13> type13, Class<T14> type14, Class<T15> type15, Class<T16> type16, Class<T17> type17, Class<T18> type18, Class<T19> type19, Class<T20> type20, Class<T21> type21, Class<T22> type22, Class<T23> type23, Class<T24> type24) {
-			Class<?>[] types = {type0, type1, type2, type3, type4, type5, type6, type7, type8, type9, type10, type11, type12, type13, type14, type15, type16, type17, type18, type19, type20, type21, type22, type23, type24};
-			if(types.length != this.fieldIndexes.length) {
-				throw new IllegalArgumentException("Numbers of projected fields and types do not match.");
-			}
-			
-			TypeInformation<?>[] fTypes = extractFieldTypes(fieldIndexes, types);
-			TupleTypeInfo<Tuple25<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24>> tType = new TupleTypeInfo<Tuple25<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24>>(fTypes);
-
-			return new ProjectJoin<I1, I2, Tuple25<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24>>(this.ds1, this.ds2, this.keys1, this.keys2, this.hint, this.fieldIndexes, this.isFieldInFirst, tType);
-		}
-
 		// END_OF_TUPLE_DEPENDENT_CODE
 		// -----------------------------------------------------------------------------------------
-		
-			
-		private TypeInformation<?>[] extractFieldTypes(int[] fields, Class<?>[] givenTypes) {
-			
-			TypeInformation<?>[] fieldTypes = new TypeInformation[fields.length];
-
-			for(int i=0; i<fields.length; i++) {
-				
-				TypeInformation<?> typeInfo;
-				if(isFieldInFirst[i]) {
-					if(fields[i] >= 0) {
-						typeInfo = ((TupleTypeInfo<?>)ds1.getType()).getTypeAt(fields[i]);
-					} else {
-						typeInfo = ds1.getType();
-					}
-				} else {
-					if(fields[i] >= 0) {
-						typeInfo = ((TupleTypeInfo<?>)ds2.getType()).getTypeAt(fields[i]);
-					} else {
-						typeInfo = ds2.getType();
-					}
-				}
-				
-				if(typeInfo.getTypeClass() != givenTypes[i]) {
-					throw new IllegalArgumentException("Given types do not match types of input data set.");
-				}
-
-				fieldTypes[i] = typeInfo;
-			}
-			
-			return fieldTypes;
-		}
-		
 		
 		private TypeInformation<?>[] extractFieldTypes(int[] fields) {
 			

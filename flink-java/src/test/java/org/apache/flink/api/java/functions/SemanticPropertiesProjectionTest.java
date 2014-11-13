@@ -91,7 +91,7 @@ public class SemanticPropertiesProjectionTest {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 			DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs = env.fromCollection(emptyTupleData, tupleTypeInfo);
 			
-			tupleDs.projection(1, 3).projection(2).projection(0).print();
+			tupleDs.project(1, 3).project(2).project(0).print();
 
 			Plan plan = env.createProgramPlan();
 
@@ -150,10 +150,8 @@ public class SemanticPropertiesProjectionTest {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 			DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs = env.fromCollection(emptyTupleData, tupleTypeInfo);
-
-//			tupleDs.join(tupleDs).where(0).equalTo(0).projectFirst(2, 3).projectSecond(1, 4).types().print();
 			
-			tupleDs.join(tupleDs).where(0).equalTo(0).projectionFirst(2).projectionFirst(3).projectionSecond(1, 4).print();
+			tupleDs.join(tupleDs).where(0).equalTo(0).projectFirst(2).projectFirst(3).projectSecond(1, 4).print();
 
 			Plan plan = env.createProgramPlan();
 
@@ -214,7 +212,7 @@ public class SemanticPropertiesProjectionTest {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 			DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs = env.fromCollection(emptyTupleData, tupleTypeInfo);
 
-			DataSet<Tuple4<String, Long, Long, Integer>> result = tupleDs.cross(tupleDs).projectionFirst(2, 3).projectionSecond(1, 4);
+			DataSet<Tuple4<String, Long, Long, Integer>> result = tupleDs.cross(tupleDs).projectFirst(2, 3).projectSecond(1, 4);
 			result.print();
 
 			Plan plan = env.createProgramPlan();
