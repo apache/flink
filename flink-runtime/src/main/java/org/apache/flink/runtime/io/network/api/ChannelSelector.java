@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.io.network.api;
 
 import org.apache.flink.core.io.IOReadableWritable;

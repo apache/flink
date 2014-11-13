@@ -32,6 +32,8 @@ import org.apache.flink.compiler.operators.OperatorDescriptorSingle;
  */
 public class MapPartitionNode extends SingleInputNode {
 	
+	private final List<OperatorDescriptorSingle> possibleProperties;
+	
 	/**
 	 * Creates a new MapNode for the given contract.
 	 * 
@@ -39,6 +41,8 @@ public class MapPartitionNode extends SingleInputNode {
 	 */
 	public MapPartitionNode(SingleInputOperator<?, ?, ?> operator) {
 		super(operator);
+		
+		this.possibleProperties = Collections.<OperatorDescriptorSingle>singletonList(new MapPartitionDescriptor());
 	}
 
 	@Override
@@ -48,7 +52,7 @@ public class MapPartitionNode extends SingleInputNode {
 
 	@Override
 	protected List<OperatorDescriptorSingle> getPossibleProperties() {
-		return Collections.<OperatorDescriptorSingle>singletonList(new MapPartitionDescriptor());
+		return this.possibleProperties;
 	}
 
 	/**

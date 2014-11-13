@@ -20,6 +20,7 @@
 package org.apache.flink.runtime.operators.shipping;
 
 import org.apache.flink.api.common.distributions.DataDistribution;
+import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.runtime.io.network.api.ChannelSelector;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
@@ -33,6 +34,10 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 	private int nextChannelToSendTo = 0;		// counter to go over channels round robin
 	
 	private final TypeComparator<T> comparator;	// the comparator for hashing / sorting
+	
+	private final Partitioner<Object> partitioner;
+	
+	private Object[] extractedKeys;
 
 	// ------------------------------------------------------------------------
 	// Constructors
@@ -62,7 +67,7 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 	 * @param comparator The comparator used to hash / compare the records.
 	 */
 	public OutputEmitter(ShipStrategyType strategy, TypeComparator<T> comparator) {
-		this(strategy, comparator, null);
+		this(strategy, comparator, null, null);
 	}
 	
 	/**
@@ -74,12 +79,22 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 	 * @param distr The distribution pattern used in the case of a range partitioning.
 	 */
 	public OutputEmitter(ShipStrategyType strategy, TypeComparator<T> comparator, DataDistribution distr) {
+		this(strategy, comparator, null, distr);
+	}
+	
+	public OutputEmitter(ShipStrategyType strategy, TypeComparator<T> comparator, Partitioner<?> partitioner) {
+		this(strategy, comparator, partitioner, null);
+	}
+		
+	@SuppressWarnings("unchecked")
+	public OutputEmitter(ShipStrategyType strategy, TypeComparator<T> comparator, Partitioner<?> partitioner, DataDistribution distr) {
 		if (strategy == null) { 
 			throw new NullPointerException();
 		}
 		
 		this.strategy = strategy;
 		this.comparator = comparator;
+		this.partitioner = (Partitioner<Object>) partitioner;
 		
 		switch (strategy) {
 		case FORWARD:
@@ -87,6 +102,7 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 		case PARTITION_RANGE:
 		case PARTITION_RANDOM:
 		case PARTITION_FORCED_REBALANCE:
+		case PARTITION_CUSTOM:
 		case BROADCAST:
 			break;
 		default:
@@ -95,6 +111,9 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 		
 		if ((strategy == ShipStrategyType.PARTITION_RANGE) && distr == null) {
 			throw new NullPointerException("Data distribution must not be null when the ship strategy is range partitioning.");
+		}
+		if (strategy == ShipStrategyType.PARTITION_CUSTOM && partitioner == null) {
+			throw new NullPointerException("Partitioner must not be null when the ship strategy is set to custom partitioning.");
 		}
 	}
 
@@ -111,10 +130,12 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 			return robin(numberOfChannels);
 		case PARTITION_HASH:
 			return hashPartitionDefault(record.getInstance(), numberOfChannels);
-		case PARTITION_RANGE:
-			return rangePartition(record.getInstance(), numberOfChannels);
 		case BROADCAST:
 			return broadcast(numberOfChannels);
+		case PARTITION_CUSTOM:
+			return customPartition(record.getInstance(), numberOfChannels);
+		case PARTITION_RANGE:
+			return rangePartition(record.getInstance(), numberOfChannels);
 		default:
 			throw new UnsupportedOperationException("Unsupported distribution strategy: " + strategy.name());
 		}
@@ -188,5 +209,26 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
 
 	private final int[] rangePartition(T record, int numberOfChannels) {
 		throw new UnsupportedOperationException();
+	}
+	
+	private final int[] customPartition(T record, int numberOfChannels) {
+		if (channels == null) {
+			channels = new int[1];
+			extractedKeys = new Object[1];
+		}
+		
+		try {
+			if (comparator.extractKeys(record, extractedKeys, 0) == 1) {
+				final Object key = extractedKeys[0];
+				channels[0] = partitioner.partition(key, numberOfChannels);
+				return channels;
+			}
+			else {
+				throw new RuntimeException("Inconsistency in the key comparator - comparator extracted more than one field.");
+			}
+		}
+		catch (Throwable t) {
+			throw new RuntimeException("Error while calling custom partitioner.", t);
+		}
 	}
 }

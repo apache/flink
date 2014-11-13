@@ -201,6 +201,8 @@ public abstract class CancellingTestBase {
 						case FAILING:
 						case CREATED:
 							break;
+						case RESTARTING:
+							throw new IllegalStateException("Job restarted");
 						}
 					}
 

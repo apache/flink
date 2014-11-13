@@ -20,6 +20,7 @@ package org.apache.flink.api.common.operators.base;
 
 import java.util.List;
 
+import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.NoOpFunction;
 import org.apache.flink.api.common.operators.SingleInputOperator;
@@ -32,7 +33,19 @@ import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
  */
 public class PartitionOperatorBase<IN> extends SingleInputOperator<IN, IN, NoOpFunction> {
 	
+	public static enum PartitionMethod {
+		REBALANCE,
+		HASH,
+		RANGE,
+		CUSTOM;
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
 	private final PartitionMethod partitionMethod;
+	
+	private Partitioner<?> customPartitioner;
+	
 	
 	public PartitionOperatorBase(UnaryOperatorInformation<IN, IN> operatorInfo, PartitionMethod pMethod, int[] keys, String name) {
 		super(new UserCodeObjectWrapper<NoOpFunction>(new NoOpFunction()), operatorInfo, keys, name);
@@ -44,16 +57,31 @@ public class PartitionOperatorBase<IN> extends SingleInputOperator<IN, IN, NoOpF
 		this.partitionMethod = pMethod;
 	}
 	
+	// --------------------------------------------------------------------------------------------
+	
 	public PartitionMethod getPartitionMethod() {
 		return this.partitionMethod;
 	}
 	
-	public static enum PartitionMethod {
-		REBALANCE,
-		HASH,
-		RANGE;
+	public Partitioner<?> getCustomPartitioner() {
+		return customPartitioner;
+	}
+	
+	public void setCustomPartitioner(Partitioner<?> customPartitioner) {
+		if (customPartitioner != null) {
+			int[] keys = getKeyColumns(0);
+			if (keys == null || keys.length == 0) {
+				throw new IllegalArgumentException("Cannot use custom partitioner for a non-grouped GroupReduce (AllGroupReduce)");
+			}
+			if (keys.length > 1) {
+				throw new IllegalArgumentException("Cannot use the key partitioner for composite keys (more than one key field)");
+			}
+		}
+		this.customPartitioner = customPartitioner;
 	}
 
+	// --------------------------------------------------------------------------------------------
+	
 	@Override
 	protected List<IN> executeOnCollections(List<IN> inputData, RuntimeContext runtimeContext, boolean mutableObjectSafeMode) {
 		return inputData;

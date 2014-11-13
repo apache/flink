@@ -32,9 +32,13 @@ import org.apache.flink.compiler.operators.OperatorDescriptorSingle;
  */
 public class CollectorMapNode extends SingleInputNode {
 	
+	private final List<OperatorDescriptorSingle> possibleProperties;
 
+	
 	public CollectorMapNode(SingleInputOperator<?, ?, ?> operator) {
 		super(operator);
+		
+		this.possibleProperties = Collections.<OperatorDescriptorSingle>singletonList(new CollectorMapDescriptor());
 	}
 
 	@Override
@@ -44,7 +48,7 @@ public class CollectorMapNode extends SingleInputNode {
 
 	@Override
 	protected List<OperatorDescriptorSingle> getPossibleProperties() {
-		return Collections.<OperatorDescriptorSingle>singletonList(new CollectorMapDescriptor());
+		return this.possibleProperties;
 	}
 
 	/**

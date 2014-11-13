@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.java.record.io;
 
 
@@ -27,10 +26,10 @@ import org.apache.flink.api.java.record.operators.FileDataSink;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.types.Record;
 
-
 /**
  * The base class for output formats that serialize their records into a delimited sequence.
  */
+@SuppressWarnings("deprecation")
 public abstract class DelimitedOutputFormat extends FileOutputFormat {
 	private static final long serialVersionUID = 1L;
 

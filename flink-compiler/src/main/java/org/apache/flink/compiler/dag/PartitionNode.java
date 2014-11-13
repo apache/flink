@@ -22,6 +22,7 @@ package org.apache.flink.compiler.dag;
 import java.util.Collections;
 import java.util.List;
 
+import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase;
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase.PartitionMethod;
 import org.apache.flink.api.common.operators.util.FieldSet;
@@ -40,8 +41,14 @@ import org.apache.flink.runtime.operators.DriverStrategy;
  */
 public class PartitionNode extends SingleInputNode {
 
+	private final List<OperatorDescriptorSingle> possibleProperties;
+	
 	public PartitionNode(PartitionOperatorBase<?> operator) {
 		super(operator);
+		
+		OperatorDescriptorSingle descr = new PartitionDescriptor(
+					this.getPactContract().getPartitionMethod(), this.keys, operator.getCustomPartitioner());
+		this.possibleProperties = Collections.singletonList(descr);
 	}
 
 	@Override
@@ -56,13 +63,14 @@ public class PartitionNode extends SingleInputNode {
 
 	@Override
 	protected List<OperatorDescriptorSingle> getPossibleProperties() {
-		return Collections.<OperatorDescriptorSingle>singletonList(new PartitionDescriptor(this.getPactContract().getPartitionMethod(), this.keys));
+		return this.possibleProperties;
 	}
 
 	@Override
 	protected void computeOperatorSpecificDefaultEstimates(DataStatistics statistics) {
 		// partitioning does not change the number of records
 		this.estimatedNumRecords = getPredecessorNode().getEstimatedNumRecords();
+		this.estimatedOutputSize = getPredecessorNode().getEstimatedOutputSize();
 	}
 	
 	@Override
@@ -71,15 +79,18 @@ public class PartitionNode extends SingleInputNode {
 		return true;
 	}
 	
+	// --------------------------------------------------------------------------------------------
 	
 	public static class PartitionDescriptor extends OperatorDescriptorSingle {
 
 		private final PartitionMethod pMethod;
-		private final FieldSet pKeys;
+		private final Partitioner<?> customPartitioner;
 		
-		public PartitionDescriptor(PartitionMethod pMethod, FieldSet pKeys) {
+		public PartitionDescriptor(PartitionMethod pMethod, FieldSet pKeys, Partitioner<?> customPartitioner) {
+			super(pKeys);
+			
 			this.pMethod = pMethod;
-			this.pKeys = pKeys;
+			this.customPartitioner = customPartitioner;
 		}
 		
 		@Override
@@ -98,10 +109,13 @@ public class PartitionNode extends SingleInputNode {
 			
 			switch (this.pMethod) {
 			case HASH:
-				rgps.setHashPartitioned(pKeys.toFieldList());
+				rgps.setHashPartitioned(this.keys);
 				break;
 			case REBALANCE:
 				rgps.setForceRebalancing();
+				break;
+			case CUSTOM:
+				rgps.setCustomPartitioned(this.keys, this.customPartitioner);
 				break;
 			case RANGE:
 				throw new UnsupportedOperationException("Not yet supported");
@@ -130,5 +144,4 @@ public class PartitionNode extends SingleInputNode {
 			return lProps;
 		}
 	}
-
 }

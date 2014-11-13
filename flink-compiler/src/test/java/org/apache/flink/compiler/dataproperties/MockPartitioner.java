@@ -16,11 +16,16 @@
  * limitations under the License.
  */
 
+package org.apache.flink.compiler.dataproperties;
 
-package org.apache.flink.runtime.operators.shipping;
+import org.apache.flink.api.common.functions.Partitioner;
 
-import org.apache.flink.types.Record;
+class MockPartitioner implements Partitioner<Long> {
+	
+	private static final long serialVersionUID = 1L;
 
-public interface PartitionFunction {
-	public void selectChannels(Record data, int numChannels, int[] channels);
+	@Override
+	public int partition(Long key, int numPartitions) {
+		return 0;
+	}
 }

@@ -20,6 +20,7 @@
 package org.apache.flink.api.java.record.io;
 
 import com.google.common.base.Preconditions;
+
 import org.apache.flink.api.common.io.GenericCsvInputFormat;
 import org.apache.flink.api.common.io.ParseException;
 import org.apache.flink.api.common.operators.CompilerHints;
@@ -54,6 +55,7 @@ import java.io.IOException;
  * @see Configuration
  * @see Record
  */
+@SuppressWarnings("deprecation")
 public class CsvInputFormat extends GenericCsvInputFormat<Record> {
 	
 	private static final long serialVersionUID = 1L;

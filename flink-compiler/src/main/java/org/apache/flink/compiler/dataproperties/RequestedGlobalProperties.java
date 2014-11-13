@@ -16,10 +16,10 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.compiler.dataproperties;
 
 import org.apache.flink.api.common.distributions.DataDistribution;
+import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.compiler.CompilerException;
@@ -43,7 +43,9 @@ public final class RequestedGlobalProperties implements Cloneable {
 	
 	private Ordering ordering;					// order of the partitioned fields, if it is an ordered (range) range partitioning
 	
-	private DataDistribution dataDistribution; // optional data distribution, for a range partitioning
+	private DataDistribution dataDistribution;	// optional data distribution, for a range partitioning
+	
+	private Partitioner<?> customPartitioner;	// optional, partitioner for custom partitioning
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -112,6 +114,17 @@ public final class RequestedGlobalProperties implements Cloneable {
 		this.ordering = null;
 	}
 	
+	public void setCustomPartitioned(FieldSet partitionedFields, Partitioner<?> partitioner) {
+		if (partitionedFields == null || partitioner == null) {
+			throw new NullPointerException();
+		}
+		
+		this.partitioning = PartitioningProperty.CUSTOM_PARTITIONING;
+		this.partitioningFields = partitionedFields;
+		this.ordering = null;
+		this.customPartitioner = partitioner;
+	}
+	
 	/**
 	 * Gets the partitioning property.
 	 * 
@@ -147,6 +160,15 @@ public final class RequestedGlobalProperties implements Cloneable {
 	public DataDistribution getDataDistribution() {
 		return this.dataDistribution;
 	}
+	
+	/**
+	 * Gets the custom partitioner associated with these properties.
+	 * 
+	 * @return The custom partitioner associated with these properties.
+	 */
+	public Partitioner<?> getCustomPartitioner() {
+		return customPartitioner;
+	}
 
 	/**
 	 * Checks, if the properties in this object are trivial, i.e. only standard values.
@@ -162,6 +184,8 @@ public final class RequestedGlobalProperties implements Cloneable {
 		this.partitioning = PartitioningProperty.RANDOM;
 		this.ordering = null;
 		this.partitioningFields = null;
+		this.dataDistribution = null;
+		this.customPartitioner = null;
 	}
 
 	/**
@@ -188,7 +212,12 @@ public final class RequestedGlobalProperties implements Cloneable {
 			}
 		}
 		
-		if (this.partitioning == PartitioningProperty.FULL_REPLICATION) {
+		// make sure that certain properties are not pushed down
+		final PartitioningProperty partitioning = this.partitioning;
+		if (partitioning == PartitioningProperty.FULL_REPLICATION ||
+				partitioning == PartitioningProperty.FORCED_REBALANCED ||
+				partitioning == PartitioningProperty.CUSTOM_PARTITIONING)
+		{
 			return null;
 		}
 		
@@ -205,22 +234,34 @@ public final class RequestedGlobalProperties implements Cloneable {
 	public boolean isMetBy(GlobalProperties props) {
 		if (this.partitioning == PartitioningProperty.FULL_REPLICATION) {
 			return props.isFullyReplicated();
-		} else if (props.isFullyReplicated()) {
+		}
+		else if (props.isFullyReplicated()) {
 			return false;
-		} else if (this.partitioning == PartitioningProperty.RANDOM) {
+		}
+		else if (this.partitioning == PartitioningProperty.RANDOM) {
 			return true;
-		} else if (this.partitioning == PartitioningProperty.ANY_PARTITIONING) {
+		}
+		else if (this.partitioning == PartitioningProperty.ANY_PARTITIONING) {
 			return props.isPartitionedOnFields(this.partitioningFields);
-		} else if (this.partitioning == PartitioningProperty.HASH_PARTITIONED) {
+		}
+		else if (this.partitioning == PartitioningProperty.HASH_PARTITIONED) {
 			return props.getPartitioning() == PartitioningProperty.HASH_PARTITIONED &&
 					props.isPartitionedOnFields(this.partitioningFields);
-		} else if (this.partitioning == PartitioningProperty.RANGE_PARTITIONED) {
+		}
+		else if (this.partitioning == PartitioningProperty.RANGE_PARTITIONED) {
 			return props.getPartitioning() == PartitioningProperty.RANGE_PARTITIONED &&
 					props.matchesOrderedPartitioning(this.ordering);
-		} else if (this.partitioning == PartitioningProperty.FORCED_REBALANCED) {
+		}
+		else if (this.partitioning == PartitioningProperty.FORCED_REBALANCED) {
 			return props.getPartitioning() == PartitioningProperty.FORCED_REBALANCED;
-		} else {
-			throw new CompilerException("Bug in properties matching logic.");
+		}
+		else if (this.partitioning == PartitioningProperty.CUSTOM_PARTITIONING) {
+			return props.getPartitioning() == PartitioningProperty.CUSTOM_PARTITIONING &&
+					props.isPartitionedOnFields(this.partitioningFields) &&
+					props.getCustomPartitioner().equals(this.customPartitioner);
+		}
+		else {
+			throw new CompilerException("Properties matching logic leaves open cases.");
 		}
 	}
 	
@@ -250,22 +291,29 @@ public final class RequestedGlobalProperties implements Cloneable {
 			case FULL_REPLICATION:
 				channel.setShipStrategy(ShipStrategyType.BROADCAST);
 				break;
+			
 			case ANY_PARTITIONING:
 			case HASH_PARTITIONED:
 				channel.setShipStrategy(ShipStrategyType.PARTITION_HASH, Utils.createOrderedFromSet(this.partitioningFields));
 				break;
+			
 			case RANGE_PARTITIONED:
-
-				channel.setShipStrategy(ShipStrategyType.PARTITION_RANGE, this.ordering.getInvolvedIndexes(), this.ordering.getFieldSortDirections());				
+				channel.setShipStrategy(ShipStrategyType.PARTITION_RANGE, this.ordering.getInvolvedIndexes(), this.ordering.getFieldSortDirections());
 				if(this.dataDistribution != null) {
 					channel.setDataDistribution(this.dataDistribution);
 				}
 				break;
+			
 			case FORCED_REBALANCED:
 				channel.setShipStrategy(ShipStrategyType.PARTITION_FORCED_REBALANCE);
 				break;
+				
+			case CUSTOM_PARTITIONING:
+				channel.setShipStrategy(ShipStrategyType.PARTITION_CUSTOM, Utils.createOrderedFromSet(this.partitioningFields), this.customPartitioner);
+				break;
+				
 			default:
-				throw new CompilerException();
+				throw new CompilerException("Invalid partitioning to create through a data exchange: " + this.partitioning.name());
 		}
 	}
 

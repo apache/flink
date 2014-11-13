@@ -21,6 +21,7 @@ package org.apache.flink.compiler.operators;
 import java.util.Collections;
 import java.util.List;
 
+import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.compiler.costs.Costs;
 import org.apache.flink.compiler.dag.ReduceNode;
@@ -38,8 +39,15 @@ import org.apache.flink.runtime.operators.util.LocalStrategy;
 
 public final class ReduceProperties extends OperatorDescriptorSingle {
 	
+	private final Partitioner<?> customPartitioner;
+	
 	public ReduceProperties(FieldSet keys) {
+		this(keys, null);
+	}
+	
+	public ReduceProperties(FieldSet keys, Partitioner<?> customPartitioner) {
 		super(keys);
+		this.customPartitioner = customPartitioner;
 	}
 	
 	@Override
@@ -77,7 +85,11 @@ public final class ReduceProperties extends OperatorDescriptorSingle {
 	@Override
 	protected List<RequestedGlobalProperties> createPossibleGlobalProperties() {
 		RequestedGlobalProperties props = new RequestedGlobalProperties();
-		props.setAnyPartitioning(this.keys);
+		if (customPartitioner == null) {
+			props.setAnyPartitioning(this.keys);
+		} else {
+			props.setCustomPartitioned(this.keys, this.customPartitioner);
+		}
 		return Collections.singletonList(props);
 	}
 

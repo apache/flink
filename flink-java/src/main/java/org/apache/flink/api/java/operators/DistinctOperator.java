@@ -22,9 +22,11 @@ import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.operators.Operator;
+import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
 import org.apache.flink.api.common.operators.base.MapOperatorBase;
+import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
@@ -71,7 +73,7 @@ public class DistinctOperator<T> extends SingleInputOperator<T, T, DistinctOpera
 		}
 		
 		
-		// FieldPositionKeys can only be applied on Tuples
+		// FieldPositionKeys can only be applied on Tuples and POJOs
 		if (keys instanceof Keys.ExpressionKeys && !(input.getType() instanceof CompositeType)) {
 			throw new InvalidProgramException("Distinction on field positions is only possible on composite type DataSets.");
 		}
@@ -84,7 +86,7 @@ public class DistinctOperator<T> extends SingleInputOperator<T, T, DistinctOpera
 		
 		final RichGroupReduceFunction<T, T> function = new DistinctFunction<T>();
 
-		String name = "Distinct at "+distinctLocationName;
+		String name = "Distinct at " + distinctLocationName;
 		
 		if (keys instanceof Keys.ExpressionKeys) {
 
@@ -95,7 +97,19 @@ public class DistinctOperator<T> extends SingleInputOperator<T, T, DistinctOpera
 
 			po.setCombinable(true);
 			po.setInput(input);
-			po.setDegreeOfParallelism(this.getParallelism());
+			po.setDegreeOfParallelism(getParallelism());
+			
+			// make sure that distinct preserves the partitioning for the fields on which they operate
+			if (getType().isTupleType()) {
+				SingleInputSemanticProperties sProps = new SingleInputSemanticProperties();
+				
+				for (int field : keys.computeLogicalKeyPositions()) {
+					sProps.setForwardedField(field, new FieldSet(field));
+				}
+				
+				po.setSemanticProperties(sProps);
+			}
+			
 			
 			return po;
 		}

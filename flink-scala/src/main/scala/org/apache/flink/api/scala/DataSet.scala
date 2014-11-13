@@ -1009,9 +1009,75 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
         getCallLocationName())
     wrap(op)
   }
+  
+  /**
+   * Partitions a tuple DataSet on the specified key fields using a custom partitioner.
+   * This method takes the key position to partition on, and a partitioner that accepts the key
+   * type.
+   * <p> 
+   * Note: This method works only on single field keys.
+   */
+  def partitionCustom[K: TypeInformation](partitioner: Partitioner[K], field: Int) : DataSet[T] = {
+    val op = new PartitionOperator[T](
+      javaSet,
+      new Keys.ExpressionKeys[T](Array[Int](field), javaSet.getType, false),
+      partitioner,
+      implicitly[TypeInformation[K]],
+      getCallLocationName())
+      
+    wrap(op)
+  }
 
   /**
-   * Enforces a rebalancing of the DataSet, i.e., the DataSet is evenly distributed over all
+   * Partitions a POJO DataSet on the specified key fields using a custom partitioner.
+   * This method takes the key expression to partition on, and a partitioner that accepts the key
+   * type.
+   * <p>
+   * Note: This method works only on single field keys.
+   */
+  def partitionCustom[K: TypeInformation](partitioner: Partitioner[K], field: String)
+    : DataSet[T] = {
+    val op = new PartitionOperator[T](
+      javaSet,
+      new Keys.ExpressionKeys[T](Array[String](field), javaSet.getType),
+      partitioner,
+      implicitly[TypeInformation[K]],
+      getCallLocationName())
+      
+    wrap(op)
+  }
+
+  /**
+   * Partitions a DataSet on the key returned by the selector, using a custom partitioner.
+   * This method takes the key selector t get the key to partition on, and a partitioner that
+   * accepts the key type.
+   * <p>
+   * Note: This method works only on single field keys, i.e. the selector cannot return tuples
+   * of fields.
+   */
+  def partitionCustom[K: TypeInformation](partitioner: Partitioner[K], fun: T => K)
+    : DataSet[T] = {
+    val keyExtractor = new KeySelector[T, K] {
+      def getKey(in: T) = fun(in)
+    }
+    
+    val keyType = implicitly[TypeInformation[K]];
+
+    val op = new PartitionOperator[T](
+      javaSet,
+      new Keys.SelectorFunctionKeys[T, K](
+        keyExtractor,
+        javaSet.getType,
+        keyType),
+      partitioner,
+      keyType,
+      getCallLocationName())
+      
+    wrap(op)
+  }
+
+  /**
+   * Enforces a re-balancing of the DataSet, i.e., the DataSet is evenly distributed over all
    * parallel instances of the
    * following task. This can help to improve performance in case of heavy data skew and compute
    * intensive operations.

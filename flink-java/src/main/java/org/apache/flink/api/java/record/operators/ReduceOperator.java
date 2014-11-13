@@ -53,6 +53,7 @@ import org.apache.flink.util.InstantiationUtil;
  * 
  * @see ReduceFunction
  */
+@SuppressWarnings("deprecation")
 public class ReduceOperator extends GroupReduceOperatorBase<Record, Record, GroupReduceFunction<Record, Record>> implements RecordOperator {
 	
 	private static final String DEFAULT_NAME = "<Unnamed Reducer>";		// the default name for contracts

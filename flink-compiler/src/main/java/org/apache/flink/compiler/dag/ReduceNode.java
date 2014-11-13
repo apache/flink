@@ -33,6 +33,8 @@ import org.apache.flink.compiler.operators.ReduceProperties;
  */
 public class ReduceNode extends SingleInputNode {
 	
+	private final List<OperatorDescriptorSingle> possibleProperties;
+	
 	private ReduceNode preReduceUtilityNode;
 	
 
@@ -43,10 +45,18 @@ public class ReduceNode extends SingleInputNode {
 			// case of a key-less reducer. force a parallelism of 1
 			setDegreeOfParallelism(1);
 		}
+		
+		OperatorDescriptorSingle props = this.keys == null ?
+			new AllReduceProperties() :
+			new ReduceProperties(this.keys, operator.getCustomPartitioner());
+		
+		this.possibleProperties = Collections.singletonList(props);
 	}
 	
 	public ReduceNode(ReduceNode reducerToCopyForCombiner) {
 		super(reducerToCopyForCombiner);
+		
+		this.possibleProperties = Collections.emptyList();
 	}
 
 	// ------------------------------------------------------------------------
@@ -63,11 +73,7 @@ public class ReduceNode extends SingleInputNode {
 	
 	@Override
 	protected List<OperatorDescriptorSingle> getPossibleProperties() {
-		OperatorDescriptorSingle props = this.keys == null ?
-			new AllReduceProperties() :
-			new ReduceProperties(this.keys);
-		
-			return Collections.singletonList(props);
+		return this.possibleProperties;
 	}
 	
 	// --------------------------------------------------------------------------------------------
