@@ -205,6 +205,10 @@ public class JobGraphBuilder {
 	 */
 	public void addIterationTail(String vertexName, String iterationTail, String iterationID,
 			int parallelism, long waitTime) {
+		
+		if (bufferTimeout.get(iterationTail) == 0) {
+			throw new RuntimeException("Buffer timeout 0 at iteration tail is not supported.");
+		}
 
 		addVertex(vertexName, StreamIterationTail.class, null, null, null, parallelism);
 

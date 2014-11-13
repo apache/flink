@@ -79,7 +79,7 @@ public class IterateExample {
 
 		// apply the step function to add new random value to the tuple and to
 		// increment the counter and split the output with the output selector
-		SplitDataStream<Tuple2<Double, Integer>> step = it.map(new Step()).shuffle()
+		SplitDataStream<Tuple2<Double, Integer>> step = it.map(new Step()).shuffle().setBufferTimeout(1)
 				.split(new MySelector());
 
 		// close the iteration by selecting the tuples that were directed to the
@@ -121,7 +121,6 @@ public class IterateExample {
 
 		@Override
 		public Tuple2<Double, Integer> map(Tuple2<Double, Integer> value) throws Exception {
-
 			return new Tuple2<Double, Integer>(value.f0 + rnd.nextDouble(), value.f1 + 1);
 		}
 
@@ -135,7 +134,7 @@ public class IterateExample {
 
 		@Override
 		public void select(Tuple2<Double, Integer> value, Collection<String> outputs) {
-			if (value.f0 > 200) {
+			if (value.f0 > 100) {
 				outputs.add("output");
 			} else {
 				outputs.add("iterate");

@@ -91,7 +91,7 @@ public abstract class StreamExecutionEnvironment {
 	 * @param degreeOfParallelism
 	 *            The degree of parallelism
 	 */
-	protected StreamExecutionEnvironment setDegreeOfParallelism(int degreeOfParallelism) {
+	public StreamExecutionEnvironment setDegreeOfParallelism(int degreeOfParallelism) {
 		if (degreeOfParallelism < 1) {
 			throw new IllegalArgumentException("Degree of parallelism must be at least one.");
 		}
