@@ -30,7 +30,12 @@ if [ "$EXECUTIONMODE" = "local" ]; then
     FLINK_JM_HEAP=`expr $FLINK_JM_HEAP + $FLINK_TM_HEAP`
 fi
 
-JVM_ARGS="$JVM_ARGS -XX:+UseConcMarkSweepGC -XX:+CMSClassUnloadingEnabled -XX:MaxPermSize=256m"
+JAVA_VERSION=$($JAVA_RUN -version 2>&1 | sed 's/java version "\(.*\)\.\(.*\)\..*"/\1\2/; 1q')
+JVM_ARGS="$JVM_ARGS -XX:+UseConcMarkSweepGC -XX:+CMSClassUnloadingEnabled "
+
+if [ "$JAVA_VERSION" -lt 18 ]; then
+    JVM_ARGS="$JVM_ARGS -XX:MaxPermSize=256m"
+fi
 
 if [ "$FLINK_JM_HEAP" -gt 0 ]; then
     JVM_ARGS="$JVM_ARGS -Xms"$FLINK_JM_HEAP"m -Xmx"$FLINK_JM_HEAP"m"

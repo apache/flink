@@ -51,7 +51,12 @@ out=$FLINK_LOG_DIR/flink-$FLINK_IDENT_STRING-taskmanager-$HOSTNAME.out
 pid=$FLINK_PID_DIR/flink-$FLINK_IDENT_STRING-taskmanager.pid
 log_setting=(-Dlog.file="$log" -Dlog4j.configuration=file:"$FLINK_CONF_DIR"/log4j.properties -Dlogback.configurationFile=file:"$FLINK_CONF_DIR"/logback.xml)
 
-JVM_ARGS="$JVM_ARGS -XX:+UseConcMarkSweepGC -XX:+CMSClassUnloadingEnabled -XX:MaxPermSize=256m -XX:NewRatio=6"
+JAVA_VERSION=$($JAVA_RUN -version 2>&1 | sed 's/java version "\(.*\)\.\(.*\)\..*"/\1\2/; 1q')
+JVM_ARGS="$JVM_ARGS -XX:+UseConcMarkSweepGC -XX:+CMSClassUnloadingEnabled -XX:NewRatio=6"
+
+if [ "$JAVA_VERSION" -lt 18 ]; then
+    JVM_ARGS="$JVM_ARGS -XX:MaxPermSize=256m"
+fi
 
 if [ "$FLINK_TM_HEAP" -gt 0 ]; then
     JVM_ARGS="$JVM_ARGS -Xms"$FLINK_TM_HEAP"m -Xmx"$FLINK_TM_HEAP"m"
