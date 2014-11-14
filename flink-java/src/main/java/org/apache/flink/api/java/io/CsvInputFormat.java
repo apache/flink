@@ -20,6 +20,9 @@ package org.apache.flink.api.java.io;
 
 
 import java.io.IOException;
+import java.nio.charset.Charset;
+import java.nio.charset.IllegalCharsetNameException;
+import java.nio.charset.UnsupportedCharsetException;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -29,13 +32,21 @@ import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.parser.FieldParser;
 import org.apache.flink.util.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
 
 
 public class CsvInputFormat<OUT extends Tuple> extends GenericCsvInputFormat<OUT> {
 
 	private static final long serialVersionUID = 1L;
+	
+	/**
+	 * The log.
+	 */
+	private static final Logger LOG = LoggerFactory.getLogger(CsvInputFormat.class);
 	
 	public static final String DEFAULT_LINE_DELIMITER = "\n";
 	
@@ -44,9 +55,15 @@ public class CsvInputFormat<OUT extends Tuple> extends GenericCsvInputFormat<OUT
 
 	private transient Object[] parsedValues;
 	
+	private byte[] commentPrefix = null;
+	
 	// To speed up readRecord processing. Used to find windows line endings.
 	// It is set when open so that readRecord does not have to evaluate it
 	private boolean lineDelimiterIsLinebreak = false;
+	
+	private transient int commentCount;
+
+	private transient int invalidLineCount;
 	
 	
 	public CsvInputFormat(Path filePath) {
@@ -65,6 +82,48 @@ public class CsvInputFormat<OUT extends Tuple> extends GenericCsvInputFormat<OUT
 
 		setFieldTypes(types);
 	}
+	
+	
+	public byte[] getCommentPrefix() {
+		return commentPrefix;
+	}
+	
+	public void setCommentPrefix(byte[] commentPrefix) {
+		this.commentPrefix = commentPrefix;
+	}
+	
+	public void setCommentPrefix(char commentPrefix) {
+		setCommentPrefix(String.valueOf(commentPrefix));
+	}
+	
+	public void setCommentPrefix(String commentPrefix) {
+		setCommentPrefix(commentPrefix, Charsets.UTF_8);
+	}
+	
+	public void setCommentPrefix(String commentPrefix, String charsetName) throws IllegalCharsetNameException, UnsupportedCharsetException {
+		if (charsetName == null) {
+			throw new IllegalArgumentException("Charset name must not be null");
+		}
+		
+		if (commentPrefix != null) {
+			Charset charset = Charset.forName(charsetName);
+			setCommentPrefix(commentPrefix, charset);
+		} else {
+			this.commentPrefix = null;
+		}
+	}
+	
+	public void setCommentPrefix(String commentPrefix, Charset charset) {
+		if (charset == null) {
+			throw new IllegalArgumentException("Charset must not be null");
+		}
+		if (commentPrefix != null) {
+			this.commentPrefix = commentPrefix.getBytes(charset);
+		} else {
+			this.commentPrefix = null;
+		}
+	}
+	
 	
 	public void setFieldTypes(Class<?> ... fieldTypes) {
 		if (fieldTypes == null || fieldTypes.length == 0) {
@@ -117,10 +176,39 @@ public class CsvInputFormat<OUT extends Tuple> extends GenericCsvInputFormat<OUT
 		if (this.getDelimiter().length == 1 && this.getDelimiter()[0] == '\n' ) {
 			this.lineDelimiterIsLinebreak = true;
 		}
+		
+		this.commentCount = 0;
+		this.invalidLineCount = 0;
+	}
+	
+	@Override
+	public void close() throws IOException {
+		if (this.invalidLineCount > 0) {
+			if (LOG.isWarnEnabled()) {
+					LOG.warn("In file \""+ this.filePath + "\" (split start: " + this.splitStart + ") " + this.invalidLineCount +" invalid line(s) were skipped.");
+			}
+		}
+		
+		if (this.commentCount > 0) {
+			if (LOG.isInfoEnabled()) {
+				LOG.info("In file \""+ this.filePath + "\" (split start: " + this.splitStart + ") " + this.commentCount +" comment line(s) were skipped.");
+			}
+		}
+		super.close();
+	}
+	
+	@Override
+	public OUT nextRecord(OUT record) throws IOException {
+		OUT returnRecord = null;
+		do {
+			returnRecord = super.nextRecord(record);
+		} while (returnRecord == null && !reachedEnd());
+		
+		return returnRecord;
 	}
 
 	@Override
-	public OUT readRecord(OUT reuse, byte[] bytes, int offset, int numBytes) {
+	public OUT readRecord(OUT reuse, byte[] bytes, int offset, int numBytes) throws IOException {
 		/*
 		 * Fix to support windows line endings in CSVInputFiles with standard delimiter setup = \n
 		 */
@@ -130,6 +218,21 @@ public class CsvInputFormat<OUT extends Tuple> extends GenericCsvInputFormat<OUT
 			numBytes--;
 		}
 		
+		if (commentPrefix != null && commentPrefix.length <= numBytes) {
+			//check record for comments
+			boolean isComment = true;
+			for (int i = 0; i < commentPrefix.length; i++) {
+				if (commentPrefix[i] != bytes[offset + i]) {
+					isComment = false;
+					break;
+				}
+			}
+			if (isComment) {
+				this.commentCount++;
+				return null;
+			}
+		}
+		
 		if (parseRecord(parsedValues, bytes, offset, numBytes)) {
 			// valid parse, map values into pact record
 			for (int i = 0; i < parsedValues.length; i++) {
@@ -137,6 +240,7 @@ public class CsvInputFormat<OUT extends Tuple> extends GenericCsvInputFormat<OUT
 			}
 			return reuse;
 		} else {
+			this.invalidLineCount++;
 			return null;
 		}
 	}

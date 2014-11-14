@@ -50,8 +50,12 @@ public class CsvReader {
 	protected String lineDelimiter = CsvInputFormat.DEFAULT_LINE_DELIMITER;
 	
 	protected char fieldDelimiter = CsvInputFormat.DEFAULT_FIELD_DELIMITER;
+	
+	protected String commentPrefix = null; //default: no comments
 
 	protected boolean skipFirstLineAsHeader = false;
+	
+	protected boolean ignoreInvalidLines = false;
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -98,6 +102,23 @@ public class CsvReader {
 	 */
 	public CsvReader fieldDelimiter(char delimiter) {
 		this.fieldDelimiter = delimiter;
+		return this;
+	}
+	
+	/**
+	 * Configures the string that starts comments.
+	 * By default comments will be treated as invalid lines.
+	 * This function only recognizes comments which start at the beginning of the line!
+	 * 
+	 * @param commentPrefix The string that starts the comments.
+	 * @return The CSV reader instance itself, to allow for fluent function chaining.
+	 */
+	public CsvReader ignoreComments(String commentPrefix) {
+		if (commentPrefix == null || commentPrefix.length() == 0) {
+			throw new IllegalArgumentException("The comment prefix must not be null or an empty string");
+		}
+		
+		this.commentPrefix = commentPrefix;
 		return this;
 	}
 	
@@ -212,6 +233,20 @@ public class CsvReader {
 		skipFirstLineAsHeader = true;
 		return this;
 	}
+	
+	/**
+	 * Sets the CSV reader to ignore any invalid lines. 
+	 * This is useful for files that contain an empty line at the end, multiple header lines or comments. This would throw an exception otherwise.
+	 * 
+	 * @return The CSV reader instance itself, to allow for fluent function chaining.
+	 */
+	public CsvReader ignoreInvalidLines(){
+		ignoreInvalidLines = true;
+		return this;
+	}
+	
+	
+	
 	/**
 	 * Configures the reader to read the CSV data and parse it to the given type. The type must be a subclass of
 	 * {@link Tuple}. The type information for the fields is obtained from the type class. The type
@@ -246,7 +281,9 @@ public class CsvReader {
 	private void configureInputFormat(CsvInputFormat<?> format, Class<?>... types) {
 		format.setDelimiter(this.lineDelimiter);
 		format.setFieldDelimiter(this.fieldDelimiter);
+		format.setCommentPrefix(this.commentPrefix);
 		format.setSkipFirstLineAsHeader(skipFirstLineAsHeader);
+		format.setLenient(ignoreInvalidLines);
 		if (this.includedMask == null) {
 			format.setFieldTypes(types);
 		} else {

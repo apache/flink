@@ -155,6 +155,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * @param lineDelimiter The string that separates lines, defaults to newline.
    * @param fieldDelimiter The char that separates individual fields, defaults to ','.
    * @param ignoreFirstLine Whether the first line in the file should be ignored.
+   * @param ignoreComments Lines that start with the given String are ignored, disabled by default.
    * @param lenient Whether the parser should silently ignore malformed lines.
    * @param includedFields The fields in the file that should be read. Per default all fields
    *                       are read.
@@ -164,6 +165,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
       lineDelimiter: String = "\n",
       fieldDelimiter: Char = ',',
       ignoreFirstLine: Boolean = false,
+      ignoreComments: String = null,
       lenient: Boolean = false,
       includedFields: Array[Int] = null): DataSet[T] = {
 
@@ -174,6 +176,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
     inputFormat.setFieldDelimiter(fieldDelimiter)
     inputFormat.setSkipFirstLineAsHeader(ignoreFirstLine)
     inputFormat.setLenient(lenient)
+    inputFormat.setCommentPrefix(ignoreComments)
 
     val classes: Array[Class[_]] = new Array[Class[_]](typeInfo.getArity)
     for (i <- 0 until typeInfo.getArity) {

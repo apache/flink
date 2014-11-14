@@ -18,6 +18,9 @@
 
 package org.apache.flink.api.java.io;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+
 import java.util.Arrays;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -43,6 +46,22 @@ public class CSVReaderTest {
 		CsvReader reader = getCsvReader();
 		reader.ignoreFirstLine();
 		Assert.assertTrue(reader.skipFirstLineAsHeader);
+	}
+	
+	@Test
+	public void testIgnoreInvalidLinesConfigure() {
+		CsvReader reader = getCsvReader();
+		Assert.assertFalse(reader.ignoreInvalidLines);
+		reader.ignoreInvalidLines();
+		Assert.assertTrue(reader.ignoreInvalidLines);
+	}
+	
+	@Test
+	public void testIgnoreComments() {
+		CsvReader reader = getCsvReader();
+		assertNull(reader.commentPrefix);
+		reader.ignoreComments("#");
+		assertEquals("#", reader.commentPrefix);
 	}
 	
 	@Test

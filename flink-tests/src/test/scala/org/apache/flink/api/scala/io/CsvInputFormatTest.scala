@@ -18,6 +18,7 @@
 package org.apache.flink.api.scala.io
 
 import org.apache.flink.api.scala.operators.ScalaCsvInputFormat
+import org.junit.Assert._
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -28,8 +29,7 @@ import java.io.FileOutputStream
 import java.io.FileWriter
 import java.io.OutputStreamWriter
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.core.fs.FileInputSplit
-import org.apache.flink.core.fs.Path
+import org.apache.flink.core.fs.{FileInputSplit, Path}
 import org.junit.Test
 import org.apache.flink.api.scala._
 
@@ -38,6 +38,88 @@ class CsvInputFormatTest {
   private final val PATH: Path = new Path("an/ignored/file/")
   private final val FIRST_PART: String = "That is the first part"
   private final val SECOND_PART: String = "That is the second part"
+
+
+
+  @Test
+  def ignoreSingleCharPrefixComments():Unit = {
+    try {
+      val fileContent = "#description of the data\n" +
+                        "#successive commented line\n" +
+                        "this is|1|2.0|\n" +
+                        "a test|3|4.0|\n" +
+                        "#next|5|6.0|\n"
+      val split = createTempFile(fileContent)
+      val format = new ScalaCsvInputFormat[(String, Integer, Double)](
+        PATH, createTypeInformation[(String, Integer, Double)])
+      format.setDelimiter("\n")
+      format.setFieldDelimiter('|')
+      format.setCommentPrefix("#")
+      val parameters = new Configuration
+      format.configure(parameters)
+      format.open(split)
+      var result: (String, Integer, Double) = null
+      result = format.nextRecord(result)
+      assertNotNull(result)
+      assertEquals("this is", result._1)
+      assertEquals(new Integer(1), result._2)
+      assertEquals(2.0, result._3, 0.0001)
+      result = format.nextRecord(result)
+      assertNotNull(result)
+      assertEquals("a test", result._1)
+      assertEquals(new Integer(3), result._2)
+      assertEquals(4.0, result._3, 0.0001)
+      result = format.nextRecord(result)
+      assertNull(result)
+      assertTrue(format.reachedEnd)
+    }
+    catch {
+      case ex: Exception => {
+        ex.printStackTrace
+        fail("Test failed due to a " + ex.getClass.getName + ": " + ex.getMessage)
+      }
+    }
+  }
+
+  @Test
+  def ignoreMultiCharPrefixComments():Unit = {
+    try {
+      val fileContent = "//description of the data\n" +
+                        "//successive commented line\n" +
+                        "this is|1|2.0|\n" +
+                        "a test|3|4.0|\n" +
+                        "//next|5|6.0|\n"
+      val split = createTempFile(fileContent)
+      val format = new ScalaCsvInputFormat[(String, Integer, Double)](
+        PATH, createTypeInformation[(String, Integer, Double)])
+      format.setDelimiter("\n")
+      format.setFieldDelimiter('|')
+      format.setCommentPrefix("//")
+      val parameters = new Configuration
+      format.configure(parameters)
+      format.open(split)
+      var result: (String, Integer, Double) = null
+      result = format.nextRecord(result)
+      assertNotNull(result)
+      assertEquals("this is", result._1)
+      assertEquals(new Integer(1), result._2)
+      assertEquals(2.0, result._3, 0.0001)
+      result = format.nextRecord(result)
+      assertNotNull(result)
+      assertEquals("a test", result._1)
+      assertEquals(new Integer(3), result._2)
+      assertEquals(4.0, result._3, 0.0001)
+      result = format.nextRecord(result)
+      assertNull(result)
+      assertTrue(format.reachedEnd)
+    }
+    catch {
+      case ex: Exception => {
+        ex.printStackTrace
+        fail("Test failed due to a " + ex.getClass.getName + ": " + ex.getMessage)
+      }
+    }
+  }
 
   @Test
   def readStringFields():Unit = {
