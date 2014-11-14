@@ -12,7 +12,6 @@
         <relativePath>..</relativePath>
     </parent>
 
-
     <dependencies>
         <dependency>
             <groupId>org.apache.mesos</groupId>
@@ -35,6 +34,4 @@
             <version>2.5.0</version>
         </dependency>
     </dependencies>
-
-
 </project>
