@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.functions.util;
 
+import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.FutureTask;
@@ -98,7 +99,7 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 	}
 
 	@Override
-	public <V, A> void addAccumulator(String name, Accumulator<V, A> accumulator) {
+	public <V, A extends Serializable> void addAccumulator(String name, Accumulator<V, A> accumulator) {
 		if (accumulators.containsKey(name)) {
 			throw new UnsupportedOperationException("The counter '" + name
 					+ "' already exists and cannot be added.");
@@ -108,7 +109,7 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public <V, A> Accumulator<V, A> getAccumulator(String name) {
+	public <V, A extends Serializable> Accumulator<V, A> getAccumulator(String name) {
 		return (Accumulator<V, A>) accumulators.get(name);
 	}
 
@@ -130,7 +131,7 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 	// --------------------------------------------------------------------------------------------
 	
 	@SuppressWarnings("unchecked")
-	private <V, A> Accumulator<V, A> getAccumulator(String name,
+	private <V, A extends Serializable> Accumulator<V, A> getAccumulator(String name,
 			Class<? extends Accumulator<V, A>> accumulatorClass) {
 
 		Accumulator<?, ?> accumulator = accumulators.get(name);

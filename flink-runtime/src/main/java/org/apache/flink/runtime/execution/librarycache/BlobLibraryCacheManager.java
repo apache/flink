@@ -70,7 +70,8 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 	private final BlobService blobService;
 	
 	// --------------------------------------------------------------------------------------------
-	
+
+	public BlobLibraryCacheManager(BlobService blobService, long cleanupInterval){
 		this.blobService = blobService;
 
 		// Initializing the clean up task

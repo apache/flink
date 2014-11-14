@@ -76,6 +76,31 @@ object Tasks {
     }
   }
 
+  class FailingOnceReceiver extends Receiver {
+    import FailingOnceReceiver.failed
+
+    override def invoke(): Unit = {
+      if(!failed && getEnvironment.getIndexInSubtaskGroup == 0){
+        failed = true
+        throw new Exception("Test exception.")
+      }else{
+        super.invoke()
+      }
+    }
+  }
+
+  object FailingOnceReceiver{
+    var failed = false
+  }
+
+  class BlockingOnceReceiver extends Receiver {
+
+  }
+
+  object BlockingOnceReceiver{
+    var blocking = true
+  }
+
   class AgnosticReceiver extends AbstractInvokable {
     var reader: RecordReader[IntegerRecord] = _
 

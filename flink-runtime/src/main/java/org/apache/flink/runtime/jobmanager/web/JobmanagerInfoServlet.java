@@ -302,7 +302,8 @@ public class JobmanagerInfoServlet extends HttpServlet {
 								wrt.write(",");
 							}
 							wrt.write("{");
-							wrt.write("\"node\": \"" + (slot == null ? "(none)" : slot.getInstance().getInstanceConnectionInfo().hostname()) + "\",");
+							wrt.write("\"node\": \"" + (slot == null ? "(none)" : slot
+									.getInstance().getInstanceConnectionInfo().getFQDNHostname()) + "\",");
 							wrt.write("\"message\": \"" + (failureCause == null ? "" : StringUtils.escapeHtml(ExceptionUtils.stringifyException(failureCause))) + "\"");
 							wrt.write("}");
 						}

@@ -194,7 +194,7 @@ public class InstanceConnectionInfo implements IOReadableWritable, Comparable<In
 
 	@Override
 	public String toString() {
-		return hostname() + " ( dataPort=" + dataPort + ")";
+		return getFQDNHostname() + " ( dataPort=" + dataPort + ")";
 	}
 
 	@Override

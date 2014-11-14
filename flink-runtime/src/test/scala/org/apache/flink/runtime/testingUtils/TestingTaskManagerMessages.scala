@@ -21,12 +21,13 @@ package org.apache.flink.runtime.testingUtils
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
 import org.apache.flink.runtime.taskmanager.Task
 
-import scala.collection.convert.DecorateAsJava
-
-object TestingTaskManagerMessages extends DecorateAsJava{
+object TestingTaskManagerMessages{
   case class NotifyWhenTaskRemoved(executionID: ExecutionAttemptID)
   case object RequestRunningTasks
   case class ResponseRunningTasks(tasks: Map[ExecutionAttemptID, Task]){
+    import collection.JavaConverters._
     def asJava: java.util.Map[ExecutionAttemptID, Task] = tasks.asJava
   }
+  case object RequestBroadcastVariablesWithReferences
+  case class ResponseBroadcastVariablesWithReferences(number: Int)
 }

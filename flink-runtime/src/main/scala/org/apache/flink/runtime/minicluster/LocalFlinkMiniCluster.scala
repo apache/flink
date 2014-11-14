@@ -18,21 +18,16 @@
 
 package org.apache.flink.runtime.minicluster
 
-import java.io.File
-
 import akka.actor.{ActorRef, ActorSystem}
-import org.apache.flink.configuration.{GlobalConfiguration, ConfigConstants, Configuration}
+import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.client.JobClient
 import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.slf4j.LoggerFactory
-import scopt.OptionParser
 
 class LocalFlinkMiniCluster(userConfiguration: Configuration) extends
 FlinkMiniCluster(userConfiguration){
-
-  val actorSystem = AkkaUtils.createActorSystem()
 
   override def generateConfiguration(userConfiguration: Configuration): Configuration = {
     val forNumberString = System.getProperty("forkNumber")
@@ -86,33 +81,6 @@ FlinkMiniCluster(userConfiguration){
     }
 
     TaskManager.startActorWithConfiguration(FlinkMiniCluster.HOSTNAME, config, false)(system)
-  }
-
-  def getJobClient(): ActorRef ={
-    val config = new Configuration()
-
-    config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, FlinkMiniCluster.HOSTNAME)
-    config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, getJobManagerRPCPort)
-
-    JobClient.startActorWithConfiguration(config)(actorSystem)
-  }
-
-  def getJobClientActorSystem: ActorSystem = actorSystem
-
-  override def shutdown(): Unit = {
-    super.shutdown()
-
-    actorSystem.shutdown()
-  }
-
-  override def awaitTermination(): Unit = {
-    actorSystem.awaitTermination()
-
-    super.awaitTermination()
-  }
-
-  def getJobManagerRPCPort: Int = {
-    configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, -1)
   }
 }
 

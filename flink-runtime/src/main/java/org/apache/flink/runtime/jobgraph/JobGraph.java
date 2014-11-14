@@ -331,8 +331,6 @@ public class JobGraph implements Serializable {
 		}
 	}
 
-		this.numExecutionRetries = in.readInt();
-		out.writeInt(numExecutionRetries);
 	// --------------------------------------------------------------------------------------------
 	//  Handling of attached JAR files
 	// --------------------------------------------------------------------------------------------

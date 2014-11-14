@@ -265,7 +265,7 @@ public class TaskTest {
 			
 			RuntimeEnvironment env = new RuntimeEnvironment(task, tdd, getClass().getClassLoader(),
 					mock(MemoryManager.class), mock(IOManager.class), mock(InputSplitProvider.class),
-					mock(ActorRef.class));
+					mock(ActorRef.class), new BroadcastVariableManager());
 			
 			task.setEnvironment(env);
 			
@@ -303,7 +303,7 @@ public class TaskTest {
 			
 			RuntimeEnvironment env = new RuntimeEnvironment(task, tdd, getClass().getClassLoader(),
 					mock(MemoryManager.class), mock(IOManager.class), mock(InputSplitProvider.class),
-					mock(ActorRef.class));
+					mock(ActorRef.class), new BroadcastVariableManager());
 			
 			task.setEnvironment(env);
 			

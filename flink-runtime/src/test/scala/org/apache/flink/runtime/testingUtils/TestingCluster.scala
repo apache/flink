@@ -47,6 +47,6 @@ class TestingCluster(userConfiguration: Configuration) extends FlinkMiniCluster(
       TaskManager.parseConfiguration(FlinkMiniCluster.HOSTNAME, configuration, true)
 
     system.actorOf(Props(new TaskManager(connectionInfo, jobManagerURL, taskManagerConfig,
-      networkConnectionConfig)), TaskManager.TASK_MANAGER_NAME + index)
+      networkConnectionConfig) with TestingTaskManager), TaskManager.TASK_MANAGER_NAME + index)
   }
 }

@@ -24,6 +24,10 @@ import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
 import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import akka.actor.Props;
+import akka.testkit.JavaTestKit;
+import akka.testkit.TestActorRef;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.instance.Instance;
@@ -33,12 +37,26 @@ import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotAllocationFuture;
 
+import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import org.mockito.Matchers;
 
 public class ExecutionVertexSchedulingTest {
+	private static ActorSystem system;
 
+	@BeforeClass
+	public static void setup(){
+		system = ActorSystem.create("TestingActorSystem", TestingUtils.testConfig());
+	}
+
+	@AfterClass
+	public static void teardown(){
+		JavaTestKit.shutdownActorSystem(system);
+		system = null;
+	}
 	
 	@Test
 	public void testSlotReleasedWhenScheduledImmediately() {
@@ -108,10 +126,13 @@ public class ExecutionVertexSchedulingTest {
 	}
 	
 	@Test
-	public void testScheduleToDeploy() {
+	public void testScheduleToRunning() {
 		try {
-			// a slot than cannot be deployed to
-			final Instance instance = getInstance(ActorRef.noSender());
+			TestingUtils.setCallingThreadDispatcher(system);
+			ActorRef tm = TestActorRef.create(system, Props.create(ExecutionGraphTestUtils
+					.SimpleAcknowledgingTaskManager.class));
+
+			final Instance instance = getInstance(tm);
 			final AllocatedSlot slot = instance.allocateSlot(new JobID());
 			
 			final ExecutionJobVertex ejv = getExecutionVertex(new JobVertexID());
@@ -124,11 +145,13 @@ public class ExecutionVertexSchedulingTest {
 
 			// try to deploy to the slot
 			vertex.scheduleForExecution(scheduler, false);
-			assertEquals(ExecutionState.DEPLOYING, vertex.getExecutionState());
+			assertEquals(ExecutionState.RUNNING, vertex.getExecutionState());
 		}
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
+		}finally{
+			TestingUtils.setGlobalExecutionContext();
 		}
 	}
 }

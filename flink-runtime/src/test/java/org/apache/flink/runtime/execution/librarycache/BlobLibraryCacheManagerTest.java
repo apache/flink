@@ -59,7 +59,8 @@ public class BlobLibraryCacheManagerTest {
 			buf[0] += 1;
 			keys.add(bc.put(buf));
 
-			libraryCacheManager = new BlobLibraryCacheManager(server, GlobalConfiguration.getConfiguration());
+			long cleanupInterval = 1000l;
+			libraryCacheManager = new BlobLibraryCacheManager(server, cleanupInterval);
 			libraryCacheManager.registerJob(jid, keys);
 
 			List<File> files = new ArrayList<File>();

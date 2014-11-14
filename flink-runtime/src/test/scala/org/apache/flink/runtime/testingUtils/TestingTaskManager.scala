@@ -22,7 +22,7 @@ import akka.actor.ActorRef
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.{ActorLogMessages}
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
-import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.{NotifyWhenTaskRemoved, ResponseRunningTasks, RequestRunningTasks}
+import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages._
 import org.apache.flink.runtime.messages.TaskManagerMessages.UnregisterTask
 
 trait TestingTaskManager extends ActorLogMessages {
@@ -50,5 +50,8 @@ trait TestingTaskManager extends ActorLogMessages {
         case Some(actors) => for(actor <- actors) actor ! true
         case None =>
       }
+    case RequestBroadcastVariablesWithReferences => {
+      sender() ! ResponseBroadcastVariablesWithReferences(bcVarManager.getNumberOfVariablesWithReferences)
+    }
   }
 }

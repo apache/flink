@@ -32,13 +32,14 @@ import org.apache.flink.core.fs.Path
 import org.apache.flink.runtime.ActorLogMessages
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.blob.BlobCache
+import org.apache.flink.runtime.broadcast.BroadcastVariableManager
 import org.apache.flink.runtime.execution.{ExecutionState, RuntimeEnvironment}
 import org.apache.flink.runtime.execution.librarycache.{BlobLibraryCacheManager,
 FallbackLibraryCacheManager, LibraryCacheManager}
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
 import org.apache.flink.runtime.filecache.FileCache
 import org.apache.flink.runtime.instance.{InstanceConnectionInfo, HardwareDescription, InstanceID}
-import org.apache.flink.runtime.io.disk.iomanager.IOManager
+import org.apache.flink.runtime.io.disk.iomanager.{IOManagerAsync}
 import org.apache.flink.runtime.io.network.netty.NettyConnectionManager
 import org.apache.flink.runtime.io.network.{NetworkConnectionManager, LocalConnectionManager,
 ChannelManager}
@@ -81,8 +82,9 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
   val HEARTBEAT_INTERVAL = 1000 millisecond
 
   TaskManager.checkTempDirs(tmpDirPaths)
-  val ioManager = new IOManager(tmpDirPaths)
+  val ioManager = new IOManagerAsync(tmpDirPaths)
   val memoryManager = new DefaultMemoryManager(memorySize, numberOfSlots, pageSize)
+  val bcVarManager = new BroadcastVariableManager();
   val hardwareDescription = HardwareDescription.extractFromSystem(memoryManager.getMemorySize)
   val fileCache = new FileCache()
   val runningTasks = scala.collection.mutable.HashMap[ExecutionAttemptID, Task]()
@@ -232,7 +234,7 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
       var jarsRegistered = false
 
       try {
-        libraryCacheManager.register(jobID, tdd.getRequiredJarFiles());
+        libraryCacheManager.registerTask(jobID, executionID, tdd.getRequiredJarFiles());
         jarsRegistered = true
 
         val userCodeClassLoader = libraryCacheManager.getClassLoader(jobID)
@@ -252,7 +254,7 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
 
         val splitProvider = new TaskInputSplitProvider(currentJobManager, jobID, vertexID, timeout)
         val env = new RuntimeEnvironment(task, tdd, userCodeClassLoader, memoryManager,
-          ioManager, splitProvider,currentJobManager)
+          ioManager, splitProvider, currentJobManager, bcVarManager)
 
         task.setEnvironment(env)
 
@@ -297,7 +299,7 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
 
           if (jarsRegistered) {
             try {
-              libraryCacheManager.unregister(jobID)
+              libraryCacheManager.unregisterTask(jobID, executionID)
             } catch {
               case ioe: IOException =>
                 log.debug(s"Unregistering the execution ${executionID} caused an IOException.")
@@ -350,7 +352,7 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
           task.unregisterMemoryManager(memoryManager)
 
           try {
-            libraryCacheManager.unregister(task.getJobID)
+            libraryCacheManager.unregisterTask(task.getJobID, executionID)
           } catch {
             case ioe: IOException =>
               log.error(ioe, s"Unregistering the execution ${executionID} caused an IOException.")
@@ -543,17 +545,6 @@ object TaskManager {
 
     val numberOfSlots = if (slots > 0) slots else 1
 
-    val configuredMemory: Long = configuration.getInteger(ConfigConstants
-      .TASK_MANAGER_MEMORY_SIZE_KEY, -1)
-
-    val memorySize = if (configuredMemory > 0) {
-      configuredMemory << 20
-    } else {
-      val fraction = configuration.getFloat(ConfigConstants.TASK_MANAGER_MEMORY_FRACTION_KEY,
-        ConfigConstants.DEFAULT_MEMORY_MANAGER_MEMORY_FRACTION)
-      (EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag * fraction).toLong
-    }
-
     val pageSize = configuration.getInteger(ConfigConstants.TASK_MANAGER_NETWORK_BUFFER_SIZE_KEY,
       ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_BUFFER_SIZE)
 
@@ -583,6 +574,20 @@ object TaskManager {
 
       ClusterNetworkConfiguration(numBuffers, bufferSize, numInThreads, numOutThreads,
         lowWaterMark, highWaterMark)
+    }
+
+    val networkBufferMem = if(localExecution) 0 else numBuffers * bufferSize;
+
+    val configuredMemory: Long = configuration.getInteger(ConfigConstants
+      .TASK_MANAGER_MEMORY_SIZE_KEY, -1)
+
+    val memorySize = if (configuredMemory > 0) {
+      configuredMemory << 20
+    } else {
+      val fraction = configuration.getFloat(ConfigConstants.TASK_MANAGER_MEMORY_FRACTION_KEY,
+        ConfigConstants.DEFAULT_MEMORY_MANAGER_MEMORY_FRACTION)
+      ((EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag - networkBufferMem ) * fraction)
+        .toLong
     }
 
 

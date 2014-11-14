@@ -25,7 +25,6 @@ import java.util.concurrent.TimeUnit
 import akka.actor._
 import akka.pattern.Patterns
 import akka.pattern.{ask, pipe}
-import com.google.common.base.Preconditions
 import org.apache.flink.configuration.{ConfigConstants, GlobalConfiguration, Configuration}
 import org.apache.flink.core.io.InputSplitAssigner
 import org.apache.flink.runtime.blob.BlobServer
@@ -48,7 +47,7 @@ import org.apache.flink.runtime.profiling.ProfilingUtils
 import org.slf4j.LoggerFactory
 
 import scala.collection.convert.WrapAsScala
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{Future}
 import scala.concurrent.duration._
 
 class JobManager(val configuration: Configuration) extends
@@ -61,7 +60,11 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
 
   log.info("Starting job manager.")
 
-  val (archiveCount, profiling, cleanupInterval) = JobManager.parseConfiguration(configuration)
+  val (archiveCount,
+    profiling,
+    cleanupInterval,
+    defaultExecutionRetries,
+    delayBetweenRetries) = JobManager.parseConfiguration(configuration)
 
   // Props for the profiler actor
   def profilerProps: Props = Props(classOf[JobManagerProfiler])
@@ -128,12 +131,21 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
           log.info(s"Received job ${jobGraph.getJobID} (${jobGraph.getName}}).")
 
           // Create the user code class loader
-          libraryCacheManager.register(jobGraph.getJobID, jobGraph.getUserJarBlobKeys)
+          libraryCacheManager.registerJob(jobGraph.getJobID, jobGraph.getUserJarBlobKeys)
 
           val (executionGraph, jobInfo) = currentJobs.getOrElseUpdate(jobGraph.getJobID(),
             (new ExecutionGraph(jobGraph.getJobID, jobGraph.getName,
               jobGraph.getJobConfiguration, jobGraph.getUserJarBlobKeys), JobInfo(sender(),
               System.currentTimeMillis())))
+
+          val jobNumberRetries = if(jobGraph.getNumberOfExecutionRetries >= 0){
+            jobGraph.getNumberOfExecutionRetries
+          }else{
+            defaultExecutionRetries
+          }
+
+          executionGraph.setNumberOfRetriesLeft(jobNumberRetries)
+          executionGraph.setDelayBeforeRetrying(delayBetweenRetries)
 
           val userCodeLoader = libraryCacheManager.getClassLoader(jobGraph.getJobID)
 
@@ -203,7 +215,7 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
                   s"Cleanup job ${jobGraph.getJobID}.")
               }
             case None =>
-              libraryCacheManager.unregister(jobGraph.getJobID)
+              libraryCacheManager.unregisterJob(jobGraph.getJobID)
               currentJobs.remove(jobGraph.getJobID)
 
           }
@@ -380,7 +392,7 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
     }
 
     try {
-      libraryCacheManager.unregister(jobID)
+      libraryCacheManager.unregisterJob(jobID)
     } catch {
       case t: Throwable =>
         log.error(t, s"Could not properly unregister job ${jobID} form the library cache.")
@@ -453,7 +465,7 @@ object JobManager {
     (actorSystem, startActor(configuration))
   }
 
-  def parseConfiguration(configuration: Configuration): (Int, Boolean, Long) = {
+  def parseConfiguration(configuration: Configuration): (Int, Boolean, Long, Int, Long) = {
     val archiveCount = configuration.getInteger(ConfigConstants.JOB_MANAGER_WEB_ARCHIVE_COUNT,
       ConfigConstants.DEFAULT_JOB_MANAGER_WEB_ARCHIVE_COUNT)
     val profilingEnabled = configuration.getBoolean(ProfilingUtils.PROFILE_JOB_KEY, true)
@@ -462,7 +474,14 @@ object JobManager {
       .LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL,
       ConfigConstants.DEFAULT_LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL) * 1000
 
-    (archiveCount, profilingEnabled, cleanupInterval)
+    val executionRetries = configuration.getInteger(ConfigConstants
+      .DEFAULT_EXECUTION_RETRIES_KEY, ConfigConstants.DEFAULT_EXECUTION_RETRIES);
+
+    val delayBetweenRetries = 2 * configuration.getLong(
+      ConfigConstants.JOB_MANAGER_DEAD_TASKMANAGER_TIMEOUT_KEY,
+      ConfigConstants.DEFAULT_JOB_MANAGER_DEAD_TASKMANAGER_TIMEOUT)
+
+    (archiveCount, profilingEnabled, cleanupInterval, executionRetries, delayBetweenRetries)
   }
 
   def startActor(configuration: Configuration)(implicit actorSystem: ActorSystem): ActorRef = {

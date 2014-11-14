@@ -26,11 +26,13 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import akka.actor.ActorRef;
+import org.apache.flink.runtime.akka.AkkaUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.configuration.Configuration;
@@ -53,6 +55,8 @@ import org.apache.flink.runtime.messages.ExecutionGraphMessages;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.messages.ExecutionGraphMessages.JobStatusChanged;
 import org.apache.flink.util.ExceptionUtils;
+
+import static akka.dispatch.Futures.future;
 
 
 public class ExecutionGraph {
@@ -434,18 +438,18 @@ public class ExecutionGraph {
 						if (current == JobStatus.FAILING) {
 							if (numberOfRetriesLeft > 0 && transitionState(current, JobStatus.RESTARTING)) {
 								numberOfRetriesLeft--;
-								
-								execute(new Runnable() {
+								future(new Callable<Object>() {
 									@Override
-									public void run() {
-										try {
+									public Object call() throws Exception {
+										try{
 											Thread.sleep(delayBeforeRetrying);
-										} catch (InterruptedException e) {
+										}catch(InterruptedException e){
 											// should only happen on shutdown
 										}
 										restart();
+										return null;
 									}
-								});
+								}, AkkaUtils.globalExecutionContext());
 								break;
 							}
 							else if (numberOfRetriesLeft <= 0 && transitionState(current, JobStatus.FAILED, failureCause)) {
@@ -720,9 +724,7 @@ public class ExecutionGraph {
 			fail(error);
 		}
 	}
-		}
-	}
-	
+
 	public void restart() {
 		try {
 			if (state == JobStatus.FAILED) {
@@ -735,23 +737,24 @@ public class ExecutionGraph {
 				if (scheduler == null) {
 					throw new IllegalStateException("The execution graph has not been schedudled before - scheduler is null.");
 				}
-				
+
 				this.currentExecutions.clear();
 				this.edges.clear();
-				
+
 				for (ExecutionJobVertex jv : this.verticesInCreationOrder) {
 					jv.resetForNewExecution();
 				}
-				
+
 				for (int i = 0; i < stateTimestamps.length; i++) {
 					stateTimestamps[i] = 0;
 				}
 				nextVertexToFinish = 0;
 				transitionState(JobStatus.RESTARTING, JobStatus.CREATED);
 			}
-			
+
 			scheduleForExecution(scheduler);
-		}
-		catch (Throwable t) {
+		} catch (Throwable t) {
 			fail(t);
+		}
+	}
 }

@@ -40,7 +40,8 @@ public class JsonFactory {
 		json.append("\"vertexstatus\": \"" + vertex.getExecutionState() + "\",");
 		
 		AllocatedSlot slot = vertex.getCurrentAssignedResource();
-		String instanceName = slot == null ? "(null)" : slot.getInstance().getInstanceConnectionInfo().hostname();
+		String instanceName = slot == null ? "(null)" : slot.getInstance()
+				.getInstanceConnectionInfo().getFQDNHostname();
 		
 		json.append("\"vertexinstancename\": \"" + instanceName + "\"");
 		json.append("}");

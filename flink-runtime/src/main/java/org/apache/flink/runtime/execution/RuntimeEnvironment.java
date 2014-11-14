@@ -136,7 +136,7 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 							ClassLoader userCodeClassLoader,
 							MemoryManager memoryManager, IOManager ioManager,
 							InputSplitProvider inputSplitProvider,
-							ActorRef accumulator)
+							ActorRef accumulator,
 							BroadcastVariableManager bcVarManager)
 		throws Exception
 	{

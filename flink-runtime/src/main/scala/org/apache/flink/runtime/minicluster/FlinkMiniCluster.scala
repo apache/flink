@@ -25,6 +25,7 @@ import akka.actor.{ActorRef, ActorSystem}
 import org.apache.flink.api.common.io.FileOutputFormat
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.akka.AkkaUtils
+import org.apache.flink.runtime.client.JobClient
 import org.apache.flink.runtime.messages.TaskManagerMessages.NotifyWhenRegisteredAtJobManager
 import org.apache.flink.runtime.util.EnvironmentInformation
 import org.slf4j.LoggerFactory
@@ -53,6 +54,8 @@ abstract class FlinkMiniCluster(userConfiguration: Configuration) {
 
   val (taskManagerActorSystems, taskManagerActors) = actorSystemsTaskManagers.unzip
 
+  val jobClientActorSystem = AkkaUtils.createActorSystem()
+
   waitForTaskManagersToBeRegistered()
 
   def generateConfiguration(userConfiguration: Configuration): Configuration
@@ -76,14 +79,32 @@ abstract class FlinkMiniCluster(userConfiguration: Configuration) {
       configuration)
   }
 
+  def getJobClient(): ActorRef ={
+    val config = new Configuration()
+
+    config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, FlinkMiniCluster.HOSTNAME)
+    config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, getJobManagerRPCPort)
+
+    JobClient.startActorWithConfiguration(config)(jobClientActorSystem)
+  }
+
+  def getJobClientActorSystem: ActorSystem = jobClientActorSystem
+
+  def getJobManagerRPCPort: Int = {
+    configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, -1)
+  }
+
   def getJobManager: ActorRef = {
     jobManagerActor
   }
 
-
-
   def getTaskManagers = {
     taskManagerActors
+  }
+
+  def getTaskManagersAsJava = {
+    import collection.JavaConverters._
+    taskManagerActors.asJava
   }
 
   def stop(): Unit = {
@@ -95,9 +116,11 @@ abstract class FlinkMiniCluster(userConfiguration: Configuration) {
   def shutdown(): Unit = {
     taskManagerActorSystems foreach { _.shutdown() }
     jobManagerActorSystem.shutdown()
+    jobClientActorSystem.shutdown()
   }
 
   def awaitTermination(): Unit = {
+    jobClientActorSystem.awaitTermination()
     taskManagerActorSystems foreach { _.awaitTermination()}
     jobManagerActorSystem.awaitTermination()
   }
