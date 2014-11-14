@@ -26,10 +26,12 @@ import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.Utils;
+import org.apache.flink.api.java.aggregation.AggregationFunction;
 import org.apache.flink.api.java.aggregation.deprecated.Aggregations;
 import org.apache.flink.api.java.functions.FirstReducer;
 import org.apache.flink.api.java.functions.SelectByMaxFunction;
 import org.apache.flink.api.java.functions.SelectByMinFunction;
+import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 
@@ -83,6 +85,10 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	// private helper that allows to set a different call location name
 	private AggregateOperator<T> aggregate(Aggregations agg, int field, String callLocationName) {
 		return new AggregateOperator<T>(this, agg, field, callLocationName);
+	}
+
+	public <R extends Tuple> DataSet<R> aggregate(AggregationFunction... functions) {
+		return null;
 	}
 
 	/**
