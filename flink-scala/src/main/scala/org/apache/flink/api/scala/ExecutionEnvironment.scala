@@ -164,6 +164,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
       lineDelimiter: String = "\n",
       fieldDelimiter: Char = ',',
       ignoreFirstLine: Boolean = false,
+      ignoreComments: String = null,
       lenient: Boolean = false,
       includedFields: Array[Int] = null): DataSet[T] = {
 
@@ -174,6 +175,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
     inputFormat.setFieldDelimiter(fieldDelimiter)
     inputFormat.setSkipFirstLineAsHeader(ignoreFirstLine)
     inputFormat.setLenient(lenient)
+    inputFormat.setCommentPrefix(ignoreComments)
 
     val classes: Array[Class[_]] = new Array[Class[_]](typeInfo.getArity)
     for (i <- 0 until typeInfo.getArity) {

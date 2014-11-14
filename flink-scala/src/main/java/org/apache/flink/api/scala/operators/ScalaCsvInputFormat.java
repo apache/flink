@@ -19,6 +19,7 @@
 package org.apache.flink.api.scala.operators;
 
 
+import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
 
 import org.apache.flink.api.common.io.GenericCsvInputFormat;
@@ -30,7 +31,13 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.parser.FieldParser;
 import org.apache.flink.util.StringUtils;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
+import java.nio.charset.Charset;
+import java.nio.charset.IllegalCharsetNameException;
+import java.nio.charset.UnsupportedCharsetException;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -39,6 +46,8 @@ import scala.Product;
 public class ScalaCsvInputFormat<OUT extends Product> extends GenericCsvInputFormat<OUT> {
 
 	private static final long serialVersionUID = 1L;
+
+	private static final Logger LOG = LoggerFactory.getLogger(ScalaCsvInputFormat.class);
 	
 	private transient Object[] parsedValues;
 	
@@ -47,7 +56,12 @@ public class ScalaCsvInputFormat<OUT extends Product> extends GenericCsvInputFor
 	private boolean lineDelimiterIsLinebreak = false;
 
 	private final TupleSerializerBase<OUT> serializer;
-	
+
+	private byte[] commentPrefix = null;
+
+	private transient int commentCount;
+	private transient int invalidLineCount;
+
 	public ScalaCsvInputFormat(Path filePath, TypeInformation<OUT> typeInfo) {
 		super(filePath);
 
@@ -80,6 +94,72 @@ public class ScalaCsvInputFormat<OUT extends Product> extends GenericCsvInputFor
 
 		setFieldsGeneric(sourceFieldIndices, fieldTypes);
 	}
+
+	public byte[] getCommentPrefix() {
+		return commentPrefix;
+	}
+
+	public void setCommentPrefix(byte[] commentPrefix) {
+		this.commentPrefix = commentPrefix;
+	}
+
+	public void setCommentPrefix(char commentPrefix) {
+		setCommentPrefix(String.valueOf(commentPrefix));
+	}
+
+	public void setCommentPrefix(String commentPrefix) {
+		setCommentPrefix(commentPrefix, Charsets.UTF_8);
+	}
+
+	public void setCommentPrefix(String commentPrefix, String charsetName) throws IllegalCharsetNameException, UnsupportedCharsetException {
+		if (charsetName == null) {
+			throw new IllegalArgumentException("Charset name must not be null");
+		}
+
+		if (commentPrefix != null) {
+			Charset charset = Charset.forName(charsetName);
+			setCommentPrefix(commentPrefix, charset);
+		} else {
+			this.commentPrefix = null;
+		}
+	}
+
+	public void setCommentPrefix(String commentPrefix, Charset charset) {
+		if (charset == null) {
+			throw new IllegalArgumentException("Charset must not be null");
+		}
+		if (commentPrefix != null) {
+			this.commentPrefix = commentPrefix.getBytes(charset);
+		} else {
+			this.commentPrefix = null;
+		}
+	}
+
+	@Override
+	public void close() throws IOException {
+		if (this.invalidLineCount > 0) {
+			if (LOG.isWarnEnabled()) {
+				LOG.warn("In file \""+ this.filePath + "\" (split start: " + this.splitStart + ") " + this.invalidLineCount +" invalid line(s) were skipped.");
+			}
+		}
+
+		if (this.commentCount > 0) {
+			if (LOG.isInfoEnabled()) {
+				LOG.info("In file \""+ this.filePath + "\" (split start: " + this.splitStart + ") " + this.commentCount +" comment line(s) were skipped.");
+			}
+		}
+		super.close();
+	}
+
+	@Override
+	public OUT nextRecord(OUT record) throws IOException {
+		OUT returnRecord = null;
+		do {
+			returnRecord = super.nextRecord(record);
+		} while (returnRecord == null && !reachedEnd());
+
+		return returnRecord;
+	}
 	
 	@Override
 	public void open(FileInputSplit split) throws IOException {
@@ -98,6 +178,9 @@ public class ScalaCsvInputFormat<OUT extends Product> extends GenericCsvInputFor
 		for (int i = 0; i < fieldParsers.length; i++) {
 			this.parsedValues[i] = fieldParsers[i].createValue();
 		}
+
+		this.commentCount = 0;
+		this.invalidLineCount = 0;
 		
 		// left to right evaluation makes access [0] okay
 		// this marker is used to fasten up readRecord, so that it doesn't have to check each call if the line ending is set to default
@@ -116,11 +199,27 @@ public class ScalaCsvInputFormat<OUT extends Product> extends GenericCsvInputFor
 			//reduce the number of bytes so that the Carriage return is not taken as data
 			numBytes--;
 		}
+
+		if (commentPrefix != null && commentPrefix.length <= numBytes) {
+			//check record for comments
+			boolean isComment = true;
+			for (int i = 0; i < commentPrefix.length; i++) {
+				if (commentPrefix[i] != bytes[offset + i]) {
+					isComment = false;
+					break;
+				}
+			}
+			if (isComment) {
+				this.commentCount++;
+				return null;
+			}
+		}
 		
 		if (parseRecord(parsedValues, bytes, offset, numBytes)) {
 			OUT result = serializer.createInstance(parsedValues);
 			return result;
 		} else {
+			this.invalidLineCount++;
 			return null;
 		}
 	}
