@@ -32,6 +32,7 @@ import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase.PartitionMethod;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.aggregation.AggregationOperatorFactory;
 import org.apache.flink.api.java.aggregation.AggregationFunction;
 import org.apache.flink.api.java.aggregation.deprecated.Aggregations;
 import org.apache.flink.api.java.functions.FirstReducer;
@@ -44,6 +45,7 @@ import org.apache.flink.api.java.io.PrintingOutputFormat;
 import org.apache.flink.api.java.io.TextOutputFormat;
 import org.apache.flink.api.java.io.TextOutputFormat.TextFormatter;
 import org.apache.flink.api.java.operators.AggregateOperator;
+import org.apache.flink.api.java.operators.AggregationOperator;
 import org.apache.flink.api.java.operators.CoGroupOperator;
 import org.apache.flink.api.java.operators.CoGroupOperator.CoGroupOperatorSets;
 import org.apache.flink.api.java.operators.CrossOperator;
@@ -95,6 +97,7 @@ public abstract class DataSet<T> {
 	
 	private final TypeInformation<T> type;
 	
+	private AggregationOperatorFactory aggregationOperatorFactory = AggregationOperatorFactory.getInstance();
 	
 	protected DataSet(ExecutionEnvironment context, TypeInformation<T> type) {
 		if (context == null) {
@@ -276,8 +279,9 @@ public abstract class DataSet<T> {
 		return new AggregateOperator<T>(this, agg, field, Utils.getCallLocationName());
 	}
 
-	public <R extends Tuple> DataSet<R> aggregate(AggregationFunction... functions) {
-		return null;
+	public <R extends Tuple> AggregationOperator<T, R> aggregate(AggregationFunction<?, ?>... functions) {
+		AggregationOperator<T, R> aggregationOperator = getAggregationOperatorFactory().aggregate(this, functions);
+		return aggregationOperator;
 	}
 
 	/**
@@ -1278,6 +1282,14 @@ public abstract class DataSet<T> {
 		if (set1.context != set2.context) {
 			throw new IllegalArgumentException("The two inputs have different execution contexts.");
 		}
+	}
+
+	public AggregationOperatorFactory getAggregationOperatorFactory() {
+		return aggregationOperatorFactory;
+	}
+
+	public void setAggregationOperatorFactory(AggregationOperatorFactory aggregationOperatorFactory) {
+		this.aggregationOperatorFactory = aggregationOperatorFactory;
 	}
 
 }

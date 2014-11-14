@@ -87,6 +87,7 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 		return new AggregateOperator<T>(this, agg, field, callLocationName);
 	}
 
+	@SuppressWarnings("rawtypes")
 	public <R extends Tuple> DataSet<R> aggregate(AggregationFunction... functions) {
 		return null;
 	}

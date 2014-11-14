@@ -3,14 +3,15 @@ package org.apache.flink.examples.java.aggregation;
 import static java.util.Arrays.asList;
 import static org.apache.flink.api.java.aggregation.Aggregations.average;
 import static org.apache.flink.api.java.aggregation.Aggregations.count;
+import static org.apache.flink.api.java.aggregation.Aggregations.key;
 import static org.apache.flink.api.java.aggregation.Aggregations.max;
 import static org.apache.flink.api.java.aggregation.Aggregations.min;
 import static org.apache.flink.api.java.aggregation.Aggregations.sum;
-import static org.apache.flink.api.java.aggregation.Aggregations.key;
 import static org.junit.Assert.assertThat;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.flink.api.java.DataSet;
@@ -22,10 +23,12 @@ import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
+import org.apache.flink.api.java.tuple.Tuple6;
 import org.apache.flink.api.java.tuple.Tuple7;
 import org.apache.flink.api.java.tuple.builder.Tuple1Builder;
 import org.apache.flink.api.java.tuple.builder.Tuple2Builder;
 import org.apache.flink.api.java.tuple.builder.Tuple3Builder;
+import org.apache.flink.api.java.tuple.builder.Tuple6Builder;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeMatcher;
@@ -114,24 +117,46 @@ public class AggregationApiTest {
 		assertThat(output, dataSetWithTuple(11L, 13L, 12.0, 21L, 23L, 22.0, 3L));
 	}
 	
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
 	public void shouldComputeTupleMaxArityManyAggregations() {
 		// given
 		Tuple1<Long>[] tuples = new Tuple1Builder<Long>().add(1L).build();
 		DataSet<Tuple1<Long>> input = env.fromElements(tuples);
-		int num = Tuple.MAX_ARITY ;
+		int num = Tuple.MAX_ARITY;
 		AggregationFunction[] functions = new AggregationFunction[num];
-		Arrays.fill(functions, count());
-
+		for (int i = 0; i < Tuple.MAX_ARITY; ++i) {
+			functions[i] = count();
+		}
+		
 		// when
 		DataSet<Tuple> output = input.aggregate(functions);
 
 		// then
-		long results[] = new long[num];
-		Arrays.fill(results, 1L);
-		assertThat(output, dataSetWithTuple(results));
+		List<Long> results = Collections.nCopies(num, 1L);
+		assertThat(output, dataSetWithTuples(results));
 	}
 	
+	@Test
+	public void shouldComputeSumOfDifferentTypes() {
+		// given
+		Tuple6<Long, Integer, Double, Float, Byte, Short>[] tuples = 
+				new Tuple6Builder<Long, Integer, Double, Float, Byte, Short>()
+				.add(1L, 1, 1.1, (float) 1.1, (byte) 1, (short) 1)
+				.add(2L, 2, 2.2, (float) 2.2, (byte) 2, (short) 2)
+				.add(3L, 3, 3.3, (float) 3.3, (byte) 3, (short) 3)
+				.build();
+		DataSet<Tuple6<Long, Integer, Double, Float, Byte, Short>> input = env.fromElements(tuples);
+
+		// when
+		DataSet<Tuple6<Long, Integer, Double, Float, Byte, Short>> output = 
+				input.aggregate(sum(0), sum(1), sum(2), sum(3), sum(4), sum(5));
+
+		// then
+		assertThat(output, dataSetWithTuple(6L, 6, 6.6, (float) 6.6, (byte) 6, (short) 6));
+	}
+	
+	@SuppressWarnings("rawtypes")
 	@Test(expected=IllegalArgumentException.class)
 	public void errorIfTooManyAggregations() {
 		// given
@@ -203,6 +228,8 @@ public class AggregationApiTest {
 	private Matcher<DataSet<? extends Tuple>> dataSetWithTuples(final List<? extends Object>... tuples) {
         return new TypeSafeMatcher<DataSet<? extends Tuple>>() {
  
+        	private final double DELTA = 0.001;
+        	
         	List<Tuple> output = null;
  
             @SuppressWarnings({ "unchecked", "rawtypes" }) // TODO can this be made type-safe?
@@ -231,7 +258,13 @@ public class AggregationApiTest {
 	                    Object actual = actualTuple.getField(j);
 	                    Object expected = expectedTuple.get(j);
 	                    if (actual != null && ! actual.equals(expected)) {
-	                        return false;
+	                    	if (actual instanceof Double && Math.abs(((Double) actual) - ((Double) expected)) < DELTA) {
+	                    		continue;
+	                    	}
+	                    	if (actual instanceof Float && Math.abs(((Float) actual) - ((Float) expected)) < DELTA) {
+	                    		continue;
+	                    	}
+	                    	return false;
 	                    }
 	                }
                 }
