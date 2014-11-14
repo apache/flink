@@ -577,8 +577,8 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		 * If the first join input is not a Tuple DataSet, no parameters should be passed.<br/>
 		 * 
 		 * Fields of the first and second input can be added by chaining the method calls of
-		 * {@link org.apache.flink.api.java.operators.JoinOperator.ProjectJoin#projectionFirst(int...)} and
-		 * {@link org.apache.flink.api.java.operators.JoinOperator.ProjectJoin#projectionSecond(int...)}.
+		 * {@link org.apache.flink.api.java.operators.JoinOperator.ProjectJoin#projectFirst(int...)} and
+		 * {@link org.apache.flink.api.java.operators.JoinOperator.ProjectJoin#projectSecond(int...)}.
 		 * 
 		 * @param firstFieldIndexes If the first input is a Tuple DataSet, the indexes of the selected fields.
 		 * 					   For a non-Tuple DataSet, do not provide parameters.
