@@ -102,13 +102,15 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 		return combinable;
 	}
 	
-	public void setCombinable(boolean combinable) {
+	public GroupReduceOperator<IN, OUT> setCombinable(boolean combinable) {
 		// sanity check that the function is a subclass of the combine interface
 		if (combinable && !(function instanceof FlatCombineFunction)) {
 			throw new IllegalArgumentException("The function does not implement the combine interface.");
 		}
 		
 		this.combinable = combinable;
+		
+		return this;
 	}
 	
 	@Override
