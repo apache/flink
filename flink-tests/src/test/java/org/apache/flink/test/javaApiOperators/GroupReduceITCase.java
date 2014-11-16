@@ -53,7 +53,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 @RunWith(Parameterized.class)
 public class GroupReduceITCase extends JavaProgramTestBase {
 	
-	private static int NUM_PROGRAMS = 26;
+	private static int NUM_PROGRAMS = 28;
 	
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -761,7 +761,82 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 					// return expected result
 					return "b\nccc\nee\n";
 				}
-				
+				case 27: {
+				/*
+				 * check correctness of sorted groupReduce on tuples with keyselector sorting
+				 */
+
+					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+					env.setDegreeOfParallelism(1);
+
+					DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+					DataSet<Tuple3<Integer, Long, String>> reduceDs = ds.
+							groupBy(new KeySelector<Tuple3<Integer, Long, String>, Long>() {
+								private static final long serialVersionUID = 1L;
+
+								@Override
+								public Long getKey(Tuple3<Integer, Long, String> in) {
+									return in.f1;
+								}
+							}).
+						sortGroup(new KeySelector<Tuple3<Integer, Long, String>, String>() {
+							private static final long serialVersionUID = 1L;
+
+							@Override
+							public String getKey(Tuple3<Integer, Long, String> in) {
+								return in.f2;
+							}
+						}, Order.DESCENDING).reduceGroup(new Tuple3SortedGroupReduce());
+
+					reduceDs.writeAsCsv(resultPath);
+					env.execute();
+
+					// return expected result
+					return "1,1,Hi\n" +
+						"5,2,Hello world-Hello\n" +
+						"15,3,Luke Skywalker-I am fine.-Hello world, how are you?\n" +
+						"34,4,Comment#4-Comment#3-Comment#2-Comment#1\n" +
+						"65,5,Comment#9-Comment#8-Comment#7-Comment#6-Comment#5\n" +
+						"111,6,Comment#15-Comment#14-Comment#13-Comment#12-Comment#11-Comment#10\n";
+
+				}
+				case 28: {
+				/*
+				 * check correctness of sorted groupReduce on custom type with keyselector sorting
+				 */
+
+					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+					DataSet<CustomType> ds = CollectionDataSets.getCustomTypeDataSet(env);
+					DataSet<CustomType> reduceDs = ds.
+						groupBy(new KeySelector<CustomType, Tuple2<Integer, Integer>>() {
+							private static final long serialVersionUID = 1L;
+
+							@Override
+							public Tuple2<Integer,Integer> getKey(CustomType in) {
+								return new Tuple2<Integer, Integer>(in.myInt, in.myInt);
+							}
+						}).
+						sortGroup(new KeySelector<CustomType, String>() {
+							private static final long serialVersionUID = 1L;
+
+							@Override
+							public String getKey(CustomType in) {
+								return in.myString;
+							}
+						}, Order.DESCENDING).reduceGroup(new CustomTypeSortedGroupReduce());
+
+					reduceDs.writeAsText(resultPath);
+					env.execute();
+
+					// return expected result
+					return "1,0,Hi\n" +
+						"2,3,Hello world-Hello\n" +
+						"3,12,Luke Skywalker-I am fine.-Hello world, how are you?\n" +
+						"4,30,Comment#4-Comment#3-Comment#2-Comment#1\n" +
+						"5,60,Comment#9-Comment#8-Comment#7-Comment#6-Comment#5\n" +
+						"6,105,Comment#15-Comment#14-Comment#13-Comment#12-Comment#11-Comment#10\n";
+				}
 				default: {
 					throw new IllegalArgumentException("Invalid program id");
 				}
@@ -881,6 +956,33 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 		}
 	}
 
+	public static class CustomTypeSortedGroupReduce implements GroupReduceFunction<CustomType, CustomType> {
+		private static final long serialVersionUID = 1L;
+
+
+		@Override
+		public void reduce(Iterable<CustomType> values, Collector<CustomType> out) {
+			final Iterator<CustomType> iter = values.iterator();
+
+			CustomType o = new CustomType();
+			CustomType c = iter.next();
+
+			StringBuilder concat = new StringBuilder(c.myString);
+			o.myInt = c.myInt;
+			o.myLong = c.myLong;
+
+			while (iter.hasNext()) {
+				CustomType next = iter.next();
+				concat.append("-").append(next.myString);
+				o.myLong += next.myLong;
+				
+			}
+
+			o.myString = concat.toString();
+			out.collect(o);
+
+		}
+	}
 
 	public static class InputReturningTuple3GroupReduce implements GroupReduceFunction<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>> {
 		private static final long serialVersionUID = 1L;

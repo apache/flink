@@ -40,7 +40,7 @@ import org.apache.flink.api.scala._
 
 
 object GroupReduceProgs {
-  var NUM_PROGRAMS: Int = 26
+  var NUM_PROGRAMS: Int = 28
 
   def runProgram(progId: Int, resultPath: String, onCollection: Boolean): String = {
     progId match {
@@ -687,6 +687,59 @@ object GroupReduceProgs {
         reduceDs.writeAsText(resultPath)
         env.execute()
         "b\nccc\nee\n"
+
+      case 27 =>
+        /*
+         * check correctness of sorted groupReduce on tuples with keyselector sorting
+         */
+        val env = ExecutionEnvironment.getExecutionEnvironment
+        env.setDegreeOfParallelism(1)
+        val ds =  CollectionDataSets.get3TupleDataSet(env)
+        val reduceDs =  ds.groupBy(_._2).sortGroup(_._3, Order.DESCENDING).reduceGroup {
+          in =>
+            in.reduce((l, r) => (l._1 + r._1, l._2, l._3 + "-" + r._3))
+        }
+        reduceDs.writeAsCsv(resultPath)
+        env.execute()
+        "1,1,Hi\n" +
+          "5,2,Hello world-Hello\n" +
+          "15,3,Luke Skywalker-I am fine.-Hello world, how are you?\n" +
+          "34,4,Comment#4-Comment#3-Comment#2-Comment#1\n" +
+          "65,5,Comment#9-Comment#8-Comment#7-Comment#6-Comment#5\n" +
+          "111,6,Comment#15-Comment#14-Comment#13-Comment#12-Comment#11-Comment#10\n"
+
+      case 28 =>
+        /*
+         * check correctness of sorted groupReduce on custom type with keyselector sorting
+         */
+        val env = ExecutionEnvironment.getExecutionEnvironment
+        val ds =  CollectionDataSets.getCustomTypeDataSet(env)
+        val reduceDs =  ds.groupBy(_.myInt).sortGroup(_.myString, Order.DESCENDING).reduceGroup {
+          in =>
+            val iter = in.toIterator
+            val o = new CustomType
+            val c = iter.next()
+
+            val concat: StringBuilder = new StringBuilder(c.myString)
+            o.myInt = c.myInt
+            o.myLong = c.myLong
+
+            while (iter.hasNext) {
+              val next = iter.next()
+              o.myLong += next.myLong
+              concat.append("-").append(next.myString)
+            }
+            o.myString = concat.toString()
+            o
+        }
+        reduceDs.writeAsText(resultPath)
+        env.execute()
+        "1,0,Hi\n" +
+          "2,3,Hello world-Hello\n" +
+          "3,12,Luke Skywalker-I am fine.-Hello world, how are you?\n" +
+          "4,30,Comment#4-Comment#3-Comment#2-Comment#1\n" +
+          "5,60,Comment#9-Comment#8-Comment#7-Comment#6-Comment#5\n" +
+          "6,105,Comment#15-Comment#14-Comment#13-Comment#12-Comment#11-Comment#10\n"
 
       case _ =>
         throw new IllegalArgumentException("Invalid program id")
