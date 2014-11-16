@@ -79,7 +79,7 @@ The {% gh_link /flink-examples/flink-scala-examples/src/main/scala/org/apache/fl
 
 The PageRank algorithm computes the "importance" of pages in a graph defined by links, which point from one pages to another page. It is an iterative graph algorithm, which means that it repeatedly applies the same computation. In each iteration, each page distributes its current rank over all its neighbors, and compute its new rank as a taxed sum of the ranks it received from its neighbors. The PageRank algorithm was popularized by the Google search engine which uses the importance of webpages to rank the results of search queries.
 
-In this simple example, PageRank is implemented with a [bulk iteration](java_api_guide.html#iterations) and a fixed number of iterations.
+In this simple example, PageRank is implemented with a [bulk iteration](iterations.html) and a fixed number of iterations.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
