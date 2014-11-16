@@ -86,8 +86,8 @@ public class TwitterStreaming {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment
 				.createLocalEnvironment(PARALLELISM);
 
-		DataStream<String> streamSource = env.addSource(new TwitterSource(path, NUMBEROFTWEETS),
-				SOURCE_PARALLELISM);
+		DataStream<String> streamSource = env.addSource(new TwitterSource(path, NUMBEROFTWEETS))
+				.setParallelism(SOURCE_PARALLELISM);
 
 		DataStream<Tuple5<Long, Integer, String, String, String>> selectedDataStream = streamSource
 				.flatMap(new SelectDataFlatMap());

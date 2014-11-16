@@ -130,6 +130,16 @@ public abstract class StreamExecutionEnvironment {
 	public long getBufferTimeout() {
 		return this.bufferTimeout;
 	}
+	
+	/**
+	 * Sets the default parallelism that will be used for the local execution environment created by
+	 * {@link #createLocalEnvironment()}.
+	 * 
+	 * @param degreeOfParallelism The degree of parallelism to use as the default local parallelism.
+	 */
+	public static void setDefaultLocalParallelism(int degreeOfParallelism) {
+		defaultLocalDop = degreeOfParallelism;
+	}
 
 	// --------------------------------------------------------------------------------------------
 	// Data stream creations
@@ -147,12 +157,7 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	public DataStreamSource<String> readTextFile(String filePath) {
 		checkIfFileExists(filePath);
-		return addSource(new FileSourceFunction(filePath), 1);
-	}
-
-	public DataStreamSource<String> readTextFile(String filePath, int parallelism) {
-		checkIfFileExists(filePath);
-		return addSource(new FileSourceFunction(filePath), parallelism);
+		return addSource(new FileSourceFunction(filePath));
 	}
 
 	/**
@@ -167,12 +172,7 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	public DataStreamSource<String> readTextStream(String filePath) {
 		checkIfFileExists(filePath);
-		return addSource(new FileStreamFunction(filePath), 1);
-	}
-
-	public DataStreamSource<String> readTextStream(String filePath, int parallelism) {
-		checkIfFileExists(filePath);
-		return addSource(new FileStreamFunction(filePath), parallelism);
+		return addSource(new FileStreamFunction(filePath));
 	}
 
 	private static void checkIfFileExists(String filePath) {
@@ -275,7 +275,7 @@ public abstract class StreamExecutionEnvironment {
 		if (from > to) {
 			throw new IllegalArgumentException("Start of sequence must not be greater than the end");
 		}
-		return addSource(new GenSequenceFunction(from, to), 1);
+		return addSource(new GenSequenceFunction(from, to));
 	}
 
 	/**
@@ -283,13 +283,11 @@ public abstract class StreamExecutionEnvironment {
 	 * 
 	 * @param function
 	 *            the user defined function
-	 * @param parallelism
-	 *            number of parallel instances of the function
 	 * @param <OUT>
 	 *            type of the returned stream
 	 * @return the data stream constructed
 	 */
-	public <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function, int parallelism) {
+	public <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function) {
 		TypeWrapper<OUT> outTypeWrapper = new FunctionTypeWrapper<OUT>(function,
 				SourceFunction.class, 0);
 		DataStreamSource<OUT> returnStream = new DataStreamSource<OUT>(this, "source",
@@ -298,16 +296,12 @@ public abstract class StreamExecutionEnvironment {
 		try {
 			jobGraphBuilder.addStreamVertex(returnStream.getId(),
 					new SourceInvokable<OUT>(function), null, outTypeWrapper, "source",
-					SerializationUtils.serialize(function), parallelism);
+					SerializationUtils.serialize(function), 1);
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize SourceFunction");
 		}
 
 		return returnStream;
-	}
-
-	public <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> sourceFunction) {
-		return addSource(sourceFunction, 1);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -453,7 +447,7 @@ public abstract class StreamExecutionEnvironment {
 	/**
 	 * Getter of the {@link JobGraphBuilder} of the streaming job.
 	 * 
-	 * @return jobgraph
+	 * @return jobGraphBuilder
 	 */
 	public JobGraphBuilder getJobGraphBuilder() {
 		return jobGraphBuilder;
