@@ -26,6 +26,7 @@ import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
@@ -699,6 +700,192 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 				"2---(30,600)-(30,400)-(30,200)-(20,201)-(20,200)-\n";
 	}
 
+	@Test
+	public void testTupleKeySelectorGroupSort() throws Exception {
+		/*
+		 * check correctness of sorted groupReduce on tuples with keyselector sorting
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setDegreeOfParallelism(1);
+
+		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+		DataSet<Tuple3<Integer, Long, String>> reduceDs = ds
+				.groupBy(new LongFieldExtractor<Tuple3<Integer, Long, String>>(1))
+				.sortGroup(new StringFieldExtractor<Tuple3<Integer, Long, String>>(2), Order.DESCENDING)
+				.reduceGroup(new Tuple3SortedGroupReduce());
+
+		reduceDs.writeAsCsv(resultPath);
+		env.execute();
+
+		// return expected result
+		expected = "1,1,Hi\n" +
+				"5,2,Hello world-Hello\n" +
+				"15,3,Luke Skywalker-I am fine.-Hello world, how are you?\n" +
+				"34,4,Comment#4-Comment#3-Comment#2-Comment#1\n" +
+				"65,5,Comment#9-Comment#8-Comment#7-Comment#6-Comment#5\n" +
+				"111,6,Comment#15-Comment#14-Comment#13-Comment#12-Comment#11-Comment#10\n";
+	}
+
+	public static class TwoTuplePojoExtractor implements KeySelector<CustomType, Tuple2<Integer, Integer>> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public Tuple2<Integer, Integer> getKey(CustomType value) throws Exception {
+			return new Tuple2<Integer, Integer>(value.myInt, value.myInt);
+		}
+	}
+
+	public static class StringPojoExtractor implements KeySelector<CustomType, String> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public String getKey(CustomType value) throws Exception {
+			return value.myString;
+		}
+	}
+
+	@Test
+	public void testPojoKeySelectorGroupSort() throws Exception {
+		/*
+		 * check correctness of sorted groupReduce on custom type with keyselector sorting
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<CustomType> ds = CollectionDataSets.getCustomTypeDataSet(env);
+		DataSet<CustomType> reduceDs = ds
+				.groupBy(new TwoTuplePojoExtractor())
+				.sortGroup(new StringPojoExtractor(), Order.DESCENDING)
+				.reduceGroup(new CustomTypeSortedGroupReduce());
+
+		reduceDs.writeAsText(resultPath);
+		env.execute();
+
+		// return expected result
+		expected = "1,0,Hi\n" +
+				"2,3,Hello world-Hello\n" +
+				"3,12,Luke Skywalker-I am fine.-Hello world, how are you?\n" +
+				"4,30,Comment#4-Comment#3-Comment#2-Comment#1\n" +
+				"5,60,Comment#9-Comment#8-Comment#7-Comment#6-Comment#5\n" +
+				"6,105,Comment#15-Comment#14-Comment#13-Comment#12-Comment#11-Comment#10\n";
+	}
+
+	public static class LongFieldExtractor<T extends Tuple>  implements KeySelector<T, Long> {
+		private static final long serialVersionUID = 1L;
+		private int field;
+
+		public LongFieldExtractor() { }
+
+		public LongFieldExtractor(int field) {
+			this.field = field;
+		}
+
+		@Override
+		public Long getKey(T t) throws Exception {
+			return ((Tuple)t).getField(field);
+		}
+	}
+
+	public static class IntFieldExtractor<T extends Tuple>  implements KeySelector<T, Integer> {
+		private static final long serialVersionUID = 1L;
+		private int field;
+
+		public IntFieldExtractor() { }
+
+		public IntFieldExtractor(int field) {
+			this.field = field;
+		}
+
+		@Override
+		public Integer getKey(T t) throws Exception {
+			return ((Tuple)t).getField(field);
+		}
+	}
+
+	public static class StringFieldExtractor<T extends Tuple>  implements KeySelector<T, String> {
+		private static final long serialVersionUID = 1L;
+		private int field;
+
+		public StringFieldExtractor() { }
+
+		public StringFieldExtractor(int field) {
+			this.field = field;
+		}
+
+		@Override
+		public String getKey(T t) throws Exception {
+			return ((Tuple)t).getField(field);
+		}
+	}
+
+	@Test
+	public void testTupleKeySelectorSortWithCombine() throws Exception {
+		/*
+		 * check correctness of sorted groupReduce with combine on tuples with keyselector sorting
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setDegreeOfParallelism(1);
+
+		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+		DataSet<Tuple2<Integer, String>> reduceDs = ds.
+				groupBy(new LongFieldExtractor<Tuple3<Integer, Long, String>>(1))
+				.sortGroup(new StringFieldExtractor<Tuple3<Integer, Long, String>>(2), Order.DESCENDING)
+				.reduceGroup(new Tuple3SortedGroupReduceWithCombine());
+
+		reduceDs.writeAsCsv(resultPath);
+		reduceDs.print();
+		env.execute();
+
+		// return expected result
+		if (super.mode == ExecutionMode.COLLECTION) {
+			expected = null;
+		} else {
+			expected = "1,Hi\n" +
+					"5,Hello world-Hello\n" +
+					"15,Luke Skywalker-I am fine.-Hello world, how are you?\n" +
+					"34,Comment#4-Comment#3-Comment#2-Comment#1\n" +
+					"65,Comment#9-Comment#8-Comment#7-Comment#6-Comment#5\n" +
+					"111,Comment#15-Comment#14-Comment#13-Comment#12-Comment#11-Comment#10\n";
+		}
+	}
+
+	public static class FiveToTwoTupleExtractor implements KeySelector<Tuple5<Integer, Long, Integer, String, Long>, Tuple2<Long, Integer>> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public Tuple2<Long, Integer> getKey(Tuple5<Integer, Long, Integer, String, Long> in) {
+			return new Tuple2<Long, Integer>(in.f4, in.f2);
+		}
+	}
+
+	@Test
+	public void testTupleKeySelectorSortCombineOnTuple() throws Exception {
+		/*
+		 * check correctness of sorted groupReduceon with Tuple2 keyselector sorting
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setDegreeOfParallelism(1);
+
+		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
+		DataSet<Tuple5<Integer, Long, Integer, String, Long>> reduceDs = ds
+				.groupBy(new IntFieldExtractor<Tuple5<Integer, Long, Integer, String, Long>>(0))
+				.sortGroup(new FiveToTwoTupleExtractor(), Order.DESCENDING)
+				.reduceGroup(new Tuple5SortedGroupReduce());
+
+		reduceDs.writeAsCsv(resultPath);
+		env.execute();
+
+		// return expected result
+		expected = "1,1,0,Hallo,1\n" +
+				"2,5,0,Hallo Welt-Hallo Welt wie,1\n" +
+				"3,15,0,BCD-ABC-Hallo Welt wie gehts?,2\n" +
+				"4,34,0,FGH-CDE-EFG-DEF,1\n" +
+				"5,65,0,IJK-HIJ-KLM-JKL-GHI,1\n";
+	}
+
 	public static class GroupReducer5 implements GroupReduceFunction<CollectionDataSets.PojoContainingTupleAndWritable, String> {
 		@Override
 		public void reduce(
@@ -905,6 +1092,33 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 			out.collect(new Tuple5<Integer, Long, Integer, String, Long>(i, l, 0, "P-)", l2));
 		}
 	}
+
+	public static class Tuple5SortedGroupReduce implements GroupReduceFunction<Tuple5<Integer, Long, Integer, String, Long>, Tuple5<Integer, Long, Integer, String, Long>> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public void reduce(
+			Iterable<Tuple5<Integer, Long, Integer, String, Long>> values,
+			Collector<Tuple5<Integer, Long, Integer, String, Long>> out)
+		{
+			int i = 0;
+			long l = 0l;
+			long l2 = 0l;
+			StringBuilder concat = new StringBuilder();
+
+			for ( Tuple5<Integer, Long, Integer, String, Long> t : values ) {
+				i = t.f0;
+				l += t.f1;
+				concat.append(t.f3).append("-");
+				l2 = t.f4;
+			}
+			if (concat.length() > 0) {
+				concat.setLength(concat.length() - 1);
+			}
+
+			out.collect(new Tuple5<Integer, Long, Integer, String, Long>(i, l, 0, concat.toString(), l2));
+		}
+	}
 	
 	public static class CustomTypeGroupReduce implements GroupReduceFunction<CustomType, CustomType> {
 		private static final long serialVersionUID = 1L;
@@ -931,6 +1145,33 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		}
 	}
 
+	public static class CustomTypeSortedGroupReduce implements GroupReduceFunction<CustomType, CustomType> {
+		private static final long serialVersionUID = 1L;
+
+
+		@Override
+		public void reduce(Iterable<CustomType> values, Collector<CustomType> out) {
+			final Iterator<CustomType> iter = values.iterator();
+
+			CustomType o = new CustomType();
+			CustomType c = iter.next();
+
+			StringBuilder concat = new StringBuilder(c.myString);
+			o.myInt = c.myInt;
+			o.myLong = c.myLong;
+
+			while (iter.hasNext()) {
+				CustomType next = iter.next();
+				concat.append("-").append(next.myString);
+				o.myLong += next.myLong;
+				
+			}
+
+			o.myString = concat.toString();
+			out.collect(o);
+
+		}
+	}
 
 	public static class InputReturningTuple3GroupReduce implements GroupReduceFunction<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>> {
 		private static final long serialVersionUID = 1L;
@@ -1050,6 +1291,44 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 
 			out.collect(new Tuple2<Integer, String>(i, s));
 
+		}
+	}
+
+	@RichGroupReduceFunction.Combinable
+	public static class Tuple3SortedGroupReduceWithCombine extends RichGroupReduceFunction<Tuple3<Integer, Long, String>, Tuple2<Integer, String>> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public void combine(Iterable<Tuple3<Integer, Long, String>> values, Collector<Tuple3<Integer, Long, String>> out) {
+			int sum = 0;
+			long key = 0;
+			System.out.println("im in");
+			StringBuilder concat = new StringBuilder();
+
+			for (Tuple3<Integer, Long, String> next : values) {
+				sum += next.f0;
+				key = next.f1;
+				concat.append(next.f2).append("-");
+			}
+
+			if (concat.length() > 0) {
+				concat.setLength(concat.length() - 1);
+			}
+
+			out.collect(new Tuple3<Integer, Long, String>(sum, key, concat.toString()));
+		}
+
+		@Override
+		public void reduce(Iterable<Tuple3<Integer, Long, String>> values, Collector<Tuple2<Integer, String>> out) {
+			int i = 0;
+			String s = "";
+
+			for ( Tuple3<Integer, Long, String> t : values ) {
+				i += t.f0;
+				s = t.f2;
+			}
+
+			out.collect(new Tuple2<Integer, String>(i, s));
 		}
 	}
 	

@@ -28,6 +28,7 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.aggregation.Aggregations;
 import org.apache.flink.api.java.functions.FirstReducer;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.functions.SelectByMaxFunction;
 import org.apache.flink.api.java.functions.SelectByMinFunction;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -250,6 +251,23 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 		SortedGrouping<T> sg = new SortedGrouping<T>(this.dataSet, this.keys, field, order);
 		sg.customPartitioner = getCustomPartitioner();
 		return sg;
+	}
+
+	/**
+	 * Sorts elements within a group on a key extracted by the specified {@link org.apache.flink.api.java.functions.KeySelector}
+	 * in the specified {@link Order}.</br>
+	 * <b>Note: Only groups of Tuple elements and Pojos can be sorted.</b><br/>
+	 * Chaining {@link #sortGroup(KeySelector, Order)} calls is not supported.
+	 *
+	 * @param keySelector The KeySelector with which the group is sorted.
+	 * @param order The Order in which the extracted key is sorted.
+	 * @return A SortedGrouping with specified order of group element.
+	 *
+	 * @see Order
+	 */
+	public <K> SortedGrouping<T> sortGroup(KeySelector<T, K> keySelector, Order order) {
+		TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keySelector, this.dataSet.getType());
+		return new SortedGrouping<T>(this.dataSet, this.keys, new Keys.SelectorFunctionKeys<T, K>(keySelector, this.dataSet.getType(), keyType), order);
 	}
 	
 }

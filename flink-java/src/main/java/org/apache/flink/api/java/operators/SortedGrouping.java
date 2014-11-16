@@ -47,7 +47,8 @@ import com.google.common.base.Preconditions;
 public class SortedGrouping<T> extends Grouping<T> {
 	
 	private int[] groupSortKeyPositions;
-	private Order[] groupSortOrders ;
+	private Order[] groupSortOrders;
+	private Keys.SelectorFunctionKeys<T, ?> groupSortSelectorFunctionKey = null;
 	
 	/*
 	 * int sorting keys for tuples
@@ -83,6 +84,26 @@ public class SortedGrouping<T> extends Grouping<T> {
 		this.groupSortOrders = new Order[groupSortKeyPositions.length];
 		Arrays.fill(this.groupSortOrders, order); // if field == "*"
 	}
+
+	/*
+	 * KeySelector sorting for any data type
+	 */
+	public <K> SortedGrouping(DataSet<T> set, Keys<T> keys, Keys.SelectorFunctionKeys<T, K> keySelector, Order order) {
+		super(set, keys);
+
+		if (!(this.keys instanceof Keys.SelectorFunctionKeys)) {
+			throw new InvalidProgramException("Sorting on KeySelector only works for KeySelector grouping.");
+		}
+
+		this.groupSortKeyPositions = keySelector.computeLogicalKeyPositions();
+		for (int i = 0; i < groupSortKeyPositions.length; i++) {
+			groupSortKeyPositions[i] += this.keys.getNumberOfKeyFields();
+		}
+
+		this.groupSortSelectorFunctionKey = keySelector;
+		this.groupSortOrders = new Order[groupSortKeyPositions.length];
+		Arrays.fill(this.groupSortOrders, order);
+	}
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -107,6 +128,10 @@ public class SortedGrouping<T> extends Grouping<T> {
 		
 		this.customPartitioner = partitioner;
 		return this;
+	}
+
+	protected Keys.SelectorFunctionKeys<T, ?> getSortSelectionFunctionKey() {
+		return this.groupSortSelectorFunctionKey;
 	}
 
 	/**
@@ -162,7 +187,9 @@ public class SortedGrouping<T> extends Grouping<T> {
 	 * @see Order
 	 */
 	public SortedGrouping<T> sortGroup(int field, Order order) {
-		
+		if (groupSortSelectorFunctionKey != null) {
+			throw new InvalidProgramException("Chaining sortGroup with KeySelector sorting is not supported");
+		}
 		if (!dataSet.getType().isTupleType()) {
 			throw new InvalidProgramException("Specifying order keys via field positions is only valid for tuple data types");
 		}
@@ -202,7 +229,9 @@ public class SortedGrouping<T> extends Grouping<T> {
 	 * @see Order
 	 */
 	public SortedGrouping<T> sortGroup(String field, Order order) {
-		
+		if (groupSortSelectorFunctionKey != null) {
+			throw new InvalidProgramException("Chaining sortGroup with KeySelector sorting is not supported");
+		}
 		if (! (dataSet.getType() instanceof CompositeType)) {
 			throw new InvalidProgramException("Specifying order keys via field positions is only valid for composite data types (pojo / tuple / case class)");
 		}
@@ -210,5 +239,5 @@ public class SortedGrouping<T> extends Grouping<T> {
 		addSortGroupInternal(ek, order);
 		return this;
 	}
-	
+
 }

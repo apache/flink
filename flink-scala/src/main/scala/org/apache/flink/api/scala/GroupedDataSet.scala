@@ -18,7 +18,7 @@
 package org.apache.flink.api.scala
 
 import org.apache.flink.api.common.InvalidProgramException
-import org.apache.flink.api.java.functions.FirstReducer
+import org.apache.flink.api.java.functions.{KeySelector, FirstReducer}
 import org.apache.flink.api.scala.operators.ScalaAggregateOperator
 import scala.collection.JavaConverters._
 import org.apache.commons.lang3.Validate
@@ -48,8 +48,10 @@ class GroupedDataSet[T: ClassTag](
   // when using a group-at-a-time reduce function.
   private val groupSortKeyPositions = mutable.MutableList[Either[Int, String]]()
   private val groupSortOrders = mutable.MutableList[Order]()
-  
+
   private var partitioner : Partitioner[_] = _
+
+  private var groupSortKeySelector: Option[Keys.SelectorFunctionKeys[T, _]] = None
 
   /**
    * Adds a secondary sort key to this [[GroupedDataSet]]. This will only have an effect if you
@@ -65,6 +67,10 @@ class GroupedDataSet[T: ClassTag](
     if (field >= set.getType.getArity) {
       throw new IllegalArgumentException("Order key out of tuple bounds.")
     }
+    if (groupSortKeySelector.nonEmpty) {
+      throw new InvalidProgramException("Chaining sortGroup with KeySelector sorting is not " +
+        "supported.")
+    }
     groupSortKeyPositions += Left(field)
     groupSortOrders += order
     this
@@ -77,54 +83,87 @@ class GroupedDataSet[T: ClassTag](
    * This only works on CaseClass DataSets.
    */
   def sortGroup(field: String, order: Order): GroupedDataSet[T] = {
+    if (groupSortKeySelector.nonEmpty) {
+      throw new InvalidProgramException("Chaining sortGroup with KeySelector sorting is not" +
+        "supported.")
+    }
     groupSortKeyPositions += Right(field)
     groupSortOrders += order
     this
   }
 
   /**
+   * Adds a secondary sort key to this [[GroupedDataSet]]. This will only have an effect if you
+   * use one of the group-at-a-time, i.e. `reduceGroup`.
+   *
+   * This works on any data type.
+   */
+  def sortGroup[K: TypeInformation](fun: T => K, order: Order): GroupedDataSet[T] = {
+    if (groupSortOrders.length != 0) {
+      throw new InvalidProgramException("Chaining sortGroup with KeySelector sorting is not" +
+        "supported.")
+    }
+
+    groupSortOrders += order
+    val keyType = implicitly[TypeInformation[K]]
+    val keyExtractor = new KeySelector[T, K] {
+      def getKey(in: T) = fun(in)
+    }
+    groupSortKeySelector = Some(new Keys.SelectorFunctionKeys[T, K](
+      keyExtractor,
+      set.javaSet.getType,
+      keyType))
+    this
+  }
+  /**
    * Creates a [[SortedGrouping]] if group sorting keys were specified.
    */
   private def maybeCreateSortedGrouping(): Grouping[T] = {
-    if (groupSortKeyPositions.length > 0) {
-      val grouping = groupSortKeyPositions(0) match {
-        case Left(pos) =>
-          new SortedGrouping[T](
-            set.javaSet,
-            keys,
-            pos,
-            groupSortOrders(0))
+    groupSortKeySelector match {
+      case Some(keySelector) =>
+        new SortedGrouping[T](set.javaSet, keys, keySelector, groupSortOrders(0))
+      case None =>
+        if (groupSortKeyPositions.length > 0) {
+          val grouping = groupSortKeyPositions(0) match {
+            case Left(pos) =>
+              new SortedGrouping[T](
+                set.javaSet,
+                keys,
+                pos,
+                groupSortOrders(0))
 
-        case Right(field) =>
-          new SortedGrouping[T](
-            set.javaSet,
-            keys,
-            field,
-            groupSortOrders(0))
+            case Right(field) =>
+              new SortedGrouping[T](
+                set.javaSet,
+                keys,
+                field,
+                groupSortOrders(0))
 
-      }
-      // now manually add the rest of the keys
-      for (i <- 1 until groupSortKeyPositions.length) {
-        groupSortKeyPositions(i) match {
-          case Left(pos) =>
-            grouping.sortGroup(pos, groupSortOrders(i))
+          }
+          // now manually add the rest of the keys
+          for (i <- 1 until groupSortKeyPositions.length) {
+            groupSortKeyPositions(i) match {
+              case Left(pos) =>
+                grouping.sortGroup(pos, groupSortOrders(i))
 
-          case Right(field) =>
-            grouping.sortGroup(field, groupSortOrders(i))
+              case Right(field) =>
+                grouping.sortGroup(field, groupSortOrders(i))
 
-        }
-      }
-      
-      if (partitioner == null) {
-        grouping
+            }
+          }
+
+          if (partitioner == null) {
+            grouping
+          } else {
+            grouping.withPartitioner(partitioner)
+          }
+
       } else {
-        grouping.withPartitioner(partitioner)
+        createUnsortedGrouping()
       }
-    
-    } else {
-      createUnsortedGrouping()
     }
   }
+
 
   /** Convenience methods for creating the [[UnsortedGrouping]] */
   private def createUnsortedGrouping(): Grouping[T] = {
