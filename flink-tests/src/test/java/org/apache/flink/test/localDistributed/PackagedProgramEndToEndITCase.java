@@ -24,8 +24,8 @@ import java.io.FileWriter;
 import org.apache.flink.client.RemoteExecutor;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.test.testdata.KMeansData;
+import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -36,7 +36,7 @@ public class PackagedProgramEndToEndITCase {
 
 	@Test
 	public void testEverything() {
-		LocalFlinkMiniCluster cluster = null;
+		ForkableFlinkMiniCluster cluster = null;
 
 		File points = null;
 		File clusters = null;
@@ -64,7 +64,7 @@ public class PackagedProgramEndToEndITCase {
 			Configuration config = new Configuration();
 			config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 2);
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 2);
-			cluster = new LocalFlinkMiniCluster(config);
+			cluster = new ForkableFlinkMiniCluster(config);
 
 			RemoteExecutor ex = new RemoteExecutor("localhost", cluster.getJobManagerRPCPort());
 

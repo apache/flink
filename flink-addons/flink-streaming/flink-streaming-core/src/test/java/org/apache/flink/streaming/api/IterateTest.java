@@ -25,6 +25,7 @@ import org.apache.flink.streaming.api.datastream.IterativeDataStream;
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
+import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
 
@@ -73,7 +74,7 @@ public class IterateTest {
 
 	@Test
 	public void test() throws Exception {
-		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
+		StreamExecutionEnvironment env = new TestStreamEnvironment(1, MEMORYSIZE);
 
 		env.setBufferTimeout(10);
 
@@ -86,7 +87,7 @@ public class IterateTest {
 
 		iteration.closeWith(increment).addSink(new MySink());
 
-		env.executeTest(MEMORYSIZE);
+		env.execute();
 
 		assertTrue(iterated);
 

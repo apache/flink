@@ -26,12 +26,31 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import akka.actor.ActorSystem;
+import akka.testkit.JavaTestKit;
 import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 public class ScheduleWithCoLocationHintTest {
+
+	private static ActorSystem system;
+
+	@BeforeClass
+	public static void setup(){
+		system = ActorSystem.create("TestingActorSystem", TestingUtils.testConfig());
+		TestingUtils.setCallingThreadDispatcher(system);
+	}
+
+	@AfterClass
+	public static void teardown(){
+		TestingUtils.setGlobalExecutionContext();
+		JavaTestKit.shutdownActorSystem(system);
+	}
 
 	@Test
 	public void scheduleAllSharedAndCoLocated() {

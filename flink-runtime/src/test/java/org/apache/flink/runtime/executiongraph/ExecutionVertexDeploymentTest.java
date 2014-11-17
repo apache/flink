@@ -55,9 +55,13 @@ public class ExecutionVertexDeploymentTest {
 	public void testDeployCall() {
 		try {
 			final JobVertexID jid = new JobVertexID();
+
+			TestingUtils.setCallingThreadDispatcher(system);
+			ActorRef tm = TestActorRef.create(system, Props.create(SimpleAcknowledgingTaskManager
+					.class));
 			
 			// mock taskmanager to simply accept the call
-			Instance instance = getInstance(ActorRef.noSender());
+			Instance instance = getInstance(tm);
 
 			final AllocatedSlot slot = instance.allocateSlot(new JobID());
 			
@@ -67,7 +71,7 @@ public class ExecutionVertexDeploymentTest {
 			
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			vertex.deployToSlot(slot);
-			assertEquals(ExecutionState.DEPLOYING, vertex.getExecutionState());
+			assertEquals(ExecutionState.RUNNING, vertex.getExecutionState());
 			
 			// no repeated scheduling
 			try {
@@ -84,6 +88,8 @@ public class ExecutionVertexDeploymentTest {
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
+		}finally{
+			TestingUtils.setGlobalExecutionContext();
 		}
 	}
 	

@@ -44,9 +44,4 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 		ClusterUtil.runOnMiniCluster(this.jobGraphBuilder.getJobGraph(jobName),
 				getDegreeOfParallelism());
 	}
-
-	public void executeTest(long memorySize) throws Exception {
-		ClusterUtil.runOnMiniCluster(this.jobGraphBuilder.getJobGraph(), getDegreeOfParallelism(),
-				memorySize);
-	}
 }

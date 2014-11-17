@@ -421,7 +421,6 @@ object JobManager {
     }
 
     jobManagerSystem.awaitTermination()
-    println("Shutting down.")
   }
 
   def parseArgs(args: Array[String]): (String, Int, Configuration, ExecutionMode) = {

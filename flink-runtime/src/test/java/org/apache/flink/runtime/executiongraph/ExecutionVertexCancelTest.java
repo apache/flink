@@ -135,8 +135,9 @@ public class ExecutionVertexCancelTest {
 				setVertexState(vertex, ExecutionState.SCHEDULED);
 				assertEquals(ExecutionState.SCHEDULED, vertex.getExecutionState());
 
-				ActorRef taskManager = system.actorOf(Props.create(new CancelSequenceTaskManagerCreator(new
-						TaskOperationResult(execId, true), new TaskOperationResult(execId, false))));
+				ActorRef taskManager = TestActorRef.create(system, Props.create(new
+						CancelSequenceTaskManagerCreator(new TaskOperationResult(execId, true),
+						new TaskOperationResult(execId, false))));
 
 				Instance instance = getInstance(taskManager);
 				AllocatedSlot slot = instance.allocateSlot(new JobID());

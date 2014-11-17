@@ -598,7 +598,7 @@ public final class ConfigConstants {
 
 	public static String DEFAULT_AKKA_FRAMESIZE = "10485760b";
 
-	public static String DEFAULT_AKKA_LOG_LEVEL = "OFF";
+	public static String DEFAULT_AKKA_LOG_LEVEL = "ERROR";
 
 	public static int DEFAULT_AKKA_ASK_TIMEOUT = 100;
 	

@@ -19,15 +19,18 @@
 package org.apache.flink.runtime.testingUtils
 
 import akka.actor.{ActorRef, Props}
+import akka.pattern.{ask, pipe}
 import org.apache.flink.runtime.ActorLogMessages
 import org.apache.flink.runtime.execution.ExecutionState
 import org.apache.flink.runtime.jobgraph.JobID
 import org.apache.flink.runtime.jobmanager.{JobManager, MemoryArchivist}
-import org.apache.flink.runtime.messages.ExecutionGraphMessages.ExecutionStateChanged
-import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.{AllVerticesRunning,
-WaitForAllVerticesToBeRunning, ExecutionGraphFound, RequestExecutionGraph}
+import org.apache.flink.runtime.messages.ExecutionGraphMessages.{JobStatusChanged,
+ExecutionStateChanged}
+import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages._
+import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.NotifyWhenTaskRemoved
 
 import scala.collection.convert.WrapAsScala
+import scala.concurrent.{Await, Future}
 
 
 trait TestingJobManager extends ActorLogMessages with WrapAsScala {
@@ -72,6 +75,22 @@ trait TestingJobManager extends ActorLogMessages with WrapAsScala {
       if(cleanup){
         waitForAllVerticesToBeRunning.remove(jobID)
       }
+    case NotifyWhenJobRemoved(jobID) => {
+      val tms = instanceManager.getAllRegisteredInstances.map(_.getTaskManager)
+
+      val responses = tms.map{
+        tm =>
+          (tm ? NotifyWhenJobRemoved(jobID))(timeout).mapTo[Boolean]
+      }
+
+      import context.dispatcher
+      val f = Future.sequence(responses)
+
+      val t = Await.result(f, timeout)
+
+      sender() ! true
+//      Future.fold(responses)(true)(_ & _) pipeTo sender()
+    }
 
   }
 

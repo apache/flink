@@ -28,9 +28,9 @@ import java.util.List;
 
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.source.SourceFunction;
+import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.util.Collector;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -132,7 +132,7 @@ public class WriteAsTextTest {
 
 	@Test
 	public void test() throws Exception {
-		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
+		StreamExecutionEnvironment env = new TestStreamEnvironment(1, MEMORYSIZE);
 		
 		@SuppressWarnings("unused")
 		DataStream<Tuple1<Integer>> dataStream1 = env.addSource(new MySource1()).writeAsText(PREFIX + "test1.txt");
@@ -159,7 +159,7 @@ public class WriteAsTextTest {
 
 		fillExpected5();
 
-		env.executeTest(MEMORYSIZE);
+		env.execute();
 
 		readFile(PREFIX + "test1.txt", result1);
 		readFile(PREFIX + "test2.txt", result2);

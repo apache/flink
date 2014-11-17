@@ -290,7 +290,6 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
       } catch {
         case t: Throwable =>
           log.error(t, s"Could not instantiate task with execution ID ${executionID}.")
-
           runningTasks.remove(executionID)
 
           for (entry <- DistributedCache.readFileInfoFromConfig(tdd.getJobConfiguration)) {
@@ -336,9 +335,11 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
       log.info(s"Unregister task with execution ID ${executionID}.")
       runningTasks.remove(executionID) match {
         case Some(task) =>
-          for (entry <- DistributedCache.readFileInfoFromConfig(task.getEnvironment
-            .getJobConfiguration)) {
-            fileCache.deleteTmpFile(entry.getKey, entry.getValue, task.getJobID)
+          if(task.getEnvironment != null) {
+            for (entry <- DistributedCache.readFileInfoFromConfig(task.getEnvironment
+              .getJobConfiguration)) {
+              fileCache.deleteTmpFile(entry.getKey, entry.getValue, task.getJobID)
+            }
           }
 
           channelManager foreach {
@@ -377,6 +378,10 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
 
     val receiver = this.self
 
+    val taskName = runningTasks(executionID).getTaskName
+    val numberOfSubtasks = runningTasks(executionID).getNumberOfSubtasks
+    val indexOfSubtask = runningTasks(executionID).getSubtaskIndex
+
     futureResponse.mapTo[Boolean].onComplete {
       case Success(result) =>
         if (!result || executionState == ExecutionState.FINISHED || executionState ==
@@ -384,7 +389,8 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
           receiver ! UnregisterTask(executionID)
         }
       case Failure(t) =>
-        log.error(t, "Execution state change notification failed.")
+        log.error(t, s"Execution state change notification failed for task ${executionID} " +
+          s"($indexOfSubtask/$numberOfSubtasks) of job ${jobID}.")
     }
   }
 

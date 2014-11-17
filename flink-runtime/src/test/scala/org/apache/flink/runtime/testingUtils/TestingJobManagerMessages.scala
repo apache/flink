@@ -37,4 +37,5 @@ object TestingJobManagerMessages {
   case class WaitForAllVerticesToBeRunning(jobID: JobID)
   case class AllVerticesRunning(jobID: JobID)
 
+  case class NotifyWhenJobRemoved(jobID: JobID)
 }

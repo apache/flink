@@ -44,7 +44,7 @@ class TestingCluster(userConfiguration: Configuration) extends FlinkMiniCluster(
 
   override def startTaskManager(index: Int)(implicit system: ActorSystem) = {
     val (connectionInfo, jobManagerURL, taskManagerConfig, networkConnectionConfig) =
-      TaskManager.parseConfiguration(FlinkMiniCluster.HOSTNAME, configuration, true)
+      TaskManager.parseConfiguration(HOSTNAME, configuration, true)
 
     system.actorOf(Props(new TaskManager(connectionInfo, jobManagerURL, taskManagerConfig,
       networkConnectionConfig) with TestingTaskManager), TaskManager.TASK_MANAGER_NAME + index)

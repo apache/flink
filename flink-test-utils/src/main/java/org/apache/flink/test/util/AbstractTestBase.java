@@ -46,7 +46,6 @@ import org.apache.commons.io.FileUtils;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages;
 import org.apache.hadoop.fs.FileSystem;
 import org.junit.Assert;
@@ -68,7 +67,7 @@ public abstract class AbstractTestBase {
 
 	protected final Configuration config;
 	
-	protected TestingCluster executor;
+	protected ForkableFlinkMiniCluster executor;
 
 	private final List<File> tempFiles;
 
@@ -97,16 +96,15 @@ public abstract class AbstractTestBase {
 	// --------------------------------------------------------------------------------------------
 	
 	public void startCluster() throws Exception {
-		Thread.sleep(250);
 		Configuration config = new Configuration();
 		config.setBoolean(ConfigConstants.FILESYSTEM_DEFAULT_OVERWRITE_KEY, true);
 		config.setBoolean(ConfigConstants.TASK_MANAGER_MEMORY_LAZY_ALLOCATION_KEY, true);
 		config.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, TASK_MANAGER_MEMORY_SIZE);
 		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, taskManagerNumSlots);
 		config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, numTaskManagers);
-		this.executor = new TestingCluster(config);
+		this.executor = new ForkableFlinkMiniCluster(config);
 	}
-	
+
 	public void stopCluster() throws Exception {
 		try {
 			

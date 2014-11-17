@@ -31,7 +31,6 @@ import org.apache.flink.compiler.plantranslate.NepheleJobGraphGenerator;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.minicluster.FlinkMiniCluster;
 import org.junit.Assert;
 import org.junit.Test;
 import org.apache.flink.api.java.CollectionEnvironment;
@@ -194,12 +193,12 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
 	
 	private static final class TestEnvironment extends ExecutionEnvironment {
 
-		private final FlinkMiniCluster executor;
+		private final ForkableFlinkMiniCluster executor;
 
 		private JobExecutionResult latestResult;
 		
 		
-		private TestEnvironment(FlinkMiniCluster executor, int degreeOfParallelism) {
+		private TestEnvironment(ForkableFlinkMiniCluster executor, int degreeOfParallelism) {
 			this.executor = executor;
 			setDegreeOfParallelism(degreeOfParallelism);
 		}

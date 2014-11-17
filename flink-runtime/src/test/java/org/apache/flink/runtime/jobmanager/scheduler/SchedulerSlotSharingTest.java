@@ -31,6 +31,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import akka.actor.ActorSystem;
+import akka.testkit.JavaTestKit;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.instance.Instance;
@@ -40,6 +45,20 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
  * Tests for the scheduler when scheduling tasks in slot sharing groups.
  */
 public class SchedulerSlotSharingTest {
+	private static ActorSystem system;
+
+	@BeforeClass
+	public static void setup(){
+		system = ActorSystem.create("TestingActorSystem", TestingUtils.testConfig());
+		TestingUtils.setCallingThreadDispatcher(system);
+	}
+
+	@AfterClass
+	public static void teardown(){
+		TestingUtils.setGlobalExecutionContext();
+		JavaTestKit.shutdownActorSystem(system);
+	}
+
 	
 	@Test
 	public void scheduleSingleVertexType() {
@@ -776,7 +795,7 @@ public class SchedulerSlotSharingTest {
 	
 	@Test
 	public void testSequentialAllocateAndRelease() {
-		final ExecutorService exec = Executors.newFixedThreadPool(8);
+		TestingUtils.setGlobalExecutionContext();
 		try {
 			final JobVertexID jid1 = new JobVertexID();
 			final JobVertexID jid2 = new JobVertexID();
@@ -785,7 +804,7 @@ public class SchedulerSlotSharingTest {
 			
 			final SlotSharingGroup sharingGroup = new SlotSharingGroup(jid1, jid2, jid3, jid4);
 			
-			final Scheduler scheduler = new Scheduler(exec);
+			final Scheduler scheduler = new Scheduler();
 			scheduler.newInstanceAvailable(getRandomInstance(4));
 			
 			// allocate something from group 1 and 2 interleaved with schedule for group 3
@@ -834,15 +853,15 @@ public class SchedulerSlotSharingTest {
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
-		}
-		finally {
-			exec.shutdownNow();
+		}finally{
+			TestingUtils.setCallingThreadDispatcher(system);
 		}
 	}
 	
 	@Test
 	public void testConcurrentAllocateAndRelease() {
 		final ExecutorService executor = Executors.newFixedThreadPool(20);
+		TestingUtils.setGlobalExecutionContext();
 		try {
 			for (int run = 0; run < 50; run++) {
 				final JobVertexID jid1 = new JobVertexID();
@@ -852,7 +871,7 @@ public class SchedulerSlotSharingTest {
 				
 				final SlotSharingGroup sharingGroup = new SlotSharingGroup(jid1, jid2, jid3, jid4);
 				
-				final Scheduler scheduler = new Scheduler(executor);
+				final Scheduler scheduler = new Scheduler();
 				scheduler.newInstanceAvailable(getRandomInstance(4));
 				
 				final AtomicInteger enumerator1 = new AtomicInteger();
@@ -1012,6 +1031,7 @@ public class SchedulerSlotSharingTest {
 		}
 		finally {
 			executor.shutdownNow();
+			TestingUtils.setCallingThreadDispatcher(system);
 		}
 	}
 	

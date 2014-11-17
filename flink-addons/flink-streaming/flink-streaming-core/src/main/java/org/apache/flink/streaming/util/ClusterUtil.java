@@ -81,5 +81,4 @@ public class ClusterUtil {
 	public static void runOnMiniCluster(JobGraph jobGraph, int numOfSlots) throws Exception {
 		runOnMiniCluster(jobGraph, numOfSlots, -1);
 	}
-
 }

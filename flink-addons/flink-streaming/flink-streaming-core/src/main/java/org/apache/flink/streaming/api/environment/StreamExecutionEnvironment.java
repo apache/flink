@@ -90,7 +90,7 @@ public abstract class StreamExecutionEnvironment {
 	/**
 	 * Gets the degree of parallelism with which operation are executed by
 	 * default. Operations can individually override this value to use a
-	 * specific degree of parallelism via {@link DataStream#setParallelism}.
+	 * specific degree of parallelism.
 	 * 
 	 * @return The degree of parallelism used by operations, unless they
 	 *         override that value.

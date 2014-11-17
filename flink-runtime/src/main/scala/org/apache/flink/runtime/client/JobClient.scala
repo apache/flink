@@ -20,6 +20,7 @@ package org.apache.flink.runtime.client
 
 import java.io.IOException
 import java.net.InetSocketAddress
+import java.util.concurrent.TimeUnit
 
 import akka.actor.Status.Failure
 import akka.actor._
@@ -83,11 +84,13 @@ object JobClient{
   def startActorSystemAndActor(config: Configuration): (ActorSystem, ActorRef) = {
     implicit val actorSystem = AkkaUtils.createActorSystem(host = "localhost",
       port =0, configuration = config)
+
     (actorSystem, startActorWithConfiguration(config))
   }
 
-  def startActor(jobManagerURL: String)(implicit actorSystem: ActorSystem): ActorRef = {
-    actorSystem.actorOf(Props(classOf[JobClient], jobManagerURL), JOB_CLIENT_NAME)
+  def startActor(jobManagerURL: String)(implicit actorSystem: ActorSystem, timeout: FiniteDuration):
+  ActorRef = {
+    actorSystem.actorOf(Props(classOf[JobClient], jobManagerURL, timeout), JOB_CLIENT_NAME)
   }
 
   def parseConfiguration(configuration: Configuration): String = {
@@ -109,7 +112,10 @@ object JobClient{
   }
 
   def startActorWithConfiguration(config: Configuration)(implicit actorSystem: ActorSystem):
-  ActorRef= {
+  ActorRef = {
+    implicit val timeout = FiniteDuration(config.getInteger(ConfigConstants.AKKA_ASK_TIMEOUT,
+      ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT), TimeUnit.SECONDS)
+
     startActor(parseConfiguration(config))
   }
 

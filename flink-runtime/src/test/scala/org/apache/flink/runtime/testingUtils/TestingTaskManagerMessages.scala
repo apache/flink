@@ -19,10 +19,12 @@
 package org.apache.flink.runtime.testingUtils
 
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
+import org.apache.flink.runtime.jobgraph.JobID
 import org.apache.flink.runtime.taskmanager.Task
 
 object TestingTaskManagerMessages{
   case class NotifyWhenTaskRemoved(executionID: ExecutionAttemptID)
+
   case object RequestRunningTasks
   case class ResponseRunningTasks(tasks: Map[ExecutionAttemptID, Task]){
     import collection.JavaConverters._
@@ -30,4 +32,6 @@ object TestingTaskManagerMessages{
   }
   case object RequestBroadcastVariablesWithReferences
   case class ResponseBroadcastVariablesWithReferences(number: Int)
+
+  case class CheckIfJobRemoved(jobID: JobID)
 }

@@ -68,7 +68,7 @@ public class Client {
 	
 	private final PactCompiler compiler;		// the compiler to compile the jobs
 	
-	private boolean printStatusDuringExecution;
+	private boolean printStatusDuringExecution = false;
 	
 	// ------------------------------------------------------------------------
 	//                            Construction

@@ -34,6 +34,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.co.CoMapFunction;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
 import org.apache.flink.streaming.api.function.source.SourceFunction;
+import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
 
@@ -145,8 +146,7 @@ public class StreamVertexTest {
 
 	@Test
 	public void coTest() throws Exception {
-		LocalStreamEnvironment env = StreamExecutionEnvironment
-				.createLocalEnvironment(SOURCE_PARALELISM);
+		StreamExecutionEnvironment env = new TestStreamEnvironment(SOURCE_PARALELISM, MEMORYSIZE);
 
 		DataStream<String> fromStringElements = env.fromElements("aa", "bb", "cc");
 		DataStream<Long> generatedSequence = env.generateSequence(0, 3);
@@ -154,7 +154,7 @@ public class StreamVertexTest {
 		fromStringElements.connect(generatedSequence).map(new CoMap()).addSink(new SetSink());
 
 		resultSet = new HashSet<String>();
-		env.executeTest(MEMORYSIZE);
+		env.execute();
 
 		HashSet<String> expectedSet = new HashSet<String>(Arrays.asList("aa", "bb", "cc", "0", "1",
 				"2", "3"));
@@ -163,12 +163,11 @@ public class StreamVertexTest {
 
 	@Test
 	public void runStream() throws Exception {
-		LocalStreamEnvironment env = StreamExecutionEnvironment
-				.createLocalEnvironment(SOURCE_PARALELISM);
+		StreamExecutionEnvironment env = new TestStreamEnvironment(SOURCE_PARALELISM, MEMORYSIZE);
 
 		env.addSource(new MySource()).setParallelism(SOURCE_PARALELISM).map(new MyTask()).addSink(new MySink());
 
-		env.executeTest(MEMORYSIZE);
+		env.execute();
 		assertEquals(10, data.keySet().size());
 
 		for (Integer k : data.keySet()) {

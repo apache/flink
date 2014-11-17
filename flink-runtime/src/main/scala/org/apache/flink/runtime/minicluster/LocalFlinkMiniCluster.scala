@@ -19,41 +19,29 @@
 package org.apache.flink.runtime.minicluster
 
 import akka.actor.{ActorRef, ActorSystem}
+import org.apache.flink.api.common.io.FileOutputFormat
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.client.JobClient
 import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.taskmanager.TaskManager
+import org.apache.flink.runtime.util.EnvironmentInformation
 import org.slf4j.LoggerFactory
 
 class LocalFlinkMiniCluster(userConfiguration: Configuration) extends
 FlinkMiniCluster(userConfiguration){
+  import LocalFlinkMiniCluster._
+
+  val jobClientActorSystem = AkkaUtils.createActorSystem()
 
   override def generateConfiguration(userConfiguration: Configuration): Configuration = {
-    val forNumberString = System.getProperty("forkNumber")
-
-    val forkNumber = try {
-      Integer.parseInt(forNumberString)
-    }catch{
-      case e: NumberFormatException => -1
-    }
-
-    val config = FlinkMiniCluster.getDefaultConfig
+    val config = getDefaultConfig
 
     config.addAll(userConfiguration)
 
-    if(forkNumber != -1){
-      val jobManagerRPC = 1024 + forkNumber*300
-      val taskManagerRPC = 1024 + forkNumber*300 + 100
-      val taskManagerData = 1024 + forkNumber*300 + 200
+    setMemory(config)
 
-      config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerRPC)
-      config.setInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, taskManagerRPC)
-      config.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, taskManagerData)
-
-    }
-
-    FlinkMiniCluster.initializeIOFormatClasses(config)
+    initializeIOFormatClasses(config)
 
     config
   }
@@ -80,7 +68,84 @@ FlinkMiniCluster(userConfiguration){
       config.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, dataPort + index)
     }
 
-    TaskManager.startActorWithConfiguration(FlinkMiniCluster.HOSTNAME, config, false)(system)
+    TaskManager.startActorWithConfiguration(HOSTNAME, config, false)(system)
+  }
+
+  def getJobClient(): ActorRef ={
+    val config = new Configuration()
+
+    config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, HOSTNAME)
+    config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, getJobManagerRPCPort)
+
+
+    JobClient.startActorWithConfiguration(config)(jobClientActorSystem)
+  }
+
+  def getJobClientActorSystem: ActorSystem = jobClientActorSystem
+
+  def getJobManagerRPCPort: Int = {
+    configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, -1)
+  }
+
+  override def shutdown(): Unit = {
+    super.shutdown()
+    jobClientActorSystem.shutdown()
+  }
+
+  override def awaitTermination(): Unit = {
+    jobClientActorSystem.awaitTermination()
+    super.awaitTermination()
+  }
+
+  def initializeIOFormatClasses(configuration: Configuration): Unit = {
+    try{
+      val om = classOf[FileOutputFormat[_]].getDeclaredMethod("initDefaultsFromConfiguration",
+        classOf[Configuration])
+      om.setAccessible(true)
+      om.invoke(null, configuration)
+    }catch {
+      case e: Exception =>
+        LOG.error("Cannot (re) initialize the globally loaded defaults. Some classes might not " +
+          "follow the specified default behaviour.")
+    }
+  }
+
+  def setMemory(config: Configuration): Unit = {
+    var memorySize: Long = EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag
+    val bufferMem: Long = ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_NUM_BUFFERS *
+      ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_BUFFER_SIZE
+    val numTaskManager = config.getInteger(ConfigConstants
+      .LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 1)
+    val taskManagerNumSlots: Int = ConfigConstants.DEFAULT_TASK_MANAGER_NUM_TASK_SLOTS
+    memorySize = memorySize - (bufferMem * numTaskManager)
+    memorySize = (memorySize * ConfigConstants.DEFAULT_MEMORY_MANAGER_MEMORY_FRACTION).toLong
+    memorySize >>>= 20
+    memorySize /= numTaskManager
+    config.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, memorySize)
+  }
+
+  def getDefaultConfig: Configuration = {
+    val config: Configuration = new Configuration
+    config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, HOSTNAME)
+    config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, ConfigConstants
+      .DEFAULT_JOB_MANAGER_IPC_PORT)
+    config.setInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, ConfigConstants
+      .DEFAULT_TASK_MANAGER_IPC_PORT)
+    config.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, ConfigConstants
+      .DEFAULT_TASK_MANAGER_DATA_PORT)
+    config.setBoolean(ConfigConstants.TASK_MANAGER_MEMORY_LAZY_ALLOCATION_KEY, ConfigConstants
+      .DEFAULT_TASK_MANAGER_MEMORY_LAZY_ALLOCATION)
+    config.setInteger(ConfigConstants.JOBCLIENT_POLLING_INTERVAL_KEY, ConfigConstants
+      .DEFAULT_JOBCLIENT_POLLING_INTERVAL)
+    config.setBoolean(ConfigConstants.FILESYSTEM_DEFAULT_OVERWRITE_KEY, ConfigConstants
+      .DEFAULT_FILESYSTEM_OVERWRITE)
+    config.setBoolean(ConfigConstants.FILESYSTEM_OUTPUT_ALWAYS_CREATE_DIRECTORY_KEY,
+      ConfigConstants.DEFAULT_FILESYSTEM_ALWAYS_CREATE_DIRECTORY)
+    config.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, -1)
+    config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 1)
+    config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, ConfigConstants
+      .DEFAULT_TASK_MANAGER_NUM_TASK_SLOTS)
+    config
   }
 }
 

@@ -19,16 +19,20 @@
 package org.apache.flink.runtime.testingUtils
 
 import akka.actor.ActorRef
+import org.apache.flink.runtime.jobgraph.JobID
 import org.apache.flink.runtime.taskmanager.TaskManager
+import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.NotifyWhenJobRemoved
 import org.apache.flink.runtime.{ActorLogMessages}
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages._
 import org.apache.flink.runtime.messages.TaskManagerMessages.UnregisterTask
+import scala.concurrent.duration._
 
 trait TestingTaskManager extends ActorLogMessages {
-  self: TaskManager =>
+  that: TaskManager =>
 
   val waitForRemoval = scala.collection.mutable.HashMap[ExecutionAttemptID, Set[ActorRef]]()
+  val waitForJobRemoval = scala.collection.mutable.HashMap[JobID, Set[ActorRef]]()
 
   abstract override def receiveWithLogMessages = {
     receiveTestMessages orElse super.receiveWithLogMessages
@@ -51,7 +55,32 @@ trait TestingTaskManager extends ActorLogMessages {
         case None =>
       }
     case RequestBroadcastVariablesWithReferences => {
-      sender() ! ResponseBroadcastVariablesWithReferences(bcVarManager.getNumberOfVariablesWithReferences)
+      sender() ! ResponseBroadcastVariablesWithReferences(
+        bcVarManager.getNumberOfVariablesWithReferences)
+    }
+    case NotifyWhenJobRemoved(jobID) => {
+      if(runningTasks.values.exists(_.getJobID == jobID)){
+        val set = waitForJobRemoval.getOrElse(jobID, Set())
+        waitForJobRemoval += (jobID -> (set + sender()))
+        import context.dispatcher
+        context.system.scheduler.scheduleOnce(200 milliseconds, this.self, CheckIfJobRemoved(jobID))
+      }else{
+        waitForJobRemoval.get(jobID) match {
+          case Some(listeners) => (listeners + sender()) foreach (_ ! true)
+          case None => sender() ! true
+        }
+      }
+    }
+    case CheckIfJobRemoved(jobID) => {
+      if(runningTasks.values.forall(_.getJobID != jobID)){
+        waitForJobRemoval.get(jobID) match {
+          case Some(listeners) => listeners foreach (_ ! true)
+          case None =>
+        }
+      }else{
+        import context.dispatcher
+        context.system.scheduler.scheduleOnce(200 milliseconds, this.self, CheckIfJobRemoved(jobID))
+      }
     }
   }
 }

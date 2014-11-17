@@ -32,6 +32,7 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.messages.JobClientMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
+import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 import org.junit.Assert;
 
 import org.slf4j.Logger;
@@ -69,7 +70,7 @@ public abstract class CancellingTestBase {
 
 	// --------------------------------------------------------------------------------------------
 	
-	protected LocalFlinkMiniCluster executor;
+	protected ForkableFlinkMiniCluster executor;
 
 	protected int taskManagerNumSlots = DEFAULT_TASK_MANAGER_NUM_SLOTS;
 	
@@ -87,7 +88,7 @@ public abstract class CancellingTestBase {
 		Configuration config = new Configuration();
 		config.setBoolean(ConfigConstants.FILESYSTEM_DEFAULT_OVERWRITE_KEY, true);
 
-		this.executor = new LocalFlinkMiniCluster(config);
+		this.executor = new ForkableFlinkMiniCluster(config);
 	}
 
 	@After

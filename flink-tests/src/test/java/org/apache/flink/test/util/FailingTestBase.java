@@ -19,7 +19,6 @@
 package org.apache.flink.test.util;
 
 import akka.actor.ActorRef;
-import org.apache.flink.runtime.minicluster.FlinkMiniCluster;
 import org.junit.Assert;
 
 import org.apache.flink.runtime.client.JobClient;
@@ -120,7 +119,7 @@ public abstract class FailingTestBase extends RecordAPITestBase {
 		// reference to the timeout thread
 		private final Thread timeoutThread;
 		// cluster to submit the job to.
-		private final FlinkMiniCluster executor;
+		private final ForkableFlinkMiniCluster executor;
 		// job graph of the failing job (submitted first)
 		private final JobGraph failingJob;
 		// job graph of the working job (submitted after return from failing job)
@@ -129,8 +128,8 @@ public abstract class FailingTestBase extends RecordAPITestBase {
 		private volatile Exception error;
 		
 
-		public SubmissionThread(Thread timeoutThread, FlinkMiniCluster executor, JobGraph failingJob,
-								JobGraph job) {
+		public SubmissionThread(Thread timeoutThread, ForkableFlinkMiniCluster executor, JobGraph
+				failingJob,	JobGraph job) {
 			this.timeoutThread = timeoutThread;
 			this.executor = executor;
 			this.failingJob = failingJob;
