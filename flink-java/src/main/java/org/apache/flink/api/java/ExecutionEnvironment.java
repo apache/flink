@@ -595,6 +595,7 @@ public abstract class ExecutionEnvironment {
 	/**
 	 * Creates the plan with which the system will execute the program, and returns it as 
 	 * a String using a JSON representation of the execution data flow graph.
+	 * Note that this needs to be called, before the plan is executed.
 	 * 
 	 * @return The execution plan of the program, as a JSON String.
 	 * @throws Exception Thrown, if the compiler could not be instantiated, or the master could not
@@ -658,6 +659,7 @@ public abstract class ExecutionEnvironment {
 	 * {@link org.apache.flink.api.common.PlanExecutor}. Obtaining a plan and starting it with an
 	 * executor is an alternative way to run a program and is only possible if the program consists
 	 * only of distributed operations.
+	 * This automatically starts a new stage of execution.
 	 * 
 	 * @return The program's plan.
 	 */
@@ -671,11 +673,27 @@ public abstract class ExecutionEnvironment {
 	 * {@link org.apache.flink.api.common.PlanExecutor}. Obtaining a plan and starting it with an
 	 * executor is an alternative way to run a program and is only possible if the program consists
 	 * only of distributed operations.
+	 * This automatically starts a new stage of execution.
 	 * 
 	 * @param jobName The name attached to the plan (displayed in logs and monitoring).
 	 * @return The program's plan.
 	 */
 	public JavaPlan createProgramPlan(String jobName) {
+		return createProgramPlan(jobName, true);
+	}
+
+	/**
+	 * Creates the program's {@link Plan}. The plan is a description of all data sources, data sinks,
+	 * and operations and how they interact, as an isolated unit that can be executed with a
+	 * {@link org.apache.flink.api.common.PlanExecutor}. Obtaining a plan and starting it with an
+	 * executor is an alternative way to run a program and is only possible if the program consists
+	 * only of distributed operations.
+	 *
+	 * @param jobName The name attached to the plan (displayed in logs and monitoring).
+	 * @param clearSinks Whether or not to start a new stage of execution.
+	 * @return The program's plan.
+	 */
+	public JavaPlan createProgramPlan(String jobName, boolean clearSinks) {
 		if (this.sinks.isEmpty()) {
 			throw new RuntimeException("No data sinks have been created yet. A program needs at least one sink that consumes data. Examples are writing the data set or printing it.");
 		}
@@ -699,7 +717,9 @@ public abstract class ExecutionEnvironment {
 		}
 		
 		// clear all the sinks such that the next execution does not redo everything
-		this.sinks.clear();
+		if (clearSinks) {
+			this.sinks.clear();
+		}
 		
 		return plan;
 	}

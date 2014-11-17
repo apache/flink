@@ -71,7 +71,7 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 	
 	@Override
 	public String getExecutionPlan() throws Exception {
-		Plan p = createProgramPlan("unnamed");
+		Plan p = createProgramPlan("unnamed", false);
 		p.setDefaultParallelism(getDegreeOfParallelism());
 		registerCachedFilesWithPlan(p);
 		
