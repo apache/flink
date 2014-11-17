@@ -16,9 +16,7 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.javaApiOperators;
-
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
