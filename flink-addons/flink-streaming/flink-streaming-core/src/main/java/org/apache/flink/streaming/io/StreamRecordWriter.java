@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.io;
 
 import java.io.IOException;
+import java.util.ArrayList;
 
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.io.network.Buffer;
@@ -29,8 +30,7 @@ import org.apache.flink.runtime.io.network.serialization.RecordSerializer;
 import org.apache.flink.runtime.io.network.serialization.SpanningRecordSerializer;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 
-public class StreamRecordWriter<T extends IOReadableWritable> extends
-		RecordWriter<T> {
+public class StreamRecordWriter<T extends IOReadableWritable> extends RecordWriter<T> {
 
 	private final BufferProvider bufferPool;
 
@@ -40,22 +40,25 @@ public class StreamRecordWriter<T extends IOReadableWritable> extends
 
 	private long timeout;
 
+	private OutputFlusher outputFlusher;
+
 	/** RecordSerializer per outgoing channel */
 	private RecordSerializer<T>[] serializers;
+
+	private ArrayList<TargetChannel> targetChannels;
 
 	// -----------------------------------------------------------------------------------------------------------------
 
 	public StreamRecordWriter(AbstractInvokable invokable) {
-		this(invokable, new RoundRobinChannelSelector<T>(), 100);
+		this(invokable, new RoundRobinChannelSelector<T>(), 1000);
 	}
 
-	public StreamRecordWriter(AbstractInvokable invokable,
-			ChannelSelector<T> channelSelector) {
-		this(invokable, channelSelector, 100);
+	public StreamRecordWriter(AbstractInvokable invokable, ChannelSelector<T> channelSelector) {
+		this(invokable, channelSelector, 1000);
 	}
 
-	public StreamRecordWriter(AbstractInvokable invokable,
-			ChannelSelector<T> channelSelector, long timeout) {
+	public StreamRecordWriter(AbstractInvokable invokable, ChannelSelector<T> channelSelector,
+			long timeout) {
 		// initialize the gate
 		super(invokable);
 
@@ -71,70 +74,92 @@ public class StreamRecordWriter<T extends IOReadableWritable> extends
 	public void initializeSerializers() {
 		this.numChannels = this.outputGate.getNumChannels();
 		this.serializers = new RecordSerializer[numChannels];
+		this.targetChannels = new ArrayList<TargetChannel>(numChannels);
+
 		for (int i = 0; i < this.numChannels; i++) {
 			this.serializers[i] = new SpanningRecordSerializer<T>();
+			this.targetChannels.add(new TargetChannel(i));
 		}
-		
-		//start a separate thread to handle positive flush intervals
-		if (timeout > 0) {
-			(new OutputFlusher()).start();
-		}
+
+		outputFlusher = new OutputFlusher();
+		outputFlusher.start();
 	}
 
 	@Override
 	public void emit(final T record) throws IOException, InterruptedException {
-		for (int targetChannel : this.channelSelector.selectChannels(record,
-				this.numChannels)) {
-			// serialize with corresponding serializer and send full buffer
-
-			RecordSerializer<T> serializer = this.serializers[targetChannel];
-
-			synchronized (serializer) {
-				RecordSerializer.SerializationResult result = serializer
-						.addRecord(record);
-				while (result.isFullBuffer()) {
-					Buffer buffer = serializer.getCurrentBuffer();
-					if (buffer != null) {
-						sendBuffer(buffer, targetChannel);
-					}
-
-					buffer = this.bufferPool
-							.requestBufferBlocking(this.bufferPool
-									.getBufferSize());
-					result = serializer.setNextBuffer(buffer);
-				}
-			}
-			
-			if (timeout == 0){
-				flush();
-			}
+		for (int targetChannel : this.channelSelector.selectChannels(record, this.numChannels)) {
+			targetChannels.get(targetChannel).emit(record);
 		}
 	}
 
 	@Override
 	public void flush() throws IOException, InterruptedException {
 		for (int targetChannel = 0; targetChannel < this.numChannels; targetChannel++) {
-			RecordSerializer<T> serializer = this.serializers[targetChannel];
-			synchronized (serializer) {
+			targetChannels.get(targetChannel).flush();
+		}
+	}
+
+	public void close() {
+		try {
+			if (outputFlusher != null) {
+				outputFlusher.terminate();
+				outputFlusher.join();
+			}
+			flush();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+	}
+
+	private class TargetChannel {
+
+		private int targetChannel;
+		private RecordSerializer<T> serializer;
+
+		public TargetChannel(int targetChannel) {
+			this.targetChannel = targetChannel;
+			this.serializer = serializers[targetChannel];
+		}
+
+		public synchronized void emit(final T record) throws IOException, InterruptedException {
+			RecordSerializer.SerializationResult result = serializer.addRecord(record);
+			while (result.isFullBuffer()) {
 				Buffer buffer = serializer.getCurrentBuffer();
 				if (buffer != null) {
 					sendBuffer(buffer, targetChannel);
 				}
 
-				serializer.clear();
+				buffer = bufferPool.requestBufferBlocking(bufferPool.getBufferSize());
+				result = serializer.setNextBuffer(buffer);
+			}
+		}
+
+		public synchronized void flush() throws IOException, InterruptedException {
+			Buffer buffer = serializer.getCurrentBuffer();
+			if (buffer != null) {
+				sendBuffer(buffer, targetChannel);
 			}
 
+			serializer.clear();
 		}
 	}
-
+	
 	private class OutputFlusher extends Thread {
+
+		private boolean running = true;
+
+		public void terminate() {
+			running = false;
+		}
 
 		@Override
 		public void run() {
-			while (!outputGate.isClosed()) {
+			while (running && !outputGate.isClosed()) {
 				try {
-					Thread.sleep(timeout);
 					flush();
+					Thread.sleep(timeout);
 				} catch (Exception e) {
 					throw new RuntimeException(e);
 				}

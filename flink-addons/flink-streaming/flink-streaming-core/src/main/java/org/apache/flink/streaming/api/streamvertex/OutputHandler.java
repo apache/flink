@@ -129,7 +129,6 @@ public class OutputHandler<OUT> {
 				LOG.trace("StreamRecordWriter initiated with {} bufferTimeout for {}",
 						bufferTimeout, streamVertex.getClass().getSimpleName());
 			}
-
 		} else {
 			output = new RecordWriter<SerializationDelegate<StreamRecord<OUT>>>(streamVertex,
 					outputPartitioner);
@@ -155,7 +154,11 @@ public class OutputHandler<OUT> {
 
 	public void flushOutputs() throws IOException, InterruptedException {
 		for (RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output : outputs) {
-			output.flush();
+			if (output instanceof StreamRecordWriter) {
+				((StreamRecordWriter<SerializationDelegate<StreamRecord<OUT>>>) output).close();
+			} else {
+				output.flush();
+			}
 		}
 	}
 
