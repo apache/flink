@@ -32,6 +32,7 @@ Graph API for Apache Flink
 
 ##Tested Operations
 * mapVertices()
+* mapEdges()
 * subGraph()
 * outDegrees()
 * getUndirected()
@@ -42,7 +43,6 @@ Graph API for Apache Flink
 ###Graph Class
 * fromCollection(vertices, edges)
 * fromCollection(vertices)
-* mapEdges()
 * getNeighborhoodGraph(Vertex src, int distance)
 * vertexCentricComputation()
 * edgeCentricComputation()
