@@ -18,7 +18,7 @@
 package org.apache.flink.examples.scala.relational
 
 import org.apache.flink.api.scala._
-import org.apache.flink.util.Collector
+import org.apache.flink.core.fs.FileSystem.WriteMode
 
 import org.apache.flink.api.java.aggregation.Aggregations
 
@@ -117,10 +117,10 @@ object TPCHQuery3 {
   //     USER DATA TYPES
   // *************************************************************************
   
-  case class Lineitem(orderId: Integer, extdPrice: Double, discount: Double, shipDate: String)
-  case class Customer(custId: Integer, mktSegment: String)
-  case class Order(orderId: Integer, custId: Integer, orderDate: String, shipPrio: Integer)
-  case class ShippedItem(orderId: Integer, revenue: Double, orderDate: String, shipPrio: Integer)
+  case class Lineitem(orderId: Long, extdPrice: Double, discount: Double, shipDate: String)
+  case class Order(orderId: Long, custId: Long, orderDate: String, shipPrio: Long)
+  case class Customer(custId: Long, mktSegment: String)
+  case class ShippedItem(orderId: Long, revenue: Double, orderDate: String, shipPrio: Long)
 
   // *************************************************************************
   //     UTIL METHODS

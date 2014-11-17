@@ -174,47 +174,47 @@ public class TPCHQuery3 {
 	//     DATA TYPES
 	// *************************************************************************
 	
-	public static class Lineitem extends Tuple4<Integer, Double, Double, String> {
+	public static class Lineitem extends Tuple4<Long, Double, Double, String> {
 
-		public Integer getOrderkey() { return this.f0; }
+		public Long getOrderkey() { return this.f0; }
 		public Double getDiscount() { return this.f2; }
 		public Double getExtendedprice() { return this.f1; }
 		public String getShipdate() { return this.f3; }
 	}
 
-	public static class Customer extends Tuple2<Integer, String> {
+	public static class Customer extends Tuple2<Long, String> {
 		
-		public Integer getCustKey() { return this.f0; }
+		public Long getCustKey() { return this.f0; }
 		public String getMktsegment() { return this.f1; }
 	}
 
-	public static class Order extends Tuple4<Integer, Integer, String, Integer> {
+	public static class Order extends Tuple4<Long, Long, String, Long> {
 		
-		public Integer getOrderKey() { return this.f0; }
-		public Integer getCustKey() { return this.f1; }
+		public Long getOrderKey() { return this.f0; }
+		public Long getCustKey() { return this.f1; }
 		public String getOrderdate() { return this.f2; }
-		public Integer getShippriority() { return this.f3; }
+		public Long getShippriority() { return this.f3; }
 	}
 
-	public static class ShippingPriorityItem extends Tuple4<Integer, Double, String, Integer> {
+	public static class ShippingPriorityItem extends Tuple4<Long, Double, String, Long> {
 
 		public ShippingPriorityItem() { }
 
-		public ShippingPriorityItem(Integer o_orderkey, Double revenue,
-				String o_orderdate, Integer o_shippriority) {
+		public ShippingPriorityItem(Long o_orderkey, Double revenue,
+				String o_orderdate, Long o_shippriority) {
 			this.f0 = o_orderkey;
 			this.f1 = revenue;
 			this.f2 = o_orderdate;
 			this.f3 = o_shippriority;
 		}
 		
-		public Integer getOrderkey() { return this.f0; }
-		public void setOrderkey(Integer orderkey) { this.f0 = orderkey; }
+		public Long getOrderkey() { return this.f0; }
+		public void setOrderkey(Long orderkey) { this.f0 = orderkey; }
 		public Double getRevenue() { return this.f1; }
 		public void setRevenue(Double revenue) { this.f1 = revenue; }
 		
 		public String getOrderdate() { return this.f2; }
-		public Integer getShippriority() { return this.f3; }
+		public Long getShippriority() { return this.f3; }
 	}
 	
 	// *************************************************************************
