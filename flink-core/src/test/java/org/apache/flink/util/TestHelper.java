@@ -5,13 +5,32 @@ import org.apache.commons.lang3.RandomUtils;
 public class TestHelper
 {
 
+	private static int INT_MIN = 0;
+	private static int INT_MAX = 1000;
+
     public static int uniqueInt() {
-        int result = uniqueInt(0, 1000);
+        int result = uniqueInt(INT_MIN, INT_MAX);
         return result;
     }
 
     public static int uniqueInt(int min, int max) {
-        int result = RandomUtils.nextInt(min, max);
+		int result = RandomUtils.nextInt(min, max);
+    	return result;
+    }
+
+    public static int uniqueInt(int[] exclude) {
+    	int result = uniqueInt(INT_MIN, INT_MAX, exclude);
+    	return result;
+    }
+
+    public static int uniqueInt(int min, int max, int[] exclude) {
+        int result = uniqueInt(min, max);
+        for (int e : exclude) {
+        	if (result == e) {
+        		result = uniqueInt(min, max, exclude);
+        		break;
+        	}
+        }
         return result;
     }
 

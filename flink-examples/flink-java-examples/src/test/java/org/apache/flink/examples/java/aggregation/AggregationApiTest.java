@@ -12,6 +12,7 @@ import static org.junit.Assert.assertThat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 import org.apache.flink.api.java.DataSet;
@@ -196,9 +197,9 @@ public class AggregationApiTest {
 		// given
 		Tuple3<String, String, Long>[] tuples = new Tuple3Builder<String, String, Long>()
 				.add("a", "A", 11L)
+				.add("a", "A", 12L)
 				.add("a", "B", 21L)
-				.add("b", "A", 21L)
-				.add("b", "B", 22L)
+				.add("a", "B", 22L)
 				.build();
 		DataSet<Tuple3<String, String, Long>> input = env.fromElements(tuples);
 
@@ -207,7 +208,7 @@ public class AggregationApiTest {
 				input.groupBy(0, 1).aggregate(key(0), average(2));
 
 		// then
-		assertThat(output, dataSetWithTuples(asList("a", 11.5), asList("b", 21.5)));
+		assertThat(output, dataSetWithTuples(asList("a", 11.5), asList("a", 21.5)));
 	}
 
 	@Test(expected=IllegalArgumentException.class)
@@ -248,6 +249,8 @@ public class AggregationApiTest {
                 if ( output.size() != tuples.length ) {
                 	return false;
                 }
+                Collections.sort(output, new TupleListComparator());
+                Arrays.sort(tuples, 0, tuples.length, new ListArrayComparator());
                 for (int i = 0; i < tuples.length; ++i) {
                 	List<? extends Object> expectedTuple = tuples[i];
                 	Tuple actualTuple = output.get(i);
@@ -294,5 +297,59 @@ public class AggregationApiTest {
                 }
             }
  
+        	abstract class ComplexComparator<T> implements Comparator<T> {
+        		
+        		protected abstract Object get(T o, int index);
+        		
+        		protected abstract int size(T o);
+        		
+        		@SuppressWarnings({ "rawtypes", "unchecked" })
+				@Override
+        		public int compare(T o1, T o2) {
+        			int result = 0;
+        			for (int i = 0; i < size(o1); ++i) {
+        				Object v1 = get(o1, i);
+        				Object v2 = get(o2, i);
+        				if (v1 instanceof Comparable && v2 instanceof Comparable) {
+        					Comparable c1 = (Comparable) v1;
+        					Comparable c2 = (Comparable) v2;
+        					result = c1.compareTo(c2);
+        					if (result != 0) {
+        						break;
+        					}
+        				}
+        			}
+        			return result;
+        		}
+        	}
+        	
+        	class TupleListComparator extends ComplexComparator<Tuple> {
+
+				@Override
+				protected Object get(Tuple o, int index) {
+					return o.getField(index);
+				}
+
+				@Override
+				protected int size(Tuple o) {
+					return o.getArity();
+				}
+        		
+        	}
+
+        	class ListArrayComparator extends ComplexComparator<List<? extends Object>> {
+
+				@Override
+				protected Object get(List<? extends Object> o, int index) {
+					return o.get(index);
+				}
+
+				@Override
+				protected int size(List<? extends Object> o) {
+					return o.size();
+				}
+        		
+        	}
+        	
         };
     }}

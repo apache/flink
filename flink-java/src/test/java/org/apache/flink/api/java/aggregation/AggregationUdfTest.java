@@ -40,7 +40,8 @@ public class AggregationUdfTest {
 
 		// setup UDF wrapping the 2 functions
 		Tuple2<Object, Object> result = new Tuple2<Object, Object>(null, null);
-		AggregationUdf udf = new AggregationUdf(result, function1, function2);
+		AggregationFunction[] functions = { function1, function2 };
+		AggregationUdf udf = new AggregationUdf(result, functions);
 		
 		// setup output collector
 		Collector<Tuple2<Object, Object>> collector = mock(Collector.class); 

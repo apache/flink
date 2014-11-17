@@ -27,6 +27,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.aggregation.AggregationFunction;
+import org.apache.flink.api.java.aggregation.AggregationOperatorFactory;
 import org.apache.flink.api.java.aggregation.deprecated.Aggregations;
 import org.apache.flink.api.java.functions.FirstReducer;
 import org.apache.flink.api.java.functions.SelectByMaxFunction;
@@ -38,6 +39,8 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import com.google.common.base.Preconditions;
 
 public class UnsortedGrouping<T> extends Grouping<T> {
+
+	private AggregationOperatorFactory aggregationOperatorFactory = AggregationOperatorFactory.getInstance();
 
 	public UnsortedGrouping(DataSet<T> set, Keys<T> keys) {
 		super(set, keys);
@@ -83,13 +86,14 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	}
 	
 	// private helper that allows to set a different call location name
+	@Deprecated
 	private AggregateOperator<T> aggregate(Aggregations agg, int field, String callLocationName) {
 		return new AggregateOperator<T>(this, agg, field, callLocationName);
 	}
 
-	@SuppressWarnings("rawtypes")
-	public <R extends Tuple> DataSet<R> aggregate(AggregationFunction... functions) {
-		return null;
+	public <R extends Tuple> AggregationOperator<T, R> aggregate(AggregationFunction<?, ?>... functions) {
+		AggregationOperator<T, R> aggregationOperator = getAggregationOperatorFactory().aggregate(this, functions);
+		return aggregationOperator;
 	}
 
 	/**
@@ -263,4 +267,12 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 		return sg;
 	}
 	
+	public AggregationOperatorFactory getAggregationOperatorFactory() {
+		return aggregationOperatorFactory;
+	}
+
+	public void setAggregationOperatorFactory(AggregationOperatorFactory aggregationOperatorFactory) {
+		this.aggregationOperatorFactory = aggregationOperatorFactory;
+	}
+
 }

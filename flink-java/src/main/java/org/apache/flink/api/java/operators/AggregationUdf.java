@@ -32,7 +32,7 @@ public class AggregationUdf<T, R extends Tuple> implements GroupReduceFunction<T
 			current = (Tuple) values.next();
 			for (AggregationFunction function : functions) {
 				int fieldPosition = function.getFieldPosition();
-				Object fieldValue = current.getFieldNotNull(fieldPosition);
+				Object fieldValue = current.getField(fieldPosition);
 				function.aggregate(fieldValue);
 			}
 		}

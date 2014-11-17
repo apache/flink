@@ -12,12 +12,14 @@ import org.apache.flink.api.java.tuple.Tuple;
 public class AggregationOperator<IN, OUT extends Tuple> extends SingleInputOperator<IN, OUT, AggregationOperator<IN, OUT>> {
 
 	private final OUT resultTuple;
+	private int[] groupingKeys;
 	private AggregationFunction<?, ?>[] functions;
 	
 	public AggregationOperator(DataSet<IN> input, 
-			TypeInformation<OUT> resultType, OUT resultTuple, AggregationFunction<?, ?>[] functions) {
+			TypeInformation<OUT> resultType, OUT resultTuple, int[] groupingKeys, AggregationFunction<?, ?>[] functions) {
 		super(input, resultType);
 		this.resultTuple = resultTuple;
+		this.groupingKeys = groupingKeys;
 		this.functions = functions;
 	}
 
@@ -28,7 +30,7 @@ public class AggregationOperator<IN, OUT extends Tuple> extends SingleInputOpera
 		String name = "some name";
 		GroupReduceFunction<IN, OUT> udf = new AggregationUdf<IN, OUT>(resultTuple, functions);
 		GroupReduceOperatorBase<IN, OUT, GroupReduceFunction<IN, OUT>> op = 
-				new GroupReduceOperatorBase<IN, OUT, GroupReduceFunction<IN,OUT>>(udf, operatorInfo, new int[0], name);
+				new GroupReduceOperatorBase<IN, OUT, GroupReduceFunction<IN,OUT>>(udf, operatorInfo, groupingKeys, name);
 		op.setInput(input);
 		return op;
 	}

@@ -41,7 +41,7 @@ public class SumAggregationFunction<T extends Number> extends InputTypeAggregati
 
 	@Override
 	public void initialize() {
-		
+		delegate.initialize();
 	}
 
 	@Override
@@ -55,6 +55,7 @@ public class SumAggregationFunction<T extends Number> extends InputTypeAggregati
 	}
 	
 	private static interface DelegatedSumAggregationFunction<T extends Number> {
+		public void initialize();
 		public void aggregate(T value);
 		public T getAggregate();
 	}
@@ -62,7 +63,12 @@ public class SumAggregationFunction<T extends Number> extends InputTypeAggregati
 	private static class LongSumAggregationFunction implements DelegatedSumAggregationFunction<Long>, Serializable {
 		private static final long serialVersionUID = 1047115816680232356L;
 		
-		private long sum = 0L;
+		private long sum;
+		
+		@Override
+		public void initialize() {
+			sum = 0L;
+		}
 		
 		@Override
 		public void aggregate(Long value) {
@@ -78,7 +84,12 @@ public class SumAggregationFunction<T extends Number> extends InputTypeAggregati
 	private static class IntegerSumAggregationFunction implements DelegatedSumAggregationFunction<Integer>, Serializable {
 		private static final long serialVersionUID = 8585263516508258383L;
 
-		private int sum = 0;
+		private int sum;
+		
+		@Override
+		public void initialize() {
+			sum = 0;
+		}
 		
 		@Override
 		public void aggregate(Integer value) {
@@ -94,8 +105,13 @@ public class SumAggregationFunction<T extends Number> extends InputTypeAggregati
 	private static class DoubleSumAggregationFunction implements DelegatedSumAggregationFunction<Double>, Serializable {
 		private static final long serialVersionUID = 7694204706135707202L;
 
-		private double sum = 0.0;
+		private double sum;
 		
+		@Override
+		public void initialize() {
+			sum = 0.0;
+		}
+				
 		@Override
 		public void aggregate(Double value) {
 			sum += value;
@@ -110,7 +126,12 @@ public class SumAggregationFunction<T extends Number> extends InputTypeAggregati
 	private static class FloatSumAggregationFunction implements DelegatedSumAggregationFunction<Float>, Serializable {
 		private static final long serialVersionUID = -556020226468154664L;
 
-		private float sum = (float) 0.0;
+		private float sum;
+		
+		@Override
+		public void initialize() {
+			sum = (float) 0.0;
+		}
 		
 		@Override
 		public void aggregate(Float value) {
@@ -126,7 +147,12 @@ public class SumAggregationFunction<T extends Number> extends InputTypeAggregati
 	private static class ByteSumAggregationFunction implements DelegatedSumAggregationFunction<Byte>, Serializable {
 		private static final long serialVersionUID = 1796225860081673684L;
 
-		private byte sum = (byte) 0;
+		private byte sum;
+		
+		@Override
+		public void initialize() {
+			sum = (byte) 0;
+		}
 		
 		@Override
 		public void aggregate(Byte value) {
@@ -142,7 +168,12 @@ public class SumAggregationFunction<T extends Number> extends InputTypeAggregati
 	private static class ShortSumAggregationFunction implements DelegatedSumAggregationFunction<Short>, Serializable {
 		private static final long serialVersionUID = 4132230028758671602L;
 
-		private short sum = (short) 0;
+		private short sum;
+		
+		@Override
+		public void initialize() {
+			sum = (short) 0;
+		}
 		
 		@Override
 		public void aggregate(Short value) {

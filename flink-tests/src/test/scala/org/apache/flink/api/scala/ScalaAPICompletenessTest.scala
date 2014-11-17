@@ -44,6 +44,8 @@ class ScalaAPICompletenessTest {
       // private[flink].
       "org.apache.flink.api.java.DataSet.getExecutionEnvironment",
       "org.apache.flink.api.java.DataSet.getType",
+      "org.apache.flink.api.java.DataSet.getAggregationOperatorFactory",
+      "org.apache.flink.api.java.DataSet.setAggregationOperatorFactory",
       "org.apache.flink.api.java.operators.Operator.getResultType",
       "org.apache.flink.api.java.operators.Operator.getName",
       "org.apache.flink.api.java.operators.Grouping.getDataSet",
@@ -66,6 +68,8 @@ class ScalaAPICompletenessTest {
       "org.apache.flink.api.java.DataSet.maxBy",
       "org.apache.flink.api.java.operators.UnsortedGrouping.minBy",
       "org.apache.flink.api.java.operators.UnsortedGrouping.maxBy",
+      "org.apache.flink.api.java.operators.UnsortedGrouping.getAggregationOperatorFactory",
+      "org.apache.flink.api.java.operators.UnsortedGrouping.setAggregationOperatorFactory",
 
       // This method is actually just an internal helper
       "org.apache.flink.api.java.DataSet.getCallLocationName"

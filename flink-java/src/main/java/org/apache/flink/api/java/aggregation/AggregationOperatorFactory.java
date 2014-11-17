@@ -1,11 +1,14 @@
 package org.apache.flink.api.java.aggregation;
 
+import static org.apache.flink.api.java.aggregation.Aggregations.key;
+
 import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.aggregation.AggregationFunction.ResultTypeBehavior;
 import org.apache.flink.api.java.operators.AggregationOperator;
+import org.apache.flink.api.java.operators.UnsortedGrouping;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
@@ -13,36 +16,84 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 public class AggregationOperatorFactory {
 	
 	private static final AggregationOperatorFactory INSTANCE = new AggregationOperatorFactory();
+	private GroupingPreprocessor groupingPreprocessor = new GroupingPreprocessor();
 	private ResultTypeFactory resultTypeFactory = new ResultTypeFactory();
 	private ResultTupleFactory resultTupleFactory = new ResultTupleFactory();
 	
 	public <T, R extends Tuple> AggregationOperator<T, R> aggregate(DataSet<T> input, AggregationFunction<?, ?>[] functions) {
+		for (AggregationFunction<?, ?> function : functions) {
+			if (function instanceof KeySelectionAggregationFunction) {
+				throw new IllegalArgumentException("Key selection aggregation function can only be used on grouped DataSets");
+			}
+		}
+		AggregationOperator<T, R> op = createAggregationOperator(input, new int[0], functions);
+		return op;
+	}
+
+	public <T, R extends Tuple> AggregationOperator<T, R> aggregate(UnsortedGrouping<T> grouping, AggregationFunction<?, ?>[] functions) {
+		DataSet<T> input = grouping.getDataSet();
+		int[] groupingKeys = grouping.getKeys().computeLogicalKeyPositions();
+		functions = groupingPreprocessor.insertKeySelectionAggregationFunctions(groupingKeys, functions);
+		AggregationOperator<T, R> op = createAggregationOperator(input, groupingKeys, functions);
+		return op;
+	}
+	
+	<T, R extends Tuple> AggregationOperator<T, R> createAggregationOperator(DataSet<T> input, int[] groupingKeys, AggregationFunction<?, ?>[] functions) {
 		TypeInformation<R> resultType = resultTypeFactory.createAggregationResultType(input.getType(), functions);
 		int arity = resultType.getArity();
 		R resultTuple = resultTupleFactory.createResultTuple(arity);
-		AggregationOperator<T, R> op = new AggregationOperator<T, R>(input, resultType, resultTuple, functions);
+		AggregationOperator<T, R> op = new AggregationOperator<T, R>(input, resultType, resultTuple, groupingKeys, functions);
 		return op;
+	}
+
+	static class GroupingPreprocessor {
+
+		AggregationFunction<?, ?>[] insertKeySelectionAggregationFunctions(
+				int[] pos, AggregationFunction<?, ?>[] functions) {
+			AggregationFunction<?, ?>[] result = null;
+			for (AggregationFunction<?, ?> function : functions) {
+				if (function instanceof KeySelectionAggregationFunction) {
+					result = functions;
+					break;
+				}
+			}
+			if (result == null) {
+				result = new AggregationFunction<?, ?>[pos.length + functions.length];
+				int i = 0;
+				for (; i < pos.length; ++i) {
+					int keyFieldPosition = pos[i];
+					result[i] = key(keyFieldPosition);
+				}
+				for (int j = 0; j < functions.length; ++i, ++j) {
+					AggregationFunction<?, ?> function = functions[j];
+					result[i] = function;
+				}
+			}
+			return result;
+		}
+		
 	}
 	
 	static class ResultTypeFactory {
 	
 		<R extends Tuple> TypeInformation<R> createAggregationResultType(TypeInformation<?> inputType, AggregationFunction<?, ?>... functions) {
-			Validate.inclusiveBetween(1, Tuple.MAX_ARITY, functions.length, "Output tuple of aggregation must have between 1 and %s elements; requested tuple has %s elements.", Tuple.MAX_ARITY, functions.length);
-			BasicTypeInfo<?>[] types = new BasicTypeInfo[functions.length];
+			int arity =  functions.length;
+			Validate.inclusiveBetween(1, Tuple.MAX_ARITY, arity, "Output tuple of aggregation must have between 1 and %s elements; requested tuple has %s elements.", Tuple.MAX_ARITY, functions.length);
+			BasicTypeInfo<?>[] types = new BasicTypeInfo[arity];
+			TupleTypeInfoBase<?> inputTypeAsTuple = (TupleTypeInfoBase<?>) inputType;
 			for (int i = 0; i < functions.length; ++i) {
 				AggregationFunction<?, ?> function = functions[i];
-				processAggregationFunction(inputType, types, i, function);
+				processAggregationFunction(inputTypeAsTuple, types, i, function);
 			}
 			TypeInformation<R> resultType = new TupleTypeInfo<R>(types);
 			return resultType;
 		}
 
-		private <T> void processAggregationFunction(TypeInformation<?> inputType,
+		private <T> void processAggregationFunction(TupleTypeInfoBase<?> inputTypeAsTuple,
 				BasicTypeInfo<?>[] types, int i,
 				AggregationFunction<T, ?> function) {
 			ResultTypeBehavior resultTypeBehavior = function.getResultTypeBehavior();
 			int fieldPosition = function.getFieldPosition();
-			TupleTypeInfoBase<?> inputTypeAsTuple = (TupleTypeInfoBase<?>) inputType;
 			@SuppressWarnings("unchecked")
 			BasicTypeInfo<T> fieldType = (BasicTypeInfo<T>) inputTypeAsTuple.getTypeAt(fieldPosition);
 			function.setInputType(fieldType);
@@ -93,6 +144,14 @@ public class AggregationOperatorFactory {
 
 	void setResultTupleFactory(ResultTupleFactory resultTupleFactory) {
 		this.resultTupleFactory = resultTupleFactory;
+	}
+
+	GroupingPreprocessor getGroupingPreprocessor() {
+		return groupingPreprocessor;
+	}
+
+	void setGroupingPreprocessor(GroupingPreprocessor groupingPreprocessor) {
+		this.groupingPreprocessor = groupingPreprocessor;
 	}
 	
 }

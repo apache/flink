@@ -24,7 +24,7 @@ public class Aggregations {
 	}
 	
 	public static AggregationFunction key(int field) {
-		return null;
+		return new KeySelectionAggregationFunction(field);
 	}
 	
 }
