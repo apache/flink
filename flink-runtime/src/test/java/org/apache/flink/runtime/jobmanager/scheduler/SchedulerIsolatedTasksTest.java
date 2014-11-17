@@ -33,7 +33,9 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.flink.runtime.instance.AllocatedSlot;
@@ -181,10 +183,12 @@ public class SchedulerIsolatedTasksTest {
 		final int NUM_SLOTS_PER_INSTANCE = 3;
 		final int NUM_TASKS_TO_SCHEDULE = 2000;
 		
+		final ExecutorService executor = Executors.newFixedThreadPool(4, ExecutorThreadFactory.INSTANCE);
+		
 		try {
 			// note: since this test asynchronously releases slots, the executor needs release workers.
 			// doing the release call synchronous can lead to a deadlock
-			Scheduler scheduler = new Scheduler(Executors.newFixedThreadPool(4, ExecutorThreadFactory.INSTANCE));
+			Scheduler scheduler = new Scheduler(executor);
 			
 			for (int i = 0;i < NUM_INSTANCES; i++) {
 				scheduler.newInstanceAvailable(getRandomInstance((int) (Math.random() * NUM_SLOTS_PER_INSTANCE) + 1));
@@ -262,11 +266,17 @@ public class SchedulerIsolatedTasksTest {
 			// the slots should all be different
 			assertTrue(areAllDistinct(slotsAfter.toArray()));
 			
+			executor.shutdown();
+			executor.awaitTermination(30, TimeUnit.SECONDS);
+			
 			assertEquals(totalSlots, scheduler.getNumberOfAvailableSlots());
 		}
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
+		}
+		finally {
+			executor.shutdownNow();
 		}
 	}
 	

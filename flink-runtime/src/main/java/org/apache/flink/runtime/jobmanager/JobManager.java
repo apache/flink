@@ -263,6 +263,7 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 			} catch (InterruptedException e) {
 				LOG.debug("Shutdown of executor thread pool interrupted", e);
 			}
+			this.executorService.shutdownNow();
 		}
 
 		// Stop instance manager

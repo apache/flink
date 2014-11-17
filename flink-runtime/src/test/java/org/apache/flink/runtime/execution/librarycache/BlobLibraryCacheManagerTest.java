@@ -46,7 +46,7 @@ public class BlobLibraryCacheManagerTest {
 		JobID jid = new JobID();
 		List<BlobKey> keys = new ArrayList<BlobKey>();
 		BlobServer server = null;
-		LibraryCacheManager libraryCacheManager = null;
+		BlobLibraryCacheManager libraryCacheManager = null;
 
 		final byte[] buf = new byte[128];
 
@@ -73,7 +73,19 @@ public class BlobLibraryCacheManagerTest {
 
 			libraryCacheManager.unregisterJob(jid);
 
-			Thread.sleep(1500);
+			// because we cannot guarantee that there are not thread races in the build system, we
+			// loop for a certain while until the references disappear
+			{
+				long deadline = System.currentTimeMillis() + 30000;
+				do {
+					Thread.sleep(500);
+				}
+				while (libraryCacheManager.getNumberOfCachedLibraries() > 0 && 
+						System.currentTimeMillis() < deadline);
+			}
+			
+			// this fails if we exited via a timeout
+			assertEquals(0, libraryCacheManager.getNumberOfCachedLibraries());
 
 			int caughtExceptions = 0;
 
@@ -90,7 +102,7 @@ public class BlobLibraryCacheManagerTest {
 			
 			bc.close();
 		}
-		catch(Exception e){
+		catch (Exception e){
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
