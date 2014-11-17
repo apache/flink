@@ -230,6 +230,10 @@ public class ExecutionGraph {
 		return state;
 	}
 	
+	public Throwable getFailureCause() {
+		return failureCause;
+	}
+	
 	public ExecutionJobVertex getJobVertex(JobVertexID id) {
 		return this.tasks.get(id);
 	}

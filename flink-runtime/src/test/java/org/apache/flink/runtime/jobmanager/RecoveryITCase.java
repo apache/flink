@@ -86,7 +86,17 @@ public class RecoveryITCase {
 			
 			if (eg != null) {
 				eg.waitForJobEnd();
-				assertEquals(JobStatus.FINISHED, eg.getState());
+				
+				if (eg.getState() != JobStatus.FINISHED) {
+					Throwable t = eg.getFailureCause();
+					String message = null;
+					
+					if (t != null) {
+						t.printStackTrace();
+						message = t.getMessage();
+					}
+					fail("Execution failed despite recovery: " + message);
+				}
 			}
 			else {
 				// already done, that was fast;
@@ -152,7 +162,17 @@ public class RecoveryITCase {
 			
 			if (eg != null) {
 				eg.waitForJobEnd();
-				assertEquals(JobStatus.FINISHED, eg.getState());
+				
+				if (eg.getState() != JobStatus.FINISHED) {
+					Throwable t = eg.getFailureCause();
+					String message = null;
+					
+					if (t != null) {
+						t.printStackTrace();
+						message = t.getMessage();
+					}
+					fail("Execution failed despite recovery: " + message);
+				}
 			}
 			else {
 				// already done, that was fast;
@@ -225,7 +245,17 @@ public class RecoveryITCase {
 			// wait for the recovery to do its work
 			if (eg != null) {
 				eg.waitForJobEnd();
-				assertEquals(JobStatus.FINISHED, eg.getState());
+				
+				if (eg.getState() != JobStatus.FINISHED) {
+					Throwable t = eg.getFailureCause();
+					String message = null;
+					
+					if (t != null) {
+						t.printStackTrace();
+						message = t.getMessage();
+					}
+					fail("Execution failed despite recovery: " + message);
+				}
 			}
 			else {
 				// already done, that was fast;
