@@ -229,7 +229,7 @@ DataSet<String> text = env.readTextFile("file:///path/to/file");
 
 This will give you a DataSet on which you can then apply transformations. For
 more information on data sources and input formats, please refer to
-[Data Sources](#data_sources).
+[Data Sources](#data-sources).
 
 Once you have a DataSet you can apply transformations to create a new
 DataSet which you can then write to a file, transform again, or
@@ -269,7 +269,7 @@ a cluster, the result goes to the standard out stream of the cluster nodes and e
 up in the *.out* files of the workers).
 The first two do as the name suggests, the third one can be used to specify a
 custom data output format. Please refer
-to [Data Sinks](#data_sinks) for more information on writing to files and also
+to [Data Sinks](#data-sinks) for more information on writing to files and also
 about custom data output formats.
 
 Once you specified the complete program you need to call `execute` on
@@ -329,7 +329,7 @@ val text = env.readTextFile("file:///path/to/file")
 
 This will give you a DataSet on which you can then apply transformations. For
 more information on data sources and input formats, please refer to
-[Data Sources](#data_sources).
+[Data Sources](#data-sources).
 
 Once you have a DataSet you can apply transformations to create a new
 DataSet which you can then write to a file, transform again, or
@@ -370,7 +370,7 @@ a cluster, the result goes to the standard out stream of the cluster nodes and e
 up in the *.out* files of the workers).
 The first two do as the name suggests, the third one can be used to specify a
 custom data output format. Please refer
-to [Data Sinks](#data_sinks) for more information on writing to files and also
+to [Data Sinks](#data-sinks) for more information on writing to files and also
 about custom data output formats.
 
 Once you specified the complete program you need to call `execute` on
@@ -840,9 +840,9 @@ val result3 = in.groupBy(0).sortGroup(1, Order.ASCENDING).first(3)
 </div>
 </div>
 
-The [parallelism](#parallelism) of a transformation can be defined by `setParallelism(int)` while
+The [parallelism](#parallel-execution) of a transformation can be defined by `setParallelism(int)` while
 `name(String)` assigns a custom name to a transformation which is helpful for debugging. The same is
-possible for [Data Sources](#data_sources) and [Data Sinks](#data_sinks).
+possible for [Data Sources](#data-sources) and [Data Sinks](#data-sinks).
 
 [Back to Top](#top)
 
@@ -1297,10 +1297,10 @@ Rich functions provide, in addition to the user-defined function (map,
 reduce, etc), four methods: `open`, `close`, `getRuntimeContext`, and
 `setRuntimeContext`. These are useful for creating and finalizing
 local state, accessing broadcast variables (see
-[Broadcast Variables](#broadcast_variables), and for accessing runtime
+[Broadcast Variables](#broadcast-variables), and for accessing runtime
 information such as accumulators and counters (see
-[Accumulators and Counters](#accumulators_counters), and information
-on iterations (see [Iterations](#iterations)).
+[Accumulators and Counters](#accumulators--counters), and information
+on iterations (see [Iterations](iterations.html)).
 
 In particular for the `reduceGroup` transformation, using a rich
 function is the only way to define an optional `combine` function. See
@@ -2015,7 +2015,7 @@ env.execute("Iterative Pi Example");
 {% endhighlight %}
 
 You can also check out the
-{% gh_link /flink-examples/flink-java-examples/src/main/java/org/apache/flink/example/java/clustering/KMeans.java "K-Means example" %},
+{% gh_link /flink-examples/flink-java-examples/src/main/java/org/apache/flink/examples/java/clustering/KMeans.java "K-Means example" %},
 which uses a BulkIteration to cluster a set of unlabeled points.
 
 #### Delta Iterations
@@ -2272,7 +2272,7 @@ data.map(new MapFunction<String, String>() {
 
 Make sure that the names (`broadcastSetName` in the previous example) match when registering and
 accessing broadcasted data sets. For a complete example program, have a look at
-{% gh_link /flink-examples/flink-java-examples/src/main/java/org/apache/flink/example/java/clustering/KMeans.java#L96 "KMeans Algorithm" %}.
+{% gh_link /flink-examples/flink-java-examples/src/main/java/org/apache/flink/examples/java/clustering/KMeans.java#L96 "K-Means Algorithm" %}.
 </div>
 <div data-lang="scala" markdown="1">
 
@@ -2312,7 +2312,7 @@ of a function, or use the `withParameters(...)` method to pass in a configuratio
 Program Packaging & Distributed Execution
 -----------------------------------------
 
-As described in the [program skeleton](#skeleton) section, Flink programs can be executed on
+As described in the [program skeleton](#program-skeleton) section, Flink programs can be executed on
 clusters by using the `RemoteEnvironment`. Alternatively, programs can be packaged into JAR Files
 (Java Archives) for execution. Packaging the program is a prerequisite to executing them through the
 [command line interface](cli.html) or the [web interface](web_client.html).
@@ -2429,7 +2429,7 @@ name.
 A note on accumulators and iterations: Currently the result of accumulators is only available after
 the overall job ended. We plan to also make the result of the previous iteration available in the
 next iteration. You can use
-{% gh_link /flink-java/src/main/java/org/apache/flink/api/java/IterativeDataSet.java#L98 "Aggregators" %}
+{% gh_link /flink-java/src/main/java/org/apache/flink/api/java/operators/IterativeDataSet.java#L98 "Aggregators" %}
 to compute per-iteration statistics and base the termination of iterations on such statistics.
 
 __Custom accumulators:__
@@ -2463,7 +2463,7 @@ The degree of parallelism of a task can be specified in Flink on different level
 
 The parallelism of an individual operator, data source, or data sink can be defined by calling its
 `setParallelism()` method.  For example, the degree of parallelism of the `Sum` operator in the
-[WordCount](#example) example program can be set to `5` as follows :
+[WordCount](#example-program) example program can be set to `5` as follows :
 
 
 <div class="codetabs" markdown="1">
@@ -2506,7 +2506,7 @@ parallelism of an operator.
 
 The default parallelism of an execution environment can be specified by calling the
 `setDegreeOfParallelism()` method. To execute all operators, data sources, and data sinks of the
-[WordCount](#example) example program with a parallelism of `3`, set the default parallelism of the
+[WordCount](#example-program) example program with a parallelism of `3`, set the default parallelism of the
 execution environment as follows:
 
 <div class="codetabs" markdown="1">
@@ -2543,7 +2543,7 @@ env.execute("Word Count Example")
 
 A system-wide default parallelism for all execution environments can be defined by setting the
 `parallelization.degree.default` property in `./conf/flink-conf.yaml`. See the
-[Configuration]({{site.baseurl}}/config.html) documentation for details.
+[Configuration](config.html) documentation for details.
 
 [Back to top](#top)
 
