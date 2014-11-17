@@ -1303,7 +1303,6 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 					final TypeComparator<T> comparator = compFactory.createComparator();
 					oe = new OutputEmitter<T>(strategy, comparator, partitioner, dataDist);
 				}
-
 				writers.add(new RecordWriter<SerializationDelegate<T>>(task, oe));
 			}
 			if (eventualOutputs != null) {

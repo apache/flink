@@ -116,32 +116,7 @@ public class Instance {
 	public boolean isAlive() {
 		return !isDead;
 	}
-	
-	public void stopInstance() {
-		try {
-			final TaskOperationProtocol tmProxy = this.getTaskManagerProxy();
-			// start a thread for stopping the TM to avoid infinitive blocking.
-			Runnable r = new Runnable() {
-				@Override
-				public void run() {
-					try {
-						tmProxy.killTaskManager();
-					} catch (IOException e) {
-						if (Log.isDebugEnabled()) {
-							Log.debug("Error while stopping TaskManager", e);
-						}
-					}
-				}
-			};
-			Thread t = new Thread(r);
-			t.setDaemon(true); // do not prevent the JVM from stopping
-			t.start();
-		} catch (Exception e) {
-			if (Log.isDebugEnabled()) {
-				Log.debug("Error while stopping TaskManager", e);
-			}
-		}
-	}
+
 	public void markDead() {
 		if (isDead) {
 			return;

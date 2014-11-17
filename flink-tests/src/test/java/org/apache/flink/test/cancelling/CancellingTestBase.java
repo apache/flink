@@ -121,8 +121,6 @@ public abstract class CancellingTestBase {
 			actorSystem.scheduler().scheduleOnce(new FiniteDuration(msecsTillCanceling,
 							TimeUnit.MILLISECONDS), client, new JobManagerMessages.CancelJob(jobGraph.getJobID()),
 					actorSystem.dispatcher(), ActorRef.noSender());
-						case RESTARTING:
-							throw new IllegalStateException("Job restarted");
 
 			try {
 				Await.result(result, AkkaUtils.DEFAULT_TIMEOUT());

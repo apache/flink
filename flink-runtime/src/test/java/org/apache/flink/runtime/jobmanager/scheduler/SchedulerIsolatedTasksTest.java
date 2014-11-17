@@ -38,14 +38,11 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.instance.Instance;
-import org.apache.flink.runtime.util.ExecutorThreadFactory;
 
 /**
  * Tests for the {@link Scheduler} when scheduling individual tasks.
@@ -283,9 +280,6 @@ public class SchedulerIsolatedTasksTest {
 			
 			// the slots should all be different
 			assertTrue(areAllDistinct(slotsAfter.toArray()));
-			
-			executor.shutdown();
-			executor.awaitTermination(30, TimeUnit.SECONDS);
 			
 			assertEquals(totalSlots, scheduler.getNumberOfAvailableSlots());
 		}

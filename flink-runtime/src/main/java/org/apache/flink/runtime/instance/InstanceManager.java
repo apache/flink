@@ -22,12 +22,9 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.Timer;
-import java.util.TimerTask;
 
 import akka.actor.ActorRef;
 import org.apache.flink.configuration.ConfigConstants;
@@ -97,22 +94,10 @@ public class InstanceManager {
 		this.registeredHostsByConnection = new HashMap<ActorRef, Instance>();
 		this.deadHosts = new HashSet<ActorRef>();
 		this.heartbeatTimeout = heartbeatTimeout;
-
-		new Timer(true).schedule(cleanupStaleMachines, cleanupInterval, cleanupInterval);
 	}
 	
 	public long getHeartbeatTimeout() {
 		return heartbeatTimeout;
-	}
-	
-	/**
-	 * This method is only used by the Flink YARN client to self-destruct a Flink cluster
-	 * by stopping the JVMs of the TaskManagers.
-	 */
-	public void killTaskManagers() {
-		for (Instance i : this.registeredHostsById.values()) {
-			i.stopInstance();
-		}
 	}
 
 	public void shutdown() {
@@ -121,8 +106,6 @@ public class InstanceManager {
 				return;
 			}
 			this.shutdown = true;
-
-			this.cleanupStaleMachines.cancel();
 
 			for (Instance i : this.registeredHostsById.values()) {
 				i.markDead();
@@ -213,7 +196,7 @@ public class InstanceManager {
 
 		if(host != null){
 			registeredHostsByConnection.remove(taskManager);
-			registeredHostsById.remove(taskManager);
+			registeredHostsById.remove(host.getId());
 			deadHosts.add(taskManager);
 
 			host.markDead();
@@ -221,6 +204,10 @@ public class InstanceManager {
 			totalNumberOfAliveTaskSlots -= host.getTotalNumberOfSlots();
 
 			notifyDeadInstance(host);
+
+			LOG.info("Unregistered task manager " + taskManager.path().address() + ". Number of " +
+					"registered task managers " + getNumberOfRegisteredTaskManagers() + ". Number" +
+					" of available slots " + getTotalNumberOfSlots() + ".");
 		}
 	}
 
@@ -272,70 +259,10 @@ public class InstanceManager {
 			for (InstanceListener listener : this.instanceListeners) {
 				try {
 					listener.instanceDied(instance);
-				}
-				catch (Throwable t) {
+				} catch (Throwable t) {
 					LOG.error("Notification of dead instance failed.", t);
 				}
 			}
 		}
 	}
-	
-	// --------------------------------------------------------------------------------------------
-	
-	private void checkForDeadInstances() {
-		final long now = System.currentTimeMillis();
-		final long timeout = InstanceManager.this.heartbeatTimeout;
-		
-		synchronized (InstanceManager.this.lock) {
-			if (InstanceManager.this.shutdown) {
-				return;
-			}
-
-			final Iterator<Map.Entry<InstanceID, Instance>> entries = registeredHostsById.entrySet().iterator();
-			
-			// check all hosts whether they did not send heart-beat messages.
-			while (entries.hasNext()) {
-				
-				final Map.Entry<InstanceID, Instance> entry = entries.next();
-				final Instance host = entry.getValue();
-				
-				if (!host.isStillAlive(now, timeout)) {
-					
-					// remove from the living
-					entries.remove();
-					registeredHostsByConnection.remove(host.getTaskManager());
-
-					// add to the dead
-					deadHosts.add(host.getTaskManager());
-					
-					host.markDead();
-					
-					totalNumberOfAliveTaskSlots -= host.getTotalNumberOfSlots();
-					
-					LOG.info(String.format("TaskManager %s at %s did not report a heartbeat for %d msecs - marking as dead. Current number of registered hosts is %d.",
-							host.getId(), host.getPath(), heartbeatTimeout, registeredHostsById.size()));
-					
-					// report to all listeners
-					notifyDeadInstance(host);
-				}
-			}
-		}
-	}
-	// --------------------------------------------------------------------------------------------
-	
-	/**
-	 * Periodic task that checks whether hosts have not sent their heart-beat
-	 * messages and purges the hosts in this case.
-	 */
-	private final TimerTask cleanupStaleMachines = new TimerTask() {
-		@Override
-		public void run() {
-			try {
-				checkForDeadInstances();
-			}
-			catch (Throwable t) {
-				LOG.error("Checking for dead instances failed.", t);
-			}
-		}
-	};
 }

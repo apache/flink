@@ -16,29 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.scala.operators.translation
+package org.apache.flink.runtime.akka
 
-import org.apache.flink.api.common.functions.Partitioner
+import com.esotericsoftware.kryo.Kryo
 
-
-
-class TestPartitionerInt extends Partitioner[Int] {
-  override def partition(key: Int, numPartitions: Int): Int = 0
-}
-
-class TestPartitionerLong extends Partitioner[Long] {
-  override def partition(key: Long, numPartitions: Int): Int = 0
-}
-
-class Pojo2 {
-
-  var a: Int = _
-  var b: Int = _
-}
-
-class Pojo3 {
-
-  var a: Int = _
-  var b: Int = _
-  var c: Int = _
+class KryoInitializer {
+  def cystomize(kryo: Kryo): Unit = {
+  }
 }

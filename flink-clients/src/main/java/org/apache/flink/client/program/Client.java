@@ -54,6 +54,7 @@ import com.google.common.base.Preconditions;
 
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironmentFactory;
+import scala.Tuple2;
 import scala.concurrent.duration.FiniteDuration;
 
 /**

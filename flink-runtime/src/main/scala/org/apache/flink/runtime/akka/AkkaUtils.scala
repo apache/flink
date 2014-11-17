@@ -78,42 +78,105 @@ object AkkaUtils {
     val logLevel = configuration.getString(ConfigConstants.AKKA_LOG_LEVEL,
       ConfigConstants.DEFAULT_AKKA_LOG_LEVEL)
 
-    val configString = s"""akka.remote.transport-failure-detector.heartbeat-interval =
-                       $transportHeartbeatInterval
-       |akka.remote.transport-failure-detector.acceptable-heartbeat-pause = $transportHeartbeatPause
-       |akka.remote.transport-failure-detector.threshold = $transportThreshold
-       |akka.remote.watch-failure-detector.heartbeat-interval = $watchHeartbeatInterval
-       |akka.remote.watch-failure-detector.acceptable-heartbeat-pause = $watchHeartbeatPause
-       |akka.remote.wathc-failure-detector.threshold = $watchThreshold
-       |akka.remote.netty.tcp.hostname = $host
-       |akka.remote.netty.tcp.port = $port
-       |akka.remote.netty.tcp.connection-timeout = $akkaTCPTimeout
-       |akka.remote.netty.tcp.maximum-frame-size = $akkaFramesize
-       |akka.actor.default-dispatcher.throughput = $akkaThroughput
-       |akka.remote.log-remote-lifecycle-events = $logLifecycleEvents
-       |akka.log-dead-letters = $logLifecycleEvents
-       |akka.log-dead-letters-during-shutdown = $logLifecycleEvents
-       |akka.loglevel = "$logLevel"
-       |akka.stdout-loglevel = "$logLevel"
-     """.stripMargin
+    val configString =
+      s"""
+         |akka {
+         |  loglevel = "$logLevel"
+         |  stdout-loglevel = "$logLevel"
+         |
+         |  log-dead-letters = $logLifecycleEvents
+         |  log-dead-letters-during-shutdown = $logLifecycleEvents
+         |
+         |  extensions = ["com.romix.akka.serialization.kryo.KryoSerializationExtension$$"]
+         |
+         |  remote {
+         |    transport-failure-detector{
+         |      acceptable-heartbeat-pause = $transportHeartbeatPause
+         |      threshold = $transportThreshold
+         |      heartbeat-interval = $transportHeartbeatInterval
+         |    }
+         |
+         |    watch-failure-detector{
+         |      heartbeat-interval = $watchHeartbeatInterval
+         |      acceptable-heartbeat-pause = $watchHeartbeatPause
+         |      threshold = $watchThreshold
+         |    }
+         |
+         |    netty{
+         |      tcp{
+         |        hostname = $host
+         |        port = $port
+         |        connection-timeout = $akkaTCPTimeout
+         |        maximum-frame-size = $akkaFramesize
+         |      }
+         |    }
+         |
+         |    log-remote-lifecycle-events = $logLifecycleEvents
+         |
+         |  }
+         |
+         |  actor{
+         |    default-dispatcher{
+         |      throughput = $akkaThroughput
+         |    }
+         |
+         |    kryo{
+         |      type = "nograph"
+         |      idstrategy = "default"
+         |      serializer-pool-size = 16
+         |      buffer-size = 4096
+         |      max-buffer-size = -1
+         |      use-manifests = false
+         |      compression = off
+         |      implicit-registration-logging = true
+         |      kryo-trace = true
+         |      kryo-custom-serializer-init = "org.apache.flink.runtime.akka.KryoInitializer"
+         |    }
+         |
+         |    serialize-messages = on
+         |
+         |    serializers{
+         |      kryo = "com.romix.akka.serialization.kryo.KryoSerializer"
+         |    }
+         |
+         |    serialization-bindings {
+         |    }
+         |  }
+         |}
+       """.stripMargin
 
     getDefaultActorSystemConfigString + configString
   }
 
   def getDefaultActorSystemConfigString: String = {
-    s"""akka.daemonic = on
-      |akka.loggers = ["akka.event.slf4j.Slf4jLogger"]
-      |akka.loglevel = "WARNING"
-      |akka.logging-filter = "akka.event.slf4j.Slf4jLoggingFilter"
-      |akka.stdout-loglevel = "WARNING"
-      |akka.jvm-exit-on-fatal-error = off
-      |akka.actor.provider = "akka.remote.RemoteActorRefProvider"
-      |akka.remote.netty.tcp.transport-class = "akka.remote.transport.netty.NettyTransport"
-      |akka.remote.netty.tcp.tcp-nodelay = on
-      |akka.log-config-on-start = off
-      |akka.remote.netty.tcp.port = 0
-      |akka.remote.netty.tcp.maximum-frame-size = 1MB
-    """.stripMargin
+    s"""
+       |akka {
+       |  daemonic = on
+       |
+       |  loggers = ["akka.event.slf4j.Slf4jLogger"]
+       |  loglevel = "WARNING"
+       |  logging-filter = "akka.event.slf4j.Slf4jLoggingFilter"
+       |  stdout-loglevel = "WARNING"
+       |  jvm-exit-on-fatal-error = off
+       |  log-config-on-start = off
+       |
+       |  actor {
+       |    provider = "akka.remote.RemoteActorRefProvider"
+       |  }
+       |
+       |  remote{
+       |    netty{
+       |      tcp{
+       |        transport-class = "akka.remote.transport.netty.NettyTransport"
+       |        tcp-nodelay = on
+       |
+       |        port = 0
+       |        maximum-frame-size = 1MB
+       |      }
+       |    }
+       |  }
+       |}
+     """.stripMargin
   }
 
   def getDefaultActorSystemConfig = {

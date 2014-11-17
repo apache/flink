@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -58,7 +59,7 @@ import org.apache.flink.util.ExceptionUtils;
 import static akka.dispatch.Futures.future;
 
 
-public class ExecutionGraph {
+public class ExecutionGraph implements Serializable {
 
 	private static final AtomicReferenceFieldUpdater<ExecutionGraph, JobStatus> STATE_UPDATER =
 			AtomicReferenceFieldUpdater.newUpdater(ExecutionGraph.class, JobStatus.class, "state");
