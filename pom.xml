@@ -175,7 +175,7 @@ under the License.
 				<artifactId>jetty-util</artifactId>
 				<version>8.0.0.M1</version>
 			</dependency>
-			
+
 			<!-- Make sure we use a consistent avro version throughout the project -->
 			<dependency>
 				<groupId>org.apache.avro</groupId>
@@ -208,7 +208,14 @@ under the License.
 				<artifactId>javassist</artifactId>
 				<version>3.18.1-GA</version>
 			</dependency>
-			
+
+			<!-- joda time is pulled in different versions by different transitive dependencies-->
+			<dependency>
+				<groupId>joda-time</groupId>
+				<artifactId>joda-time</artifactId>
+				<version>2.5</version>
+			</dependency>
+
 			<!-- stax is pulled in different versions by different transitive dependencies-->
 			<dependency>
 				<groupId>stax</groupId>
