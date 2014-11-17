@@ -24,6 +24,7 @@ import java.util.List;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.ExecutionEnvironmentFactory;
 import org.apache.flink.compiler.plan.OptimizedPlan;
 import org.apache.flink.compiler.plandump.PlanJSONDumpGenerator;
 
@@ -71,20 +72,55 @@ public class ContextEnvironment extends ExecutionEnvironment {
 				+ ") : " + getIdString();
 	}
 	
-	
-	public void setAsContext() {
-		initializeContextEnvironment(this);
-	}
-	
-	public static void disableLocalExecution() {
-		ExecutionEnvironment.disableLocalExecution();
-	}
-	
 	public Client getClient() {
 		return this.client;
 	}
 	
 	public List<File> getJars(){
 		return jarFilesToAttach;
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	static void setAsContext(Client client, List<File> jarFilesToAttach, 
+				ClassLoader userCodeClassLoader, int defaultParallelism)
+	{
+		initializeContextEnvironment(new ContextEnvironmentFactory(client, jarFilesToAttach, userCodeClassLoader, defaultParallelism));
+	}
+	
+	protected static void enableLocalExecution(boolean enabled) {
+		ExecutionEnvironment.enableLocalExecution(enabled);
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	public static class ContextEnvironmentFactory implements ExecutionEnvironmentFactory {
+		
+		private final Client client;
+		
+		private final List<File> jarFilesToAttach;
+		
+		private final ClassLoader userCodeClassLoader;
+		
+		private final int defaultParallelism;
+		
+
+		public ContextEnvironmentFactory(Client client, List<File> jarFilesToAttach, 
+				ClassLoader userCodeClassLoader, int defaultParallelism)
+		{
+			this.client = client;
+			this.jarFilesToAttach = jarFilesToAttach;
+			this.userCodeClassLoader = userCodeClassLoader;
+			this.defaultParallelism = defaultParallelism;
+		}
+		
+		@Override
+		public ExecutionEnvironment createExecutionEnvironment() {
+			ContextEnvironment env = new ContextEnvironment(client, jarFilesToAttach, userCodeClassLoader);
+			if (defaultParallelism > 0) {
+				env.setDegreeOfParallelism(defaultParallelism);
+			}
+			return env;
+		}
 	}
 }

@@ -35,6 +35,7 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.flink.client.program.Client;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
@@ -183,9 +184,12 @@ public class JobSubmissionServlet extends HttpServlet {
 					e.getCause().printStackTrace(w);
 				}
 
+				String message = sw.toString();
+				message = StringEscapeUtils.escapeHtml4(message);
+				
 				showErrorPage(resp, "An error occurred while invoking the program:<br/><br/>"
 					+ e.getMessage() + "<br/>"
-					+ "<br/><br/><pre>" + sw.toString() + "</pre>");
+					+ "<br/><br/><pre>" + message + "</pre>");
 				return;
 			}
 			catch (CompilerException cex) {
@@ -193,11 +197,14 @@ public class JobSubmissionServlet extends HttpServlet {
 				StringWriter sw = new StringWriter();
 				PrintWriter w = new PrintWriter(sw);
 				cex.printStackTrace(w);
+				
+				String message = sw.toString();
+				message = StringEscapeUtils.escapeHtml4(message);
 
 				showErrorPage(resp, "An error occurred in the compiler:<br/><br/>"
 					+ cex.getMessage() + "<br/>"
-					+ (cex.getCause()!= null?"Caused by: " + cex.getCause().getMessage():"")
-					+ "<br/><br/><pre>" + sw.toString() + "</pre>");
+					+ (cex.getCause() != null ? "Caused by: " + cex.getCause().getMessage():"")
+					+ "<br/><br/><pre>" + message + "</pre>");
 				return;
 			}
 			catch (Throwable t) {
@@ -206,8 +213,11 @@ public class JobSubmissionServlet extends HttpServlet {
 				PrintWriter w = new PrintWriter(sw);
 				t.printStackTrace(w);
 
+				String message = sw.toString();
+				message = StringEscapeUtils.escapeHtml4(message);
+				
 				showErrorPage(resp, "An unexpected error occurred:<br/><br/>" + t.getMessage() + "<br/><br/><pre>"
-					+ sw.toString() + "</pre>");
+					+ message + "</pre>");
 				return;
 			}
 

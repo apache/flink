@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.client.program;
 
 import java.io.ByteArrayOutputStream;
@@ -26,7 +25,6 @@ import java.io.PrintStream;
 import java.net.InetSocketAddress;
 import java.util.List;
 
-import org.apache.commons.lang3.StringEscapeUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.JobExecutionResult;
@@ -52,6 +50,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import com.google.common.base.Preconditions;
 
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.ExecutionEnvironmentFactory;
 
 /**
  * Encapsulates the functionality necessary to submit a program to a remote cluster.
@@ -156,7 +155,7 @@ public class Client {
 			ByteArrayOutputStream baes = new ByteArrayOutputStream();
 			System.setErr(new PrintStream(baes));
 			try {
-				ContextEnvironment.disableLocalExecution();
+				ContextEnvironment.enableLocalExecution(false);
 				prog.invokeInteractiveModeForExecution();
 			}
 			catch (ProgramInvocationException e) {
@@ -169,7 +168,9 @@ public class Client {
 				} else {
 					throw new ProgramInvocationException("The program caused an error: ", t);
 				}
-			} finally {
+			}
+			finally {
+				ContextEnvironment.enableLocalExecution(true);
 				System.setOut(originalOut);
 				System.setErr(originalErr);
 				System.err.println(baes);
@@ -177,9 +178,9 @@ public class Client {
 			}
 			
 			throw new ProgramInvocationException(
-					"The program plan could not be fetched - the program aborted pre-maturely. <br/><br/>"
-					+ "System.err: "+StringEscapeUtils.escapeHtml4(baes.toString())+" <br/>"
-					+ "System.out: "+StringEscapeUtils.escapeHtml4(baos.toString())+" <br/>" );
+					"The program plan could not be fetched - the program aborted pre-maturely.\n"
+					+ "System.err: " + baes.toString() + '\n'
+					+ "System.out: " + baos.toString() + '\n');
 		}
 		else {
 			throw new RuntimeException();
@@ -230,18 +231,17 @@ public class Client {
 			return run(prog.getPlanWithJars(), parallelism, wait);
 		}
 		else if (prog.isUsingInteractiveMode()) {
-			ContextEnvironment env = new ContextEnvironment(this, prog.getAllLibraries(), prog.getUserCodeClassLoader());
 			
-			if (parallelism > 0) {
-				env.setDegreeOfParallelism(parallelism);
-			}
-			env.setAsContext();
-			
-			ContextEnvironment.disableLocalExecution();
-			
+			ContextEnvironment.setAsContext(this, prog.getAllLibraries(), prog.getUserCodeClassLoader(), parallelism);
+			ContextEnvironment.enableLocalExecution(false);
 			if (wait) {
 				// invoke here
-				prog.invokeInteractiveModeForExecution();
+				try {
+					prog.invokeInteractiveModeForExecution();
+				}
+				finally {
+					ContextEnvironment.enableLocalExecution(true);
+				}
 			}
 			else {
 				// invoke in the background
@@ -252,6 +252,9 @@ public class Client {
 						}
 						catch (Throwable t) {
 							LOG.error("The program execution failed.", t);
+						}
+						finally {
+							ContextEnvironment.enableLocalExecution(true);
 						}
 					}
 				};
@@ -360,7 +363,14 @@ public class Client {
 		}
 		
 		private void setAsContext() {
-			initializeContextEnvironment(this);
+			ExecutionEnvironmentFactory factory = new ExecutionEnvironmentFactory() {
+				
+				@Override
+				public ExecutionEnvironment createExecutionEnvironment() {
+					return OptimizerPlanEnvironment.this;
+				}
+			};
+			initializeContextEnvironment(factory);
 		}
 	}
 	

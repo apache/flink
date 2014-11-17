@@ -21,6 +21,7 @@ package org.apache.flink.client.program;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.LocalEnvironment;
 import org.apache.flink.api.java.io.DiscardingOuputFormat;
 import org.junit.Test;
 
@@ -31,7 +32,8 @@ public class ExecutionPlanAfterExecutionTest implements java.io.Serializable {
 
 	@Test
 	public void testExecuteAfterGetExecutionPlan() {
-		ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
+		ExecutionEnvironment env = new LocalEnvironment();
+		
 		DataSet<Integer> baseSet = env.fromElements(1, 2);
 
 		DataSet<Integer> result = baseSet.map(new MapFunction<Integer, Integer>() {
@@ -42,6 +44,25 @@ public class ExecutionPlanAfterExecutionTest implements java.io.Serializable {
 		try {
 			env.getExecutionPlan();
 			env.execute();
+		} catch (Exception e) {
+			fail("Cannot run both #getExecutionPlan and #execute.");
+		}
+	}
+	
+	@Test
+	public void testCreatePlanAfterGetExecutionPlan() {
+		ExecutionEnvironment env = new LocalEnvironment();
+		
+		DataSet<Integer> baseSet = env.fromElements(1, 2);
+
+		DataSet<Integer> result = baseSet.map(new MapFunction<Integer, Integer>() {
+			@Override public Integer map(Integer value) throws Exception { return value * 2; }
+		});
+		result.output(new DiscardingOuputFormat<Integer>());
+
+		try {
+			env.getExecutionPlan();
+			env.createProgramPlan();
 		} catch (Exception e) {
 			fail("Cannot run both #getExecutionPlan and #execute.");
 		}

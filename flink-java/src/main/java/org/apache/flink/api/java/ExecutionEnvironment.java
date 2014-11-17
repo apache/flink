@@ -78,7 +78,7 @@ import org.apache.flink.util.SplittableIterator;
 public abstract class ExecutionEnvironment {
 	
 	/** The environment of the context (local by default, cluster if invoked through command line) */
-	private static ExecutionEnvironment contextEnvironment;
+	private static ExecutionEnvironmentFactory contextEnvironmentFactory;
 	
 	/** The default parallelism used by local environments */
 	private static int defaultLocalDop = Runtime.getRuntime().availableProcessors();
@@ -756,7 +756,8 @@ public abstract class ExecutionEnvironment {
 	 * @return The execution environment of the context in which the program is executed.
 	 */
 	public static ExecutionEnvironment getExecutionEnvironment() {
-		return contextEnvironment == null ? createLocalEnvironment() : contextEnvironment;
+		return contextEnvironmentFactory == null ? 
+				createLocalEnvironment() : contextEnvironmentFactory.createExecutionEnvironment();
 	}
 	
 	/**
@@ -835,20 +836,19 @@ public abstract class ExecutionEnvironment {
 	//  Methods to control the context and local environments for execution from packaged programs
 	// --------------------------------------------------------------------------------------------
 	
-	protected static void initializeContextEnvironment(ExecutionEnvironment ctx) {
-		contextEnvironment = ctx;
+	protected static void initializeContextEnvironment(ExecutionEnvironmentFactory ctx) {
+		contextEnvironmentFactory = ctx;
 	}
 	
 	protected static boolean isContextEnvironmentSet() {
-		return contextEnvironment != null;
+		return contextEnvironmentFactory != null;
 	}
 	
-	protected static void disableLocalExecution() {
-		allowLocalExecution = false;
+	protected static void enableLocalExecution(boolean enabled) {
+		allowLocalExecution = enabled;
 	}
 	
 	public static boolean localExecutionIsAllowed() {
 		return allowLocalExecution;
 	}
-
 }
