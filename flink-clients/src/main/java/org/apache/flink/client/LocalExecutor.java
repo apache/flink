@@ -60,6 +60,8 @@ public class LocalExecutor extends PlanExecutor {
 	private int taskManagerNumSlots = DEFAULT_TASK_MANAGER_NUM_SLOTS;
 
 	private boolean defaultOverwriteFiles = DEFAULT_OVERWRITE;
+
+	private boolean printStatusDuringExecution = true;
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -82,6 +84,10 @@ public class LocalExecutor extends PlanExecutor {
 	public void setTaskManagerNumSlots(int taskManagerNumSlots) { this.taskManagerNumSlots = taskManagerNumSlots; }
 
 	public int getTaskManagerNumSlots() { return this.taskManagerNumSlots; }
+
+	public void setPrintStatusDuringExecution(boolean printStatus) {
+		this.printStatusDuringExecution = printStatus;
+	}
 	
 	// --------------------------------------------------------------------------------------------
 	
@@ -164,7 +170,7 @@ public class LocalExecutor extends PlanExecutor {
 
 				ActorRef jobClient = flink.getJobClient();
 
-				return JobClient.submitJobAndWait(jobGraph, true, jobClient);
+				return JobClient.submitJobAndWait(jobGraph, printStatusDuringExecution, jobClient);
 			}
 			finally {
 				if (shutDownAtEnd) {

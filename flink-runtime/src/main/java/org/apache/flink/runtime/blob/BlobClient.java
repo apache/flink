@@ -55,7 +55,11 @@ public final class BlobClient implements Closeable {
 	public BlobClient(final InetSocketAddress serverAddress) throws IOException {
 
 		this.socket = new Socket();
-		this.socket.connect(serverAddress);
+		try {
+			this.socket.connect(serverAddress);
+		}catch(IOException e){
+			throw new IOException("Could not connect to BlobServer at address " + serverAddress, e);
+		}
 	}
 
 	/**

@@ -101,15 +101,21 @@ public final class BlobServer extends Thread implements BlobService{
 	 */
 	public BlobServer() throws IOException {
 
-		this.serverSocket = new ServerSocket(0);
-		start();
+		try {
+			this.serverSocket = new ServerSocket(0);
 
-		if (LOG.isInfoEnabled()) {
-			LOG.info(String.format("Started BLOB server on port %d",
-				this.serverSocket.getLocalPort()));
+			start();
+
+			if (LOG.isInfoEnabled()) {
+				LOG.info(String.format("Started BLOB server on port %d",
+						this.serverSocket.getLocalPort()));
+			}
+
+			this.storageDir = BlobUtils.initStorageDirectory();
+		}catch(IOException e){
+			throw new IOException("Could not create BlobServer with random port.", e);
 		}
 
-		this.storageDir = BlobUtils.initStorageDirectory();
 	}
 
 	/**

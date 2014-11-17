@@ -35,7 +35,7 @@ import scala.concurrent.duration._
 
 class ApplicationClient(appId: ApplicationId, port: Int, yarnClient: YarnClient,
                         confDirPath: String, slots: Int, numTaskManagers: Int,
-                        dynamicPropertiesEncoded: String)
+                        dynamicPropertiesEncoded: String, timeout: FiniteDuration)
   extends Actor with Consumer with ActorLogMessages with ActorLogging {
   import context._
 
@@ -85,7 +85,7 @@ class ApplicationClient(appId: ApplicationId, port: Int, yarnClient: YarnClient,
 
           writeYarnProperties(address)
 
-          jobManager = Some(AkkaUtils.getReference(JobManager.getAkkaURL(address)))
+          jobManager = Some(AkkaUtils.getReference(JobManager.getAkkaURL(address))(system, timeout))
           jobManager.get ! RegisterMessageListener
 
           pollingTimer foreach {

@@ -29,6 +29,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.jar.JarFile;
 
 import akka.actor.ActorRef;
@@ -71,6 +72,7 @@ import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.client.api.YarnClientApplication;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.util.Records;
+import scala.concurrent.duration.FiniteDuration;
 
 /**
  * All classes in this package contain code taken from
@@ -328,6 +330,9 @@ public class Client {
 			LOG.warn("Unable to find job manager port in configuration!");
 			jmPort = ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT;
 		}
+		FiniteDuration timeout = new FiniteDuration(GlobalConfiguration.getInteger
+				(ConfigConstants.AKKA_ASK_TIMEOUT, ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT),
+				TimeUnit.SECONDS);
 
 		conf = Utils.initializeYarnConfiguration();
 
@@ -520,7 +525,6 @@ public class Client {
 		// file that we write into the conf/ dir containing the jobManager address and the dop.
 		yarnPropertiesFile = new File(confDirPath + CliFrontend.YARN_PROPERTIES_FILE);
 
-
 		LOG.info("Submitting application master " + appId);
 		yarnClient.submitApplication(appContext);
 
@@ -533,7 +537,8 @@ public class Client {
 		// start application client
 		LOG.info("Start application client.");
 		applicationClient = actorSystem.actorOf(Props.create(ApplicationClient.class, appId, jmPort,
-				yarnClient, confDirPath, slots, taskManagerCount, dynamicPropertiesEncoded));
+				yarnClient, confDirPath, slots, taskManagerCount, dynamicPropertiesEncoded,
+				timeout));
 
 		actorSystem.awaitTermination();
 

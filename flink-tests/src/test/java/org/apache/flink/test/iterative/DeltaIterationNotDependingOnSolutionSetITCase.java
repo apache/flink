@@ -30,44 +30,46 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.LocalCollectionOutputFormat;
 import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.test.util.JavaProgramTestBase;
 import org.junit.Test;
 
 @SuppressWarnings("serial")
-public class DeltaIterationNotDependingOnSolutionSetITCase {
+public class DeltaIterationNotDependingOnSolutionSetITCase extends JavaProgramTestBase {
+	private final List<Tuple2<Long, Long>> result = new ArrayList<Tuple2<Long,Long>>();
 
-	@Test
-	public void testDeltaIterationNotDependingOnSolutionSet() {
+	@Override
+	protected void testProgram() throws Exception {
 		try {
-			final List<Tuple2<Long, Long>> result = new ArrayList<Tuple2<Long,Long>>();
-			
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 			env.setDegreeOfParallelism(1);
-			
+
 			DataSet<Tuple2<Long, Long>> input = env.generateSequence(0, 9).map(new Duplicator<Long>());
-			
+
 			DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iteration = input.iterateDelta(input, 5, 1);
-			
+
 			iteration.closeWith(iteration.getWorkset(), iteration.getWorkset().map(new TestMapper()))
-				.output(new LocalCollectionOutputFormat<Tuple2<Long,Long>>(result));
-			
+					.output(new LocalCollectionOutputFormat<Tuple2<Long,Long>>(result));
+
 			env.execute();
-			
-			boolean[] present = new boolean[50];
-			for (Tuple2<Long, Long> t : result) {
-				present[t.f0.intValue()] = true;
-			}
-			
-			for (int i = 0; i < present.length; i++) {
-				assertTrue(String.format("Missing tuple (%d, %d)", i, i), present[i]);
-			}
 		}
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
 	}
-	
-	
+
+	@Override
+	protected void postSubmit() {
+		boolean[] present = new boolean[50];
+		for (Tuple2<Long, Long> t : result) {
+			present[t.f0.intValue()] = true;
+		}
+
+		for (int i = 0; i < present.length; i++) {
+			assertTrue(String.format("Missing tuple (%d, %d)", i, i), present[i]);
+		}
+	}
+
 	private static final class Duplicator<T> implements MapFunction<T, Tuple2<T, T>> {
 		@Override
 		public Tuple2<T, T> map(T value) {

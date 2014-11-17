@@ -159,7 +159,7 @@ object ApplicationMaster{
     val args = Array[String]("--configDir", pathToConfig)
 
     LOG.info(s"Config path: ${pathToConfig}.")
-    val (hostname, port, configuration) = JobManager.parseArgs(args)
+    val (hostname, port, configuration, _) = JobManager.parseArgs(args)
 
     implicit val jobManagerSystem = YarnUtils.createActorSystem(hostname, port, configuration)
 

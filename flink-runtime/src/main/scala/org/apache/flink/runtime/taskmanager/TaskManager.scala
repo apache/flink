@@ -378,10 +378,6 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
 
     val receiver = this.self
 
-    val taskName = runningTasks(executionID).getTaskName
-    val numberOfSubtasks = runningTasks(executionID).getNumberOfSubtasks
-    val indexOfSubtask = runningTasks(executionID).getSubtaskIndex
-
     futureResponse.mapTo[Boolean].onComplete {
       case Success(result) =>
         if (!result || executionState == ExecutionState.FINISHED || executionState ==
@@ -390,7 +386,7 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
         }
       case Failure(t) =>
         log.error(t, s"Execution state change notification failed for task ${executionID} " +
-          s"($indexOfSubtask/$numberOfSubtasks) of job ${jobID}.")
+          s"of job ${jobID}.")
     }
   }
 

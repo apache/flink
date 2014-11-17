@@ -29,23 +29,24 @@ import org.apache.flink.runtime.taskmanager.Task;
 public interface TaskManagerProfiler {
 
 	/**
-	 * Registers an {@link org.apache.flink.runtime.execution.ExecutionListener} object for profiling.
+	 * Registers a {@link org.apache.flink.runtime.taskmanager.Task} object for profiling.
 	 * 
 	 * @param task
 	 *        task to be register a profiling listener for
 	 * @param jobConfiguration
 	 *        the job configuration sent with the task
 	 */
-	void registerExecutionListener(Task task, Configuration jobConfiguration);
+	void registerTask(Task task, Configuration jobConfiguration);
 
 	/**
-	 * Unregisters all previously register {@link org.apache.flink.runtime.execution.ExecutionListener} objects for
-	 * the vertex identified by the given ID.
+	 * Unregisters all previously registered {@link org.apache.flink.runtime.taskmanager.Task}
+	 * objects for the vertex identified by the given ID.
 	 * 
 	 * @param id
-	 *        the ID of the vertex to unregister the {@link org.apache.flink.runtime.execution.ExecutionListener} objects for
+	 *        the ID of the vertex to unregister the
+	 *        {@link org.apache.flink.runtime.taskmanager.Task} objects for
 	 */
-	void unregisterExecutionListener(ExecutionAttemptID id);
+	void unregisterTask(ExecutionAttemptID id);
 
 	/**
 	 * Shuts done the task manager's profiling component

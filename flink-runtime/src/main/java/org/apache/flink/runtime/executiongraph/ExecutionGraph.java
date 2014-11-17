@@ -38,7 +38,6 @@ import org.slf4j.LoggerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.blob.BlobKey;
-import org.apache.flink.runtime.execution.ExecutionListener;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
@@ -97,10 +96,6 @@ public class ExecutionGraph {
 	
 	private final List<BlobKey> requiredJarFiles;
 	
-	private final List<JobStatusListener> jobStatusListeners;
-	
-	private final List<ExecutionListener> executionListeners;
-
 	private final List<ActorRef> jobStatusListenerActors;
 
 	private final List<ActorRef> executionListenerActors;
@@ -150,8 +145,6 @@ public class ExecutionGraph {
 		this.verticesInCreationOrder = new ArrayList<ExecutionJobVertex>();
 		this.currentExecutions = new ConcurrentHashMap<ExecutionAttemptID, Execution>();
 		
-		this.jobStatusListeners = new CopyOnWriteArrayList<JobStatusListener>();
-		this.executionListeners = new CopyOnWriteArrayList<ExecutionListener>();
 		this.jobStatusListenerActors  = new CopyOnWriteArrayList<ActorRef>();
 		this.executionListenerActors = new CopyOnWriteArrayList<ActorRef>();
 		
@@ -638,14 +631,6 @@ public class ExecutionGraph {
 	//  Listeners & Observers
 	// --------------------------------------------------------------------------------------------
 	
-	public void registerJobStatusListener(JobStatusListener jobStatusListener) {
-		this.jobStatusListeners.add(jobStatusListener);
-	}
-	
-	public void registerExecutionListener(ExecutionListener executionListener) {
-		this.executionListeners.add(executionListener);
-	}
-
 	public void registerJobStatusListener(ActorRef listener){
 		this.jobStatusListenerActors.add(listener);
 
@@ -662,20 +647,6 @@ public class ExecutionGraph {
 	 * @param error
 	 */
 	private void notifyJobStatusChange(JobStatus newState, Throwable error) {
-		if (jobStatusListeners.size() > 0) {
-			
-			String message = error == null ? null : ExceptionUtils.stringifyException(error);
-		
-			for (JobStatusListener listener : this.jobStatusListeners) {
-				try {
-					listener.jobStatusHasChanged(this, newState, message);
-				}
-				catch (Throwable t) {
-					LOG.error("Notification of job status change caused an error.", t);
-				}
-			}
-		}
-
 		if(jobStatusListenerActors.size() > 0){
 			String message = error == null ? null : ExceptionUtils.stringifyException(error);
 			for(ActorRef listener: jobStatusListenerActors){
@@ -696,17 +667,6 @@ public class ExecutionGraph {
 	 */
 	void notifyExecutionChange(JobVertexID vertexId, int subtask, ExecutionAttemptID executionID, ExecutionState
 							newExecutionState, Throwable error) {
-		if(executionListeners.size() >0){
-			String message = error == null ? null : ExceptionUtils.stringifyException(error);
-			for (ExecutionListener listener : this.executionListeners) {
-				try {
-					listener.executionStateChanged(jobID, vertexId, subtask,executionID, newExecutionState, message);
-				}catch(Throwable t){
-					LOG.error("Notification of execution state change caused an error.");
-				}
-			}
-		}
-
 		ExecutionJobVertex vertex = getJobVertex(vertexId);
 
 		if(executionListenerActors.size() >0){
