@@ -462,7 +462,7 @@ Connectors provide an interface for accessing data from various third party sour
 
 Typically the connector packages consist of an abstract source and sink (with the exception of Twitter where only a source is provided). The burden of the user is to implement a subclass of these abstract classes specifying a serializer and a deserializer function. 
 
-To run an application using one of these connectors usually additional third party components are required to be installed and launched, e.g. the servers for the message queues. Further instructions for these can be found in the corresponding subsections. [Docker containers](#docker_connectors) are also provided encapsulating these services to aid users getting started with connectors.
+To run an application using one of these connectors usually additional third party components are required to be installed and launched, e.g. the servers for the message queues. Further instructions for these can be found in the corresponding subsections. [Docker containers](#docker-containers-for-connectors) are also provided encapsulating these services to aid users getting started with connectors.
 
 ### Apache Kafka
 
@@ -895,9 +895,9 @@ There are two basic types of tweets. The usual tweets contain information such a
 
 [Back to top](#top)
 
-### Docker containers for connectors<a name="docker_connectors"></a>
+### Docker containers for connectors
 
-A Docker container is provided with all the required configurations for test running the connectors of Apache Flink. The servers for the message queues will be running on the docker container while the example topology can be run on the user's computer. The only exception is Flume, more can be read about this issue at the [Flume section](#flume). 
+A Docker container is provided with all the required configurations for test running the connectors of Apache Flink. The servers for the message queues will be running on the docker container while the example topology can be run on the user's computer. The only exception is Flume, more can be read about this issue in the [Flume section](#flume). 
 
 #### Installing Docker
 The official Docker installation guide can be found [here](https://docs.docker.com/installation/).
