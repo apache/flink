@@ -28,7 +28,7 @@ public class SumAggregationFunction<T extends Number> extends InputTypeAggregati
 	
 	private DelegatedSumAggregationFunction<T> delegate;
 
-	public SumAggregationFunction() {
+	SumAggregationFunction() {
 		this(-1);
 	}
 	

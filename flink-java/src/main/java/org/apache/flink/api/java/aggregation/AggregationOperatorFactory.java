@@ -97,8 +97,9 @@ public class AggregationOperatorFactory {
 		<R extends Tuple> TypeInformation<R> createAggregationResultType(TypeInformation<?> inputType, AggregationFunction<?, ?>... functions) {
 			int arity =  functions.length;
 			Validate.inclusiveBetween(1, Tuple.MAX_ARITY, arity, "Output tuple of aggregation must have between 1 and %s elements; requested tuple has %s elements.", Tuple.MAX_ARITY, functions.length);
-			BasicTypeInfo<?>[] types = new BasicTypeInfo[arity];
+			Validate.isInstanceOf(TupleTypeInfoBase.class, inputType, "Aggregations are only implemented on tuples.");
 			TupleTypeInfoBase<?> inputTypeAsTuple = (TupleTypeInfoBase<?>) inputType;
+			BasicTypeInfo<?>[] types = new BasicTypeInfo[arity];
 			for (int i = 0; i < functions.length; ++i) {
 				AggregationFunction<?, ?> function = functions[i];
 				processAggregationFunction(inputTypeAsTuple, types, i, function);
@@ -112,13 +113,15 @@ public class AggregationOperatorFactory {
 				AggregationFunction<T, ?> function) {
 			ResultTypeBehavior resultTypeBehavior = function.getResultTypeBehavior();
 			int fieldPosition = function.getFieldPosition();
+			TypeInformation<Object> fieldType = inputTypeAsTuple.getTypeAt(fieldPosition);
+			Validate.isInstanceOf(BasicTypeInfo.class, fieldType);
 			@SuppressWarnings("unchecked")
-			BasicTypeInfo<T> fieldType = (BasicTypeInfo<T>) inputTypeAsTuple.getTypeAt(fieldPosition);
-			function.setInputType(fieldType);
+			BasicTypeInfo<T> basicFieldType = (BasicTypeInfo<T>) fieldType;
+			function.setInputType(basicFieldType);
 			if (resultTypeBehavior == ResultTypeBehavior.FIXED) {
 				types[i] = function.getResultType();
 			} else if (resultTypeBehavior == ResultTypeBehavior.INPUT) {
-				types[i] = fieldType;
+				types[i] = basicFieldType;
 			} else {
 				throw new RuntimeException("Unknown aggregation function result type behavior: " + resultTypeBehavior);
 			}

@@ -72,6 +72,24 @@ public class AggregationApiTest {
 		// when
 		input.aggregate();
 	}
+
+	@Test(expected=IllegalArgumentException.class)
+	public void errorIfNotATuple() {
+		// given
+		DataSet<Long> input = env.fromElements(1L);
+
+		// when
+		input.aggregate(sum(0));
+	}
+
+	@Test(expected=IllegalArgumentException.class)
+	public void errorIfTupleContentIsNotBasic() {
+		// given
+		DataSet<Tuple1<Object>> input = env.fromElements(new Tuple1Builder<Object>().add(new Object()).build());
+
+		// when
+		input.aggregate(sum(0));
+	}
 	
 	@Test
 	public void shouldCreateTupleElementForEachAggregation() {
