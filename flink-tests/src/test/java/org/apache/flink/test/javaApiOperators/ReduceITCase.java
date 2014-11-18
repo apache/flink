@@ -21,8 +21,11 @@ package org.apache.flink.test.javaApiOperators;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Date;
 import java.util.LinkedList;
 
+import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -34,7 +37,10 @@ import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.CustomType;
+import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.PojoWithDateAndEnum;
 import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.util.Collector;
+import org.junit.Assert;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
@@ -42,7 +48,7 @@ import org.junit.runners.Parameterized.Parameters;
 @RunWith(Parameterized.class)
 public class ReduceITCase extends JavaProgramTestBase {
 	
-	private static int NUM_PROGRAMS = 10;
+	private static int NUM_PROGRAMS = 11;
 	
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -330,7 +336,63 @@ public class ReduceITCase extends JavaProgramTestBase {
 						"5,11,10,GHI,1\n" +
 						"5,29,0,P-),2\n" +
 						"5,25,0,P-),3\n";
-			} 
+			}
+			case 11: {
+				/**
+				 * Test support for Date and enum serialization
+				 */
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				DataSet<PojoWithDateAndEnum> ds = env.generateSequence(0,2).map(new MapFunction<Long, PojoWithDateAndEnum>() {
+					@Override
+					public PojoWithDateAndEnum map(Long value) throws Exception {
+						int l = value.intValue();
+						switch (l) {
+							case 0:
+								PojoWithDateAndEnum one = new PojoWithDateAndEnum();
+								one.group = "a";
+								one.date = new Date(666);
+								one.cat = CollectionDataSets.Category.CAT_A;
+								return one;
+							case 1:
+								PojoWithDateAndEnum two = new PojoWithDateAndEnum();
+								two.group = "a";
+								two.date = new Date(666);
+								two.cat = CollectionDataSets.Category.CAT_A;
+								return two;
+							case 2:
+								PojoWithDateAndEnum three = new PojoWithDateAndEnum();
+								three.group = "b";
+								three.date = new Date(666);
+								three.cat = CollectionDataSets.Category.CAT_B;
+								return three;
+						}
+						throw new RuntimeException("Unexpected value for l=" + l);
+					}
+				});
+				DataSet<String> res = ds.groupBy("group").reduceGroup(new GroupReduceFunction<CollectionDataSets.PojoWithDateAndEnum, String>() {
+					private static final long serialVersionUID = 1L;
+
+					@Override
+					public void reduce(Iterable<PojoWithDateAndEnum> values,
+							Collector<String> out) throws Exception {
+						for(PojoWithDateAndEnum val : values) {
+							if(val.cat == CollectionDataSets.Category.CAT_A) {
+								Assert.assertEquals("a", val.group);
+							} else if(val.cat == CollectionDataSets.Category.CAT_B) {
+								Assert.assertEquals("b", val.group);
+							} else {
+								Assert.fail("error");
+							}
+							Assert.assertEquals(666, val.date.getTime());
+						}
+						out.collect("ok");
+					}
+				});
+				
+				res.writeAsText(resultPath);
+				env.execute();
+				return "ok\nok";
+			}
 			
 			default:
 				throw new IllegalArgumentException("Invalid program id");

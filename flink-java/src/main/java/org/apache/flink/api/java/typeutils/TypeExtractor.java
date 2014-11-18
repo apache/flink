@@ -877,7 +877,6 @@ public class TypeExtractor {
 		}
 
 		if (clazz.equals(Object.class)) {
-			// TODO (merging): better throw an exception here. the runtime does not support it yet
 			return new GenericTypeInfo<X>(clazz);
 		}
 		
@@ -924,6 +923,9 @@ public class TypeExtractor {
 			throw new InvalidTypesException("Type information extraction for tuples cannot be done based on the class.");
 		}
 
+		if(Enum.class.isAssignableFrom(clazz)) {
+			return new EnumTypeInfo(clazz);
+		}
 
 		if (alreadySeen.contains(clazz)) {
 			return new GenericTypeInfo<X>(clazz);
