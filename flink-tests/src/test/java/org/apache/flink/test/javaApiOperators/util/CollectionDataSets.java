@@ -29,7 +29,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.tuple.Tuple7;
-import org.apache.flink.api.java.tuple.Tuple8;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -529,6 +528,34 @@ public class CollectionDataSets {
 		data.add(new PojoWithMultiplePojos("b", "bb", "c", "cc", 2));
 		data.add(new PojoWithMultiplePojos("d", "dd", "e", "ee", 3));
 		data.add(new PojoWithMultiplePojos("d", "dd", "e", "ee", 3));
+		return env.fromCollection(data);
+	}
+
+	public enum Category {
+		CAT_A, CAT_B;
+	}
+
+	public static class PojoWithDateAndEnum {
+		public String group;
+		public Date date;
+		public Category cat;
+	}
+	
+	public static DataSet<PojoWithDateAndEnum> getPojoWithDateAndEnum(ExecutionEnvironment env) {
+		List<PojoWithDateAndEnum> data = new ArrayList<PojoWithDateAndEnum>();
+		
+		PojoWithDateAndEnum one = new PojoWithDateAndEnum();
+		one.group = "a"; one.date = new Date(666); one.cat = Category.CAT_A;
+		data.add(one);
+		
+		PojoWithDateAndEnum two = new PojoWithDateAndEnum();
+		two.group = "a"; two.date = new Date(666); //two.cat = Category.CAT_A;
+		data.add(two);
+		
+		PojoWithDateAndEnum three = new PojoWithDateAndEnum();
+		three.group = "b"; three.date = new Date(666); //three.cat = Category.CAT_B;
+		data.add(three);
+		
 		return env.fromCollection(data);
 	}
 
