@@ -61,11 +61,12 @@ public class AggregationOperatorFactoryTest {
 	@Test
 	public void shouldCreateTupleWithSingleElementTypeGivenByAggregationFunction() {
 		// given
+		int pos = uniqueInt();
 		BasicTypeInfo inputBasicTypeInfo = mock(BasicTypeInfo.class);
-		TupleTypeInfoBase<Tuple> tupleTypeInfo = createInputType(uniqueInt(), inputBasicTypeInfo);
+		TupleTypeInfoBase<Tuple> tupleTypeInfo = createInputType(pos, inputBasicTypeInfo);
 		BasicTypeInfo outputInputType = mock(BasicTypeInfo.class);
 		AggregationFunction function = createAggregationFunctionWithResultType(
-				uniqueInt(), ResultTypeBehavior.FIXED, outputInputType);
+				pos, ResultTypeBehavior.FIXED, outputInputType);
 		
 		// when
 		TypeInformation<?> resultType = typeFactory.createAggregationResultType(tupleTypeInfo, function);
