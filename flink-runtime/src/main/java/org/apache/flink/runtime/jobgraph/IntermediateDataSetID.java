@@ -20,7 +20,7 @@ package org.apache.flink.runtime.jobgraph;
 
 import java.util.UUID;
 
-import org.apache.flink.runtime.AbstractID;
+import org.apache.flink.util.AbstractID;
 
 public class IntermediateDataSetID extends AbstractID {
 
