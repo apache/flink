@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import io.netty.buffer.ByteBuf;
-import org.apache.flink.runtime.AbstractID;
+import org.apache.flink.util.AbstractID;
 
 public class InputChannelID extends AbstractID {
 
@@ -35,6 +35,11 @@ public class InputChannelID extends AbstractID {
 
 	public InputChannelID(AbstractID id) {
 		super(id);
+	}
+
+	public void writeTo(ByteBuf buf) {
+		buf.writeLong(this.lowerPart);
+		buf.writeLong(this.upperPart);
 	}
 
 	public static InputChannelID fromByteBuf(ByteBuf buf) {

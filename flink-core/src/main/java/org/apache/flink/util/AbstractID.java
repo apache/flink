@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime;
+package org.apache.flink.util;
 
 import java.io.IOException;
 import java.util.Random;
@@ -24,9 +24,6 @@ import java.util.Random;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.util.StringUtils;
-
-import io.netty.buffer.ByteBuf;
 
 /**
  * A statistically unique identification number.
@@ -46,10 +43,10 @@ public class AbstractID implements IOReadableWritable, Comparable<AbstractID>, j
 	
 
 	/** The upper part of the actual ID */
-	private long upperPart;
+	protected long upperPart;
 
 	/** The lower part of the actual ID */
-	private long lowerPart;
+	protected long lowerPart;
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -146,11 +143,6 @@ public class AbstractID implements IOReadableWritable, Comparable<AbstractID>, j
 	public void write(DataOutputView out) throws IOException {
 		out.writeLong(this.lowerPart);
 		out.writeLong(this.upperPart);
-	}
-
-	public void writeTo(ByteBuf buf) {
-		buf.writeLong(this.lowerPart);
-		buf.writeLong(this.upperPart);
 	}
 
 	// --------------------------------------------------------------------------------------------

@@ -16,46 +16,34 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.jobgraph;
 
-import javax.xml.bind.DatatypeConverter;
-
-import org.apache.flink.util.AbstractID;
+import org.junit.Test;
 
 import java.nio.ByteBuffer;
 
-public final class JobID extends AbstractID {
+import static org.junit.Assert.fail;
+import static org.junit.Assert.assertEquals;
 
-	private static final long serialVersionUID = 1L;
+public class JobIdTest {
+
+	@Test
+	public void testConvertToByteBuffer() {
+		try {
+			JobID origID = new JobID();
+
+			byte[] bytes = origID.getBytes();
+			ByteBuffer buffer = ByteBuffer.wrap(bytes);
+
+			JobID copy1 = JobID.fromByteBuffer(buffer);
+			JobID copy2 = JobID.fromByteArray(bytes);
+
+			assertEquals(origID, copy1);
+			assertEquals(origID, copy2);
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
 	
-	public JobID() {
-		super();
-	}
-
-	public JobID(long lowerPart, long upperPart) {
-		super(lowerPart, upperPart);
-	}
-
-	public JobID(byte[] bytes) {
-		super(bytes);
-	}
-
-	public static JobID generate() {
-		return new JobID();
-	}
-
-	public static JobID fromByteArray(byte[] bytes) {
-		return new JobID(bytes);
-	}
-
-	public static JobID fromByteBuffer(ByteBuffer buf) {
-		long lower = buf.getLong();
-		long upper = buf.getLong();
-		return new JobID(lower, upper);
-	}
-
-	public static JobID fromHexString(String hexString) {
-		return new JobID(DatatypeConverter.parseHexBinary(hexString));
-	}
 }

@@ -21,7 +21,7 @@ package org.apache.flink.runtime.jobmanager.scheduler;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.flink.runtime.AbstractID;
+import org.apache.flink.util.AbstractID;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 
 import com.google.common.base.Preconditions;

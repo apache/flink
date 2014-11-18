@@ -20,7 +20,7 @@ package org.apache.flink.runtime.jobgraph;
 
 import javax.xml.bind.DatatypeConverter;
 
-import org.apache.flink.runtime.AbstractID;
+import org.apache.flink.util.AbstractID;
 
 /**
  * A class for statistically unique job vertex IDs.
