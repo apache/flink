@@ -75,7 +75,7 @@ public final class ConfigConstants {
 	 * The config parameter defining the number of seconds that a task manager heartbeat may be missing before it is
 	 * marked as failed.
 	 */
-	public static final String JOB_MANAGER_DEAD_TASKMANAGER_TIMEOUT_KEY = "jobmanager.max-heartbeat-delay-before-failure.sec";
+	public static final String JOB_MANAGER_DEAD_TASKMANAGER_TIMEOUT_KEY = "jobmanager.max-heartbeat-delay-before-failure.msecs";
 	
 	/**
 	 * The config parameter defining the task manager's IPC port from the configuration.

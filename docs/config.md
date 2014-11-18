@@ -198,6 +198,10 @@ fan-out for spilling hash tables. Limits the number of file handles per operator
 but may cause intermediate merging/partitioning, if set too small (DEFAULT: 128).
 - `taskmanager.runtime.sort-spilling-threshold`: A sort operation starts spilling
 when this fraction of its memory budget is full (DEFAULT: 0.8).
+- `taskmanager.heartbeat-interval`: The interval in which the TaskManager sends
+heartbeats to the JobManager.
+- `jobmanager.max-heartbeat-delay-before-failure.msecs`: The maximum time that a
+TaskManager hearbeat may be missing before the TaskManager is considered failed.
 
 ### JobManager Web Frontend
 
