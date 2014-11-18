@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.operators;
 
+import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.aggregators.AggregatorRegistry;
 import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
@@ -144,6 +145,7 @@ public class IterativeDataSet<T> extends SingleInputOperator<T, T, IterativeData
 	@Override
 	protected org.apache.flink.api.common.operators.SingleInputOperator<T, T, ?> translateToDataFlow(Operator<T> input) {
 		// All the translation magic happens when the iteration end is encountered.
-		throw new RuntimeException("Error while creating the data flow plan for an iteration: The iteration end was not specified correctly.");
+		throw new InvalidProgramException("A data set that is part of an iteration was used as a sink or action."
+				+ " Did you forget to close the iteration?");
 	}
 }
