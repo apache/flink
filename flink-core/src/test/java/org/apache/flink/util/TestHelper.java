@@ -20,27 +20,44 @@ package org.apache.flink.util;
 
 import org.apache.commons.lang3.RandomUtils;
 
+/**
+ * Convenience functions to construct random objects for unit tests.
+ *
+ * @author Viktor Rosenfeld <viktor.rosenfeld@tu-berlin.de>
+ */
 public class TestHelper
 {
 
-	private static int INT_MIN = 0;
-	private static int INT_MAX = 1000;
+	public static int INT_MIN = 0;
+	public static int INT_MAX = 1000;
 
+	/**
+	 * Return a random integer between {@value INT_MIN} (inclusive) and {@value INT_MAX} (exclusive).  
+	 */
     public static int uniqueInt() {
         int result = uniqueInt(INT_MIN, INT_MAX);
         return result;
     }
 
+	/**
+	 * Return a random integer between {@code min} (inclusive) and {@code max} (exclusive).  
+	 */
     public static int uniqueInt(int min, int max) {
 		int result = RandomUtils.nextInt(min, max);
     	return result;
     }
 
+	/**
+	 * Return a random integer between {@value INT_MIN} (inclusive) and {@value INT_MAX} (exclusive) that is not listed in {@code exclude}.
+	 */
     public static int uniqueInt(int[] exclude) {
     	int result = uniqueInt(INT_MIN, INT_MAX, exclude);
     	return result;
     }
 
+	/**
+	 * Return a random integer between {@code min} (inclusive) and {@code max} (exclusive) that is not listed in {@code exclude}.
+	 */
     public static int uniqueInt(int min, int max, int[] exclude) {
         int result = uniqueInt(min, max);
         for (int e : exclude) {
@@ -52,11 +69,17 @@ public class TestHelper
         return result;
     }
 
+	/**
+	 * Return a random long between {@value INT_MIN} (inclusive) and {@value INT_MAX} (exclusive).  
+	 */
     public static long uniqueLong() {
-        long result = uniqueLong(0, 1000);
+        long result = uniqueLong(INT_MIN, INT_MAX);
         return result;
     }
 
+	/**
+	 * Return a random long between {@code min} (inclusive) and {@code max} (exclusive).  
+	 */
     public static long uniqueLong(long min, long max) {
         long result = RandomUtils.nextLong(min, max);
         return result;

@@ -279,6 +279,27 @@ public abstract class DataSet<T> {
 		return new AggregateOperator<T>(this, agg, field, Utils.getCallLocationName());
 	}
 
+	/**
+	 * Applies a list of aggregation transformations on a non-grouped
+	 * {@link Tuple} {@link DataSet}.
+	 *
+	 * <p><b>Note: Only Tuple DataSets can be aggregated.</b>
+	 *
+	 * <p>The transformation applies each aggregation function listed in
+	 * {@code functions} on the Tuple field specified in the respective
+	 * function. Multiple aggregation functions on the same or a different
+	 * field can be specified. Convenience functions to construct
+	 * aggregation functions are listed in {@link Aggregations}. The
+	 * result is a {@code n}-Tuple where {@code n} is the number of
+	 * aggregation functions.
+	 *
+	 * @param functions	A non-empty list of Aggregation functions.
+	 * @return An {@link AggregationOperator} that represents the aggregated DataSet.
+	 *
+	 * @See Tuple
+	 * @See Aggregations
+	 * @See AggregationOperator
+	 */
 	public <R extends Tuple> AggregationOperator<T, R> aggregate(AggregationFunction<?, ?>... functions) {
 		AggregationOperator<T, R> aggregationOperator = getAggregationOperatorFactory().aggregate(this, functions);
 		return aggregationOperator;

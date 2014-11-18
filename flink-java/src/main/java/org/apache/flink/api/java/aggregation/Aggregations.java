@@ -18,29 +18,63 @@
 
 package org.apache.flink.api.java.aggregation;
 
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.operators.UnsortedGrouping;
+
+/**
+ * Convenience factory to create {@link AggregationFunction}s.
+ * 
+ * @see DataSet
+ * @see UnsortedGrouping
+ *
+ * @author Viktor Rosenfeld <viktor.rosenfeld@tu-berlin.de>
+ */
 @SuppressWarnings("rawtypes")
 public class Aggregations {
 
+	/**
+	 * Compute the minimum value.
+	 * @param field Tuple field index.
+	 */
 	public static AggregationFunction min(int field) {
 		return new MinAggregationFunction(field);
 	}
 	
+	/**
+	 * Compute the maximum value.
+	 * @param field Tuple field index.
+	 */
 	public static AggregationFunction max(int field) {
 		return new MaxAggregationFunction(field);
 	}
 	
+	/**
+	 * Count the number of tuples.
+	 */
 	public static AggregationFunction count() {
 		return new CountAggregationFunction();
 	}
 	
+	/**
+	 * Compute the sum.
+	 * @param field Tuple field index.
+	 */
 	public static AggregationFunction sum(int field) {
 		return new SumAggregationFunction(field);
 	}
 	
+	/**
+	 * Compute the average.
+	 * @param field Tuple field index.
+	 */
 	public static AggregationFunction average(int field) {
 		return new AverageAggregationFunction(field);
 	}
 	
+	/**
+	 * Select the field to be included in the grouping.
+	 * @param field Tuple field index.
+	 */
 	public static AggregationFunction key(int field) {
 		return new KeySelectionAggregationFunction(field);
 	}

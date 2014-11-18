@@ -18,6 +18,15 @@
 
 package org.apache.flink.api.java.aggregation;
 
+/**
+ * Pseudo-aggregation function that includes a field on which the input
+ * tuples are grouped in the aggregation result.
+ * 
+ * TODO <p>Note: This function should only be called once for the aggregation
+ * (this is currently not implemented). 
+ *
+ * @author Viktor Rosenfeld <viktor.rosenfeld@tu-berlin.de>
+ */
 public class KeySelectionAggregationFunction<T> extends InputTypeAggregationFunction<T> {
 	private static final long serialVersionUID = -8410506438464358497L;
 	

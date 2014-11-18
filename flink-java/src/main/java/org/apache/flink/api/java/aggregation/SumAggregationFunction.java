@@ -22,7 +22,16 @@ import java.io.Serializable;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 
-
+/**
+ * Sum aggregation function.
+ * 
+ * <p><b>Note: The input type must be set using {@link setInputType}
+ * before this aggregation function can be used.</b>
+ * 
+ * @param <T> The input and output type. Must extend {@link Number}.
+ *
+ * @author Viktor Rosenfeld <viktor.rosenfeld@tu-berlin.de>
+ */
 public class SumAggregationFunction<T extends Number> extends InputTypeAggregationFunction<T> implements Serializable {
 	private static final long serialVersionUID = -4610234679407339317L;
 	

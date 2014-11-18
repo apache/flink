@@ -20,6 +20,19 @@ package org.apache.flink.api.java.aggregation;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 
+/**
+ * Average aggregation function.
+ * 
+ * <p><b>Note: The input type must be set using {@link setInputType}
+ * before this aggregation function can be used.</b>
+ * 
+ * <p>Internally, the computation is delegated to
+ * {@link SumAggregationFunction} and {@link CountAggregationFunction}.
+ * 
+ * @param <T> The input and output type. Must extend {@link Number}.
+ *
+ * @author Viktor Rosenfeld <viktor.rosenfeld@tu-berlin.de>
+ */
 public class AverageAggregationFunction<T extends Number> extends FieldAggregationFunction<T, Double> {
 	private static final long serialVersionUID = -3901931046368002202L;
 

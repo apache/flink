@@ -25,6 +25,15 @@ import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.util.Collector;
 
+/**
+ * UDf passed to {@link GroupReduceFunction} to compute a list of
+ * {@link AggregationFunction}'s.
+ * 
+ * @param <T> Input type of {@code reduce}. 
+ * @param <R> Output type of {@code reduce}.
+ *
+ * @author Viktor Rosenfeld <viktor.rosenfeld@tu-berlin.de>
+ */
 public class AggregationUdf<T, R extends Tuple> implements GroupReduceFunction<T, R>, Serializable {
 	private static final long serialVersionUID = 5563658873455921533L;
 
@@ -45,6 +54,9 @@ public class AggregationUdf<T, R extends Tuple> implements GroupReduceFunction<T
 		
 		Tuple current = null;
 		Iterator<T> values = records.iterator();
+		
+		// TODO extract key() functions from list and call them only once
+		
 		while (values.hasNext()) {
 			current = (Tuple) values.next();
 			for (AggregationFunction function : functions) {

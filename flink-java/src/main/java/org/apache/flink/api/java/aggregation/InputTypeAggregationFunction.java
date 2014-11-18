@@ -20,6 +20,14 @@ package org.apache.flink.api.java.aggregation;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 
+/**
+ * Base class for an AggregationFunction that has the same type for the
+ * aggregation results as the aggregated inputs.
+ * 
+ * @param <T> The input and output type.
+ *
+ * @author Viktor Rosenfeld <viktor.rosenfeld@tu-berlin.de>
+ */
 public abstract class InputTypeAggregationFunction<T>
 		extends FieldAggregationFunction<T, T> {
 	private static final long serialVersionUID = -3129049288957424646L;

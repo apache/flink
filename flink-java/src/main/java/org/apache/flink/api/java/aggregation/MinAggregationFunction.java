@@ -18,7 +18,13 @@
 
 package org.apache.flink.api.java.aggregation;
 
-
+/**
+ * Min aggregation function.
+ * 
+ * @param <T> The input and output type. Must extend {@link Number}.
+ *
+ * @author Viktor Rosenfeld <viktor.rosenfeld@tu-berlin.de>
+ */
 public class MinAggregationFunction<T extends Comparable<T>> extends InputTypeAggregationFunction<T> {
 	private static final long serialVersionUID = -1587835317837938137L;
 

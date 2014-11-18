@@ -18,6 +18,14 @@
 
 package org.apache.flink.api.java.aggregation;
 
+/**
+ * Base class for an AggregationFunction that aggregates a Tuple field.
+ * 
+ * @param <T> The type of the elements that are aggregated (input type).
+ * @param <R> The type of the aggregation result (output type).
+ *
+ * @author Viktor Rosenfeld <viktor.rosenfeld@tu-berlin.de>
+ */
 public abstract class FieldAggregationFunction<T, R> extends
 		AggregationFunction<T, R> {
 	private static final long serialVersionUID = -7118813879097201489L;

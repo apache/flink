@@ -83,7 +83,7 @@ public class AggregationApiTest {
 	}
 
 	@Test(expected=IllegalArgumentException.class)
-	public void errorIfTupleContentIsNotBasic() {
+	public void errorIfTupleContentIsNotBasicType() {
 		// given
 		DataSet<Tuple1<Object>> input = env.fromElements(new Tuple1Builder<Object>().add(new Object()).build());
 
@@ -179,9 +179,9 @@ public class AggregationApiTest {
 		// given
 		Tuple6<Long, Integer, Double, Float, Byte, Short>[] tuples = 
 				new Tuple6Builder<Long, Integer, Double, Float, Byte, Short>()
-				.add(1L, 1, 1.1, (float) 1.1, (byte) 1, (short) 1)
-				.add(2L, 2, 2.2, (float) 2.2, (byte) 2, (short) 2)
-				.add(3L, 3, 3.3, (float) 3.3, (byte) 3, (short) 3)
+				.add(1L, 1, 1.1, 1.1f, (byte) 1, (short) 1)
+				.add(2L, 2, 2.2, 2.2f, (byte) 2, (short) 2)
+				.add(3L, 3, 3.3, 3.3f, (byte) 3, (short) 3)
 				.build();
 		DataSet<Tuple6<Long, Integer, Double, Float, Byte, Short>> input = env.fromElements(tuples);
 
@@ -190,7 +190,7 @@ public class AggregationApiTest {
 				input.aggregate(sum(0), sum(1), sum(2), sum(3), sum(4), sum(5));
 
 		// then
-		assertThat(output, dataSetWithTuple(6L, 6, 6.6, (float) 6.6, (byte) 6, (short) 6));
+		assertThat(output, dataSetWithTuple(6L, 6, 6.6, 6.6f, (byte) 6, (short) 6));
 	}
 	
 	@SuppressWarnings("rawtypes")
@@ -262,6 +262,18 @@ public class AggregationApiTest {
 		return dataSetWithTuples(asList(singleTuple));
 	}
 	
+	/**
+	 * Match a DataSet against a list of tuples.
+	 * 
+	 * Each tuple is represented by a list of objects.
+	 * 
+	 * The DataSet and/or the result of Flink operations on a DataSet is
+	 * executed in a Flink environment and its output collected in a
+	 * Collection sink. Then the actual and expected outputs are sorted,
+	 * so that the test is not brittle with regard to expected order.
+     *
+	 * The matcher fails if at least one element does not match.
+	 */
 	private Matcher<DataSet<? extends Tuple>> dataSetWithTuples(final List<? extends Object>... tuples) {
         return new TypeSafeMatcher<DataSet<? extends Tuple>>() {
  
