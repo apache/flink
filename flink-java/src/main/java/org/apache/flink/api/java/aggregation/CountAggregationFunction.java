@@ -25,6 +25,10 @@ public class CountAggregationFunction<T> extends AggregationFunction<T, Long> {
 
 	long count;
 	
+	public CountAggregationFunction() {
+		super("count");
+	}
+
 	@Override
 	public ResultTypeBehavior getResultTypeBehavior() {
 		return ResultTypeBehavior.FIXED;

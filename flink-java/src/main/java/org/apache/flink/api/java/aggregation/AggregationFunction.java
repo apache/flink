@@ -25,6 +25,12 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 public abstract class AggregationFunction<T, R> implements Serializable {
 	private static final long serialVersionUID = 9082279166205627942L;
 
+	private String name;
+
+	public AggregationFunction(String name) {
+		this.name = name;
+	}
+
 	public static enum ResultTypeBehavior {
 		INPUT,
 		FIXED
@@ -43,5 +49,14 @@ public abstract class AggregationFunction<T, R> implements Serializable {
 	public abstract void aggregate(T value);
 	
 	public abstract R getAggregate();
+
+	@Override
+	public String toString() {
+		return name + "()";
+	}
+
+	protected String getName() {
+		return name;
+	}
 
 }

@@ -25,7 +25,7 @@ public class MaxAggregationFunction<T extends Comparable<T>> extends InputTypeAg
 	private T min;
 	
 	public MaxAggregationFunction(int field) {
-		super(field);
+		super("max", field);
 	}
 	
 	@Override

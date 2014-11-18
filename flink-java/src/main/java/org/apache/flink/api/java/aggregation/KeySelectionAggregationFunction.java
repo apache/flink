@@ -24,7 +24,7 @@ public class KeySelectionAggregationFunction<T> extends InputTypeAggregationFunc
 	T key;
 	
 	public KeySelectionAggregationFunction(int field) {
-		super(field);
+		super("key", field);
 	}
 
 	@Override

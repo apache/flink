@@ -27,7 +27,7 @@ public class AverageAggregationFunction<T extends Number> extends FieldAggregati
 	private CountAggregationFunction<T> countDelegate;
 	
 	public AverageAggregationFunction(int field) {
-		super(field);
+		super("average", field);
 		sumDelegate = new SumAggregationFunction<T>();
 		countDelegate = new CountAggregationFunction<T>();
 	}

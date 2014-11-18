@@ -26,8 +26,8 @@ public abstract class InputTypeAggregationFunction<T>
 
 	private Class<T> type = null;
 	
-	public InputTypeAggregationFunction(int field) {
-		super(field);
+	public InputTypeAggregationFunction(String name, int field) {
+		super(name, field);
 	}
 
 	@Override

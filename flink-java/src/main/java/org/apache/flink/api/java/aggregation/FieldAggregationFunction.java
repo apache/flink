@@ -24,11 +24,12 @@ public abstract class FieldAggregationFunction<T, R> extends
 
 	private int fieldPosition;
 	
-	protected FieldAggregationFunction() {
-		super();
+	protected FieldAggregationFunction(String name) {
+		super(name);
 	}
 	
-	public FieldAggregationFunction(int fieldPosition) {
+	public FieldAggregationFunction(String name, int fieldPosition) {
+		this(name);
 		this.fieldPosition = fieldPosition;
 	}
 	
@@ -41,4 +42,8 @@ public abstract class FieldAggregationFunction<T, R> extends
 		this.fieldPosition = fieldPosition;
 	}
 
+	@Override
+	public String toString() {
+		return getName() + "(" + fieldPosition + ")";
+	}
 }

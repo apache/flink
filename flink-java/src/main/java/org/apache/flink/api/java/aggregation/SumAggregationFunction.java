@@ -33,7 +33,7 @@ public class SumAggregationFunction<T extends Number> extends InputTypeAggregati
 	}
 	
 	public SumAggregationFunction(int field) {
-		super(field);
+		super("sum", field);
 	}
 	
 	@SuppressWarnings("unchecked")

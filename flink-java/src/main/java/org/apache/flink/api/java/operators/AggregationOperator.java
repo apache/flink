@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.operators;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
@@ -25,6 +26,7 @@ import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.aggregation.AggregationFunction;
+import org.apache.flink.api.java.aggregation.AggregationUdf;
 import org.apache.flink.api.java.tuple.Tuple;
 
 public class AggregationOperator<IN, OUT extends Tuple> extends SingleInputOperator<IN, OUT, AggregationOperator<IN, OUT>> {
@@ -45,7 +47,11 @@ public class AggregationOperator<IN, OUT extends Tuple> extends SingleInputOpera
 	protected org.apache.flink.api.common.operators.SingleInputOperator<?, OUT, ?> translateToDataFlow(
 			Operator<IN> input) {
 		UnaryOperatorInformation<IN, OUT> operatorInfo = new UnaryOperatorInformation<IN, OUT>(getInputType(), getResultType());
-		String name = "some name";
+		StringBuilder sb = new StringBuilder();
+		sb.append("aggregate(");
+		sb.append(StringUtils.join(functions, ", "));
+		sb.append(")");
+		String name = sb.toString();
 		GroupReduceFunction<IN, OUT> udf = new AggregationUdf<IN, OUT>(resultTuple, functions);
 		GroupReduceOperatorBase<IN, OUT, GroupReduceFunction<IN, OUT>> op = 
 				new GroupReduceOperatorBase<IN, OUT, GroupReduceFunction<IN,OUT>>(udf, operatorInfo, groupingKeys, name);
