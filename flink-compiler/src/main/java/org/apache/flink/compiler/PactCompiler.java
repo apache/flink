@@ -905,7 +905,7 @@ public class PactCompiler {
 							}
 						}
 						else {
-							throw new CompilerException("Error: The only operations allowed on the solution set are Join and CoGroup.");
+							throw new InvalidProgramException("Error: The only operations allowed on the solution set are Join and CoGroup.");
 						}
 					}
 				}
