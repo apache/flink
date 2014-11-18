@@ -24,12 +24,12 @@ public class AverageAggregationFunction<T extends Number> extends FieldAggregati
 	private static final long serialVersionUID = -3901931046368002202L;
 
 	private SumAggregationFunction<T> sumDelegate;
-	private CountAggregationFunction<T> countDelegate;
+	private CountAggregationFunction countDelegate;
 	
 	public AverageAggregationFunction(int field) {
 		super("average", field);
 		sumDelegate = new SumAggregationFunction<T>();
-		countDelegate = new CountAggregationFunction<T>();
+		countDelegate = new CountAggregationFunction();
 	}
 	
 	@Override

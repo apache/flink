@@ -26,7 +26,7 @@ import org.junit.Test;
 
 public class CountAggregationFunctionTest {
 
-	private CountAggregationFunction<Integer> function = new CountAggregationFunction<Integer>();
+	private CountAggregationFunction function = new CountAggregationFunction();
 	
 	@Test
 	public void shouldReturnFirst() {

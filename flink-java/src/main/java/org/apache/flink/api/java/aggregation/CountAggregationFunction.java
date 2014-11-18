@@ -20,7 +20,7 @@ package org.apache.flink.api.java.aggregation;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 
-public class CountAggregationFunction<T> extends AggregationFunction<T, Long> {
+public class CountAggregationFunction extends AggregationFunction<Object, Long> {
 	private static final long serialVersionUID = 514373288927267811L;
 
 	long count;
@@ -40,7 +40,7 @@ public class CountAggregationFunction<T> extends AggregationFunction<T, Long> {
 	}
 
 	@Override
-	public void setInputType(BasicTypeInfo<T> inputType) { }
+	public void setInputType(BasicTypeInfo<Object> inputType) { }
 
 	@Override
 	public int getFieldPosition() { return 0; }
@@ -51,7 +51,7 @@ public class CountAggregationFunction<T> extends AggregationFunction<T, Long> {
 	}
 
 	@Override
-	public void aggregate(T value) {
+	public void aggregate(Object value) {
 		count += 1;
 	}
 
