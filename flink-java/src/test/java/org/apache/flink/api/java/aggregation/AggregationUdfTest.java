@@ -25,7 +25,6 @@ import static org.mockito.Mockito.verify;
 
 import java.util.List;
 
-import org.apache.flink.api.java.operators.AggregationUdf;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.builder.Tuple2Builder;
 import org.apache.flink.util.Collector;

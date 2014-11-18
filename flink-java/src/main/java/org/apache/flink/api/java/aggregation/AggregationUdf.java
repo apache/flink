@@ -16,13 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.java.operators;
+package org.apache.flink.api.java.aggregation;
 
 import java.io.Serializable;
 import java.util.Iterator;
 
 import org.apache.flink.api.common.functions.GroupReduceFunction;
-import org.apache.flink.api.java.aggregation.AggregationFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.util.Collector;
 
