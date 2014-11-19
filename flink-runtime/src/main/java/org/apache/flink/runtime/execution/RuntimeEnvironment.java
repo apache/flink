@@ -183,9 +183,12 @@ public class RuntimeEnvironment implements Environment, BufferProvider, LocalBuf
 			Thread currentThread = Thread.currentThread();
 			ClassLoader context = currentThread.getContextClassLoader();
 			currentThread.setContextClassLoader(userCodeClassLoader);
-			this.invokable.registerInputOutput();
-
-			currentThread.setContextClassLoader(context);
+			try {
+				this.invokable.registerInputOutput();
+			}
+			finally {
+				currentThread.setContextClassLoader(context);
+			}
 		}
 
 		List<GateDeploymentDescriptor> inGates = tdd.getInputGates();

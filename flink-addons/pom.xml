@@ -52,7 +52,7 @@ under the License.
 				</property>
 			</activation>
 			<modules>
-				<!-- No extra modules: pact-hbase is currently not compatible with Hadoop v1 -->
+				<!-- No extra modules: flink-hbase is currently not compatible with Hadoop v1 -->
 			</modules>
 		</profile>
 		<profile>
