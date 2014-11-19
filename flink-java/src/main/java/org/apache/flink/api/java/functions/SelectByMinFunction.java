@@ -68,10 +68,8 @@ public class SelectByMinFunction<T extends Tuple> implements ReduceFunction<T> {
 	@Override
 	public T reduce(T value1, T value2) throws Exception {
 
-		for (int index = 0; index < fields.length; index++) {
+		for (int position : fields) {
 			// Save position of compared key
-			int position = this.fields[index];
-
 			// Get both values - both implement comparable
 			Comparable comparable1 = value1.getFieldNotNull(position);
 			Comparable comparable2 = value2.getFieldNotNull(position);

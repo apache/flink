@@ -102,7 +102,7 @@ public class JobGraph implements IOReadableWritable {
 	 * @param jobName The name of the job
 	 */
 	public JobGraph(JobID jobId, String jobName) {
-		this.jobID = jobId == null ? new JobID() : jobId;;
+		this.jobID = jobId == null ? new JobID() : jobId;
 		this.jobName = jobName == null ? "(unnamed job)" : jobName;
 	}
 	
@@ -405,8 +405,8 @@ public class JobGraph implements IOReadableWritable {
 
 		out.writeInt(this.userJarBlobKeys.size());
 
-		for (final Iterator<BlobKey> it = this.userJarBlobKeys.iterator(); it.hasNext();) {
-			it.next().write(out);
+		for (BlobKey userJarBlobKey : this.userJarBlobKeys) {
+			userJarBlobKey.write(out);
 		}
 	}
 
@@ -480,9 +480,8 @@ public class JobGraph implements IOReadableWritable {
 
 			bc = new BlobClient(serverAddress);
 
-			for (final Iterator<Path> it = this.userJars.iterator(); it.hasNext();) {
+			for (final Path jar : this.userJars) {
 
-				final Path jar = it.next();
 				final FileSystem fs = jar.getFileSystem();
 				FSDataInputStream is = null;
 				try {

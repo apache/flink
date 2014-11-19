@@ -209,7 +209,7 @@ public class TypeExtractor {
 		ArrayList<Type> typeHierarchy = new ArrayList<Type>();
 		Type returnType = getParameterType(baseClass, typeHierarchy, clazz, returnParamPos);
 		
-		TypeInformation<OUT> typeInfo = null;
+		TypeInformation<OUT> typeInfo;
 		
 		// return type is a variable -> try to get the type info from the input directly
 		if (returnType instanceof TypeVariable<?>) {
@@ -377,7 +377,7 @@ public class TypeExtractor {
 					className = "L" + componentClass.getName() + ";";
 				}
 				
-				Class<OUT> classArray = null;
+				Class<OUT> classArray;
 				try {
 					classArray = (Class<OUT>) Class.forName("[" + className);
 				} catch (ClassNotFoundException e) {
@@ -706,7 +706,7 @@ public class TypeExtractor {
 					throw new InvalidTypesException("Value type expected.");
 				}
 				
-				TypeInformation<?> actual = null;
+				TypeInformation<?> actual;
 				// check value type contents
 				if (!((ValueTypeInfo<?>) typeInfo).equals(actual = ValueTypeInfo.getValueTypeInfo((Class<? extends Value>) type))) {
 					throw new InvalidTypesException("Value type '" + typeInfo + "' expected but was '" + actual + "'.");

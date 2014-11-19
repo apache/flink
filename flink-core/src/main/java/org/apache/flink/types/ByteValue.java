@@ -131,9 +131,7 @@ public class ByteValue implements NormalizableKey<ByteValue>, ResettableValue<By
 			highByte -= Byte.MIN_VALUE;
 			target.put(offset, (byte) highByte);
 		}
-		else if (len <= 0) {
-		}
-		else {
+		else if (len > 1) {
 			int highByte = this.value & 0xff;
 			highByte -= Byte.MIN_VALUE;
 			target.put(offset, (byte) highByte);

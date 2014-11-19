@@ -74,7 +74,7 @@ public class IterationWithUnionITCase extends JavaProgramTestBase {
 		}
 	}
 
-	static final class DummyReducer implements GroupReduceFunction<Record, Record>, Serializable {
+	static class DummyReducer implements GroupReduceFunction<Record, Record>, Serializable {
 		private static final long serialVersionUID = 1L;
 
 		@Override

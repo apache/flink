@@ -120,7 +120,7 @@ public class TypeInfoParser {
 			sb.delete(0, className.length() + 1);
 			int arity = Integer.parseInt(className.replaceAll("\\D", ""));
 
-			Class<?> clazz = null;
+			Class<?> clazz;
 			// check if fully qualified
 			if (className.startsWith(TUPLE_PACKAGE)) {
 				clazz = Class.forName(className);
@@ -144,7 +144,7 @@ public class TypeInfoParser {
 			// tuple arrays
 			if (sb.length() > 0) {
 				if (sb.length() >= 2 && sb.charAt(0) == '[' && sb.charAt(1) == ']') {
-					Class<?> arrayClazz = null;
+					Class<?> arrayClazz;
 					// check if fully qualified
 					if (className.startsWith(TUPLE_PACKAGE)) {
 						arrayClazz = Class.forName("[L" + className + ";");
@@ -152,9 +152,7 @@ public class TypeInfoParser {
 						arrayClazz = Class.forName("[L" + TUPLE_PACKAGE + "." + className + ";");
 					}
 					returnType = ObjectArrayTypeInfo.getInfoFor(arrayClazz, new TupleTypeInfo(clazz, types));
-				} else if (sb.length() >= 1 && sb.charAt(0) == '[') {
-					// no return type -> exception instead
-				} else {
+				} else if (sb.length() < 1 || sb.charAt(0) != '[') {
 					returnType = new TupleTypeInfo(clazz, types);
 				}
 			} else {
@@ -179,7 +177,7 @@ public class TypeInfoParser {
 		else if (basicTypeMatcher.find()) {
 			String className = basicTypeMatcher.group(1);
 			sb.delete(0, className.length());
-			Class<?> clazz = null;
+			Class<?> clazz;
 			// check if fully qualified
 			if (className.startsWith("java.lang")) {
 				clazz = Class.forName(className);
@@ -218,7 +216,7 @@ public class TypeInfoParser {
 			String className = valueTypeMatcher.group(1);
 			sb.delete(0, className.length() + 5);
 
-			Class<?> clazz = null;
+			Class<?> clazz;
 			// check if fully qualified
 			if (className.startsWith(VALUE_PACKAGE)) {
 				clazz = Class.forName(className + "Value");
@@ -232,7 +230,7 @@ public class TypeInfoParser {
 			String className = basicArrayTypeMatcher.group(1);
 			sb.delete(0, className.length() + 2);
 
-			Class<?> clazz = null;
+			Class<?> clazz;
 			if (className.startsWith("java.lang")) {
 				clazz = Class.forName("[L" + className + ";");
 			} else {

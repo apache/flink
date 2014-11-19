@@ -48,7 +48,9 @@ public class InfiniteIntegerInputFormatWithDelay extends GenericInputFormat {
 		
 		try {
 			Thread.sleep(DELAY);
-		} catch (InterruptedException iex) {}
+		} catch (InterruptedException iex) {
+			// do nothing
+		}
 		
 		return record;
 	}
