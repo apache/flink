@@ -18,11 +18,9 @@
 
 package org.apache.flink.test.exampleJavaPrograms;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.LinkedList;
-
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.examples.java.graph.PageRankBasic;
 import org.apache.flink.test.testdata.PageRankData;
@@ -33,9 +31,7 @@ import org.junit.runners.Parameterized.Parameters;
 
 @RunWith(Parameterized.class)
 public class PageRankITCase extends JavaProgramTestBase {
-	
-	private static int NUM_PROGRAMS = 2;
-	
+
 	private int curProgId = config.getInteger("ProgramId", -1);
 	
 	private String verticesPath;
@@ -65,10 +61,11 @@ public class PageRankITCase extends JavaProgramTestBase {
 	}
 	
 	@Parameters
-	public static Collection<Object[]> getConfigurations() throws FileNotFoundException, IOException {
+	public static Collection<Object[]> getConfigurations() throws IOException {
 
 		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
 
+		int NUM_PROGRAMS = 2;
 		for(int i=1; i <= NUM_PROGRAMS; i++) {
 			Configuration config = new Configuration();
 			config.setInteger("ProgramId", i);

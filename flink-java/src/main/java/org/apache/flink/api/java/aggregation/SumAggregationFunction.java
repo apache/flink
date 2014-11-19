@@ -42,7 +42,7 @@ public abstract class SumAggregationFunction<T> extends AggregationFunction<T> {
 
 		@Override
 		public void aggregate(Byte value) {
-			agg += value.byteValue();
+			agg += value;
 		}
 
 		@Override
@@ -63,7 +63,7 @@ public abstract class SumAggregationFunction<T> extends AggregationFunction<T> {
 
 		@Override
 		public void aggregate(Short value) {
-			agg += value.shortValue();
+			agg += value;
 		}
 
 		@Override
@@ -84,7 +84,7 @@ public abstract class SumAggregationFunction<T> extends AggregationFunction<T> {
 
 		@Override
 		public void aggregate(Integer value) {
-			agg += value.intValue();
+			agg += value;
 		}
 
 		@Override
@@ -105,7 +105,7 @@ public abstract class SumAggregationFunction<T> extends AggregationFunction<T> {
 
 		@Override
 		public void aggregate(Long value) {
-			agg += value.longValue();
+			agg += value;
 		}
 
 		@Override
@@ -126,7 +126,7 @@ public abstract class SumAggregationFunction<T> extends AggregationFunction<T> {
 
 		@Override
 		public void aggregate(Float value) {
-			agg += value.floatValue();
+			agg += value;
 		}
 
 		@Override
@@ -147,7 +147,7 @@ public abstract class SumAggregationFunction<T> extends AggregationFunction<T> {
 
 		@Override
 		public void aggregate(Double value) {
-			agg += value.doubleValue();
+			agg += value;
 		}
 
 		@Override

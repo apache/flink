@@ -199,7 +199,7 @@ public class PairwiseSP implements Program, ProgramDescription {
 			line.append(record.getField(4, StringValue.class).toString());
 			line.append("|");
 			line.append("\n");
-			
+
 			stream.write(line.toString().getBytes());
 		}
 	}
@@ -392,7 +392,7 @@ public class PairwiseSP implements Program, ProgramDescription {
 		int numSubTasks   = (args.length > 0 ? Integer.parseInt(args[0]) : 1);
 		String paths     = (args.length > 1 ? args[1] : "");
 		String output    = (args.length > 2 ? args[2] : "");
-		boolean rdfInput = (args.length > 3 ? Boolean.parseBoolean(args[3]) : false);
+		boolean rdfInput = (args.length > 3 && Boolean.parseBoolean(args[3]));
 
 		FileDataSource pathsInput;
 		

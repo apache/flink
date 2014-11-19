@@ -90,8 +90,8 @@ public abstract class ExternalProcessInputFormat<T extends ExternalProcessInputS
 			int exitCode = this.extProc.exitValue();
 			// check whether exit code is allowed
 			boolean exitCodeOk = false;
-			for(int i=0; i<this.allowedExitCodes.length; i++) {
-				if(this.allowedExitCodes[i] == exitCode) {
+			for (int allowedExitCode : this.allowedExitCodes) {
+				if (allowedExitCode == exitCode) {
 					exitCodeOk = true;
 					break;
 				}

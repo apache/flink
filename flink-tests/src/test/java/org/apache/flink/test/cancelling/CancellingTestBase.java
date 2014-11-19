@@ -221,7 +221,6 @@ public abstract class CancellingTestBase {
 		} catch (Exception e) {
 			LOG.error("Exception while running runAndCancelJob.", e);
 			Assert.fail(StringUtils.stringifyException(e));
-			return;
 		}
 	}
 
