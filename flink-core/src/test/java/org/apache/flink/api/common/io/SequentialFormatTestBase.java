@@ -31,24 +31,18 @@ import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
-import org.apache.flink.types.IntValue;
-import org.apache.flink.types.Record;
-import org.apache.flink.types.StringValue;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
 /**
- * Tests {@link SerializedInputFormat} and {@link SerializedOutputFormat}.
+ * Test base for {@link org.apache.flink.api.common.io.BinaryInputFormat} and {@link org.apache.flink.api.common.io.BinaryOutputFormat}.
  */
-@RunWith(Parameterized.class)
-public class SequentialFormatTest {
+public abstract class SequentialFormatTestBase<T> {
 
 	public class InputSplitSorter implements Comparator<FileInputSplit> {
 		@Override
@@ -60,20 +54,18 @@ public class SequentialFormatTest {
 
 	private int numberOfTuples;
 
-	private long blockSize;
+	protected long blockSize;
 
 	private int degreeOfParallelism;
 
-	private BlockInfo info = new SerializedInputFormat<IOReadableWritable>().createBlockInfo();
-
 	private int[] rawDataSizes;
 
-	private File tempFile;
+	protected File tempFile;
 
 	/**
 	 * Initializes SequentialFormatTest.
 	 */
-	public SequentialFormatTest(int numberOfTuples, long blockSize, int degreeOfParallelism) {
+	public SequentialFormatTestBase(int numberOfTuples, long blockSize, int degreeOfParallelism) {
 		this.numberOfTuples = numberOfTuples;
 		this.blockSize = blockSize;
 		this.degreeOfParallelism = degreeOfParallelism;
@@ -90,7 +82,8 @@ public class SequentialFormatTest {
 			ByteCounter byteCounter = new ByteCounter();
 			DataOutputStream out = new DataOutputStream(byteCounter);
 			for (int fileCount = 0; fileCount < this.getNumberOfTuplesPerFile(fileIndex); fileCount++, recordIndex++) {
-				this.getRecord(recordIndex).write(new OutputViewDataOutputStreamWrapper(out));
+				writeRecord(this.getRecord(recordIndex), new OutputViewDataOutputStreamWrapper
+						(out));
 			}
 			this.rawDataSizes[fileIndex] = byteCounter.getLength();
 		}
@@ -118,7 +111,7 @@ public class SequentialFormatTest {
 			Assert.assertEquals(this.getExpectedBlockCount(fileIndex), sameFileSplits.size());
 
 			long lastBlockLength =
-				this.rawDataSizes[fileIndex] % (this.blockSize - this.info.getInfoSize()) + this.info.getInfoSize();
+				this.rawDataSizes[fileIndex] % (this.blockSize - getInfoSize()) + getInfoSize();
 			for (int index = 0; index < sameFileSplits.size(); index++) {
 				Assert.assertEquals(this.blockSize * index, sameFileSplits.get(index).getStart());
 				if (index < sameFileSplits.size() - 1) {
@@ -134,13 +127,13 @@ public class SequentialFormatTest {
 	 */
 	@Test
 	public void checkRead() throws IOException {
-		SerializedInputFormat<Record> input = this.createInputFormat();
+		BinaryInputFormat<T> input = this.createInputFormat();
 		FileInputSplit[] inputSplits = input.createInputSplits(0);
 		Arrays.sort(inputSplits, new InputSplitSorter());
 		int readCount = 0;
 		for (FileInputSplit inputSplit : inputSplits) {
 			input.open(inputSplit);
-			Record record = new Record();
+			T record = createInstance();
 			while (!input.reachedEnd()) {
 				if (input.nextRecord(record) != null) {
 					this.checkEquals(this.getRecord(readCount), record);
@@ -156,7 +149,7 @@ public class SequentialFormatTest {
 	 */
 	@Test
 	public void checkStatistics() {
-		SerializedInputFormat<Record> input = this.createInputFormat();
+		BinaryInputFormat<T> input = this.createInputFormat();
 		BaseStatistics statistics = input.getStatistics(null);
 		Assert.assertEquals(this.numberOfTuples, statistics.getNumberOfRecords());
 	}
@@ -181,13 +174,12 @@ public class SequentialFormatTest {
 	 */
 	@Before
 	public void writeTuples() throws IOException {
-		this.tempFile = File.createTempFile("SerializedInputFormat", null);
+		this.tempFile = File.createTempFile("BinaryInputFormat", null);
 		this.tempFile.deleteOnExit();
 		Configuration configuration = new Configuration();
 		configuration.setLong(BinaryOutputFormat.BLOCK_SIZE_PARAMETER_KEY, this.blockSize);
 		if (this.degreeOfParallelism == 1) {
-			SerializedOutputFormat output =
-				FormatUtil.openOutput(SerializedOutputFormat.class, this.tempFile.toURI().toString(),
+			BinaryOutputFormat output = createOutputFormat(this.tempFile.toURI().toString(),
 					configuration);
 			for (int index = 0; index < this.numberOfTuples; index++) {
 				output.writeRecord(this.getRecord(index));
@@ -198,10 +190,8 @@ public class SequentialFormatTest {
 			this.tempFile.mkdir();
 			int recordIndex = 0;
 			for (int fileIndex = 0; fileIndex < this.degreeOfParallelism; fileIndex++) {
-				SerializedOutputFormat output =
-					FormatUtil.openOutput(SerializedOutputFormat.class, this.tempFile.toURI() +
-						"/"
-						+ (fileIndex + 1), configuration);
+				BinaryOutputFormat output = createOutputFormat(this.tempFile.toURI() + "/" +
+						(fileIndex+1), configuration);
 				for (int fileCount = 0; fileCount < this.getNumberOfTuplesPerFile(fileIndex); fileCount++, recordIndex++) {
 					output.writeRecord(this.getRecord(recordIndex));
 				}
@@ -222,44 +212,40 @@ public class SequentialFormatTest {
 		File[] files = this.tempFile.isDirectory() ? this.tempFile.listFiles() : new File[] { this.tempFile };
 		Arrays.sort(files);
 		for (int fileIndex = 0; fileIndex < this.degreeOfParallelism; fileIndex++) {
-			long lastBlockLength = this.rawDataSizes[fileIndex] % (this.blockSize - this.info.getInfoSize());
+			long lastBlockLength = this.rawDataSizes[fileIndex] % (this.blockSize - getInfoSize());
 			long expectedLength =
-				(this.getExpectedBlockCount(fileIndex) - 1) * this.blockSize + this.info.getInfoSize() +
+				(this.getExpectedBlockCount(fileIndex) - 1) * this.blockSize + getInfoSize() +
 					lastBlockLength;
 			Assert.assertEquals(expectedLength, files[fileIndex].length());
 		}
 	}
 
-	protected SerializedInputFormat<Record> createInputFormat() {
-		Configuration configuration = new Configuration();
-		configuration.setLong(BinaryInputFormat.BLOCK_SIZE_PARAMETER_KEY, this.blockSize);
+	abstract protected BinaryInputFormat<T> createInputFormat();
 
-		final SerializedInputFormat<Record> inputFormat = new SerializedInputFormat<Record>();
-		inputFormat.setFilePath(this.tempFile.toURI().toString());
-		
-		inputFormat.configure(configuration);
-		return inputFormat;
-	}
+	abstract protected BinaryOutputFormat<T> createOutputFormat(final String path, final
+																Configuration configuration)
+			throws IOException;
+
+	abstract protected int getInfoSize();
 
 	/**
 	 * Returns the record to write at the given position
 	 */
-	protected Record getRecord(int index) {
-		return new Record(new IntValue(index), new StringValue(String.valueOf(index)));
-	}
+	abstract protected T getRecord(int index);
+
+	abstract protected T createInstance();
+
+	abstract protected void writeRecord(T record, DataOutputView outputView) throws IOException;
 
 	/**
 	 * Checks if both records are equal
 	 */
-	private void checkEquals(Record expected, Record actual) {
-		Assert.assertEquals(expected.getNumFields(), actual.getNumFields());
-		Assert.assertEquals(expected.getField(0, IntValue.class), actual.getField(0, IntValue.class));
-		Assert.assertEquals(expected.getField(1, StringValue.class), actual.getField(1, StringValue.class));
-	}
+	abstract protected void checkEquals(T expected, T actual);
 
 	private int getExpectedBlockCount(int fileIndex) {
 		int expectedBlockCount =
-			(int) Math.ceil((double) this.rawDataSizes[fileIndex] / (this.blockSize - this.info.getInfoSize()));
+			(int) Math.ceil((double) this.rawDataSizes[fileIndex] / (this.blockSize -
+					getInfoSize()));
 		return expectedBlockCount;
 	}
 

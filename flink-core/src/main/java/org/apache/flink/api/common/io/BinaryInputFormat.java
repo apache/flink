@@ -35,7 +35,6 @@ import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
 import org.apache.flink.util.StringUtils;
@@ -44,7 +43,7 @@ import org.apache.flink.util.StringUtils;
  * Base class for all input formats that use blocks of fixed size. The input splits are aligned to these blocks. Without
  * configuration, these block sizes equal the native block sizes of the HDFS.
  */
-public abstract class BinaryInputFormat<T extends IOReadableWritable> extends FileInputFormat<T> {
+public abstract class BinaryInputFormat<T> extends FileInputFormat<T> {
 	private static final long serialVersionUID = 1L;
 
 	/**
@@ -188,7 +187,7 @@ public abstract class BinaryInputFormat<T extends IOReadableWritable> extends Fi
 		return this.createInputSplits(0);
 	}
 
-	protected BlockInfo createBlockInfo() {
+	public BlockInfo createBlockInfo() {
 		return new BlockInfo();
 	}
 
