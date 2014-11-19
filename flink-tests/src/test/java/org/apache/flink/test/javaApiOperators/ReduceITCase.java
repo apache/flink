@@ -369,6 +369,8 @@ public class ReduceITCase extends JavaProgramTestBase {
 						throw new RuntimeException("Unexpected value for l=" + l);
 					}
 				});
+				ds = ds.union(CollectionDataSets.getPojoWithDateAndEnum(env));
+
 				DataSet<String> res = ds.groupBy("group").reduceGroup(new GroupReduceFunction<CollectionDataSets.PojoWithDateAndEnum, String>() {
 					private static final long serialVersionUID = 1L;
 
@@ -381,7 +383,7 @@ public class ReduceITCase extends JavaProgramTestBase {
 							} else if(val.cat == CollectionDataSets.Category.CAT_B) {
 								Assert.assertEquals("b", val.group);
 							} else {
-								Assert.fail("error");
+								Assert.fail("error. Cat = "+val.cat);
 							}
 							Assert.assertEquals(666, val.date.getTime());
 						}

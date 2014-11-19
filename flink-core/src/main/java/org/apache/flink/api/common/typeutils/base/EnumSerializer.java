@@ -91,6 +91,16 @@ public final class EnumSerializer<T extends Enum<T>> extends TypeSerializer<T> {
 		target.write(source, 4);
 	}
 
+	@Override
+	public boolean equals(Object obj) {
+		if(obj instanceof EnumSerializer) {
+			EnumSerializer other = (EnumSerializer) obj;
+			return other.enumClass == this.enumClass;
+		} else {
+			return false;
+		}
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
