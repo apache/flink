@@ -19,7 +19,6 @@
 package org.apache.flink.api.scala.operators;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 import org.apache.commons.lang3.Validate;
@@ -166,7 +165,7 @@ public class ScalaAggregateOperator<IN> extends SingleInputOperator<IN, IN, Scal
 		genName.setLength(genName.length()-1);
 
 		TypeSerializer<IN> serializer = getInputType().createSerializer();
-		TypeSerializerFactory<IN> serializerFactory = null;
+		TypeSerializerFactory<IN> serializerFactory;
 		if (serializer.isStateful()) {
 			serializerFactory = new RuntimeStatefulSerializerFactory<IN>(
 					serializer, getInputType().getTypeClass());
@@ -214,12 +213,9 @@ public class ScalaAggregateOperator<IN> extends SingleInputOperator<IN, IN, Scal
 
 			SingleInputSemanticProperties props = new SingleInputSemanticProperties();
 
-			for (int i = 0; i < logicalKeyPositions.length; i++) {
-				int keyField = logicalKeyPositions[i];
+			for (int keyField : logicalKeyPositions) {
 				boolean keyFieldUsedInAgg = false;
-
-				for (int k = 0; k < fields.length; k++) {
-					int aggField = fields[k];
+				for (int aggField : fields) {
 					if (keyField == aggField) {
 						keyFieldUsedInAgg = true;
 						break;
@@ -273,8 +269,8 @@ public class ScalaAggregateOperator<IN> extends SingleInputOperator<IN, IN, Scal
 
 		@Override
 		public void open(Configuration parameters) throws Exception {
-			for (int i = 0; i < aggFunctions.length; i++) {
-				aggFunctions[i].initializeAggregate();
+			for (AggregationFunction<Object> aggFunction : aggFunctions) {
+				aggFunction.initializeAggregate();
 			}
 			serializer = (TupleSerializerBase<T>)serializerFactory.getSerializer();
 		}
@@ -287,10 +283,8 @@ public class ScalaAggregateOperator<IN> extends SingleInputOperator<IN, IN, Scal
 			// aggregators are initialized from before
 
 			T current = null;
-			final Iterator<T> values = records.iterator();
-			while (values.hasNext()) {
-				current = values.next();
-
+			for (T record : records) {
+				current = record;
 				for (int i = 0; i < fieldPositions.length; i++) {
 					Object val = current.productElement(fieldPositions[i]);
 					aggFunctions[i].aggregate(val);
