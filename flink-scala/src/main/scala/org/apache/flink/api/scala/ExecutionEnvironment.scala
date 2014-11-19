@@ -191,6 +191,28 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   }
 
   /**
+   * Creates a DataSet that represents the primitive type produced by reading the
+   * given file in delimited way.This method is similar to [[readCsvFile]] with
+   * single field, but it produces a DataSet not through Tuple.
+   * The type parameter must be used to specify the primitive type.
+   *
+   * @param filePath The path of the file, as a URI (e.g., "file:///some/local/file" or
+   *                 "hdfs://host:port/file/path").
+   * @param delimiter The string that separates primitives , defaults to newline.
+   */
+  def readFileOfPrimitives[T : ClassTag : TypeInformation](
+      filePath : String,
+      delimiter : String = "\n") : DataSet[T] = {
+    Validate.notNull(filePath, "File path must not be null.")
+    val typeInfo = implicitly[TypeInformation[T]]
+    val datasource = new DataSource[T](
+      javaEnv,
+      new PrimitiveInputFormat(new Path(filePath), delimiter, typeInfo.getTypeClass),
+      typeInfo)
+    wrap(datasource)
+  }
+
+  /**
    * Creates a new DataSource by reading the specified file using the custom
    * [[org.apache.flink.api.common.io.FileInputFormat]].
    */
