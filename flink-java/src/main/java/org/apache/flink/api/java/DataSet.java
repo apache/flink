@@ -72,6 +72,8 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
 
+import com.google.common.base.Preconditions;
+
 /**
  * A DataSet represents a collection of elements of the same type.<br/>
  * A DataSet can be transformed into another DataSet by applying a transformation as for example 
@@ -847,6 +849,9 @@ public abstract class DataSet<T> {
 	 * @see org.apache.flink.api.java.operators.DeltaIteration
 	 */
 	public <R> DeltaIteration<T, R> iterateDelta(DataSet<R> workset, int maxIterations, int... keyPositions) {
+		Preconditions.checkNotNull(workset);
+		Preconditions.checkNotNull(keyPositions);
+		
 		Keys.ExpressionKeys<T> keys = new Keys.ExpressionKeys<T>(keyPositions, getType(), false);
 		return new DeltaIteration<T, R>(getExecutionEnvironment(), getType(), this, workset, keys, maxIterations);
 	}
