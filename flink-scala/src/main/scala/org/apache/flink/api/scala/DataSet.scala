@@ -89,6 +89,13 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   def getType: TypeInformation[T] = set.getType
 
   /**
+   * Returns the execution environment associated with the current DataSet.
+   * @return associated execution environment
+   */
+  def getExecutionEnvironment: ExecutionEnvironment = new ExecutionEnvironment(set
+    .getExecutionEnvironment)
+
+  /**
    * Returns the underlying Java DataSet.
    */
   private[flink] def javaSet: JavaDataSet[T] = set
