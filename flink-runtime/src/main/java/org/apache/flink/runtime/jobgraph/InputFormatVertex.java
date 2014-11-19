@@ -43,7 +43,7 @@ public class InputFormatVertex extends AbstractJobVertex {
 	public void initializeOnMaster(ClassLoader loader) throws Exception {
 		if (inputFormat == null) {
 			TaskConfig cfg = new TaskConfig(getConfiguration());
-			UserCodeWrapper<InputFormat<?, ?>> wrapper = cfg.<InputFormat<?, ?>>getStubWrapper(loader);
+			UserCodeWrapper<InputFormat<?, ?>> wrapper = cfg.getStubWrapper(loader);
 			
 			if (wrapper == null) {
 				throw new Exception("No input format present in InputFormatVertex's task configuration.");

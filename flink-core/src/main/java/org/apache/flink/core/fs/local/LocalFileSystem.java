@@ -199,9 +199,9 @@ public class LocalFileSystem extends FileSystem {
 		if (f.isDirectory()) {
 
 			final File[] files = f.listFiles();
-			for (int i = 0; i < files.length; i++) {
-				final boolean del = delete(files[i]);
-				if (del == false) {
+			for (File file : files) {
+				final boolean del = delete(file);
+				if (!del) {
 					return false;
 				}
 			}
