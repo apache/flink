@@ -2,11 +2,15 @@ package flink.graphs;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedList;
+import java.util.List;
 
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.junit.runner.RunWith;
@@ -153,9 +157,9 @@ public class TestGraphOperations extends JavaProgramTestBase {
 				return "5";
 			}
 			case 6: {
-			/*
-			 * Test numberOfEdges()
-			 */
+				/*
+				 * Test numberOfEdges()
+				 */
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				
 				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
@@ -198,21 +202,109 @@ public class TestGraphOperations extends JavaProgramTestBase {
 				/*
 				 * Test addVertex()
 				 */	
+				
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				
+				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+						TestGraphUtils.getLongLongEdgeData(env), env);
+				
+				List<Tuple3<Long, Long, Long>> edges = new ArrayList<Tuple3<Long, Long, Long>>();
+				edges.add(new Tuple3<Long, Long, Long>(6L, 1L, 61L));
+				
+				graph = graph.addVertex(new Tuple2<Long, Long>(6L, 6L), edges);
+				
+				graph.getEdges().writeAsCsv(resultPath);
+					
+				env.execute();
+				
+				return "1,2,12\n" +
+					"1,3,13\n" +
+					"2,3,23\n" +
+					"3,4,34\n" +
+					"3,5,35\n" +
+					"4,5,45\n" +
+					"5,1,51\n" +
+					"6,1,61\n";
+				
 			}
 			case 10: {
 				/*
 				 * Test removeVertex()
 				 */	
+				
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				
+				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+						TestGraphUtils.getLongLongEdgeData(env), env);
+				
+				graph = graph.removeVertex(new Tuple2<Long, Long>(5L, 5L));
+				
+				graph.getEdges().writeAsCsv(resultPath);
+					
+				env.execute();
+				
+				return "1,2,12\n" +
+					"1,3,13\n" +
+					"2,3,23\n" +
+					"3,4,34\n";
 			}
 			case 11: {
 				/*
 				 * Test addEdge()
-				 */				
+				 */
+				
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				
+				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+						TestGraphUtils.getLongLongEdgeData(env), env);
+
+				List<Tuple2<Long, Long>> vertices = new ArrayList<Tuple2<Long, Long>>();
+				List<Tuple3<Long, Long, Long>> edges = new ArrayList<Tuple3<Long, Long, Long>>();
+				
+				vertices.add(new Tuple2<Long, Long>(6L, 6L));
+				edges.add(new Tuple3<Long, Long, Long>(6L, 1L, 61L));
+				
+				graph = graph.union(graph.fromCollection(vertices, edges));
+				
+				graph.getEdges().writeAsCsv(resultPath);
+					
+				env.execute();
+				
+				return "1,2,12\n" +
+					"1,3,13\n" +
+					"2,3,23\n" +
+					"3,4,34\n" +
+					"3,5,35\n" +
+					"4,5,45\n" +
+					"5,1,51\n" +
+					"6,1,61\n";
 			}
 			case 12: {
 				/*
 				 * Test union()
-				 */				
+				 */
+				
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				
+				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+						TestGraphUtils.getLongLongEdgeData(env), env);
+				
+				
+				graph = graph.addEdge(new Tuple3<Long, Long, Long>(6L, 1L, 61L), 
+						new Tuple2<Long, Long>(6L, 6L), new Tuple2<Long, Long>(1L, 1L));
+				
+				graph.getEdges().writeAsCsv(resultPath);
+					
+				env.execute();
+				
+				return "1,2,12\n" +
+					"1,3,13\n" +
+					"2,3,23\n" +
+					"3,4,34\n" +
+					"3,5,35\n" +
+					"4,5,45\n" +
+					"5,1,51\n" +
+					"6,1,61\n";				
 			}
 			case 13: {
 				/*

@@ -481,9 +481,12 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
         }
 	}
 	
-    //TODO kostas add functionality
     public Graph<K, VV, EV> fromCollection (Collection<Tuple2<K,VV>> vertices, Collection<Tuple3<K,K,EV>> edges) {
-        return null;
+
+		DataSet<Tuple2<K, VV>> v = context.fromCollection(vertices);
+		DataSet<Tuple3<K, K, EV>> e = context.fromCollection(edges);
+
+		return new Graph<K, VV, EV>(v, e, context);
     }
 
     //TODO kostas add functionality
@@ -491,62 +494,66 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
         return null;
     }
 
-
     public Graph<K, VV, EV> addVertex (Tuple2<K,VV> vertex, List<Tuple3<K,K,EV>> edges) {
         Graph<K,VV,EV> newVertex = this.fromCollection(Arrays.asList(vertex), edges);
         return this.union(newVertex);
     }
 
-    @SuppressWarnings("unchecked")
     public Graph<K, VV, EV> removeVertex (Tuple2<K,VV> vertex) {
 
-        DataSet<Tuple2<K,VV>> vertexToRemove = fromCollection(Arrays.asList(vertex));
+        DataSet<Tuple2<K,VV>> vertexToRemove = context.fromCollection(Arrays.asList(vertex));
 
-        DataSet<Tuple2<K,VV>> newVertices = getVertices()
-                .filter(new RichFilterFunction<Tuple2<K, VV>>() {
-                    private Tuple2<K, VV> vertexToRemove;
+		DataSet<Tuple2<K, VV>> newVertices = getVertices().filter(
+				new RemoveVertexFilter<K, VV>()).withBroadcastSet(
+				vertexToRemove, "vertexToRemove");
 
-					@Override
-                    public void open(Configuration parameters) throws Exception {
-                        super.open(parameters);
-                        this.vertexToRemove = (Tuple2<K, VV>) getRuntimeContext().getBroadcastVariable("vertexToRemove").get(0);
-                    }
-
-                    @Override
-                    public boolean filter(Tuple2<K, VV> vertex) throws Exception {
-                        if (vertex.f0.equals(vertexToRemove.f0)) {
-                            return false;
-                        } else {
-                            return true;
-                        }
-                    }
-                }).withBroadcastSet(vertexToRemove, "vertexToRemove");
-
-        DataSet<Tuple3<K,K,EV>> newEdges = getEdges()
-                .filter(new RichFilterFunction<Tuple3<K,K,EV>>() {
-                    private Tuple2<K, VV> vertexToRemove;
-
-                    @Override
-                    public void open(Configuration parameters) throws Exception {
-                        super.open(parameters);
-                        this.vertexToRemove = (Tuple2<K, VV>) getRuntimeContext().getBroadcastVariable("vertexToRemove").get(0);
-                    }
-
-                    @Override
-                    public boolean filter(Tuple3<K,K,EV> edge) throws Exception {
-                        if (edge.f0.equals(vertexToRemove.f0)) {
-                            return false;
-                        }
-                        if (edge.f1.equals(vertexToRemove.f0)) {
-                            return false;
-                        }
-                        return true;
-                    }
-                }).withBroadcastSet(vertexToRemove, "vertexToRemove");
+		DataSet<Tuple3<K, K, EV>> newEdges = getEdges().filter(
+				new RemoveEdgeFilter<K, VV, EV>()).withBroadcastSet(
+				vertexToRemove, "vertexToRemove");
 
         return new Graph<K, VV, EV>(newVertices, newEdges, this.context);
     }
+    
+    private static final class RemoveVertexFilter<K, VV> extends RichFilterFunction<Tuple2<K, VV>> {
 
+    	private Tuple2<K, VV> vertexToRemove;
+
+        @SuppressWarnings("unchecked")
+		@Override
+        public void open(Configuration parameters) throws Exception {
+            super.open(parameters);
+            this.vertexToRemove = (Tuple2<K, VV>) getRuntimeContext().getBroadcastVariable("vertexToRemove").get(0);
+        }
+
+        @Override
+        public boolean filter(Tuple2<K, VV> vertex) throws Exception {
+        	return !vertex.f0.equals(vertexToRemove.f0);
+        }
+    }
+    
+    private static final class RemoveEdgeFilter<K, VV, EV> extends RichFilterFunction<Tuple3<K, K, EV>> {
+
+    	private Tuple2<K, VV> vertexToRemove;
+
+        @SuppressWarnings("unchecked")
+		@Override
+        public void open(Configuration parameters) throws Exception {
+            super.open(parameters);
+            this.vertexToRemove = (Tuple2<K, VV>) getRuntimeContext().getBroadcastVariable("vertexToRemove").get(0);
+        }
+
+        @Override
+        public boolean filter(Tuple3<K, K, EV> edge) throws Exception {
+        	
+        	if (edge.f0.equals(vertexToRemove.f0)) {
+                return false;
+            }
+            if (edge.f1.equals(vertexToRemove.f0)) {
+                return false;
+            }
+            return true;
+        }
+    }
 
     public Graph<K, VV, EV> addEdge (Tuple3<K,K,EV> edge, Tuple2<K,VV> source, Tuple2<K,VV> target) {
         Graph<K,VV,EV> newEdges = this.fromCollection(Arrays.asList(source, target), Arrays.asList(edge));
