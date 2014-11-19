@@ -16,25 +16,32 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.common.io;
+package org.apache.flink.api.java.io;
+
+import org.apache.flink.api.common.io.BinaryInputFormat;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.memory.DataInputView;
 
 import java.io.IOException;
 
-import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.core.memory.DataOutputView;
-
 /**
- * Stores elements by serializing them with their regular serialization/deserialization functionality.
- * 
- * @see SerializedInputFormat
+ * Reads elements by deserializing them with a given type serializer.
+ * @param <T>
  */
-public class SerializedOutputFormat<T extends IOReadableWritable> extends
-		BinaryOutputFormat<T> {
-	
-	private static final long serialVersionUID = 1L;
-	
+public class TypeSerializerInputFormat<T> extends BinaryInputFormat<T> {
+	private TypeSerializer<T> serializer;
+
+	public TypeSerializerInputFormat(TypeSerializer<T> serializer){
+		this.serializer = serializer;
+	}
+
 	@Override
-	protected void serialize(T record, DataOutputView dataOutputView) throws IOException {
-		record.write(dataOutputView);
+	protected T deserialize(T reuse, DataInputView dataInput) throws IOException {
+		if(serializer == null){
+			throw new RuntimeException("TypeSerializerInputFormat requires a type serializer to " +
+					"be defined.");
+		}
+
+		return serializer.deserialize(reuse, dataInput);
 	}
 }
