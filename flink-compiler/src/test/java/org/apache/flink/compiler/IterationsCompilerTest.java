@@ -31,6 +31,7 @@ import org.apache.flink.api.java.aggregation.Aggregations;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.functions.RichJoinFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFields;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -227,6 +228,40 @@ public class IterationsCompilerTest extends CompilerTestBase {
 		}
 	}
 	
+	@Test
+	public void testWorksetIterationPipelineBreakerPlacement() {
+		try {
+			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+			env.setDegreeOfParallelism(8);
+			
+			// the workset (input two of the delta iteration) is the same as what is consumed be the successive join
+			DataSet<Tuple2<Long, Long>> initialWorkset = env.readCsvFile("/some/file/path").types(Long.class).map(new DuplicateValue());
+			
+			DataSet<Tuple2<Long, Long>> initialSolutionSet = env.readCsvFile("/some/file/path").types(Long.class).map(new DuplicateValue());
+			
+			// trivial iteration, since we are interested in the inputs to the iteration
+			DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iteration = initialSolutionSet.iterateDelta(initialWorkset, 100, 0);
+			
+			DataSet<Tuple2<Long, Long>> next = iteration.getWorkset().map(new IdentityMapper<Tuple2<Long,Long>>());
+			
+			DataSet<Tuple2<Long, Long>> result = iteration.closeWith(next, next);
+			
+			initialWorkset
+				.join(result, JoinHint.REPARTITION_HASH_FIRST)
+				.where(0).equalTo(0)
+				.print();
+			
+			Plan p = env.createProgramPlan();
+			compileNoStats(p);
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	// --------------------------------------------------------------------------------------------
+	
 	public static DataSet<Tuple2<Long, Long>> doBulkIteration(DataSet<Tuple2<Long, Long>> vertices, DataSet<Tuple2<Long, Long>> edges) {
 		
 		// open a bulk iteration
@@ -269,6 +304,8 @@ public class IterationsCompilerTest extends CompilerTestBase {
 		return depResult;
 		
 	}
+	
+	// --------------------------------------------------------------------------------------------
 	
 	public static final class Join222 extends RichJoinFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
 

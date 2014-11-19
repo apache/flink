@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.compiler.plan;
 
 import static org.apache.flink.compiler.plan.PlanNode.SourceAndDamReport.FOUND_SOURCE;
@@ -36,7 +35,7 @@ import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.util.Visitor;
 
 /**
- * 
+ * A node in the execution, representing a workset iteration (delta iteration).
  */
 public class WorksetIterationPlanNode extends DualInputPlanNode implements IterationPlanNode {
 
@@ -66,7 +65,7 @@ public class WorksetIterationPlanNode extends DualInputPlanNode implements Itera
 			SolutionSetPlanNode solutionSetPlanNode, WorksetPlanNode worksetPlanNode,
 			PlanNode nextWorkSetPlanNode, PlanNode solutionSetDeltaPlanNode)
 	{
-		super(template, nodeName, initialSolutionSet, initialWorkset, DriverStrategy.NONE);
+		super(template, nodeName, initialSolutionSet, initialWorkset, DriverStrategy.BINARY_NO_OP);
 		this.solutionSetPlanNode = solutionSetPlanNode;
 		this.worksetPlanNode = worksetPlanNode;
 		this.solutionSetDeltaPlanNode = solutionSetDeltaPlanNode;
