@@ -19,13 +19,9 @@
 package org.apache.flink.examples.java.aggregation;
 
 import static java.util.Arrays.asList;
-import static org.apache.flink.api.java.aggregation.Aggregations.average;
 import static org.apache.flink.api.java.aggregation.Aggregations.count;
-import static org.apache.flink.api.java.aggregation.Aggregations.key;
-import static org.apache.flink.api.java.aggregation.Aggregations.max;
-import static org.apache.flink.api.java.aggregation.Aggregations.min;
-import static org.apache.flink.api.java.aggregation.Aggregations.sum;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -35,7 +31,7 @@ import java.util.List;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.aggregation.AggregationFunction;
+import org.apache.flink.api.java.aggregation.AggregationBuilder;
 import org.apache.flink.api.java.io.LocalCollectionOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple1;
@@ -54,7 +50,7 @@ import org.hamcrest.TypeSafeMatcher;
 import org.junit.Before;
 import org.junit.Test;
 
-public class AggregationApiTest {
+public class AggregationApi2Test {
 
 	private ExecutionEnvironment env;
 	
@@ -79,7 +75,7 @@ public class AggregationApiTest {
 		DataSet<Long> input = env.fromElements(1L);
 
 		// when
-		input.aggregate(sum(0));
+		input.sum(0).aggregate();
 	}
 
 	@Test(expected=IllegalArgumentException.class)
@@ -88,7 +84,7 @@ public class AggregationApiTest {
 		DataSet<Tuple1<Object>> input = env.fromElements(new Tuple1Builder<Object>().add(new Object()).build());
 
 		// when
-		input.aggregate(sum(0));
+		input.sum(0).aggregate();
 	}
 	
 	@Test
@@ -103,7 +99,7 @@ public class AggregationApiTest {
 
 		// when
 		DataSet<Tuple5<Long, Long, Long, Long, Double>> output = 
-				input.aggregate(min(0), max(0), count(), sum(0), average(0));
+				input.min(0).max(0).count().sum(0).average(0).aggregate();
 
 		// then
 		assertThat(output, dataSetWithTuple(1L, 3L, 3L, 6L, 2.0));
@@ -121,7 +117,7 @@ public class AggregationApiTest {
 
 		// when
 		DataSet<Tuple3<String, String, Long>> output = 
-				input.aggregate(min(0), max(0), count());
+				input.min(0).max(0).count().aggregate();
 
 		// then
 		assertThat(output, dataSetWithTuple("one", "two", 3L));
@@ -133,7 +129,7 @@ public class AggregationApiTest {
 		DataSet<Tuple1<String>> input = env.fromElements(new Tuple1Builder<String>().add("one").build());
 
 		// when
-		input.aggregate(sum(0));
+		input.sum(0).aggregate();
 	}
 	
 	@Test
@@ -148,7 +144,7 @@ public class AggregationApiTest {
 
 		// when
 		DataSet<Tuple7<Long, Long, Long, Long, Long, Long, Long>> output = 
-				input.aggregate(min(0), max(0), average(0), min(1), max(1), average(1), count());
+				input.min(0).max(0).average(0).min(1).max(1).average(1).count().aggregate();
 
 		// then
 		assertThat(output, dataSetWithTuple(11L, 13L, 12.0, 21L, 23L, 22.0, 3L));
@@ -160,17 +156,16 @@ public class AggregationApiTest {
 		// given
 		Tuple1<Long>[] tuples = new Tuple1Builder<Long>().add(1L).build();
 		DataSet<Tuple1<Long>> input = env.fromElements(tuples);
-		int num = Tuple.MAX_ARITY;
-		AggregationFunction[] functions = new AggregationFunction[num];
-		for (int i = 0; i < Tuple.MAX_ARITY; ++i) {
-			functions[i] = count();
+		AggregationBuilder builder = input.count();
+		for (int i = 1; i < Tuple.MAX_ARITY; ++i) {
+			builder = builder.count();
 		}
 		
 		// when
-		DataSet<Tuple> output = input.aggregate(functions);
+		DataSet<Tuple> output = builder.aggregate();
 
 		// then
-		List<Long> results = Collections.nCopies(num, 1L);
+		List<Long> results = Collections.nCopies(Tuple.MAX_ARITY, 1L);
 		assertThat(output, dataSetWithTuples(results));
 	}
 	
@@ -187,7 +182,7 @@ public class AggregationApiTest {
 
 		// when
 		DataSet<Tuple6<Long, Integer, Double, Float, Byte, Short>> output = 
-				input.aggregate(sum(0), sum(1), sum(2), sum(3), sum(4), sum(5));
+				input.sum(0).sum(1).sum(2).sum(3).sum(4).sum(5).aggregate();
 
 		// then
 		assertThat(output, dataSetWithTuple(6L, 6, 6.6, 6.6f, (byte) 6, (short) 6));
@@ -199,12 +194,13 @@ public class AggregationApiTest {
 		// given
 		Tuple1<Long>[] tuples = new Tuple1Builder<Long>().add(1L).build();
 		DataSet<Tuple1<Long>> input = env.fromElements(tuples);
-		int num = Tuple.MAX_ARITY + 1;
-		AggregationFunction[] functions = new AggregationFunction[num];
-		Arrays.fill(functions, count());
+		AggregationBuilder builder = input.count();
+		for (int i = 1; i < Tuple.MAX_ARITY + 1; ++i) {
+			builder = builder.count();
+		}
 
 		// when
-		input.aggregate(functions);
+		builder.aggregate();
 	}
 	
 	@SuppressWarnings("unchecked")
@@ -221,7 +217,7 @@ public class AggregationApiTest {
 
 		// when
 		DataSet<Tuple2<String, Double>> output = 
-				input.groupBy(0).aggregate(average(1));
+				input.groupBy(0).average(1).aggregate();
 
 		// then
 		assertThat(output, dataSetWithTuples(asList("a", 11.5), asList("b", 21.5)));
@@ -241,22 +237,12 @@ public class AggregationApiTest {
 
 		// when
 		DataSet<Tuple2<String, Double>> output = 
-				input.groupBy(0, 1).aggregate(key(0), average(2));
+				input.groupBy(0, 1).key(0).average(2).aggregate();
 
 		// then
 		assertThat(output, dataSetWithTuples(asList("a", 11.5), asList("a", 21.5)));
 	}
 
-	@Test(expected=IllegalArgumentException.class)
-	public void errorIfKeyIsUsedWithoutGrouping() {
-		// given
-		Tuple2<String, Long>[] tuples = new Tuple2Builder<String, Long>().add("key", 1L).build();
-		DataSet<Tuple2<String, Long>> input = env.fromElements(tuples);
-
-		// when
-		input.aggregate(key(0), average(1));
-	}
-	
 	@SuppressWarnings("unchecked")
 	private Matcher<DataSet<? extends Tuple>> dataSetWithTuple(Object... singleTuple) {
 		return dataSetWithTuples(asList(singleTuple));

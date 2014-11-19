@@ -25,13 +25,21 @@ import static org.hamcrest.CoreMatchers.nullValue;
 import static org.junit.Assert.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.powermock.api.mockito.PowerMockito.whenNew;
 
+import org.apache.flink.api.java.aggregation.AggregationBuilder;
 import org.apache.flink.api.java.aggregation.AggregationOperatorFactory;
 import org.apache.flink.api.java.aggregation.AggregationFunction;
 import org.apache.flink.api.java.operators.AggregationOperator;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 
+@RunWith(PowerMockRunner.class)
+@PrepareForTest(DataSet.class)
 public class DataSetTest {
 
 	private ExecutionEnvironment env;
@@ -73,4 +81,88 @@ public class DataSetTest {
 		assertThat(aggregationOperatorFactory, is(AggregationOperatorFactory.getInstance()));
 	}
 	
+	@SuppressWarnings("rawtypes")
+	@Test
+	public void shouldStartAggregationWithMin() throws Exception {
+		// given
+		int field = uniqueInt();
+		DataSet input = env.fromElements(uniqueInt());
+		AggregationBuilder builder = mock(AggregationBuilder.class);
+		whenNew(AggregationBuilder.class).withArguments(input).thenReturn(builder);
+
+		// when
+		AggregationBuilder actual = input.min(field);
+
+		// then
+		assertThat(actual, is(builder));
+		verify(builder).min(field);
+	}
+
+	@SuppressWarnings("rawtypes")
+	@Test
+	public void shouldStartAggregationWithMax() throws Exception {
+		// given
+		int field = uniqueInt();
+		DataSet input = env.fromElements(uniqueInt());
+		AggregationBuilder builder = mock(AggregationBuilder.class);
+		whenNew(AggregationBuilder.class).withArguments(input).thenReturn(builder);
+
+		// when
+		AggregationBuilder actual = input.max(field);
+
+		// then
+		assertThat(actual, is(builder));
+		verify(builder).max(field);
+	}
+
+	@SuppressWarnings("rawtypes")
+	@Test
+	public void shouldStartAggregationWithSum() throws Exception {
+		// given
+		int field = uniqueInt();
+		DataSet input = env.fromElements(uniqueInt());
+		AggregationBuilder builder = mock(AggregationBuilder.class);
+		whenNew(AggregationBuilder.class).withArguments(input).thenReturn(builder);
+
+		// when
+		AggregationBuilder actual = input.sum(field);
+
+		// then
+		assertThat(actual, is(builder));
+		verify(builder).sum(field);
+	}
+
+	@SuppressWarnings("rawtypes")
+	@Test
+	public void shouldStartAggregationWithCount() throws Exception {
+		// given
+		DataSet input = env.fromElements(uniqueInt());
+		AggregationBuilder builder = mock(AggregationBuilder.class);
+		whenNew(AggregationBuilder.class).withArguments(input).thenReturn(builder);
+
+		// when
+		AggregationBuilder actual = input.count();
+
+		// then
+		assertThat(actual, is(builder));
+		verify(builder).count();
+	}
+
+	@SuppressWarnings("rawtypes")
+	@Test
+	public void shouldStartAggregationWithAverage() throws Exception {
+		// given
+		int field = uniqueInt();
+		DataSet input = env.fromElements(uniqueInt());
+		AggregationBuilder builder = mock(AggregationBuilder.class);
+		whenNew(AggregationBuilder.class).withArguments(input).thenReturn(builder);
+
+		// when
+		AggregationBuilder actual = input.average(field);
+
+		// then
+		assertThat(actual, is(builder));
+		verify(builder).average(field);
+	}
+
 }
