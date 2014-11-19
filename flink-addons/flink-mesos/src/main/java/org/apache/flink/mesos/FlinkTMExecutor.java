@@ -18,8 +18,8 @@
 
 package org.apache.flink.mesos;
 
-import com.google.protobuf.ByteString;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.ExecutionMode;
 import org.apache.flink.runtime.taskmanager.TaskManager;
@@ -35,17 +35,21 @@ public class FlinkTMExecutor implements Executor {
 	private class TaskManagerThread extends Thread{
 		private final ExecutorDriver executorDriver;
 		private final Protos.TaskInfo taskInfo ;
-		//private final MesosConfiguration config;
+		private final int portOffset;
+		private final Logger LOG = LoggerFactory.getLogger(FlinkTMExecutor.class);
+
 		private final String flinkConfDir;
 		public TaskManagerThread(ExecutorDriver executorDriver, Protos.TaskInfo taskInfo, String flinkConfDir /*, MesosConfiguration config*/) {
 			this.executorDriver = executorDriver;
 			this.taskInfo = taskInfo;
 			//this.config = config;
 			this.flinkConfDir = flinkConfDir;
+			this.portOffset = Math.abs(taskInfo.getExecutor().getFrameworkId().getValue().hashCode());
 		}
 
 		@Override
 		public void run() {
+			LOG.info("Running TaskManager Thread");
 			double cpus = 1.0;
 
 			for (Protos.Resource resource: taskInfo.getResourcesList()){
@@ -56,8 +60,12 @@ public class FlinkTMExecutor implements Executor {
 
 			// First, try to load global configuration
 			GlobalConfiguration.loadConfiguration(flinkConfDir);
-			GlobalConfiguration.getConfiguration().setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, (int) cpus);
-
+			Configuration conf = GlobalConfiguration.getConfiguration();
+			conf.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, (int) cpus);
+			//conf.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "127.0.0.1");
+			//conf.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT + (this.portOffset % 100));
+			LOG.info("JobManager Port: " + conf.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, -1));
+			GlobalConfiguration.includeConfiguration(conf);
 			// Create a new task manager object
 			try {
 				TaskManager.createTaskManager(ExecutionMode.CLUSTER);
@@ -78,9 +86,6 @@ public class FlinkTMExecutor implements Executor {
 	@Override
 	public void registered(ExecutorDriver executorDriver, Protos.ExecutorInfo executorInfo, Protos.FrameworkInfo frameworkInfo, Protos.SlaveInfo slaveInfo) {
 		LOG.info("TaskManager Executor was registered on host " + slaveInfo.getHostname());
-		ByteString data = executorInfo.getData();
-		System.out.println("Test Data:");
-		System.out.println(data.toString());
 	}
 
 	@Override

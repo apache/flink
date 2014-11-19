@@ -18,7 +18,7 @@
 
 package org.apache.flink.mesos;
 
-import com.google.protobuf.ByteString;
+import org.apache.flink.configuration.Configuration;
 import org.apache.mesos.ExecutorDriver;
 import org.apache.mesos.Protos;
 
@@ -39,8 +39,22 @@ public class MesosUtils {
 				.setExecutorId(Protos.ExecutorID.newBuilder().setValue(id))
 				.setCommand(Protos.CommandInfo.newBuilder().setValue(command))
 				.setName(name)
-				.setData(ByteString.copyFromUtf8("Hello World"))
+				.setData(FlinkProtos.Configuration.newBuilder().addValues(FlinkProtos.Configuration.Pair.newBuilder().setKey(MesosConstants.MESOS_USE_WEB).setValue("true").build()).build().toByteString())
 				.build();
+	}
+
+	public FlinkProtos.Configuration translateConfigToProto(Configuration config) {
+		FlinkProtos.Configuration.Builder builder = FlinkProtos.Configuration.newBuilder();
+		builder.addValues(FlinkProtos.Configuration.Pair.newBuilder().setKey(MesosConstants.MESOS_USE_WEB).setValue("true").build());
+		return builder.build();
+	}
+
+	public static int calculateMemory(double memory) {
+		return (int) (memory * 0.8);
+	}
+
+	public static Protos.Resource createResourceScalar(String name, double value) {
+		return Protos.Resource.newBuilder().setName(name).setType(Protos.Value.Type.SCALAR).setScalar(Protos.Value.Scalar.newBuilder().setValue(value)).build();
 	}
 
 	public static Protos.TaskInfo createTaskInfo(String name, HashMap<String, Double> resources, Protos.ExecutorInfo exinfo, Protos.SlaveID slaveID, Protos.TaskID taskID) {
@@ -50,10 +64,7 @@ public class MesosUtils {
 				.setSlaveId(slaveID)
 				.setExecutor(exinfo);
 		for (Map.Entry<String, Double> resource: resources.entrySet()) {
-			taskInfo.addResources(Protos.Resource.newBuilder()
-					.setName(resource.getKey())
-					.setType(Protos.Value.Type.SCALAR)
-					.setScalar(Protos.Value.Scalar.newBuilder().setValue(resource.getValue())));
+			taskInfo.addResources(createResourceScalar(resource.getKey(), resource.getValue()));
 		}
 
 		return taskInfo.build();

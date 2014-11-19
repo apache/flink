@@ -30,7 +30,7 @@ If you want to build the Flink Mesos client from sources, follow the [build inst
 Use the following command to start a session
 
 ~~~bash
-./bin/start-mesos.sh
+./bin/start-mesos.sh -l /home/example/example/mesos/build/src/.libs -m 127.0.0.1:5050
 ~~~
 
 This command will show you the following overview:
@@ -57,7 +57,7 @@ Even though there are 4 required parameters listed, the config directory and the
 **Example:** Issue the following command to allocate 10 Task Managers, with 8 GB of memory and 32 processing slots each:
 
 ~~~bash
-./bin/start-mesos.sh -l 127.0.0.1:5050 -tm 8192 -s 32
+./bin/start-mesos.sh -l /home/example/example/mesos/build/src/.libs -m 127.0.0.1:5050 -tm 8192 -s 32
 ~~~
 
 The system will use the configuration in `conf/flink-config.yaml`. Please follow our [configuration guide](config.html) if you want to change something. 

@@ -26,6 +26,9 @@ import org.apache.commons.cli.MissingOptionException;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.PosixParser;
+import org.apache.flink.client.CliFrontend;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
 import org.apache.mesos.MesosSchedulerDriver;
 import org.apache.mesos.Protos;
 
@@ -34,7 +37,7 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 
 /**
- * This class parses the command line options given to it and saves it into a MesosConfiguration. This configuration is
+ * This class parses the command line options given to it and saves it into a Configuration. This configuration is
  * handed to the MesosScheduler class which is responsible for launching the JobManagers and TaskManagers on the available
  * Mesos nodes.
  */
@@ -52,7 +55,14 @@ public class MesosController {
 	private static final Option SLOTS = new Option("s","slots",true, "Number of slots per TaskManager");
 	private static final Option MASTER = new Option("m","master",true, "Address of the Mesos master node");
 	private static final Option MESOS_LIB = new Option("l","lib",true, "Path to Mesos library files");
-	private static final Option USE_WEB = new Option("w","web",true, "Launch the web frontend on the jobmanager node.");
+	private static final Option USE_WEB = new Option("w","web",false, "Launch the web frontend on the jobmanager node.");
+	private static final Option HELP = new Option("h","help",false, "print help");
+	/**
+	 * Dynamic properties allow the user to specify additional configuration values with -D, such as
+	 *  -Dfs.overwrite-files=true  -Dtaskmanager.network.numberOfBuffers=16368
+	 */
+	private static final Option DYNAMIC_PROPERTIES = new Option("D", true, "Dynamic properties");
+
 
 	/**
 	 * Prints the required and optional parameters to avoid user mistakes.
@@ -72,6 +82,7 @@ public class MesosController {
 
 		formatter.setSyntaxPrefix("   Optional");
 		Options opt = new Options();
+		opt.addOption(HELP);
 		opt.addOption(NUM_TM);
 		opt.addOption(VERBOSE);
 		opt.addOption(JM_MEMORY);
@@ -79,6 +90,7 @@ public class MesosController {
 		opt.addOption(TM_CORES);
 		opt.addOption(SLOTS);
 		opt.addOption(USE_WEB);
+		opt.addOption(DYNAMIC_PROPERTIES);
 		formatter.printHelp(" ", opt);
 	}
 
@@ -132,7 +144,7 @@ public class MesosController {
 		options.addOption(MESOS_LIB);
 		options.addOption(USE_WEB);
 
-		MesosConfiguration config = new MesosConfiguration();
+		Configuration config = new Configuration();
 		CommandLineParser parser = new PosixParser();
 		CommandLine cmd = null;
 		try {
@@ -145,13 +157,18 @@ public class MesosController {
 			System.exit(1);
 		}
 
+		if (cmd.hasOption(HELP.getOpt())) {
+			printUsage();
+			System.exit(1);
+		}
+
 		/*
 		The path to the native mesos library is required since it is written in C++.
 		 */
 		if (cmd.hasOption(MESOS_LIB.getOpt())) {
 			String mesosLib = cmd.getOptionValue(MESOS_LIB.getOpt());
 			addPathToLibrary(mesosLib);
-			config.set(MesosConfiguration.ConfKeys.MESOS_LIB, mesosLib);
+			config.setString(MesosConstants.MESOS_LIB, mesosLib);
 		} else {
 			printUsage();
 			System.exit(1);
@@ -163,12 +180,12 @@ public class MesosController {
 		} else {
 			jarPath = "file://" + MesosController.class.getProtectionDomain().getCodeSource().getLocation().getPath();
 		}
-		config.set(MesosConfiguration.ConfKeys.FLINK_JAR, jarPath);
+		config.setString(MesosConstants.MESOS_UBERJAR_LOCATION, jarPath);
 
 		String flinkConfDir = null;
 		if (cmd.hasOption(FLINK_CONF_DIR.getOpt())) {
 			flinkConfDir = cmd.getOptionValue(FLINK_CONF_DIR.getOpt());
-			config.set(MesosConfiguration.ConfKeys.FLINK_CONF_DIR, flinkConfDir);
+			config.setString(MesosConstants.MESOS_CONF_DIR, flinkConfDir);
 		} else {
 			printUsage();
 			System.exit(1);
@@ -177,29 +194,32 @@ public class MesosController {
 		String mesosMaster = null;
 		if (cmd.hasOption(MASTER.getOpt())) {
 			mesosMaster = cmd.getOptionValue(MASTER.getOpt());
-			config.set(MesosConfiguration.ConfKeys.MASTER, mesosMaster);
+			config.setString(MesosConstants.MESOS_MASTER, mesosMaster);
 		} else {
 			printUsage();
 			System.exit(1);
 		}
 
 		if (cmd.hasOption(TM_CORES.getOpt())) {
-			config.set(MesosConfiguration.ConfKeys.TM_CORES, cmd.getOptionValue(TM_CORES.getOpt()));
+			config.setInteger(MesosConstants.MESOS_TASK_MANAGER_CORES, new Integer(cmd.getOptionValue(TM_CORES.getOpt())));
 		}
 		if (cmd.hasOption(JM_MEMORY.getOpt())) {
-			config.set(MesosConfiguration.ConfKeys.JM_MEMORY, cmd.getOptionValue(JM_MEMORY.getOpt()));
+			config.setDouble(MesosConstants.MESOS_JOB_MANAGER_MEMORY, new Double(cmd.getOptionValue(JM_MEMORY.getOpt())));
 		}
 		if (cmd.hasOption(TM_MEMORY.getOpt())) {
-			config.set(MesosConfiguration.ConfKeys.TM_MEMORY, cmd.getOptionValue(TM_MEMORY.getOpt()));
+			config.setDouble(MesosConstants.MESOS_TASK_MANAGER_MEMORY, new Double(cmd.getOptionValue(TM_MEMORY.getOpt())));
 		}
 		if (cmd.hasOption(SLOTS.getOpt())) {
-			config.set(MesosConfiguration.ConfKeys.SLOTS, cmd.getOptionValue(SLOTS.getOpt()));
-		}
-		if (cmd.hasOption(VERBOSE.getOpt())) {
-			config.set(MesosConfiguration.ConfKeys.VERBOSE, "true");
+			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, new Integer(cmd.getOptionValue(SLOTS.getOpt())));
 		}
 		if (cmd.hasOption(USE_WEB.getOpt())) {
-			config.set(MesosConfiguration.ConfKeys.USE_WEB, "true");
+			config.setBoolean(MesosConstants.MESOS_USE_WEB, true);
+		}
+		String[] dynamicProperties = null;
+		if(cmd.hasOption(DYNAMIC_PROPERTIES.getOpt())) {
+			dynamicProperties = cmd.getOptionValues(DYNAMIC_PROPERTIES.getOpt());
+			String dynamicPropertiesEncoded = org.apache.commons.lang3.StringUtils.join(dynamicProperties, CliFrontend.YARN_DYNAMIC_PROPERTIES_SEPARATOR);
+			config.setString(MesosConstants.MESOS_DYNAMIC_PROPERTIES, dynamicPropertiesEncoded);
 		}
 
 		/*
@@ -218,7 +238,7 @@ public class MesosController {
 		MesosSchedulerDriver driver = new MesosSchedulerDriver(
 				new FlinkMesosScheduler(config),
 				framework,
-				config.get(MesosConfiguration.ConfKeys.MASTER));
+				config.getString(MesosConstants.MESOS_MASTER, null));
 
 		Protos.Status result = driver.run();
 		System.exit(result.getNumber());
