@@ -549,11 +549,11 @@ public class CollectionDataSets {
 		data.add(one);
 		
 		PojoWithDateAndEnum two = new PojoWithDateAndEnum();
-		two.group = "a"; two.date = new Date(666); //two.cat = Category.CAT_A;
+		two.group = "a"; two.date = new Date(666); two.cat = Category.CAT_A;
 		data.add(two);
 		
 		PojoWithDateAndEnum three = new PojoWithDateAndEnum();
-		three.group = "b"; three.date = new Date(666); //three.cat = Category.CAT_B;
+		three.group = "b"; three.date = new Date(666); three.cat = Category.CAT_B;
 		data.add(three);
 		
 		return env.fromCollection(data);
