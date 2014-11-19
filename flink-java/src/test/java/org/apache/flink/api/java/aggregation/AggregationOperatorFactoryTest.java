@@ -69,7 +69,7 @@ public class AggregationOperatorFactoryTest {
 				pos, ResultTypeBehavior.FIXED, outputInputType);
 		
 		// when
-		TypeInformation<?> resultType = typeFactory.createAggregationResultType(tupleTypeInfo, function);
+		TypeInformation<Tuple> resultType = typeFactory.createAggregationResultType(tupleTypeInfo, function);
 
 		// then
 		assertThat(resultType, tupleWithTypes(outputInputType));
@@ -86,7 +86,7 @@ public class AggregationOperatorFactoryTest {
 				pos, ResultTypeBehavior.INPUT, basicTypeInfo);
 		
 		// when
-		TypeInformation<?> resultType = typeFactory.createAggregationResultType(tupleTypeInfo, function);
+		TypeInformation<Tuple> resultType = typeFactory.createAggregationResultType(tupleTypeInfo, function);
 
 		// then
 		assertThat(resultType, tupleWithTypes(basicTypeInfo));
@@ -169,7 +169,7 @@ public class AggregationOperatorFactoryTest {
 		}
 
 		// when
-		TypeInformation<?> resultType = typeFactory.createAggregationResultType(inputType, functions);
+		TypeInformation<Tuple> resultType = typeFactory.createAggregationResultType(inputType, functions);
 
 		// then
 		assertThat(resultType, tupleWithTypes(types));
