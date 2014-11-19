@@ -43,8 +43,8 @@ public class PartitionPushdownTest extends CompilerTestBase {
 			DataSet<Tuple3<Long, Long, Long>> input = env.fromElements(new Tuple3<Long, Long, Long>(0L, 0L, 0L));
 			
 			input
-				.groupBy(0, 1).sum(2)
-				.groupBy(0).sum(1)
+				.groupBy(0, 1)._sum(2)
+				.groupBy(0)._sum(1)
 				.print();
 			
 			Plan p = env.createProgramPlan();
@@ -79,8 +79,8 @@ public class PartitionPushdownTest extends CompilerTestBase {
 			DataSet<Tuple3<Long, Long, Long>> input = env.fromElements(new Tuple3<Long, Long, Long>(0L, 0L, 0L));
 			
 			input
-				.groupBy(0).sum(1)
-				.groupBy(0, 1).sum(2)
+				.groupBy(0)._sum(1)
+				.groupBy(0, 1)._sum(2)
 				.print();
 			
 			Plan p = env.createProgramPlan();

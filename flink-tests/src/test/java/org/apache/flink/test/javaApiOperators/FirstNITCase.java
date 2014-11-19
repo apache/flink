@@ -92,7 +92,7 @@ public class FirstNITCase extends JavaProgramTestBase {
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				
 				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-				DataSet<Tuple1<Integer>> seven = ds.first(7).map(new OneMapper()).sum(0);
+				DataSet<Tuple1<Integer>> seven = ds.first(7).map(new OneMapper())._sum(0);
 				
 				seven.writeAsText(resultPath);
 				env.execute();
@@ -109,7 +109,7 @@ public class FirstNITCase extends JavaProgramTestBase {
 				
 				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 				DataSet<Tuple2<Long, Integer>> first = ds.groupBy(1).first(4)
-															.map(new OneMapper2()).groupBy(0).sum(1);
+															.map(new OneMapper2()).groupBy(0)._sum(1);
 				
 				first.writeAsText(resultPath);
 				env.execute();

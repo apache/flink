@@ -47,7 +47,7 @@ public class DistinctAndGroupingOptimizerTest extends CompilerTestBase {
 			
 			data.distinct(0)
 				.groupBy(0)
-				.sum(1)
+				._sum(1)
 				.print();
 			
 			Plan p = env.createProgramPlan();
@@ -83,7 +83,7 @@ public class DistinctAndGroupingOptimizerTest extends CompilerTestBase {
 			
 			data.distinct(1)
 				.groupBy(0)
-				.sum(1)
+				._sum(1)
 				.print();
 			
 			Plan p = env.createProgramPlan();

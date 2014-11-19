@@ -50,7 +50,7 @@ public class GroupingTupleTranslationTest extends CompilerTestBase {
 					.rebalance().setParallelism(4);
 			
 			data.groupBy(0).withPartitioner(new TestPartitionerInt())
-				.sum(1)
+				._sum(1)
 				.print();
 			
 			Plan p = env.createProgramPlan();
