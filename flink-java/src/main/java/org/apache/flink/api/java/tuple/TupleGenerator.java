@@ -484,7 +484,7 @@ class TupleGenerator {
 			// return
 			sb.append("\t\treturn new DataSource<Tuple" + numFields + "<");
 			appendTupleTypeGenerics(sb, numFields);
-			sb.append(">>(executionContext, inputFormat, types, DataSet.getCallLocationName());\n");
+			sb.append(">>(executionContext, inputFormat, types, Utils.getCallLocationName());\n");
 
 			// end of method
 			sb.append("\t}\n");
