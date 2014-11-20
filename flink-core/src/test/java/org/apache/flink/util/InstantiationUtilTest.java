@@ -19,17 +19,21 @@
 package org.apache.flink.util;
 
 import org.apache.flink.api.common.typeutils.base.DoubleValueSerializer;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.types.DoubleValue;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.types.Value;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class InstantiationUtilTest {
 
@@ -79,6 +83,88 @@ public class InstantiationUtilTest {
 
 		assertEquals("Serialized record is not equal after serialization.", toSerialize, deserialized);
 	}
+	
+	@Test
+	public void testWriteToConfigFailingSerialization() {
+		try {
+			final String key1 = "testkey1";
+			final String key2 = "testkey2";
+			final Configuration config = new Configuration();
+			
+			try {
+				InstantiationUtil.writeObjectToConfig(new TestClassWriteFails(), config, "irgnored");
+				fail("should throw an exception");
+			}
+			catch (TestException e) {
+				// expected
+			}
+			catch (Exception e) {
+				fail("Wrong exception type - exception not properly forwarded");
+			}
+			
+			InstantiationUtil.writeObjectToConfig(new TestClassReadFails(), config, key1);
+			InstantiationUtil.writeObjectToConfig(new TestClassReadFailsCNF(), config, key2);
+			
+			try {
+				InstantiationUtil.readObjectFromConfig(config, key1, getClass().getClassLoader());
+				fail("should throw an exception");
+			}
+			catch (TestException e) {
+				// expected
+			}
+			catch (Exception e) {
+				fail("Wrong exception type - exception not properly forwarded");
+			}
+			
+			try {
+				InstantiationUtil.readObjectFromConfig(config, key2, getClass().getClassLoader());
+				fail("should throw an exception");
+			}
+			catch (ClassNotFoundException e) {
+				// expected
+			}
+			catch (Exception e) {
+				fail("Wrong exception type - exception not properly forwarded");
+			}
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
 
+	// --------------------------------------------------------------------------------------------
+	
 	private class TestClass {}
+	
+	private static class TestException extends IOException{
+		private static final long serialVersionUID = 1L;
+	}
+	
+	private static class TestClassWriteFails implements java.io.Serializable {
+		
+		private static final long serialVersionUID = 1L;
+
+		private void writeObject(ObjectOutputStream out) throws IOException {
+			throw new TestException();
+		}
+	}
+	
+	private static class TestClassReadFails implements java.io.Serializable {
+		
+		private static final long serialVersionUID = 1L;
+
+		private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+			throw new TestException();
+		}
+	}
+	
+	private static class TestClassReadFailsCNF implements java.io.Serializable {
+		
+		private static final long serialVersionUID = 1L;
+
+		private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+			throw new ClassNotFoundException("test exception");
+		}
+	}
 }

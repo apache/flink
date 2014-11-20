@@ -20,6 +20,7 @@
 package org.apache.flink.api.java.io;
 
 import com.google.common.base.Charsets;
+
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -399,7 +400,8 @@ public class CsvInputFormatTest {
 
 		Tuple5<Integer, String, String, String, Double> result = new Tuple5<Integer, String, String, String, Double>();
 
-		Tuple5[] expectedLines = new Tuple5[]{
+		@SuppressWarnings("unchecked")
+		Tuple5<Integer, String, String, String, Double>[] expectedLines = new Tuple5[] {
 				new Tuple5<Integer, String, String, String, Double>(1997, "Ford", "E350", "ac, abs, moon", 3000.0),
 				new Tuple5<Integer, String, String, String, Double>(1999, "Chevy", "Venture \"Extended Edition\"", "", 4900.0),
 				new Tuple5<Integer, String, String, String, Double>(1996, "Jeep", "Grand Cherokee", "MUST SELL! air, moon roof, loaded", 4799.00),
@@ -408,8 +410,7 @@ public class CsvInputFormatTest {
 		};
 
 		try {
-
-			for (Tuple5 expected : expectedLines) {
+			for (Tuple5<Integer, String, String, String, Double> expected : expectedLines) {
 				result = format.nextRecord(result);
 				assertEquals(expected, result);
 			}
