@@ -23,11 +23,9 @@ import org.apache.flink.core.memory.MemorySegment;
 
 import java.io.IOException;
 
-
 public final class EnumComparator<T extends Enum<T>> extends BasicTypeComparator<T> {
 
 	private static final long serialVersionUID = 1L;
-
 
 	public EnumComparator(boolean ascending) {
 		super(ascending);
@@ -40,7 +38,6 @@ public final class EnumComparator<T extends Enum<T>> extends BasicTypeComparator
 		int comp = (i1 < i2 ? -1 : (i1 == i2 ? 0 : 1)); 
 		return ascendingComparison ? comp : -comp; 
 	}
-
 
 	@Override
 	public boolean supportsNormalizedKey() {

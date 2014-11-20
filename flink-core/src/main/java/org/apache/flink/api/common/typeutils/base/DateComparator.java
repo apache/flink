@@ -42,7 +42,6 @@ public final class DateComparator extends BasicTypeComparator<Date> {
 		return ascendingComparison ? comp : -comp;
 	}
 
-
 	@Override
 	public boolean supportsNormalizedKey() {
 		return true;

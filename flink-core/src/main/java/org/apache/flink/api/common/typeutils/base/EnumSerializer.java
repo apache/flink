@@ -40,7 +40,6 @@ public final class EnumSerializer<T extends Enum<T>> extends TypeSerializer<T> {
 		this.values = createValues(enumClass);
 	}
 
-
 	@Override
 	public boolean isImmutableType() {
 		return true;
