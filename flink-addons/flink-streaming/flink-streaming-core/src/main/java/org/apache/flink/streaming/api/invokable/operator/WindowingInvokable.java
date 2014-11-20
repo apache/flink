@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.NoSuchElementException;
 
 public class WindowingInvokable<IN> extends StreamInvokable<IN, Tuple2<IN, String[]>> {
@@ -50,6 +51,19 @@ public class WindowingInvokable<IN> extends StreamInvokable<IN, Tuple2<IN, Strin
 	private LinkedList<TriggerPolicy<IN>> currentTriggerPolicies = new LinkedList<TriggerPolicy<IN>>();
 	private ReduceFunction<IN> reducer;
 
+	/**
+	 * This constructor created a windowing invokable using trigger and eviction
+	 * policies.
+	 * 
+	 * @param userFunction
+	 *            The user defined {@link ReduceFunction}
+	 * @param triggerPolicies
+	 *            A list of {@link TriggerPolicy}s and/or
+	 *            {@link ActiveTriggerPolicy}s
+	 * @param evictionPolicies
+	 *            A list of {@link EvictionPolicy}s and/or
+	 *            {@link ActiveEvictionPolicy}s
+	 */
 	public WindowingInvokable(ReduceFunction<IN> userFunction,
 			LinkedList<TriggerPolicy<IN>> triggerPolicies,
 			LinkedList<EvictionPolicy<IN>> evictionPolicies) {
@@ -78,8 +92,8 @@ public class WindowingInvokable<IN> extends StreamInvokable<IN, Tuple2<IN, Strin
 	public void open(org.apache.flink.configuration.Configuration parameters) throws Exception {
 		super.open(parameters);
 		for (ActiveTriggerPolicy<IN> tp : activeTriggerPolicies) {
-			Runnable target=tp.createActiveTriggerRunnable(new WindowingCallback(tp));
-			if (target!=null){
+			Runnable target = tp.createActiveTriggerRunnable(new WindowingCallback(tp));
+			if (target != null) {
 				Thread thread = new Thread(target);
 				activePolicyTreads.add(thread);
 				thread.start();
@@ -87,6 +101,10 @@ public class WindowingInvokable<IN> extends StreamInvokable<IN, Tuple2<IN, Strin
 		}
 	};
 
+	/**
+	 * This class allows the active trigger threads to call back and push fake
+	 * elements at any time.
+	 */
 	private class WindowingCallback implements ActiveTriggerCallback<IN> {
 		private ActiveTriggerPolicy<IN> policy;
 
@@ -103,6 +121,7 @@ public class WindowingInvokable<IN> extends StreamInvokable<IN, Tuple2<IN, Strin
 
 	@Override
 	protected void immutableInvoke() throws Exception {
+
 		// Prevent empty data streams
 		if ((reuse = recordIterator.next(reuse)) == null) {
 			throw new RuntimeException("DataStream must not be empty");
@@ -123,13 +142,7 @@ public class WindowingInvokable<IN> extends StreamInvokable<IN, Tuple2<IN, Strin
 		}
 
 		// finally trigger the buffer.
-		if (!buffer.isEmpty()) {
-			currentTriggerPolicies.clear();
-			for (TriggerPolicy<IN> policy : triggerPolicies) {
-				currentTriggerPolicies.add(policy);
-			}
-			callUserFunctionAndLogException();
-		}
+		emitFinalWindow(null);
 
 	}
 
@@ -142,6 +155,61 @@ public class WindowingInvokable<IN> extends StreamInvokable<IN, Tuple2<IN, Strin
 	}
 
 	/**
+	 * This method gets called in case of an grouped windowing in case central
+	 * trigger occurred and the arriving element causing the trigger is not part
+	 * of this group.
+	 * 
+	 * Remark: This is NOT the same as
+	 * {@link WindowingInvokable#processFakeElement(Object, TriggerPolicy)}!
+	 * Here the eviction using active policies takes place after the call to the
+	 * UDF. Usually it is done before when fake elements get submitted. This
+	 * special behaviour is needed to allow the
+	 * {@link GroupedWindowingInvokable} to send central triggers to all groups,
+	 * even if the current element does not belong to the group.
+	 * 
+	 * @param input
+	 *            a fake input element
+	 * @param policies
+	 *            the list of policies which caused the call with this fake
+	 *            element
+	 */
+	protected synchronized void externalTriggerFakeElement(IN input,
+			List<TriggerPolicy<IN>> policies) {
+
+		// Set the current triggers
+		currentTriggerPolicies.addAll(policies);
+
+		// emit
+		callUserFunctionAndLogException();
+
+		// clear the flag collection
+		currentTriggerPolicies.clear();
+
+		// Process the evictions and take care of double evictions
+		// In case there are multiple eviction policies present,
+		// only the one with the highest return value is recognized.
+		int currentMaxEviction = 0;
+		for (ActiveEvictionPolicy<IN> evictionPolicy : activeEvictionPolicies) {
+			// use temporary variable to prevent multiple calls to
+			// notifyEviction
+			int tmp = evictionPolicy.notifyEvictionWithFakeElement(input, buffer.size());
+			if (tmp > currentMaxEviction) {
+				currentMaxEviction = tmp;
+			}
+		}
+
+		for (int i = 0; i < currentMaxEviction; i++) {
+			try {
+				buffer.removeFirst();
+			} catch (NoSuchElementException e) {
+				// In case no more elements are in the buffer:
+				// Prevent failure and stop deleting.
+				break;
+			}
+		}
+	}
+
+	/**
 	 * This method processed an arrived fake element The method is synchronized
 	 * to ensure that it cannot interleave with
 	 * {@link WindowingInvokable#processRealElement(Object)}
@@ -151,7 +219,8 @@ public class WindowingInvokable<IN> extends StreamInvokable<IN, Tuple2<IN, Strin
 	 * @param currentPolicy
 	 *            the policy which produced this fake element
 	 */
-	private synchronized void processFakeElement(IN input, TriggerPolicy<IN> currentPolicy) {
+	protected synchronized void processFakeElement(IN input, TriggerPolicy<IN> currentPolicy) {
+
 		// Process the evictions and take care of double evictions
 		// In case there are multiple eviction policies present,
 		// only the one with the highest return value is recognized.
@@ -188,12 +257,30 @@ public class WindowingInvokable<IN> extends StreamInvokable<IN, Tuple2<IN, Strin
 	/**
 	 * This method processed an arrived real element The method is synchronized
 	 * to ensure that it cannot interleave with
+	 * {@link WindowingInvokable#processFakeElement(Object)}.
+	 * 
+	 * @param input
+	 *            a real input element
+	 * @param triggerPolicies
+	 *            Allows to set trigger policies which are maintained
+	 *            externally. This is the case for central policies in
+	 *            {@link GroupedWindowingInvokable}.
+	 */
+	protected synchronized void processRealElement(IN input, List<TriggerPolicy<IN>> triggerPolicies) {
+		this.currentTriggerPolicies.addAll(triggerPolicies);
+		processRealElement(input);
+	}
+
+	/**
+	 * This method processed an arrived real element The method is synchronized
+	 * to ensure that it cannot interleave with
 	 * {@link WindowingInvokable#processFakeElement(Object)}
 	 * 
 	 * @param input
 	 *            a real input element
 	 */
-	private synchronized void processRealElement(IN input) {
+	protected synchronized void processRealElement(IN input) {
+
 		// Run the precalls to detect missed windows
 		for (ActiveTriggerPolicy<IN> trigger : activeTriggerPolicies) {
 			// Remark: In case multiple active triggers are present the ordering
@@ -255,6 +342,31 @@ public class WindowingInvokable<IN> extends StreamInvokable<IN, Tuple2<IN, Strin
 		// Add the current element to the buffer
 		buffer.add(input);
 
+	}
+
+	/**
+	 * This method does the final reduce at the end of the stream and emits the
+	 * result.
+	 * 
+	 * @param centralTriggerPolicies
+	 *            Allows to set trigger policies which are maintained
+	 *            externally. This is the case for central policies in
+	 *            {@link GroupedWindowingInvokable}.
+	 */
+	protected void emitFinalWindow(List<TriggerPolicy<IN>> centralTriggerPolicies) {
+		if (!buffer.isEmpty()) {
+			currentTriggerPolicies.clear();
+
+			if (centralTriggerPolicies != null) {
+				currentTriggerPolicies.addAll(centralTriggerPolicies);
+			}
+
+			for (TriggerPolicy<IN> policy : triggerPolicies) {
+				currentTriggerPolicies.add(policy);
+			}
+
+			callUserFunctionAndLogException();
+		}
 	}
 
 	@Override
