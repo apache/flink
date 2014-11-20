@@ -288,7 +288,7 @@ public class PojoTypeExtractionTest {
 					Assert.fail("already seen");
 				}
 				dateSeen = true;
-				Assert.assertEquals(new GenericTypeInfo<Date>(Date.class), field.type);
+				Assert.assertEquals(BasicTypeInfo.DATE_TYPE_INFO, field.type);
 				Assert.assertEquals(Date.class, field.type.getTypeClass());
 			} else if(name.equals("someNumber")) {
 				if(intSeen) {
