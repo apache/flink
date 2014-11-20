@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.operators;
 
 import java.util.HashMap;
@@ -149,5 +148,63 @@ public class SingleInputSemanticProperties extends SemanticProperties {
 		this.forwardedFields = new HashMap<Integer,FieldSet>();
 		this.readFields = null;
 	}
+	
+	// --------------------------------------------------------------------------------------------
+	
+	public static class AllFieldsConstantProperties extends SingleInputSemanticProperties {
 		
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public FieldSet getReadFields() {
+			return FieldSet.EMPTY_SET;
+		}
+		
+		@Override
+		public FieldSet getWrittenFields() {
+			return FieldSet.EMPTY_SET;
+		}
+
+		@Override
+		public FieldSet getForwardedField(int sourceField) {
+			return new FieldSet(sourceField);
+		}
+		
+		// ----- all mutating operations are unsupported -----
+		
+		@Override
+		public void addForwardedField(int sourceField, FieldSet destinationFields) {
+			throw new UnsupportedOperationException();
+		}
+		
+		@Override
+		public void addForwardedField(int sourceField, int destinationField) {
+			throw new UnsupportedOperationException();
+		}
+		
+		@Override
+		public void setForwardedField(int sourceField, FieldSet destinationFields) {
+			throw new UnsupportedOperationException();
+		}
+		
+		@Override
+		public void addReadFields(FieldSet readFields) {
+			throw new UnsupportedOperationException();
+		}
+		
+		@Override
+		public void setReadFields(FieldSet readFields) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public void addWrittenFields(FieldSet writtenFields) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public void setWrittenFields(FieldSet writtenFields) {
+			throw new UnsupportedOperationException();
+		}
+	}
 }

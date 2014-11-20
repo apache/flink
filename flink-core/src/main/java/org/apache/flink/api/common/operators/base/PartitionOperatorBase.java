@@ -24,11 +24,11 @@ import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.NoOpFunction;
 import org.apache.flink.api.common.operators.SingleInputOperator;
+import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 
 /**
- *
  * @param <IN> The input and result type.
  */
 public class PartitionOperatorBase<IN> extends SingleInputOperator<IN, IN, NoOpFunction> {
@@ -78,6 +78,11 @@ public class PartitionOperatorBase<IN> extends SingleInputOperator<IN, IN, NoOpF
 			}
 		}
 		this.customPartitioner = customPartitioner;
+	}
+	
+	@Override
+	public SingleInputSemanticProperties getSemanticProperties() {
+		return new SingleInputSemanticProperties.AllFieldsConstantProperties();
 	}
 
 	// --------------------------------------------------------------------------------------------

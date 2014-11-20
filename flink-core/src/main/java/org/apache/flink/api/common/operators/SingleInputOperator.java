@@ -35,19 +35,13 @@ import org.apache.flink.util.Visitor;
  */
 public abstract class SingleInputOperator<IN, OUT, FT extends Function> extends AbstractUdfOperator<OUT, FT> {
 	
-	/**
-	 * The input which produces the data consumed by this operator.
-	 */
+	/** The input which produces the data consumed by this operator. */
 	protected Operator<IN> input;
 	
-	/**
-	 * The positions of the keys in the tuple.
-	 */
+	/** The positions of the keys in the tuple. */
 	private final int[] keyFields;
 	
-	/**
-	 * Semantic properties of the associated function.
-	 */
+	/** Semantic properties of the associated function. */
 	private SingleInputSemanticProperties semanticProperties;
 	
 	// --------------------------------------------------------------------------------------------
