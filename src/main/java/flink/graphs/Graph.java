@@ -36,6 +36,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.util.Collector;
 
 import java.io.Serializable;
+import java.util.Collection;
 
 
 @SuppressWarnings("serial")
@@ -380,6 +381,22 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 				return (Tuple3<K, K, EV>)value;
 			}
 		});
+
+		return Graph.create(vertices, edges);
+	}
+
+	/**
+     	 * Creates a graph from the given vertex and edge collections
+     	 * @param env
+     	 * @param v the collection of vertices
+         * @param e the collection of edges
+         * @return a new graph formed from the set of edges and vertices
+         */
+	 public static <K extends Comparable<K> & Serializable, VV extends Serializable,
+			EV extends Serializable> Graph<K, VV, EV> fromCollection(ExecutionEnvironment env, Collection<Tuple2<K, VV>> v,
+                                           Collection<Tuple3<K, K, EV>> e) throws Exception {
+		DataSet<Tuple2<K, VV>> vertices = env.fromCollection(v);
+		DataSet<Tuple3<K, K, EV>> edges = env.fromCollection(e);
 
 		return Graph.create(vertices, edges);
 	}

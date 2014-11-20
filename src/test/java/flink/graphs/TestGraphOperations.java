@@ -16,7 +16,7 @@ import org.junit.runners.Parameterized.Parameters;
 @RunWith(Parameterized.class)
 public class TestGraphOperations extends JavaProgramTestBase {
 
-	private static int NUM_PROGRAMS = 4;
+	private static int NUM_PROGRAMS = 5;
 	
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -139,6 +139,24 @@ public class TestGraphOperations extends JavaProgramTestBase {
 				return "3,5,35\n" +
 				"4,5,45\n";
 			}
+			case 5: {
+				/*
+				 * Test fromCollection:
+			         */
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				Graph<Long, Long, Long> graph = Graph.fromCollection(env, TestGraphUtils.getLongLongVertices(env),
+						TestGraphUtils.getLongLongEdges(env));
+
+				graph.getEdges().writeAsCsv(resultPath);
+				env.execute();
+				return "1,2,12\n" +
+					"1,3,13\n" +
+					"2,3,23\n" +
+					"3,4,34\n" +
+					"3,5,35\n" +
+					"4,5,45\n" +
+					"5,1,51\n";
+				}
 			default: 
 				throw new IllegalArgumentException("Invalid program id");
 			}
