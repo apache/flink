@@ -39,7 +39,8 @@ import org.apache.flink.streaming.api.windowing.deltafunction.DeltaFunction;
  * @param <DATA>
  *            The type of the data points which are handled by this policy
  */
-public class DeltaPolicy<DATA> implements TriggerPolicy<DATA>, EvictionPolicy<DATA> {
+public class DeltaPolicy<DATA> implements CloneableTriggerPolicy<DATA>,
+		CloneableEvictionPolicy<DATA> {
 
 	/**
 	 * Auto generated version ID
@@ -104,4 +105,8 @@ public class DeltaPolicy<DATA> implements TriggerPolicy<DATA>, EvictionPolicy<DA
 		return evictCount;
 	}
 
+	@Override
+	public DeltaPolicy<DATA> clone() {
+		return new DeltaPolicy<DATA>(deltaFuntion, triggerDataPoint, threshold);
+	}
 }

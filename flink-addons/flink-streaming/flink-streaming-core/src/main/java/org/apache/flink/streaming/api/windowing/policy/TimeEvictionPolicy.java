@@ -31,7 +31,8 @@ import org.apache.flink.streaming.api.invokable.util.TimeStamp;
  *            The type of the incoming data points which are processed by this
  *            policy.
  */
-public class TimeEvictionPolicy<DATA> implements ActiveEvictionPolicy<DATA> {
+public class TimeEvictionPolicy<DATA> implements ActiveEvictionPolicy<DATA>,
+		CloneableEvictionPolicy<DATA> {
 
 	/**
 	 * auto generated version id
@@ -104,6 +105,11 @@ public class TimeEvictionPolicy<DATA> implements ActiveEvictionPolicy<DATA> {
 
 		// return result
 		return counter;
+	}
+
+	@Override
+	public TimeEvictionPolicy<DATA> clone() {
+		return new TimeEvictionPolicy<DATA>(granularity, timestamp);
 	}
 
 }

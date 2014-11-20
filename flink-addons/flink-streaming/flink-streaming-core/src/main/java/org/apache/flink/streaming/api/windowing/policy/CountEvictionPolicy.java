@@ -27,7 +27,7 @@ package org.apache.flink.streaming.api.windowing.policy;
  * @param <IN>
  *            the type of the incoming data points
  */
-public class CountEvictionPolicy<IN> implements EvictionPolicy<IN> {
+public class CountEvictionPolicy<IN> implements CloneableEvictionPolicy<IN> {
 
 	/**
 	 * Auto generated version id
@@ -112,4 +112,8 @@ public class CountEvictionPolicy<IN> implements EvictionPolicy<IN> {
 		}
 	}
 
+	@Override
+	public CountEvictionPolicy<IN> clone() {
+		return new CountEvictionPolicy<IN>(maxElements, deleteOnEviction, counter);
+	}
 }

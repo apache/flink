@@ -33,7 +33,8 @@ import org.apache.flink.streaming.api.windowing.extractor.Extractor;
  *            The type of the incoming data points which are processed by this
  *            policy.
  */
-public class TimeTriggerPolicy<DATA> implements ActiveTriggerPolicy<DATA> {
+public class TimeTriggerPolicy<DATA> implements ActiveTriggerPolicy<DATA>,
+		CloneableTriggerPolicy<DATA> {
 
 	/**
 	 * auto generated version id
@@ -115,8 +116,8 @@ public class TimeTriggerPolicy<DATA> implements ActiveTriggerPolicy<DATA> {
 	}
 
 	/**
-	 * This method checks if we missed a window end. If this is the
-	 * case we trigger the missed windows using fake elements.
+	 * This method checks if we missed a window end. If this is the case we
+	 * trigger the missed windows using fake elements.
 	 */
 	@SuppressWarnings("unchecked")
 	@Override
@@ -188,6 +189,11 @@ public class TimeTriggerPolicy<DATA> implements ActiveTriggerPolicy<DATA> {
 				activeFakeElementEmission(callback);
 			}
 		}
+	}
+
+	@Override
+	public TimeTriggerPolicy<DATA> clone() {
+		return new TimeTriggerPolicy<DATA>(granularity, timestamp, 0, longToDATAExtractor);
 	}
 
 }

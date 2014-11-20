@@ -28,7 +28,8 @@ import org.apache.flink.streaming.api.windowing.extractor.Extractor;
  * deleted in case the punctuation is detected.
  * 
  * By default this policy does not react on fake elements. Wrap it in an
- * {@link ActiveEvictionPolicyWrapper} to make it react on punctuation even in fake elements.
+ * {@link ActiveEvictionPolicyWrapper} to make it react on punctuation even in
+ * fake elements.
  * 
  * @param <IN>
  *            The type of the input data handled by this policy. An
@@ -37,7 +38,8 @@ import org.apache.flink.streaming.api.windowing.extractor.Extractor;
  *            The type of the punctuation. An {@link Extractor} can be used to
  *            extract DATA for IN.
  */
-public class PunctuationPolicy<IN, DATA> implements TriggerPolicy<IN>, EvictionPolicy<IN> {
+public class PunctuationPolicy<IN, DATA> implements CloneableTriggerPolicy<IN>,
+		CloneableEvictionPolicy<IN> {
 
 	/**
 	 * auto generated version id
@@ -107,4 +109,8 @@ public class PunctuationPolicy<IN, DATA> implements TriggerPolicy<IN>, EvictionP
 		}
 	}
 
+	@Override
+	public PunctuationPolicy<IN, DATA> clone() {
+		return new PunctuationPolicy<IN, DATA>(punctuation, extractor);
+	}
 }

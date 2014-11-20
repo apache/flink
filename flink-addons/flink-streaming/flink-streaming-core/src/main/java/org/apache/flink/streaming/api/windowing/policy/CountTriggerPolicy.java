@@ -23,7 +23,7 @@ package org.apache.flink.streaming.api.windowing.policy;
  * @param <IN>
  *            The type of the data points which are handled by this policy
  */
-public class CountTriggerPolicy<IN> implements TriggerPolicy<IN> {
+public class CountTriggerPolicy<IN> implements CloneableTriggerPolicy<IN> {
 
 	/**
 	 * Auto generated version ID
@@ -80,4 +80,8 @@ public class CountTriggerPolicy<IN> implements TriggerPolicy<IN> {
 		}
 	}
 
+	@Override
+	public CountTriggerPolicy<IN> clone() {
+		return new CountTriggerPolicy<IN>(max, counter);
+	}
 }

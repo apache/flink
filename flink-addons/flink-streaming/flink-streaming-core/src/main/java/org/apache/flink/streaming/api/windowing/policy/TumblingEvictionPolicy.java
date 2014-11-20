@@ -29,7 +29,7 @@ package org.apache.flink.streaming.api.windowing.policy;
  * @param <DATA>
  *            The type of the data points which is handled by this policy
  */
-public class TumblingEvictionPolicy<DATA> implements EvictionPolicy<DATA> {
+public class TumblingEvictionPolicy<DATA> implements CloneableEvictionPolicy<DATA> {
 
 	/**
 	 * Auto generated version ID
@@ -81,5 +81,10 @@ public class TumblingEvictionPolicy<DATA> implements EvictionPolicy<DATA> {
 			counter++;
 			return 0;
 		}
+	}
+
+	@Override
+	public TumblingEvictionPolicy<DATA> clone() {
+		return new TumblingEvictionPolicy<DATA>(counter);
 	}
 }
