@@ -34,8 +34,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-<!-- 		<hbase.hadoop1.version>0.98.6.1-hadoop1</hbase.hadoop1.version> -->
-		<hbase.hadoop1.version>0.98.6.1-hadoop2</hbase.hadoop1.version>
+		<hbase.hadoop1.version>0.98.6.1-hadoop1</hbase.hadoop1.version>
 		<hbase.hadoop2.version>0.98.6.1-hadoop2</hbase.hadoop2.version>
 	</properties>
 
@@ -72,50 +71,6 @@ under the License.
 			<groupId>org.apache.hbase</groupId>
 			<artifactId>hbase-client</artifactId>
 			<version>${hbase.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.hbase</groupId>
-			<artifactId>hbase-server</artifactId>
-			<version>${hbase.version}</version>
-			<exclusions>
-				<!-- jruby is used for the hbase shell. -->
-				<exclusion>
-					<groupId>org.jruby</groupId>
-					<artifactId>jruby-complete</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>asm</groupId>
-					<artifactId>asm</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>tomcat</groupId>
-					<artifactId>jasper-compiler</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>tomcat</groupId>
-					<artifactId>jasper-runtime</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.mortbay.jetty</groupId>
-					<artifactId>jetty</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.mortbay.jetty</groupId>
-					<artifactId>jsp-api-2.1</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.mortbay.jetty</groupId>
-					<artifactId>jsp-2.1</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.mortbay.jetty</groupId>
-					<artifactId>jetty-util</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.eclipse.jdt</groupId>
-					<artifactId>core</artifactId>
-				</exclusion>
-			</exclusions>
 		</dependency>
 	</dependencies>
 

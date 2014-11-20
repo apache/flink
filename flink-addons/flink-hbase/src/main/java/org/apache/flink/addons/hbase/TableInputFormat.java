@@ -32,8 +32,8 @@ import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
-import org.apache.hadoop.hbase.mapreduce.TableRecordReader;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.Pair;
 import org.apache.hadoop.util.StringUtils;
@@ -59,7 +59,7 @@ public abstract class TableInputFormat<T extends Tuple> implements InputFormat<T
 	private transient Scan scan;
 	
 	/** HBase iterator wrapper */
-	private TableRecordReader tableRecordReader;
+	private ResultScanner rs;
 
 	// abstract methods allow for multiple table and scanners in the same job
 	protected abstract Scan getScanner();
@@ -98,22 +98,16 @@ public abstract class TableInputFormat<T extends Tuple> implements InputFormat<T
 	}
 
 	@Override
-	public T nextRecord(
-			T reuse) throws IOException {
-		if (this.tableRecordReader == null){
-			throw new IOException("No table record reader provided!");
+	public T nextRecord(T reuse) throws IOException {
+		if (this.rs == null){
+			throw new IOException("No table result scanner provided!");
 		}
 
-		try {
-			if (this.tableRecordReader.nextKeyValue()){
-				Result res = tableRecordReader.getCurrentValue();
-				return mapResultToTuple(res);
-			} 
-			this.endReached = true;
-		} catch (InterruptedException e) {
-			LOG.error("Table reader has been interrupted", e);
-			throw new IOException(e);
-		}
+		Result res = this.rs.next();
+		if (res != null){
+			return mapResultToTuple(res);
+		} 
+		this.endReached = true;
 		return null;
 	}
 
@@ -133,17 +127,13 @@ public abstract class TableInputFormat<T extends Tuple> implements InputFormat<T
 		scan.setStartRow(split.getStartRow());
 		scan.setStopRow(split.getEndRow());
 		
-		this.tableRecordReader = new TableRecordReader();
-		this.tableRecordReader.setHTable(table);
-		this.tableRecordReader.setScan(scan);
-		this.tableRecordReader.restart(split.getStartRow());
-
+		this.rs = table.getScanner(scan);
 		endReached = false;
 	}
 	
 	@Override
 	public void close() throws IOException {
-		this.tableRecordReader.close();
+		this.rs.close();
 		this.table.close();
 	}
 
