@@ -1072,19 +1072,21 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		if (channel.getShipStrategy() == ShipStrategyType.PARTITION_RANGE) {
 			
 			final DataDistribution dataDistribution = channel.getDataDistribution();
-			if(dataDistribution != null) {
+			if (dataDistribution != null) {
 				sourceConfig.setOutputDataDistribution(dataDistribution, outputIndex);
 			} else {
 				throw new RuntimeException("Range partitioning requires data distribution");
 				// TODO: inject code and configuration for automatic histogram generation
 			}
 		}
-//		if (targetContract instanceof GenericDataSink) {
-//			final DataDistribution distri = ((GenericDataSink) targetContract).getDataDistribution();
-//			if (distri != null) {
-//				configForOutputShipStrategy.setOutputDataDistribution(distri);
-//			}
-//		}
+		
+		if (channel.getShipStrategy() == ShipStrategyType.PARTITION_CUSTOM) {
+			if (channel.getPartitioner() != null) {
+				sourceConfig.setOutputPartitioner(channel.getPartitioner(), outputIndex);
+			} else {
+				throw new CompilerException("The ship strategy was set to custom partitioning, but no partitioner was set.");
+			}
+		}
 		
 		// ---------------- configure the receiver -------------------
 		if (isBroadcast) {
