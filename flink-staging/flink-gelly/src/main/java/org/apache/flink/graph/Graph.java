@@ -18,11 +18,11 @@
 
 package flink.graphs;
 
+
 import org.apache.flink.api.common.functions.*;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFields;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFieldsFirst;
-import org.apache.flink.api.java.aggregation.Aggregations;
 import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -30,52 +30,44 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.io.CsvReader;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.spargel.java.VertexCentricIteration;
-import org.apache.flink.util.Collector;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.util.Collector;
 
 import java.io.Serializable;
-import java.util.Arrays;
 import java.util.Collection;
-import java.util.List;
 
 
 @SuppressWarnings("serial")
 public class Graph<K extends Comparable<K> & Serializable, VV extends Serializable,
-	EV extends Serializable> implements Serializable {
-
-    private final ExecutionEnvironment context;
+	EV extends Serializable> implements Serializable{
 
 	private final DataSet<Tuple2<K, VV>> vertices;
 
 	private final DataSet<Tuple3<K, K, EV>> edges;
 
-	/** a graph is directed by default */
-	private boolean isUndirected = false;
-	
-	private static TypeInformation<?> vertexKeyType;
+	private boolean isUndirected;
+
+	private static TypeInformation<?> keyType;
 	private static TypeInformation<?> vertexValueType;
+	private static TypeInformation<?> edgeValueType;
 
 
-	public Graph(DataSet<Tuple2<K, VV>> vertices, DataSet<Tuple3<K, K, EV>> edges, ExecutionEnvironment context) {
-		this.vertices = vertices;
-		this.edges = edges;
-        this.context = context;
-		Graph.vertexKeyType = ((TupleTypeInfo<?>) vertices.getType()).getTypeAt(0);
-		Graph.vertexValueType = ((TupleTypeInfo<?>) vertices.getType()).getTypeAt(1);
+	public Graph(DataSet<Tuple2<K, VV>> vertices, DataSet<Tuple3<K, K, EV>> edges) {
+
+		/** a graph is directed by default */
+		this(vertices, edges, false);
 	}
 
-	public Graph(DataSet<Tuple2<K, VV>> vertices, DataSet<Tuple3<K, K, EV>> edges, ExecutionEnvironment context,
-			boolean undirected) {
+	public Graph(DataSet<Tuple2<K, VV>> vertices, DataSet<Tuple3<K, K, EV>> edges, boolean undirected) {
 		this.vertices = vertices;
 		this.edges = edges;
-        this.context = context;
 		this.isUndirected = undirected;
-		Graph.vertexKeyType = ((TupleTypeInfo<?>) vertices.getType()).getTypeAt(0);
+		
+		Graph.keyType = ((TupleTypeInfo<?>) vertices.getType()).getTypeAt(0);
 		Graph.vertexValueType = ((TupleTypeInfo<?>) vertices.getType()).getTypeAt(1);
+		Graph.edgeValueType = ((TupleTypeInfo<?>) edges.getType()).getTypeAt(2);
 	}
 
 	public DataSet<Tuple2<K, VV>> getVertices() {
@@ -114,7 +106,39 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 			TypeInformation<NV> newVertexValueType = TypeExtractor.getMapReturnTypes(innerMapper, 
 					(TypeInformation<VV>)vertexValueType);
 			
-			return new TupleTypeInfo<Tuple2<K, NV>>(vertexKeyType, newVertexValueType);
+			return new TupleTypeInfo<Tuple2<K, NV>>(keyType, newVertexValueType);
+		}
+    }
+    
+    /**
+     * Apply a function to the attribute of each edge in the graph.
+     * @param mapper
+     * @return 
+     */
+    public <NV extends Serializable> DataSet<Tuple3<K, K, NV>> mapEdges(final MapFunction<EV, NV> mapper) {
+        return edges.map(new ApplyMapperToEdgeWithType<K, EV, NV>(mapper));
+    }
+    
+    private static final class ApplyMapperToEdgeWithType<K, EV, NV> implements MapFunction
+		<Tuple3<K, K, EV>, Tuple3<K, K, NV>>, ResultTypeQueryable<Tuple3<K, K, NV>> {
+	
+		private MapFunction<EV, NV> innerMapper;
+		
+		public ApplyMapperToEdgeWithType(MapFunction<EV, NV> theMapper) {
+			this.innerMapper = theMapper;
+		}
+		
+		public Tuple3<K, K, NV> map(Tuple3<K, K, EV> value) throws Exception {
+			return new Tuple3<K, K, NV>(value.f0, value.f1, innerMapper.map(value.f2));
+		}
+	
+		@Override
+		public TypeInformation<Tuple3<K, K, NV>> getProducedType() {
+			@SuppressWarnings("unchecked")
+			TypeInformation<NV> newEdgeValueType = TypeExtractor.getMapReturnTypes(innerMapper, 
+					(TypeInformation<EV>)edgeValueType);
+			
+			return new TupleTypeInfo<Tuple3<K, K, NV>>(keyType, keyType, newEdgeValueType);
 		}
     }
 
@@ -140,7 +164,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
         DataSet<Tuple3<K, K, EV>> filteredEdges = remainingEdges.filter(
         		new ApplyEdgeFilter<K, EV>(edgeFilter));
 
-        return new Graph<K, VV, EV>(filteredVertices, filteredEdges, this.context);
+        return new Graph<K, VV, EV>(filteredVertices, filteredEdges);
     }
     
     @ConstantFieldsFirst("0->0;1->1;2->2")
@@ -222,7 +246,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 
         DataSet<Tuple2<K, VV>> result = iteration.closeWith(a, a);
 
-        return new Graph<>(result, this.edges, this.context);
+        return new Graph<>(result, this.edges);
     }
 
 	/**
@@ -237,7 +261,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		else {
 			DataSet<Tuple3<K, K, EV>> undirectedEdges =
 					edges.union(edges.map(new ReverseEdgesMap<K, EV>()));
-			return new Graph<K, VV, EV>(vertices, undirectedEdges, this.context, true);
+			return new Graph<K, VV, EV>(vertices, undirectedEdges, true);
 			}
 	}
 
@@ -261,14 +285,14 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		}
 		else {
 			DataSet<Tuple3<K, K, EV>> undirectedEdges = edges.map(new ReverseEdgesMap<K, EV>());
-			return new Graph<K, VV, EV>(vertices, (DataSet<Tuple3<K, K, EV>>) undirectedEdges, this.context, true);
+			return new Graph<K, VV, EV>(vertices, (DataSet<Tuple3<K, K, EV>>) undirectedEdges, true);
 		}
 	}
 
 	public static <K extends Comparable<K> & Serializable, VV extends Serializable,
 		EV extends Serializable> Graph<K, VV, EV>
-		create(DataSet<Tuple2<K, VV>> vertices, DataSet<Tuple3<K, K, EV>> edges, ExecutionEnvironment context) {
-		return new Graph<K, VV, EV>(vertices, edges, context);
+		create(DataSet<Tuple2<K, VV>> vertices, DataSet<Tuple3<K, K, EV>> edges) {
+		return new Graph<K, VV, EV>(vertices, edges);
 	}
 
 	/**
@@ -336,8 +360,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	public static <K extends Comparable<K> & Serializable, VV extends Serializable,
 		EV extends Serializable> Graph<K, VV, EV> readGraphFromCsvFile(ExecutionEnvironment env,
 				String Tuple2Filepath, char Tuple2Delimiter, String edgeFilepath, char edgeDelimiter,
-				Class<K> Tuple2IdClass, Class<VV> Tuple2ValueClass,	Class<EV> edgeValueClass,
-                ExecutionEnvironment context) {
+				Class<K> Tuple2IdClass, Class<VV> Tuple2ValueClass,	Class<EV> edgeValueClass) {
 
 		CsvReader Tuple2Reader = new CsvReader(Tuple2Filepath, env);
 		DataSet<Tuple2<K, VV>> vertices = Tuple2Reader.fieldDelimiter(Tuple2Delimiter)
@@ -359,215 +382,23 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 			}
 		});
 
-		return Graph.create(vertices, edges, context);
+		return Graph.create(vertices, edges);
 	}
 
-    /**
-     * @return Singleton DataSet containing the vertex count
-     */
-	public DataSet<Integer> numberOfVertices () {
-        return GraphUtils.count(vertices);
-    }
+	/**
+     	 * Creates a graph from the given vertex and edge collections
+     	 * @param env
+     	 * @param v the collection of vertices
+         * @param e the collection of edges
+         * @return a new graph formed from the set of edges and vertices
+         */
+	 public static <K extends Comparable<K> & Serializable, VV extends Serializable,
+			EV extends Serializable> Graph<K, VV, EV> fromCollection(ExecutionEnvironment env, Collection<Tuple2<K, VV>> v,
+                                           Collection<Tuple3<K, K, EV>> e) throws Exception {
+		DataSet<Tuple2<K, VV>> vertices = env.fromCollection(v);
+		DataSet<Tuple3<K, K, EV>> edges = env.fromCollection(e);
 
-    /**
-     *
-     * @return Singleton DataSet containing the edge count
-     */
-	public DataSet<Integer> numberOfEdges () {
-        return GraphUtils.count(edges);
-    }
-
-    /**
-     *
-     * @return The IDs of the vertices as DataSet
-     */
-    public DataSet<K> getVertexIds () {
-        return vertices.map(new ExtractVertexIDMapper<K, VV>());
-    }
-    
-    private static final class ExtractVertexIDMapper<K, VV> implements MapFunction<Tuple2<K, VV>, K> {
-            @Override
-            public K map(Tuple2<K, VV> vertex) throws Exception {
-                return vertex.f0;
-            }
-    }
-
-    public DataSet<Tuple2<K, K>> getEdgeIds () {
-        return edges.map(new ExtractEdgeIDsMapper<K, EV>());
-    }
-    
-    private static final class ExtractEdgeIDsMapper<K, EV> implements MapFunction<Tuple3<K, K, EV>, Tuple2<K, K>> {
-            @Override
-            public Tuple2<K, K> map(Tuple3<K, K, EV> edge) throws Exception {
-                return new Tuple2<K,K>(edge.f0, edge.f1);
-            }
-    }
-
-    /**
-     * Checks the weak connectivity of a graph.
-     * @param maxIterations the maximum number of iterations for the inner delta iteration
-     * @return true if the graph is weakly connected.
-     */
-	public DataSet<Boolean> isWeaklyConnected (int maxIterations) {
-		Graph<K, VV, EV> graph;
-		
-		if (!(this.isUndirected)) {
-			// first, convert to an undirected graph
-			graph = this.getUndirected();
-		}
-		else {
-			graph = this;
-		}
-
-        DataSet<K> vertexIds = graph.getVertexIds();
-        DataSet<Tuple2<K,K>> verticesWithInitialIds = vertexIds
-                .map(new DuplicateVertexIDMapper<K>());
-
-        DataSet<Tuple2<K,K>> edgeIds = graph.getEdgeIds();
-
-        DeltaIteration<Tuple2<K,K>, Tuple2<K,K>> iteration = verticesWithInitialIds
-                .iterateDelta(verticesWithInitialIds, maxIterations, 0);
-
-        DataSet<Tuple2<K, K>> changes = iteration.getWorkset()
-                .join(edgeIds).where(0).equalTo(0)
-                .with(new FindNeighborsJoin<K>())
-                .groupBy(0)
-                .aggregate(Aggregations.MIN, 1)
-                .join(iteration.getSolutionSet()).where(0).equalTo(0)
-                .with(new VertexWithNewComponentJoin<K>());
-
-        DataSet<Tuple2<K, K>> components = iteration.closeWith(changes, changes);
-        DataSet<Boolean> result = GraphUtils.count(components.groupBy(1).reduceGroup(
-        		new EmitFirstReducer<K>())).map(new CheckIfOneComponentMapper());	
-        return result;
-    }
-	
-	private static final class DuplicateVertexIDMapper<K> implements MapFunction<K, Tuple2<K, K>> {
-            @Override
-            public Tuple2<K, K> map(K k) {
-                return new Tuple2<K, K>(k, k);
-            }
-	}
-	
-	private static final class FindNeighborsJoin<K> implements JoinFunction<Tuple2<K, K>, Tuple2<K, K>, 
-		Tuple2<K, K>> {
-        @Override
-        public Tuple2<K, K> join(Tuple2<K, K> vertexWithComponent, Tuple2<K, K> edge) {
-            return new Tuple2<K,K>(edge.f1, vertexWithComponent.f1);
-        }
+		return Graph.create(vertices, edges);
 	}
 
-	private static final class VertexWithNewComponentJoin<K extends Comparable<K>> 
-		implements FlatJoinFunction<Tuple2<K, K>, Tuple2<K, K>, Tuple2<K, K>> {
-        @Override
-        public void join(Tuple2<K, K> candidate, Tuple2<K, K> old, Collector<Tuple2<K, K>> out) {
-            if (candidate.f1.compareTo(old.f1) < 0) {
-                out.collect(candidate);
-            }
-        }
-	}
-	
-	private static final class EmitFirstReducer<K> implements 
-		GroupReduceFunction<Tuple2<K, K>, Tuple2<K, K>> {
-		public void reduce(Iterable<Tuple2<K, K>> values, Collector<Tuple2<K, K>> out) {
-			out.collect(values.iterator().next());			
-		}
-	}
-	
-	private static final class CheckIfOneComponentMapper implements MapFunction<Integer, Boolean> {
-        @Override
-        public Boolean map(Integer n) {
-        	return (n == 1);
-        }
-	}
-	
-    public Graph<K, VV, EV> fromCollection (Collection<Tuple2<K,VV>> vertices, Collection<Tuple3<K,K,EV>> edges) {
-
-		DataSet<Tuple2<K, VV>> v = context.fromCollection(vertices);
-		DataSet<Tuple3<K, K, EV>> e = context.fromCollection(edges);
-
-		return new Graph<K, VV, EV>(v, e, context);
-    }
-
-    //TODO kostas add functionality
-    public DataSet<Tuple2<K, VV>> fromCollection (Collection<Tuple2<K,VV>> vertices) {
-        return null;
-    }
-
-    public Graph<K, VV, EV> addVertex (Tuple2<K,VV> vertex, List<Tuple3<K,K,EV>> edges) {
-        Graph<K,VV,EV> newVertex = this.fromCollection(Arrays.asList(vertex), edges);
-        return this.union(newVertex);
-    }
-
-    public Graph<K, VV, EV> removeVertex (Tuple2<K,VV> vertex) {
-
-        DataSet<Tuple2<K,VV>> vertexToRemove = context.fromCollection(Arrays.asList(vertex));
-
-		DataSet<Tuple2<K, VV>> newVertices = getVertices().filter(
-				new RemoveVertexFilter<K, VV>()).withBroadcastSet(
-				vertexToRemove, "vertexToRemove");
-
-		DataSet<Tuple3<K, K, EV>> newEdges = getEdges().filter(
-				new RemoveEdgeFilter<K, VV, EV>()).withBroadcastSet(
-				vertexToRemove, "vertexToRemove");
-
-        return new Graph<K, VV, EV>(newVertices, newEdges, this.context);
-    }
-    
-    private static final class RemoveVertexFilter<K, VV> extends RichFilterFunction<Tuple2<K, VV>> {
-
-    	private Tuple2<K, VV> vertexToRemove;
-
-        @SuppressWarnings("unchecked")
-		@Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
-            this.vertexToRemove = (Tuple2<K, VV>) getRuntimeContext().getBroadcastVariable("vertexToRemove").get(0);
-        }
-
-        @Override
-        public boolean filter(Tuple2<K, VV> vertex) throws Exception {
-        	return !vertex.f0.equals(vertexToRemove.f0);
-        }
-    }
-    
-    private static final class RemoveEdgeFilter<K, VV, EV> extends RichFilterFunction<Tuple3<K, K, EV>> {
-
-    	private Tuple2<K, VV> vertexToRemove;
-
-        @SuppressWarnings("unchecked")
-		@Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
-            this.vertexToRemove = (Tuple2<K, VV>) getRuntimeContext().getBroadcastVariable("vertexToRemove").get(0);
-        }
-
-        @Override
-        public boolean filter(Tuple3<K, K, EV> edge) throws Exception {
-        	
-        	if (edge.f0.equals(vertexToRemove.f0)) {
-                return false;
-            }
-            if (edge.f1.equals(vertexToRemove.f0)) {
-                return false;
-            }
-            return true;
-        }
-    }
-
-    public Graph<K, VV, EV> addEdge (Tuple3<K,K,EV> edge, Tuple2<K,VV> source, Tuple2<K,VV> target) {
-        Graph<K,VV,EV> newEdges = this.fromCollection(Arrays.asList(source, target), Arrays.asList(edge));
-        return this.union(newEdges);
-    }
-
-    public Graph<K, VV, EV> union (Graph<K, VV, EV> graph) {
-        DataSet<Tuple2<K,VV>> unionedVertices = graph.getVertices().union(this.getVertices());
-        DataSet<Tuple3<K,K,EV>> unionedEdges = graph.getEdges().union(this.getEdges());
-        return new Graph<K,VV,EV>(unionedVertices, unionedEdges, this.context);
-    }
-
-    public Graph<K, VV, EV> passMessages (VertexCentricIteration<K, VV, ?, EV> iteration) {
-        DataSet<Tuple2<K,VV>> newVertices = iteration.createResult();
-        return new Graph<K,VV,EV>(newVertices, edges, this.context);
-    }
 }
