@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.compiler.operators;
 
 import java.util.Collections;
@@ -37,9 +36,6 @@ import org.apache.flink.compiler.plan.DualInputPlanNode;
 import org.apache.flink.compiler.util.Utils;
 import org.apache.flink.runtime.operators.DriverStrategy;
 
-/**
- * 
- */
 public class CoGroupDescriptor extends OperatorDescriptorDual {
 	
 	private final Ordering ordering1;		// ordering on the first input 
@@ -107,6 +103,16 @@ public class CoGroupDescriptor extends OperatorDescriptorDual {
 		RequestedLocalProperties sort1 = new RequestedLocalProperties(this.ordering1);
 		RequestedLocalProperties sort2 = new RequestedLocalProperties(this.ordering2);
 		return Collections.singletonList(new LocalPropertiesPair(sort1, sort2));
+	}
+	
+	@Override
+	public boolean areCompatible(RequestedGlobalProperties requested1, RequestedGlobalProperties requested2,
+			GlobalProperties produced1, GlobalProperties produced2)
+	{
+		return produced1.getPartitioning() == produced2.getPartitioning() && 
+				(produced1.getCustomPartitioner() == null ? 
+					produced2.getCustomPartitioner() == null :
+					produced1.getCustomPartitioner().equals(produced2.getCustomPartitioner()));
 	}
 	
 	@Override

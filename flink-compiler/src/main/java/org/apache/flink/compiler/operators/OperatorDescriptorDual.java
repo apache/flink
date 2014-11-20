@@ -70,6 +70,9 @@ public abstract class OperatorDescriptorDual implements AbstractOperatorDescript
 	
 	protected abstract List<LocalPropertiesPair> createPossibleLocalProperties();
 	
+	public abstract boolean areCompatible(RequestedGlobalProperties requested1, RequestedGlobalProperties requested2,
+			GlobalProperties produced1, GlobalProperties produced2);
+	
 	public abstract boolean areCoFulfilled(RequestedLocalProperties requested1, RequestedLocalProperties requested2,
 			LocalProperties produced1, LocalProperties produced2);
 	

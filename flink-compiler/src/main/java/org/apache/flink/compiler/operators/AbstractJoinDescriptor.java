@@ -64,14 +64,14 @@ public abstract class AbstractJoinDescriptor extends OperatorDescriptorDual {
 			// partition both (hash or custom)
 			RequestedGlobalProperties partitioned1 = new RequestedGlobalProperties();
 			if (customPartitioner == null) {
-				partitioned1.setHashPartitioned(this.keys1);
+				partitioned1.setAnyPartitioning(this.keys1);
 			} else {
 				partitioned1.setCustomPartitioned(this.keys1, this.customPartitioner);
 			}
 			
 			RequestedGlobalProperties partitioned2 = new RequestedGlobalProperties();
 			if (customPartitioner == null) {
-				partitioned2.setHashPartitioned(this.keys2);
+				partitioned2.setAnyPartitioning(this.keys2);
 			} else {
 				partitioned2.setCustomPartitioned(this.keys2, this.customPartitioner);
 			}
@@ -95,6 +95,21 @@ public abstract class AbstractJoinDescriptor extends OperatorDescriptorDual {
 			pairs.add(new GlobalPropertiesPair(replicated1, any2));
 		}
 		return pairs;
+	}
+	
+	@Override
+	public boolean areCompatible(RequestedGlobalProperties requested1, RequestedGlobalProperties requested2,
+			GlobalProperties produced1, GlobalProperties produced2)
+	{
+		if (requested1.getPartitioning().isPartitionedOnKey() && requested2.getPartitioning().isPartitionedOnKey()) {
+			return produced1.getPartitioning() == produced2.getPartitioning() && 
+					(produced1.getCustomPartitioner() == null ? 
+						produced2.getCustomPartitioner() == null :
+						produced1.getCustomPartitioner().equals(produced2.getCustomPartitioner()));
+		} else {
+			return true;
+		}
+
 	}
 
 	@Override

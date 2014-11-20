@@ -27,6 +27,7 @@ import org.apache.flink.compiler.dag.TwoInputNode;
 import org.apache.flink.compiler.dataproperties.GlobalProperties;
 import org.apache.flink.compiler.dataproperties.LocalProperties;
 import org.apache.flink.compiler.dataproperties.PartitioningProperty;
+import org.apache.flink.compiler.dataproperties.RequestedGlobalProperties;
 import org.apache.flink.compiler.dataproperties.RequestedLocalProperties;
 import org.apache.flink.compiler.plan.BinaryUnionPlanNode;
 import org.apache.flink.compiler.plan.Channel;
@@ -85,6 +86,12 @@ public class BinaryUnionOpDescriptor extends OperatorDescriptorDual {
 	@Override
 	public boolean areCoFulfilled(RequestedLocalProperties requested1, RequestedLocalProperties requested2,
 			LocalProperties produced1, LocalProperties produced2) {
+		return true;
+	}
+	
+	@Override
+	public boolean areCompatible(RequestedGlobalProperties requested1, RequestedGlobalProperties requested2,
+			GlobalProperties produced1, GlobalProperties produced2) {
 		return true;
 	}
 }
