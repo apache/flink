@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.compiler.dag;
 
 import java.util.ArrayList;
@@ -24,7 +23,6 @@ import java.util.Collections;
 import java.util.List;
 
 import org.apache.flink.api.common.typeinfo.NothingTypeInfo;
-import org.apache.flink.compiler.CompilerException;
 import org.apache.flink.compiler.DataStatistics;
 import org.apache.flink.compiler.operators.OperatorDescriptorDual;
 import org.apache.flink.compiler.operators.UtilSinkJoinOpDescriptor;
@@ -74,23 +72,25 @@ public class SinkJoiner extends TwoInputNode {
 		
 		// if the predecessors do not have branches, then we have multiple sinks that do not originate from
 		// a common data flow.
-		if (pred1branches == null || pred1branches.isEmpty() || pred2branches == null || pred2branches.isEmpty()) {
-			throw new CompilerException("The given program contains multiple disconnected data flows.");
+		if (pred1branches == null || pred1branches.isEmpty()) {
+			
+			this.openBranches = (pred2branches == null || pred2branches.isEmpty()) ?
+					Collections.<UnclosedBranchDescriptor>emptyList() : // both empty - disconnected flow
+					pred2branches;
 		}
-		
-		// copy the lists and merge
-		List<UnclosedBranchDescriptor> result1 = new ArrayList<UnclosedBranchDescriptor>(pred1branches);
-		List<UnclosedBranchDescriptor> result2 = new ArrayList<UnclosedBranchDescriptor>(pred2branches);
-		
-		ArrayList<UnclosedBranchDescriptor> result = new ArrayList<UnclosedBranchDescriptor>();
-		mergeLists(result1, result2, result);
-		
-//		if (!didCloseSomeBranch) {
-//			// if the sink joiners do not close branches, then we have disjoint data flows.
-//			throw new CompilerException("The given program contains multiple disconnected data flows.");
-//		}
-		
-		this.openBranches = result.isEmpty() ? Collections.<UnclosedBranchDescriptor>emptyList() : result;
+		else if (pred2branches == null || pred2branches.isEmpty()) {
+			this.openBranches = pred1branches;
+		}
+		else {
+			// copy the lists and merge
+			List<UnclosedBranchDescriptor> result1 = new ArrayList<UnclosedBranchDescriptor>(pred1branches);
+			List<UnclosedBranchDescriptor> result2 = new ArrayList<UnclosedBranchDescriptor>(pred2branches);
+			
+			ArrayList<UnclosedBranchDescriptor> result = new ArrayList<UnclosedBranchDescriptor>();
+			mergeLists(result1, result2, result);
+			
+			this.openBranches = result.isEmpty() ? Collections.<UnclosedBranchDescriptor>emptyList() : result;
+		}
 	}
 
 	@Override
