@@ -18,13 +18,15 @@
 
 package org.apache.flink.compiler.custompartition;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
-import org.junit.Test;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.operators.JoinOperator.ProjectJoin;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.compiler.CompilerTestBase;
@@ -34,6 +36,7 @@ import org.apache.flink.compiler.plan.SingleInputPlanNode;
 import org.apache.flink.compiler.plan.SinkPlanNode;
 import org.apache.flink.compiler.testfunctions.IdentityGroupReducer;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
+import org.junit.Test;
 
 
 @SuppressWarnings({"serial", "unchecked"})
@@ -49,10 +52,11 @@ public class CustomPartitioningGlobalOptimizationTest extends CompilerTestBase {
 			DataSet<Tuple2<Long, Long>> input1 = env.fromElements(new Tuple2<Long, Long>(0L, 0L));
 			DataSet<Tuple3<Long, Long, Long>> input2 = env.fromElements(new Tuple3<Long, Long, Long>(0L, 0L, 0L));
 			
-			DataSet<Tuple3<Long, Long, Long>> joined = input1.join(input2)
+			ProjectJoin<Tuple2<Long, Long>,Tuple3<Long, Long, Long>,Tuple3<Long, Long, Long>> projectjoin = input1.join(input2)
 				.where(1).equalTo(0)
-				.projectFirst(0,1).projectSecond(2).types(Long.class, Long.class, Long.class)
-				.withPartitioner(partitioner);
+				.projectFirst(0,1).projectSecond(2);
+			
+			DataSet<Tuple3<Long, Long, Long>> joined = projectjoin.withPartitioner(partitioner);
 				
 			joined.groupBy(1).withPartitioner(partitioner)
 				.reduceGroup(new IdentityGroupReducer<Tuple3<Long,Long,Long>>())

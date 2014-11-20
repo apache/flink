@@ -53,9 +53,9 @@ import org.apache.flink.util.Collector;
 
 //CHECKSTYLE.OFF: AvoidStarImport - Needed for TupleGenerator
 import org.apache.flink.api.java.tuple.*;
+//CHECKSTYLE.ON: AvoidStarImport
 
 import com.google.common.base.Preconditions;
-//CHECKSTYLE.ON: AvoidStarImport
 
 /**
  * A {@link DataSet} that is the result of a Join transformation. 
@@ -228,7 +228,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 				generateProjectionProperties(((ProjectFlatJoinFunction<?, ?, ?>) generatedFunction));
 			}
 		}
-		
+
 		public void generateProjectionProperties(ProjectFlatJoinFunction<?, ?, ?> pjf) {
 			DualInputSemanticProperties props = SemanticPropUtil.createProjectionPropertiesDual(pjf.getFields(), pjf.getIsFromFirst());
 			setSemanticProperties(props);
@@ -545,32 +545,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 				out.collect (this.wrappedFunction.join(left, right));
 			}
 		}
-		
-		/**
-		 * Initiates a ProjectJoin transformation and projects the first join input<br/>
-		 * If the first join input is a {@link Tuple} {@link DataSet}, fields can be selected by their index.
-		 * If the first join input is not a Tuple DataSet, no parameters should be passed.<br/>
-		 * 
-		 * Fields of the first and second input can be added by chaining the method calls of
-		 * {@link org.apache.flink.api.java.operators.JoinOperator.JoinProjection#projectFirst(int...)} and
-		 * {@link org.apache.flink.api.java.operators.JoinOperator.JoinProjection#projectSecond(int...)}.
-		 * 
-		 * @param firstFieldIndexes If the first input is a Tuple DataSet, the indexes of the selected fields.
-		 * 					   For a non-Tuple DataSet, do not provide parameters.
-		 * 					   The order of fields in the output tuple is defined by to the order of field indexes.
-		 * @return A JoinProjection that needs to be converted into a
-		 *           {@link org.apache.flink.api.java.operators.JoinOperator.ProjectJoin} to complete the 
-		 *           Join transformation by calling the corresponding {@code types()} function.
-		 * 
-		 * @see Tuple
-		 * @see DataSet
-		 * @see org.apache.flink.api.java.operators.JoinOperator.JoinProjection
-		 * @see org.apache.flink.api.java.operators.JoinOperator.ProjectJoin
-		 */
-		public JoinProjection<I1, I2> projectFirst(int... firstFieldIndexes) {
-			return new JoinProjection<I1, I2>(getInput1(), getInput2(), getKeys1(), getKeys2(), getJoinHint(), firstFieldIndexes, null);
-		}
-		
+
 		/**
 		 * Initiates a ProjectJoin transformation and projects the first join input<br/>
 		 * If the first join input is a {@link Tuple} {@link DataSet}, fields can be selected by their index.
@@ -1097,9 +1072,8 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 				// check field indexes and adapt to position in tuple
 				int maxFieldIndex = firstInput ? numFieldsDs1 : numFieldsDs2;
 				for(int i=0; i<this.fieldIndexes.length; i++) {
-					if(this.fieldIndexes[i] > maxFieldIndex - 1 || this.fieldIndexes[i] < 0) {
-						throw new IndexOutOfBoundsException("Provided field index is out of bounds of input tuple.");
-					}
+					Preconditions.checkElementIndex(this.fieldIndexes[i], maxFieldIndex);
+
 					if(firstInput) {
 						this.isFieldInFirst[i] = true;
 					} else {
@@ -1160,9 +1134,8 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 				int maxFieldIndex = numFieldsDs1;
 				for(int i = 0; i < firstFieldIndexes.length; i++) {
 					// check if indexes in range
-					if(firstFieldIndexes[i] > maxFieldIndex - 1 || firstFieldIndexes[i] < 0) {
-						throw new IndexOutOfBoundsException("Provided field index is out of bounds of input tuple.");
-					}
+					Preconditions.checkElementIndex(firstFieldIndexes[i], maxFieldIndex);
+
 					this.isFieldInFirst[offset + i] = true;
 					this.fieldIndexes[offset + i] = firstFieldIndexes[i];
 				}
@@ -1226,9 +1199,8 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 				int maxFieldIndex = numFieldsDs2;
 				for(int i = 0; i < secondFieldIndexes.length; i++) {
 					// check if indexes in range
-					if(secondFieldIndexes[i] > maxFieldIndex - 1 || secondFieldIndexes[i] < 0) {
-						throw new IndexOutOfBoundsException("Provided field index is out of bounds of input tuple.");
-					}
+					Preconditions.checkElementIndex(secondFieldIndexes[i], maxFieldIndex);
+					
 					this.isFieldInFirst[offset + i] = false;
 					this.fieldIndexes[offset + i] = secondFieldIndexes[i];
 				}
@@ -1263,31 +1235,32 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			ProjectJoin<I1, I2, OUT> projectJoin = null;
 
 			switch (fieldIndexes.length) {
-			case 1: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple1();
-			case 2: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple2();
-			case 3: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple3();
-			case 4: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple4();
-			case 5: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple5();
-			case 6: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple6();
-			case 7: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple7();
-			case 8: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple8();
-			case 9: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple9();
-			case 10: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple10();
-			case 11: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple11();
-			case 12: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple12();
-			case 13: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple13();
-			case 14: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple14();
-			case 15: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple15();
-			case 16: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple16();
-			case 17: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple17();
-			case 18: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple18();
-			case 19: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple19();
-			case 20: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple20();
-			case 21: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple21();
-			case 22: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple22();
-			case 23: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple23();
-			case 24: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple24();
-			case 25: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple25();
+			case 1: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple1(); break;
+			case 2: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple2(); break;
+			case 3: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple3(); break;
+			case 4: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple4(); break;
+			case 5: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple5(); break;
+			case 6: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple6(); break;
+			case 7: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple7(); break;
+			case 8: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple8(); break;
+			case 9: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple9(); break;
+			case 10: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple10(); break;
+			case 11: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple11(); break;
+			case 12: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple12(); break;
+			case 13: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple13(); break;
+			case 14: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple14(); break;
+			case 15: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple15(); break;
+			case 16: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple16(); break;
+			case 17: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple17(); break;
+			case 18: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple18(); break;
+			case 19: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple19(); break;
+			case 20: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple20(); break;
+			case 21: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple21(); break;
+			case 22: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple22(); break;
+			case 23: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple23(); break;
+			case 24: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple24(); break;
+			case 25: projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple25(); break;
+			default: throw new IllegalStateException("Excessive arity in tuple.");
 			}
 
 			return projectJoin;

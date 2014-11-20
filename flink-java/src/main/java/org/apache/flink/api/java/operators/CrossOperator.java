@@ -37,6 +37,8 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.tuple.*;
 //CHECKSTYLE.ON: AvoidStarImport
 
+import com.google.common.base.Preconditions;
+
 /**
  * A {@link DataSet} that is the result of a Cross transformation.
  *
@@ -381,9 +383,8 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 				// check field indexes and adapt to position in tuple
 				int maxFieldIndex = firstInput ? numFieldsDs1 : numFieldsDs2;
 				for(int i=0; i<this.fieldIndexes.length; i++) {
-					if(this.fieldIndexes[i] > maxFieldIndex - 1 || this.fieldIndexes[i] < 0) {
-						throw new IndexOutOfBoundsException("Provided field index is out of bounds of input tuple.");
-					}
+					Preconditions.checkElementIndex(this.fieldIndexes[i], maxFieldIndex);
+					
 					if(firstInput) {
 						this.isFieldInFirst[i] = true;
 					} else {
@@ -447,9 +448,8 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 				int maxFieldIndex = numFieldsDs1;
 				for(int i = 0; i < firstFieldIndexes.length; i++) {
 					// check if indexes in range
-					if(firstFieldIndexes[i] > maxFieldIndex - 1 || firstFieldIndexes[i] < 0) {
-						throw new IndexOutOfBoundsException("Provided field index is out of bounds of input tuple.");
-					}
+					Preconditions.checkElementIndex(firstFieldIndexes[i], maxFieldIndex);
+
 					this.isFieldInFirst[offset + i] = true;
 					this.fieldIndexes[offset + i] = firstFieldIndexes[i];
 				}
@@ -516,9 +516,8 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 				int maxFieldIndex = numFieldsDs2;
 				for(int i = 0; i < secondFieldIndexes.length; i++) {
 					// check if indexes in range
-					if(secondFieldIndexes[i] > maxFieldIndex - 1 || secondFieldIndexes[i] < 0) {
-						throw new IndexOutOfBoundsException("Provided field index is out of bounds of input tuple.");
-					}
+					Preconditions.checkElementIndex(secondFieldIndexes[i], maxFieldIndex);
+
 					this.isFieldInFirst[offset + i] = false;
 					this.fieldIndexes[offset + i] = secondFieldIndexes[i];
 				}
@@ -578,6 +577,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			case 23: projectionCross = (ProjectCross<I1, I2, OUT>) projectTuple23(); break;
 			case 24: projectionCross = (ProjectCross<I1, I2, OUT>) projectTuple24(); break;
 			case 25: projectionCross = (ProjectCross<I1, I2, OUT>) projectTuple25(); break;
+			default: throw new IllegalStateException("Excessive arity in tuple.");
 			}
 
 			return projectionCross;

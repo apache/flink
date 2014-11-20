@@ -32,6 +32,8 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.tuple.*;
 //CHECKSTYLE.ON: AvoidStarImport
 
+import com.google.common.base.Preconditions;
+
 /**
  * This operator represents the application of a projection operation on a data set, and the
  * result data set produced by the function.
@@ -111,9 +113,7 @@ public class ProjectOperator<IN, OUT extends Tuple>
 			
 			int maxFieldIndex = ((TupleTypeInfo<?>)ds.getType()).getArity();
 			for(int i=0; i<fieldIndexes.length; i++) {
-				if(fieldIndexes[i] > maxFieldIndex - 1 || fieldIndexes[i] < 0) {
-					throw new IndexOutOfBoundsException("Provided field index is out of bounds of input tuple.");
-				}
+				Preconditions.checkElementIndex(fieldIndexes[i], maxFieldIndex);
 			}
 			
 			this.ds = ds;
@@ -135,12 +135,9 @@ public class ProjectOperator<IN, OUT extends Tuple>
 			
 			int maxFieldIndex = ((TupleTypeInfo<?>)ds.getType()).getArity();
 			for(int i=0; i<additionalIndexes.length; i++) {
-				if(additionalIndexes[i] > maxFieldIndex - 1 || additionalIndexes[i] < 0) {
-					throw new IndexOutOfBoundsException("Provided field index is out of bounds of input tuple.");
-				}
-				else {
-					this.fieldIndexes[offset + i] = additionalIndexes[i];
-				}
+				Preconditions.checkElementIndex(additionalIndexes[i], maxFieldIndex);
+
+				this.fieldIndexes[offset + i] = additionalIndexes[i];
 			}
 		}
 		
@@ -189,6 +186,7 @@ public class ProjectOperator<IN, OUT extends Tuple>
 			case 23: projOperator = (ProjectOperator<T, OUT>) projectTuple23(); break;
 			case 24: projOperator = (ProjectOperator<T, OUT>) projectTuple24(); break;
 			case 25: projOperator = (ProjectOperator<T, OUT>) projectTuple25(); break;
+			default: throw new IllegalStateException("Excessive arity in tuple.");
 			}
 
 			return projOperator;

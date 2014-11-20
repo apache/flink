@@ -181,6 +181,7 @@ class TupleGenerator {
 		for (int numFields = FIRST; numFields <= LAST; numFields++) {
 			sb.append("\t\t\tcase " + numFields +":" + " projectionCross = (ProjectCross<I1, I2, OUT>) projectTuple"+numFields+"(); break;\n");	
 		}
+		sb.append("\t\t\tdefault: throw new IllegalStateException(\"Excessive arity in tuple.\");\n");
 		sb.append("\t\t\t}\n\n");
 		sb.append("\t\t\treturn projectionCross;\n");
 		
@@ -260,6 +261,7 @@ class TupleGenerator {
 		for (int numFields = FIRST; numFields <= LAST; numFields++) {
 			sb.append("\t\t\tcase " + numFields +":" + " projOperator = (ProjectOperator<T, OUT>) projectTuple"+numFields+"(); break;\n");	
 		}
+		sb.append("\t\t\tdefault: throw new IllegalStateException(\"Excessive arity in tuple.\");\n");
 		sb.append("\t\t\t}\n\n");
 		sb.append("\t\t\treturn projOperator;\n");
 		
@@ -337,8 +339,9 @@ class TupleGenerator {
 		sb.append("\t\t\tProjectJoin<I1, I2, OUT> projectJoin = null;\n\n");
 		sb.append("\t\t\tswitch (fieldIndexes.length) {\n");
 		for (int numFields = FIRST; numFields <= LAST; numFields++) {
-			sb.append("\t\t\tcase " + numFields +":" + " projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple"+numFields+"();\n");	
+			sb.append("\t\t\tcase " + numFields +":" + " projectJoin = (ProjectJoin<I1, I2, OUT>) projectTuple"+numFields+"(); break;\n");	
 		}
+		sb.append("\t\t\tdefault: throw new IllegalStateException(\"Excessive arity in tuple.\");\n");
 		sb.append("\t\t\t}\n\n");
 		sb.append("\t\t\treturn projectJoin;\n");
 		
