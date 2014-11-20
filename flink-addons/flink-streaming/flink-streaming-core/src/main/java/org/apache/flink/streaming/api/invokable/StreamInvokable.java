@@ -24,6 +24,8 @@ import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
+import org.apache.flink.streaming.api.function.source.SourceFunction;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
 import org.apache.flink.util.Collector;
@@ -160,5 +162,9 @@ public abstract class StreamInvokable<IN, OUT> implements Serializable {
 
 	public void setRuntimeContext(RuntimeContext t) {
 		FunctionUtils.setFunctionRuntimeContext(userFunction, t);
+	}
+
+	public SourceFunction<OUT> getSourceFunction() {
+		return null;
 	}
 }

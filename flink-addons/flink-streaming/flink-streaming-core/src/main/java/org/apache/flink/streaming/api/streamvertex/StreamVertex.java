@@ -76,6 +76,9 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable {
 	}
 
 	protected <T> void invokeUserFunction(StreamInvokable<?, T> userInvokable) throws Exception {
+		if (userInvokable.getSourceFunction() != null) {
+			userInvokable.getSourceFunction().initialize(getEnvironment());
+		}
 		userInvokable.setRuntimeContext(context);
 		userInvokable.open(getTaskConfiguration());
 		userInvokable.invoke();

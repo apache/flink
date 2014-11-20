@@ -20,9 +20,17 @@ package org.apache.flink.streaming.api.function.source;
 import java.io.Serializable;
 
 import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.operators.util.UserCodeWrapper;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.util.Collector;
 
-public interface SourceFunction<OUT> extends Function, Serializable {
+public abstract class SourceFunction<OUT> implements Function, Serializable {
+	private static final long serialVersionUID = 1L;
 
-	public void invoke(Collector<OUT> collector) throws Exception;
+	public abstract void invoke(Collector<OUT> collector) throws Exception;
+	
+	public void initialize(Environment env){}
+	
+	public abstract UserCodeWrapper<? extends InputFormat<String, ?>> getFormatWrapper();
 }

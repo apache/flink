@@ -23,6 +23,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -30,7 +32,10 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.streaming.api.collector.OutputSelector;
+import org.apache.flink.streaming.api.function.source.SourceFunction;
+import org.apache.flink.streaming.api.invokable.SourceInvokable;
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
 import org.apache.flink.streaming.api.invokable.operator.co.CoInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
@@ -79,6 +84,7 @@ public class JobGraphBuilder {
 	private Map<String, Integer> iterationTailCount;
 	private Map<String, Long> iterationWaitTime;
 	private Map<String, Map<String, OperatorState<?>>> operatorStates;
+	private Map<String, UserCodeWrapper<? extends InputFormat<String, ?>>> sources;
 
 	/**
 	 * Creates an new {@link JobGraph} with the given name. A JobGraph is a DAG
@@ -111,6 +117,7 @@ public class JobGraphBuilder {
 		iterationTailCount = new HashMap<String, Integer>();
 		iterationWaitTime = new HashMap<String, Long>();
 		operatorStates = new HashMap<String, Map<String, OperatorState<?>>>();
+		sources = new HashMap<String, UserCodeWrapper<? extends InputFormat<String, ?>>>();
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("JobGraph created");
@@ -149,6 +156,30 @@ public class JobGraphBuilder {
 				outTypeInfo) : null;
 
 		addTypeSerializers(vertexName, inSerializer, null, outSerializer, null);
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Vertex: {}", vertexName);
+		}
+	}
+
+	public <IN, OUT> void addSourceVertex(String vertexName, SourceFunction<OUT> function,
+			TypeInformation<IN> inTypeInfo,	TypeInformation<OUT> outTypeInfo, String operatorName,
+			byte[] serializedFunction, int parallelism) {
+
+		StreamInvokable<OUT, OUT> invokableObject = new SourceInvokable<OUT>(function);
+
+		addVertex(vertexName, StreamVertex.class, invokableObject, operatorName,
+				serializedFunction, parallelism);
+		
+		StreamRecordSerializer<IN> inSerializer = inTypeInfo != null ? new StreamRecordSerializer<IN>(
+				inTypeInfo) : null;
+		StreamRecordSerializer<OUT> outSerializer = outTypeInfo != null ? new StreamRecordSerializer<OUT>(
+				outTypeInfo) : null;
+
+		addTypeSerializers(vertexName, inSerializer, null, outSerializer, null);
+
+		sources.put(vertexName, function.getFormatWrapper());
+		System.out.println(sources);
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Vertex: {}", vertexName);
@@ -339,6 +370,18 @@ public class JobGraphBuilder {
 				|| vertexClass.equals(StreamIterationTail.class)) {
 			config.setIterationId(iterationIds.get(vertexName));
 			config.setIterationWaitTime(iterationWaitTime.get(vertexName));
+		}
+
+		if (sources.containsKey(vertexName)) {
+			TaskConfig taskConfig = new TaskConfig(vertex.getConfiguration());
+			// TypeInformation<?> OutTypeInfo =
+			// typeWrapperOut1.get(vertexName).getTypeInfo();
+			InputFormat<String, ?> format = sources.get(vertexName).getUserCodeObject();
+			vertex.setInputSplitSource(sources.get(vertexName).getUserCodeObject());
+			// taskConfig.setOutputSerializer(createSerializer(OutTypeInfo));
+			format.configure(taskConfig.getStubParameters());
+			// TaskConfig(vertex.getConfiguration());
+			// taskConfig.setStubWrapper(sources.get(vertexName));
 		}
 
 		streamVertices.put(vertexName, vertex);

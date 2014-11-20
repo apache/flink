@@ -24,11 +24,15 @@ import java.util.List;
 
 import org.apache.commons.lang3.SerializationException;
 import org.apache.commons.lang3.SerializationUtils;
+import org.apache.commons.lang3.Validate;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.io.TextInputFormat;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.client.program.Client;
 import org.apache.flink.client.program.ContextEnvironment;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.JobGraphBuilder;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
@@ -158,9 +162,90 @@ public abstract class StreamExecutionEnvironment {
 	 * @return The DataStream representing the text file.
 	 */
 	public DataStreamSource<String> readTextFile(String filePath) {
-		checkIfFileExists(filePath);
-		return addSource(new FileSourceFunction(filePath));
+		// checkIfFileExists(filePath);
+		Validate.notNull(filePath, "The file path may not be null.");
+		TextInputFormat format = new TextInputFormat(new Path(filePath));
+		return addSource(new FileSourceFunction(format, BasicTypeInfo.STRING_TYPE_INFO), 1);
 	}
+
+	/**
+	 * Creates a DataStream that represents the Strings produced by reading the
+	 * given file line wise. The file will be read with the system's default
+	 * character set.
+	 * 
+	 * @param filePath
+	 *            The path of the file, as a URI (e.g.,
+	 *            "file:///some/local/file" or "hdfs://host:port/file/path").
+	 * @param parallelism
+	 *            degree of parallelism
+	 * @return The DataStream representing the text file.
+	 */
+	public DataStreamSource<String> readTextFile(String filePath, int parallelism) {
+		Validate.notNull(filePath, "The file path may not be null.");
+		TextInputFormat format = new TextInputFormat(new Path(filePath));
+		return addSource(new FileSourceFunction(format, BasicTypeInfo.STRING_TYPE_INFO),
+				parallelism);
+
+	}
+
+	/**
+	 * Creates a DataStream that represents the Strings produced by reading the
+	 * given file line wise. The file will be read with the given
+	 * character set.
+	 * 
+	 * @param filePath
+	 *            The path of the file, as a URI (e.g.,
+	 *            "file:///some/local/file" or "hdfs://host:port/file/path").
+	 * @return The DataStream representing the text file.
+	 */
+	public DataStreamSource<String> readTextFile(String filePath, String charsetName) {
+		Validate.notNull(filePath, "The file path may not be null.");
+		TextInputFormat format = new TextInputFormat(new Path(filePath));
+		format.setCharsetName(charsetName);
+		return addSource(new FileSourceFunction(format, BasicTypeInfo.STRING_TYPE_INFO), 1);
+	}
+
+	// public DataStreamSource<StringValue> readTextFileWithValue(String
+	// filePath) {
+	// Validate.notNull(filePath, "The file path may not be null.");
+	// TextValueInputFormat format = new TextValueInputFormat(new
+	// Path(filePath));
+	// return addSource(new FileSourceFunction<StringValue>(format,
+	// new ValueTypeInfo<StringValue>(StringValue.class)), 1);
+	// }
+	//
+	// public DataStreamSource<StringValue> readTextFileWithValue(String
+	// filePath, String charsetName,
+	// boolean skipInvalidLines) {
+	// Validate.notNull(filePath, "The file path may not be null.");
+	// TextValueInputFormat format = new TextValueInputFormat(new
+	// Path(filePath));
+	// format.setCharsetName(charsetName);
+	// format.setSkipInvalidLines(skipInvalidLines);
+	// return addSource(new FileSourceFunction<StringValue>(format,
+	// new ValueTypeInfo<StringValue>(StringValue.class)), 1);
+	// }
+	//
+	// public <X> DataStreamSource<X> readFile(FileInputFormat<X> format, String
+	// filePath) {
+	// if (format == null) {
+	// throw new IllegalArgumentException("InputFormat must not be null.");
+	// }
+	// if (filePath == null) {
+	// throw new IllegalArgumentException("The file path must not be null.");
+	// }
+	//
+	// format.setFilePath(new Path(filePath));
+	// try {
+	// return addSource(
+	// new FileSourceFunction<X>(format,
+	// TypeExtractor.getInputFormatTypes(format)), 1);
+	// } catch (Exception e) {
+	// throw new InvalidProgramException(
+	// "The type returned by the input format could not be automatically determined. "
+	// + "Please specify the TypeInformation of the produced type explicitly.");
+	// }
+	// }
 
 	/**
 	 * Creates a DataStream that represents the Strings produced by reading the
@@ -330,9 +415,8 @@ public abstract class StreamExecutionEnvironment {
 		DataStreamSource<OUT> returnStream = new DataStreamSource<OUT>(this, "source", outTypeInfo);
 
 		try {
-			jobGraphBuilder.addStreamVertex(returnStream.getId(),
-					new SourceInvokable<OUT>(function), null, outTypeInfo, "source",
-					SerializationUtils.serialize(function), 1);
+			jobGraphBuilder.addSourceVertex(returnStream.getId(), function, null, outTypeInfo,
+					"source", SerializationUtils.serialize(function), getDegreeOfParallelism());
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize SourceFunction");
 		}
