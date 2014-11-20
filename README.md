@@ -37,12 +37,12 @@ Graph API for Apache Flink
 * outDegrees()
 * getUndirected()
 * reverse()
+* fromCollection(vertices, edges)
 
 ##Wishlist
 
 ###Graph Class
-* fromCollection(vertices, edges)
-* fromCollection(vertices)
+* fromCollection(edges)
 * getNeighborhoodGraph(Vertex src, int distance)
 * vertexCentricComputation()
 * edgeCentricComputation()
