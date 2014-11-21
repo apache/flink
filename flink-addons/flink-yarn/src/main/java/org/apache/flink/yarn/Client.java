@@ -629,8 +629,9 @@ public class Client {
 					+ "the full application log using this command:\n"
 					+ "\tyarn logs -applicationId "+appReport.getApplicationId()+"\n"
 					+ "(It sometimes takes a few seconds until the logs are aggregated)");
+			System.exit(1);
 		}
-
+		System.exit(0);
 	}
 
 	private void printHelp() {
