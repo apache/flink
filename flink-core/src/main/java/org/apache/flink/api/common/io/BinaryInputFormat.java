@@ -65,8 +65,6 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T> {
 
 	private DataInputStream dataInputStream;
 
-	private BlockBasedInput blockBasedInput;
-
 	private BlockInfo blockInfo;
 
 	private long readRecords;
@@ -95,9 +93,8 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T> {
 
 		final List<FileInputSplit> inputSplits = new ArrayList<FileInputSplit>(minNumSplits);
 		for (FileStatus file : files) {
-			long splitSize = blockSize;
-			for (long pos = 0, length = file.getLen(); pos < length; pos += splitSize) {
-				long remainingLength = Math.min(pos + splitSize, length) - pos;
+			for (long pos = 0, length = file.getLen(); pos < length; pos += blockSize) {
+				long remainingLength = Math.min(pos + blockSize, length) - pos;
 
 				// get the block locations and make sure they are in order with respect to their offset
 				final BlockLocation[] blocks = fs.getFileBlockLocations(file, pos, remainingLength);
@@ -132,9 +129,9 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T> {
 		if (pathFile.isDir()) {
 			// input is directory. list all contained files
 			final FileStatus[] partials = fs.listStatus(this.filePath);
-			for (int i = 0; i < partials.length; i++) {
-				if (!partials[i].isDir()) {
-					files.add(partials[i]);
+			for (FileStatus partial : partials) {
+				if (!partial.isDir()) {
+					files.add(partial);
 				}
 			}
 		} else {
@@ -258,8 +255,8 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T> {
 		}
 
 		this.stream.seek(this.splitStart + this.blockInfo.getFirstRecordStart());
-		this.blockBasedInput = new BlockBasedInput(this.stream, (int) blockSize);
-		this.dataInputStream = new DataInputStream(this.blockBasedInput);
+		BlockBasedInput blockBasedInput = new BlockBasedInput(this.stream, (int) blockSize);
+		this.dataInputStream = new DataInputStream(blockBasedInput);
 		this.readRecords = 0;
 	}
 

@@ -197,25 +197,23 @@ public final class DistributedFileSystem extends FileSystem {
 			possibleHadoopConfPaths[2] = System.getenv("HADOOP_HOME")+"/conf";
 			possibleHadoopConfPaths[3] = System.getenv("HADOOP_HOME")+"/etc/hadoop"; // hadoop 2.2
 		}
-		
-		for (int i = 0; i < possibleHadoopConfPaths.length; i++) {
-			if (possibleHadoopConfPaths[i] == null) {
-				continue;
-			}
-			
-			if (new File(possibleHadoopConfPaths[i]).exists()) {
-				if (new File(possibleHadoopConfPaths[i]+"/core-site.xml").exists()) {
-					retConf.addResource(new org.apache.hadoop.fs.Path(possibleHadoopConfPaths[i]+"/core-site.xml"));
-					
-					if (LOG.isDebugEnabled()) {
-						LOG.debug("Adding "+possibleHadoopConfPaths[i]+"/core-site.xml to hadoop configuration");
+
+		for (String possibleHadoopConfPath : possibleHadoopConfPaths) {
+			if (possibleHadoopConfPath != null) {
+				if (new File(possibleHadoopConfPath).exists()) {
+					if (new File(possibleHadoopConfPath + "/core-site.xml").exists()) {
+						retConf.addResource(new org.apache.hadoop.fs.Path(possibleHadoopConfPath + "/core-site.xml"));
+
+						if (LOG.isDebugEnabled()) {
+							LOG.debug("Adding " + possibleHadoopConfPath + "/core-site.xml to hadoop configuration");
+						}
 					}
-				}
-				if (new File(possibleHadoopConfPaths[i]+"/hdfs-site.xml").exists()) {
-					retConf.addResource(new org.apache.hadoop.fs.Path(possibleHadoopConfPaths[i]+"/hdfs-site.xml"));
-					
-					if (LOG.isDebugEnabled()) {
-						LOG.debug("Adding "+possibleHadoopConfPaths[i]+"/hdfs-site.xml to hadoop configuration");
+					if (new File(possibleHadoopConfPath + "/hdfs-site.xml").exists()) {
+						retConf.addResource(new org.apache.hadoop.fs.Path(possibleHadoopConfPath + "/hdfs-site.xml"));
+
+						if (LOG.isDebugEnabled()) {
+							LOG.debug("Adding " + possibleHadoopConfPath + "/hdfs-site.xml to hadoop configuration");
+						}
 					}
 				}
 			}
@@ -287,14 +285,15 @@ public final class DistributedFileSystem extends FileSystem {
 						try {
 							this.fs.initialize(initURI, this.conf);
 						}
-						catch (Exception e) {
-							throw new IOException(getMissingAuthorityErrorPrefix(path) + "Could not initialize the file system connection with the given address of the HDFS Namenode"
-								+ e.getMessage() != null ? ": " + e.getMessage() : ".", e);
+						catch (IOException e) {
+							throw new IOException(getMissingAuthorityErrorPrefix(path) +
+									"Could not initialize the file system connection with the given address of the HDFS NameNode: " + e.getMessage(), e);
 						}
 					}
 				}
 				catch (IllegalArgumentException e) {
-					throw new IOException(getMissingAuthorityErrorPrefix(path) + "The configuration contains an invalid hdfs default name (fs.default.name or fs.defaultFS): " + configEntry);
+					throw new IOException(getMissingAuthorityErrorPrefix(path) +
+							"The configuration contains an invalid hdfs default name (fs.default.name or fs.defaultFS): " + configEntry);
 				}
 			} 
 		}
@@ -304,7 +303,7 @@ public final class DistributedFileSystem extends FileSystem {
 				this.fs.initialize(path, this.conf);
 			}
 			catch (UnknownHostException e) {
-				String message = "The HDFS namenode host at '" + path.getAuthority()
+				String message = "The HDFS NameNode host at '" + path.getAuthority()
 						+ "', specified by file path '" + path.toString() + "', cannot be resolved"
 						+ (e.getMessage() != null ? ": " + e.getMessage() : ".");
 				
@@ -315,15 +314,15 @@ public final class DistributedFileSystem extends FileSystem {
 				throw new IOException(message, e);
 			}
 			catch (Exception e) {
-				throw new IOException("The given file URI (" + path.toString() + ") points to the HDFS Namenode at "
+				throw new IOException("The given file URI (" + path.toString() + ") points to the HDFS NameNode at "
 						+ path.getAuthority() + ", but the File System could not be initialized with that address"
 					+ (e.getMessage() != null ? ": " + e.getMessage() : "."), e);
 			}
 		}
 	}
 	
-	private static final String getMissingAuthorityErrorPrefix(URI path) {
-		return "The given HDFS file URI (" + path.toString() + ") did not describe the HDFS Namenode." +
+	private static String getMissingAuthorityErrorPrefix(URI path) {
+		return "The given HDFS file URI (" + path.toString() + ") did not describe the HDFS NameNode." +
 				" The attempt to use a default HDFS configuration, as specified in the '" + ConfigConstants.HDFS_DEFAULT_CONFIG + "' or '" + 
 				ConfigConstants.HDFS_SITE_CONFIG + "' config parameter failed due to the following problem: ";
 	}
@@ -385,9 +384,9 @@ public final class DistributedFileSystem extends FileSystem {
 
 	@Override
 	public FSDataOutputStream create(final Path f, final boolean overwrite) throws IOException {
-		final org.apache.hadoop.fs.FSDataOutputStream fdos = this.fs
+		final org.apache.hadoop.fs.FSDataOutputStream fsDataOutputStream = this.fs
 			.create(new org.apache.hadoop.fs.Path(f.toString()), overwrite);
-		return new DistributedDataOutputStream(fdos);
+		return new DistributedDataOutputStream(fsDataOutputStream);
 	}
 
 	@Override
