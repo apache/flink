@@ -102,6 +102,16 @@ public class InstanceManager {
 	public long getHeartbeatTimeout() {
 		return heartbeatTimeout;
 	}
+	
+	/**
+	 * This method is only used by the Flink YARN client to self-destruct a Flink cluster
+	 * by stopping the JVMs of the TaskManagers.
+	 */
+	public void killTaskManagers() {
+		for (Instance i : this.registeredHostsById.values()) {
+			i.stopInstance();
+		}
+	}
 
 	public void shutdown() {
 		synchronized (this.lock) {

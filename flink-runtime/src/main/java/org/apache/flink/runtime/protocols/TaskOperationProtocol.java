@@ -36,5 +36,5 @@ public interface TaskOperationProtocol extends VersionedProtocol {
 
 	TaskOperationResult cancelTask(ExecutionAttemptID executionId) throws IOException;
 
-	
+	void stop() throws IOException;
 }

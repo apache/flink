@@ -1299,4 +1299,10 @@ public class TaskManager implements TaskOperationProtocol {
 			return timeout;
 		}
 	}
+
+	@Override
+	public void stop() throws IOException {
+		LOG.info("Killing TaskManager");
+		System.exit(0);
+	}
 }

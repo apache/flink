@@ -343,7 +343,9 @@ public class Client {
 		// Create a local resource to point to the destination jar path
 		final FileSystem fs = FileSystem.get(conf);
 
-		if(fs.getScheme().startsWith("file")) {
+		// hard coded check for the GoogleHDFS client because its not overriding the getScheme() method.
+		if( !fs.getClass().getSimpleName().equals("GoogleHadoopFileSystem") &&
+				fs.getScheme().startsWith("file")) {
 			LOG.warn("The file system scheme is '" + fs.getScheme() + "'. This indicates that the "
 					+ "specified Hadoop configuration path is wrong and the sytem is using the default Hadoop configuration values."
 					+ "The Flink YARN client needs to store its files in a distributed file system");
@@ -627,8 +629,9 @@ public class Client {
 					+ "the full application log using this command:\n"
 					+ "\tyarn logs -applicationId "+appReport.getApplicationId()+"\n"
 					+ "(It sometimes takes a few seconds until the logs are aggregated)");
+			System.exit(1);
 		}
-
+		System.exit(0);
 	}
 
 	private void printHelp() {
