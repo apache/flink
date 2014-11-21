@@ -18,6 +18,7 @@
 
 package org.apache.flink.mesos;
 
+import com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -37,13 +38,12 @@ public class FlinkTMExecutor implements Executor {
 		private final Protos.TaskInfo taskInfo ;
 		private final int portOffset;
 		private final Logger LOG = LoggerFactory.getLogger(FlinkTMExecutor.class);
+		private final MesosConfiguration config;
 
-		private final String flinkConfDir;
-		public TaskManagerThread(ExecutorDriver executorDriver, Protos.TaskInfo taskInfo, String flinkConfDir /*, MesosConfiguration config*/) {
+		public TaskManagerThread(ExecutorDriver executorDriver, Protos.TaskInfo taskInfo, MesosConfiguration config) {
 			this.executorDriver = executorDriver;
 			this.taskInfo = taskInfo;
-			//this.config = config;
-			this.flinkConfDir = flinkConfDir;
+			this.config = config;
 			this.portOffset = Math.abs(taskInfo.getExecutor().getFrameworkId().getValue().hashCode());
 		}
 
@@ -59,11 +59,9 @@ public class FlinkTMExecutor implements Executor {
 			}
 
 			// First, try to load global configuration
-			GlobalConfiguration.loadConfiguration(flinkConfDir);
+			GlobalConfiguration.loadConfiguration(config.getString(MesosConstants.MESOS_CONF_DIR, "."));
 			Configuration conf = GlobalConfiguration.getConfiguration();
-			conf.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, (int) cpus);
-			//conf.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "127.0.0.1");
-			//conf.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT + (this.portOffset % 100));
+			conf.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, config.getInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, (int) cpus));
 			LOG.info("JobManager Port: " + conf.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, -1));
 			GlobalConfiguration.includeConfiguration(conf);
 			// Create a new task manager object
@@ -77,15 +75,20 @@ public class FlinkTMExecutor implements Executor {
 	}
 
 	private static final Logger LOG = LoggerFactory.getLogger(FlinkTMExecutor.class);
-	private String flinkConfDir;
-
-	public FlinkTMExecutor(String config) {
-		flinkConfDir = config;
-	}
+	private MesosConfiguration config = new MesosConfiguration();
 
 	@Override
 	public void registered(ExecutorDriver executorDriver, Protos.ExecutorInfo executorInfo, Protos.FrameworkInfo frameworkInfo, Protos.SlaveInfo slaveInfo) {
 		LOG.info("TaskManager Executor was registered on host " + slaveInfo.getHostname());
+
+		FlinkProtos.Configuration protoConfig  = null;
+
+		try {
+			protoConfig = FlinkProtos.Configuration.parseFrom(executorInfo.getData());
+		} catch (InvalidProtocolBufferException e) {
+			e.printStackTrace();
+		}
+		config.fromProtos(protoConfig);
 	}
 
 	@Override
@@ -98,7 +101,7 @@ public class FlinkTMExecutor implements Executor {
 
 	@Override
 	public void launchTask(final ExecutorDriver executorDriver, final Protos.TaskInfo taskInfo) {
-		TaskManagerThread taskManagerThread = new TaskManagerThread(executorDriver, taskInfo, flinkConfDir);
+		TaskManagerThread taskManagerThread = new TaskManagerThread(executorDriver, taskInfo, this.config);
 		MesosUtils.setTaskState(executorDriver, taskInfo.getTaskId(), Protos.TaskState.TASK_RUNNING);
 		taskManagerThread.run();
 	}
@@ -123,7 +126,7 @@ public class FlinkTMExecutor implements Executor {
 	}
 
 	public static void main(String[] args) throws Exception {
-		MesosExecutorDriver driver = new MesosExecutorDriver(new FlinkTMExecutor(args[0]));
+		MesosExecutorDriver driver = new MesosExecutorDriver(new FlinkTMExecutor());
 		System.exit(driver.run() == Protos.Status.DRIVER_STOPPED ? 0 : 1);
 	}
 }

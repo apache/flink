@@ -1,0 +1,9 @@
+message Configuration {
+	message Triplet {
+		required string key = 1;
+		required string value = 2;
+		required string type = 3;
+	}
+	
+	repeated Triplet values = 1;
+}

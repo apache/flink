@@ -20,7 +20,6 @@ package org.apache.flink.mesos;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.CliFrontend;
-import org.apache.flink.configuration.Configuration;
 import org.apache.mesos.Protos;
 import org.apache.mesos.Scheduler;
 import org.apache.mesos.SchedulerDriver;
@@ -33,7 +32,7 @@ import java.util.List;
 
 /**
  * The FlinkMesosScheduler gets offers from the Mesos master about resources that are available on the
- * Mesos slaves. According to the configuration given via file or command line options the scheduler decides whether
+ * Mesos slaves. According to the MesosConfiguration given via file or command line options the scheduler decides whether
  * to take the offer and launch a Task- or JobManager on it or to refuse the offer.
  *
  * Further information is available at the official page of Apache Mesos:
@@ -42,12 +41,12 @@ import java.util.List;
 public class FlinkMesosScheduler implements Scheduler {
 
 	private static final Logger LOG = LoggerFactory.getLogger(FlinkMesosScheduler.class);
-	private final Configuration config;
+	private final MesosConfiguration config;
 	private final HashMap<Protos.SlaveID, Protos.TaskInfo> taskManagers = new HashMap<Protos.SlaveID, Protos.TaskInfo>();
 	private Protos.TaskInfo jobManager = null;
 	private Protos.Offer jobManagerOffer = null;
 
-	public FlinkMesosScheduler(Configuration config) {
+	public FlinkMesosScheduler(MesosConfiguration config) {
 		LOG.debug("Scheduler launched");
 		LOG.debug("jar dir: " + config.getString(MesosConstants.MESOS_UBERJAR_LOCATION, null));
 		LOG.debug("conf dir: " + config.getString(MesosConstants.MESOS_CONF_DIR, null));
@@ -64,9 +63,9 @@ public class FlinkMesosScheduler implements Scheduler {
 	}
 
 	/**
-	 * Adds the dynamic properties that were added via the command line to the Configuration that is used to start the JobManagers and TaskManagers on the Mesos nodes.
+	 * Adds the dynamic properties that were added via the command line to the MesosConfiguration that is used to start the JobManagers and TaskManagers on the Mesos nodes.
 	 */
-	private Configuration appendDynamicProps(Configuration config) {
+	private MesosConfiguration appendDynamicProps(MesosConfiguration config) {
 		List<Tuple2<String, String>> properties = CliFrontend.getDynamicProperties(config.getString(MesosConstants.MESOS_DYNAMIC_PROPERTIES, ""));
 		for (Tuple2<String, String> tuple: properties) {
 			LOG.info("Dynamic property added to config:\n" + tuple.f0 + ": " + tuple.f1);
@@ -130,7 +129,7 @@ public class FlinkMesosScheduler implements Scheduler {
 		resources.put("mem", memory);
 
 		String flinkJMCommand = "java " + "-Xmx" + MesosUtils.calculateMemory(memory) + "M -cp " + config.getString(MesosConstants.MESOS_UBERJAR_LOCATION, ".") + " org.apache.flink.mesos.FlinkJMExecutor " + config.getString(MesosConstants.MESOS_CONF_DIR, ".");
-		Protos.ExecutorInfo jobManagerExecutor = MesosUtils.createExecutorInfo("jm", "JobManager Executor", flinkJMCommand);
+		Protos.ExecutorInfo jobManagerExecutor = MesosUtils.createExecutorInfo("jm", "JobManager Executor", flinkJMCommand, this.config);
 
 		LOG.info("JobManager cpus: " + resources.get("cpus"));
 		LOG.info("JobManager memory: " + resources.get("mem"));
@@ -154,7 +153,7 @@ public class FlinkMesosScheduler implements Scheduler {
 		resources.put("mem", memory);
 
 		String flinkTMCommand = "java " + "-Xmx" + MesosUtils.calculateMemory(memory) + "M -cp " + config.getString(MesosConstants.MESOS_UBERJAR_LOCATION, ".") + " org.apache.flink.mesos.FlinkTMExecutor " + config.getString(MesosConstants.MESOS_CONF_DIR, ".");
-		Protos.ExecutorInfo taskManagerExecutor = MesosUtils.createExecutorInfo("tm", "TaskManager Executor", flinkTMCommand);
+		Protos.ExecutorInfo taskManagerExecutor = MesosUtils.createExecutorInfo("tm", "TaskManager Executor", flinkTMCommand, this.config);
 
 		LOG.info("TaskManager cpus: " + resources.get("cpus"));
 		LOG.info("TaskManager memory: " + resources.get("mem"));
@@ -254,7 +253,12 @@ public class FlinkMesosScheduler implements Scheduler {
 	 */
 	@Override
 	public void statusUpdate(SchedulerDriver schedulerDriver, Protos.TaskStatus taskStatus) {
-		Protos.TaskInfo taskInfo = taskStatus.getSlaveId().equals(jobManagerOffer.getSlaveId()) ? jobManager : taskManagers.get(taskStatus.getSlaveId());
+
+		Protos.TaskInfo taskInfo = null;
+
+		if (jobManagerOffer != null) {
+			taskInfo = taskStatus.getSlaveId().equals(jobManagerOffer.getSlaveId()) ? jobManager : taskManagers.get(taskStatus.getSlaveId());
+		}
 
 		if (taskInfo == null) {
 			return;

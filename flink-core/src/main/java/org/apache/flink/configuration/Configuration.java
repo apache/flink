@@ -445,6 +445,11 @@ public class Configuration implements IOReadableWritable, java.io.Serializable {
 			return this.confData.containsKey(key);
 		}
 	}
+
+	protected HashMap<String, Object> getConfigData() {
+		HashMap<String, Object> result = new HashMap<String, Object>(this.confData);
+		return result;
+	}
 	
 	// --------------------------------------------------------------------------------------------
 	

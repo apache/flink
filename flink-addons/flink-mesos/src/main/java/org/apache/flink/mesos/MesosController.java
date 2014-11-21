@@ -28,7 +28,6 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.PosixParser;
 import org.apache.flink.client.CliFrontend;
 import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
 import org.apache.mesos.MesosSchedulerDriver;
 import org.apache.mesos.Protos;
 
@@ -144,7 +143,7 @@ public class MesosController {
 		options.addOption(MESOS_LIB);
 		options.addOption(USE_WEB);
 
-		Configuration config = new Configuration();
+		MesosConfiguration config = new MesosConfiguration();
 		CommandLineParser parser = new PosixParser();
 		CommandLine cmd = null;
 		try {

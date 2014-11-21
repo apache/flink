@@ -18,13 +18,16 @@
 
 package org.apache.flink.mesos;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.mesos.ExecutorDriver;
 import org.apache.mesos.Protos;
 
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Contains a set of useful utilitys for the Mesos module. Most methods make the code
+ * more readable when creating Google ProtoBuf classes.
+ */
 public class MesosUtils {
 	public static void setTaskState(final ExecutorDriver executorDriver, final Protos.TaskID taskID, final Protos.TaskState newState) {
 		Protos.TaskStatus state = Protos.TaskStatus.newBuilder()
@@ -34,19 +37,13 @@ public class MesosUtils {
 		executorDriver.sendStatusUpdate(state);
 	}
 
-	public static Protos.ExecutorInfo createExecutorInfo(String id, String name, String command) {
+	public static Protos.ExecutorInfo createExecutorInfo(String id, String name, String command, MesosConfiguration mesosConfig) {
 		return Protos.ExecutorInfo.newBuilder()
 				.setExecutorId(Protos.ExecutorID.newBuilder().setValue(id))
 				.setCommand(Protos.CommandInfo.newBuilder().setValue(command))
 				.setName(name)
-				.setData(FlinkProtos.Configuration.newBuilder().addValues(FlinkProtos.Configuration.Pair.newBuilder().setKey(MesosConstants.MESOS_USE_WEB).setValue("true").build()).build().toByteString())
+				.setData(mesosConfig.toByteString())
 				.build();
-	}
-
-	public FlinkProtos.Configuration translateConfigToProto(Configuration config) {
-		FlinkProtos.Configuration.Builder builder = FlinkProtos.Configuration.newBuilder();
-		builder.addValues(FlinkProtos.Configuration.Pair.newBuilder().setKey(MesosConstants.MESOS_USE_WEB).setValue("true").build());
-		return builder.build();
 	}
 
 	public static int calculateMemory(double memory) {
