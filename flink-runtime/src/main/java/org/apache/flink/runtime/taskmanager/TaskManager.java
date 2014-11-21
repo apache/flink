@@ -389,7 +389,7 @@ public class TaskManager implements TaskOperationProtocol {
 				ConfigConstants.TASK_MANAGER_DEBUG_MEMORY_USAGE_START_LOG_THREAD,
 				ConfigConstants.DEFAULT_TASK_MANAGER_DEBUG_MEMORY_USAGE_START_LOG_THREAD);
 
-		if (startMemoryUsageLogThread && LOG.isDebugEnabled()) {
+		if (startMemoryUsageLogThread) {
 			final int logIntervalMs = GlobalConfiguration.getInteger(
 					ConfigConstants.TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS,
 					ConfigConstants.DEFAULT_TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS);
@@ -401,10 +401,8 @@ public class TaskManager implements TaskOperationProtocol {
 						while (!isShutDown()) {
 							Thread.sleep(logIntervalMs);
 
-							if (LOG.isDebugEnabled()) {
-								LOG.debug(getMemoryUsageStatsAsString(memoryMXBean));
-								LOG.debug(getGarbageCollectorStatsAsString(gcMXBeans));
-							}
+							LOG.info(getMemoryUsageStatsAsString(memoryMXBean));
+							LOG.info(getGarbageCollectorStatsAsString(gcMXBeans));
 						}
 					} catch (InterruptedException e) {
 						LOG.warn("Unexpected interruption of memory usage logger thread.");
@@ -896,15 +894,15 @@ public class TaskManager implements TaskOperationProtocol {
 		MemoryUsage heap = memoryMXBean.getHeapMemoryUsage();
 		MemoryUsage nonHeap = memoryMXBean.getNonHeapMemoryUsage();
 
-		int mb = 1 << 20;
+		int mb = 20;
 
-		int heapUsed = (int) (heap.getUsed() / mb);
-		int heapCommitted = (int) (heap.getCommitted() / mb);
-		int heapMax = (int) (heap.getMax() / mb);
+		long heapUsed = heap.getUsed() >> mb;
+		long heapCommitted = heap.getCommitted() >> mb;
+		long heapMax = heap.getMax() >> mb;
 
-		int nonHeapUsed = (int) (nonHeap.getUsed() / mb);
-		int nonHeapCommitted = (int) (nonHeap.getCommitted() / mb);
-		int nonHeapMax = (int) (nonHeap.getMax() / mb);
+		long nonHeapUsed = nonHeap.getUsed() >> mb;
+		long nonHeapCommitted = nonHeap.getCommitted() >> mb;
+		long nonHeapMax = nonHeap.getMax() >> mb;
 
 		String msg = String.format("Memory usage stats: [HEAP: %d/%d/%d MB, NON HEAP: %d/%d/%d MB (used/comitted/max)]",
 				heapUsed, heapCommitted, heapMax, nonHeapUsed, nonHeapCommitted, nonHeapMax);
