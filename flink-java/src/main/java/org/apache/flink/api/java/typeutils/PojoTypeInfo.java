@@ -140,16 +140,16 @@ public class PojoTypeInfo<T> extends CompositeType<T>{
 		if (firstDot == -1) {
 			// this is the last field (or only field) in the field expression
 			int fieldId = 0;
-			for (int i = 0; i < fields.length; i++) {
-				if(fields[i].type instanceof CompositeType) {
-					fieldId += fields[i].type.getTotalFields()-1;
+			for (PojoField field : fields) {
+				if (field.type instanceof CompositeType) {
+					fieldId += field.type.getTotalFields() - 1;
 				}
-				if (fields[i].field.getName().equals(fieldExpression)) {
-					if(fields[i].type instanceof CompositeType) {
-						throw new IllegalArgumentException("The specified field '"+fieldExpression+"' is refering to a composite type.\n"
-								+ "Either select all elements in this type with the '"+ExpressionKeys.SELECT_ALL_CHAR+"' operator or specify a field in the sub-type");
+				if (field.field.getName().equals(fieldExpression)) {
+					if (field.type instanceof CompositeType) {
+						throw new IllegalArgumentException("The specified field '" + fieldExpression + "' is refering to a composite type.\n"
+								+ "Either select all elements in this type with the '" + ExpressionKeys.SELECT_ALL_CHAR + "' operator or specify a field in the sub-type");
 					}
-					result.add(new FlatFieldDescriptor(offset + fieldId, fields[i].type));
+					result.add(new FlatFieldDescriptor(offset + fieldId, field.type));
 					return;
 				}
 				fieldId++;
@@ -159,16 +159,16 @@ public class PojoTypeInfo<T> extends CompositeType<T>{
 			String firstField = fieldExpression.substring(0, firstDot);
 			String rest = fieldExpression.substring(firstDot + 1);
 			int fieldId = 0;
-			for (int i = 0; i < fields.length; i++) {
-				if (fields[i].field.getName().equals(firstField)) {
-					if (!(fields[i].type instanceof CompositeType<?>)) {
-						throw new RuntimeException("Field "+fields[i].type+" (specified by '"+fieldExpression+"') is not a composite type");
+			for (PojoField field : fields) {
+				if (field.field.getName().equals(firstField)) {
+					if (!(field.type instanceof CompositeType<?>)) {
+						throw new RuntimeException("Field " + field.type + " (specified by '" + fieldExpression + "') is not a composite type");
 					}
-					CompositeType<?> cType = (CompositeType<?>) fields[i].type;
+					CompositeType<?> cType = (CompositeType<?>) field.type;
 					cType.getKey(rest, offset + fieldId, result); // recurse
 					return;
 				}
-				fieldId += fields[i].type.getTotalFields();
+				fieldId += field.type.getTotalFields();
 			}
 			throw new RuntimeException("Unable to find field "+fieldExpression+" in type "+this+" (looking for '"+firstField+"')");
 		}

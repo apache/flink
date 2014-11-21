@@ -92,10 +92,6 @@ public class EnumTypeInfo<T extends Enum<T>> extends TypeInformation<T> implemen
 	
 	@Override
 	public boolean equals(Object obj) {
-		if (obj instanceof EnumTypeInfo) {
-			return typeClass == ((EnumTypeInfo<?>) obj).typeClass;
-		} else {
-			return false;
-		}
+		return obj instanceof EnumTypeInfo && typeClass == ((EnumTypeInfo<?>) obj).typeClass;
 	}
 }
