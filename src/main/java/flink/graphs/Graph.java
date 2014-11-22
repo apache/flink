@@ -24,6 +24,7 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFields;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFieldsFirst;
 import org.apache.flink.api.java.operators.DeltaIteration;
+import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
@@ -33,6 +34,7 @@ import org.apache.flink.api.java.io.CsvReader;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.types.NullValue;
 import org.apache.flink.util.Collector;
 
 import java.io.Serializable;
@@ -289,10 +291,87 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		}
 	}
 
+	/**
+	 * Creates a graph from a dataset of vertices and a dataset of edges
+	 * @param vertices
+	 * @param edges
+	 * @return
+	 */
 	public static <K extends Comparable<K> & Serializable, VV extends Serializable,
-		EV extends Serializable> Graph<K, VV, EV>
-		create(DataSet<Tuple2<K, VV>> vertices, DataSet<Tuple3<K, K, EV>> edges) {
+		EV extends Serializable> Graph<K, VV, EV> create(DataSet<Tuple2<K, VV>> vertices, 
+				DataSet<Tuple3<K, K, EV>> edges) {
 		return new Graph<K, VV, EV>(vertices, edges);
+	}
+	
+	/**
+	 * Creates a graph from a DataSet of edges.
+	 * Vertices are created automatically and their values are set to NullValue.
+	 * @param edges
+	 * @return
+	 */
+	public static <K extends Comparable<K> & Serializable, EV extends Serializable> 
+		Graph<K, NullValue, EV> create(DataSet<Tuple3<K, K, EV>> edges) {
+		DataSet<Tuple2<K, NullValue>> vertices = 
+				edges.flatMap(new EmitSrcAndTarget<K, EV>()).distinct(); 
+		return new Graph<K, NullValue, EV>(vertices, edges);
+}
+	
+	/**
+	 * Creates a graph from a DataSet of edges.
+	 * Vertices are created automatically and their values are set
+	 * by applying the provided map function to the vertex ids.
+	 * @param edges the input edges
+	 * @param mapper the map function to set the initial vertex value
+	 * @return
+	 */
+	public static <K extends Comparable<K> & Serializable, VV extends Serializable,	EV extends Serializable> 
+		Graph<K, VV, EV> create(DataSet<Tuple3<K, K, EV>> edges, final MapFunction<K, VV> mapper) {
+		DataSet<Tuple2<K, VV>> vertices = 
+				edges.flatMap(new EmitSrcAndTargetAsTuple1<K, EV>())
+				.distinct().map(new ApplyMapperToVertexValuesWithType<K, VV>(mapper));
+		return new Graph<K, VV, EV>(vertices, edges);
+	}
+	
+	private static final class ApplyMapperToVertexValuesWithType<K, VV> implements MapFunction
+		<Tuple1<K>, Tuple2<K, VV>>, ResultTypeQueryable<Tuple2<K, VV>> {
+
+		private MapFunction<K, VV> innerMapper;
+		
+		public ApplyMapperToVertexValuesWithType(MapFunction<K, VV> theMapper) {
+			this.innerMapper = theMapper;
+		}
+		
+		public Tuple2<K, VV> map(Tuple1<K> value) throws Exception {
+			return new Tuple2<K, VV>(value.f0, innerMapper.map(value.f0));
+		}
+	
+		@Override
+		public TypeInformation<Tuple2<K, VV>> getProducedType() {
+			@SuppressWarnings("unchecked")
+			TypeInformation<VV> newVertexValueType = TypeExtractor.getMapReturnTypes(innerMapper, 
+					(TypeInformation<K>)keyType);
+			
+			return new TupleTypeInfo<Tuple2<K, VV>>(keyType, newVertexValueType);
+		}
+	}
+	
+	private static final class EmitSrcAndTarget<K extends Comparable<K> & Serializable, EV extends Serializable>
+		implements FlatMapFunction<Tuple3<K, K, EV>, Tuple2<K, NullValue>> {
+		public void flatMap(Tuple3<K, K, EV> edge,
+				Collector<Tuple2<K, NullValue>> out) {
+
+				out.collect(new Tuple2<K, NullValue>(edge.f0, NullValue.getInstance()));
+				out.collect(new Tuple2<K, NullValue>(edge.f1, NullValue.getInstance()));
+		}	
+	}
+
+	private static final class EmitSrcAndTargetAsTuple1<K extends Comparable<K> & Serializable, 
+		EV extends Serializable> implements FlatMapFunction<Tuple3<K, K, EV>, Tuple1<K>> {
+		public void flatMap(Tuple3<K, K, EV> edge, Collector<Tuple1<K>> out) {
+
+			out.collect(new Tuple1<K>(edge.f0));
+			out.collect(new Tuple1<K>(edge.f1));
+		}	
 	}
 
 	/**
