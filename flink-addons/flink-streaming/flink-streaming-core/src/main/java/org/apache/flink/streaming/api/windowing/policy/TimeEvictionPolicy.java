@@ -87,10 +87,10 @@ public class TimeEvictionPolicy<DATA> implements ActiveEvictionPolicy<DATA>,
 
 		// delete and count expired tuples
 		int counter = 0;
+		long threshold = timestamp.getTimestamp(datapoint) - granularity;
 		while (!buffer.isEmpty()) {
 
-			if (timestamp.getTimestamp(buffer.getFirst()) < timestamp.getTimestamp(datapoint)
-					- granularity) {
+			if (timestamp.getTimestamp(buffer.getFirst()) < threshold) {
 				buffer.removeFirst();
 				counter++;
 			} else {

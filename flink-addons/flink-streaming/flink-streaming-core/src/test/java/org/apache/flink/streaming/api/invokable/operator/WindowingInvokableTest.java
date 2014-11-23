@@ -17,21 +17,20 @@
 
 package org.apache.flink.streaming.api.invokable.operator;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.invokable.util.TimeStamp;
 import org.apache.flink.streaming.api.windowing.extractor.Extractor;
+import org.apache.flink.streaming.api.windowing.policy.TimeTriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.CountEvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.CountTriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.EvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TimeEvictionPolicy;
-import org.apache.flink.streaming.api.windowing.policy.TimeTriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
 import org.apache.flink.streaming.util.MockInvokable;
 import org.junit.Test;
@@ -92,6 +91,7 @@ public class WindowingInvokableTest {
 		// trigger after 4, then every 2)
 		triggers.add(new TimeTriggerPolicy<Integer>(2L, myTimeStamp, 2L,
 				new Extractor<Long, Integer>() {
+
 					private static final long serialVersionUID = 1L;
 
 					@Override
@@ -103,12 +103,12 @@ public class WindowingInvokableTest {
 		// Always delete all elements older then 4
 		evictions.add(new TimeEvictionPolicy<Integer>(4L, myTimeStamp));
 
-		WindowingInvokable<Integer> invokable = new WindowingInvokable<Integer>(myReduceFunction,
-				triggers, evictions);
+		WindowingInvokable<Integer, Integer> invokable = new WindowingReduceInvokable<Integer>(
+				myReduceFunction, triggers, evictions);
 
 		ArrayList<Integer> result = new ArrayList<Integer>();
-		for (Tuple2<Integer, String[]> t : MockInvokable.createAndExecute(invokable, inputs)) {
-			result.add(t.f0);
+		for (Integer t : MockInvokable.createAndExecute(invokable, inputs)) {
+			result.add(t);
 		}
 
 		assertEquals(expected, result);
@@ -147,8 +147,8 @@ public class WindowingInvokableTest {
 		// time after the 3rd element
 		evictions.add(new CountEvictionPolicy<Integer>(2, 2, -1));
 
-		WindowingInvokable<Integer> invokable = new WindowingInvokable<Integer>(myReduceFunction,
-				triggers, evictions);
+		WindowingInvokable<Integer, Integer> invokable = new WindowingReduceInvokable<Integer>(
+				myReduceFunction, triggers, evictions);
 
 		List<Integer> expected = new ArrayList<Integer>();
 		expected.add(6);
@@ -157,8 +157,8 @@ public class WindowingInvokableTest {
 		expected.add(24);
 		expected.add(19);
 		List<Integer> result = new ArrayList<Integer>();
-		for (Tuple2<Integer, String[]> t : MockInvokable.createAndExecute(invokable, inputs)) {
-			result.add(t.f0);
+		for (Integer t : MockInvokable.createAndExecute(invokable, inputs)) {
+			result.add(t);
 		}
 		assertEquals(expected, result);
 
@@ -200,16 +200,16 @@ public class WindowingInvokableTest {
 		// time after on the 5th element
 		evictions.add(new CountEvictionPolicy<Integer>(3, 3, -1));
 
-		WindowingInvokable<Integer> invokable2 = new WindowingInvokable<Integer>(myReduceFunction,
-				triggers, evictions);
+		WindowingInvokable<Integer, Integer> invokable2 = new WindowingReduceInvokable<Integer>(
+				myReduceFunction, triggers, evictions);
 
 		List<Integer> expected2 = new ArrayList<Integer>();
 		expected2.add(1);
 		expected2.add(-4);
 
 		result = new ArrayList<Integer>();
-		for (Tuple2<Integer, String[]> t : MockInvokable.createAndExecute(invokable2, inputs2)) {
-			result.add(t.f0);
+		for (Integer t : MockInvokable.createAndExecute(invokable2, inputs2)) {
+			result.add(t);
 		}
 
 		assertEquals(expected2, result);
@@ -223,8 +223,8 @@ public class WindowingInvokableTest {
 		triggers.add(new CountTriggerPolicy<Integer>(3));
 
 		LinkedList<EvictionPolicy<Integer>> evictions = new LinkedList<EvictionPolicy<Integer>>();
-		evictions.add(new CountEvictionPolicy<Integer>(2,2));
-		evictions.add(new CountEvictionPolicy<Integer>(3,3));
+		evictions.add(new CountEvictionPolicy<Integer>(2, 2));
+		evictions.add(new CountEvictionPolicy<Integer>(3, 3));
 
 		List<Integer> inputs = new ArrayList<Integer>();
 		for (Integer i = 1; i <= 10; i++) {
@@ -258,12 +258,12 @@ public class WindowingInvokableTest {
 			}
 		};
 
-		WindowingInvokable<Integer> invokable = new WindowingInvokable<Integer>(myReduceFunction,
-				triggers, evictions);
+		WindowingInvokable<Integer, Integer> invokable = new WindowingReduceInvokable<Integer>(
+				myReduceFunction, triggers, evictions);
 
 		ArrayList<Integer> result = new ArrayList<Integer>();
-		for (Tuple2<Integer, String[]> t : MockInvokable.createAndExecute(invokable, inputs)) {
-			result.add(t.f0);
+		for (Integer t : MockInvokable.createAndExecute(invokable, inputs)) {
+			result.add(t);
 		}
 
 		assertEquals(expected, result);

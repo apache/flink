@@ -17,11 +17,14 @@
 
 package org.apache.flink.streaming.api.windowing.policy;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 import org.apache.flink.streaming.api.invokable.util.TimeStamp;
 import org.apache.flink.streaming.api.windowing.extractor.Extractor;
+import org.apache.flink.streaming.api.windowing.helper.Time;
 import org.junit.Test;
-
-import static org.junit.Assert.*;
 
 public class TimeTriggerPolicyTest {
 
@@ -49,15 +52,8 @@ public class TimeTriggerPolicyTest {
 		// test different granularity
 		for (long granularity = 0; granularity < 31; granularity++) {
 			// create policy
-			TriggerPolicy<Integer> policy = new TimeTriggerPolicy<Integer>(granularity, timeStamp,
-					new Extractor<Long, Integer>() {
-						private static final long serialVersionUID = 1L;
-
-						@Override
-						public Integer extract(Long in) {
-							return in.intValue();
-						}
-					});
+			TriggerPolicy<Integer> policy = new TimeTriggerPolicy<Integer>(granularity,
+					timeStamp, new Time.NullExtractor<Integer>());
 
 			// remember window border
 			// Remark: This might NOT work in case the timeStamp uses
@@ -88,7 +84,7 @@ public class TimeTriggerPolicyTest {
 	@Test
 	public void timeTriggerPreNotifyTest() {
 		// create some test data
-		Integer[] times = { 1, 3, 20, 26};
+		Integer[] times = { 1, 3, 20, 26 };
 
 		// create a timestamp
 		@SuppressWarnings("serial")
@@ -107,8 +103,9 @@ public class TimeTriggerPolicyTest {
 		};
 
 		// create policy
-		TimeTriggerPolicy<Integer> policy = new TimeTriggerPolicy<Integer>(5, timeStamp,
-				new Extractor<Long, Integer>() {
+		TimeTriggerPolicy<Integer> policy = new TimeTriggerPolicy<Integer>(5,
+				timeStamp, new Extractor<Long, Integer>() {
+
 					private static final long serialVersionUID = 1L;
 
 					@Override
@@ -117,16 +114,16 @@ public class TimeTriggerPolicyTest {
 					}
 				});
 
-		//expected result
-		Integer[][] result={{},{},{5,10,15},{25}};
-		
-		//call policy
-		for (int i=0;i<times.length;i++){
-			arrayEqualityCheck(result[i],policy.preNotifyTrigger(times[i]));
+		// expected result
+		Integer[][] result = { {}, {}, { 5, 10, 15 }, { 25 } };
+
+		// call policy
+		for (int i = 0; i < times.length; i++) {
+			arrayEqualityCheck(result[i], policy.preNotifyTrigger(times[i]));
 			policy.notifyTrigger(times[i]);
 		}
 	}
-	
+
 	private void arrayEqualityCheck(Object[] array1, Object[] array2) {
 		assertEquals("The result arrays must have the same length", array1.length, array2.length);
 		for (int i = 0; i < array1.length; i++) {

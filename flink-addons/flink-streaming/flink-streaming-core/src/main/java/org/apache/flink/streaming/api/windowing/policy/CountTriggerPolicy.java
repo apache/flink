@@ -30,7 +30,7 @@ public class CountTriggerPolicy<IN> implements CloneableTriggerPolicy<IN> {
 	 */
 	private static final long serialVersionUID = -6357200688886103968L;
 
-	private static final int DEFAULT_START_VALUE = 0;
+	public static final int DEFAULT_START_VALUE = 0;
 
 	private int counter;
 	private int max;

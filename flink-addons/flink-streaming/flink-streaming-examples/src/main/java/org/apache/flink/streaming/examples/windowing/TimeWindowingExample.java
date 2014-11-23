@@ -17,27 +17,26 @@
 
 package org.apache.flink.streaming.examples.windowing;
 
-import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.java.tuple.Tuple2;
+import java.util.Random;
+import java.util.concurrent.TimeUnit;
+
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.source.SourceFunction;
-import org.apache.flink.streaming.api.invokable.util.DefaultTimeStamp;
-import org.apache.flink.streaming.api.windowing.extractor.Extractor;
+import org.apache.flink.streaming.api.windowing.helper.Count;
+import org.apache.flink.streaming.api.windowing.helper.Time;
 import org.apache.flink.streaming.api.windowing.policy.ActiveTriggerPolicy;
-import org.apache.flink.streaming.api.windowing.policy.CountEvictionPolicy;
-import org.apache.flink.streaming.api.windowing.policy.EvictionPolicy;
-import org.apache.flink.streaming.api.windowing.policy.TimeTriggerPolicy;
-import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
 import org.apache.flink.util.Collector;
 
 /**
  * This example shows the functionality of time based windows. It utilizes the
- * {@link ActiveTriggerPolicy} implementation in the {@link TimeTriggerPolicy}.
+ * {@link ActiveTriggerPolicy} implementation in the
+ * {@link ActiveTimeTriggerPolicy}.
  */
 public class TimeWindowingExample {
 
-	private static final int PARALLELISM = 1;
+	private static final int PARALLELISM = 2;
 
 	public static void main(String[] args) throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment
@@ -46,38 +45,21 @@ public class TimeWindowingExample {
 		// Prevent output from being blocked
 		env.setBufferTimeout(100);
 
-		// Trigger every 1000ms
-		TriggerPolicy<Integer> triggerPolicy = new TimeTriggerPolicy<Integer>(1000L,
-				new DefaultTimeStamp<Integer>(), new Extractor<Long, Integer>() {
+		DataStream<Integer> stream = env.addSource(new CountingSourceWithSleep())
+				.groupBy(new KeySelector<Integer, Integer>() {
 
 					private static final long serialVersionUID = 1L;
 
 					@Override
-					public Integer extract(Long in) {
-						return in.intValue();
+					public Integer getKey(Integer value) throws Exception {
+						if (value < 3) {
+							return 0;
+						} else {
+							return 1;
+						}
 					}
 
-				});
-
-		// Always keep the newest 100 elements in the buffer
-		EvictionPolicy<Integer> evictionPolicy = new CountEvictionPolicy<Integer>(100);
-
-		// This reduce function does a String concat.
-		ReduceFunction<Integer> reduceFunction = new ReduceFunction<Integer>() {
-
-			/**
-			 * default version ID
-			 */
-			private static final long serialVersionUID = 1L;
-
-			@Override
-			public Integer reduce(Integer value1, Integer value2) throws Exception {
-				return value1 + value2;
-			}
-
-		};
-
-		DataStream<Tuple2<Integer, String[]>> stream = env.addSource(new CountingSourceWithSleep()).window(triggerPolicy, evictionPolicy, reduceFunction);
+				}).window(Count.of(100)).every(Time.of(1000, TimeUnit.MILLISECONDS)).sum();
 
 		stream.print();
 
@@ -97,6 +79,7 @@ public class TimeWindowingExample {
 
 		@Override
 		public void invoke(Collector<Integer> collector) throws Exception {
+			Random rnd = new Random();
 			// continuous emit
 			while (true) {
 				if (counter > 9999) {
@@ -105,7 +88,7 @@ public class TimeWindowingExample {
 					System.out.println("Source continouse with emitting now!");
 					counter = 0;
 				}
-				collector.collect(counter);
+				collector.collect(rnd.nextInt(9) + 1);
 
 				// Wait 0.001 sec. before the next emit. Otherwise the source is
 				// too fast for local tests and you might always see

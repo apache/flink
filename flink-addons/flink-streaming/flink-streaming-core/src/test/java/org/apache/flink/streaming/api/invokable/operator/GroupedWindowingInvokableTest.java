@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.api.invokable.operator;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -30,12 +30,12 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.invokable.util.TimeStamp;
 import org.apache.flink.streaming.api.windowing.extractor.Extractor;
 import org.apache.flink.streaming.api.windowing.policy.ActiveCloneableEvictionPolicyWrapper;
+import org.apache.flink.streaming.api.windowing.policy.TimeTriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.CloneableEvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.CloneableTriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.CountEvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.CountTriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TimeEvictionPolicy;
-import org.apache.flink.streaming.api.windowing.policy.TimeTriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TumblingEvictionPolicy;
 import org.apache.flink.streaming.util.MockInvokable;
@@ -78,7 +78,7 @@ public class GroupedWindowingInvokableTest {
 
 		LinkedList<TriggerPolicy<Integer>> centralTriggers = new LinkedList<TriggerPolicy<Integer>>();
 
-		GroupedWindowingInvokable<Integer> invokable = new GroupedWindowingInvokable<Integer>(
+		GroupedWindowingInvokable<Integer, Integer> invokable = new GroupedWindowingInvokable<Integer, Integer>(
 				new ReduceFunction<Integer>() {
 					private static final long serialVersionUID = 1L;
 
@@ -95,11 +95,11 @@ public class GroupedWindowingInvokableTest {
 					}
 				}, triggers, evictions, centralTriggers);
 
-		List<Tuple2<Integer, String[]>> result = MockInvokable.createAndExecute(invokable, inputs);
+		List<Integer> result = MockInvokable.createAndExecute(invokable, inputs);
 
 		List<Integer> actual = new LinkedList<Integer>();
-		for (Tuple2<Integer, String[]> current : result) {
-			actual.add(current.f0);
+		for (Integer current : result) {
+			actual.add(current);
 		}
 
 		assertEquals(new HashSet<Integer>(expected), new HashSet<Integer>(actual));
@@ -137,7 +137,7 @@ public class GroupedWindowingInvokableTest {
 
 		LinkedList<TriggerPolicy<Tuple2<Integer, String>>> centralTriggers = new LinkedList<TriggerPolicy<Tuple2<Integer, String>>>();
 
-		GroupedWindowingInvokable<Tuple2<Integer, String>> invokable2 = new GroupedWindowingInvokable<Tuple2<Integer, String>>(
+		GroupedWindowingInvokable<Tuple2<Integer, String>, Tuple2<Integer, String>> invokable2 = new GroupedWindowingInvokable<Tuple2<Integer, String>, Tuple2<Integer, String>>(
 				new ReduceFunction<Tuple2<Integer, String>>() {
 					private static final long serialVersionUID = 1L;
 
@@ -153,12 +153,11 @@ public class GroupedWindowingInvokableTest {
 				}, new TupleKeySelector<Tuple2<Integer, String>>(1), triggers, evictions,
 				centralTriggers);
 
-		List<Tuple2<Tuple2<Integer, String>, String[]>> result = MockInvokable.createAndExecute(
-				invokable2, inputs2);
+		List<Tuple2<Integer, String>> result = MockInvokable.createAndExecute(invokable2, inputs2);
 
 		List<Tuple2<Integer, String>> actual2 = new LinkedList<Tuple2<Integer, String>>();
-		for (Tuple2<Tuple2<Integer, String>, String[]> current : result) {
-			actual2.add(current.f0);
+		for (Tuple2<Integer, String> current : result) {
+			actual2.add(current);
 		}
 
 		assertEquals(new HashSet<Tuple2<Integer, String>>(expected2),
@@ -266,14 +265,13 @@ public class GroupedWindowingInvokableTest {
 
 		LinkedList<CloneableTriggerPolicy<Tuple2<Integer, String>>> distributedTriggers = new LinkedList<CloneableTriggerPolicy<Tuple2<Integer, String>>>();
 
-		GroupedWindowingInvokable<Tuple2<Integer, String>> invokable = new GroupedWindowingInvokable<Tuple2<Integer, String>>(
+		GroupedWindowingInvokable<Tuple2<Integer, String>, Tuple2<Integer, String>> invokable = new GroupedWindowingInvokable<Tuple2<Integer, String>, Tuple2<Integer, String>>(
 				myReduceFunction, new TupleKeySelector<Tuple2<Integer, String>>(1),
 				distributedTriggers, evictions, triggers);
 
 		ArrayList<Tuple2<Integer, String>> result = new ArrayList<Tuple2<Integer, String>>();
-		for (Tuple2<Tuple2<Integer, String>, String[]> t : MockInvokable.createAndExecute(
-				invokable, inputs)) {
-			result.add(t.f0);
+		for (Tuple2<Integer, String> t : MockInvokable.createAndExecute(invokable, inputs)) {
+			result.add(t);
 		}
 
 		assertEquals(new HashSet<Tuple2<Integer, String>>(expected),
@@ -330,7 +328,7 @@ public class GroupedWindowingInvokableTest {
 			}
 		};
 
-		GroupedWindowingInvokable<Integer> invokable = new GroupedWindowingInvokable<Integer>(
+		GroupedWindowingInvokable<Integer, Integer> invokable = new GroupedWindowingInvokable<Integer, Integer>(
 				myReduceFunction, new KeySelector<Integer, Integer>() {
 					private static final long serialVersionUID = 1L;
 
@@ -341,8 +339,8 @@ public class GroupedWindowingInvokableTest {
 				}, distributedTriggers, evictions, triggers);
 
 		ArrayList<Integer> result = new ArrayList<Integer>();
-		for (Tuple2<Integer, String[]> t : MockInvokable.createAndExecute(invokable, inputs)) {
-			result.add(t.f0);
+		for (Integer t : MockInvokable.createAndExecute(invokable, inputs)) {
+			result.add(t);
 		}
 
 		assertEquals(new HashSet<Integer>(expected), new HashSet<Integer>(result));
@@ -350,8 +348,8 @@ public class GroupedWindowingInvokableTest {
 	}
 
 	/**
-	 * Test for combination of centralized trigger and
-	 * distributed trigger at the same time
+	 * Test for combination of centralized trigger and distributed trigger at
+	 * the same time
 	 */
 	@Test
 	public void testGroupedWindowingInvokableCentralAndDistrTrigger() {
@@ -406,7 +404,7 @@ public class GroupedWindowingInvokableTest {
 			}
 		};
 
-		GroupedWindowingInvokable<Integer> invokable = new GroupedWindowingInvokable<Integer>(
+		GroupedWindowingInvokable<Integer, Integer> invokable = new GroupedWindowingInvokable<Integer, Integer>(
 				myReduceFunction, new KeySelector<Integer, Integer>() {
 					private static final long serialVersionUID = 1L;
 
@@ -417,8 +415,8 @@ public class GroupedWindowingInvokableTest {
 				}, distributedTriggers, evictions, triggers);
 
 		ArrayList<Integer> result = new ArrayList<Integer>();
-		for (Tuple2<Integer, String[]> t : MockInvokable.createAndExecute(invokable, inputs)) {
-			result.add(t.f0);
+		for (Integer t : MockInvokable.createAndExecute(invokable, inputs)) {
+			result.add(t);
 		}
 
 		assertEquals(new HashSet<Integer>(expected), new HashSet<Integer>(result));

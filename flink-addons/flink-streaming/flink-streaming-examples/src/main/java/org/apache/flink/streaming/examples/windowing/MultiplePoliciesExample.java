@@ -17,16 +17,12 @@
 
 package org.apache.flink.streaming.examples.windowing;
 
-import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.source.SourceFunction;
-import org.apache.flink.streaming.api.windowing.policy.CountTriggerPolicy;
-import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
+import org.apache.flink.streaming.api.windowing.helper.Count;
 import org.apache.flink.util.Collector;
-
-import java.util.LinkedList;
 
 /**
  * This example uses count based tumbling windowing with multiple eviction
@@ -34,18 +30,14 @@ import java.util.LinkedList;
  */
 public class MultiplePoliciesExample {
 
-	private static final int PARALLELISM = 1;
+	private static final int PARALLELISM = 2;
 
 	public static void main(String[] args) throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment
 				.createLocalEnvironment(PARALLELISM);
 
-		LinkedList<TriggerPolicy<String>> policies = new LinkedList<TriggerPolicy<String>>();
-		policies.add(new CountTriggerPolicy<String>(5));
-		policies.add(new CountTriggerPolicy<String>(8));
-
 		// This reduce function does a String concat.
-		ReduceFunction<String> reducer = new ReduceFunction<String>() {
+		GroupReduceFunction<String, String> reducer = new GroupReduceFunction<String, String>() {
 
 			/**
 			 * Auto generates version ID
@@ -53,14 +45,21 @@ public class MultiplePoliciesExample {
 			private static final long serialVersionUID = 1L;
 
 			@Override
-			public String reduce(String value1, String value2) throws Exception {
-				return value1 + "|" + value2;
+			public void reduce(Iterable<String> values, Collector<String> out) throws Exception {
+				String output = "|";
+				for (String v : values) {
+					output = output + v + "|";
+				}
+				out.collect(output);
 			}
 
 		};
 
-		DataStream<Tuple2<String, String[]>> stream = env.addSource(new BasicSource()).window(
-				policies, reducer);
+		DataStream<String> stream = env.addSource(new BasicSource())
+				.groupBy(0)
+				.window(Count.of(2))
+				.every(Count.of(3), Count.of(5))
+				.reduceGroup(reducer);
 
 		stream.print();
 
@@ -70,13 +69,16 @@ public class MultiplePoliciesExample {
 	public static class BasicSource implements SourceFunction<String> {
 
 		private static final long serialVersionUID = 1L;
-		String str = new String("streaming");
+
+		String str1 = new String("streaming");
+		String str2 = new String("flink");
 
 		@Override
 		public void invoke(Collector<String> out) throws Exception {
 			// continuous emit
 			while (true) {
-				out.collect(str);
+				out.collect(str1);
+				out.collect(str2);
 			}
 		}
 	}

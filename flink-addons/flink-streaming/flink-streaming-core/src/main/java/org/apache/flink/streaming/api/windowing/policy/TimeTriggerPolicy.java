@@ -41,9 +41,11 @@ public class TimeTriggerPolicy<DATA> implements ActiveTriggerPolicy<DATA>,
 	 */
 	private static final long serialVersionUID = -5122753802440196719L;
 
-	private long startTime;
-	private long granularity;
-	private TimeStamp<DATA> timestamp;
+	protected long startTime;
+	protected long granularity;
+	protected TimeStamp<DATA> timestamp;
+	protected long delay;
+
 	private Extractor<Long, DATA> longToDATAExtractor;
 
 	/**
@@ -54,8 +56,8 @@ public class TimeTriggerPolicy<DATA> implements ActiveTriggerPolicy<DATA>,
 	 * example, the policy will trigger at every second point in time.
 	 * 
 	 * @param granularity
-	 *            The granularity of the trigger. If this value is set to 2 the
-	 *            policy will trigger at every second time point
+	 *            The granularity of the trigger. If this value is set to x the
+	 *            policy will trigger at every x-th time point
 	 * @param timestamp
 	 *            The {@link TimeStamp} to measure the time with. This can be
 	 *            either user defined of provided by the API.
@@ -72,10 +74,10 @@ public class TimeTriggerPolicy<DATA> implements ActiveTriggerPolicy<DATA>,
 
 	/**
 	 * This is mostly the same as
-	 * {@link TimeTriggerPolicy#TimeTriggerPolicy(long, TimeStamp)}. In addition
-	 * to granularity and timestamp a delay can be specified for the first
-	 * trigger. If the start time given by the timestamp is x, the delay is y,
-	 * and the granularity is z, the first trigger will happen at x+y+z.
+	 * {@link TimeTriggerPolicy#TimeTriggerPolicy(long, TimeStamp)}. In
+	 * addition to granularity and timestamp a delay can be specified for the
+	 * first trigger. If the start time given by the timestamp is x, the delay
+	 * is y, and the granularity is z, the first trigger will happen at x+y+z.
 	 * 
 	 * @param granularity
 	 *            The granularity of the trigger. If this value is set to 2 the
@@ -98,21 +100,9 @@ public class TimeTriggerPolicy<DATA> implements ActiveTriggerPolicy<DATA>,
 		this.startTime = timestamp.getStartTime() + delay;
 		this.timestamp = timestamp;
 		this.granularity = granularity;
+		this.delay = delay;
 		this.longToDATAExtractor = timeWrapper;
-	}
 
-	@Override
-	public synchronized boolean notifyTrigger(DATA datapoint) {
-		long recordTime = timestamp.getTimestamp(datapoint);
-		// start time is included, but end time is excluded: >=
-		if (recordTime >= startTime + granularity) {
-			if (granularity != 0) {
-				startTime = recordTime - ((recordTime - startTime) % granularity);
-			}
-			return true;
-		} else {
-			return false;
-		}
 	}
 
 	/**
@@ -126,7 +116,8 @@ public class TimeTriggerPolicy<DATA> implements ActiveTriggerPolicy<DATA>,
 		// check if there is more then one window border missed
 		// use > here. In case >= would fit, the regular call will do the job.
 		while (timestamp.getTimestamp(datapoint) > startTime + granularity) {
-			fakeElements.add(longToDATAExtractor.extract(startTime += granularity));
+			startTime += granularity;
+			fakeElements.add(longToDATAExtractor.extract(startTime));
 		}
 		return (DATA[]) fakeElements.toArray();
 	}
@@ -162,7 +153,7 @@ public class TimeTriggerPolicy<DATA> implements ActiveTriggerPolicy<DATA>,
 
 		if (System.currentTimeMillis() >= startTime + granularity) {
 			startTime += granularity;
-			callback.sendFakeElement(longToDATAExtractor.extract(startTime += granularity));
+			callback.sendFakeElement(longToDATAExtractor.extract(startTime));
 		}
 
 	}
@@ -192,8 +183,22 @@ public class TimeTriggerPolicy<DATA> implements ActiveTriggerPolicy<DATA>,
 	}
 
 	@Override
+	public synchronized boolean notifyTrigger(DATA datapoint) {
+		long recordTime = timestamp.getTimestamp(datapoint);
+		// start time is included, but end time is excluded: >=
+		if (recordTime >= startTime + granularity) {
+			if (granularity != 0) {
+				startTime = recordTime - ((recordTime - startTime) % granularity);
+			}
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+	@Override
 	public TimeTriggerPolicy<DATA> clone() {
-		return new TimeTriggerPolicy<DATA>(granularity, timestamp, 0, longToDATAExtractor);
+		return new TimeTriggerPolicy<DATA>(granularity, timestamp, delay, longToDATAExtractor);
 	}
 
 }

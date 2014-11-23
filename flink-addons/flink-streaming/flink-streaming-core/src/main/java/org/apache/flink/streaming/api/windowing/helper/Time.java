@@ -20,10 +20,11 @@ package org.apache.flink.streaming.api.windowing.helper;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.flink.streaming.api.invokable.util.DefaultTimeStamp;
+import org.apache.flink.streaming.api.invokable.util.TimeStamp;
 import org.apache.flink.streaming.api.windowing.extractor.Extractor;
+import org.apache.flink.streaming.api.windowing.policy.TimeTriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.EvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TimeEvictionPolicy;
-import org.apache.flink.streaming.api.windowing.policy.TimeTriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
 
 /**
@@ -39,7 +40,9 @@ public class Time<DATA> implements WindowingHelper<DATA> {
 
 	private int timeVal;
 	private TimeUnit granularity;
-	private Extractor<Long, DATA> timeToData;
+	private Extractor<Long, DATA> longToDATAExtractor;
+	private TimeStamp<DATA> timeStamp;
+	private long delay;
 
 	/**
 	 * Creates an helper representing a trigger which triggers every given
@@ -47,50 +50,29 @@ public class Time<DATA> implements WindowingHelper<DATA> {
 	 * 
 	 * @param timeVal
 	 *            The number of time units
-	 * @param granularity
+	 * @param timeUnit
 	 *            The unit of time such as minute oder millisecond. Note that
 	 *            the smallest possible granularity is milliseconds. Any smaller
 	 *            time unit might cause an error at runtime due to conversion
 	 *            problems.
-	 * @param timeToData
-	 *            This policy creates fake elements to not miss windows in case
-	 *            no element arrived within the duration of the window. This
-	 *            extractor should wrap a long into such an element of type
-	 *            DATA.
 	 */
-	public Time(int timeVal, TimeUnit granularity, Extractor<Long, DATA> timeToData) {
+	private Time(int timeVal, TimeUnit timeUnit) {
 		this.timeVal = timeVal;
-		this.granularity = granularity;
-		this.timeToData = timeToData;
-	}
-
-	/**
-	 * Creates an helper representing a trigger which triggers every given
-	 * timeVal or an eviction which evicts all elements older than timeVal.
-	 * 
-	 * The default granularity for timeVal used in this method is seconds.
-	 * 
-	 * @param timeVal
-	 *            The number of time units measured in seconds.
-	 * @param timeToData
-	 *            This policy creates fake elements to not miss windows in case
-	 *            no element arrived within the duration of the window. This
-	 *            extractor should wrap a long into such an element of type
-	 *            DATA.
-	 */
-	public Time(int timeVal, Extractor<Long, DATA> timeToData) {
-		this(timeVal, TimeUnit.SECONDS, timeToData);
+		this.granularity = timeUnit;
+		this.longToDATAExtractor = new NullExtractor<DATA>();
+		this.timeStamp = new DefaultTimeStamp<DATA>();
+		this.delay = 0;
 	}
 
 	@Override
 	public EvictionPolicy<DATA> toEvict() {
-		return new TimeEvictionPolicy<DATA>(granularityInMillis(), new DefaultTimeStamp<DATA>());
+		return new TimeEvictionPolicy<DATA>(granularityInMillis(), timeStamp);
 	}
 
 	@Override
 	public TriggerPolicy<DATA> toTrigger() {
-		return new TimeTriggerPolicy<DATA>(granularityInMillis(), new DefaultTimeStamp<DATA>(),
-				timeToData);
+		return new TimeTriggerPolicy<DATA>(granularityInMillis(), timeStamp, delay,
+				longToDATAExtractor);
 	}
 
 	/**
@@ -104,22 +86,39 @@ public class Time<DATA> implements WindowingHelper<DATA> {
 	 *            the smallest possible granularity is milliseconds. Any smaller
 	 *            time unit might cause an error at runtime due to conversion
 	 *            problems.
-	 * @param timeToData
-	 *            This policy creates fake elements to not miss windows in case
-	 *            no element arrived within the duration of the window. This
-	 *            extractor should wrap a long into such an element of type
-	 *            DATA.
 	 * @return an helper representing a trigger which triggers every given
 	 *         timeVal or an eviction which evicts all elements older than
 	 *         timeVal.
 	 */
-	public static <DATA> Time<DATA> of(int timeVal, TimeUnit granularity,
-			Extractor<Long, DATA> timeToData) {
-		return new Time<DATA>(timeVal, granularity, timeToData);
+	public static <DATA> Time<DATA> of(int timeVal, TimeUnit granularity) {
+		return new Time<DATA>(timeVal, granularity);
+	}
+
+	@SuppressWarnings("unchecked")
+	public <R> Time<R> withTimeStamp(TimeStamp<R> timeStamp, Extractor<Long, R> extractor) {
+		this.timeStamp = (TimeStamp<DATA>) timeStamp;
+		this.longToDATAExtractor = (Extractor<Long, DATA>) extractor;
+		return (Time<R>) this;
+	}
+
+	public Time<DATA> withDelay(long delay) {
+		this.delay = delay;
+		return this;
 	}
 
 	private long granularityInMillis() {
 		return this.granularity.toMillis(this.timeVal);
+	}
+
+	public static class NullExtractor<T> implements Extractor<Long, T> {
+
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public T extract(Long in) {
+			return null;
+		}
+
 	}
 
 }

@@ -17,8 +17,12 @@
 
 package org.apache.flink.streaming.api.invokable.operator;
 
+import java.util.LinkedList;
+import java.util.List;
+import java.util.NoSuchElementException;
+
+import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
 import org.apache.flink.streaming.api.windowing.policy.ActiveEvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.ActiveTriggerCallback;
@@ -28,12 +32,7 @@ import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.NoSuchElementException;
-
-public class WindowingInvokable<IN> extends StreamInvokable<IN, Tuple2<IN, String[]>> {
+public abstract class WindowingInvokable<IN, OUT> extends StreamInvokable<IN, OUT> {
 
 	/**
 	 * Auto-generated serial version UID
@@ -47,9 +46,8 @@ public class WindowingInvokable<IN> extends StreamInvokable<IN, Tuple2<IN, Strin
 	private LinkedList<ActiveTriggerPolicy<IN>> activeTriggerPolicies;
 	private LinkedList<ActiveEvictionPolicy<IN>> activeEvictionPolicies;
 	private LinkedList<Thread> activePolicyTreads = new LinkedList<Thread>();
-	private LinkedList<IN> buffer = new LinkedList<IN>();
+	protected LinkedList<IN> buffer = new LinkedList<IN>();
 	private LinkedList<TriggerPolicy<IN>> currentTriggerPolicies = new LinkedList<TriggerPolicy<IN>>();
-	private ReduceFunction<IN> reducer;
 
 	/**
 	 * This constructor created a windowing invokable using trigger and eviction
@@ -64,12 +62,10 @@ public class WindowingInvokable<IN> extends StreamInvokable<IN, Tuple2<IN, Strin
 	 *            A list of {@link EvictionPolicy}s and/or
 	 *            {@link ActiveEvictionPolicy}s
 	 */
-	public WindowingInvokable(ReduceFunction<IN> userFunction,
-			LinkedList<TriggerPolicy<IN>> triggerPolicies,
+	public WindowingInvokable(Function userFunction, LinkedList<TriggerPolicy<IN>> triggerPolicies,
 			LinkedList<EvictionPolicy<IN>> evictionPolicies) {
 		super(userFunction);
 
-		this.reducer = userFunction;
 		this.triggerPolicies = triggerPolicies;
 		this.evictionPolicies = evictionPolicies;
 
@@ -366,30 +362,6 @@ public class WindowingInvokable<IN> extends StreamInvokable<IN, Tuple2<IN, Strin
 			}
 
 			callUserFunctionAndLogException();
-		}
-	}
-
-	@Override
-	protected void callUserFunction() throws Exception {
-		Iterator<IN> reducedIterator = buffer.iterator();
-		IN reduced = null;
-
-		while (reducedIterator.hasNext() && reduced == null) {
-			reduced = reducedIterator.next();
-		}
-
-		while (reducedIterator.hasNext()) {
-			IN next = reducedIterator.next();
-			if (next != null) {
-				reduced = reducer.reduce(reduced, next);
-			}
-		}
-		if (reduced != null) {
-			String[] tmp = new String[currentTriggerPolicies.size()];
-			for (int i = 0; i < tmp.length; i++) {
-				tmp[i] = currentTriggerPolicies.get(i).toString();
-			}
-			collector.collect(new Tuple2<IN, String[]>(reduced, tmp));
 		}
 	}
 

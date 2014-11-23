@@ -663,7 +663,6 @@ public class DataStream<OUT> {
 		return new GroupedDataStream<OUT>(this, keySelector);
 	}
 
-
 	/**
 	 * This allows you to set up windowing through a nice API using
 	 * {@link WindowingHelper} such as {@link Time}, {@link Count} and
@@ -677,101 +676,6 @@ public class DataStream<OUT> {
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public WindowedDataStream<OUT> window(WindowingHelper... policyHelpers) {
 		return new WindowedDataStream<OUT>(this, policyHelpers);
-	}
-	
-	/**
-	 * Collects the data stream elements into sliding batches creating a new
-	 * {@link BatchedDataStream}. The user can apply transformations like
-	 * {@link BatchedDataStream#reduce}, {@link BatchedDataStream#reduceGroup}
-	 * or aggregations on the {@link BatchedDataStream}.
-	 * 
-	 * @param batchSize
-	 *            The number of elements in each batch at each operator
-	 * @param slideSize
-	 *            The number of elements with which the batches are slid by
-	 *            after each transformation.
-	 * @return The transformed {@link DataStream}
-	 */
-	public BatchedDataStream<OUT> batch(long batchSize, long slideSize) {
-		if (batchSize < 1) {
-			throw new IllegalArgumentException("Batch size must be positive");
-		}
-		if (slideSize < 1) {
-			throw new IllegalArgumentException("Slide size must be positive");
-		}
-		return new BatchedDataStream<OUT>(this, batchSize, slideSize);
-	}
-
-	/**
-	 * Collects the data stream elements into sliding batches creating a new
-	 * {@link BatchedDataStream}. The user can apply transformations like
-	 * {@link BatchedDataStream#reduce}, {@link BatchedDataStream#reduceGroup}
-	 * or aggregations on the {@link BatchedDataStream}.
-	 * 
-	 * @param batchSize
-	 *            The number of elements in each batch at each operator
-	 * @return The transformed {@link DataStream}
-	 */
-	public BatchedDataStream<OUT> batch(long batchSize) {
-		return batch(batchSize, batchSize);
-	}
-
-	/**
-	 * Collects the data stream elements into sliding windows creating a new
-	 * {@link WindowDataStream}. The user can apply transformations like
-	 * {@link WindowDataStream#reduce}, {@link WindowDataStream#reduceGroup} or
-	 * aggregations on the {@link WindowDataStream}.
-	 * 
-	 * @param windowSize
-	 *            The length of the window in milliseconds.
-	 * @param slideInterval
-	 *            The number of milliseconds with which the windows are slid by
-	 *            after each transformation.
-	 * @param timestamp
-	 *            User defined function for extracting time-stamps from each
-	 *            element
-	 * @return The transformed {@link DataStream}
-	 */
-	public WindowDataStream<OUT> window(long windowSize, long slideInterval,
-			TimeStamp<OUT> timestamp) {
-		if (windowSize < 1) {
-			throw new IllegalArgumentException("Window size must be positive");
-		}
-		if (slideInterval < 1) {
-			throw new IllegalArgumentException("Slide interval must be positive");
-		}
-		return new WindowDataStream<OUT>(this, windowSize, slideInterval, timestamp);
-	}
-
-	/**
-	 * Collects the data stream elements into sliding windows creating a new
-	 * {@link WindowDataStream}. The user can apply transformations like
-	 * {@link WindowDataStream#reduce}, {@link WindowDataStream#reduceGroup} or
-	 * aggregations on the {@link WindowDataStream}.
-	 * 
-	 * @param windowSize
-	 *            The length of the window in milliseconds.
-	 * @param slideInterval
-	 *            The number of milliseconds with which the windows are slid by
-	 *            after each transformation.
-	 * @return The transformed {@link DataStream}
-	 */
-	public WindowDataStream<OUT> window(long windowSize, long slideInterval) {
-		return window(windowSize, slideInterval, new DefaultTimeStamp<OUT>());
-	}
-
-	/**
-	 * Collects the data stream elements into sliding windows creating a new
-	 * {@link WindowDataStream}. The user can apply transformations like
-	 * {@link WindowDataStream#reduce}, {@link WindowDataStream#reduceGroup} or
-	 * aggregations on the {@link WindowDataStream}.
-	 * 
-	 * @param windowSize
-	 *            The length of the window in milliseconds.
-	 * @return The transformed {@link DataStream}
-	 */
-	public WindowDataStream<OUT> window(long windowSize) {
-		return window(windowSize, windowSize);
 	}
 
 	/**
