@@ -15,11 +15,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.examples.wordcount;
+package org.apache.flink.streaming.examples.socket;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.examples.wordcount.WordCount.Tokenizer;
 
 /**
  * This example shows an implementation of WordCount with data from socket.
@@ -50,7 +51,7 @@ public class SocketTextStreamWordCount {
 
 		DataStream<Tuple2<String, Integer>> counts =
 		// split up the lines in pairs (2-tuples) containing: (word,1)
-		text.flatMap(new WordCount.Tokenizer())
+		text.flatMap(new Tokenizer())
 		// group by the tuple field "0" and sum up tuple field "1"
 			.groupBy(0).sum(1);
 

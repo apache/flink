@@ -280,7 +280,20 @@ public abstract class StreamExecutionEnvironment {
 	public DataStreamSource<String> socketTextStream(String hostname, int port, char delimiter) {
 		return addSource(new SocketTextStreamFunction(hostname, port, delimiter));
 	}
-
+	
+	
+	/**
+	 * Creates a new DataStream that contains the strings received infinitely
+	 * from socket. Received strings are decoded by the system's default
+	 * character set, uses '\n' as delimiter.
+	 *
+	 * @param hostname
+	 *            The host name which a server socket bind.
+	 * @param port
+	 * 			  The port number which a server socket bind. A port number of
+	 * 			  0 means that the port number is automatically allocated.
+	 * @return A DataStream, containing the strings received from socket.
+	 */
 	public DataStreamSource<String> socketTextStream(String hostname, int port) {
 		return socketTextStream(hostname, port, '\n');
 	}
