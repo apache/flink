@@ -30,6 +30,7 @@ import org.apache.flink.client.program.ContextEnvironment;
 import org.apache.flink.streaming.api.JobGraphBuilder;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
+import org.apache.flink.streaming.api.function.source.SocketTextStreamFunction;
 import org.apache.flink.streaming.api.function.source.FileSourceFunction;
 import org.apache.flink.streaming.api.function.source.FileStreamFunction;
 import org.apache.flink.streaming.api.function.source.FromElementsFunction;
@@ -260,6 +261,28 @@ public abstract class StreamExecutionEnvironment {
 		}
 
 		return returnStream;
+	}
+
+	/**
+	 * Creates a new DataStream that contains the strings received infinitely
+	 * from socket. Received strings are decoded by the system's default
+	 * character set.
+	 *
+	 * @param hostname
+	 *            The host name which a server socket bind.
+	 * @param port
+	 * 			  The port number which a server socket bind. A port number of
+	 * 			  0 means that the port number is automatically allocated.
+	 * @param delimiter
+	 * 			  A character which split received strings into records.
+	 * @return A DataStream, containing the strings received from socket.
+	 */
+	public DataStreamSource<String> socketTextStream(String hostname, int port, char delimiter) {
+		return addSource(new SocketTextStreamFunction(hostname, port, delimiter));
+	}
+
+	public DataStreamSource<String> socketTextStream(String hostname, int port) {
+		return socketTextStream(hostname, port, '\n');
 	}
 
 	/**
