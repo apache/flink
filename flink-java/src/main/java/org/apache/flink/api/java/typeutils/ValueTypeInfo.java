@@ -117,11 +117,7 @@ public class ValueTypeInfo<T extends Value> extends TypeInformation<T> implement
 	
 	@Override
 	public boolean equals(Object obj) {
-		if (obj.getClass() == ValueTypeInfo.class) {
-			return type == ((ValueTypeInfo<?>) obj).type;
-		} else {
-			return false;
-		}
+		return obj.getClass() == ValueTypeInfo.class && type == ((ValueTypeInfo<?>) obj).type;
 	}
 	
 	@Override
@@ -131,7 +127,7 @@ public class ValueTypeInfo<T extends Value> extends TypeInformation<T> implement
 	
 	// --------------------------------------------------------------------------------------------
 	
-	static final <X extends Value> TypeInformation<X> getValueTypeInfo(Class<X> typeClass) {
+	static <X extends Value> TypeInformation<X> getValueTypeInfo(Class<X> typeClass) {
 		if (Value.class.isAssignableFrom(typeClass) && !typeClass.equals(Value.class)) {
 			return new ValueTypeInfo<X>(typeClass);
 		}

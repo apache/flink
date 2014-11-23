@@ -107,11 +107,8 @@ public class GenericTypeInfo<T> extends TypeInformation<T> implements AtomicType
 
 	@Override
 	public boolean equals(Object obj) {
-		if (obj.getClass() == GenericTypeInfo.class) {
-			return typeClass == ((GenericTypeInfo<?>) obj).typeClass;
-		} else {
-			return false;
-		}
+		return obj.getClass() == GenericTypeInfo.class &&
+				typeClass == ((GenericTypeInfo<?>) obj).typeClass;
 	}
 	
 	@Override

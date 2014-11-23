@@ -119,7 +119,7 @@ public final class TupleTypeInfo<T extends Tuple> extends TupleTypeInfoBase<T> {
 	
 	@Override
 	public int hashCode() {
-		return this.types.hashCode() ^ Arrays.deepHashCode(this.types);
+		return Arrays.hashCode(this.types) ^ Arrays.deepHashCode(this.types);
 	}
 	
 	@Override

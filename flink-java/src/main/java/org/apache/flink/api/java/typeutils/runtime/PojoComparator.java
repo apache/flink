@@ -180,11 +180,11 @@ public final class PojoComparator<T> extends CompositeTypeComparator<T> implemen
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Override
 	public void getFlatComparator(List<TypeComparator> flatComparators) {
-		for(int i = 0; i < comparators.length; i++) {
-			if(comparators[i] instanceof CompositeTypeComparator) {
-				((CompositeTypeComparator)comparators[i]).getFlatComparator(flatComparators);
+		for (TypeComparator<Object> comparator : comparators) {
+			if (comparator instanceof CompositeTypeComparator) {
+				((CompositeTypeComparator) comparator).getFlatComparator(flatComparators);
 			} else {
-				flatComparators.add(comparators[i]);
+				flatComparators.add(comparator);
 			}
 		}
 	}

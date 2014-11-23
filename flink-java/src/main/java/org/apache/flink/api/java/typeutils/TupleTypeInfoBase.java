@@ -75,7 +75,7 @@ public abstract class TupleTypeInfoBase<T> extends CompositeType<T> {
 	/**
 	 * Recursively add all fields in this tuple type. We need this in particular to get all
 	 * the types.
-	 * @param keyId
+	 * @param startKeyId
 	 * @param keyFields
 	 */
 	public void addAllFields(int startKeyId, List<FlatFieldDescriptor> keyFields) {
@@ -129,7 +129,7 @@ public abstract class TupleTypeInfoBase<T> extends CompositeType<T> {
 		if(!StringUtils.isNumeric(fieldNumStr)) {
 			throw new IllegalArgumentException("The field expression '"+fieldExpression+"' is incorrect. Field number '"+fieldNumStr+" is not numeric");
 		}
-		int pos = -1;
+		int pos;
 		try {
 			pos = Integer.valueOf(fieldNumStr);
 		} catch(NumberFormatException nfe) {
@@ -198,7 +198,7 @@ public abstract class TupleTypeInfoBase<T> extends CompositeType<T> {
 	
 	@Override
 	public int hashCode() {
-		return this.types.hashCode() ^ Arrays.deepHashCode(this.types);
+		return Arrays.hashCode(this.types) ^ Arrays.deepHashCode(this.types);
 	}
 
 	private boolean isValidKeyType(TypeInformation<?> typeInfo) {
