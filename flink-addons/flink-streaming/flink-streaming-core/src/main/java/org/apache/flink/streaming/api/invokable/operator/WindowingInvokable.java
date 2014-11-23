@@ -101,7 +101,7 @@ public abstract class WindowingInvokable<IN, OUT> extends StreamInvokable<IN, OU
 	 * This class allows the active trigger threads to call back and push fake
 	 * elements at any time.
 	 */
-	private class WindowingCallback implements ActiveTriggerCallback<IN> {
+	private class WindowingCallback implements ActiveTriggerCallback {
 		private ActiveTriggerPolicy<IN> policy;
 
 		public WindowingCallback(ActiveTriggerPolicy<IN> policy) {
@@ -109,7 +109,7 @@ public abstract class WindowingInvokable<IN, OUT> extends StreamInvokable<IN, OU
 		}
 
 		@Override
-		public void sendFakeElement(IN datapoint) {
+		public void sendFakeElement(Object datapoint) {
 			processFakeElement(datapoint, this.policy);
 		}
 
@@ -215,7 +215,7 @@ public abstract class WindowingInvokable<IN, OUT> extends StreamInvokable<IN, OU
 	 * @param currentPolicy
 	 *            the policy which produced this fake element
 	 */
-	protected synchronized void processFakeElement(IN input, TriggerPolicy<IN> currentPolicy) {
+	protected synchronized void processFakeElement(Object input, TriggerPolicy<IN> currentPolicy) {
 
 		// Process the evictions and take care of double evictions
 		// In case there are multiple eviction policies present,
@@ -283,8 +283,8 @@ public abstract class WindowingInvokable<IN, OUT> extends StreamInvokable<IN, OU
 			// of the different fake elements returned by this triggers becomes
 			// a problem. This might lead to unexpected results...
 			// Should we limit the number of active triggers to 0 or 1?
-			IN[] result = trigger.preNotifyTrigger(input);
-			for (IN in : result) {
+			Object[] result = trigger.preNotifyTrigger(input);
+			for (Object in : result) {
 				processFakeElement(in, trigger);
 			}
 		}

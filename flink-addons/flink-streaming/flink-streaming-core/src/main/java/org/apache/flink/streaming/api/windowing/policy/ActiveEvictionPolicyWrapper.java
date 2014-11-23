@@ -55,9 +55,10 @@ public class ActiveEvictionPolicyWrapper<DATA> implements ActiveEvictionPolicy<D
 		return nestedPolicy.notifyEviction(datapoint, triggered, bufferSize);
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
-	public int notifyEvictionWithFakeElement(DATA datapoint, int bufferSize) {
-		return nestedPolicy.notifyEviction(datapoint, true, bufferSize);
+	public int notifyEvictionWithFakeElement(Object datapoint, int bufferSize) {
+		return nestedPolicy.notifyEviction((DATA) datapoint, true, bufferSize);
 	}
 
 }

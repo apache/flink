@@ -22,8 +22,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import org.apache.flink.streaming.api.invokable.util.TimeStamp;
-import org.apache.flink.streaming.api.windowing.extractor.Extractor;
-import org.apache.flink.streaming.api.windowing.helper.Time;
 import org.junit.Test;
 
 public class TimeTriggerPolicyTest {
@@ -53,7 +51,7 @@ public class TimeTriggerPolicyTest {
 		for (long granularity = 0; granularity < 31; granularity++) {
 			// create policy
 			TriggerPolicy<Integer> policy = new TimeTriggerPolicy<Integer>(granularity,
-					timeStamp, new Time.NullExtractor<Integer>());
+					timeStamp);
 
 			// remember window border
 			// Remark: This might NOT work in case the timeStamp uses
@@ -104,18 +102,10 @@ public class TimeTriggerPolicyTest {
 
 		// create policy
 		TimeTriggerPolicy<Integer> policy = new TimeTriggerPolicy<Integer>(5,
-				timeStamp, new Extractor<Long, Integer>() {
-
-					private static final long serialVersionUID = 1L;
-
-					@Override
-					public Integer extract(Long in) {
-						return in.intValue();
-					}
-				});
+				timeStamp);
 
 		// expected result
-		Integer[][] result = { {}, {}, { 5, 10, 15 }, { 25 } };
+		Long[][] result = { {}, {}, { 5L, 10L, 15L }, { 25L } };
 
 		// call policy
 		for (int i = 0; i < times.length; i++) {

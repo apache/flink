@@ -40,7 +40,6 @@ public class Time<DATA> implements WindowingHelper<DATA> {
 
 	private int timeVal;
 	private TimeUnit granularity;
-	private Extractor<Long, DATA> longToDATAExtractor;
 	private TimeStamp<DATA> timeStamp;
 	private long delay;
 
@@ -59,7 +58,6 @@ public class Time<DATA> implements WindowingHelper<DATA> {
 	private Time(int timeVal, TimeUnit timeUnit) {
 		this.timeVal = timeVal;
 		this.granularity = timeUnit;
-		this.longToDATAExtractor = new NullExtractor<DATA>();
 		this.timeStamp = new DefaultTimeStamp<DATA>();
 		this.delay = 0;
 	}
@@ -71,8 +69,7 @@ public class Time<DATA> implements WindowingHelper<DATA> {
 
 	@Override
 	public TriggerPolicy<DATA> toTrigger() {
-		return new TimeTriggerPolicy<DATA>(granularityInMillis(), timeStamp, delay,
-				longToDATAExtractor);
+		return new TimeTriggerPolicy<DATA>(granularityInMillis(), timeStamp, delay);
 	}
 
 	/**
@@ -95,9 +92,8 @@ public class Time<DATA> implements WindowingHelper<DATA> {
 	}
 
 	@SuppressWarnings("unchecked")
-	public <R> Time<R> withTimeStamp(TimeStamp<R> timeStamp, Extractor<Long, R> extractor) {
+	public <R> Time<R> withTimeStamp(TimeStamp<R> timeStamp) {
 		this.timeStamp = (TimeStamp<DATA>) timeStamp;
-		this.longToDATAExtractor = (Extractor<Long, DATA>) extractor;
 		return (Time<R>) this;
 	}
 

@@ -47,6 +47,6 @@ public interface ActiveEvictionPolicy<DATA> extends EvictionPolicy<DATA> {
 	 * @return the number of elements to delete from the buffer (only real
 	 *         elements are counted)
 	 */
-	public int notifyEvictionWithFakeElement(DATA datapoint, int bufferSize);
+	public int notifyEvictionWithFakeElement(Object datapoint, int bufferSize);
 
 }

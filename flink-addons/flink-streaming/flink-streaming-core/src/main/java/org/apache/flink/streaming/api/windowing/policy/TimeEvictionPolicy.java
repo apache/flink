@@ -69,25 +69,49 @@ public class TimeEvictionPolicy<DATA> implements ActiveEvictionPolicy<DATA>,
 		this.granularity = granularity;
 	}
 
+	@SuppressWarnings("unchecked")
+	@Override
+	public int notifyEvictionWithFakeElement(Object datapoint, int bufferSize) {
+		checkForDeleted(bufferSize);
+
+		long threshold;
+		try {
+			threshold = (Long) datapoint - granularity;
+		} catch (ClassCastException e) {
+			threshold = timestamp.getTimestamp((DATA) datapoint) - granularity;
+		}
+
+		// return result
+		return deleteAndCountExpired(threshold);
+
+	}
+
 	@Override
 	public int notifyEviction(DATA datapoint, boolean triggered, int bufferSize) {
-		return notifyEviction(datapoint, triggered, bufferSize, false);
+
+		checkForDeleted(bufferSize);
+
+		// delete and count expired tuples
+		long threshold = timestamp.getTimestamp(datapoint) - granularity;
+		int counter = deleteAndCountExpired(threshold);
+
+		// Add current element to buffer
+		buffer.add(datapoint);
+
+		// return result
+		return counter;
+
 	}
 
-	@Override
-	public int notifyEvictionWithFakeElement(DATA datapoint, int bufferSize) {
-		return notifyEviction(datapoint, true, bufferSize, true);
-	}
-
-	private int notifyEviction(DATA datapoint, boolean triggered, int bufferSize, boolean isFake) {
+	private void checkForDeleted(int bufferSize) {
 		// check for deleted tuples (deletes by other policies)
 		while (bufferSize < this.buffer.size()) {
 			this.buffer.removeFirst();
 		}
+	}
 
-		// delete and count expired tuples
+	private int deleteAndCountExpired(long threshold) {
 		int counter = 0;
-		long threshold = timestamp.getTimestamp(datapoint) - granularity;
 		while (!buffer.isEmpty()) {
 
 			if (timestamp.getTimestamp(buffer.getFirst()) < threshold) {
@@ -97,14 +121,8 @@ public class TimeEvictionPolicy<DATA> implements ActiveEvictionPolicy<DATA>,
 				break;
 			}
 		}
-
-		if (!isFake) {
-			// Add current element to buffer
-			buffer.add(datapoint);
-		}
-
-		// return result
 		return counter;
+
 	}
 
 	@Override

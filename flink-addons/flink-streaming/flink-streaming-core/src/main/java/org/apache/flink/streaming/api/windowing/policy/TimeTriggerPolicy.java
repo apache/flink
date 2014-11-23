@@ -21,7 +21,6 @@ import java.util.LinkedList;
 
 import org.apache.flink.streaming.api.invokable.util.DefaultTimeStamp;
 import org.apache.flink.streaming.api.invokable.util.TimeStamp;
-import org.apache.flink.streaming.api.windowing.extractor.Extractor;
 
 /**
  * This trigger policy triggers with regard to the time. The is measured using a
@@ -46,8 +45,6 @@ public class TimeTriggerPolicy<DATA> implements ActiveTriggerPolicy<DATA>,
 	protected TimeStamp<DATA> timestamp;
 	protected long delay;
 
-	private Extractor<Long, DATA> longToDATAExtractor;
-
 	/**
 	 * This trigger policy triggers with regard to the time. The is measured
 	 * using a given {@link TimeStamp} implementation. A point in time is always
@@ -67,17 +64,16 @@ public class TimeTriggerPolicy<DATA> implements ActiveTriggerPolicy<DATA>,
 	 *            extractor should wrap a long into such an element of type
 	 *            DATA.
 	 */
-	public TimeTriggerPolicy(long granularity, TimeStamp<DATA> timestamp,
-			Extractor<Long, DATA> timeWrapper) {
-		this(granularity, timestamp, 0, timeWrapper);
+	public TimeTriggerPolicy(long granularity, TimeStamp<DATA> timestamp) {
+		this(granularity, timestamp, 0);
 	}
 
 	/**
 	 * This is mostly the same as
-	 * {@link TimeTriggerPolicy#TimeTriggerPolicy(long, TimeStamp)}. In
-	 * addition to granularity and timestamp a delay can be specified for the
-	 * first trigger. If the start time given by the timestamp is x, the delay
-	 * is y, and the granularity is z, the first trigger will happen at x+y+z.
+	 * {@link TimeTriggerPolicy#TimeTriggerPolicy(long, TimeStamp)}. In addition
+	 * to granularity and timestamp a delay can be specified for the first
+	 * trigger. If the start time given by the timestamp is x, the delay is y,
+	 * and the granularity is z, the first trigger will happen at x+y+z.
 	 * 
 	 * @param granularity
 	 *            The granularity of the trigger. If this value is set to 2 the
@@ -95,31 +91,27 @@ public class TimeTriggerPolicy<DATA> implements ActiveTriggerPolicy<DATA>,
 	 *            extractor should wrap a long into such an element of type
 	 *            DATA.
 	 */
-	public TimeTriggerPolicy(long granularity, TimeStamp<DATA> timestamp, long delay,
-			Extractor<Long, DATA> timeWrapper) {
+	public TimeTriggerPolicy(long granularity, TimeStamp<DATA> timestamp, long delay) {
 		this.startTime = timestamp.getStartTime() + delay;
 		this.timestamp = timestamp;
 		this.granularity = granularity;
 		this.delay = delay;
-		this.longToDATAExtractor = timeWrapper;
-
 	}
 
 	/**
 	 * This method checks if we missed a window end. If this is the case we
 	 * trigger the missed windows using fake elements.
 	 */
-	@SuppressWarnings("unchecked")
 	@Override
-	public synchronized DATA[] preNotifyTrigger(DATA datapoint) {
-		LinkedList<DATA> fakeElements = new LinkedList<DATA>();
+	public synchronized Object[] preNotifyTrigger(DATA datapoint) {
+		LinkedList<Object> fakeElements = new LinkedList<Object>();
 		// check if there is more then one window border missed
 		// use > here. In case >= would fit, the regular call will do the job.
 		while (timestamp.getTimestamp(datapoint) > startTime + granularity) {
 			startTime += granularity;
-			fakeElements.add(longToDATAExtractor.extract(startTime));
+			fakeElements.add(startTime);
 		}
-		return (DATA[]) fakeElements.toArray();
+		return (Object[]) fakeElements.toArray();
 	}
 
 	/**
@@ -134,7 +126,7 @@ public class TimeTriggerPolicy<DATA> implements ActiveTriggerPolicy<DATA>,
 	 *         time. If any other time measure is used the method return null.
 	 */
 	@Override
-	public Runnable createActiveTriggerRunnable(ActiveTriggerCallback<DATA> callback) {
+	public Runnable createActiveTriggerRunnable(ActiveTriggerCallback callback) {
 		if (this.timestamp instanceof DefaultTimeStamp) {
 			return new TimeCheck(callback);
 		} else {
@@ -149,19 +141,19 @@ public class TimeTriggerPolicy<DATA> implements ActiveTriggerPolicy<DATA>,
 	 * @param callback
 	 *            The callback object.
 	 */
-	private synchronized void activeFakeElementEmission(ActiveTriggerCallback<DATA> callback) {
+	private synchronized void activeFakeElementEmission(ActiveTriggerCallback callback) {
 
 		if (System.currentTimeMillis() >= startTime + granularity) {
 			startTime += granularity;
-			callback.sendFakeElement(longToDATAExtractor.extract(startTime));
+			callback.sendFakeElement(startTime);
 		}
 
 	}
 
 	private class TimeCheck implements Runnable {
-		ActiveTriggerCallback<DATA> callback;
+		ActiveTriggerCallback callback;
 
-		public TimeCheck(ActiveTriggerCallback<DATA> callback) {
+		public TimeCheck(ActiveTriggerCallback callback) {
 			this.callback = callback;
 		}
 
@@ -198,7 +190,7 @@ public class TimeTriggerPolicy<DATA> implements ActiveTriggerPolicy<DATA>,
 
 	@Override
 	public TimeTriggerPolicy<DATA> clone() {
-		return new TimeTriggerPolicy<DATA>(granularity, timestamp, delay, longToDATAExtractor);
+		return new TimeTriggerPolicy<DATA>(granularity, timestamp, delay);
 	}
 
 }

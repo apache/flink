@@ -24,12 +24,12 @@ import org.apache.flink.streaming.api.invokable.util.TimeStamp;
  * for active triggers. Active triggers can act in two ways:
  * 
  * 1) Whenever an element arrives at the invokable, the
- * {@link ActiveTriggerPolicy#preNotifyTrigger(Object)} method gets called first.
- * It can return zero ore more fake data points which will be added before the
- * the currently arrived real element gets processed. This allows to handle
- * empty windows in time based windowing with an user defined {@link TimeStamp}.
- * Triggers are not called on fake datapoint. A fake datapoint is always
- * considered as triggered.
+ * {@link ActiveTriggerPolicy#preNotifyTrigger(Object)} method gets called
+ * first. It can return zero ore more fake data points which will be added
+ * before the the currently arrived real element gets processed. This allows to
+ * handle empty windows in time based windowing with an user defined
+ * {@link TimeStamp}. Triggers are not called on fake datapoint. A fake
+ * datapoint is always considered as triggered.
  * 
  * 2) An active trigger has a factory method for a runnable. This factory method
  * gets called at the start up of the invokable. The returned runnable will be
@@ -57,7 +57,7 @@ public interface ActiveTriggerPolicy<DATA> extends TriggerPolicy<DATA> {
 	 * @return zero ore more fake data points which will be added before the the
 	 *         currently arrived real element gets processed.
 	 */
-	public DATA[] preNotifyTrigger(DATA datapoint);
+	public Object[] preNotifyTrigger(DATA datapoint);
 
 	/**
 	 * This is the factory method for a runnable. This factory method gets
@@ -76,6 +76,6 @@ public interface ActiveTriggerPolicy<DATA> extends TriggerPolicy<DATA> {
 	 *         executed as an own thread and can submit fake elements, to the
 	 *         element buffer at any time.
 	 */
-	public Runnable createActiveTriggerRunnable(ActiveTriggerCallback<DATA> callback);
+	public Runnable createActiveTriggerRunnable(ActiveTriggerCallback callback);
 
 }

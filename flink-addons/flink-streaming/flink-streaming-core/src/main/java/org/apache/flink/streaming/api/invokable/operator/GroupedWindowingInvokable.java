@@ -138,8 +138,7 @@ public class GroupedWindowingInvokable<IN, OUT> extends StreamInvokable<IN, OUT>
 	 *            If only one element is contained a group, this element itself
 	 *            is returned as aggregated result.)
 	 */
-	public GroupedWindowingInvokable(Function userFunction,
-			KeySelector<IN, ?> keySelector,
+	public GroupedWindowingInvokable(Function userFunction, KeySelector<IN, ?> keySelector,
 			LinkedList<CloneableTriggerPolicy<IN>> distributedTriggerPolicies,
 			LinkedList<CloneableEvictionPolicy<IN>> distributedEvictionPolicies,
 			LinkedList<TriggerPolicy<IN>> centralTriggerPolicies) {
@@ -174,8 +173,8 @@ public class GroupedWindowingInvokable<IN, OUT> extends StreamInvokable<IN, OUT>
 
 			// Run the precalls for central active triggers
 			for (ActiveTriggerPolicy<IN> trigger : activeCentralTriggerPolicies) {
-				IN[] result = trigger.preNotifyTrigger(reuse.getObject());
-				for (IN in : result) {
+				Object[] result = trigger.preNotifyTrigger(reuse.getObject());
+				for (Object in : result) {
 					for (WindowingInvokable<IN, OUT> group : windowingGroups.values()) {
 						group.processFakeElement(in, trigger);
 					}
@@ -305,7 +304,7 @@ public class GroupedWindowingInvokable<IN, OUT> extends StreamInvokable<IN, OUT>
 	 * 
 	 * @see ActiveTriggerPolicy#createActiveTriggerRunnable(ActiveTriggerCallback)
 	 */
-	private class WindowingCallback implements ActiveTriggerCallback<IN> {
+	private class WindowingCallback implements ActiveTriggerCallback {
 		private ActiveTriggerPolicy<IN> policy;
 
 		public WindowingCallback(ActiveTriggerPolicy<IN> policy) {
@@ -313,7 +312,7 @@ public class GroupedWindowingInvokable<IN, OUT> extends StreamInvokable<IN, OUT>
 		}
 
 		@Override
-		public void sendFakeElement(IN datapoint) {
+		public void sendFakeElement(Object datapoint) {
 			for (WindowingInvokable<IN, OUT> group : windowingGroups.values()) {
 				group.processFakeElement(datapoint, policy);
 			}

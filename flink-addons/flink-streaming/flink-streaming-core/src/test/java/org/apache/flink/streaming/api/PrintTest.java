@@ -81,14 +81,6 @@ public class PrintTest implements Serializable {
 					public long getStartTime() {
 						return 1;
 					}
-				}, new Extractor<Long, Integer>() {
-
-					private static final long serialVersionUID = 1L;
-
-					@Override
-					public Integer extract(Long in) {
-						return in.intValue();
-					}
 				})).every(Count.of(2)).reduceGroup(new GroupReduceFunction<Integer, String>() {
 
 					@Override
