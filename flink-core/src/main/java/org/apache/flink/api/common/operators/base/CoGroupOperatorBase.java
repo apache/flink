@@ -20,6 +20,7 @@ package org.apache.flink.api.common.operators.base;
 
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.CoGroupFunction;
+import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.CopyingListCollector;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
@@ -51,21 +52,19 @@ import java.util.List;
  */
 public class CoGroupOperatorBase<IN1, IN2, OUT, FT extends CoGroupFunction<IN1, IN2, OUT>> extends DualInputOperator<IN1, IN2, OUT, FT> {
 
-	/**
-	 * The ordering for the order inside a group from input one.
-	 */
+	/** The ordering for the order inside a group from input one. */
 	private Ordering groupOrder1;
 
-	/**
-	 * The ordering for the order inside a group from input two.
-	 */
+	/** The ordering for the order inside a group from input two. */
 	private Ordering groupOrder2;
-
-	// --------------------------------------------------------------------------------------------
+	
+	private Partitioner<?> customPartitioner;
 
 	private boolean combinableFirst;
 
 	private boolean combinableSecond;
+	
+	// --------------------------------------------------------------------------------------------
 
 	public CoGroupOperatorBase(UserCodeWrapper<FT> udf, BinaryOperatorInformation<IN1, IN2, OUT> operatorInfo, int[] keyPositions1, int[] keyPositions2, String name) {
 		super(udf, operatorInfo, keyPositions1, keyPositions2, name);
@@ -174,6 +173,14 @@ public class CoGroupOperatorBase<IN1, IN2, OUT, FT extends CoGroupFunction<IN1, 
 
 	public void setCombinableSecond(boolean combinableSecond) {
 		this.combinableSecond = combinableSecond;
+	}
+	
+	public void setCustomPartitioner(Partitioner<?> customPartitioner) {
+		this.customPartitioner = customPartitioner;
+	}
+	
+	public Partitioner<?> getCustomPartitioner() {
+		return customPartitioner;
 	}
 
 	// ------------------------------------------------------------------------

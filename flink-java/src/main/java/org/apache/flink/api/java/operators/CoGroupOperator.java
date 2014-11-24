@@ -23,6 +23,7 @@ import java.security.InvalidParameterException;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.operators.BinaryOperatorInformation;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
@@ -62,17 +63,21 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 	private final Keys<I2> keys2;
 	
 	private final String defaultName;
+	
+	private Partitioner<?> customPartitioner;
 
 
 	public CoGroupOperator(DataSet<I1> input1, DataSet<I2> input2,
 							Keys<I1> keys1, Keys<I2> keys2,
 							CoGroupFunction<I1, I2, OUT> function,
 							TypeInformation<OUT> returnType,
+							Partitioner<?> customPartitioner,
 							String defaultName)
 	{
 		super(input1, input2, returnType);
 
 		this.function = function;
+		this.customPartitioner = customPartitioner;
 		this.defaultName = defaultName;
 
 		if (keys1 == null || keys2 == null) {
@@ -110,6 +115,34 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 	protected Keys<I2> getKeys2() {
 		return this.keys2;
 	}
+	
+	/**
+	 * Sets a custom partitioner for the CoGroup operation. The partitioner will be called on the join keys to determine
+	 * the partition a key should be assigned to. The partitioner is evaluated on both inputs in the
+	 * same way.
+	 * <p>
+	 * NOTE: A custom partitioner can only be used with single-field CoGroup keys, not with composite CoGroup keys.
+	 * 
+	 * @param partitioner The custom partitioner to be used.
+	 * @return This CoGroup operator, to allow for function chaining.
+	 */
+	public CoGroupOperator<I1, I2, OUT> withPartitioner(Partitioner<?> partitioner) {
+		if (partitioner != null) {
+			keys1.validateCustomPartitioner(partitioner, null);
+			keys2.validateCustomPartitioner(partitioner, null);
+		}
+		this.customPartitioner = partitioner;
+		return this;
+	}
+	
+	/**
+	 * Gets the custom partitioner used by this join, or {@code null}, if none is set.
+	 * 
+	 * @return The custom partitioner used by this join;
+	 */
+	public Partitioner<?> getPartitioner() {
+		return customPartitioner;
+	}
 
 	@Override
 	protected org.apache.flink.api.common.operators.base.CoGroupOperatorBase<?, ?, OUT, ?> translateToDataFlow(Operator<I1> input1, Operator<I2> input2) {
@@ -135,8 +168,8 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 					translateSelectorFunctionCoGroup(selectorKeys1, selectorKeys2, function,
 					getInput1Type(), getInput2Type(), getResultType(), name, input1, input2);
 
-			// set dop
-			po.setDegreeOfParallelism(this.getParallelism());
+			po.setDegreeOfParallelism(getParallelism());
+			po.setCustomPartitioner(customPartitioner);
 
 			return po;
 
@@ -152,8 +185,8 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 					translateSelectorFunctionCoGroupRight(logicalKeyPositions1, selectorKeys2, function,
 							getInput1Type(), getInput2Type(), getResultType(), name, input1, input2);
 
-			// set dop
-			po.setDegreeOfParallelism(this.getParallelism());
+			po.setDegreeOfParallelism(getParallelism());
+			po.setCustomPartitioner(customPartitioner);
 
 			return po;
 		}
@@ -168,8 +201,8 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 					translateSelectorFunctionCoGroupLeft(selectorKeys1, logicalKeyPositions2, function,
 							getInput1Type(), getInput2Type(), getResultType(), name, input1, input2);
 
-			// set dop
-			po.setDegreeOfParallelism(this.getParallelism());
+			po.setDegreeOfParallelism(getParallelism());
+			po.setCustomPartitioner(customPartitioner);
 
 			return po;
 		}
@@ -193,11 +226,9 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 			po.setFirstInput(input1);
 			po.setSecondInput(input2);
 
-			// set dop
-			po.setDegreeOfParallelism(this.getParallelism());
-
+			po.setDegreeOfParallelism(getParallelism());
+			po.setCustomPartitioner(customPartitioner);
 			return po;
-
 		}
 		else {
 			throw new UnsupportedOperationException("Unrecognized or incompatible key types.");
@@ -495,7 +526,10 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 			}
 
 			public final class CoGroupOperatorWithoutFunction {
+				
 				private final Keys<I2> keys2;
+				
+				private Partitioner<?> customPartitioner;
 
 				private CoGroupOperatorWithoutFunction(Keys<I2> keys2) {
 					if (keys2 == null) {
@@ -507,6 +541,34 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 					}
 
 					this.keys2 = keys2;
+				}
+				
+				/**
+				 * Sets a custom partitioner for the CoGroup operation. The partitioner will be called on the join keys to determine
+				 * the partition a key should be assigned to. The partitioner is evaluated on both inputs in the
+				 * same way.
+				 * <p>
+				 * NOTE: A custom partitioner can only be used with single-field CoGroup keys, not with composite CoGroup keys.
+				 * 
+				 * @param partitioner The custom partitioner to be used.
+				 * @return This CoGroup operator, to allow for function chaining.
+				 */
+				public CoGroupOperatorWithoutFunction withPartitioner(Partitioner<?> partitioner) {
+					if (partitioner != null) {
+						keys1.validateCustomPartitioner(partitioner, null);
+						keys2.validateCustomPartitioner(partitioner, null);
+					}
+					this.customPartitioner = partitioner;
+					return this;
+				}
+				
+				/**
+				 * Gets the custom partitioner used by this join, or {@code null}, if none is set.
+				 * 
+				 * @return The custom partitioner used by this join;
+				 */
+				public Partitioner<?> getPartitioner() {
+					return customPartitioner;
 				}
 
 				/**
@@ -524,7 +586,8 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 						throw new NullPointerException("CoGroup function must not be null.");
 					}
 					TypeInformation<R> returnType = TypeExtractor.getCoGroupReturnTypes(function, input1.getType(), input2.getType());
-					return new CoGroupOperator<I1, I2, R>(input1, input2, keys1, keys2, function, returnType, Utils.getCallLocationName());
+					return new CoGroupOperator<I1, I2, R>(input1, input2, keys1, keys2, function, returnType, 
+							customPartitioner, Utils.getCallLocationName());
 				}
 			}
 		}

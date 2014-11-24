@@ -30,10 +30,10 @@ import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
 import org.apache.flink.compiler.plan.DualInputPlanNode
 
-class JoinCustomPartitioningTest extends CompilerTestBase {
+class CoGroupCustomPartitioningTest extends CompilerTestBase {
   
   @Test
-  def testJoinWithTuples() {
+  def testCoGroupWithTuples() {
     try {
       val partitioner = new TestPartitionerLong()
       
@@ -43,7 +43,7 @@ class JoinCustomPartitioningTest extends CompilerTestBase {
       val input2 = env.fromElements( (0L, 0L, 0L) )
       
       input1
-          .join(input2, JoinHint.REPARTITION_HASH_FIRST)
+          .coGroup(input2)
           .where(1).equalTo(0)
           .withPartitioner(partitioner)
         .print()
@@ -68,7 +68,7 @@ class JoinCustomPartitioningTest extends CompilerTestBase {
   }
   
   @Test
-  def testJoinWithTuplesWrongType() {
+  def testCoGroupWithTuplesWrongType() {
     try {
       val partitioner = new TestPartitionerInt()
       
@@ -79,7 +79,7 @@ class JoinCustomPartitioningTest extends CompilerTestBase {
       
       try {
         input1
-            .join(input2, JoinHint.REPARTITION_HASH_FIRST)
+            .coGroup(input2)
             .where(1).equalTo(0)
             .withPartitioner(partitioner)
         fail("should throw an exception")
@@ -97,7 +97,7 @@ class JoinCustomPartitioningTest extends CompilerTestBase {
   }
   
   @Test
-  def testJoinWithPojos() {
+  def testCoGroupWithPojos() {
     try {
       val partitioner = new TestPartitionerInt()
       
@@ -107,7 +107,7 @@ class JoinCustomPartitioningTest extends CompilerTestBase {
       val input2 = env.fromElements(new Pojo3())
       
       input1
-          .join(input2, JoinHint.REPARTITION_HASH_FIRST)
+          .coGroup(input2)
           .where("b").equalTo("a")
           .withPartitioner(partitioner)
         .print()
@@ -132,7 +132,7 @@ class JoinCustomPartitioningTest extends CompilerTestBase {
   }
   
   @Test
-  def testJoinWithPojosWrongType() {
+  def testCoGroupWithPojosWrongType() {
     try {
       val partitioner = new TestPartitionerLong()
       
@@ -143,7 +143,7 @@ class JoinCustomPartitioningTest extends CompilerTestBase {
       
       try {
         input1
-            .join(input2, JoinHint.REPARTITION_HASH_FIRST)
+            .coGroup(input2)
             .where("a").equalTo("b")
             .withPartitioner(partitioner)
         fail("should throw an exception")
@@ -161,7 +161,7 @@ class JoinCustomPartitioningTest extends CompilerTestBase {
   }
   
   @Test
-  def testJoinWithKeySelectors() {
+  def testCoGroupWithKeySelectors() {
     try {
       val partitioner = new TestPartitionerInt()
       
@@ -171,7 +171,7 @@ class JoinCustomPartitioningTest extends CompilerTestBase {
       val input2 = env.fromElements(new Pojo3())
       
       input1
-          .join(input2, JoinHint.REPARTITION_HASH_FIRST)
+          .coGroup(input2)
           .where( _.a ).equalTo( _.b )
           .withPartitioner(partitioner)
         .print()
@@ -196,7 +196,7 @@ class JoinCustomPartitioningTest extends CompilerTestBase {
   }
   
   @Test
-  def testJoinWithKeySelectorsWrongType() {
+  def testCoGroupWithKeySelectorsWrongType() {
     try {
       val partitioner = new TestPartitionerLong()
       
@@ -207,7 +207,7 @@ class JoinCustomPartitioningTest extends CompilerTestBase {
       
       try {
         input1
-            .join(input2, JoinHint.REPARTITION_HASH_FIRST)
+            .coGroup(input2)
             .where( _.a ).equalTo( _.b )
             .withPartitioner(partitioner)
         fail("should throw an exception")

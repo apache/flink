@@ -32,6 +32,7 @@ import org.apache.flink.compiler.plan.OptimizedPlan;
 import org.apache.flink.compiler.plan.SingleInputPlanNode;
 import org.apache.flink.compiler.plan.SinkPlanNode;
 import org.apache.flink.compiler.plantranslate.NepheleJobGraphGenerator;
+import org.apache.flink.compiler.testfunctions.DummyCoGroupFunction;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.junit.Test;
 
@@ -39,7 +40,7 @@ import org.junit.Test;
 public class BinaryCustomPartitioningCompatibilityTest extends CompilerTestBase {
 
 	@Test
-	public void testCompatiblePartitioning() {
+	public void testCompatiblePartitioningJoin() {
 		try {
 			final Partitioner<Long> partitioner = new Partitioner<Long>() {
 				@Override
@@ -68,6 +69,51 @@ public class BinaryCustomPartitioningCompatibilityTest extends CompilerTestBase 
 
 			assertEquals(ShipStrategyType.FORWARD, join.getInput1().getShipStrategy());
 			assertEquals(ShipStrategyType.FORWARD, join.getInput2().getShipStrategy());
+			
+			assertEquals(ShipStrategyType.PARTITION_CUSTOM, partitioner1.getInput().getShipStrategy());
+			assertEquals(ShipStrategyType.PARTITION_CUSTOM, partitioner2.getInput().getShipStrategy());
+			assertEquals(partitioner, partitioner1.getInput().getPartitioner());
+			assertEquals(partitioner, partitioner2.getInput().getPartitioner());
+			
+			new NepheleJobGraphGenerator().compileJobGraph(op);
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testCompatiblePartitioningCoGroup() {
+		try {
+			final Partitioner<Long> partitioner = new Partitioner<Long>() {
+				@Override
+				public int partition(Long key, int numPartitions) {
+					return 0;
+				}
+			};
+			
+			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+			
+			DataSet<Tuple2<Long, Long>> input1 = env.fromElements(new Tuple2<Long, Long>(0L, 0L));
+			DataSet<Tuple3<Long, Long, Long>> input2 = env.fromElements(new Tuple3<Long, Long, Long>(0L, 0L, 0L));
+			
+			input1.partitionCustom(partitioner, 1)
+				.coGroup(input2.partitionCustom(partitioner, 0))
+				.where(1).equalTo(0)
+				.with(new DummyCoGroupFunction<Tuple2<Long, Long>, Tuple3<Long, Long, Long>>())
+				.print();
+			
+			Plan p = env.createProgramPlan();
+			OptimizedPlan op = compileNoStats(p);
+			
+			SinkPlanNode sink = op.getDataSinks().iterator().next();
+			DualInputPlanNode coGroup = (DualInputPlanNode) sink.getInput().getSource();
+			SingleInputPlanNode partitioner1 = (SingleInputPlanNode) coGroup.getInput1().getSource();
+			SingleInputPlanNode partitioner2 = (SingleInputPlanNode) coGroup.getInput2().getSource();
+
+			assertEquals(ShipStrategyType.FORWARD, coGroup.getInput1().getShipStrategy());
+			assertEquals(ShipStrategyType.FORWARD, coGroup.getInput2().getShipStrategy());
 			
 			assertEquals(ShipStrategyType.PARTITION_CUSTOM, partitioner1.getInput().getShipStrategy());
 			assertEquals(ShipStrategyType.PARTITION_CUSTOM, partitioner2.getInput().getShipStrategy());
