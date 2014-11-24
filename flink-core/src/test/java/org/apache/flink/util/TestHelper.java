@@ -22,8 +22,6 @@ import org.apache.commons.lang3.RandomUtils;
 
 /**
  * Convenience functions to construct random objects for unit tests.
- *
- * @author Viktor Rosenfeld <viktor.rosenfeld@tu-berlin.de>
  */
 public class TestHelper
 {

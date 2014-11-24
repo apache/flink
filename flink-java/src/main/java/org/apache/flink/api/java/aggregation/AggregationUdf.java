@@ -31,8 +31,6 @@ import org.apache.flink.util.Collector;
  * 
  * @param <T> Input type of {@code reduce}. 
  * @param <R> Output type of {@code reduce}.
- *
- * @author Viktor Rosenfeld <viktor.rosenfeld@tu-berlin.de>
  */
 public class AggregationUdf<T, R extends Tuple> implements GroupReduceFunction<T, R>, Serializable {
 	private static final long serialVersionUID = 5563658873455921533L;

@@ -25,8 +25,6 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
  * 
  * <p>Note: Count operates on the entire tuple. 
  * The aggregated field position is always 0. 
- *
- * @author Viktor Rosenfeld <viktor.rosenfeld@tu-berlin.de>
  */
 public class CountAggregationFunction extends AggregationFunction<Object, Long> {
 	private static final long serialVersionUID = 514373288927267811L;

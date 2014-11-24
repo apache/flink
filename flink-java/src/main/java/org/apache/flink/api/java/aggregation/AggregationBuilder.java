@@ -38,8 +38,6 @@ import org.apache.flink.api.java.tuple.Tuple;
  * 
  * @param <T> The tuple input type.
  *
- * @author Viktor Rosenfeld <viktor.rosenfeld@tu-berlin.de>
- * 
  * @see Aggregations
  * @see AggregationOperator
  * @see DataSet

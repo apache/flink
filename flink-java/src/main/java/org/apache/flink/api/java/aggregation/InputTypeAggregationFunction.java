@@ -25,8 +25,6 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
  * aggregation results as the aggregated inputs.
  * 
  * @param <T> The input and output type.
- *
- * @author Viktor Rosenfeld <viktor.rosenfeld@tu-berlin.de>
  */
 public abstract class InputTypeAggregationFunction<T>
 		extends FieldAggregationFunction<T, T> {

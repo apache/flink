@@ -46,8 +46,6 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
  *
  * <p>Note: Each task is implemented in a member class in order to
  * facilitate testing. 
- *
- * @author Viktor Rosenfeld <viktor.rosenfeld@tu-berlin.de>
  */
 public class AggregationOperatorFactory {
 	

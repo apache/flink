@@ -23,8 +23,6 @@ package org.apache.flink.api.java.aggregation;
  * 
  * @param <T> The type of the elements that are aggregated (input type).
  * @param <R> The type of the aggregation result (output type).
- *
- * @author Viktor Rosenfeld <viktor.rosenfeld@tu-berlin.de>
  */
 public abstract class FieldAggregationFunction<T, R> extends
 		AggregationFunction<T, R> {

@@ -26,8 +26,6 @@ import org.apache.flink.api.java.operators.UnsortedGrouping;
  * 
  * @see DataSet
  * @see UnsortedGrouping
- *
- * @author Viktor Rosenfeld <viktor.rosenfeld@tu-berlin.de>
  */
 @SuppressWarnings("rawtypes")
 public class Aggregations {

@@ -51,8 +51,6 @@ import org.apache.flink.api.java.operators.GroupReduceOperator;
  * @param <T> The type of the elements that are aggregated (input type).
  * @param <R> The type of the aggregation result (output type).
  *
- * @author Viktor Rosenfeld <viktor.rosenfeld@tu-berlin.de>
- * 
  * @see AggregationFunction.ResultTypeBehavior
  */
 public abstract class AggregationFunction<T, R> implements Serializable {
@@ -78,8 +76,6 @@ public abstract class AggregationFunction<T, R> implements Serializable {
 	 *   <li>{@code INPUT}: The result type is the same
 	 *   as the input type, e.g., {@code min()}.
 	 * </ul>
-	 *
-	 * @author Viktor Rosenfeld <viktor.rosenfeld@tu-berlin.de>
 	 */
 	public static enum ResultTypeBehavior {
 		INPUT,

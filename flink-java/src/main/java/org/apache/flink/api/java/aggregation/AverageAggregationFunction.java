@@ -30,8 +30,6 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
  * {@link SumAggregationFunction} and {@link CountAggregationFunction}.
  * 
  * @param <T> The input and output type. Must extend {@link Number}.
- *
- * @author Viktor Rosenfeld <viktor.rosenfeld@tu-berlin.de>
  */
 public class AverageAggregationFunction<T extends Number> extends FieldAggregationFunction<T, Double> {
 	private static final long serialVersionUID = -3901931046368002202L;
