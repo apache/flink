@@ -35,10 +35,6 @@ public class SumAggregationFunction<T extends Number> extends InputTypeAggregati
 	
 	private DelegatedSumAggregationFunction<T> delegate;
 
-	SumAggregationFunction() {
-		this(-1);
-	}
-	
 	public SumAggregationFunction(int field) {
 		super("sum", field);
 	}
@@ -83,6 +79,7 @@ public class SumAggregationFunction<T extends Number> extends InputTypeAggregati
 		public void initialize();
 		public void aggregate(T value);
 		public T getAggregate();
+		public T reduce(T lhs, T rhs);
 	}
 	
 	private static class LongSumAggregationFunction implements DelegatedSumAggregationFunction<Long>, Serializable {
@@ -103,6 +100,11 @@ public class SumAggregationFunction<T extends Number> extends InputTypeAggregati
 		@Override
 		public Long getAggregate() {
 			return sum;
+		}
+
+		@Override
+		public Long reduce(Long lhs, Long rhs) {
+			return lhs + rhs;
 		}
 	}
 
@@ -125,6 +127,11 @@ public class SumAggregationFunction<T extends Number> extends InputTypeAggregati
 		public Integer getAggregate() {
 			return sum;
 		}
+
+		@Override
+		public Integer reduce(Integer lhs, Integer rhs) {
+			return lhs + rhs;
+		}
 	}
 
 	private static class DoubleSumAggregationFunction implements DelegatedSumAggregationFunction<Double>, Serializable {
@@ -145,6 +152,11 @@ public class SumAggregationFunction<T extends Number> extends InputTypeAggregati
 		@Override
 		public Double getAggregate() {
 			return sum;
+		}
+
+		@Override
+		public Double reduce(Double lhs, Double rhs) {
+			return lhs + rhs;
 		}
 	}
 
@@ -167,6 +179,11 @@ public class SumAggregationFunction<T extends Number> extends InputTypeAggregati
 		public Float getAggregate() {
 			return sum;
 		}
+
+		@Override
+		public Float reduce(Float lhs, Float rhs) {
+			return lhs + rhs;
+		}
 	}
 
 	private static class ByteSumAggregationFunction implements DelegatedSumAggregationFunction<Byte>, Serializable {
@@ -187,6 +204,11 @@ public class SumAggregationFunction<T extends Number> extends InputTypeAggregati
 		@Override
 		public Byte getAggregate() {
 			return sum;
+		}
+
+		@Override
+		public Byte reduce(Byte lhs, Byte rhs) {
+			return (byte) (lhs + rhs);
 		}
 	}
 
@@ -209,5 +231,16 @@ public class SumAggregationFunction<T extends Number> extends InputTypeAggregati
 		public Short getAggregate() {
 			return sum;
 		}
+
+		@Override
+		public Short reduce(Short lhs, Short rhs) {
+			return (short) (lhs + rhs);
+		}
+	}
+
+	@Override
+	public T reduce(T value1, T value2) {
+		T result = delegate.reduce(value1, value2);
+		return result;
 	}
 }

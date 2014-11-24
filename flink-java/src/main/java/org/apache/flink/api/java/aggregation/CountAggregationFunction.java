@@ -49,7 +49,7 @@ public class CountAggregationFunction extends AggregationFunction<Object, Long> 
 	public void setInputType(BasicTypeInfo<Object> inputType) { }
 
 	@Override
-	public int getFieldPosition() { return 0; }
+	public int getInputPosition() { return 0; }
 
 	@Override
 	public void initialize() {
@@ -64,6 +64,16 @@ public class CountAggregationFunction extends AggregationFunction<Object, Long> 
 	@Override
 	public Long getAggregate() {
 		return count;
+	}
+
+	@Override
+	public Long initialize(Object value) {
+		return 1L;
+	}
+
+	@Override
+	public Long reduce(Long value1, Long value2) {
+		return value1 + value2;
 	}
 
 }

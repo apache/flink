@@ -18,7 +18,11 @@
 
 package org.apache.flink.api.java.aggregation;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.java.tuple.Tuple;
 
 /**
  * Average aggregation function.
@@ -31,16 +35,20 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
  * 
  * @param <T> The input and output type. Must extend {@link Number}.
  */
-public class AverageAggregationFunction<T extends Number> extends FieldAggregationFunction<T, Double> {
+public class AverageAggregationFunction<T extends Number> extends CompositeAggregationFunction<T, Double> {
 	private static final long serialVersionUID = -3901931046368002202L;
 
 	private SumAggregationFunction<T> sumDelegate;
 	private CountAggregationFunction countDelegate;
 	
 	public AverageAggregationFunction(int field) {
+		this(field, new SumAggregationFunction<T>(field), new CountAggregationFunction());
+	}
+	
+	AverageAggregationFunction(int field, SumAggregationFunction<T> sumDelegate, CountAggregationFunction countDelegate) {
 		super("average", field);
-		sumDelegate = new SumAggregationFunction<T>();
-		countDelegate = new CountAggregationFunction();
+		this.sumDelegate = sumDelegate;
+		this.countDelegate = countDelegate; 
 	}
 	
 	@Override
@@ -75,6 +83,37 @@ public class AverageAggregationFunction<T extends Number> extends FieldAggregati
 		double sum = sumDelegate.getAggregate().doubleValue();
 		double count = countDelegate.getAggregate().doubleValue();
 		return sum / count;
+	}
+
+	@Override
+	public Double initialize(T value) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public Double reduce(Double value1, Double value2) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public Double computeComposite(Tuple tuple) {
+		int sumIntermediatePosition = sumDelegate.getIntermediatePosition();
+		int countIntermediatePosition = countDelegate.getIntermediatePosition();
+		@SuppressWarnings("unchecked")
+		T sum = (T) tuple.getField(sumIntermediatePosition);
+		Long count = (Long) tuple.getField(countIntermediatePosition);
+		Double result = sum.doubleValue() / count.doubleValue();
+		return result;
+	}
+
+	@Override
+	public List<AggregationFunction<?, ?>> getIntermediateAggregationFunctions() {
+		List<AggregationFunction<?, ?>> intermediates = new ArrayList<AggregationFunction<?,?>>();
+		intermediates.add(sumDelegate);
+		intermediates.add(countDelegate);
+		return intermediates;
 	}
 
 }

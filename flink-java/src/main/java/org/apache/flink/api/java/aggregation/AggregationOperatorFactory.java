@@ -20,6 +20,9 @@ package org.apache.flink.api.java.aggregation;
 
 import static org.apache.flink.api.java.aggregation.Aggregations.key;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -30,6 +33,8 @@ import org.apache.flink.api.java.operators.UnsortedGrouping;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
+
+import com.google.common.primitives.Ints;
 
 /**
  * Factory method container to construct an
@@ -50,9 +55,9 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 public class AggregationOperatorFactory {
 	
 	private static final AggregationOperatorFactory INSTANCE = new AggregationOperatorFactory();
-	private GroupingPreprocessor groupingPreprocessor = new GroupingPreprocessor();
+	private AggregationFunctionPreprocessor aggregationFunctionPreprocessor = new AggregationFunctionPreprocessor();
 	private ResultTypeFactory resultTypeFactory = new ResultTypeFactory();
-	private ResultTupleFactory resultTupleFactory = new ResultTupleFactory();
+	
 	
 	/**
 	 * Construct an {@link AggregationOperator} that implements the
@@ -63,11 +68,6 @@ public class AggregationOperatorFactory {
 	 * @return An AggregationOperator representing the specified aggregations.
 	 */
 	public <T, R extends Tuple> AggregationOperator<T, R> aggregate(DataSet<T> input, AggregationFunction<?, ?>[] functions) {
-		for (AggregationFunction<?, ?> function : functions) {
-			if (function instanceof KeySelectionAggregationFunction) {
-				throw new IllegalArgumentException("Key selection aggregation function can only be used on grouped DataSets");
-			}
-		}
 		AggregationOperator<T, R> op = createAggregationOperator(input, new int[0], functions);
 		return op;
 	}
@@ -87,51 +87,69 @@ public class AggregationOperatorFactory {
 	 */
 	public <T, R extends Tuple> AggregationOperator<T, R> aggregate(UnsortedGrouping<T> grouping, AggregationFunction<?, ?>[] functions) {
 		DataSet<T> input = grouping.getDataSet();
-		int[] groupingKeys = grouping.getKeys().computeLogicalKeyPositions();
-		functions = groupingPreprocessor.insertKeySelectionAggregationFunctions(groupingKeys, functions);
-		AggregationOperator<T, R> op = createAggregationOperator(input, groupingKeys, functions);
+		int[] groupKeys = grouping.getKeys().computeLogicalKeyPositions();
+		AggregationOperator<T, R> op = createAggregationOperator(input, groupKeys, functions);
 		return op;
 	}
 	
 	// TODO if sum and/or count are present, use these to compute average
-	<T, R extends Tuple> AggregationOperator<T, R> createAggregationOperator(DataSet<T> input, int[] groupingKeys, AggregationFunction<?, ?>[] functions) {
+	<T, R extends Tuple> AggregationOperator<T, R> createAggregationOperator(DataSet<T> input, int[] groupKeys, AggregationFunction<?, ?>[] functions) {
+		AggregationFunction<?, ?>[] intermediateFunctions = aggregationFunctionPreprocessor.createIntermediateFunctions(functions, groupKeys);
+		int[] intermediateGroupKeys = aggregationFunctionPreprocessor.createIntermediateGroupKeys(intermediateFunctions);
 		TypeInformation<R> resultType = resultTypeFactory.createAggregationResultType(input.getType(), functions);
-		int arity = resultType.getArity();
-		R resultTuple = resultTupleFactory.createResultTuple(arity);
-		AggregationOperator<T, R> op = new AggregationOperator<T, R>(input, resultType, resultTuple, groupingKeys, functions);
+		TypeInformation<Tuple> intermediateType = resultTypeFactory.createAggregationResultType(input.getType(), intermediateFunctions);
+		AggregationOperator<T, R> op = new AggregationOperator<T, R>(input, resultType, intermediateType, intermediateGroupKeys, functions, intermediateFunctions);
 		return op;
 	}
 
-	static class GroupingPreprocessor {
+	static class AggregationFunctionPreprocessor {
 
-		AggregationFunction<?, ?>[] insertKeySelectionAggregationFunctions(
-				int[] pos, AggregationFunction<?, ?>[] functions) {
-			AggregationFunction<?, ?>[] result = null;
-			
-			// check if there is already a key() function present
+		public AggregationFunction<?, ?>[] createIntermediateFunctions(AggregationFunction<?, ?>[] functions, int[] groupKeys) {
+			List<AggregationFunction<?, ?>> intermediates = new ArrayList<AggregationFunction<?,?>>();
+			int outputPosition = 0;
 			for (AggregationFunction<?, ?> function : functions) {
-				if (function instanceof KeySelectionAggregationFunction) {
-					result = functions;
-					break;
+				function.setOutputPosition(outputPosition);
+				outputPosition += 1;
+				if (groupKeys.length == 0
+						&& function instanceof KeySelectionAggregationFunction) {
+					throw new IllegalArgumentException("Key selection aggregation function can only be used on grouped DataSets.");
+				}
+				if (function instanceof CompositeAggregationFunction) {
+					CompositeAggregationFunction<?, ?> composite = (CompositeAggregationFunction<?, ?>) function;
+					List<AggregationFunction<?, ?>> compositeIntermediates = composite.getIntermediateAggregationFunctions();
+					intermediates.addAll(compositeIntermediates);
+				} else {
+					intermediates.add(function);
 				}
 			}
-			
-			// no key() function present; insert one for each group key
-			if (result == null) {
-				result = new AggregationFunction<?, ?>[pos.length + functions.length];
-				int i = 0;
-				for (; i < pos.length; ++i) {
-					int keyFieldPosition = pos[i];
-					result[i] = key(keyFieldPosition);
-				}
-				for (int j = 0; j < functions.length; ++i, ++j) {
-					AggregationFunction<?, ?> function = functions[j];
-					result[i] = function;
+			for (int groupKey : groupKeys) {
+				AggregationFunction<?, ?> key = key(groupKey);
+				if ( ! intermediates.contains(key) ) {
+					intermediates.add(key);
 				}
 			}
-			
+			int intermediatePosition = 0;
+			for (AggregationFunction<?, ?> function : intermediates) {
+				function.setIntermediatePosition(intermediatePosition);
+				intermediatePosition += 1;
+			}
+			AggregationFunction<?, ?>[] result = new AggregationFunction<?, ?>[intermediatePosition];
+			intermediates.toArray(result);
 			return result;
 		}
+
+		public int[] createIntermediateGroupKeys(AggregationFunction<?, ?>[] intermediates) {
+			List<Integer> positions = new ArrayList<Integer>();
+			for (AggregationFunction<?, ?> function : intermediates) {
+				if (function instanceof KeySelectionAggregationFunction) {
+					int intermediatePosition = function.getIntermediatePosition();
+					positions.add(intermediatePosition);
+				}
+			}
+			int[] result = Ints.toArray(positions);
+			return result;
+		}
+		
 		
 	}
 	
@@ -159,7 +177,7 @@ public class AggregationOperatorFactory {
 				AggregationFunction<T, ?> function) {
 
 			// assume field type is simple
-			int fieldPosition = function.getFieldPosition();
+			int fieldPosition = function.getInputPosition();
 			TypeInformation<Object> fieldType = inputTypeAsTuple.getTypeAt(fieldPosition);
 			Validate.isInstanceOf(BasicTypeInfo.class, fieldType);
 			@SuppressWarnings("unchecked")
@@ -175,30 +193,11 @@ public class AggregationOperatorFactory {
 			} else if (resultTypeBehavior == ResultTypeBehavior.INPUT) {
 				types[i] = basicFieldType;
 			} else {
-				throw new RuntimeException("Unknown aggregation function result type behavior: " + resultTypeBehavior);
+				throw new IllegalStateException("Unknown aggregation function result type behavior: " + resultTypeBehavior);
 			}
 		}
 	}
 	
-	static class ResultTupleFactory {
-	
-		@SuppressWarnings("unchecked")
-		<R extends Tuple> R createResultTuple(int arity) {
-			String resultTupleClassName = "org.apache.flink.api.java.tuple.Tuple" + String.valueOf(arity);
-			Tuple result = null;
-			try {
-				result = (Tuple) Class.forName(resultTupleClassName).newInstance();
-			} catch (InstantiationException e) {
-				throw new IllegalArgumentException("Could not create output tuple", e);
-			} catch (IllegalAccessException e) {
-				throw new IllegalArgumentException("Could not create output tuple", e);
-			} catch (ClassNotFoundException e) {
-				throw new IllegalArgumentException("Could not create output tuple", e);
-			}
-			return (R) result;
-		}
-	}
-
 	public static AggregationOperatorFactory getInstance() {
 		return INSTANCE;
 	}
@@ -211,20 +210,13 @@ public class AggregationOperatorFactory {
 		this.resultTypeFactory = resultTypeFactory;
 	}
 
-	ResultTupleFactory getResultTupleFactory() {
-		return resultTupleFactory;
+	AggregationFunctionPreprocessor getAggregationFunctionPreprocessor() {
+		return aggregationFunctionPreprocessor;
 	}
 
-	void setResultTupleFactory(ResultTupleFactory resultTupleFactory) {
-		this.resultTupleFactory = resultTupleFactory;
-	}
-
-	GroupingPreprocessor getGroupingPreprocessor() {
-		return groupingPreprocessor;
-	}
-
-	void setGroupingPreprocessor(GroupingPreprocessor groupingPreprocessor) {
-		this.groupingPreprocessor = groupingPreprocessor;
+	void setAggregationFunctionPreprocessor(
+			AggregationFunctionPreprocessor aggregationFunctionPreprocessor) {
+		this.aggregationFunctionPreprocessor = aggregationFunctionPreprocessor;
 	}
 	
 }

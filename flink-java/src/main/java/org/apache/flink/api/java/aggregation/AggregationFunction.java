@@ -56,6 +56,8 @@ import org.apache.flink.api.java.operators.GroupReduceOperator;
 public abstract class AggregationFunction<T, R> implements Serializable {
 	private static final long serialVersionUID = 9082279166205627942L;
 
+	private int outputPosition;
+	private int intermediatePosition;
 	private String name;
 
 	/**
@@ -114,7 +116,7 @@ public abstract class AggregationFunction<T, R> implements Serializable {
 	/**
 	 * Return the index of the aggregated tuple field.
 	 */
-	public abstract int getFieldPosition();
+	public abstract int getInputPosition();
 	
 	/**
 	 * Initialize the aggregation function.
@@ -124,6 +126,10 @@ public abstract class AggregationFunction<T, R> implements Serializable {
 	 */
 	public abstract void initialize();
 	
+	public abstract R initialize(T value);
+
+	public abstract R reduce(R value1, R value2);
+
 	/**
 	 * Aggregate a single {@code value}.
 	 */
@@ -141,6 +147,22 @@ public abstract class AggregationFunction<T, R> implements Serializable {
 
 	protected String getName() {
 		return name;
+	}
+
+	public int getOutputPosition() {
+		return outputPosition;
+	}
+
+	public void setOutputPosition(int outputPosition) {
+		this.outputPosition = outputPosition;
+	}
+
+	public int getIntermediatePosition() {
+		return intermediatePosition;
+	}
+
+	public void setIntermediatePosition(int intermediatePosition) {
+		this.intermediatePosition = intermediatePosition;
 	}
 
 }

@@ -40,7 +40,7 @@ public abstract class FieldAggregationFunction<T, R> extends
 	}
 	
 	@Override
-	public int getFieldPosition() {
+	public int getInputPosition() {
 		return fieldPosition;
 	}
 

@@ -49,4 +49,10 @@ public class MinAggregationFunction<T extends Comparable<T>> extends InputTypeAg
 		return min;
 	}
 
+	@Override
+	public T reduce(T value1, T value2) {
+		T min = value1.compareTo(value2) <= 0 ? value1 : value2;
+		return min;
+	}
+
 }

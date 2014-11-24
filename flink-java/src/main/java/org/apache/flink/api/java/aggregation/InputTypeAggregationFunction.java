@@ -51,4 +51,9 @@ public abstract class InputTypeAggregationFunction<T>
 		type = inputType.getTypeClass();
 	}
 
+	@Override
+	public T initialize(T value) {
+		return value;
+	}
+
 }

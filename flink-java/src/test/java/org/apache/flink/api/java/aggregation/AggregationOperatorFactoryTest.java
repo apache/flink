@@ -18,21 +18,25 @@
 
 package org.apache.flink.api.java.aggregation;
 
+import static java.util.Arrays.asList;
 import static org.apache.flink.util.TestHelper.uniqueInt;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
 import static org.powermock.api.mockito.PowerMockito.whenNew;
+
+import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.aggregation.AggregationFunction.ResultTypeBehavior;
-import org.apache.flink.api.java.aggregation.AggregationOperatorFactory.GroupingPreprocessor;
-import org.apache.flink.api.java.aggregation.AggregationOperatorFactory.ResultTupleFactory;
+import org.apache.flink.api.java.aggregation.AggregationOperatorFactory.AggregationFunctionPreprocessor;
 import org.apache.flink.api.java.aggregation.AggregationOperatorFactory.ResultTypeFactory;
 import org.apache.flink.api.java.operators.AggregationOperator;
 import org.apache.flink.api.java.operators.Keys;
@@ -53,9 +57,8 @@ import org.powermock.modules.junit4.PowerMockRunner;
 public class AggregationOperatorFactoryTest {
 
 	private AggregationOperatorFactory factory = new AggregationOperatorFactory();
-	private GroupingPreprocessor groupingPreprocessor = new GroupingPreprocessor();
+	private AggregationFunctionPreprocessor aggregationFunctionPreprocessor = new AggregationFunctionPreprocessor();
 	private ResultTypeFactory typeFactory = new ResultTypeFactory();
-	private ResultTupleFactory tupleFactory = new ResultTupleFactory();
 	
 	@SuppressWarnings({ "rawtypes" })
 	@Test
@@ -91,6 +94,72 @@ public class AggregationOperatorFactoryTest {
 		// then
 		assertThat(resultType, tupleWithTypes(basicTypeInfo));
 	}
+
+	@SuppressWarnings("rawtypes")
+	@Test
+	public void shouldSetOutputPositions() {
+		// given
+		AggregationFunction function1 = mock(AggregationFunction.class);
+		AggregationFunction function2 = mock(AggregationFunction.class);
+		AggregationFunction[] functions = { function1, function2 };
+
+		// when
+		aggregationFunctionPreprocessor.createIntermediateFunctions(functions, new int[0]);
+
+		// then
+		verify(function1).setOutputPosition(0);
+		verify(function2).setOutputPosition(1);
+	}
+
+	@SuppressWarnings("rawtypes")
+	@Test
+	public void shouldExpandCompositeAggregationFunction() {
+		// given
+		// setup a composite aggregation function with 2 intermediate functions
+		CompositeAggregationFunction composite = mock(CompositeAggregationFunction.class);
+		AggregationFunction intermediate1 = mock(AggregationFunction.class);
+		AggregationFunction intermediate2 = mock(AggregationFunction.class);
+		List<AggregationFunction> intermediates = asList(intermediate1, intermediate2);
+		given(composite.getIntermediateAggregationFunctions()).willReturn(intermediates);
+
+		// input: a simple aggregation function and the composite
+		AggregationFunction function1 = mock(AggregationFunction.class);
+		AggregationFunction[] functions = { function1, composite };
+		
+		// when
+		AggregationFunction[] actual = 
+				aggregationFunctionPreprocessor.createIntermediateFunctions(functions, new int[0]);
+
+		// then
+		AggregationFunction[] expected = { function1, intermediate1, intermediate2 };
+		assertThat(actual, is(expected));
+		verify(function1).setOutputPosition(0);
+		verify(composite).setOutputPosition(1);
+		verify(composite).getIntermediateAggregationFunctions();
+		verify(function1).setIntermediatePosition(0);
+		verify(intermediate1).setIntermediatePosition(1);
+		verify(intermediate2).setIntermediatePosition(2);
+		verifyNoMoreInteractions(function1, composite, intermediate1, intermediate2);
+	}
+	
+	@SuppressWarnings("rawtypes")
+	@Test
+	public void shouldMapGroupKeys() {
+		// given
+		// setup a key function and normal function
+		int intermedateField = uniqueInt();
+		KeySelectionAggregationFunction key = mock(KeySelectionAggregationFunction.class);
+		given(key.getIntermediatePosition()).willReturn(intermedateField);
+		AggregationFunction function = mock(AggregationFunction.class);
+		AggregationFunction[] intermediates = { key, function };
+		
+		// when
+		int[] actual = aggregationFunctionPreprocessor.createIntermediateGroupKeys(intermediates);
+		
+		// then
+		int[] expected = { intermedateField };
+		assertThat(actual, is(expected));
+	}
 	
 	@SuppressWarnings("rawtypes")
 	@Test
@@ -112,10 +181,10 @@ public class AggregationOperatorFactoryTest {
 		given(Aggregations.key(pos[1])).willReturn(key2);
 
 		// when
-		AggregationFunction[] actual = groupingPreprocessor.insertKeySelectionAggregationFunctions(pos, functions);
+		AggregationFunction[] actual = aggregationFunctionPreprocessor.createIntermediateFunctions(functions, pos);
 
 		// then
-		AggregationFunction[] expected = { key1, key2, function1, function2 };
+		AggregationFunction[] expected = {function1, function2, key1, key2};
 		assertThat(actual, is(expected));
 	}
 
@@ -126,31 +195,37 @@ public class AggregationOperatorFactoryTest {
 		// setup grouping with two keys
 		int[] pos = setupGroupKeys();
 		
-		// setup 2 aggregation and 1 key selection functions
+		// setup creation of key selection function
+		AggregationFunction key1 = mock(AggregationFunction.class);
+		AggregationFunction key2 = mock(AggregationFunction.class);
+		mockStatic(Aggregations.class);
+		given(Aggregations.key(pos[0])).willReturn(key1);
+		given(Aggregations.key(pos[1])).willReturn(key2);
+
+		// setup 2 aggregation and 1st key selection function as input
 		AggregationFunction function1 = mock(AggregationFunction.class);
 		AggregationFunction function2 = mock(AggregationFunction.class);
-		AggregationFunction key1 = mock(KeySelectionAggregationFunction.class);
 		AggregationFunction[] functions = { function1, key1, function2 };
 		
 		// when
-		AggregationFunction[] actual = groupingPreprocessor.insertKeySelectionAggregationFunctions(pos, functions);
+		AggregationFunction[] actual = aggregationFunctionPreprocessor.createIntermediateFunctions(functions, pos);
 
 		// then
-		AggregationFunction[] expected = { function1, key1, function2 };
+		AggregationFunction[] expected = { function1, key1, function2, key2 };
 		assertThat(actual, is(expected));
 	}
 	
-	@SuppressWarnings({ "rawtypes", "unchecked" })
+	@SuppressWarnings({ "rawtypes" })
 	@Test(expected=IllegalArgumentException.class)
 	public void errorIfKeySelectionFunctionIsUsedWithoutGrouping() {
 		// given
-		DataSet input = mock(DataSet.class);
 		AggregationFunction function = mock(AggregationFunction.class);
 		AggregationFunction key = mock(KeySelectionAggregationFunction.class);
 		AggregationFunction[] functions = { function, key };
+		int[] groupKeys = new int[0];
 
 		// when
-		factory.aggregate(input, functions);
+		aggregationFunctionPreprocessor.createIntermediateFunctions(functions, groupKeys);
 	}
 	
 	@SuppressWarnings("rawtypes")
@@ -196,70 +271,18 @@ public class AggregationOperatorFactoryTest {
 		// when
 		typeFactory.createAggregationResultType(null, functions);
 	}
-	
-	@Test
-	public void shouldCreateResultTuple() {
-		// given
-		int arity = uniqueInt(1, Tuple.MAX_ARITY + 1);
 
-		// when
-		Tuple result = tupleFactory.createResultTuple(arity);
-
-		// then
-		assertThat(result.getArity(), is(arity));
-	}
-	
-	@Test(expected=IllegalArgumentException.class)
-	public void errorIfResultTupleTooLarge() {
-		// given
-		int arity = uniqueInt(Tuple.MAX_ARITY + 2, Tuple.MAX_ARITY + 10);
-
-		// when
-		tupleFactory.createResultTuple(arity);
-	}
-
-	@SuppressWarnings({ "unchecked", "rawtypes" })
-	@Test
-	public void shouldCreateAgregationOperatorWithResultTypeAndTupleNoGrouping() throws Exception {
-		// given
-		// setup DataSet with type
-		DataSet input = mock(DataSet.class);
-		TypeInformation inputType = mock(TypeInformation.class);
-		given(input.getType()).willReturn(inputType);
-
-		// setup aggregation functions
-		AggregationFunction[] functions = { mock(AggregationFunction.class) };
-
-		// setup creation of result type
-		ResultTypeFactory typeFactory = mock(ResultTypeFactory.class);
-		factory.setResultTypeFactory(typeFactory);
-		TypeInformation resultType = mock(TypeInformation.class);
-		int arity = uniqueInt(1, Tuple.MAX_ARITY);
-		given(resultType.getArity()).willReturn(arity);
-		given(typeFactory.createAggregationResultType(inputType, functions)).willReturn(resultType);
-
-		// setup creation of result tuple
-		ResultTupleFactory tupleFactory = mock(ResultTupleFactory.class);
-		factory.setResultTupleFactory(tupleFactory);
-		Tuple resultTuple = mock(Tuple.class);
-		given(tupleFactory.createResultTuple(arity)).willReturn(resultTuple);
-
-		// setup creation of aggregation operator
-		AggregationOperator expected = mock(AggregationOperator.class);
-		whenNew(AggregationOperator.class).withArguments(input, resultType, resultTuple, new int[0], functions).thenReturn(expected);
-		
-		// when
-		AggregationOperator actual = factory.aggregate(input, functions);
-
-		// then
-		assertThat(actual, is(expected));
-	}
-	
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
 	// lot's of code duplication with no grouping case :-/
 	public void shouldCreateAgregationOperatorWithResultTypeAndTupleWithGrouping() throws Exception {
 		// given
+		// setup dependencies
+		AggregationFunctionPreprocessor aggregationFunctionPreprocessor = mock(AggregationFunctionPreprocessor.class);
+		factory.setAggregationFunctionPreprocessor(aggregationFunctionPreprocessor);
+		ResultTypeFactory typeFactory = mock(ResultTypeFactory.class);
+		factory.setResultTypeFactory(typeFactory);
+		
 		// setup DataSet with type
 		DataSet input = mock(DataSet.class);
 		TypeInformation inputType = mock(TypeInformation.class);
@@ -271,35 +294,31 @@ public class AggregationOperatorFactoryTest {
 		// setup grouping
 		UnsortedGrouping grouping = mock(UnsortedGrouping.class);
 		Keys keys = mock(Keys.class);
-		int[] groupPos = { uniqueInt() };
-		given(keys.getNumberOfKeyFields()).willReturn(groupPos.length);
-		given(keys.computeLogicalKeyPositions()).willReturn(groupPos);
+		int[] groupKeys = { uniqueInt() };
+		given(keys.getNumberOfKeyFields()).willReturn(groupKeys.length);
+		given(keys.computeLogicalKeyPositions()).willReturn(groupKeys);
 		given(grouping.getDataSet()).willReturn(input);
 		given(grouping.getKeys()).willReturn(keys);
 		
-		// setup creation of key selection
-		AggregationFunction[] functionsWithKeySelection = { mock(AggregationFunction.class) };
-		GroupingPreprocessor groupingPreprocessor = mock(GroupingPreprocessor.class);
-		factory.setGroupingPreprocessor(groupingPreprocessor);
-		given(groupingPreprocessor.insertKeySelectionAggregationFunctions(groupPos, functions)).willReturn(functionsWithKeySelection);
+		// setup creation of intermediate functions
+		AggregationFunction[] intermediates = { mock(AggregationFunction.class) };
+		given(aggregationFunctionPreprocessor.createIntermediateFunctions(functions, groupKeys)).willReturn(intermediates);
+		
+		// setup intermediate grouping
+		int[] intermediateGroupKeys = { uniqueInt() };
+		given(aggregationFunctionPreprocessor.createIntermediateGroupKeys(intermediates)).willReturn(intermediateGroupKeys);
 		
 		// setup creation of result type
-		ResultTypeFactory typeFactory = mock(ResultTypeFactory.class);
-		factory.setResultTypeFactory(typeFactory);
 		TypeInformation resultType = mock(TypeInformation.class);
-		int arity = uniqueInt(1, Tuple.MAX_ARITY);
-		given(resultType.getArity()).willReturn(arity);
-		given(typeFactory.createAggregationResultType(inputType, functionsWithKeySelection)).willReturn(resultType);
+		given(typeFactory.createAggregationResultType(inputType, functions)).willReturn(resultType);
 
-		// setup creation of result tuple
-		ResultTupleFactory tupleFactory = mock(ResultTupleFactory.class);
-		factory.setResultTupleFactory(tupleFactory);
-		Tuple resultTuple = mock(Tuple.class);
-		given(tupleFactory.createResultTuple(arity)).willReturn(resultTuple);
-
+		// setup creation of intermediate type
+		TypeInformation intermediateType = mock(TypeInformation.class);
+		given(typeFactory.createAggregationResultType(inputType, intermediates)).willReturn(intermediateType);
+		
 		// setup creation of aggregation operator
 		AggregationOperator expected = mock(AggregationOperator.class);
-		whenNew(AggregationOperator.class).withArguments(input, resultType, resultTuple, groupPos, functionsWithKeySelection).thenReturn(expected);
+		whenNew(AggregationOperator.class).withArguments(input, resultType, intermediateType, intermediateGroupKeys, functions, intermediates).thenReturn(expected);
 		
 		// when
 		AggregationOperator actual = factory.aggregate(grouping, functions);
@@ -330,7 +349,7 @@ public class AggregationOperatorFactoryTest {
 			ResultTypeBehavior bevavior) {
 		given(function.getResultTypeBehavior()).willReturn(bevavior);
 		given(function.getResultType()).willReturn(type);
-		given(function.getFieldPosition()).willReturn(i);
+		given(function.getInputPosition()).willReturn(i);
 	}
 	
 	@SuppressWarnings("rawtypes")

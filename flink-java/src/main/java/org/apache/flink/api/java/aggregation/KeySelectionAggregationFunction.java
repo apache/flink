@@ -51,4 +51,9 @@ public class KeySelectionAggregationFunction<T> extends InputTypeAggregationFunc
 		return key;
 	}
 
+	@Override
+	public T reduce(T value1, T value2) {
+		return value1;
+	}
+
 }

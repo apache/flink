@@ -224,7 +224,7 @@ public class AggregationApi1Test {
 				input.groupBy(0).aggregate(average(1));
 
 		// then
-		assertThat(output, dataSetWithTuples(asList("a", 11.5), asList("b", 21.5)));
+		assertThat(output, dataSetWithTuples(asList(11.5), asList(21.5)));
 	}
 
 	@SuppressWarnings("unchecked")
