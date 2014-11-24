@@ -499,6 +499,11 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
         return this.union(newVertex);
     }
 
+    public Graph<K, VV, EV> addEdge (Tuple3<K,K,EV> edge, Tuple2<K,VV> source, Tuple2<K,VV> target) {
+        Graph<K,VV,EV> newEdges = this.fromCollection(Arrays.asList(source, target), Arrays.asList(edge));
+        return this.union(newEdges);
+    }
+
     public Graph<K, VV, EV> removeVertex (Tuple2<K,VV> vertex) {
 
         DataSet<Tuple2<K,VV>> vertexToRemove = context.fromCollection(Arrays.asList(vertex));
@@ -510,6 +515,19 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		DataSet<Tuple3<K, K, EV>> newEdges = getEdges().filter(
 				new RemoveEdgeFilter<K, VV, EV>()).withBroadcastSet(
 				vertexToRemove, "vertexToRemove");
+
+        return new Graph<K, VV, EV>(newVertices, newEdges, this.context);
+    }
+    
+    public Graph<K, VV, EV> removeEdge (Tuple3<K,K,EV> edge) {
+    	
+    	DataSet<Tuple3<K,K,EV>> edgeToRemove = context.fromCollection(Arrays.asList(edge));
+
+		DataSet<Tuple2<K, VV>> newVertices = getVertices();
+
+		DataSet<Tuple3<K, K, EV>> newEdges = getEdges().filter(
+				new RemoveEdgeFilter<K, VV, EV>()).withBroadcastSet(
+					edgeToRemove, "edgeToRemove");
 
         return new Graph<K, VV, EV>(newVertices, newEdges, this.context);
     }
@@ -534,30 +552,54 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
     private static final class RemoveEdgeFilter<K, VV, EV> extends RichFilterFunction<Tuple3<K, K, EV>> {
 
     	private Tuple2<K, VV> vertexToRemove;
+    	private Tuple3<K, K, EV> edgeToRemove;
 
         @SuppressWarnings("unchecked")
 		@Override
         public void open(Configuration parameters) throws Exception {
             super.open(parameters);
-            this.vertexToRemove = (Tuple2<K, VV>) getRuntimeContext().getBroadcastVariable("vertexToRemove").get(0);
+            
+            
+            List<Tuple2<K, VV>> vertexVariable = null;
+            List<Tuple3<K, K, EV>> edgeVariable = null;
+            
+            try {
+            	vertexVariable = getRuntimeContext().getBroadcastVariable("vertexToRemove");
+            } catch (IllegalArgumentException ex) {}
+            
+            try {
+            	edgeVariable = getRuntimeContext().getBroadcastVariable("edgeToRemove");
+            } catch (IllegalArgumentException ex) {}
+            
+            if (vertexVariable != null) {
+            	vertexToRemove = vertexVariable.get(0);
+            }
+            
+            if (edgeVariable != null) {
+            	edgeToRemove = edgeVariable.get(0);
+            }
         }
 
         @Override
         public boolean filter(Tuple3<K, K, EV> edge) throws Exception {
         	
-        	if (edge.f0.equals(vertexToRemove.f0)) {
-                return false;
-            }
-            if (edge.f1.equals(vertexToRemove.f0)) {
-                return false;
-            }
-            return true;
+        	if (vertexToRemove != null) {
+	        	if (edge.f0.equals(vertexToRemove.f0)) {
+	                return false;
+	            }
+	            if (edge.f1.equals(vertexToRemove.f0)) {
+	                return false;
+	            }
+	            return true;
+        	} else if (edgeToRemove != null) {
+        		if (edge.f0.equals(edgeToRemove.f0) 
+        				&& edge.f1.equals(edgeToRemove.f1)) {
+        			return false;
+        		}
+        		return true;
+        	}
+        	return true;
         }
-    }
-
-    public Graph<K, VV, EV> addEdge (Tuple3<K,K,EV> edge, Tuple2<K,VV> source, Tuple2<K,VV> target) {
-        Graph<K,VV,EV> newEdges = this.fromCollection(Arrays.asList(source, target), Arrays.asList(edge));
-        return this.union(newEdges);
     }
 
     public Graph<K, VV, EV> union (Graph<K, VV, EV> graph) {

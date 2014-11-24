@@ -20,7 +20,7 @@ import org.junit.runners.Parameterized.Parameters;
 @RunWith(Parameterized.class)
 public class TestGraphOperations extends JavaProgramTestBase {
 
-	private static int NUM_PROGRAMS = 8;
+	private static int NUM_PROGRAMS = 16;
 	
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -200,7 +200,7 @@ public class TestGraphOperations extends JavaProgramTestBase {
 			}
 			case 9: {
 				/*
-				 * Test addVertex()
+				 * Test addVertex() -- simple case
 				 */	
 				
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -229,7 +229,36 @@ public class TestGraphOperations extends JavaProgramTestBase {
 			}
 			case 10: {
 				/*
-				 * Test removeVertex()
+				 * Test addVertex() -- add an existing vertex
+				 */	
+				
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				
+				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+						TestGraphUtils.getLongLongEdgeData(env), env);
+				
+				List<Tuple3<Long, Long, Long>> edges = new ArrayList<Tuple3<Long, Long, Long>>();
+				edges.add(new Tuple3<Long, Long, Long>(1L, 5L, 15L));
+				
+				graph = graph.addVertex(new Tuple2<Long, Long>(1L, 1L), edges);
+				
+				graph.getEdges().writeAsCsv(resultPath);
+					
+				env.execute();
+				
+				return "1,2,12\n" +
+					"1,3,13\n" +
+					"1,5,15\n" +
+					"2,3,23\n" +
+					"3,4,34\n" +
+					"3,5,35\n" +
+					"4,5,45\n" +
+					"5,1,51\n";
+				
+			}
+			case 11: {
+				/*
+				 * Test removeVertex() -- simple case
 				 */	
 				
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -247,10 +276,111 @@ public class TestGraphOperations extends JavaProgramTestBase {
 					"1,3,13\n" +
 					"2,3,23\n" +
 					"3,4,34\n";
+				
 			}
-			case 11: {
+			case 12: {
 				/*
-				 * Test addEdge()
+				 * Test removeVertex() -- remove an invalid vertex
+				 */	
+				
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				
+				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+						TestGraphUtils.getLongLongEdgeData(env), env);
+				
+				graph = graph.removeVertex(new Tuple2<Long, Long>(6L, 6L));
+				
+				graph.getEdges().writeAsCsv(resultPath);
+					
+				env.execute();
+				
+				return "1,2,12\n" +
+					"1,3,13\n" +
+					"2,3,23\n" +
+					"3,4,34\n" +
+					"3,5,35\n" +
+					"4,5,45\n" +
+					"5,1,51\n";
+			}
+			case 13: {
+				/*
+				 * Test addEdge() -- simple case
+				 */
+				
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				
+				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+						TestGraphUtils.getLongLongEdgeData(env), env);
+				
+				
+				graph = graph.addEdge(new Tuple3<Long, Long, Long>(6L, 1L, 61L), 
+						new Tuple2<Long, Long>(6L, 6L), new Tuple2<Long, Long>(1L, 1L));
+				
+				graph.getEdges().writeAsCsv(resultPath);
+					
+				env.execute();
+				
+				return "1,2,12\n" +
+					"1,3,13\n" +
+					"2,3,23\n" +
+					"3,4,34\n" +
+					"3,5,35\n" +
+					"4,5,45\n" +
+					"5,1,51\n" +
+					"6,1,61\n";	
+			}
+			case 14: {
+				/*
+				 * Test removeEdge() -- simple case
+				 */
+				
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				
+				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+						TestGraphUtils.getLongLongEdgeData(env), env);
+				
+				graph = graph.removeEdge(new Tuple3<Long, Long, Long>(5L, 1L, 51L));
+				
+				graph.getEdges().writeAsCsv(resultPath);
+					
+				env.execute();
+				
+				return "1,2,12\n" +
+					"1,3,13\n" +
+					"2,3,23\n" +
+					"3,4,34\n" +
+					"3,5,35\n" +
+					"4,5,45\n";
+				
+			}
+			case 15: {
+				/*
+				 * Test removeEdge() -- invalid edge
+				 */
+				
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				
+				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+						TestGraphUtils.getLongLongEdgeData(env), env);
+				
+				graph = graph.removeEdge(new Tuple3<Long, Long, Long>(6L, 1L, 61L));
+				
+				graph.getEdges().writeAsCsv(resultPath);
+					
+				env.execute();
+				
+				return "1,2,12\n" +
+					"1,3,13\n" +
+					"2,3,23\n" +
+					"3,4,34\n" +
+					"3,5,35\n" +
+					"4,5,45\n" +
+					"5,1,51\n";
+				
+			}
+			case 16: {
+				/*
+				 * Test union()
 				 */
 				
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -277,39 +407,7 @@ public class TestGraphOperations extends JavaProgramTestBase {
 					"3,5,35\n" +
 					"4,5,45\n" +
 					"5,1,51\n" +
-					"6,1,61\n";
-			}
-			case 12: {
-				/*
-				 * Test union()
-				 */
-				
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
-						TestGraphUtils.getLongLongEdgeData(env), env);
-				
-				
-				graph = graph.addEdge(new Tuple3<Long, Long, Long>(6L, 1L, 61L), 
-						new Tuple2<Long, Long>(6L, 6L), new Tuple2<Long, Long>(1L, 1L));
-				
-				graph.getEdges().writeAsCsv(resultPath);
-					
-				env.execute();
-				
-				return "1,2,12\n" +
-					"1,3,13\n" +
-					"2,3,23\n" +
-					"3,4,34\n" +
-					"3,5,35\n" +
-					"4,5,45\n" +
-					"5,1,51\n" +
-					"6,1,61\n";				
-			}
-			case 13: {
-				/*
-				 * Test passMessages()
-				 */				
+					"6,1,61\n";			
 			}
 			default: 
 				throw new IllegalArgumentException("Invalid program id");
