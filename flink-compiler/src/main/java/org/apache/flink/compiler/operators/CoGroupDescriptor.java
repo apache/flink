@@ -21,6 +21,7 @@ package org.apache.flink.compiler.operators;
 import java.util.Collections;
 import java.util.List;
 
+import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.util.FieldList;
@@ -40,6 +41,8 @@ public class CoGroupDescriptor extends OperatorDescriptorDual {
 	
 	private final Ordering ordering1;		// ordering on the first input 
 	private final Ordering ordering2;		// ordering on the second input 
+	
+	private Partitioner<?> customPartitioner;
 	
 	
 	public CoGroupDescriptor(FieldList keys1, FieldList keys2) {
@@ -84,6 +87,10 @@ public class CoGroupDescriptor extends OperatorDescriptorDual {
 		}
 	}
 	
+	public void setCustomPartitioner(Partitioner<?> customPartitioner) {
+		this.customPartitioner = customPartitioner;
+	}
+	
 	@Override
 	public DriverStrategy getStrategy() {
 		return DriverStrategy.CO_GROUP;
@@ -92,9 +99,19 @@ public class CoGroupDescriptor extends OperatorDescriptorDual {
 	@Override
 	protected List<GlobalPropertiesPair> createPossibleGlobalProperties() {
 		RequestedGlobalProperties partitioned1 = new RequestedGlobalProperties();
-		partitioned1.setHashPartitioned(this.keys1);
+		if (this.customPartitioner == null) {
+			partitioned1.setAnyPartitioning(this.keys1);
+		} else {
+			partitioned1.setCustomPartitioned(this.keys1, this.customPartitioner);
+		}
+		
 		RequestedGlobalProperties partitioned2 = new RequestedGlobalProperties();
-		partitioned2.setHashPartitioned(this.keys2);
+		if (this.customPartitioner == null) {
+			partitioned2.setAnyPartitioning(this.keys2);
+		} else {
+			partitioned2.setCustomPartitioned(this.keys2, this.customPartitioner);
+		}
+		
 		return Collections.singletonList(new GlobalPropertiesPair(partitioned1, partitioned2));
 	}
 	

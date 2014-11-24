@@ -25,9 +25,9 @@ import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo
 import org.apache.flink.api.scala.typeutils.{CaseClassSerializer, CaseClassTypeInfo}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.util.Collector
-
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
+import org.apache.flink.api.common.functions.Partitioner
 
 
 /**
@@ -65,6 +65,8 @@ class CoGroupDataSet[L, R](
     rightKeys: Keys[R])
   extends DataSet(defaultCoGroup) {
 
+  var customPartitioner : Partitioner[_] = _
+  
   /**
    * Creates a new [[DataSet]] where the result for each pair of co-grouped element lists is the
    * result of the given function.
@@ -84,8 +86,10 @@ class CoGroupDataSet[L, R](
       rightKeys,
       coGrouper,
       implicitly[TypeInformation[O]],
+      customPartitioner,
       getCallLocationName())
 
+    
     wrap(coGroupOperator)
   }
 
@@ -109,6 +113,7 @@ class CoGroupDataSet[L, R](
       rightKeys,
       coGrouper,
       implicitly[TypeInformation[O]],
+      customPartitioner,
       getCallLocationName())
 
     wrap(coGroupOperator)
@@ -131,9 +136,34 @@ class CoGroupDataSet[L, R](
       rightKeys,
       coGrouper,
       implicitly[TypeInformation[O]],
+      customPartitioner,
       getCallLocationName())
 
     wrap(coGroupOperator)
+  }
+  
+  // ----------------------------------------------------------------------------------------------
+  //  Properties
+  // ----------------------------------------------------------------------------------------------
+  
+  def withPartitioner[K : TypeInformation](partitioner : Partitioner[K]) : CoGroupDataSet[L, R] = {
+    if (partitioner != null) {
+      val typeInfo : TypeInformation[K] = implicitly[TypeInformation[K]]
+      
+      leftKeys.validateCustomPartitioner(partitioner, typeInfo)
+      rightKeys.validateCustomPartitioner(partitioner, typeInfo)
+    }
+    this.customPartitioner = partitioner
+    defaultCoGroup.withPartitioner(partitioner)
+    
+    this
+  }
+
+  /**
+   * Gets the custom partitioner used by this join, or null, if none is set.
+   */
+  def getPartitioner[K]() : Partitioner[K] = {
+    customPartitioner.asInstanceOf[Partitioner[K]]
   }
 }
 
@@ -194,6 +224,7 @@ class UnfinishedCoGroupOperation[L: ClassTag, R: ClassTag](
     }
     val coGroupOperator = new CoGroupOperator[L, R, (Array[L], Array[R])](
       leftInput.javaSet, rightInput.javaSet, leftKey, rightKey, coGrouper, returnType,
+      null, // partitioner
       getCallLocationName())
 
     new CoGroupDataSet(coGroupOperator, leftInput, rightInput, leftKey, rightKey)

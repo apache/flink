@@ -27,7 +27,7 @@ import org.apache.flink.compiler.dataproperties.RequestedGlobalProperties;
 import org.junit.Test;
 
 @SuppressWarnings("serial")
-public class CoGroupCompatibilityTest {
+public class CoGroupGlobalPropertiesCompatibilityTest {
 
 	@Test
 	public void checkCompatiblePartitionings() {
