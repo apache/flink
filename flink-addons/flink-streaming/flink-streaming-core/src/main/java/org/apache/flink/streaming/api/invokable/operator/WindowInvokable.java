@@ -32,14 +32,14 @@ import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public abstract class WindowingInvokable<IN, OUT> extends StreamInvokable<IN, OUT> {
+public abstract class WindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> {
 
 	/**
 	 * Auto-generated serial version UID
 	 */
 	private static final long serialVersionUID = -8038984294071650730L;
 
-	private static final Logger LOG = LoggerFactory.getLogger(WindowingInvokable.class);
+	private static final Logger LOG = LoggerFactory.getLogger(WindowInvokable.class);
 
 	private LinkedList<TriggerPolicy<IN>> triggerPolicies;
 	private LinkedList<EvictionPolicy<IN>> evictionPolicies;
@@ -62,7 +62,7 @@ public abstract class WindowingInvokable<IN, OUT> extends StreamInvokable<IN, OU
 	 *            A list of {@link EvictionPolicy}s and/or
 	 *            {@link ActiveEvictionPolicy}s
 	 */
-	public WindowingInvokable(Function userFunction, LinkedList<TriggerPolicy<IN>> triggerPolicies,
+	public WindowInvokable(Function userFunction, LinkedList<TriggerPolicy<IN>> triggerPolicies,
 			LinkedList<EvictionPolicy<IN>> evictionPolicies) {
 		super(userFunction);
 
@@ -156,11 +156,11 @@ public abstract class WindowingInvokable<IN, OUT> extends StreamInvokable<IN, OU
 	 * of this group.
 	 * 
 	 * Remark: This is NOT the same as
-	 * {@link WindowingInvokable#processFakeElement(Object, TriggerPolicy)}!
+	 * {@link WindowInvokable#processFakeElement(Object, TriggerPolicy)}!
 	 * Here the eviction using active policies takes place after the call to the
 	 * UDF. Usually it is done before when fake elements get submitted. This
 	 * special behaviour is needed to allow the
-	 * {@link GroupedWindowingInvokable} to send central triggers to all groups,
+	 * {@link GroupedWindowInvokable} to send central triggers to all groups,
 	 * even if the current element does not belong to the group.
 	 * 
 	 * @param input
@@ -208,7 +208,7 @@ public abstract class WindowingInvokable<IN, OUT> extends StreamInvokable<IN, OU
 	/**
 	 * This method processed an arrived fake element The method is synchronized
 	 * to ensure that it cannot interleave with
-	 * {@link WindowingInvokable#processRealElement(Object)}
+	 * {@link WindowInvokable#processRealElement(Object)}
 	 * 
 	 * @param input
 	 *            a fake input element
@@ -253,14 +253,14 @@ public abstract class WindowingInvokable<IN, OUT> extends StreamInvokable<IN, OU
 	/**
 	 * This method processed an arrived real element The method is synchronized
 	 * to ensure that it cannot interleave with
-	 * {@link WindowingInvokable#processFakeElement(Object)}.
+	 * {@link WindowInvokable#processFakeElement(Object)}.
 	 * 
 	 * @param input
 	 *            a real input element
 	 * @param triggerPolicies
 	 *            Allows to set trigger policies which are maintained
 	 *            externally. This is the case for central policies in
-	 *            {@link GroupedWindowingInvokable}.
+	 *            {@link GroupedWindowInvokable}.
 	 */
 	protected synchronized void processRealElement(IN input, List<TriggerPolicy<IN>> triggerPolicies) {
 		this.currentTriggerPolicies.addAll(triggerPolicies);
@@ -270,7 +270,7 @@ public abstract class WindowingInvokable<IN, OUT> extends StreamInvokable<IN, OU
 	/**
 	 * This method processed an arrived real element The method is synchronized
 	 * to ensure that it cannot interleave with
-	 * {@link WindowingInvokable#processFakeElement(Object)}
+	 * {@link WindowInvokable#processFakeElement(Object)}
 	 * 
 	 * @param input
 	 *            a real input element
@@ -347,7 +347,7 @@ public abstract class WindowingInvokable<IN, OUT> extends StreamInvokable<IN, OU
 	 * @param centralTriggerPolicies
 	 *            Allows to set trigger policies which are maintained
 	 *            externally. This is the case for central policies in
-	 *            {@link GroupedWindowingInvokable}.
+	 *            {@link GroupedWindowInvokable}.
 	 */
 	protected void emitFinalWindow(List<TriggerPolicy<IN>> centralTriggerPolicies) {
 		if (!buffer.isEmpty()) {

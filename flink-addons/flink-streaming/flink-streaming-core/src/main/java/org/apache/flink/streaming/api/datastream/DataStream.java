@@ -64,6 +64,8 @@ import org.apache.flink.streaming.api.windowing.helper.Count;
 import org.apache.flink.streaming.api.windowing.helper.Delta;
 import org.apache.flink.streaming.api.windowing.helper.Time;
 import org.apache.flink.streaming.api.windowing.helper.WindowingHelper;
+import org.apache.flink.streaming.api.windowing.policy.EvictionPolicy;
+import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
 import org.apache.flink.streaming.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.partitioner.DistributePartitioner;
 import org.apache.flink.streaming.partitioner.FieldsPartitioner;
@@ -194,67 +196,6 @@ public class DataStream<OUT> {
 	}
 
 	/**
-	 * Gets the class of the field at the given position
-	 * 
-	 * @param pos
-	 *            Position of the field
-	 * @return The class of the field
-	 */
-	@SuppressWarnings("rawtypes")
-	protected Class<?> getClassAtPos(int pos) {
-		Class<?> type;
-		TypeInformation<OUT> outTypeInfo = outTypeWrapper.getTypeInfo();
-		if (outTypeInfo.isTupleType()) {
-			type = ((TupleTypeInfo) outTypeInfo).getTypeAt(pos).getTypeClass();
-
-		} else if (outTypeInfo instanceof BasicArrayTypeInfo) {
-
-			type = ((BasicArrayTypeInfo) outTypeInfo).getComponentTypeClass();
-
-		} else if (outTypeInfo instanceof PrimitiveArrayTypeInfo) {
-			Class<?> clazz = outTypeInfo.getTypeClass();
-			if (clazz == boolean[].class) {
-				type = Boolean.class;
-			} else if (clazz == short[].class) {
-				type = Short.class;
-			} else if (clazz == int[].class) {
-				type = Integer.class;
-			} else if (clazz == long[].class) {
-				type = Long.class;
-			} else if (clazz == float[].class) {
-				type = Float.class;
-			} else if (clazz == double[].class) {
-				type = Double.class;
-			} else if (clazz == char[].class) {
-				type = Character.class;
-			} else {
-				throw new IndexOutOfBoundsException("Type could not be determined for array");
-			}
-
-		} else if (pos == 0) {
-			type = outTypeInfo.getTypeClass();
-		} else {
-			throw new IndexOutOfBoundsException("Position is out of range");
-		}
-		return type;
-	}
-
-	/**
-	 * Checks if the given field position is allowed for the output type
-	 * 
-	 * @param pos
-	 *            Position to check
-	 */
-	protected void checkFieldRange(int pos) {
-		try {
-			getClassAtPos(pos);
-		} catch (IndexOutOfBoundsException e) {
-			throw new RuntimeException("Selected field is out of range");
-
-		}
-	}
-
-	/**
 	 * Creates a new {@link DataStream} by merging {@link DataStream} outputs of
 	 * the same type with each other. The DataStreams merged using this operator
 	 * will be transformed simultaneously.
@@ -275,14 +216,6 @@ public class DataStream<OUT> {
 		return returnStream;
 	}
 
-	private void validateMerge(String id) {
-		for (DataStream<OUT> ds : this.mergedStreams) {
-			if (ds.getId().equals(id)) {
-				throw new RuntimeException("A DataStream cannot be merged with itself");
-			}
-		}
-	}
-
 	/**
 	 * Creates a new {@link ConnectedDataStream} by connecting
 	 * {@link DataStream} outputs of different type with each other. The
@@ -294,6 +227,521 @@ public class DataStream<OUT> {
 	 */
 	public <R> ConnectedDataStream<OUT, R> connect(DataStream<R> dataStream) {
 		return new ConnectedDataStream<OUT, R>(this, dataStream);
+	}
+
+	/**
+	 * Groups the elements of a {@link DataStream} by the given key positions to
+	 * be used with grouped operators like
+	 * {@link GroupedDataStream#reduce(ReduceFunction)}
+	 * 
+	 * @param fields
+	 *            The position of the fields on which the {@link DataStream}
+	 *            will be grouped.
+	 * @return The grouped {@link DataStream}
+	 */
+	public GroupedDataStream<OUT> groupBy(int... fields) {
+	
+		return groupBy(FieldsKeySelector.getSelector(getOutputType(), fields));
+	
+	}
+
+	/**
+	 * Groups a {@link DataStream} using field expressions. A field expression
+	 * is either the name of a public field or a getter method with parentheses
+	 * of the {@link DataStream}S underlying type. A dot can be used to drill
+	 * down into objects, as in {@code "field1.getInnerField2()" }. This method
+	 * returns an {@link GroupedDataStream}.
+	 * 
+	 * @param fields
+	 *            One or more field expressions on which the DataStream will be
+	 *            grouped.
+	 * @return The grouped {@link DataStream}
+	 **/
+	public GroupedDataStream<OUT> groupBy(String... fields) {
+	
+		return groupBy(new PojoKeySelector<OUT>(getOutputType(), fields));
+	
+	}
+
+	/**
+	 * Groups the elements of a {@link DataStream} by the key extracted by the
+	 * {@link KeySelector} to be used with grouped operators like
+	 * {@link GroupedDataStream#reduce(ReduceFunction)}
+	 * 
+	 * @param keySelector
+	 *            The {@link KeySelector} that will be used to extract keys for
+	 *            the values
+	 * @return The grouped {@link DataStream}
+	 */
+	public GroupedDataStream<OUT> groupBy(KeySelector<OUT, ?> keySelector) {
+		return new GroupedDataStream<OUT>(this, keySelector);
+	}
+
+	/**
+	 * Sets the partitioning of the {@link DataStream} so that the output is
+	 * partitioned by the selected fields.
+	 * 
+	 * @param fields
+	 *            The fields to partition by.
+	 * @return The DataStream with fields partitioning set.
+	 */
+	public DataStream<OUT> partitionBy(int... fields) {
+	
+		return setConnectionType(new FieldsPartitioner<OUT>(FieldsKeySelector.getSelector(
+				getOutputType(), fields)));
+	}
+
+	/**
+	 * Sets the partitioning of the {@link DataStream} so that the output is
+	 * partitioned by the given field expressions.
+	 * 
+	 * @param fields
+	 *            The fields expressions to partition by.
+	 * @return The DataStream with fields partitioning set.
+	 */
+	public DataStream<OUT> partitionBy(String... fields) {
+	
+		return setConnectionType(new FieldsPartitioner<OUT>(new PojoKeySelector<OUT>(
+				getOutputType(), fields)));
+	}
+
+	/**
+	 * Sets the partitioning of the {@link DataStream} so that the output is
+	 * partitioned using the given {@link KeySelector}.
+	 * 
+	 * @param keySelector
+	 * @return
+	 */
+	public DataStream<OUT> partitionBy(KeySelector<OUT, ?> keySelector) {
+		return setConnectionType(new FieldsPartitioner<OUT>(keySelector));
+	}
+
+	/**
+	 * Sets the partitioning of the {@link DataStream} so that the output tuples
+	 * are broadcasted to every parallel instance of the next component.
+	 * 
+	 * @return The DataStream with broadcast partitioning set.
+	 */
+	public DataStream<OUT> broadcast() {
+		return setConnectionType(new BroadcastPartitioner<OUT>());
+	}
+
+	/**
+	 * Sets the partitioning of the {@link DataStream} so that the output tuples
+	 * are shuffled to the next component.
+	 * 
+	 * @return The DataStream with shuffle partitioning set.
+	 */
+	public DataStream<OUT> shuffle() {
+		return setConnectionType(new ShufflePartitioner<OUT>());
+	}
+
+	/**
+	 * Sets the partitioning of the {@link DataStream} so that the output tuples
+	 * are forwarded to the local subtask of the next component. This is the
+	 * default partitioner setting.
+	 * 
+	 * @return The DataStream with shuffle partitioning set.
+	 */
+	public DataStream<OUT> forward() {
+		return setConnectionType(new ForwardPartitioner<OUT>());
+	}
+
+	/**
+	 * Sets the partitioning of the {@link DataStream} so that the output tuples
+	 * are distributed evenly to the next component.
+	 * 
+	 * @return The DataStream with shuffle partitioning set.
+	 */
+	public DataStream<OUT> distribute() {
+		return setConnectionType(new DistributePartitioner<OUT>());
+	}
+
+	/**
+	 * Initiates an iterative part of the program that executes multiple times
+	 * and feeds back data streams. The iterative part needs to be closed by
+	 * calling {@link IterativeDataStream#closeWith(DataStream)}. The
+	 * transformation of this IterativeDataStream will be the iteration head.
+	 * The data stream given to the {@code closeWith(DataStream)} method is the
+	 * data stream that will be fed back and used as the input for the iteration
+	 * head. Unlike in batch processing by default the output of the iteration
+	 * stream is directed to both to the iteration head and the next component.
+	 * To direct tuples to the iteration head or the output specifically one can
+	 * use the {@code split(OutputSelector)} on the iteration tail while
+	 * referencing the iteration head as 'iterate'.
+	 * <p>
+	 * The iteration edge will be partitioned the same way as the first input of
+	 * the iteration head.
+	 * <p>
+	 * By default a DataStream with iteration will never terminate, but the user
+	 * can use the {@link IterativeDataStream#setMaxWaitTime} call to set a max
+	 * waiting time for the iteration.
+	 * 
+	 * @return The iterative data stream created.
+	 */
+	public IterativeDataStream<OUT> iterate() {
+		return new IterativeDataStream<OUT>(this);
+	}
+
+	/**
+	 * Applies a Map transformation on a {@link DataStream}. The transformation
+	 * calls a {@link MapFunction} for each element of the DataStream. Each
+	 * MapFunction call returns exactly one element. The user can also extend
+	 * {@link RichMapFunction} to gain access to other features provided by the
+	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
+	 * 
+	 * @param mapper
+	 *            The MapFunction that is called for each element of the
+	 *            DataStream.
+	 * @param <R>
+	 *            output type
+	 * @return The transformed {@link DataStream}.
+	 */
+	public <R> SingleOutputStreamOperator<R, ?> map(MapFunction<OUT, R> mapper) {
+		FunctionTypeWrapper<OUT> inTypeWrapper = new FunctionTypeWrapper<OUT>(mapper,
+				MapFunction.class, 0);
+		FunctionTypeWrapper<R> outTypeWrapper = new FunctionTypeWrapper<R>(mapper,
+				MapFunction.class, 1);
+
+		return addFunction("map", mapper, inTypeWrapper, outTypeWrapper, new MapInvokable<OUT, R>(
+				mapper));
+	}
+
+	/**
+	 * Applies a FlatMap transformation on a {@link DataStream}. The
+	 * transformation calls a {@link FlatMapFunction} for each element of the
+	 * DataStream. Each FlatMapFunction call can return any number of elements
+	 * including none. The user can also extend {@link RichFlatMapFunction} to
+	 * gain access to other features provided by the
+	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
+	 * 
+	 * @param flatMapper
+	 *            The FlatMapFunction that is called for each element of the
+	 *            DataStream
+	 * 
+	 * @param <R>
+	 *            output type
+	 * @return The transformed {@link DataStream}.
+	 */
+	public <R> SingleOutputStreamOperator<R, ?> flatMap(FlatMapFunction<OUT, R> flatMapper) {
+		FunctionTypeWrapper<OUT> inTypeWrapper = new FunctionTypeWrapper<OUT>(flatMapper,
+				FlatMapFunction.class, 0);
+		FunctionTypeWrapper<R> outTypeWrapper = new FunctionTypeWrapper<R>(flatMapper,
+				FlatMapFunction.class, 1);
+
+		return addFunction("flatMap", flatMapper, inTypeWrapper, outTypeWrapper,
+				new FlatMapInvokable<OUT, R>(flatMapper));
+	}
+
+	/**
+	 * Applies a reduce transformation on the data stream. The user can also
+	 * extend the {@link RichReduceFunction} to gain access to other features
+	 * provided by the
+	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
+	 * 
+	 * @param reducer
+	 *            The {@link ReduceFunction} that will be called for every
+	 *            element of the input values.
+	 * @return The transformed DataStream.
+	 */
+	public SingleOutputStreamOperator<OUT, ?> reduce(ReduceFunction<OUT> reducer) {
+		return addFunction("reduce", reducer, new FunctionTypeWrapper<OUT>(reducer,
+				ReduceFunction.class, 0), new FunctionTypeWrapper<OUT>(reducer,
+				ReduceFunction.class, 0), new StreamReduceInvokable<OUT>(reducer));
+	}
+
+	/**
+	 * Applies a Filter transformation on a {@link DataStream}. The
+	 * transformation calls a {@link FilterFunction} for each element of the
+	 * DataStream and retains only those element for which the function returns
+	 * true. Elements for which the function returns false are filtered. The
+	 * user can also extend {@link RichFilterFunction} to gain access to other
+	 * features provided by the
+	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
+	 * 
+	 * @param filter
+	 *            The FilterFunction that is called for each element of the
+	 *            DataSet.
+	 * @return The filtered DataStream.
+	 */
+	public SingleOutputStreamOperator<OUT, ?> filter(FilterFunction<OUT> filter) {
+		FunctionTypeWrapper<OUT> typeWrapper = new FunctionTypeWrapper<OUT>(filter,
+				FilterFunction.class, 0);
+	
+		return addFunction("filter", filter, typeWrapper, typeWrapper, new FilterInvokable<OUT>(
+				filter));
+	}
+
+	/**
+	 * Initiates a Project transformation on a {@link Tuple} {@link DataStream}.<br/>
+	 * <b>Note: Only Tuple DataStreams can be projected.</b></br> The
+	 * transformation projects each Tuple of the DataSet onto a (sub)set of
+	 * fields.</br> This method returns a {@link StreamProjection} on which
+	 * {@link StreamProjection#types(Class)} needs to be called to completed the
+	 * transformation.
+	 * 
+	 * @param fieldIndexes
+	 *            The field indexes of the input tuples that are retained. The
+	 *            order of fields in the output tuple corresponds to the order
+	 *            of field indexes.
+	 * @return A StreamProjection that needs to be converted into a DataStream
+	 *         to complete the project transformation by calling
+	 *         {@link StreamProjection#types(Class)}.
+	 * 
+	 * @see Tuple
+	 * @see DataStream
+	 */
+	public StreamProjection<OUT> project(int... fieldIndexes) {
+		return new StreamProjection<OUT>(this.copy(), fieldIndexes);
+	}
+
+	/**
+	 * Applies an aggregation that sums the data stream at the given position.
+	 * 
+	 * @param positionToSum
+	 *            The position in the data point to sum
+	 * @return The transformed DataStream.
+	 */
+	public SingleOutputStreamOperator<OUT, ?> sum(int positionToSum) {
+		checkFieldRange(positionToSum);
+		return aggregate((AggregationFunction<OUT>) SumAggregator.getSumFunction(positionToSum,
+				getClassAtPos(positionToSum), getOutputType()));
+	}
+
+	/**
+	 * Applies an aggregation that that gives the sum of the pojo data stream at
+	 * the given field expression. A field expression is either the name of a
+	 * public field or a getter method with parentheses of the
+	 * {@link DataStream}S underlying type. A dot can be used to drill down into
+	 * objects, as in {@code "field1.getInnerField2()" }.
+	 * 
+	 * @param field
+	 *            The field expression based on which the aggregation will be
+	 *            applied.
+	 * @return The transformed DataStream.
+	 */
+	public SingleOutputStreamOperator<OUT, ?> sum(String field) {
+		return aggregate((AggregationFunction<OUT>) SumAggregator.getSumFunction(field,
+				getOutputType()));
+	}
+
+	/**
+	 * Applies an aggregation that that gives the minimum of the data stream at
+	 * the given position.
+	 * 
+	 * @param positionToMin
+	 *            The position in the data point to minimize
+	 * @return The transformed DataStream.
+	 */
+	public SingleOutputStreamOperator<OUT, ?> min(int positionToMin) {
+		checkFieldRange(positionToMin);
+		return aggregate(ComparableAggregator.getAggregator(positionToMin, getOutputType(),
+				AggregationType.MIN));
+	}
+
+	/**
+	 * Applies an aggregation that that gives the minimum of the pojo data
+	 * stream at the given field expression. A field expression is either the
+	 * name of a public field or a getter method with parentheses of the
+	 * {@link DataStream}S underlying type. A dot can be used to drill down into
+	 * objects, as in {@code "field1.getInnerField2()" }.
+	 * 
+	 * @param field
+	 *            The field expression based on which the aggregation will be
+	 *            applied.
+	 * @return The transformed DataStream.
+	 */
+	public SingleOutputStreamOperator<OUT, ?> min(String field) {
+		return aggregate(ComparableAggregator.getAggregator(field, getOutputType(),
+				AggregationType.MIN, false));
+	}
+
+	/**
+	 * Applies an aggregation that that gives the maximum of the pojo data
+	 * stream at the given field expression. A field expression is either the
+	 * name of a public field or a getter method with parentheses of the
+	 * {@link DataStream}S underlying type. A dot can be used to drill down into
+	 * objects, as in {@code "field1.getInnerField2()" }.
+	 * 
+	 * @param field
+	 *            The field expression based on which the aggregation will be
+	 *            applied.
+	 * @return The transformed DataStream.
+	 */
+	public SingleOutputStreamOperator<OUT, ?> max(String field) {
+		return aggregate(ComparableAggregator.getAggregator(field, getOutputType(),
+				AggregationType.MAX, false));
+	}
+
+	/**
+	 * Applies an aggregation that that gives the minimum element of the pojo
+	 * data stream by the given field expression. A field expression is either
+	 * the name of a public field or a getter method with parentheses of the
+	 * {@link DataStream}S underlying type. A dot can be used to drill down into
+	 * objects, as in {@code "field1.getInnerField2()" }.
+	 * 
+	 * @param field
+	 *            The field expression based on which the aggregation will be
+	 *            applied.
+	 * @param first
+	 *            If True then in case of field equality the first object will
+	 *            be returned
+	 * @return The transformed DataStream.
+	 */
+	public SingleOutputStreamOperator<OUT, ?> minBy(String field, boolean first) {
+		return aggregate(ComparableAggregator.getAggregator(field, getOutputType(),
+				AggregationType.MINBY, first));
+	}
+
+	/**
+	 * Applies an aggregation that that gives the maximum element of the pojo
+	 * data stream by the given field expression. A field expression is either
+	 * the name of a public field or a getter method with parentheses of the
+	 * {@link DataStream}S underlying type. A dot can be used to drill down into
+	 * objects, as in {@code "field1.getInnerField2()" }.
+	 * 
+	 * @param field
+	 *            The field expression based on which the aggregation will be
+	 *            applied.
+	 * @param first
+	 *            If True then in case of field equality the first object will
+	 *            be returned
+	 * @return The transformed DataStream.
+	 */
+	public SingleOutputStreamOperator<OUT, ?> maxBy(String field, boolean first) {
+		return aggregate(ComparableAggregator.getAggregator(field, getOutputType(),
+				AggregationType.MAXBY, first));
+	}
+
+	/**
+	 * Applies an aggregation that that gives the current element with the
+	 * minimum value at the given position, if more elements have the minimum
+	 * value at the given position, the operator returns the first one by
+	 * default.
+	 * 
+	 * @param positionToMinBy
+	 *            The position in the data point to minimize
+	 * @return The transformed DataStream.
+	 */
+	public SingleOutputStreamOperator<OUT, ?> minBy(int positionToMinBy) {
+		return this.minBy(positionToMinBy, true);
+	}
+
+	/**
+	 * Applies an aggregation that that gives the current element with the
+	 * minimum value at the given position, if more elements have the minimum
+	 * value at the given position, the operator returns either the first or
+	 * last one, depending on the parameter set.
+	 * 
+	 * @param positionToMinBy
+	 *            The position in the data point to minimize
+	 * @param first
+	 *            If true, then the operator return the first element with the
+	 *            minimal value, otherwise returns the last
+	 * @return The transformed DataStream.
+	 */
+	public SingleOutputStreamOperator<OUT, ?> minBy(int positionToMinBy, boolean first) {
+		checkFieldRange(positionToMinBy);
+		return aggregate(ComparableAggregator.getAggregator(positionToMinBy, getOutputType(),
+				AggregationType.MINBY, first));
+	}
+
+	/**
+	 * Applies an aggregation that gives the maximum of the data stream at the
+	 * given position.
+	 * 
+	 * @param positionToMax
+	 *            The position in the data point to maximize
+	 * @return The transformed DataStream.
+	 */
+	public SingleOutputStreamOperator<OUT, ?> max(int positionToMax) {
+		checkFieldRange(positionToMax);
+		return aggregate(ComparableAggregator.getAggregator(positionToMax, getOutputType(),
+				AggregationType.MAX));
+	}
+
+	/**
+	 * Applies an aggregation that that gives the current element with the
+	 * maximum value at the given position, if more elements have the maximum
+	 * value at the given position, the operator returns the first one by
+	 * default.
+	 * 
+	 * @param positionToMaxBy
+	 *            The position in the data point to maximize
+	 * @return The transformed DataStream.
+	 */
+	public SingleOutputStreamOperator<OUT, ?> maxBy(int positionToMaxBy) {
+		return this.maxBy(positionToMaxBy, true);
+	}
+
+	/**
+	 * Applies an aggregation that that gives the current element with the
+	 * maximum value at the given position, if more elements have the maximum
+	 * value at the given position, the operator returns either the first or
+	 * last one, depending on the parameter set.
+	 * 
+	 * @param positionToMaxBy
+	 *            The position in the data point to maximize.
+	 * @param first
+	 *            If true, then the operator return the first element with the
+	 *            maximum value, otherwise returns the last
+	 * @return The transformed DataStream.
+	 */
+	public SingleOutputStreamOperator<OUT, ?> maxBy(int positionToMaxBy, boolean first) {
+		checkFieldRange(positionToMaxBy);
+		return aggregate(ComparableAggregator.getAggregator(positionToMaxBy, getOutputType(),
+				AggregationType.MAXBY, first));
+	}
+
+	/**
+	 * Applies an aggregation that gives the count of the values.
+	 * 
+	 * @return The transformed DataStream.
+	 */
+	public SingleOutputStreamOperator<Long, ?> count() {
+		TypeWrapper<OUT> inTypeWrapper = outTypeWrapper;
+		TypeWrapper<Long> outTypeWrapper = new ObjectTypeWrapper<Long>(Long.valueOf(0));
+
+		return addFunction("counter", null, inTypeWrapper, outTypeWrapper,
+				new CounterInvokable<OUT>());
+	}
+
+	/**
+	 * This allows you to set up windowing through a nice API using
+	 * {@link WindowingHelper} such as {@link Time}, {@link Count} and
+	 * {@link Delta}. Windowing allows the user to apply different user defined
+	 * functions on predefined chunks of the data stream. For example a reducer
+	 * could be applied on every 5 seconds of data to count the elements in that
+	 * time window.
+	 * 
+	 * @param policyHelpers
+	 *            Any {@link WindowingHelper} such as {@link Time},
+	 *            {@link Count} and {@link Delta}.
+	 * @return A {@link WindowedDataStream} providing further operations.
+	 */
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	public WindowedDataStream<OUT> window(WindowingHelper... policyHelpers) {
+		return new WindowedDataStream<OUT>(this, policyHelpers);
+	}
+
+	/**
+	 * Set up a windowed data stream using the given {@link TriggerPolicy}s and
+	 * {@link EvictionPolicy}s. Windowing allows the user to apply different
+	 * user defined functions on predefined chunks of the data stream. For
+	 * example a reducer could be applied on every 5 seconds of data to count
+	 * the elements in that time window.
+	 * 
+	 * @param triggers
+	 *            The list of {@link TriggerPolicy}s that will determine how
+	 *            often the user function is called on the window.
+	 * @param evicters
+	 *            The list of {@link EvictionPolicy}s that will determine the
+	 *            number of elements in each time window.
+	 * @return A {@link WindowedDataStream} providing further operations.
+	 */
+	public WindowedDataStream<OUT> window(List<TriggerPolicy<OUT>> triggers,
+			List<EvictionPolicy<OUT>> evicters) {
+		return new WindowedDataStream<OUT>(this, triggers, evicters);
 	}
 
 	/**
@@ -443,509 +891,6 @@ public class DataStream<OUT> {
 			TimeStamp<OUT> timestamp1, TimeStamp<IN2> timestamp2, String fieldIn1, String fieldIn2) {
 		return this.connect(dataStreamToJoin).windowJoin(windowSize, slideInterval, timestamp1,
 				timestamp2, fieldIn1, fieldIn2);
-	}
-
-	/**
-	 * Sets the partitioning of the {@link DataStream} so that the output is
-	 * partitioned by the selected fields.
-	 * 
-	 * @param fields
-	 *            The fields to partition by.
-	 * @return The DataStream with fields partitioning set.
-	 */
-	public DataStream<OUT> partitionBy(int... fields) {
-
-		return setConnectionType(new FieldsPartitioner<OUT>(FieldsKeySelector.getSelector(
-				getOutputType(), fields)));
-	}
-
-	/**
-	 * Sets the partitioning of the {@link DataStream} so that the output is
-	 * partitioned by the given field expressions.
-	 * 
-	 * @param fields
-	 *            The fields expressions to partition by.
-	 * @return The DataStream with fields partitioning set.
-	 */
-	public DataStream<OUT> partitionBy(String... fields) {
-
-		return setConnectionType(new FieldsPartitioner<OUT>(new PojoKeySelector<OUT>(
-				getOutputType(), fields)));
-	}
-
-	/**
-	 * Sets the partitioning of the {@link DataStream} so that the output is
-	 * partitioned using the given {@link KeySelector}.
-	 * 
-	 * @param keySelector
-	 * @return
-	 */
-	public DataStream<OUT> partitionBy(KeySelector<OUT, ?> keySelector) {
-		return setConnectionType(new FieldsPartitioner<OUT>(keySelector));
-	}
-
-	/**
-	 * Sets the partitioning of the {@link DataStream} so that the output tuples
-	 * are broadcasted to every parallel instance of the next component.
-	 * 
-	 * @return The DataStream with broadcast partitioning set.
-	 */
-	public DataStream<OUT> broadcast() {
-		return setConnectionType(new BroadcastPartitioner<OUT>());
-	}
-
-	/**
-	 * Sets the partitioning of the {@link DataStream} so that the output tuples
-	 * are shuffled to the next component.
-	 * 
-	 * @return The DataStream with shuffle partitioning set.
-	 */
-	public DataStream<OUT> shuffle() {
-		return setConnectionType(new ShufflePartitioner<OUT>());
-	}
-
-	/**
-	 * Sets the partitioning of the {@link DataStream} so that the output tuples
-	 * are forwarded to the local subtask of the next component. This is the
-	 * default partitioner setting.
-	 * 
-	 * @return The DataStream with shuffle partitioning set.
-	 */
-	public DataStream<OUT> forward() {
-		return setConnectionType(new ForwardPartitioner<OUT>());
-	}
-
-	/**
-	 * Sets the partitioning of the {@link DataStream} so that the output tuples
-	 * are distributed evenly to the next component.
-	 * 
-	 * @return The DataStream with shuffle partitioning set.
-	 */
-	public DataStream<OUT> distribute() {
-		return setConnectionType(new DistributePartitioner<OUT>());
-	}
-
-	/**
-	 * Applies a Map transformation on a {@link DataStream}. The transformation
-	 * calls a {@link MapFunction} for each element of the DataStream. Each
-	 * MapFunction call returns exactly one element. The user can also extend
-	 * {@link RichMapFunction} to gain access to other features provided by the
-	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
-	 * 
-	 * @param mapper
-	 *            The MapFunction that is called for each element of the
-	 *            DataStream.
-	 * @param <R>
-	 *            output type
-	 * @return The transformed {@link DataStream}.
-	 */
-	public <R> SingleOutputStreamOperator<R, ?> map(MapFunction<OUT, R> mapper) {
-		FunctionTypeWrapper<OUT> inTypeWrapper = new FunctionTypeWrapper<OUT>(mapper,
-				MapFunction.class, 0);
-		FunctionTypeWrapper<R> outTypeWrapper = new FunctionTypeWrapper<R>(mapper,
-				MapFunction.class, 1);
-
-		return addFunction("map", mapper, inTypeWrapper, outTypeWrapper, new MapInvokable<OUT, R>(
-				mapper));
-	}
-
-	/**
-	 * Applies a FlatMap transformation on a {@link DataStream}. The
-	 * transformation calls a {@link FlatMapFunction} for each element of the
-	 * DataStream. Each FlatMapFunction call can return any number of elements
-	 * including none. The user can also extend {@link RichFlatMapFunction} to
-	 * gain access to other features provided by the
-	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
-	 * 
-	 * @param flatMapper
-	 *            The FlatMapFunction that is called for each element of the
-	 *            DataStream
-	 * 
-	 * @param <R>
-	 *            output type
-	 * @return The transformed {@link DataStream}.
-	 */
-	public <R> SingleOutputStreamOperator<R, ?> flatMap(FlatMapFunction<OUT, R> flatMapper) {
-		FunctionTypeWrapper<OUT> inTypeWrapper = new FunctionTypeWrapper<OUT>(flatMapper,
-				FlatMapFunction.class, 0);
-		FunctionTypeWrapper<R> outTypeWrapper = new FunctionTypeWrapper<R>(flatMapper,
-				FlatMapFunction.class, 1);
-
-		return addFunction("flatMap", flatMapper, inTypeWrapper, outTypeWrapper,
-				new FlatMapInvokable<OUT, R>(flatMapper));
-	}
-
-	/**
-	 * Applies a reduce transformation on the data stream. The user can also
-	 * extend the {@link RichReduceFunction} to gain access to other features
-	 * provided by the
-	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
-	 * 
-	 * @param reducer
-	 *            The {@link ReduceFunction} that will be called for every
-	 *            element of the input values.
-	 * @return The transformed DataStream.
-	 */
-	public SingleOutputStreamOperator<OUT, ?> reduce(ReduceFunction<OUT> reducer) {
-		return addFunction("reduce", reducer, new FunctionTypeWrapper<OUT>(reducer,
-				ReduceFunction.class, 0), new FunctionTypeWrapper<OUT>(reducer,
-				ReduceFunction.class, 0), new StreamReduceInvokable<OUT>(reducer));
-	}
-
-	/**
-	 * Initiates a Project transformation on a {@link Tuple} {@link DataStream}.<br/>
-	 * <b>Note: Only Tuple DataStreams can be projected.</b></br> The
-	 * transformation projects each Tuple of the DataSet onto a (sub)set of
-	 * fields.</br> This method returns a {@link StreamProjection} on which
-	 * {@link StreamProjection#types(Class)} needs to be called to completed the
-	 * transformation.
-	 * 
-	 * @param fieldIndexes
-	 *            The field indexes of the input tuples that are retained. The
-	 *            order of fields in the output tuple corresponds to the order
-	 *            of field indexes.
-	 * @return A StreamProjection that needs to be converted into a DataStream
-	 *         to complete the project transformation by calling
-	 *         {@link StreamProjection#types(Class)}.
-	 * 
-	 * @see Tuple
-	 * @see DataStream
-	 */
-	public StreamProjection<OUT> project(int... fieldIndexes) {
-		return new StreamProjection<OUT>(this.copy(), fieldIndexes);
-	}
-
-	/**
-	 * Groups the elements of a {@link DataStream} by the given key positions to
-	 * be used with grouped operators like
-	 * {@link GroupedDataStream#reduce(ReduceFunction)}
-	 * 
-	 * @param fields
-	 *            The position of the fields on which the {@link DataStream}
-	 *            will be grouped.
-	 * @return The grouped {@link DataStream}
-	 */
-	public GroupedDataStream<OUT> groupBy(int... fields) {
-
-		return groupBy(FieldsKeySelector.getSelector(getOutputType(), fields));
-
-	}
-
-	/**
-	 * Groups a {@link DataStream} using field expressions. A field expression
-	 * is either the name of a public field or a getter method with parentheses
-	 * of the {@link DataStream}S underlying type. A dot can be used to drill
-	 * down into objects, as in {@code "field1.getInnerField2()" }. This method
-	 * returns an {@link GroupedDataStream}.
-	 * 
-	 * @param fields
-	 *            One or more field expressions on which the DataStream will be
-	 *            grouped.
-	 * @return The grouped {@link DataStream}
-	 **/
-	public GroupedDataStream<OUT> groupBy(String... fields) {
-
-		return groupBy(new PojoKeySelector<OUT>(getOutputType(), fields));
-
-	}
-
-	/**
-	 * Groups the elements of a {@link DataStream} by the key extracted by the
-	 * {@link KeySelector} to be used with grouped operators like
-	 * {@link GroupedDataStream#reduce(ReduceFunction)}
-	 * 
-	 * @param keySelector
-	 *            The {@link KeySelector} that will be used to extract keys for
-	 *            the values
-	 * @return The grouped {@link DataStream}
-	 */
-	public GroupedDataStream<OUT> groupBy(KeySelector<OUT, ?> keySelector) {
-		return new GroupedDataStream<OUT>(this, keySelector);
-	}
-
-	/**
-	 * This allows you to set up windowing through a nice API using
-	 * {@link WindowingHelper} such as {@link Time}, {@link Count} and
-	 * {@link Delta}.
-	 * 
-	 * @param policyHelpers
-	 *            Any {@link WindowingHelper} such as {@link Time},
-	 *            {@link Count} and {@link Delta}.
-	 * @return A {@link WindowedDataStream} providing further operations.
-	 */
-	@SuppressWarnings({ "rawtypes", "unchecked" })
-	public WindowedDataStream<OUT> window(WindowingHelper... policyHelpers) {
-		return new WindowedDataStream<OUT>(this, policyHelpers);
-	}
-
-	/**
-	 * Applies an aggregation that sums the data stream at the given position.
-	 * 
-	 * @param positionToSum
-	 *            The position in the data point to sum
-	 * @return The transformed DataStream.
-	 */
-	public SingleOutputStreamOperator<OUT, ?> sum(int positionToSum) {
-		checkFieldRange(positionToSum);
-		return aggregate((AggregationFunction<OUT>) SumAggregator.getSumFunction(positionToSum,
-				getClassAtPos(positionToSum), getOutputType()));
-	}
-
-	/**
-	 * Applies an aggregation that that gives the sum of the pojo data stream at
-	 * the given field expression. A field expression is either the name of a
-	 * public field or a getter method with parentheses of the
-	 * {@link DataStream}S underlying type. A dot can be used to drill down into
-	 * objects, as in {@code "field1.getInnerField2()" }.
-	 * 
-	 * @param field
-	 *            The field expression based on which the aggregation will be
-	 *            applied.
-	 * @return The transformed DataStream.
-	 */
-	public SingleOutputStreamOperator<OUT, ?> sum(String field) {
-		return aggregate((AggregationFunction<OUT>) SumAggregator.getSumFunction(field,
-				getOutputType()));
-	}
-
-	/**
-	 * Syntactic sugar for sum(0)
-	 * 
-	 * @return The transformed DataStream.
-	 */
-	public SingleOutputStreamOperator<OUT, ?> sum() {
-		return sum(0);
-	}
-
-	/**
-	 * Applies an aggregation that that gives the minimum of the data stream at
-	 * the given position.
-	 * 
-	 * @param positionToMin
-	 *            The position in the data point to minimize
-	 * @return The transformed DataStream.
-	 */
-	public SingleOutputStreamOperator<OUT, ?> min(int positionToMin) {
-		checkFieldRange(positionToMin);
-		return aggregate(ComparableAggregator.getAggregator(positionToMin, getOutputType(),
-				AggregationType.MIN));
-	}
-
-	/**
-	 * Applies an aggregation that that gives the minimum of the pojo data
-	 * stream at the given field expression. A field expression is either the
-	 * name of a public field or a getter method with parentheses of the
-	 * {@link DataStream}S underlying type. A dot can be used to drill down into
-	 * objects, as in {@code "field1.getInnerField2()" }.
-	 * 
-	 * @param field
-	 *            The field expression based on which the aggregation will be
-	 *            applied.
-	 * @return The transformed DataStream.
-	 */
-	public SingleOutputStreamOperator<OUT, ?> min(String field) {
-		return aggregate(ComparableAggregator.getAggregator(field, getOutputType(),
-				AggregationType.MIN, false));
-	}
-
-	/**
-	 * Applies an aggregation that that gives the maximum of the pojo data
-	 * stream at the given field expression. A field expression is either the
-	 * name of a public field or a getter method with parentheses of the
-	 * {@link DataStream}S underlying type. A dot can be used to drill down into
-	 * objects, as in {@code "field1.getInnerField2()" }.
-	 * 
-	 * @param field
-	 *            The field expression based on which the aggregation will be
-	 *            applied.
-	 * @return The transformed DataStream.
-	 */
-	public SingleOutputStreamOperator<OUT, ?> max(String field) {
-		return aggregate(ComparableAggregator.getAggregator(field, getOutputType(),
-				AggregationType.MAX, false));
-	}
-
-	/**
-	 * Applies an aggregation that that gives the minimum element of the pojo
-	 * data stream by the given field expression. A field expression is either
-	 * the name of a public field or a getter method with parentheses of the
-	 * {@link DataStream}S underlying type. A dot can be used to drill down into
-	 * objects, as in {@code "field1.getInnerField2()" }.
-	 * 
-	 * @param field
-	 *            The field expression based on which the aggregation will be
-	 *            applied.
-	 * @param first
-	 *            If True then in case of field equality the first object will
-	 *            be returned
-	 * @return The transformed DataStream.
-	 */
-	public SingleOutputStreamOperator<OUT, ?> minBy(String field, boolean first) {
-		return aggregate(ComparableAggregator.getAggregator(field, getOutputType(),
-				AggregationType.MINBY, first));
-	}
-
-	/**
-	 * Applies an aggregation that that gives the maximum element of the pojo
-	 * data stream by the given field expression. A field expression is either
-	 * the name of a public field or a getter method with parentheses of the
-	 * {@link DataStream}S underlying type. A dot can be used to drill down into
-	 * objects, as in {@code "field1.getInnerField2()" }.
-	 * 
-	 * @param field
-	 *            The field expression based on which the aggregation will be
-	 *            applied.
-	 * @param first
-	 *            If True then in case of field equality the first object will
-	 *            be returned
-	 * @return The transformed DataStream.
-	 */
-	public SingleOutputStreamOperator<OUT, ?> maxBy(String field, boolean first) {
-		return aggregate(ComparableAggregator.getAggregator(field, getOutputType(),
-				AggregationType.MAXBY, first));
-	}
-
-	/**
-	 * Applies an aggregation that that gives the current element with the
-	 * minimum value at the given position, if more elements have the minimum
-	 * value at the given position, the operator returns the first one by
-	 * default.
-	 * 
-	 * @param positionToMinBy
-	 *            The position in the data point to minimize
-	 * @return The transformed DataStream.
-	 */
-	public SingleOutputStreamOperator<OUT, ?> minBy(int positionToMinBy) {
-		return this.minBy(positionToMinBy, true);
-	}
-
-	/**
-	 * Applies an aggregation that that gives the current element with the
-	 * minimum value at the given position, if more elements have the minimum
-	 * value at the given position, the operator returns either the first or
-	 * last one, depending on the parameter set.
-	 * 
-	 * @param positionToMinBy
-	 *            The position in the data point to minimize
-	 * @param first
-	 *            If true, then the operator return the first element with the
-	 *            minimal value, otherwise returns the last
-	 * @return The transformed DataStream.
-	 */
-	public SingleOutputStreamOperator<OUT, ?> minBy(int positionToMinBy, boolean first) {
-		checkFieldRange(positionToMinBy);
-		return aggregate(ComparableAggregator.getAggregator(positionToMinBy, getOutputType(),
-				AggregationType.MINBY, first));
-	}
-
-	/**
-	 * Syntactic sugar for min(0)
-	 * 
-	 * @return The transformed DataStream.
-	 */
-	public SingleOutputStreamOperator<OUT, ?> min() {
-		return min(0);
-	}
-
-	/**
-	 * Applies an aggregation that gives the maximum of the data stream at the
-	 * given position.
-	 * 
-	 * @param positionToMax
-	 *            The position in the data point to maximize
-	 * @return The transformed DataStream.
-	 */
-	public SingleOutputStreamOperator<OUT, ?> max(int positionToMax) {
-		checkFieldRange(positionToMax);
-		return aggregate(ComparableAggregator.getAggregator(positionToMax, getOutputType(),
-				AggregationType.MAX));
-	}
-
-	/**
-	 * Applies an aggregation that that gives the current element with the
-	 * maximum value at the given position, if more elements have the maximum
-	 * value at the given position, the operator returns the first one by
-	 * default.
-	 * 
-	 * @param positionToMaxBy
-	 *            The position in the data point to maximize
-	 * @return The transformed DataStream.
-	 */
-	public SingleOutputStreamOperator<OUT, ?> maxBy(int positionToMaxBy) {
-		return this.maxBy(positionToMaxBy, true);
-	}
-
-	/**
-	 * Applies an aggregation that that gives the current element with the
-	 * maximum value at the given position, if more elements have the maximum
-	 * value at the given position, the operator returns either the first or
-	 * last one, depending on the parameter set.
-	 * 
-	 * @param positionToMaxBy
-	 *            The position in the data point to maximize.
-	 * @param first
-	 *            If true, then the operator return the first element with the
-	 *            maximum value, otherwise returns the last
-	 * @return The transformed DataStream.
-	 */
-	public SingleOutputStreamOperator<OUT, ?> maxBy(int positionToMaxBy, boolean first) {
-		checkFieldRange(positionToMaxBy);
-		return aggregate(ComparableAggregator.getAggregator(positionToMaxBy, getOutputType(),
-				AggregationType.MAXBY, first));
-	}
-
-	/**
-	 * Syntactic sugar for max(0)
-	 * 
-	 * @return The transformed DataStream.
-	 */
-	public SingleOutputStreamOperator<OUT, ?> max() {
-		return max(0);
-	}
-
-	/**
-	 * Applies an aggregation that gives the count of the values.
-	 * 
-	 * @return The transformed DataStream.
-	 */
-	public SingleOutputStreamOperator<Long, ?> count() {
-		TypeWrapper<OUT> inTypeWrapper = outTypeWrapper;
-		TypeWrapper<Long> outTypeWrapper = new ObjectTypeWrapper<Long>(Long.valueOf(0));
-
-		return addFunction("counter", null, inTypeWrapper, outTypeWrapper,
-				new CounterInvokable<OUT>());
-	}
-
-	protected SingleOutputStreamOperator<OUT, ?> aggregate(AggregationFunction<OUT> aggregate) {
-
-		StreamReduceInvokable<OUT> invokable = new StreamReduceInvokable<OUT>(aggregate);
-
-		SingleOutputStreamOperator<OUT, ?> returnStream = addFunction("reduce", aggregate,
-				outTypeWrapper, outTypeWrapper, invokable);
-
-		return returnStream;
-	}
-
-	/**
-	 * Applies a Filter transformation on a {@link DataStream}. The
-	 * transformation calls a {@link FilterFunction} for each element of the
-	 * DataStream and retains only those element for which the function returns
-	 * true. Elements for which the function returns false are filtered. The
-	 * user can also extend {@link RichFilterFunction} to gain access to other
-	 * features provided by the
-	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
-	 * 
-	 * @param filter
-	 *            The FilterFunction that is called for each element of the
-	 *            DataSet.
-	 * @return The filtered DataStream.
-	 */
-	public SingleOutputStreamOperator<OUT, ?> filter(FilterFunction<OUT> filter) {
-		FunctionTypeWrapper<OUT> typeWrapper = new FunctionTypeWrapper<OUT>(filter,
-				FilterFunction.class, 0);
-
-		return addFunction("filter", filter, typeWrapper, typeWrapper, new FilterInvokable<OUT>(
-				filter));
 	}
 
 	/**
@@ -1262,30 +1207,14 @@ public class DataStream<OUT> {
 		return returnStream;
 	}
 
-	/**
-	 * Initiates an iterative part of the program that executes multiple times
-	 * and feeds back data streams. The iterative part needs to be closed by
-	 * calling {@link IterativeDataStream#closeWith(DataStream)}. The
-	 * transformation of this IterativeDataStream will be the iteration head.
-	 * The data stream given to the {@code closeWith(DataStream)} method is the
-	 * data stream that will be fed back and used as the input for the iteration
-	 * head. Unlike in batch processing by default the output of the iteration
-	 * stream is directed to both to the iteration head and the next component.
-	 * To direct tuples to the iteration head or the output specifically one can
-	 * use the {@code split(OutputSelector)} on the iteration tail while
-	 * referencing the iteration head as 'iterate'.
-	 * <p>
-	 * The iteration edge will be partitioned the same way as the first input of
-	 * the iteration head.
-	 * <p>
-	 * By default a DataStream with iteration will never terminate, but the user
-	 * can use the {@link IterativeDataStream#setMaxWaitTime} call to set a max
-	 * waiting time for the iteration.
-	 * 
-	 * @return The iterative data stream created.
-	 */
-	public IterativeDataStream<OUT> iterate() {
-		return new IterativeDataStream<OUT>(this);
+	protected SingleOutputStreamOperator<OUT, ?> aggregate(AggregationFunction<OUT> aggregate) {
+	
+		StreamReduceInvokable<OUT> invokable = new StreamReduceInvokable<OUT>(aggregate);
+	
+		SingleOutputStreamOperator<OUT, ?> returnStream = addFunction("reduce", aggregate,
+				outTypeWrapper, outTypeWrapper, invokable);
+	
+		return returnStream;
 	}
 
 	protected <R> DataStream<OUT> addIterationSource(String iterationID, long waitTime) {
@@ -1411,6 +1340,75 @@ public class DataStream<OUT> {
 		inputStream.connectGraph(inputStream.copy(), returnStream.getId(), 0);
 
 		return returnStream;
+	}
+
+	/**
+	 * Gets the class of the field at the given position
+	 * 
+	 * @param pos
+	 *            Position of the field
+	 * @return The class of the field
+	 */
+	@SuppressWarnings("rawtypes")
+	protected Class<?> getClassAtPos(int pos) {
+		Class<?> type;
+		TypeInformation<OUT> outTypeInfo = outTypeWrapper.getTypeInfo();
+		if (outTypeInfo.isTupleType()) {
+			type = ((TupleTypeInfo) outTypeInfo).getTypeAt(pos).getTypeClass();
+
+		} else if (outTypeInfo instanceof BasicArrayTypeInfo) {
+
+			type = ((BasicArrayTypeInfo) outTypeInfo).getComponentTypeClass();
+
+		} else if (outTypeInfo instanceof PrimitiveArrayTypeInfo) {
+			Class<?> clazz = outTypeInfo.getTypeClass();
+			if (clazz == boolean[].class) {
+				type = Boolean.class;
+			} else if (clazz == short[].class) {
+				type = Short.class;
+			} else if (clazz == int[].class) {
+				type = Integer.class;
+			} else if (clazz == long[].class) {
+				type = Long.class;
+			} else if (clazz == float[].class) {
+				type = Float.class;
+			} else if (clazz == double[].class) {
+				type = Double.class;
+			} else if (clazz == char[].class) {
+				type = Character.class;
+			} else {
+				throw new IndexOutOfBoundsException("Type could not be determined for array");
+			}
+
+		} else if (pos == 0) {
+			type = outTypeInfo.getTypeClass();
+		} else {
+			throw new IndexOutOfBoundsException("Position is out of range");
+		}
+		return type;
+	}
+
+	/**
+	 * Checks if the given field position is allowed for the output type
+	 * 
+	 * @param pos
+	 *            Position to check
+	 */
+	protected void checkFieldRange(int pos) {
+		try {
+			getClassAtPos(pos);
+		} catch (IndexOutOfBoundsException e) {
+			throw new RuntimeException("Selected field is out of range");
+
+		}
+	}
+
+	private void validateMerge(String id) {
+		for (DataStream<OUT> ds : this.mergedStreams) {
+			if (ds.getId().equals(id)) {
+				throw new RuntimeException("A DataStream cannot be merged with itself");
+			}
+		}
 	}
 
 	/**

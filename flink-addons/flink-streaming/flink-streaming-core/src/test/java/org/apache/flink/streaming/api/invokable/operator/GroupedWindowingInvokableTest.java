@@ -77,7 +77,7 @@ public class GroupedWindowingInvokableTest {
 
 		LinkedList<TriggerPolicy<Integer>> centralTriggers = new LinkedList<TriggerPolicy<Integer>>();
 
-		GroupedWindowingInvokable<Integer, Integer> invokable = new GroupedWindowingInvokable<Integer, Integer>(
+		GroupedWindowInvokable<Integer, Integer> invokable = new GroupedWindowInvokable<Integer, Integer>(
 				new ReduceFunction<Integer>() {
 					private static final long serialVersionUID = 1L;
 
@@ -136,7 +136,7 @@ public class GroupedWindowingInvokableTest {
 
 		LinkedList<TriggerPolicy<Tuple2<Integer, String>>> centralTriggers = new LinkedList<TriggerPolicy<Tuple2<Integer, String>>>();
 
-		GroupedWindowingInvokable<Tuple2<Integer, String>, Tuple2<Integer, String>> invokable2 = new GroupedWindowingInvokable<Tuple2<Integer, String>, Tuple2<Integer, String>>(
+		GroupedWindowInvokable<Tuple2<Integer, String>, Tuple2<Integer, String>> invokable2 = new GroupedWindowInvokable<Tuple2<Integer, String>, Tuple2<Integer, String>>(
 				new ReduceFunction<Tuple2<Integer, String>>() {
 					private static final long serialVersionUID = 1L;
 
@@ -256,7 +256,7 @@ public class GroupedWindowingInvokableTest {
 
 		LinkedList<CloneableTriggerPolicy<Tuple2<Integer, String>>> distributedTriggers = new LinkedList<CloneableTriggerPolicy<Tuple2<Integer, String>>>();
 
-		GroupedWindowingInvokable<Tuple2<Integer, String>, Tuple2<Integer, String>> invokable = new GroupedWindowingInvokable<Tuple2<Integer, String>, Tuple2<Integer, String>>(
+		GroupedWindowInvokable<Tuple2<Integer, String>, Tuple2<Integer, String>> invokable = new GroupedWindowInvokable<Tuple2<Integer, String>, Tuple2<Integer, String>>(
 				myReduceFunction, new TupleKeySelector<Tuple2<Integer, String>>(1),
 				distributedTriggers, evictions, triggers);
 
@@ -319,7 +319,7 @@ public class GroupedWindowingInvokableTest {
 			}
 		};
 
-		GroupedWindowingInvokable<Integer, Integer> invokable = new GroupedWindowingInvokable<Integer, Integer>(
+		GroupedWindowInvokable<Integer, Integer> invokable = new GroupedWindowInvokable<Integer, Integer>(
 				myReduceFunction, new KeySelector<Integer, Integer>() {
 					private static final long serialVersionUID = 1L;
 
@@ -395,7 +395,7 @@ public class GroupedWindowingInvokableTest {
 			}
 		};
 
-		GroupedWindowingInvokable<Integer, Integer> invokable = new GroupedWindowingInvokable<Integer, Integer>(
+		GroupedWindowInvokable<Integer, Integer> invokable = new GroupedWindowInvokable<Integer, Integer>(
 				myReduceFunction, new KeySelector<Integer, Integer>() {
 					private static final long serialVersionUID = 1L;
 

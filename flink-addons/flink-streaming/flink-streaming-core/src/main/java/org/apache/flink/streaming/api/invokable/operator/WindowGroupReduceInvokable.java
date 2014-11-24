@@ -23,12 +23,12 @@ import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.streaming.api.windowing.policy.EvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
 
-public class WindowingGroupInvokable<IN, OUT> extends WindowingInvokable<IN, OUT> {
+public class WindowGroupReduceInvokable<IN, OUT> extends WindowInvokable<IN, OUT> {
 
 	private static final long serialVersionUID = 1L;
 	GroupReduceFunction<IN, OUT> reducer;
 
-	public WindowingGroupInvokable(GroupReduceFunction<IN, OUT> userFunction,
+	public WindowGroupReduceInvokable(GroupReduceFunction<IN, OUT> userFunction,
 			LinkedList<TriggerPolicy<IN>> triggerPolicies,
 			LinkedList<EvictionPolicy<IN>> evictionPolicies) {
 		super(userFunction, triggerPolicies, evictionPolicies);

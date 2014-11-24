@@ -94,7 +94,7 @@ public class WindowingInvokableTest {
 		// Always delete all elements older then 4
 		evictions.add(new TimeEvictionPolicy<Integer>(4L, myTimeStamp));
 
-		WindowingInvokable<Integer, Integer> invokable = new WindowingReduceInvokable<Integer>(
+		WindowInvokable<Integer, Integer> invokable = new WindowReduceInvokable<Integer>(
 				myReduceFunction, triggers, evictions);
 
 		ArrayList<Integer> result = new ArrayList<Integer>();
@@ -138,7 +138,7 @@ public class WindowingInvokableTest {
 		// time after the 3rd element
 		evictions.add(new CountEvictionPolicy<Integer>(2, 2, -1));
 
-		WindowingInvokable<Integer, Integer> invokable = new WindowingReduceInvokable<Integer>(
+		WindowInvokable<Integer, Integer> invokable = new WindowReduceInvokable<Integer>(
 				myReduceFunction, triggers, evictions);
 
 		List<Integer> expected = new ArrayList<Integer>();
@@ -191,7 +191,7 @@ public class WindowingInvokableTest {
 		// time after on the 5th element
 		evictions.add(new CountEvictionPolicy<Integer>(3, 3, -1));
 
-		WindowingInvokable<Integer, Integer> invokable2 = new WindowingReduceInvokable<Integer>(
+		WindowInvokable<Integer, Integer> invokable2 = new WindowReduceInvokable<Integer>(
 				myReduceFunction, triggers, evictions);
 
 		List<Integer> expected2 = new ArrayList<Integer>();
@@ -249,7 +249,7 @@ public class WindowingInvokableTest {
 			}
 		};
 
-		WindowingInvokable<Integer, Integer> invokable = new WindowingReduceInvokable<Integer>(
+		WindowInvokable<Integer, Integer> invokable = new WindowReduceInvokable<Integer>(
 				myReduceFunction, triggers, evictions);
 
 		ArrayList<Integer> result = new ArrayList<Integer>();

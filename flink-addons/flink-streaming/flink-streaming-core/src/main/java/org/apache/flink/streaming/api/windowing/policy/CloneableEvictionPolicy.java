@@ -17,10 +17,10 @@
 
 package org.apache.flink.streaming.api.windowing.policy;
 
-import org.apache.flink.streaming.api.invokable.operator.GroupedWindowingInvokable;
+import org.apache.flink.streaming.api.invokable.operator.GroupedWindowInvokable;
 
 /**
- * When used in {@link GroupedWindowingInvokable}, eviction policies must
+ * When used in {@link GroupedWindowInvokable}, eviction policies must
  * provide a clone method. Eviction policies get cloned to provide an own
  * instance for each group and respectively each individual element buffer as
  * groups maintain their own buffers with the elements belonging to the

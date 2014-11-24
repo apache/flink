@@ -70,14 +70,14 @@ import org.slf4j.LoggerFactory;
  * @param <IN>
  *            The type of input elements handled by this operator invokable.
  */
-public class GroupedWindowingInvokable<IN, OUT> extends StreamInvokable<IN, OUT> {
+public class GroupedWindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> {
 
 	/**
 	 * Auto-generated serial version UID
 	 */
 	private static final long serialVersionUID = -3469545957144404137L;
 
-	private static final Logger LOG = LoggerFactory.getLogger(GroupedWindowingInvokable.class);
+	private static final Logger LOG = LoggerFactory.getLogger(GroupedWindowInvokable.class);
 
 	private KeySelector<IN, ?> keySelector;
 	private Configuration parameters;
@@ -85,7 +85,7 @@ public class GroupedWindowingInvokable<IN, OUT> extends StreamInvokable<IN, OUT>
 	private LinkedList<TriggerPolicy<IN>> centralTriggerPolicies = new LinkedList<TriggerPolicy<IN>>();
 	private LinkedList<CloneableTriggerPolicy<IN>> distributedTriggerPolicies = new LinkedList<CloneableTriggerPolicy<IN>>();
 	private LinkedList<CloneableEvictionPolicy<IN>> distributedEvictionPolicies = new LinkedList<CloneableEvictionPolicy<IN>>();
-	private Map<Object, WindowingInvokable<IN, OUT>> windowingGroups = new HashMap<Object, WindowingInvokable<IN, OUT>>();
+	private Map<Object, WindowInvokable<IN, OUT>> windowingGroups = new HashMap<Object, WindowInvokable<IN, OUT>>();
 	private LinkedList<Thread> activePolicyThreads = new LinkedList<Thread>();
 	private LinkedList<TriggerPolicy<IN>> currentTriggerPolicies = new LinkedList<TriggerPolicy<IN>>();
 
@@ -138,7 +138,7 @@ public class GroupedWindowingInvokable<IN, OUT> extends StreamInvokable<IN, OUT>
 	 *            If only one element is contained a group, this element itself
 	 *            is returned as aggregated result.)
 	 */
-	public GroupedWindowingInvokable(Function userFunction, KeySelector<IN, ?> keySelector,
+	public GroupedWindowInvokable(Function userFunction, KeySelector<IN, ?> keySelector,
 			LinkedList<CloneableTriggerPolicy<IN>> distributedTriggerPolicies,
 			LinkedList<CloneableEvictionPolicy<IN>> distributedEvictionPolicies,
 			LinkedList<TriggerPolicy<IN>> centralTriggerPolicies) {
@@ -165,7 +165,7 @@ public class GroupedWindowingInvokable<IN, OUT> extends StreamInvokable<IN, OUT>
 
 		// Continuously run
 		while (reuse != null) {
-			WindowingInvokable<IN, OUT> groupInvokable = windowingGroups.get(keySelector
+			WindowInvokable<IN, OUT> groupInvokable = windowingGroups.get(keySelector
 					.getKey(reuse.getObject()));
 			if (groupInvokable == null) {
 				groupInvokable = makeNewGroup(reuse);
@@ -175,7 +175,7 @@ public class GroupedWindowingInvokable<IN, OUT> extends StreamInvokable<IN, OUT>
 			for (ActiveTriggerPolicy<IN> trigger : activeCentralTriggerPolicies) {
 				Object[] result = trigger.preNotifyTrigger(reuse.getObject());
 				for (Object in : result) {
-					for (WindowingInvokable<IN, OUT> group : windowingGroups.values()) {
+					for (WindowInvokable<IN, OUT> group : windowingGroups.values()) {
 						group.processFakeElement(in, trigger);
 					}
 				}
@@ -193,7 +193,7 @@ public class GroupedWindowingInvokable<IN, OUT> extends StreamInvokable<IN, OUT>
 				groupInvokable.processRealElement(reuse.getObject());
 			} else {
 				// call user function for all groups
-				for (WindowingInvokable<IN, OUT> group : windowingGroups.values()) {
+				for (WindowInvokable<IN, OUT> group : windowingGroups.values()) {
 					if (group == groupInvokable) {
 						// process real with initialized policies
 						group.processRealElement(reuse.getObject(), currentTriggerPolicies);
@@ -219,7 +219,7 @@ public class GroupedWindowingInvokable<IN, OUT> extends StreamInvokable<IN, OUT>
 		}
 
 		// finally trigger the buffer.
-		for (WindowingInvokable<IN, OUT> group : windowingGroups.values()) {
+		for (WindowInvokable<IN, OUT> group : windowingGroups.values()) {
 			group.emitFinalWindow(centralTriggerPolicies);
 		}
 
@@ -228,7 +228,7 @@ public class GroupedWindowingInvokable<IN, OUT> extends StreamInvokable<IN, OUT>
 	/**
 	 * This method creates a new group. The method gets called in case an
 	 * element arrives which has a key which was not seen before. The method
-	 * created a nested {@link WindowingInvokable} and therefore created clones
+	 * created a nested {@link WindowInvokable} and therefore created clones
 	 * of all distributed trigger and eviction policies.
 	 * 
 	 * @param element
@@ -240,7 +240,7 @@ public class GroupedWindowingInvokable<IN, OUT> extends StreamInvokable<IN, OUT>
 	 *             catched by this method.
 	 */
 	@SuppressWarnings("unchecked")
-	private WindowingInvokable<IN, OUT> makeNewGroup(StreamRecord<IN> element) throws Exception {
+	private WindowInvokable<IN, OUT> makeNewGroup(StreamRecord<IN> element) throws Exception {
 		// clone the policies
 		LinkedList<TriggerPolicy<IN>> clonedDistributedTriggerPolicies = new LinkedList<TriggerPolicy<IN>>();
 		LinkedList<EvictionPolicy<IN>> clonedDistributedEvictionPolicies = new LinkedList<EvictionPolicy<IN>>();
@@ -251,13 +251,13 @@ public class GroupedWindowingInvokable<IN, OUT> extends StreamInvokable<IN, OUT>
 			clonedDistributedEvictionPolicies.add(eviction.clone());
 		}
 
-		WindowingInvokable<IN, OUT> groupInvokable;
+		WindowInvokable<IN, OUT> groupInvokable;
 		if (userFunction instanceof ReduceFunction) {
-			groupInvokable = (WindowingInvokable<IN, OUT>) new WindowingReduceInvokable<IN>(
+			groupInvokable = (WindowInvokable<IN, OUT>) new WindowReduceInvokable<IN>(
 					(ReduceFunction<IN>) userFunction, clonedDistributedTriggerPolicies,
 					clonedDistributedEvictionPolicies);
 		} else {
-			groupInvokable = new WindowingGroupInvokable<IN, OUT>(
+			groupInvokable = new WindowGroupReduceInvokable<IN, OUT>(
 					(GroupReduceFunction<IN, OUT>) userFunction, clonedDistributedTriggerPolicies,
 					clonedDistributedEvictionPolicies);
 		}
@@ -313,7 +313,7 @@ public class GroupedWindowingInvokable<IN, OUT> extends StreamInvokable<IN, OUT>
 
 		@Override
 		public void sendFakeElement(Object datapoint) {
-			for (WindowingInvokable<IN, OUT> group : windowingGroups.values()) {
+			for (WindowInvokable<IN, OUT> group : windowingGroups.values()) {
 				group.processFakeElement(datapoint, policy);
 			}
 		}
