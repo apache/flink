@@ -33,7 +33,6 @@ import org.apache.flink.streaming.api.function.co.CoMapFunction;
 import org.apache.flink.streaming.api.function.co.CoReduceFunction;
 import org.apache.flink.streaming.api.function.co.CoWindowFunction;
 import org.apache.flink.streaming.api.function.co.CrossWindowFunction;
-import org.apache.flink.streaming.api.function.co.JoinWindowFunction;
 import org.apache.flink.streaming.api.function.co.RichCoMapFunction;
 import org.apache.flink.streaming.api.function.co.RichCoReduceFunction;
 import org.apache.flink.streaming.api.invokable.operator.co.CoFlatMapInvokable;
@@ -563,47 +562,7 @@ public class ConnectedDataStream<IN1, IN2> {
 				timestamp1, timestamp2);
 	}
 
-	SingleOutputStreamOperator<Tuple2<IN1, IN2>, ?> windowJoin(long windowSize, long slideInterval,
-			String fieldIn1, String fieldIn2) {
-
-		return windowJoin(windowSize, slideInterval, new DefaultTimeStamp<IN1>(),
-				new DefaultTimeStamp<IN2>(), fieldIn1, fieldIn2);
-	}
-
-	SingleOutputStreamOperator<Tuple2<IN1, IN2>, ?> windowJoin(long windowSize, long slideInterval,
-			int fieldIn1, int fieldIn2) {
-
-		return windowJoin(windowSize, slideInterval, new DefaultTimeStamp<IN1>(),
-				new DefaultTimeStamp<IN2>(), fieldIn1, fieldIn2);
-	}
-
-	SingleOutputStreamOperator<Tuple2<IN1, IN2>, ?> windowJoin(long windowSize, long slideInterval,
-			TimeStamp<IN1> timestamp1, TimeStamp<IN2> timestamp2, int fieldIn1, int fieldIn2) {
-
-		dataStream1 = dataStream1.groupBy(fieldIn1);
-		dataStream2 = dataStream2.groupBy(fieldIn2);
-
-		JoinWindowFunction<IN1, IN2> joinWindowFunction = new JoinWindowFunction<IN1, IN2>(
-				dataStream1.getOutputType(), dataStream2.getOutputType(), fieldIn1, fieldIn2);
-
-		return addGeneralWindowJoin(joinWindowFunction, windowSize, slideInterval, timestamp1,
-				timestamp2);
-	}
-
-	SingleOutputStreamOperator<Tuple2<IN1, IN2>, ?> windowJoin(long windowSize, long slideInterval,
-			TimeStamp<IN1> timestamp1, TimeStamp<IN2> timestamp2, String fieldIn1, String fieldIn2) {
-
-		dataStream1 = dataStream1.groupBy(fieldIn1);
-		dataStream2 = dataStream2.groupBy(fieldIn2);
-
-		JoinWindowFunction<IN1, IN2> joinWindowFunction = new JoinWindowFunction<IN1, IN2>(
-				dataStream1.getOutputType(), dataStream2.getOutputType(), fieldIn1, fieldIn2);
-
-		return addGeneralWindowJoin(joinWindowFunction, windowSize, slideInterval, timestamp1,
-				timestamp2);
-	}
-
-	private SingleOutputStreamOperator<Tuple2<IN1, IN2>, ?> addGeneralWindowJoin(
+	protected SingleOutputStreamOperator<Tuple2<IN1, IN2>, ?> addGeneralWindowJoin(
 			CoWindowFunction<IN1, IN2, Tuple2<IN1, IN2>> coWindowFunction, long windowSize,
 			long slideInterval, TimeStamp<IN1> timestamp1, TimeStamp<IN2> timestamp2) {
 

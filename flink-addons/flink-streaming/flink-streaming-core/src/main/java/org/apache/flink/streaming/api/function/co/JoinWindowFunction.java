@@ -20,11 +20,8 @@ package org.apache.flink.streaming.api.function.co;
 
 import java.util.List;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.streaming.util.keys.FieldsKeySelector;
-import org.apache.flink.streaming.util.keys.PojoKeySelector;
 import org.apache.flink.util.Collector;
 
 public class JoinWindowFunction<IN1, IN2> implements CoWindowFunction<IN1, IN2, Tuple2<IN1, IN2>> {
@@ -36,16 +33,9 @@ public class JoinWindowFunction<IN1, IN2> implements CoWindowFunction<IN1, IN2, 
 	public JoinWindowFunction() {
 	}
 
-	public JoinWindowFunction(TypeInformation<IN1> inType1, TypeInformation<IN2> inType2,
-			int positionIn1, int positionIn2) {
-		keySelector1 = FieldsKeySelector.getSelector(inType1, positionIn1);
-		keySelector2 = FieldsKeySelector.getSelector(inType2, positionIn2);
-	}
-
-	public JoinWindowFunction(TypeInformation<IN1> inType1, TypeInformation<IN2> inType2,
-			String field1, String field2) {
-		keySelector1 = new PojoKeySelector<IN1>(inType1, field1);
-		keySelector2 = new PojoKeySelector<IN2>(inType2, field2);
+	public JoinWindowFunction(KeySelector<IN1, ?> keySelector1, KeySelector<IN2, ?> keySelector2) {
+		this.keySelector1 = keySelector1;
+		this.keySelector2 = keySelector2;
 	}
 
 	@Override

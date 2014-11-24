@@ -62,7 +62,10 @@ public class WindowJoin {
 		// apply a temporal join over the two stream based on the names over one
 		// second windows
 		DataStream<Tuple2<Tuple2<String, Integer>, Tuple2<String, Integer>>> joinedStream = grades
-				.windowJoin(salaries, 1000, 1000, 0, 0);
+				.join(salaries)
+				.onWindow(1000)
+				.where(0)
+				.equalTo(0);
 
 		// emit result
 		if (fileOutput) {

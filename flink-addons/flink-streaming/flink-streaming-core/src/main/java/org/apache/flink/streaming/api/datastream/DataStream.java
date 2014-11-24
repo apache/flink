@@ -240,9 +240,9 @@ public class DataStream<OUT> {
 	 * @return The grouped {@link DataStream}
 	 */
 	public GroupedDataStream<OUT> groupBy(int... fields) {
-	
+
 		return groupBy(FieldsKeySelector.getSelector(getOutputType(), fields));
-	
+
 	}
 
 	/**
@@ -258,9 +258,9 @@ public class DataStream<OUT> {
 	 * @return The grouped {@link DataStream}
 	 **/
 	public GroupedDataStream<OUT> groupBy(String... fields) {
-	
+
 		return groupBy(new PojoKeySelector<OUT>(getOutputType(), fields));
-	
+
 	}
 
 	/**
@@ -286,7 +286,7 @@ public class DataStream<OUT> {
 	 * @return The DataStream with fields partitioning set.
 	 */
 	public DataStream<OUT> partitionBy(int... fields) {
-	
+
 		return setConnectionType(new FieldsPartitioner<OUT>(FieldsKeySelector.getSelector(
 				getOutputType(), fields)));
 	}
@@ -300,7 +300,7 @@ public class DataStream<OUT> {
 	 * @return The DataStream with fields partitioning set.
 	 */
 	public DataStream<OUT> partitionBy(String... fields) {
-	
+
 		return setConnectionType(new FieldsPartitioner<OUT>(new PojoKeySelector<OUT>(
 				getOutputType(), fields)));
 	}
@@ -467,7 +467,7 @@ public class DataStream<OUT> {
 	public SingleOutputStreamOperator<OUT, ?> filter(FilterFunction<OUT> filter) {
 		FunctionTypeWrapper<OUT> typeWrapper = new FunctionTypeWrapper<OUT>(filter,
 				FilterFunction.class, 0);
-	
+
 		return addFunction("filter", filter, typeWrapper, typeWrapper, new FilterInvokable<OUT>(
 				filter));
 	}
@@ -493,6 +493,27 @@ public class DataStream<OUT> {
 	 */
 	public StreamProjection<OUT> project(int... fieldIndexes) {
 		return new StreamProjection<OUT>(this.copy(), fieldIndexes);
+	}
+
+	/**
+	 * Initiates a temporal Join transformation. <br/>
+	 * A temporal Join transformation joins the elements of two
+	 * {@link DataStream}s on key equality over a specified time window.</br>
+	 * 
+	 * This method returns a {@link StreamJoinOperator} on which the
+	 * {@link StreamJoinOperator#onWindow} should be called to define the
+	 * window, and then the {@link StreamJoinOperator.JoinWindow#where} and
+	 * {@link StreamJoinOperator.JoinPredicate#equalTo} can be used to define
+	 * the join keys.
+	 * 
+	 * @param other
+	 *            The other DataStream with which this DataStream is joined.
+	 * @return A {@link StreamJoinOperator} to continue the definition of the
+	 *         Join transformation.
+	 * 
+	 */
+	public <IN2> StreamJoinOperator<OUT, IN2> join(DataStream<IN2> dataStreamToJoin) {
+		return new StreamJoinOperator<OUT, IN2>(this, dataStreamToJoin);
 	}
 
 	/**
@@ -787,110 +808,6 @@ public class DataStream<OUT> {
 			TimeStamp<OUT> timestamp1, TimeStamp<IN2> timestamp2) {
 		return this.connect(dataStreamToCross).windowCross(windowSize, slideInterval, timestamp1,
 				timestamp2);
-	}
-
-	/**
-	 * Creates a join of a data stream based on the given positions.
-	 * 
-	 * @param dataStreamToJoin
-	 *            {@link DataStream} to join with.
-	 * @param windowSize
-	 *            Size of the windows that will be aligned for both streams in
-	 *            milliseconds.
-	 * @param slideInterval
-	 *            After every function call the windows will be slid by this
-	 *            interval.
-	 * @param fieldIn1
-	 *            The field in the first stream to be matched.
-	 * @param fieldIn2
-	 *            The field in the second stream to be matched.
-	 * @return The transformed {@link DataStream}.
-	 */
-	public <IN2> SingleOutputStreamOperator<Tuple2<OUT, IN2>, ?> windowJoin(
-			DataStream<IN2> dataStreamToJoin, long windowSize, long slideInterval, int fieldIn1,
-			int fieldIn2) {
-		return this.windowJoin(dataStreamToJoin, windowSize, slideInterval,
-				new DefaultTimeStamp<OUT>(), new DefaultTimeStamp<IN2>(), fieldIn1, fieldIn2);
-	}
-
-	/**
-	 * Creates a join of a data stream based on the given positions.
-	 * 
-	 * @param dataStreamToJoin
-	 *            {@link DataStream} to join with.
-	 * @param windowSize
-	 *            Size of the windows that will be aligned for both streams in
-	 *            milliseconds.
-	 * @param slideInterval
-	 *            After every function call the windows will be slid by this
-	 *            interval.
-	 * @param fieldIn1
-	 *            The field in the first stream to be matched.
-	 * @param fieldIn2
-	 *            The field in the second stream to be matched.
-	 * @return The transformed {@link DataStream}.
-	 */
-	public <IN2> SingleOutputStreamOperator<Tuple2<OUT, IN2>, ?> windowJoin(
-			DataStream<IN2> dataStreamToJoin, long windowSize, long slideInterval, String fieldIn1,
-			String fieldIn2) {
-		return this.windowJoin(dataStreamToJoin, windowSize, slideInterval,
-				new DefaultTimeStamp<OUT>(), new DefaultTimeStamp<IN2>(), fieldIn1, fieldIn2);
-	}
-
-	/**
-	 * Creates a join of a data stream based on the given positions.
-	 * 
-	 * @param dataStreamToJoin
-	 *            {@link DataStream} to join with.
-	 * @param windowSize
-	 *            Size of the windows that will be aligned for both streams in
-	 *            milliseconds.
-	 * @param slideInterval
-	 *            After every function call the windows will be slid by this
-	 *            interval.
-	 * @param timestamp1
-	 *            User defined time stamps for the first input.
-	 * @param timestamp2
-	 *            User defined time stamps for the second input.
-	 * @param fieldIn1
-	 *            The field in the first stream to be matched.
-	 * @param fieldIn2
-	 *            The field in the second stream to be matched.
-	 * @return The transformed {@link DataStream}.
-	 */
-	public <IN2> SingleOutputStreamOperator<Tuple2<OUT, IN2>, ?> windowJoin(
-			DataStream<IN2> dataStreamToJoin, long windowSize, long slideInterval,
-			TimeStamp<OUT> timestamp1, TimeStamp<IN2> timestamp2, int fieldIn1, int fieldIn2) {
-		return this.connect(dataStreamToJoin).windowJoin(windowSize, slideInterval, timestamp1,
-				timestamp2, fieldIn1, fieldIn2);
-	}
-
-	/**
-	 * Creates a join of a data stream based on the given positions.
-	 * 
-	 * @param dataStreamToJoin
-	 *            {@link DataStream} to join with.
-	 * @param windowSize
-	 *            Size of the windows that will be aligned for both streams in
-	 *            milliseconds.
-	 * @param slideInterval
-	 *            After every function call the windows will be slid by this
-	 *            interval.
-	 * @param timestamp1
-	 *            User defined time stamps for the first input.
-	 * @param timestamp2
-	 *            User defined time stamps for the second input.
-	 * @param fieldIn1
-	 *            The field in the first stream to be matched.
-	 * @param fieldIn2
-	 *            The field in the second stream to be matched.
-	 * @return The transformed {@link DataStream}.
-	 */
-	public <IN2> SingleOutputStreamOperator<Tuple2<OUT, IN2>, ?> windowJoin(
-			DataStream<IN2> dataStreamToJoin, long windowSize, long slideInterval,
-			TimeStamp<OUT> timestamp1, TimeStamp<IN2> timestamp2, String fieldIn1, String fieldIn2) {
-		return this.connect(dataStreamToJoin).windowJoin(windowSize, slideInterval, timestamp1,
-				timestamp2, fieldIn1, fieldIn2);
 	}
 
 	/**
@@ -1208,12 +1125,12 @@ public class DataStream<OUT> {
 	}
 
 	protected SingleOutputStreamOperator<OUT, ?> aggregate(AggregationFunction<OUT> aggregate) {
-	
+
 		StreamReduceInvokable<OUT> invokable = new StreamReduceInvokable<OUT>(aggregate);
-	
+
 		SingleOutputStreamOperator<OUT, ?> returnStream = addFunction("reduce", aggregate,
 				outTypeWrapper, outTypeWrapper, invokable);
-	
+
 		return returnStream;
 	}
 

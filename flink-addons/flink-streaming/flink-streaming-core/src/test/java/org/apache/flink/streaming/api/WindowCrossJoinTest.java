@@ -90,14 +90,14 @@ public class WindowCrossJoinTest {
 		DataStream<Tuple2<Integer, String>> inStream1 = env.fromCollection(in1);
 		DataStream<Integer> inStream2 = env.fromCollection(in2);
 
-		inStream1.windowJoin(inStream2, 1000, 1000, new MyTimestamp1(), new MyTimestamp2(), 0, 0)
-				.addSink(new JoinResultSink());
+		inStream1.join(inStream2).onWindow(1000, 1000, new MyTimestamp1(), new MyTimestamp2())
+				.where(0).equalTo(0).addSink(new JoinResultSink());
 
 		inStream1.windowCross(inStream2, 1000, 1000, new MyTimestamp1(), new MyTimestamp2())
-			.addSink(new CrossResultSink());
+				.addSink(new CrossResultSink());
 
 		env.executeTest(MEMORYSIZE);
-		
+
 		assertEquals(joinExpectedResults, joinResults);
 		assertEquals(crossExpectedResults, crossResults);
 	}
