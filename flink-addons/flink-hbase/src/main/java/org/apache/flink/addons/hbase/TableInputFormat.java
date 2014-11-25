@@ -55,8 +55,8 @@ public abstract class TableInputFormat<T extends Tuple> implements InputFormat<T
 	private boolean endReached = false;
 	
 	// TODO table and scan could be serialized when kryo serializer will be the default
-	private transient HTable table;
-	private transient Scan scan;
+	protected transient HTable table;
+	protected transient Scan scan;
 	
 	/** HBase iterator wrapper */
 	private ResultScanner rs;
