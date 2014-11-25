@@ -105,7 +105,7 @@ public class TimeTriggerPolicyTest {
 				timeStamp);
 
 		// expected result
-		Long[][] result = { {}, {}, { 5L, 10L, 15L }, { 25L } };
+		Long[][] result = { {}, {}, { 4L, 9L, 14L }, { 24L } };
 
 		// call policy
 		for (int i = 0; i < times.length; i++) {

@@ -109,7 +109,7 @@ public class TimeTriggerPolicy<DATA> implements ActiveTriggerPolicy<DATA>,
 		// use > here. In case >= would fit, the regular call will do the job.
 		while (timestamp.getTimestamp(datapoint) > startTime + granularity) {
 			startTime += granularity;
-			fakeElements.add(startTime);
+			fakeElements.add(startTime-1);
 		}
 		return (Object[]) fakeElements.toArray();
 	}
@@ -143,9 +143,10 @@ public class TimeTriggerPolicy<DATA> implements ActiveTriggerPolicy<DATA>,
 	 */
 	private synchronized void activeFakeElementEmission(ActiveTriggerCallback callback) {
 
+		// start time is excluded, but end time is included: >=
 		if (System.currentTimeMillis() >= startTime + granularity) {
 			startTime += granularity;
-			callback.sendFakeElement(startTime);
+			callback.sendFakeElement(startTime-1);
 		}
 
 	}
@@ -177,7 +178,6 @@ public class TimeTriggerPolicy<DATA> implements ActiveTriggerPolicy<DATA>,
 	@Override
 	public synchronized boolean notifyTrigger(DATA datapoint) {
 		long recordTime = timestamp.getTimestamp(datapoint);
-		// start time is included, but end time is excluded: >=
 		if (recordTime >= startTime + granularity) {
 			if (granularity != 0) {
 				startTime = recordTime - ((recordTime - startTime) % granularity);

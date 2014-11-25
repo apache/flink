@@ -89,7 +89,7 @@ public class TimeEvictionPolicyTest {
 
 				// handle correctness of eviction
 				for (; result > 0 && !buffer.isEmpty(); result--) {
-					if (buffer.getFirst() < times[i] - granularity) {
+					if (buffer.getFirst() <= times[i] - granularity) {
 						buffer.removeFirst();
 					} else {
 						fail("The policy wanted to evict time " + buffer.getFirst()

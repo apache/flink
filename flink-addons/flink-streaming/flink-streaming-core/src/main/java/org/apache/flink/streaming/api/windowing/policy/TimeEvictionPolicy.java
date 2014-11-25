@@ -114,7 +114,7 @@ public class TimeEvictionPolicy<DATA> implements ActiveEvictionPolicy<DATA>,
 		int counter = 0;
 		while (!buffer.isEmpty()) {
 
-			if (timestamp.getTimestamp(buffer.getFirst()) < threshold) {
+			if (timestamp.getTimestamp(buffer.getFirst()) <= threshold) {
 				buffer.removeFirst();
 				counter++;
 			} else {
