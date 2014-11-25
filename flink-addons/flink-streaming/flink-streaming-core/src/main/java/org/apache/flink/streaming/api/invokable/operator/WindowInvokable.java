@@ -339,6 +339,18 @@ public abstract class WindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> 
 		buffer.add(input);
 
 	}
+	
+	/**
+	 * This method removes the first element from the element buffer. It is used
+	 * to provide central evictions in {@link GroupedWindowInvokable}
+	 */
+	protected synchronized void evictFirst() {
+		try {
+			buffer.removeFirst();
+		} catch (NoSuchElementException e) {
+			// ignore exception
+		}
+	}
 
 	/**
 	 * This method does the final reduce at the end of the stream and emits the

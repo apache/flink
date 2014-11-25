@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.invokable.operator;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
+import java.util.NoSuchElementException;
 
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
@@ -28,6 +29,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
+import org.apache.flink.streaming.api.windowing.policy.ActiveEvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.ActiveTriggerCallback;
 import org.apache.flink.streaming.api.windowing.policy.ActiveTriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.CloneableEvictionPolicy;
@@ -43,21 +45,21 @@ import org.slf4j.LoggerFactory;
  * versions. It is additionally aware of the creation of windows per group.
  * 
  * A {@link KeySelector} is used to specify the key position or key extraction.
- * The {@link ReduceFunction} will be executed on each group separately. Trigger
- * policies might either be centralized or distributed. Eviction policies are
- * always distributed. A distributed policy have to be a
- * {@link CloneableTriggerPolicy} or {@link CloneableEvictionPolicy} as it will
- * be cloned to have separated instances for each group. At the startup time the
- * distributed policies will be stored as sample, and only clones of them will
- * be used to maintain the groups. Therefore, each group starts with the initial
- * policy states.
+ * The {@link ReduceFunction} will be executed on each group separately.
+ * Policies might either be centralized or distributed. It is not possible to
+ * use central and distributed eviction policies at the same time. A distributed
+ * policy have to be a {@link CloneableTriggerPolicy} or
+ * {@link CloneableEvictionPolicy} as it will be cloned to have separated
+ * instances for each group. At the startup time the distributed policies will
+ * be stored as sample, and only clones of them will be used to maintain the
+ * groups. Therefore, each group starts with the initial policy states.
  * 
  * While a distributed policy only gets notified with the elements belonging to
  * the respective group, a centralized policy get notified with all arriving
  * elements. When a centralized trigger occurred, all groups get triggered. This
  * is done by submitting the element which caused the trigger as real element to
  * the groups it belongs to and as fake element to all other groups. Within the
- * groups the element might be further processed, causing more triggered,
+ * groups the element might be further processed, causing more triggers,
  * prenotifications of active distributed policies and evictions like usual.
  * 
  * Central policies can be instance of {@link ActiveTriggerPolicy} and also
@@ -83,23 +85,28 @@ public class GroupedWindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> {
 	private Configuration parameters;
 	private LinkedList<ActiveTriggerPolicy<IN>> activeCentralTriggerPolicies = new LinkedList<ActiveTriggerPolicy<IN>>();
 	private LinkedList<TriggerPolicy<IN>> centralTriggerPolicies = new LinkedList<TriggerPolicy<IN>>();
+	private LinkedList<ActiveEvictionPolicy<IN>> activeCentralEvictionPolicies;
+	private LinkedList<EvictionPolicy<IN>> centralEvictionPolicies;
 	private LinkedList<CloneableTriggerPolicy<IN>> distributedTriggerPolicies = new LinkedList<CloneableTriggerPolicy<IN>>();
 	private LinkedList<CloneableEvictionPolicy<IN>> distributedEvictionPolicies = new LinkedList<CloneableEvictionPolicy<IN>>();
 	private Map<Object, WindowInvokable<IN, OUT>> windowingGroups = new HashMap<Object, WindowInvokable<IN, OUT>>();
 	private LinkedList<Thread> activePolicyThreads = new LinkedList<Thread>();
 	private LinkedList<TriggerPolicy<IN>> currentTriggerPolicies = new LinkedList<TriggerPolicy<IN>>();
-
+	private LinkedList<WindowInvokable<IN, OUT>> deleteOrderForCentralEviction;
+	
 	/**
 	 * This constructor creates an instance of the grouped windowing invokable.
+	 * 
 	 * A {@link KeySelector} is used to specify the key position or key
 	 * extraction. The {@link ReduceFunction} will be executed on each group
-	 * separately. Trigger policies might either be centralized or distributed.
-	 * Eviction policies are always distributed. A distributed policy have to be
-	 * a {@link CloneableTriggerPolicy} or {@link CloneableEvictionPolicy} as it
-	 * will be cloned to have separated instances for each group. At the startup
-	 * time the distributed policies will be stored as sample, and only clones
-	 * of them will be used to maintain the groups. Therefore, each group starts
-	 * with the initial policy states.
+	 * separately. Policies might either be centralized or distributed. It is
+	 * not possible to use central and distributed eviction policies at the same
+	 * time. A distributed policy have to be a {@link CloneableTriggerPolicy} or
+	 * {@link CloneableEvictionPolicy} as it will be cloned to have separated
+	 * instances for each group. At the startup time the distributed policies
+	 * will be stored as sample, and only clones of them will be used to
+	 * maintain the groups. Therefore, each group starts with the initial policy
+	 * states.
 	 * 
 	 * While a distributed policy only gets notified with the elements belonging
 	 * to the respective group, a centralized policy get notified with all
@@ -107,7 +114,7 @@ public class GroupedWindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> {
 	 * triggered. This is done by submitting the element which caused the
 	 * trigger as real element to the groups it belongs to and as fake element
 	 * to all other groups. Within the groups the element might be further
-	 * processed, causing more triggered, prenotifications of active distributed
+	 * processed, causing more triggers, prenotifications of active distributed
 	 * policies and evictions like usual.
 	 * 
 	 * Central policies can be instance of {@link ActiveTriggerPolicy} and also
@@ -127,33 +134,88 @@ public class GroupedWindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> {
 	 *            within each group.
 	 * @param distributedEvictionPolicies
 	 *            Eviction policies to be distributed and maintained
-	 *            individually within each group. There are no central eviction
-	 *            policies because there is no central element buffer but only a
-	 *            buffer per group. Therefore evictions might always be done per
-	 *            group.
+	 *            individually within each group. Note that there cannot be
+	 *            both, central and distributed eviction policies at the same
+	 *            time.
 	 * @param centralTriggerPolicies
 	 *            Trigger policies which will only exist once at a central
 	 *            place. In case a central policy triggers, it will cause all
 	 *            groups to be emitted. (Remark: Empty groups cannot be emitted.
 	 *            If only one element is contained a group, this element itself
 	 *            is returned as aggregated result.)
+	 * @param centralEvictionPolicies
+	 *            Eviction which will only exist once at a central place. Note
+	 *            that there cannot be both, central and distributed eviction
+	 *            policies at the same time. The central eviction policy will
+	 *            work on an simulated element buffer containing all elements no
+	 *            matter which group they belong to.
 	 */
 	public GroupedWindowInvokable(Function userFunction, KeySelector<IN, ?> keySelector,
 			LinkedList<CloneableTriggerPolicy<IN>> distributedTriggerPolicies,
 			LinkedList<CloneableEvictionPolicy<IN>> distributedEvictionPolicies,
-			LinkedList<TriggerPolicy<IN>> centralTriggerPolicies) {
+			LinkedList<TriggerPolicy<IN>> centralTriggerPolicies,
+			LinkedList<EvictionPolicy<IN>> centralEvictionPolicies) {
 
 		super(userFunction);
+
+		// check that not both, central and distributed eviction, is used at the
+		// same time.
+		if (centralEvictionPolicies != null && distributedEvictionPolicies != null
+				&& !centralEvictionPolicies.isEmpty() && !distributedEvictionPolicies.isEmpty()) {
+			throw new UnsupportedOperationException(
+					"You can only use either central or distributed eviction policies but not both at the same time.");
+		}
+
+		// Check that there is at least one trigger and one eviction policy
+		if ((centralEvictionPolicies == null || centralEvictionPolicies.isEmpty())
+				&& (distributedEvictionPolicies == null || distributedEvictionPolicies.isEmpty())) {
+			throw new UnsupportedOperationException(
+					"You have to define at least one eviction policy");
+		}
+		if ((centralTriggerPolicies == null || centralTriggerPolicies.isEmpty())
+				&& (distributedTriggerPolicies == null || distributedTriggerPolicies.isEmpty())) {
+			throw new UnsupportedOperationException(
+					"You have to define at least one trigger policy");
+		}
+
 		this.keySelector = keySelector;
+
+		// handle the triggers
 		this.centralTriggerPolicies = centralTriggerPolicies;
 		this.distributedTriggerPolicies = distributedTriggerPolicies;
-		this.distributedEvictionPolicies = distributedEvictionPolicies;
-
 		for (TriggerPolicy<IN> trigger : centralTriggerPolicies) {
 			if (trigger instanceof ActiveTriggerPolicy) {
 				this.activeCentralTriggerPolicies.add((ActiveTriggerPolicy<IN>) trigger);
 			}
 		}
+
+		// handle the evictions
+		if (distributedEvictionPolicies != null && !distributedEvictionPolicies.isEmpty()) {
+			this.distributedEvictionPolicies = distributedEvictionPolicies;
+		} else { // (centralEvictionPolicies!=null&&!centralEvictionPolicies.isEmpty())
+			this.centralEvictionPolicies = centralEvictionPolicies;
+			this.activeCentralEvictionPolicies = new LinkedList<ActiveEvictionPolicy<IN>>();
+			for (EvictionPolicy<IN> eviction : centralEvictionPolicies) {
+				if (eviction instanceof ActiveEvictionPolicy) {
+					this.activeCentralEvictionPolicies.add((ActiveEvictionPolicy<IN>) eviction);
+				}
+			}
+			this.deleteOrderForCentralEviction = new LinkedList<WindowInvokable<IN, OUT>>();
+		}
+
+	}
+	
+	/**
+	 * Same as
+	 * {@link GroupedWindowInvokable#GroupedWindowInvokable(Function, KeySelector, LinkedList, LinkedList, LinkedList, LinkedList)}
+	 * but using always distributed eviction only.
+	 */
+	public GroupedWindowInvokable(Function userFunction, KeySelector<IN, ?> keySelector,
+			LinkedList<CloneableTriggerPolicy<IN>> distributedTriggerPolicies,
+			LinkedList<CloneableEvictionPolicy<IN>> distributedEvictionPolicies,
+			LinkedList<TriggerPolicy<IN>> centralTriggerPolicies) {
+		this(userFunction, keySelector, distributedTriggerPolicies, distributedEvictionPolicies,
+				centralTriggerPolicies, null);
 	}
 
 	@Override
@@ -165,8 +227,8 @@ public class GroupedWindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> {
 
 		// Continuously run
 		while (reuse != null) {
-			WindowInvokable<IN, OUT> groupInvokable = windowingGroups.get(keySelector
-					.getKey(reuse.getObject()));
+			WindowInvokable<IN, OUT> groupInvokable = windowingGroups.get(keySelector.getKey(reuse
+					.getObject()));
 			if (groupInvokable == null) {
 				groupInvokable = makeNewGroup(reuse);
 			}
@@ -175,6 +237,13 @@ public class GroupedWindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> {
 			for (ActiveTriggerPolicy<IN> trigger : activeCentralTriggerPolicies) {
 				Object[] result = trigger.preNotifyTrigger(reuse.getObject());
 				for (Object in : result) {
+
+					// If central eviction is used, handle it here
+					if (activeCentralEvictionPolicies!=null) {
+						evictElements(centralActiveEviction(in));
+					}
+
+					// process in groups
 					for (WindowInvokable<IN, OUT> group : windowingGroups.values()) {
 						group.processFakeElement(in, trigger);
 					}
@@ -189,9 +258,18 @@ public class GroupedWindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> {
 			}
 
 			if (currentTriggerPolicies.isEmpty()) {
+
 				// only add the element to its group
 				groupInvokable.processRealElement(reuse.getObject());
+
+				// If central eviction is used, handle it here
+				if (centralEvictionPolicies!=null) {
+					evictElements(centralEviction(reuse.getObject(), false));
+					deleteOrderForCentralEviction.add(groupInvokable);
+				}
+
 			} else {
+
 				// call user function for all groups
 				for (WindowInvokable<IN, OUT> group : windowingGroups.values()) {
 					if (group == groupInvokable) {
@@ -202,6 +280,12 @@ public class GroupedWindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> {
 						// policies
 						group.externalTriggerFakeElement(reuse.getObject(), currentTriggerPolicies);
 					}
+				}
+
+				// If central eviction is used, handle it here
+				if (centralEvictionPolicies!=null) {
+					evictElements(centralEviction(reuse.getObject(), true));
+					deleteOrderForCentralEviction.add(groupInvokable);
 				}
 			}
 
@@ -228,8 +312,8 @@ public class GroupedWindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> {
 	/**
 	 * This method creates a new group. The method gets called in case an
 	 * element arrives which has a key which was not seen before. The method
-	 * created a nested {@link WindowInvokable} and therefore created clones
-	 * of all distributed trigger and eviction policies.
+	 * created a nested {@link WindowInvokable} and therefore created clones of
+	 * all distributed trigger and eviction policies.
 	 * 
 	 * @param element
 	 *            The element which leads to the generation of a new group
@@ -299,6 +383,80 @@ public class GroupedWindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> {
 	};
 
 	/**
+	 * This method is used to notify central eviction policies with a real
+	 * element.
+	 * 
+	 * @param input
+	 *            the real element to notify the eviction policy.
+	 * @param triggered
+	 *            whether a central trigger occurred or not.
+	 * @return The number of elements to be deleted from the buffer.
+	 */
+	private int centralEviction(IN input, boolean triggered) {
+		// Process the evictions and take care of double evictions
+		// In case there are multiple eviction policies present,
+		// only the one with the highest return value is recognized.
+		int currentMaxEviction = 0;
+		for (EvictionPolicy<IN> evictionPolicy : centralEvictionPolicies) {
+			// use temporary variable to prevent multiple calls to
+			// notifyEviction
+			int tmp = evictionPolicy.notifyEviction(input, triggered,
+					deleteOrderForCentralEviction.size());
+			if (tmp > currentMaxEviction) {
+				currentMaxEviction = tmp;
+			}
+		}
+		return currentMaxEviction;
+	}
+
+	/**
+	 * This method is used to notify active central eviction policies with a
+	 * fake element.
+	 * 
+	 * @param input
+	 *            the fake element to notify the active central eviction
+	 *            policies.
+	 * @return The number of elements to be deleted from the buffer.
+	 */
+	private int centralActiveEviction(Object input) {
+		// Process the evictions and take care of double evictions
+		// In case there are multiple eviction policies present,
+		// only the one with the highest return value is recognized.
+		int currentMaxEviction = 0;
+		for (ActiveEvictionPolicy<IN> evictionPolicy : activeCentralEvictionPolicies) {
+			// use temporary variable to prevent multiple calls to
+			// notifyEviction
+			int tmp = evictionPolicy.notifyEvictionWithFakeElement(input,
+					deleteOrderForCentralEviction.size());
+			if (tmp > currentMaxEviction) {
+				currentMaxEviction = tmp;
+			}
+		}
+		return currentMaxEviction;
+	}
+
+	/**
+	 * This method is used in central eviction to delete a given number of
+	 * elements from the buffer.
+	 * 
+	 * @param numToEvict
+	 *            number of elements to delete from the virtual central element
+	 *            buffer.
+	 */
+	private void evictElements(int numToEvict) {
+		for (; numToEvict > 0; numToEvict--) {
+			deleteOrderForCentralEviction.getFirst().evictFirst();
+			try {
+				deleteOrderForCentralEviction.removeFirst();
+			} catch (NoSuchElementException e) {
+				// when buffer is empty, ignore exception and stop deleting
+				break;
+			}
+
+		}
+	}
+
+	/**
 	 * This callback class allows to handle the the callbacks done by threads
 	 * defined in active trigger policies
 	 * 
@@ -313,6 +471,13 @@ public class GroupedWindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> {
 
 		@Override
 		public void sendFakeElement(Object datapoint) {
+
+			// If central eviction is used, handle it here
+			if (centralEvictionPolicies!=null) {
+				evictElements(centralActiveEviction(datapoint));
+			}
+
+			// handle element in groups
 			for (WindowInvokable<IN, OUT> group : windowingGroups.values()) {
 				group.processFakeElement(datapoint, policy);
 			}
