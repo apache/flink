@@ -19,6 +19,8 @@
 package org.apache.flink.api.java;
 
 
+import org.apache.commons.lang3.StringUtils;
+
 public class Utils {
 
 	public static String getCallLocationName() {
@@ -30,6 +32,8 @@ public class Utils {
 		if(st.length < depth) { // we should not throw an out of bounds exception for this.
 			return "<unknown>";
 		}
-		return st[depth].toString();
+		String callLoc = st[depth].toString();
+		int idx = StringUtils.lastOrdinalIndexOf(callLoc, ".", 2); // second last occurrence of .
+		return callLoc.substring(idx+1, callLoc.length());
 	}
 }

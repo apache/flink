@@ -426,7 +426,7 @@ public abstract class ExecutionEnvironment {
 		
 		TypeInformation<X> type = TypeExtractor.getForObject(firstValue);
 		CollectionInputFormat.checkCollection(data, type.getTypeClass());
-		return new DataSource<X>(this, new CollectionInputFormat<X>(data, type.createSerializer()), type, Utils.getCallLocationName(4));
+		return new DataSource<X>(this, new CollectionInputFormat<X>(data, type.createSerializer()), type, Utils.getCallLocationName());
 	}
 	
 	/**
@@ -572,7 +572,7 @@ public abstract class ExecutionEnvironment {
 	 * @see #fromParallelCollection(SplittableIterator, Class)
 	 */
 	public <X> DataSource<X> fromParallelCollection(SplittableIterator<X> iterator, TypeInformation<X> type) {
-		return fromParallelCollection(iterator, type, Utils.getCallLocationName(4));
+		return fromParallelCollection(iterator, type, Utils.getCallLocationName());
 	}
 	
 	// private helper for passing different call location names
@@ -589,7 +589,7 @@ public abstract class ExecutionEnvironment {
 	 * @return A DataSet, containing all number in the {@code [from, to]} interval.
 	 */
 	public DataSource<Long> generateSequence(long from, long to) {
-		return fromParallelCollection(new NumberSequenceIterator(from, to), BasicTypeInfo.LONG_TYPE_INFO, Utils.getCallLocationName(3));
+		return fromParallelCollection(new NumberSequenceIterator(from, to), BasicTypeInfo.LONG_TYPE_INFO, Utils.getCallLocationName());
 	}	
 	
 	// --------------------------------------------------------------------------------------------

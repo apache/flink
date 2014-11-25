@@ -60,7 +60,7 @@ public class NamesTest implements Serializable {
 			}
 		}).output(new DiscardingOuputFormat<String>());
 		JavaPlan plan = env.createProgramPlan();
-		testForName("Filter at org.apache.flink.api.java.operators.NamesTest.testDefaultName(NamesTest.java:54)", plan);
+		testForName("Filter at testDefaultName(NamesTest.java:54)", plan);
 	}
 	
 	@Test
@@ -102,7 +102,7 @@ public class NamesTest implements Serializable {
 			@Override
 			public boolean preVisit(Operator<?> visitable) {
 				if(visitable instanceof JoinOperatorBase) {
-					Assert.assertEquals("Join at org.apache.flink.api.java.operators.NamesTest.testJoinWith(NamesTest.java:92)", visitable.getName());
+					Assert.assertEquals("Join at testJoinWith(NamesTest.java:92)", visitable.getName());
 				}
 				return true;
 			}
