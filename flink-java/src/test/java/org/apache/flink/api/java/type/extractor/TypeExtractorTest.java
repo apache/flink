@@ -44,6 +44,7 @@ import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple9;
+import org.apache.flink.api.java.typeutils.EnumTypeInfo;
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
@@ -1601,5 +1602,26 @@ public class TypeExtractorTest {
 		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes((MapFunction) em, TypeInfoParser.parse("Tuple3<Boolean,Boolean,String>"));
 		Assert.assertTrue(ti.isBasicType());
 		Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, ti);
+	}
+	
+	public static enum MyEnum {
+		ONE, TWO, THREE
+	}
+	
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	@Test
+	public void testEnumType() {
+		MapFunction<?, ?> mf = new MapFunction<MyEnum, MyEnum>() {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public MyEnum map(MyEnum value) throws Exception {
+				return null;
+			}
+		};
+		
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes((MapFunction) mf, new EnumTypeInfo(MyEnum.class));
+		Assert.assertTrue(ti instanceof EnumTypeInfo);
+		Assert.assertEquals(ti.getTypeClass(), MyEnum.class);
 	}
 }

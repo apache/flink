@@ -721,6 +721,17 @@ public class TypeExtractor {
 							+ clazz.getCanonicalName() + "'.");
 				}
 			}
+			// check for Enum
+			else if (typeInfo instanceof EnumTypeInfo) {
+				if (!(type instanceof Class<?> && Enum.class.isAssignableFrom((Class<?>) type))) {
+					throw new InvalidTypesException("Enum type expected.");
+				}
+				// check enum type contents
+				if (!(typeInfo.getTypeClass() == type)) {
+					throw new InvalidTypesException("Enum type '" + typeInfo.getTypeClass().getCanonicalName() + "' expected but was '"
+							+ typeToClass(type).getCanonicalName() + "'.");
+				}
+			}
 			// check for generic object
 			else if (typeInfo instanceof GenericTypeInfo<?>) {
 				Class<?> clazz = null;
@@ -867,7 +878,7 @@ public class TypeExtractor {
 	private <X> TypeInformation<X> privateGetForClass(Class<X> clazz, ArrayList<Type> typeHierarchy) {
 		return privateGetForClass(clazz, typeHierarchy, null);
 	}
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	private <X> TypeInformation<X> privateGetForClass(Class<X> clazz, ArrayList<Type> typeHierarchy, ParameterizedType clazzTypeHint) {
 		Validate.notNull(clazz);
 		
@@ -923,8 +934,9 @@ public class TypeExtractor {
 			throw new InvalidTypesException("Type information extraction for tuples cannot be done based on the class.");
 		}
 
+		// check for Enums
 		if(Enum.class.isAssignableFrom(clazz)) {
-			return new EnumTypeInfo(clazz);
+			return (TypeInformation<X>) new EnumTypeInfo(clazz);
 		}
 
 		if (alreadySeen.contains(clazz)) {

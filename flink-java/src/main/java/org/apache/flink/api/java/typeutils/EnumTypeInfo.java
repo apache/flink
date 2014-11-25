@@ -39,7 +39,6 @@ public class EnumTypeInfo<T extends Enum<T>> extends TypeInformation<T> implemen
 		this.typeClass = typeClass;
 	}
 
-	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Override
 	public TypeComparator<T> createComparator(boolean sortOrderAscending) {
 		return new EnumComparator<T>(sortOrderAscending);
