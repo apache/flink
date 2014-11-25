@@ -21,10 +21,9 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.flink.streaming.api.invokable.util.DefaultTimeStamp;
 import org.apache.flink.streaming.api.invokable.util.TimeStamp;
-import org.apache.flink.streaming.api.windowing.extractor.Extractor;
-import org.apache.flink.streaming.api.windowing.policy.TimeTriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.EvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TimeEvictionPolicy;
+import org.apache.flink.streaming.api.windowing.policy.TimeTriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
 
 /**
@@ -38,27 +37,30 @@ import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
  */
 public class Time<DATA> implements WindowingHelper<DATA> {
 
-	private int timeVal;
+	private long length;
 	private TimeUnit granularity;
 	private TimeStamp<DATA> timeStamp;
 	private long delay;
 
 	/**
 	 * Creates an helper representing a trigger which triggers every given
-	 * timeVal or an eviction which evicts all elements older than timeVal.
+	 * length or an eviction which evicts all elements older than length.
 	 * 
-	 * @param timeVal
+	 * @param length
 	 *            The number of time units
 	 * @param timeUnit
 	 *            The unit of time such as minute oder millisecond. Note that
 	 *            the smallest possible granularity is milliseconds. Any smaller
 	 *            time unit might cause an error at runtime due to conversion
 	 *            problems.
+	 * @param timeStamp
+	 *            The user defined timestamp that will be used to extract time
+	 *            information from the incoming elements
 	 */
-	private Time(int timeVal, TimeUnit timeUnit) {
-		this.timeVal = timeVal;
+	private Time(long length, TimeUnit timeUnit, TimeStamp<DATA> timeStamp) {
+		this.length = length;
 		this.granularity = timeUnit;
-		this.timeStamp = new DefaultTimeStamp<DATA>();
+		this.timeStamp = timeStamp;
 		this.delay = 0;
 	}
 
@@ -74,47 +76,49 @@ public class Time<DATA> implements WindowingHelper<DATA> {
 
 	/**
 	 * Creates an helper representing a trigger which triggers every given
-	 * timeVal or an eviction which evicts all elements older than timeVal.
+	 * length or an eviction which evicts all elements older than length.
 	 * 
-	 * @param timeVal
+	 * @param length
 	 *            The number of time units
-	 * @param granularity
+	 * @param timeUnit
 	 *            The unit of time such as minute oder millisecond. Note that
 	 *            the smallest possible granularity is milliseconds. Any smaller
 	 *            time unit might cause an error at runtime due to conversion
 	 *            problems.
-	 * @return an helper representing a trigger which triggers every given
-	 *         timeVal or an eviction which evicts all elements older than
-	 *         timeVal.
+	 * @return Helper representing the time based trigger and eviction policy
 	 */
-	public static <DATA> Time<DATA> of(int timeVal, TimeUnit granularity) {
-		return new Time<DATA>(timeVal, granularity);
+	public static <DATA> Time<DATA> of(long length, TimeUnit timeUnit) {
+		return new Time<DATA>(length, timeUnit, new DefaultTimeStamp<DATA>());
 	}
 
-	@SuppressWarnings("unchecked")
-	public <R> Time<R> withTimeStamp(TimeStamp<R> timeStamp) {
-		this.timeStamp = (TimeStamp<DATA>) timeStamp;
-		return (Time<R>) this;
+	/**
+	 * Creates an helper representing a trigger which triggers every given
+	 * length or an eviction which evicts all elements older than length.
+	 * 
+	 * @param length
+	 *            The number of time units
+	 * @param timeStamp
+	 *            The user defined timestamp that will be used to extract time
+	 *            information from the incoming elements
+	 * @return Helper representing the time based trigger and eviction policy
+	 */
+	public static <DATA> Time<DATA> of(long length, TimeStamp<DATA> timeStamp) {
+		return new Time<DATA>(length, TimeUnit.MILLISECONDS, timeStamp);
 	}
 
+	/**
+	 * Sets the delay for the first processed window.
+	 * 
+	 * @param delay
+	 *            The number of time units before the first processed window.
+	 * @return Helper representing the time based trigger and eviction policy
+	 */
 	public Time<DATA> withDelay(long delay) {
 		this.delay = delay;
 		return this;
 	}
 
 	private long granularityInMillis() {
-		return this.granularity.toMillis(this.timeVal);
+		return this.granularity.toMillis(this.length);
 	}
-
-	public static class NullExtractor<T> implements Extractor<Long, T> {
-
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public T extract(Long in) {
-			return null;
-		}
-
-	}
-
 }

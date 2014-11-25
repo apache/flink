@@ -18,21 +18,11 @@
 package org.apache.flink.streaming.api;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.flink.api.common.functions.FilterFunction;
-import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.invokable.util.TimeStamp;
-import org.apache.flink.streaming.api.windowing.extractor.Extractor;
-import org.apache.flink.streaming.api.windowing.helper.Count;
-import org.apache.flink.streaming.api.windowing.helper.Time;
-import org.apache.flink.util.Collector;
 import org.junit.Test;
 
 public class PrintTest implements Serializable {
@@ -60,39 +50,7 @@ public class PrintTest implements Serializable {
 	@Test
 	public void test() throws Exception {
 		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
-
-		List<Tuple2<String, Integer>> input = new ArrayList<Tuple2<String, Integer>>();
-
-		env.fromElements(1, 2, 3, 4, 5, 6, 7, 8, 9)
-				.window(Time.of(2, TimeUnit.MILLISECONDS).withTimeStamp(new TimeStamp<Integer>() {
-
-					/**
-					 * 
-					 */
-					private static final long serialVersionUID = 1L;
-
-					@Override
-					public long getTimestamp(Integer value) {
-
-						return value;
-					}
-
-					@Override
-					public long getStartTime() {
-						return 1;
-					}
-				})).every(Count.of(2)).reduceGroup(new GroupReduceFunction<Integer, String>() {
-
-					@Override
-					public void reduce(Iterable<Integer> values, Collector<String> out)
-							throws Exception {
-						String o = "|";
-						for (Integer v : values) {
-							o = o + v + "|";
-						}
-						out.collect(o);
-					}
-				}).print();
+		env.generateSequence(1, 10).map(new IdentityMap()).filter(new FilterAll()).print();
 		env.executeTest(MEMORYSIZE);
 
 	}

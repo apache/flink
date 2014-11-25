@@ -56,11 +56,29 @@ public class Count implements WindowingHelper {
 		return new CountTriggerPolicy(count, startValue);
 	}
 
+	/**
+	 * Sets the number of elements deleted at each eviction (i.e when the number
+	 * elements exceeds the window size). By default the elements get deleted
+	 * one by one (deleteOnEvition = 1)
+	 * 
+	 * @param deleteOnEviction
+	 *            The number of elements deleted at each evition
+	 * @return Helper representing the count based policy
+	 * 
+	 */
 	public Count withDelete(int deleteOnEviction) {
 		this.deleteOnEviction = deleteOnEviction;
 		return this;
 	}
 
+	/**
+	 * Sets the initial value of the counter. 0 by default
+	 * 
+	 * @param startValue
+	 *            Starting value of the window counter
+	 * @return Helper representing the count based policy
+	 * 
+	 */
 	public Count startingAt(int startValue) {
 		this.startValue = startValue;
 		return this;
@@ -72,7 +90,7 @@ public class Count implements WindowingHelper {
 	 * 
 	 * @param count
 	 *            the number of elements to count before trigger/evict
-	 * @return An helper representing the policy
+	 * @return Helper representing the count based policy
 	 */
 	public static Count of(int count) {
 		return new Count(count);

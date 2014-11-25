@@ -75,7 +75,7 @@ public class Delta<DATA> implements WindowingHelper<DATA> {
 	 *            delta.
 	 * @param threshold
 	 *            The threshold used by the delta function.
-	 * @return a delta helper representing a delta count or eviction policy
+	 * @return Helper representing a delta trigger or eviction policy
 	 */
 	public static <DATA> Delta<DATA> of(DeltaFunction<DATA> deltaFunction, DATA initVal,
 			double threshold) {
