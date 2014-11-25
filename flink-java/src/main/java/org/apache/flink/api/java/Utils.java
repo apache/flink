@@ -18,9 +18,6 @@
 
 package org.apache.flink.api.java;
 
-
-import org.apache.commons.lang3.StringUtils;
-
 public class Utils {
 
 	public static String getCallLocationName() {
@@ -28,12 +25,14 @@ public class Utils {
 	}
 
 	public static String getCallLocationName(int depth) {
-		StackTraceElement[] st = Thread.currentThread().getStackTrace();
-		if(st.length < depth) { // we should not throw an out of bounds exception for this.
+		StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
+
+		if (stackTrace.length < depth) {
 			return "<unknown>";
 		}
-		String callLoc = st[depth].toString();
-		int idx = StringUtils.lastOrdinalIndexOf(callLoc, ".", 2); // second last occurrence of .
-		return callLoc.substring(idx+1, callLoc.length());
+
+		StackTraceElement elem = stackTrace[depth];
+
+		return String.format("%s(%s:%d)", elem.getMethodName(), elem.getFileName(), elem.getLineNumber());
 	}
 }
