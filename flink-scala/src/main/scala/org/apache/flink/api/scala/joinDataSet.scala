@@ -66,7 +66,7 @@ class JoinDataSet[L, R](
     rightKeys: Keys[R])
   extends DataSet(defaultJoin) {
 
-  var customPartitioner : Partitioner[_] = _
+  private var customPartitioner : Partitioner[_] = _
   
   /**
    * Creates a new [[DataSet]] where the result for each pair of joined elements is the result

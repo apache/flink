@@ -19,17 +19,25 @@
 package org.apache.flink.api.java.operators;
 
 import java.security.InvalidParameterException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.operators.BinaryOperatorInformation;
 import org.apache.flink.api.common.operators.Operator;
+import org.apache.flink.api.common.operators.Order;
+import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.CoGroupOperatorBase;
 import org.apache.flink.api.common.operators.base.MapOperatorBase;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.operators.DeltaIteration.SolutionSetPlaceHolder;
@@ -44,7 +52,6 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-
 
 /**
  * A {@link DataSet} that is the result of a CoGroup transformation. 
@@ -64,21 +71,32 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 	
 	private final String defaultName;
 	
+	private final List<Pair<Integer, Order>> groupSortKeyOrderFirst;
+	private final List<Pair<Integer, Order>> groupSortKeyOrderSecond;
+	
 	private Partitioner<?> customPartitioner;
 
 
-	public CoGroupOperator(DataSet<I1> input1, DataSet<I2> input2,
-							Keys<I1> keys1, Keys<I2> keys2,
-							CoGroupFunction<I1, I2, OUT> function,
-							TypeInformation<OUT> returnType,
-							Partitioner<?> customPartitioner,
-							String defaultName)
+	public CoGroupOperator(DataSet<I1> input1, DataSet<I2> input2, Keys<I1> keys1, Keys<I2> keys2,
+							CoGroupFunction<I1, I2, OUT> function, TypeInformation<OUT> returnType,
+							Partitioner<?> customPartitioner, String defaultName)
+	{
+		this(input1, input2, keys1, keys2, function, returnType, null, null, customPartitioner, defaultName);
+	}
+	
+	public CoGroupOperator(DataSet<I1> input1, DataSet<I2> input2, Keys<I1> keys1, Keys<I2> keys2,
+			CoGroupFunction<I1, I2, OUT> function, TypeInformation<OUT> returnType,
+			List<Pair<Integer, Order>> groupSortKeyOrderFirst, List<Pair<Integer, Order>> groupSortKeyOrderSecond,
+			Partitioner<?> customPartitioner, String defaultName)
 	{
 		super(input1, input2, returnType);
 
 		this.function = function;
 		this.customPartitioner = customPartitioner;
 		this.defaultName = defaultName;
+		
+		this.groupSortKeyOrderFirst = groupSortKeyOrderFirst == null ? Collections.<Pair<Integer, Order>>emptyList() : groupSortKeyOrderFirst;
+		this.groupSortKeyOrderSecond = groupSortKeyOrderSecond == null ? Collections.<Pair<Integer, Order>>emptyList() : groupSortKeyOrderSecond;
 
 		if (keys1 == null || keys2 == null) {
 			throw new NullPointerException();
@@ -147,12 +165,15 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 	@Override
 	protected org.apache.flink.api.common.operators.base.CoGroupOperatorBase<?, ?, OUT, ?> translateToDataFlow(Operator<I1> input1, Operator<I2> input2) {
 		
-		String name = getName() != null ? getName() : "CoGroup at "+defaultName;
+		String name = getName() != null ? getName() : "CoGroup at " + defaultName;
 		try {
 			keys1.areCompatible(keys2);
-		} catch (IncompatibleKeysException e) {
+		}
+		catch (IncompatibleKeysException e) {
 			throw new InvalidProgramException("The types of the key fields do not match.", e);
 		}
+		
+		final org.apache.flink.api.common.operators.base.CoGroupOperatorBase<?, ?, OUT, ?> po;
 
 		if (keys1 instanceof Keys.SelectorFunctionKeys
 				&& keys2 instanceof Keys.SelectorFunctionKeys) {
@@ -164,15 +185,11 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 			Keys.SelectorFunctionKeys<I2, ?> selectorKeys2 =
 					(Keys.SelectorFunctionKeys<I2, ?>) keys2;
 
-			PlanBothUnwrappingCoGroupOperator<I1, I2, OUT, ?> po =
-					translateSelectorFunctionCoGroup(selectorKeys1, selectorKeys2, function,
+			po = translateSelectorFunctionCoGroup(selectorKeys1, selectorKeys2, function,
 					getInput1Type(), getInput2Type(), getResultType(), name, input1, input2);
 
 			po.setDegreeOfParallelism(getParallelism());
 			po.setCustomPartitioner(customPartitioner);
-
-			return po;
-
 		}
 		else if (keys2 instanceof Keys.SelectorFunctionKeys) {
 
@@ -181,14 +198,11 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 			@SuppressWarnings("unchecked")
 			Keys.SelectorFunctionKeys<I2, ?> selectorKeys2 = (Keys.SelectorFunctionKeys<I2, ?>) keys2;
 
-			PlanRightUnwrappingCoGroupOperator<I1, I2, OUT, ?> po =
-					translateSelectorFunctionCoGroupRight(logicalKeyPositions1, selectorKeys2, function,
+			po = translateSelectorFunctionCoGroupRight(logicalKeyPositions1, selectorKeys2, function,
 							getInput1Type(), getInput2Type(), getResultType(), name, input1, input2);
 
 			po.setDegreeOfParallelism(getParallelism());
 			po.setCustomPartitioner(customPartitioner);
-
-			return po;
 		}
 		else if (keys1 instanceof Keys.SelectorFunctionKeys) {
 
@@ -197,14 +211,8 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 
 			int[] logicalKeyPositions2 = keys2.computeLogicalKeyPositions();
 
-			PlanLeftUnwrappingCoGroupOperator<I1, I2, OUT, ?> po =
-					translateSelectorFunctionCoGroupLeft(selectorKeys1, logicalKeyPositions2, function,
+			po = translateSelectorFunctionCoGroupLeft(selectorKeys1, logicalKeyPositions2, function,
 							getInput1Type(), getInput2Type(), getResultType(), name, input1, input2);
-
-			po.setDegreeOfParallelism(getParallelism());
-			po.setCustomPartitioner(customPartitioner);
-
-			return po;
 		}
 		else if ( keys1 instanceof Keys.ExpressionKeys && keys2 instanceof Keys.ExpressionKeys)
 			{
@@ -217,22 +225,39 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 			int[] logicalKeyPositions1 = keys1.computeLogicalKeyPositions();
 			int[] logicalKeyPositions2 = keys2.computeLogicalKeyPositions();
 			
-			CoGroupOperatorBase<I1, I2, OUT, CoGroupFunction<I1, I2, OUT>> po =
+			CoGroupOperatorBase<I1, I2, OUT, CoGroupFunction<I1, I2, OUT>> op =
 					new CoGroupOperatorBase<I1, I2, OUT, CoGroupFunction<I1, I2, OUT>>(
 							function, new BinaryOperatorInformation<I1, I2, OUT>(getInput1Type(), getInput2Type(), getResultType()),
 							logicalKeyPositions1, logicalKeyPositions2, name);
 			
-			// set inputs
-			po.setFirstInput(input1);
-			po.setSecondInput(input2);
-
-			po.setDegreeOfParallelism(getParallelism());
-			po.setCustomPartitioner(customPartitioner);
-			return po;
+			op.setFirstInput(input1);
+			op.setSecondInput(input2);
+			po = op;
 		}
 		else {
 			throw new UnsupportedOperationException("Unrecognized or incompatible key types.");
 		}
+		
+		// configure shared characteristics
+		po.setDegreeOfParallelism(getParallelism());
+		po.setCustomPartitioner(customPartitioner);
+		
+		if (groupSortKeyOrderFirst.size() > 0) {
+			Ordering o = new Ordering();
+			for (Pair<Integer, Order> entry : groupSortKeyOrderFirst) {
+				o.appendOrdering(entry.getLeft(), null, entry.getRight());
+			}
+			po.setGroupOrderForInputOne(o);
+		}
+		if (groupSortKeyOrderSecond.size() > 0) {
+			Ordering o = new Ordering();
+			for (Pair<Integer, Order> entry : groupSortKeyOrderSecond) {
+				o.appendOrdering(entry.getLeft(), null, entry.getRight());
+			}
+			po.setGroupOrderForInputTwo(o);
+		}
+		
+		return po;
 	}
 
 
@@ -524,10 +549,15 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 
 				return new CoGroupOperatorWithoutFunction(keys2);
 			}
+			
+			// ------------------------------------------------------------------------------------
 
 			public final class CoGroupOperatorWithoutFunction {
 				
 				private final Keys<I2> keys2;
+				
+				private final List<Pair<Integer, Order>> groupSortKeyOrderFirst;
+				private final List<Pair<Integer, Order>> groupSortKeyOrderSecond;
 				
 				private Partitioner<?> customPartitioner;
 
@@ -535,12 +565,14 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 					if (keys2 == null) {
 						throw new NullPointerException();
 					}
-
 					if (keys2.isEmpty()) {
 						throw new InvalidProgramException("The co-group keys must not be empty.");
 					}
 
 					this.keys2 = keys2;
+					
+					this.groupSortKeyOrderFirst = new ArrayList<Pair<Integer, Order>>();
+					this.groupSortKeyOrderSecond = new ArrayList<Pair<Integer, Order>>();
 				}
 				
 				/**
@@ -586,8 +618,124 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 						throw new NullPointerException("CoGroup function must not be null.");
 					}
 					TypeInformation<R> returnType = TypeExtractor.getCoGroupReturnTypes(function, input1.getType(), input2.getType());
-					return new CoGroupOperator<I1, I2, R>(input1, input2, keys1, keys2, function, returnType, 
+					
+					return new CoGroupOperator<I1, I2, R>(input1, input2, keys1, keys2, function, returnType,
+							groupSortKeyOrderFirst, groupSortKeyOrderSecond,
 							customPartitioner, Utils.getCallLocationName());
+				}
+				
+				// --------------------------------------------------------------------------------
+				//  Group Operations
+				// --------------------------------------------------------------------------------
+				
+				/**
+				 * Sorts {@link org.apache.flink.api.java.tuple.Tuple} elements within a group in the first input on the
+				 * specified field in the specified {@link Order}.</br>
+				 * <b>Note: Only groups of Tuple elements and Pojos can be sorted.</b><br/>
+				 * Groups can be sorted by multiple fields by chaining {@link #sortFirstGroup(int, Order)} calls.
+				 * 
+				 * @param field The Tuple field on which the group is sorted.
+				 * @param order The Order in which the specified Tuple field is sorted.
+				 * @return A SortedGrouping with specified order of group element.
+				 * 
+				 * @see org.apache.flink.api.java.tuple.Tuple
+				 * @see Order
+				 */
+				public CoGroupOperatorWithoutFunction sortFirstGroup(int field, Order order) {
+					if (!input1.getType().isTupleType()) {
+						throw new InvalidProgramException("Specifying order keys via field positions is only valid for tuple data types");
+					}
+					if (field >= input1.getType().getArity()) {
+						throw new IllegalArgumentException("Order key out of tuple bounds.");
+					}
+					ExpressionKeys<I1> ek = new ExpressionKeys<I1>(new int[]{field}, input1.getType());
+					int[] groupOrderKeys = ek.computeLogicalKeyPositions();
+					
+					for (int key : groupOrderKeys) {
+						this.groupSortKeyOrderFirst.add(new ImmutablePair<Integer, Order>(key, order));
+					}
+					
+					return this;
+				}
+				
+				/**
+				 * Sorts {@link org.apache.flink.api.java.tuple.Tuple} elements within a group in the second input on the
+				 * specified field in the specified {@link Order}.</br>
+				 * <b>Note: Only groups of Tuple elements and Pojos can be sorted.</b><br/>
+				 * Groups can be sorted by multiple fields by chaining {@link #sortSecondGroup(int, Order)} calls.
+				 * 
+				 * @param field The Tuple field on which the group is sorted.
+				 * @param order The Order in which the specified Tuple field is sorted.
+				 * @return A SortedGrouping with specified order of group element.
+				 * 
+				 * @see org.apache.flink.api.java.tuple.Tuple
+				 * @see Order
+				 */
+				public CoGroupOperatorWithoutFunction sortSecondGroup(int field, Order order) {
+					if (!input2.getType().isTupleType()) {
+						throw new InvalidProgramException("Specifying order keys via field positions is only valid for tuple data types");
+					}
+					if (field >= input2.getType().getArity()) {
+						throw new IllegalArgumentException("Order key out of tuple bounds.");
+					}
+					ExpressionKeys<I2> ek = new ExpressionKeys<I2>(new int[]{field}, input2.getType());
+					int[] groupOrderKeys = ek.computeLogicalKeyPositions();
+					
+					for (int key : groupOrderKeys) {
+						this.groupSortKeyOrderSecond.add(new ImmutablePair<Integer, Order>(key, order));
+					}
+					
+					return this;
+				}
+				
+				/**
+				 * Sorts Pojo or {@link org.apache.flink.api.java.tuple.Tuple} elements within a group in the first input on the
+				 * specified field in the specified {@link Order}.</br>
+				 * Groups can be sorted by multiple fields by chaining {@link #sortFirstGroup(String, Order)} calls.
+				 * 
+				 * @param fieldExpression The expression to the field on which the group is to be sorted.
+				 * @param order The Order in which the specified Tuple field is sorted.
+				 * @return A SortedGrouping with specified order of group element.
+				 * 
+				 * @see Order
+				 */
+				public CoGroupOperatorWithoutFunction sortFirstGroup(String fieldExpression, Order order) {
+					if (! (input1.getType() instanceof CompositeType)) {
+						throw new InvalidProgramException("Specifying order keys via field positions is only valid for composite data types (pojo / tuple / case class)");
+					}
+					ExpressionKeys<I1> ek = new ExpressionKeys<I1>(new String[]{fieldExpression}, input1.getType());
+					int[] groupOrderKeys = ek.computeLogicalKeyPositions();
+					
+					for (int key : groupOrderKeys) {
+						this.groupSortKeyOrderFirst.add(new ImmutablePair<Integer, Order>(key, order));
+					}
+					
+					return this;
+				}
+				
+				/**
+				 * Sorts Pojo or {@link org.apache.flink.api.java.tuple.Tuple} elements within a group in the second input on the
+				 * specified field in the specified {@link Order}.</br>
+				 * Groups can be sorted by multiple fields by chaining {@link #sortSecondGroup(String, Order)} calls.
+				 * 
+				 * @param fieldExpression The expression to the field on which the group is to be sorted.
+				 * @param order The Order in which the specified Tuple field is sorted.
+				 * @return A SortedGrouping with specified order of group element.
+				 * 
+				 * @see Order
+				 */
+				public CoGroupOperatorWithoutFunction sortSecondGroup(String fieldExpression, Order order) {
+					if (! (input2.getType() instanceof CompositeType)) {
+						throw new InvalidProgramException("Specifying order keys via field positions is only valid for composite data types (pojo / tuple / case class)");
+					}
+					ExpressionKeys<I2> ek = new ExpressionKeys<I2>(new String[]{fieldExpression}, input2.getType());
+					int[] groupOrderKeys = ek.computeLogicalKeyPositions();
+					
+					for (int key : groupOrderKeys) {
+						this.groupSortKeyOrderSecond.add(new ImmutablePair<Integer, Order>(key, order));
+					}
+					
+					return this;
 				}
 			}
 		}
