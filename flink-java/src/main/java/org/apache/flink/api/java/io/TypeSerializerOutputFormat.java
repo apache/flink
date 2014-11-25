@@ -30,9 +30,11 @@ import java.io.IOException;
  * Stores elements by serializing them with their type serializer.
  * @param <T> type parameter
  */
-public class TypeSerializerOutputFormat<T> extends BinaryOutputFormat<T> implements
-		InputTypeConfigurable {
-	private TypeSerializer<T> serializer = null;
+public class TypeSerializerOutputFormat<T> extends BinaryOutputFormat<T> implements InputTypeConfigurable {
+
+	private static final long serialVersionUID = -6653022644629315158L;
+	
+	private TypeSerializer<T> serializer;
 
 	@Override
 	protected void serialize(T record, DataOutputView dataOutput) throws IOException {
@@ -49,6 +51,7 @@ public class TypeSerializerOutputFormat<T> extends BinaryOutputFormat<T> impleme
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	public void setInputType(TypeInformation<?> type) {
 		serializer = (TypeSerializer<T>) type.createSerializer();
 	}

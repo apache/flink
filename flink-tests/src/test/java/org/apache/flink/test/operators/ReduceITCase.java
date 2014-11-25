@@ -48,6 +48,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedList;
 
+@SuppressWarnings("deprecation")
 @RunWith(Parameterized.class)
 public class ReduceITCase extends RecordAPITestBase {
 

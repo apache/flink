@@ -29,6 +29,9 @@ import java.io.IOException;
  * @param <T>
  */
 public class TypeSerializerInputFormat<T> extends BinaryInputFormat<T> {
+
+	private static final long serialVersionUID = 2123068581665107480L;
+
 	private TypeSerializer<T> serializer;
 
 	public TypeSerializerInputFormat(TypeSerializer<T> serializer){
