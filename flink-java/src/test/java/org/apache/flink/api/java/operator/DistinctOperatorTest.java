@@ -98,8 +98,8 @@ public class DistinctOperatorTest {
 		// should work
 		tupleDs.distinct();
 	}
-	
-	@Test(expected = InvalidProgramException.class)
+
+	@Test
 	public void testDistinctByKeyFields5() {
 		
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -108,7 +108,7 @@ public class DistinctOperatorTest {
 		
 		DataSet<CustomType> customDs = env.fromCollection(customTypeData);
 
-		// should not work, distinct without selector on custom types
+		// should work
 		customDs.distinct();
 	}
 	

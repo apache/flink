@@ -127,7 +127,7 @@ public class DistinctITCase extends JavaProgramTestBase {
 			case 3: {
 				
 				/*
-				 * check correctness of distinct on tuples with key extractor
+				 * check correctness of distinct on tuples with key extractor function
 				 */
 				
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -280,8 +280,28 @@ public class DistinctITCase extends JavaProgramTestBase {
 				
 				// return expected result
 				return "10000\n20000\n30000\n";
-								
 			}
+			case 9: {
+
+					/*
+					 * distinct on full Pojo
+					 */
+					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+					DataSet<POJO> ds = CollectionDataSets.getDuplicatePojoDataSet(env);
+					DataSet<Integer> reduceDs = ds.distinct().map(new MapFunction<CollectionDataSets.POJO, Integer>() {
+						@Override
+						public Integer map(POJO value) throws Exception {
+							return (int) value.nestedPojo.longNumber;
+						}
+					});
+
+					reduceDs.writeAsText(resultPath);
+					env.execute();
+
+					// return expected result
+					return "10000\n20000\n30000\n";
+				}
 			default: 
 				throw new IllegalArgumentException("Invalid program id");
 			}
