@@ -17,18 +17,22 @@
 
 package org.apache.flink.streaming.api.function.source;
 
-import org.apache.flink.util.Collector;
-
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.net.InetSocketAddress;
 import java.net.Socket;
 
-public class SocketTextStreamFunction implements SourceFunction<String> {
-	private static final long serialVersionUID = 1L;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.Collector;
 
+public class SocketTextStreamFunction extends RichSourceFunction<String> {
+	private static final long serialVersionUID = 1L;
+	
 	private String hostname;
 	private int port;
 	private char delimiter;
+	private Socket socket;
+	private static final int CONNECTION_TIMEOUT_TIME = 0;
 
 	public SocketTextStreamFunction(String hostname, int port, char delimiter) {
 		this.hostname = hostname;
@@ -37,8 +41,15 @@ public class SocketTextStreamFunction implements SourceFunction<String> {
 	}
 
 	@Override
+	public void open(Configuration parameters) throws Exception {
+		super.open(parameters);
+		socket = new Socket();
+		
+		socket.connect(new InetSocketAddress(hostname, port), CONNECTION_TIMEOUT_TIME);
+	}
+	
+	@Override
 	public void invoke(Collector<String> collector) throws Exception {
-		Socket socket = new Socket(hostname, port);
 		while (!socket.isClosed() && socket.isConnected()) {
 			streamFromSocket(collector, socket);
 		}
@@ -65,5 +76,11 @@ public class SocketTextStreamFunction implements SourceFunction<String> {
 		if (buffer.length() > 0) {
 			collector.collect(buffer.toString());
 		}
+	}
+
+	@Override
+	public void close() throws Exception {
+		socket.close();
+		super.close();
 	}
 }
