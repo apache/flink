@@ -20,7 +20,7 @@ import org.junit.runners.Parameterized.Parameters;
 @RunWith(Parameterized.class)
 public class TestGraphOperations extends JavaProgramTestBase {
 
-	private static int NUM_PROGRAMS = 16;
+	private static int NUM_PROGRAMS = 18;
 	
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -258,6 +258,32 @@ public class TestGraphOperations extends JavaProgramTestBase {
 			}
 			case 11: {
 				/*
+				 * Test addVertex() -- add vertex with empty edge set
+				 */	
+				
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				
+				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+						TestGraphUtils.getLongLongEdgeData(env), env);
+				
+				List<Tuple3<Long, Long, Long>> edges = new ArrayList<Tuple3<Long, Long, Long>>();
+				
+				graph = graph.addVertex(new Tuple2<Long, Long>(6L, 6L), edges);
+				
+				graph.getVertices().writeAsCsv(resultPath);
+					
+				env.execute();
+				
+				return "1,1\n" +
+					"2,2\n" +
+					"3,3\n" +
+					"4,4\n" +
+					"5,5\n" +
+					"6,6\n";
+				
+			}
+			case 12: {
+				/*
 				 * Test removeVertex() -- simple case
 				 */	
 				
@@ -278,7 +304,7 @@ public class TestGraphOperations extends JavaProgramTestBase {
 					"3,4,34\n";
 				
 			}
-			case 12: {
+			case 13: {
 				/*
 				 * Test removeVertex() -- remove an invalid vertex
 				 */	
@@ -302,7 +328,7 @@ public class TestGraphOperations extends JavaProgramTestBase {
 					"4,5,45\n" +
 					"5,1,51\n";
 			}
-			case 13: {
+			case 14: {
 				/*
 				 * Test addEdge() -- simple case
 				 */
@@ -329,7 +355,34 @@ public class TestGraphOperations extends JavaProgramTestBase {
 					"5,1,51\n" +
 					"6,1,61\n";	
 			}
-			case 14: {
+			case 15: {
+				/*
+				 * Test addEdge() -- add already existing edge
+				 */
+				
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				
+				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+						TestGraphUtils.getLongLongEdgeData(env), env);
+				
+				
+				graph = graph.addEdge(new Tuple3<Long, Long, Long>(1L, 2L, 12L), 
+						new Tuple2<Long, Long>(1L, 1L), new Tuple2<Long, Long>(2L, 2L));
+				
+				graph.getEdges().writeAsCsv(resultPath);
+					
+				env.execute();
+				
+				return "1,2,12\n" +
+					"1,2,12\n" +
+					"1,3,13\n" +
+					"2,3,23\n" +
+					"3,4,34\n" +
+					"3,5,35\n" +
+					"4,5,45\n" +
+					"5,1,51\n";	
+			}
+			case 16: {
 				/*
 				 * Test removeEdge() -- simple case
 				 */
@@ -353,7 +406,7 @@ public class TestGraphOperations extends JavaProgramTestBase {
 					"4,5,45\n";
 				
 			}
-			case 15: {
+			case 17: {
 				/*
 				 * Test removeEdge() -- invalid edge
 				 */
@@ -378,7 +431,7 @@ public class TestGraphOperations extends JavaProgramTestBase {
 					"5,1,51\n";
 				
 			}
-			case 16: {
+			case 18: {
 				/*
 				 * Test union()
 				 */
