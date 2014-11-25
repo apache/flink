@@ -29,7 +29,7 @@ import java.util.Set;
 
 import org.apache.flink.runtime.ipc.RPC;
 import org.apache.flink.runtime.jobgraph.JobID;
-import org.apache.flink.runtime.jobmanager.scheduler.SlotAvailablilityListener;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotAvailabilityListener;
 import org.apache.flink.runtime.net.NetUtils;
 import org.apache.flink.runtime.protocols.TaskOperationProtocol;
 import org.eclipse.jetty.util.log.Log;
@@ -54,7 +54,7 @@ public class Instance {
 	/** The number of task slots available on the node */
 	private final int numberOfSlots;
 
-	/** A list of available slot positons */
+	/** A list of available slot positions */
 	private final Queue<Integer> availableSlots;
 	
 	/** Allocated slots on this instance */
@@ -62,7 +62,7 @@ public class Instance {
 
 	
 	/** A listener to be notified upon new slot availability */
-	private SlotAvailablilityListener slotListener;
+	private SlotAvailabilityListener slotAvailabilityListener;
 	
 	
 	/** The RPC proxy to send calls to the task manager represented by this instance */
@@ -140,7 +140,7 @@ public class Instance {
 		synchronized (instanceLock) {
 			
 			// no more notifications for the slot releasing
-			this.slotListener = null;
+			this.slotAvailabilityListener = null;
 			
 			for (AllocatedSlot slot : allocatedSlots) {
 				slot.releaseSlot();
@@ -267,8 +267,8 @@ public class Instance {
 				if (this.allocatedSlots.remove(slot)) {
 					this.availableSlots.add(slot.getSlotNumber());
 					
-					if (this.slotListener != null) {
-						this.slotListener.newSlotAvailable(this);
+					if (this.slotAvailabilityListener != null) {
+						this.slotAvailabilityListener.newSlotAvailable(this);
 					}
 					
 					return true;
@@ -309,19 +309,19 @@ public class Instance {
 	// Listeners
 	// --------------------------------------------------------------------------------------------
 	
-	public void setSlotAvailabilityListener(SlotAvailablilityListener slotListener) {
+	public void setSlotAvailabilityListener(SlotAvailabilityListener slotAvailabilityListener) {
 		synchronized (instanceLock) {
-			if (this.slotListener != null) {
+			if (this.slotAvailabilityListener != null) {
 				throw new IllegalStateException("Instance has already a slot listener.");
 			} else {
-				this.slotListener = slotListener;
+				this.slotAvailabilityListener = slotAvailabilityListener;
 			}
 		}
 	}
 	
 	public void removeSlotListener() {
 		synchronized (instanceLock) {
-			this.slotListener = null;
+			this.slotAvailabilityListener = null;
 		}
 	}
 	
