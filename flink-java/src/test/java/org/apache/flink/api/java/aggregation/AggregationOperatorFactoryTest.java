@@ -19,6 +19,8 @@
 package org.apache.flink.api.java.aggregation;
 
 import static java.util.Arrays.asList;
+import static org.apache.flink.api.java.aggregation.Aggregations.allKeys;
+import static org.apache.flink.api.java.aggregation.Aggregations.key;
 import static org.apache.flink.util.TestHelper.uniqueInt;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
@@ -93,6 +95,100 @@ public class AggregationOperatorFactoryTest {
 
 		// then
 		assertThat(resultType, tupleWithTypes(basicTypeInfo));
+	}
+
+	@SuppressWarnings("rawtypes")
+	@Test
+	public void shouldExpandAllKeys() {
+		// given
+		// setup 2 functions and a call to allKeys() in the middle
+		// call allKeys() before mocking static
+		AggregationFunction function1 = mock(AggregationFunction.class);
+		AggregationFunction function2 = mock(AggregationFunction.class);
+		AggregationFunction[] functions = { function1, allKeys(), function2 };
+
+		// setup 2 groupings
+		int pos1 = uniqueInt();
+		int pos2 = uniqueInt();
+		int[] groupKeys = { pos1, pos2 };
+
+		// setup creation of 2 key functions
+		AggregationFunction key1 = mock(KeySelectionAggregationFunction.class);
+		AggregationFunction key2 = mock(KeySelectionAggregationFunction.class);
+		mockStatic(Aggregations.class);
+		given(Aggregations.key(pos1)).willReturn(key1);
+		given(Aggregations.key(pos2)).willReturn(key2);
+
+		// when
+		AggregationFunction[] actual =
+				aggregationFunctionPreprocessor.expandKeys(functions, groupKeys);
+
+		// then
+		AggregationFunction[] expected = { function1, key1, key2, function2 };
+		assertThat(actual, is(expected));
+	}
+
+	@SuppressWarnings("rawtypes")
+	@Test
+	public void shouldExpandAllKeysOnlyOnce() {
+		// given
+		// call allKeys() before mocking static
+		AggregationFunction[] functions = { allKeys(), allKeys() };
+		int pos = uniqueInt();
+		int[] groupKeys = { pos };
+		AggregationFunction key = mock(KeySelectionAggregationFunction.class);
+		mockStatic(Aggregations.class);
+		given(Aggregations.key(pos)).willReturn(key);
+
+		// when
+		AggregationFunction[] actual =
+				aggregationFunctionPreprocessor.expandKeys(functions, groupKeys);
+
+		// then
+		AggregationFunction[] expected = { key };
+		assertThat(actual, is(expected));
+	}
+
+	@SuppressWarnings("rawtypes")
+	@Test
+	public void shouldNotExpandSpecifiedKeys() {
+		// given
+		// setup 2 groupings
+		int pos1 = uniqueInt();
+		int pos2 = uniqueInt();
+		int[] groupKeys = { pos1, pos2 };
+
+		// setup a call to allKeys at the beginning, then a function, then a key selection
+		// call allKeys() and key() before mocking static
+		AggregationFunction function = mock(AggregationFunction.class);
+		AggregationFunction key1 = key(pos1);
+		AggregationFunction[] functions = { allKeys(), function, key1 };
+
+		// setup creation of missing key function
+		AggregationFunction key2 = mock(KeySelectionAggregationFunction.class);
+		mockStatic(Aggregations.class);
+		given(Aggregations.key(pos2)).willReturn(key2);
+
+		// when
+		AggregationFunction[] actual =
+				aggregationFunctionPreprocessor.expandKeys(functions, groupKeys);
+
+		// then
+		AggregationFunction[] expected = { key2, function, key1 };
+		assertThat(actual, is(expected));
+	}
+
+	@SuppressWarnings("rawtypes")
+	@Test(expected=IllegalArgumentException.class)
+	public void errorIfKeyIsNotInGrouping() {
+		// given
+		int groupKey = uniqueInt();
+		int specifiedKey = uniqueInt(new int[] { groupKey });
+		int[] groupKeys = { groupKey };
+		AggregationFunction[] functions = { key(specifiedKey) };
+
+		// when
+		aggregationFunctionPreprocessor.expandKeys(functions, groupKeys);
 	}
 
 	@SuppressWarnings("rawtypes")
@@ -276,7 +372,7 @@ public class AggregationOperatorFactoryTest {
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
 	// lot's of code duplication with no grouping case :-/
-	public void shouldCreateAgregationOperatorWithResultTypeAndTupleWithGrouping() throws Exception {
+	public void shouldCreateAgregationOperator() throws Exception {
 		// given
 		// setup dependencies
 		AggregationFunctionPreprocessor aggregationFunctionPreprocessor = mock(AggregationFunctionPreprocessor.class);
@@ -300,10 +396,14 @@ public class AggregationOperatorFactoryTest {
 		given(keys.computeLogicalKeyPositions()).willReturn(groupKeys);
 		given(grouping.getDataSet()).willReturn(input);
 		given(grouping.getKeys()).willReturn(keys);
-		
+
+		// setup key expansion
+		AggregationFunction[] functionsWithExpandedKeys = { mock(AggregationFunction.class) };
+		given(aggregationFunctionPreprocessor.expandKeys(functions, groupKeys)).willReturn(functionsWithExpandedKeys);
+
 		// setup creation of intermediate functions
 		AggregationFunction[] intermediates = { mock(AggregationFunction.class) };
-		given(aggregationFunctionPreprocessor.createIntermediateFunctions(functions, groupKeys)).willReturn(intermediates);
+		given(aggregationFunctionPreprocessor.createIntermediateFunctions(functionsWithExpandedKeys, groupKeys)).willReturn(intermediates);
 		
 		// setup intermediate grouping
 		int[] intermediateGroupKeys = { uniqueInt() };
@@ -311,7 +411,7 @@ public class AggregationOperatorFactoryTest {
 		
 		// setup creation of result type
 		TypeInformation resultType = mock(TypeInformation.class);
-		given(typeFactory.createAggregationResultType(inputType, functions)).willReturn(resultType);
+		given(typeFactory.createAggregationResultType(inputType, functionsWithExpandedKeys)).willReturn(resultType);
 
 		// setup creation of intermediate type
 		TypeInformation intermediateType = mock(TypeInformation.class);
@@ -319,7 +419,7 @@ public class AggregationOperatorFactoryTest {
 		
 		// setup creation of aggregation operator
 		AggregationOperator expected = mock(AggregationOperator.class);
-		whenNew(AggregationOperator.class).withArguments(input, resultType, intermediateType, intermediateGroupKeys, functions, intermediates).thenReturn(expected);
+		whenNew(AggregationOperator.class).withArguments(input, resultType, intermediateType, intermediateGroupKeys, functionsWithExpandedKeys, intermediates).thenReturn(expected);
 		
 		// when
 		AggregationOperator actual = factory.aggregate(grouping, functions);

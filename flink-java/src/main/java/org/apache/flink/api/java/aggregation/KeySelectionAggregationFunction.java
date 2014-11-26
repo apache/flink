@@ -25,6 +25,9 @@ package org.apache.flink.api.java.aggregation;
 public class KeySelectionAggregationFunction<T> extends InputTypeAggregationFunction<T> {
 	private static final long serialVersionUID = -8410506438464358497L;
 	
+	// marker specifying that all group keys should be included
+	static KeySelectionAggregationFunction<Object> INCLUDE_ALL_KEYS_FUNCTION = new KeySelectionAggregationFunction<Object>(-1);
+
 	T key;
 	
 	public KeySelectionAggregationFunction(int field) {

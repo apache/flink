@@ -70,11 +70,18 @@ public class Aggregations {
 	}
 	
 	/**
-	 * Select the field to be included in the grouping.
+	 * Select a grouped field to be included in the result.
 	 * @param field Tuple field index.
 	 */
 	public static AggregationFunction key(int field) {
 		return new KeySelectionAggregationFunction(field);
 	}
 	
+	/**
+	 * Include all group keys in the result.
+	 */
+	public static AggregationFunction allKeys() {
+		return KeySelectionAggregationFunction.INCLUDE_ALL_KEYS_FUNCTION;
+	}
+
 }

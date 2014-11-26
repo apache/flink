@@ -19,6 +19,7 @@
 package org.apache.flink.examples.java.aggregation;
 
 import static java.util.Arrays.asList;
+import static org.apache.flink.api.java.aggregation.Aggregations.allKeys;
 import static org.apache.flink.api.java.aggregation.Aggregations.average;
 import static org.apache.flink.api.java.aggregation.Aggregations.count;
 import static org.apache.flink.api.java.aggregation.Aggregations.key;
@@ -261,6 +262,26 @@ public class AggregationApi1Test {
 		assertThat(output, dataSetWithTuples(asList("a", 11.5), asList("a", 21.5)));
 	}
 
+	@SuppressWarnings("unchecked")
+	@Test
+	public void shouldSelectAllGroupKeys() {
+		// given
+		Tuple3<String, String, Long>[] tuples = new Tuple3Builder<String, String, Long>()
+				.add("a", "A", 11L)
+				.add("a", "A", 12L)
+				.add("a", "B", 21L)
+				.add("a", "B", 22L)
+				.build();
+		DataSet<Tuple3<String, String, Long>> input = env.fromElements(tuples);
+
+		// when
+		DataSet<Tuple2<String, Double>> output = 
+				input.groupBy(0, 1).aggregate(allKeys(), average(2));
+
+		// then
+		assertThat(output, dataSetWithTuples(asList("a", "A", 11.5), asList("a", "B", 21.5)));
+	}
+
 	@Test(expected=IllegalArgumentException.class)
 	public void errorIfKeyIsUsedWithoutGrouping() {
 		// given
@@ -271,6 +292,16 @@ public class AggregationApi1Test {
 		input.aggregate(key(0), average(1));
 	}
 	
+	@Test(expected=IllegalArgumentException.class)
+	public void errorIfKeyIsUsedThatIsNotInGrouping() {
+		// given
+		Tuple2<String, Long>[] tuples = new Tuple2Builder<String, Long>().add("key", 1L).build();
+		DataSet<Tuple2<String, Long>> input = env.fromElements(tuples);
+
+		// when
+		input.groupBy(0).aggregate(key(1), average(1));
+	}
+
 	@SuppressWarnings("unchecked")
 	private Matcher<DataSet<? extends Tuple>> dataSetWithTuple(Object... singleTuple) {
 		return dataSetWithTuples(asList(singleTuple));

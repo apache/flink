@@ -18,11 +18,15 @@
 
 package org.apache.flink.api.java.aggregation;
 
+import static java.lang.String.format;
+import static java.util.Arrays.asList;
 import static org.apache.flink.api.java.aggregation.Aggregations.key;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Vector;
 
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -97,15 +101,60 @@ public class AggregationOperatorFactory {
 	
 	// TODO if sum and/or count are present, use these to compute average
 	<T, R extends Tuple> AggregationOperator<T, R> createAggregationOperator(DataSet<T> input, int[] groupKeys, AggregationFunction<?, ?>[] functions) {
-		AggregationFunction<?, ?>[] intermediateFunctions = aggregationFunctionPreprocessor.createIntermediateFunctions(functions, groupKeys);
+		AggregationFunction<?, ?>[] functionsWithExpandedKeys = aggregationFunctionPreprocessor.expandKeys(functions, groupKeys);
+		AggregationFunction<?, ?>[] intermediateFunctions = aggregationFunctionPreprocessor.createIntermediateFunctions(functionsWithExpandedKeys, groupKeys);
 		int[] intermediateGroupKeys = aggregationFunctionPreprocessor.createIntermediateGroupKeys(intermediateFunctions);
-		TypeInformation<R> resultType = resultTypeFactory.createAggregationResultType(input.getType(), functions);
+		TypeInformation<R> resultType = resultTypeFactory.createAggregationResultType(input.getType(), functionsWithExpandedKeys);
 		TypeInformation<Tuple> intermediateType = resultTypeFactory.createAggregationResultType(input.getType(), intermediateFunctions);
-		AggregationOperator<T, R> op = new AggregationOperator<T, R>(input, resultType, intermediateType, intermediateGroupKeys, functions, intermediateFunctions);
+		AggregationOperator<T, R> op = new AggregationOperator<T, R>(input, resultType, intermediateType, intermediateGroupKeys, functionsWithExpandedKeys, intermediateFunctions);
 		return op;
 	}
 
 	static class AggregationFunctionPreprocessor {
+
+		public AggregationFunction<?, ?>[] expandKeys(AggregationFunction<?, ?>[] functions, int[] groupKeys) {
+			Vector<AggregationFunction<?, ?>> expanded = new Vector<AggregationFunction<?,?>>();
+
+			// test where keys should be included and save keys defined by user
+			int insertionPosition = -1;
+			int currentPosition = 0;
+			List<Integer> definedByUser = new ArrayList<Integer>();
+			for (AggregationFunction<?, ?> function : functions) {
+				if (function instanceof KeySelectionAggregationFunction) {
+					if (function == KeySelectionAggregationFunction.INCLUDE_ALL_KEYS_FUNCTION) {
+						if (insertionPosition == -1) {
+							insertionPosition = currentPosition;
+						}
+						continue;
+					} else {
+						int field = function.getInputPosition();
+						Validate.isTrue(ArrayUtils.contains(groupKeys, field),
+								format("The key %d is not in the grouping %s", 
+										field, asList(groupKeys)));
+						definedByUser.add(field);
+					}
+				}
+				expanded.add(function);
+				currentPosition += 1;
+			}
+
+			// insert missing keys if requested
+			AggregationFunction<?, ?>[] result = null;
+			if (insertionPosition != -1) {
+				for (int groupKey : groupKeys) {
+					if ( ! definedByUser.contains(groupKey) ) {
+						AggregationFunction<?, ?> key = key(groupKey);
+						expanded.insertElementAt(key, insertionPosition);
+						insertionPosition += 1;
+					}
+				}
+				result = new AggregationFunction<?, ?>[expanded.size()];
+				expanded.toArray(result);
+			} else {
+				result = functions;
+			}
+			return result;
+		}
 
 		public AggregationFunction<?, ?>[] createIntermediateFunctions(AggregationFunction<?, ?>[] functions, int[] groupKeys) {
 			List<AggregationFunction<?, ?>> intermediates = new ArrayList<AggregationFunction<?,?>>();
