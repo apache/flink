@@ -17,7 +17,6 @@
  */
 
 package org.apache.flink.api.java.aggregation;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -41,14 +40,8 @@ public class AverageAggregationFunction<T extends Number> extends CompositeAggre
 	private SumAggregationFunction<T> sumDelegate;
 	private CountAggregationFunction countDelegate;
 	
-	public AverageAggregationFunction(int field) {
-		this(field, new SumAggregationFunction<T>(field), new CountAggregationFunction());
-	}
-	
-	AverageAggregationFunction(int field, SumAggregationFunction<T> sumDelegate, CountAggregationFunction countDelegate) {
+	AverageAggregationFunction(int field) {
 		super("average", field);
-		this.sumDelegate = sumDelegate;
-		this.countDelegate = countDelegate; 
 	}
 	
 	@Override
@@ -77,12 +70,47 @@ public class AverageAggregationFunction<T extends Number> extends CompositeAggre
 		return result;
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
-	public List<AggregationFunction<?, ?>> getIntermediates() {
+	public List<AggregationFunction<?, ?>> getIntermediates(List<AggregationFunction<?, ?>> existingIntermediates) {
+		for (AggregationFunction<?, ?> function : existingIntermediates) {
+			if (function instanceof CountAggregationFunction) {
+				countDelegate = (CountAggregationFunction) function;
+			} else if (function instanceof SumAggregationFunction) {
+				int inputPosition = function.getInputPosition();
+				if (inputPosition == getInputPosition()) {
+					sumDelegate = (SumAggregationFunction<T>) function;
+				}
+			}
+		}
 		List<AggregationFunction<?, ?>> intermediates = new ArrayList<AggregationFunction<?,?>>();
-		intermediates.add(sumDelegate);
-		intermediates.add(countDelegate);
+		if (sumDelegate == null) {
+			sumDelegate = new SumAggregationFunction<T>(getInputPosition());
+			intermediates.add(sumDelegate);
+		}
+		if (countDelegate == null) {
+			countDelegate = new CountAggregationFunction();
+			intermediates.add(countDelegate);
+		}
 		return intermediates;
+	}
+
+	///// Getter / Setter
+
+	SumAggregationFunction<T> getSumDelegate() {
+		return sumDelegate;
+	}
+
+	void setSumDelegate(SumAggregationFunction<T> sumDelegate) {
+		this.sumDelegate = sumDelegate;
+	}
+
+	CountAggregationFunction getCountDelegate() {
+		return countDelegate;
+	}
+
+	void setCountDelegate(CountAggregationFunction countDelegate) {
+		this.countDelegate = countDelegate;
 	}
 
 }

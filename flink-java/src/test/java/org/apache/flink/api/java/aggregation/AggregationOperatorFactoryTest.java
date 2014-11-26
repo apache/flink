@@ -25,6 +25,7 @@ import static org.apache.flink.util.TestHelper.uniqueInt;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Matchers.anyList;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -207,20 +208,21 @@ public class AggregationOperatorFactoryTest {
 		verify(function2).setOutputPosition(1);
 	}
 
-	@SuppressWarnings("rawtypes")
+	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
 	public void shouldExpandCompositeAggregationFunction() {
 		// given
-		// setup a composite aggregation function with 2 intermediate functions
+		// setup a simple and a composite aggregation function
+		AggregationFunction function1 = mock(AggregationFunction.class);
 		CompositeAggregationFunction composite = mock(CompositeAggregationFunction.class);
+		AggregationFunction[] functions = { function1, composite };
+
+		// the composite has 2 intermediates
 		AggregationFunction intermediate1 = mock(AggregationFunction.class);
 		AggregationFunction intermediate2 = mock(AggregationFunction.class);
-		List<AggregationFunction> intermediates = asList(intermediate1, intermediate2);
-		given(composite.getIntermediates()).willReturn(intermediates);
-
-		// input: a simple aggregation function and the composite
-		AggregationFunction function1 = mock(AggregationFunction.class);
-		AggregationFunction[] functions = { function1, composite };
+		List<AggregationFunction> userDefinedIntermediates = asList(function1);
+		final List<AggregationFunction> compositeIntermediates = asList(intermediate1, intermediate2);
+		given(composite.getIntermediates(userDefinedIntermediates)).willReturn(compositeIntermediates);
 		
 		// when
 		AggregationFunction[] actual = 
@@ -231,7 +233,9 @@ public class AggregationOperatorFactoryTest {
 		assertThat(actual, is(expected));
 		verify(function1).setOutputPosition(0);
 		verify(composite).setOutputPosition(1);
-		verify(composite).getIntermediates();
+		// Verifying userDefinedIntermediates as argument won't work
+		// because the list is modified. Is this a Mockito bug?
+		verify(composite).getIntermediates(anyList());
 		verify(function1).setIntermediatePosition(0);
 		verify(intermediate1).setIntermediatePosition(1);
 		verify(intermediate2).setIntermediatePosition(2);

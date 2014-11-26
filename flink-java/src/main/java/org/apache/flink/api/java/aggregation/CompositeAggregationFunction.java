@@ -52,7 +52,7 @@ public abstract class CompositeAggregationFunction<T, R> extends AggregationFunc
 	/**
 	 * Return aggregation functions that compute intermediate results.
 	 */
-	public abstract List<AggregationFunction<?, ?>> getIntermediates();
+	public abstract List<AggregationFunction<?, ?>> getIntermediates(List<AggregationFunction<?, ?>> existingIntermediates);
 	
 	/**
 	 * Return the result of the composite aggregation function.

@@ -158,6 +158,7 @@ public class AggregationOperatorFactory {
 
 		public AggregationFunction<?, ?>[] createIntermediateFunctions(AggregationFunction<?, ?>[] functions, int[] groupKeys) {
 			List<AggregationFunction<?, ?>> intermediates = new ArrayList<AggregationFunction<?,?>>();
+			List<CompositeAggregationFunction<?, ?>> composites = new ArrayList<CompositeAggregationFunction<?, ?>>();
 			int outputPosition = 0;
 			for (AggregationFunction<?, ?> function : functions) {
 
@@ -171,14 +172,18 @@ public class AggregationOperatorFactory {
 					throw new IllegalArgumentException("Key selection aggregation function can only be used on grouped DataSets.");
 				}
 
-				// decompose composites 
+				// separate composites
 				if (function instanceof CompositeAggregationFunction) {
-					CompositeAggregationFunction<?, ?> composite = (CompositeAggregationFunction<?, ?>) function;
-					List<AggregationFunction<?, ?>> compositeIntermediates = composite.getIntermediates();
-					intermediates.addAll(compositeIntermediates);
+					composites.add((CompositeAggregationFunction<?, ?>) function);
 				} else {
 					intermediates.add(function);
 				}
+			}
+
+			// decompose composites
+			for (CompositeAggregationFunction<?, ?> composite : composites) {
+				List<AggregationFunction<?, ?>> compositeIntermediates = composite.getIntermediates(intermediates);
+				intermediates.addAll(compositeIntermediates);
 			}
 
 			// add key fields for grouping

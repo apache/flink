@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.java.aggregation;
 
+import static org.apache.flink.api.java.aggregation.Aggregations.count;
+import static org.apache.flink.api.java.aggregation.Aggregations.sum;
 import static org.apache.flink.util.TestHelper.uniqueInt;
 import static org.apache.flink.util.TestHelper.uniqueLong;
 import static org.hamcrest.CoreMatchers.instanceOf;
@@ -27,6 +29,7 @@ import static org.junit.Assert.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.flink.api.java.tuple.Tuple;
@@ -59,7 +62,9 @@ public class AverageAggregationFunctionTest {
 		
 		// setup composite average aggregation function
 		int inputFieldPosition = uniqueInt();
-		function = new AverageAggregationFunction<Integer>(inputFieldPosition, sumDelegate, countDelegate);
+		function = new AverageAggregationFunction<Integer>(inputFieldPosition);
+		function.setSumDelegate(sumDelegate);
+		function.setCountDelegate(countDelegate);
 		
 		// when
 		Double actual = function.computeComposite(tuple);
@@ -76,7 +81,7 @@ public class AverageAggregationFunctionTest {
 		AverageAggregationFunction<Integer> function = new AverageAggregationFunction<Integer>(field); 
 
 		// when
-		List<AggregationFunction<?, ?>> intermediates = function.getIntermediates(); 
+		List<AggregationFunction<?, ?>> intermediates = function.getIntermediates(new ArrayList<AggregationFunction<?,?>>());
 
 		// then
 		assertThat(intermediates.size(), is(2));
@@ -87,4 +92,63 @@ public class AverageAggregationFunctionTest {
 		// count sets its initial value, no need to copy input position
 	}
 	
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	@Test
+	public void shouldReuseSumIntermediateOnSameField() {
+		// given
+		int pos = uniqueInt();
+		AggregationFunction sum = sum(pos);
+		List<AggregationFunction<?, ?>> existingIntermediates = new ArrayList<AggregationFunction<?,?>>();
+		existingIntermediates.add(sum);
+		AverageAggregationFunction function = new AverageAggregationFunction(pos);
+
+		// when
+		List<AggregationFunction<?, ?>> intermediates = function.getIntermediates(existingIntermediates);
+
+		// then
+		assertThat(intermediates.size(), is(1));
+		assertThat(intermediates.get(0), instanceOf(CountAggregationFunction.class));
+		assertThat(function.getSumDelegate(), is(sum));
+	}
+
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	@Test
+	public void shouldNotUseSumIntermediateOnDifferentField() {
+		// given
+		int sumPos = uniqueInt();
+		AggregationFunction sum = sum(sumPos);
+		List<AggregationFunction<?, ?>> existingIntermediates = new ArrayList<AggregationFunction<?,?>>();
+		existingIntermediates.add(sum);
+		int averagePos = uniqueInt(new int[] { sumPos });
+		AverageAggregationFunction function = new AverageAggregationFunction(averagePos);
+
+		// when
+		List<AggregationFunction<?, ?>> intermediates = function.getIntermediates(existingIntermediates);
+
+		// then
+		assertThat(intermediates.size(), is(2));
+		assertThat(intermediates.get(0), instanceOf(SumAggregationFunction.class));
+		assertThat(intermediates.get(1), instanceOf(CountAggregationFunction.class));
+		AggregationFunction<?, ?> sumIntermediate = (SumAggregationFunction<Integer>) intermediates.get(0);
+		assertThat(sumIntermediate.getInputPosition(), is(averagePos));
+		// count sets its initial value, no need to copy input position
+	}
+
+	@SuppressWarnings("rawtypes")
+	@Test
+	public void shouldReuseCountIntermediate() {
+		// given
+		AggregationFunction count = count();
+		List<AggregationFunction<?, ?>> existingIntermediates = new ArrayList<AggregationFunction<?,?>>();
+		existingIntermediates.add(count);
+
+		// when
+		List<AggregationFunction<?, ?>> intermediates = function.getIntermediates(existingIntermediates);
+
+		// then
+		assertThat(intermediates.size(), is(1));
+		assertThat(intermediates.get(0), instanceOf(SumAggregationFunction.class));
+		assertThat(function.getCountDelegate(), is(count));
+	}
+
 }

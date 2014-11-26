@@ -38,7 +38,7 @@ public class CompositeAggregationFunctionTest {
 		}
 		
 		@Override
-		public List<AggregationFunction<?, ?>> getIntermediates() {
+		public List<AggregationFunction<?, ?>> getIntermediates(List<AggregationFunction<?, ?>> existingIntermediates) {
 			return null;
 		}
 
