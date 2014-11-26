@@ -242,6 +242,7 @@ public class AggregationOperatorFactoryTest {
 			setAggregationResultTypeAtPosition(i, functions[i], types[i], ResultTypeBehavior.FIXED);
 			given(inputType.getTypeAt(i)).willReturn(types[i]);
 		}
+		given(inputType.getArity()).willReturn(3);
 
 		// when
 		TypeInformation<Tuple> resultType = typeFactory.createAggregationResultType(inputType, functions);
@@ -331,6 +332,7 @@ public class AggregationOperatorFactoryTest {
 	private TupleTypeInfoBase<Tuple> createInputType(int pos, BasicTypeInfo inputBasicTypeInfo) {
 		TupleTypeInfoBase<Tuple> tupleTypeInfo = mock(TupleTypeInfoBase.class);
 		given(tupleTypeInfo.getTypeAt(pos)).willReturn(inputBasicTypeInfo);
+		given(tupleTypeInfo.getArity()).willReturn(pos + 1);
 		return tupleTypeInfo;
 	}
 	

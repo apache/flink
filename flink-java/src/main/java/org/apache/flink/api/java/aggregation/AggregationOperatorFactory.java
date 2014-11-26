@@ -193,8 +193,12 @@ public class AggregationOperatorFactory {
 				BasicTypeInfo<?>[] types, int i,
 				AggregationFunction<T, ?> function) {
 
-			// assume field type is simple
+			// validate input field exists
+			int arity = inputTypeAsTuple.getArity();
 			int fieldPosition = function.getInputPosition();
+			Validate.inclusiveBetween(0, arity - 1, fieldPosition);
+
+			// assume field type is simple
 			TypeInformation<Object> fieldType = inputTypeAsTuple.getTypeAt(fieldPosition);
 			Validate.isInstanceOf(BasicTypeInfo.class, fieldType);
 			@SuppressWarnings("unchecked")

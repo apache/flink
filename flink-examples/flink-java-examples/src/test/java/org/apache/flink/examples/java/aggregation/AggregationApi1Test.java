@@ -91,6 +91,20 @@ public class AggregationApi1Test {
 		input.aggregate(sum(0));
 	}
 	
+	@Test(expected=IllegalArgumentException.class)
+	public void errorIfNotExistingFieldIsSpecified() {
+		// given
+		Tuple1<Long>[] tuples = new Tuple1Builder<Long>()
+				.add(1L)
+				.add(2L)
+				.add(3L)
+				.build();
+		DataSet<Tuple1<Long>> input = env.fromElements(tuples);
+
+		// when
+		input.aggregate(sum(1));
+	}
+
 	@Test
 	public void shouldCreateTupleElementForEachAggregation() {
 		// given
