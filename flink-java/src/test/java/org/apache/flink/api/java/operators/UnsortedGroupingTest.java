@@ -18,19 +18,15 @@
 
 package org.apache.flink.api.java.operators;
 
-import static org.apache.flink.util.TestHelper.uniqueInt;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.junit.Assert.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.powermock.api.mockito.PowerMockito.whenNew;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.aggregation.AggregationBuilder;
 import org.apache.flink.api.java.aggregation.AggregationFunction;
 import org.apache.flink.api.java.aggregation.AggregationOperatorFactory;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -80,107 +76,6 @@ public class UnsortedGroupingTest {
 		// then
 		assertThat(aggregationOperatorFactory, is(not(nullValue())));
 		assertThat(aggregationOperatorFactory, is(AggregationOperatorFactory.getInstance()));
-	}
-
-	@SuppressWarnings("rawtypes")
-	@Test
-	public void shouldStartAggregationWithMin() throws Exception {
-		// given
-		int field = uniqueInt();
-		UnsortedGrouping<Tuple2<String, Long>> grouping = createGrouping();
-		AggregationBuilder builder = mock(AggregationBuilder.class);
-		whenNew(AggregationBuilder.class).withArguments(grouping).thenReturn(builder);
-
-		// when
-		AggregationBuilder actual = grouping.min(field);
-
-		// then
-		assertThat(actual, is(builder));
-		verify(builder).min(field);
-	}
-
-	@SuppressWarnings("rawtypes")
-	@Test
-	public void shouldStartAggregationWithMax() throws Exception {
-		// given
-		int field = uniqueInt();
-		UnsortedGrouping<Tuple2<String, Long>> grouping = createGrouping();
-		AggregationBuilder builder = mock(AggregationBuilder.class);
-		whenNew(AggregationBuilder.class).withArguments(grouping).thenReturn(builder);
-
-		// when
-		AggregationBuilder actual = grouping.max(field);
-
-		// then
-		assertThat(actual, is(builder));
-		verify(builder).max(field);
-	}
-
-	@SuppressWarnings("rawtypes")
-	@Test
-	public void shouldStartAggregationWithSum() throws Exception {
-		// given
-		int field = uniqueInt();
-		UnsortedGrouping<Tuple2<String, Long>> grouping = createGrouping();
-		AggregationBuilder builder = mock(AggregationBuilder.class);
-		whenNew(AggregationBuilder.class).withArguments(grouping).thenReturn(builder);
-
-		// when
-		AggregationBuilder actual = grouping.sum(field);
-
-		// then
-		assertThat(actual, is(builder));
-		verify(builder).sum(field);
-	}
-
-	@SuppressWarnings("rawtypes")
-	@Test
-	public void shouldStartAggregationWithCount() throws Exception {
-		// given
-		UnsortedGrouping<Tuple2<String, Long>> grouping = createGrouping();
-		AggregationBuilder builder = mock(AggregationBuilder.class);
-		whenNew(AggregationBuilder.class).withArguments(grouping).thenReturn(builder);
-
-		// when
-		AggregationBuilder actual = grouping.count();
-
-		// then
-		assertThat(actual, is(builder));
-		verify(builder).count();
-	}
-
-	@SuppressWarnings("rawtypes")
-	@Test
-	public void shouldStartAggregationWithAverage() throws Exception {
-		// given
-		int field = uniqueInt();
-		UnsortedGrouping<Tuple2<String, Long>> grouping = createGrouping();
-		AggregationBuilder builder = mock(AggregationBuilder.class);
-		whenNew(AggregationBuilder.class).withArguments(grouping).thenReturn(builder);
-
-		// when
-		AggregationBuilder actual = grouping.average(field);
-
-		// then
-		assertThat(actual, is(builder));
-		verify(builder).average(field);
-	}
-
-	@SuppressWarnings("rawtypes")
-	@Test
-	public void shouldStartAggregationWithKey() throws Exception {
-		// given
-		int field = uniqueInt();
-		UnsortedGrouping<Tuple2<String, Long>> grouping = createGrouping();
-		AggregationBuilder builder = mock(AggregationBuilder.class);
-		whenNew(AggregationBuilder.class).withArguments(grouping).thenReturn(builder);
-
-		// when
-		AggregationBuilder actual = grouping.key(field);
-
-		// then
-		assertThat(actual, is(builder));
-		verify(builder).key(field);
 	}
 
 	private UnsortedGrouping<Tuple2<String, Long>> createGrouping() {

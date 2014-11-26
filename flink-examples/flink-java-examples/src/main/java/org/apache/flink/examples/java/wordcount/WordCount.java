@@ -69,7 +69,7 @@ public class WordCount {
 				text.flatMap(new Tokenizer())
 				// group by the tuple field "0" and sum up tuple field "1"
 				.groupBy(0)
-				._sum(1);
+				.sum(1);
 
 		// emit result
 		if(fileOutput) {

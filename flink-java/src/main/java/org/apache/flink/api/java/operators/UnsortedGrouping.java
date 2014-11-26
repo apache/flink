@@ -26,7 +26,6 @@ import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.Utils;
-import org.apache.flink.api.java.aggregation.AggregationBuilder;
 import org.apache.flink.api.java.aggregation.AggregationFunction;
 import org.apache.flink.api.java.aggregation.AggregationOperatorFactory;
 import org.apache.flink.api.java.aggregation.deprecated.Aggregations;
@@ -98,132 +97,6 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	}
 
 	/**
-	 * Start an aggregation transformation with the {@code min} aggregation
-	 * function.
-	 * 
-	 * <p>Additional aggregation functions can be appended. The aggregation
-	 * transformation is completed by calling {@code aggregate}.
-	 *   
-	 * @param field	The index of the tuple field that should be minimized;
-	 * @return An AggregationBuilder with which additional aggregations can
-	 * be constructed.
-	 * 
-	 * @see Aggregations
-	 * @see AggregationBuilder
-	 * @see AggregationOperator
-	 */
-	public AggregationBuilder<T> min(int field) {
-		AggregationBuilder<T> builder = new AggregationBuilder<T>(this);
-		builder.min(field);
-		return builder;
-	}
-
-	/**
-	 * Start an aggregation transformation with the {@code max} aggregation
-	 * function.
-	 * 
-	 * <p>Additional aggregation functions can be appended. The aggregation
-	 * transformation is completed by calling {@code aggregate}.
-	 *   
-	 * @param field	The index of the tuple field that should be minimized;
-	 * @return An AggregationBuilder with which additional aggregations can
-	 * be constructed.
-	 * 
-	 * @see Aggregations
-	 * @see AggregationBuilder
-	 * @see AggregationOperator
-	 */
-	public AggregationBuilder<T> max(int field) {
-		AggregationBuilder<T> builder = new AggregationBuilder<T>(this);
-		builder.max(field);
-		return builder;
-	}
-
-	/**
-	 * Start an aggregation transformation with the {@code sum} aggregation
-	 * function.
-	 * 
-	 * <p>Additional aggregation functions can be appended. The aggregation
-	 * transformation is completed by calling {@code aggregate}.
-	 *   
-	 * @param field	The index of the tuple field that should be summed;
-	 * @return An AggregationBuilder with which additional aggregations can
-	 * be constructed.
-	 * 
-	 * @see Aggregations
-	 * @see AggregationBuilder
-	 * @see AggregationOperator
-	 */
-	public AggregationBuilder<T> sum(int field) {
-		AggregationBuilder<T> builder = new AggregationBuilder<T>(this);
-		builder.sum(field);
-		return builder;
-	}
-
-	/**
-	 * Start an aggregation transformation with the {@code count} aggregation
-	 * function.
-	 * 
-	 * <p>Additional aggregation functions can be appended. The aggregation
-	 * transformation is completed by calling {@code aggregate}.
-	 *   
-	 * @param field	The index of the tuple field that should be minimized;
-	 * @return An AggregationBuilder with which additional aggregations can
-	 * be constructed.
-	 * 
-	 * @see Aggregations
-	 * @see AggregationBuilder
-	 * @see AggregationOperator
-	 */
-	public AggregationBuilder<T> count() {
-		AggregationBuilder<T> builder = new AggregationBuilder<T>(this);
-		builder.count();
-		return builder;
-	}
-
-	/**
-	 * Start an aggregation transformation with the {@code average}
-	 * aggregation function.
-	 * 
-	 * <p>Additional aggregation functions can be appended. The aggregation
-	 * transformation is completed by calling {@code aggregate}.
-	 *   
-	 * @param field	The index of the tuple field that should be summed;
-	 * @return An AggregationBuilder with which additional aggregations can
-	 * be constructed.
-	 * 
-	 * @see Aggregations
-	 * @see AggregationBuilder
-	 * @see AggregationOperator
-	 */
-	public AggregationBuilder<T> average(int field) {
-		AggregationBuilder<T> builder = new AggregationBuilder<T>(this);
-		builder.average(field);
-		return builder;
-	}
-
-	/**
-	 * Start an aggregation transformation with a {@code key} selection
-	 * function.
-	 * 
-	 * <p>Additional aggregation functions can be appended. The aggregation
-	 * transformation is completed by calling {@code aggregate}.
-	 *   
-	 * @param field	The index of the tuple field that should be summed;
-	 * @return An AggregationBuilder with which additional aggregations can
-	 * be constructed.
-	 * 
-	 * @see Aggregations
-	 * @see AggregationBuilder
-	 * @see AggregationOperator
-	 */
-	public AggregationBuilder<T> key(int field) {
-		AggregationBuilder<T> builder = new AggregationBuilder<T>(this);
-		builder.key(field);
-		return builder;
-	}
-
-	/**
 	 * Syntactic sugar for aggregate (SUM, field)
 	 * @param field The index of the Tuple field on which the aggregation function is applied.
 	 * @return An AggregateOperator that represents the summed DataSet.
@@ -231,7 +104,7 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	 * @see org.apache.flink.api.java.operators.AggregateOperator
 	 */
 	@Deprecated
-	public AggregateOperator<T> _sum(int field) {
+	public AggregateOperator<T> sum(int field) {
 		return this.aggregate (Aggregations.SUM, field, Utils.getCallLocationName());
 	}
 
@@ -243,7 +116,7 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	 * @see org.apache.flink.api.java.operators.AggregateOperator
 	 */
 	@Deprecated
-	public AggregateOperator<T> _max(int field) {
+	public AggregateOperator<T> max(int field) {
 		return this.aggregate (Aggregations.MAX, field, Utils.getCallLocationName());
 	}
 
@@ -255,7 +128,7 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	 * @see org.apache.flink.api.java.operators.AggregateOperator
 	 */
 	@Deprecated
-	public AggregateOperator<T> _min(int field) {
+	public AggregateOperator<T> min(int field) {
 		return this.aggregate (Aggregations.MIN, field, Utils.getCallLocationName());
 	}
 	
