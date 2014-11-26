@@ -25,6 +25,7 @@
 
 package org.apache.flink.core.fs;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
@@ -197,9 +198,12 @@ public abstract class FileSystem {
 					uri = new URI("file", null, uri.getPath(), null);
 				}
 				catch (URISyntaxException e) {
-					// we tried to repair it, but could not. report the scheme error
-					throw new IOException("The file URI '" + uri.toString() + "' is not valid. "
-							+ " File URIs need to specify aboslute file paths.");
+					try {
+						uri = new URI("file", null, new Path(new File(uri.getPath()).getAbsolutePath()).toUri().getPath(), null);
+					} catch (URISyntaxException ex) {
+						// we tried to repair it, but could not. report the scheme error
+						throw new IOException("The file URI '" + uri.toString() + "' is not valid.");
+					}
 				}
 			}
 			
