@@ -55,12 +55,14 @@ class TraversableSerializerTest {
     runTests(testData)
   }
 
-  @Test(expected = classOf[InvalidTypesException])
+  /*
+  @Test
   def testSortedMap(): Unit = {
     // SortedSet is not supported right now.
     val testData = Array(SortedMap("Hello" -> 1, "World" -> 2), SortedMap("Foo" -> 42))
     runTests(testData)
   }
+  */
 
   @Test
   def testSet(): Unit = {
@@ -68,12 +70,14 @@ class TraversableSerializerTest {
     runTests(testData)
   }
 
-  @Test(expected = classOf[InvalidTypesException])
+  /*
+  @Test
   def testSortedSet(): Unit = {
     // SortedSet is not supported right now.
     val testData = Array(SortedSet(1,2,3), SortedSet(2,3))
     runTests(testData)
   }
+  */
 
   @Test
   def testBitSet(): Unit = {

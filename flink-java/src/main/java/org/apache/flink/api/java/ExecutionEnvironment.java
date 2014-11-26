@@ -54,6 +54,8 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.ValueTypeInfo;
+import org.apache.flink.api.java.typeutils.runtime.KryoSerializer;
+import org.apache.flink.api.java.typeutils.runtime.PojoSerializer;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.NumberSequenceIterator;
@@ -197,6 +199,16 @@ public abstract class ExecutionEnvironment {
 	 */
 	public String getIdString() {
 		return this.executionId.toString();
+	}
+
+	/**
+	 * Registers the given type. When using subclasses of POJOs inside user functions, the system
+	 * can efficiently serialize these after registration. This must be called before creating
+	 * operations that use subclasses of POJOs.
+	 */
+	public void registerType(Class<?> clazz) {
+		PojoSerializer.registerType(clazz);
+		KryoSerializer.registerType(clazz);
 	}
 	
 	// --------------------------------------------------------------------------------------------
