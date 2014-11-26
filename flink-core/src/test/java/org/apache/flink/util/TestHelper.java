@@ -18,6 +18,9 @@
 
 package org.apache.flink.util;
 
+import java.util.Random;
+
+import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.RandomUtils;
 
 /**
@@ -28,6 +31,7 @@ public class TestHelper
 
 	public static int INT_MIN = 0;
 	public static int INT_MAX = 1000;
+	public static int STRING_LENGTH = 10;
 
 	/**
 	 * Return a random integer between {@value INT_MIN} (inclusive) and {@value INT_MAX} (exclusive).  
@@ -83,4 +87,14 @@ public class TestHelper
         return result;
     }
 
+    public static String uniqueString() {
+    	String result = uniqueString(STRING_LENGTH);
+    	return result;
+    }
+    
+    public static String uniqueString(int length) {
+    	String result = RandomStringUtils.random(length);
+    	return result;
+    }
+    
 }

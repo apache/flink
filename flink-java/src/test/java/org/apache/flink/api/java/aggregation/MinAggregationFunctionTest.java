@@ -20,7 +20,6 @@ package org.apache.flink.api.java.aggregation;
 
 import static org.apache.flink.util.TestHelper.uniqueInt;
 import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.nullValue;
 import static org.junit.Assert.assertThat;
 
 import org.junit.Test;
@@ -37,28 +36,10 @@ public class MinAggregationFunctionTest {
 		int expected = Math.min(value1, value2);
 
 		// when
-		function.initialize();
-		function.aggregate(value1);
-		function.aggregate(value2);
-		Integer actual = function.getAggregate(); 
+		Integer actual = function.reduce(value1, value2); 
 		
 		// then
 		assertThat(actual, is(expected));
 	}
 
-	@Test
-	public void shouldReset() {
-		// given
-		int value1 = uniqueInt();
-
-		// when
-		function.initialize();
-		function.aggregate(value1);
-		function.initialize();
-		Integer actual = function.getAggregate();
-
-		// then
-		assertThat(actual, is(nullValue()));
-	}
-	
 }

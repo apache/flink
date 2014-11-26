@@ -35,23 +35,6 @@ public class KeySelectionAggregationFunction<T> extends InputTypeAggregationFunc
 	}
 
 	@Override
-	public void initialize() {
-		key = null;
-	}
-
-	@Override
-	public void aggregate(T value) {
-		if (key == null) {
-			key = value;
-		}
-	}
-
-	@Override
-	public T getAggregate() {
-		return key;
-	}
-
-	@Override
 	public T reduce(T value1, T value2) {
 		return value1;
 	}

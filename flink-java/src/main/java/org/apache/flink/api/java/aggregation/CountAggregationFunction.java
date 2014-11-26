@@ -52,21 +52,6 @@ public class CountAggregationFunction extends AggregationFunction<Object, Long> 
 	public int getInputPosition() { return 0; }
 
 	@Override
-	public void initialize() {
-		count = 0L;
-	}
-
-	@Override
-	public void aggregate(Object value) {
-		count += 1;
-	}
-
-	@Override
-	public Long getAggregate() {
-		return count;
-	}
-
-	@Override
 	public Long initialize(Object value) {
 		return 1L;
 	}

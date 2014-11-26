@@ -29,7 +29,6 @@ import static org.mockito.Mockito.mock;
 
 import java.util.List;
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.junit.Test;
 
@@ -86,39 +85,6 @@ public class AverageAggregationFunctionTest {
 		AggregationFunction<?, ?> sumIntermediate = (SumAggregationFunction<Integer>) intermediates.get(0);
 		assertThat(sumIntermediate.getInputPosition(), is(field));
 		// count sets its initial value, no need to copy input position
-	}
-	
-	@Test
-	public void shouldReturnAverage() {
-		// given
-		int[] values = {1, 2, 3, 4};
-
-		// when
-		function.setInputType(BasicTypeInfo.INT_TYPE_INFO);
-		function.initialize();
-		for (int value : values) {
-			function.aggregate(value);
-		}
-		double actual = function.getAggregate();
-
-		// then
-		assertThat(actual, is(2.5));
-	}
-	
-	@Test
-	public void shouldReset() {
-		// given
-		int value1 = uniqueInt();
-
-		// when
-		function.setInputType(BasicTypeInfo.INT_TYPE_INFO);
-		function.initialize();
-		function.aggregate(value1);
-		function.initialize();
-		double actual = function.getAggregate();
-
-		// then
-		assertThat(actual, is(Double.NaN));
 	}
 	
 }

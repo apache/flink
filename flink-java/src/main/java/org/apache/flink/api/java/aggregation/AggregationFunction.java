@@ -118,27 +118,9 @@ public abstract class AggregationFunction<T, R> implements Serializable {
 	 */
 	public abstract int getInputPosition();
 	
-	/**
-	 * Initialize the aggregation function.
-	 * <b>Note: An aggregation function may be reused. It is therefore
-	 * necessary that state initialization happens in 
-	 * {@link AggregationFunction.initialize} and not in the constructor.</b> 
-	 */
-	public abstract void initialize();
-	
 	public abstract R initialize(T value);
 
 	public abstract R reduce(R value1, R value2);
-
-	/**
-	 * Aggregate a single {@code value}.
-	 */
-	public abstract void aggregate(T value);
-	
-	/**
-	 * Return the aggregation result.
-	 */
-	public abstract R getAggregate();
 
 	@Override
 	public String toString() {

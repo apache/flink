@@ -18,7 +18,6 @@
 
 package org.apache.flink.api.java.aggregation;
 
-import static org.apache.flink.util.TestHelper.uniqueInt;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
@@ -29,35 +28,12 @@ public class CountAggregationFunctionTest {
 	private CountAggregationFunction function = new CountAggregationFunction();
 	
 	@Test
-	public void shouldReturnFirst() {
-		// given
-		long expected = uniqueInt(1, 10);
-
+	public void shouldInitialize() {
 		// when
-		function.initialize();
-		for (int i = 0; i < expected; ++i) {
-			int someValue = uniqueInt();
-			function.aggregate(someValue);
-		}
-		long actual = function.getAggregate();
-
+		long actual = function.initialize(null);
+		
 		// then
-		assertThat(actual, is(expected));
+		assertThat(actual, is(1L));
 	}
-	
-	@Test
-	public void shouldReset() {
-		// given
-		int value1 = uniqueInt();
 
-		// when
-		function.initialize();
-		function.aggregate(value1);
-		function.initialize();
-		long actual = function.getAggregate();
-
-		// then
-		assertThat(actual, is(0L));
-	}
-	
 }

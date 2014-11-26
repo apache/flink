@@ -15,4 +15,14 @@ public abstract class CompositeAggregationFunction<T, R> extends FieldAggregatio
 	
 	public abstract R computeComposite(Tuple tuple);
 	
+	@Override
+	public R initialize(T value) {
+		throw new IllegalStateException("A composite aggregation function should not be initialized; initialize the intermediates instead.");
+	}
+	
+	@Override
+	public R reduce(R value1, R value2) {
+		throw new IllegalStateException("A composite aggregation function should not be reduced; reduce the intermediates instead.");
+	}
+	
 }

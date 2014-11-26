@@ -60,48 +60,13 @@ public class SumAggregationFunction<T extends Number> extends InputTypeAggregati
 		}
 	}
 
-	@Override
-	public void initialize() {
-		delegate.initialize();
-	}
-
-	@Override
-	public void aggregate(T value) {
-		delegate.aggregate(value);
-	}
-
-	@Override
-	public T getAggregate() {
-		return delegate.getAggregate();
-	}
-	
 	private static interface DelegatedSumAggregationFunction<T extends Number> {
-		public void initialize();
-		public void aggregate(T value);
-		public T getAggregate();
 		public T reduce(T lhs, T rhs);
 	}
 	
 	private static class LongSumAggregationFunction implements DelegatedSumAggregationFunction<Long>, Serializable {
 		private static final long serialVersionUID = 1047115816680232356L;
 		
-		private long sum;
-		
-		@Override
-		public void initialize() {
-			sum = 0L;
-		}
-		
-		@Override
-		public void aggregate(Long value) {
-			sum += value;
-		}
-
-		@Override
-		public Long getAggregate() {
-			return sum;
-		}
-
 		@Override
 		public Long reduce(Long lhs, Long rhs) {
 			return lhs + rhs;
@@ -110,23 +75,6 @@ public class SumAggregationFunction<T extends Number> extends InputTypeAggregati
 
 	private static class IntegerSumAggregationFunction implements DelegatedSumAggregationFunction<Integer>, Serializable {
 		private static final long serialVersionUID = 8585263516508258383L;
-
-		private int sum;
-		
-		@Override
-		public void initialize() {
-			sum = 0;
-		}
-		
-		@Override
-		public void aggregate(Integer value) {
-			sum += value;
-		}
-
-		@Override
-		public Integer getAggregate() {
-			return sum;
-		}
 
 		@Override
 		public Integer reduce(Integer lhs, Integer rhs) {
@@ -137,23 +85,6 @@ public class SumAggregationFunction<T extends Number> extends InputTypeAggregati
 	private static class DoubleSumAggregationFunction implements DelegatedSumAggregationFunction<Double>, Serializable {
 		private static final long serialVersionUID = 7694204706135707202L;
 
-		private double sum;
-		
-		@Override
-		public void initialize() {
-			sum = 0.0;
-		}
-				
-		@Override
-		public void aggregate(Double value) {
-			sum += value;
-		}
-
-		@Override
-		public Double getAggregate() {
-			return sum;
-		}
-
 		@Override
 		public Double reduce(Double lhs, Double rhs) {
 			return lhs + rhs;
@@ -162,23 +93,6 @@ public class SumAggregationFunction<T extends Number> extends InputTypeAggregati
 
 	private static class FloatSumAggregationFunction implements DelegatedSumAggregationFunction<Float>, Serializable {
 		private static final long serialVersionUID = -556020226468154664L;
-
-		private float sum;
-		
-		@Override
-		public void initialize() {
-			sum = (float) 0.0;
-		}
-		
-		@Override
-		public void aggregate(Float value) {
-			sum += value;
-		}
-
-		@Override
-		public Float getAggregate() {
-			return sum;
-		}
 
 		@Override
 		public Float reduce(Float lhs, Float rhs) {
@@ -189,23 +103,6 @@ public class SumAggregationFunction<T extends Number> extends InputTypeAggregati
 	private static class ByteSumAggregationFunction implements DelegatedSumAggregationFunction<Byte>, Serializable {
 		private static final long serialVersionUID = 1796225860081673684L;
 
-		private byte sum;
-		
-		@Override
-		public void initialize() {
-			sum = (byte) 0;
-		}
-		
-		@Override
-		public void aggregate(Byte value) {
-			sum += value;
-		}
-
-		@Override
-		public Byte getAggregate() {
-			return sum;
-		}
-
 		@Override
 		public Byte reduce(Byte lhs, Byte rhs) {
 			return (byte) (lhs + rhs);
@@ -214,23 +111,6 @@ public class SumAggregationFunction<T extends Number> extends InputTypeAggregati
 
 	private static class ShortSumAggregationFunction implements DelegatedSumAggregationFunction<Short>, Serializable {
 		private static final long serialVersionUID = 4132230028758671602L;
-
-		private short sum;
-		
-		@Override
-		public void initialize() {
-			sum = (short) 0;
-		}
-		
-		@Override
-		public void aggregate(Short value) {
-			sum += value;
-		}
-
-		@Override
-		public Short getAggregate() {
-			return sum;
-		}
 
 		@Override
 		public Short reduce(Short lhs, Short rhs) {

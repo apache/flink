@@ -67,25 +67,6 @@ public class AverageAggregationFunction<T extends Number> extends CompositeAggre
 	}
 
 	@Override
-	public void initialize() {
-		sumDelegate.initialize();
-		countDelegate.initialize();
-	}
-
-	@Override
-	public void aggregate(T value) {
-		sumDelegate.aggregate(value);
-		countDelegate.aggregate(value);
-	}
-
-	@Override
-	public Double getAggregate() {
-		double sum = sumDelegate.getAggregate().doubleValue();
-		double count = countDelegate.getAggregate().doubleValue();
-		return sum / count;
-	}
-
-	@Override
 	public Double initialize(T value) {
 		// TODO Auto-generated method stub
 		return null;
