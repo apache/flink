@@ -267,11 +267,11 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 		return sg;
 	}
 	
-	public AggregationOperatorFactory getAggregationOperatorFactory() {
+	AggregationOperatorFactory getAggregationOperatorFactory() {
 		return aggregationOperatorFactory;
 	}
 
-	public void setAggregationOperatorFactory(AggregationOperatorFactory aggregationOperatorFactory) {
+	void setAggregationOperatorFactory(AggregationOperatorFactory aggregationOperatorFactory) {
 		this.aggregationOperatorFactory = aggregationOperatorFactory;
 	}
 

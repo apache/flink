@@ -1305,11 +1305,11 @@ public abstract class DataSet<T> {
 		}
 	}
 
-	public AggregationOperatorFactory getAggregationOperatorFactory() {
+	AggregationOperatorFactory getAggregationOperatorFactory() {
 		return aggregationOperatorFactory;
 	}
 
-	public void setAggregationOperatorFactory(AggregationOperatorFactory aggregationOperatorFactory) {
+	void setAggregationOperatorFactory(AggregationOperatorFactory aggregationOperatorFactory) {
 		this.aggregationOperatorFactory = aggregationOperatorFactory;
 	}
 
