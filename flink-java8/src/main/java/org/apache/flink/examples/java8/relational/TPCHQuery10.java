@@ -132,7 +132,7 @@ public class TPCHQuery10 {
 				// revenue per item = l_extendedprice * (1 - l_discount)
 				.map(i -> new Tuple2<>(i.f0, i.f1 * (1 - i.f2)))
 				// aggregate the revenues per item to revenue per customer
-				.groupBy(0).sum(1);
+				.groupBy(0)._sum(1);
 
 		// join customer with nation (custkey, name, address, nationname, acctbal)
 		DataSet<Tuple5<Integer, String, String, String, Double>> customerWithNation = customers

@@ -74,7 +74,7 @@ public class WordCount {
 				})
 				// group by the tuple field "0" and sum up tuple field "1"
 				.groupBy(0)
-				.sum(1);
+				._sum(1);
 
 		// emit result
 		if(fileOutput) {
