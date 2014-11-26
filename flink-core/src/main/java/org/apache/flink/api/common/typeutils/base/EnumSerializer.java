@@ -51,6 +51,11 @@ public final class EnumSerializer<T extends Enum<T>> extends TypeSerializer<T> {
 	}
 
 	@Override
+	public boolean canCreateInstance() {
+		return true;
+	}
+
+	@Override
 	public T createInstance() {
 		return values[0];
 	}
@@ -93,7 +98,7 @@ public final class EnumSerializer<T extends Enum<T>> extends TypeSerializer<T> {
 	@Override
 	public boolean equals(Object obj) {
 		if(obj instanceof EnumSerializer) {
-			EnumSerializer other = (EnumSerializer) obj;
+			EnumSerializer<?> other = (EnumSerializer<?>) obj;
 			return other.enumClass == this.enumClass;
 		} else {
 			return false;

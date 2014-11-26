@@ -40,7 +40,12 @@ public final class DateSerializer extends TypeSerializerSingleton<Date> {
 	public boolean isStateful() {
 		return false;
 	}
-	
+
+	@Override
+	public boolean canCreateInstance() {
+		return true;
+	}
+
 	@Override
 	public Date createInstance() {
 		return new Date();
