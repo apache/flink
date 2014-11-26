@@ -16,14 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.mesos;
+package org.apache.flink.mesos.executors;
 
-import com.google.protobuf.InvalidProtocolBufferException;
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.mesos.utility.MesosConfiguration;
+import org.apache.flink.mesos.utility.MesosConstants;
+import org.apache.flink.mesos.utility.MesosUtils;
 import org.apache.flink.runtime.jobmanager.JobManager;
-import org.apache.mesos.Executor;
 import org.apache.mesos.ExecutorDriver;
 import org.apache.mesos.MesosExecutorDriver;
 import org.apache.mesos.Protos;
@@ -33,14 +32,13 @@ import org.slf4j.LoggerFactory;
 /**
  * The Executor class is responsible for executing the actual commands on the Mesos slaves.
  */
-public class FlinkJMExecutor implements Executor {
+public class FlinkJMExecutor extends FlinkExecutor {
 	/**
-	 * Thread that is started in launchTask(). It launches the JobManager and its web interface.
+	 * Thread that is started in launchTask(). It launches the JobManager.
 	 */
 	private class JobManagerThread extends Thread{
 		private final ExecutorDriver executorDriver;
 		private final Protos.TaskInfo taskInfo ;
-		private final Integer portOffset;
 		private final Logger LOG = LoggerFactory.getLogger(JobManagerThread.class);
 		private final MesosConfiguration config;
 
@@ -48,26 +46,30 @@ public class FlinkJMExecutor implements Executor {
 			this.executorDriver = executorDriver;
 			this.taskInfo = taskInfo;
 			this.config = config;
-			this.portOffset = Math.abs(taskInfo.getExecutor().getFrameworkId().getValue().hashCode());
 		}
 
 		@Override
 		public void run() {
 			LOG.info("Starting JM Thread");
 			JobManager jobManager;
+
 			try	{
-				String[] args = {"-configDir", config.getString(MesosConstants.MESOS_CONF_DIR, "."), "-executionMode", "cluster"};
+
+				String[] args = {"-executionMode", "cluster"};
+				String configDir = config.getString(MesosConstants.MESOS_CONF_DIR, null);
+
+				/*
+				No configuration directory is passed to the Jobmanager because the
+				initialize() function would reload the the configuration into the
+				GlobalConfiguration. Since we want to have flexibility to overwrite some of the configuration details
+				in the configDir file, we load the configuration manually.
+				 */
+				if (configDir != null) {
+					GlobalConfiguration.loadConfiguration(configDir);
+				}
+				GlobalConfiguration.includeConfiguration(this.config);
 
 				jobManager = JobManager.initialize(args);
-
-				GlobalConfiguration.loadConfiguration(config.getString(MesosConstants.MESOS_CONF_DIR, "."));
-
-				Configuration conf = GlobalConfiguration.getConfiguration();
-				//conf.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT + (this.portOffset % 100));
-
-				LOG.info("JobManager Port: " + conf.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, -1));
-				GlobalConfiguration.includeConfiguration(conf);
-
 				jobManager.startInfoServer();
 			} catch (Exception e) {
 				e.printStackTrace();
@@ -77,59 +79,18 @@ public class FlinkJMExecutor implements Executor {
 		}
 	}
 
-
-	private MesosConfiguration config = new MesosConfiguration();
-
 	private final Logger LOG = LoggerFactory.getLogger(FlinkJMExecutor.class);
 
 	@Override
-	public void registered(ExecutorDriver executorDriver, Protos.ExecutorInfo executorInfo, Protos.FrameworkInfo frameworkInfo, Protos.SlaveInfo slaveInfo) {
-		LOG.info("JobManager Executor was registered");
-
-		FlinkProtos.Configuration protoConfig  = null;
-
-		try {
-			protoConfig = FlinkProtos.Configuration.parseFrom(executorInfo.getData());
-		} catch (InvalidProtocolBufferException e) {
-			e.printStackTrace();
-		}
-		config.fromProtos(protoConfig);
-	}
-
-	@Override
-	public void reregistered(ExecutorDriver executorDriver, Protos.SlaveInfo slaveInfo) {
-	}
-
-	@Override
-	public void disconnected(ExecutorDriver executorDriver) {
-	}
-
-	@Override
 	public void launchTask(final ExecutorDriver executorDriver, final Protos.TaskInfo taskInfo) {
-		JobManagerThread jobManagerThread = new JobManagerThread(executorDriver, taskInfo, this.config);
+		JobManagerThread jobManagerThread = new JobManagerThread(executorDriver, taskInfo, this.getConfig());
 		MesosUtils.setTaskState(executorDriver, taskInfo.getTaskId(), Protos.TaskState.TASK_RUNNING);
 		jobManagerThread.run();
 	}
 
-	@Override
-	public void killTask(ExecutorDriver executorDriver, Protos.TaskID taskID) {
-		MesosUtils.setTaskState(executorDriver, taskID, Protos.TaskState.TASK_KILLED);
-	}
-
-	@Override
-	public void frameworkMessage(ExecutorDriver executorDriver, byte[] bytes) {
-
-	}
-
-	@Override
-	public void shutdown(ExecutorDriver executorDriver) {
-
-	}
-
-	@Override
-	public void error(ExecutorDriver executorDriver, String s) {
-	}
-
+	/*
+	The main function is called by the Executor.
+	 */
 	public static void main(String[] args) throws Exception {
 		MesosExecutorDriver driver = new MesosExecutorDriver(new FlinkJMExecutor());
 		System.exit(driver.run() == Protos.Status.DRIVER_STOPPED ? 0 : 1);

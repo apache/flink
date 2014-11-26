@@ -160,6 +160,7 @@ under the License.
 		<!-- copy uberjar -->
 		<file>
 			<source>target/flink-dist-${project.version}-yarn-uberjar.jar</source>
+			<destName>flink-dist-${project.version}-mesos.jar</destName>
 			<outputDirectory>lib/</outputDirectory>
 			<fileMode>0644</fileMode>
 		</file>
@@ -171,16 +172,6 @@ under the License.
 		</file>
 		<file>
 			<source>src/main/flink-bin/bin/config.sh</source>
-			<outputDirectory>bin/</outputDirectory>
-			<fileMode>0755</fileMode>
-		</file>
-		<file>
-			<source>src/main/flink-bin/bin/jobmanager.sh</source>
-			<outputDirectory>bin/</outputDirectory>
-			<fileMode>0755</fileMode>
-		</file>
-		<file>
-			<source>src/main/flink-bin/bin/taskmanager.sh</source>
 			<outputDirectory>bin/</outputDirectory>
 			<fileMode>0755</fileMode>
 		</file>

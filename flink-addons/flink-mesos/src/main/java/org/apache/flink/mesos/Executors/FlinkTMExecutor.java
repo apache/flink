@@ -16,15 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.mesos;
+package org.apache.flink.mesos.executors;
 
-import com.google.protobuf.InvalidProtocolBufferException;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.mesos.utility.MesosConfiguration;
+import org.apache.flink.mesos.utility.MesosConstants;
+import org.apache.flink.mesos.utility.MesosUtils;
 import org.apache.flink.runtime.ExecutionMode;
 import org.apache.flink.runtime.taskmanager.TaskManager;
-import org.apache.mesos.Executor;
 import org.apache.mesos.ExecutorDriver;
 import org.apache.mesos.MesosExecutorDriver;
 import org.apache.mesos.Protos;
@@ -32,11 +32,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
-public class FlinkTMExecutor implements Executor {
+public class FlinkTMExecutor extends FlinkExecutor {
 	private class TaskManagerThread extends Thread{
 		private final ExecutorDriver executorDriver;
 		private final Protos.TaskInfo taskInfo ;
-		private final int portOffset;
 		private final Logger LOG = LoggerFactory.getLogger(FlinkTMExecutor.class);
 		private final MesosConfiguration config;
 
@@ -44,25 +43,16 @@ public class FlinkTMExecutor implements Executor {
 			this.executorDriver = executorDriver;
 			this.taskInfo = taskInfo;
 			this.config = config;
-			this.portOffset = Math.abs(taskInfo.getExecutor().getFrameworkId().getValue().hashCode());
 		}
 
 		@Override
 		public void run() {
 			LOG.info("Running TaskManager Thread");
-			double cpus = 1.0;
-
-			for (Protos.Resource resource: taskInfo.getResourcesList()){
-				if (resource.getName().equals("cpus")) {
-					cpus = resource.getScalar().getValue();
-				}
-			}
 
 			// First, try to load global configuration
-			GlobalConfiguration.loadConfiguration(config.getString(MesosConstants.MESOS_CONF_DIR, "."));
+			GlobalConfiguration.loadConfiguration(config.getString(MesosConstants.MESOS_CONF_DIR, null));
 			Configuration conf = GlobalConfiguration.getConfiguration();
-			conf.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, config.getInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, (int) cpus));
-			LOG.info("JobManager Port: " + conf.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, -1));
+			conf.addAll(this.config);
 			GlobalConfiguration.includeConfiguration(conf);
 			// Create a new task manager object
 			try {
@@ -75,55 +65,15 @@ public class FlinkTMExecutor implements Executor {
 	}
 
 	private static final Logger LOG = LoggerFactory.getLogger(FlinkTMExecutor.class);
-	private MesosConfiguration config = new MesosConfiguration();
 
-	@Override
-	public void registered(ExecutorDriver executorDriver, Protos.ExecutorInfo executorInfo, Protos.FrameworkInfo frameworkInfo, Protos.SlaveInfo slaveInfo) {
-		LOG.info("TaskManager Executor was registered on host " + slaveInfo.getHostname());
-
-		FlinkProtos.Configuration protoConfig  = null;
-
-		try {
-			protoConfig = FlinkProtos.Configuration.parseFrom(executorInfo.getData());
-		} catch (InvalidProtocolBufferException e) {
-			e.printStackTrace();
-		}
-		config.fromProtos(protoConfig);
-	}
-
-	@Override
-	public void reregistered(ExecutorDriver executorDriver, Protos.SlaveInfo slaveInfo) {
-	}
-
-	@Override
-	public void disconnected(ExecutorDriver executorDriver) {
-	}
 
 	@Override
 	public void launchTask(final ExecutorDriver executorDriver, final Protos.TaskInfo taskInfo) {
-		TaskManagerThread taskManagerThread = new TaskManagerThread(executorDriver, taskInfo, this.config);
+		TaskManagerThread taskManagerThread = new TaskManagerThread(executorDriver, taskInfo, this.getConfig());
 		MesosUtils.setTaskState(executorDriver, taskInfo.getTaskId(), Protos.TaskState.TASK_RUNNING);
 		taskManagerThread.run();
 	}
 
-	@Override
-	public void killTask(ExecutorDriver executorDriver, Protos.TaskID taskID) {
-		MesosUtils.setTaskState(executorDriver, taskID, Protos.TaskState.TASK_KILLED);
-	}
-
-	@Override
-	public void frameworkMessage(ExecutorDriver executorDriver, byte[] bytes) {
-
-	}
-
-	@Override
-	public void shutdown(ExecutorDriver executorDriver) {
-
-	}
-
-	@Override
-	public void error(ExecutorDriver executorDriver, String s) {
-	}
 
 	public static void main(String[] args) throws Exception {
 		MesosExecutorDriver driver = new MesosExecutorDriver(new FlinkTMExecutor());

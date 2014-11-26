@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.mesos;
+package org.apache.flink.mesos.utility;
 
 import com.google.protobuf.ByteString;
 import org.apache.flink.configuration.Configuration;
@@ -24,6 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
+import java.util.Map;
 
 /**
  * This is a class responsible for the mesos configuration. It adds two methods to
@@ -42,7 +43,7 @@ public class MesosConfiguration  extends Configuration {
 	public ByteString toByteString() {
 		HashMap<String, Object> data = getConfigData();
 		FlinkProtos.Configuration.Builder builder = FlinkProtos.Configuration.newBuilder();
-		for (HashMap.Entry<String, Object> entry: data.entrySet()) {
+		for (Map.Entry<String, Object> entry: data.entrySet()) {
 			builder.addValues(FlinkProtos.Configuration.Triplet.newBuilder().setKey(entry.getKey()).setValue(entry.getValue().toString()).setType(entry.getValue().getClass().getName()));
 		}
 		return builder.build().toByteString();

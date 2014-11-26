@@ -260,7 +260,7 @@ under the License.
 									</archiverConfig>
 									<archive>
 										<manifest>
-											<mainClass>org.apache.flink.org.apache.flink.mesos.MesosController</mainClass>
+											<mainClass>org.apache.flink.org.apache.flink.mesos.core.MesosController</mainClass>
 											<addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
 											<addDefaultImplementationEntries>true</addDefaultImplementationEntries>
 										</manifest>

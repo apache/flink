@@ -16,13 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.mesos;
+package org.apache.flink.mesos.utility;
 
 import org.apache.mesos.ExecutorDriver;
 import org.apache.mesos.Protos;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
 
 /**
  * Contains a set of useful utilitys for the Mesos module. Most methods make the code
@@ -46,6 +45,16 @@ public class MesosUtils {
 				.build();
 	}
 
+	public static int offsetPort(int port, int appId) {
+		if(port > 65535) {
+			port = 64535;
+		}
+		if(port + (appId % 1000) > 65535) {
+			port = port - 1000;
+		}
+		return port + (appId % 1000);
+	}
+
 	public static int calculateMemory(double memory) {
 		return (int) (memory * 0.8);
 	}
@@ -54,14 +63,14 @@ public class MesosUtils {
 		return Protos.Resource.newBuilder().setName(name).setType(Protos.Value.Type.SCALAR).setScalar(Protos.Value.Scalar.newBuilder().setValue(value)).build();
 	}
 
-	public static Protos.TaskInfo createTaskInfo(String name, HashMap<String, Double> resources, Protos.ExecutorInfo exinfo, Protos.SlaveID slaveID, Protos.TaskID taskID) {
+	public static Protos.TaskInfo createTaskInfo(String name, List<Protos.Resource> resources, Protos.ExecutorInfo exinfo, Protos.SlaveID slaveID, Protos.TaskID taskID) {
 		Protos.TaskInfo.Builder taskInfo = Protos.TaskInfo.newBuilder()
 				.setName(name)
 				.setTaskId(taskID)
 				.setSlaveId(slaveID)
 				.setExecutor(exinfo);
-		for (Map.Entry<String, Double> resource: resources.entrySet()) {
-			taskInfo.addResources(createResourceScalar(resource.getKey(), resource.getValue()));
+		for (Protos.Resource resource: resources) {
+			taskInfo.addResources(resource);
 		}
 
 		return taskInfo.build();

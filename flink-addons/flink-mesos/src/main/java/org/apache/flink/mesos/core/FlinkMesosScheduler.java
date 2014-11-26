@@ -16,16 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.mesos;
+package org.apache.flink.mesos.core;
 
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.client.CliFrontend;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.mesos.utility.MesosConfiguration;
+import org.apache.flink.mesos.utility.MesosConstants;
+import org.apache.flink.mesos.utility.MesosUtils;
 import org.apache.mesos.Protos;
 import org.apache.mesos.Scheduler;
 import org.apache.mesos.SchedulerDriver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -40,17 +43,27 @@ import java.util.List;
  */
 public class FlinkMesosScheduler implements Scheduler {
 
+	/*
+	Constants for the resource Strings of Mesos
+	 */
+	private static final String MESOS_CPU = "cpus";
+	private static final String MESOS_MEMORY = "mem";
+
 	private static final Logger LOG = LoggerFactory.getLogger(FlinkMesosScheduler.class);
+
 	private final MesosConfiguration config;
 	private final HashMap<Protos.SlaveID, Protos.TaskInfo> taskManagers = new HashMap<Protos.SlaveID, Protos.TaskInfo>();
-	private Protos.TaskInfo jobManager = null;
+
+	private Protos.FrameworkID frameWorkID = null;
 	private Protos.Offer jobManagerOffer = null;
+	private Protos.TaskInfo jobManager = null;
+	private Protos.Offer webFrontendOffer = null;
+	private Protos.TaskInfo webFrontend = null;
 
 	public FlinkMesosScheduler(MesosConfiguration config) {
 		LOG.debug("Scheduler launched");
 		LOG.debug("jar dir: " + config.getString(MesosConstants.MESOS_UBERJAR_LOCATION, null));
-		LOG.debug("conf dir: " + config.getString(MesosConstants.MESOS_CONF_DIR, null));
-		this.config = appendDynamicProps(config);
+		this.config = config;
 	}
 
 	private void printOffers(List<Protos.Offer> offers) {
@@ -63,54 +76,35 @@ public class FlinkMesosScheduler implements Scheduler {
 	}
 
 	/**
-	 * Adds the dynamic properties that were added via the command line to the MesosConfiguration that is used to start the JobManagers and TaskManagers on the Mesos nodes.
+	 * Checks whether the resources that are required are met by the offer.
+	 * @param offer The offer that is to be checked.
+	 * @param required The required resources.
+	 * @return
 	 */
-	private MesosConfiguration appendDynamicProps(MesosConfiguration config) {
-		List<Tuple2<String, String>> properties = CliFrontend.getDynamicProperties(config.getString(MesosConstants.MESOS_DYNAMIC_PROPERTIES, ""));
-		for (Tuple2<String, String> tuple: properties) {
-			LOG.info("Dynamic property added to config:\n" + tuple.f0 + ": " + tuple.f1);
-			config.setString(tuple.f0, tuple.f1);
-		}
-		return config;
-	}
-
-	/**
-	 * This method checks whether the resource requirements for the TaskManger are met with the given offer.
-	 * @param offer The offer to be checked.
-	 * @return True if sufficient resources are available, false otherwise.
-	 */
-	private boolean resourcesMetTM(Protos.Offer offer) {
-		Integer cpus =	config.getInteger(MesosConstants.MESOS_TASK_MANAGER_CORES, MesosConstants.DEFAULT_MESOS_TASK_MANAGER_CORES);
-		Double memory = config.getDouble(MesosConstants.MESOS_TASK_MANAGER_MEMORY, MesosConstants.DEFAULT_MESOS_TASK_MANAGER_MEMORY);
-
-		for (Protos.Resource resource: offer.getResourcesList()) {
-			if (resource.getName().equals("cpus") && resource.getScalar().getValue() < cpus) {
-				LOG.info("Offer from " + offer.getHostname() + " for TaskManager was rejected:\nCPUs available: " + resource.getScalar().getValue() + " CPUs required: " + cpus);
-				return false;
-			}
-			if (resource.getName().equals("mem") && resource.getScalar().getValue() < memory) {
-				LOG.info("Offer from " + offer.getHostname() + " for TaskManager was rejected:\nmemory available: " + resource.getScalar().getValue() + " memory required: " + memory);
-				return false;
+	private boolean resourcesMet(Protos.Offer offer, List<Protos.Resource> required) {
+		for (Protos.Resource req: required) {
+			for (Protos.Resource avail: offer.getResourcesList()) {
+				if (avail.getName().equals(req.getName()) && avail.getScalar().getValue() < req.getScalar().getValue()) {
+					return false;
+				}
 			}
 		}
 		return true;
 	}
 
 	/**
-	 * This method checks whether the resource requirements for the JobManager are met with the given offer.
-	 * @param offer The offer to be checked.
-	 * @return True if sufficient resources are available, false otherwise.
+	 * Helper function that prints infos about the tasks that are launched.
+	 * @param name Name of the task.
+	 * @param offer The offer of the task.
+	 * @param resources The resources the task has.
 	 */
-	private boolean resourcesMetJM(Protos.Offer offer) {
-		Double memory = config.getDouble(MesosConstants.MESOS_JOB_MANAGER_MEMORY, MesosConstants.DEFAULT_MESOS_JOB_MANAGER_MEMORY);
-
-		for (Protos.Resource resource: offer.getResourcesList()) {
-			if (resource.getName().equals("mem") && resource.getScalar().getValue() < memory) {
-				LOG.info("Offer from " + offer.getHostname() + " for JobManager was rejected:\nmemory available: " + resource.getScalar().getValue() + " memory required: " + memory);
-				return false;
-			}
+	private void logLaunchInfo(String name, Protos.Offer offer, List<Protos.Resource> resources) {
+		LOG.info("---- Launching Flink " + name + "----");
+		LOG.info("Hostname: " + offer.getHostname());
+		LOG.info("SlaveID: " + offer.getSlaveId().getValue());
+		for (Protos.Resource resource: resources) {
+			LOG.info(resource.getName() + ": " + resource.getScalar().getValue());
 		}
-		return true;
 	}
 
 	/**
@@ -118,23 +112,20 @@ public class FlinkMesosScheduler implements Scheduler {
 	 * @param offer The resource offer from the Mesos slave.
 	 * @return TaskInfo that contains the information required to launch a JobManager (command to be executed, memory, cpus, etc.)
 	 */
-	private Protos.TaskInfo createJobManagerTask(Protos.Offer offer) {
-		LOG.info("---- Launching Flink JobManager----");
-		LOG.info("Hostname: " + offer.getHostname());
-		LOG.info("SlaveID: " + offer.getSlaveId().getValue());
-		double memory = config.getDouble(MesosConstants.MESOS_JOB_MANAGER_MEMORY, MesosConstants.DEFAULT_MESOS_JOB_MANAGER_MEMORY);
+	private Protos.TaskInfo createJobManagerTask(Protos.Offer offer, List<Protos.Resource> resources) {
+		double memory = -1.0;
+		for (Protos.Resource r: resources) {
+			if (r.getName().equals(MESOS_MEMORY)) {
+				memory = r.getScalar().getValue();
+			}
+		}
 
-		HashMap<String, Double> resources = new HashMap<String, Double>();
-		resources.put("cpus", 1.0);
-		resources.put("mem", memory);
+		String flinkJMCommand = "java " + "-Xmx" + MesosUtils.calculateMemory(memory) + "M -cp " + config.getString(MesosConstants.MESOS_UBERJAR_LOCATION, ".") + " org.apache.flink.mesos.executors.FlinkJMExecutor";
+		Protos.ExecutorInfo jobManagerExecutor = MesosUtils.createExecutorInfo("jm", "Jobmanager Executor", flinkJMCommand, this.config);
 
-		String flinkJMCommand = "java " + "-Xmx" + MesosUtils.calculateMemory(memory) + "M -cp " + config.getString(MesosConstants.MESOS_UBERJAR_LOCATION, ".") + " org.apache.flink.mesos.FlinkJMExecutor " + config.getString(MesosConstants.MESOS_CONF_DIR, ".");
-		Protos.ExecutorInfo jobManagerExecutor = MesosUtils.createExecutorInfo("jm", "JobManager Executor", flinkJMCommand, this.config);
+		logLaunchInfo("Jobmanager", offer, resources);
 
-		LOG.info("JobManager cpus: " + resources.get("cpus"));
-		LOG.info("JobManager memory: " + resources.get("mem"));
-
-		return MesosUtils.createTaskInfo("JobManager", resources, jobManagerExecutor, offer.getSlaveId(), Protos.TaskID.newBuilder().setValue("jm_task").build());
+		return MesosUtils.createTaskInfo("JobManager", resources, jobManagerExecutor, offer.getSlaveId(), Protos.TaskID.newBuilder().setValue("jm_task-" + jobManagerExecutor.hashCode()).build());
 	}
 
 	/**
@@ -142,28 +133,58 @@ public class FlinkMesosScheduler implements Scheduler {
 	 * @param offer The resource offer from the Mesos slave.
 	 * @return TaskInfo that contains the information required to launch a TaskManager (command to be executed, memory, cpus, etc.)
 	 */
-	private Protos.TaskInfo createTaskManager(Protos.Offer offer) {
-		LOG.info("---- Launching TaskManager ----");
-		LOG.info("Hostname: " + offer.getHostname());
-		LOG.info("SlaveID: " + offer.getSlaveId().getValue());
-		double memory = config.getDouble(MesosConstants.MESOS_TASK_MANAGER_MEMORY, MesosConstants.DEFAULT_MESOS_TASK_MANAGER_MEMORY);
+	private Protos.TaskInfo createTaskManagerTask(Protos.Offer offer, List<Protos.Resource> resources) {
+		double memory = -1.0;
+		for (Protos.Resource r: resources) {
+			if (r.getName().equals(MESOS_MEMORY)) {
+				memory = r.getScalar().getValue();
+			}
+		}
 
-		HashMap<String, Double> resources = new HashMap<String, Double>();
-		resources.put("cpus", config.getDouble(MesosConstants.MESOS_TASK_MANAGER_CORES, MesosConstants.DEFAULT_MESOS_TASK_MANAGER_CORES));
-		resources.put("mem", memory);
+		String flinkTMCommand = "java " + "-Xmx" + MesosUtils.calculateMemory(memory) + "M -cp " + config.getString(MesosConstants.MESOS_UBERJAR_LOCATION, ".") + " org.apache.flink.mesos.executors.FlinkTMExecutor";
+		Protos.ExecutorInfo taskManagerExecutor = MesosUtils.createExecutorInfo("tm", "Taskmanager Executor", flinkTMCommand, this.config);
 
-		String flinkTMCommand = "java " + "-Xmx" + MesosUtils.calculateMemory(memory) + "M -cp " + config.getString(MesosConstants.MESOS_UBERJAR_LOCATION, ".") + " org.apache.flink.mesos.FlinkTMExecutor " + config.getString(MesosConstants.MESOS_CONF_DIR, ".");
-		Protos.ExecutorInfo taskManagerExecutor = MesosUtils.createExecutorInfo("tm", "TaskManager Executor", flinkTMCommand, this.config);
+		logLaunchInfo("Taskmanager", offer, resources);
 
-		LOG.info("TaskManager cpus: " + resources.get("cpus"));
-		LOG.info("TaskManager memory: " + resources.get("mem"));
+		return MesosUtils.createTaskInfo("TaskManager", resources, taskManagerExecutor, offer.getSlaveId(), Protos.TaskID.newBuilder().setValue("tm_task-" + taskManagerExecutor.hashCode()).build());
+	}
 
-		return MesosUtils.createTaskInfo("TaskManager", resources, taskManagerExecutor, offer.getSlaveId(), Protos.TaskID.newBuilder().setValue("tm_task" + taskManagerExecutor.hashCode()).build());
+
+	/**
+	 * Helper method to create a WebFrontend TaskInfo on the Mesos slave that made the offer.
+	 * @param offer The resource offer from the Mesos slave.
+	 * @return TaskInfo that contains the information required to launch a WebFrontend (command to be executed, memory, cpus, etc.)
+	 */
+	private Protos.TaskInfo createWebFrontendTask(Protos.Offer offer, List<Protos.Resource> resources) {
+		double memory = -1.0;
+		for (Protos.Resource r: resources) {
+			if (r.getName().equals(MESOS_MEMORY)) {
+				memory = r.getScalar().getValue();
+			}
+		}
+
+		String flinkWebCommand = "java " + "-Xmx" + MesosUtils.calculateMemory(memory) + "M -cp " + config.getString(MesosConstants.MESOS_UBERJAR_LOCATION, ".") + " org.apache.flink.mesos.executors.FlinkWebExecutor";
+		Protos.ExecutorInfo taskManagerExecutor = MesosUtils.createExecutorInfo("web", "WebFrontend Executor", flinkWebCommand, this.config);
+
+		logLaunchInfo("WebFrontend", offer, resources);
+		LOG.info("The Web Submission will shortly be available at: " + offer.getHostname() + ":" + config.getInteger(ConfigConstants.WEB_FRONTEND_PORT_KEY, ConfigConstants.DEFAULT_WEBCLIENT_PORT));
+
+		return MesosUtils.createTaskInfo("Web", resources, taskManagerExecutor, offer.getSlaveId(), Protos.TaskID.newBuilder().setValue("web-" + taskManagerExecutor.hashCode()).build());
+
 	}
 
 	@Override
 	public void registered(SchedulerDriver schedulerDriver, Protos.FrameworkID frameworkID, Protos.MasterInfo masterInfo) {
 		LOG.info("Flink was registered: " + frameworkID.getValue() + " " + masterInfo.getHostname());
+
+		if (this.config != null) {
+			int port = this.config.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
+			port = MesosUtils.offsetPort(port, frameworkID.hashCode());
+			this.config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, port);
+			LOG.info("New JobManager Port is " + port + ".");
+		} else {
+			LOG.info("No JobManager port offset.");
+		}
 	}
 
 	@Override
@@ -176,6 +197,7 @@ public class FlinkMesosScheduler implements Scheduler {
 	public void resourceOffers(SchedulerDriver schedulerDriver, List<Protos.Offer> offers) {
 		Integer maxTaskManagers = config.getInteger(MesosConstants.MESOS_MAX_TM_INSTANCES, Integer.MAX_VALUE);
 		printOffers(offers);
+		Boolean useWeb = config.getBoolean(MesosConstants.MESOS_USE_WEB, false);
 
 		/*
 		Tasks contains the tasks that are to be executed and offerIDs the corresponding offer.
@@ -189,16 +211,40 @@ public class FlinkMesosScheduler implements Scheduler {
 		 */
 		for (Protos.Offer offer : offers) {
 			if (jobManager == null && !taskManagers.containsKey(offer.getSlaveId())) {
-				if (resourcesMetJM(offer)) {
-					Protos.TaskInfo task = createJobManagerTask(offer);
+
+				List<Protos.Resource> required = new ArrayList<Protos.Resource>();
+				required.add(MesosUtils.createResourceScalar(MESOS_CPU, this.config.getDouble(MesosConstants.MESOS_JOB_MANAGER_CORES, MesosConstants.DEFAULT_MESOS_JOB_MANAGER_CORES)));
+				required.add(MesosUtils.createResourceScalar(MESOS_MEMORY, this.config.getDouble(MesosConstants.MESOS_JOB_MANAGER_MEMORY, MesosConstants.DEFAULT_MESOS_JOB_MANAGER_MEMORY)));
+
+				if (resourcesMet(offer, required)) {
+					Protos.TaskInfo task = createJobManagerTask(offer, required);
 					tasks.add(task);
 					jobManager = task;
 					jobManagerOffer = offer;
 					offerIDs.add(offer.getId());
 				}
+			} else if (useWeb && webFrontend == null && offer.getSlaveId().equals(jobManagerOffer.getSlaveId())) {
+
+				List<Protos.Resource> required = new ArrayList<Protos.Resource>();
+				required.add(MesosUtils.createResourceScalar(MESOS_CPU, 1.0));
+				required.add(MesosUtils.createResourceScalar(MESOS_MEMORY, 256.0));
+
+				if (resourcesMet(offer, required)) {
+					Protos.TaskInfo task = createWebFrontendTask(offer, required);
+					tasks.add(task);
+					webFrontend = task;
+					webFrontendOffer = offer;
+					offerIDs.add(offer.getId());
+				}
+
 			} else if (!taskManagers.containsKey(offer.getSlaveId()) && taskManagers.size() < maxTaskManagers) {
-				if (resourcesMetTM(offer)) {
-					Protos.TaskInfo task = createTaskManager(offer);
+
+				List<Protos.Resource> required = new ArrayList<Protos.Resource>();
+				required.add(MesosUtils.createResourceScalar(MESOS_CPU, this.config.getDouble(MesosConstants.MESOS_TASK_MANAGER_CORES, MesosConstants.DEFAULT_MESOS_TASK_MANAGER_CORES)));
+				required.add(MesosUtils.createResourceScalar(MESOS_MEMORY, this.config.getDouble(MesosConstants.MESOS_TASK_MANAGER_MEMORY, MesosConstants.DEFAULT_MESOS_TASK_MANAGER_MEMORY)));
+
+				if (resourcesMet(offer, required)) {
+					Protos.TaskInfo task = createTaskManagerTask(offer, required);
 					taskManagers.put(offer.getSlaveId(), task);
 					tasks.add(task);
 					offerIDs.add(offer.getId());
@@ -210,6 +256,7 @@ public class FlinkMesosScheduler implements Scheduler {
 			schedulerDriver.launchTasks(offerIDs, tasks);
 		}
 	}
+
 
 	/**
 	 * If an offer is no longer available and we tried to deploy a JobManager or TaskManager on it, we try to kill the
@@ -236,8 +283,8 @@ public class FlinkMesosScheduler implements Scheduler {
 			LOG.debug("Rescinded offer was jobManager offer, trying to request new resources");
 			Protos.Request request = Protos.Request
 					.newBuilder()
-					.addResources(MesosUtils.createResourceScalar("cpus", 1.0))
-					.addResources(MesosUtils.createResourceScalar("mem", config.getDouble(MesosConstants.MESOS_JOB_MANAGER_MEMORY, MesosConstants.DEFAULT_MESOS_JOB_MANAGER_MEMORY)))
+					.addResources(MesosUtils.createResourceScalar(MESOS_CPU, 1.0))
+					.addResources(MesosUtils.createResourceScalar(MESOS_MEMORY, config.getDouble(MesosConstants.MESOS_JOB_MANAGER_MEMORY, MesosConstants.DEFAULT_MESOS_JOB_MANAGER_MEMORY)))
 					.build();
 			requestList.add(request);
 
@@ -276,8 +323,8 @@ public class FlinkMesosScheduler implements Scheduler {
 
 				Protos.Request request = Protos.Request
 						.newBuilder()
-						.addResources(MesosUtils.createResourceScalar("cpus", 1.0))
-						.addResources(MesosUtils.createResourceScalar("mem", config.getDouble(MesosConstants.MESOS_JOB_MANAGER_MEMORY, MesosConstants.DEFAULT_MESOS_JOB_MANAGER_MEMORY)))
+						.addResources(MesosUtils.createResourceScalar(MESOS_CPU, 1.0))
+						.addResources(MesosUtils.createResourceScalar(MESOS_MEMORY, config.getDouble(MesosConstants.MESOS_JOB_MANAGER_MEMORY, MesosConstants.DEFAULT_MESOS_JOB_MANAGER_MEMORY)))
 						.build();
 				requestList.add(request);
 

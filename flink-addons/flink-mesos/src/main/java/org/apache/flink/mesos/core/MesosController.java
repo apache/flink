@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.mesos;
+package org.apache.flink.mesos.core;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -26,8 +26,9 @@ import org.apache.commons.cli.MissingOptionException;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.PosixParser;
-import org.apache.flink.client.CliFrontend;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.mesos.utility.MesosConfiguration;
+import org.apache.flink.mesos.utility.MesosConstants;
 import org.apache.mesos.MesosSchedulerDriver;
 import org.apache.mesos.Protos;
 
@@ -55,6 +56,7 @@ public class MesosController {
 	private static final Option MASTER = new Option("m","master",true, "Address of the Mesos master node");
 	private static final Option MESOS_LIB = new Option("l","lib",true, "Path to Mesos library files");
 	private static final Option USE_WEB = new Option("w","web",false, "Launch the web frontend on the jobmanager node.");
+	private static final Option JM_CORES = new Option("jmc","jobManagerCores",true, "Number of Jobmanager Cores");
 	private static final Option HELP = new Option("h","help",false, "print help");
 	/**
 	 * Dynamic properties allow the user to specify additional configuration values with -D, such as
@@ -76,17 +78,18 @@ public class MesosController {
 		req.addOption(MASTER);
 		req.addOption(MESOS_LIB);
 		req.addOption(FLINK_JAR);
-		req.addOption(FLINK_CONF_DIR);
 		formatter.printHelp(" ", req);
 
 		formatter.setSyntaxPrefix("   Optional");
 		Options opt = new Options();
+		opt.addOption(FLINK_CONF_DIR);
 		opt.addOption(HELP);
 		opt.addOption(NUM_TM);
 		opt.addOption(VERBOSE);
 		opt.addOption(JM_MEMORY);
 		opt.addOption(TM_MEMORY);
 		opt.addOption(TM_CORES);
+		opt.addOption(JM_CORES);
 		opt.addOption(SLOTS);
 		opt.addOption(USE_WEB);
 		opt.addOption(DYNAMIC_PROPERTIES);
@@ -138,10 +141,12 @@ public class MesosController {
 		options.addOption(JM_MEMORY);
 		options.addOption(TM_MEMORY);
 		options.addOption(TM_CORES);
+		options.addOption(JM_CORES);
 		options.addOption(SLOTS);
 		options.addOption(MASTER);
 		options.addOption(MESOS_LIB);
 		options.addOption(USE_WEB);
+		options.addOption(DYNAMIC_PROPERTIES);
 
 		MesosConfiguration config = new MesosConfiguration();
 		CommandLineParser parser = new PosixParser();
@@ -185,9 +190,6 @@ public class MesosController {
 		if (cmd.hasOption(FLINK_CONF_DIR.getOpt())) {
 			flinkConfDir = cmd.getOptionValue(FLINK_CONF_DIR.getOpt());
 			config.setString(MesosConstants.MESOS_CONF_DIR, flinkConfDir);
-		} else {
-			printUsage();
-			System.exit(1);
 		}
 
 		String mesosMaster = null;
@@ -205,6 +207,9 @@ public class MesosController {
 		if (cmd.hasOption(JM_MEMORY.getOpt())) {
 			config.setDouble(MesosConstants.MESOS_JOB_MANAGER_MEMORY, new Double(cmd.getOptionValue(JM_MEMORY.getOpt())));
 		}
+		if (cmd.hasOption(JM_CORES.getOpt())) {
+			config.setDouble(MesosConstants.MESOS_JOB_MANAGER_CORES, new Double(cmd.getOptionValue(JM_CORES.getOpt())));
+		}
 		if (cmd.hasOption(TM_MEMORY.getOpt())) {
 			config.setDouble(MesosConstants.MESOS_TASK_MANAGER_MEMORY, new Double(cmd.getOptionValue(TM_MEMORY.getOpt())));
 		}
@@ -217,8 +222,16 @@ public class MesosController {
 		String[] dynamicProperties = null;
 		if(cmd.hasOption(DYNAMIC_PROPERTIES.getOpt())) {
 			dynamicProperties = cmd.getOptionValues(DYNAMIC_PROPERTIES.getOpt());
-			String dynamicPropertiesEncoded = org.apache.commons.lang3.StringUtils.join(dynamicProperties, CliFrontend.YARN_DYNAMIC_PROPERTIES_SEPARATOR);
-			config.setString(MesosConstants.MESOS_DYNAMIC_PROPERTIES, dynamicPropertiesEncoded);
+			for (String property: dynamicProperties) {
+				String[] tokens = property.split("=");
+				if (tokens.length != 2) {
+					System.out.println("Error parsing dynamic Properties. They should have the form\nidentifier=value");
+					printUsage();
+					System.exit(1);
+				}
+				System.out.println(tokens[0] + ": " + tokens[1]);
+				config.setString(tokens[0], tokens[1]);
+			}
 		}
 
 		/*

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.mesos;
+package org.apache.flink.mesos.utility;
 
 public class MesosConstants {
 	/**
@@ -65,9 +65,9 @@ public class MesosConstants {
 	public static final String MESOS_TASK_MANAGER_MEMORY = "flink.mesos.tmmemory";
 
 	/**
-	 * Dynamic Properties
+	 * JobManager CPUs on the Jobmanager Mesos node
 	 */
-	public static final String MESOS_DYNAMIC_PROPERTIES = "flink.mesos.dynprops";
+	public static final String MESOS_JOB_MANAGER_CORES = "flink.mesos.jmcores";
 
 	//------------------DEFAULT VALUES----------------
 	/**
@@ -79,6 +79,10 @@ public class MesosConstants {
 	 * JobManager memory on each Mesos node
 	 */
 	public static final Double DEFAULT_MESOS_JOB_MANAGER_MEMORY = 256.0;
+	/**
+	 * JobManager memory on each Mesos node
+	 */
+	public static final Double DEFAULT_MESOS_JOB_MANAGER_CORES = 1.0;
 
 	/**
 	 * TaskManager memory on each Mesos node

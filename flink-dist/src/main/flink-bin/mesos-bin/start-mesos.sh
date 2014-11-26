@@ -23,6 +23,6 @@ bin=`cd "$bin"; pwd`
 # get Flink config
 . "$bin"/config.sh
 
-CLASSPATH_MESOS=$FLINK_LIB_DIR/*yarn-uberjar.jar
+CLASSPATH_MESOS=$FLINK_LIB_DIR/*mesos.jar
 
-$JAVA_RUN $JVM_ARGS -classpath $CLASSPATH_MESOS org.apache.flink.mesos.MesosController -j $CLASSPATH_MESOS -c $FLINK_CONF_DIR $*
+$JAVA_RUN $JVM_ARGS -classpath $CLASSPATH_MESOS org.apache.flink.mesos.core.MesosController -Dflink.base.dir.path=$FLINK_ROOT_DIR -c $FLINK_CONF_DIR -j $CLASSPATH_MESOS $*
