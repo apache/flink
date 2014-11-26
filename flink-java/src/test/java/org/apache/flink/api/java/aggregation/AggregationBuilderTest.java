@@ -37,7 +37,7 @@ import org.mockito.ArgumentCaptor;
 
 public class AggregationBuilderTest {
 
-	private final static String[] DATASET_FUNCTIONS =  { "count", "min", "max", "sum", "count", "average" };
+	private final static String[] DATASET_FUNCTIONS =  { "count", "min", "max", "sum", "average" };
 	private final static String[] GROUPING_FUNCTIONS = { "min", "max", "sum", "count", "average", "key" };
 	
 	@SuppressWarnings({ "rawtypes", "unchecked" })
@@ -123,9 +123,7 @@ public class AggregationBuilderTest {
 		StringBuilder sb = new StringBuilder();
 		sb.append(name);
 		sb.append("(");
-		if ( ! "count".equals(name) ) {
-			sb.append(field);
-		}
+		sb.append(field);
 		sb.append(")");
 		String expected = sb.toString();
 		assertThat(function.toString(), is(expected));

@@ -18,8 +18,6 @@
 
 package org.apache.flink.util;
 
-import java.util.Random;
-
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.RandomUtils;
 
@@ -87,11 +85,17 @@ public class TestHelper
         return result;
     }
 
+    /**
+     * Return a random string consisting of {@value STRING_LENGTH} characters.
+     */
     public static String uniqueString() {
     	String result = uniqueString(STRING_LENGTH);
     	return result;
     }
     
+    /**
+     * Return a random string consisting of {code length} characters.
+     */
     public static String uniqueString(int length) {
     	String result = RandomStringUtils.random(length);
     	return result;

@@ -67,18 +67,6 @@ public class AverageAggregationFunction<T extends Number> extends CompositeAggre
 	}
 
 	@Override
-	public Double initialize(T value) {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
-	public Double reduce(Double value1, Double value2) {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
 	public Double computeComposite(Tuple tuple) {
 		int sumIntermediatePosition = sumDelegate.getIntermediatePosition();
 		int countIntermediatePosition = countDelegate.getIntermediatePosition();
@@ -90,7 +78,7 @@ public class AverageAggregationFunction<T extends Number> extends CompositeAggre
 	}
 
 	@Override
-	public List<AggregationFunction<?, ?>> getIntermediateAggregationFunctions() {
+	public List<AggregationFunction<?, ?>> getIntermediates() {
 		List<AggregationFunction<?, ?>> intermediates = new ArrayList<AggregationFunction<?,?>>();
 		intermediates.add(sumDelegate);
 		intermediates.add(countDelegate);

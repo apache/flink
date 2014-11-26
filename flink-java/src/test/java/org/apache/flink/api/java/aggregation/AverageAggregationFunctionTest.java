@@ -76,7 +76,7 @@ public class AverageAggregationFunctionTest {
 		AverageAggregationFunction<Integer> function = new AverageAggregationFunction<Integer>(field); 
 
 		// when
-		List<AggregationFunction<?, ?>> intermediates = function.getIntermediateAggregationFunctions(); 
+		List<AggregationFunction<?, ?>> intermediates = function.getIntermediates(); 
 
 		// then
 		assertThat(intermediates.size(), is(2));

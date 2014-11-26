@@ -27,7 +27,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
  * @param <T> The input and output type.
  */
 public abstract class InputTypeAggregationFunction<T>
-		extends FieldAggregationFunction<T, T> {
+		extends AggregationFunction<T, T> {
 	private static final long serialVersionUID = -3129049288957424646L;
 
 	private Class<T> type = null;
@@ -52,7 +52,7 @@ public abstract class InputTypeAggregationFunction<T>
 	}
 
 	@Override
-	public T initialize(T value) {
+	public T initializeIntermediate(T value) {
 		return value;
 	}
 

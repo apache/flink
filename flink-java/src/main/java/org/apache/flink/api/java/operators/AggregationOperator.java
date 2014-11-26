@@ -31,20 +31,67 @@ import org.apache.flink.api.java.aggregation.AggregationFunction;
 import org.apache.flink.api.java.aggregation.AggregationMapFinalUdf;
 import org.apache.flink.api.java.aggregation.AggregationMapIntermediateUdf;
 import org.apache.flink.api.java.aggregation.AggregationReduceUdf;
+import org.apache.flink.api.java.aggregation.AverageAggregationFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 
+/**
+ * Aggregation operator.
+ * 
+ * <p>
+ * The operator has the following dependencies.
+ * 
+ * <dl>
+ * 	 <dt>functions
+ *   	<dd>Aggregation functions that should be computed (may contain
+ *   	composites).
+ *   <dt>intermediateFunctions
+ *      <dd>Aggregation functions that do the actual aggregation (may
+ *      contain keys and intermediates expanded from composites).
+ *   <dt>resultType
+ *   	<dd>Type information for the final result tuple.
+ *   <dt>intermediateType
+ *    	<dd>Type information for the intermediate tuples.
+ *   <dt>groupKeys
+ *    	<dd>Fields on which the input should be grouped.
+ * </dl>
+ * 
+ * <p>A tuple field may be aggregated using multiple functions. It is
+ * therefore necessary to construct an intermediate tuple holding a copy
+ * of the field value for each aggregation function that uses it. Also,
+ * an aggregation function may extend the input tuple with additional
+ * information. For example, {@link AverageAggregationFunction} adds a field
+ * to count the tuples. Finally, during the aggregation group keys must be
+ * present but they may not be in the final output.
+ * 
+ * <p>Therefore this operator maps to 3 internal Flink operations:
+ * 
+ * <code>Input -> Map1 -> Reduce -> Map2 -> Output</code>
+ * 
+ * <dl>
+ * 	<dt>Map1 
+ * 		<dd>Maps input tuples to intermediate tuples; copies 
+ * 		and/or initializes fields.
+ *  <dt>Reduce
+ *  	<dd>Performs the actual aggregation
+ *  <dt>Map2
+ *  	<dd>Computes composite aggregations and drops unwanted key fields.
+ * </dl>
+ * 
+ * @param <IN>	The input type (must be Tuple).
+ * @param <OUT>	The output type (must extend Tuple).
+ */
 public class AggregationOperator<IN, OUT extends Tuple> extends SingleInputOperator<IN, OUT, AggregationOperator<IN, OUT>> {
 
 	private TypeInformation<Tuple> intermediateType;
-	private int[] groupingKeys;
+	private int[] groupKeys;
 	private AggregationFunction<?, ?>[] intermediateFunctions;
 	private AggregationFunction<?, ?>[] finalFunctions;
 	
 	public AggregationOperator(DataSet<IN> input, 
-			TypeInformation<OUT> resultType, TypeInformation<Tuple> intermediateType, int[] groupingKeys, AggregationFunction<?, ?>[] finalFunctions, AggregationFunction<?, ?>[] intermediateFunctions) {
+			TypeInformation<OUT> resultType, TypeInformation<Tuple> intermediateType, int[] groupKeys, AggregationFunction<?, ?>[] finalFunctions, AggregationFunction<?, ?>[] intermediateFunctions) {
 		super(input, resultType);
 		this.intermediateType = intermediateType;
-		this.groupingKeys = groupingKeys;
+		this.groupKeys = groupKeys;
 		this.intermediateFunctions = intermediateFunctions;
 		this.finalFunctions = finalFunctions;
 	}
@@ -75,7 +122,7 @@ public class AggregationOperator<IN, OUT extends Tuple> extends SingleInputOpera
 		ReduceFunction<Tuple> udf = new AggregationReduceUdf<Tuple>(intermediateFunctions);
 		UnaryOperatorInformation<Tuple, Tuple> operatorInfo = new UnaryOperatorInformation<Tuple, Tuple>(intermediateType, intermediateType);
 		String name = createOperatorName("aggregate/reducer", intermediateFunctions);
-		ReduceOperatorBase<Tuple, ReduceFunction<Tuple>> reducer = new ReduceOperatorBase<Tuple, ReduceFunction<Tuple>>(udf, operatorInfo, groupingKeys, name);
+		ReduceOperatorBase<Tuple, ReduceFunction<Tuple>> reducer = new ReduceOperatorBase<Tuple, ReduceFunction<Tuple>>(udf, operatorInfo, groupKeys, name);
 		reducer.setDegreeOfParallelism(this.getParallelism());
 		return reducer;
 	}

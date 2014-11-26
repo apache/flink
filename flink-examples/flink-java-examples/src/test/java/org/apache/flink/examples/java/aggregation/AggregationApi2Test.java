@@ -19,9 +19,7 @@
 package org.apache.flink.examples.java.aggregation;
 
 import static java.util.Arrays.asList;
-import static org.apache.flink.api.java.aggregation.Aggregations.count;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -220,7 +218,7 @@ public class AggregationApi2Test {
 				input.groupBy(0).average(1).aggregate();
 
 		// then
-		assertThat(output, dataSetWithTuples(asList("a", 11.5), asList("b", 21.5)));
+		assertThat(output, dataSetWithTuples(asList(11.5), asList(21.5)));
 	}
 
 	@SuppressWarnings("unchecked")
@@ -243,6 +241,16 @@ public class AggregationApi2Test {
 		assertThat(output, dataSetWithTuples(asList("a", 11.5), asList("a", 21.5)));
 	}
 
+	@Test(expected=IllegalArgumentException.class)
+	public void errorIfKeyIsUsedWithoutGrouping() {
+		// given
+		Tuple2<String, Long>[] tuples = new Tuple2Builder<String, Long>().add("key", 1L).build();
+		DataSet<Tuple2<String, Long>> input = env.fromElements(tuples);
+
+		// when
+		input.average(1).key(0).aggregate();
+	}
+	
 	@SuppressWarnings("unchecked")
 	private Matcher<DataSet<? extends Tuple>> dataSetWithTuple(Object... singleTuple) {
 		return dataSetWithTuples(asList(singleTuple));

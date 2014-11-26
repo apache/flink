@@ -30,7 +30,7 @@ public class CountAggregationFunctionTest {
 	@Test
 	public void shouldInitialize() {
 		// when
-		long actual = function.initialize(null);
+		long actual = function.initializeIntermediate(null);
 		
 		// then
 		assertThat(actual, is(1L));

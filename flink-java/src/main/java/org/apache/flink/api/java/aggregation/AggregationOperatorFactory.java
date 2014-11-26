@@ -44,12 +44,15 @@ import com.google.common.primitives.Ints;
  * <p>The factory performs the following tasks:
  * 
  * <ol>
- *  <li>Extract key fields from a grouped DataSet.
- * 	<li>Compute the aggregation result type.
- *  <li>Create the result tuple.
+ *  <li>Decompose composite aggregation functions into intermediates.
+ *  <li>Insert missing key aggregation function for any group keys. 
+ *  <li>Set intermediate, and output position for each aggregation function.
+ *  <li>Map any group keys to their position in the intermediate tuple.
+ *  <li>Compute the types of intermediate tuple and aggregation result.
+ *  <li>Create the aggregation operator.
  * </ol>
  *
- * <p>Note: Each task is implemented in a member class in order to
+ * <p>Note: Tasks are implemented in a member class in order to
  * facilitate testing. 
  */
 public class AggregationOperatorFactory {
@@ -108,26 +111,36 @@ public class AggregationOperatorFactory {
 			List<AggregationFunction<?, ?>> intermediates = new ArrayList<AggregationFunction<?,?>>();
 			int outputPosition = 0;
 			for (AggregationFunction<?, ?> function : functions) {
+
+				// set output position according to the order specified by the user
 				function.setOutputPosition(outputPosition);
 				outputPosition += 1;
+
+				// check if key() is used without groupBy
 				if (groupKeys.length == 0
 						&& function instanceof KeySelectionAggregationFunction) {
 					throw new IllegalArgumentException("Key selection aggregation function can only be used on grouped DataSets.");
 				}
+
+				// decompose composites 
 				if (function instanceof CompositeAggregationFunction) {
 					CompositeAggregationFunction<?, ?> composite = (CompositeAggregationFunction<?, ?>) function;
-					List<AggregationFunction<?, ?>> compositeIntermediates = composite.getIntermediateAggregationFunctions();
+					List<AggregationFunction<?, ?>> compositeIntermediates = composite.getIntermediates();
 					intermediates.addAll(compositeIntermediates);
 				} else {
 					intermediates.add(function);
 				}
 			}
+
+			// add key fields for grouping
 			for (int groupKey : groupKeys) {
 				AggregationFunction<?, ?> key = key(groupKey);
 				if ( ! intermediates.contains(key) ) {
 					intermediates.add(key);
 				}
 			}
+
+			// set intermediate position
 			int intermediatePosition = 0;
 			for (AggregationFunction<?, ?> function : intermediates) {
 				function.setIntermediatePosition(intermediatePosition);
@@ -138,6 +151,11 @@ public class AggregationOperatorFactory {
 			return result;
 		}
 
+		/*
+		 * The fields on which the tuple should be grouped may have moved by the construction
+		 * of the intermediate tuple. Check for key() functions and use their intermediate
+		 * positions to group the tuples.
+		 */ 
 		public int[] createIntermediateGroupKeys(AggregationFunction<?, ?>[] intermediates) {
 			List<Integer> positions = new ArrayList<Integer>();
 			for (AggregationFunction<?, ?> function : intermediates) {
@@ -149,7 +167,6 @@ public class AggregationOperatorFactory {
 			int[] result = Ints.toArray(positions);
 			return result;
 		}
-		
 		
 	}
 	

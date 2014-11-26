@@ -120,7 +120,7 @@ public class AggregationOperatorFactoryTest {
 		AggregationFunction intermediate1 = mock(AggregationFunction.class);
 		AggregationFunction intermediate2 = mock(AggregationFunction.class);
 		List<AggregationFunction> intermediates = asList(intermediate1, intermediate2);
-		given(composite.getIntermediateAggregationFunctions()).willReturn(intermediates);
+		given(composite.getIntermediates()).willReturn(intermediates);
 
 		// input: a simple aggregation function and the composite
 		AggregationFunction function1 = mock(AggregationFunction.class);
@@ -135,7 +135,7 @@ public class AggregationOperatorFactoryTest {
 		assertThat(actual, is(expected));
 		verify(function1).setOutputPosition(0);
 		verify(composite).setOutputPosition(1);
-		verify(composite).getIntermediateAggregationFunctions();
+		verify(composite).getIntermediates();
 		verify(function1).setIntermediatePosition(0);
 		verify(intermediate1).setIntermediatePosition(1);
 		verify(intermediate2).setIntermediatePosition(2);

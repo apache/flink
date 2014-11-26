@@ -21,7 +21,9 @@ package org.apache.flink.api.java.aggregation;
 import java.io.Serializable;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.java.operators.GroupReduceOperator;
+import org.apache.flink.api.java.operators.AggregationOperator;
+import org.apache.flink.api.java.operators.MapOperator;
+import org.apache.flink.api.java.operators.ReduceOperator;
 
 /**
  * An aggregation function that aggregates a list of elements of the same
@@ -30,32 +32,56 @@ import org.apache.flink.api.java.operators.GroupReduceOperator;
  * <p>The result of an aggregation function can be of the same or of a
  * different type as the aggregated elements. 
  * 
- * <p>Each aggregation function must implement the following three API
- * functions:
- * <ul>
- *   <li>{@link AggregationFunction.initialize}
- *   <li>{@link AggregationFunction.aggregate}
- *   <li>{@link AggregationFunctino.getAggregate}
- * </ul>
+ * <p>An aggregation function may be composed of other functions that 
+ * compute an intermediate result (see also 
+ * {@link CompositeAggregationFunction}).  
+ *
+ * <p>Internally, an aggregation is implemented as a Reduce operation.
+ * However, because a field can be aggregated using different aggregation
+ * functions, and because an aggregation may be decomposed into multiple
+ * intermediates internally, the field on which an aggregation function
+ * is computed is not necessarily the input field.
  * 
- * <b>Note: An aggregation function may be reused. It is therefore
- * necessary that state initialization happens in 
- * {@link AggregationFunction.initialize} and not in the constructor.</b> 
+ * <p>Each aggregation function therefore specifies 3 indices:
  * 
- * <p>Each aggregation function specifies the index of the tuple field
- * that it aggregates. 
+ * <dl>
+ * 	 <dt>inputPosition <dd>The field of the input tuple that is aggregated.
+ *   <dt>intermediatePosition <dd>The field of the intermediate tuple passed
+ *                                to {@code reduce} to compute the aggregate.
+ *   <dt>outputPosition <dd>The field of the output tuple holding the result.
+ * </dl>
+ *
+ * <p>Each aggregation function must implement the following methods:
+ *
+ * <dl>
+ *   <dt>{@code initializeIntermediate} 
+ *   	<dd>Map the value of the input field to a value which is used to
+ *   	compute the aggregate.
+ *   <dt>{@code reduce}
+ *   	<dd>Recursively aggregate to values to compute the result.
+ * </dl>
+ * 
+ * <p>An aggregation function may overwrite
+ * {@code setInputType} to modify its implementation
+ * depending on the aggregated type (see also {@link SumAggregationFunction}).
  * 
  * <p>Each aggregation function has a name that is visible in the name
- * of the {@link GroupReduceOperator} operation that computes the aggregation.
+ * of the {@link ReduceOperator} and {@link MapOperator} operations that
+ * compute the aggregation. Only the final {@link MapOperator} name contains
+ * the names of the aggregation function specified in user code; the
+ * intermediate {@link MapOperator} and the {@link ReduceOperator} show the
+ * names of the intermediate aggregation functions.
  * 
  * @param <T> The type of the elements that are aggregated (input type).
  * @param <R> The type of the aggregation result (output type).
  *
  * @see AggregationFunction.ResultTypeBehavior
+ * @see AggregationOperator
  */
 public abstract class AggregationFunction<T, R> implements Serializable {
 	private static final long serialVersionUID = 9082279166205627942L;
 
+	private int inputPosition;
 	private int outputPosition;
 	private int intermediatePosition;
 	private String name;
@@ -64,8 +90,9 @@ public abstract class AggregationFunction<T, R> implements Serializable {
 	 * Create a named AggregationFunction.
 	 * @param name The AggregationFunctions's name.
 	 */
-	public AggregationFunction(String name) {
+	public AggregationFunction(String name, int inputPosition) {
 		this.name = name;
+		this.inputPosition = inputPosition;
 	}
 
 	/**
@@ -106,28 +133,35 @@ public abstract class AggregationFunction<T, R> implements Serializable {
 	 * the result type of the of the transformed DataSet returned by
 	 * {@link DataSet.aggregate} or {@link UnsortedGrouping.aggregate}
 	 * is computed. The type of the aggregated field is passed in
-	 * {@code inputType}. This method can be used to differ the internal
-	 * implementation of the aggregation function based on the input type.
+	 * {@code inputType}. This method can be used to differentiate the
+	 * internal implementation of the aggregation function based on the
+	 * input type.
 	 * 
 	 * @param inputType The type of the elements that are aggregated.
 	 */
-	public abstract void setInputType(BasicTypeInfo<T> inputType);
+	public void setInputType(BasicTypeInfo<T> inputType) {
+		// do nothing
+	}
 	
 	/**
-	 * Return the index of the aggregated tuple field.
+	 * Return the initial value of the intermediate tuple that is used
+	 * to compute the aggregation.
 	 */
-	public abstract int getInputPosition();
-	
-	public abstract R initialize(T value);
+	public abstract R initializeIntermediate(T value);
 
+	/**
+	 * Recursively compute the aggregate of two values.
+	 */
 	public abstract R reduce(R value1, R value2);
 
 	@Override
 	public String toString() {
-		return name + "()";
+		return getName() + "(" + inputPosition + ")";
 	}
 
-	protected String getName() {
+	///// Getter / Setter
+	
+	public String getName() {
 		return name;
 	}
 
@@ -145,6 +179,14 @@ public abstract class AggregationFunction<T, R> implements Serializable {
 
 	public void setIntermediatePosition(int intermediatePosition) {
 		this.intermediatePosition = intermediatePosition;
+	}
+
+	public int getInputPosition() {
+		return inputPosition;
+	}
+
+	public void setInputPosition(int inputPosition) {
+		this.inputPosition = inputPosition;
 	}
 
 }
