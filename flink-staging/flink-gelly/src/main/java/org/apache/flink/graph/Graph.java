@@ -323,6 +323,45 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 			return new Graph<K, VV, EV>(vertices, undirectedEdges, this.context, true);
 			}
 	}
+	
+	/**
+	 * Utility function that allows each vertex of the graph
+	 * to access its out-neighbors
+	 * @param edgesFunction the function to apply to the neighborhood
+	 * @return
+	 */
+	public <T> DataSet<T> foreachEdge(OutEdgesFunction<K, VV, EV, T> edgesFunction) {
+		return vertices.coGroup(edges).where(0).equalTo(0).with(
+				new ApplyCoGroupFunction<K, VV, EV, T>(edgesFunction));
+	}
+
+	/**
+	 * 
+	 * @param <K>
+	 * @param <VV>
+	 * @param <EV>
+	 * @param <T>
+	 */
+	private static final class ApplyCoGroupFunction<K extends Comparable<K> & Serializable, 
+		VV extends Serializable, EV extends Serializable, T> 
+		implements CoGroupFunction<Tuple2<K, VV>, Tuple3<K, K, EV>, T>,
+		ResultTypeQueryable<T> {
+		
+		private OutEdgesFunction<K, VV, EV, T> function;
+		
+		public ApplyCoGroupFunction (OutEdgesFunction<K, VV, EV, T> fun) {
+			this.function = fun;
+		}
+		public void coGroup(Iterable<Tuple2<K, VV>> vertex,
+				Iterable<Tuple3<K, K, EV>> outEdges, Collector<T> out) throws Exception {
+			out.collect(function.iterateOutEdges(vertex.iterator().next(), outEdges));
+		}
+		@Override
+		public TypeInformation<T> getProducedType() {
+			// TODO Auto-generated method stub
+			return null;
+		}		
+	}
 
 	@ConstantFields("0->1;1->0;2->2")
 	private static final class ReverseEdgesMap<K extends Comparable<K> & Serializable, 
