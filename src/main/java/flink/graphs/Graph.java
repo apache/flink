@@ -18,33 +18,32 @@
 
 package flink.graphs;
 
-import org.apache.flink.api.common.functions.*;
+import java.io.Serializable;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+
+import org.apache.flink.api.common.functions.CoGroupFunction;
+import org.apache.flink.api.common.functions.FilterFunction;
+import org.apache.flink.api.common.functions.FlatJoinFunction;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.JoinFunction;
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.aggregation.Aggregations;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFields;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFieldsFirst;
-import org.apache.flink.api.java.aggregation.Aggregations;
+import org.apache.flink.api.java.io.CsvReader;
 import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.api.java.io.CsvReader;
-import org.apache.flink.api.java.io.LocalCollectionOutputFormat;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.spargel.java.VertexCentricIteration;
 import org.apache.flink.util.Collector;
-import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.io.OutputFormat;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.ExecutionEnvironment;
-
-import java.io.IOException;
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
 
 
 @SuppressWarnings("serial")
@@ -504,19 +503,13 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
     	
     	// Take care of empty edge set
     	if (edges.isEmpty()) {
-    		return Graph.create(getVertices().union(newVertex), getEdges(), context);
-    	}
-
-    	// Do not add already existing vertices (and their edges)    	
-    	DataSet<Tuple2<K, VV>> oldVertices = getVertices();
-    	DataSet<Tuple2<K, VV>> newVertices = getVertices().union(newVertex).distinct();
-
-    	if (oldVertices.equals(newVertices)) {
-    		return this;
+    		return Graph.create(getVertices().union(newVertex).distinct(), getEdges(), context);
     	}
     	
     	// Add the vertex and its edges
+    	DataSet<Tuple2<K, VV>> newVertices = getVertices().union(newVertex).distinct();
     	DataSet<Tuple3<K, K, EV>> newEdges = getEdges().union(context.fromCollection(edges));
+    	
     	return Graph.create(newVertices, newEdges, context);
     }
 
@@ -528,29 +521,22 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 
     public Graph<K, VV, EV> removeVertex (Tuple2<K,VV> vertex) {
 
-        DataSet<Tuple2<K,VV>> vertexToRemove = context.fromCollection(Arrays.asList(vertex));
-
 		DataSet<Tuple2<K, VV>> newVertices = getVertices().filter(
-				new RemoveVertexFilter<K, VV>()).withBroadcastSet(
-				vertexToRemove, "vertexToRemove");
+				new RemoveVertexFilter<K, VV>(vertex));
 
 		DataSet<Tuple3<K, K, EV>> newEdges = getEdges().filter(
-				new VertexRemovalEdgeFilter<K, VV, EV>()).withBroadcastSet(
-				vertexToRemove, "vertexToRemove");
+				new VertexRemovalEdgeFilter<K, VV, EV>(vertex));
 
         return new Graph<K, VV, EV>(newVertices, newEdges, this.context);
     }
     
-    private static final class RemoveVertexFilter<K, VV> extends RichFilterFunction<Tuple2<K, VV>> {
+    private static final class RemoveVertexFilter<K, VV> implements FilterFunction<Tuple2<K, VV>> {
 
     	private Tuple2<K, VV> vertexToRemove;
 
-        @SuppressWarnings("unchecked")
-		@Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
-            this.vertexToRemove = (Tuple2<K, VV>) getRuntimeContext().getBroadcastVariable("vertexToRemove").get(0);
-        }
+        public RemoveVertexFilter(Tuple2<K, VV> vertex) {
+        	vertexToRemove = vertex;
+		}
 
         @Override
         public boolean filter(Tuple2<K, VV> vertex) throws Exception {
@@ -558,17 +544,13 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
         }
     }
     
-    private static final class VertexRemovalEdgeFilter<K, VV, EV> extends RichFilterFunction<Tuple3<K, K, EV>> {
+    private static final class VertexRemovalEdgeFilter<K, VV, EV> implements FilterFunction<Tuple3<K, K, EV>> {
 
     	private Tuple2<K, VV> vertexToRemove;
 
-        @SuppressWarnings("unchecked")
-		@Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
-            
-        	vertexToRemove = (Tuple2<K, VV>) getRuntimeContext().getBroadcastVariable("vertexToRemove").get(0);
-        }
+        public VertexRemovalEdgeFilter(Tuple2<K, VV> vertex) {
+			vertexToRemove = vertex;
+		}
 
         @Override
         public boolean filter(Tuple3<K, K, EV> edge) throws Exception {
@@ -585,26 +567,19 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
     
     public Graph<K, VV, EV> removeEdge (Tuple3<K,K,EV> edge) {
     	
-    	DataSet<Tuple3<K,K,EV>> edgeToRemove = context.fromCollection(Arrays.asList(edge));
-
 		DataSet<Tuple3<K, K, EV>> newEdges = getEdges().filter(
-				new EdgeRemovalEdgeFilter<K, VV, EV>()).withBroadcastSet(
-					edgeToRemove, "edgeToRemove");
+				new EdgeRemovalEdgeFilter<K, VV, EV>(edge));
 
         return new Graph<K, VV, EV>(this.getVertices(), newEdges, this.context);
     }
     
-    private static final class EdgeRemovalEdgeFilter<K, VV, EV> extends RichFilterFunction<Tuple3<K, K, EV>> {
+    private static final class EdgeRemovalEdgeFilter<K, VV, EV> implements FilterFunction<Tuple3<K, K, EV>> {
 
     	private Tuple3<K, K, EV> edgeToRemove;
 
-        @SuppressWarnings("unchecked")
-		@Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
-            
-            edgeToRemove = (Tuple3<K, K, EV>) getRuntimeContext().getBroadcastVariable("edgeToRemove").get(0);
-        }
+        public EdgeRemovalEdgeFilter(Tuple3<K, K, EV> edge) {
+			edgeToRemove = edge;
+		}
 
         @Override
         public boolean filter(Tuple3<K, K, EV> edge) throws Exception {
