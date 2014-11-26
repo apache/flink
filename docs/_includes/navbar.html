@@ -1,6 +1,49 @@
 <nav class="navbar navbar-default navbar-fixed-top" role="navigation">
   <div class="container">
-    <div class="navbar-header">
+    <div class="row">
+      <div class="col-md-1 af-mobile-nav-bar">
+	<a href="index.html" title="Home">
+	  <img class="hidden-xs hidden-sm img-responsive"
+	       src="img/logo.png" alt="Apache Flink Logo">
+	</a>	
+	<div class="row visible-xs">
+	  <div class="col-xs-3">
+	    <a href="index.html" title="Home">  
+	      <img class="hidden-x hidden-sm img-responsive"
+		   src="img/logo.png" alt="Apache Flink Logo">
+	    </a>	
+	  </div>
+	  <div class="col-xs-5"></div>
+	  <div class="col-xs-4">
+	    <div class="af-mobile-btn">
+	      <span class="glyphicon glyphicon-plus"></span>
+	    </div>
+	  </div>
+	</div>
+      </div>
+      <!-- Navigation -->
+      <div class="col-md-11">
+	<div class="collapse navbar-collapse" id="navbar-collapse-1">
+	  <ul class="nav navbar-nav">
+
+	    <li>
+	      <a href="index.html" class="{% if page.url contains 'index.html' %}active{% endif %}">Documentation</a>
+	    </li>
+
+	    <li>
+	      <a href="api/java/index.html">Javadoc</a>
+	    </li>
+
+	    <li>
+	      <a href="api/scala/index.html#org.apache.flink.api.scala.package">Scaladoc</a>
+	    </li>
+
+	  </ul>
+	</div>
+      </div>
+    </div>
+  </div>
+<!--    <div class="navbar-header">
       <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
         <span class="sr-only">Toggle navigation</span>
         <span class="icon-bar"></span>
@@ -8,24 +51,5 @@
         <span class="icon-bar"></span>
       </button>
       <a class="navbar-brand" href="http://flink.incubator.apache.org">Apache Flink</a>
-    </div>
-
-    <div class="collapse navbar-collapse" id="navbar-collapse-1">
-      <ul class="nav navbar-nav">
-
-        <li>
-          <a href="index.html" class="{% if page.url contains 'index.html' %}active{% endif %}">Documentation</a>
-        </li>
-
-        <li>
-          <a href="api/java/index.html">Javadoc</a>
-        </li>
-
-        <li>
-          <a href="api/scala/index.html#org.apache.flink.api.scala.package">Scaladoc</a>
-        </li>
-
-      </ul>
-    </div>
-  </div>
+    </div>-->
 </nav>
