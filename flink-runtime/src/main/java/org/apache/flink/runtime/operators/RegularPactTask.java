@@ -59,7 +59,6 @@ import org.apache.flink.runtime.operators.util.CloseableInputProvider;
 import org.apache.flink.runtime.operators.util.DistributedRuntimeUDFContext;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.apache.flink.runtime.operators.util.ReaderIterator;
-import org.apache.flink.runtime.operators.util.RecordReaderIterator;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
@@ -1031,20 +1030,11 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	}
 	
 	protected MutableObjectIterator<?> createInputIterator(MutableReader<?> inputReader, TypeSerializerFactory<?> serializerFactory) {
-
-		if (serializerFactory.getDataType().equals(Record.class)) {
-			// record specific deserialization
-			@SuppressWarnings("unchecked")
-			MutableReader<Record> reader = (MutableReader<Record>) inputReader;
-			return new RecordReaderIterator(reader);
-		} else {
-			// generic data type serialization
-			@SuppressWarnings("unchecked")
-			MutableReader<DeserializationDelegate<?>> reader = (MutableReader<DeserializationDelegate<?>>) inputReader;
-			@SuppressWarnings({ "unchecked", "rawtypes" })
-			final MutableObjectIterator<?> iter = new ReaderIterator(reader, serializerFactory.getSerializer());
-			return iter;
-		}
+		@SuppressWarnings("unchecked")
+		MutableReader<DeserializationDelegate<?>> reader = (MutableReader<DeserializationDelegate<?>>) inputReader;
+		@SuppressWarnings({ "unchecked", "rawtypes" })
+		final MutableObjectIterator<?> iter = new ReaderIterator(reader, serializerFactory.getSerializer());
+		return iter;
 	}
 
 	protected int getNumTaskInputs() {
