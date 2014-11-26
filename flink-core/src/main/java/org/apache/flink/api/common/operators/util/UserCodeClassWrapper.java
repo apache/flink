@@ -53,4 +53,9 @@ public class UserCodeClassWrapper<T> implements UserCodeWrapper<T> {
 	public Class<? extends T> getUserCodeClass() {
 		return userCodeClass;
 	}
+	
+	@Override
+	public boolean hasObject() {
+		return false;
+	}
 }

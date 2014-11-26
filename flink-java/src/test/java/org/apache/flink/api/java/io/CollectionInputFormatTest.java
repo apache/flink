@@ -246,11 +246,8 @@ public class CollectionInputFormatTest {
 				in.readObject();
 				fail("should throw an exception");
 			}
-			catch (TestException e) {
-				// expected
-			}
 			catch (Exception e) {
-				fail("Exception not properly forwarded");
+				assertTrue(e.getCause() instanceof TestException);
 			}
 		}
 		catch (Exception e) {

@@ -78,11 +78,15 @@ public class CollectionInputFormat<T> extends GenericInputFormat<T> implements N
 
 	private void writeObject(ObjectOutputStream out) throws IOException {
 		out.defaultWriteObject();
-		out.writeInt(dataSet.size());
 		
-		OutputViewObjectOutputStreamWrapper wrapper = new OutputViewObjectOutputStreamWrapper(out);
-		for (T element : dataSet){
-			serializer.serialize(element, wrapper);
+		final int size = dataSet.size();
+		out.writeInt(size);
+		
+		if (size > 0) {
+			OutputViewObjectOutputStreamWrapper wrapper = new OutputViewObjectOutputStreamWrapper(out);
+			for (T element : dataSet){
+				serializer.serialize(element, wrapper);
+			}
 		}
 	}
 
@@ -92,11 +96,17 @@ public class CollectionInputFormat<T> extends GenericInputFormat<T> implements N
 		int collectionLength = in.readInt();
 		List<T> list = new ArrayList<T>(collectionLength);
 		
-		InputViewObjectInputStreamWrapper wrapper = new InputViewObjectInputStreamWrapper(in);
-		for (int i = 0; i < collectionLength; i++){
-			T element = serializer.createInstance();
-			element = serializer.deserialize(element, wrapper);
-			list.add(element);
+		if (collectionLength > 0) {
+			try {
+				InputViewObjectInputStreamWrapper wrapper = new InputViewObjectInputStreamWrapper(in);
+				for (int i = 0; i < collectionLength; i++){
+					T element = serializer.deserialize(wrapper);
+					list.add(element);
+				}
+			}
+			catch (Throwable t) {
+				throw new IOException("Error while deserializing element from collection", t);
+			}
 		}
 
 		dataSet = list;

@@ -34,6 +34,7 @@ import org.apache.flink.api.common.aggregators.LongSumAggregator;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
 import org.apache.flink.api.common.distributions.DataDistribution;
+import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.compiler.CompilerException;
 import org.apache.flink.compiler.dag.TempMode;
@@ -835,6 +836,7 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		final TaskConfig config = new TaskConfig(vertex.getConfiguration());
 
 		vertex.setInvokableClass(DataSourceTask.class);
+		vertex.setFormatDescription(getDescriptionForUserCode(node.getPactContract().getUserCodeWrapper()));
 
 		// set user code
 		config.setStubWrapper(node.getPactContract().getUserCodeWrapper());
@@ -850,7 +852,8 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 
 		vertex.setInvokableClass(DataSinkTask.class);
 		vertex.getConfiguration().setInteger(DataSinkTask.DEGREE_OF_PARALLELISM_KEY, node.getDegreeOfParallelism());
-
+		vertex.setFormatDescription(getDescriptionForUserCode(node.getPactContract().getUserCodeWrapper()));
+		
 		// set user code
 		config.setStubWrapper(node.getPactContract().getUserCodeWrapper());
 		config.setStubParameters(node.getPactContract().getParameters());
@@ -1425,6 +1428,25 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		headConfig.addIterationAggregator(WorksetEmptyConvergenceCriterion.AGGREGATOR_NAME, new LongSumAggregator());
 		syncConfig.addIterationAggregator(WorksetEmptyConvergenceCriterion.AGGREGATOR_NAME, new LongSumAggregator());
 		syncConfig.setConvergenceCriterion(WorksetEmptyConvergenceCriterion.AGGREGATOR_NAME, new WorksetEmptyConvergenceCriterion());
+	}
+	
+	private static String getDescriptionForUserCode(UserCodeWrapper<?> wrapper) {
+		try {
+			if (wrapper.hasObject()) {
+				try {
+					return wrapper.getUserCodeObject().toString();
+				}
+				catch (Throwable t) {
+					return wrapper.getUserCodeClass().getName();
+				}
+			}
+			else {
+				return wrapper.getUserCodeClass().getName();
+			}
+		}
+		catch (Throwable t) {
+			return null;
+		}
 	}
 
 	// -------------------------------------------------------------------------------------

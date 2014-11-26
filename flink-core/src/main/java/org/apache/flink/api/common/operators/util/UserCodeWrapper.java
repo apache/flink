@@ -22,29 +22,26 @@ import java.io.Serializable;
 import java.lang.annotation.Annotation;
 
 /**
- * PACT contracts can have either a class or an object containing the user
+ * UDf operators can have either a class or an object containing the user
  * code, this is the common interface to access them.
  */
 public interface UserCodeWrapper<T> extends Serializable {
+	
 	/**
-	 * Gets the user code object. In the case of a pact, that object will be the stub with the user function,
-	 * in the case of an input or output format, it will be the format object.
-	 * 
+	 * Gets the user code object, which may be either a function or an input or output format.
 	 * The subclass is supposed to just return the user code object or instantiate the class.
 	 * 
 	 * @return The class with the user code.
 	 */
-	public T getUserCodeObject(Class<? super T> superClass, ClassLoader cl);
+	T getUserCodeObject(Class<? super T> superClass, ClassLoader cl);
 	
 	/**
 	 * Gets the user code object. In the case of a pact, that object will be the stub with the user function,
 	 * in the case of an input or output format, it will be the format object.
 	 * 
-	 * The subclass is supposed to just return the user code object or instantiate the class.
-	 * 
 	 * @return The class with the user code.
 	 */
-	public T getUserCodeObject();
+	T getUserCodeObject();
 	
 	/**
 	 * Gets an annotation that pertains to the user code class. By default, this method will look for
@@ -55,7 +52,7 @@ public interface UserCodeWrapper<T> extends Serializable {
 	 *        the Class object corresponding to the annotation type
 	 * @return the annotation, or null if no annotation of the requested type was found
 	 */
-	public <A extends Annotation> A getUserCodeAnnotation(Class<A> annotationClass);
+	<A extends Annotation> A getUserCodeAnnotation(Class<A> annotationClass);
 	
 	/**
 	 * Gets the class of the user code. If the user code is provided as a class, this class is just returned.
@@ -63,5 +60,12 @@ public interface UserCodeWrapper<T> extends Serializable {
 	 * 
 	 * @return The class of the user code object.
 	 */
-	public Class<? extends T> getUserCodeClass ();
+	Class<? extends T> getUserCodeClass ();
+	
+	/**
+	 * Checks whether the wrapper already has an object, or whether it needs to instantiate it.
+	 * 
+	 * @return True, if the wrapper has already an object, false if it has only a class.
+	 */
+	boolean hasObject();
 }
