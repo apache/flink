@@ -480,4 +480,35 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		return Graph.create(vertices, edges);
 	}
 
+	/**
+	 * Vertices may not have a value attached or may receive a value as a result of running the algorithm.
+	 * @param env
+	 * @param e the collection of edges
+	 * @return a new graph formed from the edges, with no value for the vertices
+	 */
+	public static <K extends Comparable<K> & Serializable, VV extends Serializable,
+			EV extends Serializable> Graph<K, NullValue, EV> fromCollection(ExecutionEnvironment env, Collection<Tuple3<K, K, EV>> e) {
+
+		DataSet<Tuple3<K, K, EV>> edges = env.fromCollection(e);
+
+		return Graph.create(edges);
+	}
+
+	/**
+	 * Vertices may have an initial value defined by a function.
+	 * @param env
+	 * @param e the collection of edges
+	 * @return a new graph formed from the edges, with a custom value for the vertices,
+	 * determined by the mapping function
+	 */
+	public static <K extends Comparable<K> & Serializable, VV extends Serializable,
+			EV extends Serializable> Graph<K, VV, EV> fromCollection(ExecutionEnvironment env,
+																	 Collection<Tuple3<K, K, EV>> e,
+																	 final MapFunction<K, VV> mapper) {
+
+		DataSet<Tuple3<K, K, EV>> edges = env.fromCollection(e);
+
+		return Graph.create(edges, mapper);
+	}
+
 }
