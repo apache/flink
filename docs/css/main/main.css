@@ -1,0 +1,370 @@
+/*----------------------------------------------------------------------
+    General
+----------------------------------------------------------------------*/
+
+/* Override Bootstrap Style */
+body {
+    font-family: Helvetica, Arial, sans-serif;
+}
+
+html {
+	font-size: 100%;
+}
+
+body {
+	font-size: 100%;
+}
+
+ul {
+	list-style-type: none;
+}
+
+.af-privacy-policy {
+	display: inline-block; 
+	font-style: normal;
+	font-size: 0.9em;
+	margin: 30px auto 0 auto;
+	font-style: normal;
+}
+
+.af-separator {
+	color: #ccc;
+}
+
+.divider {
+    border-bottom: 1px solid #ccc;
+	height: 4px;
+	margin: 8px 0 12px 0 !important;
+	overflow: hidden;
+	padding: 0;
+}
+
+/* Headings */
+.af-heading3 {
+	font-weight: bold;
+	margin-bottom: 20px;
+}
+
+/* Buttons */
+.af-btn {
+	color: #fff;
+	display: block;
+	padding: 0.4em 0.9em;
+	text-align: center;
+	text-decoration: none !important;
+}
+
+.af-btn:hover {
+	color: #fff;
+}
+
+.af-btn-large {
+	font-size: 1.4em;
+}
+
+.af-btn-orange {
+	background: #FA5F00;
+	border: 1px solid #7c5a2f;
+}
+
+.af-btn-blue {
+	background: #3795c6;
+	border: 1px solid #2c6e92;
+}
+
+/* Sections */
+.af-section {
+	font-size: 1.2em; 
+	padding-top : 35px;
+	padding-bottom: 35px;
+	padding-top: 35px;
+}
+
+.af-colored {
+	background: #2c3e50;
+	color: #fff;
+}
+
+/* General */
+
+.af-inner-pages-navigation {
+	padding-bottom:20px;
+}
+
+/*----------------------------------------------------------------------
+    Layout
+----------------------------------------------------------------------*/
+
+/* Header */
+.af-header-container {
+	background: #08131F;
+	/* #2c3e50 / #08131F my proposal*/
+	padding-top: 20px;
+}
+
+/* Navigation */
+.af-main-nav ul {
+	float: right;
+	margin-top: 20px;
+}
+
+.af-main-nav li {
+	float: left;
+	margin-right: 55px;
+	position: relative;
+}
+
+.af-main-nav li a {
+	color: #fff;
+	font-size: 1.15em;
+}
+
+.af-main-nav ul.af-dropdown-menu {
+	display:none;
+} 
+
+.caret {
+    display: inline-block;
+	width: 0;
+	height: 0;
+	margin-left: 2px;
+	vertical-align: middle;
+	border-top: 4px solid;
+	border-right: 4px solid rgba(0, 0, 0, 0);
+	border-left: 4px solid rgba(0, 0, 0, 0);
+}
+
+/* Front Top Area */
+.af-front-top {
+	text-align: center;
+	margin: 30px auto;
+}
+
+.af-front-top-logo {
+	margin: 30px auto 50px auto;
+	width: 30%;
+}
+
+.af-front-top-headline1 {
+	color: #fff;
+	font-size: 3.6em;
+}
+
+.af-front-top-headline2 {
+	color: #fff;
+	font-size: 1.8em;
+	font-weight: normal;
+	margin-top: 30px;
+}
+
+/* Front Top Buttons */
+.af-front-top-buttons {
+	background: #1b2e3d;
+	padding-top: 18px;
+	padding-bottom: 18px;
+}
+
+/* Front Page Icons */
+#af-assets {
+	padding-top: 65px;
+	padding-bottom: 65px;
+}
+
+.af-asset {
+	text-align: center;
+}
+
+.af-asset-img {
+	background: #08131F;
+	border-radius: 100%;
+	height: 100px;
+	margin: 0px auto 15px auto;
+	width: 100px;
+}
+
+.af-asset-img:hover {
+	background: #3795c6;
+}
+
+.af-asset-img img {
+	padding: 30px;
+}
+
+.af-asset-heading {
+	color: #2c3e50;
+	font-weight: bold;
+}
+
+.af-section-row {
+	margin-top: 25px;
+}
+
+/* Up Footer */
+#af-upfooter {
+	background: #e6e6e6;
+	font-style: italic;
+}
+
+#af-upfooter img {
+	margin: 20px auto 0 auto;
+}
+
+/* Footer */
+#af-footer {
+	background: #101416;
+	color: #fff;
+	padding: 20px 0 0 0;
+}
+
+#af-footer h3 {
+	font-size: 1.2em;
+	color: #fff !important;
+}
+
+.af-footer-menu {
+	margin: 35px 0 35px 0;
+	padding: 0;
+}
+
+.af-footer-menu li {
+	padding: 0 0 15px 0;
+}
+
+.af-footer-menu li a {
+	color: #fff;
+}
+
+.af-footer-bar {
+	background: #0d100e;
+	color: #fff;
+	font-size: 0.9em;
+	padding: 17px 0;
+}
+
+.af-footer-bar a {
+	color: #F7931E;
+}
+
+.af-footer-img {
+	display: inline-block;
+	margin-right: 2%;
+	width: 30px;
+}
+
+.af-footer-menu span {
+	font-size: 0.8em;
+}
+
+/*----------------------------------------------------------------------
+    Responsive CSS 768px / 992px / 1200px
+----------------------------------------------------------------------*/
+
+@media all and (min-width: 768px) {
+    
+    /* Navigation */
+    .af-main-nav > ul {
+       display:block !important;
+    }
+    
+   .af-main-nav ul.af-dropdown-menu {
+        background: #1B2E3D;
+        border-bottom-left-radius: 5px;
+        border-bottom-right-radius: 5px;
+        display: none;
+        margin: 5px 0 0 0;
+        padding: 10px 0;
+        position: absolute;
+        z-index: 10;
+    }
+    
+    .af-dropdown-menu li {
+        display: block;
+        float: none;
+        margin: 0;
+        padding: 3px 20px;
+    }
+    
+    .af-dropdown-menu li a {
+        font-size: 1em;
+        white-space: nowrap;
+    }
+}
+
+/* Medium Devices */
+@media all and (max-width: 1190px) {
+
+	/* Navigation */
+	.af-main-nav li {
+		margin-right: 25px;
+	}
+	
+	.af-main-nav li a {
+		color: #fff;
+		font-size: 1em;
+	}
+}
+
+/* Small Devices */
+@media all and (max-width: 991px) {
+    
+    /* Navigation */
+    .af-main-nav ul {
+        float: none;
+    }
+    
+	/* Sections */
+	.af-section-img {
+		margin: 35px auto;
+	}
+
+}
+
+/* XSmall Devices */
+@media all and (max-width: 767px) {
+	
+	.af-header-container {
+	   padding-top: 0;
+	}
+	
+	.af-mobile-nav-bar {
+	   color: #fff;
+	   padding-top: 20px;
+	   padding-bottom: 20px;
+	}
+	
+	.af-mobile-nav-bar .glyphicon {
+	   font-size: 1.5em;
+	} 
+	
+	.af-mobile-btn {
+	   background: #FA5F00;
+	   margin-right: -15px;
+	   padding: 10px;
+	}
+	
+	/* Navigation */
+	.af-main-nav ul {
+	   margin: 0;
+	   padding: 0;
+	   display:none;
+	}
+	
+	.af-main-nav ul li {
+		float: none;
+		border-bottom:1px solid #fff;
+		padding: 0;
+		margin: 0;
+	}
+	
+	.af-main-nav ul li a {
+	   background: #1B2E3D;
+	   display: block;
+	   font-size: 0.9em;
+	   font-weight:bold;
+	   padding: 15px 10px;
+	}
+	
+	.af-main-nav ul li.active a {
+       background: #FA5F00;
+    }
+}

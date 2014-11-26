@@ -5,21 +5,22 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Apache Flink (incubating): {{ page.title }}</title>
-    <link rel="stylesheet" href="{{ site.baseurl }}/css/bootstrap.css">
-    <link rel="stylesheet" href="{{ site.baseurl }}/css/bootstrap-lumen-custom.css">
-    <link rel="stylesheet" href="{{ site.baseurl }}/css/syntax.css">
-    <link rel="/css/custom.css">
-    <link rel="css/codetabs.css">
-    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+    <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <link rel="stylesheet" href="css/bootstrap.css">
+    <link rel="stylesheet" href="css/bootstrap-lumen-custom.css">
+    <link rel="stylesheet" href="css/syntax.css">
+    <link rel="stylesheet" href="css/custom.css">
+    <link href="css/main/main.css" rel="stylesheet">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
-    <script src="/js/bootstrap.min.js"></script>
+    <script src="js/bootstrap.min.js"></script>
     <script src="js/codetabs.js"></script>
   </head>
   <body>
 
     {% include navbar.html %}
 
-    <div style="padding-top:70px" class="container">
+    <div style="padding-top:120px" class="container">
 
       <div class="row">
         <div class="col-md-3">
@@ -27,9 +28,10 @@
         </div>  
         <div class="col-md-9">
           <h1>{{ page.title }}</h1>
-
+	  
           {{ content }}
-
+	  
+        <!-- Disqus Area -->
           <div style="padding-top:30px" id="disqus_thread"></div>
       
             <script type="text/javascript">
@@ -44,8 +46,6 @@
                 })();
             </script>
             <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
-            <a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
-
           </div>
         </div>
 
