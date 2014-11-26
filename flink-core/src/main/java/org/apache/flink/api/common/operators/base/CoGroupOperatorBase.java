@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.operators.base;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.Partitioner;
@@ -186,7 +187,7 @@ public class CoGroupOperatorBase<IN1, IN2, OUT, FT extends CoGroupFunction<IN1, 
 	// ------------------------------------------------------------------------
 
 	@Override
-	protected List<OUT> executeOnCollections(List<IN1> input1, List<IN2> input2, RuntimeContext ctx, boolean mutableObjectSafe) throws Exception {
+	protected List<OUT> executeOnCollections(List<IN1> input1, List<IN2> input2, RuntimeContext ctx, ExecutionConfig executionConfig) throws Exception {
 		// --------------------------------------------------------------------
 		// Setup
 		// --------------------------------------------------------------------
@@ -196,17 +197,19 @@ public class CoGroupOperatorBase<IN1, IN2, OUT, FT extends CoGroupFunction<IN1, 
 		// for the grouping / merging comparator
 		int[] inputKeys1 = getKeyColumns(0);
 		int[] inputKeys2 = getKeyColumns(1);
+
+		boolean objectReuseDisabled = !executionConfig.isObjectReuseEnabled();
 		
 		boolean[] inputDirections1 = new boolean[inputKeys1.length];
 		boolean[] inputDirections2 = new boolean[inputKeys2.length];
 		Arrays.fill(inputDirections1, true);
 		Arrays.fill(inputDirections2, true);
 		
-		final TypeSerializer<IN1> inputSerializer1 = inputType1.createSerializer();
-		final TypeSerializer<IN2> inputSerializer2 = inputType2.createSerializer();
+		final TypeSerializer<IN1> inputSerializer1 = inputType1.createSerializer(executionConfig);
+		final TypeSerializer<IN2> inputSerializer2 = inputType2.createSerializer(executionConfig);
 		
-		final TypeComparator<IN1> inputComparator1 = getTypeComparator(inputType1, inputKeys1, inputDirections1);
-		final TypeComparator<IN2> inputComparator2 = getTypeComparator(inputType2, inputKeys2, inputDirections2);
+		final TypeComparator<IN1> inputComparator1 = getTypeComparator(executionConfig, inputType1, inputKeys1, inputDirections1);
+		final TypeComparator<IN2> inputComparator2 = getTypeComparator(executionConfig, inputType2, inputKeys2, inputDirections2);
 		
 		final TypeComparator<IN1> inputSortComparator1;
 		final TypeComparator<IN2> inputSortComparator2;
@@ -227,7 +230,7 @@ public class CoGroupOperatorBase<IN1, IN2, OUT, FT extends CoGroupFunction<IN1, 
 			Arrays.fill(allSortDirections, 0, inputKeys1.length, true);
 			System.arraycopy(groupSortDirections, 0, allSortDirections, inputKeys1.length, groupSortDirections.length);
 			
-			inputSortComparator1 = getTypeComparator(inputType1, allSortKeys, allSortDirections);
+			inputSortComparator1 = getTypeComparator(executionConfig, inputType1, allSortKeys, allSortDirections);
 		}
 		
 		if (groupOrder2 == null || groupOrder2.getNumberOfFields() == 0) {
@@ -246,12 +249,12 @@ public class CoGroupOperatorBase<IN1, IN2, OUT, FT extends CoGroupFunction<IN1, 
 			Arrays.fill(allSortDirections, 0, inputKeys2.length, true);
 			System.arraycopy(groupSortDirections, 0, allSortDirections, inputKeys2.length, groupSortDirections.length);
 			
-			inputSortComparator2 = getTypeComparator(inputType2, allSortKeys, allSortDirections);
+			inputSortComparator2 = getTypeComparator(executionConfig, inputType2, allSortKeys, allSortDirections);
 		}
 
 		CoGroupSortListIterator<IN1, IN2> coGroupIterator =
 				new CoGroupSortListIterator<IN1, IN2>(input1, inputSortComparator1, inputComparator1, inputSerializer1,
-						input2, inputSortComparator2, inputComparator2, inputSerializer2, mutableObjectSafe);
+						input2, inputSortComparator2, inputComparator2, inputSerializer2, objectReuseDisabled);
 
 		// --------------------------------------------------------------------
 		// Run UDF
@@ -262,8 +265,8 @@ public class CoGroupOperatorBase<IN1, IN2, OUT, FT extends CoGroupFunction<IN1, 
 		FunctionUtils.openFunction(function, parameters);
 
 		List<OUT> result = new ArrayList<OUT>();
-		Collector<OUT> resultCollector = mutableObjectSafe ?
-				new CopyingListCollector<OUT>(result, getOperatorInfo().getOutputType().createSerializer()) :
+		Collector<OUT> resultCollector = objectReuseDisabled ?
+				new CopyingListCollector<OUT>(result, getOperatorInfo().getOutputType().createSerializer(executionConfig)) :
 				new ListCollector<OUT>(result);
 
 		while (coGroupIterator.next()) {
@@ -275,12 +278,12 @@ public class CoGroupOperatorBase<IN1, IN2, OUT, FT extends CoGroupFunction<IN1, 
 		return result;
 	}
 
-	private <T> TypeComparator<T> getTypeComparator(TypeInformation<T> inputType, int[] inputKeys, boolean[] inputSortDirections) {
+	private <T> TypeComparator<T> getTypeComparator(ExecutionConfig executionConfig, TypeInformation<T> inputType, int[] inputKeys, boolean[] inputSortDirections) {
 		if (!(inputType instanceof CompositeType)) {
 			throw new InvalidProgramException("Input types of coGroup must be composite types.");
 		}
 
-		return ((CompositeType<T>) inputType).createComparator(inputKeys, inputSortDirections, 0);
+		return ((CompositeType<T>) inputType).createComparator(inputKeys, inputSortDirections, 0, executionConfig);
 	}
 
 	private static class CoGroupSortListIterator<IN1, IN2> {

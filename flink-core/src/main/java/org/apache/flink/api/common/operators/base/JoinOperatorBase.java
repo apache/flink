@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.operators.base;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.RuntimeContext;
@@ -139,7 +140,7 @@ public class JoinOperatorBase<IN1, IN2, OUT, FT extends FlatJoinFunction<IN1, IN
 
 	@SuppressWarnings("unchecked")
 	@Override
-	protected List<OUT> executeOnCollections(List<IN1> inputData1, List<IN2> inputData2, RuntimeContext runtimeContext, boolean mutableObjectSafe) throws Exception {
+	protected List<OUT> executeOnCollections(List<IN1> inputData1, List<IN2> inputData2, RuntimeContext runtimeContext, ExecutionConfig executionConfig) throws Exception {
 		FlatJoinFunction<IN1, IN2, OUT> function = userFunction.getUserCodeObject();
 
 		FunctionUtils.setFunctionRuntimeContext(function, runtimeContext);
@@ -148,22 +149,24 @@ public class JoinOperatorBase<IN1, IN2, OUT, FT extends FlatJoinFunction<IN1, IN
 		TypeInformation<IN1> leftInformation = getOperatorInfo().getFirstInputType();
 		TypeInformation<IN2> rightInformation = getOperatorInfo().getSecondInputType();
 		TypeInformation<OUT> outInformation = getOperatorInfo().getOutputType();
+
+		boolean objectReuseDisabled = !executionConfig.isObjectReuseEnabled();
 		
-		TypeSerializer<IN1> leftSerializer = mutableObjectSafe ? leftInformation.createSerializer() : null;
-		TypeSerializer<IN2> rightSerializer = mutableObjectSafe ? rightInformation.createSerializer() : null;
+		TypeSerializer<IN1> leftSerializer = objectReuseDisabled ? leftInformation.createSerializer(executionConfig) : null;
+		TypeSerializer<IN2> rightSerializer = objectReuseDisabled ? rightInformation.createSerializer(executionConfig) : null;
 		
 		TypeComparator<IN1> leftComparator;
 		TypeComparator<IN2> rightComparator;
 
 		if (leftInformation instanceof AtomicType) {
-			leftComparator = ((AtomicType<IN1>) leftInformation).createComparator(true);
+			leftComparator = ((AtomicType<IN1>) leftInformation).createComparator(true, executionConfig);
 		}
 		else if (leftInformation instanceof CompositeType) {
 			int[] keyPositions = getKeyColumns(0);
 			boolean[] orders = new boolean[keyPositions.length];
 			Arrays.fill(orders, true);
 
-			leftComparator = ((CompositeType<IN1>) leftInformation).createComparator(keyPositions, orders, 0);
+			leftComparator = ((CompositeType<IN1>) leftInformation).createComparator(keyPositions, orders, 0, executionConfig);
 		}
 		else {
 			throw new RuntimeException("Type information for left input of type " + leftInformation.getClass()
@@ -171,14 +174,14 @@ public class JoinOperatorBase<IN1, IN2, OUT, FT extends FlatJoinFunction<IN1, IN
 		}
 
 		if (rightInformation instanceof AtomicType) {
-			rightComparator = ((AtomicType<IN2>) rightInformation).createComparator(true);
+			rightComparator = ((AtomicType<IN2>) rightInformation).createComparator(true, executionConfig);
 		}
 		else if (rightInformation instanceof CompositeType) {
 			int[] keyPositions = getKeyColumns(1);
 			boolean[] orders = new boolean[keyPositions.length];
 			Arrays.fill(orders, true);
 
-			rightComparator = ((CompositeType<IN2>) rightInformation).createComparator(keyPositions, orders, 0);
+			rightComparator = ((CompositeType<IN2>) rightInformation).createComparator(keyPositions, orders, 0, executionConfig);
 		}
 		else {
 			throw new RuntimeException("Type information for right input of type " + rightInformation.getClass()
@@ -188,7 +191,7 @@ public class JoinOperatorBase<IN1, IN2, OUT, FT extends FlatJoinFunction<IN1, IN
 		TypePairComparator<IN1, IN2> pairComparator = new GenericPairComparator<IN1, IN2>(leftComparator, rightComparator);
 
 		List<OUT> result = new ArrayList<OUT>();
-		Collector<OUT> collector = mutableObjectSafe ? new CopyingListCollector<OUT>(result, outInformation.createSerializer())
+		Collector<OUT> collector = objectReuseDisabled ? new CopyingListCollector<OUT>(result, outInformation.createSerializer(executionConfig))
 														: new ListCollector<OUT>(result);
 
 		Map<Integer, List<IN2>> probeTable = new HashMap<Integer, List<IN2>>();
@@ -212,7 +215,7 @@ public class JoinOperatorBase<IN1, IN2, OUT, FT extends FlatJoinFunction<IN1, IN
 				pairComparator.setReference(left);
 				for (IN2 right : matchingHashes) {
 					if (pairComparator.equalToReference(right)) {
-						if (mutableObjectSafe) {
+						if (objectReuseDisabled) {
 							function.join(leftSerializer.copy(left), rightSerializer.copy(right), collector);
 						} else {
 							function.join(left, right, collector);

@@ -19,11 +19,13 @@
 package org.apache.flink.api.java.typeutils;
 
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 /**
  * {@link org.apache.flink.api.common.io.OutputFormat}s can implement this interface to be configured
- * with the data type they will operate on. The method {@link #setInputType(TypeInformation)} will be
+ * with the data type they will operate on. The method {@link #setInputType(org.apache.flink.api
+ * .common.typeinfo.TypeInformation, org.apache.flink.api.common.ExecutionConfig)} will be
  * called when the output format is used with an output method such as
  * {@link org.apache.flink.api.java.DataSet#output(org.apache.flink.api.common.io.OutputFormat)}.
  */
@@ -32,8 +34,9 @@ public interface InputTypeConfigurable {
 	/**
 	 * Method that is called on an {@link org.apache.flink.api.common.io.OutputFormat} when it is passed to
 	 * the DataSet's output method. May be used to configures the output format based on the data type.
-	 * 
+	 *
 	 * @param type The data type of the input.
+	 * @param executionConfig
 	 */
-	void setInputType(TypeInformation<?> type);
+	void setInputType(TypeInformation<?> type, ExecutionConfig executionConfig);
 }

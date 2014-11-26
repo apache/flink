@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.typeutils;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeinfo.AtomicType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -43,7 +44,7 @@ public class WritableTypeInfo<T extends Writable> extends TypeInformation<T> imp
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Override
-	public TypeComparator<T> createComparator(boolean sortOrderAscending) {
+	public TypeComparator<T> createComparator(boolean sortOrderAscending, ExecutionConfig executionConfig) {
 		if(Comparable.class.isAssignableFrom(typeClass)) {
 			return new WritableComparator(sortOrderAscending, typeClass);
 		}
@@ -84,7 +85,7 @@ public class WritableTypeInfo<T extends Writable> extends TypeInformation<T> imp
 	}
 
 	@Override
-	public TypeSerializer<T> createSerializer() {
+	public TypeSerializer<T> createSerializer(ExecutionConfig executionConfig) {
 		return new WritableSerializer<T>(typeClass);
 	}
 	

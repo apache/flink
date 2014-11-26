@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -40,14 +41,14 @@ import org.junit.Test;
 import com.google.common.base.Objects;
 
 /**
- * A test for the {@link org.apache.flink.api.java.typeutils.runtime.PojoSerializer}.
+ * A test for the {@link PojoSerializer}.
  */
 public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.TestUserClass> {
 	private TypeInformation<TestUserClass> type = TypeExtractor.getForClass(TestUserClass.class);
 
 	@Override
 	protected TypeSerializer<TestUserClass> createSerializer() {
-		TypeSerializer<TestUserClass> serializer = type.createSerializer();
+		TypeSerializer<TestUserClass> serializer = type.createSerializer(new ExecutionConfig());
 		assert(serializer instanceof PojoSerializer);
 		return serializer;
 	}
@@ -199,14 +200,14 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 		pType.getFlatFields("nestedClass.dumm2", 0, result);
 		int[] fields = new int[1]; // see below
 		fields[0] = result.get(0).getPosition();
-		TypeComparator<TestUserClass> pojoComp = pType.createComparator( fields, new boolean[]{true}, 0);
+		TypeComparator<TestUserClass> pojoComp = pType.createComparator( fields, new boolean[]{true}, 0, new ExecutionConfig());
 		
 		TestUserClass pojoTestRecord = new TestUserClass(0, "abc", 3d, new int[] {1,2,3}, new NestedTestUserClass(1, "haha", 4d, new int[] {5,4,3}));
 		int pHash = pojoComp.hash(pojoTestRecord);
 		
 		Tuple1<String> tupleTest = new Tuple1<String>("haha");
 		TupleTypeInfo<Tuple1<String>> tType = (TupleTypeInfo<Tuple1<String>>)TypeExtractor.getForObject(tupleTest);
-		TypeComparator<Tuple1<String>> tupleComp = tType.createComparator(new int[] {0}, new boolean[] {true}, 0);
+		TypeComparator<Tuple1<String>> tupleComp = tType.createComparator(new int[] {0}, new boolean[] {true}, 0, new ExecutionConfig());
 		
 		int tHash = tupleComp.hash(tupleTest);
 		
@@ -223,12 +224,12 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 			e.printStackTrace();
 			Assert.fail("Keys must be compatible: "+e.getMessage());
 		}
-		TypeComparator<TestUserClass> multiPojoComp = pType.createComparator( expressKey.computeLogicalKeyPositions(), new boolean[]{true, true, true}, 0);
+		TypeComparator<TestUserClass> multiPojoComp = pType.createComparator( expressKey.computeLogicalKeyPositions(), new boolean[]{true, true, true}, 0, new ExecutionConfig());
 		int multiPojoHash = multiPojoComp.hash(pojoTestRecord);
 		
 		
 		// pojo order is: dumm2 (str), dumm1 (int), dumm3 (double).
-		TypeComparator<Tuple3<Integer, String, Double>> multiTupleComp = multiTupleType.createComparator(fieldKey.computeLogicalKeyPositions(), new boolean[] {true, true,true}, 0);
+		TypeComparator<Tuple3<Integer, String, Double>> multiTupleComp = multiTupleType.createComparator(fieldKey.computeLogicalKeyPositions(), new boolean[] {true, true,true}, 0, new ExecutionConfig());
 		int multiTupleHash = multiTupleComp.hash(multiTupleTest);
 		
 		Assert.assertTrue("The hashing for tuples and pojos must be the same, so that they are mixable. Also for those with multiple key fields", multiPojoHash == multiTupleHash);

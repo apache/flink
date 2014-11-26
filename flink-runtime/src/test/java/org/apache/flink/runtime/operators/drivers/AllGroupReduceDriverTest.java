@@ -21,6 +21,7 @@ package org.apache.flink.runtime.operators.drivers;
 import java.util.Arrays;
 import java.util.List;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -52,7 +53,7 @@ public class AllGroupReduceDriverTest {
 			MutableObjectIterator<Tuple2<String, Integer>> input = EmptyMutableObjectIterator.get();
 			context.setDriverStrategy(DriverStrategy.ALL_GROUP_REDUCE);
 			
-			context.setInput1(input, typeInfo.createSerializer());
+			context.setInput1(input, typeInfo.createSerializer(new ExecutionConfig()));
 			context.setCollector(new DiscardingOutputCollector<Tuple2<String, Integer>>());
 			
 			AllGroupReduceDriver<Tuple2<String, Integer>, Tuple2<String, Integer>> driver = new AllGroupReduceDriver<Tuple2<String, Integer>, Tuple2<String, Integer>>();
@@ -75,12 +76,12 @@ public class AllGroupReduceDriverTest {
 			
 			List<Tuple2<String, Integer>> data = DriverTestData.createReduceImmutableData();
 			TypeInformation<Tuple2<String, Integer>> typeInfo = TypeExtractor.getForObject(data.get(0));
-			MutableObjectIterator<Tuple2<String, Integer>> input = new RegularToMutableObjectIterator<Tuple2<String, Integer>>(data.iterator(), typeInfo.createSerializer());
+			MutableObjectIterator<Tuple2<String, Integer>> input = new RegularToMutableObjectIterator<Tuple2<String, Integer>>(data.iterator(), typeInfo.createSerializer(new ExecutionConfig()));
 			
-			GatheringCollector<Tuple2<String, Integer>> result = new GatheringCollector<Tuple2<String,Integer>>(typeInfo.createSerializer());
+			GatheringCollector<Tuple2<String, Integer>> result = new GatheringCollector<Tuple2<String,Integer>>(typeInfo.createSerializer(new ExecutionConfig()));
 			
 			context.setDriverStrategy(DriverStrategy.ALL_GROUP_REDUCE);
-			context.setInput1(input, typeInfo.createSerializer());
+			context.setInput1(input, typeInfo.createSerializer(new ExecutionConfig()));
 			context.setCollector(result);
 			context.setUdf(new ConcatSumReducer());
 			
@@ -115,12 +116,12 @@ public class AllGroupReduceDriverTest {
 			
 			List<Tuple2<StringValue, IntValue>> data = DriverTestData.createReduceMutableData();
 			TypeInformation<Tuple2<StringValue, IntValue>> typeInfo = TypeExtractor.getForObject(data.get(0));
-			MutableObjectIterator<Tuple2<StringValue, IntValue>> input = new RegularToMutableObjectIterator<Tuple2<StringValue, IntValue>>(data.iterator(), typeInfo.createSerializer());
+			MutableObjectIterator<Tuple2<StringValue, IntValue>> input = new RegularToMutableObjectIterator<Tuple2<StringValue, IntValue>>(data.iterator(), typeInfo.createSerializer(new ExecutionConfig()));
 			
-			GatheringCollector<Tuple2<StringValue, IntValue>> result = new GatheringCollector<Tuple2<StringValue, IntValue>>(typeInfo.createSerializer());
+			GatheringCollector<Tuple2<StringValue, IntValue>> result = new GatheringCollector<Tuple2<StringValue, IntValue>>(typeInfo.createSerializer(new ExecutionConfig()));
 			
 			context.setDriverStrategy(DriverStrategy.ALL_GROUP_REDUCE);
-			context.setInput1(input, typeInfo.createSerializer());
+			context.setInput1(input, typeInfo.createSerializer(new ExecutionConfig()));
 			context.setCollector(result);
 			context.setUdf(new ConcatSumMutableReducer());
 			

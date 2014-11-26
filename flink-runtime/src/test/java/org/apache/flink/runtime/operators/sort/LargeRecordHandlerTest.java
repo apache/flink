@@ -23,6 +23,7 @@ import static org.junit.Assert.*;
 import java.util.List;
 import java.util.Random;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -55,9 +56,9 @@ public class LargeRecordHandlerTest {
 			final TupleTypeInfo<Tuple2<Long, String>> typeInfo = (TupleTypeInfo<Tuple2<Long, String>>) 
 					TypeInfoParser.<Tuple2<Long, String>>parse("Tuple2<Long, String>");
 
-			final TypeSerializer<Tuple2<Long, String>> serializer = typeInfo.createSerializer();
+			final TypeSerializer<Tuple2<Long, String>> serializer = typeInfo.createSerializer(new ExecutionConfig());
 			final TypeComparator<Tuple2<Long, String>> comparator = typeInfo.createComparator(
-					new int[] {0}, new boolean[] {true}, 0);
+					new int[] {0}, new boolean[] {true}, 0, new ExecutionConfig());
 			
 			LargeRecordHandler<Tuple2<Long, String>> handler = new LargeRecordHandler<Tuple2<Long, String>>(
 					serializer, comparator, ioMan, memMan, memory, owner, 128);
@@ -109,9 +110,9 @@ public class LargeRecordHandlerTest {
 			final TupleTypeInfo<Tuple2<Long, String>> typeInfo = (TupleTypeInfo<Tuple2<Long, String>>) 
 					TypeInfoParser.<Tuple2<Long, String>>parse("Tuple2<Long, String>");
 
-			final TypeSerializer<Tuple2<Long, String>> serializer = typeInfo.createSerializer();
+			final TypeSerializer<Tuple2<Long, String>> serializer = typeInfo.createSerializer(new ExecutionConfig());
 			final TypeComparator<Tuple2<Long, String>> comparator = typeInfo.createComparator(
-					new int[] {0}, new boolean[] {true}, 0);
+					new int[] {0}, new boolean[] {true}, 0, new ExecutionConfig());
 			
 			LargeRecordHandler<Tuple2<Long, String>> handler = new LargeRecordHandler<Tuple2<Long, String>>(
 					serializer, comparator, ioMan, memMan, initialMemory, owner, 128);
@@ -197,9 +198,9 @@ public class LargeRecordHandlerTest {
 			final TupleTypeInfo<Tuple3<Long, String, Byte>> typeInfo = (TupleTypeInfo<Tuple3<Long, String, Byte>>) 
 					TypeInfoParser.<Tuple3<Long, String, Byte>>parse("Tuple3<Long, String, Byte>");
 
-			final TypeSerializer<Tuple3<Long, String, Byte>> serializer = typeInfo.createSerializer();
+			final TypeSerializer<Tuple3<Long, String, Byte>> serializer = typeInfo.createSerializer(new ExecutionConfig());
 			final TypeComparator<Tuple3<Long, String, Byte>> comparator = typeInfo.createComparator(
-					new int[] {2, 0}, new boolean[] {true, true}, 0);
+					new int[] {2, 0}, new boolean[] {true, true}, 0, new ExecutionConfig());
 			
 			LargeRecordHandler<Tuple3<Long, String, Byte>> handler = new LargeRecordHandler<Tuple3<Long, String, Byte>>(
 					serializer, comparator, ioMan, memMan, initialMemory, owner, 128);

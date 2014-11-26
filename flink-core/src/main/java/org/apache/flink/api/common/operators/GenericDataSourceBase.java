@@ -22,6 +22,7 @@ package org.apache.flink.api.common.operators;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
@@ -176,7 +177,7 @@ public class GenericDataSourceBase<OUT, T extends InputFormat<OUT, ?>> extends O
 	
 	// --------------------------------------------------------------------------------------------
 	
-	protected List<OUT> executeOnCollections(boolean mutableObjectSafe) throws Exception {
+	protected List<OUT> executeOnCollections(ExecutionConfig executionConfig, boolean mutableObjectSafe) throws Exception {
 		@SuppressWarnings("unchecked")
 		InputFormat<OUT, InputSplit> inputFormat = (InputFormat<OUT, InputSplit>) this.formatWrapper.getUserCodeObject();
 		inputFormat.configure(this.parameters);
@@ -185,7 +186,7 @@ public class GenericDataSourceBase<OUT, T extends InputFormat<OUT, ?>> extends O
 		
 		// splits
 		InputSplit[] splits = inputFormat.createInputSplits(1);
-		TypeSerializer<OUT> serializer = getOperatorInfo().getOutputType().createSerializer();
+		TypeSerializer<OUT> serializer = getOperatorInfo().getOutputType().createSerializer(executionConfig);
 		
 		for (InputSplit split : splits) {
 			inputFormat.open(split);

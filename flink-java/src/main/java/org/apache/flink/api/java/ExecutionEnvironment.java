@@ -54,10 +54,10 @@ import org.apache.flink.api.java.operators.Operator;
 import org.apache.flink.api.java.operators.OperatorTranslation;
 import org.apache.flink.api.java.operators.translation.JavaPlan;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.ValueTypeInfo;
-import org.apache.flink.api.java.typeutils.runtime.KryoSerializer;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.NumberSequenceIterator;
@@ -103,8 +103,7 @@ public abstract class ExecutionEnvironment {
 	private final List<Tuple2<String, DistributedCacheEntry>> cacheFile = new ArrayList<Tuple2<String, DistributedCacheEntry>>();
 
 	private ExecutionConfig config = new ExecutionConfig();
-	
-	
+
 	// --------------------------------------------------------------------------------------------
 	//  Constructor and Properties
 	// --------------------------------------------------------------------------------------------
@@ -114,14 +113,6 @@ public abstract class ExecutionEnvironment {
 	 */
 	protected ExecutionEnvironment() {
 		this.executionId = UUID.randomUUID();
-	}
-
-	/**
-	 * Sets the config object.
-	 */
-	public void setConfig(ExecutionConfig config) {
-		Validate.notNull(config);
-		this.config = config;
 	}
 
 	/**
@@ -208,7 +199,7 @@ public abstract class ExecutionEnvironment {
 	// --------------------------------------------------------------------------------------------
 	//  Registry for types and serializers
 	// --------------------------------------------------------------------------------------------
-	
+
 	/**
 	 * Registers the given Serializer as a default serializer for the given type at the
 	 * {@link org.apache.flink.api.java.typeutils.runtime.KryoSerializer}.
@@ -220,11 +211,7 @@ public abstract class ExecutionEnvironment {
 	 * @param serializer The serializer to use.
 	 */
 	public void registerKryoSerializer(Class<?> type, Serializer<?> serializer) {
-		if (type == null || serializer == null) {
-			throw new NullPointerException("Cannot register null class or serializer.");
-		}
-		
-		KryoSerializer.registerSerializer(type, serializer);
+		config.registerKryoSerializer(type, serializer);
 	}
 
 	/**
@@ -235,11 +222,7 @@ public abstract class ExecutionEnvironment {
 	 * @param serializerClass The class of the serializer to use.
 	 */
 	public void registerKryoSerializer(Class<?> type, Class<? extends Serializer<?>> serializerClass) {
-		if (type == null || serializerClass == null) {
-			throw new NullPointerException("Cannot register null class or serializer.");
-		}
-		
-		KryoSerializer.registerSerializer(type, serializerClass);
+		config.registerKryoSerializer(type, serializerClass);
 	}
 	
 	/**
@@ -254,10 +237,16 @@ public abstract class ExecutionEnvironment {
 		if (type == null) {
 			throw new NullPointerException("Cannot register null type class.");
 		}
-		
-		KryoSerializer.registerType(type);
+
+		TypeInformation<?> typeInfo = TypeExtractor.createTypeInfo(type);
+
+		if (typeInfo instanceof PojoTypeInfo) {
+			config.registerPojoType(type);
+		} else {
+			config.registerKryoType(type);
+		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	//  Data set creations
 	// --------------------------------------------------------------------------------------------
@@ -555,7 +544,7 @@ public abstract class ExecutionEnvironment {
 		
 		TypeInformation<X> type = TypeExtractor.getForObject(firstValue);
 		CollectionInputFormat.checkCollection(data, type.getTypeClass());
-		return new DataSource<X>(this, new CollectionInputFormat<X>(data, type.createSerializer()), type, Utils.getCallLocationName());
+		return new DataSource<X>(this, new CollectionInputFormat<X>(data, type.createSerializer(config)), type, Utils.getCallLocationName());
 	}
 	
 	/**
@@ -582,7 +571,7 @@ public abstract class ExecutionEnvironment {
 	private <X> DataSource<X> fromCollection(Collection<X> data, TypeInformation<X> type, String callLocationName) {
 		CollectionInputFormat.checkCollection(data, type.getTypeClass());
 		
-		return new DataSource<X>(this, new CollectionInputFormat<X>(data, type.createSerializer()), type, callLocationName);
+		return new DataSource<X>(this, new CollectionInputFormat<X>(data, type.createSerializer(config)), type, callLocationName);
 	}
 	
 	/**

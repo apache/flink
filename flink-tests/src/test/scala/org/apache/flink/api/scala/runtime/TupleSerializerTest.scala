@@ -18,6 +18,8 @@
 package org.apache.flink.api.scala.runtime
 
 import java.util
+import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.java.ExecutionEnvironment
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
 import org.apache.flink.api.java.typeutils.runtime.AbstractGenericTypeSerializerTest._
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -28,7 +30,6 @@ import org.junit.Test
 import org.apache.flink.api.scala._
 import scala.collection.JavaConverters._
 import java.util.Random
-import org.apache.flink.api.java.typeutils.runtime.KryoSerializer
 
 class TupleSerializerTest {
 
@@ -102,8 +103,6 @@ class TupleSerializerTest {
       (StringUtils.getRandomString(rnd, 10, 100), new LocalDate(rnd.nextInt)),
       (StringUtils.getRandomString(rnd, 10, 100), new LocalDate(rnd.nextInt)))
       
-    KryoSerializer.registerSerializer(classOf[LocalDate], new LocalDateSerializer())
-    
     runTests(testTuples)
   }
 
@@ -192,8 +191,11 @@ class TupleSerializerTest {
 
   private final def runTests[T <: Product : TypeInformation](instances: Array[T]) {
     try {
+      // Register the custom Kryo Serializer
+      val conf = new ExecutionConfig
+      conf.registerKryoSerializer(classOf[LocalDate], classOf[LocalDateSerializer])
       val tupleTypeInfo = implicitly[TypeInformation[T]].asInstanceOf[TupleTypeInfoBase[T]]
-      val serializer = tupleTypeInfo.createSerializer
+      val serializer = tupleTypeInfo.createSerializer(conf)
       val tupleClass = tupleTypeInfo.getTypeClass
       val test = new TupleSerializerTestInstance[T](serializer, tupleClass, -1, instances)
       test.testAll()

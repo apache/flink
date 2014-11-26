@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.streamvertex;
 
 import java.util.Map;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.RuntimeUDFContext;
 import org.apache.flink.configuration.Configuration;
@@ -38,9 +39,9 @@ public class StreamingRuntimeContext extends RuntimeUDFContext {
 	private final Map<String, OperatorState<?>> operatorStates;
 
 	public StreamingRuntimeContext(String name, Environment env, ClassLoader userCodeClassLoader,
-			Map<String, OperatorState<?>> operatorStates) {
+			ExecutionConfig executionConfig, Map<String, OperatorState<?>> operatorStates) {
 		super(name, env.getNumberOfSubtasks(), env.getIndexInSubtaskGroup(),
-				userCodeClassLoader, env.getCopyTask());
+				userCodeClassLoader, executionConfig, env.getCopyTask());
 		this.env = env;
 		this.operatorStates = operatorStates;
 	}

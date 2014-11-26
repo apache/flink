@@ -19,6 +19,7 @@
 
 package org.apache.flink.api.common.typeinfo;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.Nothing;
 
@@ -54,7 +55,7 @@ public class NothingTypeInfo extends TypeInformation<Nothing> {
 	}
 
 	@Override
-	public TypeSerializer<Nothing> createSerializer() {
+	public TypeSerializer<Nothing> createSerializer(ExecutionConfig executionConfig) {
 		throw new RuntimeException("The Nothing type cannot have a serializer.");
 	}
 }

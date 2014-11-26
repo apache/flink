@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.SerializerTestInstance;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
@@ -35,7 +36,7 @@ public class MultidimensionalArraySerializerTest {
 		String[][] array = new String[][]{{null,"b"},{"c","d"},{"e","f"},{"g","h"},null};
 		TypeInformation<String[][]> ti = TypeExtractor.getForClass(String[][].class);
 
-		SerializerTestInstance<String[][]> testInstance = new SerializerTestInstance<String[][]>(ti.createSerializer(), String[][].class, -1, array);
+		SerializerTestInstance<String[][]> testInstance = new SerializerTestInstance<String[][]>(ti.createSerializer(new ExecutionConfig()), String[][].class, -1, array);
 		testInstance.testAll();
 	}
 
@@ -44,7 +45,7 @@ public class MultidimensionalArraySerializerTest {
 		int[][] array = new int[][]{{12,1},{48,42},{23,80},{484,849},{987,4}};
 		TypeInformation<int[][]> ti = TypeExtractor.getForClass(int[][].class);
 
-		SerializerTestInstance<int[][]> testInstance = new SerializerTestInstance<int[][]>(ti.createSerializer(), int[][].class, -1, array);
+		SerializerTestInstance<int[][]> testInstance = new SerializerTestInstance<int[][]>(ti.createSerializer(new ExecutionConfig()), int[][].class, -1, array);
 		testInstance.testAll();
 	}
 
@@ -73,13 +74,13 @@ public class MultidimensionalArraySerializerTest {
 		Integer[][] array = new Integer[][]{{0,1}, null, {null, 42}};
 		TypeInformation<Integer[][]> ti = TypeExtractor.getForClass(Integer[][].class);
 
-		SerializerTestInstance<Integer[][]> testInstance = new SerializerTestInstance<Integer[][]>(ti.createSerializer(), Integer[][].class, -1, array);
+		SerializerTestInstance<Integer[][]> testInstance = new SerializerTestInstance<Integer[][]>(ti.createSerializer(new ExecutionConfig()), Integer[][].class, -1, array);
 		testInstance.testAll();
 
 		MyPojo[][] array2 = new MyPojo[][]{{new MyPojo(null, 42), new MyPojo("test2", -1)}, {null, null}, null};
 		TypeInformation<MyPojo[][]> ti2 = TypeExtractor.getForClass(MyPojo[][].class);
 
-		SerializerTestInstance<MyPojo[][]> testInstance2 = new SerializerTestInstance<MyPojo[][]>(ti2.createSerializer(), MyPojo[][].class, -1, array2);
+		SerializerTestInstance<MyPojo[][]> testInstance2 = new SerializerTestInstance<MyPojo[][]>(ti2.createSerializer(new ExecutionConfig()), MyPojo[][].class, -1, array2);
 		testInstance2.testAll();
 	}
 
@@ -112,7 +113,7 @@ public class MultidimensionalArraySerializerTest {
 		};
 		TypeInformation ti = TypeInfoParser.parse("org.apache.flink.api.java.typeutils.runtime.MultidimensionalArraySerializerTest$MyGenericPojo<field=String[][]>[][]");
 
-		SerializerTestInstance testInstance = new SerializerTestInstance(ti.createSerializer(), MyGenericPojo[][].class, -1, (Object) array);
+		SerializerTestInstance testInstance = new SerializerTestInstance(ti.createSerializer(new ExecutionConfig()), MyGenericPojo[][].class, -1, (Object) array);
 		testInstance.testAll();
 	}
 

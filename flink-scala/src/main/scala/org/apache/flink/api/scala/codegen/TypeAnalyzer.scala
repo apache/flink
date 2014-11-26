@@ -272,8 +272,12 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
       def unapply(tpe: Type): Option[Type] = tpe match {
         case _ if tpe <:< typeOf[BitSet] => Some(typeOf[Int])
 
-        case _ if tpe <:< typeOf[SortedMap[_, _]] => None
-        case _ if tpe <:< typeOf[SortedSet[_]] => None
+        case _ if tpe <:< typeOf[SortedMap[_, _]] =>
+          // handled by generic serializer
+          None
+        case _ if tpe <:< typeOf[SortedSet[_]] =>
+          // handled by generic serializer
+          None
 
         case _ if tpe <:< typeOf[TraversableOnce[_]] =>
 //          val traversable = tpe.baseClasses

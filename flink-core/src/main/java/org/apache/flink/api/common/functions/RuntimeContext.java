@@ -22,6 +22,7 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.List;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.DoubleCounter;
 import org.apache.flink.api.common.accumulators.Histogram;
@@ -60,6 +61,12 @@ public interface RuntimeContext {
 	 * @return The number of the parallel subtask.
 	 */
 	int getIndexOfThisSubtask();
+
+	/**
+	 * Returns the {@link org.apache.flink.api.common.ExecutionConfig} for the currently executing
+	 * job.
+	 */
+	ExecutionConfig getExecutionConfig();
 	
 	/**
 	 * Gets the ClassLoader to load classes that were are not in system's classpath, but are part of the

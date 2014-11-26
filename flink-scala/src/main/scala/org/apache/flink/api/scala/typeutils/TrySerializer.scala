@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.scala.typeutils
 
+import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.java.typeutils.runtime.KryoSerializer
 import org.apache.flink.core.memory.{DataInputView, DataOutputView}
@@ -26,12 +27,12 @@ import scala.util.{Success, Try, Failure}
 /**
  * Serializer for [[scala.util.Try]].
  */
-class TrySerializer[A](val elemSerializer: TypeSerializer[A])
+class TrySerializer[A](val elemSerializer: TypeSerializer[A], executionConfig: ExecutionConfig)
   extends TypeSerializer[Try[A]] {
 
   override def duplicate: TrySerializer[A] = this
 
-  val throwableSerializer = new KryoSerializer[Throwable](classOf[Throwable])
+  val throwableSerializer = new KryoSerializer[Throwable](classOf[Throwable], executionConfig)
 
   override def createInstance: Try[A] = {
     Failure(new RuntimeException("Empty Failure"))

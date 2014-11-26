@@ -21,6 +21,7 @@ package org.apache.flink.api.common.operators.base;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.MapPartitionFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.CopyingIterator;
@@ -57,17 +58,19 @@ public class MapPartitionOperatorBase<IN, OUT, FT extends MapPartitionFunction<I
 	// --------------------------------------------------------------------------------------------
 	
 	@Override
-	protected List<OUT> executeOnCollections(List<IN> inputData, RuntimeContext ctx, boolean mutableObjectSafeMode) throws Exception {
+	protected List<OUT> executeOnCollections(List<IN> inputData, RuntimeContext ctx, ExecutionConfig executionConfig) throws Exception {
 		MapPartitionFunction<IN, OUT> function = this.userFunction.getUserCodeObject();
 		
 		FunctionUtils.setFunctionRuntimeContext(function, ctx);
 		FunctionUtils.openFunction(function, this.parameters);
 		
 		ArrayList<OUT> result = new ArrayList<OUT>(inputData.size() / 4);
+
+		boolean objectReuseDisabled = !executionConfig.isObjectReuseEnabled();
 		
-		if (mutableObjectSafeMode) {
-			TypeSerializer<IN> inSerializer = getOperatorInfo().getInputType().createSerializer();
-			TypeSerializer<OUT> outSerializer = getOperatorInfo().getOutputType().createSerializer();
+		if (objectReuseDisabled) {
+			TypeSerializer<IN> inSerializer = getOperatorInfo().getInputType().createSerializer(executionConfig);
+			TypeSerializer<OUT> outSerializer = getOperatorInfo().getOutputType().createSerializer(executionConfig);
 			
 			CopyingIterator<IN> source = new CopyingIterator<IN>(inputData.iterator(), inSerializer);
 			CopyingListCollector<OUT> resultCollector = new CopyingListCollector<OUT>(result, outSerializer);

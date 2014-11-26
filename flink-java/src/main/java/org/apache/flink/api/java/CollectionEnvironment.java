@@ -29,7 +29,7 @@ public class CollectionEnvironment extends ExecutionEnvironment {
 		Plan p = createProgramPlan(jobName);
 
 		// We need to reverse here. Object-Reuse enabled, means safe mode is disabled.
-		CollectionExecutor exec = new CollectionExecutor(!getConfig().isObjectReuseEnabled());
+		CollectionExecutor exec = new CollectionExecutor(getConfig());
 		return exec.execute(p);
 	}
 	

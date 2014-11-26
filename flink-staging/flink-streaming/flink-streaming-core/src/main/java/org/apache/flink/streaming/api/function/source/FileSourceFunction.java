@@ -45,8 +45,8 @@ public class FileSourceFunction extends RichSourceFunction<String> {
 		this.serializerFactory = createSerializer(typeInfo);
 	}
 
-	private static TypeSerializerFactory<String> createSerializer(TypeInformation<String> typeInfo) {
-		TypeSerializer<String> serializer = typeInfo.createSerializer();
+	private TypeSerializerFactory<String> createSerializer(TypeInformation<String> typeInfo) {
+		TypeSerializer<String> serializer = typeInfo.createSerializer(getRuntimeContext().getExecutionConfig());
 
 		return new RuntimeSerializerFactory<String>(serializer, typeInfo.getTypeClass());
 	}

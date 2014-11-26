@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -76,9 +77,9 @@ public class LargeRecordHandlerITCase {
 			final TupleTypeInfo<Tuple3<Long, SomeVeryLongValue, Byte>> typeInfo = 
 								new TupleTypeInfo<Tuple3<Long,SomeVeryLongValue,Byte>>(types);
 
-			final TypeSerializer<Tuple3<Long, SomeVeryLongValue, Byte>> serializer = typeInfo.createSerializer();
+			final TypeSerializer<Tuple3<Long, SomeVeryLongValue, Byte>> serializer = typeInfo.createSerializer(new ExecutionConfig());
 			final TypeComparator<Tuple3<Long, SomeVeryLongValue, Byte>> comparator = typeInfo.createComparator(
-					new int[] {2, 0}, new boolean[] {true, true}, 0);
+					new int[] {2, 0}, new boolean[] {true, true}, 0, new ExecutionConfig());
 			
 			LargeRecordHandler<Tuple3<Long, SomeVeryLongValue, Byte>> handler = new LargeRecordHandler<Tuple3<Long, SomeVeryLongValue, Byte>>(
 					serializer, comparator, ioMan, memMan, initialMemory, owner, 128);
@@ -216,7 +217,7 @@ public class LargeRecordHandlerITCase {
 			final TupleTypeInfo<Tuple3<Long, SomeVeryLongValue, Byte>> typeInfo = 
 								new TupleTypeInfo<Tuple3<Long,SomeVeryLongValue,Byte>>(types);
 
-			final TypeSerializer<Tuple3<Long, SomeVeryLongValue, Byte>> serializer = typeInfo.createSerializer();
+			final TypeSerializer<Tuple3<Long, SomeVeryLongValue, Byte>> serializer = typeInfo.createSerializer(new ExecutionConfig());
 
 			
 			channel = ioMan.createChannel();

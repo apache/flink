@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.InvalidProgramException;
@@ -216,7 +217,7 @@ public class CsvOutputFormat<T extends Tuple> extends FileOutputFormat<T> implem
 	 * is in fact a tuple type.
 	 */
 	@Override
-	public void setInputType(TypeInformation<?> type) {
+	public void setInputType(TypeInformation<?> type, ExecutionConfig executionConfig) {
 		if (!type.isTupleType()) {
 			throw new InvalidProgramException("The " + CsvOutputFormat.class.getSimpleName() +
 				" can only be used to write tuple data sets.");

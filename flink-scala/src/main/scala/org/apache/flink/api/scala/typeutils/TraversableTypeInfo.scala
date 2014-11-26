@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.scala.typeutils
 
+import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.TypeSerializer
 
@@ -37,7 +38,7 @@ abstract class TraversableTypeInfo[T <: TraversableOnce[E], E](
   override def getArity: Int = 1
   override def getTypeClass: Class[T] = clazz
 
-  def createSerializer(): TypeSerializer[T]
+  def createSerializer(executionConfig: ExecutionConfig): TypeSerializer[T]
 
   override def equals(other: Any): Boolean = {
     if (other.isInstanceOf[TraversableTypeInfo[_, _]]) {

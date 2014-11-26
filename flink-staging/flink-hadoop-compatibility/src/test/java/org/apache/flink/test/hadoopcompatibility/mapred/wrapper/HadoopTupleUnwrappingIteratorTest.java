@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.NoSuchElementException;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.runtime.WritableSerializer;
 import org.apache.flink.hadoopcompatibility.mapred.wrapper.HadoopTupleUnwrappingIterator;
 import org.apache.hadoop.io.IntWritable;
 import org.junit.Assert;
@@ -33,7 +34,8 @@ public class HadoopTupleUnwrappingIteratorTest {
 	public void testValueIterator() {
 		
 		HadoopTupleUnwrappingIterator<IntWritable, IntWritable> valIt = 
-				new HadoopTupleUnwrappingIterator<IntWritable, IntWritable>(IntWritable.class);
+				new HadoopTupleUnwrappingIterator<IntWritable, IntWritable>(new WritableSerializer
+						<IntWritable>(IntWritable.class));
 		
 		// many values
 		

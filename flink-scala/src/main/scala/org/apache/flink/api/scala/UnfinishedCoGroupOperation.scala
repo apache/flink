@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.scala
 
+import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.functions.CoGroupFunction
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.java.operators._
@@ -68,10 +69,11 @@ class UnfinishedCoGroupOperation[L: ClassTag, R: ClassTag](
     val returnType = new CaseClassTypeInfo[(Array[L], Array[R])](
       classOf[(Array[L], Array[R])], Seq(leftArrayType, rightArrayType), Array("_1", "_2")) {
 
-      override def createSerializer: TypeSerializer[(Array[L], Array[R])] = {
+      override def createSerializer(
+          executionConfig: ExecutionConfig): TypeSerializer[(Array[L], Array[R])] = {
         val fieldSerializers: Array[TypeSerializer[_]] = new Array[TypeSerializer[_]](getArity)
         for (i <- 0 until getArity) {
-          fieldSerializers(i) = types(i).createSerializer
+          fieldSerializers(i) = types(i).createSerializer(executionConfig)
         }
 
         new CaseClassSerializer[(Array[L], Array[R])](

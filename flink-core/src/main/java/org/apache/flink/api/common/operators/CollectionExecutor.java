@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
@@ -69,15 +70,18 @@ public class CollectionExecutor {
 	private final ClassLoader classLoader;
 	
 	private final boolean mutableObjectSafeMode;
+
+	private final ExecutionConfig executionConfig;
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public CollectionExecutor() {
-		this(DEFAULT_MUTABLE_OBJECT_SAFE_MODE);
+	public CollectionExecutor(ExecutionConfig executionConfig) {
+		this(executionConfig, DEFAULT_MUTABLE_OBJECT_SAFE_MODE);
 	}
 		
-	public CollectionExecutor(boolean mutableObjectSafeMode) {
+	public CollectionExecutor(ExecutionConfig executionConfig, boolean mutableObjectSafeMode) {
 		this.mutableObjectSafeMode = mutableObjectSafeMode;
+		this.executionConfig = executionConfig;
 		
 		this.intermediateResults = new HashMap<Operator<?>, List<?>>();
 		this.accumulators = new HashMap<String, Accumulator<?,?>>();
@@ -161,13 +165,13 @@ public class CollectionExecutor {
 		@SuppressWarnings("unchecked")
 		GenericDataSinkBase<IN> typedSink = (GenericDataSinkBase<IN>) sink;
 
-		typedSink.executeOnCollections(input);
+		typedSink.executeOnCollections(input, executionConfig);
 	}
 	
 	private <OUT> List<OUT> executeDataSource(GenericDataSourceBase<?, ?> source) throws Exception {
 		@SuppressWarnings("unchecked")
 		GenericDataSourceBase<OUT, ?> typedSource = (GenericDataSourceBase<OUT, ?>) source;
-		return typedSource.executeOnCollections(mutableObjectSafeMode);
+		return typedSource.executeOnCollections(executionConfig, mutableObjectSafeMode);
 	}
 	
 	private <IN, OUT> List<OUT> executeUnaryOperator(SingleInputOperator<?, ?, ?> operator, int superStep) throws Exception {
@@ -185,8 +189,8 @@ public class CollectionExecutor {
 		// build the runtime context and compute broadcast variables, if necessary
 		RuntimeUDFContext ctx;
 		if (RichFunction.class.isAssignableFrom(typedOp.getUserCodeWrapper().getUserCodeClass())) {
-			ctx = superStep == 0 ? new RuntimeUDFContext(operator.getName(), 1, 0, getClass().getClassLoader()) :
-					new IterationRuntimeUDFContext(operator.getName(), 1, 0, superStep, classLoader);
+			ctx = superStep == 0 ? new RuntimeUDFContext(operator.getName(), 1, 0, getClass().getClassLoader(), executionConfig) :
+					new IterationRuntimeUDFContext(operator.getName(), 1, 0, superStep, classLoader, executionConfig);
 			
 			for (Map.Entry<String, Operator<?>> bcInputs : operator.getBroadcastInputs().entrySet()) {
 				List<?> bcData = execute(bcInputs.getValue());
@@ -196,7 +200,7 @@ public class CollectionExecutor {
 			ctx = null;
 		}
 		
-		List<OUT> result = typedOp.executeOnCollections(inputData, ctx, mutableObjectSafeMode);
+		List<OUT> result = typedOp.executeOnCollections(inputData, ctx, executionConfig);
 		
 		if (ctx != null) {
 			AccumulatorHelper.mergeInto(this.accumulators, ctx.getAllAccumulators());
@@ -227,8 +231,8 @@ public class CollectionExecutor {
 		// build the runtime context and compute broadcast variables, if necessary
 		RuntimeUDFContext ctx;
 		if (RichFunction.class.isAssignableFrom(typedOp.getUserCodeWrapper().getUserCodeClass())) {
-			ctx = superStep == 0 ? new RuntimeUDFContext(operator.getName(), 1, 0, classLoader) :
-				new IterationRuntimeUDFContext(operator.getName(), 1, 0, superStep, classLoader);
+			ctx = superStep == 0 ? new RuntimeUDFContext(operator.getName(), 1, 0, classLoader, executionConfig) :
+				new IterationRuntimeUDFContext(operator.getName(), 1, 0, superStep, classLoader, executionConfig);
 			
 			for (Map.Entry<String, Operator<?>> bcInputs : operator.getBroadcastInputs().entrySet()) {
 				List<?> bcData = execute(bcInputs.getValue());
@@ -238,7 +242,7 @@ public class CollectionExecutor {
 			ctx = null;
 		}
 		
-		List<OUT> result = typedOp.executeOnCollections(inputData1, inputData2, ctx, mutableObjectSafeMode);
+		List<OUT> result = typedOp.executeOnCollections(inputData1, inputData2, ctx, executionConfig);
 		
 		if (ctx != null) {
 			AccumulatorHelper.mergeInto(this.accumulators, ctx.getAllAccumulators());
@@ -349,7 +353,7 @@ public class CollectionExecutor {
 
 		int[] keyColumns = iteration.getSolutionSetKeyFields();
 		boolean[] inputOrderings = new boolean[keyColumns.length];
-		TypeComparator<T> inputComparator = ((CompositeType<T>) solutionType).createComparator(keyColumns, inputOrderings, 0);
+		TypeComparator<T> inputComparator = ((CompositeType<T>) solutionType).createComparator(keyColumns, inputOrderings, 0, executionConfig);
 
 		Map<TypeComparable<T>, T> solutionMap = new HashMap<TypeComparable<T>, T>(solutionInputData.size());
 		// fill the solution from the initial input
@@ -482,8 +486,8 @@ public class CollectionExecutor {
 
 		private final int superstep;
 
-		public IterationRuntimeUDFContext(String name, int numParallelSubtasks, int subtaskIndex, int superstep, ClassLoader classloader) {
-			super(name, numParallelSubtasks, subtaskIndex, classloader);
+		public IterationRuntimeUDFContext(String name, int numParallelSubtasks, int subtaskIndex, int superstep, ClassLoader classloader, ExecutionConfig executionConfig) {
+			super(name, numParallelSubtasks, subtaskIndex, classloader, executionConfig);
 			this.superstep = superstep;
 		}
 

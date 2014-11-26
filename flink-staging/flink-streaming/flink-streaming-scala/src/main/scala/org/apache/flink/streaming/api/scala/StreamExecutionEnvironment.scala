@@ -18,6 +18,9 @@
 
 package org.apache.flink.streaming.api.scala
 
+import com.esotericsoftware.kryo.Serializer
+import org.apache.flink.api.java.typeutils.runtime.KryoSerializer
+
 import scala.reflect.ClassTag
 import org.apache.commons.lang.Validate
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -71,6 +74,33 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * Gets the default buffer timeout set for this environment
    */
   def getBufferTimout: Long = javaEnv.getBufferTimeout()
+
+  /**
+   * Registers the given Serializer as a default serializer for the given class at the
+   * [[KryoSerializer]].
+   */
+  def registerKryoSerializer(clazz: Class[_], serializer: Serializer[_]): Unit = {
+    javaEnv.registerKryoSerializer(clazz, serializer)
+  }
+
+  /**
+   * Registers the given Serializer as a default serializer for the given class at the
+   * [[KryoSerializer]]
+   */
+  def registerKryoSerializer(clazz: Class[_], serializer: Class[_ <: Serializer[_]]) {
+    javaEnv.registerKryoSerializer(clazz, serializer)
+  }
+
+  /**
+   * Registers the given type with the serialization stack. If the type is eventually
+   * serialized as a POJO, then the type is registered with the POJO serializer. If the
+   * type ends up being serialized with Kryo, then it will be registered at Kryo to make
+   * sure that only tags are written.
+   *
+   */
+  def registerType(typeClass: Class[_]) {
+    javaEnv.registerType(typeClass)
+  }
 
   /**
    * Creates a DataStream that represents the Strings produced by reading the

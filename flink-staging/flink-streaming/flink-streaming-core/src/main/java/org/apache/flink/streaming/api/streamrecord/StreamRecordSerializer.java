@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.streamrecord;
 
 import java.io.IOException;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
@@ -32,8 +33,8 @@ public final class StreamRecordSerializer<T> extends TypeSerializer<StreamRecord
 	private final TypeSerializer<T> typeSerializer;
 	private final boolean isTuple;
 
-	public StreamRecordSerializer(TypeInformation<T> typeInfo) {
-		this.typeSerializer = typeInfo.createSerializer();
+	public StreamRecordSerializer(TypeInformation<T> typeInfo, ExecutionConfig executionConfig) {
+		this.typeSerializer = typeInfo.createSerializer(executionConfig);
 		this.isTuple = typeInfo.isTupleType();
 	}
 

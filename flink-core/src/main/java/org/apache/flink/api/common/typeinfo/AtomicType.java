@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.typeinfo;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 
 
@@ -26,5 +27,5 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
  */
 public interface AtomicType<T> {
 	
-	TypeComparator<T> createComparator(boolean sortOrderAscending);
+	TypeComparator<T> createComparator(boolean sortOrderAscending, ExecutionConfig executionConfig);
 }

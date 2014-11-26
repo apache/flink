@@ -22,6 +22,7 @@ package org.apache.flink.api.scala.operators;
 import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.GenericCsvInputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
@@ -69,7 +70,9 @@ public class ScalaCsvInputFormat<OUT extends Product> extends GenericCsvInputFor
 			throw new UnsupportedOperationException("This only works on tuple types.");
 		}
 		TupleTypeInfoBase<OUT> tupleType = (TupleTypeInfoBase<OUT>) typeInfo;
-		serializer = (TupleSerializerBase<OUT>)tupleType.createSerializer();
+		// We can use an empty config here, since we only use the serializer to create
+		// the top-level case class
+		serializer = (TupleSerializerBase<OUT>) tupleType.createSerializer(new ExecutionConfig());
 
 		Class<?>[] classes = new Class[tupleType.getArity()];
 		for (int i = 0; i < tupleType.getArity(); i++) {
@@ -214,7 +217,7 @@ public class ScalaCsvInputFormat<OUT extends Product> extends GenericCsvInputFor
 				return null;
 			}
 		}
-		
+
 		if (parseRecord(parsedValues, bytes, offset, numBytes)) {
 			OUT result = serializer.createInstance(parsedValues);
 			return result;

@@ -319,7 +319,7 @@ public class DataStream<OUT> {
 
 	private GroupedDataStream<OUT> groupBy(Keys<OUT> keys) {
 		return new GroupedDataStream<OUT>(this, clean(KeySelectorUtil.getSelectorForKeys(keys,
-				getType())));
+				getType(), environment.getConfig())));
 	}
 
 	/**

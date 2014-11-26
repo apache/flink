@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.io;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.BinaryOutputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -52,7 +53,7 @@ public class TypeSerializerOutputFormat<T> extends BinaryOutputFormat<T> impleme
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public void setInputType(TypeInformation<?> type) {
-		serializer = (TypeSerializer<T>) type.createSerializer();
+	public void setInputType(TypeInformation<?> type, ExecutionConfig executionConfig) {
+		serializer = (TypeSerializer<T>) type.createSerializer(executionConfig);
 	}
 }

@@ -21,6 +21,7 @@ package org.apache.flink.api.common.typeutils;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.AtomicType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 
@@ -91,7 +92,7 @@ public abstract class CompositeType<T> extends TypeInformation<T> {
 	/**
 	 * Get the actual comparator we've initialized.
 	 */
-	protected abstract TypeComparator<T> getNewComparator();
+	protected abstract TypeComparator<T> getNewComparator(ExecutionConfig config);
 	
 	
 	/**
@@ -99,7 +100,7 @@ public abstract class CompositeType<T> extends TypeInformation<T> {
 	 * to create the actual comparators
 	 * @return The comparator
 	 */
-	public TypeComparator<T> createComparator(int[] logicalKeyFields, boolean[] orders, int logicalFieldOffset) {
+	public TypeComparator<T> createComparator(int[] logicalKeyFields, boolean[] orders, int logicalFieldOffset, ExecutionConfig config) {
 		initializeNewComparator(logicalKeyFields.length);
 		
 		for(int logicalKeyFieldIndex = 0; logicalKeyFieldIndex < logicalKeyFields.length; logicalKeyFieldIndex++) {
@@ -110,13 +111,13 @@ public abstract class CompositeType<T> extends TypeInformation<T> {
 				
 				if(localFieldType instanceof AtomicType && logicalField == logicalKeyField) {
 					// we found an atomic key --> create comparator
-					addCompareField(localFieldId, ((AtomicType<?>) localFieldType).createComparator(orders[logicalKeyFieldIndex]) );
+					addCompareField(localFieldId, ((AtomicType<?>) localFieldType).createComparator(orders[logicalKeyFieldIndex], config) );
 				} else if(localFieldType instanceof CompositeType  && // must be a composite type
 						( logicalField <= logicalKeyField //check if keyField can be at or behind the current logicalField
 						&& logicalKeyField <= logicalField + (localFieldType.getTotalFields() - 1) ) // check if logical field + lookahead could contain our key
 						) {
 					// we found a compositeType that is containing the logicalKeyField we are looking for --> create comparator
-					addCompareField(localFieldId, ((CompositeType<?>) localFieldType).createComparator(new int[] {logicalKeyField}, new boolean[] {orders[logicalKeyFieldIndex]}, logicalField));
+					addCompareField(localFieldId, ((CompositeType<?>) localFieldType).createComparator(new int[] {logicalKeyField}, new boolean[] {orders[logicalKeyFieldIndex]}, logicalField, config));
 				}
 				
 				// maintain logicalField
@@ -127,7 +128,7 @@ public abstract class CompositeType<T> extends TypeInformation<T> {
 				logicalField++;
 			}
 		}
-		return getNewComparator();
+		return getNewComparator(config);
 	}
  	
 

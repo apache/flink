@@ -21,6 +21,7 @@ package org.apache.flink.api.common.operators;
 
 import java.util.List;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
@@ -286,5 +287,5 @@ public abstract class DualInputOperator<IN1, IN2, OUT, FT extends Function> exte
 	
 	// --------------------------------------------------------------------------------------------
 	
-	protected abstract List<OUT> executeOnCollections(List<IN1> inputData1, List<IN2> inputData2, RuntimeContext runtimeContext, boolean mutableObjectSafeMode) throws Exception;
+	protected abstract List<OUT> executeOnCollections(List<IN1> inputData1, List<IN2> inputData2, RuntimeContext runtimeContext, ExecutionConfig executionConfig) throws Exception;
 }

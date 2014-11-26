@@ -71,7 +71,7 @@ public class StreamJoinOperator<I1, I2> extends
 		 */
 		public JoinPredicate<I1, I2> where(int... fields) {
 			return new JoinPredicate<I1, I2>(op, KeySelectorUtil.getSelectorForKeys(
-					new Keys.ExpressionKeys<I1>(fields, type1), type1));
+					new Keys.ExpressionKeys<I1>(fields, type1), type1, op.input1.getExecutionEnvironment().getConfig()));
 		}
 
 		/**
@@ -88,7 +88,7 @@ public class StreamJoinOperator<I1, I2> extends
 		 */
 		public JoinPredicate<I1, I2> where(String... fields) {
 			return new JoinPredicate<I1, I2>(op, KeySelectorUtil.getSelectorForKeys(
-					new Keys.ExpressionKeys<I1>(fields, type1), type1));
+					new Keys.ExpressionKeys<I1>(fields, type1), type1, op.input1.getExecutionEnvironment().getConfig()));
 		}
 
 		/**
@@ -158,7 +158,7 @@ public class StreamJoinOperator<I1, I2> extends
 		 */
 		public JoinedStream<I1, I2> equalTo(int... fields) {
 			keys2 = KeySelectorUtil.getSelectorForKeys(new Keys.ExpressionKeys<I2>(fields, type2),
-					type2);
+					type2, op.input1.getExecutionEnvironment().getConfig());
 			return createJoinOperator();
 		}
 
@@ -177,7 +177,7 @@ public class StreamJoinOperator<I1, I2> extends
 		 */
 		public JoinedStream<I1, I2> equalTo(String... fields) {
 			this.keys2 = KeySelectorUtil.getSelectorForKeys(new Keys.ExpressionKeys<I2>(fields,
-					type2), type2);
+					type2), type2, op.input1.getExecutionEnvironment().getConfig());
 			return createJoinOperator();
 		}
 

@@ -28,13 +28,14 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.operators.Keys.ExpressionKeys;
 import org.apache.flink.api.java.typeutils.runtime.PojoComparator;
 import org.apache.flink.api.java.typeutils.runtime.PojoSerializer;
+import org.apache.flink.api.java.operators.Keys.ExpressionKeys;
 
 import com.google.common.base.Joiner;
 
@@ -43,7 +44,7 @@ import com.google.common.base.Joiner;
  * TypeInformation for arbitrary (they have to be java-beans-style) java objects (what we call POJO).
  * 
  */
-public class PojoTypeInfo<T> extends CompositeType<T>{
+public class PojoTypeInfo<T> extends CompositeType<T> {
 
 	private final static String REGEX_FIELD = "[\\p{L}_\\$][\\p{L}\\p{Digit}_\\$]*";
 	private final static String REGEX_NESTED_FIELDS = "("+REGEX_FIELD+")(\\.(.+))?";
@@ -269,7 +270,7 @@ public class PojoTypeInfo<T> extends CompositeType<T>{
 	}
 
 	@Override
-	protected TypeComparator<T> getNewComparator() {
+	protected TypeComparator<T> getNewComparator(ExecutionConfig config) {
 		// first remove the null array fields
 		final Field[] finalKeyFields = Arrays.copyOf(keyFields, comparatorHelperIndex);
 		@SuppressWarnings("rawtypes")
@@ -277,21 +278,21 @@ public class PojoTypeInfo<T> extends CompositeType<T>{
 		if(finalFieldComparators.length == 0 || finalKeyFields.length == 0 ||  finalFieldComparators.length != finalKeyFields.length) {
 			throw new IllegalArgumentException("Pojo comparator creation has a bug");
 		}
-		return new PojoComparator<T>(finalKeyFields, finalFieldComparators, createSerializer(), typeClass);
+		return new PojoComparator<T>(finalKeyFields, finalFieldComparators, createSerializer(config), typeClass);
 	}
 
 
 	@Override
-	public TypeSerializer<T> createSerializer() {
+	public TypeSerializer<T> createSerializer(ExecutionConfig config) {
 		TypeSerializer<?>[] fieldSerializers = new TypeSerializer<?>[fields.length ];
 		Field[] reflectiveFields = new Field[fields.length];
 
 		for (int i = 0; i < fields.length; i++) {
-			fieldSerializers[i] = fields[i].type.createSerializer();
+			fieldSerializers[i] = fields[i].type.createSerializer(config);
 			reflectiveFields[i] = fields[i].field;
 		}
 
-		return new PojoSerializer<T>(this.typeClass, fieldSerializers, reflectiveFields);
+		return new PojoSerializer<T>(this.typeClass, fieldSerializers, reflectiveFields, config);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -312,7 +313,7 @@ public class PojoTypeInfo<T> extends CompositeType<T>{
 		for (PojoField field : fields) {
 			fieldStrings.add(field.field.getName() + ": " + field.type.toString());
 		}
-		return "PojoType<" + typeClass.getCanonicalName()
+		return "PojoType<" + typeClass.getName()
 				+ ", fields = [" + Joiner.on(", ").join(fieldStrings) + "]"
 				+ ">";
 	}

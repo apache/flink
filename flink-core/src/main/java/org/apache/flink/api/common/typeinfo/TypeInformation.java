@@ -18,10 +18,13 @@
 
 package org.apache.flink.api.common.typeinfo;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
-public abstract class TypeInformation<T> {
-	
+import java.io.Serializable;
+
+public abstract class TypeInformation<T> implements Serializable {
+
 	public abstract boolean isBasicType();
 	
 	public abstract boolean isTupleType();
@@ -32,7 +35,7 @@ public abstract class TypeInformation<T> {
 	
 	public abstract boolean isKeyType();
 	
-	public abstract TypeSerializer<T> createSerializer();
+	public abstract TypeSerializer<T> createSerializer(ExecutionConfig config);
 	
 	/**
 	 * @return The number of fields in this type, including its sub-fields (for compsite types) 

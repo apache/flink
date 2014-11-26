@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.scala.typeutils
 
+import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.java.typeutils.runtime.KryoSerializer
@@ -36,12 +37,13 @@ class TryTypeInfo[A, T <: Try[A]](elemTypeInfo: TypeInformation[A])
   override def getArity: Int = 1
   override def getTypeClass = classOf[Try[_]].asInstanceOf[Class[T]]
 
-  def createSerializer(): TypeSerializer[T] = {
+  def createSerializer(executionConfig: ExecutionConfig): TypeSerializer[T] = {
     if (elemTypeInfo == null) {
       // this happens when the type of a DataSet is None, i.e. DataSet[Failure]
-      new TrySerializer(new NothingSerializer).asInstanceOf[TypeSerializer[T]]
+      new TrySerializer(new NothingSerializer, executionConfig).asInstanceOf[TypeSerializer[T]]
     } else {
-      new TrySerializer(elemTypeInfo.createSerializer()).asInstanceOf[TypeSerializer[T]]
+      new TrySerializer(elemTypeInfo.createSerializer(executionConfig), executionConfig)
+        .asInstanceOf[TypeSerializer[T]]
     }
   }
 

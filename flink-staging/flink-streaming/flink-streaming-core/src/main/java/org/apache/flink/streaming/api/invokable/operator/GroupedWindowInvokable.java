@@ -354,7 +354,7 @@ public class GroupedWindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> {
 					clonedDistributedEvictionPolicies);
 		}
 
-		groupInvokable.setup(taskContext);
+		groupInvokable.setup(taskContext, executionConfig);
 		groupInvokable.open(this.parameters);
 		windowingGroups.put(keySelector.getKey(element.getObject()), groupInvokable);
 

@@ -45,8 +45,6 @@ public interface PactTaskContext<S, OT> {
 	
 	TaskConfig getTaskConfig();
 
-	ExecutionConfig getExecutionConfig();
-
 	ClassLoader getUserCodeClassLoader();
 	
 	MemoryManager getMemoryManager();
@@ -60,7 +58,9 @@ public interface PactTaskContext<S, OT> {
 	<X> TypeComparator<X> getDriverComparator(int index);
 	
 	S getStub();
-	
+
+	ExecutionConfig getExecutionConfig();
+
 	Collector<OT> getOutputCollector();
 	
 	AbstractInvokable getOwningNepheleTask();

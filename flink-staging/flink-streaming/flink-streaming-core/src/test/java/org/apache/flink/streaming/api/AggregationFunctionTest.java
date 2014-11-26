@@ -23,6 +23,7 @@ import static org.junit.Assert.fail;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -118,7 +119,7 @@ public class AggregationFunctionTest {
 
 		KeySelector<Tuple2<Integer, Integer>, ?> keySelector = KeySelectorUtil.getSelectorForKeys(
 				new Keys.ExpressionKeys<Tuple2<Integer, Integer>>(new int[] { 0 }, typeInfo),
-				typeInfo);
+				typeInfo, new ExecutionConfig());
 
 		List<Tuple2<Integer, Integer>> groupedSumList = MockContext.createAndExecute(
 				new GroupedReduceInvokable<Tuple2<Integer, Integer>>(sumFunction, keySelector),

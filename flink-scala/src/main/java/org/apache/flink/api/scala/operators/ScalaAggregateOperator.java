@@ -28,7 +28,7 @@ import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.aggregation.AggregationFunction;
 import org.apache.flink.api.java.aggregation.AggregationFunctionFactory;
 import org.apache.flink.api.java.aggregation.Aggregations;
@@ -162,7 +162,7 @@ public class ScalaAggregateOperator<IN> extends SingleInputOperator<IN, IN, Scal
 		genName.setLength(genName.length()-1);
 
 		@SuppressWarnings("rawtypes")
-		RichGroupReduceFunction<IN, IN> function = new AggregatingUdf(getInputType().createSerializer(), aggFunctions, fields);
+		RichGroupReduceFunction<IN, IN> function = new AggregatingUdf(getInputType(), aggFunctions, fields);
 
 
 		String name = getName() != null ? getName() : genName.toString();
@@ -240,12 +240,14 @@ public class ScalaAggregateOperator<IN> extends SingleInputOperator<IN, IN, Scal
 
 		private TupleSerializerBase<T> serializer;
 
-		public AggregatingUdf(TypeSerializer<T> serializer, AggregationFunction<Object>[] aggFunctions, int[] fieldPositions) {
-			Validate.notNull(serializer);
+		private TypeInformation<T> typeInfo;
+
+		public AggregatingUdf(TypeInformation<T> typeInfo, AggregationFunction<Object>[] aggFunctions, int[] fieldPositions) {
+			Validate.notNull(typeInfo);
 			Validate.notNull(aggFunctions);
 			Validate.isTrue(aggFunctions.length == fieldPositions.length);
-			Validate.isInstanceOf(TupleSerializerBase.class, serializer, "Serializer for Scala Aggregate Operator must be a tuple serializer.");
-			this.serializer = (TupleSerializerBase<T>) serializer;
+			Validate.isTrue(typeInfo.isTupleType(), "TypeInfo for Scala Aggregate Operator must be a tuple TypeInfo.");
+			this.typeInfo = typeInfo;
 			this.aggFunctions = aggFunctions;
 			this.fieldPositions = fieldPositions;
 		}
@@ -256,6 +258,7 @@ public class ScalaAggregateOperator<IN> extends SingleInputOperator<IN, IN, Scal
 			for (AggregationFunction<Object> aggFunction : aggFunctions) {
 				aggFunction.initializeAggregate();
 			}
+			this.serializer = (TupleSerializerBase<T>) typeInfo.createSerializer(getRuntimeContext().getExecutionConfig());
 		}
 
 		@Override

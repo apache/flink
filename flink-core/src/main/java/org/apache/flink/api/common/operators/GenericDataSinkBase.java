@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.io.FinalizeOnMaster;
 import org.apache.flink.api.common.io.InitializeOnMaster;
@@ -298,7 +299,7 @@ public class GenericDataSinkBase<IN> extends Operator<Nothing> {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	protected void executeOnCollections(List<IN> inputData) throws Exception {
+	protected void executeOnCollections(List<IN> inputData, ExecutionConfig executionConfig) throws Exception {
 		OutputFormat<IN> format = this.formatWrapper.getUserCodeObject();
 		TypeInformation<IN> inputType = getInput().getOperatorInfo().getOutputType();
 
@@ -308,9 +309,9 @@ public class GenericDataSinkBase<IN> extends Operator<Nothing> {
 
 			final TypeComparator<IN> sortComparator;
 			if (inputType instanceof CompositeType) {
-				sortComparator = ((CompositeType<IN>) inputType).createComparator(sortColumns, sortOrderings, 0);
+				sortComparator = ((CompositeType<IN>) inputType).createComparator(sortColumns, sortOrderings, 0, executionConfig);
 			} else if (inputType instanceof AtomicType) {
-				sortComparator = ((AtomicType) inputType).createComparator(sortOrderings[0]);
+				sortComparator = ((AtomicType) inputType).createComparator(sortOrderings[0], executionConfig);
 			} else {
 				throw new UnsupportedOperationException("Local output sorting does not support type "+inputType+" yet.");
 			}

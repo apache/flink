@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.invokable;
 import java.io.IOException;
 import java.io.Serializable;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
@@ -48,6 +49,8 @@ public abstract class StreamInvokable<IN, OUT> implements Serializable {
 
 	protected StreamTaskContext<OUT> taskContext;
 
+	protected ExecutionConfig executionConfig = null;
+
 	protected MutableObjectIterator<StreamRecord<IN>> recordIterator;
 	protected StreamRecordSerializer<IN> inSerializer;
 	protected TypeSerializer<IN> objectSerializer;
@@ -67,11 +70,12 @@ public abstract class StreamInvokable<IN, OUT> implements Serializable {
 
 	/**
 	 * Initializes the {@link StreamInvokable} for input and output handling
-	 * 
+	 *
 	 * @param taskContext
 	 *            StreamTaskContext representing the vertex
+	 * @param executionConfig
 	 */
-	public void setup(StreamTaskContext<OUT> taskContext) {
+	public void setup(StreamTaskContext<OUT> taskContext, ExecutionConfig executionConfig) {
 		this.collector = taskContext.getOutputCollector();
 		this.recordIterator = taskContext.getInput(0);
 		this.inSerializer = taskContext.getInputSerializer(0);
@@ -80,6 +84,7 @@ public abstract class StreamInvokable<IN, OUT> implements Serializable {
 			this.objectSerializer = inSerializer.getObjectSerializer();
 		}
 		this.taskContext = taskContext;
+		this.executionConfig = executionConfig;
 	}
 
 	/**

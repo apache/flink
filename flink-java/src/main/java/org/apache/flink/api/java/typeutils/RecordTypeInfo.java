@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.typeutils;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.record.RecordSerializer;
@@ -60,7 +61,7 @@ public class RecordTypeInfo extends TypeInformation<Record> {
 	}
 
 	@Override
-	public TypeSerializer<Record> createSerializer() {
+	public TypeSerializer<Record> createSerializer(ExecutionConfig config) {
 		return RecordSerializer.get();
 	}
 	

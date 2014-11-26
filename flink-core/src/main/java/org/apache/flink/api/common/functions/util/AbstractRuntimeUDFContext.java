@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.FutureTask;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.accumulators.DoubleCounter;
@@ -46,23 +47,31 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 
 	private final ClassLoader userCodeClassLoader;
 
+	private final ExecutionConfig executionConfig;
+
 	private final HashMap<String, Accumulator<?, ?>> accumulators = new HashMap<String, Accumulator<?, ?>>();
 	
 	private final DistributedCache distributedCache = new DistributedCache();
 	
 	
-	public AbstractRuntimeUDFContext(String name, int numParallelSubtasks, int subtaskIndex, ClassLoader userCodeClassLoader) {
+	public AbstractRuntimeUDFContext(String name, int numParallelSubtasks, int subtaskIndex, ClassLoader userCodeClassLoader, ExecutionConfig executionConfig) {
 		this.name = name;
 		this.numParallelSubtasks = numParallelSubtasks;
 		this.subtaskIndex = subtaskIndex;
 		this.userCodeClassLoader = userCodeClassLoader;
+		this.executionConfig = executionConfig;
 	}
 	
-	public AbstractRuntimeUDFContext(String name, int numParallelSubtasks, int subtaskIndex, ClassLoader userCodeClassLoader, Map<String, FutureTask<Path>> cpTasks) {
-		this(name, numParallelSubtasks, subtaskIndex, userCodeClassLoader);
+	public AbstractRuntimeUDFContext(String name, int numParallelSubtasks, int subtaskIndex, ClassLoader userCodeClassLoader, ExecutionConfig executionConfig, Map<String, FutureTask<Path>> cpTasks) {
+		this(name, numParallelSubtasks, subtaskIndex, userCodeClassLoader, executionConfig);
 		this.distributedCache.setCopyTasks(cpTasks);
 	}
-	
+
+	@Override
+	public ExecutionConfig getExecutionConfig() {
+		return executionConfig;
+	}
+
 	@Override
 	public String getTaskName() {
 		return this.name;

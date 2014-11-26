@@ -74,24 +74,6 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 	// cancel flag
 	private volatile boolean taskCanceled = false;
 
-	private ExecutionConfig getExecutionConfig() {
-		ExecutionConfig executionConfig = new ExecutionConfig();
-		try {
-			ExecutionConfig c = (ExecutionConfig) InstantiationUtil.readObjectFromConfig(
-					getJobConfiguration(),
-					ExecutionConfig.CONFIG_KEY,
-					this.getClass().getClassLoader());
-			if (c != null) {
-				executionConfig = c;
-			}
-		} catch (IOException e) {
-			throw new RuntimeException("Could not load ExecutionConfig from Job Configuration: " + e);
-		} catch (ClassNotFoundException e) {
-			throw new RuntimeException("Could not load ExecutionConfig from Job Configuration: " + e);
-		}
-		return executionConfig;
-	}
-
 	@Override
 	public void registerInputOutput() {
 		initInputFormat();

@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.compiler.plan.StreamingPlan;
@@ -87,7 +88,11 @@ public class StreamGraph extends StreamingPlan {
 
 	private Set<String> sources;
 
-	public StreamGraph() {
+	private ExecutionConfig executionConfig;
+
+	public StreamGraph(ExecutionConfig executionConfig) {
+
+		this.executionConfig = executionConfig;
 
 		initGraph();
 
@@ -145,9 +150,9 @@ public class StreamGraph extends StreamingPlan {
 		addVertex(vertexName, StreamVertex.class, invokableObject, operatorName, parallelism);
 
 		StreamRecordSerializer<IN> inSerializer = inTypeInfo != null ? new StreamRecordSerializer<IN>(
-				inTypeInfo) : null;
+				inTypeInfo, executionConfig) : null;
 		StreamRecordSerializer<OUT> outSerializer = outTypeInfo != null ? new StreamRecordSerializer<OUT>(
-				outTypeInfo) : null;
+				outTypeInfo, executionConfig) : null;
 
 		addTypeSerializers(vertexName, inSerializer, null, outSerializer, null);
 
@@ -251,9 +256,9 @@ public class StreamGraph extends StreamingPlan {
 
 		addVertex(vertexName, CoStreamVertex.class, taskInvokableObject, operatorName, parallelism);
 
-		addTypeSerializers(vertexName, new StreamRecordSerializer<IN1>(in1TypeInfo),
-				new StreamRecordSerializer<IN2>(in2TypeInfo), new StreamRecordSerializer<OUT>(
-						outTypeInfo), null);
+		addTypeSerializers(vertexName, new StreamRecordSerializer<IN1>(in1TypeInfo, executionConfig),
+				new StreamRecordSerializer<IN2>(in2TypeInfo, executionConfig), new StreamRecordSerializer<OUT>(
+						outTypeInfo, executionConfig), null);
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("CO-TASK: {}", vertexName);
@@ -399,7 +404,7 @@ public class StreamGraph extends StreamingPlan {
 	}
 
 	public <OUT> void setOutType(String id, TypeInformation<OUT> outType) {
-		StreamRecordSerializer<OUT> serializer = new StreamRecordSerializer<OUT>(outType);
+		StreamRecordSerializer<OUT> serializer = new StreamRecordSerializer<OUT>(outType, executionConfig);
 		typeSerializersOut1.put(id, serializer);
 	}
 

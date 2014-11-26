@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.api.scala
 
+import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
+
 import scala.Array.canBuildFrom
 import scala.collection.JavaConversions.iterableAsScalaIterable
 import scala.reflect.ClassTag
@@ -26,7 +28,6 @@ import org.apache.flink.api.common.functions.GroupReduceFunction
 import org.apache.flink.api.common.functions.ReduceFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.KeySelector
-import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
 import org.apache.flink.api.streaming.scala.ScalaStreamingAggregator
 import org.apache.flink.streaming.api.datastream.{WindowedDataStream => JavaWStream}
 import org.apache.flink.streaming.api.function.aggregation.AggregationFunction.AggregationType
@@ -234,7 +235,10 @@ class WindowedDataStream[T](javaStream: JavaWStream[T]) {
     val jStream = javaStream.asInstanceOf[JavaWStream[Product]]
     val outType = jStream.getType().asInstanceOf[TupleTypeInfoBase[_]]
 
-    val agg = new ScalaStreamingAggregator[Product](jStream.getType().createSerializer(), position)
+    val agg = new ScalaStreamingAggregator[Product](
+      jStream.getType().createSerializer(
+        javaStream.getDataStream.getExecutionEnvironment.getConfig),
+      position)
 
     val reducer = aggregationType match {
       case AggregationType.SUM => new agg.Sum(SumFunction.getForClass(

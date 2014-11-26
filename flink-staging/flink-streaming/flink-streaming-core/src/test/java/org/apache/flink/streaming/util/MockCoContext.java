@@ -23,6 +23,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
@@ -57,9 +58,9 @@ public class MockCoContext<IN1, IN2, OUT> implements StreamTaskContext<OUT> {
 		this.inputIterator2 = input2.iterator();
 
 		TypeInformation<IN1> inTypeInfo1 = TypeExtractor.getForObject(input1.iterator().next());
-		inDeserializer1 = new StreamRecordSerializer<IN1>(inTypeInfo1);
+		inDeserializer1 = new StreamRecordSerializer<IN1>(inTypeInfo1, new ExecutionConfig());
 		TypeInformation<IN2> inTypeInfo2 = TypeExtractor.getForObject(input2.iterator().next());
-		inDeserializer2 = new StreamRecordSerializer<IN2>(inTypeInfo2);
+		inDeserializer2 = new StreamRecordSerializer<IN2>(inTypeInfo2, new ExecutionConfig());
 
 		mockIterator = new MockCoReaderIterator(inDeserializer1, inDeserializer2);
 
@@ -154,7 +155,7 @@ public class MockCoContext<IN1, IN2, OUT> implements StreamTaskContext<OUT> {
 	public static <IN1, IN2, OUT> List<OUT> createAndExecute(CoInvokable<IN1, IN2, OUT> invokable,
 			List<IN1> input1, List<IN2> input2) {
 		MockCoContext<IN1, IN2, OUT> mockContext = new MockCoContext<IN1, IN2, OUT>(input1, input2);
-		invokable.setup(mockContext);
+		invokable.setup(mockContext, new ExecutionConfig());
 
 		try {
 			invokable.open(null);

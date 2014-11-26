@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.scala.runtime
 
+import org.apache.flink.api.common.ExecutionConfig
 import org.junit.Test
 import org.junit.Assert._
 import org.apache.flink.api.scala._
@@ -48,9 +49,13 @@ class CaseClassComparatorTest {
       val typeInfo = implicitly[TypeInformation[CaseTestClass]]
                                      .asInstanceOf[CompositeType[CaseTestClass]]
       
-      val serializer = typeInfo.createSerializer()
+      val serializer = typeInfo.createSerializer(new ExecutionConfig)
       val comparator = new FailingCompareDeserializedWrapper(
-          typeInfo.createComparator(Array[Int](0, 2), Array[Boolean](true, true), 0))
+          typeInfo.createComparator(
+            Array[Int](0, 2),
+            Array[Boolean](true, true),
+            0,
+            new ExecutionConfig))
       
       assertTrue(comparator.supportsNormalizedKey())
       assertEquals(8, comparator.getNormalizeKeyLen())

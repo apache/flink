@@ -97,7 +97,7 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTa
 
 	protected void setInvokable() {
 		userInvokable = configuration.getUserInvokable(userClassLoader);
-		userInvokable.setup(this);
+		userInvokable.setup(this, getExecutionConfig());
 	}
 
 	public String getName() {
@@ -111,7 +111,7 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTa
 	public StreamingRuntimeContext createRuntimeContext(String taskName,
 			Map<String, OperatorState<?>> states) {
 		Environment env = getEnvironment();
-		return new StreamingRuntimeContext(taskName, env, getUserCodeClassLoader(), states);
+		return new StreamingRuntimeContext(taskName, env, getUserCodeClassLoader(), getExecutionConfig(), states);
 	}
 
 	@Override

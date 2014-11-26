@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.scala.io
 
+import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.java.io.CollectionInputFormat
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -55,8 +56,11 @@ class CollectionInputFormatTest {
     val inputCollection = Seq(new ElementType(1), new ElementType(2), new ElementType(3))
     val info = createTypeInformation[ElementType]
 
-    val inputFormat: CollectionInputFormat[ElementType] = new
-        CollectionInputFormat[ElementType](inputCollection.asJava, info.createSerializer())
+    val inputFormat: CollectionInputFormat[ElementType] = {
+      new CollectionInputFormat[ElementType](
+        inputCollection.asJava,
+        info.createSerializer(new ExecutionConfig))
+    }
 
     val buffer = new ByteArrayOutputStream
     val out = new ObjectOutputStream(buffer)
@@ -107,7 +111,7 @@ class CollectionInputFormatTest {
 
     val inputFormat = new CollectionInputFormat[String](
       data.asJava,
-      BasicTypeInfo.STRING_TYPE_INFO.createSerializer)
+      BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig))
     val baos = new ByteArrayOutputStream
     val oos = new ObjectOutputStream(baos)
 

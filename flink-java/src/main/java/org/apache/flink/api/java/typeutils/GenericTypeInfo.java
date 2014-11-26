@@ -18,13 +18,13 @@
 
 package org.apache.flink.api.java.typeutils;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.AtomicType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.runtime.GenericTypeComparator;
 import org.apache.flink.api.java.typeutils.runtime.KryoSerializer;
-
 
 public class GenericTypeInfo<T> extends TypeInformation<T> implements AtomicType<T> {
 
@@ -33,7 +33,7 @@ public class GenericTypeInfo<T> extends TypeInformation<T> implements AtomicType
 	public GenericTypeInfo(Class<T> typeClass) {
 		this.typeClass = typeClass;
 	}
-	
+
 	@Override
 	public boolean isBasicType() {
 		return false;
@@ -65,16 +65,16 @@ public class GenericTypeInfo<T> extends TypeInformation<T> implements AtomicType
 	}
 
 	@Override
-	public TypeSerializer<T> createSerializer() {
-		return new KryoSerializer<T>(this.typeClass);
+	public TypeSerializer<T> createSerializer(ExecutionConfig config) {
+		return new KryoSerializer<T>(this.typeClass, config);
 	}
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public TypeComparator<T> createComparator(boolean sortOrderAscending) {
+	public TypeComparator<T> createComparator(boolean sortOrderAscending, ExecutionConfig executionConfig) {
 		if (isKeyType()) {
 			@SuppressWarnings("rawtypes")
-			GenericTypeComparator comparator = new GenericTypeComparator(sortOrderAscending, createSerializer(), this.typeClass);
+			GenericTypeComparator comparator = new GenericTypeComparator(sortOrderAscending, createSerializer(executionConfig), this.typeClass);
 			return (TypeComparator<T>) comparator;
 		}
 

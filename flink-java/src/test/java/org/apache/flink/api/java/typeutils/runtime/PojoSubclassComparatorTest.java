@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,8 +17,6 @@
  */
 
 package org.apache.flink.api.java.typeutils.runtime;
-
-import java.util.Arrays;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -30,15 +28,17 @@ import org.apache.flink.api.java.operators.Keys.ExpressionKeys;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.junit.Assert;
 
+import java.util.Arrays;
 
-public class PojoComparatorTest extends ComparatorTestBase<PojoContainingTuple> {
+
+public class PojoSubclassComparatorTest extends ComparatorTestBase<PojoContainingTuple> {
 	TypeInformation<PojoContainingTuple> type = TypeExtractor.getForClass(PojoContainingTuple.class);
 	
 	PojoContainingTuple[] data = new PojoContainingTuple[]{
-		new PojoContainingTuple(1, 1L, 1L),
-		new PojoContainingTuple(2, 2L, 2L),
-		new PojoContainingTuple(8519, 85190L, 85190L),
-		new PojoContainingTuple(8520, 85191L, 85191L),
+		new Subclass(1, 1L, 1L, 17L),
+		new Subclass(2, 2L, 2L, 42L),
+		new Subclass(8519, 85190L, 85190L, 117L),
+		new Subclass(8520, 85191L, 85191L, 93L),
 	};
 
 	@Override
@@ -59,5 +59,18 @@ public class PojoComparatorTest extends ComparatorTestBase<PojoContainingTuple> 
 	@Override
 	protected PojoContainingTuple[] getSortedTestData() {
 		return data;
+	}
+
+	public static class Subclass extends PojoContainingTuple {
+
+		public long additionalField;
+
+		public Subclass() {
+		}
+
+		public Subclass(int i, long l1, long l2, long additionalField) {
+			super(i, l1, l2);
+			this.additionalField = additionalField;
+		}
 	}
 }

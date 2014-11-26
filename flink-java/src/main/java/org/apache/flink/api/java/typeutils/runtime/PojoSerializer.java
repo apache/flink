@@ -22,35 +22,95 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
 
 public final class PojoSerializer<T> extends TypeSerializer<T> {
 
+	// Flags for the header
+	private static byte IS_NULL = 1;
+	private static byte NO_SUBCLASS = 2;
+	private static byte IS_SUBCLASS = 4;
+	private static byte IS_TAGGED_SUBCLASS = 8;
+
 	private static final long serialVersionUID = 1L;
 
 	private final Class<T> clazz;
 
-	private final TypeSerializer<Object>[] fieldSerializers;
+	private TypeSerializer<Object>[] fieldSerializers;
 
 	// We need to handle these ourselves in writeObject()/readObject()
 	private transient Field[] fields;
 
-	private final int numFields;
+	private int numFields;
+
+	private transient Map<Class<?>, TypeSerializer> subclassSerializerCache;
+	private transient ClassLoader cl;
+
+	private Map<Class<?>, Integer> registeredClasses;
+
+	private TypeSerializer[] registeredSerializers;
+
+	private final ExecutionConfig executionConfig;
 
 	@SuppressWarnings("unchecked")
-	public PojoSerializer(Class<T> clazz, TypeSerializer<?>[] fieldSerializers, Field[] fields) {
+	public PojoSerializer(
+			Class<T> clazz,
+			TypeSerializer<?>[] fieldSerializers,
+			Field[] fields,
+			ExecutionConfig executionConfig) {
 		this.clazz = clazz;
 		this.fieldSerializers = (TypeSerializer<Object>[]) fieldSerializers;
 		this.fields = fields;
 		this.numFields = fieldSerializers.length;
+		this.executionConfig = executionConfig;
+
+		Set<Class<?>> registeredPojoTypes = executionConfig.getRegisteredPojoTypes();
 
 		for (int i = 0; i < numFields; i++) {
 			this.fields[i].setAccessible(true);
+		}
+
+		cl = Thread.currentThread().getContextClassLoader();
+
+		subclassSerializerCache = new HashMap<Class<?>, TypeSerializer>();
+
+		// We only want those classes that are not our own class and are actually sub-classes.
+		List<Class<?>> cleanedTaggedClasses = new ArrayList<Class<?>>(registeredPojoTypes.size());
+		for (Class<?> registeredClass: registeredPojoTypes) {
+			if (registeredClass.equals(clazz)) {
+				continue;
+			}
+			if (!clazz.isAssignableFrom(registeredClass)) {
+				continue;
+			}
+			cleanedTaggedClasses.add(registeredClass);
+
+		}
+		this.registeredClasses = new LinkedHashMap<Class<?>, Integer>(cleanedTaggedClasses.size());
+		registeredSerializers = new TypeSerializer[cleanedTaggedClasses.size()];
+
+		int id = 0;
+		for (Class<?> registeredClass: cleanedTaggedClasses) {
+			this.registeredClasses.put(registeredClass, id);
+			TypeInformation<?> typeInfo = TypeExtractor.createTypeInfo(registeredClass);
+			registeredSerializers[id] = typeInfo.createSerializer(executionConfig);
+
+			id++;
 		}
 	}
 
@@ -67,9 +127,9 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 	private void readObject(ObjectInputStream in)
 			throws IOException, ClassNotFoundException {
 		in.defaultReadObject();
-		int numKeyFields = in.readInt();
-		fields = new Field[numKeyFields];
-		for (int i = 0; i < numKeyFields; i++) {
+		int numFields = in.readInt();
+		fields = new Field[numFields];
+		for (int i = 0; i < numFields; i++) {
 			Class<?> clazz = (Class<?>)in.readObject();
 			String fieldName = in.readUTF();
 			fields[i] = null;
@@ -88,8 +148,42 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 						+ " (" + fieldName + ")");
 			}
 		}
+
+		cl = Thread.currentThread().getContextClassLoader();
+		subclassSerializerCache = new HashMap<Class<?>, TypeSerializer>();
 	}
-	
+
+	private TypeSerializer getSubclassSerializer(Class<?> subclass) {
+		TypeSerializer<?> result = subclassSerializerCache.get(subclass);
+		if (result == null) {
+
+			TypeInformation<?> typeInfo = TypeExtractor.createTypeInfo(subclass);
+			result = typeInfo.createSerializer(executionConfig);
+			if (result instanceof PojoSerializer) {
+				PojoSerializer<?> subclassSerializer = (PojoSerializer<?>) result;
+				subclassSerializer.copyBaseFieldOrder(this);
+			}
+			subclassSerializerCache.put(subclass, result);
+
+		}
+		return result;
+	}
+
+	private boolean hasField(Field f) {
+		for (Field field: fields) {
+			if (f.equals(field)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	@SuppressWarnings("unchecked")
+	private void copyBaseFieldOrder(PojoSerializer<?> baseSerializer) {
+		// do nothing for now, but in the future, adapt subclass serializer to have same
+		// ordering as base class serializer so that binary comparison on base class fields
+		// can work
+	}
 	
 	@Override
 	public boolean isImmutableType() {
@@ -110,7 +204,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 		}
 
 		if (stateful) {
-			return new PojoSerializer<T>(clazz, duplicateFieldSerializers, fields);
+			return new PojoSerializer<T>(clazz, duplicateFieldSerializers, fields, executionConfig);
 		} else {
 			return this;
 		}
@@ -119,13 +213,12 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 	
 	@Override
 	public T createInstance() {
+		if (clazz.isInterface() || Modifier.isAbstract(clazz.getModifiers())) {
+			return null;
+		}
 		try {
 			T t = clazz.newInstance();
-		
-			for (int i = 0; i < numFields; i++) {
-				fields[i].set(t, fieldSerializers[i].createInstance());
-			}
-			
+			initializeFields(t);
 			return t;
 		}
 		catch (Exception e) {
@@ -133,51 +226,89 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 		}
 	}
 
-	@Override
-	public T copy(T from) {
-		T target;
-		try {
-			target = clazz.newInstance();
-		}
-		catch (Throwable t) {
-			throw new RuntimeException("Cannot instantiate class.", t);
-		}
-		
-		try {
-			for (int i = 0; i < numFields; i++) {
-				Object value = fields[i].get(from);
-				if (value != null) {
-					Object copy = fieldSerializers[i].copy(value);
-					fields[i].set(target, copy);
-				}
-				else {
-					fields[i].set(target, null);
-				}
+	protected void initializeFields(T t) {
+		for (int i = 0; i < numFields; i++) {
+			try {
+				fields[i].set(t, fieldSerializers[i].createInstance());
+			} catch (IllegalAccessException e) {
+				throw new RuntimeException("Cannot initialize fields.", e);
 			}
 		}
-		catch (IllegalAccessException e) {
-			throw new RuntimeException("Error during POJO copy, this should not happen since we check the fields before.");
+	}
+
+	@Override
+	@SuppressWarnings("unchecked")
+	public T copy(T from) {
+		if (from == null) {
+			return null;
 		}
-		return target;
+
+		Class<?> actualType = from.getClass();
+		if (actualType == clazz) {
+			T target;
+			try {
+				target = (T) from.getClass().newInstance();
+			}
+			catch (Throwable t) {
+				throw new RuntimeException("Cannot instantiate class.", t);
+			}
+			// no subclass
+			try {
+				for (int i = 0; i < numFields; i++) {
+					Object value = fields[i].get(from);
+					if (value != null) {
+						Object copy = fieldSerializers[i].copy(value);
+						fields[i].set(target, copy);
+					}
+					else {
+						fields[i].set(target, null);
+					}
+				}
+			} catch (IllegalAccessException e) {
+				throw new RuntimeException("Error during POJO copy, this should not happen since we check the fields before.");
+
+			}
+			return target;
+		} else {
+			// subclass
+			TypeSerializer subclassSerializer = getSubclassSerializer(actualType);
+			return (T) subclassSerializer.copy(from);
+		}
 	}
 	
 	@Override
+	@SuppressWarnings("unchecked")
 	public T copy(T from, T reuse) {
-		try {
-			for (int i = 0; i < numFields; i++) {
-				Object value = fields[i].get(from);
-				if (value != null) {
-					Object copy = fieldSerializers[i].copy(fields[i].get(from), fields[i].get(reuse));
-					fields[i].set(reuse, copy);
-				}
-				else {
-					fields[i].set(reuse, null);
-				}
-			}
-		} catch (IllegalAccessException e) {
-			throw new RuntimeException("Error during POJO copy, this should not happen since we check the fields" +
-					"before.");
+		if (from == null) {
+			return null;
 		}
+
+		Class<?> actualType = from.getClass();
+		if (reuse == null || actualType != reuse.getClass()) {
+			// cannot reuse, do a non-reuse copy
+			return copy(from);
+		}
+
+		if (actualType == clazz) {
+			try {
+				for (int i = 0; i < numFields; i++) {
+					Object value = fields[i].get(from);
+					if (value != null) {
+						Object copy = fieldSerializers[i].copy(fields[i].get(from), fields[i].get(reuse));
+						fields[i].set(reuse, copy);
+					}
+					else {
+						fields[i].set(reuse, null);
+					}
+				}
+			} catch (IllegalAccessException e) {
+				throw new RuntimeException("Error during POJO copy, this should not happen since we check the fields" + "before.");
+			}
+		} else {
+			TypeSerializer subclassSerializer = getSubclassSerializer(actualType);
+			reuse = (T) subclassSerializer.copy(from, reuse);
+		}
+
 		return reuse;
 	}
 
@@ -188,94 +319,228 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
 
 	@Override
+	@SuppressWarnings("unchecked")
 	public void serialize(T value, DataOutputView target) throws IOException {
+		int flags = 0;
 		// handle null values
 		if (value == null) {
-			target.writeBoolean(true);
+			flags |= IS_NULL;
+			target.writeByte(flags);
 			return;
-		} else {
-			target.writeBoolean(false);
 		}
-		try {
-			for (int i = 0; i < numFields; i++) {
-				Object o = fields[i].get(value);
-				if(o == null) {
-					target.writeBoolean(true); // null field handling
-				} else {
-					target.writeBoolean(false);
-					fieldSerializers[i].serialize(o, target);
-				}
+
+		Integer subclassTag = -1;
+		Class<?> actualClass = value.getClass();
+		TypeSerializer subclassSerializer = null;
+		if (clazz != actualClass) {
+			subclassTag = registeredClasses.get(actualClass);
+			if (subclassTag != null) {
+				flags |= IS_TAGGED_SUBCLASS;
+				subclassSerializer = registeredSerializers[subclassTag];
+			} else {
+				flags |= IS_SUBCLASS;
+				subclassSerializer = getSubclassSerializer(actualClass);
 			}
-		} catch (IllegalAccessException e) {
-			throw new RuntimeException("Error during POJO copy, this should not happen since we check the fields" +
-					"before.");
+		} else {
+			flags |= NO_SUBCLASS;
+		}
+
+		target.writeByte(flags);
+
+		if ((flags & IS_SUBCLASS) != 0) {
+			target.writeUTF(actualClass.getName());
+		} else if ((flags & IS_TAGGED_SUBCLASS) != 0) {
+			target.writeByte(subclassTag);
+		}
+
+
+		if ((flags & NO_SUBCLASS) != 0) {
+			try {
+				for (int i = 0; i < numFields; i++) {
+					Object o = fields[i].get(value);
+					if (o == null) {
+						target.writeBoolean(true); // null field handling
+					} else {
+						target.writeBoolean(false);
+						fieldSerializers[i].serialize(o, target);
+					}
+				}
+			} catch (IllegalAccessException e) {
+				throw new RuntimeException("Error during POJO copy, this should not happen since we check the fields" + "before.");
+
+			}
+		} else {
+			// subclass
+			if (subclassSerializer != null) {
+				subclassSerializer.serialize(value, target);
+			}
 		}
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	public T deserialize(DataInputView source) throws IOException {
-		boolean isNull = source.readBoolean();
-		if(isNull) {
+		int flags = source.readByte();
+		if((flags & IS_NULL) != 0) {
 			return null;
 		}
+
 		T target;
-		try {
-			target = clazz.newInstance();
-		}
-		catch (Throwable t) {
-			throw new RuntimeException("Cannot instantiate class.", t);
-		}
-		
-		try {
-			for (int i = 0; i < numFields; i++) {
-				isNull = source.readBoolean();
-				if(isNull) {
-					fields[i].set(target, null);
-				} else {
-					Object field = fieldSerializers[i].deserialize(source);
-					fields[i].set(target, field);
-				}
+
+		Class<?> actualSubclass = null;
+		TypeSerializer subclassSerializer = null;
+
+		if ((flags & IS_SUBCLASS) != 0) {
+			String subclassName = source.readUTF();
+			try {
+				actualSubclass = Class.forName(subclassName, true, cl);
+			} catch (ClassNotFoundException e) {
+				throw new RuntimeException("Cannot instantiate class.", e);
 			}
-		} catch (IllegalAccessException e) {
-			throw new RuntimeException("Error during POJO copy, this should not happen since we check the fields" +
-					"before.");
+			subclassSerializer = getSubclassSerializer(actualSubclass);
+			target = (T) subclassSerializer.createInstance();
+			// also initialize fields for which the subclass serializer is not responsible
+			initializeFields(target);
+		} else if ((flags & IS_TAGGED_SUBCLASS) != 0) {
+
+			int subclassTag = source.readByte();
+			subclassSerializer = registeredSerializers[subclassTag];
+			target = (T) subclassSerializer.createInstance();
+			// also initialize fields for which the subclass serializer is not responsible
+			initializeFields(target);
+		} else {
+			target = createInstance();
+		}
+
+		if ((flags & NO_SUBCLASS) != 0) {
+			try {
+				for (int i = 0; i < numFields; i++) {
+					boolean isNull = source.readBoolean();
+					if (isNull) {
+						fields[i].set(target, null);
+					} else {
+						Object field = fieldSerializers[i].deserialize(source);
+						fields[i].set(target, field);
+					}
+				}
+			} catch (IllegalAccessException e) {
+				throw new RuntimeException("Error during POJO copy, this should not happen since we check the fields" + "before.");
+
+			}
+		} else {
+			if (subclassSerializer != null) {
+				target = (T) subclassSerializer.deserialize(target, source);
+			}
 		}
 		return target;
 	}
 	
 	@Override
+	@SuppressWarnings("unchecked")
 	public T deserialize(T reuse, DataInputView source) throws IOException {
+
 		// handle null values
-		boolean isNull = source.readBoolean();
-		if (isNull) {
+		int flags = source.readByte();
+		if((flags & IS_NULL) != 0) {
 			return null;
 		}
-		try {
-			for (int i = 0; i < numFields; i++) {
-				isNull = source.readBoolean();
-				if(isNull) {
-					fields[i].set(reuse, null);
-				} else {
-					Object field = fieldSerializers[i].deserialize(fields[i].get(reuse), source);
-					fields[i].set(reuse, field);
-				}
+
+		Class<?> subclass = null;
+		TypeSerializer subclassSerializer = null;
+		if ((flags & IS_SUBCLASS) != 0) {
+			String subclassName = source.readUTF();
+			try {
+				subclass = Class.forName(subclassName, true, cl);
+			} catch (ClassNotFoundException e) {
+				throw new RuntimeException("Cannot instantiate class.", e);
 			}
-		} catch (IllegalAccessException e) {
-			throw new RuntimeException("Error during POJO copy, this should not happen since we check the fields" +
-					"before.");
+			subclassSerializer = getSubclassSerializer(subclass);
+
+			if (reuse == null || subclass != reuse.getClass()) {
+				// cannot reuse
+				reuse = (T) subclassSerializer.createInstance();
+				// also initialize fields for which the subclass serializer is not responsible
+				initializeFields(reuse);
+			}
+		} else if ((flags & IS_TAGGED_SUBCLASS) != 0) {
+			int subclassTag = source.readByte();
+			subclassSerializer = registeredSerializers[subclassTag];
+
+			if (reuse == null || ((PojoSerializer)subclassSerializer).clazz != reuse.getClass()) {
+				// cannot reuse
+				reuse = (T) subclassSerializer.createInstance();
+				// also initialize fields for which the subclass serializer is not responsible
+				initializeFields(reuse);
+			}
+		} else {
+			if (reuse == null || clazz != reuse.getClass()) {
+				reuse = createInstance();
+			}
 		}
+
+		if ((flags & NO_SUBCLASS) != 0) {
+			try {
+				for (int i = 0; i < numFields; i++) {
+					boolean isNull = source.readBoolean();
+					if (isNull) {
+						fields[i].set(reuse, null);
+					} else {
+						Object field = fieldSerializers[i].deserialize(fields[i].get(reuse), source);
+
+						fields[i].set(reuse, field);
+					}
+				}
+			} catch (IllegalAccessException e) {
+				throw new RuntimeException("Error during POJO copy, this should not happen since we check the fields" + "before.");
+			}
+		} else {
+			if (subclassSerializer != null) {
+				reuse = (T) subclassSerializer.deserialize(reuse, source);
+			}
+		}
+
 		return reuse;
 	}
 
 	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		// copy the Non-Null/Null tag
-		target.writeBoolean(source.readBoolean());
-		for (int i = 0; i < numFields; i++) {
-			boolean isNull = source.readBoolean();
-			target.writeBoolean(isNull);
-			if (!isNull) {
-				fieldSerializers[i].copy(source, target);
+		// copy the flags
+		int flags = source.readByte();
+		target.writeByte(flags);
+
+		if ((flags & IS_NULL) != 0) {
+			// is a null value, nothing further to copy
+			return;
+		}
+
+		TypeSerializer<?> subclassSerializer = null;
+		if ((flags & IS_SUBCLASS) != 0) {
+			String className = source.readUTF();
+			target.writeUTF(className);
+			try {
+				Class<?> subclass = Class.forName(className, true, Thread.currentThread()
+						.getContextClassLoader());
+				subclassSerializer = getSubclassSerializer(subclass);
+			} catch (ClassNotFoundException e) {
+				throw new RuntimeException("Cannot instantiate class.", e);
+			}
+		} else if ((flags & IS_TAGGED_SUBCLASS) != 0) {
+			int subclassTag = source.readByte();
+			target.writeByte(subclassTag);
+			subclassSerializer = registeredSerializers[subclassTag];
+		}
+
+		if ((flags & NO_SUBCLASS) != 0) {
+			for (int i = 0; i < numFields; i++) {
+				boolean isNull = source.readBoolean();
+				target.writeBoolean(isNull);
+				if (!isNull) {
+					fieldSerializers[i].copy(source, target);
+				}
+			}
+		} else {
+			if (subclassSerializer != null) {
+				subclassSerializer.copy(source, target);
 			}
 		}
 	}

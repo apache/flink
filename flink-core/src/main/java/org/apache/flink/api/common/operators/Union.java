@@ -21,6 +21,7 @@ package org.apache.flink.api.common.operators;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
@@ -47,7 +48,7 @@ public class Union<T> extends DualInputOperator<T, T, T, AbstractRichFunction> {
 	}
 
 	@Override
-	protected List<T> executeOnCollections(List<T> inputData1, List<T> inputData2, RuntimeContext runtimeContext, boolean mutableObjectSafeMode) {
+	protected List<T> executeOnCollections(List<T> inputData1, List<T> inputData2, RuntimeContext runtimeContext, ExecutionConfig executionConfig) {
 		ArrayList<T> result = new ArrayList<T>(inputData1.size() + inputData2.size());
 		result.addAll(inputData1);
 		result.addAll(inputData2);

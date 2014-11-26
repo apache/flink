@@ -23,6 +23,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -91,7 +92,7 @@ public class CollectionInputFormatTest {
 			TypeInformation<ElementType> info = (TypeInformation<ElementType>) TypeExtractor.createTypeInfo(ElementType.class);
 	
 			CollectionInputFormat<ElementType> inputFormat = new CollectionInputFormat<ElementType>(inputCollection,
-					info.createSerializer());
+					info.createSerializer(new ExecutionConfig()));
 
 			ByteArrayOutputStream buffer = new ByteArrayOutputStream();
 			ObjectOutputStream out = new ObjectOutputStream(buffer);
@@ -168,7 +169,7 @@ public class CollectionInputFormatTest {
 		
 		try {
 			List<String> inputCollection = Arrays.asList(data);
-			CollectionInputFormat<String> inputFormat = new CollectionInputFormat<String>(inputCollection, BasicTypeInfo.STRING_TYPE_INFO.createSerializer());
+			CollectionInputFormat<String> inputFormat = new CollectionInputFormat<String>(inputCollection, BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()));
 			
 			// serialize
 			ByteArrayOutputStream baos = new ByteArrayOutputStream();

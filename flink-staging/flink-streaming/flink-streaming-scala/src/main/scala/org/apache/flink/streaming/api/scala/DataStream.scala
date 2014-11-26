@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.scala
 
+import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
 import org.apache.flink.streaming.api.datastream.{DataStream => JavaStream,
   SingleOutputStreamOperator, GroupedDataStream}
 import scala.reflect.ClassTag
@@ -41,7 +42,6 @@ import org.apache.flink.streaming.api.collector.OutputSelector
 import scala.collection.JavaConversions._
 import java.util.HashMap
 import org.apache.flink.streaming.api.function.aggregation.SumFunction
-import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
 import org.apache.flink.streaming.api.function.aggregation.AggregationFunction
 import org.apache.flink.streaming.api.function.aggregation.AggregationFunction.AggregationType
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
@@ -290,7 +290,9 @@ class DataStream[T](javaStream: JavaStream[T]) {
     val jStream = javaStream.asInstanceOf[JavaStream[Product]]
     val outType = jStream.getType().asInstanceOf[TupleTypeInfoBase[_]]
 
-    val agg = new ScalaStreamingAggregator[Product](jStream.getType().createSerializer(), position)
+    val agg = new ScalaStreamingAggregator[Product](
+      jStream.getType().createSerializer(javaStream.getExecutionEnvironment.getConfig),
+      position)
 
     val reducer = aggregationType match {
       case AggregationType.SUM => new agg.Sum(SumFunction.getForClass(outType.getTypeAt(position).

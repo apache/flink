@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.scala.runtime
 
+import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.java.typeutils.runtime.KryoSerializer
 import org.junit.Assert._
 
@@ -90,7 +91,7 @@ class ScalaSpecialTypesSerializerTest {
   private final def runTests[T : TypeInformation](instances: Array[T]) {
     try {
       val typeInfo = implicitly[TypeInformation[T]]
-      val serializer = typeInfo.createSerializer
+      val serializer = typeInfo.createSerializer(new ExecutionConfig)
       val typeClass = typeInfo.getTypeClass
       val test =
         new ScalaSpecialTypesSerializerTestInstance[T](serializer, typeClass, -1, instances)
@@ -116,8 +117,9 @@ class ScalaSpecialTypesSerializerTestInstance[T](
   override def testInstantiate(): Unit = {
     try {
       val serializer: TypeSerializer[T] = getSerializer
-      val instance: T = serializer.createInstance
       if (!serializer.isInstanceOf[KryoSerializer[_]]) {
+        // kryo serializer does return null, so only test for non-kryo-serializers
+        val instance: T = serializer.createInstance
         assertNotNull("The created instance must not be null.", instance)
       }
       val tpe: Class[T] = getTypeClass

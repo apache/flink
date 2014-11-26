@@ -52,7 +52,8 @@ public class CompositeTypeTest {
 			inNestedTuple3,
 			BasicTypeInfo.INT_TYPE_INFO	);
 
-	private final PojoTypeInfo<?> pojoTypeInfo = ((PojoTypeInfo<?>)TypeExtractor.getForClass(MyPojo.class));
+	private final PojoTypeInfo<?> pojoTypeInfo = ((PojoTypeInfo<?>) TypeExtractor.getForClass
+			(MyPojo.class));
 
 	private final TupleTypeInfo<?> pojoInTupleTypeInfo = new TupleTypeInfo<Tuple2<Integer, MyPojo>>(BasicTypeInfo.INT_TYPE_INFO, pojoTypeInfo);
 

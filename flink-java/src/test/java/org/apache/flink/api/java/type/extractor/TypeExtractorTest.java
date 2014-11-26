@@ -1077,10 +1077,16 @@ public class TypeExtractorTest {
 
 	public interface Testable {}
 
-	public abstract class AbstractClass {}
+	public static abstract class AbstractClassWithoutMember {}
+
+	public static abstract class AbstractClassWithMember {
+		public int x;
+	}
 
 	@Test
-	public void testAbstractAndInterfaceTypesException() {
+	public void testAbstractAndInterfaceTypes() {
+
+		// interface
 		RichMapFunction<String, ?> function = new RichMapFunction<String, Testable>() {
 			private static final long serialVersionUID = 1L;
 
@@ -1089,21 +1095,35 @@ public class TypeExtractorTest {
 				return null;
 			}
 		};
-		
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, BasicTypeInfo.STRING_TYPE_INFO, null, true);
+
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, BasicTypeInfo.STRING_TYPE_INFO);
 		Assert.assertTrue(ti instanceof GenericTypeInfo);
 
-		RichMapFunction<String, ?> function2 = new RichMapFunction<String, AbstractClass>() {
+		// abstract class with out class member
+		RichMapFunction<String, ?> function2 = new RichMapFunction<String, AbstractClassWithoutMember>() {
 			private static final long serialVersionUID = 1L;
 
 			@Override
-			public AbstractClass map(String value) throws Exception {
+			public AbstractClassWithoutMember map(String value) throws Exception {
 				return null;
 			}
 		};
 
-		TypeInformation<?> ti2 = TypeExtractor.getMapReturnTypes(function2, BasicTypeInfo.STRING_TYPE_INFO, null, true);
-		Assert.assertTrue(ti2 instanceof GenericTypeInfo);
+		ti = TypeExtractor.getMapReturnTypes(function2, BasicTypeInfo.STRING_TYPE_INFO);
+		Assert.assertTrue(ti instanceof GenericTypeInfo);
+
+		// abstract class with class member
+		RichMapFunction<String, ?> function3 = new RichMapFunction<String, AbstractClassWithMember>() {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public AbstractClassWithMember map(String value) throws Exception {
+				return null;
+			}
+		};
+
+		ti = TypeExtractor.getMapReturnTypes(function3, BasicTypeInfo.STRING_TYPE_INFO);
+		Assert.assertTrue(ti instanceof PojoTypeInfo);
 	}
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
@@ -1727,7 +1747,7 @@ public class TypeExtractorTest {
 				+ "myField1=String,myField2=int"
 				+ ">[][][]"));
 		Assert.assertEquals("ObjectArrayTypeInfo<ObjectArrayTypeInfo<ObjectArrayTypeInfo<"
-				+ "PojoType<org.apache.flink.api.java.type.extractor.TypeExtractorTest.CustomType, fields = [myField1: String, myField2: Integer]>"
+				+ "PojoType<org.apache.flink.api.java.type.extractor.TypeExtractorTest$CustomType, fields = [myField1: String, myField2: Integer]>"
 				+ ">>>", ti.toString());
 		
 		// generic array

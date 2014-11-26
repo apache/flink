@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.api.scala
 
+import org.apache.flink.api.common.ExecutionConfig
+
 import scala.Array.canBuildFrom
 import scala.reflect.ClassTag
 import org.apache.commons.lang.Validate
@@ -46,7 +48,7 @@ TemporalOperator[I1, I2, StreamJoinOperator.JoinWindow[I1, I2]](i1, i2) {
 
 object StreamJoinOperator {
 
-  class JoinWindow[I1, I2](private[flink]op: StreamJoinOperator[I1, I2]) extends 
+  class JoinWindow[I1, I2](private[flink] val op: StreamJoinOperator[I1, I2]) extends
   TemporalWindow[JoinWindow[I1, I2]] {
 
     private[flink] val type1 = op.input1.getType()
@@ -59,7 +61,9 @@ object StreamJoinOperator {
      */
     def where(fields: Int*) = {
       new JoinPredicate[I1, I2](op, KeySelectorUtil.getSelectorForKeys(
-        new Keys.ExpressionKeys(fields.toArray, type1), type1))
+        new Keys.ExpressionKeys(fields.toArray, type1),
+        type1,
+        op.input1.getExecutionEnvironment.getConfig))
     }
 
     /**
@@ -70,7 +74,9 @@ object StreamJoinOperator {
      */
     def where(firstField: String, otherFields: String*) =
       new JoinPredicate[I1, I2](op, KeySelectorUtil.getSelectorForKeys(
-        new Keys.ExpressionKeys(firstField +: otherFields.toArray, type1), type1))
+        new Keys.ExpressionKeys(firstField +: otherFields.toArray, type1),
+        type1,
+        op.input1.getExecutionEnvironment.getConfig))
 
     /**
      * Continues a temporal Join transformation by defining
@@ -112,7 +118,9 @@ object StreamJoinOperator {
      */
     def equalTo(fields: Int*): JoinedStream[I1, I2] = {
       finish(KeySelectorUtil.getSelectorForKeys(
-        new Keys.ExpressionKeys(fields.toArray, type2), type2))
+        new Keys.ExpressionKeys(fields.toArray, type2),
+        type2,
+        op.input1.getExecutionEnvironment.getConfig))
     }
 
     /**
@@ -123,7 +131,9 @@ object StreamJoinOperator {
      */
     def equalTo(firstField: String, otherFields: String*): JoinedStream[I1, I2] =
       finish(KeySelectorUtil.getSelectorForKeys(
-        new Keys.ExpressionKeys(firstField +: otherFields.toArray, type2), type2))
+        new Keys.ExpressionKeys(firstField +: otherFields.toArray, type2),
+        type2,
+        op.input1.getExecutionEnvironment.getConfig))
 
     /**
      * Creates a temporal join transformation by defining the second join key.
@@ -151,10 +161,11 @@ object StreamJoinOperator {
 
         classOf[(I1, I2)], Seq(op.input1.getType, op.input2.getType), Array("_1", "_2")) {
 
-        override def createSerializer: TypeSerializer[(I1, I2)] = {
+        override def createSerializer(
+            executionConfig: ExecutionConfig): TypeSerializer[(I1, I2)] = {
           val fieldSerializers: Array[TypeSerializer[_]] = new Array[TypeSerializer[_]](getArity)
           for (i <- 0 until getArity) {
-            fieldSerializers(i) = types(i).createSerializer
+            fieldSerializers(i) = types(i).createSerializer(executionConfig)
           }
 
           new CaseClassSerializer[(I1, I2)](classOf[(I1, I2)], fieldSerializers) {

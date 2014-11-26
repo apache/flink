@@ -49,7 +49,7 @@ public class ProjectOperator<IN, OUT extends Tuple>
 	protected final int[] fields;
 	
 	private Projection<IN> proj;
-	
+
 	public ProjectOperator(DataSet<IN> input, int[] fields, TupleTypeInfo<OUT> returnType) {
 		super(input, returnType);
 	
@@ -68,7 +68,7 @@ public class ProjectOperator<IN, OUT extends Tuple>
 	protected org.apache.flink.api.common.operators.base.MapOperatorBase<IN, OUT, MapFunction<IN,OUT>> translateToDataFlow(Operator<IN> input) {
 		String name = getName() != null ? getName() : "Projection " + Arrays.toString(fields);
 		// create operator
-		PlanProjectOperator<IN, OUT> ppo = new PlanProjectOperator<IN, OUT>(fields, name, getInputType(), getResultType());
+		PlanProjectOperator<IN, OUT> ppo = new PlanProjectOperator<IN, OUT>(fields, name, getInputType(), getResultType(), context.getConfig());
 		// set input
 		ppo.setInput(input);
 		// set dop

@@ -27,6 +27,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.typeutils.GenericTypeInfo;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.MemoryUtils;
@@ -84,9 +88,12 @@ public class KryoVersusAvroMinibenchmark {
 			System.out.println("Kryo serializer");
 			{
 				final TestDataOutputSerializer outView = new TestDataOutputSerializer(100000000);
-				final KryoSerializer<MyType> serializer = new KryoSerializer<MyType>(MyType.class);
-				serializer.getKryo().register(Tuple2.class);
-				
+				ExecutionConfig conf = new ExecutionConfig();
+				conf.registerKryoType(MyType.class);
+				conf.enableForceKryo();
+				TypeInformation<MyType> typeInfo = new GenericTypeInfo<MyType>(MyType.class);
+				final TypeSerializer<MyType> serializer = typeInfo.createSerializer(conf);
+
 				long start = System.nanoTime();
 				
 				for (int k = 0; k < NUM_ELEMENTS; k++) {

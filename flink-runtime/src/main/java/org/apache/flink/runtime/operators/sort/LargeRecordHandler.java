@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -102,6 +103,8 @@ public class LargeRecordHandler<T> {
 	
 	private volatile boolean closed;
 
+	private final ExecutionConfig executionConfig;
+
 	// --------------------------------------------------------------------------------------------
 	
 	public LargeRecordHandler(TypeSerializer<T> serializer, TypeComparator<T> comparator, 
@@ -115,7 +118,9 @@ public class LargeRecordHandler<T> {
 		this.memory = checkNotNull(memory);
 		this.memoryOwner = checkNotNull(memoryOwner);
 		this.maxFilehandles = maxFilehandles;
-		
+
+		this.executionConfig = memoryOwner.getExecutionConfig();
+
 		checkArgument(maxFilehandles >= 2);
 	}
 	
@@ -374,13 +379,13 @@ public class LargeRecordHandler<T> {
 	
 	// --------------------------------------------------------------------------------------------
 	
-	private static TypeSerializer<Object> createSerializer(Object key, int pos) {
+	private TypeSerializer<Object> createSerializer(Object key, int pos) {
 		if (key == null) {
 			throw new NullKeyFieldException(pos);
 		}
 		try {
 			TypeInformation<Object> info = TypeExtractor.getForObject(key);
-			return info.createSerializer();
+			return info.createSerializer(executionConfig);
 		}
 		catch (Throwable t) {
 			throw new RuntimeException("Could not create key serializer for type " + key);

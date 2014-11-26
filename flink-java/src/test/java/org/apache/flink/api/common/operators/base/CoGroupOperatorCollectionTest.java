@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.operators.base;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.RichCoGroupFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
@@ -66,16 +67,19 @@ public class CoGroupOperatorCollectionTest implements Serializable {
 							.build()
 			);
 
-			final RuntimeContext ctx = new RuntimeUDFContext("Test UDF", 4, 0, null);
+			ExecutionConfig executionConfig = new ExecutionConfig();
+			final RuntimeContext ctx = new RuntimeUDFContext("Test UDF", 4, 0, null, executionConfig);
 
 			{
 				SumCoGroup udf1 = new SumCoGroup();
 				SumCoGroup udf2 = new SumCoGroup();
-				
+
+				executionConfig.disableObjectReuse();
 				List<Tuple2<String, Integer>> resultSafe = getCoGroupOperator(udf1)
-						.executeOnCollections(input1, input2, ctx, true);
+						.executeOnCollections(input1, input2, ctx, executionConfig);
+				executionConfig.enableObjectReuse();
 				List<Tuple2<String, Integer>> resultRegular = getCoGroupOperator(udf2)
-						.executeOnCollections(input1, input2, ctx, false);
+						.executeOnCollections(input1, input2, ctx, executionConfig);
 
 				Assert.assertTrue(udf1.isClosed);
 				Assert.assertTrue(udf2.isClosed);
@@ -95,13 +99,15 @@ public class CoGroupOperatorCollectionTest implements Serializable {
 			}
 
 			{
+				executionConfig.disableObjectReuse();
 				List<Tuple2<String, Integer>> resultSafe = getCoGroupOperator(new SumCoGroup())
 						.executeOnCollections(Collections.<Tuple2<String, Integer>>emptyList(),
-								Collections.<Tuple2<String, Integer>>emptyList(), ctx, true);
-				
+								Collections.<Tuple2<String, Integer>>emptyList(), ctx, executionConfig);
+
+				executionConfig.enableObjectReuse();
 				List<Tuple2<String, Integer>> resultRegular = getCoGroupOperator(new SumCoGroup())
 						.executeOnCollections(Collections.<Tuple2<String, Integer>>emptyList(),
-								Collections.<Tuple2<String, Integer>>emptyList(), ctx, false);
+								Collections.<Tuple2<String, Integer>>emptyList(), ctx, executionConfig);
 
 				Assert.assertEquals(0, resultSafe.size());
 				Assert.assertEquals(0, resultRegular.size());

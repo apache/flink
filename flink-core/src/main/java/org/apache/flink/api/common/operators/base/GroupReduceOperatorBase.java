@@ -19,6 +19,7 @@
 package org.apache.flink.api.common.operators.base;
 
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.FlatCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
@@ -152,8 +153,10 @@ public class GroupReduceOperatorBase<IN, OUT, FT extends GroupReduceFunction<IN,
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	protected List<OUT> executeOnCollections(List<IN> inputData, RuntimeContext ctx, boolean mutableObjectSafeMode) throws Exception {
+	protected List<OUT> executeOnCollections(List<IN> inputData, RuntimeContext ctx, ExecutionConfig executionConfig) throws Exception {
 		GroupReduceFunction<IN, OUT> function = this.userFunction.getUserCodeObject();
+
+		boolean objectReuseDisabled = !executionConfig.isObjectReuseEnabled();
 
 		UnaryOperatorInformation<IN, OUT> operatorInfo = getOperatorInfo();
 		TypeInformation<IN> inputType = operatorInfo.getInputType();
@@ -176,7 +179,7 @@ public class GroupReduceOperatorBase<IN, OUT, FT extends GroupReduceFunction<IN,
 			if(sortColumns.length == 0) { // => all reduce. No comparator
 				Preconditions.checkArgument(sortOrderings.length == 0);
 			} else {
-				final TypeComparator<IN> sortComparator = ((CompositeType<IN>) inputType).createComparator(sortColumns, sortOrderings, 0);
+				final TypeComparator<IN> sortComparator = ((CompositeType<IN>) inputType).createComparator(sortColumns, sortOrderings, 0, executionConfig);
 	
 				Collections.sort(inputData, new Comparator<IN>() {
 					@Override
@@ -193,9 +196,9 @@ public class GroupReduceOperatorBase<IN, OUT, FT extends GroupReduceFunction<IN,
 		ArrayList<OUT> result = new ArrayList<OUT>();
 
 		if (keyColumns.length == 0) {
-			if (mutableObjectSafeMode) {
-				final TypeSerializer<IN> inputSerializer = inputType.createSerializer();
-				TypeSerializer<OUT> outSerializer = getOperatorInfo().getOutputType().createSerializer();
+			if (objectReuseDisabled) {
+				final TypeSerializer<IN> inputSerializer = inputType.createSerializer(executionConfig);
+				TypeSerializer<OUT> outSerializer = getOperatorInfo().getOutputType().createSerializer(executionConfig);
 				List<IN> inputDataCopy = new ArrayList<IN>(inputData.size());
 				for (IN in: inputData) {
 					inputDataCopy.add(inputSerializer.copy(in));
@@ -208,14 +211,14 @@ public class GroupReduceOperatorBase<IN, OUT, FT extends GroupReduceFunction<IN,
 				function.reduce(inputData, collector);
 			}
 		} else {
-			final TypeSerializer<IN> inputSerializer = inputType.createSerializer();
+			final TypeSerializer<IN> inputSerializer = inputType.createSerializer(executionConfig);
 			boolean[] keyOrderings = new boolean[keyColumns.length];
-			final TypeComparator<IN> comparator = ((CompositeType<IN>) inputType).createComparator(keyColumns, keyOrderings, 0);
+			final TypeComparator<IN> comparator = ((CompositeType<IN>) inputType).createComparator(keyColumns, keyOrderings, 0, executionConfig);
 
-			ListKeyGroupedIterator<IN> keyedIterator = new ListKeyGroupedIterator<IN>(inputData, inputSerializer, comparator, mutableObjectSafeMode);
+			ListKeyGroupedIterator<IN> keyedIterator = new ListKeyGroupedIterator<IN>(inputData, inputSerializer, comparator, objectReuseDisabled);
 
-			if (mutableObjectSafeMode) {
-				TypeSerializer<OUT> outSerializer = getOperatorInfo().getOutputType().createSerializer();
+			if (objectReuseDisabled) {
+				TypeSerializer<OUT> outSerializer = getOperatorInfo().getOutputType().createSerializer(executionConfig);
 				CopyingListCollector<OUT> collector = new CopyingListCollector<OUT>(result, outSerializer);
 
 				while (keyedIterator.nextKey()) {

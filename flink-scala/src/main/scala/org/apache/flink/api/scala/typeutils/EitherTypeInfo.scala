@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.scala.typeutils
 
+import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.TypeSerializer
 
@@ -36,12 +37,18 @@ class EitherTypeInfo[A, B, T <: Either[A, B]](
   override def getArity: Int = 1
   override def getTypeClass = clazz
 
-  def createSerializer(): TypeSerializer[T] = {
-    val leftSerializer =
-      if (leftTypeInfo != null) leftTypeInfo.createSerializer() else new NothingSerializer
+  def createSerializer(executionConfig: ExecutionConfig): TypeSerializer[T] = {
+    val leftSerializer = if (leftTypeInfo != null) {
+      leftTypeInfo.createSerializer(executionConfig)
+    } else {
+      new NothingSerializer
+    }
 
-    val rightSerializer =
-      if (rightTypeInfo != null) rightTypeInfo.createSerializer() else new NothingSerializer
+    val rightSerializer = if (rightTypeInfo != null) {
+      rightTypeInfo.createSerializer(executionConfig)
+    } else {
+      new NothingSerializer
+    }
     new EitherSerializer(leftSerializer, rightSerializer)
   }
 

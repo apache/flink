@@ -69,12 +69,6 @@ import scala.reflect.ClassTag
  *  be created.
  */
 class ExecutionEnvironment(javaEnv: JavaEnv) {
-  /**
-   * Sets the config object.
-   */
-  def setConfig(config: ExecutionConfig): Unit = {
-    javaEnv.setConfig(config)
-  }
 
   /**
    * Gets the config object.
@@ -411,7 +405,7 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
     CollectionInputFormat.checkCollection(data.asJavaCollection, typeInfo.getTypeClass)
     val dataSource = new DataSource[T](
       javaEnv,
-      new CollectionInputFormat[T](data.asJavaCollection, typeInfo.createSerializer),
+      new CollectionInputFormat[T](data.asJavaCollection, typeInfo.createSerializer(getConfig)),
       typeInfo,
       getCallLocationName())
     wrap(dataSource)

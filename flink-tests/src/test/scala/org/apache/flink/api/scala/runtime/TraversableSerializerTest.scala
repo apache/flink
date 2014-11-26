@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.scala.runtime
 
+import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.functions.InvalidTypesException
 import org.junit.Assert._
 
@@ -104,7 +105,7 @@ class TraversableSerializerTest {
     val testData = Array(Array((1, "String"), (2, "Foo")), Array((4, "String"), (3, "Foo")))
     runTests(testData)
   }
-//
+
   @Test
   def testWithCaseClass(): Unit = {
     val testData = Array(Seq((1, "String"), (2, "Foo")), Seq((4, "String"), (3, "Foo")))
@@ -132,7 +133,7 @@ class TraversableSerializerTest {
   private final def runTests[T : TypeInformation](instances: Array[T]) {
     try {
       val typeInfo = implicitly[TypeInformation[T]]
-      val serializer = typeInfo.createSerializer
+      val serializer = typeInfo.createSerializer(new ExecutionConfig)
       val typeClass = typeInfo.getTypeClass
       val test =
         new ScalaSpecialTypesSerializerTestInstance[T](serializer, typeClass, -1, instances)

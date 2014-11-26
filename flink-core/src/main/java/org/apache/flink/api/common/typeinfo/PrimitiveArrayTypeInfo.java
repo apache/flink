@@ -21,6 +21,7 @@ package org.apache.flink.api.common.typeinfo;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BooleanPrimitiveArraySerializer;
@@ -86,7 +87,7 @@ public class PrimitiveArrayTypeInfo<T> extends TypeInformation<T> {
 	}
 
 	@Override
-	public TypeSerializer<T> createSerializer() {
+	public TypeSerializer<T> createSerializer(ExecutionConfig executionConfig) {
 		return this.serializer;
 	}
 	

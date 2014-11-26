@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.typeutils;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeinfo.AtomicType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -79,7 +80,7 @@ public class ValueTypeInfo<T extends Value> extends TypeInformation<T> implement
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public TypeSerializer<T> createSerializer() {
+	public TypeSerializer<T> createSerializer(ExecutionConfig executionConfig) {
 		if (CopyableValue.class.isAssignableFrom(type)) {
 			return (TypeSerializer<T>) createCopyableValueSerializer(type.asSubclass(CopyableValue.class));
 		}
@@ -90,7 +91,7 @@ public class ValueTypeInfo<T extends Value> extends TypeInformation<T> implement
 	
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Override
-	public TypeComparator<T> createComparator(boolean sortOrderAscending) {
+	public TypeComparator<T> createComparator(boolean sortOrderAscending, ExecutionConfig executionConfig) {
 		if (!isKeyType()) {
 			throw new RuntimeException("The type " + type.getName() + " is not Comparable.");
 		}

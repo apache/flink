@@ -19,6 +19,7 @@ package org.apache.flink.streaming.util.keys;
 
 import java.lang.reflect.Array;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -60,12 +61,13 @@ public class KeySelectorUtil {
 			Tuple20.class, Tuple21.class, Tuple22.class, Tuple23.class, Tuple24.class,
 			Tuple25.class };
 
-	public static <X> KeySelector<X, ?> getSelectorForKeys(Keys<X> keys, TypeInformation<X> typeInfo) {
+	public static <X> KeySelector<X, ?> getSelectorForKeys(Keys<X> keys, TypeInformation<X> typeInfo, ExecutionConfig executionConfig) {
 		int[] logicalKeyPositions = keys.computeLogicalKeyPositions();
 		int keyLength = logicalKeyPositions.length;
 		boolean[] orders = new boolean[keyLength];
+		// TODO: Fix using KeySelector everywhere
 		TypeComparator<X> comparator = ((CompositeType<X>) typeInfo).createComparator(
-				logicalKeyPositions, orders, 0);
+				logicalKeyPositions, orders, 0, executionConfig);
 		return new ComparableKeySelector<X>(comparator, keyLength);
 	}
 

@@ -22,6 +22,7 @@ package org.apache.flink.api.java.typeutils.runtime;
 import java.util.ArrayList;
 import java.util.Random;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple1;
@@ -209,7 +210,7 @@ public class TupleSerializerTest {
 	private <T extends Tuple> void runTests(T... instances) {
 		try {
 			TupleTypeInfo<T> tupleTypeInfo = (TupleTypeInfo<T>) TypeExtractor.getForObject(instances[0]);
-			TypeSerializer<T> serializer = tupleTypeInfo.createSerializer();
+			TypeSerializer<T> serializer = tupleTypeInfo.createSerializer(new ExecutionConfig());
 			
 			Class<T> tupleClass = tupleTypeInfo.getTypeClass();
 			

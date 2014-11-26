@@ -18,6 +18,7 @@
 package org.apache.flink.api.scala
 
 import org.apache.commons.lang3.Validate
+import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.functions.{RichCrossFunction, CrossFunction}
 import org.apache.flink.api.common.typeutils.{TypeComparator, TypeSerializer}
 import org.apache.flink.api.java.operators._
@@ -114,10 +115,10 @@ private[flink] object CrossDataSet {
     val returnType = new CaseClassTypeInfo[(L, R)](
       classOf[(L, R)], Seq(leftInput.getType, rightInput.getType), Array("_1", "_2")) {
 
-      override def createSerializer: TypeSerializer[(L, R)] = {
+      override def createSerializer(executionConfig: ExecutionConfig): TypeSerializer[(L, R)] = {
         val fieldSerializers: Array[TypeSerializer[_]] = new Array[TypeSerializer[_]](getArity)
         for (i <- 0 until getArity) {
-          fieldSerializers(i) = types(i).createSerializer
+          fieldSerializers(i) = types(i).createSerializer(executionConfig)
         }
 
         new CaseClassSerializer[(L, R)](classOf[(L, R)], fieldSerializers) {

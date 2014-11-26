@@ -35,7 +35,7 @@ public class ProjectInvokable<IN, OUT extends Tuple> extends StreamInvokable<IN,
 		super(null);
 		this.fields = fields;
 		this.numFields = this.fields.length;
-		this.outTypeSerializer = outTypeInformation.createSerializer();
+		this.outTypeSerializer = outTypeInformation.createSerializer(executionConfig);
 	}
 
 	@Override

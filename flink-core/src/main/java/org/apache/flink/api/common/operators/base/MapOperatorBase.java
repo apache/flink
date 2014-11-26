@@ -21,6 +21,7 @@ package org.apache.flink.api.common.operators.base;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
@@ -54,17 +55,19 @@ public class MapOperatorBase<IN, OUT, FT extends MapFunction<IN, OUT>> extends S
 	// --------------------------------------------------------------------------------------------
 	
 	@Override
-	protected List<OUT> executeOnCollections(List<IN> inputData, RuntimeContext ctx, boolean mutableObjectSafeMode) throws Exception {
+	protected List<OUT> executeOnCollections(List<IN> inputData, RuntimeContext ctx, ExecutionConfig executionConfig) throws Exception {
 		MapFunction<IN, OUT> function = this.userFunction.getUserCodeObject();
 		
 		FunctionUtils.setFunctionRuntimeContext(function, ctx);
 		FunctionUtils.openFunction(function, this.parameters);
 		
 		ArrayList<OUT> result = new ArrayList<OUT>(inputData.size());
+
+		boolean objectReuseDisabled = !executionConfig.isObjectReuseEnabled();
 		
-		if (mutableObjectSafeMode) {
-			TypeSerializer<IN> inSerializer = getOperatorInfo().getInputType().createSerializer();
-			TypeSerializer<OUT> outSerializer = getOperatorInfo().getOutputType().createSerializer();
+		if (objectReuseDisabled) {
+			TypeSerializer<IN> inSerializer = getOperatorInfo().getInputType().createSerializer(executionConfig);
+			TypeSerializer<OUT> outSerializer = getOperatorInfo().getOutputType().createSerializer(executionConfig);
 			
 			for (IN element : inputData) {
 				IN inCopy = inSerializer.copy(element);

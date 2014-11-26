@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.operators.base;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.CopyingListCollector;
@@ -53,17 +54,19 @@ public class FlatMapOperatorBase<IN, OUT, FT extends FlatMapFunction<IN, OUT>> e
 	// ------------------------------------------------------------------------
 
 	@Override
-	protected List<OUT> executeOnCollections(List<IN> input, RuntimeContext ctx, boolean mutableObjectSafeMode) throws Exception {
+	protected List<OUT> executeOnCollections(List<IN> input, RuntimeContext ctx, ExecutionConfig executionConfig) throws Exception {
 		FlatMapFunction<IN, OUT> function = userFunction.getUserCodeObject();
 		
 		FunctionUtils.setFunctionRuntimeContext(function, ctx);
 		FunctionUtils.openFunction(function, parameters);
 
 		ArrayList<OUT> result = new ArrayList<OUT>(input.size());
+
+		boolean objectReuseDisabled = !executionConfig.isObjectReuseEnabled();
 		
-		if (mutableObjectSafeMode) {
-			TypeSerializer<IN> inSerializer = getOperatorInfo().getInputType().createSerializer();
-			TypeSerializer<OUT> outSerializer = getOperatorInfo().getOutputType().createSerializer();
+		if (objectReuseDisabled) {
+			TypeSerializer<IN> inSerializer = getOperatorInfo().getInputType().createSerializer(executionConfig);
+			TypeSerializer<OUT> outSerializer = getOperatorInfo().getOutputType().createSerializer(executionConfig);
 			
 			CopyingListCollector<OUT> resultCollector = new CopyingListCollector<OUT>(result, outSerializer);
 			

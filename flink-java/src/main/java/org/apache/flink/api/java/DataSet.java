@@ -69,8 +69,10 @@ import org.apache.flink.api.java.operators.UnionOperator;
 import org.apache.flink.api.java.operators.UnsortedGrouping;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
+import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
@@ -92,7 +94,7 @@ import com.google.common.base.Preconditions;
  */
 public abstract class DataSet<T> {
 	
-	private final ExecutionEnvironment context;
+	protected final ExecutionEnvironment context;
 	
 	// NOTE: the type must not be accessed directly, but only via getType()
 	private TypeInformation<T> type;
@@ -109,7 +111,11 @@ public abstract class DataSet<T> {
 		}
 
 		this.context = context;
-		this.type = typeInfo;
+		if (typeInfo instanceof PojoTypeInfo && context.getConfig().isForceKryoEnabled()) {
+			this.type = new GenericTypeInfo<T>(typeInfo.getTypeClass());
+		} else {
+			this.type = typeInfo;
+		}
 	}
 
 	/**
@@ -1300,7 +1306,7 @@ public abstract class DataSet<T> {
 		
 		// configure the type if needed
 		if (outputFormat instanceof InputTypeConfigurable) {
-			((InputTypeConfigurable) outputFormat).setInputType(getType());
+			((InputTypeConfigurable) outputFormat).setInputType(getType(), context.getConfig() );
 		}
 		
 		DataSink<T> sink = new DataSink<T>(this, outputFormat, getType());

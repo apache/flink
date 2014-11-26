@@ -226,7 +226,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 				TupleTypeInfo<OUT> returnType, CrossHint hint)
 		{
 			super(input1, input2,
-					new ProjectCrossFunction<I1, I2, OUT>(fields, isFromFirst, returnType.createSerializer().createInstance()),
+					new ProjectCrossFunction<I1, I2, OUT>(fields, isFromFirst, returnType.createSerializer(input1.getExecutionEnvironment().getConfig()).createInstance()),
 					returnType, hint, "unknown");
 			
 			crossProjection = null;
@@ -236,7 +236,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 				TupleTypeInfo<OUT> returnType, CrossProjection<I1, I2> crossProjection, CrossHint hint)
 		{
 			super(input1, input2,
-				new ProjectCrossFunction<I1, I2, OUT>(fields, isFromFirst, returnType.createSerializer().createInstance()),
+				new ProjectCrossFunction<I1, I2, OUT>(fields, isFromFirst, returnType.createSerializer(input1.getExecutionEnvironment().getConfig()).createInstance()),
 				returnType, hint, "unknown");
 			
 			this.crossProjection = crossProjection;

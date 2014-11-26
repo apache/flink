@@ -22,6 +22,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.operators.DualInputOperator;
 import org.apache.flink.api.common.operators.GenericDataSourceBase;
 import org.apache.flink.api.common.operators.Operator;
@@ -70,9 +71,13 @@ public class JavaApiPostPass implements OptimizerPostPass {
 	
 	private final Set<PlanNode> alreadyDone = new HashSet<PlanNode>();
 
+	private ExecutionConfig executionConfig = null;
 	
 	@Override
 	public void postPass(OptimizedPlan plan) {
+
+		executionConfig = plan.getOriginalPactPlan().getExecutionConfig();
+
 		for (SinkPlanNode sink : plan.getDataSinks()) {
 			traverse(sink);
 		}
@@ -275,22 +280,22 @@ public class JavaApiPostPass implements OptimizerPostPass {
 		}
 	}
 	
-	private static <T> TypeSerializerFactory<?> createSerializer(TypeInformation<T> typeInfo) {
-		TypeSerializer<T> serializer = typeInfo.createSerializer();
+	private <T> TypeSerializerFactory<?> createSerializer(TypeInformation<T> typeInfo) {
+		TypeSerializer<T> serializer = typeInfo.createSerializer(executionConfig);
 
 		return new RuntimeSerializerFactory<T>(serializer, typeInfo.getTypeClass());
 	}
 	
 	@SuppressWarnings("unchecked")
-	private static <T> TypeComparatorFactory<?> createComparator(TypeInformation<T> typeInfo, FieldList keys, boolean[] sortOrder) {
+	private <T> TypeComparatorFactory<?> createComparator(TypeInformation<T> typeInfo, FieldList keys, boolean[] sortOrder) {
 		
 		TypeComparator<T> comparator;
 		if (typeInfo instanceof CompositeType) {
-			comparator = ((CompositeType<T>) typeInfo).createComparator(keys.toArray(), sortOrder, 0);
+			comparator = ((CompositeType<T>) typeInfo).createComparator(keys.toArray(), sortOrder, 0, executionConfig);
 		}
 		else if (typeInfo instanceof AtomicType) {
 			// handle grouping of atomic types
-			comparator = ((AtomicType<T>) typeInfo).createComparator(sortOrder[0]);
+			comparator = ((AtomicType<T>) typeInfo).createComparator(sortOrder[0], executionConfig);
 		}
 		else {
 			throw new RuntimeException("Unrecognized type: " + typeInfo);

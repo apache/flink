@@ -25,6 +25,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -89,7 +90,7 @@ public class LocalCollectionOutputFormat<T> implements OutputFormat<T>, InputTyp
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public void setInputType(TypeInformation<?> type) {
-		this.typeSerializer = (TypeSerializer<T>)type.createSerializer();
+	public void setInputType(TypeInformation<?> type, ExecutionConfig executionConfig) {
+		this.typeSerializer = (TypeSerializer<T>)type.createSerializer(executionConfig);
 	}
 }

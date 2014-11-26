@@ -22,6 +22,7 @@ import java.io.File
 import java.util.Random
 import java.io.BufferedWriter
 import java.io.FileWriter
+import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.scala._
 import java.io.BufferedReader
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync
@@ -81,8 +82,12 @@ class MassiveCaseClassSortingITCase {
         val typeInfo = implicitly[TypeInformation[StringTuple]]
           .asInstanceOf[CompositeType[StringTuple]]
         
-        val serializer = typeInfo.createSerializer()
-        val comparator = typeInfo.createComparator(Array(0, 1), Array(true, true), 0)
+        val serializer = typeInfo.createSerializer(new ExecutionConfig)
+        val comparator = typeInfo.createComparator(
+          Array(0, 1),
+          Array(true, true),
+          0,
+          new ExecutionConfig)
         
         val mm = new DefaultMemoryManager(1024 * 1024, 1)
         val ioMan = new IOManagerAsync()

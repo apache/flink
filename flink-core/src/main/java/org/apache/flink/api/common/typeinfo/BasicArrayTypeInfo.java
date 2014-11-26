@@ -21,6 +21,7 @@ package org.apache.flink.api.common.typeinfo;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.array.StringArraySerializer;
 import org.apache.flink.api.common.functions.InvalidTypesException;
@@ -94,12 +95,12 @@ public class BasicArrayTypeInfo<T, C> extends TypeInformation<T> {
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public TypeSerializer<T> createSerializer() {
+	public TypeSerializer<T> createSerializer(ExecutionConfig executionConfig) {
 		// special case the string array
 		if (componentClass.equals(String.class)) {
 			return (TypeSerializer<T>) StringArraySerializer.INSTANCE;
 		} else {
-			return (TypeSerializer<T>) new GenericArraySerializer<C>(this.componentClass, this.componentInfo.createSerializer());
+			return (TypeSerializer<T>) new GenericArraySerializer<C>(this.componentClass, this.componentInfo.createSerializer(executionConfig));
 		}
 	}
 	

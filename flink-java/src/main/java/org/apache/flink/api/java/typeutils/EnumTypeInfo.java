@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.typeutils;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.AtomicType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -40,7 +41,7 @@ public class EnumTypeInfo<T extends Enum<T>> extends TypeInformation<T> implemen
 	}
 
 	@Override
-	public TypeComparator<T> createComparator(boolean sortOrderAscending) {
+	public TypeComparator<T> createComparator(boolean sortOrderAscending, ExecutionConfig executionConfig) {
 		return new EnumComparator<T>(sortOrderAscending);
 	}
 
@@ -75,7 +76,7 @@ public class EnumTypeInfo<T extends Enum<T>> extends TypeInformation<T> implemen
 	}
 
 	@Override
-	public TypeSerializer<T> createSerializer() {
+	public TypeSerializer<T> createSerializer(ExecutionConfig executionConfig) {
 		return new EnumSerializer<T>(typeClass);
 	}
 	

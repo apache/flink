@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.operators.base;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.ReduceFunction;
@@ -149,12 +150,13 @@ public class ReduceOperatorBase<T, FT extends ReduceFunction<T>> extends SingleI
 	// --------------------------------------------------------------------------------------------
 	
 	@Override
-	protected List<T> executeOnCollections(List<T> inputData, RuntimeContext ctx, boolean mutableObjectSafeMode) throws Exception {
+	protected List<T> executeOnCollections(List<T> inputData, RuntimeContext ctx, ExecutionConfig executionConfig) throws Exception {
 		// make sure we can handle empty inputs
 		if (inputData.isEmpty()) {
 			return Collections.emptyList();
 		}
-		
+
+		boolean objectReuseDisabled = !executionConfig.isObjectReuseEnabled();
 		ReduceFunction<T> function = this.userFunction.getUserCodeObject();
 
 		UnaryOperatorInformation<T, T> operatorInfo = getOperatorInfo();
@@ -169,11 +171,11 @@ public class ReduceOperatorBase<T, FT extends ReduceFunction<T>> extends SingleI
 		FunctionUtils.setFunctionRuntimeContext(function, ctx);
 		FunctionUtils.openFunction(function, this.parameters);
 
-		TypeSerializer<T> serializer = getOperatorInfo().getInputType().createSerializer();
+		TypeSerializer<T> serializer = getOperatorInfo().getInputType().createSerializer(executionConfig);
 
 		if (inputColumns.length > 0) {
 			boolean[] inputOrderings = new boolean[inputColumns.length];
-			TypeComparator<T> inputComparator = ((CompositeType<T>) inputType).createComparator(inputColumns, inputOrderings, 0);
+			TypeComparator<T> inputComparator = ((CompositeType<T>) inputType).createComparator(inputColumns, inputOrderings, 0, executionConfig);
 
 			Map<TypeComparable<T>, T> aggregateMap = new HashMap<TypeComparable<T>, T>(inputData.size() / 10);
 
@@ -183,7 +185,7 @@ public class ReduceOperatorBase<T, FT extends ReduceFunction<T>> extends SingleI
 				T existing = aggregateMap.get(wrapper);
 				T result;
 
-				if (mutableObjectSafeMode) {
+				if (objectReuseDisabled) {
 					if (existing != null) {
 						result = function.reduce(existing, serializer.copy(next));
 					} else {
@@ -209,7 +211,7 @@ public class ReduceOperatorBase<T, FT extends ReduceFunction<T>> extends SingleI
 		else {
 			T aggregate = inputData.get(0);
 			
-			if (mutableObjectSafeMode) {
+			if (objectReuseDisabled) {
 				aggregate = serializer.copy(aggregate);
 				
 				for (int i = 1; i < inputData.size(); i++) {

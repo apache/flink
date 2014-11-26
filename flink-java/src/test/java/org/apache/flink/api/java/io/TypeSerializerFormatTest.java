@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.io;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.BinaryInputFormat;
 import org.apache.flink.api.common.io.BinaryOutputFormat;
 import org.apache.flink.api.common.io.BlockInfo;
@@ -51,7 +52,7 @@ public class TypeSerializerFormatTest extends SequentialFormatTestBase<Tuple2<In
 
         resultType = TypeExtractor.getForObject(getRecord(0));
 
-		serializer = resultType.createSerializer();
+		serializer = resultType.createSerializer(new ExecutionConfig());
 	}
 
 	@Before

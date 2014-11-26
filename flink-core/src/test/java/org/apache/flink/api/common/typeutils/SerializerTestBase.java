@@ -358,7 +358,7 @@ public abstract class SerializerTestBase<T> {
 			try {
 				ser2 = SerializationUtils.clone(ser1);
 			} catch (SerializationException e) {
-				fail("The serializer is not serializable.");
+				fail("The serializer is not serializable: " + e);
 				return;
 			}
 			

@@ -21,7 +21,10 @@ package org.apache.flink.api.java.typeutils.runtime;
 import java.util.Collection;
 import java.util.HashSet;
 
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.joda.time.LocalDate;
 import org.junit.Test;
 
@@ -40,15 +43,16 @@ public class KryoWithCustomSerializersTest extends AbstractGenericTypeSerializer
 
 		b.add(new LocalDate(1L));
 		b.add(new LocalDate(2L));
-		
-		KryoSerializer.registerSerializer(LocalDate.class, LocalDateSerializer.class);
-		
+
 		runTests(b);
 	}
 
 	@Override
 	protected <T> TypeSerializer<T> createSerializer(Class<T> type) {
-		return new KryoSerializer<T>(type);
+		ExecutionConfig conf = new ExecutionConfig();
+		conf.registerKryoSerializer(LocalDate.class, LocalDateSerializer.class);
+		TypeInformation<T> typeInfo = new GenericTypeInfo<T>(type);
+		return typeInfo.createSerializer(conf);
 	}
 	
 	public static final class LocalDateSerializer extends Serializer<LocalDate> implements java.io.Serializable {

@@ -20,11 +20,12 @@ package org.apache.flink.api.java.typeutils;
 
 import java.util.Arrays;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+//CHECKSTYLE.OFF: AvoidStarImport - Needed for TupleGenerator
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-//CHECKSTYLE.OFF: AvoidStarImport - Needed for TupleGenerator
 import org.apache.flink.api.java.tuple.*;
 //CHECKSTYLE.ON: AvoidStarImport
 import org.apache.flink.api.java.typeutils.runtime.TupleComparator;
@@ -48,10 +49,10 @@ public final class TupleTypeInfo<T extends Tuple> extends TupleTypeInfoBase<T> {
 	}
 
 	@Override
-	public TupleSerializer<T> createSerializer() {
+	public TupleSerializer<T> createSerializer(ExecutionConfig executionConfig) {
 		TypeSerializer<?>[] fieldSerializers = new TypeSerializer<?>[getArity()];
 		for (int i = 0; i < types.length; i++) {
-			fieldSerializers[i] = types[i].createSerializer();
+			fieldSerializers[i] = types[i].createSerializer(executionConfig);
 		}
 		
 		Class<T> tupleClass = getTypeClass();
@@ -81,7 +82,7 @@ public final class TupleTypeInfo<T extends Tuple> extends TupleTypeInfoBase<T> {
 	}
 
 	@Override
-	protected TypeComparator<T> getNewComparator() {
+	protected TypeComparator<T> getNewComparator(ExecutionConfig executionConfig) {
 		@SuppressWarnings("rawtypes")
 		final TypeComparator[] finalFieldComparators = Arrays.copyOf(fieldComparators, comparatorHelperIndex);
 		final int[] finalLogicalKeyFields = Arrays.copyOf(logicalKeyFields, comparatorHelperIndex);
@@ -93,7 +94,7 @@ public final class TupleTypeInfo<T extends Tuple> extends TupleTypeInfoBase<T> {
 		}
 		TypeSerializer<?>[] fieldSerializers = new TypeSerializer<?>[maxKey + 1];
 		for (int i = 0; i <= maxKey; i++) {
-			fieldSerializers[i] = types[i].createSerializer();
+			fieldSerializers[i] = types[i].createSerializer(executionConfig);
 		}
 		if(finalFieldComparators.length == 0 || finalLogicalKeyFields.length == 0 || fieldSerializers.length == 0 
 				|| finalFieldComparators.length != finalLogicalKeyFields.length) {

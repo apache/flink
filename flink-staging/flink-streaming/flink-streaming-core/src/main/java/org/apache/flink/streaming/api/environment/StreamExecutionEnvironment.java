@@ -22,6 +22,7 @@ import java.io.Serializable;
 import java.util.Collection;
 import java.util.List;
 
+import com.esotericsoftware.kryo.Serializer;
 import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.InputFormat;
@@ -30,6 +31,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.TextInputFormat;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.client.program.Client;
 import org.apache.flink.client.program.Client.OptimizerPlanEnvironment;
@@ -78,15 +80,7 @@ public abstract class StreamExecutionEnvironment {
 	 * Constructor for creating StreamExecutionEnvironment
 	 */
 	protected StreamExecutionEnvironment() {
-		streamGraph = new StreamGraph();
-	}
-
-	/**
-	 * Sets the config object.
-	 */
-	public void setConfig(ExecutionConfig config) {
-		Validate.notNull(config);
-		this.config = config;
+		streamGraph = new StreamGraph(config);
 	}
 
 	/**
@@ -178,6 +172,57 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	public static void setDefaultLocalParallelism(int degreeOfParallelism) {
 		defaultLocalDop = degreeOfParallelism;
+	}
+
+	// --------------------------------------------------------------------------------------------
+	//  Registry for types and serializers
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Registers the given Serializer as a default serializer for the given type at the
+	 * {@link org.apache.flink.api.java.typeutils.runtime.KryoSerializer}.
+	 *
+	 * Note that the serializer instance must be serializable (as defined by java.io.Serializable),
+	 * because it may be distributed to the worker nodes by java serialization.
+	 *
+	 * @param type The class of the types serialized with the given serializer.
+	 * @param serializer The serializer to use.
+	 */
+	public void registerKryoSerializer(Class<?> type, Serializer<?> serializer) {
+		config.registerKryoSerializer(type, serializer);
+	}
+
+	/**
+	 * Registers the given Serializer via its class as a serializer for the given type at the
+	 * {@link org.apache.flink.api.java.typeutils.runtime.KryoSerializer}.
+	 *
+	 * @param type The class of the types serialized with the given serializer.
+	 * @param serializerClass The class of the serializer to use.
+	 */
+	public void registerKryoSerializer(Class<?> type, Class<? extends Serializer<?>> serializerClass) {
+		config.registerKryoSerializer(type, serializerClass);
+	}
+
+	/**
+	 * Registers the given type with the serialization stack. If the type is eventually
+	 * serialized as a POJO, then the type is registered with the POJO serializer. If the
+	 * type ends up being serialized with Kryo, then it will be registered at Kryo to make
+	 * sure that only tags are written.
+	 *
+	 * @param type The class of the type to register.
+	 */
+	public void registerType(Class<?> type) {
+		if (type == null) {
+			throw new NullPointerException("Cannot register null type class.");
+		}
+
+		TypeInformation<?> typeInfo = TypeExtractor.createTypeInfo(type);
+
+		if (typeInfo instanceof PojoTypeInfo) {
+			config.registerPojoType(type);
+		} else {
+			config.registerKryoType(type);
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------

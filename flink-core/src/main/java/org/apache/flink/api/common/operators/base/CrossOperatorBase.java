@@ -21,6 +21,7 @@ package org.apache.flink.api.common.operators.base;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.CrossFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
@@ -84,18 +85,20 @@ public class CrossOperatorBase<IN1, IN2, OUT, FT extends CrossFunction<IN1, IN2,
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	protected List<OUT> executeOnCollections(List<IN1> inputData1, List<IN2> inputData2, RuntimeContext ctx, boolean mutableObjectSafeMode) throws Exception {
+	protected List<OUT> executeOnCollections(List<IN1> inputData1, List<IN2> inputData2, RuntimeContext ctx, ExecutionConfig executionConfig) throws Exception {
 		CrossFunction<IN1, IN2, OUT> function = this.userFunction.getUserCodeObject();
 		
 		FunctionUtils.setFunctionRuntimeContext(function, ctx);
 		FunctionUtils.openFunction(function, this.parameters);
+
+		boolean objectReuseDisabled = !executionConfig.isObjectReuseEnabled();
 		
 		ArrayList<OUT> result = new ArrayList<OUT>(inputData1.size() * inputData2.size());
 		
-		if (mutableObjectSafeMode) {
-			TypeSerializer<IN1> inSerializer1 = getOperatorInfo().getFirstInputType().createSerializer();
-			TypeSerializer<IN2> inSerializer2 = getOperatorInfo().getSecondInputType().createSerializer();
-			TypeSerializer<OUT> outSerializer = getOperatorInfo().getOutputType().createSerializer();
+		if (objectReuseDisabled) {
+			TypeSerializer<IN1> inSerializer1 = getOperatorInfo().getFirstInputType().createSerializer(executionConfig);
+			TypeSerializer<IN2> inSerializer2 = getOperatorInfo().getSecondInputType().createSerializer(executionConfig);
+			TypeSerializer<OUT> outSerializer = getOperatorInfo().getOutputType().createSerializer(executionConfig);
 			
 			for (IN1 element1 : inputData1) {
 				for (IN2 element2 : inputData2) {

@@ -1068,7 +1068,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	public DistributedRuntimeUDFContext createRuntimeContext(String taskName) {
 		Environment env = getEnvironment();
 		return new DistributedRuntimeUDFContext(taskName, env.getNumberOfSubtasks(),
-				env.getIndexInSubtaskGroup(), getUserCodeClassLoader(), env.getCopyTask());
+				env.getIndexInSubtaskGroup(), getUserCodeClassLoader(), getExecutionConfig(), env.getCopyTask());
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -1078,23 +1078,6 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	@Override
 	public TaskConfig getTaskConfig() {
 		return this.config;
-	}
-
-	@Override
-	public ExecutionConfig getExecutionConfig() {
-		try {
-			ExecutionConfig c = (ExecutionConfig) InstantiationUtil.readObjectFromConfig(
-					getOwningNepheleTask().getJobConfiguration(),
-					ExecutionConfig.CONFIG_KEY,
-					this.getClass().getClassLoader());
-			if (c != null) {
-				return c;
-			} else {
-				return new ExecutionConfig();
-			}
-		} catch (Exception e) {
-			throw new RuntimeException("Could not load ExecutionConfig from Job Configuration: " + e);
-		}
 	}
 
 	@Override

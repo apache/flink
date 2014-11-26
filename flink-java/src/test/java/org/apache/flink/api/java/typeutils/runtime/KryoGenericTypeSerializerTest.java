@@ -20,6 +20,7 @@ package org.apache.flink.api.java.typeutils.runtime;
 
 import static org.junit.Assert.*;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.junit.Test;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
@@ -70,7 +71,7 @@ public class KryoGenericTypeSerializerTest extends AbstractGenericTypeSerializer
 
 	@Override
 	protected <T> TypeSerializer<T> createSerializer(Class<T> type) {
-		return new KryoSerializer<T>(type);
+		return new KryoSerializer<T>(type, new ExecutionConfig());
 	}
 	
 	/**
@@ -94,7 +95,7 @@ public class KryoGenericTypeSerializerTest extends AbstractGenericTypeSerializer
 			
 			// construct a memory target that is too small for the string
 			TestDataOutputSerializer target = new TestDataOutputSerializer(10000, 30000);
-			KryoSerializer<String> serializer = new KryoSerializer<String>(String.class);
+			KryoSerializer<String> serializer = new KryoSerializer<String>(String.class, new ExecutionConfig());
 			
 			try {
 				serializer.serialize(str, target);

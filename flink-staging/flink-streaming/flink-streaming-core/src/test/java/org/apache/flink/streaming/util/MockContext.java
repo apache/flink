@@ -23,6 +23,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.StreamConfig;
@@ -49,7 +50,7 @@ public class MockContext<IN, OUT> implements StreamTaskContext<OUT> {
 		}
 
 		TypeInformation<IN> inTypeInfo = TypeExtractor.getForObject(inputs.iterator().next());
-		inDeserializer = new StreamRecordSerializer<IN>(inTypeInfo);
+		inDeserializer = new StreamRecordSerializer<IN>(inTypeInfo, new ExecutionConfig());
 
 		iterator = new MockInputIterator();
 		outputs = new ArrayList<OUT>();
@@ -104,7 +105,7 @@ public class MockContext<IN, OUT> implements StreamTaskContext<OUT> {
 	public static <IN, OUT> List<OUT> createAndExecute(StreamInvokable<IN, OUT> invokable,
 			List<IN> inputs) {
 		MockContext<IN, OUT> mockContext = new MockContext<IN, OUT>(inputs);
-		invokable.setup(mockContext);
+		invokable.setup(mockContext, new ExecutionConfig());
 		try {
 			invokable.open(null);
 			invokable.invoke();

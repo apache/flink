@@ -23,7 +23,6 @@ import java.util.Iterator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.operators.translation.TupleUnwrappingIterator;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
 
 /**
  * Wraps a Flink Tuple2 (key-value-pair) iterator into an iterator over the second (value) field.
@@ -42,8 +41,8 @@ public class HadoopTupleUnwrappingIterator<KEY,VALUE>
 	private KEY curKey = null;
 	private VALUE firstValue = null;
 	
-	public HadoopTupleUnwrappingIterator(Class<KEY> keyClass) {
-		this.keySerializer = TypeExtractor.getForClass((Class<KEY>) keyClass).createSerializer();
+	public HadoopTupleUnwrappingIterator(TypeSerializer<KEY> keySerializer) {
+		this.keySerializer = keySerializer;
 	}
 	
 	/**

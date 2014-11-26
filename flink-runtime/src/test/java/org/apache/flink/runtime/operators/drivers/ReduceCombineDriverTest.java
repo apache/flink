@@ -22,6 +22,7 @@ package org.apache.flink.runtime.operators.drivers;
 import java.util.Collections;
 import java.util.List;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.functions.RichReduceFunction;
@@ -55,11 +56,11 @@ public class ReduceCombineDriverTest {
 			MutableObjectIterator<Tuple2<String, Integer>> input = EmptyMutableObjectIterator.get();
 			
 			context.setDriverStrategy(DriverStrategy.SORTED_PARTIAL_REDUCE);
-			TypeComparator<Tuple2<String, Integer>> comparator = typeInfo.createComparator(new int[]{0}, new boolean[] {true}, 0);
+			TypeComparator<Tuple2<String, Integer>> comparator = typeInfo.createComparator(new int[]{0}, new boolean[] {true}, 0, new ExecutionConfig());
 			
-			GatheringCollector<Tuple2<String, Integer>> result = new GatheringCollector<Tuple2<String,Integer>>(typeInfo.createSerializer());
+			GatheringCollector<Tuple2<String, Integer>> result = new GatheringCollector<Tuple2<String,Integer>>(typeInfo.createSerializer(new ExecutionConfig()));
 			
-			context.setInput1(input, typeInfo.createSerializer());
+			context.setInput1(input, typeInfo.createSerializer(new ExecutionConfig()));
 			context.setComparator1(comparator);
 			context.setCollector(result);
 			
@@ -89,13 +90,13 @@ public class ReduceCombineDriverTest {
 				Collections.shuffle(data);
 				
 				TupleTypeInfo<Tuple2<String, Integer>> typeInfo = (TupleTypeInfo<Tuple2<String, Integer>>) TypeExtractor.getForObject(data.get(0));
-				MutableObjectIterator<Tuple2<String, Integer>> input = new RegularToMutableObjectIterator<Tuple2<String, Integer>>(data.iterator(), typeInfo.createSerializer());
-				TypeComparator<Tuple2<String, Integer>> comparator = typeInfo.createComparator(new int[]{0}, new boolean[] {true}, 0);
+				MutableObjectIterator<Tuple2<String, Integer>> input = new RegularToMutableObjectIterator<Tuple2<String, Integer>>(data.iterator(), typeInfo.createSerializer(new ExecutionConfig()));
+				TypeComparator<Tuple2<String, Integer>> comparator = typeInfo.createComparator(new int[]{0}, new boolean[] {true}, 0, new ExecutionConfig());
 				
-				GatheringCollector<Tuple2<String, Integer>> result = new GatheringCollector<Tuple2<String,Integer>>(typeInfo.createSerializer());
+				GatheringCollector<Tuple2<String, Integer>> result = new GatheringCollector<Tuple2<String,Integer>>(typeInfo.createSerializer(new ExecutionConfig()));
 				
 				context.setDriverStrategy(DriverStrategy.SORTED_PARTIAL_REDUCE);
-				context.setInput1(input, typeInfo.createSerializer());
+				context.setInput1(input, typeInfo.createSerializer(new ExecutionConfig()));
 				context.setComparator1(comparator);
 				context.setCollector(result);
 				context.setUdf(new ConcatSumFirstReducer());
@@ -120,13 +121,13 @@ public class ReduceCombineDriverTest {
 				Collections.shuffle(data);
 				
 				TupleTypeInfo<Tuple2<String, Integer>> typeInfo = (TupleTypeInfo<Tuple2<String, Integer>>) TypeExtractor.getForObject(data.get(0));
-				MutableObjectIterator<Tuple2<String, Integer>> input = new RegularToMutableObjectIterator<Tuple2<String, Integer>>(data.iterator(), typeInfo.createSerializer());
-				TypeComparator<Tuple2<String, Integer>> comparator = typeInfo.createComparator(new int[]{0}, new boolean[] {true}, 0);
+				MutableObjectIterator<Tuple2<String, Integer>> input = new RegularToMutableObjectIterator<Tuple2<String, Integer>>(data.iterator(), typeInfo.createSerializer(new ExecutionConfig()));
+				TypeComparator<Tuple2<String, Integer>> comparator = typeInfo.createComparator(new int[]{0}, new boolean[] {true}, 0, new ExecutionConfig());
 				
-				GatheringCollector<Tuple2<String, Integer>> result = new GatheringCollector<Tuple2<String,Integer>>(typeInfo.createSerializer());
+				GatheringCollector<Tuple2<String, Integer>> result = new GatheringCollector<Tuple2<String,Integer>>(typeInfo.createSerializer(new ExecutionConfig()));
 				
 				context.setDriverStrategy(DriverStrategy.SORTED_PARTIAL_REDUCE);
-				context.setInput1(input, typeInfo.createSerializer());
+				context.setInput1(input, typeInfo.createSerializer(new ExecutionConfig()));
 				context.setComparator1(comparator);
 				context.setCollector(result);
 				context.setUdf(new ConcatSumSecondReducer());
@@ -159,13 +160,13 @@ public class ReduceCombineDriverTest {
 				
 				List<Tuple2<StringValue, IntValue>> data = DriverTestData.createReduceMutableData();
 				TupleTypeInfo<Tuple2<StringValue, IntValue>> typeInfo = (TupleTypeInfo<Tuple2<StringValue, IntValue>>) TypeExtractor.getForObject(data.get(0));
-				MutableObjectIterator<Tuple2<StringValue, IntValue>> input = new RegularToMutableObjectIterator<Tuple2<StringValue, IntValue>>(data.iterator(), typeInfo.createSerializer());
-				TypeComparator<Tuple2<StringValue, IntValue>> comparator = typeInfo.createComparator(new int[]{0}, new boolean[] {true}, 0);
+				MutableObjectIterator<Tuple2<StringValue, IntValue>> input = new RegularToMutableObjectIterator<Tuple2<StringValue, IntValue>>(data.iterator(), typeInfo.createSerializer(new ExecutionConfig()));
+				TypeComparator<Tuple2<StringValue, IntValue>> comparator = typeInfo.createComparator(new int[]{0}, new boolean[] {true}, 0, new ExecutionConfig());
 				
-				GatheringCollector<Tuple2<StringValue, IntValue>> result = new GatheringCollector<Tuple2<StringValue, IntValue>>(typeInfo.createSerializer());
+				GatheringCollector<Tuple2<StringValue, IntValue>> result = new GatheringCollector<Tuple2<StringValue, IntValue>>(typeInfo.createSerializer(new ExecutionConfig()));
 				
 				context.setDriverStrategy(DriverStrategy.SORTED_PARTIAL_REDUCE);
-				context.setInput1(input, typeInfo.createSerializer());
+				context.setInput1(input, typeInfo.createSerializer(new ExecutionConfig()));
 				context.setComparator1(comparator);
 				context.setCollector(result);
 				context.setUdf(new ConcatSumFirstMutableReducer());
@@ -187,13 +188,13 @@ public class ReduceCombineDriverTest {
 				
 				List<Tuple2<StringValue, IntValue>> data = DriverTestData.createReduceMutableData();
 				TupleTypeInfo<Tuple2<StringValue, IntValue>> typeInfo = (TupleTypeInfo<Tuple2<StringValue, IntValue>>) TypeExtractor.getForObject(data.get(0));
-				MutableObjectIterator<Tuple2<StringValue, IntValue>> input = new RegularToMutableObjectIterator<Tuple2<StringValue, IntValue>>(data.iterator(), typeInfo.createSerializer());
-				TypeComparator<Tuple2<StringValue, IntValue>> comparator = typeInfo.createComparator(new int[]{0}, new boolean[] {true}, 0);
+				MutableObjectIterator<Tuple2<StringValue, IntValue>> input = new RegularToMutableObjectIterator<Tuple2<StringValue, IntValue>>(data.iterator(), typeInfo.createSerializer(new ExecutionConfig()));
+				TypeComparator<Tuple2<StringValue, IntValue>> comparator = typeInfo.createComparator(new int[]{0}, new boolean[] {true}, 0, new ExecutionConfig());
 				
-				GatheringCollector<Tuple2<StringValue, IntValue>> result = new GatheringCollector<Tuple2<StringValue, IntValue>>(typeInfo.createSerializer());
+				GatheringCollector<Tuple2<StringValue, IntValue>> result = new GatheringCollector<Tuple2<StringValue, IntValue>>(typeInfo.createSerializer(new ExecutionConfig()));
 				
 				context.setDriverStrategy(DriverStrategy.SORTED_PARTIAL_REDUCE);
-				context.setInput1(input, typeInfo.createSerializer());
+				context.setInput1(input, typeInfo.createSerializer(new ExecutionConfig()));
 				context.setComparator1(comparator);
 				context.setCollector(result);
 				context.setUdf(new ConcatSumSecondMutableReducer());

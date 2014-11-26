@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.io;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.BinaryInputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -40,7 +41,8 @@ public class TypeSerializerInputFormat<T> extends BinaryInputFormat<T> implement
 
 	public TypeSerializerInputFormat(TypeInformation<T> resultType) {
 		this.resultType = resultType;
-		this.serializer = resultType.createSerializer();
+		// TODO: fix this shit
+		this.serializer = resultType.createSerializer(new ExecutionConfig());
 	}
 
 	@Override

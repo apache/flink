@@ -18,13 +18,20 @@
 
 package org.apache.flink.runtime.jobgraph.tasks;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.util.InstantiationUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Abstract base class for every task class in Flink.
  */
 public abstract class AbstractInvokable {
+
+	private static final Logger LOG = LoggerFactory.getLogger(AbstractInvokable.class);
+
 
 	/**
 	 * The environment assigned to this invokable.
@@ -108,6 +115,26 @@ public abstract class AbstractInvokable {
 	 */
 	public final Configuration getJobConfiguration() {
 		return this.environment.getJobConfiguration();
+	}
+
+	/**
+	 * Returns the global ExecutionConfig.
+	 */
+	public ExecutionConfig getExecutionConfig() {
+		try {
+			ExecutionConfig c = (ExecutionConfig) InstantiationUtil.readObjectFromConfig(
+					getJobConfiguration(),
+					ExecutionConfig.CONFIG_KEY,
+					this.getClass().getClassLoader());
+			if (c != null) {
+				return c;
+			} else {
+				return new ExecutionConfig();
+			}
+		} catch (Exception e) {
+			LOG.warn("Could not load ExecutionConfig from Environment, returning default ExecutionConfig: {}", e);
+			return new ExecutionConfig();
+		}
 	}
 
 	/**
