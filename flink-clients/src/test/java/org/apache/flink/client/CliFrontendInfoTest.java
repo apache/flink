@@ -73,21 +73,6 @@ public class CliFrontendInfoTest {
 	}
 	
 	@Test
-	public void testShowDescription() {
-		try {
-			String[] parameters = {"-d", CliFrontendTestUtils.getTestJarPath()};
-			CliFrontend testFrontend = new CliFrontend();
-			int retCode = testFrontend.info(parameters);
-			assertTrue(retCode == 0);
-		}
-		catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			fail("Program caused an exception: " + e.getMessage());
-		}
-	}
-	
-	@Test
 	public void testShowExecutionPlan() {
 		try {
 			String[] parameters = {"-e", CliFrontendTestUtils.getTestJarPath()};
