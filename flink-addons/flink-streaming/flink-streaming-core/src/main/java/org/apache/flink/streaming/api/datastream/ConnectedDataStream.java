@@ -18,9 +18,11 @@
 package org.apache.flink.streaming.api.datastream;
 
 import java.io.Serializable;
+import java.util.List;
 
 import org.apache.commons.lang3.SerializationException;
 import org.apache.commons.lang3.SerializationUtils;
+import org.apache.flink.api.common.functions.CrossFunction;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -32,7 +34,6 @@ import org.apache.flink.streaming.api.function.co.CoFlatMapFunction;
 import org.apache.flink.streaming.api.function.co.CoMapFunction;
 import org.apache.flink.streaming.api.function.co.CoReduceFunction;
 import org.apache.flink.streaming.api.function.co.CoWindowFunction;
-import org.apache.flink.streaming.api.function.co.CrossWindowFunction;
 import org.apache.flink.streaming.api.function.co.RichCoMapFunction;
 import org.apache.flink.streaming.api.function.co.RichCoReduceFunction;
 import org.apache.flink.streaming.api.invokable.operator.co.CoFlatMapInvokable;
@@ -47,6 +48,7 @@ import org.apache.flink.streaming.util.serialization.CombineTypeWrapper;
 import org.apache.flink.streaming.util.serialization.FunctionTypeWrapper;
 import org.apache.flink.streaming.util.serialization.ObjectTypeWrapper;
 import org.apache.flink.streaming.util.serialization.TypeWrapper;
+import org.apache.flink.util.Collector;
 
 /**
  * The ConnectedDataStream represents a stream for two different data types. It
@@ -550,20 +552,64 @@ public class ConnectedDataStream<IN1, IN2> {
 		return invokable;
 	}
 
-	SingleOutputStreamOperator<Tuple2<IN1, IN2>, ?> windowCross(long windowSize, long slideInterval) {
-		return windowCross(windowSize, slideInterval, new DefaultTimeStamp<IN1>(),
-				new DefaultTimeStamp<IN2>());
+	protected <OUT> SingleOutputStreamOperator<OUT, ?> addGeneralWindowCross(
+			CrossFunction<IN1, IN2, OUT> crossFunction, long windowSize, long slideInterval,
+			TimeStamp<IN1> timestamp1, TimeStamp<IN2> timestamp2) {
+
+		TypeWrapper<IN1> in1TypeWrapper = new ObjectTypeWrapper<IN1>(dataStream1.getOutputType()
+				.createSerializer().createInstance());
+		TypeWrapper<IN2> in2TypeWrapper = new ObjectTypeWrapper<IN2>(dataStream2.getOutputType()
+				.createSerializer().createInstance());
+
+		FunctionTypeWrapper<OUT> outTypeWrapper = new FunctionTypeWrapper<OUT>(crossFunction,
+				CrossFunction.class, 2);
+
+		CrossWindowFunction<IN1, IN2, OUT> crossWindowFunction = new CrossWindowFunction<IN1, IN2, OUT>(crossFunction);
+		
+		return addGeneralWindowCombine(crossWindowFunction, in1TypeWrapper, in2TypeWrapper,
+				outTypeWrapper, windowSize, slideInterval, timestamp1, timestamp2);
 	}
 
-	SingleOutputStreamOperator<Tuple2<IN1, IN2>, ?> windowCross(long windowSize,
-			long slideInterval, TimeStamp<IN1> timestamp1, TimeStamp<IN2> timestamp2) {
+	private static class CrossWindowFunction<IN1, IN2, OUT> implements CoWindowFunction<IN1, IN2, OUT> {
 
-		return addGeneralWindowJoin(new CrossWindowFunction<IN1, IN2>(), windowSize, slideInterval,
-				timestamp1, timestamp2);
+		private static final long serialVersionUID = 1L;
+
+		private CrossFunction<IN1, IN2, OUT> crossFunction;
+		
+		public CrossWindowFunction(CrossFunction<IN1, IN2, OUT> crossFunction) {
+			this.crossFunction = crossFunction;
+		}
+
+		@Override
+		public void coWindow(List<IN1> first, List<IN2> second, Collector<OUT> out)
+				throws Exception {
+			for (IN1 firstValue : first) {
+				for (IN2 secondValue : second) {
+					out.collect(crossFunction.cross(firstValue, secondValue));
+				}
+			}
+		}
 	}
-
+	
 	protected SingleOutputStreamOperator<Tuple2<IN1, IN2>, ?> addGeneralWindowJoin(
 			CoWindowFunction<IN1, IN2, Tuple2<IN1, IN2>> coWindowFunction, long windowSize,
+			long slideInterval, TimeStamp<IN1> timestamp1, TimeStamp<IN2> timestamp2) {
+
+		TypeWrapper<IN1> in1TypeWrapper = new ObjectTypeWrapper<IN1>(dataStream1.getOutputType()
+				.createSerializer().createInstance());
+		TypeWrapper<IN2> in2TypeWrapper = new ObjectTypeWrapper<IN2>(dataStream2.getOutputType()
+				.createSerializer().createInstance());
+
+		CombineTypeWrapper<IN1, IN2> outTypeWrapper = new CombineTypeWrapper<IN1, IN2>(
+				in1TypeWrapper, in2TypeWrapper);
+
+		return addGeneralWindowCombine(coWindowFunction, in1TypeWrapper, in2TypeWrapper,
+				outTypeWrapper, windowSize, slideInterval, timestamp1, timestamp2);
+	}
+
+	private <OUT> SingleOutputStreamOperator<OUT, ?> addGeneralWindowCombine(
+			CoWindowFunction<IN1, IN2, OUT> coWindowFunction, TypeWrapper<IN1> in1TypeWrapper,
+			TypeWrapper<IN2> in2TypeWrapper, TypeWrapper<OUT> outTypeWrapper, long windowSize,
 			long slideInterval, TimeStamp<IN1> timestamp1, TimeStamp<IN2> timestamp2) {
 
 		if (windowSize < 1) {
@@ -573,20 +619,9 @@ public class ConnectedDataStream<IN1, IN2> {
 			throw new IllegalArgumentException("Slide interval must be positive");
 		}
 
-		TypeWrapper<IN1> in1TypeWrapper = null;
-		TypeWrapper<IN2> in2TypeWrapper = null;
-
-		in1TypeWrapper = new ObjectTypeWrapper<IN1>(dataStream1.getOutputType().createSerializer()
-				.createInstance());
-		in2TypeWrapper = new ObjectTypeWrapper<IN2>(dataStream2.getOutputType().createSerializer()
-				.createInstance());
-
-		CombineTypeWrapper<IN1, IN2> outTypeWrapper = new CombineTypeWrapper<IN1, IN2>(
-				in1TypeWrapper, in2TypeWrapper);
-
 		return addCoFunction("coWindowReduce", coWindowFunction, in1TypeWrapper, in2TypeWrapper,
-				outTypeWrapper, new CoWindowInvokable<IN1, IN2, Tuple2<IN1, IN2>>(coWindowFunction,
-						windowSize, slideInterval, timestamp1, timestamp2));
+				outTypeWrapper, new CoWindowInvokable<IN1, IN2, OUT>(coWindowFunction, windowSize,
+						slideInterval, timestamp1, timestamp2));
 	}
 
 	protected <OUT> SingleOutputStreamOperator<OUT, ?> addCoFunction(String functionName,

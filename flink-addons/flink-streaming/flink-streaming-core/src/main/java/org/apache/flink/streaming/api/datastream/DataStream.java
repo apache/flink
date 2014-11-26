@@ -37,7 +37,6 @@ import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.streaming.api.JobGraphBuilder;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -58,8 +57,6 @@ import org.apache.flink.streaming.api.invokable.operator.FilterInvokable;
 import org.apache.flink.streaming.api.invokable.operator.FlatMapInvokable;
 import org.apache.flink.streaming.api.invokable.operator.MapInvokable;
 import org.apache.flink.streaming.api.invokable.operator.StreamReduceInvokable;
-import org.apache.flink.streaming.api.invokable.util.DefaultTimeStamp;
-import org.apache.flink.streaming.api.invokable.util.TimeStamp;
 import org.apache.flink.streaming.api.windowing.helper.Count;
 import org.apache.flink.streaming.api.windowing.helper.Delta;
 import org.apache.flink.streaming.api.windowing.helper.Time;
@@ -496,6 +493,34 @@ public class DataStream<OUT> {
 	}
 
 	/**
+	 * Initiates a temporal Cross transformation.<br/>
+	 * A Cross transformation combines the elements of two {@link DataStream}s
+	 * into one DataStream over a specified time window. It builds all pair
+	 * combinations of elements of both DataStreams, i.e., it builds a Cartesian
+	 * product.
+	 * 
+	 * <p>
+	 * This method returns a {@link StreamCrossOperator} on which the
+	 * {@link StreamCrossOperator#onWindow} should be called to define the
+	 * window, and then call
+	 * {@link StreamCrossOperator.CrossWindow#with(org.apache.flink.api.common.functions.CrossFunction)}
+	 * to define a {@link org.apache.flink.api.common.functions.CrossFunction}
+	 * which is called for each pair of crossed elements. The CrossFunction
+	 * returns a exactly one element for each pair of input elements.
+	 * 
+	 * @param dataStreamToCross
+	 *            The other DataStream with which this DataStream is crossed.
+	 * @return A {@link StreamCrossOperator} to continue the definition of the
+	 *         Join transformation.
+	 * 
+	 * @see org.apache.flink.api.common.functions.CrossFunction
+	 * @see DataStream
+	 */
+	public <IN2> StreamCrossOperator<OUT, IN2> cross(DataStream<IN2> dataStreamToCross) {
+		return new StreamCrossOperator<OUT, IN2>(this, dataStreamToCross);
+	}
+
+	/**
 	 * Initiates a temporal Join transformation. <br/>
 	 * A temporal Join transformation joins the elements of two
 	 * {@link DataStream}s on key equality over a specified time window.</br>
@@ -763,51 +788,6 @@ public class DataStream<OUT> {
 	public WindowedDataStream<OUT> window(List<TriggerPolicy<OUT>> triggers,
 			List<EvictionPolicy<OUT>> evicters) {
 		return new WindowedDataStream<OUT>(this, triggers, evicters);
-	}
-
-	/**
-	 * Creates a cross (Cartesian product) of a data stream window. The user can
-	 * implement their own time stamps or use the system time by default.
-	 * 
-	 * @param windowSize
-	 *            Size of the windows that will be aligned for both streams in
-	 *            milliseconds.
-	 * @param slideInterval
-	 *            After every function call the windows will be slid by this
-	 *            interval.
-	 * @param dataStreamToCross
-	 * @param windowSize
-	 * @param slideInterval
-	 * @return The transformed {@link DataStream}.
-	 */
-	public <IN2> SingleOutputStreamOperator<Tuple2<OUT, IN2>, ?> windowCross(
-			DataStream<IN2> dataStreamToCross, long windowSize, long slideInterval) {
-		return this.windowCross(dataStreamToCross, windowSize, slideInterval,
-				new DefaultTimeStamp<OUT>(), new DefaultTimeStamp<IN2>());
-	}
-
-	/**
-	 * Creates a cross (Cartesian product) of a data stream window.
-	 * 
-	 * @param dataStreamToCross
-	 *            {@link DataStream} to cross with.
-	 * @param windowSize
-	 *            Size of the windows that will be aligned for both streams in
-	 *            milliseconds.
-	 * @param slideInterval
-	 *            After every function call the windows will be slid by this
-	 *            interval.
-	 * @param timestamp1
-	 *            User defined time stamps for the first input.
-	 * @param timestamp2
-	 *            User defined time stamps for the second input.
-	 * @return The transformed {@link DataStream}.
-	 */
-	public <IN2> SingleOutputStreamOperator<Tuple2<OUT, IN2>, ?> windowCross(
-			DataStream<IN2> dataStreamToCross, long windowSize, long slideInterval,
-			TimeStamp<OUT> timestamp1, TimeStamp<IN2> timestamp2) {
-		return this.connect(dataStreamToCross).windowCross(windowSize, slideInterval, timestamp1,
-				timestamp2);
 	}
 
 	/**

@@ -19,8 +19,10 @@ package org.apache.flink.streaming.api;
 
 import static org.junit.Assert.assertEquals;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 
+import org.apache.flink.api.common.functions.CrossFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
@@ -29,7 +31,10 @@ import org.apache.flink.streaming.api.function.sink.SinkFunction;
 import org.apache.flink.streaming.api.invokable.util.TimeStamp;
 import org.junit.Test;
 
-public class WindowCrossJoinTest {
+public class WindowCrossJoinTest implements Serializable {
+
+	private static final long serialVersionUID = 1L;
+
 	private static final long MEMORYSIZE = 32;
 
 	private static ArrayList<Tuple2<Tuple2<Integer, String>, Integer>> joinResults = new ArrayList<Tuple2<Tuple2<Integer, String>, Integer>>();
@@ -93,7 +98,17 @@ public class WindowCrossJoinTest {
 		inStream1.join(inStream2).onWindow(1000, 1000, new MyTimestamp1(), new MyTimestamp2())
 				.where(0).equalTo(0).addSink(new JoinResultSink());
 
-		inStream1.windowCross(inStream2, 1000, 1000, new MyTimestamp1(), new MyTimestamp2())
+		inStream1.cross(inStream2).onWindow(1000, 1000, new MyTimestamp1(), new MyTimestamp2())
+				.with(new CrossFunction<Tuple2<Integer,String>, Integer, Tuple2<Tuple2<Integer,String>, Integer>>() {
+
+					private static final long serialVersionUID = 1L;
+
+					@Override
+					public Tuple2<Tuple2<Integer, String>, Integer> cross(
+							Tuple2<Integer, String> val1, Integer val2) throws Exception {
+						return new Tuple2<Tuple2<Integer,String>, Integer>(val1, val2);
+					}
+				})
 				.addSink(new CrossResultSink());
 
 		env.executeTest(MEMORYSIZE);

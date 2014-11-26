@@ -22,92 +22,27 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.function.co.JoinWindowFunction;
-import org.apache.flink.streaming.api.invokable.util.DefaultTimeStamp;
-import org.apache.flink.streaming.api.invokable.util.TimeStamp;
 import org.apache.flink.streaming.util.keys.FieldsKeySelector;
 import org.apache.flink.streaming.util.keys.PojoKeySelector;
 
-public class StreamJoinOperator<I1, I2> {
-
-	private final DataStream<I1> input1;
-	private final DataStream<I2> input2;
-
-	long windowSize;
-	long slideInterval;
-
-	TimeStamp<I1> timeStamp1;
-	TimeStamp<I2> timeStamp2;
+public class StreamJoinOperator<I1, I2> extends
+		WindowDBOperator<I1, I2, StreamJoinOperator.JoinWindow<I1, I2>> {
 
 	public StreamJoinOperator(DataStream<I1> input1, DataStream<I2> input2) {
-		if (input1 == null || input2 == null) {
-			throw new NullPointerException();
-		}
-		this.input1 = input1.copy();
-		this.input2 = input2.copy();
+		super(input1, input2);
 	}
 
-	/**
-	 * Continues a temporal Join transformation.<br/>
-	 * Defines the window size on which the two DataStreams will be joined.
-	 * 
-	 * @param windowSize
-	 *            The size of the window in milliseconds.
-	 * @return An incomplete Join transformation. Call {@link JoinWindow#where}
-	 *         to continue the Join.
-	 */
-	public JoinWindow onWindow(long windowSize) {
-		return onWindow(windowSize, windowSize);
+	@Override
+	protected JoinWindow<I1, I2> createNextWindowOperator() {
+		return new JoinWindow<I1, I2>(this);
 	}
 
-	/**
-	 * Continues a temporal Join transformation.<br/>
-	 * Defines the window size on which the two DataStreams will be joined.
-	 * 
-	 * @param windowSize
-	 *            The size of the window in milliseconds.
-	 * @param slideInterval
-	 *            The slide size of the window.
-	 * @return An incomplete Join transformation. Call {@link JoinWindow#where}
-	 *         to continue the Join.
-	 */
-	public JoinWindow onWindow(long windowSize, long slideInterval) {
-		return onWindow(windowSize, slideInterval, new DefaultTimeStamp<I1>(),
-				new DefaultTimeStamp<I2>());
-	}
+	public static class JoinWindow<I1, I2> {
 
-	/**
-	 * Continues a temporal Join transformation.<br/>
-	 * Defines the window size on which the two DataStreams will be joined.
-	 * 
-	 * @param windowSize
-	 *            The size of the window in milliseconds.
-	 * @param slideInterval
-	 *            The slide size of the window.
-	 * @param timeStamp1
-	 *            The timestamp used to extract time from the elements of the
-	 *            first data stream.
-	 * @param timeStamp2
-	 *            The timestamp used to extract time from the elements of the
-	 *            second data stream.
-	 * @return An incomplete Join transformation. Call {@link JoinWindow#where}
-	 *         to continue the Join.
-	 */
-	public JoinWindow onWindow(long windowSize, long slideInterval, TimeStamp<I1> timeStamp1,
-			TimeStamp<I2> timeStamp2) {
+		private StreamJoinOperator<I1, I2> op;
 
-		this.windowSize = windowSize;
-		this.slideInterval = slideInterval;
-
-		this.timeStamp1 = timeStamp1;
-		this.timeStamp2 = timeStamp2;
-
-		return new JoinWindow();
-	}
-
-	public class JoinWindow {
-
-		private JoinWindow() {
-
+		private JoinWindow(StreamJoinOperator<I1, I2> operator) {
+			this.op = operator;
 		}
 
 		/**
@@ -123,8 +58,9 @@ public class StreamJoinOperator<I1, I2> {
 		 * @return An incomplete Join transformation. Call
 		 *         {@link JoinPredicate#equalTo} to continue the Join.
 		 */
-		public JoinPredicate where(int... fields) {
-			return new JoinPredicate(FieldsKeySelector.getSelector(input1.getOutputType(), fields));
+		public JoinPredicate<I1, I2> where(int... fields) {
+			return new JoinPredicate<I1, I2>(op, FieldsKeySelector.getSelector(
+					op.input1.getOutputType(), fields));
 		}
 
 		/**
@@ -139,8 +75,9 @@ public class StreamJoinOperator<I1, I2> {
 		 * @return An incomplete Join transformation. Call
 		 *         {@link JoinPredicate#equalTo} to continue the Join.
 		 */
-		public JoinPredicate where(String... fields) {
-			return new JoinPredicate(new PojoKeySelector<I1>(input1.getOutputType(), fields));
+		public JoinPredicate<I1, I2> where(String... fields) {
+			return new JoinPredicate<I1, I2>(op, new PojoKeySelector<I1>(op.input1.getOutputType(),
+					fields));
 		}
 
 		/**
@@ -156,8 +93,8 @@ public class StreamJoinOperator<I1, I2> {
 		 * @return An incomplete Join transformation. Call
 		 *         {@link JoinPredicate#equalTo} to continue the Join.
 		 */
-		public <K> JoinPredicate where(KeySelector<I1, K> keySelector) {
-			return new JoinPredicate(keySelector);
+		public <K> JoinPredicate<I1, I2> where(KeySelector<I1, K> keySelector) {
+			return new JoinPredicate<I1, I2>(op, keySelector);
 		}
 
 		// ----------------------------------------------------------------------------------------
@@ -170,11 +107,13 @@ public class StreamJoinOperator<I1, I2> {
 	 * input {@link DataStream} by calling {@link JoinPredicate#equalTo}
 	 *
 	 */
-	public class JoinPredicate {
+	public static class JoinPredicate<I1, I2> {
 
+		private StreamJoinOperator<I1, I2> op;
 		private final KeySelector<I1, ?> keys1;
 
-		private JoinPredicate(KeySelector<I1, ?> keys1) {
+		private JoinPredicate(StreamJoinOperator<I1, I2> operator, KeySelector<I1, ?> keys1) {
+			this.op = operator;
 			this.keys1 = keys1;
 		}
 
@@ -196,7 +135,8 @@ public class StreamJoinOperator<I1, I2> {
 		 * @return The joined data stream.
 		 */
 		public SingleOutputStreamOperator<Tuple2<I1, I2>, ?> equalTo(int... fields) {
-			return createJoinOperator(FieldsKeySelector.getSelector(input2.getOutputType(), fields));
+			return createJoinOperator(FieldsKeySelector.getSelector(op.input2.getOutputType(),
+					fields));
 		}
 
 		/**
@@ -214,7 +154,7 @@ public class StreamJoinOperator<I1, I2> {
 		 * @return The joined data stream.
 		 */
 		public SingleOutputStreamOperator<Tuple2<I1, I2>, ?> equalTo(String... fields) {
-			return createJoinOperator(new PojoKeySelector<I2>(input2.getOutputType(), fields));
+			return createJoinOperator(new PojoKeySelector<I2>(op.input2.getOutputType(), fields));
 		}
 
 		/**
@@ -244,8 +184,8 @@ public class StreamJoinOperator<I1, I2> {
 
 			JoinWindowFunction<I1, I2> joinWindowFunction = new JoinWindowFunction<I1, I2>(keys1,
 					keys2);
-			return input1.connect(input2).addGeneralWindowJoin(joinWindowFunction, windowSize,
-					slideInterval, timeStamp1, timeStamp2);
+			return op.input1.connect(op.input2).addGeneralWindowJoin(joinWindowFunction,
+					op.windowSize, op.slideInterval, op.timeStamp1, op.timeStamp2);
 		}
 	}
 
