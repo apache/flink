@@ -18,29 +18,32 @@
 
 package flink.graphs;
 
-import org.apache.flink.api.common.functions.*;
+import java.io.Serializable;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+
+import org.apache.flink.api.common.functions.CoGroupFunction;
+import org.apache.flink.api.common.functions.FilterFunction;
+import org.apache.flink.api.common.functions.FlatJoinFunction;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.JoinFunction;
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.aggregation.Aggregations;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFields;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFieldsFirst;
-import org.apache.flink.api.java.aggregation.Aggregations;
+import org.apache.flink.api.java.io.CsvReader;
 import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.api.java.io.CsvReader;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.spargel.java.VertexCentricIteration;
 import org.apache.flink.util.Collector;
-import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.ExecutionEnvironment;
-
-import java.io.Serializable;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
 
 
 @SuppressWarnings("serial")
@@ -481,9 +484,12 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
         }
 	}
 	
-    //TODO kostas add functionality
     public Graph<K, VV, EV> fromCollection (Collection<Tuple2<K,VV>> vertices, Collection<Tuple3<K,K,EV>> edges) {
-        return null;
+
+		DataSet<Tuple2<K, VV>> v = context.fromCollection(vertices);
+		DataSet<Tuple3<K, K, EV>> e = context.fromCollection(edges);
+
+		return new Graph<K, VV, EV>(v, e, context);
     }
 
     //TODO kostas add functionality
@@ -491,66 +497,99 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
         return null;
     }
 
+    public Graph<K, VV, EV> addVertex (final Tuple2<K,VV> vertex, List<Tuple3<K,K,EV>> edges) {
 
-    public Graph<K, VV, EV> addVertex (Tuple2<K,VV> vertex, List<Tuple3<K,K,EV>> edges) {
-        Graph<K,VV,EV> newVertex = this.fromCollection(Arrays.asList(vertex), edges);
-        return this.union(newVertex);
+    	DataSet<Tuple2<K, VV>> newVertex = this.context.fromCollection(Arrays.asList(vertex));
+    	
+    	// Take care of empty edge set
+    	if (edges.isEmpty()) {
+    		return Graph.create(getVertices().union(newVertex).distinct(), getEdges(), context);
+    	}
+    	
+    	// Add the vertex and its edges
+    	DataSet<Tuple2<K, VV>> newVertices = getVertices().union(newVertex).distinct();
+    	DataSet<Tuple3<K, K, EV>> newEdges = getEdges().union(context.fromCollection(edges));
+    	
+    	return Graph.create(newVertices, newEdges, context);
     }
 
-    @SuppressWarnings("unchecked")
+    public Graph<K, VV, EV> addEdge (Tuple3<K,K,EV> edge, Tuple2<K,VV> source, Tuple2<K,VV> target) {
+    	
+    	Graph<K,VV,EV> partialGraph = this.fromCollection(Arrays.asList(source, target), Arrays.asList(edge));
+        return this.union(partialGraph);
+    }
+
     public Graph<K, VV, EV> removeVertex (Tuple2<K,VV> vertex) {
 
-        DataSet<Tuple2<K,VV>> vertexToRemove = fromCollection(Arrays.asList(vertex));
+		DataSet<Tuple2<K, VV>> newVertices = getVertices().filter(
+				new RemoveVertexFilter<K, VV>(vertex));
 
-        DataSet<Tuple2<K,VV>> newVertices = getVertices()
-                .filter(new RichFilterFunction<Tuple2<K, VV>>() {
-                    private Tuple2<K, VV> vertexToRemove;
-
-					@Override
-                    public void open(Configuration parameters) throws Exception {
-                        super.open(parameters);
-                        this.vertexToRemove = (Tuple2<K, VV>) getRuntimeContext().getBroadcastVariable("vertexToRemove").get(0);
-                    }
-
-                    @Override
-                    public boolean filter(Tuple2<K, VV> vertex) throws Exception {
-                        if (vertex.f0.equals(vertexToRemove.f0)) {
-                            return false;
-                        } else {
-                            return true;
-                        }
-                    }
-                }).withBroadcastSet(vertexToRemove, "vertexToRemove");
-
-        DataSet<Tuple3<K,K,EV>> newEdges = getEdges()
-                .filter(new RichFilterFunction<Tuple3<K,K,EV>>() {
-                    private Tuple2<K, VV> vertexToRemove;
-
-                    @Override
-                    public void open(Configuration parameters) throws Exception {
-                        super.open(parameters);
-                        this.vertexToRemove = (Tuple2<K, VV>) getRuntimeContext().getBroadcastVariable("vertexToRemove").get(0);
-                    }
-
-                    @Override
-                    public boolean filter(Tuple3<K,K,EV> edge) throws Exception {
-                        if (edge.f0.equals(vertexToRemove.f0)) {
-                            return false;
-                        }
-                        if (edge.f1.equals(vertexToRemove.f0)) {
-                            return false;
-                        }
-                        return true;
-                    }
-                }).withBroadcastSet(vertexToRemove, "vertexToRemove");
+		DataSet<Tuple3<K, K, EV>> newEdges = getEdges().filter(
+				new VertexRemovalEdgeFilter<K, VV, EV>(vertex));
 
         return new Graph<K, VV, EV>(newVertices, newEdges, this.context);
     }
+    
+    private static final class RemoveVertexFilter<K, VV> implements FilterFunction<Tuple2<K, VV>> {
 
+    	private Tuple2<K, VV> vertexToRemove;
 
-    public Graph<K, VV, EV> addEdge (Tuple3<K,K,EV> edge, Tuple2<K,VV> source, Tuple2<K,VV> target) {
-        Graph<K,VV,EV> newEdges = this.fromCollection(Arrays.asList(source, target), Arrays.asList(edge));
-        return this.union(newEdges);
+        public RemoveVertexFilter(Tuple2<K, VV> vertex) {
+        	vertexToRemove = vertex;
+		}
+
+        @Override
+        public boolean filter(Tuple2<K, VV> vertex) throws Exception {
+        	return !vertex.f0.equals(vertexToRemove.f0);
+        }
+    }
+    
+    private static final class VertexRemovalEdgeFilter<K, VV, EV> implements FilterFunction<Tuple3<K, K, EV>> {
+
+    	private Tuple2<K, VV> vertexToRemove;
+
+        public VertexRemovalEdgeFilter(Tuple2<K, VV> vertex) {
+			vertexToRemove = vertex;
+		}
+
+        @Override
+        public boolean filter(Tuple3<K, K, EV> edge) throws Exception {
+        	
+        	if (edge.f0.equals(vertexToRemove.f0)) {
+                return false;
+            }
+            if (edge.f1.equals(vertexToRemove.f0)) {
+                return false;
+            }
+            return true;
+        }
+    }
+    
+    public Graph<K, VV, EV> removeEdge (Tuple3<K,K,EV> edge) {
+    	
+		DataSet<Tuple3<K, K, EV>> newEdges = getEdges().filter(
+				new EdgeRemovalEdgeFilter<K, VV, EV>(edge));
+
+        return new Graph<K, VV, EV>(this.getVertices(), newEdges, this.context);
+    }
+    
+    private static final class EdgeRemovalEdgeFilter<K, VV, EV> implements FilterFunction<Tuple3<K, K, EV>> {
+
+    	private Tuple3<K, K, EV> edgeToRemove;
+
+        public EdgeRemovalEdgeFilter(Tuple3<K, K, EV> edge) {
+			edgeToRemove = edge;
+		}
+
+        @Override
+        public boolean filter(Tuple3<K, K, EV> edge) throws Exception {
+        	
+    		if (edge.f0.equals(edgeToRemove.f0) 
+    				&& edge.f1.equals(edgeToRemove.f1)) {
+    			return false;
+    		}
+    		return true;
+        }
     }
 
     public Graph<K, VV, EV> union (Graph<K, VV, EV> graph) {
