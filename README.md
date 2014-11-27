@@ -8,7 +8,6 @@ Graph API for Apache Flink
 ###Graph Class
 * getVertices()
 * getEdges()
-* pga()
 * create(vertices, edges)
 * readTuple2CsvFile
 * readEdgesCsvFile
@@ -17,7 +16,6 @@ Graph API for Apache Flink
 * numberOfEdges()
 * getVertexIds()
 * getEdgeIds()
-* isWeaklyConnected()
 
 ###Vertex Class
 
@@ -35,6 +33,8 @@ Graph API for Apache Flink
 * addEdge()
 * removeEdge()
 * union()
+* isWeaklyConnected()
+* runVertexCentricIteration()
 
 ##Wishlist
 
