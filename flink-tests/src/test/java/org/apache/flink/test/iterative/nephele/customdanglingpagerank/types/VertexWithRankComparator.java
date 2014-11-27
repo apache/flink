@@ -32,6 +32,7 @@ public final class VertexWithRankComparator extends TypeComparator<VertexWithRan
 	
 	private long reference;
 
+	@SuppressWarnings("rawtypes")
 	private TypeComparator[] comparators = new TypeComparator[]{new LongComparator(true)};
 
 	@Override
@@ -143,6 +144,7 @@ public final class VertexWithRankComparator extends TypeComparator<VertexWithRan
 	}
 
 	@Override
+	@SuppressWarnings("rawtypes")
 	public TypeComparator[] getFlatComparators() {
 		return comparators;
 	}

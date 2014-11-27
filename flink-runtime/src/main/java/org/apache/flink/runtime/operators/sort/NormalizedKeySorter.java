@@ -36,11 +36,13 @@ import org.apache.flink.util.MutableObjectIterator;
 /**
  * 
  */
-public final class NormalizedKeySorter<T> implements InMemorySorter<T>
-{
+public final class NormalizedKeySorter<T> implements InMemorySorter<T> {
+	
 	private static final int OFFSET_LEN = 8;
 	
-	private static final int DEFAULT_MAX_NORMALIZED_KEY_LEN = 8;
+	private static final int DEFAULT_MAX_NORMALIZED_KEY_LEN = 16;
+	
+	private static final int MAX_NORMALIZED_KEY_LEN_PER_ELEMENT = 8;
 	
 	private static final int MIN_REQUIRED_BUFFERS = 3;
 
@@ -143,7 +145,17 @@ public final class NormalizedKeySorter<T> implements InMemorySorter<T>
 		
 		// set up normalized key characteristics
 		if (this.comparator.supportsNormalizedKey()) {
-			this.numKeyBytes = Math.min(this.comparator.getNormalizeKeyLen(), maxNormalizedKeyBytes);
+			// compute the max normalized key length
+			int numPartialKeys;
+			try {
+				numPartialKeys = this.comparator.getFlatComparators().length;
+			} catch (Throwable t) {
+				numPartialKeys = 1;
+			}
+			
+			int maxLen = Math.min(maxNormalizedKeyBytes, MAX_NORMALIZED_KEY_LEN_PER_ELEMENT * numPartialKeys);
+			
+			this.numKeyBytes = Math.min(this.comparator.getNormalizeKeyLen(), maxLen);
 			this.normalizedKeyFullyDetermines = !this.comparator.isNormalizedKeyPrefixOnly(this.numKeyBytes);
 		}
 		else {

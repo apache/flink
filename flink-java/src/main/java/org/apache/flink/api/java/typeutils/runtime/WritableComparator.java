@@ -134,7 +134,8 @@ public class WritableComparator<T extends Writable & Comparable<T>> extends Type
 	}
 
 	@SuppressWarnings("rawtypes")
-	@Override public TypeComparator[] getFlatComparators() {
+	@Override
+	public TypeComparator[] getFlatComparators() {
 		return comparators;
 	}
 	
