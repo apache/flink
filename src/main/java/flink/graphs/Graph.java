@@ -23,9 +23,9 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
-import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
+import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -37,6 +37,7 @@ import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFields;
 import org.apache.flink.api.java.functions.FunctionAnnotation.ConstantFieldsFirst;
 import org.apache.flink.api.java.io.CsvReader;
 import org.apache.flink.api.java.operators.DeltaIteration;
+import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
@@ -46,7 +47,7 @@ import org.apache.flink.spargel.java.MessagingFunction;
 import org.apache.flink.spargel.java.VertexCentricIteration;
 import org.apache.flink.spargel.java.VertexUpdateFunction;
 import org.apache.flink.util.Collector;
-
+import org.apache.flink.types.NullValue;
 
 @SuppressWarnings("serial")
 public class Graph<K extends Comparable<K> & Serializable, VV extends Serializable,
@@ -58,19 +59,17 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 
 	private final DataSet<Tuple3<K, K, EV>> edges;
 
-	/** a graph is directed by default */
-	private boolean isUndirected = false;
-	
-	private static TypeInformation<?> vertexKeyType;
+	private boolean isUndirected;
+
+	private static TypeInformation<?> keyType;
 	private static TypeInformation<?> vertexValueType;
+	private static TypeInformation<?> edgeValueType;
 
 
 	public Graph(DataSet<Tuple2<K, VV>> vertices, DataSet<Tuple3<K, K, EV>> edges, ExecutionEnvironment context) {
-		this.vertices = vertices;
-		this.edges = edges;
-        this.context = context;
-		Graph.vertexKeyType = ((TupleTypeInfo<?>) vertices.getType()).getTypeAt(0);
-		Graph.vertexValueType = ((TupleTypeInfo<?>) vertices.getType()).getTypeAt(1);
+
+		/** a graph is directed by default */
+		this(vertices, edges, context, false);
 	}
 
 	public Graph(DataSet<Tuple2<K, VV>> vertices, DataSet<Tuple3<K, K, EV>> edges, ExecutionEnvironment context,
@@ -79,8 +78,10 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		this.edges = edges;
         this.context = context;
 		this.isUndirected = undirected;
-		Graph.vertexKeyType = ((TupleTypeInfo<?>) vertices.getType()).getTypeAt(0);
+		
+		Graph.keyType = ((TupleTypeInfo<?>) vertices.getType()).getTypeAt(0);
 		Graph.vertexValueType = ((TupleTypeInfo<?>) vertices.getType()).getTypeAt(1);
+		Graph.edgeValueType = ((TupleTypeInfo<?>) edges.getType()).getTypeAt(2);
 	}
 
 	public DataSet<Tuple2<K, VV>> getVertices() {
@@ -119,7 +120,39 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 			TypeInformation<NV> newVertexValueType = TypeExtractor.getMapReturnTypes(innerMapper, 
 					(TypeInformation<VV>)vertexValueType);
 			
-			return new TupleTypeInfo<Tuple2<K, NV>>(vertexKeyType, newVertexValueType);
+			return new TupleTypeInfo<Tuple2<K, NV>>(keyType, newVertexValueType);
+		}
+    }
+    
+    /**
+     * Apply a function to the attribute of each edge in the graph.
+     * @param mapper
+     * @return 
+     */
+    public <NV extends Serializable> DataSet<Tuple3<K, K, NV>> mapEdges(final MapFunction<EV, NV> mapper) {
+        return edges.map(new ApplyMapperToEdgeWithType<K, EV, NV>(mapper));
+    }
+    
+    private static final class ApplyMapperToEdgeWithType<K, EV, NV> implements MapFunction
+		<Tuple3<K, K, EV>, Tuple3<K, K, NV>>, ResultTypeQueryable<Tuple3<K, K, NV>> {
+	
+		private MapFunction<EV, NV> innerMapper;
+		
+		public ApplyMapperToEdgeWithType(MapFunction<EV, NV> theMapper) {
+			this.innerMapper = theMapper;
+		}
+		
+		public Tuple3<K, K, NV> map(Tuple3<K, K, EV> value) throws Exception {
+			return new Tuple3<K, K, NV>(value.f0, value.f1, innerMapper.map(value.f2));
+		}
+	
+		@Override
+		public TypeInformation<Tuple3<K, K, NV>> getProducedType() {
+			@SuppressWarnings("unchecked")
+			TypeInformation<NV> newEdgeValueType = TypeExtractor.getMapReturnTypes(innerMapper, 
+					(TypeInformation<EV>)edgeValueType);
+			
+			return new TupleTypeInfo<Tuple3<K, K, NV>>(keyType, keyType, newEdgeValueType);
 		}
     }
 
@@ -242,10 +275,88 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		}
 	}
 
+	/**
+	 * Creates a graph from a dataset of vertices and a dataset of edges
+	 * @param vertices
+	 * @param edges
+	 * @return
+	 */
 	public static <K extends Comparable<K> & Serializable, VV extends Serializable,
 		EV extends Serializable> Graph<K, VV, EV>
 		create(DataSet<Tuple2<K, VV>> vertices, DataSet<Tuple3<K, K, EV>> edges, ExecutionEnvironment context) {
 		return new Graph<K, VV, EV>(vertices, edges, context);
+	}
+	
+	/**
+	 * Creates a graph from a DataSet of edges.
+	 * Vertices are created automatically and their values are set to NullValue.
+	 * @param edges
+	 * @return
+	 */
+	public static <K extends Comparable<K> & Serializable, EV extends Serializable> 
+		Graph<K, NullValue, EV> create(DataSet<Tuple3<K, K, EV>> edges, ExecutionEnvironment context) {
+		DataSet<Tuple2<K, NullValue>> vertices = 
+				edges.flatMap(new EmitSrcAndTarget<K, EV>()).distinct(); 
+		return new Graph<K, NullValue, EV>(vertices, edges, context);
+	}
+	
+	/**
+	 * Creates a graph from a DataSet of edges.
+	 * Vertices are created automatically and their values are set
+	 * by applying the provided map function to the vertex ids.
+	 * @param edges the input edges
+	 * @param mapper the map function to set the initial vertex value
+	 * @return
+	 */
+	public static <K extends Comparable<K> & Serializable, VV extends Serializable,	EV extends Serializable> 
+		Graph<K, VV, EV> create(DataSet<Tuple3<K, K, EV>> edges, final MapFunction<K, VV> mapper, 
+				ExecutionEnvironment context) {
+		DataSet<Tuple2<K, VV>> vertices = 
+				edges.flatMap(new EmitSrcAndTargetAsTuple1<K, EV>())
+				.distinct().map(new ApplyMapperToVertexValuesWithType<K, VV>(mapper));
+		return new Graph<K, VV, EV>(vertices, edges, context);
+	}
+	
+	private static final class ApplyMapperToVertexValuesWithType<K, VV> implements MapFunction
+		<Tuple1<K>, Tuple2<K, VV>>, ResultTypeQueryable<Tuple2<K, VV>> {
+
+		private MapFunction<K, VV> innerMapper;
+		
+		public ApplyMapperToVertexValuesWithType(MapFunction<K, VV> theMapper) {
+			this.innerMapper = theMapper;
+		}
+		
+		public Tuple2<K, VV> map(Tuple1<K> value) throws Exception {
+			return new Tuple2<K, VV>(value.f0, innerMapper.map(value.f0));
+		}
+	
+		@Override
+		public TypeInformation<Tuple2<K, VV>> getProducedType() {
+			@SuppressWarnings("unchecked")
+			TypeInformation<VV> newVertexValueType = TypeExtractor.getMapReturnTypes(innerMapper, 
+					(TypeInformation<K>)keyType);
+			
+			return new TupleTypeInfo<Tuple2<K, VV>>(keyType, newVertexValueType);
+		}
+	}
+	
+	private static final class EmitSrcAndTarget<K extends Comparable<K> & Serializable, EV extends Serializable>
+		implements FlatMapFunction<Tuple3<K, K, EV>, Tuple2<K, NullValue>> {
+		public void flatMap(Tuple3<K, K, EV> edge,
+				Collector<Tuple2<K, NullValue>> out) {
+
+				out.collect(new Tuple2<K, NullValue>(edge.f0, NullValue.getInstance()));
+				out.collect(new Tuple2<K, NullValue>(edge.f1, NullValue.getInstance()));
+		}	
+	}
+
+	private static final class EmitSrcAndTargetAsTuple1<K extends Comparable<K> & Serializable, 
+		EV extends Serializable> implements FlatMapFunction<Tuple3<K, K, EV>, Tuple1<K>> {
+		public void flatMap(Tuple3<K, K, EV> edge, Collector<Tuple1<K>> out) {
+
+			out.collect(new Tuple1<K>(edge.f0));
+			out.collect(new Tuple1<K>(edge.f1));
+		}	
 	}
 
 	/**
@@ -608,4 +719,51 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
     			maximumNumberOfIterations));
 		return new Graph<K, VV, EV>(newVertices, edges, context);
     }
+
+	/**
+     	 * Creates a graph from the given vertex and edge collections
+     	 * @param env
+     	 * @param v the collection of vertices
+         * @param e the collection of edges
+         * @return a new graph formed from the set of edges and vertices
+         */
+	 public static <K extends Comparable<K> & Serializable, VV extends Serializable,
+			EV extends Serializable> Graph<K, VV, EV> fromCollection(ExecutionEnvironment env, Collection<Tuple2<K, VV>> v,
+                                           Collection<Tuple3<K, K, EV>> e) throws Exception {
+		DataSet<Tuple2<K, VV>> vertices = env.fromCollection(v);
+		DataSet<Tuple3<K, K, EV>> edges = env.fromCollection(e);
+
+		return Graph.create(vertices, edges, env);
+	}
+
+	/**
+	 * Vertices may not have a value attached or may receive a value as a result of running the algorithm.
+	 * @param env
+	 * @param e the collection of edges
+	 * @return a new graph formed from the edges, with no value for the vertices
+	 */
+	public static <K extends Comparable<K> & Serializable, VV extends Serializable,
+			EV extends Serializable> Graph<K, NullValue, EV> fromCollection(ExecutionEnvironment env, 
+					Collection<Tuple3<K, K, EV>> e) {
+
+		DataSet<Tuple3<K, K, EV>> edges = env.fromCollection(e);
+
+		return Graph.create(edges, env);
+	}
+
+	/**
+	 * Vertices may have an initial value defined by a function.
+	 * @param env
+	 * @param e the collection of edges
+	 * @return a new graph formed from the edges, with a custom value for the vertices,
+	 * determined by the mapping function
+	 */
+	public static <K extends Comparable<K> & Serializable, VV extends Serializable,
+			EV extends Serializable> Graph<K, VV, EV> fromCollection(ExecutionEnvironment env,
+																	 Collection<Tuple3<K, K, EV>> e,
+																	 final MapFunction<K, VV> mapper) {
+		DataSet<Tuple3<K, K, EV>> edges = env.fromCollection(e);
+		return Graph.create(edges, mapper, env);
+	}
+
 }

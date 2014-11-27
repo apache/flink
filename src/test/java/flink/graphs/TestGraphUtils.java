@@ -36,18 +36,49 @@ public class TestGraphUtils {
 		
 		return env.fromCollection(edges);
 	}
-	
+
+	/**
+	 * Function that produces an ArrayList of vertices
+	 */
+	public static final List<Tuple2<Long, Long>> getLongLongVertices(
+			ExecutionEnvironment env) {
+		List<Tuple2<Long, Long>> vertices = new ArrayList<>();
+		vertices.add(new Tuple2<Long, Long>(1L, 1L));
+		vertices.add(new Tuple2<Long, Long>(2L, 2L));
+		vertices.add(new Tuple2<Long, Long>(3L, 3L));
+		vertices.add(new Tuple2<Long, Long>(4L, 4L));
+		vertices.add(new Tuple2<Long, Long>(5L, 5L));
+
+		return vertices;
+	}
+
 	public static final DataSet<Tuple3<Long, Long, Long>> getDisconnectedLongLongEdgeData(
+				ExecutionEnvironment env) {
+			List<Tuple3<Long, Long, Long>> edges = new ArrayList<Tuple3<Long, Long, Long>>();
+			edges.add(new Tuple3<Long,Long, Long>(1L, 2L, 12L));
+			edges.add(new Tuple3<Long,Long, Long>(1L, 3L, 13L));
+			edges.add(new Tuple3<Long,Long, Long>(2L, 3L, 23L));
+			edges.add(new Tuple3<Long,Long, Long>(4L, 5L, 45L));
+			
+			return env.fromCollection(edges);
+		}
+	
+	/**
+	 * Function that produces an ArrayList of edges
+	 */
+	public static final List<Tuple3<Long, Long, Long>> getLongLongEdges(
 			ExecutionEnvironment env) {
 		List<Tuple3<Long, Long, Long>> edges = new ArrayList<Tuple3<Long, Long, Long>>();
 		edges.add(new Tuple3<Long,Long, Long>(1L, 2L, 12L));
 		edges.add(new Tuple3<Long,Long, Long>(1L, 3L, 13L));
 		edges.add(new Tuple3<Long,Long, Long>(2L, 3L, 23L));
+		edges.add(new Tuple3<Long,Long, Long>(3L, 4L, 34L));
+		edges.add(new Tuple3<Long,Long, Long>(3L, 5L, 35L));
 		edges.add(new Tuple3<Long,Long, Long>(4L, 5L, 45L));
-		
-		return env.fromCollection(edges);
-	}
+		edges.add(new Tuple3<Long,Long, Long>(5L, 1L, 51L));
 	
+		return edges;
+	}
 
 	public static class DummyCustomType implements Serializable {
 		private static final long serialVersionUID = 1L;
