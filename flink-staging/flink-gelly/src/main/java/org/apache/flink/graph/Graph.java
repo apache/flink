@@ -492,41 +492,55 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		return new Graph<K, VV, EV>(v, e, context);
     }
 
-    //TODO kostas add functionality
-    public DataSet<Tuple2<K, VV>> fromCollection (Collection<Tuple2<K,VV>> vertices) {
-        return null;
-    }
-
+    /**
+     * Adds the input vertex and edges to the graph.
+     * If the vertex already exists in the graph, it will not be added again,
+     * but the given edges will. 
+     * @param vertex
+     * @param edges
+     * @return
+     */
     public Graph<K, VV, EV> addVertex (final Tuple2<K,VV> vertex, List<Tuple3<K,K,EV>> edges) {
 
     	DataSet<Tuple2<K, VV>> newVertex = this.context.fromCollection(Arrays.asList(vertex));
-    	
+
     	// Take care of empty edge set
     	if (edges.isEmpty()) {
     		return Graph.create(getVertices().union(newVertex).distinct(), getEdges(), context);
     	}
-    	
+
     	// Add the vertex and its edges
     	DataSet<Tuple2<K, VV>> newVertices = getVertices().union(newVertex).distinct();
     	DataSet<Tuple3<K, K, EV>> newEdges = getEdges().union(context.fromCollection(edges));
-    	
+
     	return Graph.create(newVertices, newEdges, context);
     }
 
-    public Graph<K, VV, EV> addEdge (Tuple3<K,K,EV> edge, Tuple2<K,VV> source, Tuple2<K,VV> target) {
-    	
-    	Graph<K,VV,EV> partialGraph = this.fromCollection(Arrays.asList(source, target), Arrays.asList(edge));
+    /** 
+     * Adds the given edge to the graph.
+     * If the source and target vertices do not exist in the graph,
+     * they will also be added.
+     * @param source
+     * @param target
+     * @param edgeValue
+     * @return
+     */
+    public Graph<K, VV, EV> addEdge (Tuple2<K,VV> source, Tuple2<K,VV> target, EV edgeValue) {
+    	Graph<K,VV,EV> partialGraph = this.fromCollection(Arrays.asList(source, target), 
+    			Arrays.asList(new Tuple3<K, K, EV>(source.f0, target.f0, edgeValue)));
         return this.union(partialGraph);
     }
 
+    /**
+     * Removes the given vertex and its edges from the graph.
+     * @param vertex
+     * @return
+     */
     public Graph<K, VV, EV> removeVertex (Tuple2<K,VV> vertex) {
-
 		DataSet<Tuple2<K, VV>> newVertices = getVertices().filter(
 				new RemoveVertexFilter<K, VV>(vertex));
-
 		DataSet<Tuple3<K, K, EV>> newEdges = getEdges().filter(
 				new VertexRemovalEdgeFilter<K, VV, EV>(vertex));
-
         return new Graph<K, VV, EV>(newVertices, newEdges, this.context);
     }
     
@@ -565,16 +579,18 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
         }
     }
     
+    /**
+     * Removes all edges that match the given edge from the graph.
+     * @param edge
+     * @return
+     */
     public Graph<K, VV, EV> removeEdge (Tuple3<K,K,EV> edge) {
-    	
 		DataSet<Tuple3<K, K, EV>> newEdges = getEdges().filter(
 				new EdgeRemovalEdgeFilter<K, VV, EV>(edge));
-
         return new Graph<K, VV, EV>(this.getVertices(), newEdges, this.context);
     }
     
     private static final class EdgeRemovalEdgeFilter<K, VV, EV> implements FilterFunction<Tuple3<K, K, EV>> {
-
     	private Tuple3<K, K, EV> edgeToRemove;
 
         public EdgeRemovalEdgeFilter(Tuple3<K, K, EV> edge) {
@@ -592,8 +608,14 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
         }
     }
 
+    /**
+     * Performs union on the vertices and edges sets of the input graphs
+     * removing duplicate vertices but maintaining duplicate edges.
+     * @param graph
+     * @return
+     */
     public Graph<K, VV, EV> union (Graph<K, VV, EV> graph) {
-        DataSet<Tuple2<K,VV>> unionedVertices = graph.getVertices().union(this.getVertices());
+        DataSet<Tuple2<K,VV>> unionedVertices = graph.getVertices().union(this.getVertices()).distinct();
         DataSet<Tuple3<K,K,EV>> unionedEdges = graph.getEdges().union(this.getEdges());
         return new Graph<K,VV,EV>(unionedVertices, unionedEdges, this.context);
     }
