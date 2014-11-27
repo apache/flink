@@ -1,8 +1,12 @@
 package flink.graphs;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple;
 
 @SuppressWarnings("serial")
@@ -10,8 +14,12 @@ public class GraphUtils {
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public static DataSet<Integer> count(DataSet set) {
+		List<Integer> list = new ArrayList<>();
+		list.add(0);
+		DataSet<Integer> initialCount = ExecutionEnvironment.getExecutionEnvironment().fromCollection(list);
         return set
                 .map(new OneMapper())
+                .union(initialCount)
                 .reduce(new AddOnesReducer())
                 .first(1);
     }
@@ -29,5 +37,4 @@ public class GraphUtils {
                 return one + two;
             }
     }
-
 }
