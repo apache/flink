@@ -49,6 +49,12 @@ public final class HadoopDataInputStream extends FSDataInputStream {
 	}
 
 	@Override
+	public long getPos() throws IOException {
+
+		return fsDataInputStream.getPos();
+	}
+
+	@Override
 	public int read() throws IOException {
 
 		return fsDataInputStream.read();

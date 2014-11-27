@@ -38,6 +38,11 @@ public class InflaterInputStreamFSInputWrapper extends FSDataInputStream {
 	}
 
 	@Override
+	public long getPos() throws IOException {
+		throw new UnsupportedOperationException("Compressed streams do not support the getPos operation");
+	}
+
+	@Override
 	public int read() throws IOException {
 		return inStream.read();
 	}

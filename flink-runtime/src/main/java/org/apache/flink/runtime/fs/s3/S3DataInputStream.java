@@ -32,7 +32,6 @@ import com.amazonaws.services.s3.model.S3Object;
 /**
  * This class implements an {@link FSDataInputStream} that downloads its data from Amazon S3 in the background.
  * Essentially, this class is just a wrapper to the Amazon AWS SDK.
- * 
  */
 public class S3DataInputStream extends FSDataInputStream {
 
@@ -42,8 +41,18 @@ public class S3DataInputStream extends FSDataInputStream {
 	private final InputStream inputStream;
 
 	/**
+	 * The current position of input stream.
+	 */
+	private long position;
+
+	/**
+	 * The marked position.
+	 */
+	private long marked;
+
+	/**
 	 * Constructs a new input stream which reads its data from the specified S3 object.
-	 * 
+	 *
 	 * @param s3Client
 	 *        the S3 client to connect to Amazon S3.
 	 * @param bucket
@@ -63,6 +72,8 @@ public class S3DataInputStream extends FSDataInputStream {
 		}
 
 		this.inputStream = s3o.getObjectContent();
+		this.position = 0;
+		this.marked = 0;
 	}
 
 
@@ -84,6 +95,7 @@ public class S3DataInputStream extends FSDataInputStream {
 	public void mark(final int readlimit) {
 
 		this.inputStream.mark(readlimit);
+		marked = readlimit;
 	}
 
 
@@ -97,21 +109,36 @@ public class S3DataInputStream extends FSDataInputStream {
 	@Override
 	public int read() throws IOException {
 
-		return this.inputStream.read();
+		int read = this.inputStream.read();
+		if (read != -1) {
+			++position;
+		}
+
+		return read;
 	}
 
 
 	@Override
 	public int read(final byte[] b) throws IOException {
 
-		return this.inputStream.read(b);
+		int read = this.inputStream.read(b);
+		if (read > 0) {
+			position += read;
+		}
+
+		return read;
 	}
 
 
 	@Override
 	public int read(final byte[] b, final int off, final int len) throws IOException {
 
-		return this.inputStream.read(b, off, len);
+		int read = this.inputStream.read(b, off, len);
+		if (read > 0) {
+			position += read;
+		}
+
+		return read;
 	}
 
 
@@ -119,12 +146,28 @@ public class S3DataInputStream extends FSDataInputStream {
 	public void reset() throws IOException {
 
 		this.inputStream.reset();
+		position = marked;
 	}
 
 
 	@Override
 	public void seek(final long desired) throws IOException {
 
-		this.inputStream.skip(desired);
+		skip(desired);
+	}
+
+	@Override
+	public long skip(long n) throws IOException {
+		long skipped = this.inputStream.skip(n);
+		if (skipped > 0) {
+			position += skipped;
+		}
+
+		return skipped;
+	}
+
+	@Override
+	public long getPos() throws IOException {
+		return position;
 	}
 }
