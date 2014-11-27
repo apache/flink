@@ -23,6 +23,7 @@ import static org.junit.Assert.*;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.functions.Partitioner;
+import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -33,6 +34,9 @@ import org.apache.flink.compiler.CompilerTestBase;
 import org.apache.flink.compiler.plan.DualInputPlanNode;
 import org.apache.flink.compiler.plan.OptimizedPlan;
 import org.apache.flink.compiler.plan.SinkPlanNode;
+import org.apache.flink.compiler.testfunctions.DummyFlatJoinFunction;
+import org.apache.flink.compiler.testfunctions.IdentityGroupReducer;
+import org.apache.flink.compiler.testfunctions.IdentityMapper;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.junit.Test;
 
@@ -213,6 +217,48 @@ public class JoinCustomPartitioningTest extends CompilerTestBase {
 			catch (InvalidProgramException e) {
 				// expected
 			}
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testIncompatibleHashAndCustomPartitioning() {
+		try {
+			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+			
+			DataSet<Tuple3<Long, Long, Long>> input = env.fromElements(new Tuple3<Long, Long, Long>(0L, 0L, 0L));
+			
+			DataSet<Tuple3<Long, Long, Long>> partitioned = input
+				.partitionCustom(new Partitioner<Long>() {
+					@Override
+					public int partition(Long key, int numPartitions) { return 0; }
+				}, 0)
+				.map(new IdentityMapper<Tuple3<Long,Long,Long>>()).withConstantSet("0", "1", "2");
+				
+			
+			DataSet<Tuple3<Long, Long, Long>> grouped = partitioned
+				.distinct(0, 1)
+				.groupBy(1)
+				.sortGroup(0, Order.ASCENDING)
+				.reduceGroup(new IdentityGroupReducer<Tuple3<Long,Long,Long>>()).withConstantSet("0", "1");
+			
+			grouped
+				.join(partitioned, JoinHint.REPARTITION_HASH_FIRST).where(0).equalTo(0)
+				.with(new DummyFlatJoinFunction<Tuple3<Long,Long,Long>>())
+				.print();
+			
+			Plan p = env.createProgramPlan();
+			OptimizedPlan op = compileNoStats(p);
+			
+			SinkPlanNode sink = op.getDataSinks().iterator().next();
+			DualInputPlanNode coGroup = (DualInputPlanNode) sink.getInput().getSource();
+
+			assertEquals(ShipStrategyType.PARTITION_HASH, coGroup.getInput1().getShipStrategy());
+			assertTrue(coGroup.getInput2().getShipStrategy() == ShipStrategyType.PARTITION_HASH || 
+						coGroup.getInput2().getShipStrategy() == ShipStrategyType.FORWARD);
 		}
 		catch (Exception e) {
 			e.printStackTrace();

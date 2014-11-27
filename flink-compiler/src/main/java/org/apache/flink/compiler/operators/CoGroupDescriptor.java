@@ -18,6 +18,7 @@
 
 package org.apache.flink.compiler.operators;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -98,21 +99,29 @@ public class CoGroupDescriptor extends OperatorDescriptorDual {
 
 	@Override
 	protected List<GlobalPropertiesPair> createPossibleGlobalProperties() {
-		RequestedGlobalProperties partitioned1 = new RequestedGlobalProperties();
 		if (this.customPartitioner == null) {
-			partitioned1.setAnyPartitioning(this.keys1);
-		} else {
-			partitioned1.setCustomPartitioned(this.keys1, this.customPartitioner);
+			RequestedGlobalProperties partitioned_left_any = new RequestedGlobalProperties();
+			RequestedGlobalProperties partitioned_left_hash = new RequestedGlobalProperties();
+			partitioned_left_any.setAnyPartitioning(this.keys1);
+			partitioned_left_hash.setHashPartitioned(this.keys1);
+			
+			RequestedGlobalProperties partitioned_right_any = new RequestedGlobalProperties();
+			RequestedGlobalProperties partitioned_right_hash = new RequestedGlobalProperties();
+			partitioned_right_any.setAnyPartitioning(this.keys2);
+			partitioned_right_hash.setHashPartitioned(this.keys2);
+			
+			return Arrays.asList(new GlobalPropertiesPair(partitioned_left_any, partitioned_right_any),
+					new GlobalPropertiesPair(partitioned_left_hash, partitioned_right_hash));
 		}
-		
-		RequestedGlobalProperties partitioned2 = new RequestedGlobalProperties();
-		if (this.customPartitioner == null) {
-			partitioned2.setAnyPartitioning(this.keys2);
-		} else {
-			partitioned2.setCustomPartitioned(this.keys2, this.customPartitioner);
+		else {
+			RequestedGlobalProperties partitioned_left = new RequestedGlobalProperties();
+			partitioned_left.setCustomPartitioned(this.keys1, this.customPartitioner);
+			
+			RequestedGlobalProperties partitioned_right = new RequestedGlobalProperties();
+			partitioned_right.setCustomPartitioned(this.keys2, this.customPartitioner);
+			
+			return Collections.singletonList(new GlobalPropertiesPair(partitioned_left, partitioned_right));
 		}
-		
-		return Collections.singletonList(new GlobalPropertiesPair(partitioned1, partitioned2));
 	}
 	
 	@Override
