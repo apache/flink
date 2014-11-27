@@ -57,7 +57,7 @@ public class SerializedFormatTest extends SequentialFormatTestBase<Record> {
 	}
 
 
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Override
 	protected BinaryOutputFormat<Record> createOutputFormat(String path, Configuration
 			configuration) throws IOException {

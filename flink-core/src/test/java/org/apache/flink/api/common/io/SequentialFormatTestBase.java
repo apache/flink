@@ -179,7 +179,7 @@ public abstract class SequentialFormatTestBase<T> {
 		Configuration configuration = new Configuration();
 		configuration.setLong(BinaryOutputFormat.BLOCK_SIZE_PARAMETER_KEY, this.blockSize);
 		if (this.degreeOfParallelism == 1) {
-			BinaryOutputFormat output = createOutputFormat(this.tempFile.toURI().toString(),
+			BinaryOutputFormat<T> output = createOutputFormat(this.tempFile.toURI().toString(),
 					configuration);
 			for (int index = 0; index < this.numberOfTuples; index++) {
 				output.writeRecord(this.getRecord(index));
@@ -190,7 +190,7 @@ public abstract class SequentialFormatTestBase<T> {
 			this.tempFile.mkdir();
 			int recordIndex = 0;
 			for (int fileIndex = 0; fileIndex < this.degreeOfParallelism; fileIndex++) {
-				BinaryOutputFormat output = createOutputFormat(this.tempFile.toURI() + "/" +
+				BinaryOutputFormat<T> output = createOutputFormat(this.tempFile.toURI() + "/" +
 						(fileIndex+1), configuration);
 				for (int fileCount = 0; fileCount < this.getNumberOfTuplesPerFile(fileIndex); fileCount++, recordIndex++) {
 					output.writeRecord(this.getRecord(recordIndex));

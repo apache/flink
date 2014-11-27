@@ -79,7 +79,7 @@ public final class EnumComparator<T extends Enum<T>> extends BasicTypeComparator
 	}
 
 	@Override
-	public EnumComparator duplicate() {
-		return new EnumComparator(ascendingComparison);
+	public EnumComparator<T> duplicate() {
+		return new EnumComparator<T>(ascendingComparison);
 	}
 }
