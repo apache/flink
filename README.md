@@ -18,12 +18,6 @@ Graph API for Apache Flink
 * getVertexIds()
 * getEdgeIds()
 * isWeaklyConnected()
-* addVertex()
-* removeVertex()
-* addEdge()
-* union()
-* passMessages()
-
 
 ###Vertex Class
 
@@ -36,6 +30,11 @@ Graph API for Apache Flink
 * outDegrees()
 * getUndirected()
 * reverse()
+* addVertex()
+* removeVertex()
+* addEdge()
+* removeEdge()
+* union()
 
 ##Wishlist
 
