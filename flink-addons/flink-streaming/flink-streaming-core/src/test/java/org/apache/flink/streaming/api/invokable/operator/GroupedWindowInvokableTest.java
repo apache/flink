@@ -41,13 +41,13 @@ import org.apache.flink.streaming.util.MockInvokable;
 import org.apache.flink.streaming.util.keys.TupleKeySelector;
 import org.junit.Test;
 
-public class GroupedWindowingInvokableTest {
+public class GroupedWindowInvokableTest {
 
 	/**
 	 * Test for not active distributed triggers with single field
 	 */
 	@Test
-	public void testGroupedWindowingInvokableDistributedTriggerSimple() {
+	public void testGroupedWindowInvokableDistributedTriggerSimple() {
 		List<Integer> inputs = new ArrayList<Integer>();
 		inputs.add(1);
 		inputs.add(1);
@@ -109,7 +109,7 @@ public class GroupedWindowingInvokableTest {
 	 * Test for non active distributed triggers with separated key field
 	 */
 	@Test
-	public void testGroupedWindowingInvokableDistributedTriggerComplex() {
+	public void testGroupedWindowInvokableDistributedTriggerComplex() {
 		List<Tuple2<Integer, String>> inputs2 = new ArrayList<Tuple2<Integer, String>>();
 		inputs2.add(new Tuple2<Integer, String>(1, "a"));
 		inputs2.add(new Tuple2<Integer, String>(0, "b"));
@@ -168,7 +168,7 @@ public class GroupedWindowingInvokableTest {
 	 * Test for active centralized trigger
 	 */
 	@Test
-	public void testGroupedWindowingInvokableCentralActiveTrigger() {
+	public void testGroupedWindowInvokableCentralActiveTrigger() {
 
 		List<Tuple2<Integer, String>> inputs = new ArrayList<Tuple2<Integer, String>>();
 		inputs.add(new Tuple2<Integer, String>(1, "a"));
@@ -274,7 +274,7 @@ public class GroupedWindowingInvokableTest {
 	 * Test for multiple centralized trigger
 	 */
 	@Test
-	public void testGroupedWindowingInvokableMultipleCentralTrigger() {
+	public void testGroupedWindowInvokableMultipleCentralTrigger() {
 		LinkedList<TriggerPolicy<Integer>> triggers = new LinkedList<TriggerPolicy<Integer>>();
 		triggers.add(new CountTriggerPolicy<Integer>(8));
 		triggers.add(new CountTriggerPolicy<Integer>(5));
@@ -343,7 +343,7 @@ public class GroupedWindowingInvokableTest {
 	 * the same time
 	 */
 	@Test
-	public void testGroupedWindowingInvokableCentralAndDistrTrigger() {
+	public void testGroupedWindowInvokableCentralAndDistrTrigger() {
 		LinkedList<TriggerPolicy<Integer>> triggers = new LinkedList<TriggerPolicy<Integer>>();
 		triggers.add(new CountTriggerPolicy<Integer>(8));
 		triggers.add(new CountTriggerPolicy<Integer>(5));

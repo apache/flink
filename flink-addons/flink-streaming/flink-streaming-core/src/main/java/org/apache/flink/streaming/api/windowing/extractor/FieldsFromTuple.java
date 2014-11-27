@@ -46,7 +46,7 @@ public class FieldsFromTuple implements Extractor<Tuple, double[]> {
 	public double[] extract(Tuple in) {
 		double[] out = new double[indexes.length];
 		for (int i = 0; i < indexes.length; i++) {
-			out[i] = in.getField(indexes[i]);
+			out[i] = (Double) in.getField(indexes[i]);
 		}
 		return out;
 	}

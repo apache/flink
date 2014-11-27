@@ -34,13 +34,13 @@ import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
 import org.apache.flink.streaming.util.MockInvokable;
 import org.junit.Test;
 
-public class WindowingInvokableTest {
+public class WindowInvokableTest {
 
 	/**
 	 * Test case equal to {@link WindowReduceInvokableTest}
 	 */
 	@Test
-	public void testWindowingInvokableWithTimePolicy() {
+	public void testWindowInvokableWithTimePolicy() {
 
 		List<Integer> inputs = new ArrayList<Integer>();
 		inputs.add(1);
@@ -109,7 +109,7 @@ public class WindowingInvokableTest {
 	 * Test case equal to {@link BatchReduceTest}
 	 */
 	@Test
-	public void testWindowingInvokableWithCountPolicy() {
+	public void testWindowInvokableWithCountPolicy() {
 
 		List<Integer> inputs = new ArrayList<Integer>();
 		for (Integer i = 1; i <= 10; i++) {
@@ -208,7 +208,7 @@ public class WindowingInvokableTest {
 	}
 
 	@Test
-	public void testWindowingInvokableWithMultiplePolicies() {
+	public void testWindowInvokableWithMultiplePolicies() {
 		LinkedList<TriggerPolicy<Integer>> triggers = new LinkedList<TriggerPolicy<Integer>>();
 		triggers.add(new CountTriggerPolicy<Integer>(2));
 		triggers.add(new CountTriggerPolicy<Integer>(3));
