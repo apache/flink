@@ -339,8 +339,8 @@ public class TestGraphOperations extends JavaProgramTestBase {
 						TestGraphUtils.getLongLongEdgeData(env), env);
 				
 				
-				graph = graph.addEdge(new Tuple3<Long, Long, Long>(6L, 1L, 61L), 
-						new Tuple2<Long, Long>(6L, 6L), new Tuple2<Long, Long>(1L, 1L));
+				graph = graph.addEdge(new Tuple2<Long, Long>(6L, 6L), new Tuple2<Long, Long>(1L, 1L),
+						61L);
 				
 				graph.getEdges().writeAsCsv(resultPath);
 					
@@ -366,8 +366,8 @@ public class TestGraphOperations extends JavaProgramTestBase {
 						TestGraphUtils.getLongLongEdgeData(env), env);
 				
 				
-				graph = graph.addEdge(new Tuple3<Long, Long, Long>(1L, 2L, 12L), 
-						new Tuple2<Long, Long>(1L, 1L), new Tuple2<Long, Long>(2L, 2L));
+				graph = graph.addEdge(new Tuple2<Long, Long>(1L, 1L), new Tuple2<Long, Long>(2L, 2L),
+						12L);
 				
 				graph.getEdges().writeAsCsv(resultPath);
 					
