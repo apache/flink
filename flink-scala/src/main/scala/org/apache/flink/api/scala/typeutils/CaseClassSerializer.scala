@@ -58,6 +58,8 @@ abstract class CaseClassSerializer[T <: Product](
     }
   }
 
+  override def isStateful() = true
+  
   def copy(from: T, reuse: T): T = {
     copy(from)
   }
