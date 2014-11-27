@@ -71,7 +71,7 @@ public class TestGraphCreation extends JavaProgramTestBase {
 				 * Test create() with edge dataset and no vertex values
 		         */
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				Graph<Long, NullValue, Long> graph = Graph.create(TestGraphUtils.getLongLongEdgeData(env));
+				Graph<Long, NullValue, Long> graph = Graph.create(TestGraphUtils.getLongLongEdgeData(env), env);
 
 				graph.getVertices().writeAsCsv(resultPath);
 				env.execute();
@@ -91,7 +91,7 @@ public class TestGraphCreation extends JavaProgramTestBase {
 							public Long map(Long vertexId) {
 								return vertexId;
 							}
-						});
+						}, env);
 
 				graph.getVertices().writeAsCsv(resultPath);
 				env.execute();
@@ -111,7 +111,7 @@ public class TestGraphCreation extends JavaProgramTestBase {
 							public Double map(Long value) {
 								return 0.1d;
 							}
-						});
+						}, env);
 
 				graph.getVertices().writeAsCsv(resultPath);
 				env.execute();
@@ -131,7 +131,7 @@ public class TestGraphCreation extends JavaProgramTestBase {
 							public Tuple2<Long, Long> map(Long vertexId) {
 								return new Tuple2<Long, Long>(vertexId*2, 42l);
 							}
-						});
+						}, env);
 
 				graph.getVertices().writeAsCsv(resultPath);
 				env.execute();
@@ -151,7 +151,7 @@ public class TestGraphCreation extends JavaProgramTestBase {
 							public DummyCustomType map(Long vertexId) {
 								return new DummyCustomType(vertexId.intValue()-1, false);
 							}
-						});
+						}, env);
 
 				graph.getVertices().writeAsCsv(resultPath);
 				env.execute();
@@ -178,7 +178,7 @@ public class TestGraphCreation extends JavaProgramTestBase {
 								dummyValue.setTField(vertexId*2.0);
 								return dummyValue;
 							}
-						});
+						}, env);
 
 				graph.getVertices().writeAsCsv(resultPath);
 				env.execute();

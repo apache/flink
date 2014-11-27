@@ -74,7 +74,7 @@ public class TestMapVertices extends JavaProgramTestBase {
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				
 				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
-						TestGraphUtils.getLongLongEdgeData(env));
+						TestGraphUtils.getLongLongEdgeData(env), env);
 				
 				DataSet<Tuple2<Long, Long>> mappedVertices = graph.mapVertices(new MapFunction<Long, Long>() {
 					public Long map(Long value) throws Exception {
@@ -97,7 +97,7 @@ public class TestMapVertices extends JavaProgramTestBase {
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				
 				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
-						TestGraphUtils.getLongLongEdgeData(env));
+						TestGraphUtils.getLongLongEdgeData(env), env);
 				
 				DataSet<Tuple2<Long, String>> mappedVertices = graph.mapVertices(new MapFunction<Long, String>() {
 					public String map(Long value) throws Exception {
@@ -140,7 +140,7 @@ public class TestMapVertices extends JavaProgramTestBase {
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				
 				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
-						TestGraphUtils.getLongLongEdgeData(env));
+						TestGraphUtils.getLongLongEdgeData(env), env);
 				
 				DataSet<Tuple2<Long, Tuple1<Long>>> mappedVertices = graph.mapVertices(new MapFunction<Long, Tuple1<Long>>() {
 					public Tuple1<Long> map(Long value) throws Exception {
@@ -165,7 +165,7 @@ public class TestMapVertices extends JavaProgramTestBase {
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				
 				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
-						TestGraphUtils.getLongLongEdgeData(env));
+						TestGraphUtils.getLongLongEdgeData(env), env);
 				
 				DataSet<Tuple2<Long, DummyCustomType>> mappedVertices = graph.mapVertices(new MapFunction<Long, DummyCustomType>() {
 					public DummyCustomType map(Long value) throws Exception {
@@ -190,7 +190,7 @@ public class TestMapVertices extends JavaProgramTestBase {
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				
 				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
-						TestGraphUtils.getLongLongEdgeData(env));
+						TestGraphUtils.getLongLongEdgeData(env), env);
 				
 				DataSet<Tuple2<Long, DummyCustomParameterizedType<Double>>> mappedVertices = graph.mapVertices(
 						new MapFunction<Long, DummyCustomParameterizedType<Double>>() {
