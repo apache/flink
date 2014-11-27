@@ -27,6 +27,7 @@ import org.junit.Test;
 
 public class PrintTest implements Serializable {
 
+	private static final long serialVersionUID = 1L;
 	private static final long MEMORYSIZE = 32;
 
 	private static final class IdentityMap implements MapFunction<Long, Long> {

@@ -29,16 +29,15 @@ import org.apache.flink.streaming.api.streamrecord.StreamRecord;
  * @param <T>
  *            Type of the Tuple
  */
-public class ShufflePartitioner<T> implements StreamPartitioner<T> {
+public class ShufflePartitioner<T> extends StreamPartitioner<T> {
 	private static final long serialVersionUID = 1L;
 
 	private Random random = new Random();
 
-	private int[] returnArray;
+	private int[] returnArray = new int[1];
 
 	public ShufflePartitioner() {
-		this.random = new Random();
-		this.returnArray = new int[1];
+		super(PartitioningStrategy.SHUFFLE);
 	}
 
 	@Override

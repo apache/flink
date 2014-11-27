@@ -66,7 +66,6 @@ import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
 import org.apache.flink.streaming.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.partitioner.DistributePartitioner;
 import org.apache.flink.streaming.partitioner.FieldsPartitioner;
-import org.apache.flink.streaming.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.util.keys.FieldsKeySelector;
@@ -127,7 +126,7 @@ public class DataStream<OUT> {
 		this.jobGraphBuilder = environment.getJobGraphBuilder();
 		this.userDefinedNames = new ArrayList<String>();
 		this.selectAll = false;
-		this.partitioner = new ForwardPartitioner<OUT>();
+		this.partitioner = new DistributePartitioner<OUT>(true);
 		this.outTypeWrapper = outTypeWrapper;
 		this.mergedStreams = new ArrayList<DataStream<OUT>>();
 		this.mergedStreams.add(this);
@@ -156,13 +155,6 @@ public class DataStream<OUT> {
 			}
 		}
 
-	}
-
-	/**
-	 * Partitioning strategy on the stream.
-	 */
-	public static enum ConnectionType {
-		SHUFFLE, BROADCAST, FIELD, FORWARD, DISTRIBUTE
 	}
 
 	/**
@@ -341,7 +333,7 @@ public class DataStream<OUT> {
 	 * @return The DataStream with shuffle partitioning set.
 	 */
 	public DataStream<OUT> forward() {
-		return setConnectionType(new ForwardPartitioner<OUT>());
+		return setConnectionType(new DistributePartitioner<OUT>(true));
 	}
 
 	/**
@@ -351,7 +343,7 @@ public class DataStream<OUT> {
 	 * @return The DataStream with shuffle partitioning set.
 	 */
 	public DataStream<OUT> distribute() {
-		return setConnectionType(new DistributePartitioner<OUT>());
+		return setConnectionType(new DistributePartitioner<OUT>(false));
 	}
 
 	/**

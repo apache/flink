@@ -26,17 +26,17 @@ import org.junit.Before;
 import org.junit.Test;
 
 public class ForwardPartitionerTest {
-	
-	private ForwardPartitioner<Tuple> forwardPartitioner;
+
+	private DistributePartitioner<Tuple> forwardPartitioner;
 	private StreamRecord<Tuple> streamRecord = new StreamRecord<Tuple>();
 	private SerializationDelegate<StreamRecord<Tuple>> sd = new SerializationDelegate<StreamRecord<Tuple>>(
 			null);
-	
+
 	@Before
 	public void setPartitioner() {
-		forwardPartitioner = new ForwardPartitioner<Tuple>();
+		forwardPartitioner = new DistributePartitioner<Tuple>(true);
 	}
-	
+
 	@Test
 	public void testSelectChannelsLength() {
 		sd.setInstance(streamRecord);
@@ -44,12 +44,12 @@ public class ForwardPartitionerTest {
 		assertEquals(1, forwardPartitioner.selectChannels(sd, 2).length);
 		assertEquals(1, forwardPartitioner.selectChannels(sd, 1024).length);
 	}
-	
+
 	@Test
 	public void testSelectChannelsInterval() {
 		sd.setInstance(streamRecord);
 		assertEquals(0, forwardPartitioner.selectChannels(sd, 1)[0]);
-		assertEquals(0, forwardPartitioner.selectChannels(sd, 2)[0]);
-		assertEquals(0, forwardPartitioner.selectChannels(sd, 1024)[0]);
+		assertEquals(1, forwardPartitioner.selectChannels(sd, 2)[0]);
+		assertEquals(2, forwardPartitioner.selectChannels(sd, 1024)[0]);
 	}
 }

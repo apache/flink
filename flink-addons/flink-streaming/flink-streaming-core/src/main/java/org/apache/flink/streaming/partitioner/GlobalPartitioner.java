@@ -21,13 +21,13 @@ import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
 //Group to the partitioner with the lowest id
-public class GlobalPartitioner<T> implements StreamPartitioner<T> {
+public class GlobalPartitioner<T> extends StreamPartitioner<T> {
 	private static final long serialVersionUID = 1L;
-	
-	private int[] returnArray;
+
+	private int[] returnArray = new int[] { 0 };
 
 	public GlobalPartitioner() {
-		this.returnArray = new int[] { 0 };
+		super(PartitioningStrategy.GLOBAL);
 	}
 
 	@Override

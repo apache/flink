@@ -37,8 +37,8 @@ import org.apache.flink.streaming.api.streamvertex.CoStreamVertex;
 import org.apache.flink.streaming.api.streamvertex.StreamIterationHead;
 import org.apache.flink.streaming.api.streamvertex.StreamIterationTail;
 import org.apache.flink.streaming.api.streamvertex.StreamVertex;
-import org.apache.flink.streaming.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.partitioner.StreamPartitioner;
+import org.apache.flink.streaming.partitioner.StreamPartitioner.PartitioningStrategy;
 import org.apache.flink.streaming.state.OperatorState;
 import org.apache.flink.streaming.util.serialization.TypeWrapper;
 import org.slf4j.Logger;
@@ -79,7 +79,6 @@ public class JobGraphBuilder {
 	private Map<String, Integer> iterationTailCount;
 	private Map<String, Long> iterationWaitTime;
 	private Map<String, Map<String, OperatorState<?>>> operatorStates;
-
 
 	/**
 	 * Creates an new {@link JobGraph} with the given name. A JobGraph is a DAG
@@ -205,7 +204,7 @@ public class JobGraphBuilder {
 	 */
 	public void addIterationTail(String vertexName, String iterationTail, String iterationID,
 			int parallelism, long waitTime) {
-		
+
 		if (bufferTimeout.get(iterationTail) == 0) {
 			throw new RuntimeException("Buffer timeout 0 at iteration tail is not supported.");
 		}
@@ -355,7 +354,7 @@ public class JobGraphBuilder {
 
 		StreamConfig config = new StreamConfig(upStreamVertex.getConfiguration());
 
-		if (partitionerObject.getClass().equals(ForwardPartitioner.class)) {
+		if (partitionerObject.getStrategy() == PartitioningStrategy.FORWARD) {
 			downStreamVertex
 					.connectNewDataSetAsInput(upStreamVertex, DistributionPattern.POINTWISE);
 		} else {
