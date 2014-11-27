@@ -23,11 +23,7 @@ import com.google.common.base.Preconditions;
 
 import org.apache.flink.api.common.io.GenericCsvInputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
-import org.apache.flink.api.java.typeutils.runtime.RuntimeStatefulSerializerFactory;
-import org.apache.flink.api.java.typeutils.runtime.RuntimeStatelessSerializerFactory;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializerBase;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
@@ -50,26 +46,17 @@ public class ScalaCsvInputFormat<OUT extends Product> extends GenericCsvInputFor
 	// It is set when open so that readRecord does not have to evaluate it
 	private boolean lineDelimiterIsLinebreak = false;
 
-	private final TypeSerializerFactory<OUT> serializerFactory;
-
-	private transient TupleSerializerBase<OUT> serializer;
+	private final TupleSerializerBase<OUT> serializer;
 	
 	public ScalaCsvInputFormat(Path filePath, TypeInformation<OUT> typeInfo) {
 		super(filePath);
-
-		TypeSerializer<OUT> serializer = typeInfo.createSerializer();
-		if (serializer.isStateful()) {
-			serializerFactory = new RuntimeStatefulSerializerFactory<OUT>(
-					serializer, typeInfo.getTypeClass());
-		} else {
-			serializerFactory = new RuntimeStatelessSerializerFactory<OUT>(
-					serializer, typeInfo.getTypeClass());
-		}
 
 		if (!(typeInfo.isTupleType())) {
 			throw new UnsupportedOperationException("This only works on tuple types.");
 		}
 		TupleTypeInfoBase<OUT> tupleType = (TupleTypeInfoBase<OUT>) typeInfo;
+		serializer = (TupleSerializerBase<OUT>)tupleType.createSerializer();
+
 		Class[] classes = new Class[tupleType.getArity()];
 		for (int i = 0; i < tupleType.getArity(); i++) {
 			classes[i] = tupleType.getTypeAt(i).getTypeClass();
@@ -117,8 +104,6 @@ public class ScalaCsvInputFormat<OUT extends Product> extends GenericCsvInputFor
 		if (this.getDelimiter().length == 1 && this.getDelimiter()[0] == '\n' ) {
 			this.lineDelimiterIsLinebreak = true;
 		}
-
-		serializer = (TupleSerializerBase<OUT>)serializerFactory.getSerializer();
 	}
 
 	@Override
