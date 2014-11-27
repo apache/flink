@@ -42,7 +42,9 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.spargel.java.MessagingFunction;
 import org.apache.flink.spargel.java.VertexCentricIteration;
+import org.apache.flink.spargel.java.VertexUpdateFunction;
 import org.apache.flink.util.Collector;
 
 
@@ -198,34 +200,6 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 				Tuple2<Tuple2<K, VV>, Tuple3<K, K, EV>> value) {
 			return new Tuple2<K, Long>(value.f0.f0, 1L);
 		}
-    }
-		
-    /**
-     * Push-Gather-Apply model of graph computation
-     * @param cog
-     * @param gred
-     * @param fjoin
-     * @param maxIterations
-     * @param <MsgT>
-     * @return
-     */
-    public <MsgT> Graph<K, VV, EV> pga(CoGroupFunction<Tuple2<K, VV>, Tuple3<K, K, EV>, Tuple2<K, MsgT>> cog,
-                                       GroupReduceFunction<Tuple2<K, MsgT>, Tuple2<K, MsgT>> gred,
-                                       FlatJoinFunction<Tuple2<K, MsgT>, Tuple2<K, VV>, Tuple2<K, VV>> fjoin,
-                                       int maxIterations){
-
-        DeltaIteration<Tuple2<K, VV>, Tuple2<K, VV>> iteration = this.vertices
-            .iterateDelta(this.vertices, maxIterations, 0);
-
-        DataSet<Tuple2<K, MsgT>> p = iteration.getWorkset().coGroup(this.edges).where(0).equalTo(0).with(cog);
-
-        DataSet<Tuple2<K, MsgT>> g = p.groupBy(0).reduceGroup(gred);
-
-        DataSet<Tuple2<K, VV>> a = g.join(iteration.getSolutionSet()).where(0).equalTo(0).with(fjoin);
-
-        DataSet<Tuple2<K, VV>> result = iteration.closeWith(a, a);
-
-        return new Graph<>(result, this.edges, this.context);
     }
 
 	/**
@@ -620,8 +594,18 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
         return new Graph<K,VV,EV>(unionedVertices, unionedEdges, this.context);
     }
 
-    public Graph<K, VV, EV> passMessages (VertexCentricIteration<K, VV, ?, EV> iteration) {
-        DataSet<Tuple2<K,VV>> newVertices = iteration.createResult();
-        return new Graph<K,VV,EV>(newVertices, edges, this.context);
+    /**
+     * Runs a Vertex-Centric iteration on the graph.
+     * @param vertexUpdateFunction
+     * @param messagingFunction
+     * @param maximumNumberOfIterations
+     * @return
+     */
+    public <M>Graph<K, VV, EV> runVertexCentricIteration(VertexUpdateFunction<K, VV, M> vertexUpdateFunction,
+    		MessagingFunction<K, VV, M, EV> messagingFunction, int maximumNumberOfIterations) {
+    	DataSet<Tuple2<K, VV>> newVertices = vertices.runOperation(
+    			VertexCentricIteration.withValuedEdges(edges, vertexUpdateFunction, messagingFunction, 
+    			maximumNumberOfIterations));
+		return new Graph<K, VV, EV>(newVertices, edges, context);
     }
 }
