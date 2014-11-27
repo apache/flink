@@ -28,6 +28,8 @@ import org.apache.mesos.SchedulerDriver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -82,12 +84,26 @@ public class FlinkMesosScheduler implements Scheduler {
 	 * @return
 	 */
 	private boolean resourcesMet(Protos.Offer offer, List<Protos.Resource> required) {
+		Protos.Resource newcpus = null;
+		Protos.Resource oldcpus = null;
+
 		for (Protos.Resource req: required) {
 			for (Protos.Resource avail: offer.getResourcesList()) {
 				if (avail.getName().equals(req.getName()) && avail.getScalar().getValue() < req.getScalar().getValue()) {
+					if (avail.getName().equals("cpus")) {
+						LOG.info("Not enough cpus available on " + offer.getHostname() + ". Available: " + avail.getScalar().getValue() + " Maximum: " + req.getScalar().getValue());
+						newcpus = avail;
+						oldcpus = req;
+						continue;
+					}
 					return false;
 				}
 			}
+		}
+
+		if (oldcpus != null && newcpus != null) {
+			required.remove(oldcpus);
+			required.add(newcpus);
 		}
 		return true;
 	}
@@ -120,6 +136,15 @@ public class FlinkMesosScheduler implements Scheduler {
 			}
 		}
 
+		try {
+			InetAddress address = InetAddress.getByName(offer.getHostname());
+			LOG.info("Jobmanager address: " + address.getHostAddress());
+			LOG.info("Jobmanager port: " + this.config.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, -1));
+			this.config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, address.getHostAddress());
+		} catch (UnknownHostException e) {
+			this.config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, offer.getHostname());
+		}
+
 		String flinkJMCommand = "java " + "-Xmx" + MesosUtils.calculateMemory(memory) + "M -cp " + config.getString(MesosConstants.MESOS_UBERJAR_LOCATION, ".") + " org.apache.flink.mesos.executors.FlinkJMExecutor";
 		Protos.ExecutorInfo jobManagerExecutor = MesosUtils.createExecutorInfo("jm", "Jobmanager Executor", flinkJMCommand, this.config);
 
@@ -149,30 +174,6 @@ public class FlinkMesosScheduler implements Scheduler {
 		return MesosUtils.createTaskInfo("TaskManager", resources, taskManagerExecutor, offer.getSlaveId(), Protos.TaskID.newBuilder().setValue("tm_task-" + taskManagerExecutor.hashCode()).build());
 	}
 
-
-	/**
-	 * Helper method to create a WebFrontend TaskInfo on the Mesos slave that made the offer.
-	 * @param offer The resource offer from the Mesos slave.
-	 * @return TaskInfo that contains the information required to launch a WebFrontend (command to be executed, memory, cpus, etc.)
-	 */
-	private Protos.TaskInfo createWebFrontendTask(Protos.Offer offer, List<Protos.Resource> resources) {
-		double memory = -1.0;
-		for (Protos.Resource r: resources) {
-			if (r.getName().equals(MESOS_MEMORY)) {
-				memory = r.getScalar().getValue();
-			}
-		}
-
-		String flinkWebCommand = "java " + "-Xmx" + MesosUtils.calculateMemory(memory) + "M -cp " + config.getString(MesosConstants.MESOS_UBERJAR_LOCATION, ".") + " org.apache.flink.mesos.executors.FlinkWebExecutor";
-		Protos.ExecutorInfo taskManagerExecutor = MesosUtils.createExecutorInfo("web", "WebFrontend Executor", flinkWebCommand, this.config);
-
-		logLaunchInfo("WebFrontend", offer, resources);
-		LOG.info("The Web Submission will shortly be available at: " + offer.getHostname() + ":" + config.getInteger(ConfigConstants.WEB_FRONTEND_PORT_KEY, ConfigConstants.DEFAULT_WEBCLIENT_PORT));
-
-		return MesosUtils.createTaskInfo("Web", resources, taskManagerExecutor, offer.getSlaveId(), Protos.TaskID.newBuilder().setValue("web-" + taskManagerExecutor.hashCode()).build());
-
-	}
-
 	@Override
 	public void registered(SchedulerDriver schedulerDriver, Protos.FrameworkID frameworkID, Protos.MasterInfo masterInfo) {
 		LOG.info("Flink was registered: " + frameworkID.getValue() + " " + masterInfo.getHostname());
@@ -181,9 +182,6 @@ public class FlinkMesosScheduler implements Scheduler {
 			int port = this.config.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
 			port = MesosUtils.offsetPort(port, frameworkID.hashCode());
 			this.config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, port);
-			LOG.info("New JobManager Port is " + port + ".");
-		} else {
-			LOG.info("No JobManager port offset.");
 		}
 	}
 
@@ -197,7 +195,6 @@ public class FlinkMesosScheduler implements Scheduler {
 	public void resourceOffers(SchedulerDriver schedulerDriver, List<Protos.Offer> offers) {
 		Integer maxTaskManagers = config.getInteger(MesosConstants.MESOS_MAX_TM_INSTANCES, Integer.MAX_VALUE);
 		printOffers(offers);
-		Boolean useWeb = config.getBoolean(MesosConstants.MESOS_USE_WEB, false);
 
 		/*
 		Tasks contains the tasks that are to be executed and offerIDs the corresponding offer.
@@ -223,20 +220,6 @@ public class FlinkMesosScheduler implements Scheduler {
 					jobManagerOffer = offer;
 					offerIDs.add(offer.getId());
 				}
-			} else if (useWeb && webFrontend == null && offer.getSlaveId().equals(jobManagerOffer.getSlaveId())) {
-
-				List<Protos.Resource> required = new ArrayList<Protos.Resource>();
-				required.add(MesosUtils.createResourceScalar(MESOS_CPU, 1.0));
-				required.add(MesosUtils.createResourceScalar(MESOS_MEMORY, 256.0));
-
-				if (resourcesMet(offer, required)) {
-					Protos.TaskInfo task = createWebFrontendTask(offer, required);
-					tasks.add(task);
-					webFrontend = task;
-					webFrontendOffer = offer;
-					offerIDs.add(offer.getId());
-				}
-
 			} else if (!taskManagers.containsKey(offer.getSlaveId()) && taskManagers.size() < maxTaskManagers) {
 
 				List<Protos.Resource> required = new ArrayList<Protos.Resource>();
@@ -258,7 +241,7 @@ public class FlinkMesosScheduler implements Scheduler {
 	}
 
 
-	/**
+	/*
 	 * If an offer is no longer available and we tried to deploy a JobManager or TaskManager on it, we try to kill the
 	 * affected manager and rerequest the resources that are necessary to start a new one (especially for JobManager as it is required
 	 * for Flink to do any job.

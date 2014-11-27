@@ -18,6 +18,9 @@
 
 package org.apache.flink.mesos.executors;
 
+import org.apache.flink.client.web.WebInterfaceServer;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.mesos.utility.MesosConfiguration;
 import org.apache.flink.mesos.utility.MesosConstants;
@@ -71,6 +74,22 @@ public class FlinkJMExecutor extends FlinkExecutor {
 
 				jobManager = JobManager.initialize(args);
 				jobManager.startInfoServer();
+
+				if (config.getBoolean(MesosConstants.MESOS_USE_WEB, false)) {
+					Configuration config = GlobalConfiguration.getConfiguration();
+
+					// add flink base dir to config
+					config.setString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY, configDir + "/..");
+
+					// get the listening port
+					int port = config.getInteger(ConfigConstants.WEB_FRONTEND_PORT_KEY,
+							ConfigConstants.DEFAULT_WEBCLIENT_PORT);
+
+					// start the server
+					WebInterfaceServer server = new WebInterfaceServer(config, port);
+					LOG.info("Starting web frontend server on port " + port + '.');
+					server.start();
+				}
 			} catch (Exception e) {
 				e.printStackTrace();
 				MesosUtils.setTaskState(executorDriver, taskInfo.getTaskId(), Protos.TaskState.TASK_FAILED);
