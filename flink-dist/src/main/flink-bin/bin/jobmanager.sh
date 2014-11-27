@@ -31,7 +31,6 @@ if [ "$EXECUTIONMODE" = "local" ]; then
 fi
 
 JAVA_VERSION=$($JAVA_RUN -version 2>&1 | sed 's/java version "\(.*\)\.\(.*\)\..*"/\1\2/; 1q')
-JVM_ARGS="$JVM_ARGS -XX:+UseConcMarkSweepGC -XX:+CMSClassUnloadingEnabled "
 
 if [ "$JAVA_VERSION" -lt 18 ]; then
     JVM_ARGS="$JVM_ARGS -XX:MaxPermSize=256m"
