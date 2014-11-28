@@ -285,25 +285,37 @@ public abstract class DataSet<T> {
 	}
 
 	/**
-	 * Syntactic sugar for aggregate (MAX, field)
+	 * Syntactic sugar for {@link #aggregate(Aggregations, int)} using {@link Aggregations#MAX} as
+	 * the aggregation function.
+	 * <p>
+	 * <strong>Note:</strong> This operation is not to be confused with {@link #maxBy(int...)},
+	 * which selects one element with maximum value at the specified field positions.
+	 *
 	 * @param field The index of the Tuple field on which the aggregation function is applied.
 	 * @return An AggregateOperator that represents the max'ed DataSet.
 	 *
-	 * @see org.apache.flink.api.java.operators.AggregateOperator
+	 * @see #aggregate(Aggregations, int)
+	 * @see #maxBy(int...)
 	 */
-	public AggregateOperator<T> max (int field) {
-		return this.aggregate (Aggregations.MAX, field);
+	public AggregateOperator<T> max(int field) {
+		return aggregate(Aggregations.MAX, field);
 	}
 
 	/**
-	 * Syntactic sugar for aggregate (MIN, field)
+	 * Syntactic sugar for {@link #aggregate(Aggregations, int)} using {@link Aggregations#MIN} as
+	 * the aggregation function.
+	 * <p>
+	 * <strong>Note:</strong> This operation is not to be confused with {@link #minBy(int...)},
+	 * which selects one element with the minimum value at the specified field positions.
+	 *
 	 * @param field The index of the Tuple field on which the aggregation function is applied.
 	 * @return An AggregateOperator that represents the min'ed DataSet.
 	 *
-	 * @see org.apache.flink.api.java.operators.AggregateOperator
+	 * @see #aggregate(Aggregations, int)
+	 * @see #minBy(int...)
 	 */
-	public AggregateOperator<T> min (int field) {
-		return this.aggregate (Aggregations.MIN, field);
+	public AggregateOperator<T> min(int field) {
+		return aggregate(Aggregations.MIN, field);
 	}
 	
 	/**
@@ -348,45 +360,75 @@ public abstract class DataSet<T> {
 	}
 
 	/**
-	 * Applies a special case of a reduce transformation (minBy) on a non-grouped {@link DataSet}.<br/>
-	 * The transformation consecutively calls a {@link ReduceFunction} 
-	 * until only a single element remains which is the result of the transformation.
-	 * A ReduceFunction combines two elements into one new element of the same type.
-	 *  
-	 * @param fields Keys taken into account for finding the minimum.
-	 * @return A {@link ReduceOperator} representing the minimum.
+	 * Selects an element with minimum value.
+	 * <p>
+	 * The minimum is computed over the specified fields in lexicographical order.
+	 * <p>
+	 * <strong>Example 1</strong>: Given a data set with elements <code>[0, 1], [1, 0]</code>, the
+	 * results will be:
+	 * <ul>
+	 * <li><code>minBy(0)</code>: <code>[0, 1]</code></li>
+	 * <li><code>minBy(1)</code>: <code>[1, 0]</code></li>
+	 * </ul>
+	 * <p>
+	 * <strong>Example 2</strong>: Given a data set with elements <code>[0, 0], [0, 1]</code>, the
+	 * results will be:
+	 * <ul>
+	 * <li><code>minBy(0, 1)</code>: <code>[0, 0]</code></li>
+	 * </ul>
+	 * <p>
+	 * If multiple values with minimum value at the specified fields exist, a random one will be
+	 * picked.
+	 * <p>
+	 * Internally, this operation is implemented as a {@link ReduceFunction}.
+	 *
+	 * @param fields Field positions to compute the minimum over
+	 * @return A {@link ReduceOperator} representing the minimum
 	 */
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public ReduceOperator<T> minBy(int... fields)  {
-		
-		// Check for using a tuple
-		if(!this.type.isTupleType()) {
-			throw new InvalidProgramException("Method minBy(int) only works on tuples.");
+		if(!type.isTupleType()) {
+			throw new InvalidProgramException("DataSet#minBy(int...) only works on Tuple types.");
 		}
-			
+
 		return new ReduceOperator<T>(this, new SelectByMinFunction(
-				(TupleTypeInfo) this.type, fields), Utils.getCallLocationName());
+				(TupleTypeInfo) type, fields), Utils.getCallLocationName());
 	}
 	
 	/**
-	 * Applies a special case of a reduce transformation (maxBy) on a non-grouped {@link DataSet}.<br/>
-	 * The transformation consecutively calls a {@link ReduceFunction} 
-	 * until only a single element remains which is the result of the transformation.
-	 * A ReduceFunction combines two elements into one new element of the same type.
-	 *  
-	 * @param fields Keys taken into account for finding the minimum.
-	 * @return A {@link ReduceOperator} representing the minimum.
+	 * Selects an element with maximum value.
+	 * <p>
+	 * The maximum is computed over the specified fields in lexicographical order.
+	 * <p>
+	 * <strong>Example 1</strong>: Given a data set with elements <code>[0, 1], [1, 0]</code>, the
+	 * results will be:
+	 * <ul>
+	 * <li><code>maxBy(0)</code>: <code>[1, 0]</code></li>
+	 * <li><code>maxBy(1)</code>: <code>[0, 1]</code></li>
+	 * </ul>
+	 * <p>
+	 * <strong>Example 2</strong>: Given a data set with elements <code>[0, 0], [0, 1]</code>, the
+	 * results will be:
+	 * <ul>
+	 * <li><code>maxBy(0, 1)</code>: <code>[0, 1]</code></li>
+	 * </ul>
+	 * <p>
+	 * If multiple values with maximum value at the specified fields exist, a random one will be
+	 * picked.
+	 * <p>
+	 * Internally, this operation is implemented as a {@link ReduceFunction}.
+	 *
+	 * @param fields Field positions to compute the maximum over
+	 * @return A {@link ReduceOperator} representing the maximum
 	 */
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public ReduceOperator<T> maxBy(int... fields)  {
-		
-		// Check for using a tuple
-		if(!this.type.isTupleType()) {
-			throw new InvalidProgramException("Method maxBy(int) only works on tuples.");
+		if(!type.isTupleType()) {
+			throw new InvalidProgramException("DataSet#maxBy(int...) only works on Tuple types.");
 		}
-			
+
 		return new ReduceOperator<T>(this, new SelectByMaxFunction(
-				(TupleTypeInfo) this.type, fields), Utils.getCallLocationName());
+				(TupleTypeInfo) type, fields), Utils.getCallLocationName());
 	}
 
 	/**
