@@ -83,17 +83,17 @@ public class GroupedWindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> {
 
 	private KeySelector<IN, ?> keySelector;
 	private Configuration parameters;
-	private LinkedList<ActiveTriggerPolicy<IN>> activeCentralTriggerPolicies = new LinkedList<ActiveTriggerPolicy<IN>>();
-	private LinkedList<TriggerPolicy<IN>> centralTriggerPolicies = new LinkedList<TriggerPolicy<IN>>();
+	private LinkedList<ActiveTriggerPolicy<IN>> activeCentralTriggerPolicies;
+	private LinkedList<TriggerPolicy<IN>> centralTriggerPolicies;
 	private LinkedList<ActiveEvictionPolicy<IN>> activeCentralEvictionPolicies;
 	private LinkedList<EvictionPolicy<IN>> centralEvictionPolicies;
-	private LinkedList<CloneableTriggerPolicy<IN>> distributedTriggerPolicies = new LinkedList<CloneableTriggerPolicy<IN>>();
-	private LinkedList<CloneableEvictionPolicy<IN>> distributedEvictionPolicies = new LinkedList<CloneableEvictionPolicy<IN>>();
-	private Map<Object, WindowInvokable<IN, OUT>> windowingGroups = new HashMap<Object, WindowInvokable<IN, OUT>>();
-	private LinkedList<Thread> activePolicyThreads = new LinkedList<Thread>();
-	private LinkedList<TriggerPolicy<IN>> currentTriggerPolicies = new LinkedList<TriggerPolicy<IN>>();
+	private LinkedList<CloneableTriggerPolicy<IN>> distributedTriggerPolicies;
+	private LinkedList<CloneableEvictionPolicy<IN>> distributedEvictionPolicies;
+	private Map<Object, WindowInvokable<IN, OUT>> windowingGroups;
+	private LinkedList<Thread> activePolicyThreads;
+	private LinkedList<TriggerPolicy<IN>> currentTriggerPolicies;
 	private LinkedList<WindowInvokable<IN, OUT>> deleteOrderForCentralEviction;
-	
+
 	/**
 	 * This constructor creates an instance of the grouped windowing invokable.
 	 * 
@@ -158,64 +158,70 @@ public class GroupedWindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> {
 
 		super(userFunction);
 
-		// check that not both, central and distributed eviction, is used at the
-		// same time.
-		if (centralEvictionPolicies != null && distributedEvictionPolicies != null
-				&& !centralEvictionPolicies.isEmpty() && !distributedEvictionPolicies.isEmpty()) {
-			throw new UnsupportedOperationException(
-					"You can only use either central or distributed eviction policies but not both at the same time.");
-		}
-
-		// Check that there is at least one trigger and one eviction policy
-		if ((centralEvictionPolicies == null || centralEvictionPolicies.isEmpty())
-				&& (distributedEvictionPolicies == null || distributedEvictionPolicies.isEmpty())) {
-			throw new UnsupportedOperationException(
-					"You have to define at least one eviction policy");
-		}
-		if ((centralTriggerPolicies == null || centralTriggerPolicies.isEmpty())
-				&& (distributedTriggerPolicies == null || distributedTriggerPolicies.isEmpty())) {
-			throw new UnsupportedOperationException(
-					"You have to define at least one trigger policy");
-		}
-
 		this.keySelector = keySelector;
 
 		// handle the triggers
-		this.centralTriggerPolicies = centralTriggerPolicies;
-		this.distributedTriggerPolicies = distributedTriggerPolicies;
-		for (TriggerPolicy<IN> trigger : centralTriggerPolicies) {
-			if (trigger instanceof ActiveTriggerPolicy) {
-				this.activeCentralTriggerPolicies.add((ActiveTriggerPolicy<IN>) trigger);
+		if (centralTriggerPolicies != null) {
+			this.centralTriggerPolicies = centralTriggerPolicies;
+			this.activeCentralTriggerPolicies = new LinkedList<ActiveTriggerPolicy<IN>>();
+
+			for (TriggerPolicy<IN> trigger : centralTriggerPolicies) {
+				if (trigger instanceof ActiveTriggerPolicy) {
+					this.activeCentralTriggerPolicies.add((ActiveTriggerPolicy<IN>) trigger);
+				}
 			}
+		} else {
+			this.centralTriggerPolicies = new LinkedList<TriggerPolicy<IN>>();
 		}
 
-		// handle the evictions
-		if (distributedEvictionPolicies != null && !distributedEvictionPolicies.isEmpty()) {
+		if (distributedTriggerPolicies != null) {
+			this.distributedTriggerPolicies = distributedTriggerPolicies;
+		} else {
+			this.distributedTriggerPolicies = new LinkedList<CloneableTriggerPolicy<IN>>();
+		}
+
+		if (distributedEvictionPolicies != null) {
 			this.distributedEvictionPolicies = distributedEvictionPolicies;
-		} else { // (centralEvictionPolicies!=null&&!centralEvictionPolicies.isEmpty())
+		} else {
+			this.distributedEvictionPolicies = new LinkedList<CloneableEvictionPolicy<IN>>();
+		}
+
+		this.activeCentralEvictionPolicies = new LinkedList<ActiveEvictionPolicy<IN>>();
+
+		if (centralEvictionPolicies != null) {
 			this.centralEvictionPolicies = centralEvictionPolicies;
-			this.activeCentralEvictionPolicies = new LinkedList<ActiveEvictionPolicy<IN>>();
+
 			for (EvictionPolicy<IN> eviction : centralEvictionPolicies) {
 				if (eviction instanceof ActiveEvictionPolicy) {
 					this.activeCentralEvictionPolicies.add((ActiveEvictionPolicy<IN>) eviction);
 				}
 			}
-			this.deleteOrderForCentralEviction = new LinkedList<WindowInvokable<IN, OUT>>();
+		} else {
+			this.centralEvictionPolicies = new LinkedList<EvictionPolicy<IN>>();
 		}
 
-	}
-	
-	/**
-	 * Same as
-	 * {@link GroupedWindowInvokable#GroupedWindowInvokable(Function, KeySelector, LinkedList, LinkedList, LinkedList, LinkedList)}
-	 * but using always distributed eviction only.
-	 */
-	public GroupedWindowInvokable(Function userFunction, KeySelector<IN, ?> keySelector,
-			LinkedList<CloneableTriggerPolicy<IN>> distributedTriggerPolicies,
-			LinkedList<CloneableEvictionPolicy<IN>> distributedEvictionPolicies,
-			LinkedList<TriggerPolicy<IN>> centralTriggerPolicies) {
-		this(userFunction, keySelector, distributedTriggerPolicies, distributedEvictionPolicies,
-				centralTriggerPolicies, null);
+		this.windowingGroups = new HashMap<Object, WindowInvokable<IN, OUT>>();
+		this.activePolicyThreads = new LinkedList<Thread>();
+		this.currentTriggerPolicies = new LinkedList<TriggerPolicy<IN>>();
+		this.deleteOrderForCentralEviction = new LinkedList<WindowInvokable<IN, OUT>>();
+
+		// check that not both, central and distributed eviction, is used at the
+		// same time.
+		if (!this.centralEvictionPolicies.isEmpty() && !this.distributedEvictionPolicies.isEmpty()) {
+			throw new UnsupportedOperationException(
+					"You can only use either central or distributed eviction policies but not both at the same time.");
+		}
+
+		// Check that there is at least one trigger and one eviction policy
+		if (this.centralEvictionPolicies.isEmpty() && this.distributedEvictionPolicies.isEmpty()) {
+			throw new UnsupportedOperationException(
+					"You have to define at least one eviction policy");
+		}
+		if (this.centralTriggerPolicies.isEmpty() && this.distributedTriggerPolicies.isEmpty()) {
+			throw new UnsupportedOperationException(
+					"You have to define at least one trigger policy");
+		}
+
 	}
 
 	@Override
@@ -239,7 +245,7 @@ public class GroupedWindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> {
 				for (Object in : result) {
 
 					// If central eviction is used, handle it here
-					if (activeCentralEvictionPolicies!=null) {
+					if (!activeCentralEvictionPolicies.isEmpty()) {
 						evictElements(centralActiveEviction(in));
 					}
 
@@ -263,7 +269,7 @@ public class GroupedWindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> {
 				groupInvokable.processRealElement(reuse.getObject());
 
 				// If central eviction is used, handle it here
-				if (centralEvictionPolicies!=null) {
+				if (!centralEvictionPolicies.isEmpty()) {
 					evictElements(centralEviction(reuse.getObject(), false));
 					deleteOrderForCentralEviction.add(groupInvokable);
 				}
@@ -283,7 +289,7 @@ public class GroupedWindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> {
 				}
 
 				// If central eviction is used, handle it here
-				if (centralEvictionPolicies!=null) {
+				if (!centralEvictionPolicies.isEmpty()) {
 					evictElements(centralEviction(reuse.getObject(), true));
 					deleteOrderForCentralEviction.add(groupInvokable);
 				}
@@ -473,7 +479,7 @@ public class GroupedWindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> {
 		public void sendFakeElement(Object datapoint) {
 
 			// If central eviction is used, handle it here
-			if (centralEvictionPolicies!=null) {
+			if (!centralEvictionPolicies.isEmpty()) {
 				evictElements(centralActiveEviction(datapoint));
 			}
 

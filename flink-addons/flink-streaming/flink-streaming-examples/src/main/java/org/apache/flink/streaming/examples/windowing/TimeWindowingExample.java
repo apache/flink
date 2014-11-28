@@ -36,7 +36,7 @@ import org.apache.flink.util.Collector;
  */
 public class TimeWindowingExample {
 
-	private static final int PARALLELISM = 2;
+	private static final int PARALLELISM = 1;
 
 	public static void main(String[] args) throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment
@@ -45,21 +45,26 @@ public class TimeWindowingExample {
 		// Prevent output from being blocked
 		env.setBufferTimeout(100);
 
+		KeySelector<Integer, Integer> myKey = new KeySelector<Integer, Integer>() {
+
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public Integer getKey(Integer value) throws Exception {
+				if (value < 2) {
+					return 0;
+				} else {
+					return 1;
+				}
+			}
+
+		};
+
 		DataStream<Integer> stream = env.addSource(new CountingSourceWithSleep())
-				.groupBy(new KeySelector<Integer, Integer>() {
-
-					private static final long serialVersionUID = 1L;
-
-					@Override
-					public Integer getKey(Integer value) throws Exception {
-						if (value < 3) {
-							return 0;
-						} else {
-							return 1;
-						}
-					}
-
-				}).window(Count.of(100)).every(Time.of(1000, TimeUnit.MILLISECONDS)).sum();
+				.window(Count.of(100))
+				.every(Time.of(1000, TimeUnit.MILLISECONDS))
+				.groupBy(myKey)
+				.sum();
 
 		stream.print();
 

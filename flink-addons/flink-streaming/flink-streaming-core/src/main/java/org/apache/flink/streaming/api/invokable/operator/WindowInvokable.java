@@ -45,9 +45,9 @@ public abstract class WindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> 
 	private LinkedList<EvictionPolicy<IN>> evictionPolicies;
 	private LinkedList<ActiveTriggerPolicy<IN>> activeTriggerPolicies;
 	private LinkedList<ActiveEvictionPolicy<IN>> activeEvictionPolicies;
-	private LinkedList<Thread> activePolicyTreads = new LinkedList<Thread>();
-	protected LinkedList<IN> buffer = new LinkedList<IN>();
-	private LinkedList<TriggerPolicy<IN>> currentTriggerPolicies = new LinkedList<TriggerPolicy<IN>>();
+	private LinkedList<Thread> activePolicyTreads;
+	protected LinkedList<IN> buffer;
+	private LinkedList<TriggerPolicy<IN>> currentTriggerPolicies;
 
 	/**
 	 * This constructor created a windowing invokable using trigger and eviction
@@ -82,6 +82,10 @@ public abstract class WindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> 
 				activeEvictionPolicies.add((ActiveEvictionPolicy<IN>) ep);
 			}
 		}
+
+		this.activePolicyTreads = new LinkedList<Thread>();
+		this.buffer = new LinkedList<IN>();
+		this.currentTriggerPolicies = new LinkedList<TriggerPolicy<IN>>();
 	}
 
 	@Override
@@ -156,12 +160,12 @@ public abstract class WindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> 
 	 * of this group.
 	 * 
 	 * Remark: This is NOT the same as
-	 * {@link WindowInvokable#processFakeElement(Object, TriggerPolicy)}!
-	 * Here the eviction using active policies takes place after the call to the
-	 * UDF. Usually it is done before when fake elements get submitted. This
-	 * special behaviour is needed to allow the
-	 * {@link GroupedWindowInvokable} to send central triggers to all groups,
-	 * even if the current element does not belong to the group.
+	 * {@link WindowInvokable#processFakeElement(Object, TriggerPolicy)}! Here
+	 * the eviction using active policies takes place after the call to the UDF.
+	 * Usually it is done before when fake elements get submitted. This special
+	 * behaviour is needed to allow the {@link GroupedWindowInvokable} to send
+	 * central triggers to all groups, even if the current element does not
+	 * belong to the group.
 	 * 
 	 * @param input
 	 *            a fake input element
@@ -339,7 +343,7 @@ public abstract class WindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> 
 		buffer.add(input);
 
 	}
-	
+
 	/**
 	 * This method removes the first element from the element buffer. It is used
 	 * to provide central evictions in {@link GroupedWindowInvokable}

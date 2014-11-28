@@ -55,6 +55,7 @@ public class WindowedDataStream<OUT> {
 
 	protected DataStream<OUT> dataStream;
 	protected boolean isGrouped;
+	protected boolean allCentral;
 	protected KeySelector<OUT, ?> keySelector;
 
 	protected List<WindowingHelper<OUT>> triggerHelpers;
@@ -73,9 +74,13 @@ public class WindowedDataStream<OUT> {
 		if (dataStream instanceof GroupedDataStream) {
 			this.isGrouped = true;
 			this.keySelector = ((GroupedDataStream<OUT>) dataStream).keySelector;
+			// set all policies distributed
+			this.allCentral = false;
 
 		} else {
 			this.isGrouped = false;
+			// set all policies central
+			this.allCentral = true;
 		}
 	}
 
@@ -96,9 +101,13 @@ public class WindowedDataStream<OUT> {
 		if (dataStream instanceof GroupedDataStream) {
 			this.isGrouped = true;
 			this.keySelector = ((GroupedDataStream<OUT>) dataStream).keySelector;
+			// set all policies distributed
+			this.allCentral = false;
 
 		} else {
 			this.isGrouped = false;
+			// set all policies central
+			this.allCentral = true;
 		}
 	}
 
@@ -110,6 +119,7 @@ public class WindowedDataStream<OUT> {
 		this.evictionHelpers = windowedDataStream.evictionHelpers;
 		this.userTriggers = windowedDataStream.userTriggers;
 		this.userEvicters = windowedDataStream.userEvicters;
+		this.allCentral = windowedDataStream.allCentral;
 	}
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
@@ -475,22 +485,27 @@ public class WindowedDataStream<OUT> {
 
 	private LinkedList<TriggerPolicy<OUT>> getCentralTriggers() {
 		LinkedList<TriggerPolicy<OUT>> cTriggers = new LinkedList<TriggerPolicy<OUT>>();
-		// Add Time triggers to central triggers
-		for (TriggerPolicy<OUT> trigger : getTriggers()) {
-			if (trigger instanceof TimeTriggerPolicy) {
-				cTriggers.add(trigger);
+		if (allCentral) {
+			cTriggers.addAll(getTriggers());
+		} else {
+			for (TriggerPolicy<OUT> trigger : getTriggers()) {
+				if (trigger instanceof TimeTriggerPolicy) {
+					cTriggers.add(trigger);
+				}
 			}
 		}
 		return cTriggers;
 	}
 
 	private LinkedList<CloneableTriggerPolicy<OUT>> getDistributedTriggers() {
-		LinkedList<CloneableTriggerPolicy<OUT>> dTriggers = new LinkedList<CloneableTriggerPolicy<OUT>>();
+		LinkedList<CloneableTriggerPolicy<OUT>> dTriggers = null;
 
-		// Everything except Time triggers are distributed
-		for (TriggerPolicy<OUT> trigger : getTriggers()) {
-			if (!(trigger instanceof TimeTriggerPolicy)) {
-				dTriggers.add((CloneableTriggerPolicy<OUT>) trigger);
+		if (!allCentral) {
+			dTriggers = new LinkedList<CloneableTriggerPolicy<OUT>>();
+			for (TriggerPolicy<OUT> trigger : getTriggers()) {
+				if (!(trigger instanceof TimeTriggerPolicy)) {
+					dTriggers.add((CloneableTriggerPolicy<OUT>) trigger);
+				}
 			}
 		}
 
@@ -498,20 +513,32 @@ public class WindowedDataStream<OUT> {
 	}
 
 	private LinkedList<CloneableEvictionPolicy<OUT>> getDistributedEvicters() {
-		LinkedList<CloneableEvictionPolicy<OUT>> evicters = new LinkedList<CloneableEvictionPolicy<OUT>>();
+		LinkedList<CloneableEvictionPolicy<OUT>> evicters = null;
 
-		for (EvictionPolicy<OUT> evicter : getEvicters()) {
-			evicters.add((CloneableEvictionPolicy<OUT>) evicter);
+		if (!allCentral) {
+			evicters = new LinkedList<CloneableEvictionPolicy<OUT>>();
+			for (EvictionPolicy<OUT> evicter : getEvicters()) {
+				evicters.add((CloneableEvictionPolicy<OUT>) evicter);
+			}
 		}
 
 		return evicters;
+	}
+
+	private LinkedList<EvictionPolicy<OUT>> getCentralEvicters() {
+		if (allCentral) {
+			return getEvicters();
+		} else {
+			return null;
+		}
 	}
 
 	private <R> StreamInvokable<OUT, R> getReduceGroupInvokable(GroupReduceFunction<OUT, R> reducer) {
 		StreamInvokable<OUT, R> invokable;
 		if (isGrouped) {
 			invokable = new GroupedWindowInvokable<OUT, R>(reducer, keySelector,
-					getDistributedTriggers(), getDistributedEvicters(), getCentralTriggers());
+					getDistributedTriggers(), getDistributedEvicters(), getCentralTriggers(),
+					getCentralEvicters());
 
 		} else {
 			invokable = new WindowGroupReduceInvokable<OUT, R>(reducer, getTriggers(),
@@ -524,7 +551,8 @@ public class WindowedDataStream<OUT> {
 		StreamInvokable<OUT, OUT> invokable;
 		if (isGrouped) {
 			invokable = new GroupedWindowInvokable<OUT, OUT>(reducer, keySelector,
-					getDistributedTriggers(), getDistributedEvicters(), getCentralTriggers());
+					getDistributedTriggers(), getDistributedEvicters(), getCentralTriggers(),
+					getCentralEvicters());
 
 		} else {
 			invokable = new WindowReduceInvokable<OUT>(reducer, getTriggers(), getEvicters());
