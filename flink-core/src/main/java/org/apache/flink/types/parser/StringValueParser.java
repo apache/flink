@@ -83,7 +83,9 @@ public class StringValueParser extends FieldParser<StringValue> {
 						return -1;	// illegal case of non-whitespace characters trailing
 					}
 				}
-				if( i > length ) i--;
+				if( i > length ){
+					i--;
+				}
 				return (i == length ? length : i + delim.length);
 			} else {
 				// exited due to line end without quote termination
@@ -96,7 +98,9 @@ public class StringValueParser extends FieldParser<StringValue> {
 			while (i <= length && !delimiterNext(bytes, i, delim)) {
 				i++;
 			}
-			if( i > length ) i--;
+			if( i > length ){
+				i--;
+			}
 			// set from the beginning. unquoted strings include the leading whitespaces
 			reusable.setValueAscii(bytes, startPos, i-startPos);
 			return (i == length ? length : i + delim.length);
