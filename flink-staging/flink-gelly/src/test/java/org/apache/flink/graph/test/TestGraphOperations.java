@@ -122,41 +122,7 @@ public class TestGraphOperations extends JavaProgramTestBase {
 				}
 				case 4: {
 				/*
-				 * Test inDegrees()
-				 */
-					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-					Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
-							TestGraphUtils.getLongLongEdgeData(env), env);
-
-					graph.inDegrees().writeAsCsv(resultPath);
-					env.execute();
-					return "1,1\n" +
-							"2,1\n" +
-							"3,2\n" +
-							"4,1\n" +
-							"5,2\n";
-				}
-				case 5: {
-				/*
-				 * Test getDegrees()
-				 */
-					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-					Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
-							TestGraphUtils.getLongLongEdgeData(env), env);
-
-					graph.getDegrees().writeAsCsv(resultPath);
-					env.execute();
-					return "1,3\n" +
-							"2,2\n" +
-							"3,4\n" +
-							"4,2\n" +
-							"5,3\n";
-				}
-				case 6: {
-				/*
-				 * Test subgraph:
+				 * Test subgraph(vertexFilter, edgeFilter):
 				 */
 					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -176,6 +142,44 @@ public class TestGraphOperations extends JavaProgramTestBase {
 					env.execute();
 					return "3,5,35\n" +
 							"4,5,45\n";
+				}
+				case 5: {
+				/*
+				 * Test subgraph(vertexFilter):
+				 */
+					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+					Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+							TestGraphUtils.getLongLongEdgeData(env), env);
+					graph.subgraphVertexPredicate(new FilterFunction<Long>() {
+						public boolean filter(Long value) throws Exception {
+							return (value > 2);
+						}
+					}).getEdges().writeAsCsv(resultPath);
+
+					env.execute();
+					return  "3,4,34\n" +
+							"3,5,35\n" +
+							"4,5,45\n";
+				}
+				case 6: {
+				/*
+				 * Test subgraph(edgeFilter):
+				 */
+					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+					Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
+							TestGraphUtils.getLongLongEdgeData(env), env);
+					graph.subgraphEdgePredicate(new FilterFunction<Long>() {
+						public boolean filter(Long value) throws Exception {
+							return (value > 34);
+						}
+					}).getEdges().writeAsCsv(resultPath);
+
+					env.execute();
+					return "3,5,35\n" +
+							"4,5,45\n" +
+							"5,1,51\n";
 				}
 				case 7: {
 				/*

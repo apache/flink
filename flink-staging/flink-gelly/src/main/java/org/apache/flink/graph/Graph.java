@@ -147,6 +147,41 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 
         return new Graph<K, VV, EV>(filteredVertices, filteredEdges, this.context);
     }
+
+	/**
+	 * Apply value-based filtering functions to the graph
+	 * and return a sub-graph that satisfies the predicates
+	 * only for the vertices.
+	 * @param vertexFilter
+	 * @return
+	 */
+	public Graph<K, VV, EV> subgraphVertexPredicate(FilterFunction<VV> vertexFilter) {
+
+		DataSet<Tuple2<K, VV>> filteredVertices = this.vertices.filter(
+				new ApplyVertexFilter<K, VV>(vertexFilter));
+
+		DataSet<Tuple3<K, K, EV>> remainingEdges = this.edges.join(filteredVertices)
+				.where(0).equalTo(0)
+				.with(new ProjectEdge<K, VV, EV>())
+				.join(filteredVertices).where(1).equalTo(0)
+				.with(new ProjectEdge<K, VV, EV>());
+
+		return new Graph<K, VV, EV>(filteredVertices, remainingEdges, this.context);
+	}
+
+	/**
+	 * Apply value-based filtering functions to the graph
+	 * and return a sub-graph that satisfies the predicates
+	 * only for the edges.
+	 * @param edgeFilter
+	 * @return
+	 */
+	public Graph<K, VV, EV> subgraphEdgePredicate(FilterFunction<EV> edgeFilter) {
+		DataSet<Tuple3<K, K, EV>> filteredEdges = this.edges.filter(
+				new ApplyEdgeFilter<K, EV>(edgeFilter));
+
+		return new Graph<K, VV, EV>(this.vertices, filteredEdges, this.context);
+	}
     
     @ConstantFieldsFirst("0->0;1->1;2->2")
     private static final class ProjectEdge<K, VV, EV> implements FlatJoinFunction<Tuple3<K,K,EV>, Tuple2<K,VV>, 
