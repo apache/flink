@@ -123,7 +123,7 @@ public class TestGraphOperations extends JavaProgramTestBase {
 				}
 				case 4: {
 				/*
-				 * Test subgraph(vertexFilter, edgeFilter):
+				 * Test subgraph:
 				 */
 					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -146,13 +146,13 @@ public class TestGraphOperations extends JavaProgramTestBase {
 				}
 				case 5: {
 				/*
-				 * Test subgraph(vertexFilter):
+				 * Test filterOnVertices:
 				 */
 					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 					Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
 							TestGraphUtils.getLongLongEdgeData(env), env);
-					graph.subgraphVertexPredicate(new FilterFunction<Long>() {
+					graph.filterOnVertices(new FilterFunction<Long>() {
 						public boolean filter(Long value) throws Exception {
 							return (value > 2);
 						}
@@ -165,13 +165,13 @@ public class TestGraphOperations extends JavaProgramTestBase {
 				}
 				case 6: {
 				/*
-				 * Test subgraph(edgeFilter):
+				 * Test filterOnEdges:
 				 */
 					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 					Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
 							TestGraphUtils.getLongLongEdgeData(env), env);
-					graph.subgraphEdgePredicate(new FilterFunction<Long>() {
+					graph.filterOnEdges(new FilterFunction<Long>() {
 						public boolean filter(Long value) throws Exception {
 							return (value > 34);
 						}
