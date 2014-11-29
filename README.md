@@ -21,6 +21,8 @@ Graph API for Apache Flink
 * mapEdges()
 * subGraph()
 * outDegrees()
+* inDegrees()
+* getDegrees()
 * getUndirected()
 * reverse()
 * addVertex()
