@@ -21,11 +21,9 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 
-import org.apache.flink.api.common.io.InputFormat;
-import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.util.Collector;
 
-public class FileStreamFunction extends SourceFunction<String> {
+public class FileStreamFunction implements SourceFunction<String> {
 	private static final long serialVersionUID = 1L;
 
 	private final String path;
@@ -47,10 +45,5 @@ public class FileStreamFunction extends SourceFunction<String> {
 			}
 			br.close();
 		}
-	}
-
-	@Override
-	public UserCodeWrapper<? extends InputFormat<String, ?>> getFormatWrapper() {
-		return null;
 	}
 }

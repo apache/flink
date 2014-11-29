@@ -21,45 +21,29 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 
 import org.apache.flink.api.common.io.InputFormat;
-import org.apache.flink.api.common.operators.GenericDataSourceBase;
-import org.apache.flink.api.common.operators.OperatorInformation;
-import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.api.java.typeutils.runtime.RuntimeStatefulSerializerFactory;
 import org.apache.flink.api.java.typeutils.runtime.RuntimeStatelessSerializerFactory;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
-import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
+import org.apache.flink.streaming.api.streamvertex.StreamingRuntimeContext;
 import org.apache.flink.util.Collector;
 
-public class FileSourceFunction extends SourceFunction<String> {
+public class FileSourceFunction extends RichSourceFunction<String> {
 	private static final long serialVersionUID = 1L;
 
 	private InputSplitProvider provider;
 
-	private InputFormat<String, ?> format;
+	private InputFormat<String, ?> inputFormat;
 
 	private TypeSerializerFactory<String> serializerFactory;
 
-	private UserCodeWrapper<? extends InputFormat<String, ?>> formatWrapper;
-
-	// cancel flag
-	private volatile boolean taskCanceled = false;
-
 	public FileSourceFunction(InputFormat<String, ?> format, TypeInformation<String> typeInfo) {
-		this.format = format;
-		@SuppressWarnings({ "unchecked", "rawtypes" })
-		GenericDataSourceBase<String, ?> source = new GenericDataSourceBase(format,
-				new OperatorInformation<String>(typeInfo), format.toString());
-		formatWrapper = source.getUserCodeWrapper();
+		this.inputFormat = format;
 		this.serializerFactory = createSerializer(typeInfo);
-	}
-
-	@Override
-	public UserCodeWrapper<? extends InputFormat<String, ?>> getFormatWrapper() {
-		return this.formatWrapper;
 	}
 
 	private static TypeSerializerFactory<String> createSerializer(TypeInformation<String> typeInfo) {
@@ -74,20 +58,27 @@ public class FileSourceFunction extends SourceFunction<String> {
 	}
 
 	@Override
+	public void open(Configuration parameters) throws Exception {
+		StreamingRuntimeContext context = (StreamingRuntimeContext) getRuntimeContext();
+		this.provider = context.getInputSplitProvider();
+		inputFormat.configure(context.getTaskStubParameters());
+	}
+
+	@Override
 	public void invoke(Collector<String> collector) throws Exception {
 		final TypeSerializer<String> serializer = serializerFactory.getSerializer();
 		final Iterator<InputSplit> splitIterator = getInputSplits();
 		@SuppressWarnings("unchecked")
-		final InputFormat<String, InputSplit> format = (InputFormat<String, InputSplit>) this.format;
+		final InputFormat<String, InputSplit> format = (InputFormat<String, InputSplit>) this.inputFormat;
 		try {
-			while (!this.taskCanceled && splitIterator.hasNext()) {
+			while (splitIterator.hasNext()) {
 
 				final InputSplit split = splitIterator.next();
 				String record = serializer.createInstance();
 
 				format.open(split);
 				try {
-					while (!this.taskCanceled && !format.reachedEnd()) {
+					while (!format.reachedEnd()) {
 						if ((record = format.nextRecord(record)) != null) {
 							collector.collect(record);
 						}
@@ -148,10 +139,4 @@ public class FileSourceFunction extends SourceFunction<String> {
 			}
 		};
 	}
-
-	@Override
-	public final void initialize(Environment env) {
-		this.provider = env.getInputSplitProvider();
-	}
-
 }

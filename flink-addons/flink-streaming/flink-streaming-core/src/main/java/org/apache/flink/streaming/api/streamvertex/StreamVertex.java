@@ -76,9 +76,6 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable {
 	}
 
 	protected <T> void invokeUserFunction(StreamInvokable<?, T> userInvokable) throws Exception {
-		if (userInvokable.getSourceFunction() != null) {
-			userInvokable.getSourceFunction().initialize(getEnvironment());
-		}
 		userInvokable.setRuntimeContext(context);
 		userInvokable.open(getTaskConfiguration());
 		userInvokable.invoke();
@@ -107,8 +104,7 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable {
 	public StreamingRuntimeContext createRuntimeContext(String taskName,
 			Map<String, OperatorState<?>> states) {
 		Environment env = getEnvironment();
-		return new StreamingRuntimeContext(taskName, env.getCurrentNumberOfSubtasks(),
-				env.getIndexInSubtaskGroup(), getUserCodeClassLoader(), states, env.getCopyTask());
+		return new StreamingRuntimeContext(taskName, env, getUserCodeClassLoader(), states);
 	}
 
 	@Override

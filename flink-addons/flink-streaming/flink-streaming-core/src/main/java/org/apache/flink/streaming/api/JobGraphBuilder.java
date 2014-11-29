@@ -24,7 +24,6 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.flink.api.common.io.InputFormat;
-import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.runtime.jobgraph.AbstractJobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -32,7 +31,6 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
-import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.streaming.api.collector.OutputSelector;
 import org.apache.flink.streaming.api.function.source.SourceFunction;
 import org.apache.flink.streaming.api.invokable.SourceInvokable;
@@ -84,7 +82,7 @@ public class JobGraphBuilder {
 	private Map<String, Integer> iterationTailCount;
 	private Map<String, Long> iterationWaitTime;
 	private Map<String, Map<String, OperatorState<?>>> operatorStates;
-	private Map<String, UserCodeWrapper<? extends InputFormat<String, ?>>> sources;
+	private Map<String, InputFormat<String, ?>> inputFormatList;
 
 	/**
 	 * Creates an new {@link JobGraph} with the given name. A JobGraph is a DAG
@@ -117,7 +115,7 @@ public class JobGraphBuilder {
 		iterationTailCount = new HashMap<String, Integer>();
 		iterationWaitTime = new HashMap<String, Long>();
 		operatorStates = new HashMap<String, Map<String, OperatorState<?>>>();
-		sources = new HashMap<String, UserCodeWrapper<? extends InputFormat<String, ?>>>();
+		inputFormatList = new HashMap<String, InputFormat<String, ?>>();
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("JobGraph created");
@@ -162,28 +160,34 @@ public class JobGraphBuilder {
 		}
 	}
 
+	/**
+	 * Adds a source vertex to the streaming JobGraph with the given parameters
+	 * 
+	 * @param vertexName
+	 *            Name of the vertex
+	 * @param function
+	 *            User defined function
+	 * @param inTypeInfo
+	 *            Input type for serialization
+	 * @param outTypeInfo
+	 *            Output type for serialization
+	 * @param operatorName
+	 *            Operator type
+	 * @param serializedFunction
+	 *            Serialized udf
+	 * @param parallelism
+	 *            Number of parallel instances created
+	 */
 	public <IN, OUT> void addSourceVertex(String vertexName, SourceFunction<OUT> function,
-			TypeInformation<IN> inTypeInfo,	TypeInformation<OUT> outTypeInfo, String operatorName,
+			TypeInformation<IN> inTypeInfo, TypeInformation<OUT> outTypeInfo, String operatorName,
 			byte[] serializedFunction, int parallelism) {
 
-		StreamInvokable<OUT, OUT> invokableObject = new SourceInvokable<OUT>(function);
+		@SuppressWarnings("unchecked")
+		StreamInvokable<IN, OUT> invokableObject = (StreamInvokable<IN, OUT>) new SourceInvokable<OUT>(
+				function);
 
-		addVertex(vertexName, StreamVertex.class, invokableObject, operatorName,
+		addStreamVertex(vertexName, invokableObject, inTypeInfo, outTypeInfo, operatorName,
 				serializedFunction, parallelism);
-		
-		StreamRecordSerializer<IN> inSerializer = inTypeInfo != null ? new StreamRecordSerializer<IN>(
-				inTypeInfo) : null;
-		StreamRecordSerializer<OUT> outSerializer = outTypeInfo != null ? new StreamRecordSerializer<OUT>(
-				outTypeInfo) : null;
-
-		addTypeSerializers(vertexName, inSerializer, null, outSerializer, null);
-
-		sources.put(vertexName, function.getFormatWrapper());
-		System.out.println(sources);
-
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Vertex: {}", vertexName);
-		}
 	}
 
 	/**
@@ -283,7 +287,7 @@ public class JobGraphBuilder {
 	 *            Name of the vertex
 	 * @param vertexClass
 	 *            The class of the vertex
-	 * @param invokableObject
+	 * @param invokableObjectject
 	 *            The user defined invokable object
 	 * @param operatorName
 	 *            Type of the user defined operator
@@ -372,16 +376,8 @@ public class JobGraphBuilder {
 			config.setIterationWaitTime(iterationWaitTime.get(vertexName));
 		}
 
-		if (sources.containsKey(vertexName)) {
-			TaskConfig taskConfig = new TaskConfig(vertex.getConfiguration());
-			// TypeInformation<?> OutTypeInfo =
-			// typeWrapperOut1.get(vertexName).getTypeInfo();
-			InputFormat<String, ?> format = sources.get(vertexName).getUserCodeObject();
-			vertex.setInputSplitSource(sources.get(vertexName).getUserCodeObject());
-			// taskConfig.setOutputSerializer(createSerializer(OutTypeInfo));
-			format.configure(taskConfig.getStubParameters());
-			// TaskConfig(vertex.getConfiguration());
-			// taskConfig.setStubWrapper(sources.get(vertexName));
+		if (inputFormatList.containsKey(vertexName)) {
+			vertex.setInputSplitSource(inputFormatList.get(vertexName));
 		}
 
 		streamVertices.put(vertexName, vertex);
@@ -436,6 +432,19 @@ public class JobGraphBuilder {
 	 */
 	public void setParallelism(String vertexName, int parallelism) {
 		vertexParallelism.put(vertexName, parallelism);
+	}
+
+	/**
+	 * Sets the input format for the given vertex.
+	 * 
+	 * @param vertexName
+	 *            Name of the vertex
+	 * @param inputFormat
+	 *            input format of the file source associated with the given
+	 *            vertex
+	 */
+	public void setInputFormat(String vertexName, InputFormat<String, ?> inputFormat) {
+		inputFormatList.put(vertexName, inputFormat);
 	}
 
 	public void setMutability(String vertexName, boolean isMutable) {
