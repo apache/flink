@@ -13,6 +13,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.types.NullValue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
@@ -20,7 +21,7 @@ import org.junit.runners.Parameterized.Parameters;
 @RunWith(Parameterized.class)
 public class TestGraphOperations extends JavaProgramTestBase {
 
-	private static int NUM_PROGRAMS = 11;
+	private static int NUM_PROGRAMS = 12;
 
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -267,6 +268,23 @@ public class TestGraphOperations extends JavaProgramTestBase {
 							"5,1,51\n" +
 							"6,1,61\n";
 				}
+				case 12: {
+				/*
+				 * Test getDegrees() with disconnected data
+				 */
+					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+					Graph<Long, NullValue, Long> graph = 
+							Graph.create(TestGraphUtils.getDisconnectedLongLongEdgeData(env), env);
+
+					graph.outDegrees().writeAsCsv(resultPath);
+					env.execute();
+					return "1,2\n" +
+							"2,1\n" +
+							"3,0\n" +
+							"4,1\n" +
+							"5,0\n";
+					}
 				default:
 					throw new IllegalArgumentException("Invalid program id");
 			}
