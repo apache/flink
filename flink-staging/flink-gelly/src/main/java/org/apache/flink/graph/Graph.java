@@ -187,11 +187,30 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
      * Return the out-degree of all vertices in the graph
      * @return A DataSet of Tuple2<vertexId, outDegree>
      */
-    public DataSet<Tuple2<K, Long>> outDegrees() {
+	public DataSet<Tuple2<K, Long>> outDegrees() {
 
-    	return vertices.join(edges).where(0).equalTo(0).map(new VertexKeyWithOne<K, EV, VV>())
-    			.groupBy(0).sum(1);
-    	}
+		return vertices.join(edges).where(0).equalTo(0).map(new VertexKeyWithOne<K, EV, VV>())
+				.groupBy(0).sum(1);
+	}
+
+	/**
+	 * Return the in-degree of all vertices in the graph
+	 * @return A DataSet of Tuple2<vertexId, inDegree>
+	 */
+	public DataSet<Tuple2<K, Long>> inDegrees() {
+
+		return vertices.join(edges).where(0).equalTo(1).map(new VertexKeyWithOne<K, EV, VV>())
+				.groupBy(0).sum(1);
+	}
+
+	/**
+	 * Return the degree of all vertices in the graph
+	 * @return A DataSet of Tuple2<vertexId, degree>
+	 */
+	public DataSet<Tuple2<K, Long>> getDegrees() {
+
+		return outDegrees().union(inDegrees()).groupBy(0).sum(1);
+	}
 
     private static final class VertexKeyWithOne<K, EV, VV> implements
     	MapFunction<Tuple2<Tuple2<K, VV>, Tuple3<K, K, EV>>, Tuple2<K, Long>> {
