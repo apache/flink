@@ -224,10 +224,24 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
      */
 	public DataSet<Tuple2<K, Long>> outDegrees() {
 
-		return vertices.join(edges).where(0).equalTo(0).map(new VertexKeyWithOne<K, EV, VV>())
-				.groupBy(0).sum(1);
+		return vertices.coGroup(edges).where(0).equalTo(0)
+				.with(new CountNeighborsCoGroup<K, VV, EV>());
 	}
 
+	private static final class CountNeighborsCoGroup<K, VV, EV> implements CoGroupFunction<Tuple2<K, VV>, 
+		Tuple3<K, K, EV>, Tuple2<K, Long>> {
+		@SuppressWarnings("unused")
+		public void coGroup(Iterable<Tuple2<K, VV>> vertex,
+				Iterable<Tuple3<K, K, EV>> outEdges,
+				Collector<Tuple2<K, Long>> out) {
+			long count = 0;
+			for (Tuple3<K, K, EV> edge : outEdges) {
+				count++;
+			}
+			out.collect(new Tuple2<K, Long>(vertex.iterator().next().f0, count));
+		}
+	}
+	
 	/**
 	 * Return the in-degree of all vertices in the graph
 	 * @return A DataSet of Tuple2<vertexId, inDegree>
