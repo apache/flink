@@ -155,7 +155,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	 * @param vertexFilter
 	 * @return
 	 */
-	public Graph<K, VV, EV> subgraphVertexPredicate(FilterFunction<VV> vertexFilter) {
+	public Graph<K, VV, EV> filterOnVertices(FilterFunction<VV> vertexFilter) {
 
 		DataSet<Tuple2<K, VV>> filteredVertices = this.vertices.filter(
 				new ApplyVertexFilter<K, VV>(vertexFilter));
@@ -176,7 +176,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	 * @param edgeFilter
 	 * @return
 	 */
-	public Graph<K, VV, EV> subgraphEdgePredicate(FilterFunction<EV> edgeFilter) {
+	public Graph<K, VV, EV> filterOnEdges(FilterFunction<EV> edgeFilter) {
 		DataSet<Tuple3<K, K, EV>> filteredEdges = this.edges.filter(
 				new ApplyEdgeFilter<K, EV>(edgeFilter));
 
