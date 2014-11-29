@@ -36,7 +36,6 @@ public class IntValueParser extends FieldParser<IntValue> {
 	public int parseField(byte[] bytes, int startPos, int limit, char[] delimiter, IntValue reusable) {
 		long val = 0;
 		boolean neg = false;
-		
 		this.result = reusable;
 		
 		if (bytes[startPos] == '-') {
@@ -50,10 +49,10 @@ public class IntValueParser extends FieldParser<IntValue> {
 			}
 		}
 		
-		for (int i = startPos; i <= limit-delimiter.length; i++) {
+		for (int i = startPos; i < limit; i++) {
 			if (delimiterNext(bytes, i, delimiter)) {
 				reusable.setValue((int) (neg ? -val : val));
-				return i+delimiter.length;
+				return i + delimiter.length;
 			}
 			if (bytes[i] < 48 || bytes[i] > 57) {
 				setErrorState(ParseErrorState.NUMERIC_VALUE_ILLEGAL_CHARACTER);

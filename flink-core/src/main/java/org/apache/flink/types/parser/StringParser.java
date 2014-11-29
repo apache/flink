@@ -41,7 +41,6 @@ public class StringParser extends FieldParser<String> {
 	public int parseField(byte[] bytes, int startPos, int limit, char[] delim, String reusable) {
 		
 		int i = startPos;
-		
 		byte current;
 		
 		// count initial whitespace lines
@@ -91,7 +90,7 @@ public class StringParser extends FieldParser<String> {
 		if (i < limit && bytes[i] == QUOTE_DOUBLE) {
 
 			// check if there are characters at the end
-			current = bytes[curPos - 1];
+			current = bytes[curPos - delim.length];
 
 			// if the character preceding the end of the cell is not a WHITESPACE or the end QUOTE_DOUBLE
 			// there are unquoted characters at the end
@@ -103,7 +102,7 @@ public class StringParser extends FieldParser<String> {
 
 			// skip trailing whitespace after quote .. by moving the cursor backwards
 			int skipAtEnd = 0;
-			while (bytes[curPos - 1 - skipAtEnd] == WHITESPACE_SPACE || bytes[curPos - 1 - skipAtEnd] == WHITESPACE_TAB) {
+			while (bytes[curPos - delim.length - skipAtEnd] == WHITESPACE_SPACE || bytes[curPos - delim.length - skipAtEnd] == WHITESPACE_TAB) {
 				skipAtEnd++;
 			}
 
@@ -117,16 +116,13 @@ public class StringParser extends FieldParser<String> {
 					bytes[endOfContent++] = bytes[counter];
 				}
 			}
-
-			this.result = new String(bytes, i + 1, endOfContent - i - 1);
-
+			this.result = new String(bytes, i + 1, endOfContent - i - delim.length); // - 1);
 			return (endOfCellPosition == limit ? limit : endOfCellPosition + 1);
 		}
 		else {
 			// unquoted string
-
 			// set from the beginning. unquoted strings include the leading whitespaces
-			this.result = new String(bytes, i, endOfCellPosition - i);
+			this.result = new String(bytes, i, endOfCellPosition -i - delim.length +1);
 			return (endOfCellPosition == limit ? limit : endOfCellPosition + 1);
 		}
 	}

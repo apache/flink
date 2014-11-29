@@ -31,14 +31,14 @@ public class FloatParser extends FieldParser<Float> {
 		
 		int i = startPos;
 		
-		while (i <= limit-delim.length && !delimiterNext(bytes, i, delim)) {
+		while (i < limit && !delimiterNext(bytes, i, delim)) {
 			i++;
 		}
 		
 		String str = new String(bytes, startPos, i-startPos);
 		try {
 			this.result = Float.parseFloat(str);
-			return (i == limit) ? limit : i+1;
+			return (i == limit) ? limit : i+ delim.length;
 		}
 		catch (NumberFormatException e) {
 			setErrorState(ParseErrorState.NUMERIC_VALUE_FORMAT_ERROR);

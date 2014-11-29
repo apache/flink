@@ -39,11 +39,11 @@ public class ByteParser extends FieldParser<Byte> {
 				return -1;
 			}
 		}
-		
-		for (int i = startPos; i <= limit-delimiter.length; i++) {
+
+		for (int i = startPos; i < limit; i++) {
 			if (delimiterNext(bytes, i, delimiter)) {
 				this.result = (byte) (neg ? -val : val);
-				return i+1;
+				return i + delimiter.length;
 			}
 			if (bytes[i] < 48 || bytes[i] > 57) {
 				setErrorState(ParseErrorState.NUMERIC_VALUE_ILLEGAL_CHARACTER);

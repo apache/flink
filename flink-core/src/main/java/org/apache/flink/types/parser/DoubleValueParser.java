@@ -33,7 +33,7 @@ public class DoubleValueParser extends FieldParser<DoubleValue> {
 		
 		int i = startPos;
 		
-		while (i <= limit-delim.length && !delimiterNext(bytes, i, delim)) {
+		while (i < limit && !delimiterNext(bytes, i, delim)) {
 			i++;
 		}
 		
@@ -42,7 +42,7 @@ public class DoubleValueParser extends FieldParser<DoubleValue> {
 			double value = Double.parseDouble(str);
 			reusable.setValue(value);
 			this.result = reusable;
-			return (i == limit) ? limit : i+1;
+			return (i == limit) ? limit : i+ delim.length;
 		}
 		catch (NumberFormatException e) {
 			setErrorState(ParseErrorState.NUMERIC_VALUE_FORMAT_ERROR);

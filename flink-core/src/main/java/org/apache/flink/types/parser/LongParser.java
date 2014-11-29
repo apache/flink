@@ -43,10 +43,10 @@ public class LongParser extends FieldParser<Long> {
 			}
 		}
 		
-		for (int i = startPos; i <= limit-delimiter.length; i++) {
+		for (int i = startPos; i < limit; i++) {
 			if (delimiterNext(bytes, i, delimiter)) {
 				this.result = neg ? -val : val;
-				return i+1;
+				return i + delimiter.length;
 			}
 			if (bytes[i] < 48 || bytes[i] > 57) {
 				setErrorState(ParseErrorState.NUMERIC_VALUE_ILLEGAL_CHARACTER);
@@ -64,7 +64,7 @@ public class LongParser extends FieldParser<Long> {
 					if (i+1 >= limit) {
 						return limit; 
 					} else if (delimiterNext(bytes, i+1, delimiter)) {
-						return i+2;
+						return i + 1 + delimiter.length;
 					} else {
 						setErrorState(ParseErrorState.NUMERIC_VALUE_OVERFLOW_UNDERFLOW);
 						return -1;

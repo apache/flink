@@ -32,14 +32,14 @@ public class DoubleParser extends FieldParser<Double> {
 	public int parseField(byte[] bytes, int startPos, int limit, char[] delimiter, Double reusable) {
 		int i = startPos;
 		
-		while (i <= limit-delimiter.length && !delimiterNext(bytes, i, delimiter)) {
+		while (i < limit && !delimiterNext(bytes, i, delimiter)) {
 			i++;
 		}
 		
 		String str = new String(bytes, startPos, i-startPos);
 		try {
 			this.result = Double.parseDouble(str);
-			return (i == limit) ? limit : i+1;
+			return (i == limit) ? limit : i+ delimiter.length;
 		}
 		catch (NumberFormatException e) {
 			setErrorState(ParseErrorState.NUMERIC_VALUE_FORMAT_ERROR);

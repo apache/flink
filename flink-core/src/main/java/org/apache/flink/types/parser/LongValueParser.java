@@ -33,7 +33,7 @@ public class LongValueParser extends FieldParser<LongValue> {
 	public int parseField(byte[] bytes, int startPos, int limit, char[] delimiter, LongValue reusable) {
 		long val = 0;
 		boolean neg = false;
-		
+
 		this.result = reusable;
 		
 		if (bytes[startPos] == '-') {
@@ -47,10 +47,10 @@ public class LongValueParser extends FieldParser<LongValue> {
 			}
 		}
 		
-		for (int i = startPos; i <= limit-delimiter.length; i++) {
+		for (int i = startPos; i < limit; i++) {
 			if (delimiterNext(bytes, i, delimiter)) {
 				reusable.setValue(neg ? -val : val);
-				return i+1;
+				return i + delimiter.length;
 			}
 			if (bytes[i] < 48 || bytes[i] > 57) {
 				setErrorState(ParseErrorState.NUMERIC_VALUE_ILLEGAL_CHARACTER);
@@ -58,7 +58,7 @@ public class LongValueParser extends FieldParser<LongValue> {
 			}
 			val *= 10;
 			val += bytes[i] - 48;
-			
+
 			// check for overflow / underflow
 			if (val < 0) {
 				// this is an overflow/underflow, unless we hit exactly the Long.MIN_VALUE
@@ -66,9 +66,9 @@ public class LongValueParser extends FieldParser<LongValue> {
 					reusable.setValue(Long.MIN_VALUE);
 					
 					if (i+1 >= limit) {
-						return limit; 
+						return limit;
 					} else if (delimiterNext(bytes, i+1, delimiter)) {
-						return i+2;
+						return i + 1 + delimiter.length;
 					} else {
 						setErrorState(ParseErrorState.NUMERIC_VALUE_OVERFLOW_UNDERFLOW);
 						return -1;
@@ -80,7 +80,7 @@ public class LongValueParser extends FieldParser<LongValue> {
 				}
 			}
 		}
-		
+
 		reusable.setValue(neg ? -val : val);
 		return limit;
 	}

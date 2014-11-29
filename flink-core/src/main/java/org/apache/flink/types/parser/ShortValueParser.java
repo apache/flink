@@ -50,10 +50,10 @@ public class ShortValueParser extends FieldParser<ShortValue> {
 			}
 		}
 		
-		for (int i = startPos; i <= limit-delimiter.length; i++) {
+		for (int i = startPos; i < limit; i++) {
 			if (delimiterNext(bytes, i, delimiter)) {
 				reusable.setValue((short) (neg ? -val : val));
-				return i+1;
+				return i + delimiter.length;
 			}
 			if (bytes[i] < 48 || bytes[i] > 57) {
 				setErrorState(ParseErrorState.NUMERIC_VALUE_ILLEGAL_CHARACTER);

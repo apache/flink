@@ -558,4 +558,38 @@ public class GenericCsvInputFormatTest {
 			return parseRecord(target, bytes, offset, numBytes) ? target : null;
 		}
 	}
+
+	@Test
+	public void testMultiCharFieldDelim_String() {
+		try {
+			final String fileContent = "abc|||def|||ghijk|||\nabc|||hhg|||bef\n";
+			final FileInputSplit split = createTempFile(fileContent);
+
+			final Configuration parameters = new Configuration();
+
+			format.setFieldDelimiter(new char[] {'|','|','|'});
+			format.setFieldTypesGeneric(StringValue.class, StringValue.class, StringValue.class);
+
+			format.configure(parameters);
+			format.open(split);
+
+			Value[] values = new Value[] { new StringValue(), new StringValue(), new StringValue()};
+
+			values = format.nextRecord(values);
+			assertNotNull(values);
+			assertEquals("abc", ((StringValue) values[0]).getValue());
+			assertEquals("def", ((StringValue) values[1]).getValue());
+			assertEquals("ghijk", ((StringValue) values[2]).getValue());
+
+			values = format.nextRecord(values);
+			assertNotNull(values);
+			assertEquals("abc", ((StringValue) values[0]).getValue());
+			assertEquals("hhg", ((StringValue) values[1]).getValue());
+			assertEquals("bef", ((StringValue) values[2]).getValue());
+
+		}
+		catch (Exception ex) {
+			fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
+		}
+	}
 }
