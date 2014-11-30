@@ -260,15 +260,6 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		return outDegrees().union(inDegrees()).groupBy(0).sum(1);
 	}
 
-    private static final class VertexKeyWithOne<K, EV, VV> implements
-    	MapFunction<Tuple2<Tuple2<K, VV>, Tuple3<K, K, EV>>, Tuple2<K, Long>> {
-
-		public Tuple2<K, Long> map(
-				Tuple2<Tuple2<K, VV>, Tuple3<K, K, EV>> value) {
-			return new Tuple2<K, Long>(value.f0.f0, 1L);
-		}
-    }
-
 	/**
 	 * Convert the directed graph into an undirected graph
 	 * by adding all inverse-direction edges.
