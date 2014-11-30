@@ -19,7 +19,9 @@ Graph API for Apache Flink
 ##Tested Operations
 * mapVertices()
 * mapEdges()
-* subGraph()
+* subgraph()
+* filterOnVertices(vertexFilter)
+* filterOnEdges(edgeFilter)
 * outDegrees()
 * getUndirected()
 * reverse()
