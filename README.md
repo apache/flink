@@ -23,6 +23,8 @@ Graph API for Apache Flink
 * filterOnVertices(vertexFilter)
 * filterOnEdges(edgeFilter)
 * outDegrees()
+* inDegrees()
+* getDegrees()
 * getUndirected()
 * reverse()
 * addVertex()

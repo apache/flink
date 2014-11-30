@@ -38,6 +38,22 @@ public class TestGraphUtils {
 	}
 
 	/**
+	 * A graph that has at least one vertex with no ingoing/outgoing edges
+	 */
+	public static final DataSet<Tuple3<Long, Long, Long>> getLongLongEdgeDataWithZeroDegree(
+			ExecutionEnvironment env) {
+		List<Tuple3<Long, Long, Long>> edges = new ArrayList<Tuple3<Long, Long, Long>>();
+		edges.add(new Tuple3<Long,Long, Long>(1L, 2L, 12L));
+		edges.add(new Tuple3<Long,Long, Long>(1L, 4L, 14L));
+		edges.add(new Tuple3<Long,Long, Long>(1L, 5L, 15L));
+		edges.add(new Tuple3<Long,Long, Long>(2L, 3L, 23L));
+		edges.add(new Tuple3<Long,Long, Long>(3L, 5L, 35L));
+		edges.add(new Tuple3<Long,Long, Long>(4L, 5L, 45L));
+
+		return env.fromCollection(edges);
+	}
+
+	/**
 	 * Function that produces an ArrayList of vertices
 	 */
 	public static final List<Tuple2<Long, Long>> getLongLongVertices(

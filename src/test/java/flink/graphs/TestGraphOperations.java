@@ -13,6 +13,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.types.NullValue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
@@ -20,7 +21,7 @@ import org.junit.runners.Parameterized.Parameters;
 @RunWith(Parameterized.class)
 public class TestGraphOperations extends JavaProgramTestBase {
 
-	private static int NUM_PROGRAMS = 11;
+	private static int NUM_PROGRAMS = 10;
 
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -105,23 +106,6 @@ public class TestGraphOperations extends JavaProgramTestBase {
 				}
 				case 3: {
 				/*
-				 * Test outDegrees()
-				 */
-					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-					Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
-							TestGraphUtils.getLongLongEdgeData(env), env);
-
-					graph.outDegrees().writeAsCsv(resultPath);
-					env.execute();
-					return "1,2\n" +
-							"2,1\n" +
-							"3,2\n" +
-							"4,1\n" +
-							"5,1\n";
-				}
-				case 4: {
-				/*
 				 * Test subgraph:
 				 */
 					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -143,7 +127,7 @@ public class TestGraphOperations extends JavaProgramTestBase {
 					return "3,5,35\n" +
 							"4,5,45\n";
 				}
-				case 5: {
+				case 4: {
 				/*
 				 * Test filterOnVertices:
 				 */
@@ -162,7 +146,7 @@ public class TestGraphOperations extends JavaProgramTestBase {
 							"3,5,35\n" +
 							"4,5,45\n";
 				}
-				case 6: {
+				case 5: {
 				/*
 				 * Test filterOnEdges:
 				 */
@@ -181,7 +165,7 @@ public class TestGraphOperations extends JavaProgramTestBase {
 							"4,5,45\n" +
 							"5,1,51\n";
 				}
-				case 7: {
+				case 6: {
 				/*
 				 * Test numberOfVertices()
 				 */
@@ -194,7 +178,7 @@ public class TestGraphOperations extends JavaProgramTestBase {
 					env.execute();
 					return "5";
 				}
-				case 8: {
+				case 7: {
 				/*
 				 * Test numberOfEdges()
 				 */
@@ -207,7 +191,7 @@ public class TestGraphOperations extends JavaProgramTestBase {
 					env.execute();
 					return "7";
 				}
-				case 9: {
+				case 8: {
 				/*
 				 * Test getVertexIds()
 				 */
@@ -220,7 +204,7 @@ public class TestGraphOperations extends JavaProgramTestBase {
 					env.execute();
 					return "1\n2\n3\n4\n5\n";
 				}
-				case 10: {
+				case 9: {
 				/*
 				 * Test getEdgeIds()
 				 */
@@ -236,7 +220,7 @@ public class TestGraphOperations extends JavaProgramTestBase {
 							"3,5\n" + "4,5\n" +
 							"5,1\n";
 				}
-				case 11: {
+				case 10: {
 				/*
 				 * Test union()
 				 */
