@@ -230,6 +230,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 
 	private static final class CountNeighborsCoGroup<K, VV, EV> implements CoGroupFunction<Tuple2<K, VV>, 
 		Tuple3<K, K, EV>, Tuple2<K, Long>> {
+		@SuppressWarnings("unused")
 		public void coGroup(Iterable<Tuple2<K, VV>> vertex,
 				Iterable<Tuple3<K, K, EV>> outEdges,
 				Collector<Tuple2<K, Long>> out) {
@@ -532,9 +533,9 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
      * @param edges
      * @return
      */
-    public Graph<K, VV, EV> addVertex (final Tuple2<K,VV> vertex, List<Tuple3<K,K,EV>> edges) {
-
-    	DataSet<Tuple2<K, VV>> newVertex = this.context.fromCollection(Arrays.asList(vertex));
+    @SuppressWarnings("unchecked")
+	public Graph<K, VV, EV> addVertex (final Tuple2<K,VV> vertex, List<Tuple3<K,K,EV>> edges) {
+    	DataSet<Tuple2<K, VV>> newVertex = this.context.fromElements(vertex);
 
     	// Take care of empty edge set
     	if (edges.isEmpty()) {
