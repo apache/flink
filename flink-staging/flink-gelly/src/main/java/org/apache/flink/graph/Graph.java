@@ -230,7 +230,6 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 
 	private static final class CountNeighborsCoGroup<K, VV, EV> implements CoGroupFunction<Tuple2<K, VV>, 
 		Tuple3<K, K, EV>, Tuple2<K, Long>> {
-		@SuppressWarnings("unused")
 		public void coGroup(Iterable<Tuple2<K, VV>> vertex,
 				Iterable<Tuple3<K, K, EV>> outEdges,
 				Collector<Tuple2<K, Long>> out) {
@@ -248,8 +247,8 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	 */
 	public DataSet<Tuple2<K, Long>> inDegrees() {
 
-		return vertices.join(edges).where(0).equalTo(1).map(new VertexKeyWithOne<K, EV, VV>())
-				.groupBy(0).sum(1);
+		return vertices.coGroup(edges).where(0).equalTo(1)
+				.with(new CountNeighborsCoGroup<K, VV, EV>());
 	}
 
 	/**

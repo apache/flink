@@ -21,7 +21,7 @@ import org.junit.runners.Parameterized.Parameters;
 @RunWith(Parameterized.class)
 public class TestGraphOperations extends JavaProgramTestBase {
 
-	private static int NUM_PROGRAMS = 12;
+	private static int NUM_PROGRAMS = 9;
 
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -106,23 +106,6 @@ public class TestGraphOperations extends JavaProgramTestBase {
 				}
 				case 3: {
 				/*
-				 * Test outDegrees()
-				 */
-					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-					Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
-							TestGraphUtils.getLongLongEdgeData(env), env);
-
-					graph.outDegrees().writeAsCsv(resultPath);
-					env.execute();
-					return "1,2\n" +
-							"2,1\n" +
-							"3,2\n" +
-							"4,1\n" +
-							"5,1\n";
-				}
-				case 4: {
-				/*
 				 * Test subgraph:
 				 */
 					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -144,45 +127,7 @@ public class TestGraphOperations extends JavaProgramTestBase {
 					return "3,5,35\n" +
 							"4,5,45\n";
 				}
-				case 5: {
-				/*
-				 * Test filterOnVertices:
-				 */
-					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-					Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
-							TestGraphUtils.getLongLongEdgeData(env), env);
-					graph.filterOnVertices(new FilterFunction<Long>() {
-						public boolean filter(Long value) throws Exception {
-							return (value > 2);
-						}
-					}).getEdges().writeAsCsv(resultPath);
-
-					env.execute();
-					return  "3,4,34\n" +
-							"3,5,35\n" +
-							"4,5,45\n";
-				}
-				case 6: {
-				/*
-				 * Test filterOnEdges:
-				 */
-					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-					Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
-							TestGraphUtils.getLongLongEdgeData(env), env);
-					graph.filterOnEdges(new FilterFunction<Long>() {
-						public boolean filter(Long value) throws Exception {
-							return (value > 34);
-						}
-					}).getEdges().writeAsCsv(resultPath);
-
-					env.execute();
-					return "3,5,35\n" +
-							"4,5,45\n" +
-							"5,1,51\n";
-				}
-				case 7: {
+				case 4: {
 				/*
 				 * Test numberOfVertices()
 				 */
@@ -195,7 +140,7 @@ public class TestGraphOperations extends JavaProgramTestBase {
 					env.execute();
 					return "5";
 				}
-				case 8: {
+				case 5: {
 				/*
 				 * Test numberOfEdges()
 				 */
@@ -208,7 +153,7 @@ public class TestGraphOperations extends JavaProgramTestBase {
 					env.execute();
 					return "7";
 				}
-				case 9: {
+				case 6: {
 				/*
 				 * Test getVertexIds()
 				 */
@@ -221,7 +166,7 @@ public class TestGraphOperations extends JavaProgramTestBase {
 					env.execute();
 					return "1\n2\n3\n4\n5\n";
 				}
-				case 10: {
+				case 7: {
 				/*
 				 * Test getEdgeIds()
 				 */
@@ -237,7 +182,7 @@ public class TestGraphOperations extends JavaProgramTestBase {
 							"3,5\n" + "4,5\n" +
 							"5,1\n";
 				}
-				case 11: {
+				case 8: {
 				/*
 				 * Test union()
 				 */
@@ -268,7 +213,7 @@ public class TestGraphOperations extends JavaProgramTestBase {
 							"5,1,51\n" +
 							"6,1,61\n";
 				}
-				case 12: {
+				case 9: {
 				/*
 				 * Test getDegrees() with disconnected data
 				 */
