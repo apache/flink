@@ -30,7 +30,6 @@ Download the ready to run binary package. Choose the Flink distribution that __m
 
 
 ## Start
-You are almost done.
   
 1. Go to the download directory.
 2. Unpack the downloaded archive.
@@ -38,10 +37,10 @@ You are almost done.
 
 
 ~~~bash
-$ cd ~/Downloads              # Go to download directory
-$ tar xzf flink-*.tgz  # Unpack the downloaded archive
-$ cd flink
-$ bin/start-local.sh          # Start Flink
+$ cd ~/Downloads        # Go to download directory
+$ tar xzf flink-*.tgz   # Unpack the downloaded archive
+$ cd flink-{{site.FLINK_VERSION_STABLE}}
+$ bin/start-local.sh    # Start Flink
 ~~~
 
 Check the __JobManager's web frontend__ at [http://localhost:8081](http://localhost:8081) and make
@@ -61,10 +60,7 @@ Run the __Word Count example__ to see Flink at work.
 * __Start the example program__:
   
   ~~~bash
-  $ bin/flink run \
-    --jarfile ./examples/flink-java-examples-{{site.FLINK_VERSION_STABLE}}-WordCount.jar \
-
-    --arguments file://`pwd`/hamlet.txt file://`pwd`/wordcount-result.txt
+  $ bin/flink run ./examples/flink-java-examples-{{site.FLINK_VERSION_STABLE}}-WordCount.jar file://`pwd`/hamlet.txt file://`pwd`/wordcount-result.txt
   ~~~
 
 * You will find a file called __wordcount-result.txt__ in your current directory.
@@ -112,6 +108,19 @@ configuration files, which need to be accessible at the same path on all machine
 </div>
 </div>
 </div>
+
+Have a look at the [Configuration](config.html) section of the documentation to see other available configuration options.
+For Flink to run efficiently, a few configuration values need to be set.
+
+In particular, 
+
+ * the amount of available memory per TaskManager (`taskmanager.heap.mb`), 
+ * the number of available CPUs per machine (`taskmanager.numberOfTaskSlots`),
+ * the total number of CPUs in the cluster (`parallelization.degree.default`) and 
+ * the temporary directories (`taskmanager.tmp.dirs`)
+
+
+are very important configuration values.
 
 ## Flink on YARN
 You can easily deploy Flink on your existing __YARN cluster__. 

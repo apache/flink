@@ -21,6 +21,9 @@ with format `key: value`.
 The system and run scripts parse the config at startup time. Changes to the configuration
 file require restarting the Flink JobManager and TaskManagers.
 
+The configuration files for the TaskManagers can be different, Flink does not assume 
+uniform machines in the cluster.
+
 
 ## Common Options
 
@@ -35,27 +38,29 @@ master/coordinator of the distributed system (DEFAULT: localhost).
 
 - `jobmanager.rpc.port`: The port number of the JobManager (DEFAULT: 6123).
 
-- `jobmanager.heap.mb`: JVM heap size (in megabytes) for the JobManager
-(DEFAULT: 256).
+- `jobmanager.heap.mb`: JVM heap size (in megabytes) for the JobManager. You may have to increase the heap size for the JobManager if you are running
+very large applications (with many operators), or if you are keeping a long history of them.
 
 - `taskmanager.heap.mb`: JVM heap size (in megabytes) for the TaskManagers,
 which are the parallel workers of the system. In
 contrast to Hadoop, Flink runs operators (e.g., join, aggregate) and
 user-defined functions (e.g., Map, Reduce, CoGroup) inside the TaskManager
 (including sorting/hashing/caching), so this value should be as
-large as possible (DEFAULT: 512). On YARN setups, this value is automatically
-configured to the size of the TaskManager's YARN container, minus a
-certain tolerance value.
+large as possible. If the cluster is exclusively running Flink,
+the total amount of available memory per machine minus some memory for the 
+operating system (maybe 1-2 GB) is a good value.
+On YARN setups, this value is automatically configured to the size of 
+the TaskManager's YARN container, minus a certain tolerance value.
 
 - `taskmanager.numberOfTaskSlots`: The number of parallel operator or
-UDF instances that a single TaskManager can run (DEFAULT: 1).
+user function instances that a single TaskManager can run (DEFAULT: 1).
 If this value is larger than 1, a single TaskManager takes multiple instances of
 a function or operator. That way, the TaskManager can utilize multiple CPU cores,
 but at the same time, the available memory is divided between the different
 operator or function instances.
 This value is typically proportional to the number of physical CPU cores that
 the TaskManager's machine has (e.g., equal to the number of cores, or half the
-number of cores).
+number of cores). [More about task slots](config.html#configuring-taskmanager-processing-slots).
 
 - `parallelization.degree.default`: The default degree of parallelism to use for
 programs that have no degree of parallelism specified. (DEFAULT: 1). For
@@ -157,7 +162,7 @@ large as possible (DEFAULT: 512). On YARN setups, this value is automatically
 configured to the size of the TaskManager's YARN container, minus a
 certain tolerance value.
 - `taskmanager.numberOfTaskSlots`: The number of parallel operator or
-UDF instances that a single TaskManager can run (DEFAULT: 1).
+user function instances that a single TaskManager can run (DEFAULT: 1).
 If this value is larger than 1, a single TaskManager takes multiple instances of
 a function or operator. That way, the TaskManager can utilize multiple CPU cores,
 but at the same time, the available memory is divided between the different
@@ -266,3 +271,79 @@ So if `yarn.am.rpc.port` is configured to `10245` and the session's application 
 
 - `yarn.am.rpc.port`: The port that is being opened by the Application Master (AM) to 
 let the YARN client connect for an RPC serice. (DEFAULT: Port 10245)
+
+
+## Background
+
+### Configuring the Network Buffers
+
+Network buffers are a critical resource for the communication layers. They are
+used to buffer records before transmission over a network, and to buffer
+incoming data before dissecting it into records and handing them to the
+application. A sufficient number of network buffers is critical to achieve a
+good throughput.
+
+In general, configure the task manager to have enough buffers that each logical
+network connection on you expect to be open at the same time has a dedicated
+buffer. A logical network connection exists for each point-to-point exchange of
+data over the network, which typically happens at repartitioning- or
+broadcasting steps. In those, each parallel task inside the TaskManager has to
+be able to talk to all other parallel tasks. Hence, the required number of
+buffers on a task manager is *total-degree-of-parallelism* (number of targets)
+\* *intra-node-parallelism* (number of sources in one task manager) \* *n*.
+Here, *n* is a constant that defines how many repartitioning-/broadcasting steps
+you expect to be active at the same time.
+
+Since the *intra-node-parallelism* is typically the number of cores, and more
+than 4 repartitioning or broadcasting channels are rarely active in parallel, it
+frequently boils down to *\#cores\^2\^* \* *\#machines* \* 4. To support for
+example a cluster of 20 8-core machines, you should use roughly 5000 network
+buffers for optimal throughput.
+
+Each network buffer has by default a size of 32 KiBytes. In the above example, the
+system would allocate roughly 300 MiBytes for network buffers.
+
+The number and size of network buffers can be configured with the following
+parameters:
+
+- `taskmanager.network.numberOfBuffers`, and
+- `taskmanager.network.bufferSizeInBytes`.
+
+### Configuring Temporary I/O Directories
+
+Although Flink aims to process as much data in main memory as possible,
+it is not uncommon that more data needs to be processed than memory is
+available. Flink's runtime is designed to write temporary data to disk
+to handle these situations.
+
+The `taskmanager.tmp.dirs` parameter specifies a list of directories into which
+Flink writes temporary files. The paths of the directories need to be
+separated by ':' (colon character). Flink will concurrently write (or
+read) one temporary file to (from) each configured directory. This way,
+temporary I/O can be evenly distributed over multiple independent I/O devices
+such as hard disks to improve performance. To leverage fast I/O devices (e.g.,
+SSD, RAID, NAS), it is possible to specify a directory multiple times.
+
+If the `taskmanager.tmp.dirs` parameter is not explicitly specified,
+Flink writes temporary data to the temporary directory of the operating
+system, such as */tmp* in Linux systems.
+
+
+### Configuring TaskManager processing slots
+
+A processing slot allows Flink to execute a distributed DataSet transformation, such as a
+data source or a map-transformation.
+
+Each Flink TaskManager provides processing slots in the cluster. The number of slots
+is typically proportional to the number of available CPU cores __of each__ TaskManager.
+As a general recommendation, the number of available CPU cores is a good default for 
+`taskmanager.numberOfTaskSlots`.
+
+When starting a Flink application, users can supply the default number of slots to use for that job.
+The command line value therefore is called `-p` (for parallelism). In addition, it is possible
+to [set the number of slots in the programming APIs](programming_guide.html#parallel-execution) for 
+the whole application and individual operators.
+
+Flink is currently scheduling an application to slots by "filling" them up. 
+If the cluster has 20 machines with 2 slots each (40 slots in total) but the application is running
+with a parallelism of 20, only 10 machines will process data.
