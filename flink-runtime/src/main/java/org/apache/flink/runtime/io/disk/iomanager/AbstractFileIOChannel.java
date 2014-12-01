@@ -64,14 +64,15 @@ public abstract class AbstractFileIOChannel implements FileIOChannel {
 	
 	// --------------------------------------------------------------------------------------------
 
-	/**
-	 * Gets the channel ID of this channel.
-	 * 
-	 * @return This channel's ID.
-	 */
 	@Override
 	public final FileIOChannel.ID getChannelID() {
 		return this.id;
+	}
+	
+	@Override
+	public long getSize() throws IOException {
+		FileChannel channel = fileChannel;
+		return channel == null ? 0 : channel.size();
 	}
 	
 	@Override

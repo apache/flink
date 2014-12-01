@@ -231,6 +231,18 @@ public class IOManagerAsync extends IOManager implements UncaughtExceptionHandle
 		Preconditions.checkState(!shutdown, "I/O-Manger is closed.");
 		return new AsynchronousBulkBlockReader(channelID, this.readers[channelID.getThreadNum()].requestQueue, targetSegments, numBlocks);
 	}
+	
+	// -------------------------------------------------------------------------
+	//                             For Testing
+	// -------------------------------------------------------------------------
+	
+	RequestQueue<ReadRequest> getReadRequestQueue(FileIOChannel.ID channelID) {
+		return this.readers[channelID.getThreadNum()].requestQueue;
+	}
+	
+	RequestQueue<WriteRequest> getWriteRequestQueue(FileIOChannel.ID channelID) {
+		return this.writers[channelID.getThreadNum()].requestQueue;
+	}
 
 	// -------------------------------------------------------------------------
 	//                           I/O Worker Threads

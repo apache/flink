@@ -54,6 +54,7 @@ public abstract class AsynchronousFileIOChannel<R extends IORequest> extends Abs
 	
 	/** Flag marking this channel as closed */
 	protected volatile boolean closed;
+	
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -115,7 +116,9 @@ public abstract class AsynchronousFileIOChannel<R extends IORequest> extends Abs
 						this.closeLock.wait(1000);
 						checkErroneous();
 					}
-					catch (InterruptedException iex) {}
+					catch (InterruptedException iex) {
+						throw new IOException("Closing of asynchronous file channel was interrupted.");
+					}
 				}
 			}
 			finally {
@@ -124,24 +127,6 @@ public abstract class AsynchronousFileIOChannel<R extends IORequest> extends Abs
 					this.fileChannel.close();
 				}
 			}
-		}
-	}
-	
-	/**
-	 * This method waits for all pending asynchronous requests to return. When the
-	 * last request has returned, the channel is closed and deleted.
-	 * <p>
-	 * Even if an exception interrupts the closing, such that not all request are handled,
-	 * the underlying <tt>FileChannel</tt> is closed and deleted.
-	 * 
-	 * @throws IOException Thrown, if an I/O exception occurred while waiting for the buffers, or if the closing was interrupted.
-	 */
-	public void closeAndDelete() throws IOException {
-		try {
-			close();
-		}
-		finally {
-			deleteChannel();
 		}
 	}
 	
@@ -168,7 +153,7 @@ public abstract class AsynchronousFileIOChannel<R extends IORequest> extends Abs
 	 * @param ex The exception that occurred in the I/O threads when processing the buffer's request.
 	 */
 	final void handleProcessedBuffer(MemorySegment buffer, IOException ex) {
-		// even if the callbacks throw an error, we need to maintain our bookkeeping
+		// even if the callback throws an error, we need to maintain our bookkeeping
 		try {
 			if (ex != null && this.exception == null) {
 				this.exception = ex;
@@ -179,17 +164,12 @@ public abstract class AsynchronousFileIOChannel<R extends IORequest> extends Abs
 			}
 		}
 		finally {
-			// decrement the number of missing buffers. If we are currently closing, notify the 
-			if (this.closed) {
-				synchronized (this.closeLock) {
-					int num = this.requestsNotReturned.decrementAndGet();
-					if (num == 0) {
-						this.closeLock.notifyAll();
-					}
+			// decrement the number of missing buffers. If we are currently closing, notify the waiters
+			synchronized (this.closeLock) {
+				final int num = this.requestsNotReturned.decrementAndGet();
+				if (this.closed && num == 0) {
+					this.closeLock.notifyAll();
 				}
-			}
-			else {
-				this.requestsNotReturned.decrementAndGet();
 			}
 		}
 	}
@@ -260,5 +240,35 @@ final class SegmentWriteRequest implements WriteRequest {
 	@Override
 	public void requestDone(IOException ioex) {
 		this.channel.handleProcessedBuffer(this.segment, ioex);
+	}
+}
+
+//--------------------------------------------------------------------------------------------
+
+/**
+ * Request that seeks the underlying file channel to the given position.
+ */
+final class SeekRequest implements ReadRequest, WriteRequest {
+	
+	private final AsynchronousFileIOChannel<?> channel;
+	
+	private final long position;
+	
+	protected SeekRequest(AsynchronousFileIOChannel<?> channel, long position) {
+		this.channel = channel;
+		this.position = position;
+	}
+
+	@Override
+	public void requestDone(IOException ioex) {}
+
+	@Override
+	public void read() throws IOException {
+		this.channel.fileChannel.position(position);
+	}
+	
+	@Override
+	public void write() throws IOException {
+		this.channel.fileChannel.position(position);
 	}
 }
