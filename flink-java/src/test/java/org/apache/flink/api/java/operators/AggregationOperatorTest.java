@@ -19,6 +19,7 @@
 package org.apache.flink.api.java.operators;
 
 import static org.apache.flink.util.TestHelper.uniqueInt;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.powermock.api.mockito.PowerMockito.whenNew;
@@ -57,22 +58,24 @@ public class AggregationOperatorTest {
 	@Test
 	public void shouldSetParallelism() throws Exception {
 		// given
-		int dop = uniqueInt();
+		int operatorDop = uniqueInt();
+		int inputDop = uniqueInt(new int[] { operatorDop });
 		org.apache.flink.api.common.operators.Operator input = mock(org.apache.flink.api.common.operators.Operator.class);
 		MapOperatorBase map1 = mock(MapOperatorBase.class);
 		MapOperatorBase map2 = mock(MapOperatorBase.class);
 		ReduceOperatorBase reduce = mock(ReduceOperatorBase.class);
 		whenNew(MapOperatorBase.class).withAnyArguments().thenReturn(map1, map2);
 		whenNew(ReduceOperatorBase.class).withAnyArguments().thenReturn(reduce);
-		op.setParallelism(dop);
+		given(input.getDegreeOfParallelism()).willReturn(inputDop);
+		op.setParallelism(operatorDop);
 		
 		// when
 		op.translateToDataFlow(input);
 
 		// then
-		verify(map1).setDegreeOfParallelism(dop);
-		verify(reduce).setDegreeOfParallelism(dop);
-		verify(map2).setDegreeOfParallelism(dop);
+		verify(map1).setDegreeOfParallelism(inputDop);
+		verify(reduce).setDegreeOfParallelism(operatorDop);
+		verify(map2).setDegreeOfParallelism(operatorDop);
 	}
 	
 }

@@ -99,7 +99,7 @@ public class AggregationOperator<IN, OUT extends Tuple> extends SingleInputOpera
 	@Override
 	protected org.apache.flink.api.common.operators.SingleInputOperator<?, OUT, ?> translateToDataFlow(
 			Operator<IN> input) {
-		MapOperatorBase<IN, Tuple, MapFunction<IN, Tuple>> intermediateMapper = createIntermediateMapper();
+		MapOperatorBase<IN, Tuple, MapFunction<IN, Tuple>> intermediateMapper = createIntermediateMapper(input);
 		ReduceOperatorBase<Tuple, ReduceFunction<Tuple>> reducer = createReducer();
 		MapOperatorBase<Tuple, OUT, MapFunction<Tuple, OUT>> finalMapper = createFinalMapper();
 		intermediateMapper.setInput(input);
@@ -108,13 +108,13 @@ public class AggregationOperator<IN, OUT extends Tuple> extends SingleInputOpera
 		return finalMapper;
 	}
 
-	private MapOperatorBase<IN, Tuple, MapFunction<IN, Tuple>> createIntermediateMapper() {
+	private MapOperatorBase<IN, Tuple, MapFunction<IN, Tuple>> createIntermediateMapper(Operator<IN> input) {
 		@SuppressWarnings("unchecked")
 		MapFunction<IN, Tuple> udf = (MapFunction<IN, Tuple>) new AggregationMapIntermediateUdf<Tuple, Tuple>(intermediateFunctions);
 		UnaryOperatorInformation<IN, Tuple> operatorInfo = new UnaryOperatorInformation<IN, Tuple>(getInputType(), intermediateType);
 		String name = createOperatorName("aggregate/intermediate-mapper", intermediateFunctions);
 		MapOperatorBase<IN, Tuple, MapFunction<IN, Tuple>> intermediateMapper = new MapOperatorBase<IN, Tuple, MapFunction<IN, Tuple>>(udf, operatorInfo, name);
-		intermediateMapper.setDegreeOfParallelism(this.getParallelism());
+		intermediateMapper.setDegreeOfParallelism(input.getDegreeOfParallelism());
 		return intermediateMapper;
 	}
 	
