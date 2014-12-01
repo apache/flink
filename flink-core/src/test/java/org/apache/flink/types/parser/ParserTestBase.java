@@ -83,6 +83,9 @@ public abstract class ParserTestBase<T> {
 				FieldParser<T> parser = getParser();
 				
 				byte[] bytes = testValues[i].getBytes();
+
+
+
 				int numRead = parser.parseField(bytes, 0, bytes.length, new char[] {'|'}, parser.createValue());
 				
 				assertTrue("Parser declared the valid value " + testValues[i] + " as invalid.", numRead != -1);

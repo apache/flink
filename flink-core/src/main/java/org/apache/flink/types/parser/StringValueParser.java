@@ -44,6 +44,10 @@ public class StringValueParser extends FieldParser<StringValue> {
 		int i = startPos;
 		byte current;
 
+
+		String s = new String(bytes);
+		System.out.println("[StringValueParser] Input text:  "+ s);
+
 		// count initial whitespace lines
 		while (i < length && ((current = bytes[i]) == WHITESPACE_SPACE || current == WHITESPACE_TAB)) {
 			i++;
@@ -95,11 +99,8 @@ public class StringValueParser extends FieldParser<StringValue> {
 		}
 		else {
 			// unquoted string -delim.length
-			while (i <= length && !delimiterNext(bytes, i, delim)) {
+			while (i < length && !delimiterNext(bytes, i, delim)) {
 				i++;
-			}
-			if( i > length ){
-				i--;
 			}
 			// set from the beginning. unquoted strings include the leading whitespaces
 			reusable.setValueAscii(bytes, startPos, i-startPos);
