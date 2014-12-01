@@ -31,15 +31,16 @@ public class AggregationReduceUdf<IN extends Tuple> extends AggregationUdfBase<I
 	private static final long serialVersionUID = 5563658873455921533L;
 
 	private AggregationFunction<?, ?>[] functions;
-	
+	private IN result;
+
 	public AggregationReduceUdf(AggregationFunction<?, ?>... functions) {
 		super(functions.length);
 		this.functions = functions;
+		result = createResultTuple();
 	}
 	
 	@Override
 	public IN reduce(IN tuple1, IN tuple2) throws Exception {
-		IN result = createResultTuple();
 		for (AggregationFunction<?, ?> function : functions) {
 			processAggregationFunction(function, tuple1, tuple2, result);
 		}

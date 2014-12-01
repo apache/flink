@@ -32,7 +32,7 @@ public class TestHelper
 	public static int STRING_LENGTH = 10;
 
 	/**
-	 * Return a random integer between {@value INT_MIN} (inclusive) and {@value INT_MAX} (exclusive).  
+	 * Return a random integer between {@value INT_MIN} and {@value INT_MAX} (inclusive).
 	 */
     public static int uniqueInt() {
         int result = uniqueInt(INT_MIN, INT_MAX);
@@ -40,15 +40,15 @@ public class TestHelper
     }
 
 	/**
-	 * Return a random integer between {@code min} (inclusive) and {@code max} (exclusive).  
+	 * Return a random integer between {@code min} and {@code max} (inclusive).
 	 */
     public static int uniqueInt(int min, int max) {
-		int result = RandomUtils.nextInt(min, max);
+		int result = RandomUtils.nextInt(min, max + 1);
     	return result;
     }
 
 	/**
-	 * Return a random integer between {@value INT_MIN} (inclusive) and {@value INT_MAX} (exclusive) that is not listed in {@code exclude}.
+	 * Return a random integer between {@value INT_MIN} and {@value INT_MAX} (inclusive) that is not listed in {@code exclude}.
 	 */
     public static int uniqueInt(int[] exclude) {
     	int result = uniqueInt(INT_MIN, INT_MAX, exclude);
@@ -56,7 +56,7 @@ public class TestHelper
     }
 
 	/**
-	 * Return a random integer between {@code min} (inclusive) and {@code max} (exclusive) that is not listed in {@code exclude}.
+	 * Return a random integer between {@code min} and {@code max} (inclusive) that is not listed in {@code exclude}.
 	 */
     public static int uniqueInt(int min, int max, int[] exclude) {
         int result = uniqueInt(min, max);
@@ -70,7 +70,7 @@ public class TestHelper
     }
 
 	/**
-	 * Return a random long between {@value INT_MIN} (inclusive) and {@value INT_MAX} (exclusive).  
+	 * Return a random long between {@value INT_MIN} and {@value INT_MAX} (inclusive).
 	 */
     public static long uniqueLong() {
         long result = uniqueLong(INT_MIN, INT_MAX);
@@ -78,10 +78,10 @@ public class TestHelper
     }
 
 	/**
-	 * Return a random long between {@code min} (inclusive) and {@code max} (exclusive).  
+	 * Return a random long between {@code min} and {@code max} (inclusive).
 	 */
     public static long uniqueLong(long min, long max) {
-        long result = RandomUtils.nextLong(min, max);
+        long result = RandomUtils.nextLong(min, max + 1);
         return result;
     }
 

@@ -37,15 +37,16 @@ public class AggregationMapIntermediateUdf<IN extends Tuple, OUT extends Tuple> 
 	private static final long serialVersionUID = 3326127349510588787L;
 
 	private AggregationFunction<?, ?>[] functions;
-	
+	private OUT result;
+
 	public AggregationMapIntermediateUdf(AggregationFunction<?, ?>[] functions) {
 		super(functions.length);
 		this.functions = functions;
+		result = createResultTuple();
 	}
 	
 	@Override
 	public OUT map(IN value) throws Exception {
-		OUT result = createResultTuple();
 		for (AggregationFunction<?, ?> function : functions) {
 			processAggregationFunction(function, value, result);
 		}

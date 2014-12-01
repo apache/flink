@@ -18,13 +18,14 @@
 
 package org.apache.flink.api.java.aggregation;
 
+import static org.apache.flink.api.java.aggregation.AggregationMapIntermediateUdfTest.setupDummyFunctions;
+import static org.apache.flink.api.java.aggregation.AggregationMapIntermediateUdfTest.setupOutputArity;
+import static org.apache.flink.api.java.aggregation.AggregationMapIntermediateUdfTest.setupOutputPosition;
 import static org.apache.flink.util.TestHelper.uniqueInt;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verify;
 
 import org.apache.flink.api.java.tuple.Tuple;
 import org.junit.Test;
@@ -42,26 +43,25 @@ public class AggregationMapFinalUdfTest {
 		Tuple intermediateTuple = mock(Tuple.class);
 		int intermediatePos = uniqueInt(0, Tuple.MAX_ARITY - 1);
 		given(intermediateTuple.getField(intermediatePos)).willReturn(intermediateValue);
+
 		
 		// setup an non-composite aggregation function with an random output field position
-		int outputPos = uniqueInt(0, Tuple.MAX_ARITY - 1, new int[] { intermediatePos });
+		int arity = setupOutputArity();
+		int outputPos = setupOutputPosition(arity, intermediatePos);
 		AggregationFunction function = mock(AggregationFunction.class);
 		given(function.getIntermediatePosition()).willReturn(intermediatePos);
 		given(function.getOutputPosition()).willReturn(outputPos);
-		
-		AggregationFunction[] functions = { function };	
+		AggregationFunction[] functions = setupDummyFunctions(arity);
+		functions[outputPos] = function;
 		
 		// setup creation of output tuple
-		Tuple outputTuple = mock(Tuple.class);
-		udf = spy(new AggregationMapFinalUdf(functions));
-		given(udf.createResultTuple()).willReturn(outputTuple);
+		udf = new AggregationMapFinalUdf(functions);
 
 		// when
 		Tuple actual = udf.map(intermediateTuple);
 
 		// then
-		assertThat(actual, is(outputTuple));
-		verify(outputTuple).setField(intermediateValue, outputPos);
+		assertThat(actual.getField(outputPos), is(intermediateValue));
 	}
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
@@ -72,24 +72,23 @@ public class AggregationMapFinalUdfTest {
 		Tuple intermediateTuple = mock(Tuple.class);
 		
 		// setup an composite aggregation function with an random output field position
-		int outputPos = uniqueInt(0, Tuple.MAX_ARITY - 1);
+		int arity = setupOutputArity();
+		int outputPos = setupOutputPosition(arity);
 		Object outputValue = mock(Object.class);
 		CompositeAggregationFunction function = mock(CompositeAggregationFunction.class);
 		given(function.getOutputPosition()).willReturn(outputPos);
 		given(function.computeComposite(intermediateTuple)).willReturn(outputValue);
-		AggregationFunction[] functions = { function };	
+		AggregationFunction[] functions = setupDummyFunctions(arity);
+		functions[outputPos] = function;
 		
 		// setup creation of output tuple
-		Tuple outputTuple = mock(Tuple.class);
-		udf = spy(new AggregationMapFinalUdf(functions));
-		given(udf.createResultTuple()).willReturn(outputTuple);
+		udf = new AggregationMapFinalUdf(functions);
 
 		// when
 		Tuple actual = udf.map(intermediateTuple);
 
 		// then
-		assertThat(actual, is(outputTuple));
-		verify(outputTuple).setField(outputValue, outputPos);
+		assertThat(actual.getField(outputPos), is(outputValue));
 	}
 
 }
