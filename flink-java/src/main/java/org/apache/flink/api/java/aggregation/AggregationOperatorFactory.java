@@ -99,7 +99,6 @@ public class AggregationOperatorFactory {
 		return op;
 	}
 	
-	// TODO if sum and/or count are present, use these to compute average
 	<T, R extends Tuple> AggregationOperator<T, R> createAggregationOperator(DataSet<T> input, int[] groupKeys, AggregationFunction<?, ?>[] functions) {
 		AggregationFunction<?, ?>[] functionsWithExpandedKeys = aggregationFunctionPreprocessor.expandKeys(functions, groupKeys);
 		AggregationFunction<?, ?>[] intermediateFunctions = aggregationFunctionPreprocessor.createIntermediateFunctions(functionsWithExpandedKeys, groupKeys);
