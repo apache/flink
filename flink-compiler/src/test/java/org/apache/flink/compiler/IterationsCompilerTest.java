@@ -28,6 +28,8 @@ import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.java.aggregation.Aggregations;
+import org.apache.flink.api.common.functions.FilterFunction;
+import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.functions.RichJoinFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
@@ -41,6 +43,7 @@ import org.apache.flink.compiler.plan.OptimizedPlan;
 import org.apache.flink.compiler.plan.WorksetIterationPlanNode;
 import org.apache.flink.compiler.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.compiler.plantranslate.NepheleJobGraphGenerator;
+import org.apache.flink.compiler.testfunctions.IdentityKeyExtractor;
 import org.apache.flink.compiler.testfunctions.IdentityMapper;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.util.Collector;
@@ -260,6 +263,50 @@ public class IterationsCompilerTest extends CompilerTestBase {
 		}
 	}
 	
+	@Test
+	public void testResetPartialSolution() {
+		try {
+			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+			
+			DataSet<Long> width = env.generateSequence(1, 10);
+			DataSet<Long> update = env.generateSequence(1, 10);
+			DataSet<Long> lastGradient = env.generateSequence(1, 10);
+			
+			DataSet<Long> init = width.union(update).union(lastGradient);
+			
+			IterativeDataSet<Long> iteration = init.iterate(10);
+			
+			width = iteration.filter(new IdFilter<Long>());
+			update = iteration.filter(new IdFilter<Long>());
+			lastGradient = iteration.filter(new IdFilter<Long>());
+			
+			DataSet<Long> gradient = width.map(new IdentityMapper<Long>());
+			DataSet<Long> term = gradient.join(lastGradient)
+								.where(new IdentityKeyExtractor<Long>())
+								.equalTo(new IdentityKeyExtractor<Long>())
+								.with(new JoinFunction<Long, Long, Long>() {
+									public Long join(Long first, Long second) { return null; }
+								});
+			
+			update = update.map(new RichMapFunction<Long, Long>() {
+				public Long map(Long value) { return null; }
+			}).withBroadcastSet(term, "some-name");
+			
+			DataSet<Long> result = iteration.closeWith(width.union(update).union(lastGradient));
+			
+			result.print();
+			
+			Plan p = env.createProgramPlan();
+			OptimizedPlan op = compileNoStats(p);
+			
+			
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
 	// --------------------------------------------------------------------------------------------
 	
 	public static DataSet<Tuple2<Long, Long>> doBulkIteration(DataSet<Tuple2<Long, Long>> vertices, DataSet<Tuple2<Long, Long>> edges) {
@@ -350,6 +397,13 @@ public class IterationsCompilerTest extends CompilerTestBase {
 		@Override
 		public Tuple2<T, T> map(T value) {
 			return new Tuple2<T, T>(value, value);
+		}
+	}
+	
+	public static final class IdFilter<T> implements FilterFunction<T> {
+		@Override
+		public boolean filter(T value) {
+			return true;
 		}
 	}
 }
