@@ -72,7 +72,7 @@ public abstract class AsynchronousFileIOChannel<T, R extends IORequest> extends 
 	 * @throws IOException Thrown, if the channel could no be opened.
 	 */
 	protected AsynchronousFileIOChannel(FileIOChannel.ID channelID, RequestQueue<R> requestQueue, 
-			RequestDoneCallback<T> callback, boolean writeEnabled) throws IOException
+			RequestDoneCallback callback, boolean writeEnabled) throws IOException
 	{
 		super(channelID, writeEnabled);
 
@@ -113,7 +113,9 @@ public abstract class AsynchronousFileIOChannel<T, R extends IORequest> extends 
 						this.closeLock.wait(1000);
 						checkErroneous();
 					}
-					catch (InterruptedException ignored) {}
+					catch (InterruptedException iex) {
+						throw new IOException("Closing of asynchronous file channel was interrupted.");
+					}
 				}
 			}
 			finally {
@@ -181,13 +183,11 @@ public abstract class AsynchronousFileIOChannel<T, R extends IORequest> extends 
 			}
 		}
 		finally {
-			// decrement the number of missing buffers. If we are currently closing, notify the 
-			if (this.closed) {
-				synchronized (this.closeLock) {
-					int num = this.requestsNotReturned.decrementAndGet();
-					if (num == 0) {
-						this.closeLock.notifyAll();
-					}
+			// decrement the number of missing buffers. If we are currently closing, notify the waiters
+			synchronized (this.closeLock) {
+				final int num = this.requestsNotReturned.decrementAndGet();
+				if (this.closed && num == 0) {
+					this.closeLock.notifyAll();
 				}
 			}
 			else {

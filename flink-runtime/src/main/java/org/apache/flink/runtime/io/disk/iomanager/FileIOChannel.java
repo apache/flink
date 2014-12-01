@@ -38,6 +38,13 @@ public interface FileIOChannel {
 	FileIOChannel.ID getChannelID();
 	
 	/**
+	 * Gets the size (in bytes) of the file underlying the channel.
+	 * 
+	 * @return The size (in bytes) of the file underlying the channel.
+	 */
+	long getSize() throws IOException;
+	
+	/**
 	 * Checks whether the channel has been closed.
 	 * 
 	 * @return True if the channel has been closed, false otherwise.

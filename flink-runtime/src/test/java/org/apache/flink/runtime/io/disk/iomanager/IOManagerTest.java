@@ -16,233 +16,96 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.io.disk.iomanager;
 
-import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.memory.DefaultMemoryManagerTest.DummyInvokable;
-import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.LinkedBlockingQueue;
+
+import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel.ID;
+import org.junit.Test;
 
 public class IOManagerTest {
-	
-	// ------------------------------------------------------------------------
-	//                        Cross Test Fields
-	// ------------------------------------------------------------------------
-	
-	private IOManager ioManager;
 
-	private DefaultMemoryManager memoryManager;
-	
-	// ------------------------------------------------------------------------
-	//                           Setup & Shutdown
-	// ------------------------------------------------------------------------
-	
-	@Before
-	public void beforeTest() {
-		this.memoryManager = new DefaultMemoryManager(32 * 1024 * 1024, 1);
-		this.ioManager = new IOManagerAsync();
-	}
-
-	@After
-	public void afterTest() {
-		this.ioManager.shutdown();
-		Assert.assertTrue("IO Manager has not properly shut down.", ioManager.isProperlyShutDown());
-		
-		Assert.assertTrue("Not all memory was returned to the memory manager in the test.", this.memoryManager.verifyEmpty());
-		this.memoryManager.shutdown();
-		this.memoryManager = null;
-	}
-
-	// ------------------------------------------------------------------------
-	//                           Test Methods
-	// ------------------------------------------------------------------------
-	
-	// ------------------------------------------------------------------------
-
-	/**
-	 * Tests that the channel enumerator creates channels in the temporary files directory.
-	 */
 	@Test
 	public void channelEnumerator() {
-		File tempPath = new File(System.getProperty("java.io.tmpdir")); 
+		File tempPath = new File(System.getProperty("java.io.tmpdir"));
 		
-		FileIOChannel.Enumerator enumerator = ioManager.createChannelEnumerator();
+		String[] tempDirs = new String[] {
+			new File(tempPath, "a").getAbsolutePath(),
+			new File(tempPath, "b").getAbsolutePath(),
+			new File(tempPath, "c").getAbsolutePath(),
+			new File(tempPath, "d").getAbsolutePath(),
+			new File(tempPath, "e").getAbsolutePath(),
+		};
+		
+		int[] counters = new int[tempDirs.length];
+		
+		
+		FileIOChannel.Enumerator enumerator = new TestIOManager(tempDirs).createChannelEnumerator();
 
-		for (int i = 0; i < 10; i++) {
+		for (int i = 0; i < 3 * tempDirs.length; i++) {
 			FileIOChannel.ID id = enumerator.next();
 			
 			File path = new File(id.getPath());
-			Assert.assertTrue("Channel IDs must name an absolute path.", path.isAbsolute());
-			Assert.assertFalse("Channel IDs must name a file, not a directory.", path.isDirectory());
-			Assert.assertTrue("Path is not in the temp directory.", tempPath.equals(path.getParentFile()));
+			
+			assertTrue("Channel IDs must name an absolute path.", path.isAbsolute());
+			
+			assertFalse("Channel IDs must name a file, not a directory.", path.isDirectory());
+			
+			assertTrue("Path is not in the temp directory.", tempPath.equals(path.getParentFile().getParentFile()));
+			
+			for (int k = 0; k < tempDirs.length; k++) {
+				if (path.getParent().equals(tempDirs[k])) {
+					counters[k]++;
+				}
+			}
 		}
-	}
-
-	// ------------------------------------------------------------------------
-	
-	@Test
-	public void channelReadWriteOneSegment() {
-		final int NUM_IOS = 1111;
 		
-		try {
-			final FileIOChannel.ID channelID = this.ioManager.createChannel();
-			final BlockChannelWriter writer = this.ioManager.createBlockChannelWriter(channelID);
-			
-			MemorySegment memSeg = this.memoryManager.allocatePages(new DummyInvokable(), 1).get(0);
-			
-			for (int i = 0; i < NUM_IOS; i++) {
-				for (int pos = 0; pos < memSeg.size(); pos += 4) {
-					memSeg.putInt(pos, i);
-				}
-				
-				writer.writeBlock(memSeg);
-				memSeg = writer.getNextReturnedSegment();
-			}
-			
-			writer.close();
-			
-			final BlockChannelReader reader = this.ioManager.createBlockChannelReader(channelID);
-			for (int i = 0; i < NUM_IOS; i++) {
-				reader.readBlock(memSeg);
-				memSeg = reader.getNextReturnedSegment();
-				
-				for (int pos = 0; pos < memSeg.size(); pos += 4) {
-					if (memSeg.getInt(pos) != i) {
-						Assert.fail("Read memory segment contains invalid data.");
-					}
-				}
-			}
-			
-			reader.closeAndDelete();
-			
-			this.memoryManager.release(memSeg);
-			
-		} catch (Exception ex) {
-			ex.printStackTrace();
-			Assert.fail("TEst encountered an exception: " + ex.getMessage());
+		for (int k = 0; k < tempDirs.length; k++) {
+			assertEquals(3, counters[k]);
 		}
 	}
 	
-	@Test
-	public void channelReadWriteMultipleSegments() {
-		final int NUM_IOS = 1111;
-		final int NUM_SEGS = 16;
-		
-		try {
-			final List<MemorySegment> memSegs = this.memoryManager.allocatePages(new DummyInvokable(), NUM_SEGS);
-			final FileIOChannel.ID channelID = this.ioManager.createChannel();
-			final BlockChannelWriter writer = this.ioManager.createBlockChannelWriter(channelID);
-			
-			for (int i = 0; i < NUM_IOS; i++) {
-				final MemorySegment memSeg = memSegs.isEmpty() ? writer.getNextReturnedSegment() : memSegs.remove(0);
-				
-				for (int pos = 0; pos < memSeg.size(); pos += 4) {
-					memSeg.putInt(pos, i);
-				}
-				
-				writer.writeBlock(memSeg);
-			}
-			writer.close();
-			
-			// get back the memory
-			while (memSegs.size() < NUM_SEGS) {
-				memSegs.add(writer.getNextReturnedSegment());
-			}
-			
-			final BlockChannelReader reader = this.ioManager.createBlockChannelReader(channelID);
-			while(!memSegs.isEmpty()) {
-				reader.readBlock(memSegs.remove(0));
-			}
-			
-			for (int i = 0; i < NUM_IOS; i++) {
-				final MemorySegment memSeg = reader.getNextReturnedSegment();
-				
-				for (int pos = 0; pos < memSeg.size(); pos += 4) {
-					if (memSeg.getInt(pos) != i) {
-						Assert.fail("Read memory segment contains invalid data.");
-					}
-				}
-				reader.readBlock(memSeg);
-			}
-			
-			reader.closeAndDelete();
-			
-			// get back the memory
-			while (memSegs.size() < NUM_SEGS) {
-				memSegs.add(reader.getNextReturnedSegment());
-			}
-			
-			this.memoryManager.release(memSegs);
-			
-		} catch (Exception ex) {
-			ex.printStackTrace();
-			Assert.fail("TEst encountered an exception: " + ex.getMessage());
-		}
-	}
-
-	// ============================================================================================
+	// --------------------------------------------------------------------------------------------
 	
-	final class FailingSegmentReadRequest implements ReadRequest {
-		
-		private final AsynchronousFileIOChannel<MemorySegment, ReadRequest> channel;
-		
-		private final MemorySegment segment;
-		
-		protected FailingSegmentReadRequest(AsynchronousFileIOChannel<MemorySegment, ReadRequest> targetChannel, MemorySegment segment) {
-			this.channel = targetChannel;
-			this.segment = segment;
-		}
+	private static class TestIOManager extends IOManager {
 
-
-		@Override
-		public void read() throws IOException {
-			throw new TestIOException();
-		}
-
-
-		@Override
-		public void requestDone(IOException ioex) {
-			this.channel.handleProcessedBuffer(this.segment, ioex);
-		}
-	}
-
-	//--------------------------------------------------------------------------------------------
-
-	/**
-	 * Special write request that writes an entire memory segment to the block writer.
-	 */
-	final class FailingSegmentWriteRequest implements WriteRequest {
-		
-		private final AsynchronousFileIOChannel<MemorySegment, WriteRequest> channel;
-		
-		private final MemorySegment segment;
-		
-		protected FailingSegmentWriteRequest(AsynchronousFileIOChannel<MemorySegment, WriteRequest> targetChannel, MemorySegment segment) {
-			this.channel = targetChannel;
-			this.segment = segment;
+		protected TestIOManager(String[] paths) {
+			super(paths);
 		}
 
 		@Override
-		public void write() throws IOException {
-			throw new TestIOException();
+		public void shutdown() {}
+
+		@Override
+		public boolean isProperlyShutDown() {
+			return false;
 		}
 
 		@Override
-		public void requestDone(IOException ioex) {
-			this.channel.handleProcessedBuffer(this.segment, ioex);
+		public BlockChannelWriter createBlockChannelWriter(ID channelID, LinkedBlockingQueue<MemorySegment> returnQueue) {
+			throw new UnsupportedOperationException();
 		}
-	}
-	
-	
-	final class TestIOException extends IOException {
-		private static final long serialVersionUID = -814705441998024472L;
+
+		@Override
+		public BlockChannelWriterWithCallback createBlockChannelWriter(ID channelID, RequestDoneCallback callback) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public BlockChannelReader createBlockChannelReader(ID channelID, LinkedBlockingQueue<MemorySegment> returnQueue) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public BulkBlockChannelReader createBulkBlockChannelReader(ID channelID, List<MemorySegment> targetSegments, int numBlocks) {
+			throw new UnsupportedOperationException();
+		}
 	}
 }

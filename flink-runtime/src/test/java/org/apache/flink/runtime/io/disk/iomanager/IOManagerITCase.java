@@ -25,9 +25,9 @@ import java.util.List;
 import java.util.Random;
 
 import org.junit.Assert;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
@@ -36,22 +36,17 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.DefaultMemoryManagerTest;
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
 
 /**
  * Integration test case for the I/O manager.
  */
 public class IOManagerITCase {
 	
-	private static final Logger LOG = LoggerFactory.getLogger(IOManagerITCase.class);
-	
 	private static final long SEED = 649180756312423613L;
 
-	private static final int NUMBER_OF_SEGMENTS = 10; // 10
-
-	private static final int SEGMENT_SIZE = 1024 * 1024; // 1M
+	private static final int MAXIMUM_NUMBER_OF_SEGMENTS_PER_CHANNEL = 10;
+	
+	private static final int MEMORY_SIZE = 10 * 1024 * 1024; // 10 MB
 	
 	private final int NUM_CHANNELS = 29;
 	
@@ -63,7 +58,7 @@ public class IOManagerITCase {
 
 	@Before
 	public void beforeTest() {
-		memoryManager = new DefaultMemoryManager(NUMBER_OF_SEGMENTS * SEGMENT_SIZE, 1);
+		memoryManager = new DefaultMemoryManager(MEMORY_SIZE, 1);
 		ioManager = new IOManagerAsync();
 	}
 
@@ -84,10 +79,7 @@ public class IOManagerITCase {
 	 * parallel. It is designed to check the ability of the IO manager to correctly handle multiple threads.
 	 */
 	@Test
-	public void parallelChannelsTest() throws Exception
-	{
-		LOG.info("Starting parallel channels test.");
-		
+	public void parallelChannelsTest() throws Exception {
 		final Random rnd = new Random(SEED);
 		final AbstractInvokable memOwner = new DefaultMemoryManagerTest.DummyInvokable();
 		
@@ -106,7 +98,7 @@ public class IOManagerITCase {
 			ids[i] = this.ioManager.createChannel();
 			writers[i] = this.ioManager.createBlockChannelWriter(ids[i]);
 			
-			List<MemorySegment> memSegs = this.memoryManager.allocatePages(memOwner, rnd.nextInt(NUMBER_OF_SEGMENTS - 2) + 2);
+			List<MemorySegment> memSegs = this.memoryManager.allocatePages(memOwner, rnd.nextInt(MAXIMUM_NUMBER_OF_SEGMENTS_PER_CHANNEL - 1) + 1);
 			outs[i] = new ChannelWriterOutputView(writers[i], memSegs, this.memoryManager.getPageSize());
 		}
 		
@@ -114,24 +106,13 @@ public class IOManagerITCase {
 		Value val = new Value();
 		
 		// write a lot of values unevenly distributed over the channels
-		int nextLogCount = 0;
-		float nextLogFraction = 0.0f;
 		
-		LOG.info("Writing to channels...");
 		for (int i = 0; i < NUMBERS_TO_BE_WRITTEN; i++) {
-			
-			if (i == nextLogCount) {
-				LOG.info("... " + (int) (nextLogFraction * 100) + "% done.");
-				nextLogFraction += 0.05;
-				nextLogCount = (int) (nextLogFraction * NUMBERS_TO_BE_WRITTEN);
-			}
-			
 			int channel = skewedSample(rnd, NUM_CHANNELS - 1);
 			
 			val.value = String.valueOf(writingCounters[channel]++);
 			val.write(outs[channel]);
 		}
-		LOG.info("Writing done, flushing contents...");
 		
 		// close all writers
 		for (int i = 0; i < NUM_CHANNELS; i++) {
@@ -141,12 +122,9 @@ public class IOManagerITCase {
 		writers = null;
 		
 		// instantiate the readers for sequential read
-		LOG.info("Reading channels sequentially...");
-		for (int i = 0; i < NUM_CHANNELS; i++)
-		{
-			List<MemorySegment> memSegs = this.memoryManager.allocatePages(memOwner, rnd.nextInt(NUMBER_OF_SEGMENTS - 2) + 2);
+		for (int i = 0; i < NUM_CHANNELS; i++) {
 			
-			LOG.info("Reading channel " + (i+1) + "/" + NUM_CHANNELS + '.');
+			List<MemorySegment> memSegs = this.memoryManager.allocatePages(memOwner, rnd.nextInt(MAXIMUM_NUMBER_OF_SEGMENTS_PER_CHANNEL - 1) + 1);
 				
 			final BlockChannelReader reader = this.ioManager.createBlockChannelReader(ids[i]);
 			final ChannelReaderInputView in = new ChannelReaderInputView(reader, memSegs, false);
@@ -173,29 +151,18 @@ public class IOManagerITCase {
 			
 			this.memoryManager.release(in.close());
 		}
-		LOG.info("Sequential reading done.");
 		
 		// instantiate the readers
-		LOG.info("Reading channels randomly...");
 		for (int i = 0; i < NUM_CHANNELS; i++) {
 			
-			List<MemorySegment> memSegs = this.memoryManager.allocatePages(memOwner, rnd.nextInt(NUMBER_OF_SEGMENTS - 2) + 2);
+			List<MemorySegment> memSegs = this.memoryManager.allocatePages(memOwner, rnd.nextInt(MAXIMUM_NUMBER_OF_SEGMENTS_PER_CHANNEL - 1) + 1);
 				
 			readers[i] = this.ioManager.createBlockChannelReader(ids[i]);
 			ins[i] = new ChannelReaderInputView(readers[i], memSegs, false);
 		}
 		
-		nextLogCount = 0;
-		nextLogFraction = 0.0f;
-		
 		// read a lot of values in a mixed order from the channels
 		for (int i = 0; i < NUMBERS_TO_BE_WRITTEN; i++) {
-			
-			if (i == nextLogCount) {
-				LOG.info("... " + (int) (nextLogFraction * 100) + "% done.");
-				nextLogFraction += 0.05;
-				nextLogCount = (int) (nextLogFraction * NUMBERS_TO_BE_WRITTEN);
-			}
 			
 			while (true) {
 				final int channel = skewedSample(rnd, NUM_CHANNELS - 1);
@@ -222,7 +189,6 @@ public class IOManagerITCase {
 			}
 			
 		}
-		LOG.info("Random reading done.");
 		
 		// close all readers
 		for (int i = 0; i < NUM_CHANNELS; i++) {
@@ -256,10 +222,9 @@ public class IOManagerITCase {
 	
 	protected static class Value implements IOReadableWritable {
 
-		String value;
+		private String value;
 
-		public Value() {
-		}
+		public Value() {}
 
 		public Value(String val) {
 			this.value = val;
@@ -306,5 +271,4 @@ public class IOManagerITCase {
 			return true;
 		}
 	}
-
 }
