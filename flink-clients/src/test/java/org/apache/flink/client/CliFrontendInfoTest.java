@@ -113,7 +113,7 @@ public class CliFrontendInfoTest {
 		}
 
 		@Override
-		protected Client getClient(CommandLine line, ClassLoader loader) throws IOException {
+		protected Client getClient(CommandLine line, ClassLoader loader, String programName) throws IOException {
 			try {
 				return new TestClient(expectedDop);
 			}

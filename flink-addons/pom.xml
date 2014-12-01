@@ -59,19 +59,6 @@ under the License.
 				<module>flink-tachyon</module>
 			</modules>
 		</profile>
-
-		<profile>
-			<id>include-yarn</id>
-			<activation>
-				<property>
-					<!-- Please do not remove the 'hadoop2' comment. See ./tools/generate_specific_pom.sh -->
-					<!--hadoop2--><name>!hadoop.profile</name>
-				</property>
-			</activation>
-			<modules>
-				<module>flink-yarn</module>
-			</modules>
-		</profile>
 	</profiles>
 
 </project>

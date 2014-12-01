@@ -76,7 +76,8 @@ class JobClientListener(client: ActorRef) extends Actor with ActorLogMessages wi
       client ! Failure(new JobExecutionException(msg, false))
       self ! PoisonPill
     case msg =>
-      println(msg.toString)
+      // we have to use System.out.println here to avoid erroneous behavior for output redirection
+      System.out.println(msg.toString)
   }
 }
 

@@ -304,8 +304,7 @@ to avoid duplicate port allocations when running multiple YARN sessions in paral
 
 So if `yarn.am.rpc.port` is configured to `10245` and the session's application ID is `application_1406629969999_0002`, then the actual port being used is 10245 + 2 = 10247
 
-- `yarn.am.rpc.port`: The port that is being opened by the Application Master (AM) to 
-let the YARN client connect for an RPC serice. (DEFAULT: Port 10245)
+- `yarn.heap-cutoff-ratio`: Percentage of heap space to remove from containers started by YARN.
 
 
 ## Background

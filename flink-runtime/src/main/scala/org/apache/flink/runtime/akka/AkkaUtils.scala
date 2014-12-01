@@ -53,6 +53,9 @@ object AkkaUtils {
   }
 
   def createActorSystem(akkaConfig: Config): ActorSystem = {
+    if(LOG.isDebugEnabled) {
+      LOG.debug(s"Using akka config to create actor system: $akkaConfig")
+    }
     ActorSystem.create("flink", akkaConfig)
   }
 

@@ -29,7 +29,6 @@ import java.net.InetSocketAddress;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.PosixParser;
-import org.apache.flink.client.CliFrontend;
 import org.apache.flink.client.CliFrontendTestUtils.TestingCliFrontend;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -55,7 +54,7 @@ public class CliFrontendJobManagerConnectionTest {
 				
 			TestingCliFrontend frontend = new TestingCliFrontend(CliFrontendTestUtils.getInvalidConfigDir());
 			
-			assertTrue(frontend.getJobManagerAddress(line) == null);
+			assertTrue(frontend.getJobManagerAddressString(line) == null);
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -72,7 +71,7 @@ public class CliFrontendJobManagerConnectionTest {
 				
 			TestingCliFrontend frontend = new TestingCliFrontend(CliFrontendTestUtils.getConfigDir());
 			
-			InetSocketAddress address = frontend.getJobManagerAddress(line);
+			InetSocketAddress address = RemoteExecutor.getInetFromHostport(frontend.getJobManagerAddressString(line));
 			
 			assertNotNull(address);
 			assertEquals(CliFrontendTestUtils.TEST_JOB_MANAGER_ADDRESS, address.getAddress().getHostAddress());
@@ -93,7 +92,7 @@ public class CliFrontendJobManagerConnectionTest {
 				
 			TestingCliFrontend frontend = new TestingCliFrontend(CliFrontendTestUtils.getConfigDirWithYarnFile());
 			
-			InetSocketAddress address = frontend.getJobManagerAddress(line);
+			InetSocketAddress address = RemoteExecutor.getInetFromHostport(frontend.getJobManagerAddressString(line));
 			
 			assertNotNull(address);
 			assertEquals(CliFrontendTestUtils.TEST_YARN_JOB_MANAGER_ADDRESS, address.getAddress().getHostAddress());
@@ -114,7 +113,7 @@ public class CliFrontendJobManagerConnectionTest {
 				
 			TestingCliFrontend frontend = new TestingCliFrontend(CliFrontendTestUtils.getConfigDirWithInvalidYarnFile());
 			
-			assertTrue(frontend.getJobManagerAddress(line) == null);
+			assertTrue(frontend.getJobManagerAddressString(line) == null);
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -131,7 +130,7 @@ public class CliFrontendJobManagerConnectionTest {
 				
 			TestingCliFrontend frontend = new TestingCliFrontend(CliFrontendTestUtils.getConfigDir());
 			
-			InetSocketAddress address = frontend.getJobManagerAddress(line);
+			InetSocketAddress address = RemoteExecutor.getInetFromHostport(frontend.getJobManagerAddressString(line));
 			
 			assertNotNull(address);
 			assertEquals("10.221.130.22", address.getAddress().getHostAddress());
@@ -152,7 +151,7 @@ public class CliFrontendJobManagerConnectionTest {
 				
 			TestingCliFrontend frontend = new TestingCliFrontend(CliFrontendTestUtils.getConfigDirWithYarnFile());
 			
-			InetSocketAddress address = frontend.getJobManagerAddress(line);
+			InetSocketAddress address = RemoteExecutor.getInetFromHostport(frontend.getJobManagerAddressString(line));
 			
 			assertNotNull(address);
 			assertEquals("10.221.130.22", address.getAddress().getHostAddress());

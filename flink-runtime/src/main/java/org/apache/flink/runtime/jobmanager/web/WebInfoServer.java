@@ -30,7 +30,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.GlobalConfiguration;
 import org.eclipse.jetty.http.security.Constraint;
 import org.eclipse.jetty.security.ConstraintMapping;
 import org.eclipse.jetty.security.ConstraintSecurityHandler;
@@ -88,7 +87,7 @@ public class WebInfoServer {
 		
 		// if no explicit configuration is given, use the global configuration
 		if (config == null) {
-			config = GlobalConfiguration.getConfiguration();
+			throw new IllegalArgumentException("No Configuration has been passed to the web server");
 		}
 		
 		this.port = config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY,
@@ -133,7 +132,7 @@ public class WebInfoServer {
 		servletContext.addServlet(new ServletHolder(new JobmanagerInfoServlet(jobmanager,
 				archive, timeout)), "/jobsInfo");
 		servletContext.addServlet(new ServletHolder(new LogfileInfoServlet(logDirFiles)), "/logInfo");
-		servletContext.addServlet(new ServletHolder(new SetupInfoServlet(jobmanager, timeout)),
+		servletContext.addServlet(new ServletHolder(new SetupInfoServlet(config, jobmanager, timeout)),
 				"/setupInfo");
 		servletContext.addServlet(new ServletHolder(new MenuServlet()), "/menu");
 
@@ -204,6 +203,10 @@ public class WebInfoServer {
 	 */
 	public void stop() throws Exception {
 		server.stop();
+	}
+
+	public Server getServer() {
+		return server;
 	}
 
 }

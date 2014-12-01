@@ -33,7 +33,8 @@ started from the same installation directory.
 
 A prerequisite to using the command line interface is that the Flink
 master (JobManager) has been started (via `<flink-home>/bin/start-
-local.sh` or `<flink-home>/bin/start-cluster.sh`).
+local.sh` or `<flink-home>/bin/start-cluster.sh`) or that a YARN
+environment is available.
 
 The command line can be used to
 
@@ -64,6 +65,11 @@ The command line can be used to
                                ./examples/flink-java-examples-{{ site.FLINK_VERSION_SHORT }}-WordCount.jar \
                                -file:///home/user/hamlet.txt file:///home/user/wordcount_out
 
+-   Run example program using a [per-job YARN cluster](yarn_setup.html#run-a-single-flink-job-on-hadoop-yarn) with 2 TaskManagers:
+
+        ./bin/flink run -m yarn-cluster -yn 2 \
+                               ./examples/flink-java-examples-{{ site.FLINK_VERSION_STABLE }}-WordCount.jar \
+                               -file:///home/user/hamlet.txt file:///home/user/wordcount_out
 
 -   Display the expected arguments for the WordCount example program:
 
