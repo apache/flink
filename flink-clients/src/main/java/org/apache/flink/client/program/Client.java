@@ -317,7 +317,6 @@ public class Client {
 		}
 
 		try {
-
 			if (wait) {
 				return JobClient.submitJobAndWait(jobGraph, printStatusDuringExecution, client, timeout);
 			}

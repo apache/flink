@@ -34,7 +34,6 @@ import javax.servlet.http.HttpServletResponse;
 
 import akka.actor.ActorRef;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.instance.Instance;
 
@@ -60,13 +59,13 @@ public class SetupInfoServlet extends HttpServlet {
 	private static final Logger LOG = LoggerFactory.getLogger(SetupInfoServlet.class);
 	
 	
-	final private Configuration globalC;
+	final private Configuration configuration;
 	final private ActorRef jobmanager;
 	final private FiniteDuration timeout;
 	
 	
-	public SetupInfoServlet(ActorRef jm, FiniteDuration timeout) {
-		globalC = GlobalConfiguration.getConfiguration();
+	public SetupInfoServlet(Configuration conf, ActorRef jm, FiniteDuration timeout) {
+		configuration = conf;
 		this.jobmanager = jm;
 		this.timeout = timeout;
 	}
@@ -74,7 +73,6 @@ public class SetupInfoServlet extends HttpServlet {
 	@Override
 	protected void doGet(HttpServletRequest req, HttpServletResponse resp)
 			throws ServletException, IOException {
-		
 		resp.setStatus(HttpServletResponse.SC_OK);
 		resp.setContentType("application/json");
 		
@@ -86,15 +84,15 @@ public class SetupInfoServlet extends HttpServlet {
 	}
 	
 	private void writeGlobalConfiguration(HttpServletResponse resp) throws IOException {
-		
-		Set<String> keys = globalC.keySet();
+		Set<String> keys = configuration.keySet();
 		List<String> list = new ArrayList<String>(keys);
 		Collections.sort(list);
 		
 		JSONObject obj = new JSONObject();
 		for (String k : list) {
 			try {
-				obj.put(k, globalC.getString(k, ""));
+
+				obj.put(k, configuration.getString(k, ""));
 			} catch (JSONException e) {
 				LOG.warn("Json object creation failed", e);
 			}
@@ -151,7 +149,7 @@ public class SetupInfoServlet extends HttpServlet {
 	private static final Comparator<Instance> INSTANCE_SORTER = new Comparator<Instance>() {
 		@Override
 		public int compare(Instance o1, Instance o2) {
-			return o1.getInstanceConnectionInfo().compareTo(o2.getInstanceConnectionInfo());
+		return o1.getInstanceConnectionInfo().compareTo(o2.getInstanceConnectionInfo());
 		}
 	};
 }

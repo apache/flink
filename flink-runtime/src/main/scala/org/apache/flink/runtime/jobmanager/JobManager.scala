@@ -437,6 +437,13 @@ class JobManager(val configuration: Configuration)
     }
   }
 
+  /**
+   * Handle unmatched messages with an exception.
+   */
+  override def unhandled(message: Any): Unit = {
+    throw new RuntimeException("Received unknown message " + message)
+  }
+
   private def removeJob(jobID: JobID): Unit = {
     currentJobs.remove(jobID) match {
       case Some((eg, _)) => archive ! ArchiveExecutionGraph(jobID, eg)

@@ -113,19 +113,13 @@ public class CliFrontendTestUtils {
 	
 	public static class TestingCliFrontend extends CliFrontend {
 		
-		public final String configDir;
-		
+
 		public TestingCliFrontend() {
 			this(getConfigDir());
 		}
 		
 		public TestingCliFrontend(String configDir) {
-			this.configDir = configDir;
-		}
-		
-		@Override
-		protected String getConfigurationDirectory() {
-			return this.configDir;
+			this.configurationDirectory = configDir;
 		}
 	}
 	

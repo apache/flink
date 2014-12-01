@@ -36,14 +36,14 @@ cd flink-yarn-{{ site.FLINK_VERSION_SHORT }}/
 
 Specify the `-s` flag for the number of processing slots per Task Manager. We recommend to set the number of slots to the number of processors per machine.
 
-## Introducing YARN
+## Apache Flink on Hadoop YARN using a YARN Session
 
 Apache [Hadoop YARN](http://hadoop.apache.org/) is a cluster resource management framework. It allows to run various distributed applications on top of a cluster. Flink runs on YARN next to other applications. Users do not have to setup or install anything if there is already a YARN setup.
 
 **Requirements**
 
 - Apache Hadoop 2.2
-- HDFS (Hadoop Distributed File System)
+- HDFS (Hadoop Distributed File System) (or another distributed file system supported by Hadoop)
 
 If you have troubles using the Flink YARN client, have a look in the [FAQ section](faq.html).
 
@@ -80,16 +80,14 @@ This command will show you the following overview:
 ~~~bash
 Usage:
    Required
-     -n,--container <arg>   Number of Yarn container to allocate (=Number of Task Managers)
+     -n,--container <arg>   Number of YARN container to allocate (=Number of Task Managers)
    Optional
-     -D <arg>                       Dynamic Properties
+     -D <arg>                        Dynamic properties
      -jm,--jobManagerMemory <arg>    Memory for JobManager Container [in MB]
      -q,--query                      Display available YARN resources (memory, cores)
      -qu,--queue <arg>               Specify YARN queue.
      -s,--slots <arg>                Number of slots per TaskManager
      -tm,--taskManagerMemory <arg>   Memory per TaskManager Container [in MB]
-     -tmc,--taskManagerCores <arg>   Virtual CPU cores per TaskManager
-     -v,--verbose                    Verbose debug mode
 ~~~
 
 Please note that the Client requires the `HADOOP_HOME` (or `YARN_CONF_DIR` or `HADOOP_CONF_DIR`) environment variable to be set to read the YARN and HDFS configuration.
@@ -118,7 +116,7 @@ The client has to remain open to keep the deployment running. We suggest to use 
 4. Use `screen -r` to resume again.
 
 
-## Submit Job to Flink
+### Submit Job to Flink
 
 Use the following command to submit a Flink program to the YARN cluster:
 
@@ -173,6 +171,24 @@ You can check the number of TaskManagers in the JobManager web interface. The ad
 If the TaskManagers do not show up after a minute, you should investigate the issue using the log files.
 
 
+## Run a single Flink job on Hadoop YARN
+
+The documentation above describes how to start a Flink cluster within a Hadoop YARN environment.
+It is also possible to launch Flink within YARN only for executing a single job.
+
+To deploy a job to a per-job YARN cluster, set the master name to `yarn-cluster`.
+Please note that the client then expects the `-n` value to be set (number of TaskManagers).
+
+***Example:***
+
+~~~bash
+./bin/flink run -m yarn-cluster -yn 2 ./examples/flink-java-examples-{{site.FLINK_VERSION_STABLE }}-WordCount.jar 
+~~~
+
+The command line options of the YARN session are also available with the `./bin/flink` tool. They are prefixed with a `y` or `yarn` (for the long argument options).
+
+
+
 ## Debugging a failed YARN session
 
 There are many reasons why a Flink YARN session deployment can fail. A misconfigured Hadoop setup (HDFS permissions, YARN configuration), version incompatibilities (running Flink with vanilla Hadoop dependencies on Cloudera Hadoop) or other errors.
@@ -203,7 +219,7 @@ It allows to access log files for running YARN applications and shows diagnostic
 Users using Hadoop distributions from companies like Hortonworks, Cloudera or MapR might have to build Flink against their specific versions of Hadoop (HDFS) and YARN. Please read the [build instructions](building.html) for more details.
 
 
-## Background
+## Background / Internals
 
 This section briefly describes how Flink and YARN interact. 
 

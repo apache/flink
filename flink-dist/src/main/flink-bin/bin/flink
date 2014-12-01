@@ -50,4 +50,5 @@ log_setting="-Dlog.file="$log" -Dlog4j.configuration=file:"$FLINK_CONF_DIR"/log4
 
 export FLINK_CONF_DIR
 
-$JAVA_RUN $JVM_ARGS $log_setting -classpath $CC_CLASSPATH org.apache.flink.client.CliFrontend $*
+# Add HADOOP_CLASSPATH to allow the usage of Hadoop file systems
+$JAVA_RUN $JVM_ARGS $log_setting -classpath $CC_CLASSPATH:$HADOOP_CLASSPATH org.apache.flink.client.CliFrontend $*
