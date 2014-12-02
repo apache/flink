@@ -78,6 +78,20 @@ public class KeyGroupedIteratorImmutableTest {
 					return null;
 				}
 			}
+
+			@Override
+			public Record next() throws IOException {
+				if (it.hasNext()) {
+					IntStringPair pair = it.next();
+					Record result = new Record(2);
+					result.setField(0, pair.getInteger());
+					result.setField(1, pair.getString());
+					return result;
+				}
+				else {
+					return null;
+				}
+			}
 		};
 		
 		final RecordSerializer serializer = RecordSerializer.get();

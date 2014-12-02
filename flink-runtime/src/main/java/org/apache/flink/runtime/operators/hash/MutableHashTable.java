@@ -1386,6 +1386,56 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 				this.numInSegment = 0;
 			}
 		}
+
+		public BT next() {
+			// loop over all segments that are involved in the bucket (original bucket plus overflow buckets)
+			while (true) {
+
+				while (this.numInSegment < this.countInSegment) {
+
+					final int thisCode = this.bucket.getInt(this.posInSegment);
+					this.posInSegment += HASH_CODE_LEN;
+
+					// check if the hash code matches
+					if (thisCode == this.searchHashCode) {
+						// get the pointer to the pair
+						final long pointer = this.bucket.getLong(this.bucketInSegmentOffset +
+								BUCKET_POINTER_START_OFFSET + (this.numInSegment * POINTER_LEN));
+						this.numInSegment++;
+
+						// deserialize the key to check whether it is really equal, or whether we had only a hash collision
+						try {
+							this.partition.setReadPosition(pointer);
+							BT result = this.accessor.deserialize(this.partition);
+							if (this.comparator.equalToReference(result)) {
+								this.lastPointer = pointer;
+								return result;
+							}
+						}
+						catch (IOException ioex) {
+							throw new RuntimeException("Error deserializing key or value from the hashtable: " +
+									ioex.getMessage(), ioex);
+						}
+					}
+					else {
+						this.numInSegment++;
+					}
+				}
+
+				// this segment is done. check if there is another chained bucket
+				final long forwardPointer = this.bucket.getLong(this.bucketInSegmentOffset + HEADER_FORWARD_OFFSET);
+				if (forwardPointer == BUCKET_FORWARD_POINTER_NOT_SET) {
+					return null;
+				}
+
+				final int overflowSegNum = (int) (forwardPointer >>> 32);
+				this.bucket = this.overflowSegments[overflowSegNum];
+				this.bucketInSegmentOffset = (int) (forwardPointer & 0xffffffff);
+				this.countInSegment = this.bucket.getShort(this.bucketInSegmentOffset + HEADER_COUNT_OFFSET);
+				this.posInSegment = this.bucketInSegmentOffset + BUCKET_HEADER_LENGTH;
+				this.numInSegment = 0;
+			}
+		}
 		
 		public void writeBack(BT value) throws IOException {
 			final SeekableDataOutputView outView = this.partition.getWriteView();

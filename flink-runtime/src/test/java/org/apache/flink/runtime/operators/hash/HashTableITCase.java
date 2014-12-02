@@ -1433,6 +1433,20 @@ public class HashTableITCase {
 				return null;
 			}
 		}
+
+		@Override
+		public Record next() {
+			if (this.numLeft > 0) {
+				this.numLeft--;
+				Record result = new Record(2);
+				result.setField(0, this.key);
+				result.setField(1, this.value);
+				return result;
+			}
+			else {
+				return null;
+			}
+		}
 	}
 	
 	// ============================================================================================
@@ -1466,6 +1480,22 @@ public class HashTableITCase {
 				return null;
 			}
 		}
+
+		@Override
+		public IntPair next() {
+			if (this.numLeft > 0) {
+				this.numLeft--;
+
+				IntPair result = new IntPair();
+				result.setKey(this.key);
+				result.setValue(this.value);
+				return result;
+			}
+			else {
+				return null;
+			}
+		}
+
 	}
 	
 	// ============================================================================================

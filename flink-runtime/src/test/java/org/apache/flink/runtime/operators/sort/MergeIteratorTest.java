@@ -77,6 +77,23 @@ public class MergeIteratorTest
 					return null;
 				}
 			}
+
+			@Override
+			public Record next()
+			{
+				if (current < keys.length) {
+					key.setKey(keys[current]);
+					value.setValue(values[current]);
+					current++;
+					Record result = new Record(2);
+					result.setField(0, key);
+					result.setField(1, value);
+					return result;
+				}
+				else {
+					return null;
+				}
+			}
 		};
 	}
 

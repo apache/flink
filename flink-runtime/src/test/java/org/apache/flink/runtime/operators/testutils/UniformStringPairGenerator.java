@@ -69,4 +69,37 @@ public class UniformStringPairGenerator implements MutableObjectIterator<StringP
 		return target;
 	}
 
+	@Override
+	public StringPair next() throws IOException {
+		StringPair result = new StringPair();
+		if(!repeatKey) {
+			if(valCnt >= numVals) {
+				return null;
+			}
+
+			result.setKey(Integer.toString(keyCnt++));
+			result.setValue(Integer.toBinaryString(valCnt));
+
+			if(keyCnt == numKeys) {
+				keyCnt = 0;
+				valCnt++;
+			}
+		} else {
+			if(keyCnt >= numKeys) {
+				return null;
+			}
+
+			result.setKey(Integer.toString(keyCnt));
+			result.setValue(Integer.toBinaryString(valCnt++));
+
+			if(valCnt == numVals) {
+				valCnt = 0;
+				keyCnt++;
+			}
+		}
+
+		return result;
+	}
+
+
 }

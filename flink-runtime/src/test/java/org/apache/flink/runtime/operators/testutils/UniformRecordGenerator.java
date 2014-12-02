@@ -81,4 +81,38 @@ public class UniformRecordGenerator implements MutableObjectIterator<Record> {
 		reuse.updateBinaryRepresenation();
 		return reuse;
 	}
+
+	@Override
+	public Record next() {
+		if(!repeatKey) {
+			if(valCnt >= numVals+startVal) {
+				return null;
+			}
+
+			key.setValue(keyCnt++);
+			value.setValue(valCnt);
+
+			if(keyCnt == numKeys+startKey) {
+				keyCnt = startKey;
+				valCnt++;
+			}
+		} else {
+			if(keyCnt >= numKeys+startKey) {
+				return null;
+			}
+			key.setValue(keyCnt);
+			value.setValue(valCnt++);
+
+			if(valCnt == numVals+startVal) {
+				valCnt = startVal;
+				keyCnt++;
+			}
+		}
+
+		Record result = new Record(2);
+		result.setField(0, this.key);
+		result.setField(1, this.value);
+		result.updateBinaryRepresenation();
+		return result;
+	}
 }

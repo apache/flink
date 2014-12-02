@@ -54,4 +54,15 @@ public final class EmptyMutableObjectIterator<E> implements MutableObjectIterato
 	public E next(E target) {
 		return null;
 	}
+
+	/**
+	 * Always returns null.
+	 *
+	 * @see MutableObjectIterator#next()
+	 */
+	@Override
+	public E next() {
+		return null;
+	}
+
 }

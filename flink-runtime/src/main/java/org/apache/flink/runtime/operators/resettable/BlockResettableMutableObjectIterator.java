@@ -103,7 +103,41 @@ public class BlockResettableMutableObjectIterator<T> extends AbstractBlockResett
 			}
 		}
 	}
-	
+
+	@Override
+	public T next() throws IOException {
+		// check for the left over element
+		if (this.readPhase) {
+			return getNextRecord();
+		} else {
+			// writing phase. check for leftover first
+			T result = null;
+			if (this.leftOverReturned) {
+				// get next record
+				if ((result = this.input.next()) != null) {
+					if (writeNextRecord(result)) {
+						return result;
+					} else {
+						// did not fit into memory, keep as leftover
+						this.leftOverRecord = this.serializer.copy(result);
+						this.leftOverReturned = false;
+						this.fullWriteBuffer = true;
+						return null;
+					}
+				} else {
+					this.noMoreBlocks = true;
+					return null;
+				}
+			} else if (this.fullWriteBuffer) {
+				return null;
+			} else {
+				this.leftOverReturned = true;
+				return this.leftOverRecord;
+			}
+		}
+	}
+
+
 
 	public void reset() {
 		// a reset always goes to the read phase

@@ -1238,6 +1238,27 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T>{
 			}
 		}
 
+		@Override
+		public T next() throws IOException {
+			// This is just a copy of the above, I wanted to keep the two separate,
+			// in case we change something later. Plus, it keeps the diff clean... :D
+			if(done || this.table.closed.get()) {
+				return null;
+			} else if(!cache.isEmpty()) {
+				return cache.remove(cache.size()-1);
+			} else {
+				while(!done && cache.isEmpty()) {
+					done = !fillCache();
+				}
+				if(!done) {
+					return cache.remove(cache.size()-1);
+				} else {
+					return null;
+				}
+			}
+		}
+
+
 		/**
 		 * utility function that inserts all entries from a bucket and its overflow buckets into the cache
 		 * 

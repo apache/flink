@@ -17,41 +17,43 @@
  */
 
 
-package org.apache.flink.runtime.io.disk;
+package org.apache.flink.runtime.plugable;
 
-import java.io.EOFException;
 import java.io.IOException;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.util.MutableObjectIterator;
+import org.apache.flink.core.memory.DataOutputView;
 
-public class InputViewIterator<E> implements MutableObjectIterator<E>
-{
-	private DataInputView inputView;
 
-	private final TypeSerializer<E> serializer;
+public class ReusingDeserializationDelegate<T> implements DeserializationDelegate<T> {
+	
+	private T instance;
+	
+	private final TypeSerializer<T> serializer;
+	
 
-	public InputViewIterator(DataInputView inputView, TypeSerializer<E> serializer) {
-		this.inputView = inputView;
+	public ReusingDeserializationDelegate(TypeSerializer<T> serializer) {
 		this.serializer = serializer;
 	}
-
+	
 	@Override
-	public E next(E reuse) throws IOException {
-		try {
-			return this.serializer.deserialize(reuse, this.inputView);
-		} catch (EOFException e) {
-			return null;
-		}
+	public void setInstance(T instance) {
+		this.instance = instance;
 	}
 
 	@Override
-	public E next() throws IOException {
-		try {
-			return this.serializer.deserialize(this.inputView);
-		} catch (EOFException e) {
-			return null;
-		}
+	public T getInstance() {
+		return instance;
+	}
+
+	@Override
+	public void write(DataOutputView out) throws IOException {
+		throw new IllegalStateException("Serialization method called on DeserializationDelegate.");
+	}
+
+	@Override
+	public void read(DataInputView in) throws IOException {
+		this.instance = this.serializer.deserialize(this.instance, in);
 	}
 }

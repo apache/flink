@@ -47,4 +47,13 @@ public class RegularToMutableObjectIterator<T> implements MutableObjectIterator<
 			return null;
 		}
 	}
+
+	@Override
+	public T next() {
+		if (this.iterator.hasNext()) {
+			return this.serializer.copy(this.iterator.next());
+		} else {
+			return null;
+		}
+	}
 }

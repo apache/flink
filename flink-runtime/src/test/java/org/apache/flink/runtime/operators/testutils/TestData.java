@@ -181,6 +181,17 @@ public final class TestData {
 			return reuse;
 		}
 
+		public Record next() {
+			this.key.setKey(keyMode == KeyMode.SORTED ? ++counter : Math.abs(random.nextInt() % keyMax) + 1);
+			if (this.valueMode != ValueMode.CONSTANT) {
+				this.value.setValue(randomString());
+			}
+			Record result = new Record(2);
+			result.setField(0, this.key);
+			result.setField(1, this.value);
+			return result;
+		}
+
 		public boolean next(org.apache.flink.types.Value[] target) {
 			this.key.setKey(keyMode == KeyMode.SORTED ? ++counter : Math.abs(random.nextInt() % keyMax) + 1);
 			// TODO change this to something proper
@@ -264,6 +275,17 @@ public final class TestData {
 				return null;
 			}
 		}
+
+		@Override
+		public Record next() {
+			if (counter < numberOfRecords) {
+				counter++;
+				return generator.next();
+			}
+			else {
+				return null;
+			}
+		}
 		
 		public void reset() {
 			this.counter = 0;
@@ -306,7 +328,23 @@ public final class TestData {
 				return null;
 			}
 		}
-		
+
+		@Override
+		public Record next() {
+			if (pos < this.numPairs) {
+				this.value.setValue(this.valueValue + ' ' + pos);
+				Record result = new Record(2);
+				result.setField(0, this.key);
+				result.setField(1, this.value);
+				pos++;
+				return result;
+			}
+			else {
+				return null;
+			}
+		}
+
+
 		public void reset() {
 			this.pos = 0;
 		}
