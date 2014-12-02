@@ -65,6 +65,32 @@ public class MockRecordReader implements MutableObjectIterator<Record> {
 		}
 	}
 
+	@Override
+	public Record next() {
+		Record r = null;
+		while (r == null) {
+			try {
+				r = queue.take();
+			} catch (InterruptedException iex) {
+				throw new RuntimeException("Reader was interrupted.");
+			}
+		}
+
+		if (r == SENTINEL) {
+			// put the sentinel back, to ensure that repeated calls do not block
+			try {
+				queue.put(r);
+			} catch (InterruptedException e) {
+				throw new RuntimeException("Reader was interrupted.");
+			}
+			return null;
+		} else {
+			Record result = new Record(r.getNumFields());
+			r.copyTo(result);
+			return result;
+		}
+	}
+
 	public void emit(Record element) throws InterruptedException {
 		queue.put(element.createCopy());
 	}

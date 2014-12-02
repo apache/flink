@@ -216,6 +216,16 @@ class StringTupleReader(val reader: BufferedReader) extends MutableObjectIterato
     val parts = line.split(" ")
     StringTuple(parts(0), parts(1), parts)
   }
+
+  override def next(): StringTuple = {
+    val line = reader.readLine()
+    if (line == null) {
+      return null
+    }
+    val parts = line.split(" ")
+    StringTuple(parts(0), parts(1), parts)
+  }
+
 }
 
 class DummyInvokable extends AbstractInvokable {

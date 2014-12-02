@@ -50,4 +50,17 @@ public class MutableObjectIteratorWrapper implements MutableObjectIterator<Recor
 		}
 	}
 
+	@Override
+	public Record next() throws IOException {
+		if (this.source.hasNext()) {
+			Record result = new Record();
+			this.source.next().copyTo(result);
+			return result;
+		}
+		else {
+			return null;
+		}
+	}
+
+
 }

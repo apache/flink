@@ -274,6 +274,11 @@ public class MassiveStringSortingITCase {
 		public String next(String reuse) throws IOException {
 			return reader.readLine();
 		}
+
+		@Override
+		public String next() throws IOException {
+			return reader.readLine();
+		}
 	}
 	
 	private static final class StringTupleReaderMutableObjectIterator implements MutableObjectIterator<Tuple2<String, String[]>> {
@@ -295,6 +300,20 @@ public class MassiveStringSortingITCase {
 			reuse.f0 = parts[0];
 			reuse.f1 = parts;
 			return reuse;
+		}
+
+		@Override
+		public Tuple2<String, String[]> next() throws IOException {
+			String line = reader.readLine();
+			if (line == null) {
+				return null;
+			}
+
+			String[] parts = line.split(" ");
+			Tuple2<String, String[]> result = new Tuple2<String, String[]>();
+			result.f0 = parts[0];
+			result.f1 = parts;
+			return result;
 		}
 	}
 	
