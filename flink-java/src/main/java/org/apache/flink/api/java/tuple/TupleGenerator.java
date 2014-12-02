@@ -53,9 +53,9 @@ class TupleGenerator {
 	private static final String CSV_READER_CLASSNAME = "CsvReader";
 
 	// Parameters for TupleTypeInfo
-	private static final String TUPLE_TYPE_INFO_PACKAGE = "org.apache.flink.api.java.typeutils";
+	private static final String TUPLE_PACKAGE = "org.apache.flink.api.java.tuple";
 
-	private static final String TUPLE_TYPE_INFO_CLASSNAME = "TupleTypeInfo";
+	private static final String TUPLE_CLASSNAME = "Tuple";
 
 	// Parameters for ProjectOperator
 	private static final String PROJECT_OPERATOR_PACKAGE = "org.apache.flink.api.java.operators";
@@ -92,7 +92,7 @@ class TupleGenerator {
 
 		modifyCsvReader(root);
 
-		modifyTupleTypeInfo(root);
+		modifyTupleType(root);
 
 		modifyProjectOperator(root);
 
@@ -395,7 +395,7 @@ class TupleGenerator {
 		insertCodeIntoFile(sb.toString(), projectOperatorClass);
 	}
 
-	private static void modifyTupleTypeInfo(File root) throws IOException {
+	private static void modifyTupleType(File root) throws IOException {
 		// generate code
 		StringBuilder sb = new StringBuilder();
 		sb.append("\tprivate static final Class<?>[] CLASSES = new Class<?>[] {\n\t\t");
@@ -408,8 +408,8 @@ class TupleGenerator {
 		sb.append("\n\t};");
 
 		// insert code into file
-		File dir = getPackage(root, TUPLE_TYPE_INFO_PACKAGE);
-		File tupleTypeInfoClass = new File(dir, TUPLE_TYPE_INFO_CLASSNAME + ".java");
+		File dir = getPackage(root, TUPLE_PACKAGE);
+		File tupleTypeInfoClass = new File(dir, TUPLE_CLASSNAME + ".java");
 		insertCodeIntoFile(sb.toString(), tupleTypeInfoClass);
 	}
 

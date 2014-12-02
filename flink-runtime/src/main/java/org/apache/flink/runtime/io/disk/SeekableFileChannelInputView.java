@@ -116,7 +116,7 @@ public class SeekableFileChannelInputView extends AbstractPagedInputView {
 		reader = ioManager.createBlockChannelReader(channelId);
 		
 		if (block > 0) {
-			reader.seekToPosition(block * segmentSize);
+			reader.seekToPosition(((long) block) * segmentSize);
 		}
 		
 		this.numBlocksRemaining = this.numBlocksTotal - block;

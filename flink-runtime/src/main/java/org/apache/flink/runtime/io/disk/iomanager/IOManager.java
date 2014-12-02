@@ -97,6 +97,19 @@ public abstract class IOManager {
 		return new FileIOChannel.Enumerator(this.paths, this.random);
 	}
 
+	/**
+	 * Deletes the file underlying the given channel. If the channel is still open, this
+	 * call may fail.
+	 * 
+	 * @param channel The channel to be deleted.
+	 * @throws IOException Thrown if the deletion fails.
+	 */
+	public void deleteChannel(FileIOChannel.ID channel) throws IOException {
+		if (channel != null) {
+			new File(channel.getPath()).delete();
+		}
+	}
+	
 	// ------------------------------------------------------------------------
 	//                        Reader / Writer instantiations
 	// ------------------------------------------------------------------------
@@ -179,11 +192,20 @@ public abstract class IOManager {
 	 */
 	public abstract BulkBlockChannelReader createBulkBlockChannelReader(FileIOChannel.ID channelID,
 			List<MemorySegment> targetSegments, int numBlocks) throws IOException;
-
-	// ========================================================================
-	//                             Utilities
-	// ========================================================================
-
+	
+	// ------------------------------------------------------------------------
+	//                          Utilities
+	// ------------------------------------------------------------------------
+	
+	/**
+	 * Gets the number of directories across which the I/O manager rotates its files.
+	 * 
+	 * @return The number of temporary file directories.
+	 */
+	public int getNumberOfTempDirs() {
+		return this.paths.length;
+	}
+	
 	protected int getNextPathNum() {
 		final int next = this.nextPath;
 		final int newNext = next + 1;
