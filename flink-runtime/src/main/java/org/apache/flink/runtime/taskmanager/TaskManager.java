@@ -1057,12 +1057,17 @@ public class TaskManager implements TaskOperationProtocol {
 		Option tempDir = OptionBuilder.withArgName("temporary directory (overwrites configured option)")
 				.hasArg().withDescription(
 				"Specify temporary directory.").create(ARG_CONF_DIR);
+		Option defaultJobManagerAddressOpt = OptionBuilder.withArgName("default jobmanager rpc address")
+				.hasArg().withDescription(
+				"Speicify the default jobmanager rpc address.").create("defaultJobManagerAdd");
+
 		configDirOpt.setRequired(true);
 		tempDir.setRequired(false);
+		defaultJobManagerAddressOpt.setRequired(false);
 		Options options = new Options();
 		options.addOption(configDirOpt);
 		options.addOption(tempDir);
-		
+		options.addOption(defaultJobManagerAddressOpt);
 
 		CommandLineParser parser = new GnuParser();
 		CommandLine line = null;
@@ -1075,9 +1080,19 @@ public class TaskManager implements TaskOperationProtocol {
 
 		String configDir = line.getOptionValue(configDirOpt.getOpt(), null);
 		String tempDirVal = line.getOptionValue(tempDir.getOpt(), null);
+		String jobmanagerAdd = line.getOptionValue(defaultJobManagerAddressOpt.getOpt(), null);
 
 		// First, try to load global configuration
 		GlobalConfiguration.loadConfiguration(configDir);
+
+		// The configuretion does not contain a jobmanager address
+		if (GlobalConfiguration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null) == null) {
+			Configuration c = GlobalConfiguration.getConfiguration();
+			c.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, jobmanagerAdd);
+			LOG.info("Setting jobmanager rpc address to " + jobmanagerAdd);
+			GlobalConfiguration.includeConfiguration(c);
+		}
+
 		if(tempDirVal != null // the YARN TM runner has set a value for the temp dir
 				// the configuration does not contain a temp directory
 				&& GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY, null) == null) {

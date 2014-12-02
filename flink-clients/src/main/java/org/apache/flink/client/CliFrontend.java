@@ -23,6 +23,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -736,13 +737,12 @@ public class CliFrontend {
 				// regular config file gives the address
 				String jobManagerAddress = configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
 				
-				// verify that there is a jobmanager address and port in the configuration
+				// the configuration does not contain a jobmanager address
 				if (jobManagerAddress == null) {
-					System.out.println("Error: Found no configuration in the config directory '" + 
-							getConfigurationDirectory() + "' that specifies the JobManager address.");
-					return null;
+					jobManagerAddress = InetAddress.getLocalHost().getHostName();
 				}
-				
+
+				// verify that there is a jobmanager rpc port in the configuration
 				int jobManagerPort;
 				try {
 					jobManagerPort = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, -1);

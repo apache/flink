@@ -786,6 +786,13 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 		
 		// First, try to load global configuration
 		GlobalConfiguration.loadConfiguration(configDir);
+		// The configuretion does not contain a jobmanager address
+		if (GlobalConfiguration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null) == null) {
+			Configuration c = GlobalConfiguration.getConfiguration();
+			c.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, InetAddress.getLocalHost().getHostName());
+			LOG.info("Setting jobmanager rpc address to " + InetAddress.getLocalHost().getHostName());
+			GlobalConfiguration.includeConfiguration(c);
+		}
 
 		// Create a new job manager object
 		JobManager jobManager = new JobManager(executionMode);
