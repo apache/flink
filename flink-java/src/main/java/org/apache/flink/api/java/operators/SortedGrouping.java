@@ -86,17 +86,13 @@ public class SortedGrouping<T> extends Grouping<T> {
 	}
 
 	/*
-	 * KeySelector sorting for Pojos and tuples
+	 * KeySelector sorting for any data type
 	 */
 	public <K> SortedGrouping(DataSet<T> set, Keys<T> keys, Keys.SelectorFunctionKeys<T, K> keySelector, Order order) {
 		super(set, keys);
 
 		if (!(this.keys instanceof Keys.SelectorFunctionKeys)) {
 			throw new InvalidProgramException("Sorting on KeySelector only works for KeySelector grouping.");
-		}
-
-		if (!(dataSet.getType() instanceof CompositeType)) {
-			throw new InvalidProgramException("Specifying order keys via field positions is only valid for composite data types (pojo / tuple / case class)");
 		}
 
 		this.groupSortKeyPositions = keySelector.computeLogicalKeyPositions();

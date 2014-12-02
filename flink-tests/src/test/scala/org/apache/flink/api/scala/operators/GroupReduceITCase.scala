@@ -40,7 +40,7 @@ import org.apache.flink.api.scala._
 
 
 object GroupReduceProgs {
-  var NUM_PROGRAMS: Int = 28
+  var NUM_PROGRAMS: Int = 30
 
   def runProgram(progId: Int, resultPath: String, onCollection: Boolean): String = {
     progId match {
@@ -741,6 +741,95 @@ object GroupReduceProgs {
           "5,60,Comment#9-Comment#8-Comment#7-Comment#6-Comment#5\n" +
           "6,105,Comment#15-Comment#14-Comment#13-Comment#12-Comment#11-Comment#10\n"
 
+      case 29 =>
+        /*
+         * check correctness of sorted groupReduce with combine on tuples with keyselector sorting
+         */
+        val env = ExecutionEnvironment.getExecutionEnvironment
+        env.setDegreeOfParallelism(1)
+        val ds =  CollectionDataSets.get3TupleDataSet(env)
+        @RichGroupReduceFunction.Combinable
+        class Tuple3SortedGroupReduceWithCombine
+          extends RichGroupReduceFunction[(Int, Long, String), (Int, String)] {
+          override def combine(
+                                values: Iterable[(Int, Long, String)],
+                                out: Collector[(Int, Long, String)]): Unit = {
+            val concat: StringBuilder = new StringBuilder
+            var sum = 0
+            var key: Long = 0
+            for (t <- values.asScala) {
+              sum += t._1
+              key = t._2
+              concat.append(t._3).append("-")
+            }
+            if (concat.length > 0) {
+              concat.setLength(concat.length - 1)
+            }
+            out.collect((sum, key, concat.toString()))
+          }
+
+          override def reduce(
+                               values: Iterable[(Int, Long, String)],
+                               out: Collector[(Int, String)]): Unit = {
+            var i = 0
+            var s = ""
+            for (t <- values.asScala) {
+              i += t._1
+              s = t._3
+            }
+            out.collect((i, s))
+          }
+        }
+        val reduceDs =  ds.groupBy(_._2).sortGroup(_._3, Order.DESCENDING)
+          .reduceGroup(new Tuple3SortedGroupReduceWithCombine)
+        reduceDs.writeAsCsv(resultPath)
+        env.execute()
+        if (onCollection) {
+          null
+        } else {
+          "1,Hi\n" +
+            "5,Hello world-Hello\n" +
+            "15,Luke Skywalker-I am fine.-Hello world, how are you?\n" +
+            "34,Comment#4-Comment#3-Comment#2-Comment#1\n" +
+            "65,Comment#9-Comment#8-Comment#7-Comment#6-Comment#5\n" +
+            "111,Comment#15-Comment#14-Comment#13-Comment#12-Comment#11-Comment#10\n"
+        }
+
+      case 30 =>
+        /*
+         * check correctness of sorted groupReduceon with Tuple2 keyselector sorting
+         */
+        val env = ExecutionEnvironment.getExecutionEnvironment
+        env.setDegreeOfParallelism(1)
+        val ds =  CollectionDataSets.get5TupleDataSet(env)
+
+        val reduceDs = ds.groupBy(_._1).sortGroup(t => (t._5, t._3), Order.DESCENDING).reduceGroup{
+          in =>
+            val iter = in.toIterator
+            val concat: StringBuilder = new StringBuilder
+            var sum: Long = 0
+            var key = 0
+            var s: Long = 0
+            while (iter.hasNext) {
+              val next = iter.next()
+              sum += next._2
+              key = next._1
+              s = next._5
+              concat.append(next._4).append("-")
+            }
+            if (concat.length > 0) {
+              concat.setLength(concat.length - 1)
+            }
+            (key, sum, 0, concat.toString(), s)
+//            in.reduce((l, r) => (l._1, l._2 + r._2, 0, l._4 + "-" + r._4, l._5))
+        }
+        reduceDs.writeAsCsv(resultPath)
+        env.execute()
+        "1,1,0,Hallo,1\n" +
+          "2,5,0,Hallo Welt-Hallo Welt wie,1\n" +
+          "3,15,0,BCD-ABC-Hallo Welt wie gehts?,2\n" +
+          "4,34,0,FGH-CDE-EFG-DEF,1\n" +
+          "5,65,0,IJK-HIJ-KLM-JKL-GHI,1\n";
       case _ =>
         throw new IllegalArgumentException("Invalid program id")
     }

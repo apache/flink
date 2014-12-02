@@ -31,7 +31,8 @@ public class Tuple3UnwrappingIterator<T, K1, K2> implements Iterator<T>, Iterabl
 
 	private static final long serialVersionUID = 1L;
 
-	private K1 lastKey;
+	private K1 lastGroupKey;
+	private K2 lastSortKey;
 	private Iterator<Tuple3<K1, K2, T>> iterator;
 	private boolean iteratorAvailable;
 
@@ -40,8 +41,12 @@ public class Tuple3UnwrappingIterator<T, K1, K2> implements Iterator<T>, Iterabl
 		this.iteratorAvailable = true;
 	}
 
-	public K1 getLastKey() {
-		return lastKey;
+	public K1 getLastGroupKey() {
+		return lastGroupKey;
+	}
+
+	public K2 getLastSortKey() {
+		return lastSortKey;
 	}
 
 	@Override
@@ -52,7 +57,8 @@ public class Tuple3UnwrappingIterator<T, K1, K2> implements Iterator<T>, Iterabl
 	@Override
 	public T next() {
 		Tuple3<K1, K2, T> t = iterator.next();
-		this.lastKey = t.f0;
+		this.lastGroupKey = t.f0;
+		this.lastSortKey = t.f1;
 		return t.f2;
 	}
 

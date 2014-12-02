@@ -53,7 +53,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 @RunWith(Parameterized.class)
 public class GroupReduceITCase extends JavaProgramTestBase {
 	
-	private static int NUM_PROGRAMS = 28;
+	private static int NUM_PROGRAMS = 30;
 	
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -837,6 +837,87 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 						"5,60,Comment#9-Comment#8-Comment#7-Comment#6-Comment#5\n" +
 						"6,105,Comment#15-Comment#14-Comment#13-Comment#12-Comment#11-Comment#10\n";
 				}
+				case 29: {
+				/*
+				 * check correctness of sorted groupReduce with combine on tuples with keyselector sorting
+				 */
+
+					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+					env.setDegreeOfParallelism(1);
+
+					DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+					DataSet<Tuple2<Integer, String>> reduceDs = ds.
+						groupBy(new KeySelector<Tuple3<Integer, Long, String>, Long>() {
+							private static final long serialVersionUID = 1L;
+
+							@Override
+							public Long getKey(Tuple3<Integer, Long, String> in) {
+								return in.f1;
+							}
+						}).
+						sortGroup(new KeySelector<Tuple3<Integer, Long, String>, String>() {
+							private static final long serialVersionUID = 1L;
+
+							@Override
+							public String getKey(Tuple3<Integer, Long, String> in) {
+								return in.f2;
+							}
+						}, Order.DESCENDING).reduceGroup(new Tuple3SortedGroupReduceWithCombine());
+
+					reduceDs.writeAsCsv(resultPath);
+					reduceDs.print();
+					env.execute();
+
+					// return expected result
+					if (collectionExecution) {
+						return null;
+					} else {
+						return "1,Hi\n" +
+							"5,Hello world-Hello\n" +
+							"15,Luke Skywalker-I am fine.-Hello world, how are you?\n" +
+							"34,Comment#4-Comment#3-Comment#2-Comment#1\n" +
+							"65,Comment#9-Comment#8-Comment#7-Comment#6-Comment#5\n" +
+							"111,Comment#15-Comment#14-Comment#13-Comment#12-Comment#11-Comment#10\n";
+					}
+
+				}
+				case 30: {
+				/*
+				 * check correctness of sorted groupReduceon with Tuple2 keyselector sorting
+				 */
+
+					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+					env.setDegreeOfParallelism(1);
+
+					DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
+					DataSet<Tuple5<Integer, Long, Integer, String, Long>> reduceDs = ds.
+						groupBy(new KeySelector<Tuple5<Integer, Long, Integer, String, Long>, Integer>() {
+							private static final long serialVersionUID = 1L;
+
+							@Override
+							public Integer getKey(Tuple5<Integer, Long, Integer, String, Long> in) {
+								return in.f0;
+							}
+						}).
+						sortGroup(new KeySelector<Tuple5<Integer, Long, Integer, String, Long>, Tuple2<Long, Integer>>() {
+							private static final long serialVersionUID = 1L;
+
+							@Override
+							public Tuple2<Long, Integer> getKey(Tuple5<Integer, Long, Integer, String, Long> in) {
+								return new Tuple2<Long, Integer>(in.f4, in.f2);
+							}
+						}, Order.DESCENDING).reduceGroup(new Tuple5SortedGroupReduce());
+
+					reduceDs.writeAsCsv(resultPath);
+					env.execute();
+
+					// return expected result
+					return "1,1,0,Hallo,1\n" +
+						"2,5,0,Hallo Welt-Hallo Welt wie,1\n" +
+						"3,15,0,BCD-ABC-Hallo Welt wie gehts?,2\n" +
+						"4,34,0,FGH-CDE-EFG-DEF,1\n" +
+						"5,65,0,IJK-HIJ-KLM-JKL-GHI,1\n";
+				}
 				default: {
 					throw new IllegalArgumentException("Invalid program id");
 				}
@@ -928,6 +1009,33 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 			}
 			
 			out.collect(new Tuple5<Integer, Long, Integer, String, Long>(i, l, 0, "P-)", l2));
+		}
+	}
+
+	public static class Tuple5SortedGroupReduce implements GroupReduceFunction<Tuple5<Integer, Long, Integer, String, Long>, Tuple5<Integer, Long, Integer, String, Long>> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public void reduce(
+			Iterable<Tuple5<Integer, Long, Integer, String, Long>> values,
+			Collector<Tuple5<Integer, Long, Integer, String, Long>> out)
+		{
+			int i = 0;
+			long l = 0l;
+			long l2 = 0l;
+			StringBuilder concat = new StringBuilder();
+
+			for ( Tuple5<Integer, Long, Integer, String, Long> t : values ) {
+				i = t.f0;
+				l += t.f1;
+				concat.append(t.f3).append("-");
+				l2 = t.f4;
+			}
+			if (concat.length() > 0) {
+				concat.setLength(concat.length() - 1);
+			}
+
+			out.collect(new Tuple5<Integer, Long, Integer, String, Long>(i, l, 0, concat.toString(), l2));
 		}
 	}
 	
@@ -1102,6 +1210,44 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 
 			out.collect(new Tuple2<Integer, String>(i, s));
 
+		}
+	}
+
+	@RichGroupReduceFunction.Combinable
+	public static class Tuple3SortedGroupReduceWithCombine extends RichGroupReduceFunction<Tuple3<Integer, Long, String>, Tuple2<Integer, String>> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public void combine(Iterable<Tuple3<Integer, Long, String>> values, Collector<Tuple3<Integer, Long, String>> out) {
+			int sum = 0;
+			long key = 0;
+			System.out.println("im in");
+			StringBuilder concat = new StringBuilder();
+
+			for (Tuple3<Integer, Long, String> next : values) {
+				sum += next.f0;
+				key = next.f1;
+				concat.append(next.f2).append("-");
+			}
+
+			if (concat.length() > 0) {
+				concat.setLength(concat.length() - 1);
+			}
+
+			out.collect(new Tuple3<Integer, Long, String>(sum, key, concat.toString()));
+		}
+
+		@Override
+		public void reduce(Iterable<Tuple3<Integer, Long, String>> values, Collector<Tuple2<Integer, String>> out) {
+			int i = 0;
+			String s = "";
+
+			for ( Tuple3<Integer, Long, String> t : values ) {
+				i += t.f0;
+				s = t.f2;
+			}
+
+			out.collect(new Tuple2<Integer, String>(i, s));
 		}
 	}
 	

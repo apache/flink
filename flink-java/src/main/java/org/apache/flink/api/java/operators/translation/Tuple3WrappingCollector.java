@@ -50,7 +50,8 @@ public class Tuple3WrappingCollector<IN, K1, K2> implements Collector<IN>, java.
 
 	@Override
 	public void collect(IN record) {
-		this.outTuple.f0 = this.tui.getLastKey();
+		this.outTuple.f0 = this.tui.getLastGroupKey();
+		this.outTuple.f1 = this.tui.getLastSortKey();
 		this.outTuple.f2 = record;
 		this.wrappedCollector.collect(outTuple);
 	}

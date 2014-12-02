@@ -94,7 +94,7 @@ class GroupedDataSet[T: ClassTag](
    * Adds a secondary sort key to this [[GroupedDataSet]]. This will only have an effect if you
    * use one of the group-at-a-time, i.e. `reduceGroup`.
    *
-   * This only works on both CaseClass and Tuple DataSets.
+   * This works on any data type.
    */
   def sortGroup[K: TypeInformation](fun: T => K, order: Order): GroupedDataSet[T] = {
     if (groupSortOrders.length != 0) {
