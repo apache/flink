@@ -64,7 +64,7 @@ public class TimeWindowingExample {
 				.window(Count.of(100))
 				.every(Time.of(1000, TimeUnit.MILLISECONDS))
 				.groupBy(myKey)
-				.sum();
+				.sum(0);
 
 		stream.print();
 

@@ -23,6 +23,7 @@ import java.util.List;
 
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.functions.RichReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.function.aggregation.AggregationFunction;
@@ -43,10 +44,10 @@ import org.apache.flink.streaming.api.windowing.policy.TumblingEvictionPolicy;
 import org.apache.flink.streaming.util.serialization.FunctionTypeWrapper;
 
 /**
- * A {@link WindowedDataStream} represents a data stream whose elements are
- * batched together in a sliding batch. operations like
- * {@link #reduce(ReduceFunction)} or {@link #reduceGroup(GroupReduceFunction)}
- * are applied for each batch and the batch is slid afterwards.
+ * A {@link WindowedDataStream} represents a data stream that has been divided
+ * into windows (predefined chunks). User defined function such as
+ * {@link #reduce(ReduceFunction)}, {@link #reduceGroup(GroupReduceFunction)} or
+ * aggregations can be applied to the windows.
  *
  * @param <OUT>
  *            The output type of the {@link WindowedDataStream}
@@ -122,6 +123,20 @@ public class WindowedDataStream<OUT> {
 		this.allCentral = windowedDataStream.allCentral;
 	}
 
+	/**
+	 * Defines the slide size (trigger frequency) for the windowed data stream.
+	 * This controls how often the user defined function will be triggered on
+	 * the window. </br></br> For example to get a window of 5 elements with a
+	 * slide of 2 seconds use: </br></br>
+	 * {@code ds.window(Count.of(5)).every(Time.of(2,TimeUnit.SECONDS))}
+	 * </br></br> The user function in this case will be called on the 5 most
+	 * recent elements every 2 seconds
+	 * 
+	 * @param policyHelpers
+	 *            The policies that define the triggering frequency
+	 * 
+	 * @return The windowed data stream with triggering set
+	 */
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public WindowedDataStream<OUT> every(WindowingHelper... policyHelpers) {
 		WindowedDataStream<OUT> ret = this.copy();
@@ -137,11 +152,15 @@ public class WindowedDataStream<OUT> {
 
 	/**
 	 * Groups the elements of the {@link WindowedDataStream} by the given key
-	 * positions to be used with grouped operators.
+	 * positions. The window sizes (evictions) and slide sizes (triggers) will
+	 * be calculated on the whole stream (in a central fashion), but the user
+	 * defined functions will be applied on a per group basis. </br></br> To get
+	 * windows and triggers on a per group basis apply the
+	 * {@link DataStream#window} operator on an already grouped data stream.
 	 * 
 	 * @param fields
 	 *            The position of the fields to group by.
-	 * @return The transformed {@link WindowedDataStream}
+	 * @return The grouped {@link WindowedDataStream}
 	 */
 	public WindowedDataStream<OUT> groupBy(int... fields) {
 		WindowedDataStream<OUT> ret = this.copy();
@@ -153,11 +172,19 @@ public class WindowedDataStream<OUT> {
 
 	/**
 	 * Groups the elements of the {@link WindowedDataStream} by the given field
-	 * expressions to be used with grouped operators.
+	 * expressions. The window sizes (evictions) and slide sizes (triggers) will
+	 * be calculated on the whole stream (in a central fashion), but the user
+	 * defined functions will be applied on a per group basis. </br></br> To get
+	 * windows and triggers on a per group basis apply the
+	 * {@link DataStream#window} operator on an already grouped data stream.
+	 * </br></br> A field expression is either the name of a public field or a
+	 * getter method with parentheses of the stream's underlying type. A dot can
+	 * be used to drill down into objects, as in
+	 * {@code "field1.getInnerField2()" }.
 	 * 
 	 * @param fields
-	 *            The position of the fields to group by.
-	 * @return The transformed {@link WindowedDataStream}
+	 *            The fields to group by
+	 * @return The grouped {@link WindowedDataStream}
 	 */
 	public WindowedDataStream<OUT> groupBy(String... fields) {
 		WindowedDataStream<OUT> ret = this.copy();
@@ -168,13 +195,16 @@ public class WindowedDataStream<OUT> {
 	}
 
 	/**
-	 * Groups the elements of the {@link WindowedDataStream} by the given
-	 * {@link KeySelector} to be used with grouped operators.
+	 * Groups the elements of the {@link WindowedDataStream} using the given
+	 * {@link KeySelector}. The window sizes (evictions) and slide sizes
+	 * (triggers) will be calculated on the whole stream (in a central fashion),
+	 * but the user defined functions will be applied on a per group basis.
+	 * </br></br> To get windows and triggers on a per group basis apply the
+	 * {@link DataStream#window} operator on an already grouped data stream.
 	 * 
 	 * @param keySelector
-	 *            The specification of the key on which the
-	 *            {@link WindowedDataStream} will be grouped.
-	 * @return The transformed {@link WindowedDataStream}
+	 *            The keySelector used to extract the key for grouping.
+	 * @return The grouped {@link WindowedDataStream}
 	 */
 	public WindowedDataStream<OUT> groupBy(KeySelector<OUT, ?> keySelector) {
 		WindowedDataStream<OUT> ret = this.copy();
@@ -185,17 +215,14 @@ public class WindowedDataStream<OUT> {
 	}
 
 	/**
-	 * This is a prototype implementation for new windowing features based on
-	 * trigger and eviction policies
+	 * Applies a reduce transformation on the windowed data stream by reducing
+	 * the current window at every trigger.The user can also extend the
+	 * {@link RichReduceFunction} to gain access to other features provided by
+	 * the {@link org.apache.flink.api.common.functions.RichFunction} interface.
 	 * 
-	 * @param triggerHelpers
-	 *            A list of trigger policies
-	 * @param evictionHelpers
-	 *            A list of eviction policies
-	 * @param sample
-	 *            A sample of the OUT data type required to gather type
-	 *            information
-	 * @return The single output operator
+	 * @param reduceFunction
+	 *            The reduce function that will be applied to the windows.
+	 * @return The transformed DataStream
 	 */
 	public SingleOutputStreamOperator<OUT, ?> reduce(ReduceFunction<OUT> reduceFunction) {
 		return dataStream.addFunction("NextGenWindowReduce", reduceFunction,
@@ -203,6 +230,19 @@ public class WindowedDataStream<OUT> {
 				getReduceInvokable(reduceFunction));
 	}
 
+	/**
+	 * Applies a reduceGroup transformation on the windowed data stream by
+	 * reducing the current window at every trigger. In contrast with the
+	 * standard binary reducer, with reduceGroup the user can access all
+	 * elements of the window at the same time through the iterable interface.
+	 * The user can also extend the {@link RichGroupReduceFunction} to gain
+	 * access to other features provided by the
+	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
+	 * 
+	 * @param reduceFunction
+	 *            The reduce function that will be applied to the windows.
+	 * @return The transformed DataStream
+	 */
 	public <R> SingleOutputStreamOperator<R, ?> reduceGroup(
 			GroupReduceFunction<OUT, R> reduceFunction) {
 		return dataStream.addFunction("NextGenWindowReduce", reduceFunction,
@@ -211,11 +251,11 @@ public class WindowedDataStream<OUT> {
 	}
 
 	/**
-	 * Applies an aggregation that sums every sliding batch/window of the data
-	 * stream at the given position.
+	 * Applies an aggregation that sums every window of the data stream at the
+	 * given position.
 	 * 
 	 * @param positionToSum
-	 *            The position in the data point to sum
+	 *            The position in the tuple/array to sum
 	 * @return The transformed DataStream.
 	 */
 	public SingleOutputStreamOperator<OUT, ?> sum(int positionToSum) {
@@ -225,24 +265,14 @@ public class WindowedDataStream<OUT> {
 	}
 
 	/**
-	 * Syntactic sugar for sum(0)
+	 * Applies an aggregation that sums every window of the pojo data stream at
+	 * the given field for every window. </br></br> A field expression is either
+	 * the name of a public field or a getter method with parentheses of the
+	 * stream's underlying type. A dot can be used to drill down into objects,
+	 * as in {@code "field1.getInnerField2()" }.
 	 * 
-	 * @return The transformed DataStream.
-	 */
-	public SingleOutputStreamOperator<OUT, ?> sum() {
-		return sum(0);
-	}
-
-	/**
-	 * Applies an aggregation that that gives the sum of the pojo data stream at
-	 * the given field expression. A field expression is either the name of a
-	 * public field or a getter method with parentheses of the
-	 * {@link DataStream}S underlying type. A dot can be used to drill down into
-	 * objects, as in {@code "field1.getInnerField2()" }.
-	 * 
-	 * @param field
-	 *            The field expression based on which the aggregation will be
-	 *            applied.
+	 * @param positionToSum
+	 *            The field to sum
 	 * @return The transformed DataStream.
 	 */
 	public SingleOutputStreamOperator<OUT, ?> sum(String field) {
@@ -251,11 +281,11 @@ public class WindowedDataStream<OUT> {
 	}
 
 	/**
-	 * Applies an aggregation that that gives the minimum of every sliding
-	 * batch/window of the data stream at the given position.
+	 * Applies an aggregation that that gives the minimum value of every window
+	 * of the data stream at the given position.
 	 * 
 	 * @param positionToMin
-	 *            The position in the data point to minimize
+	 *            The position to minimize
 	 * @return The transformed DataStream.
 	 */
 	public SingleOutputStreamOperator<OUT, ?> min(int positionToMin) {
@@ -265,108 +295,11 @@ public class WindowedDataStream<OUT> {
 	}
 
 	/**
-	 * Applies an aggregation that gives the minimum element of every sliding
-	 * batch/window of the data stream by the given position. If more elements
-	 * have the same minimum value the operator returns the first element by
-	 * default.
-	 * 
-	 * @param positionToMinBy
-	 *            The position in the data point to minimize
-	 * @return The transformed DataStream.
-	 */
-	public SingleOutputStreamOperator<OUT, ?> minBy(int positionToMinBy) {
-		return this.minBy(positionToMinBy, true);
-	}
-
-	/**
-	 * Applies an aggregation that gives the minimum element of every sliding
-	 * batch/window of the data stream by the given position. If more elements
-	 * have the same minimum value the operator returns either the first or last
-	 * one depending on the parameter setting.
-	 * 
-	 * @param positionToMinBy
-	 *            The position in the data point to minimize
-	 * @param first
-	 *            If true, then the operator return the first element with the
-	 *            minimum value, otherwise returns the last
-	 * @return The transformed DataStream.
-	 */
-	public SingleOutputStreamOperator<OUT, ?> minBy(int positionToMinBy, boolean first) {
-		dataStream.checkFieldRange(positionToMinBy);
-		return aggregate(ComparableAggregator.getAggregator(positionToMinBy, getOutputType(),
-				AggregationType.MINBY, first));
-	}
-
-	/**
-	 * Syntactic sugar for min(0)
-	 * 
-	 * @return The transformed DataStream.
-	 */
-	public SingleOutputStreamOperator<OUT, ?> min() {
-		return min(0);
-	}
-
-	/**
-	 * Applies an aggregation that gives the maximum of every sliding
-	 * batch/window of the data stream at the given position.
-	 * 
-	 * @param positionToMax
-	 *            The position in the data point to maximize
-	 * @return The transformed DataStream.
-	 */
-	public SingleOutputStreamOperator<OUT, ?> max(int positionToMax) {
-		dataStream.checkFieldRange(positionToMax);
-		return aggregate(ComparableAggregator.getAggregator(positionToMax, getOutputType(),
-				AggregationType.MAX));
-	}
-
-	/**
-	 * Applies an aggregation that gives the maximum element of every sliding
-	 * batch/window of the data stream by the given position. If more elements
-	 * have the same maximum value the operator returns the first by default.
-	 * 
-	 * @param positionToMaxBy
-	 *            The position in the data point to maximize
-	 * @return The transformed DataStream.
-	 */
-	public SingleOutputStreamOperator<OUT, ?> maxBy(int positionToMaxBy) {
-		return this.maxBy(positionToMaxBy, true);
-	}
-
-	/**
-	 * Applies an aggregation that gives the maximum element of every sliding
-	 * batch/window of the data stream by the given position. If more elements
-	 * have the same maximum value the operator returns either the first or last
-	 * one depending on the parameter setting.
-	 * 
-	 * @param positionToMaxBy
-	 *            The position in the data point to maximize
-	 * @param first
-	 *            If true, then the operator return the first element with the
-	 *            maximum value, otherwise returns the last
-	 * @return The transformed DataStream.
-	 */
-	public SingleOutputStreamOperator<OUT, ?> maxBy(int positionToMaxBy, boolean first) {
-		dataStream.checkFieldRange(positionToMaxBy);
-		return aggregate(ComparableAggregator.getAggregator(positionToMaxBy, getOutputType(),
-				AggregationType.MAXBY, first));
-	}
-
-	/**
-	 * Syntactic sugar for max(0)
-	 * 
-	 * @return The transformed DataStream.
-	 */
-	public SingleOutputStreamOperator<OUT, ?> max() {
-		return max(0);
-	}
-
-	/**
-	 * Applies an aggregation that that gives the minimum of the pojo data
-	 * stream at the given field expression. A field expression is either the
-	 * name of a public field or a getter method with parentheses of the
-	 * {@link DataStream}S underlying type. A dot can be used to drill down into
-	 * objects, as in {@code "field1.getInnerField2()" }.
+	 * Applies an aggregation that that gives the minimum value of the pojo data
+	 * stream at the given field expression for every window. </br></br>A field
+	 * expression is either the name of a public field or a getter method with
+	 * parentheses of the {@link DataStream}S underlying type. A dot can be used
+	 * to drill down into objects, as in {@code "field1.getInnerField2()" }.
 	 * 
 	 * @param field
 	 *            The field expression based on which the aggregation will be
@@ -379,28 +312,43 @@ public class WindowedDataStream<OUT> {
 	}
 
 	/**
-	 * Applies an aggregation that that gives the maximum of the pojo data
-	 * stream at the given field expression. A field expression is either the
-	 * name of a public field or a getter method with parentheses of the
-	 * {@link DataStream}S underlying type. A dot can be used to drill down into
-	 * objects, as in {@code "field1.getInnerField2()" }.
+	 * Applies an aggregation that gives the minimum element of every window of
+	 * the data stream by the given position. If more elements have the same
+	 * minimum value the operator returns the first element by default.
 	 * 
-	 * @param field
-	 *            The field expression based on which the aggregation will be
-	 *            applied.
+	 * @param positionToMinBy
+	 *            The position to minimize by
 	 * @return The transformed DataStream.
 	 */
-	public SingleOutputStreamOperator<OUT, ?> max(String field) {
-		return aggregate(ComparableAggregator.getAggregator(field, getOutputType(),
-				AggregationType.MAX, false));
+	public SingleOutputStreamOperator<OUT, ?> minBy(int positionToMinBy) {
+		return this.minBy(positionToMinBy, true);
+	}
+
+	/**
+	 * Applies an aggregation that gives the minimum element of every window of
+	 * the data stream by the given position. If more elements have the same
+	 * minimum value the operator returns either the first or last one depending
+	 * on the parameter setting.
+	 * 
+	 * @param positionToMinBy
+	 *            The position to minimize
+	 * @param first
+	 *            If true, then the operator return the first element with the
+	 *            minimum value, otherwise returns the last
+	 * @return The transformed DataStream.
+	 */
+	public SingleOutputStreamOperator<OUT, ?> minBy(int positionToMinBy, boolean first) {
+		dataStream.checkFieldRange(positionToMinBy);
+		return aggregate(ComparableAggregator.getAggregator(positionToMinBy, getOutputType(),
+				AggregationType.MINBY, first));
 	}
 
 	/**
 	 * Applies an aggregation that that gives the minimum element of the pojo
-	 * data stream by the given field expression. A field expression is either
-	 * the name of a public field or a getter method with parentheses of the
-	 * {@link DataStream}S underlying type. A dot can be used to drill down into
-	 * objects, as in {@code "field1.getInnerField2()" }.
+	 * data stream by the given field expression for every window. A field
+	 * expression is either the name of a public field or a getter method with
+	 * parentheses of the {@link DataStream}S underlying type. A dot can be used
+	 * to drill down into objects, as in {@code "field1.getInnerField2()" }.
 	 * 
 	 * @param field
 	 *            The field expression based on which the aggregation will be
@@ -416,11 +364,74 @@ public class WindowedDataStream<OUT> {
 	}
 
 	/**
+	 * Applies an aggregation that gives the maximum value of every window of
+	 * the data stream at the given position.
+	 * 
+	 * @param positionToMax
+	 *            The position to maximize
+	 * @return The transformed DataStream.
+	 */
+	public SingleOutputStreamOperator<OUT, ?> max(int positionToMax) {
+		dataStream.checkFieldRange(positionToMax);
+		return aggregate(ComparableAggregator.getAggregator(positionToMax, getOutputType(),
+				AggregationType.MAX));
+	}
+
+	/**
+	 * Applies an aggregation that that gives the maximum value of the pojo data
+	 * stream at the given field expression for every window. A field expression
+	 * is either the name of a public field or a getter method with parentheses
+	 * of the {@link DataStream}S underlying type. A dot can be used to drill
+	 * down into objects, as in {@code "field1.getInnerField2()" }.
+	 * 
+	 * @param field
+	 *            The field expression based on which the aggregation will be
+	 *            applied.
+	 * @return The transformed DataStream.
+	 */
+	public SingleOutputStreamOperator<OUT, ?> max(String field) {
+		return aggregate(ComparableAggregator.getAggregator(field, getOutputType(),
+				AggregationType.MAX, false));
+	}
+
+	/**
+	 * Applies an aggregation that gives the maximum element of every window of
+	 * the data stream by the given position. If more elements have the same
+	 * maximum value the operator returns the first by default.
+	 * 
+	 * @param positionToMaxBy
+	 *            The position to maximize by
+	 * @return The transformed DataStream.
+	 */
+	public SingleOutputStreamOperator<OUT, ?> maxBy(int positionToMaxBy) {
+		return this.maxBy(positionToMaxBy, true);
+	}
+
+	/**
+	 * Applies an aggregation that gives the maximum element of every window of
+	 * the data stream by the given position. If more elements have the same
+	 * maximum value the operator returns either the first or last one depending
+	 * on the parameter setting.
+	 * 
+	 * @param positionToMaxBy
+	 *            The position to maximize by
+	 * @param first
+	 *            If true, then the operator return the first element with the
+	 *            maximum value, otherwise returns the last
+	 * @return The transformed DataStream.
+	 */
+	public SingleOutputStreamOperator<OUT, ?> maxBy(int positionToMaxBy, boolean first) {
+		dataStream.checkFieldRange(positionToMaxBy);
+		return aggregate(ComparableAggregator.getAggregator(positionToMaxBy, getOutputType(),
+				AggregationType.MAXBY, first));
+	}
+
+	/**
 	 * Applies an aggregation that that gives the maximum element of the pojo
-	 * data stream by the given field expression. A field expression is either
-	 * the name of a public field or a getter method with parentheses of the
-	 * {@link DataStream}S underlying type. A dot can be used to drill down into
-	 * objects, as in {@code "field1.getInnerField2()" }.
+	 * data stream by the given field expression for every window. A field
+	 * expression is either the name of a public field or a getter method with
+	 * parentheses of the {@link DataStream}S underlying type. A dot can be used
+	 * to drill down into objects, as in {@code "field1.getInnerField2()" }.
 	 * 
 	 * @param field
 	 *            The field expression based on which the aggregation will be

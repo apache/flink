@@ -23,6 +23,7 @@ import java.util.Map.Entry;
 import org.apache.commons.lang3.SerializationException;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.flink.api.common.functions.RichFunction;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.collector.OutputSelector;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.streamvertex.StreamingRuntimeContext;
@@ -71,6 +72,7 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 	}
 
 	/**
+	 * This is a beta feature, use with care </br><br/>
 	 * Sets the mutability of the operator. If the operator is set to mutable,
 	 * the tuples received in the user defined functions, will be reused after
 	 * the function call. Setting an operator to mutable reduces garbage
@@ -123,11 +125,11 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 	}
 
 	/**
-	 * Register an operator state for this operator by the given name. This name
-	 * can be used to retrieve the state during runtime using
-	 * {@link StreamingRuntimeContext#getState(String)}. To obtain the
-	 * {@link StreamingRuntimeContext} from the user-defined function use the
-	 * {@link RichFunction#getRuntimeContext()} method.
+	 * This is a beta feature </br></br> Register an operator state for this
+	 * operator by the given name. This name can be used to retrieve the state
+	 * during runtime using {@link StreamingRuntimeContext#getState(String)}. To
+	 * obtain the {@link StreamingRuntimeContext} from the user-defined function
+	 * use the {@link RichFunction#getRuntimeContext()} method.
 	 * 
 	 * @param name
 	 *            The name of the operator state.
@@ -135,23 +137,23 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 	 *            The state to be registered for this name.
 	 * @return The data stream with state registered.
 	 */
-	public SingleOutputStreamOperator<OUT, O> registerState(String name, OperatorState<?> state) {
+	protected SingleOutputStreamOperator<OUT, O> registerState(String name, OperatorState<?> state) {
 		jobGraphBuilder.addOperatorState(getId(), name, state);
 		return this;
 	}
 
 	/**
-	 * Register operator states for this operator provided in a map. The
-	 * registered states can be retrieved during runtime using
-	 * {@link StreamingRuntimeContext#getState(String)}. To obtain the
-	 * {@link StreamingRuntimeContext} from the user-defined function use the
-	 * {@link RichFunction#getRuntimeContext()} method.
+	 * This is a beta feature </br></br> Register operator states for this
+	 * operator provided in a map. The registered states can be retrieved during
+	 * runtime using {@link StreamingRuntimeContext#getState(String)}. To obtain
+	 * the {@link StreamingRuntimeContext} from the user-defined function use
+	 * the {@link RichFunction#getRuntimeContext()} method.
 	 * 
 	 * @param states
 	 *            The map containing the states that will be registered.
 	 * @return The data stream with states registered.
 	 */
-	public SingleOutputStreamOperator<OUT, O> registerState(Map<String, OperatorState<?>> states) {
+	protected SingleOutputStreamOperator<OUT, O> registerState(Map<String, OperatorState<?>> states) {
 		for (Entry<String, OperatorState<?>> entry : states.entrySet()) {
 			jobGraphBuilder.addOperatorState(getId(), entry.getKey(), entry.getValue());
 		}
@@ -160,8 +162,18 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 	}
 
 	@SuppressWarnings("unchecked")
-	public SingleOutputStreamOperator<OUT, O> partitionBy(int keyposition) {
-		return (SingleOutputStreamOperator<OUT, O>) super.partitionBy(keyposition);
+	public SingleOutputStreamOperator<OUT, O> partitionBy(int... keypositions) {
+		return (SingleOutputStreamOperator<OUT, O>) super.partitionBy(keypositions);
+	}
+
+	@SuppressWarnings("unchecked")
+	public SingleOutputStreamOperator<OUT, O> partitionBy(String... fields) {
+		return (SingleOutputStreamOperator<OUT, O>) super.partitionBy(fields);
+	}
+
+	@SuppressWarnings("unchecked")
+	public SingleOutputStreamOperator<OUT, O> partitionBy(KeySelector<OUT, ?> keySelector) {
+		return (SingleOutputStreamOperator<OUT, O>) super.partitionBy(keySelector);
 	}
 
 	@SuppressWarnings("unchecked")

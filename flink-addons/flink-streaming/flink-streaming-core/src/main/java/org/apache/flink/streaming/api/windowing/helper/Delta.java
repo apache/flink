@@ -65,7 +65,14 @@ public class Delta<DATA> implements WindowingHelper<DATA> {
 	}
 
 	/**
-	 * Creates a delta helper representing a delta count or eviction policy
+	 * Creates a delta helper representing a delta trigger or eviction policy.
+	 * </br></br> This policy calculates a delta between the data point which
+	 * triggered last and the currently arrived data point. It triggers if the
+	 * delta is higher than a specified threshold. </br></br> In case it gets
+	 * used for eviction, this policy starts from the first element of the
+	 * buffer and removes all elements from the buffer which have a higher delta
+	 * then the threshold. As soon as there is an element with a lower delta,
+	 * the eviction stops.
 	 * 
 	 * @param deltaFunction
 	 *            The delta function which should be used to calculate the delta

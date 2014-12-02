@@ -595,6 +595,20 @@ public class DataStream<OUT> {
 	}
 
 	/**
+	 * Applies an aggregation that gives the maximum of the data stream at the
+	 * given position.
+	 * 
+	 * @param positionToMax
+	 *            The position in the data point to maximize
+	 * @return The transformed DataStream.
+	 */
+	public SingleOutputStreamOperator<OUT, ?> max(int positionToMax) {
+		checkFieldRange(positionToMax);
+		return aggregate(ComparableAggregator.getAggregator(positionToMax, getOutputType(),
+				AggregationType.MAX));
+	}
+
+	/**
 	 * Applies an aggregation that that gives the maximum of the pojo data
 	 * stream at the given field expression. A field expression is either the
 	 * name of a public field or a getter method with parentheses of the
@@ -685,20 +699,6 @@ public class DataStream<OUT> {
 	}
 
 	/**
-	 * Applies an aggregation that gives the maximum of the data stream at the
-	 * given position.
-	 * 
-	 * @param positionToMax
-	 *            The position in the data point to maximize
-	 * @return The transformed DataStream.
-	 */
-	public SingleOutputStreamOperator<OUT, ?> max(int positionToMax) {
-		checkFieldRange(positionToMax);
-		return aggregate(ComparableAggregator.getAggregator(positionToMax, getOutputType(),
-				AggregationType.MAX));
-	}
-
-	/**
 	 * Applies an aggregation that that gives the current element with the
 	 * maximum value at the given position, if more elements have the maximum
 	 * value at the given position, the operator returns the first one by
@@ -745,16 +745,27 @@ public class DataStream<OUT> {
 	}
 
 	/**
-	 * This allows you to set up windowing through a nice API using
-	 * {@link WindowingHelper} such as {@link Time}, {@link Count} and
-	 * {@link Delta}. Windowing allows the user to apply different user defined
-	 * functions on predefined chunks of the data stream. For example a reducer
-	 * could be applied on every 5 seconds of data to count the elements in that
-	 * time window.
+	 * Create a {@link WindowedDataStream} that can be used to apply
+	 * transformation like {@link WindowedDataStream#reduce} or aggregations on
+	 * preset chunks(windows) of the data stream. To define the windows one or
+	 * more {@link WindowingHelper} such as {@link Time}, {@link Count} and
+	 * {@link Delta} can be used.</br></br> When applied to a grouped data
+	 * stream, the windows (evictions) and slide sizes (triggers) will be
+	 * computed on a per group basis. </br></br> For more advanced control over
+	 * the trigger and eviction policies please refer to
+	 * {@link #window(triggers, evicters)} </br> </br> For example to create a
+	 * sum every 5 seconds in a tumbling fashion:</br>
+	 * {@code ds.window(Time.of(5, TimeUnit.SECONDS)).sum(field)} </br></br> To
+	 * create sliding windows use the
+	 * {@link WindowedDataStream#every(WindowingHelper...)} </br></br> The same
+	 * example with 3 second slides:</br>
+	 * 
+	 * {@code ds.window(Time.of(5, TimeUnit.SECONDS)).every(Time.of(3,
+	 *       TimeUnit.SECONDS)).sum(field)}
 	 * 
 	 * @param policyHelpers
 	 *            Any {@link WindowingHelper} such as {@link Time},
-	 *            {@link Count} and {@link Delta}.
+	 *            {@link Count} and {@link Delta} to define the window.
 	 * @return A {@link WindowedDataStream} providing further operations.
 	 */
 	@SuppressWarnings({ "rawtypes", "unchecked" })
@@ -763,11 +774,11 @@ public class DataStream<OUT> {
 	}
 
 	/**
-	 * Set up a windowed data stream using the given {@link TriggerPolicy}s and
-	 * {@link EvictionPolicy}s. Windowing allows the user to apply different
-	 * user defined functions on predefined chunks of the data stream. For
-	 * example a reducer could be applied on every 5 seconds of data to count
-	 * the elements in that time window.
+	 * Create a {@link WindowedDataStream} using the given {@link TriggerPolicy}
+	 * s and {@link EvictionPolicy}s. Windowing can be used to apply
+	 * transformation like {@link WindowedDataStream#reduce} or aggregations on
+	 * preset chunks(windows) of the data stream.</br></br>For most common
+	 * use-cases please refer to {@link #window(WindowingHelper...)}
 	 * 
 	 * @param triggers
 	 *            The list of {@link TriggerPolicy}s that will determine how

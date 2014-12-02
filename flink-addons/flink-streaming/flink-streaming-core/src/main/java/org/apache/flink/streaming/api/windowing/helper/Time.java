@@ -75,8 +75,9 @@ public class Time<DATA> implements WindowingHelper<DATA> {
 	}
 
 	/**
-	 * Creates an helper representing a trigger which triggers every given
-	 * length or an eviction which evicts all elements older than length.
+	 * Creates a helper representing a time trigger which triggers every given
+	 * length (slide size) or a time eviction which evicts all elements older
+	 * than length (window size).
 	 * 
 	 * @param length
 	 *            The number of time units
@@ -92,8 +93,9 @@ public class Time<DATA> implements WindowingHelper<DATA> {
 	}
 
 	/**
-	 * Creates an helper representing a trigger which triggers every given
-	 * length or an eviction which evicts all elements older than length.
+	 * Creates a helper representing a time trigger which triggers every given
+	 * length (slide size) or a time eviction which evicts all elements older
+	 * than length (window size) using a user defined timestamp extractor.
 	 * 
 	 * @param length
 	 *            The number of time units
