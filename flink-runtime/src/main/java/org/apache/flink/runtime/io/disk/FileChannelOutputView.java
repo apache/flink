@@ -128,6 +128,10 @@ public class FileChannelOutputView extends AbstractPagedOutputView {
 		return bytesInLatestSegment;
 	}
 	
+	public long getWriteOffset() {
+		return ((long) numBlocksWritten) * segmentSize + getCurrentPositionInSegment();
+	}
+	
 	@Override
 	protected MemorySegment nextSegment(MemorySegment current, int posInSegment) throws IOException {
 		if (current != null) {
