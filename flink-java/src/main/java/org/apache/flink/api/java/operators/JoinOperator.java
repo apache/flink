@@ -40,6 +40,7 @@ import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.functions.SemanticPropUtil;
 import org.apache.flink.api.java.operators.DeltaIteration.SolutionSetPlaceHolder;
+import org.apache.flink.api.java.operators.JoinOperator.DefaultJoin.WrappingFlatJoinFunction;
 import org.apache.flink.api.java.operators.Keys.ExpressionKeys;
 import org.apache.flink.api.java.operators.Keys.IncompatibleKeysException;
 import org.apache.flink.api.java.operators.translation.KeyExtractingMapper;
@@ -228,7 +229,12 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		@Override
 		protected void updateTypeDependentProperties() {
 			if (!(function instanceof ProjectFlatJoinFunction)) {
-				extractSemanticAnnotationsFromUdf(function.getClass());
+				if (function instanceof WrappingFunction) {
+					extractSemanticAnnotationsFromUdf(((WrappingFlatJoinFunction<?, ?, ?>) function).getWrappedFunction().getClass());
+				}
+				else {
+					extractSemanticAnnotationsFromUdf(function.getClass());
+				}
 			} else {
 				generateProjectionProperties(((ProjectFlatJoinFunction<?, ?, ?>) function));
 			}

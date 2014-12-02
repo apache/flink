@@ -76,6 +76,9 @@ public abstract class Keys<T> {
 			if (keyExtractor == null) {
 				throw new NullPointerException("Key extractor must not be null.");
 			}
+			if (keyType == null) {
+				throw new NullPointerException("Key type must not be null.");
+			}
 
 			this.keyExtractor = keyExtractor;
 			this.keyType = keyType;
