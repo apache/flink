@@ -357,6 +357,17 @@ public abstract class WindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> 
 	}
 
 	/**
+	 * This method returns whether the element buffer is empty or not. It is
+	 * used to figure out if a group can be deleted or not when
+	 * {@link GroupedWindowInvokable} is used.
+	 * 
+	 * @return true in case the buffer is empty otherwise false.
+	 */
+	protected boolean isBufferEmpty(){
+		return buffer.isEmpty();
+	}
+	
+	/**
 	 * This method does the final reduce at the end of the stream and emits the
 	 * result.
 	 * 

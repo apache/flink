@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.invokable.operator;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -252,6 +253,7 @@ public class GroupedWindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> {
 					// process in groups
 					for (WindowInvokable<IN, OUT> group : windowingGroups.values()) {
 						group.processFakeElement(in, trigger);
+						checkForEmptyGroupBuffer(group);
 					}
 				}
 			}
@@ -267,6 +269,7 @@ public class GroupedWindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> {
 
 				// only add the element to its group
 				groupInvokable.processRealElement(reuse.getObject());
+				checkForEmptyGroupBuffer(groupInvokable);
 
 				// If central eviction is used, handle it here
 				if (!centralEvictionPolicies.isEmpty()) {
@@ -286,6 +289,9 @@ public class GroupedWindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> {
 						// policies
 						group.externalTriggerFakeElement(reuse.getObject(), currentTriggerPolicies);
 					}
+					
+					//remove group in case it has an empty buffer
+					//checkForEmptyGroupBuffer(group);
 				}
 
 				// If central eviction is used, handle it here
@@ -450,8 +456,13 @@ public class GroupedWindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> {
 	 *            buffer.
 	 */
 	private void evictElements(int numToEvict) {
+		HashSet<WindowInvokable<IN, OUT>> usedGroups=new HashSet<WindowInvokable<IN,OUT>>();
 		for (; numToEvict > 0; numToEvict--) {
-			deleteOrderForCentralEviction.getFirst().evictFirst();
+			WindowInvokable<IN, OUT> currentGroup=deleteOrderForCentralEviction.getFirst();
+			//Do the eviction
+			currentGroup.evictFirst();
+			//Remember groups which possibly have an empty buffer after the eviction
+			usedGroups.add(currentGroup);
 			try {
 				deleteOrderForCentralEviction.removeFirst();
 			} catch (NoSuchElementException e) {
@@ -459,6 +470,25 @@ public class GroupedWindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> {
 				break;
 			}
 
+		}
+		
+		//Remove groups with empty buffer
+		for (WindowInvokable<IN, OUT> group:usedGroups){
+			checkForEmptyGroupBuffer(group);
+		}
+	}
+	
+	/**
+	 * Checks if the element buffer of a given windowing group is empty. If so,
+	 * the group will be deleted.
+	 * 
+	 * @param group
+	 *            The windowing group to be checked and and removed in case its
+	 *            buffer is empty.
+	 */
+	private void checkForEmptyGroupBuffer(WindowInvokable<IN, OUT> group) {
+		if (group.isBufferEmpty()) {
+			windowingGroups.remove(group);
 		}
 	}
 
@@ -486,6 +516,7 @@ public class GroupedWindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> {
 			// handle element in groups
 			for (WindowInvokable<IN, OUT> group : windowingGroups.values()) {
 				group.processFakeElement(datapoint, policy);
+				checkForEmptyGroupBuffer(group);
 			}
 		}
 
