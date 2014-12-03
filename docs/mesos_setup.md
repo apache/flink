@@ -5,24 +5,24 @@ title:  "MESOS Setup"
 * This will be replaced by the TOC
 {:toc}
 
-## What is MESOS?
+## What is Mesos?
 
-Apache [MESOS](http://mesos.apache.org/) is a cluster resource management framework. It allows to run various distributed applications on top of a cluster. Mesos is especially useful when users want to maximize the utilization of the clusters resources.
+Apache [Mesos](http://mesos.apache.org/) is a cluster resource management framework. It allows to run various distributed applications on top of a cluster. Mesos is especially useful when users want to maximize the utilization of the clusters resources.
 
 **Requirements**
 
 - Apache Mesos
-- HDFS (Hadoop Distributed File System)
+- Apache Flink Directory on every node
 
 ### Start Flink Session
 
-Follow these instructions to learn how to launch a Flink Session within your MESOS cluster.
+Follow these instructions to learn how to launch a Flink Session within your Mesos cluster.
 
 A session will start all required Flink services (JobManager and TaskManagers) so that you can submit programs to the cluster. Note that you can run multiple programs per session.
 
 #### Download Flink for MESOS usage
 
-If you want to build the Flink Mesos client from sources, follow the [build instructions](building.html). Make sure to use the `-P mesos` profile. You can find the result of the build in `flink-dist/target/flink-{{ site.FLINK_VERSION_STABLE }}-bin/flink-mesos-{{ site.FLINK_VERSION_STABLE }}/` (*Note: The version might be different for you* ).
+If you want to build the Flink Mesos client from sources, follow the [build instructions](building.html). Make sure to use the `-P mesos` profile.
 
 
 #### Start a Session
@@ -38,18 +38,21 @@ This command will show you the following overview:
 ~~~bash
 Usage:
    Required
-     -c,--confDir <arg>   Path to Flink configuration directory
-     -j,--jar <arg>       Path to Flink jar file
-     -l,--lib <arg>       Path to Mesos library files
-     -m,--master <arg>    Address of the Mesos master node
+     -j,--jar <arg>      Path to Flink jar file
+     -l,--lib <arg>      Path to Mesos library files
+     -m,--master <arg>   Address of the Mesos master node
    Optional
+     -c,--confDir <arg>              Path to Flink configuration directory
+     -D <arg>                        Dynamic properties
+     -h,--help                       print help
      -jm,--jobManagerMemory <arg>    Memory for JobManager Container [in MB]
+     -jmc,--jobManagerCores <arg>    Number of Jobmanager Cores
      -n,--container <arg>            Number of Task Managers, greedy behaviour if not specified
      -s,--slots <arg>                Number of slots per TaskManager
      -tm,--taskManagerMemory <arg>   Memory per TaskManager Container [in MB]
-     -tmc,--taskManagerCores <arg>   CPU cores per TaskManager (if not specified a greedy approach is taken)
+     -tmc,--taskManagerCores <arg>   Maximum CPU cores per TaskManager.
      -v,--verbose                    Verbose debug mode
-     -w,--web <arg>                  Launch the web frontend on the jobmanager node.
+     -w,--web                        Launch the web frontend on the jobmanager node.
 ~~~
 
 Even though there are 4 required parameters listed, the config directory and the required flink jar are filled in by default by the script.
@@ -60,13 +63,11 @@ Even though there are 4 required parameters listed, the config directory and the
 ./bin/start-mesos.sh -l /home/example/example/mesos/build/src/.libs -m 127.0.0.1:5050 -tm 8192 -s 32
 ~~~
 
-The system will use the configuration in `conf/flink-config.yaml`. Please follow our [configuration guide](config.html) if you want to change something. 
+The system will use the configuration in `conf/flink-config.yaml` by default. Please follow our [configuration guide](config.html) if you want to change something. 
 
-Flink on Mesos will overwrite the following configuration parameters `jobmanager.rpc.address` (because the JobManager is always allocated at different machines), `taskmanager.tmp.dirs` (we are using the tmp directories given by Mesos) and `parallelization.degree.default` if the number of slots has been specified.
+Flink on Mesos will overwrite the following configuration parameters `jobmanager.rpc.address` (because the JobManager is always allocated at different machines) and `parallelization.degree.default` if the number of slots has been specified.
 
-The example invocation starts 11 containers, since there is one additional container for the ApplicationMaster and Job Manager.
-
-Once Flink is deployed in your MESOS cluster, it will show you the connection details of the Job Manager.
+Once Flink is deployed in your Mesos cluster, it will show you the connection details of the Job Manager. In adddition, use the Mesos web interface to monitor the status of the flink session (default location is <your mesos master address>:5050). On this page, you can also access the logs from the Mesos nodes.
 
 
 ## Submit Job to Flink

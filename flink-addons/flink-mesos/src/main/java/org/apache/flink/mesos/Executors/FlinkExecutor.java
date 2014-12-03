@@ -29,7 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Base class for any Flink Executors. It contains basic functionality such as retrieving the configuration
+ * Base class for any Flink executors. It contains basic functionality such as retrieving the configuration
  * from the ExecutorInfo and printing Log Information to the user.
  */
 public abstract class FlinkExecutor implements Executor {
