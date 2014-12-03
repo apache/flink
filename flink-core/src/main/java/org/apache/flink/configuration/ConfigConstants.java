@@ -294,20 +294,17 @@ public final class ConfigConstants {
 	 */
 	public static final String WEB_ACCESS_FILE_KEY = "webclient.access";
 	
-
-
 	// ----------------------------- YARN Client ----------------------------
+	
 	public static final String YARN_AM_PRC_PORT = "yarn.am.rpc.port";
-
-
-
+	
 	// ----------------------------- Miscellaneous ----------------------------
-
+	
 	/**
 	 * The key to the Flink base directory path
 	 */
 	public static final String FLINK_BASE_DIR_PATH_KEY = "flink.base.dir.path";
-
+	
 	public static final String FLINK_JVM_OPTIONS = "env.java.opts";
 
 	// ------------------------------------------------------------------------

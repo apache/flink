@@ -786,6 +786,7 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 		
 		// First, try to load global configuration
 		GlobalConfiguration.loadConfiguration(configDir);
+
 		// Create a new job manager object
 		JobManager jobManager = new JobManager(executionMode);
 		
