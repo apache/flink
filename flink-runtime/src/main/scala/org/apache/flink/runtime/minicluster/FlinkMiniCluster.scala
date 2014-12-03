@@ -22,6 +22,7 @@ import java.util.concurrent.TimeUnit
 
 import akka.pattern.ask
 import akka.actor.{ActorRef, ActorSystem}
+import com.typesafe.config.{ConfigFactory, Config}
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.messages.TaskManagerMessages.NotifyWhenRegisteredAtJobManager
@@ -61,19 +62,33 @@ abstract class FlinkMiniCluster(userConfiguration: Configuration) {
   def startTaskManager(index: Int)(implicit system: ActorSystem):
   ActorRef
 
-  def startJobManagerActorSystem(): ActorSystem = {
-    val port = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
-      ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
+  def getJobManagerAkkaConfigString(): String = {
+    val port = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, ConfigConstants
+      .DEFAULT_JOB_MANAGER_IPC_PORT)
 
-    AkkaUtils.createActorSystem(HOSTNAME, port, configuration)
+    AkkaUtils.getConfigString(HOSTNAME, port, configuration)
   }
 
-  def startTaskManagerActorSystem(index: Int): ActorSystem = {
+  def startJobManagerActorSystem(): ActorSystem = {
+    val configString = getJobManagerAkkaConfigString()
+
+    val config = ConfigFactory.parseString(getJobManagerAkkaConfigString())
+
+    AkkaUtils.createActorSystem(config)
+  }
+
+  def getTaskManagerAkkaConfigString(index: Int): String = {
     val port = configuration.getInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY,
       ConfigConstants.DEFAULT_TASK_MANAGER_IPC_PORT)
 
-    AkkaUtils.createActorSystem(HOSTNAME, if(port != 0) port + index else port,
+    AkkaUtils.getConfigString(HOSTNAME, if(port != 0) port + index else port,
       configuration)
+  }
+
+  def startTaskManagerActorSystem(index: Int): ActorSystem = {
+    val config = ConfigFactory.parseString(getTaskManagerAkkaConfigString(index))
+
+    AkkaUtils.createActorSystem(config)
   }
 
   def getJobManager: ActorRef = {

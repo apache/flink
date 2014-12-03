@@ -146,25 +146,34 @@ public class AccumulatorEvent implements Serializable {
 	}
 
 	private void writeObject(java.io.ObjectOutputStream out) throws IOException{
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		ObjectOutputStream oos = new ObjectOutputStream(baos);
-
 		out.writeObject(jobID);
 
-		oos.writeInt(accumulators.size());
+		byte[] buffer = null;
 
-		for(Map.Entry<String, Accumulator<?, ?>> entry: this.accumulators.entrySet()){
-			oos.writeUTF(entry.getKey());
-			oos.writeUTF(entry.getValue().getClass().getName());
+		if(accumulators != null) {
+			ByteArrayOutputStream baos = new ByteArrayOutputStream();
+			ObjectOutputStream oos = new ObjectOutputStream(baos);
 
-			entry.getValue().write(oos);
+			oos.writeInt(accumulators.size());
+
+			for (Map.Entry<String, Accumulator<?, ?>> entry : this.accumulators.entrySet()) {
+				oos.writeUTF(entry.getKey());
+				oos.writeUTF(entry.getValue().getClass().getName());
+
+				entry.getValue().write(oos);
+			}
+
+			oos.flush();
+			oos.close();
+			baos.close();
+
+			buffer = baos.toByteArray();
+		}else if(serializedData != null){
+			buffer = serializedData;
+		}else{
+			throw new RuntimeException("The AccumulatorEvent's accumulator is null and there is " +
+					"no serialized data attached to it.");
 		}
-
-		oos.flush();
-		oos.close();
-		baos.close();
-
-		byte[] buffer = baos.toByteArray();
 
 		out.writeInt(buffer.length);
 		out.write(buffer);

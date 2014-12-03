@@ -108,7 +108,7 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
         hardwareInformation, numberOfSlots)
 
       // to be notified when the taskManager is no longer reachable
-//      context.watch(taskManager);
+      context.watch(taskManager);
 
       taskManager ! AcknowledgeRegistration(instanceID, libraryCacheManager.getBlobServerPort)
     }
@@ -246,7 +246,8 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
       }else {
         currentJobs.get(taskExecutionState.getJobID) match {
           case Some((executionGraph, _)) =>
-            sender() ! executionGraph.updateState(taskExecutionState)
+            val originalSender = sender()
+            originalSender ! executionGraph.updateState(taskExecutionState)
           case None => log.error(s"Cannot find execution graph for ID ${taskExecutionState
             .getJobID} to change state to ${taskExecutionState.getExecutionState}.")
             sender() ! false
@@ -254,24 +255,41 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
       }
     }
 
-    case RequestNextInputSplit(jobID, vertexID) => {
+    case RequestNextInputSplit(jobID, vertexID, executionAttempt) => {
       val nextInputSplit = currentJobs.get(jobID) match {
-        case Some((executionGraph,_)) => executionGraph.getJobVertex(vertexID) match {
-          case vertex: ExecutionJobVertex => vertex.getSplitAssigner match {
-            case splitAssigner: InputSplitAssigner => splitAssigner.getNextInputSplit(null)
-            case _ =>
-              log.error(s"No InputSplitAssigner for vertex ID ${vertexID}.")
-              null
-          }
-          case _ =>
-            log.error(s"Cannot find execution vertex for vertex ID ${vertexID}.")
+        case Some((executionGraph,_)) =>
+          val execution = executionGraph.getRegisteredExecutions().get(executionAttempt)
+
+          if(execution == null){
+            log.error("Can not find Execution for attempt " + executionAttempt)
             null
+          }else{
+            val slot = execution.getAssignedResource
+
+            val host = if(slot != null){
+              slot.getInstance().getInstanceConnectionInfo.getHostname
+            }else{
+              null
+            }
+
+            executionGraph.getJobVertex(vertexID) match {
+              case vertex: ExecutionJobVertex => vertex.getSplitAssigner match {
+                case splitAssigner: InputSplitAssigner => splitAssigner.getNextInputSplit(host)
+                case _ =>
+                  log.error(s"No InputSplitAssigner for vertex ID ${vertexID}.")
+                  null
+              }
+              case _ =>
+                log.error(s"Cannot find execution vertex for vertex ID ${vertexID}.")
+                null
+          }
         }
         case None =>
           log.error(s"Cannot find execution graph for job ID ${jobID}.")
           null
       }
 
+      log.debug("Send next input split {}.", nextInputSplit)
       sender() ! NextInputSplit(nextInputSplit)
     }
 
@@ -323,8 +341,10 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
     case LookupConnectionInformation(connectionInformation, jobID, sourceChannelID) => {
       currentJobs.get(jobID) match {
         case Some((executionGraph, _)) =>
-          sender() ! ConnectionInformation(executionGraph.lookupConnectionInfoAndDeployReceivers
-            (connectionInformation, sourceChannelID))
+          val originalSender = sender()
+          originalSender ! ConnectionInformation(
+            executionGraph.lookupConnectionInfoAndDeployReceivers
+              (connectionInformation, sourceChannelID))
         case None =>
           log.error(s"Cannot find execution graph for job ID ${jobID}.")
           sender() ! ConnectionInformation(ConnectionInfoLookupResponse.createReceiverNotFound())
@@ -381,7 +401,7 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
     case Terminated(taskManager) => {
       log.info(s"Task manager ${taskManager.path} terminated.")
       instanceManager.unregisterTaskManager(taskManager)
-//      context.unwatch(taskManager)
+      context.unwatch(taskManager)
     }
   }
 
@@ -442,6 +462,7 @@ object JobManager {
     parser.parse(args, JobManagerCLIConfiguration()) map {
       config =>
         GlobalConfiguration.loadConfiguration(config.configDir)
+
         val configuration = GlobalConfiguration.getConfiguration()
         if (config.configDir != null && new File(config.configDir).isDirectory) {
           configuration.setString(ConfigConstants.FLINK_BASE_DIR_PATH_KEY, config.configDir + "/..")

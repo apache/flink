@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -39,12 +40,13 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.slf4j.Logger;
 
 
-public class ExecutionJobVertex {
+public class ExecutionJobVertex implements Serializable {
+	static final long serialVersionUID = 42L;
 	
 	/** Use the same log for all ExecutionGraph classes */
 	private static final Logger LOG = ExecutionGraph.LOG;
 	
-	private final Object stateMonitor = new Object();
+	private transient final Object stateMonitor = new Object();
 	
 	private final ExecutionGraph graph;
 	
@@ -52,9 +54,9 @@ public class ExecutionJobVertex {
 	
 	private final ExecutionVertex[] taskVertices;
 
-	private final IntermediateResult[] producedDataSets;
+	private transient final IntermediateResult[] producedDataSets;
 	
-	private final List<IntermediateResult> inputs;
+	private transient final List<IntermediateResult> inputs;
 	
 	private final int parallelism;
 	
@@ -68,7 +70,7 @@ public class ExecutionJobVertex {
 	
 	private final InputSplit[] inputSplits;
 	
-	private InputSplitAssigner splitAssigner;
+	private transient InputSplitAssigner splitAssigner;
 	
 	
 	public ExecutionJobVertex(ExecutionGraph graph, AbstractJobVertex jobVertex, int defaultParallelism) throws JobException {

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobmanager.scheduler;
 
+import java.io.Serializable;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -30,7 +31,9 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
  *       methods may only be called from within the synchronization scope of
  *       it associated SlotSharingGroupAssignment.
  */
-class SharedSlot {
+class SharedSlot implements Serializable {
+
+	static final long serialVersionUID = 42L;
 
 	private final AllocatedSlot allocatedSlot;
 	

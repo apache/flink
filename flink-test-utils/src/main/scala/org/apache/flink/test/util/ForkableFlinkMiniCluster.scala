@@ -22,7 +22,7 @@ import akka.actor.{Props, ActorSystem, ActorRef}
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster
 import org.apache.flink.runtime.taskmanager.TaskManager
-import org.apache.flink.runtime.testingUtils.TestingTaskManager
+import org.apache.flink.runtime.testingUtils.{TestingUtils, TestingTaskManager}
 
 class ForkableFlinkMiniCluster(userConfiguration: Configuration) extends
 LocalFlinkMiniCluster(userConfiguration) {
@@ -50,6 +50,10 @@ LocalFlinkMiniCluster(userConfiguration) {
     }
 
     super.generateConfiguration(config)
+  }
+
+  override def getTaskManagerAkkaConfigString(index: Int): String = {
+    super.getTaskManagerAkkaConfigString(index) + TestingUtils.getTestingSerializationBindings
   }
 
   override def startTaskManager(index: Int)(implicit system: ActorSystem): ActorRef = {

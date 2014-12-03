@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.instance;
 
+import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
@@ -28,7 +29,9 @@ import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 /**
  * An allocated slot is the unit in which resources are allocated on instances.
  */
-public class AllocatedSlot {
+public class AllocatedSlot implements Serializable {
+
+	static final long serialVersionUID = 42L;
 	
 	private static final AtomicIntegerFieldUpdater<AllocatedSlot> STATUS_UPDATER = 
 			AtomicIntegerFieldUpdater.newUpdater(AllocatedSlot.class, "status");

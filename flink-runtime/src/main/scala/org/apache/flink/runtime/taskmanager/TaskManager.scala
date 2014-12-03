@@ -185,7 +185,7 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
         currentJobManager = sender()
         instanceID = id
 
-//        context.watch(currentJobManager)
+        context.watch(currentJobManager)
 
         log.info(s"TaskManager successfully registered at JobManager ${
           currentJobManager.path
@@ -261,7 +261,8 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
           case None =>
         }
 
-        val splitProvider = new TaskInputSplitProvider(currentJobManager, jobID, vertexID, timeout)
+        val splitProvider = new TaskInputSplitProvider(currentJobManager, jobID, vertexID,
+          executionID, timeout)
         val env = new RuntimeEnvironment(task, tdd, userCodeClassLoader, memoryManager,
           ioManager, splitProvider, currentJobManager, bcVarManager)
 

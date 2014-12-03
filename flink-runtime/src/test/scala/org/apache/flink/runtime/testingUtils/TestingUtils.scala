@@ -58,6 +58,37 @@ object TestingUtils {
     """.stripMargin
   }
 
+
+  // scalastyle:off line.size.limit
+  val getTestingSerializationBindings =
+  """
+    |akka {
+    |  actor {
+    |    kryo{
+    |      kryo-custom-serializer-init = "org.apache.flink.runtime.testingUtils.KryoTestingInitializer"
+    |    }
+    |
+    |    serialization-bindings {
+    |      "org.apache.flink.runtime.testingUtils.TestingJobManagerMessages$RequestExecutionGraph" = kryo
+    |      "org.apache.flink.runtime.testingUtils.TestingJobManagerMessages$ExecutionGraphFound" = kryo
+    |      "org.apache.flink.runtime.testingUtils.TestingJobManagerMessages$ExecutionGraphNotFound" = kryo
+    |      "org.apache.flink.runtime.testingUtils.TestingJobManagerMessages$WaitForAllVerticesToBeRunning" = kryo
+    |      "org.apache.flink.runtime.testingUtils.TestingJobManagerMessages$AllVerticesRunning" = kryo
+    |      "org.apache.flink.runtime.testingUtils.TestingJobManagerMessages$NotifyWhenJobRemoved" = kryo
+    |
+    |      "org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages$NotifyWhenTaskRemoved" = kryo
+    |      "org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages$RequestRunningTasks$" = kryo
+    |      "org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages$ResponseRunningTasks" = kryo
+    |      "org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages$RequestBroadcastVariablesWithReferences$" = kryo
+    |      "org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages$ResponseBroadcastVariablesWithReferences" = kryo
+    |      "org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages$CheckIfJobRemoved" = kryo
+    |    }
+    |  }
+    |}
+  """.stripMargin
+  // scalastyle:on line.size.limit
+
+
   def startTestingTaskManagerWithConfiguration(hostname: String, config: Configuration)
                                               (implicit system: ActorSystem) = {
     val (connectionInfo, jobManagerURL, taskManagerConfig, networkConnectionConfig) =

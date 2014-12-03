@@ -22,6 +22,7 @@ import static org.apache.flink.runtime.execution.ExecutionState.CANCELED;
 import static org.apache.flink.runtime.execution.ExecutionState.FAILED;
 import static org.apache.flink.runtime.execution.ExecutionState.FINISHED;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -48,7 +49,8 @@ import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableExceptio
  * The ExecutionVertex is a parallel subtask of the execution. It may be executed once, or several times, each of
  * which time it spawns an {@link Execution}.
  */
-public class ExecutionVertex {
+public class ExecutionVertex implements Serializable {
+	static final long serialVersionUID = 42L;
 
 	@SuppressWarnings("unused")
 	private static final Logger LOG = ExecutionGraph.LOG;
@@ -59,9 +61,9 @@ public class ExecutionVertex {
 	
 	private final ExecutionJobVertex jobVertex;
 	
-	private final IntermediateResultPartition[] resultPartitions;
+	private transient final IntermediateResultPartition[] resultPartitions;
 	
-	private final ExecutionEdge[][] inputEdges;
+	private transient final ExecutionEdge[][] inputEdges;
 	
 	private final int subTaskIndex;
 	

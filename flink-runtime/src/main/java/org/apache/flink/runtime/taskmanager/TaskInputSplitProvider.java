@@ -21,6 +21,7 @@ package org.apache.flink.runtime.taskmanager;
 import akka.actor.ActorRef;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
@@ -36,13 +37,16 @@ public class TaskInputSplitProvider implements InputSplitProvider {
 	
 	private final JobVertexID vertexId;
 
+	private final ExecutionAttemptID executionID;
+
 	private final FiniteDuration timeout;
 	
 	public TaskInputSplitProvider(ActorRef jobManager, JobID jobId, JobVertexID vertexId,
-								FiniteDuration timeout) {
+								ExecutionAttemptID executionID, FiniteDuration timeout) {
 		this.jobManager = jobManager;
 		this.jobId = jobId;
 		this.vertexId = vertexId;
+		this.executionID = executionID;
 		this.timeout = timeout;
 	}
 
@@ -50,7 +54,8 @@ public class TaskInputSplitProvider implements InputSplitProvider {
 	public InputSplit getNextInputSplit() {
 		try {
 			TaskManagerMessages.NextInputSplit nextInputSplit = AkkaUtils.ask(jobManager,
-					new JobManagerMessages.RequestNextInputSplit(jobId, vertexId), timeout);
+					new JobManagerMessages.RequestNextInputSplit(jobId, vertexId, executionID),
+					timeout);
 
 			return nextInputSplit.inputSplit();
 		}

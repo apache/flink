@@ -23,7 +23,11 @@ import org.apache.flink.runtime.instance.Instance;
 
 import com.google.common.base.Preconditions;
 
-public class CoLocationConstraint {
+import java.io.Serializable;
+
+public class CoLocationConstraint implements Serializable {
+
+	static final long serialVersionUID = 42L;
 	
 	private final CoLocationGroup group;
 	

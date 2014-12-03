@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.messages
 
 import org.apache.flink.runtime.accumulators.AccumulatorEvent
-import org.apache.flink.runtime.executiongraph.ExecutionGraph
+import org.apache.flink.runtime.executiongraph.{ExecutionAttemptID, ExecutionGraph}
 import org.apache.flink.runtime.instance.{Instance, InstanceConnectionInfo}
 import org.apache.flink.runtime.io.network.ConnectionInfoLookupResponse
 import org.apache.flink.runtime.io.network.channels.ChannelID
@@ -71,7 +71,8 @@ object JobManagerMessages {
    * @param jobID
    * @param vertexID
    */
-  case class RequestNextInputSplit(jobID: JobID, vertexID: JobVertexID)
+  case class RequestNextInputSplit(jobID: JobID, vertexID: JobVertexID, executionAttempt:
+  ExecutionAttemptID)
 
   /**
    * Looks up the connection information of a task being the source of a channel specified by

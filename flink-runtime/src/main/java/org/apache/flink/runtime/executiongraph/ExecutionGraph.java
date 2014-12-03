@@ -60,6 +60,7 @@ import static akka.dispatch.Futures.future;
 
 
 public class ExecutionGraph implements Serializable {
+	static final long serialVersionUID = 42L;
 
 	private static final AtomicReferenceFieldUpdater<ExecutionGraph, JobStatus> STATE_UPDATER =
 			AtomicReferenceFieldUpdater.newUpdater(ExecutionGraph.class, JobStatus.class, "state");
@@ -76,7 +77,7 @@ public class ExecutionGraph implements Serializable {
 	private final String jobName;
 
 	/** The job configuration that was originally attached to the JobGraph. */
-	private final Configuration jobConfiguration;
+	private transient final Configuration jobConfiguration;
 	
 	/** The classloader of the user code. */
 	private final ClassLoader userClassLoader;
@@ -88,22 +89,24 @@ public class ExecutionGraph implements Serializable {
 	private final List<ExecutionJobVertex> verticesInCreationOrder;
 
 	/** All intermediate results that are part of this graph */
-	private final ConcurrentHashMap<IntermediateDataSetID, IntermediateResult> intermediateResults;
+	private transient final ConcurrentHashMap<IntermediateDataSetID, IntermediateResult>
+	intermediateResults;
 	
 	/** The currently executed tasks, for callbacks */
-	private final ConcurrentHashMap<ExecutionAttemptID, Execution> currentExecutions;
+	private transient final ConcurrentHashMap<ExecutionAttemptID, Execution> currentExecutions;
 
-	private final Map<ChannelID, ExecutionEdge> edges = new HashMap<ChannelID, ExecutionEdge>();
+	private transient final Map<ChannelID, ExecutionEdge> edges = new HashMap<ChannelID,
+			ExecutionEdge>();
 	
-	private final List<BlobKey> requiredJarFiles;
+	private transient final List<BlobKey> requiredJarFiles;
 	
-	private final List<ActorRef> jobStatusListenerActors;
+	private transient final List<ActorRef> jobStatusListenerActors;
 
-	private final List<ActorRef> executionListenerActors;
+	private transient final List<ActorRef> executionListenerActors;
 	
 	private final long[] stateTimestamps;
 	
-	private final Object progressLock = new Object();
+	private transient final Object progressLock = new Object();
 	
 	private int nextVertexToFinish;
 	
@@ -116,7 +119,7 @@ public class ExecutionGraph implements Serializable {
 	private volatile Throwable failureCause;
 	
 	
-	private Scheduler scheduler;
+	private transient Scheduler scheduler;
 	
 	private boolean allowQueuedScheduling = true;
 	

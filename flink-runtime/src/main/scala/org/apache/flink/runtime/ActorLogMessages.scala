@@ -30,11 +30,11 @@ trait ActorLogMessages {
     override def isDefinedAt(x: Any): Boolean = _receiveWithLogMessages.isDefinedAt(x)
 
     override def apply(x: Any):Unit = {
-      log.debug(s"Received message $x from ${self.sender}.")
+      log.debug("Received message {} from {}.", x, self.sender)
       val start = System.nanoTime()
       _receiveWithLogMessages(x)
       val duration = (System.nanoTime() - start) / 1000000
-      log.debug(s"Handled message $x in $duration ms from ${self.sender}.")
+      log.debug(s"Handled message {} in {} ms from {}.", x, duration, self.sender)
     }
   }
 

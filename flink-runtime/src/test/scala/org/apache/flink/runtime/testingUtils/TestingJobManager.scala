@@ -84,12 +84,12 @@ trait TestingJobManager extends ActorLogMessages with WrapAsScala {
       }
 
       import context.dispatcher
-      val f = Future.sequence(responses)
-
-      val t = Await.result(f, timeout)
-
-      sender() ! true
-//      Future.fold(responses)(true)(_ & _) pipeTo sender()
+//      val f = Future.sequence(responses)
+//
+//      val t = Await.result(f, timeout)
+//
+//      sender() ! true
+      Future.fold(responses)(true)(_ & _) pipeTo sender()
     }
 
   }

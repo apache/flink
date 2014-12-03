@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.instance;
 
+import java.io.Serializable;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -32,13 +33,15 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotAvailabilityListener;
 /**
  * An taskManager represents a resource a {@link org.apache.flink.runtime.taskmanager.TaskManager} runs on.
  */
-public class Instance {
+public class Instance implements Serializable {
+
+	static final long serialVersionUID = 42L;
 	
 	/** The lock on which to synchronize allocations and failure state changes */
-	private final Object instanceLock = new Object();
+	private transient final Object instanceLock = new Object();
 	
 	/** The actor ref to the task manager represented by this taskManager. */
-	private final ActorRef taskManager;
+	private transient final ActorRef taskManager;
 
 	/** The instance connection information for the data transfer. */
 	private final InstanceConnectionInfo connectionInfo;
@@ -53,14 +56,14 @@ public class Instance {
 	private final int numberOfSlots;
 
 	/** A list of available slot positions */
-	private final Queue<Integer> availableSlots;
+	private transient final Queue<Integer> availableSlots;
 	
 	/** Allocated slots on this taskManager */
 	private final Set<AllocatedSlot> allocatedSlots = new HashSet<AllocatedSlot>();
 
 	
 	/** A listener to be notified upon new slot availability */
-	private SlotAvailabilityListener slotAvailabilityListener;
+	private transient SlotAvailabilityListener slotAvailabilityListener;
 	
 	/**
 	 * Time when last heat beat has been received from the task manager running on this taskManager.
