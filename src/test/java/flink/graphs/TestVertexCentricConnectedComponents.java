@@ -23,8 +23,6 @@ import java.io.BufferedReader;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.spargel.java.MessageIterator;
@@ -58,9 +56,9 @@ public class TestVertexCentricConnectedComponents extends JavaProgramTestBase {
 		DataSet<Long> vertexIds = env.generateSequence(1, NUM_VERTICES);
 		DataSet<String> edgeString = env.fromElements(ConnectedComponentsData.getRandomOddEvenEdges(NUM_EDGES, NUM_VERTICES, SEED).split("\n"));
 		
-		DataSet<Tuple3<Long, Long, NullValue>> edges = edgeString.map(new EdgeParser());
+		DataSet<Edge<Long, NullValue>> edges = edgeString.map(new EdgeParser());
 		
-		DataSet<Tuple2<Long, Long>> initialVertices = vertexIds.map(new IdAssigner());
+		DataSet<Vertex<Long, Long>> initialVertices = vertexIds.map(new IdAssigner());
 		Graph<Long, Long, NullValue> graph = Graph.create(initialVertices, edges, env); 
 		
 		Graph<Long, Long, NullValue> result = graph.runVertexCentricIteration(new CCUpdater(), new CCMessager(), 100);
@@ -93,10 +91,10 @@ public class TestVertexCentricConnectedComponents extends JavaProgramTestBase {
 	 * A map function that takes a Long value and creates a 2-tuple out of it:
 	 * <pre>(Long value) -> (value, value)</pre>
 	 */
-	public static final class IdAssigner implements MapFunction<Long, Tuple2<Long, Long>> {
+	public static final class IdAssigner implements MapFunction<Long, Vertex<Long, Long>> {
 		@Override
-		public Tuple2<Long, Long> map(Long value) {
-			return new Tuple2<Long, Long>(value, value);
+		public Vertex<Long, Long> map(Long value) {
+			return new Vertex<Long, Long>(value, value);
 		}
 	}
 
@@ -107,10 +105,10 @@ public class TestVertexCentricConnectedComponents extends JavaProgramTestBase {
 		}
 	}
 	
-	public static final class EdgeParser extends RichMapFunction<String, Tuple3<Long, Long, NullValue>> {
-		public Tuple3<Long, Long, NullValue> map(String value) {
+	public static final class EdgeParser extends RichMapFunction<String, Edge<Long, NullValue>> {
+		public Edge<Long, NullValue> map(String value) {
 			String[] nums = value.split(" ");
-			return new Tuple3<Long, Long, NullValue>(Long.parseLong(nums[0]), Long.parseLong(nums[1]), 
+			return new Edge<Long, NullValue>(Long.parseLong(nums[0]), Long.parseLong(nums[1]), 
 					NullValue.getInstance());
 		}
 	}

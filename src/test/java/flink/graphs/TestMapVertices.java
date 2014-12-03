@@ -9,7 +9,6 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple1;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.junit.runner.RunWith;
@@ -76,7 +75,7 @@ public class TestMapVertices extends JavaProgramTestBase {
 				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
 						TestGraphUtils.getLongLongEdgeData(env), env);
 				
-				DataSet<Tuple2<Long, Long>> mappedVertices = graph.mapVertices(new MapFunction<Long, Long>() {
+				DataSet<Vertex<Long, Long>> mappedVertices = graph.mapVertices(new MapFunction<Long, Long>() {
 					public Long map(Long value) throws Exception {
 						return value+1;
 					}
@@ -99,7 +98,7 @@ public class TestMapVertices extends JavaProgramTestBase {
 				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
 						TestGraphUtils.getLongLongEdgeData(env), env);
 				
-				DataSet<Tuple2<Long, String>> mappedVertices = graph.mapVertices(new MapFunction<Long, String>() {
+				DataSet<Vertex<Long, String>> mappedVertices = graph.mapVertices(new MapFunction<Long, String>() {
 					public String map(Long value) throws Exception {
 						String stringValue;
 						if (value == 1) {
@@ -142,7 +141,7 @@ public class TestMapVertices extends JavaProgramTestBase {
 				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
 						TestGraphUtils.getLongLongEdgeData(env), env);
 				
-				DataSet<Tuple2<Long, Tuple1<Long>>> mappedVertices = graph.mapVertices(new MapFunction<Long, Tuple1<Long>>() {
+				DataSet<Vertex<Long, Tuple1<Long>>> mappedVertices = graph.mapVertices(new MapFunction<Long, Tuple1<Long>>() {
 					public Tuple1<Long> map(Long value) throws Exception {
 						Tuple1<Long> tupleValue = new Tuple1<Long>();
 						tupleValue.setFields(value);
@@ -167,7 +166,7 @@ public class TestMapVertices extends JavaProgramTestBase {
 				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
 						TestGraphUtils.getLongLongEdgeData(env), env);
 				
-				DataSet<Tuple2<Long, DummyCustomType>> mappedVertices = graph.mapVertices(new MapFunction<Long, DummyCustomType>() {
+				DataSet<Vertex<Long, DummyCustomType>> mappedVertices = graph.mapVertices(new MapFunction<Long, DummyCustomType>() {
 					public DummyCustomType map(Long value) throws Exception {
 						DummyCustomType dummyValue = new DummyCustomType();
 						dummyValue.setIntField(value.intValue());						
@@ -192,7 +191,7 @@ public class TestMapVertices extends JavaProgramTestBase {
 				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
 						TestGraphUtils.getLongLongEdgeData(env), env);
 				
-				DataSet<Tuple2<Long, DummyCustomParameterizedType<Double>>> mappedVertices = graph.mapVertices(
+				DataSet<Vertex<Long, DummyCustomParameterizedType<Double>>> mappedVertices = graph.mapVertices(
 						new MapFunction<Long, DummyCustomParameterizedType<Double>>() {
 					public DummyCustomParameterizedType<Double> map(Long value) throws Exception {
 						DummyCustomParameterizedType<Double> dummyValue = new DummyCustomParameterizedType<Double>();

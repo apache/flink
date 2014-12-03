@@ -8,8 +8,6 @@ import java.util.LinkedList;
 import java.util.List;
 
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.junit.runner.RunWith;
@@ -73,13 +71,10 @@ public class TestGraphMutations extends JavaProgramTestBase {
 				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
 						TestGraphUtils.getLongLongEdgeData(env), env);
 				
-				List<Tuple3<Long, Long, Long>> edges = new ArrayList<Tuple3<Long, Long, Long>>();
-				edges.add(new Tuple3<Long, Long, Long>(6L, 1L, 61L));
-				
-				graph = graph.addVertex(new Tuple2<Long, Long>(6L, 6L), edges);
-				
+				List<Edge<Long, Long>> edges = new ArrayList<Edge<Long, Long>>();
+				edges.add(new Edge<Long, Long>(6L, 1L, 61L));
+				graph = graph.addVertex(new Vertex<Long, Long>(6L, 6L), edges);
 				graph.getEdges().writeAsCsv(resultPath);
-					
 				env.execute();
 				
 				return "1,2,12\n" +
@@ -102,15 +97,12 @@ public class TestGraphMutations extends JavaProgramTestBase {
 				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
 						TestGraphUtils.getLongLongEdgeData(env), env);
 				
-				List<Tuple3<Long, Long, Long>> edges = new ArrayList<Tuple3<Long, Long, Long>>();
-				edges.add(new Tuple3<Long, Long, Long>(1L, 5L, 15L));
-				
-				graph = graph.addVertex(new Tuple2<Long, Long>(1L, 1L), edges);
-				
+				List<Edge<Long, Long>> edges = new ArrayList<Edge<Long, Long>>();
+				edges.add(new Edge<Long, Long>(1L, 5L, 15L));
+				graph = graph.addVertex(new Vertex<Long, Long>(1L, 1L), edges);
 				graph.getEdges().writeAsCsv(resultPath);
-					
 				env.execute();
-				
+
 				return "1,2,12\n" +
 					"1,3,13\n" +
 					"1,5,15\n" +
@@ -130,15 +122,11 @@ public class TestGraphMutations extends JavaProgramTestBase {
 				
 				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
 						TestGraphUtils.getLongLongEdgeData(env), env);
-				
-				List<Tuple3<Long, Long, Long>> edges = new ArrayList<Tuple3<Long, Long, Long>>();
-				
-				graph = graph.addVertex(new Tuple2<Long, Long>(6L, 6L), edges);
-				
+				List<Edge<Long, Long>> edges = new ArrayList<Edge<Long, Long>>();
+				graph = graph.addVertex(new Vertex<Long, Long>(6L, 6L), edges);
 				graph.getVertices().writeAsCsv(resultPath);
-					
 				env.execute();
-				
+
 				return "1,1\n" +
 					"2,2\n" +
 					"3,3\n" +
@@ -156,13 +144,10 @@ public class TestGraphMutations extends JavaProgramTestBase {
 				
 				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
 						TestGraphUtils.getLongLongEdgeData(env), env);
-				
-				graph = graph.removeVertex(new Tuple2<Long, Long>(5L, 5L));
-				
+				graph = graph.removeVertex(new Vertex<Long, Long>(5L, 5L));
 				graph.getEdges().writeAsCsv(resultPath);
-					
 				env.execute();
-				
+
 				return "1,2,12\n" +
 					"1,3,13\n" +
 					"2,3,23\n" +
@@ -178,13 +163,10 @@ public class TestGraphMutations extends JavaProgramTestBase {
 				
 				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
 						TestGraphUtils.getLongLongEdgeData(env), env);
-				
-				graph = graph.removeVertex(new Tuple2<Long, Long>(6L, 6L));
-				
+				graph = graph.removeVertex(new Vertex<Long, Long>(6L, 6L));
 				graph.getEdges().writeAsCsv(resultPath);
-					
 				env.execute();
-				
+
 				return "1,2,12\n" +
 					"1,3,13\n" +
 					"2,3,23\n" +
@@ -202,15 +184,11 @@ public class TestGraphMutations extends JavaProgramTestBase {
 				
 				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
 						TestGraphUtils.getLongLongEdgeData(env), env);
-				
-				
-				graph = graph.addEdge(new Tuple2<Long, Long>(6L, 6L), new Tuple2<Long, Long>(1L, 1L),
+				graph = graph.addEdge(new Vertex<Long, Long>(6L, 6L), new Vertex<Long, Long>(1L, 1L),
 						61L);
-				
 				graph.getEdges().writeAsCsv(resultPath);
-					
 				env.execute();
-				
+
 				return "1,2,12\n" +
 					"1,3,13\n" +
 					"2,3,23\n" +
@@ -229,15 +207,11 @@ public class TestGraphMutations extends JavaProgramTestBase {
 				
 				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
 						TestGraphUtils.getLongLongEdgeData(env), env);
-				
-				
-				graph = graph.addEdge(new Tuple2<Long, Long>(1L, 1L), new Tuple2<Long, Long>(2L, 2L),
+				graph = graph.addEdge(new Vertex<Long, Long>(1L, 1L), new Vertex<Long, Long>(2L, 2L),
 						12L);
-				
 				graph.getEdges().writeAsCsv(resultPath);
-					
 				env.execute();
-				
+
 				return "1,2,12\n" +
 					"1,2,12\n" +
 					"1,3,13\n" +
@@ -256,13 +230,10 @@ public class TestGraphMutations extends JavaProgramTestBase {
 				
 				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
 						TestGraphUtils.getLongLongEdgeData(env), env);
-				
-				graph = graph.removeEdge(new Tuple3<Long, Long, Long>(5L, 1L, 51L));
-				
+				graph = graph.removeEdge(new Edge<Long, Long>(5L, 1L, 51L));
 				graph.getEdges().writeAsCsv(resultPath);
-					
 				env.execute();
-				
+
 				return "1,2,12\n" +
 					"1,3,13\n" +
 					"2,3,23\n" +
@@ -280,11 +251,8 @@ public class TestGraphMutations extends JavaProgramTestBase {
 				
 				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
 						TestGraphUtils.getLongLongEdgeData(env), env);
-				
-				graph = graph.removeEdge(new Tuple3<Long, Long, Long>(6L, 1L, 61L));
-				
+				graph = graph.removeEdge(new Edge<Long, Long>(6L, 1L, 61L));
 				graph.getEdges().writeAsCsv(resultPath);
-					
 				env.execute();
 				
 				return "1,2,12\n" +
