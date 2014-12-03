@@ -28,12 +28,13 @@ import org.apache.flink.core.memory.DataOutputView;
  * 
  * @see SerializedInputFormat
  */
-public class SerializedOutputFormat extends BinaryOutputFormat<IOReadableWritable> {
+public class SerializedOutputFormat<T extends IOReadableWritable> extends
+		BinaryOutputFormat<T> {
 	
 	private static final long serialVersionUID = 1L;
 	
 	@Override
-	protected void serialize(IOReadableWritable record, DataOutputView dataOutputView) throws IOException {
+	protected void serialize(T record, DataOutputView dataOutputView) throws IOException {
 		record.write(dataOutputView);
 	}
 }

@@ -48,9 +48,9 @@ public class BooleanSerializerTest extends SerializerTestBase<Boolean> {
 	protected Boolean[] getTestData() {
 		Random rnd = new Random(874597969123412341L);
 		
-		return new Boolean[] {new Boolean(true), new Boolean(false),
-								new Boolean(rnd.nextBoolean()),
-								new Boolean(rnd.nextBoolean()),
-								new Boolean(rnd.nextBoolean())};
+		return new Boolean[] {Boolean.valueOf(true), Boolean.valueOf(false),
+								Boolean.valueOf(rnd.nextBoolean()),
+								Boolean.valueOf(rnd.nextBoolean()),
+								Boolean.valueOf(rnd.nextBoolean())};
 	}
 }

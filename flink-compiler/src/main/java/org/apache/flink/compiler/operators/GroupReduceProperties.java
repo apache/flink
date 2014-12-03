@@ -21,6 +21,7 @@ package org.apache.flink.compiler.operators;
 import java.util.Collections;
 import java.util.List;
 
+import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.util.FieldSet;
@@ -38,12 +39,22 @@ public final class GroupReduceProperties extends OperatorDescriptorSingle {
 	
 	private final Ordering ordering;		// ordering that we need to use if an additional ordering is requested 
 
+	private final Partitioner<?> customPartitioner;
+	
 	
 	public GroupReduceProperties(FieldSet keys) {
-		this(keys, null);
+		this(keys, null, null);
 	}
 	
-	public GroupReduceProperties(FieldSet groupKeys, Ordering additionalOrderKeys) {
+	public GroupReduceProperties(FieldSet keys, Ordering additionalOrderKeys) {
+		this(keys, additionalOrderKeys, null);
+	}
+	
+	public GroupReduceProperties(FieldSet keys, Partitioner<?> customPartitioner) {
+		this(keys, null, customPartitioner);
+	}
+	
+	public GroupReduceProperties(FieldSet groupKeys, Ordering additionalOrderKeys, Partitioner<?> customPartitioner) {
 		super(groupKeys);
 		
 		// if we have an additional ordering, construct the ordering to have primarily the grouping fields
@@ -59,9 +70,12 @@ public final class GroupReduceProperties extends OperatorDescriptorSingle {
 				Order order = additionalOrderKeys.getOrder(i);
 				this.ordering.appendOrdering(field, additionalOrderKeys.getType(i), order);
 			}
-		} else {
+		}
+		else {
 			this.ordering = null;
 		}
+		
+		this.customPartitioner = customPartitioner;
 	}
 	
 	@Override
@@ -71,13 +85,18 @@ public final class GroupReduceProperties extends OperatorDescriptorSingle {
 
 	@Override
 	public SingleInputPlanNode instantiate(Channel in, SingleInputNode node) {
-		return new SingleInputPlanNode(node, "Reduce("+node.getPactContract().getName()+")", in, DriverStrategy.SORTED_GROUP_REDUCE, this.keyList);
+		return new SingleInputPlanNode(node, "GroupReduce ("+node.getPactContract().getName()+")", in, DriverStrategy.SORTED_GROUP_REDUCE, this.keyList);
 	}
 
 	@Override
 	protected List<RequestedGlobalProperties> createPossibleGlobalProperties() {
 		RequestedGlobalProperties props = new RequestedGlobalProperties();
-		props.setAnyPartitioning(this.keys);
+		
+		if (customPartitioner == null) {
+			props.setAnyPartitioning(this.keys);
+		} else {
+			props.setCustomPartitioned(this.keys, this.customPartitioner);
+		}
 		return Collections.singletonList(props);
 	}
 

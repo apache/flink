@@ -36,14 +36,14 @@ public class TupleComparatorILDC3Test extends TupleComparatorTestBase<Tuple3<Int
 
 	@SuppressWarnings("unchecked")
 	Tuple3<Integer, Long, Double>[] dataISD = new Tuple3[]{
-		new Tuple3<Integer, Long, Double>(4, new Long(4), 20.0),
-		new Tuple3<Integer, Long, Double>(5, new Long(1), 20.0),
-		new Tuple3<Integer, Long, Double>(5, new Long(2), 20.0),
-		new Tuple3<Integer, Long, Double>(5, new Long(10), 23.0),
-		new Tuple3<Integer, Long, Double>(5, new Long(19), 24.0),
-		new Tuple3<Integer, Long, Double>(5, new Long(20), 24.0),
-		new Tuple3<Integer, Long, Double>(5, new Long(24), 25.0),
-		new Tuple3<Integer, Long, Double>(5, new Long(25), 25.0)
+		new Tuple3<Integer, Long, Double>(4, Long.valueOf(4), 20.0),
+		new Tuple3<Integer, Long, Double>(5, Long.valueOf(1), 20.0),
+		new Tuple3<Integer, Long, Double>(5, Long.valueOf(2), 20.0),
+		new Tuple3<Integer, Long, Double>(5, Long.valueOf(10), 23.0),
+		new Tuple3<Integer, Long, Double>(5, Long.valueOf(19), 24.0),
+		new Tuple3<Integer, Long, Double>(5, Long.valueOf(20), 24.0),
+		new Tuple3<Integer, Long, Double>(5, Long.valueOf(24), 25.0),
+		new Tuple3<Integer, Long, Double>(5, Long.valueOf(25), 25.0)
 	};
 
 	@Override

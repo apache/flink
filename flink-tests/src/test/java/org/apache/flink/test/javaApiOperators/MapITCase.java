@@ -259,7 +259,7 @@ public class MapITCase extends JavaProgramTestBase {
 							@Override
 							public Tuple3<Integer, String, Long> map(Tuple3<Integer, Long, String> value) 
 									throws Exception {
-								Integer incr = new Integer(value.f0.intValue() + 1);
+								Integer incr = Integer.valueOf(value.f0.intValue() + 1);
 								out.setFields(incr, value.f2, value.f1);
 								return out;
 							}
@@ -354,7 +354,7 @@ public class MapITCase extends JavaProgramTestBase {
 							@Override
 							public Tuple3<Integer, Long, String> map(Tuple3<Integer, Long, String> value) 
 									throws Exception {
-								Integer incr = new Integer(value.f0.intValue() + 1);
+								Integer incr = Integer.valueOf(value.f0.intValue() + 1);
 								value.setField(incr, 0);
 								return value;
 							}

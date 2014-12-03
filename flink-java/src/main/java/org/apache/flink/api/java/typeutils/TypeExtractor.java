@@ -42,6 +42,7 @@ import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.MapPartitionFunction;
+import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
@@ -113,6 +114,10 @@ public class TypeExtractor {
 	
 	public static <IN, OUT> TypeInformation<OUT> getKeySelectorTypes(KeySelector<IN, OUT> selectorInterface, TypeInformation<IN> inType) {
 		return getUnaryOperatorReturnType((Function) selectorInterface, KeySelector.class, false, false, inType);
+	}
+	
+	public static <T> TypeInformation<T> getPartitionerTypes(Partitioner<T> partitioner) {
+		return new TypeExtractor().privateCreateTypeInfo(Partitioner.class, partitioner.getClass(), 0, null, null);
 	}
 	
 	@SuppressWarnings("unchecked")
@@ -204,7 +209,7 @@ public class TypeExtractor {
 		ArrayList<Type> typeHierarchy = new ArrayList<Type>();
 		Type returnType = getParameterType(baseClass, typeHierarchy, clazz, returnParamPos);
 		
-		TypeInformation<OUT> typeInfo = null;
+		TypeInformation<OUT> typeInfo;
 		
 		// return type is a variable -> try to get the type info from the input directly
 		if (returnType instanceof TypeVariable<?>) {
@@ -372,7 +377,7 @@ public class TypeExtractor {
 					className = "L" + componentClass.getName() + ";";
 				}
 				
-				Class<OUT> classArray = null;
+				Class<OUT> classArray;
 				try {
 					classArray = (Class<OUT>) Class.forName("[" + className);
 				} catch (ClassNotFoundException e) {
@@ -701,7 +706,7 @@ public class TypeExtractor {
 					throw new InvalidTypesException("Value type expected.");
 				}
 				
-				TypeInformation<?> actual = null;
+				TypeInformation<?> actual;
 				// check value type contents
 				if (!((ValueTypeInfo<?>) typeInfo).equals(actual = ValueTypeInfo.getValueTypeInfo((Class<? extends Value>) type))) {
 					throw new InvalidTypesException("Value type '" + typeInfo + "' expected but was '" + actual + "'.");
@@ -714,6 +719,17 @@ public class TypeExtractor {
 					throw new InvalidTypesException("POJO type '"
 							+ ((PojoTypeInfo<?>) typeInfo).getTypeClass().getCanonicalName() + "' expected but was '"
 							+ clazz.getCanonicalName() + "'.");
+				}
+			}
+			// check for Enum
+			else if (typeInfo instanceof EnumTypeInfo) {
+				if (!(type instanceof Class<?> && Enum.class.isAssignableFrom((Class<?>) type))) {
+					throw new InvalidTypesException("Enum type expected.");
+				}
+				// check enum type contents
+				if (!(typeInfo.getTypeClass() == type)) {
+					throw new InvalidTypesException("Enum type '" + typeInfo.getTypeClass().getCanonicalName() + "' expected but was '"
+							+ typeToClass(type).getCanonicalName() + "'.");
 				}
 			}
 			// check for generic object
@@ -862,7 +878,7 @@ public class TypeExtractor {
 	private <X> TypeInformation<X> privateGetForClass(Class<X> clazz, ArrayList<Type> typeHierarchy) {
 		return privateGetForClass(clazz, typeHierarchy, null);
 	}
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	private <X> TypeInformation<X> privateGetForClass(Class<X> clazz, ArrayList<Type> typeHierarchy, ParameterizedType clazzTypeHint) {
 		Validate.notNull(clazz);
 		
@@ -872,7 +888,6 @@ public class TypeExtractor {
 		}
 
 		if (clazz.equals(Object.class)) {
-			// TODO (merging): better throw an exception here. the runtime does not support it yet
 			return new GenericTypeInfo<X>(clazz);
 		}
 		
@@ -919,6 +934,10 @@ public class TypeExtractor {
 			throw new InvalidTypesException("Type information extraction for tuples cannot be done based on the class.");
 		}
 
+		// check for Enums
+		if(Enum.class.isAssignableFrom(clazz)) {
+			return (TypeInformation<X>) new EnumTypeInfo(clazz);
+		}
 
 		if (alreadySeen.contains(clazz)) {
 			return new GenericTypeInfo<X>(clazz);

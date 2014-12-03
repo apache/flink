@@ -134,7 +134,7 @@ public class KMeansDataGenerator {
 		System.out.println("Wrote "+k+" cluster centers to "+tmpDir+"/"+CENTERS_FILE);
 	}
 	
-	private static final double[][] uniformRandomCenters(Random rnd, int num, int dimensionality, double range) {
+	private static double[][] uniformRandomCenters(Random rnd, int num, int dimensionality, double range) {
 		final double halfRange = range / 2;
 		final double[][] points = new double[num][dimensionality];
 		

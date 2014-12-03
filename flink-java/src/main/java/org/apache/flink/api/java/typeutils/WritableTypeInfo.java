@@ -100,16 +100,12 @@ public class WritableTypeInfo<T extends Writable> extends TypeInformation<T> imp
 	
 	@Override
 	public boolean equals(Object obj) {
-		if (obj.getClass() == WritableTypeInfo.class) {
-			return typeClass == ((WritableTypeInfo<?>) obj).typeClass;
-		} else {
-			return false;
-		}
+		return obj.getClass() == WritableTypeInfo.class && typeClass == ((WritableTypeInfo<?>) obj).typeClass;
 	}
 	
 	// --------------------------------------------------------------------------------------------
 	
-	static final <T extends Writable> TypeInformation<T> getWritableTypeInfo(Class<T> typeClass) {
+	static <T extends Writable> TypeInformation<T> getWritableTypeInfo(Class<T> typeClass) {
 		if (Writable.class.isAssignableFrom(typeClass) && !typeClass.equals(Writable.class)) {
 			return new WritableTypeInfo<T>(typeClass);
 		}

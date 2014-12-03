@@ -580,6 +580,9 @@ public class ConnectedDataStream<IN1, IN2> {
 	SingleOutputStreamOperator<Tuple2<IN1, IN2>, ?> windowJoin(long windowSize, long slideInterval,
 			TimeStamp<IN1> timestamp1, TimeStamp<IN2> timestamp2, int fieldIn1, int fieldIn2) {
 
+		dataStream1 = dataStream1.groupBy(fieldIn1);
+		dataStream2 = dataStream2.groupBy(fieldIn2);
+
 		JoinWindowFunction<IN1, IN2> joinWindowFunction = new JoinWindowFunction<IN1, IN2>(
 				dataStream1.getOutputType(), dataStream2.getOutputType(), fieldIn1, fieldIn2);
 
@@ -589,6 +592,9 @@ public class ConnectedDataStream<IN1, IN2> {
 
 	SingleOutputStreamOperator<Tuple2<IN1, IN2>, ?> windowJoin(long windowSize, long slideInterval,
 			TimeStamp<IN1> timestamp1, TimeStamp<IN2> timestamp2, String fieldIn1, String fieldIn2) {
+
+		dataStream1 = dataStream1.groupBy(fieldIn1);
+		dataStream2 = dataStream2.groupBy(fieldIn2);
 
 		JoinWindowFunction<IN1, IN2> joinWindowFunction = new JoinWindowFunction<IN1, IN2>(
 				dataStream1.getOutputType(), dataStream2.getOutputType(), fieldIn1, fieldIn2);

@@ -61,7 +61,7 @@ public class JsonFactory {
 		
 		// initialize with 0
 		for (ExecutionState state : ExecutionState.values()) {
-			stateCounts.put(state, new Integer(0));
+			stateCounts.put(state, Integer.valueOf(0));
 		}
 		
 		ExecutionVertex[] vertices = jobVertex.getTaskVertices();

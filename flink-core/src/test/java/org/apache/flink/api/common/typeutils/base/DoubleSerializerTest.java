@@ -48,10 +48,10 @@ public class DoubleSerializerTest extends SerializerTestBase<Double> {
 		Random rnd = new Random(874597969123412341L);
 		Double rndDouble = rnd.nextDouble() * Double.MAX_VALUE;
 		
-		return new Double[] {new Double(0), new Double(1), new Double(-1),
-							new Double(Double.MAX_VALUE), new Double(Double.MIN_VALUE),
-							new Double(rndDouble), new Double(-rndDouble),
-							new Double(Double.NaN),
-							new Double(Double.NEGATIVE_INFINITY), new Double(Double.POSITIVE_INFINITY)};
+		return new Double[] {Double.valueOf(0), Double.valueOf(1), Double.valueOf(-1),
+							Double.valueOf(Double.MAX_VALUE), Double.valueOf(Double.MIN_VALUE),
+							Double.valueOf(rndDouble), Double.valueOf(-rndDouble),
+							Double.valueOf(Double.NaN),
+							Double.valueOf(Double.NEGATIVE_INFINITY), Double.valueOf(Double.POSITIVE_INFINITY)};
 	}
 }	

@@ -35,6 +35,7 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.apache.flink.api.java.CollectionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.ExecutionEnvironmentFactory;
 import org.apache.flink.api.java.tuple.Tuple;
 
 
@@ -243,7 +244,14 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
 		}
 		
 		private void setAsContext() {
-			initializeContextEnvironment(this);
+			ExecutionEnvironmentFactory factory = new ExecutionEnvironmentFactory() {
+				@Override
+				public ExecutionEnvironment createExecutionEnvironment() {
+					return TestEnvironment.this;
+				}
+			};
+			
+			initializeContextEnvironment(factory);
 		}
 	}
 	
@@ -264,7 +272,14 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
 		}
 		
 		private void setAsContext() {
-			initializeContextEnvironment(this);
+			ExecutionEnvironmentFactory factory = new ExecutionEnvironmentFactory() {
+				@Override
+				public ExecutionEnvironment createExecutionEnvironment() {
+					return CollectionTestEnvironment.this;
+				}
+			};
+			
+			initializeContextEnvironment(factory);
 		}
 	}
 	

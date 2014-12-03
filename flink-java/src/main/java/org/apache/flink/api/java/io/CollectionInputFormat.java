@@ -44,10 +44,9 @@ public class CollectionInputFormat<T> extends GenericInputFormat<T> implements N
 	private TypeSerializer<T> serializer;
 
 	private transient Collection<T> dataSet; // input data as collection. transient, because it will be serialized in a custom way
-	
+
 	private transient Iterator<T> iterator;
 
-	
 	public CollectionInputFormat(Collection<T> dataSet, TypeSerializer<T> serializer) {
 		if (dataSet == null) {
 			throw new NullPointerException();
@@ -58,7 +57,6 @@ public class CollectionInputFormat<T> extends GenericInputFormat<T> implements N
 		this.dataSet = dataSet;
 	}
 
-	
 	@Override
 	public boolean reachedEnd() throws IOException {
 		return !this.iterator.hasNext();
@@ -80,10 +78,15 @@ public class CollectionInputFormat<T> extends GenericInputFormat<T> implements N
 
 	private void writeObject(ObjectOutputStream out) throws IOException {
 		out.defaultWriteObject();
-		out.writeInt(dataSet.size());
 		
-		for (T element : dataSet){
-			serializer.serialize(element, new OutputViewObjectOutputStreamWrapper(out));
+		final int size = dataSet.size();
+		out.writeInt(size);
+		
+		if (size > 0) {
+			OutputViewObjectOutputStreamWrapper wrapper = new OutputViewObjectOutputStreamWrapper(out);
+			for (T element : dataSet){
+				serializer.serialize(element, wrapper);
+			}
 		}
 	}
 
@@ -93,11 +96,17 @@ public class CollectionInputFormat<T> extends GenericInputFormat<T> implements N
 		int collectionLength = in.readInt();
 		List<T> list = new ArrayList<T>(collectionLength);
 		
-
-		for (int i = 0; i < collectionLength; i++){
-			T element = serializer.createInstance();
-			element = serializer.deserialize(element, new InputViewObjectInputStreamWrapper(in));
-			list.add(element);
+		if (collectionLength > 0) {
+			try {
+				InputViewObjectInputStreamWrapper wrapper = new InputViewObjectInputStreamWrapper(in);
+				for (int i = 0; i < collectionLength; i++){
+					T element = serializer.deserialize(wrapper);
+					list.add(element);
+				}
+			}
+			catch (Throwable t) {
+				throw new IOException("Error while deserializing element from collection", t);
+			}
 		}
 
 		dataSet = list;

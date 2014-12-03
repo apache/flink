@@ -24,13 +24,17 @@ import java.util.LinkedList;
 import java.util.List;
 
 import com.google.common.base.Joiner;
+
 import org.apache.flink.api.common.InvalidProgramException;
+import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.typeinfo.AtomicType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.CompositeType.FlatFieldDescriptor;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,6 +57,8 @@ public abstract class Keys<T> {
 	public abstract boolean areCompatible(Keys<?> other) throws IncompatibleKeysException;
 	
 	public abstract int[] computeLogicalKeyPositions();
+	
+	public abstract <E> void validateCustomPartitioner(Partitioner<E> partitioner, TypeInformation<E> typeInfo);
 	
 	
 	// --------------------------------------------------------------------------------------------
@@ -145,6 +151,27 @@ public abstract class Keys<T> {
 		@Override
 		public int[] computeLogicalKeyPositions() {
 			return logicalKeyFields;
+		}
+		
+		@Override
+		public <E> void validateCustomPartitioner(Partitioner<E> partitioner, TypeInformation<E> typeInfo) {
+			if (logicalKeyFields.length != 1) {
+				throw new InvalidProgramException("Custom partitioners can only be used with keys that have one key field.");
+			}
+			
+			if (typeInfo == null) {
+				try {
+					typeInfo = TypeExtractor.getPartitionerTypes(partitioner);
+				}
+				catch (Throwable t) {
+					// best effort check, so we ignore exceptions
+				}
+			}
+			
+			if (typeInfo != null && !(typeInfo instanceof GenericTypeInfo) && (!keyType.equals(typeInfo))) {
+				throw new InvalidProgramException("The partitioner is imcompatible with the key type. "
+						+ "Partitioner type: " + typeInfo + " , key type: " + keyType);
+			}
 		}
 
 		@Override
@@ -299,11 +326,35 @@ public abstract class Keys<T> {
 
 		@Override
 		public int[] computeLogicalKeyPositions() {
-			List<Integer> logicalKeys = new LinkedList<Integer>();
-			for(FlatFieldDescriptor kd : keyFields) {
-				logicalKeys.addAll( Ints.asList(kd.getPosition()));
+			List<Integer> logicalKeys = new ArrayList<Integer>();
+			for (FlatFieldDescriptor kd : keyFields) {
+				logicalKeys.add(kd.getPosition());
 			}
 			return Ints.toArray(logicalKeys);
+		}
+		
+		@Override
+		public <E> void validateCustomPartitioner(Partitioner<E> partitioner, TypeInformation<E> typeInfo) {
+			if (keyFields.size() != 1) {
+				throw new InvalidProgramException("Custom partitioners can only be used with keys that have one key field.");
+			}
+			
+			if (typeInfo == null) {
+				try {
+					typeInfo = TypeExtractor.getPartitionerTypes(partitioner);
+				}
+				catch (Throwable t) {
+					// best effort check, so we ignore exceptions
+				}
+			}
+			
+			if (typeInfo != null && !(typeInfo instanceof GenericTypeInfo)) {
+				TypeInformation<?> keyType = keyFields.get(0).getType();
+				if (!keyType.equals(typeInfo)) {
+					throw new InvalidProgramException("The partitioner is incompatible with the key type. "
+										+ "Partitioner type: " + typeInfo + " , key type: " + keyType);
+				}
+			}
 		}
 
 		@Override

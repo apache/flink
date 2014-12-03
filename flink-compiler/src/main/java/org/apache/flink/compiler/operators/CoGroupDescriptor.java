@@ -16,12 +16,13 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.compiler.operators;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.util.FieldList;
@@ -37,13 +38,12 @@ import org.apache.flink.compiler.plan.DualInputPlanNode;
 import org.apache.flink.compiler.util.Utils;
 import org.apache.flink.runtime.operators.DriverStrategy;
 
-/**
- * 
- */
 public class CoGroupDescriptor extends OperatorDescriptorDual {
 	
 	private final Ordering ordering1;		// ordering on the first input 
 	private final Ordering ordering2;		// ordering on the second input 
+	
+	private Partitioner<?> customPartitioner;
 	
 	
 	public CoGroupDescriptor(FieldList keys1, FieldList keys2) {
@@ -88,6 +88,10 @@ public class CoGroupDescriptor extends OperatorDescriptorDual {
 		}
 	}
 	
+	public void setCustomPartitioner(Partitioner<?> customPartitioner) {
+		this.customPartitioner = customPartitioner;
+	}
+	
 	@Override
 	public DriverStrategy getStrategy() {
 		return DriverStrategy.CO_GROUP;
@@ -95,11 +99,29 @@ public class CoGroupDescriptor extends OperatorDescriptorDual {
 
 	@Override
 	protected List<GlobalPropertiesPair> createPossibleGlobalProperties() {
-		RequestedGlobalProperties partitioned1 = new RequestedGlobalProperties();
-		partitioned1.setHashPartitioned(this.keys1);
-		RequestedGlobalProperties partitioned2 = new RequestedGlobalProperties();
-		partitioned2.setHashPartitioned(this.keys2);
-		return Collections.singletonList(new GlobalPropertiesPair(partitioned1, partitioned2));
+		if (this.customPartitioner == null) {
+			RequestedGlobalProperties partitioned_left_any = new RequestedGlobalProperties();
+			RequestedGlobalProperties partitioned_left_hash = new RequestedGlobalProperties();
+			partitioned_left_any.setAnyPartitioning(this.keys1);
+			partitioned_left_hash.setHashPartitioned(this.keys1);
+			
+			RequestedGlobalProperties partitioned_right_any = new RequestedGlobalProperties();
+			RequestedGlobalProperties partitioned_right_hash = new RequestedGlobalProperties();
+			partitioned_right_any.setAnyPartitioning(this.keys2);
+			partitioned_right_hash.setHashPartitioned(this.keys2);
+			
+			return Arrays.asList(new GlobalPropertiesPair(partitioned_left_any, partitioned_right_any),
+					new GlobalPropertiesPair(partitioned_left_hash, partitioned_right_hash));
+		}
+		else {
+			RequestedGlobalProperties partitioned_left = new RequestedGlobalProperties();
+			partitioned_left.setCustomPartitioned(this.keys1, this.customPartitioner);
+			
+			RequestedGlobalProperties partitioned_right = new RequestedGlobalProperties();
+			partitioned_right.setCustomPartitioned(this.keys2, this.customPartitioner);
+			
+			return Collections.singletonList(new GlobalPropertiesPair(partitioned_left, partitioned_right));
+		}
 	}
 	
 	@Override
@@ -107,6 +129,16 @@ public class CoGroupDescriptor extends OperatorDescriptorDual {
 		RequestedLocalProperties sort1 = new RequestedLocalProperties(this.ordering1);
 		RequestedLocalProperties sort2 = new RequestedLocalProperties(this.ordering2);
 		return Collections.singletonList(new LocalPropertiesPair(sort1, sort2));
+	}
+	
+	@Override
+	public boolean areCompatible(RequestedGlobalProperties requested1, RequestedGlobalProperties requested2,
+			GlobalProperties produced1, GlobalProperties produced2)
+	{
+		return produced1.getPartitioning() == produced2.getPartitioning() && 
+				(produced1.getCustomPartitioner() == null ? 
+					produced2.getCustomPartitioner() == null :
+					produced1.getCustomPartitioner().equals(produced2.getCustomPartitioner()));
 	}
 	
 	@Override

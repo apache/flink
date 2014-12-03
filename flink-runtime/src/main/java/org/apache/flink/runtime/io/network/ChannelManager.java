@@ -396,9 +396,7 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 			}
 		}
 
-		if (channels.containsKey(sourceChannelID)) {
-			this.receiverCache.put(sourceChannelID, receiverList);
-		}
+		this.receiverCache.put(sourceChannelID, receiverList);
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug(String.format("Receiver for %s: %s [%s])",

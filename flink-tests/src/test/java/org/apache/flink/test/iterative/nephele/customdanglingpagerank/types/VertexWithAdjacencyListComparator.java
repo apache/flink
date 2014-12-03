@@ -32,6 +32,7 @@ public final class VertexWithAdjacencyListComparator extends TypeComparator<Vert
 	
 	private long reference;
 
+	@SuppressWarnings("rawtypes")
 	private TypeComparator[] comparators = new TypeComparator[]{new LongComparator(true)};
 
 	@Override
@@ -138,8 +139,9 @@ public final class VertexWithAdjacencyListComparator extends TypeComparator<Vert
 		target[index] = ((VertexWithAdjacencyList) record).getVertexID();
 		return 1;
 	}
-
+	
 	@Override
+	@SuppressWarnings("rawtypes")
 	public TypeComparator[] getFlatComparators() {
 		return comparators;
 	}

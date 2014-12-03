@@ -58,4 +58,4 @@ public enum JobStatus {
 	public boolean isTerminalState() {
 		return terminalState;
 	}
-};
+}

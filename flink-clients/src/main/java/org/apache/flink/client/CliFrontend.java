@@ -84,7 +84,6 @@ public class CliFrontend {
 	private static final Option ADDRESS_OPTION = new Option("m", "jobmanager", true, "Address of the JobManager (master) to which to connect. Use this flag to connect to a different JobManager than the one specified in the configuration.");
 	
 	// info specific options
-	private static final Option DESCR_OPTION = new Option("d", "description", false, "Show description of expected program arguments");
 	private static final Option PLAN_OPTION = new Option("e", "executionplan", false, "Show optimized execution plan of the program (JSON)");
 	
 	// list specific options
@@ -166,8 +165,7 @@ public class CliFrontend {
 		ARGS_OPTION.setArgs(Option.UNLIMITED_VALUES);
 		
 		PLAN_OPTION.setRequired(false);
-		DESCR_OPTION.setRequired(false);
-		
+
 		RUNNING_OPTION.setRequired(false);
 		SCHEDULED_OPTION.setRequired(false);
 		
@@ -227,7 +225,6 @@ public class CliFrontend {
 	static Options getInfoOptions(Options options) {
 		options = getProgramSpecificOptions(options);
 		options = getJobManagerAddressOption(options);
-		options.addOption(DESCR_OPTION);
 		options.addOption(PLAN_OPTION);
 		return options;
 	}
@@ -235,7 +232,6 @@ public class CliFrontend {
 	static Options getInfoOptionsWithoutDeprecatedOptions(Options options) {
 		options = getProgramSpecificOptionsWithoutDeprecatedOptions(options);
 		options = getJobManagerAddressOption(options);
-		options.addOption(DESCR_OPTION);
 		options.addOption(PLAN_OPTION);
 		return options;
 	}
@@ -398,10 +394,9 @@ public class CliFrontend {
 			return 0;
 		}
 		
-		boolean description = line.hasOption(DESCR_OPTION.getOpt());
 		boolean plan = line.hasOption(PLAN_OPTION.getOpt());
 		
-		if (!description && !plan) {
+		if (!plan) {
 			System.out.println("ERROR: Specify the information to display.");
 			printHelpForInfo();
 			return 1;
@@ -440,19 +435,6 @@ public class CliFrontend {
 		}
 		
 		try {
-			// check for description request
-			if (description) {
-				String descr = program.getDescription();
-				
-				if (descr != null) {
-					System.out.println("-------------------- Program Description ---------------------");
-					System.out.println(descr);
-					System.out.println("--------------------------------------------------------------");
-				} else {
-					System.out.println("No description available for this program.");
-				}
-			}
-			
 			// check for json plan request
 			if (plan) {
 				Client client = getClient(line, program.getUserCodeClassLoader());

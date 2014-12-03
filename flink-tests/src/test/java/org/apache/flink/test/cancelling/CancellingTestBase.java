@@ -201,6 +201,8 @@ public abstract class CancellingTestBase {
 						case FAILING:
 						case CREATED:
 							break;
+						case RESTARTING:
+							throw new IllegalStateException("Job restarted");
 						}
 					}
 
@@ -219,7 +221,6 @@ public abstract class CancellingTestBase {
 		} catch (Exception e) {
 			LOG.error("Exception while running runAndCancelJob.", e);
 			Assert.fail(StringUtils.stringifyException(e));
-			return;
 		}
 	}
 

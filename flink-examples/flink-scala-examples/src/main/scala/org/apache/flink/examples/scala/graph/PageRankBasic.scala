@@ -17,11 +17,16 @@
  */
 package org.apache.flink.examples.scala.graph
 
+import java.lang.Iterable
+
+import org.apache.flink.api.common.functions.GroupReduceFunction
 import org.apache.flink.api.scala._
 import org.apache.flink.examples.java.graph.util.PageRankData
 import org.apache.flink.api.java.aggregation.Aggregations.SUM
 
 import org.apache.flink.util.Collector
+
+import scala.collection.JavaConverters._
 
 /**
  * A basic implementation of the Page Rank algorithm using a bulk iteration.
@@ -83,12 +88,13 @@ object PageRankBasic {
 
     // build adjacency list from link input
     val adjacencyLists = links
-      // initialize lists
-      .map(e => AdjacencyList(e.sourceId, Array(e.targetId)))
-      // concatenate lists
-      .groupBy("sourceId").reduce {
-      (l1, l2) => AdjacencyList(l1.sourceId, l1.targetIds ++ l2.targetIds)
-      }
+      .groupBy("sourceId").reduceGroup( new GroupReduceFunction[Link, AdjacencyList] {
+        override def reduce(values: Iterable[Link], out: Collector[AdjacencyList]): Unit = {
+          var outputId = -1L
+          val outputList = values.asScala map { t => outputId = t.sourceId; t.targetId }
+          out.collect(new AdjacencyList(outputId, outputList.toArray))
+        }
+      })
 
     // start iteration
     val finalRanks = pagesWithRanks.iterateWithTermination(maxIterations) {
@@ -97,9 +103,9 @@ object PageRankBasic {
           // distribute ranks to target pages
           .join(adjacencyLists).where("pageId").equalTo("sourceId") {
             (page, adjacent, out: Collector[Page]) =>
-            for (targetId <- adjacent.targetIds) {
-              out.collect(Page(targetId, page.rank / adjacent.targetIds.length))
-            }
+              val targets = adjacent.targetIds
+              val len = targets.length
+              adjacent.targetIds foreach { t => out.collect(Page(t, page.rank /len )) }
           }
           // collect ranks and sum them up
           .groupBy("pageId").aggregate(SUM, "rank")
@@ -114,7 +120,6 @@ object PageRankBasic {
             // check for significant update
             if (math.abs(current.rank - next.rank) > EPSILON) out.collect(1)
         }
-
         (newRanks, termination)
     }
 

@@ -147,11 +147,11 @@ public class Configuration implements IOReadableWritable, java.io.Serializable {
 			return (Integer) o;
 		}
 		else if (o.getClass() == Long.class) {
-			long value = ((Long) o).longValue();
+			long value = (Long) o;
 			if (value <= Integer.MAX_VALUE && value >= Integer.MIN_VALUE) {
 				return (int) value;
 			} else {
-				LOG.warn("Configuation value " + value + " overflows/underflows the integer type.");
+				LOG.warn("Configuration value {} overflows/underflows the integer type.", value);
 				return defaultValue;
 			}
 		}
@@ -160,7 +160,7 @@ public class Configuration implements IOReadableWritable, java.io.Serializable {
 				return Integer.parseInt(o.toString());
 			}
 			catch (NumberFormatException e) {
-				LOG.warn("Configuration cannot evaluate value " + o + " as an integer number");
+				LOG.warn("Configuration cannot evaluate value {} as an integer number", o);
 				return defaultValue;
 			}
 		}
@@ -280,7 +280,7 @@ public class Configuration implements IOReadableWritable, java.io.Serializable {
 			if (value <= Float.MAX_VALUE && value >= Float.MIN_VALUE) {
 				return (float) value;
 			} else {
-				LOG.warn("Configuation value " + value + " overflows/underflows the float type.");
+				LOG.warn("Configuration value {} overflows/underflows the float type.", value);
 				return defaultValue;
 			}
 		}
@@ -289,7 +289,7 @@ public class Configuration implements IOReadableWritable, java.io.Serializable {
 				return Float.parseFloat(o.toString());
 			}
 			catch (NumberFormatException e) {
-				LOG.warn("Configuration cannot evaluate value " + o + " as a float value");
+				LOG.warn("Configuration cannot evaluate value {} as a float value", o);
 				return defaultValue;
 			}
 		}
@@ -333,7 +333,7 @@ public class Configuration implements IOReadableWritable, java.io.Serializable {
 				return Double.parseDouble(o.toString());
 			}
 			catch (NumberFormatException e) {
-				LOG.warn("Configuration cannot evaluate value " + o + " as a double value");
+				LOG.warn("Configuration cannot evaluate value {} as a double value", o);
 				return defaultValue;
 			}
 		}
@@ -370,7 +370,7 @@ public class Configuration implements IOReadableWritable, java.io.Serializable {
 			return (byte[]) o;
 		}
 		else {
-			LOG.warn("Configuration cannot evaluate value " + o + " as a byte[] value");
+			LOG.warn("Configuration cannot evaluate value {} as a byte[] value", o);
 			return defaultValue;
 		}
 	}

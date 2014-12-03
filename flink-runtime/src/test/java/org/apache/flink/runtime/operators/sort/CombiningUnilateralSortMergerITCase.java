@@ -190,7 +190,7 @@ public class CombiningUnilateralSortMergerITCase {
 	{
 		final Hashtable<TestData.Key, Integer> countTable = new Hashtable<TestData.Key, Integer>(KEY_MAX);
 		for (int i = 1; i <= KEY_MAX; i++) {
-			countTable.put(new TestData.Key(i), new Integer(0));
+			countTable.put(new TestData.Key(i), Integer.valueOf(0));
 		}
 
 		// comparator

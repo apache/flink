@@ -26,8 +26,7 @@ public class InputFormatVertex extends AbstractJobVertex {
 
 	private static final long serialVersionUID = 1L;
 	
-	/** Caches the output format associated to this output vertex. */
-	private transient InputFormat<?, ?> inputFormat;
+	private String formatDescription;
 	
 	
 	public InputFormatVertex(String name) {
@@ -39,18 +38,46 @@ public class InputFormatVertex extends AbstractJobVertex {
 	}
 	
 	
+	public void setFormatDescription(String formatDescription) {
+		this.formatDescription = formatDescription;
+	}
+	
+	public String getFormatDescription() {
+		return formatDescription;
+	}
+	
 	@Override
 	public void initializeOnMaster(ClassLoader loader) throws Exception {
-		if (inputFormat == null) {
-			TaskConfig cfg = new TaskConfig(getConfiguration());
-			UserCodeWrapper<InputFormat<?, ?>> wrapper = cfg.<InputFormat<?, ?>>getStubWrapper(loader);
+		final TaskConfig cfg = new TaskConfig(getConfiguration());
+		
+		// deserialize from the payload
+		UserCodeWrapper<InputFormat<?, ?>> wrapper;
+		try {
 			
-			if (wrapper == null) {
-				throw new Exception("No input format present in InputFormatVertex's task configuration.");
-			}
-			
+			wrapper = cfg.getStubWrapper(loader);
+		}
+		catch (Throwable t) {
+			throw new Exception("Deserializing the InputFormat (" + formatDescription + ") failed: " + t.getMessage(), t);
+		}
+		if (wrapper == null) {
+			throw new Exception("No input format present in InputFormatVertex's task configuration.");
+		}
+		
+		// instantiate, if necessary
+		InputFormat<?, ?> inputFormat;
+		try {
 			inputFormat = wrapper.getUserCodeObject(InputFormat.class, loader);
+		}
+		catch (Throwable t) {
+			throw new Exception("Instantiating the InputFormat (" + formatDescription + ") failed: " + t.getMessage(), t);
+		}
+		
+		// configure
+		try {
 			inputFormat.configure(cfg.getStubParameters());
+		}
+		catch (Throwable t) {
+			throw new Exception("Configuring the InputFormat (" + formatDescription + ") failed: " + t.getMessage(), t);
 		}
 		
 		setInputSplitSource(inputFormat);

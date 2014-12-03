@@ -132,7 +132,7 @@ public class TPCHQuery4ITCase extends RecordAPITestBase {
 	@Override
 	protected Plan getTestJob() {
 		TPCHQuery4 tpch4 = new TPCHQuery4();
-		return tpch4.getPlan(new Integer(DOP).toString(), ordersPath, lineitemsPath, resultPath);
+		return tpch4.getPlan(Integer.valueOf(DOP).toString(), ordersPath, lineitemsPath, resultPath);
 	}
 
 	@Override

@@ -19,8 +19,11 @@
 
 package org.apache.flink.test.operators;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.Collection;
+import java.util.LinkedList;
+
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.record.functions.MapFunction;
 import org.apache.flink.api.java.record.io.DelimitedInputFormat;
@@ -38,13 +41,10 @@ import org.apache.flink.util.Collector;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.Serializable;
-import java.util.Collection;
-import java.util.LinkedList;
-
+@SuppressWarnings("deprecation")
 @RunWith(Parameterized.class)
 public class UnionITCase extends RecordAPITestBase {
 	private static final Logger LOG = LoggerFactory.getLogger(UnionITCase.class);
@@ -101,7 +101,7 @@ public class UnionITCase extends RecordAPITestBase {
 		}
 	}
 
-	@SuppressWarnings({ "deprecation", "unchecked" })
+	@SuppressWarnings("unchecked")
 	@Override
 	protected Plan getTestJob() {
 		String input1Path = config.getString("UnionTest#Input1Path", "").equals("empty") ? emptyInPath : inPath;
@@ -141,7 +141,7 @@ public class UnionITCase extends RecordAPITestBase {
 	}
 
 	@Parameters
-	public static Collection<Object[]> getConfigurations() throws FileNotFoundException, IOException {
+	public static Collection<Object[]> getConfigurations() throws IOException {
 		LinkedList<Configuration> testConfigs = new LinkedList<Configuration>();
 
 		//second input empty

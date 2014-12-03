@@ -44,6 +44,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
+@SuppressWarnings("deprecation")
 @RunWith(Parameterized.class)
 public class UnionSinkITCase extends RecordAPITestBase {
 	
@@ -99,7 +100,7 @@ public class UnionSinkITCase extends RecordAPITestBase {
 		}
 	}
 
-	@SuppressWarnings({ "deprecation", "unchecked" })
+	@SuppressWarnings("unchecked")
 	@Override
 	protected JobGraph getJobGraph() throws Exception {
 		

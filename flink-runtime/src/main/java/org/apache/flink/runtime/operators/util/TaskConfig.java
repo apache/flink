@@ -36,6 +36,7 @@ import org.apache.flink.api.common.aggregators.AggregatorWithName;
 import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
 import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypePairComparatorFactory;
@@ -140,6 +141,8 @@ public class TaskConfig {
 	private static final String OUTPUT_DATA_DISTRIBUTION_CLASS = "out.distribution.class";
 	
 	private static final String OUTPUT_DATA_DISTRIBUTION_PREFIX = "out.distribution.";
+	
+	private static final String OUTPUT_PARTITIONER = "out.partitioner.";
 	
 	// ------------------------------------- Chaining ---------------------------------------------
 	
@@ -594,6 +597,27 @@ public class TaskConfig {
 		} catch (Exception ex) {
 			throw new RuntimeException("The deserialization of the encoded data distribution state caused an error"
 				+ ex.getMessage() == null ? "." : ": " + ex.getMessage(), ex);
+		}
+	}
+	
+	public void setOutputPartitioner(Partitioner<?> partitioner, int outputNum) {
+		try {
+			InstantiationUtil.writeObjectToConfig(partitioner, config, OUTPUT_PARTITIONER + outputNum);
+		}
+		catch (Throwable t) {
+			throw new RuntimeException("Could not serialize custom partitioner.", t);
+		}
+	}
+	
+	public Partitioner<?> getOutputPartitioner(int outputNum, final ClassLoader cl) throws ClassNotFoundException {
+		try {
+			return (Partitioner<?>) InstantiationUtil.readObjectFromConfig(config, OUTPUT_PARTITIONER + outputNum, cl);
+		}
+		catch (ClassNotFoundException e) {
+			throw e;
+		}
+		catch (Throwable t) {
+			throw new RuntimeException("Could not deserialize custom partitioner.", t);
 		}
 	}
 	

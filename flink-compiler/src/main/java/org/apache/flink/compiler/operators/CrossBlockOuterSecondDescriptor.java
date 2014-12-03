@@ -16,15 +16,12 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.compiler.operators;
 
 import org.apache.flink.compiler.dataproperties.LocalProperties;
 import org.apache.flink.runtime.operators.DriverStrategy;
 
-/**
- * 
- */
+
 public class CrossBlockOuterSecondDescriptor extends CartesianProductDescriptor {
 	
 	public CrossBlockOuterSecondDescriptor() {

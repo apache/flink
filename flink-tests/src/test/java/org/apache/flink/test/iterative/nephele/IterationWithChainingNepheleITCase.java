@@ -68,6 +68,7 @@ import org.junit.runners.Parameterized;
  * 
  * {@link IterationWithChainingITCase}
  */
+@SuppressWarnings("deprecation")
 @RunWith(Parameterized.class)
 public class IterationWithChainingNepheleITCase extends RecordAPITestBase {
 

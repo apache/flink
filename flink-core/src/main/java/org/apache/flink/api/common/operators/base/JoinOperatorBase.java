@@ -19,6 +19,7 @@
 package org.apache.flink.api.common.operators.base;
 
 import org.apache.flink.api.common.functions.FlatJoinFunction;
+import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.CopyingListCollector;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
@@ -98,6 +99,8 @@ public class JoinOperatorBase<IN1, IN2, OUT, FT extends FlatJoinFunction<IN1, IN
 	
 	private JoinHint joinHint = JoinHint.OPTIMIZER_CHOOSES;
 	
+	private Partitioner<?> partitioner;
+	
 	
 	public JoinOperatorBase(UserCodeWrapper<FT> udf, BinaryOperatorInformation<IN1, IN2, OUT> operatorInfo, int[] keyPositions1, int[] keyPositions2, String name) {
 		super(udf, operatorInfo, keyPositions1, keyPositions2, name);
@@ -123,6 +126,14 @@ public class JoinOperatorBase<IN1, IN2, OUT, FT extends FlatJoinFunction<IN1, IN
 		return joinHint;
 	}
 	
+	public void setCustomPartitioner(Partitioner<?> partitioner) {
+		this.partitioner = partitioner;
+	}
+	
+	public Partitioner<?> getCustomPartitioner() {
+		return partitioner;
+	}
+	
 	// --------------------------------------------------------------------------------------------
 
 	@SuppressWarnings("unchecked")
@@ -143,35 +154,37 @@ public class JoinOperatorBase<IN1, IN2, OUT, FT extends FlatJoinFunction<IN1, IN
 		TypeComparator<IN1> leftComparator;
 		TypeComparator<IN2> rightComparator;
 
-		if (leftInformation instanceof AtomicType){
+		if (leftInformation instanceof AtomicType) {
 			leftComparator = ((AtomicType<IN1>) leftInformation).createComparator(true);
 		}
-		else if(leftInformation instanceof CompositeType){
+		else if (leftInformation instanceof CompositeType) {
 			int[] keyPositions = getKeyColumns(0);
 			boolean[] orders = new boolean[keyPositions.length];
 			Arrays.fill(orders, true);
 
 			leftComparator = ((CompositeType<IN1>) leftInformation).createComparator(keyPositions, orders, 0);
-		}else{
+		}
+		else {
 			throw new RuntimeException("Type information for left input of type " + leftInformation.getClass()
 					.getCanonicalName() + " is not supported. Could not generate a comparator.");
 		}
 
-		if(rightInformation instanceof AtomicType){
+		if (rightInformation instanceof AtomicType) {
 			rightComparator = ((AtomicType<IN2>) rightInformation).createComparator(true);
-		}else if(rightInformation instanceof CompositeType){
+		}
+		else if (rightInformation instanceof CompositeType) {
 			int[] keyPositions = getKeyColumns(1);
 			boolean[] orders = new boolean[keyPositions.length];
 			Arrays.fill(orders, true);
 
 			rightComparator = ((CompositeType<IN2>) rightInformation).createComparator(keyPositions, orders, 0);
-		}else{
+		}
+		else {
 			throw new RuntimeException("Type information for right input of type " + rightInformation.getClass()
 					.getCanonicalName() + " is not supported. Could not generate a comparator.");
 		}
 
-		TypePairComparator<IN1, IN2> pairComparator = new GenericPairComparator<IN1, IN2>(leftComparator,
-				rightComparator);
+		TypePairComparator<IN1, IN2> pairComparator = new GenericPairComparator<IN1, IN2>(leftComparator, rightComparator);
 
 		List<OUT> result = new ArrayList<OUT>();
 		Collector<OUT> collector = mutableObjectSafe ? new CopyingListCollector<OUT>(result, outInformation.createSerializer())
@@ -196,7 +209,7 @@ public class JoinOperatorBase<IN1, IN2, OUT, FT extends FlatJoinFunction<IN1, IN
 
 			if (matchingHashes != null) {
 				pairComparator.setReference(left);
-				for (IN2 right : matchingHashes){
+				for (IN2 right : matchingHashes) {
 					if (pairComparator.equalToReference(right)) {
 						if (mutableObjectSafe) {
 							function.join(leftSerializer.copy(left), rightSerializer.copy(right), collector);

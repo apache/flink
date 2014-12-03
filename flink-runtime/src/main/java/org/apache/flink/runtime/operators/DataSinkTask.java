@@ -37,21 +37,16 @@ import org.apache.flink.runtime.operators.chaining.ExceptionInChainedStubExcepti
 import org.apache.flink.runtime.operators.sort.UnilateralSortMerger;
 import org.apache.flink.runtime.operators.util.CloseableInputProvider;
 import org.apache.flink.runtime.operators.util.ReaderIterator;
-import org.apache.flink.runtime.operators.util.RecordReaderIterator;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
-import org.apache.flink.types.Record;
 import org.apache.flink.util.MutableObjectIterator;
 
 /**
- * DataSinkTask which is executed by a Flink task manager.
- * The task hands the data to an output format.
+ * DataSinkTask which is executed by a task manager. The task hands the data to an output format.
  * 
  * @see OutputFormat
  */
 public class DataSinkTask<IT> extends AbstractInvokable {
-	
-	public static final String DEGREE_OF_PARALLELISM_KEY = "sink.dop";
 	
 	// Obtain DataSinkTask Logger
 	private static final Logger LOG = LoggerFactory.getLogger(DataSinkTask.class);
@@ -339,17 +334,10 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 		
 		this.inputTypeSerializerFactory = this.config.getInputSerializer(0, getUserCodeClassLoader());
 		
-		if (this.inputTypeSerializerFactory.getDataType() == Record.class) {
-			// record specific deserialization
-			MutableReader<Record> reader = (MutableReader<Record>) inputReader;
-			this.reader = (MutableObjectIterator<IT>)new RecordReaderIterator(reader);
-		} else {
-			// generic data type serialization
-			MutableReader<DeserializationDelegate<?>> reader = (MutableReader<DeserializationDelegate<?>>) inputReader;
-			@SuppressWarnings({ "rawtypes" })
-			final MutableObjectIterator<?> iter = new ReaderIterator(reader, this.inputTypeSerializerFactory.getSerializer());
-			this.reader = (MutableObjectIterator<IT>)iter;
-		}
+		MutableReader<DeserializationDelegate<?>> reader = (MutableReader<DeserializationDelegate<?>>) inputReader;
+		@SuppressWarnings({ "rawtypes" })
+		final MutableObjectIterator<?> iter = new ReaderIterator(reader, this.inputTypeSerializerFactory.getSerializer());
+		this.reader = (MutableObjectIterator<IT>)iter;
 		
 		// final sanity check
 		if (numGates != this.config.getNumInputs()) {

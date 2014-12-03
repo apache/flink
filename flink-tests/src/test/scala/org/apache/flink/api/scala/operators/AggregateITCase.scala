@@ -40,8 +40,7 @@ object AggregateProgs {
       case 1 =>
         // Full aggregate
         val env = ExecutionEnvironment.getExecutionEnvironment
-        env.setDegreeOfParallelism(10)
-//        val ds = CollectionDataSets.get3TupleDataSet(env)
+
         val ds = CollectionDataSets.get3TupleDataSet(env)
 
         val aggregateDs = ds

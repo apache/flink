@@ -41,7 +41,7 @@ import org.apache.flink.util.ExceptionUtils;
  * The scheduler is responsible for distributing the ready-to-run tasks and assigning them to instances and
  * slots.
  */
-public class Scheduler implements InstanceListener, SlotAvailablilityListener {
+public class Scheduler implements InstanceListener, SlotAvailabilityListener {
 
 	static final Logger LOG = LoggerFactory.getLogger(Scheduler.class);
 	

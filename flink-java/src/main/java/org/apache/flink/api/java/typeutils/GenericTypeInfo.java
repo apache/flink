@@ -28,17 +28,14 @@ import org.apache.flink.api.java.typeutils.runtime.GenericTypeComparator;
 import java.util.Collection;
 
 
-/**
- *
- */
 public class GenericTypeInfo<T> extends TypeInformation<T> implements AtomicType<T> {
 
 	private final Class<T> typeClass;
-	private final static Class[] unsupportedByAvro = new Class[] {Collection.class};
+	private final static Class<?>[] unsupportedByAvro = new Class[] {Collection.class};
 	
 	public GenericTypeInfo(Class<T> typeClass) {
 		this.typeClass = typeClass;
-		for(Class unsupported: unsupportedByAvro) {
+		for (Class<?> unsupported: unsupportedByAvro) {
 			if(unsupported.isAssignableFrom(typeClass)) {
 				throw new RuntimeException("The type '"+typeClass+"' is currently not supported " +
 						"by the Avro Serializer that Flink is using for serializing " +
@@ -51,7 +48,6 @@ public class GenericTypeInfo<T> extends TypeInformation<T> implements AtomicType
 	public boolean isBasicType() {
 		return false;
 	}
-
 
 	@Override
 	public boolean isTupleType() {

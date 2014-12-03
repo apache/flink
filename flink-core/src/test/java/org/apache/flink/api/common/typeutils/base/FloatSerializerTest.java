@@ -48,10 +48,10 @@ public class FloatSerializerTest extends SerializerTestBase<Float> {
 		Random rnd = new Random(874597969123412341L);
 		float rndFloat = rnd.nextFloat() * Float.MAX_VALUE;
 		
-		return new Float[] {new Float(0), new Float(1), new Float(-1),
-							new Float(Float.MAX_VALUE), new Float(Float.MIN_VALUE),
-							new Float(rndFloat), new Float(-rndFloat),
-							new Float(Float.NaN),
-							new Float(Float.NEGATIVE_INFINITY), new Float(Float.POSITIVE_INFINITY)};
+		return new Float[] {Float.valueOf(0), Float.valueOf(1), Float.valueOf(-1),
+							Float.valueOf(Float.MAX_VALUE), Float.valueOf(Float.MIN_VALUE),
+							Float.valueOf(rndFloat), Float.valueOf(-rndFloat),
+							Float.valueOf(Float.NaN),
+							Float.valueOf(Float.NEGATIVE_INFINITY), Float.valueOf(Float.POSITIVE_INFINITY)};
 	}
 }	

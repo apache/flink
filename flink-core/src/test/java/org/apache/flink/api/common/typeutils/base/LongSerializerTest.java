@@ -48,8 +48,8 @@ public class LongSerializerTest extends SerializerTestBase<Long> {
 		Random rnd = new Random(874597969123412341L);
 		long rndLong = rnd.nextLong();
 		
-		return new Long[] {new Long(0L), new Long(1L), new Long(-1L),
-							new Long(Long.MAX_VALUE), new Long(Long.MIN_VALUE),
-							new Long(rndLong), new Long(-rndLong)};
+		return new Long[] {Long.valueOf(0L), Long.valueOf(1L), Long.valueOf(-1L),
+							Long.valueOf(Long.MAX_VALUE), Long.valueOf(Long.MIN_VALUE),
+							Long.valueOf(rndLong), Long.valueOf(-rndLong)};
 	}
 }	

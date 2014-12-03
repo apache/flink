@@ -53,13 +53,13 @@ public class ByteComparatorTest extends ComparatorTestBase<Byte> {
 			rndByte += 3;
 		}
 		return new Byte[]{
-			new Byte(Byte.MIN_VALUE),
-			new Byte(new Integer(-rndByte).byteValue()),
-			new Byte(new Integer(-1).byteValue()),
-			new Byte(new Integer(0).byteValue()),
-			new Byte(new Integer(1).byteValue()),
-			new Byte(new Integer(2).byteValue()),
-			new Byte(new Integer(rndByte).byteValue()),
-			new Byte(Byte.MAX_VALUE)};
+			Byte.valueOf(Byte.MIN_VALUE),
+			Byte.valueOf(Integer.valueOf(-rndByte).byteValue()),
+			Byte.valueOf(Integer.valueOf(-1).byteValue()),
+			Byte.valueOf(Integer.valueOf(0).byteValue()),
+			Byte.valueOf(Integer.valueOf(1).byteValue()),
+			Byte.valueOf(Integer.valueOf(2).byteValue()),
+			Byte.valueOf(Integer.valueOf(rndByte).byteValue()),
+			Byte.valueOf(Byte.MAX_VALUE)};
 	}
 }

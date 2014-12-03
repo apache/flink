@@ -25,6 +25,7 @@
 
 package org.apache.flink.core.fs;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
@@ -111,21 +112,10 @@ public abstract class FileSystem {
 				}
 
 				if ((this.authority == null) || (key.authority == null)) {
-
-					if (this.authority == null && key.authority == null) {
-						return true;
-					}
-
-					return false;
+					return this.authority == null && key.authority == null;
 				}
-
-				if (!this.authority.equals(key.authority)) {
-					return false;
-				}
-
-				return true;
+				return this.authority.equals(key.authority);
 			}
-
 			return false;
 		}
 
@@ -208,9 +198,12 @@ public abstract class FileSystem {
 					uri = new URI("file", null, uri.getPath(), null);
 				}
 				catch (URISyntaxException e) {
-					// we tried to repair it, but could not. report the scheme error
-					throw new IOException("The file URI '" + uri.toString() + "' is not valid. "
-							+ " File URIs need to specify aboslute file paths.");
+					try {
+						uri = new URI("file", null, new Path(new File(uri.getPath()).getAbsolutePath()).toUri().getPath(), null);
+					} catch (URISyntaxException ex) {
+						// we tried to repair it, but could not. report the scheme error
+						throw new IOException("The file URI '" + uri.toString() + "' is not valid.");
+					}
 				}
 			}
 			
@@ -234,7 +227,7 @@ public abstract class FileSystem {
 						+ ", referenced in file URI '" + uri.toString() + "'.");
 			}
 
-			Class<? extends FileSystem> fsClass = null;
+			Class<? extends FileSystem> fsClass;
 			try {
 				fsClass = ClassUtils.getFileSystemByName(FSDIRECTORY.get(uri.getScheme()));
 			} catch (ClassNotFoundException e1) {
@@ -693,10 +686,9 @@ public abstract class FileSystem {
 
 		// file is a directory
 		final FileStatus[] files = this.listStatus(file.getPath());
-		for (int i = 0; i < files.length; i++) {
-
-			if (!files[i].isDir()) {
-				numberOfBlocks += getNumberOfBlocks(files[i].getLen(), files[i].getBlockSize());
+		for (FileStatus file1 : files) {
+			if (!file1.isDir()) {
+				numberOfBlocks += getNumberOfBlocks(file1.getLen(), file1.getBlockSize());
 			}
 		}
 

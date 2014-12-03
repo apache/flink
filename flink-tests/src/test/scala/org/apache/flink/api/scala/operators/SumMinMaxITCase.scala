@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.api.scala.operators
 
 import org.apache.flink.api.java.aggregation.Aggregations
@@ -31,8 +32,6 @@ import scala.collection.mutable
 
 import org.apache.flink.api.scala._
 
-
-
 /**
  * These tests are copied from [[AggregateITCase]] replacing calls to aggregate with calls to sum,
  * min, and max
@@ -45,8 +44,6 @@ object SumMinMaxProgs {
       case 1 =>
         // Full aggregate
         val env = ExecutionEnvironment.getExecutionEnvironment
-        env.setDegreeOfParallelism(10)
-        //        val ds = CollectionDataSets.get3TupleDataSet(env)
         val ds = CollectionDataSets.get3TupleDataSet(env)
 
         val aggregateDs = ds

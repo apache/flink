@@ -299,7 +299,7 @@ public class AggregatorsITCase extends JavaProgramTestBase {
 
 		@Override
 		public Integer map(Integer value) {
-			Integer newValue = new Integer(value.intValue() - 1);
+			Integer newValue = Integer.valueOf(value.intValue() - 1);
 			// count negative numbers
 			if (newValue.intValue() < 0) {
 				aggr.aggregate(1l);
@@ -321,7 +321,7 @@ public class AggregatorsITCase extends JavaProgramTestBase {
 
 		@Override
 		public Integer map(Integer value) {
-			Integer newValue = new Integer(value.intValue() - 1);
+			Integer newValue = Integer.valueOf(value.intValue() - 1);
 			// count numbers less then the aggregator parameter
 			if ( newValue.intValue() < aggr.getValue() ) {
 				aggr.aggregate(1l);
@@ -350,7 +350,7 @@ public class AggregatorsITCase extends JavaProgramTestBase {
 		@Override
 		public Tuple2<Integer, Integer> map(Integer value) throws Exception {
 			Random ran = new Random();
-			Integer nodeId = new Integer(ran.nextInt(100000));
+			Integer nodeId = Integer.valueOf(ran.nextInt(100000));
 			return new Tuple2<Integer, Integer>(nodeId, value);
 		}
 

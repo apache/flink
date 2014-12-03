@@ -50,8 +50,8 @@ public class ByteSerializerTest extends SerializerTestBase<Byte> {
 		byte byteArray[] = new byte[1];
 		rnd.nextBytes(byteArray);
 		
-		return new Byte[] {new Byte((byte) 0), new Byte((byte) 1), new Byte((byte) -1), 
+		return new Byte[] {Byte.valueOf((byte) 0), Byte.valueOf((byte) 1), Byte.valueOf((byte) -1), 
 							Byte.MAX_VALUE, Byte.MIN_VALUE,
-							new Byte(byteArray[0]), new Byte((byte) -byteArray[0])};
+							Byte.valueOf(byteArray[0]), Byte.valueOf((byte) -byteArray[0])};
 	}
 }

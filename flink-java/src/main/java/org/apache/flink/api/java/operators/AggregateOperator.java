@@ -208,10 +208,9 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
 			
 			po.setCombinable(true);
 			
-			// set input
 			po.setInput(input);
-			// set dop
 			po.setDegreeOfParallelism(this.getParallelism());
+			po.setCustomPartitioner(grouping.getCustomPartitioner());
 			
 			SingleInputSemanticProperties props = new SingleInputSemanticProperties();
 			

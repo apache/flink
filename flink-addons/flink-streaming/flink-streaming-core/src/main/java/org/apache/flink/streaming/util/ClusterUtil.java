@@ -19,10 +19,8 @@ package org.apache.flink.streaming.util;
 
 import java.net.InetSocketAddress;
 
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.client.minicluster.NepheleMiniCluster;
 import org.apache.flink.client.program.Client;
-import org.apache.flink.client.program.ContextEnvironment;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -72,44 +70,12 @@ public class ClusterUtil {
 		} catch (Exception e) {
 			throw e;
 		} finally {
-			try {
-				exec.stop();
-			} catch (Throwable t) {
-			}
+			exec.stop();
 		}
 	}
 
-	public static void runOnLocalCluster(JobGraph jobGraph, int degreeOfPrallelism)
-			throws Exception {
-
-		if (LOG.isInfoEnabled()) {
-			LOG.info("Running on mini cluster");
-		}
-
-		try {
-
-			Client client = ((ContextEnvironment) ExecutionEnvironment.getExecutionEnvironment())
-					.getClient();
-
-			client.run(jobGraph, true);
-		} catch (ProgramInvocationException e) {
-			if (e.getMessage().contains("GraphConversionException")) {
-				throw new Exception(CANNOT_EXECUTE_EMPTY_JOB, e);
-			} else {
-				throw e;
-			}
-		} catch (Exception e) {
-			throw e;
-		} finally {
-			try {
-			} catch (Throwable t) {
-			}
-		}
-	}
-
-	public static void runOnMiniCluster(JobGraph jobGraph, int numberOfTaskTrackers)
-			throws Exception {
-		runOnMiniCluster(jobGraph, numberOfTaskTrackers, -1);
+	public static void runOnMiniCluster(JobGraph jobGraph, int numOfSlots) throws Exception {
+		runOnMiniCluster(jobGraph, numOfSlots, -1);
 	}
 
 }

@@ -21,6 +21,7 @@ package org.apache.flink.compiler.dag;
 import java.util.Collections;
 import java.util.List;
 
+import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.base.CoGroupOperatorBase;
 import org.apache.flink.compiler.DataStatistics;
@@ -36,9 +37,9 @@ public class CoGroupNode extends TwoInputNode {
 	
 	private List<OperatorDescriptorDual> dataProperties;
 	
-	public CoGroupNode(CoGroupOperatorBase<?, ?, ?, ?> pactContract) {
-		super(pactContract);
-		this.dataProperties = initializeDataProperties();
+	public CoGroupNode(CoGroupOperatorBase<?, ?, ?, ?> operator) {
+		super(operator);
+		this.dataProperties = initializeDataProperties(operator.getCustomPartitioner());
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -80,7 +81,7 @@ public class CoGroupNode extends TwoInputNode {
 		// for CoGroup, we currently make no reasonable default estimates
 	}
 	
-	private List<OperatorDescriptorDual> initializeDataProperties() {
+	private List<OperatorDescriptorDual> initializeDataProperties(Partitioner<?> customPartitioner) {
 		Ordering groupOrder1 = null;
 		Ordering groupOrder2 = null;
 		
@@ -95,6 +96,11 @@ public class CoGroupNode extends TwoInputNode {
 			groupOrder2 = null;
 		}
 		
-		return Collections.<OperatorDescriptorDual>singletonList(new CoGroupDescriptor(this.keys1, this.keys2, groupOrder1, groupOrder2));
+		CoGroupDescriptor descr = new CoGroupDescriptor(this.keys1, this.keys2, groupOrder1, groupOrder2);
+		if (customPartitioner != null) {
+			descr.setCustomPartitioner(customPartitioner);
+		}
+		
+		return Collections.<OperatorDescriptorDual>singletonList(descr);
 	}
 }

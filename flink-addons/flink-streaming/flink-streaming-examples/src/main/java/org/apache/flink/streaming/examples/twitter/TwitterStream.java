@@ -25,14 +25,13 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.json.JSONParseFlatMap;
-import org.apache.flink.streaming.connectors.twitter.TwitterSource;
 import org.apache.flink.streaming.examples.twitter.util.TwitterStreamData;
 import org.apache.flink.util.Collector;
 import org.apache.sling.commons.json.JSONException;
 
 /**
- * Implements the "TwitterStream" program that computes a most used word occurrence
- * histogram over JSON files in a streaming fashion.
+ * Implements the "TwitterStream" program that computes a most used word
+ * occurrence over JSON files in a streaming fashion.
  * 
  * <p>
  * The input is a JSON text file with lines separated by newline characters.
@@ -45,92 +44,89 @@ import org.apache.sling.commons.json.JSONException;
  * <p>
  * This example shows how to:
  * <ul>
- * <li>write a simple Flink Streaming program.
- * <li>use Tuple data types.
- * <li>write and use user-defined functions.
+ * <li>acquire external data,
+ * <li>use in-line defined functions,
+ * <li>handle flattened stream inputs.
  * </ul>
  * 
  */
 public class TwitterStream {
-	private static final int PARALLELISM = 1;
-	
+
 	// *************************************************************************
 	// PROGRAM
 	// *************************************************************************
-	
+
 	public static void main(String[] args) throws Exception {
 		if (!parseParameters(args)) {
 			return;
 		}
 
 		// set up the execution environment
-		StreamExecutionEnvironment env = StreamExecutionEnvironment
-				.createLocalEnvironment(PARALLELISM);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		env.setBufferTimeout(1000);
-		
+
 		// get input data
 		DataStream<String> streamSource = getTextDataStream(env);
 
-		DataStream<Tuple2<String, Integer>> dataStream = streamSource
-				// selecting english tweets and split to words
-				.flatMap(new SelectEnglishAndTokenizeFlatMap())
-				.partitionBy(0)
+		DataStream<Tuple2<String, Integer>> tweets = streamSource
+		// selecting English tweets and splitting to words
+				.flatMap(new SelectEnglishAndTokenizeFlatMap()).partitionBy(0)
 				// returning (word, 1)
 				.map(new MapFunction<String, Tuple2<String, Integer>>() {
 					private static final long serialVersionUID = 1L;
 
 					@Override
-					public Tuple2<String, Integer> map(String value)
-							throws Exception {
+					public Tuple2<String, Integer> map(String value) throws Exception {
 						return new Tuple2<String, Integer>(value, 1);
 					}
 				})
 				// group by words and sum their occurence
-				.groupBy(0)
-				.sum(1)
-				// select maximum occurenced word
+				.groupBy(0).sum(1)
+				// select word with maximum occurence
 				.flatMap(new SelectMaxOccurence());
 
 		// emit result
-		dataStream.print();
+		if (fileOutput) {
+			tweets.writeAsText(outputPath, 1);
+		} else {
+			tweets.print();
+		}
 
 		// execute program
-		env.execute();
+		env.execute("Twitter Streaming Example");
 	}
-	
+
 	// *************************************************************************
 	// USER FUNCTIONS
 	// *************************************************************************
 
 	/**
-	 * Make sentence from english tweets.
+	 * Makes sentences from English tweets.
 	 * 
-	 * Implements the string tokenizer that splits sentences into words as a
+	 * <p>
+	 * Implements a string tokenizer that splits sentences into words as a
 	 * user-defined FlatMapFunction. The function takes a line (String) and
 	 * splits it into multiple pairs in the form of "(word,1)" (Tuple2<String,
 	 * Integer>).
+	 * </p>
 	 */
-	public static class SelectEnglishAndTokenizeFlatMap extends
-			JSONParseFlatMap<String, String> {
+	public static class SelectEnglishAndTokenizeFlatMap extends JSONParseFlatMap<String, String> {
 		private static final long serialVersionUID = 1L;
 
 		/**
 		 * Select the language from the incoming JSON text
 		 */
 		@Override
-		public void flatMap(String value, Collector<String> out)
-				throws Exception {
+		public void flatMap(String value, Collector<String> out) throws Exception {
 			try {
 				if (getString(value, "lang").equals("en")) {
 					// message of tweet
-					StringTokenizer tokenizer = new StringTokenizer(getString(
-							value, "text"));
+					StringTokenizer tokenizer = new StringTokenizer(getString(value, "text"));
 
 					// split the message
 					while (tokenizer.hasMoreTokens()) {
-						String result = tokenizer.nextToken().replaceAll(
-								"\\s*", "");
+						String result = tokenizer.nextToken().replaceAll("\\s*", "");
 
 						if (result != null && !result.equals("")) {
 							out.collect(result);
@@ -144,10 +140,9 @@ public class TwitterStream {
 	}
 
 	/**
-	 * 
-	 * Implements a user-defined FlatMapFunction that check if the word's current occurence
-	 * is higher than the maximum occurence. If it is, return with the word and change the maximum.
-	 *
+	 * Implements a user-defined FlatMapFunction that checks if the current
+	 * occurence is higher than the maximum occurence. If so, returns the word
+	 * and changes the maximum.
 	 */
 	public static class SelectMaxOccurence implements
 			FlatMapFunction<Tuple2<String, Integer>, Tuple2<String, Integer>> {
@@ -159,29 +154,32 @@ public class TwitterStream {
 		}
 
 		@Override
-		public void flatMap(Tuple2<String, Integer> value,
-				Collector<Tuple2<String, Integer>> out) throws Exception {
+		public void flatMap(Tuple2<String, Integer> value, Collector<Tuple2<String, Integer>> out)
+				throws Exception {
 			if ((Integer) value.getField(1) >= maximum) {
 				out.collect(value);
 				maximum = (Integer) value.getField(1);
 			}
 		}
 	}
-	
+
 	// *************************************************************************
 	// UTIL METHODS
 	// *************************************************************************
 
-	private static boolean fromFile = false;
-	private static String path;
+	private static boolean fileOutput = false;
+	private static String textPath;
+	private static String outputPath;
 
 	private static boolean parseParameters(String[] args) {
 		if (args.length > 0) {
-			if (args.length == 1) {
-				fromFile = true;
-				path = args[0];
+			// parse input arguments
+			fileOutput = true;
+			if (args.length == 2) {
+				textPath = args[0];
+				outputPath = args[1];
 			} else {
-				System.err.println("USAGE:\nTwitterStream <pathToPropertiesFile>");
+				System.err.println("USAGE:\nTwitterStream <pathToPropertiesFile> <result path>");
 				return false;
 			}
 		} else {
@@ -192,11 +190,10 @@ public class TwitterStream {
 		return true;
 	}
 
-	private static DataStream<String> getTextDataStream(
-			StreamExecutionEnvironment env) {
-		if (fromFile) {
+	private static DataStream<String> getTextDataStream(StreamExecutionEnvironment env) {
+		if (fileOutput) {
 			// read the text file from given input path
-			return env.addSource(new TwitterSource(path));
+			return env.readTextFile(textPath);
 		} else {
 			// get default test text data
 			return env.fromElements(TwitterStreamData.TEXTS);

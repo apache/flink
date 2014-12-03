@@ -26,6 +26,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -53,6 +54,7 @@ import org.apache.flink.util.InstantiationUtil;
  * 
  * @see ReduceFunction
  */
+@SuppressWarnings("deprecation")
 public class ReduceOperator extends GroupReduceOperatorBase<Record, Record, GroupReduceFunction<Record, Record>> implements RecordOperator {
 	
 	private static final String DEFAULT_NAME = "<Unnamed Reducer>";		// the default name for contracts
@@ -307,9 +309,7 @@ public class ReduceOperator extends GroupReduceOperatorBase<Record, Record, Grou
 		 */
 		public Builder input(Operator<Record>...inputs) {
 			this.inputs.clear();
-			for (Operator<Record> c : inputs) {
-				this.inputs.add(c);
-			}
+			Collections.addAll(this.inputs, inputs);
 			return this;
 		}
 		

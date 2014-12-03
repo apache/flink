@@ -20,13 +20,17 @@ package org.apache.flink.streaming.api.environment;
 import java.io.File;
 import java.io.Serializable;
 import java.util.Collection;
+import java.util.List;
 
 import org.apache.commons.lang3.SerializationException;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.client.program.Client;
+import org.apache.flink.client.program.ContextEnvironment;
 import org.apache.flink.streaming.api.JobGraphBuilder;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
+import org.apache.flink.streaming.api.function.source.SocketTextStreamFunction;
 import org.apache.flink.streaming.api.function.source.FileSourceFunction;
 import org.apache.flink.streaming.api.function.source.FileStreamFunction;
 import org.apache.flink.streaming.api.function.source.FromElementsFunction;
@@ -44,20 +48,9 @@ import org.apache.flink.streaming.util.serialization.TypeWrapper;
  */
 public abstract class StreamExecutionEnvironment {
 
-	/**
-	 * The environment of the context (local by default, cluster if invoked
-	 * through command line)
-	 */
-	private static StreamExecutionEnvironment contextEnvironment;
-
-	/** flag to disable local executor when using the ContextEnvironment */
-	private static boolean allowLocalExecution = true;
-
 	private static int defaultLocalDop = Runtime.getRuntime().availableProcessors();
 
 	private int degreeOfParallelism = 1;
-
-	private int executionParallelism = -1;
 
 	private long bufferTimeout = 100;
 
@@ -72,10 +65,6 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	protected StreamExecutionEnvironment() {
 		jobGraphBuilder = new JobGraphBuilder();
-	}
-
-	public int getExecutionParallelism() {
-		return executionParallelism == -1 ? degreeOfParallelism : executionParallelism;
 	}
 
 	/**
@@ -103,7 +92,7 @@ public abstract class StreamExecutionEnvironment {
 	 * @param degreeOfParallelism
 	 *            The degree of parallelism
 	 */
-	protected StreamExecutionEnvironment setDegreeOfParallelism(int degreeOfParallelism) {
+	public StreamExecutionEnvironment setDegreeOfParallelism(int degreeOfParallelism) {
 		if (degreeOfParallelism < 1) {
 			throw new IllegalArgumentException("Degree of parallelism must be at least one.");
 		}
@@ -142,20 +131,15 @@ public abstract class StreamExecutionEnvironment {
 	public long getBufferTimeout() {
 		return this.bufferTimeout;
 	}
-
+	
 	/**
-	 * Sets the number of hardware contexts (CPU cores / threads) used when
-	 * executed in {@link LocalStreamEnvironment}.
+	 * Sets the default parallelism that will be used for the local execution environment created by
+	 * {@link #createLocalEnvironment()}.
 	 * 
-	 * @param degreeOfParallelism
-	 *            The degree of parallelism in local environment
+	 * @param degreeOfParallelism The degree of parallelism to use as the default local parallelism.
 	 */
-	public void setExecutionParallelism(int degreeOfParallelism) {
-		if (degreeOfParallelism < 1) {
-			throw new IllegalArgumentException("Degree of parallelism must be at least one.");
-		}
-
-		this.executionParallelism = degreeOfParallelism;
+	public static void setDefaultLocalParallelism(int degreeOfParallelism) {
+		defaultLocalDop = degreeOfParallelism;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -174,12 +158,7 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	public DataStreamSource<String> readTextFile(String filePath) {
 		checkIfFileExists(filePath);
-		return addSource(new FileSourceFunction(filePath), 1);
-	}
-
-	public DataStreamSource<String> readTextFile(String filePath, int parallelism) {
-		checkIfFileExists(filePath);
-		return addSource(new FileSourceFunction(filePath), parallelism);
+		return addSource(new FileSourceFunction(filePath));
 	}
 
 	/**
@@ -194,12 +173,7 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	public DataStreamSource<String> readTextStream(String filePath) {
 		checkIfFileExists(filePath);
-		return addSource(new FileStreamFunction(filePath), 1);
-	}
-
-	public DataStreamSource<String> readTextStream(String filePath, int parallelism) {
-		checkIfFileExists(filePath);
-		return addSource(new FileStreamFunction(filePath), parallelism);
+		return addSource(new FileStreamFunction(filePath));
 	}
 
 	private static void checkIfFileExists(String filePath) {
@@ -290,6 +264,41 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
+	 * Creates a new DataStream that contains the strings received infinitely
+	 * from socket. Received strings are decoded by the system's default
+	 * character set.
+	 *
+	 * @param hostname
+	 *            The host name which a server socket bind.
+	 * @param port
+	 * 			  The port number which a server socket bind. A port number of
+	 * 			  0 means that the port number is automatically allocated.
+	 * @param delimiter
+	 * 			  A character which split received strings into records.
+	 * @return A DataStream, containing the strings received from socket.
+	 */
+	public DataStreamSource<String> socketTextStream(String hostname, int port, char delimiter) {
+		return addSource(new SocketTextStreamFunction(hostname, port, delimiter));
+	}
+	
+	
+	/**
+	 * Creates a new DataStream that contains the strings received infinitely
+	 * from socket. Received strings are decoded by the system's default
+	 * character set, uses '\n' as delimiter.
+	 *
+	 * @param hostname
+	 *            The host name which a server socket bind.
+	 * @param port
+	 * 			  The port number which a server socket bind. A port number of
+	 * 			  0 means that the port number is automatically allocated.
+	 * @return A DataStream, containing the strings received from socket.
+	 */
+	public DataStreamSource<String> socketTextStream(String hostname, int port) {
+		return socketTextStream(hostname, port, '\n');
+	}
+
+	/**
 	 * Creates a new DataStream that contains a sequence of numbers.
 	 * 
 	 * @param from
@@ -302,7 +311,7 @@ public abstract class StreamExecutionEnvironment {
 		if (from > to) {
 			throw new IllegalArgumentException("Start of sequence must not be greater than the end");
 		}
-		return addSource(new GenSequenceFunction(from, to), 1);
+		return addSource(new GenSequenceFunction(from, to));
 	}
 
 	/**
@@ -310,13 +319,11 @@ public abstract class StreamExecutionEnvironment {
 	 * 
 	 * @param function
 	 *            the user defined function
-	 * @param parallelism
-	 *            number of parallel instances of the function
 	 * @param <OUT>
 	 *            type of the returned stream
 	 * @return the data stream constructed
 	 */
-	public <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function, int parallelism) {
+	public <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function) {
 		TypeWrapper<OUT> outTypeWrapper = new FunctionTypeWrapper<OUT>(function,
 				SourceFunction.class, 0);
 		DataStreamSource<OUT> returnStream = new DataStreamSource<OUT>(this, "source",
@@ -325,16 +332,12 @@ public abstract class StreamExecutionEnvironment {
 		try {
 			jobGraphBuilder.addStreamVertex(returnStream.getId(),
 					new SourceInvokable<OUT>(function), null, outTypeWrapper, "source",
-					SerializationUtils.serialize(function), parallelism);
+					SerializationUtils.serialize(function), 1);
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize SourceFunction");
 		}
 
 		return returnStream;
-	}
-
-	public <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> sourceFunction) {
-		return addSource(sourceFunction, 1);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -351,8 +354,19 @@ public abstract class StreamExecutionEnvironment {
 	 *         executed.
 	 */
 	public static StreamExecutionEnvironment getExecutionEnvironment() {
-		allowLocalExecution = ExecutionEnvironment.localExecutionIsAllowed();
-		return createLocalEnvironment();
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		if (env instanceof ContextEnvironment) {
+			ContextEnvironment ctx = (ContextEnvironment) env;
+			return createContextEnvironment(ctx.getClient(), ctx.getJars(),
+					ctx.getDegreeOfParallelism());
+		} else {
+			return createLocalEnvironment();
+		}
+	}
+
+	private static StreamExecutionEnvironment createContextEnvironment(Client client,
+			List<File> jars, int dop) {
+		return new StreamContextEnvironment(client, jars, dop);
 	}
 
 	/**
@@ -440,27 +454,6 @@ public abstract class StreamExecutionEnvironment {
 		return rec;
 	}
 
-	// --------------------------------------------------------------------------------------------
-	// Methods to control the context and local environments for execution from
-	// packaged programs
-	// --------------------------------------------------------------------------------------------
-
-	protected static void initializeContextEnvironment(StreamExecutionEnvironment ctx) {
-		contextEnvironment = ctx;
-	}
-
-	protected static boolean isContextEnvironmentSet() {
-		return contextEnvironment != null;
-	}
-
-	protected static void disableLocalExecution() {
-		allowLocalExecution = false;
-	}
-
-	public static boolean localExecutionIsAllowed() {
-		return allowLocalExecution;
-	}
-
 	/**
 	 * Triggers the program execution. The environment will execute all parts of
 	 * the program that have resulted in a "sink" operation. Sink operations are
@@ -490,7 +483,7 @@ public abstract class StreamExecutionEnvironment {
 	/**
 	 * Getter of the {@link JobGraphBuilder} of the streaming job.
 	 * 
-	 * @return jobgraph
+	 * @return jobGraphBuilder
 	 */
 	public JobGraphBuilder getJobGraphBuilder() {
 		return jobGraphBuilder;

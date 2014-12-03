@@ -566,42 +566,6 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 	/**
 	 * 
 	 * <pre>
-	 *           (SINK A)    (SINK B)
-	 *             /           /
-	 *         (SRC A)     (SRC B)
-	 * </pre>
-	 */
-	@Test
-	public void testSimpleDisjointPlan() {
-		// construct the plan
-		final String out1Path = "file:///test/1";
-		final String out2Path = "file:///test/2";
-
-		FileDataSource sourceA = new FileDataSource(DummyInputFormat.class, IN_FILE);
-		FileDataSource sourceB = new FileDataSource(DummyInputFormat.class, IN_FILE);
-		
-		FileDataSink sinkA = new FileDataSink(DummyOutputFormat.class, out1Path, sourceA);
-		FileDataSink sinkB = new FileDataSink(DummyOutputFormat.class, out2Path, sourceB);
-		
-		List<FileDataSink> sinks = new ArrayList<FileDataSink>();
-		sinks.add(sinkA);
-		sinks.add(sinkB);
-		
-		// return the PACT plan
-		Plan plan = new Plan(sinks, "Disjoint plan with multiple data sinks");
-		
-		try {
-			compileNoStats(plan);
-			Assert.fail("Plan must not be compilable, it contains disjoint sub-plans.");
-		}
-		catch (Exception ex) {
-			// as expected
-		}
-	}
-	
-	/**
-	 * 
-	 * <pre>
 	 *     (SINK 3) (SINK 1)   (SINK 2) (SINK 4)
 	 *         \     /             \     /
 	 *         (SRC A)             (SRC B)
@@ -609,7 +573,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 	 * 
 	 * NOTE: this case is currently not caught by the compiler. we should enable the test once it is caught.
 	 */
-//	@Test (Deactivated for now because of unsupported feature)
+	@Test
 	public void testBranchingDisjointPlan() {
 		// construct the plan
 		final String out1Path = "file:///test/1";
@@ -634,14 +598,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
 		
 		// return the PACT plan
 		Plan plan = new Plan(sinks, "Disjoint plan with multiple data sinks and branches");
-		
-		try {
-			compileNoStats(plan);
-			Assert.fail("Plan must not be compilable, it contains disjoint sub-plans.");
-		}
-		catch (Exception ex) {
-			// as expected
-		}
+		compileNoStats(plan);
 	}
 	
 	@Test

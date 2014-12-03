@@ -19,7 +19,7 @@
 package org.apache.flink.api.java.operators;
 
 import org.apache.flink.api.common.InvalidProgramException;
-
+import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.java.DataSet;
 
 /**
@@ -40,7 +40,10 @@ public abstract class Grouping<T> {
 	protected final DataSet<T> dataSet;
 	
 	protected final Keys<T> keys;
+	
+	protected Partitioner<?> customPartitioner;
 
+	
 	public Grouping(DataSet<T> set, Keys<T> keys) {
 		if (set == null || keys == null) {
 			throw new NullPointerException();
@@ -62,5 +65,14 @@ public abstract class Grouping<T> {
 	public Keys<T> getKeys() {
 		return this.keys;
 	}
-
+	
+	/**
+	 * Gets the custom partitioner to be used for this grouping, or {@code null}, if
+	 * none was defined.
+	 * 
+	 * @return The custom partitioner to be used for this grouping.
+	 */
+	public Partitioner<?> getCustomPartitioner() {
+		return this.customPartitioner;
+	}
 }

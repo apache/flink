@@ -46,6 +46,7 @@ import java.io.Serializable;
 import java.util.Collection;
 import java.util.LinkedList;
 
+@SuppressWarnings("deprecation")
 @RunWith(Parameterized.class)
 public class JoinITCase extends RecordAPITestBase {
 

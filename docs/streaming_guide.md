@@ -44,15 +44,14 @@ public class StreamingWordCount {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
         
         DataStream<Tuple2<String, Integer>> dataStream = env
-                .fromElements("Who's there?",
-            "I think I hear them. Stand, ho! Who's there?")
+                .socketTextStream("localhost", 9999)
                 .flatMap(new Splitter())
                 .groupBy(0)
                 .sum(1);
         
         dataStream.print();
         
-        env.execute();
+        env.execute("Socket Stream WordCount");
     }
     
     public static class Splitter implements FlatMapFunction<String, Tuple2<String, Integer>> {
@@ -66,6 +65,14 @@ public class StreamingWordCount {
     
 }
 ~~~
+
+To run the example program start the input stream with netcat first from a terminal:
+
+~~~batch
+nc -lk 9999
+~~~
+
+The lines typed to this terminal are submitted as a source for your streaming job.
 
 [Back to top](#top)
 
@@ -91,7 +98,7 @@ StreamExecutionEnvironment.createRemoteEnvironment(params…)
 For connecting to data streams the `StreamExecutionEnvironment` has many different methods, from basic file sources to completely general user defined data sources. We will go into details in the [basics](#basics) section.
 
 ~~~java
-env.readTextFile(filePath)
+env.socketTextStream(host, port)
 ~~~
 
 After defining the data stream sources, the user can specify transformations on the data streams to create a new data stream. Different data streams can be also combined together for joint transformations which are being showcased in the [operations](#operations) section.
@@ -106,10 +113,10 @@ The processed data can be pushed to different outputs called sinks. The user can
 dataStream.writeAsCsv(path)
 ~~~
 
-Once the complete program is specified `execute()` needs to be called on the `StreamExecutionEnvironment`. This will either execute on the local machine or submit the program for execution on a cluster, depending on the chosen execution environment.
+Once the complete program is specified `execute(programName)` is to be called on the `StreamExecutionEnvironment`. This will either execute on the local machine or submit the program for execution on a cluster, depending on the chosen execution environment.
 
 ~~~java
-env.execute()
+env.execute(programName)
 ~~~
 
 [Back to top](#top)
@@ -142,16 +149,18 @@ Usage: `operator.setParallelism(1)`
 
 ### Sources
 
-The user can connect to data streams by the different implemenations of `DataStreamSource` using methods provided in `StreamExecutionEnvironment`. There are several predefined ones similar to the ones provided by the batch API like:
+The user can connect to data streams by the different implemenations of `DataStreamSource` using methods provided by the `StreamExecutionEnvironment`. There are several predefined ones similar to the ones of the batch API and some streaming specific ones like:
 
- * `env.genereateSequence(from, to)`
- * `env.fromElements(elements…)`
- * `env.fromCollection(collection)`
- * `env.readTextFile(filepath)`
+ * `socketTextStream(hostname, port)`
+ * `readTextStream(filepath)`
+ * `genereateSequence(from, to)`
+ * `fromElements(elements…)`
+ * `fromCollection(collection)`
+ * `readTextFile(filepath)`
 
-These can be used to easily test and debug streaming programs. There are also some streaming specific sources for example `env.readTextStream(filepath)` which iterates over the same file infinitely providing yet another nice testing tool.
-There are implemented connectors for a number of the most popular message queue services, please refer to the section on [connectors](#stream-connectors) for more detail.
-Besides the pre-defined solutions the user can implement their own source by implementing the `SourceFunction` interface and using the `env.addSource(sourceFunction)` method of the `StreamExecutionEnvironment`.
+These can be used to easily test and debug streaming programs.
+There are pre-implemented connectors for a number of the most popular message queue services, please refer to the section on [connectors](#stream-connectors) for more detail.
+Besides the pre-defined solutions the user can implement their own source by implementing the `SourceFunction` interface and using the `addSource(sourceFunction)` method of the `StreamExecutionEnvironment`.
 
 ### Sinks
 
@@ -326,7 +335,7 @@ dataStream1.connect(dataStream2)
         })
 ~~~
 
-#### winddowReduceGroup on ConnectedDataStream
+#### windowReduceGroup on ConnectedDataStream
 The windowReduceGroup operator applies a user defined `CoGroupFunction` to time aligned windows of the two data streams and return zero or more elements of an arbitrary type. The user can define the window and slide intervals and can also implement custom timestamps to be used for calculating windows.
 
 ~~~java
@@ -404,6 +413,7 @@ DataStream<Integer> tail = head.map(new IterationTail());
 iteration.closeWith(tail);
 ~~~
 Or to use with output splitting:
+
 ~~~java
 SplitDataStream<Integer> tail = head.map(new IterationTail()).split(outputSelector);
 iteration.closeWith(tail.select("iterate"));
@@ -449,6 +459,7 @@ env.genereateSequence(1,10).map(new MyMapper()).setBufferTimeout(timeoutMillis);
 
 Most operators allow setting mutability for reading input data. If the operator is set mutable then the variable used to store input data for operators will be reused in a mutable fashion to avoid excessive object creation. By default, all operators are set to immutable.
 Usage:
+
 ~~~java
 operator.setMutability(isMutable)
 ~~~
@@ -462,7 +473,7 @@ Connectors provide an interface for accessing data from various third party sour
 
 Typically the connector packages consist of an abstract source and sink (with the exception of Twitter where only a source is provided). The burden of the user is to implement a subclass of these abstract classes specifying a serializer and a deserializer function. 
 
-To run an application using one of these connectors usually additional third party components are required to be installed and launched, e.g. the servers for the message queues. Further instructions for these can be found in the corresponding subsections. [Docker containers](#docker_connectors) are also provided encapsulating these services to aid users getting started with connectors.
+To run an application using one of these connectors usually additional third party components are required to be installed and launched, e.g. the servers for the message queues. Further instructions for these can be found in the corresponding subsections. [Docker containers](#docker-containers-for-connectors) are also provided encapsulating these services to aid users getting started with connectors.
 
 ### Apache Kafka
 
@@ -895,9 +906,9 @@ There are two basic types of tweets. The usual tweets contain information such a
 
 [Back to top](#top)
 
-### Docker containers for connectors<a name="docker_connectors"></a>
+### Docker containers for connectors
 
-A Docker container is provided with all the required configurations for test running the connectors of Apache Flink. The servers for the message queues will be running on the docker container while the example topology can be run on the user's computer. The only exception is Flume, more can be read about this issue at the [Flume section](#flume). 
+A Docker container is provided with all the required configurations for test running the connectors of Apache Flink. The servers for the message queues will be running on the docker container while the example topology can be run on the user's computer. The only exception is Flume, more can be read about this issue in the [Flume section](#flume). 
 
 #### Installing Docker
 The official Docker installation guide can be found [here](https://docs.docker.com/installation/).

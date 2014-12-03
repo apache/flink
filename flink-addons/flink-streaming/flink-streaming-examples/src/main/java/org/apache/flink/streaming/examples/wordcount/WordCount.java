@@ -41,8 +41,8 @@ import org.apache.flink.util.Collector;
  * <p>
  * This example shows how to:
  * <ul>
- * <li>write a simple Flink Streaming program.
- * <li>use Tuple data types.
+ * <li>write a simple Flink Streaming program,
+ * <li>use tuple data types,
  * <li>write and use user-defined functions.
  * </ul>
  * 
@@ -66,11 +66,10 @@ public class WordCount {
 		DataStream<String> text = getTextDataStream(env);
 
 		DataStream<Tuple2<String, Integer>> counts =
-				// split up the lines in pairs (2-tuples) containing: (word,1)
-				text.flatMap(new Tokenizer())
-				// group by the tuple field "0" and sum up tuple field "1"
-				.groupBy(0)
-				.sum(1);
+		// split up the lines in pairs (2-tuples) containing: (word,1)
+		text.flatMap(new Tokenizer())
+		// group by the tuple field "0" and sum up tuple field "1"
+				.groupBy(0).sum(1);
 
 		// emit result
 		if (fileOutput) {

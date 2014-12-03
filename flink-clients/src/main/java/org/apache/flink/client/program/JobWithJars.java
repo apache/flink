@@ -102,7 +102,7 @@ public class JobWithJars {
 		// TODO: Check if proper JAR file
 	}
 	
-	static ClassLoader buildUserCodeClassLoader(List<File> jars, ClassLoader parent) {
+	public static ClassLoader buildUserCodeClassLoader(List<File> jars, ClassLoader parent) {
 		
 		URL[] urls = new URL[jars.size()];
 		try {

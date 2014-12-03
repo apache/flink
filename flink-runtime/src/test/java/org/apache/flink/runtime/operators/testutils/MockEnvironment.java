@@ -53,6 +53,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
+import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.protocols.AccumulatorProtocol;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.MutableObjectIterator;
@@ -69,7 +70,7 @@ public class MockEnvironment implements Environment, BufferProvider, LocalBuffer
 
 	private final Configuration taskConfiguration;
 
-	private final List<InputGate<Record>> inputs;
+	private final List<InputGate<DeserializationDelegate<Record>>> inputs;
 
 	private final List<OutputGate> outputs;
 
@@ -83,7 +84,7 @@ public class MockEnvironment implements Environment, BufferProvider, LocalBuffer
 	public MockEnvironment(long memorySize, MockInputSplitProvider inputSplitProvider, int bufferSize) {
 		this.jobConfiguration = new Configuration();
 		this.taskConfiguration = new Configuration();
-		this.inputs = new LinkedList<InputGate<Record>>();
+		this.inputs = new LinkedList<InputGate<DeserializationDelegate<Record>>>();
 		this.outputs = new LinkedList<OutputGate>();
 
 		this.memManager = new DefaultMemoryManager(memorySize, 1);
@@ -172,7 +173,7 @@ public class MockEnvironment implements Environment, BufferProvider, LocalBuffer
 
 	}
 
-	private static class MockInputGate extends InputGate<Record> {
+	private static class MockInputGate extends InputGate<DeserializationDelegate<Record>> {
 		
 		private MutableObjectIterator<Record> it;
 
@@ -182,15 +183,17 @@ public class MockEnvironment implements Environment, BufferProvider, LocalBuffer
 		}
 
 		@Override
-		public void registerRecordAvailabilityListener(final RecordAvailabilityListener<Record> listener) {
+		public void registerRecordAvailabilityListener(final RecordAvailabilityListener<DeserializationDelegate<Record>> listener) {
 			super.registerRecordAvailabilityListener(listener);
 			this.notifyRecordIsAvailable(0);
 		}
 		
 		@Override
-		public InputChannelResult readRecord(Record target) throws IOException, InterruptedException {
+		public InputChannelResult readRecord(DeserializationDelegate<Record> target) throws IOException, InterruptedException {
 
-			if ((target = it.next(target)) != null) {
+			Record reuse = target != null ? target.getInstance() : null;
+			
+			if ((reuse = it.next(reuse)) != null) {
 				// everything comes from the same source channel and buffer in this mock
 				notifyRecordIsAvailable(0);
 				return InputChannelResult.INTERMEDIATE_RECORD_FROM_BUFFER;

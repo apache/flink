@@ -22,6 +22,7 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.FlatCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.CopyingListCollector;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
@@ -50,12 +51,12 @@ import java.util.List;
  */
 public class GroupReduceOperatorBase<IN, OUT, FT extends GroupReduceFunction<IN, OUT>> extends SingleInputOperator<IN, OUT, FT> {
 
-	/**
-	 * The ordering for the order inside a reduce group.
-	 */
+	/** The ordering for the order inside a reduce group. */
 	private Ordering groupOrder;
 
 	private boolean combinable;
+	
+	private Partitioner<?> customPartitioner;
 	
 	
 	public GroupReduceOperatorBase(UserCodeWrapper<FT> udf, UnaryOperatorInformation<IN, OUT> operatorInfo, int[] keyPositions, String name) {
@@ -82,7 +83,8 @@ public class GroupReduceOperatorBase<IN, OUT, FT extends GroupReduceFunction<IN,
 		super(new UserCodeClassWrapper<FT>(udf), operatorInfo, name);
 	}
 	
-
+	// --------------------------------------------------------------------------------------------
+	
 	/**
 	 * Sets the order of the elements within a reduce group.
 	 * 
@@ -101,8 +103,6 @@ public class GroupReduceOperatorBase<IN, OUT, FT extends GroupReduceFunction<IN,
 	public Ordering getGroupOrder() {
 		return this.groupOrder;
 	}
-	
-	// --------------------------------------------------------------------------------------------
 	
 	/**
 	 * Marks the group reduce operation as combinable. Combinable operations may pre-reduce the
@@ -132,6 +132,23 @@ public class GroupReduceOperatorBase<IN, OUT, FT extends GroupReduceFunction<IN,
 		return this.combinable;
 	}
 
+	public void setCustomPartitioner(Partitioner<?> customPartitioner) {
+		if (customPartitioner != null) {
+			int[] keys = getKeyColumns(0);
+			if (keys == null || keys.length == 0) {
+				throw new IllegalArgumentException("Cannot use custom partitioner for a non-grouped GroupReduce (AllGroupReduce)");
+			}
+			if (keys.length > 1) {
+				throw new IllegalArgumentException("Cannot use the key partitioner for composite keys (more than one key field)");
+			}
+		}
+		this.customPartitioner = customPartitioner;
+	}
+	
+	public Partitioner<?> getCustomPartitioner() {
+		return customPartitioner;
+	}
+	
 	// --------------------------------------------------------------------------------------------
 
 	@Override

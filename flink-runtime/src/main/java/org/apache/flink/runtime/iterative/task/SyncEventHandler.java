@@ -30,8 +30,6 @@ import com.google.common.base.Preconditions;
 
 public class SyncEventHandler implements EventListener {
 	
-//	private static final Logger log = LoggerFactory.getLogger(SyncEventHandler.class);
-	
 	private final ClassLoader userCodeClassLoader;
 	
 	private final Map<String, Aggregator<?>> aggregators;
@@ -65,11 +63,7 @@ public class SyncEventHandler implements EventListener {
 		}
 		
 		workerDoneEventCounter++;
-		
-//		if (log.isInfoEnabled()) {
-//			log.info("Sync event handler received WorkerDoneEvent event (" + workerDoneEventCounter + ")");
-//		}
-		
+
 		String[] aggNames = workerDoneEvent.getAggregatorNames();
 		Value[] aggregates = workerDoneEvent.getAggregates(userCodeClassLoader);
 

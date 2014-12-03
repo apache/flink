@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.operators.util;
 
 import static org.junit.Assert.assertEquals;
@@ -37,7 +36,7 @@ public class FieldSetTest {
 		check(new FieldSet());
 		check(FieldSet.EMPTY_SET);
 		check(new FieldSet(14), 14);
-		check(new FieldSet(new Integer(3)), 3);
+		check(new FieldSet(Integer.valueOf(3)), 3);
 		check(new FieldSet(7, 4, 1), 1, 4, 7);
 		check(new FieldSet(7, 4, 1, 4, 7, 1, 4, 2), 1, 4, 2, 7);
 	}
@@ -58,14 +57,14 @@ public class FieldSetTest {
 	public void testImmutability() {
 		FieldSet s1 = new FieldSet();
 		FieldSet s2 = new FieldSet(5);
-		FieldSet s3 = new FieldSet(new Integer(7));
+		FieldSet s3 = new FieldSet(Integer.valueOf(7));
 		FieldSet s4 = new FieldSet(5, 4, 7, 6);
 		
 		s1.addFields(s2).addFields(s3);
 		s2.addFields(s4);
 		s4.addFields(s1);
 		
-		s1.addField(new Integer(14));
+		s1.addField(Integer.valueOf(14));
 		s2.addFields(78, 13, 66, 3);
 		
 		assertEquals(0, s1.size());

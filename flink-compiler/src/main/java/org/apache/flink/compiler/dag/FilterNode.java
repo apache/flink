@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.compiler.dag;
 
 import java.util.Collections;
@@ -32,9 +31,11 @@ import org.apache.flink.compiler.operators.OperatorDescriptorSingle;
  */
 public class FilterNode extends SingleInputNode {
 	
-
+	private final List<OperatorDescriptorSingle> possibleProperties;
+	
 	public FilterNode(FilterOperatorBase<?, ?> operator) {
 		super(operator);
+		this.possibleProperties = Collections.<OperatorDescriptorSingle>singletonList(new FilterDescriptor());
 	}
 
 	@Override
@@ -54,7 +55,7 @@ public class FilterNode extends SingleInputNode {
 
 	@Override
 	protected List<OperatorDescriptorSingle> getPossibleProperties() {
-		return Collections.<OperatorDescriptorSingle>singletonList(new FilterDescriptor());
+		return this.possibleProperties;
 	}
 
 	/**

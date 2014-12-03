@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.operators.AbstractUdfOperator;
 import org.apache.flink.api.common.operators.BinaryOperatorInformation;
 import org.apache.flink.api.common.operators.GenericDataSinkBase;
@@ -92,6 +93,10 @@ public class OperatorTranslation {
 		}
 		else if (dataSet instanceof DeltaIterationResultSet) {
 			dataFlowOp = translateDeltaIteration((DeltaIterationResultSet<?, ?>) dataSet);
+		}
+		else if (dataSet instanceof DeltaIteration.SolutionSetPlaceHolder || dataSet instanceof DeltaIteration.WorksetPlaceHolder) {
+			throw new InvalidProgramException("A data set that is part of a delta iteration was used as a sink or action."
+				+ " Did you forget to close the iteration?");
 		}
 		else {
 			throw new RuntimeException("Error while creating the data flow plan for the program: Unknown operator or data set type: " + dataSet);

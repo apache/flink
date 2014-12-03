@@ -20,6 +20,7 @@ package org.apache.flink.api.java.operators;
 
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -32,10 +33,26 @@ import org.apache.flink.api.java.functions.SelectByMinFunction;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 
+import com.google.common.base.Preconditions;
+
 public class UnsortedGrouping<T> extends Grouping<T> {
 
 	public UnsortedGrouping(DataSet<T> set, Keys<T> keys) {
 		super(set, keys);
+	}
+	
+	/**
+	 * Uses a custom partitioner for the grouping.
+	 * 
+	 * @param partitioner The custom partitioner.
+	 * @return The grouping object itself, to allow for method chaining.
+	 */
+	public UnsortedGrouping<T> withPartitioner(Partitioner<?> partitioner) {
+		Preconditions.checkNotNull(partitioner);
+		getKeys().validateCustomPartitioner(partitioner, null);
+		
+		this.customPartitioner = partitioner;
+		return this;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -213,7 +230,9 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	 * @see Order
 	 */
 	public SortedGrouping<T> sortGroup(int field, Order order) {
-		return new SortedGrouping<T>(this.dataSet, this.keys, field, order);
+		SortedGrouping<T> sg = new SortedGrouping<T>(this.dataSet, this.keys, field, order);
+		sg.customPartitioner = getCustomPartitioner();
+		return sg;
 	}
 	
 	/**
@@ -228,7 +247,9 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	 * @see Order
 	 */
 	public SortedGrouping<T> sortGroup(String field, Order order) {
-		return new SortedGrouping<T>(this.dataSet, this.keys, field, order);
+		SortedGrouping<T> sg = new SortedGrouping<T>(this.dataSet, this.keys, field, order);
+		sg.customPartitioner = getCustomPartitioner();
+		return sg;
 	}
 	
 }

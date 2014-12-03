@@ -112,11 +112,6 @@ public class StreamVertexTest {
 		}
 
 		try {
-			env.setExecutionParallelism(-10);
-			fail();
-		} catch (IllegalArgumentException e) {
-		}
-		try {
 			env.generateSequence(1, 10).project(2);
 			fail();
 		} catch (RuntimeException e) {
@@ -177,7 +172,7 @@ public class StreamVertexTest {
 		LocalStreamEnvironment env = StreamExecutionEnvironment
 				.createLocalEnvironment(SOURCE_PARALELISM);
 
-		env.addSource(new MySource(), SOURCE_PARALELISM).map(new MyTask()).addSink(new MySink());
+		env.addSource(new MySource()).setParallelism(SOURCE_PARALELISM).map(new MyTask()).addSink(new MySink());
 
 		env.executeTest(MEMORYSIZE);
 		assertEquals(10, data.keySet().size());

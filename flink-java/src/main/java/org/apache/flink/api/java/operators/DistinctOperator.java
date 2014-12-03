@@ -22,18 +22,18 @@ import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.operators.Operator;
+import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
 import org.apache.flink.api.common.operators.base.MapOperatorBase;
+import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
-import org.apache.flink.api.common.functions.RichGroupReduceFunction.Combinable;
 import org.apache.flink.api.java.operators.translation.KeyExtractingMapper;
 import org.apache.flink.api.java.operators.translation.PlanUnwrappingReduceGroupOperator;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.util.Collector;
 import org.apache.flink.api.java.DataSet;
 
@@ -51,27 +51,23 @@ public class DistinctOperator<T> extends SingleInputOperator<T, T, DistinctOpera
 	
 	public DistinctOperator(DataSet<T> input, Keys<T> keys, String distinctLocationName) {
 		super(input, input.getType());
-		
+
 		this.distinctLocationName = distinctLocationName;
 		
 		// if keys is null distinction is done on all tuple fields
 		if (keys == null) {
-			if (input.getType().isTupleType()) {
+			if (input.getType() instanceof CompositeType) {
 
-				TupleTypeInfoBase<?> tupleType = (TupleTypeInfoBase<?>) input.getType();
-				int[] allFields = new int[tupleType.getArity()];
-				for(int i = 0; i < tupleType.getArity(); i++) {
-					allFields[i] = i;
-				}
-				keys = new Keys.ExpressionKeys<T>(allFields, input.getType(), true);
+				CompositeType<?> cType = (CompositeType<?>) input.getType();
+				keys = new Keys.ExpressionKeys<T>(new String[] {Keys.ExpressionKeys.SELECT_ALL_CHAR }, input.getType());
 			}
 			else {
-				throw new InvalidProgramException("Distinction on all fields is only possible on tuple data types.");
+				throw new InvalidProgramException("Distinction on all fields is only possible on composite (pojo / tuple) data types.");
 			}
 		}
 		
 		
-		// FieldPositionKeys can only be applied on Tuples
+		// FieldPositionKeys can only be applied on Tuples and POJOs
 		if (keys instanceof Keys.ExpressionKeys && !(input.getType() instanceof CompositeType)) {
 			throw new InvalidProgramException("Distinction on field positions is only possible on composite type DataSets.");
 		}
@@ -84,7 +80,7 @@ public class DistinctOperator<T> extends SingleInputOperator<T, T, DistinctOpera
 		
 		final RichGroupReduceFunction<T, T> function = new DistinctFunction<T>();
 
-		String name = "Distinct at "+distinctLocationName;
+		String name = getName() != null ? getName() : "Distinct at " + distinctLocationName;
 		
 		if (keys instanceof Keys.ExpressionKeys) {
 
@@ -95,7 +91,19 @@ public class DistinctOperator<T> extends SingleInputOperator<T, T, DistinctOpera
 
 			po.setCombinable(true);
 			po.setInput(input);
-			po.setDegreeOfParallelism(this.getParallelism());
+			po.setDegreeOfParallelism(getParallelism());
+			
+			// make sure that distinct preserves the partitioning for the fields on which they operate
+			if (getType().isTupleType()) {
+				SingleInputSemanticProperties sProps = new SingleInputSemanticProperties();
+				
+				for (int field : keys.computeLogicalKeyPositions()) {
+					sProps.setForwardedField(field, new FieldSet(field));
+				}
+				
+				po.setSemanticProperties(sProps);
+			}
+			
 			
 			return po;
 		}
@@ -145,7 +153,7 @@ public class DistinctOperator<T> extends SingleInputOperator<T, T, DistinctOpera
 		return reducer;
 	}
 	
-	@Combinable
+	@RichGroupReduceFunction.Combinable
 	public static final class DistinctFunction<T> extends RichGroupReduceFunction<T, T> {
 
 		private static final long serialVersionUID = 1L;

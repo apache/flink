@@ -1014,4 +1014,64 @@ public class SchedulerSlotSharingTest {
 			executor.shutdownNow();
 		}
 	}
+	
+	@Test
+	public void testDopIncreases() {
+		try {
+			JobVertexID jid1 = new JobVertexID();
+			JobVertexID jid2 = new JobVertexID();
+			JobVertexID jid3 = new JobVertexID();
+			JobVertexID jid4 = new JobVertexID();
+			
+			SlotSharingGroup sharingGroup = new SlotSharingGroup(jid1, jid2, jid3, jid4);
+			
+			Scheduler scheduler = new Scheduler();
+			scheduler.newInstanceAvailable(getRandomInstance(4));
+			
+			// schedule one task for the first and second vertex
+			AllocatedSlot s1 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(jid1, 0, 1), sharingGroup));
+			AllocatedSlot s2 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(jid2, 0, 1), sharingGroup));
+			
+			assertTrue( ((SubSlot) s1).getSharedSlot() == ((SubSlot) s2).getSharedSlot() );
+			assertEquals(3, scheduler.getNumberOfAvailableSlots());
+			
+			AllocatedSlot s3_0 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(jid3, 0, 5), sharingGroup));
+			AllocatedSlot s3_1 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(jid3, 1, 5), sharingGroup));
+			AllocatedSlot s4_0 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(jid4, 0, 4), sharingGroup));
+			AllocatedSlot s4_1 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(jid4, 1, 4), sharingGroup));
+			
+			s1.releaseSlot();
+			s2.releaseSlot();
+			
+			AllocatedSlot s3_2 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(jid3, 2, 5), sharingGroup));
+			AllocatedSlot s3_3 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(jid3, 3, 5), sharingGroup));
+			AllocatedSlot s4_2 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(jid4, 2, 4), sharingGroup));
+			AllocatedSlot s4_3 = scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(jid4, 3, 4), sharingGroup));
+			
+			try {
+				scheduler.scheduleImmediately(new ScheduledUnit(getTestVertex(jid3, 4, 5), sharingGroup));
+				fail("should throw an exception");
+			}
+			catch (NoResourceAvailableException e) {
+				// expected
+			}
+			
+			assertEquals(0, scheduler.getNumberOfAvailableSlots());
+			
+			s3_0.releaseSlot();
+			s3_1.releaseSlot();
+			s3_2.releaseSlot();
+			s3_3.releaseSlot();
+			s4_0.releaseSlot();
+			s4_1.releaseSlot();
+			s4_2.releaseSlot();
+			s4_3.releaseSlot();
+			
+			assertEquals(4, scheduler.getNumberOfAvailableSlots());
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
 }

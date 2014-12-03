@@ -105,6 +105,7 @@ public abstract class CostEstimator {
 				addRandomPartitioningCost(channel, costs);
 				break;
 			case PARTITION_HASH:
+			case PARTITION_CUSTOM:
 				addHashPartitioningCost(channel, costs);
 				break;
 			case PARTITION_RANGE:

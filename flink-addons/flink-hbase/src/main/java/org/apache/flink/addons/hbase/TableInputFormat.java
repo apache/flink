@@ -16,198 +16,76 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.addons.hbase;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.apache.flink.addons.hbase.common.HBaseKey;
-import org.apache.flink.addons.hbase.common.HBaseResult;
-import org.apache.flink.addons.hbase.common.HBaseUtil;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.LocatableInputSplitAssigner;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
+import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplitAssigner;
-import org.apache.flink.types.Record;
-import org.apache.flink.util.OperatingSystem;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
-import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
-import org.apache.hadoop.hbase.mapreduce.TableRecordReader;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.Pair;
 import org.apache.hadoop.util.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * {@link InputFormat} subclass that wraps the access for HTables.
  */
-public class TableInputFormat implements InputFormat<Record, TableInputSplit> {
+public abstract class TableInputFormat<T extends Tuple> implements InputFormat<T, TableInputSplit>{
 
 	private static final long serialVersionUID = 1L;
 
 	private static final Logger LOG = LoggerFactory.getLogger(TableInputFormat.class);
 
-	/** A handle on an HBase table */
-	private HTable table;
-
-	/** The scanner that performs the actual access on the table. HBase object */
-	private Scan scan;
-
-	/** Hbase' iterator wrapper */
-	private TableRecordReader tableRecordReader;
-
 	/** helper variable to decide whether the input is exhausted or not */
 	private boolean endReached = false;
+	
+	// TODO table and scan could be serialized when kryo serializer will be the default
+	protected transient HTable table;
+	protected transient Scan scan;
+	
+	/** HBase iterator wrapper */
+	private ResultScanner rs;
 
-	/** Job parameter that specifies the input table. */
-	public static final String INPUT_TABLE = "hbase.inputtable";
-
-	/** Location of the hbase-site.xml. If set, the HBaseAdmin will build inside */
-	public static final String CONFIG_LOCATION = "hbase.config.location";
-
+	// abstract methods allow for multiple table and scanners in the same job
+	protected abstract Scan getScanner();
+	protected abstract String getTableName();
+	protected abstract T mapResultToTuple(Result r);
+	
 	/**
-	 * Base-64 encoded scanner. All other SCAN_ confs are ignored if this is specified.
-	 * See TableMapReduceUtil.convertScanToString(Scan) for more details.
+	 * creates a {@link Scan} object and a {@link HTable} connection
+	 * 
+	 * @param parameters
+	 * @see Configuration
 	 */
-	public static final String SCAN = "hbase.scan";
-
-	/** Column Family to Scan */
-	public static final String SCAN_COLUMN_FAMILY = "hbase.scan.column.family";
-
-	/** Space delimited list of columns to scan. */
-	public static final String SCAN_COLUMNS = "hbase.scan.columns";
-
-	/** The timestamp used to filter columns with a specific timestamp. */
-	public static final String SCAN_TIMESTAMP = "hbase.scan.timestamp";
-
-	/** The starting timestamp used to filter columns with a specific range of versions. */
-	public static final String SCAN_TIMERANGE_START = "hbase.scan.timerange.start";
-
-	/** The ending timestamp used to filter columns with a specific range of versions. */
-	public static final String SCAN_TIMERANGE_END = "hbase.scan.timerange.end";
-
-	/** The maximum number of version to return. */
-	public static final String SCAN_MAXVERSIONS = "hbase.scan.maxversions";
-
-	/** Set to false to disable server-side caching of blocks for this scan. */
-	public static final String SCAN_CACHEBLOCKS = "hbase.scan.cacheblocks";
-
-	/** The number of rows for caching that will be passed to scanners. */
-	public static final String SCAN_CACHEDROWS = "hbase.scan.cachedrows";
-
-	/** mutable objects that are used to avoid recreation of wrapper objects */
-	protected HBaseKey hbaseKey;
-
-	protected HBaseResult hbaseResult;
-
-	private org.apache.hadoop.conf.Configuration hConf;
-
 	@Override
 	public void configure(Configuration parameters) {
-		HTable table = createTable(parameters);
-		setTable(table);
-		Scan scan = createScanner(parameters);
-		setScan(scan);
+		this.table = createTable();
+		this.scan = getScanner();
 	}
-
-	/**
-	 * Read the configuration and creates a {@link Scan} object.
-	 * 
-	 * @param parameters
-	 * @return The scanner
-	 */
-	protected Scan createScanner(Configuration parameters) {
-		Scan scan = null;
-		if (parameters.getString(SCAN, null) != null) {
-			try {
-				scan = HBaseUtil.convertStringToScan(parameters.getString(SCAN, null));
-			} catch (IOException e) {
-				LOG.error("An error occurred.", e);
-			}
-		} else {
-			try {
-				scan = new Scan();
-
-				// if (parameters.getString(SCAN_COLUMNS, null) != null) {
-				// scan.addColumns(parameters.getString(SCAN_COLUMNS, null));
-				// }
-
-				if (parameters.getString(SCAN_COLUMN_FAMILY, null) != null) {
-					scan.addFamily(Bytes.toBytes(parameters.getString(SCAN_COLUMN_FAMILY, null)));
-				}
-
-				if (parameters.getString(SCAN_TIMESTAMP, null) != null) {
-					scan.setTimeStamp(Long.parseLong(parameters.getString(SCAN_TIMESTAMP, null)));
-				}
-
-				if (parameters.getString(SCAN_TIMERANGE_START, null) != null
-					&& parameters.getString(SCAN_TIMERANGE_END, null) != null) {
-					scan.setTimeRange(
-						Long.parseLong(parameters.getString(SCAN_TIMERANGE_START, null)),
-						Long.parseLong(parameters.getString(SCAN_TIMERANGE_END, null)));
-				}
-
-				if (parameters.getString(SCAN_MAXVERSIONS, null) != null) {
-					scan.setMaxVersions(Integer.parseInt(parameters.getString(SCAN_MAXVERSIONS, null)));
-				}
-
-				if (parameters.getString(SCAN_CACHEDROWS, null) != null) {
-					scan.setCaching(Integer.parseInt(parameters.getString(SCAN_CACHEDROWS, null)));
-				}
-
-				// false by default, full table scans generate too much BC churn
-				scan.setCacheBlocks((parameters.getBoolean(SCAN_CACHEBLOCKS, false)));
-			} catch (Exception e) {
-				LOG.error(StringUtils.stringifyException(e));
-			}
-		}
-		return scan;
-	}
-
-	/**
-	 * Create an {@link HTable} instance and set it into this format.
-	 * 
-	 * @param parameters
-	 *        a {@link Configuration} that holds at least the table name.
-	 */
-	protected HTable createTable(Configuration parameters) {
-		String configLocation = parameters.getString(TableInputFormat.CONFIG_LOCATION, null);
-		LOG.info("Got config location: " + configLocation);
-		if (configLocation != null)
-		{
-			org.apache.hadoop.conf.Configuration dummyConf = new org.apache.hadoop.conf.Configuration();
-			if(OperatingSystem.isWindows()) {
-				dummyConf.addResource(new Path("file:/" + configLocation));
-			} else {
-				dummyConf.addResource(new Path("file://" + configLocation));
-			}
-			hConf = HBaseConfiguration.create(dummyConf);
-			;
-			// hConf.set("hbase.master", "im1a5.internetmemory.org");
-			LOG.info("hbase master: " + hConf.get("hbase.master"));
-			LOG.info("zookeeper quorum: " + hConf.get("hbase.zookeeper.quorum"));
-
-		}
-		String tableName = parameters.getString(INPUT_TABLE, "");
+	
+	/** Create an {@link HTable} instance and set it into this format */
+	private HTable createTable() {
+		LOG.info("Initializing HBaseConfiguration");
+		//use files found in the classpath
+		org.apache.hadoop.conf.Configuration hConf = HBaseConfiguration.create();
+		
 		try {
-			return new HTable(this.hConf, tableName);
+			return new HTable(hConf, getTableName());
 		} catch (Exception e) {
 			LOG.error(StringUtils.stringifyException(e));
 		}
-		return null;
-	}
-
-	@Override
-	public BaseStatistics getStatistics(BaseStatistics cachedStatistics) {
-		// TODO Auto-generated method stub
 		return null;
 	}
 
@@ -216,151 +94,102 @@ public class TableInputFormat implements InputFormat<Record, TableInputSplit> {
 		return this.endReached;
 	}
 
-	protected boolean nextResult() throws IOException {
-		if (this.tableRecordReader == null)
-		{
-			throw new IOException("No table record reader provided!");
-		}
-
-		try {
-			if (this.tableRecordReader.nextKeyValue())
-			{
-				ImmutableBytesWritable currentKey = this.tableRecordReader.getCurrentKey();
-				Result currentValue = this.tableRecordReader.getCurrentValue();
-
-				hbaseKey.setWritable(currentKey);
-				hbaseResult.setResult(currentValue);
-			} else
-			{
-				this.endReached = true;
-				return false;
-			}
-		} catch (InterruptedException e) {
-			LOG.error("Table reader has been interrupted", e);
-			throw new IOException(e);
-		}
-
-		return true;
-	}
-
 	@Override
-	public Record nextRecord(Record record) throws IOException {
-		if (nextResult()) {
-			mapResultToRecord(record, hbaseKey, hbaseResult);
-			return record;
-		} else {
-			return null;
+	public T nextRecord(T reuse) throws IOException {
+		if (this.rs == null){
+			throw new IOException("No table result scanner provided!");
 		}
-	}
 
-	/**
-	 * Maps the current HBase Result into a Record.
-	 * This implementation simply stores the HBaseKey at position 0, and the HBase Result object at position 1.
-	 * 
-	 * @param record
-	 * @param key
-	 * @param result
-	 */
-	public void mapResultToRecord(Record record, HBaseKey key, HBaseResult result) {
-		record.setField(0, key);
-		record.setField(1, result);
-	}
-
-	@Override
-	public void close() throws IOException {
-		this.tableRecordReader.close();
+		Result res = this.rs.next();
+		if (res != null){
+			return mapResultToTuple(res);
+		} 
+		this.endReached = true;
+		return null;
 	}
 
 	@Override
 	public void open(TableInputSplit split) throws IOException {
-		if (split == null)
-		{
+		if (split == null){
 			throw new IOException("Input split is null!");
 		}
-
-		if (this.table == null)
-		{
+		if (table == null){
 			throw new IOException("No HTable provided!");
 		}
-
-		if (this.scan == null)
-		{
+		if (scan == null){
 			throw new IOException("No Scan instance provided");
 		}
 
-		this.tableRecordReader = new TableRecordReader();
-
-		this.tableRecordReader.setHTable(this.table);
-
-		Scan sc = new Scan(this.scan);
-		sc.setStartRow(split.getStartRow());
-		LOG.info("split start row: " + new String(split.getStartRow()));
-		sc.setStopRow(split.getEndRow());
-		LOG.info("split end row: " + new String(split.getEndRow()));
-
-		this.tableRecordReader.setScan(sc);
-		this.tableRecordReader.restart(split.getStartRow());
-
-		this.hbaseKey = new HBaseKey();
-		this.hbaseResult = new HBaseResult();
-
+		logSplitInfo("opening", split);
+		scan.setStartRow(split.getStartRow());
+		scan.setStopRow(split.getEndRow());
+		
+		this.rs = table.getScanner(scan);
 		endReached = false;
 	}
-
+	
+	@Override
+	public void close() throws IOException {
+		this.rs.close();
+		this.table.close();
+	}
 
 	@Override
 	public TableInputSplit[] createInputSplits(final int minNumSplits) throws IOException {
-
-		if (this.table == null) {
-			throw new IOException("No table was provided.");
-		}
-
-		final Pair<byte[][], byte[][]> keys = this.table.getStartEndKeys();
-
+		//Gets the starting and ending row keys for every region in the currently open table
+		final Pair<byte[][], byte[][]> keys = table.getStartEndKeys();
 		if (keys == null || keys.getFirst() == null || keys.getFirst().length == 0) {
-
 			throw new IOException("Expecting at least one region.");
 		}
-		int count = 0;
-		final List<TableInputSplit> splits = new ArrayList<TableInputSplit>(keys.getFirst().length);
+		final byte[] startRow = scan.getStartRow();
+		final byte[] stopRow = scan.getStopRow();
+		final boolean scanWithNoLowerBound = startRow.length == 0;
+		final boolean scanWithNoUpperBound = stopRow.length == 0;
+		
+		final List<TableInputSplit> splits = new ArrayList<TableInputSplit>(minNumSplits);
 		for (int i = 0; i < keys.getFirst().length; i++) {
-
-			if (!includeRegionInSplit(keys.getFirst()[i], keys.getSecond()[i])) {
+			final byte[] startKey = keys.getFirst()[i];
+			final byte[] endKey = keys.getSecond()[i];
+			final String regionLocation = table.getRegionLocation(startKey, false).getHostnamePort();
+			//Test if the given region is to be included in the InputSplit while splitting the regions of a table
+			if (!includeRegionInSplit(startKey, endKey)) {
 				continue;
 			}
+			//Finds the region on which the given row is being served
+			final String[] hosts = new String[] { regionLocation };
 
-			final String regionLocation = this.table.getRegionLocation(keys.getFirst()[i], false).getHostnamePort();
-			final byte[] startRow = this.scan.getStartRow();
-			final byte[] stopRow = this.scan.getStopRow();
+			// determine if regions contains keys used by the scan
+			boolean isLastRegion = endKey.length == 0;
+			if ((scanWithNoLowerBound || isLastRegion || Bytes.compareTo(startRow, endKey) < 0) &&
+				(scanWithNoUpperBound || Bytes.compareTo(stopRow, startKey) > 0)) {
 
-			// determine if the given start an stop key fall into the region
-			if ((startRow.length == 0 || keys.getSecond()[i].length == 0 ||
-				Bytes.compareTo(startRow, keys.getSecond()[i]) < 0) &&
-				(stopRow.length == 0 ||
-				Bytes.compareTo(stopRow, keys.getFirst()[i]) > 0)) {
-
-				final byte[] splitStart = startRow.length == 0 ||
-					Bytes.compareTo(keys.getFirst()[i], startRow) >= 0 ?
-					keys.getFirst()[i] : startRow;
-				final byte[] splitStop = (stopRow.length == 0 ||
-					Bytes.compareTo(keys.getSecond()[i], stopRow) <= 0) &&
-					keys.getSecond()[i].length > 0 ?
-					keys.getSecond()[i] : stopRow;
-				final TableInputSplit split = new TableInputSplit(splits.size(), new String[] { regionLocation },
-					this.table.getTableName(), splitStart, splitStop);
+				final byte[] splitStart = scanWithNoLowerBound || Bytes.compareTo(startKey, startRow) >= 0 ? startKey : startRow;
+				final byte[] splitStop = (scanWithNoUpperBound || Bytes.compareTo(endKey, stopRow) <= 0)
+						&& !isLastRegion ? endKey : stopRow;
+				int id = splits.size();
+				final TableInputSplit split = new TableInputSplit(id, hosts, table.getTableName(), splitStart, splitStop);
 				splits.add(split);
-				if (LOG.isDebugEnabled()) {
-					LOG.debug("getSplits: split -> " + (count++) + " -> " + split);
-				}
 			}
 		}
-
+		LOG.info("Created " + splits.size() + " splits");
+		for (TableInputSplit split : splits) {
+			logSplitInfo("created", split);
+		}
 		return splits.toArray(new TableInputSplit[0]);
+	}
+	
+	private void logSplitInfo(String action, TableInputSplit split) {
+		int splitId = split.getSplitNumber();
+		String splitStart = Bytes.toString(split.getStartRow());
+		String splitEnd = Bytes.toString(split.getEndRow());
+		String splitStartKey = splitStart.isEmpty() ? "-" : splitStart;
+		String splitStopKey = splitEnd.isEmpty() ? "-" : splitEnd;
+		String[] hostnames = split.getHostnames();
+		LOG.info("{} split [{}|{}|{}|{}]",action, splitId, hostnames, splitStartKey, splitStopKey);
 	}
 
 	/**
-	 * Test if the given region is to be included in the InputSplit while splitting
-	 * the regions of a table.
+	 * Test if the given region is to be included in the InputSplit while splitting the regions of a table.
 	 * <p>
 	 * This optimization is effective when there is a specific reasoning to exclude an entire region from the M-R job,
 	 * (and hence, not contributing to the InputSplit), given the start and end keys of the same. <br>
@@ -386,20 +215,9 @@ public class TableInputFormat implements InputFormat<Record, TableInputSplit> {
 	public InputSplitAssigner getInputSplitAssigner(TableInputSplit[] inputSplits) {
 		return new LocatableInputSplitAssigner(inputSplits);
 	}
-	
-	public void setTable(HTable table) {
-		this.table = table;
-	}
 
-	public HTable getTable() {
-		return table;
-	}
-
-	public void setScan(Scan scan) {
-		this.scan = scan;
-	}
-
-	public Scan getScan() {
-		return scan;
+	@Override
+	public BaseStatistics getStatistics(BaseStatistics cachedStatistics) {
+		return null;
 	}
 }

@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -160,7 +161,7 @@ public class SerializedUpdateBuffer extends AbstractPagedOutputView {
 		final ReadEnd readEnd;
 		if (numBuffersSpilled == 0 && emptyBuffers.size() >= minBuffersForWriteEnd) {
 			// read completely from in-memory segments
-			readEnd = new ReadEnd(fullBuffers.removeFirst(), emptyBuffers, fullBuffers, null, null, segmentSize, 0);
+			readEnd = new ReadEnd(fullBuffers.removeFirst(), emptyBuffers, fullBuffers, null, null, 0);
 		} else {
 			int toSpill = Math.min(minBuffersForSpilledReadEnd + minBuffersForWriteEnd - emptyBuffers.size(),
 				fullBuffers.size());
@@ -184,7 +185,7 @@ public class SerializedUpdateBuffer extends AbstractPagedOutputView {
 			final BlockChannelReader reader = ioManager.createBlockChannelReader(currentWriter.getChannelID());
 
 			// gather some memory segments to circulate while reading back the data
-			final ArrayList<MemorySegment> readSegments = new ArrayList<MemorySegment>();
+			final List<MemorySegment> readSegments = new ArrayList<MemorySegment>();
 			try {
 				while (readSegments.size() < minBuffersForSpilledReadEnd) {
 					readSegments.add(emptyBuffers.take());
@@ -196,8 +197,8 @@ public class SerializedUpdateBuffer extends AbstractPagedOutputView {
 				firstSeg = reader.getReturnQueue().take();
 
 				// create the read end reading one less buffer, because the first buffer is already read back
-				readEnd = new ReadEnd(firstSeg, emptyBuffers, fullBuffers, reader, readSegments, segmentSize,
-					numBuffersSpilled - 1);
+				readEnd = new ReadEnd(firstSeg, emptyBuffers, fullBuffers, reader, readSegments,
+						numBuffersSpilled - 1);
 			} catch (InterruptedException e) {
 				throw new RuntimeException(
 					"SerializedUpdateBuffer was interrupted while reclaiming memory by spilling.", e);
@@ -224,10 +225,11 @@ public class SerializedUpdateBuffer extends AbstractPagedOutputView {
 			try {
 				currentWriter.closeAndDelete();
 			} catch (Throwable t) {
+				// do nothing
 			}
 		}
 
-		ArrayList<MemorySegment> freeMem = new ArrayList<MemorySegment>(64);
+		List<MemorySegment> freeMem = new ArrayList<MemorySegment>(64);
 
 		// add all memory allocated to the write end
 		freeMem.add(getCurrentSegment());
@@ -259,7 +261,7 @@ public class SerializedUpdateBuffer extends AbstractPagedOutputView {
 
 		private final LinkedBlockingQueue<MemorySegment> emptyBufferTarget;
 
-		private final ArrayDeque<MemorySegment> fullBufferSource;
+		private final Deque<MemorySegment> fullBufferSource;
 
 		private final BlockChannelReader spilledBufferSource;
 
@@ -268,8 +270,8 @@ public class SerializedUpdateBuffer extends AbstractPagedOutputView {
 		private int requestsRemaining;
 
 		private ReadEnd(MemorySegment firstMemSegment, LinkedBlockingQueue<MemorySegment> emptyBufferTarget,
-				ArrayDeque<MemorySegment> fullBufferSource, BlockChannelReader spilledBufferSource,
-				ArrayList<MemorySegment> emptyBuffers, int segmentSize, int numBuffersSpilled)
+										Deque<MemorySegment> fullBufferSource, BlockChannelReader spilledBufferSource,
+										List<MemorySegment> emptyBuffers, int numBuffersSpilled)
 			throws IOException {
 			super(firstMemSegment, firstMemSegment.getInt(0), HEADER_LENGTH);
 
@@ -337,6 +339,7 @@ public class SerializedUpdateBuffer extends AbstractPagedOutputView {
 						try {
 							spilledBufferSource.closeAndDelete();
 						} catch (Throwable t) {
+							// do nothing
 						}
 					}
 					return true;
@@ -365,6 +368,7 @@ public class SerializedUpdateBuffer extends AbstractPagedOutputView {
 				try {
 					spilledBufferSource.closeAndDelete();
 				} catch (Throwable t) {
+					// do nothing
 				}
 			}
 		}

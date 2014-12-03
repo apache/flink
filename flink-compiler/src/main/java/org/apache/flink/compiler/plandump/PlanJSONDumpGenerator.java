@@ -336,6 +336,9 @@ public class PlanJSONDumpGenerator {
 					case PARTITION_FORCED_REBALANCE:
 						shipStrategy = "Rebalance";
 						break;
+					case PARTITION_CUSTOM:
+						shipStrategy = "Custom Partition";
+						break;
 					default:
 						throw new CompilerException("Unknown ship strategy '" + inConn.getShipStrategy().name()
 							+ "' in JSON generator.");

@@ -25,6 +25,7 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.MapPartitionFunction;
+import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.io.OutputFormat;
@@ -70,6 +71,8 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
+
+import com.google.common.base.Preconditions;
 
 /**
  * A DataSet represents a collection of elements of the same type.<br/>
@@ -153,8 +156,8 @@ public abstract class DataSet<T> {
 
 
 
-    /**
-     * Applies a Map-style operation to the entire partition of the data.
+	/**
+	 * Applies a Map-style operation to the entire partition of the data.
 	 * The function is called once per parallel partition of the data,
 	 * and the entire partition is available through the given Iterator.
 	 * The number of elements that each instance of the MapPartition function
@@ -165,12 +168,12 @@ public abstract class DataSet<T> {
 	 * the use of {@code map()} and {@code flatMap()} is preferable.
 	 *
 	 * @param mapPartition The MapPartitionFunction that is called for the full DataSet.
-     * @return A MapPartitionOperator that represents the transformed DataSet.
-     *
-     * @see MapPartitionFunction
-     * @see MapPartitionOperator
-     * @see DataSet
-     */
+	 * @return A MapPartitionOperator that represents the transformed DataSet.
+	 *
+	 * @see MapPartitionFunction
+	 * @see MapPartitionOperator
+	 * @see DataSet
+	 */
 	public <R> MapPartitionOperator<T, R> mapPartition(MapPartitionFunction<T, R> mapPartition ){
 		if (mapPartition == null) {
 			throw new NullPointerException("MapPartition function must not be null.");
@@ -282,25 +285,37 @@ public abstract class DataSet<T> {
 	}
 
 	/**
-	 * Syntactic sugar for aggregate (MAX, field)
+	 * Syntactic sugar for {@link #aggregate(Aggregations, int)} using {@link Aggregations#MAX} as
+	 * the aggregation function.
+	 * <p>
+	 * <strong>Note:</strong> This operation is not to be confused with {@link #maxBy(int...)},
+	 * which selects one element with maximum value at the specified field positions.
+	 *
 	 * @param field The index of the Tuple field on which the aggregation function is applied.
 	 * @return An AggregateOperator that represents the max'ed DataSet.
 	 *
-	 * @see org.apache.flink.api.java.operators.AggregateOperator
+	 * @see #aggregate(Aggregations, int)
+	 * @see #maxBy(int...)
 	 */
-	public AggregateOperator<T> max (int field) {
-		return this.aggregate (Aggregations.MAX, field);
+	public AggregateOperator<T> max(int field) {
+		return aggregate(Aggregations.MAX, field);
 	}
 
 	/**
-	 * Syntactic sugar for aggregate (MIN, field)
+	 * Syntactic sugar for {@link #aggregate(Aggregations, int)} using {@link Aggregations#MIN} as
+	 * the aggregation function.
+	 * <p>
+	 * <strong>Note:</strong> This operation is not to be confused with {@link #minBy(int...)},
+	 * which selects one element with the minimum value at the specified field positions.
+	 *
 	 * @param field The index of the Tuple field on which the aggregation function is applied.
 	 * @return An AggregateOperator that represents the min'ed DataSet.
 	 *
-	 * @see org.apache.flink.api.java.operators.AggregateOperator
+	 * @see #aggregate(Aggregations, int)
+	 * @see #minBy(int...)
 	 */
-	public AggregateOperator<T> min (int field) {
-		return this.aggregate (Aggregations.MIN, field);
+	public AggregateOperator<T> min(int field) {
+		return aggregate(Aggregations.MIN, field);
 	}
 	
 	/**
@@ -344,46 +359,76 @@ public abstract class DataSet<T> {
 		return new GroupReduceOperator<T, R>(this, resultType, reducer, Utils.getCallLocationName());
 	}
 
-/**
-	 * Applies a special case of a reduce transformation (minBy) on a non-grouped {@link DataSet}.<br/>
-	 * The transformation consecutively calls a {@link ReduceFunction} 
-	 * until only a single element remains which is the result of the transformation.
-	 * A ReduceFunction combines two elements into one new element of the same type.
-	 *  
-	 * @param fields Keys taken into account for finding the minimum.
-	 * @return A {@link ReduceOperator} representing the minimum.
+	/**
+	 * Selects an element with minimum value.
+	 * <p>
+	 * The minimum is computed over the specified fields in lexicographical order.
+	 * <p>
+	 * <strong>Example 1</strong>: Given a data set with elements <code>[0, 1], [1, 0]</code>, the
+	 * results will be:
+	 * <ul>
+	 * <li><code>minBy(0)</code>: <code>[0, 1]</code></li>
+	 * <li><code>minBy(1)</code>: <code>[1, 0]</code></li>
+	 * </ul>
+	 * <p>
+	 * <strong>Example 2</strong>: Given a data set with elements <code>[0, 0], [0, 1]</code>, the
+	 * results will be:
+	 * <ul>
+	 * <li><code>minBy(0, 1)</code>: <code>[0, 0]</code></li>
+	 * </ul>
+	 * <p>
+	 * If multiple values with minimum value at the specified fields exist, a random one will be
+	 * picked.
+	 * <p>
+	 * Internally, this operation is implemented as a {@link ReduceFunction}.
+	 *
+	 * @param fields Field positions to compute the minimum over
+	 * @return A {@link ReduceOperator} representing the minimum
 	 */
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public ReduceOperator<T> minBy(int... fields)  {
-		
-		// Check for using a tuple
-		if(!this.type.isTupleType()) {
-			throw new InvalidProgramException("Method minBy(int) only works on tuples.");
+		if(!type.isTupleType()) {
+			throw new InvalidProgramException("DataSet#minBy(int...) only works on Tuple types.");
 		}
-			
+
 		return new ReduceOperator<T>(this, new SelectByMinFunction(
-				(TupleTypeInfo) this.type, fields), Utils.getCallLocationName());
+				(TupleTypeInfo) type, fields), Utils.getCallLocationName());
 	}
 	
 	/**
-	 * Applies a special case of a reduce transformation (maxBy) on a non-grouped {@link DataSet}.<br/>
-	 * The transformation consecutively calls a {@link ReduceFunction} 
-	 * until only a single element remains which is the result of the transformation.
-	 * A ReduceFunction combines two elements into one new element of the same type.
-	 *  
-	 * @param fields Keys taken into account for finding the minimum.
-	 * @return A {@link ReduceOperator} representing the minimum.
+	 * Selects an element with maximum value.
+	 * <p>
+	 * The maximum is computed over the specified fields in lexicographical order.
+	 * <p>
+	 * <strong>Example 1</strong>: Given a data set with elements <code>[0, 1], [1, 0]</code>, the
+	 * results will be:
+	 * <ul>
+	 * <li><code>maxBy(0)</code>: <code>[1, 0]</code></li>
+	 * <li><code>maxBy(1)</code>: <code>[0, 1]</code></li>
+	 * </ul>
+	 * <p>
+	 * <strong>Example 2</strong>: Given a data set with elements <code>[0, 0], [0, 1]</code>, the
+	 * results will be:
+	 * <ul>
+	 * <li><code>maxBy(0, 1)</code>: <code>[0, 1]</code></li>
+	 * </ul>
+	 * <p>
+	 * If multiple values with maximum value at the specified fields exist, a random one will be
+	 * picked.
+	 * <p>
+	 * Internally, this operation is implemented as a {@link ReduceFunction}.
+	 *
+	 * @param fields Field positions to compute the maximum over
+	 * @return A {@link ReduceOperator} representing the maximum
 	 */
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public ReduceOperator<T> maxBy(int... fields)  {
-		
-		// Check for using a tuple
-		if(!this.type.isTupleType()) {
-			throw new InvalidProgramException("Method maxBy(int) only works on tuples.");
+		if(!type.isTupleType()) {
+			throw new InvalidProgramException("DataSet#maxBy(int...) only works on Tuple types.");
 		}
-			
+
 		return new ReduceOperator<T>(this, new SelectByMaxFunction(
-				(TupleTypeInfo) this.type, fields), Utils.getCallLocationName());
+				(TupleTypeInfo) type, fields), Utils.getCallLocationName());
 	}
 
 	/**
@@ -846,6 +891,9 @@ public abstract class DataSet<T> {
 	 * @see org.apache.flink.api.java.operators.DeltaIteration
 	 */
 	public <R> DeltaIteration<T, R> iterateDelta(DataSet<R> workset, int maxIterations, int... keyPositions) {
+		Preconditions.checkNotNull(workset);
+		Preconditions.checkNotNull(keyPositions);
+		
 		Keys.ExpressionKeys<T> keys = new Keys.ExpressionKeys<T>(keyPositions, getType(), false);
 		return new DeltaIteration<T, R>(getExecutionEnvironment(), getType(), this, workset, keys, maxIterations);
 	}
@@ -926,12 +974,59 @@ public abstract class DataSet<T> {
 	}
 	
 	/**
-	 * Enforces a rebalancing of the DataSet, i.e., the DataSet is evenly distributed over all parallel instances of the 
+	 * Partitions a tuple DataSet on the specified key fields using a custom partitioner.
+	 * This method takes the key position to partition on, and a partitioner that accepts the key type.
+	 * <p> 
+	 * Note: This method works only on single field keys.
+	 * 
+	 * @param partitioner The partitioner to assign partitions to keys.
+	 * @param field The field index on which the DataSet is to partitioned.
+	 * @return The partitioned DataSet.
+	 */
+	public <K> PartitionOperator<T> partitionCustom(Partitioner<K> partitioner, int field) {
+		return new PartitionOperator<T>(this, new Keys.ExpressionKeys<T>(new int[] {field}, getType(), false), partitioner, Utils.getCallLocationName());
+	}
+	
+	/**
+	 * Partitions a POJO DataSet on the specified key fields using a custom partitioner.
+	 * This method takes the key expression to partition on, and a partitioner that accepts the key type.
+	 * <p>
+	 * Note: This method works only on single field keys.
+	 * 
+	 * @param partitioner The partitioner to assign partitions to keys.
+	 * @param field The field index on which the DataSet is to partitioned.
+	 * @return The partitioned DataSet.
+	 */
+	public <K> PartitionOperator<T> partitionCustom(Partitioner<K> partitioner, String field) {
+		return new PartitionOperator<T>(this, new Keys.ExpressionKeys<T>(new String[] {field}, getType()), partitioner, Utils.getCallLocationName());
+	}
+	
+	/**
+	 * Partitions a DataSet on the key returned by the selector, using a custom partitioner.
+	 * This method takes the key selector t get the key to partition on, and a partitioner that
+	 * accepts the key type.
+	 * <p>
+	 * Note: This method works only on single field keys, i.e. the selector cannot return tuples
+	 * of fields.
+	 * 
+	 * @param partitioner The partitioner to assign partitions to keys.
+	 * @param keyExtractor The KeyExtractor with which the DataSet is hash-partitioned.
+	 * @return The partitioned DataSet.
+	 * 
+	 * @see KeySelector
+	 */
+	public <K extends Comparable<K>> PartitionOperator<T> partitionCustom(Partitioner<K> partitioner, KeySelector<T, K> keyExtractor) {
+		final TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keyExtractor, type);
+		return new PartitionOperator<T>(this, new Keys.SelectorFunctionKeys<T, K>(keyExtractor, this.getType(), keyType), partitioner, Utils.getCallLocationName());
+	}
+	
+	/**
+	 * Enforces a re-balancing of the DataSet, i.e., the DataSet is evenly distributed over all parallel instances of the 
 	 * following task. This can help to improve performance in case of heavy data skew and compute intensive operations.
 	 * <p>
 	 * <b>Important:</b>This operation shuffles the whole DataSet over the network and can take significant amount of time.
 	 * 
-	 * @return The rebalanced DataSet.
+	 * @return The re-balanced DataSet.
 	 */
 	public PartitionOperator<T> rebalance() {
 		return new PartitionOperator<T>(this, PartitionMethod.REBALANCE, Utils.getCallLocationName());

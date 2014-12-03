@@ -25,6 +25,7 @@ import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.functions.FlatCombineFunction;
 import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
@@ -58,7 +59,6 @@ import org.apache.flink.runtime.operators.util.CloseableInputProvider;
 import org.apache.flink.runtime.operators.util.DistributedRuntimeUDFContext;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.apache.flink.runtime.operators.util.ReaderIterator;
-import org.apache.flink.runtime.operators.util.RecordReaderIterator;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
@@ -1030,20 +1030,11 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	}
 	
 	protected MutableObjectIterator<?> createInputIterator(MutableReader<?> inputReader, TypeSerializerFactory<?> serializerFactory) {
-
-		if (serializerFactory.getDataType().equals(Record.class)) {
-			// record specific deserialization
-			@SuppressWarnings("unchecked")
-			MutableReader<Record> reader = (MutableReader<Record>) inputReader;
-			return new RecordReaderIterator(reader);
-		} else {
-			// generic data type serialization
-			@SuppressWarnings("unchecked")
-			MutableReader<DeserializationDelegate<?>> reader = (MutableReader<DeserializationDelegate<?>>) inputReader;
-			@SuppressWarnings({ "unchecked", "rawtypes" })
-			final MutableObjectIterator<?> iter = new ReaderIterator(reader, serializerFactory.getSerializer());
-			return iter;
-		}
+		@SuppressWarnings("unchecked")
+		MutableReader<DeserializationDelegate<?>> reader = (MutableReader<DeserializationDelegate<?>>) inputReader;
+		@SuppressWarnings({ "unchecked", "rawtypes" })
+		final MutableObjectIterator<?> iter = new ReaderIterator(reader, serializerFactory.getSerializer());
+		return iter;
 	}
 
 	protected int getNumTaskInputs() {
@@ -1269,7 +1260,9 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 						throw new Exception("Incompatibe serializer-/comparator factories.");
 					}
 					final DataDistribution distribution = config.getOutputDataDistribution(i, cl);
-					oe = new RecordOutputEmitter(strategy, comparator, distribution);
+					final Partitioner<?> partitioner = config.getOutputPartitioner(i, cl);
+					
+					oe = new RecordOutputEmitter(strategy, comparator, partitioner, distribution);
 				}
 
 				writers.add(new RecordWriter<Record>(task, oe));
@@ -1292,17 +1285,17 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 				// create the OutputEmitter from output ship strategy
 				final ShipStrategyType strategy = config.getOutputShipStrategy(i);
 				final TypeComparatorFactory<T> compFactory = config.getOutputComparator(i, cl);
-				final DataDistribution dataDist = config.getOutputDataDistribution(i, cl);
 
 				final ChannelSelector<SerializationDelegate<T>> oe;
 				if (compFactory == null) {
 					oe = new OutputEmitter<T>(strategy);
-				} else if (dataDist == null){
+				}
+				else {
+					final DataDistribution dataDist = config.getOutputDataDistribution(i, cl);
+					final Partitioner<?> partitioner = config.getOutputPartitioner(i, cl);
+					
 					final TypeComparator<T> comparator = compFactory.createComparator();
-					oe = new OutputEmitter<T>(strategy, comparator);
-				} else {
-					final TypeComparator<T> comparator = compFactory.createComparator();
-					oe = new OutputEmitter<T>(strategy, comparator, dataDist);
+					oe = new OutputEmitter<T>(strategy, comparator, partitioner, dataDist);
 				}
 
 				writers.add(new RecordWriter<SerializationDelegate<T>>(task, oe));

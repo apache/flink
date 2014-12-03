@@ -24,12 +24,10 @@ import java.io.IOException;
 import java.io.OutputStream;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.OutputViewDataOutputStreamWrapper;
 
-
-public abstract class BinaryOutputFormat<T extends IOReadableWritable> extends FileOutputFormat<T> {
+public abstract class BinaryOutputFormat<T> extends FileOutputFormat<T> {
 	private static final long serialVersionUID = 1L;
 	
 	/**

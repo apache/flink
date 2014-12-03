@@ -20,6 +20,7 @@ package org.apache.flink.api.common.operators.base;
 
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.CoGroupFunction;
+import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.CopyingListCollector;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
@@ -51,21 +52,19 @@ import java.util.List;
  */
 public class CoGroupOperatorBase<IN1, IN2, OUT, FT extends CoGroupFunction<IN1, IN2, OUT>> extends DualInputOperator<IN1, IN2, OUT, FT> {
 
-	/**
-	 * The ordering for the order inside a group from input one.
-	 */
+	/** The ordering for the order inside a group from input one. */
 	private Ordering groupOrder1;
 
-	/**
-	 * The ordering for the order inside a group from input two.
-	 */
+	/** The ordering for the order inside a group from input two. */
 	private Ordering groupOrder2;
-
-	// --------------------------------------------------------------------------------------------
+	
+	private Partitioner<?> customPartitioner;
 
 	private boolean combinableFirst;
 
 	private boolean combinableSecond;
+	
+	// --------------------------------------------------------------------------------------------
 
 	public CoGroupOperatorBase(UserCodeWrapper<FT> udf, BinaryOperatorInformation<IN1, IN2, OUT> operatorInfo, int[] keyPositions1, int[] keyPositions2, String name) {
 		super(udf, operatorInfo, keyPositions1, keyPositions2, name);
@@ -175,6 +174,14 @@ public class CoGroupOperatorBase<IN1, IN2, OUT, FT extends CoGroupFunction<IN1, 
 	public void setCombinableSecond(boolean combinableSecond) {
 		this.combinableSecond = combinableSecond;
 	}
+	
+	public void setCustomPartitioner(Partitioner<?> customPartitioner) {
+		this.customPartitioner = customPartitioner;
+	}
+	
+	public Partitioner<?> getCustomPartitioner() {
+		return customPartitioner;
+	}
 
 	// ------------------------------------------------------------------------
 
@@ -185,25 +192,66 @@ public class CoGroupOperatorBase<IN1, IN2, OUT, FT extends CoGroupFunction<IN1, 
 		// --------------------------------------------------------------------
 		TypeInformation<IN1> inputType1 = getOperatorInfo().getFirstInputType();
 		TypeInformation<IN2> inputType2 = getOperatorInfo().getSecondInputType();
-
+		
+		// for the grouping / merging comparator
 		int[] inputKeys1 = getKeyColumns(0);
 		int[] inputKeys2 = getKeyColumns(1);
-
-		boolean[] inputSortDirections1 = new boolean[inputKeys1.length];
-		boolean[] inputSortDirections2 = new boolean[inputKeys2.length];
-
-		Arrays.fill(inputSortDirections1, true);
-		Arrays.fill(inputSortDirections2, true);
-
+		
+		boolean[] inputDirections1 = new boolean[inputKeys1.length];
+		boolean[] inputDirections2 = new boolean[inputKeys2.length];
+		Arrays.fill(inputDirections1, true);
+		Arrays.fill(inputDirections2, true);
+		
 		final TypeSerializer<IN1> inputSerializer1 = inputType1.createSerializer();
 		final TypeSerializer<IN2> inputSerializer2 = inputType2.createSerializer();
 		
-		final TypeComparator<IN1> inputComparator1 = getTypeComparator(inputType1, inputKeys1, inputSortDirections1);
-		final TypeComparator<IN2> inputComparator2 = getTypeComparator(inputType2, inputKeys2, inputSortDirections2);
+		final TypeComparator<IN1> inputComparator1 = getTypeComparator(inputType1, inputKeys1, inputDirections1);
+		final TypeComparator<IN2> inputComparator2 = getTypeComparator(inputType2, inputKeys2, inputDirections2);
+		
+		final TypeComparator<IN1> inputSortComparator1;
+		final TypeComparator<IN2> inputSortComparator2;
+		
+		if (groupOrder1 == null || groupOrder1.getNumberOfFields() == 0) {
+			// no group sorting
+			inputSortComparator1 = inputComparator1;
+		}
+		else {
+			// group sorting
+			int[] groupSortKeys = groupOrder1.getFieldPositions();
+			int[] allSortKeys = new int[inputKeys1.length + groupOrder1.getNumberOfFields()];
+			System.arraycopy(inputKeys1, 0, allSortKeys, 0, inputKeys1.length);
+			System.arraycopy(groupSortKeys, 0, allSortKeys, inputKeys1.length, groupSortKeys.length);
+			
+			boolean[] groupSortDirections = groupOrder1.getFieldSortDirections();
+			boolean[] allSortDirections = new boolean[inputKeys1.length + groupSortKeys.length];
+			Arrays.fill(allSortDirections, 0, inputKeys1.length, true);
+			System.arraycopy(groupSortDirections, 0, allSortDirections, inputKeys1.length, groupSortDirections.length);
+			
+			inputSortComparator1 = getTypeComparator(inputType1, allSortKeys, allSortDirections);
+		}
+		
+		if (groupOrder2 == null || groupOrder2.getNumberOfFields() == 0) {
+			// no group sorting
+			inputSortComparator2 = inputComparator2;
+		}
+		else {
+			// group sorting
+			int[] groupSortKeys = groupOrder2.getFieldPositions();
+			int[] allSortKeys = new int[inputKeys2.length + groupOrder2.getNumberOfFields()];
+			System.arraycopy(inputKeys2, 0, allSortKeys, 0, inputKeys2.length);
+			System.arraycopy(groupSortKeys, 0, allSortKeys, inputKeys2.length, groupSortKeys.length);
+			
+			boolean[] groupSortDirections = groupOrder2.getFieldSortDirections();
+			boolean[] allSortDirections = new boolean[inputKeys2.length + groupSortKeys.length];
+			Arrays.fill(allSortDirections, 0, inputKeys2.length, true);
+			System.arraycopy(groupSortDirections, 0, allSortDirections, inputKeys2.length, groupSortDirections.length);
+			
+			inputSortComparator2 = getTypeComparator(inputType2, allSortKeys, allSortDirections);
+		}
 
 		CoGroupSortListIterator<IN1, IN2> coGroupIterator =
-				new CoGroupSortListIterator<IN1, IN2>(input1, inputComparator1, inputSerializer1,
-						input2, inputComparator2, inputSerializer2, mutableObjectSafe);
+				new CoGroupSortListIterator<IN1, IN2>(input1, inputSortComparator1, inputComparator1, inputSerializer1,
+						input2, inputSortComparator2, inputComparator2, inputSerializer2, mutableObjectSafe);
 
 		// --------------------------------------------------------------------
 		// Run UDF
@@ -254,8 +302,8 @@ public class CoGroupOperatorBase<IN1, IN2, OUT, FT extends CoGroupFunction<IN1, 
 		private Iterable<IN2> secondReturn;
 
 		private CoGroupSortListIterator(
-				List<IN1> input1, final TypeComparator<IN1> inputComparator1, TypeSerializer<IN1> serializer1,
-				List<IN2> input2, final TypeComparator<IN2> inputComparator2, TypeSerializer<IN2> serializer2,
+				List<IN1> input1, final TypeComparator<IN1> inputSortComparator1, TypeComparator<IN1> inputComparator1, TypeSerializer<IN1> serializer1,
+				List<IN2> input2, final TypeComparator<IN2> inputSortComparator2, TypeComparator<IN2> inputComparator2, TypeSerializer<IN2> serializer2,
 				boolean copyElements)
 		{
 			this.pairComparator = new GenericPairComparator<IN1, IN2>(inputComparator1, inputComparator2);
@@ -269,14 +317,14 @@ public class CoGroupOperatorBase<IN1, IN2, OUT, FT extends CoGroupFunction<IN1, 
 			Collections.sort(input1, new Comparator<IN1>() {
 				@Override
 				public int compare(IN1 o1, IN1 o2) {
-					return inputComparator1.compare(o1, o2);
+					return inputSortComparator1.compare(o1, o2);
 				}
 			});
 
 			Collections.sort(input2, new Comparator<IN2>() {
 				@Override
 				public int compare(IN2 o1, IN2 o2) {
-					return inputComparator2.compare(o1, o2);
+					return inputSortComparator2.compare(o1, o2);
 				}
 			});
 		}

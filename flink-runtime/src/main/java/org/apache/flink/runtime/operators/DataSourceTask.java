@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators;
 
 import java.util.ArrayList;
@@ -41,13 +40,11 @@ import org.apache.flink.runtime.operators.chaining.ChainedCollectorMapDriver;
 import org.apache.flink.runtime.operators.chaining.ChainedDriver;
 import org.apache.flink.runtime.operators.chaining.ExceptionInChainedStubException;
 import org.apache.flink.runtime.operators.shipping.OutputCollector;
-import org.apache.flink.runtime.operators.shipping.RecordOutputCollector;
 import org.apache.flink.runtime.operators.util.TaskConfig;
-import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 
 /**
- * DataSourceTask which is executed by a Nephele task manager. The task reads data and uses an 
+ * DataSourceTask which is executed by a task manager. The task reads data and uses an 
  * {@link InputFormat} to create records from the input.
  * 
  * @see org.apache.flink.api.common.io.InputFormat
@@ -140,80 +137,44 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 				}
 				
 				try {
-					// ======= special-case the Record, to help the JIT and avoid some casts ======
-					if (record.getClass() == Record.class) {
-						Record typedRecord = (Record) record;
-						@SuppressWarnings("unchecked")
-						final InputFormat<Record, InputSplit> inFormat = (InputFormat<Record, InputSplit>) format;
+					// special case to make the loops tighter
+					if (this.output instanceof OutputCollector) {
+						final OutputCollector<OT> output = (OutputCollector<OT>) this.output;
 						
-						if (this.output instanceof RecordOutputCollector) {
-							// Record going directly into network channels
-							final RecordOutputCollector output = (RecordOutputCollector) this.output;
-							while (!this.taskCanceled && !inFormat.reachedEnd()) {
-								// build next pair and ship pair if it is valid
-								typedRecord.clear();
-								Record returnedRecord = null;
-								if ((returnedRecord = inFormat.nextRecord(typedRecord)) != null) {
-									output.collect(returnedRecord);
-								}
-							}
-						} else if (this.output instanceof ChainedCollectorMapDriver) {
-							// Record going to a chained map task
-							@SuppressWarnings("unchecked")
-							final ChainedCollectorMapDriver<Record, ?> output = (ChainedCollectorMapDriver<Record, ?>) this.output;
+						// as long as there is data to read
+						while (!this.taskCanceled && !format.reachedEnd()) {
 							
-							// as long as there is data to read
-							while (!this.taskCanceled && !inFormat.reachedEnd()) {
-								// build next pair and ship pair if it is valid
-								typedRecord.clear();
-								if ((typedRecord = inFormat.nextRecord(typedRecord)) != null) {
-									// This is where map of UDF gets called
-									output.collect(typedRecord);
-								}
-							}
-						} else {
-							// Record going to some other chained task
-							@SuppressWarnings("unchecked")
-							final Collector<Record> output = (Collector<Record>) this.output;
-							// as long as there is data to read
-							while (!this.taskCanceled && !inFormat.reachedEnd()) {
-								// build next pair and ship pair if it is valid
-								typedRecord.clear();
-								if ((typedRecord = inFormat.nextRecord(typedRecord)) != null){
-									output.collect(typedRecord);
-								}
+							OT returned;
+							if ((returned = format.nextRecord(record)) != null) {
+								output.collect(returned);
+								record = returned;
 							}
 						}
-					} else {
-						// general types. we make a case distinction here for the common cases, in order to help
-						// JIT method inlining
-						if (this.output instanceof OutputCollector) {
-							final OutputCollector<OT> output = (OutputCollector<OT>) this.output;
-							// as long as there is data to read
-							while (!this.taskCanceled && !format.reachedEnd()) {
-								// build next pair and ship pair if it is valid
-								if ((record = format.nextRecord(record)) != null) {
-									output.collect(record);
-								}
+					}
+					else if (this.output instanceof ChainedCollectorMapDriver) {
+						@SuppressWarnings("unchecked")
+						final ChainedCollectorMapDriver<OT, ?> output = (ChainedCollectorMapDriver<OT, ?>) this.output;
+						
+						// as long as there is data to read
+						while (!this.taskCanceled && !format.reachedEnd()) {
+							
+							OT returned;
+							if ((returned = format.nextRecord(record)) != null) {
+								output.collect(returned);
+								record = returned;
 							}
-						} else if (this.output instanceof ChainedCollectorMapDriver) {
-							@SuppressWarnings("unchecked")
-							final ChainedCollectorMapDriver<OT, ?> output = (ChainedCollectorMapDriver<OT, ?>) this.output;
-							// as long as there is data to read
-							while (!this.taskCanceled && !format.reachedEnd()) {
-								// build next pair and ship pair if it is valid
-								if ((record = format.nextRecord(record)) != null) {
-									output.collect(record);
-								}
-							}
-						} else {
-							final Collector<OT> output = this.output;
-							// as long as there is data to read
-							while (!this.taskCanceled && !format.reachedEnd()) {
-								// build next pair and ship pair if it is valid
-								if ((record = format.nextRecord(record)) != null) {
-									output.collect(record);
-								}
+						}
+					}
+					else {
+						final Collector<OT> output = this.output;
+						
+						// as long as there is data to read
+						while (!this.taskCanceled && !format.reachedEnd()) {
+							
+							OT returned;
+							if ((returned = format.nextRecord(record)) != null) {
+								output.collect(returned);
+								record = returned;
 							}
 						}
 					}
@@ -279,7 +240,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 	
 	/**
 	 * Initializes the InputFormat implementation and configuration.
-l	 * 
+	 * 
 	 * @throws RuntimeException
 	 *         Throws if instance of InputFormat implementation can not be
 	 *         obtained.

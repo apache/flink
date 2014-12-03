@@ -19,18 +19,16 @@
 
 package org.apache.flink.client;
 
-import static org.junit.Assert.fail;
-
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.PrintStream;
 import java.lang.reflect.Field;
 import java.net.MalformedURLException;
 import java.util.Map;
-
-import org.apache.flink.client.CliFrontend;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
+
+import static org.junit.Assert.fail;
 
 public class CliFrontendTestUtils {
 	

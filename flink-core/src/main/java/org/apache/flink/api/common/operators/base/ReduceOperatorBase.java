@@ -19,6 +19,7 @@
 package org.apache.flink.api.common.operators.base;
 
 import org.apache.flink.api.common.InvalidProgramException;
+import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
@@ -50,6 +51,9 @@ import java.util.Map;
  */
 public class ReduceOperatorBase<T, FT extends ReduceFunction<T>> extends SingleInputOperator<T, T, FT> {
 
+	private Partitioner<?> customPartitioner;
+	
+	
 	/**
 	 * Creates a grouped reduce data flow operator.
 	 * 
@@ -124,7 +128,26 @@ public class ReduceOperatorBase<T, FT extends ReduceFunction<T>> extends SingleI
 	}
 
 	// --------------------------------------------------------------------------------------------
+	
+	public void setCustomPartitioner(Partitioner<?> customPartitioner) {
+		if (customPartitioner != null) {
+			int[] keys = getKeyColumns(0);
+			if (keys == null || keys.length == 0) {
+				throw new IllegalArgumentException("Cannot use custom partitioner for a non-grouped GroupReduce (AllGroupReduce)");
+			}
+			if (keys.length > 1) {
+				throw new IllegalArgumentException("Cannot use the key partitioner for composite keys (more than one key field)");
+			}
+		}
+		this.customPartitioner = customPartitioner;
+	}
+	
+	public Partitioner<?> getCustomPartitioner() {
+		return customPartitioner;
+	}
 
+	// --------------------------------------------------------------------------------------------
+	
 	@Override
 	protected List<T> executeOnCollections(List<T> inputData, RuntimeContext ctx, boolean mutableObjectSafeMode) throws Exception {
 		// make sure we can handle empty inputs

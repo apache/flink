@@ -27,13 +27,13 @@ import java.util.Arrays;
 
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.operators.Keys.ExpressionKeys;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 
 import com.google.common.base.Preconditions;
-
 
 /**
  * SortedGrouping is an intermediate step for a transformation on a grouped and sorted DataSet.<br/>
@@ -84,12 +84,29 @@ public class SortedGrouping<T> extends Grouping<T> {
 		Arrays.fill(this.groupSortOrders, order); // if field == "*"
 	}
 	
+	// --------------------------------------------------------------------------------------------
+	
 	protected int[] getGroupSortKeyPositions() {
 		return this.groupSortKeyPositions;
 	}
 	
 	protected Order[] getGroupSortOrders() {
 		return this.groupSortOrders;
+	}
+	
+	/**
+	 * Uses a custom partitioner for the grouping.
+	 * 
+	 * @param partitioner The custom partitioner.
+	 * @return The grouping object itself, to allow for method chaining.
+	 */
+	public SortedGrouping<T> withPartitioner(Partitioner<?> partitioner) {
+		Preconditions.checkNotNull(partitioner);
+		
+		getKeys().validateCustomPartitioner(partitioner, null);
+		
+		this.customPartitioner = partitioner;
+		return this;
 	}
 
 	/**

@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.compiler.dataproperties;
 
 /**
@@ -50,9 +49,14 @@ public enum PartitioningProperty {
 	FULL_REPLICATION,
 
 	/**
-	 * Constant indicating a forced even rebalancing.
+	 * Constant indicating a forced even re-balancing.
 	 */
-	FORCED_REBALANCED;
+	FORCED_REBALANCED,
+	
+	/**
+	 * A custom partitioning, accompanied by a {@link org.apache.flink.api.common.functions.Partitioner}.
+	 */
+	CUSTOM_PARTITIONING;
 	
 	/**
 	 * Checks, if this property represents in fact a partitioning. That is,
@@ -95,6 +99,6 @@ public enum PartitioningProperty {
 	 * @return True, if this enum constant is a re-computable partitioning.
 	 */
 	public boolean isComputablyPartitioned() {
-		return this == HASH_PARTITIONED || this == RANGE_PARTITIONED;
+		return this == HASH_PARTITIONED || this == RANGE_PARTITIONED || this == CUSTOM_PARTITIONING;
 	}
 }

@@ -81,7 +81,8 @@ public class OutputHandler<OUT> {
 
 	private StreamCollector<OUT> setCollector() {
 		if (streamVertex.configuration.getDirectedEmit()) {
-			OutputSelector<OUT> outputSelector = streamVertex.configuration.getOutputSelector();
+			OutputSelector<OUT> outputSelector = streamVertex.configuration
+					.getOutputSelector(streamVertex.userClassLoader);
 
 			collector = new DirectedStreamCollector<OUT>(streamVertex.getInstanceID(),
 					outSerializationDelegate, outputSelector);
@@ -97,7 +98,7 @@ public class OutputHandler<OUT> {
 	}
 
 	void setSerializers() {
-		outTypeInfo = configuration.getTypeInfoOut1();
+		outTypeInfo = configuration.getTypeInfoOut1(streamVertex.userClassLoader);
 		if (outTypeInfo != null) {
 			outSerializer = new StreamRecordSerializer<OUT>(outTypeInfo);
 			outSerializationDelegate = new SerializationDelegate<StreamRecord<OUT>>(outSerializer);
@@ -110,7 +111,8 @@ public class OutputHandler<OUT> {
 		StreamPartitioner<OUT> outputPartitioner = null;
 
 		try {
-			outputPartitioner = configuration.getPartitioner(outputNumber);
+			outputPartitioner = configuration.getPartitioner(streamVertex.userClassLoader,
+					outputNumber);
 
 		} catch (Exception e) {
 			throw new StreamVertexException("Cannot deserialize partitioner for "
@@ -127,7 +129,6 @@ public class OutputHandler<OUT> {
 				LOG.trace("StreamRecordWriter initiated with {} bufferTimeout for {}",
 						bufferTimeout, streamVertex.getClass().getSimpleName());
 			}
-
 		} else {
 			output = new RecordWriter<SerializationDelegate<StreamRecord<OUT>>>(streamVertex,
 					outputPartitioner);
@@ -153,7 +154,11 @@ public class OutputHandler<OUT> {
 
 	public void flushOutputs() throws IOException, InterruptedException {
 		for (RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output : outputs) {
-			output.flush();
+			if (output instanceof StreamRecordWriter) {
+				((StreamRecordWriter<SerializationDelegate<StreamRecord<OUT>>>) output).close();
+			} else {
+				output.flush();
+			}
 		}
 	}
 

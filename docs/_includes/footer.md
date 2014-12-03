@@ -11,4 +11,4 @@ endorsed by the ASF.</small>
 
 <a href="http://incubator.apache.org/">![Incubator Logo]({{ site.baseurl }}/img/apache-incubator-logo.png)</a>
 
-<p class="text-center"><a href="{{ site.baseurl }}/privacy-policy.html">Privacy Policy<a></p>
+<p class="text-center"><a href="privacy-policy.html">Privacy Policy<a></p>

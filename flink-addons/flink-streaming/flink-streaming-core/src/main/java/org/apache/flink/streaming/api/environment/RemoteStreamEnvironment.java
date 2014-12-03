@@ -20,9 +20,8 @@ package org.apache.flink.streaming.api.environment;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.flink.client.program.Client;
 import org.apache.flink.client.program.JobWithJars;
@@ -30,13 +29,15 @@ import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	private static final Logger LOG = LoggerFactory.getLogger(RemoteStreamEnvironment.class);
 
 	private String host;
 	private int port;
-	private String[] jarFiles;
+	private List<File> jarFiles;
 
 	/**
 	 * Creates a new RemoteStreamEnvironment that points to the master
@@ -65,33 +66,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 
 		this.host = host;
 		this.port = port;
-		this.jarFiles = jarFiles;
-	}
-
-	@Override
-	public void execute() {
-		
-		JobGraph jobGraph = jobGraphBuilder.getJobGraph();
-		executeRemotely(jobGraph);
-	}
-	
-	@Override
-	public void execute(String jobName) {
-		
-		JobGraph jobGraph = jobGraphBuilder.getJobGraph(jobName);
-		executeRemotely(jobGraph);
-	}
-
-	/**
-	 * Executes the remote job.
-	 * 
-	 * @param jobGraph jobGraph to execute
-	 */
-	private void executeRemotely(JobGraph jobGraph) {
-		if (LOG.isInfoEnabled()) {
-			LOG.info("Running remotely at {}:{}", host, port);
-		}
-
+		this.jarFiles = new ArrayList<File>();
 		for (int i = 0; i < jarFiles.length; i++) {
 			File file = new File(jarFiles[i]);
 			try {
@@ -99,11 +74,42 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 			} catch (IOException e) {
 				throw new RuntimeException("Problem with jar file " + file.getAbsolutePath(), e);
 			}
+			this.jarFiles.add(file);
+		}
+	}
+
+	@Override
+	public void execute() {
+
+		JobGraph jobGraph = jobGraphBuilder.getJobGraph();
+		executeRemotely(jobGraph);
+	}
+
+	@Override
+	public void execute(String jobName) {
+
+		JobGraph jobGraph = jobGraphBuilder.getJobGraph(jobName);
+		executeRemotely(jobGraph);
+	}
+
+	/**
+	 * Executes the remote job.
+	 * 
+	 * @param jobGraph
+	 *            jobGraph to execute
+	 */
+	private void executeRemotely(JobGraph jobGraph) {
+		if (LOG.isInfoEnabled()) {
+			LOG.info("Running remotely at {}:{}", host, port);
+		}
+
+		for (File file : jarFiles) {
 			jobGraph.addJar(new Path(file.getAbsolutePath()));
 		}
 
 		Configuration configuration = jobGraph.getJobConfiguration();
-		Client client = new Client(new InetSocketAddress(host, port), configuration, getClass().getClassLoader());
+		Client client = new Client(new InetSocketAddress(host, port), configuration,
+				JobWithJars.buildUserCodeClassLoader(jarFiles, JobWithJars.class.getClassLoader()));
 
 		try {
 			client.run(jobGraph, true);

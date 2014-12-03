@@ -16,13 +16,13 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.compiler.dataproperties;
 
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 
+import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.operators.Ordering;
 import org.apache.flink.api.common.operators.util.FieldList;
@@ -50,6 +50,8 @@ public class GlobalProperties implements Cloneable {
 	
 	private Set<FieldSet> uniqueFieldCombinations;
 	
+	private Partitioner<?> customPartitioner;
+	
 	// --------------------------------------------------------------------------------------------
 	
 	/**
@@ -67,6 +69,10 @@ public class GlobalProperties implements Cloneable {
 	 * @param partitionedFields 
 	 */
 	public void setHashPartitioned(FieldList partitionedFields) {
+		if (partitionedFields == null) {
+			throw new NullPointerException();
+		}
+		
 		this.partitioning = PartitioningProperty.HASH_PARTITIONED;
 		this.partitioningFields = partitionedFields;
 		this.ordering = null;
@@ -74,12 +80,20 @@ public class GlobalProperties implements Cloneable {
 	
 
 	public void setRangePartitioned(Ordering ordering) {
+		if (ordering == null) {
+			throw new NullPointerException();
+		}
+		
 		this.partitioning = PartitioningProperty.RANGE_PARTITIONED;
 		this.ordering = ordering;
 		this.partitioningFields = ordering.getInvolvedIndexes();
 	}
 	
 	public void setAnyPartitioning(FieldList partitionedFields) {
+		if (partitionedFields == null) {
+			throw new NullPointerException();
+		}
+		
 		this.partitioning = PartitioningProperty.ANY_PARTITIONING;
 		this.partitioningFields = partitionedFields;
 		this.ordering = null;
@@ -103,7 +117,21 @@ public class GlobalProperties implements Cloneable {
 		this.ordering = null;
 	}
 	
+	public void setCustomPartitioned(FieldList partitionedFields, Partitioner<?> partitioner) {
+		if (partitionedFields == null || partitioner == null) {
+			throw new NullPointerException();
+		}
+		
+		this.partitioning = PartitioningProperty.CUSTOM_PARTITIONING;
+		this.partitioningFields = partitionedFields;
+		this.ordering = null;
+		this.customPartitioner = partitioner;
+	}
+	
 	public void addUniqueFieldCombination(FieldSet fields) {
+		if (fields == null) {
+			return;
+		}
 		if (this.uniqueFieldCombinations == null) {
 			this.uniqueFieldCombinations = new HashSet<FieldSet>();
 		}
@@ -128,11 +156,15 @@ public class GlobalProperties implements Cloneable {
 		return this.ordering;
 	}
 	
-	// --------------------------------------------------------------------------------------------
-	
 	public PartitioningProperty getPartitioning() {
 		return this.partitioning;
 	}
+	
+	public Partitioner<?> getCustomPartitioner() {
+		return this.customPartitioner;
+	}
+	
+	// --------------------------------------------------------------------------------------------
 	
 	public boolean isPartitionedOnFields(FieldSet fields) {
 		if (this.partitioning.isPartitionedOnKey() && fields.isValidSubset(this.partitioningFields)) {
@@ -267,8 +299,14 @@ public class GlobalProperties implements Cloneable {
 			case RANGE_PARTITIONED:
 				channel.setShipStrategy(ShipStrategyType.PARTITION_RANGE, this.ordering.getInvolvedIndexes(), this.ordering.getFieldSortDirections());
 				break;
+			case FORCED_REBALANCED:
+				channel.setShipStrategy(ShipStrategyType.PARTITION_RANDOM);
+				break;
+			case CUSTOM_PARTITIONING:
+				channel.setShipStrategy(ShipStrategyType.PARTITION_CUSTOM, this.partitioningFields, this.customPartitioner);
+				break;
 			default:
-				throw new CompilerException();
+				throw new CompilerException("Unsupported partitioning strategy");
 		}
 	}
 
@@ -322,6 +360,7 @@ public class GlobalProperties implements Cloneable {
 		newProps.partitioning = this.partitioning;
 		newProps.partitioningFields = this.partitioningFields;
 		newProps.ordering = this.ordering;
+		newProps.customPartitioner = this.customPartitioner;
 		newProps.uniqueFieldCombinations = this.uniqueFieldCombinations == null ? null : new HashSet<FieldSet>(this.uniqueFieldCombinations);
 		return newProps;
 	}

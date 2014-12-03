@@ -209,6 +209,12 @@ public final class BlobLibraryCacheManager extends TimerTask implements LibraryC
 		}
 	}
 	
+	int getNumberOfCachedLibraries() {
+		synchronized (lockObject) {
+			return blobKeyReferenceCounters.size();
+		}
+	}
+	
 	private URL registerReferenceToBlobKeyAndGetURL(BlobKey key) throws IOException {
 		
 		Integer references = blobKeyReferenceCounters.get(key);

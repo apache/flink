@@ -62,7 +62,7 @@ of the master and the worker where the exception occurred
 - When you start a program locally with the [LocalExecutor](local_execution.html),
 you can place breakpoints in your functions and debug them like normal
 Java/Scala programs.
-- The [Accumulators](java_api_guide.html#accumulators) are very helpful in
+- The [Accumulators](programming_guide.html#accumulators--counters) are very helpful in
 tracking the behavior of the parallel execution. They allow you to gather
 information inside the program's operations and show them after the program
 execution.
@@ -95,9 +95,6 @@ As a rule-of-thumb, the number of buffers should be at least
 
 ### My job fails early with a java.io.EOFException. What could be the cause?
 
-Note: In version _0.4_, the delta iterations limit the solution set to
-records with fixed-length data types. We will  in the next version.
-
 The most common case for these exception is when Flink is set up with the
 wrong HDFS version. Because different HDFS versions are often not compatible
 with each other, the connection between the filesystem master and the client
@@ -120,6 +117,18 @@ Call to <host:port> failed on local exception: java.io.EOFException
 Please refer to the [download page]({{site.baseurl}}/downloads.html#maven) and
 the {% gh_link README.md master "build instructions" %}
 for details on how to set up Flink for different Hadoop and HDFS versions.
+
+### In Eclipse, I get compilation errors in the Scala projects
+
+Flink uses a new feature of the Scala compiler (called "quasiquotes") that have not yet been properly
+integrated with the Eclipse Scala plugin. In order to make this feature available in Eclipse, you
+need to manually configure the *flink-scala* project to use a *compiler plugin*:
+
+- Right click on *flink-scala* and choose "Properties"
+- Select "Scala Compiler" and click on the "Advanced" tab. (If you do not have that, you probably have not set up Eclipse for Scala properly.)
+- Check the box "Use Project Settings"
+- In the field "Xplugin", put the path "/home/<user-name>/.m2/repository/org/scalamacros/paradise_2.10.4/2.0.1/paradise_2.10.4-2.0.1.jar"
+- NOTE: You have to build Flink with Maven on the command line first, to make sure the plugin is downloaded.
 
 ### My program does not compute the correct result. Why are my custom key types
 are not grouped/joined correctly?
@@ -294,9 +303,10 @@ open source project in the next versions.
 
 ### Are Hadoop-like utilities, such as Counters and the DistributedCache supported?
 
-[Flink's Accumulators](java_api_guide.html#accumulators-&-counters) work very similar like
+[Flink's Accumulators](programming_guide.html#accumulators--counters) work very similar like
 [Hadoop's counters, but are more powerful.
 
 Flink has a {% gh_link /flink-core/src/main/java/org/apache/flink/api/common/cache/DistributedCache.java "Distributed Cache" %} that is deeply integrated with the APIs. Please refer to the {% gh_link /flink-java/src/main/java/org/apache/flink/api/java/ExecutionEnvironment.java#L561 "JavaDocs" %} for details on how to use it.
 
-In order to make data sets available on all tasks, we encourage you to use [Broadcast Variables](java_api_guide.html#broadcast_variables) instead. They are more efficient and easier to use than the distributed cache.
+In order to make data sets available on all tasks, we encourage you to use [Broadcast Variables](programming_guide.html#broadcast-variables) instead. They are more efficient and easier to use than the distributed cache.
+

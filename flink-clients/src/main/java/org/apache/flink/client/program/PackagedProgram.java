@@ -46,6 +46,7 @@ import org.apache.flink.api.common.Program;
 import org.apache.flink.api.common.ProgramDescription;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.ExecutionEnvironmentFactory;
 import org.apache.flink.compiler.PactCompiler;
 import org.apache.flink.compiler.dag.DataSinkNode;
 import org.apache.flink.compiler.plandump.PlanJSONDumpGenerator;
@@ -261,7 +262,7 @@ public class PackagedProgram {
 			PreviewPlanEnvironment env = new PreviewPlanEnvironment();
 			env.setAsContext();
 			try {
-				ContextEnvironment.disableLocalExecution();
+				ContextEnvironment.enableLocalExecution(false);
 				invokeInteractiveModeForExecution();
 			}
 			catch (ProgramInvocationException e) {
@@ -274,6 +275,9 @@ public class PackagedProgram {
 				} else {
 					throw new ProgramInvocationException("The program caused an error: ", t);
 				}
+			}
+			finally {
+				ContextEnvironment.enableLocalExecution(true);
 			}
 			
 			if (env.previewPlan != null) {
@@ -705,7 +709,13 @@ public class PackagedProgram {
 		}
 		
 		public void setAsContext() {
-			initializeContextEnvironment(this);
+			ExecutionEnvironmentFactory factory = new ExecutionEnvironmentFactory() {
+				@Override
+				public ExecutionEnvironment createExecutionEnvironment() {
+					return PreviewPlanEnvironment.this;
+				}
+			};
+			initializeContextEnvironment(factory);
 		}
 
 		public Plan getPlan() {

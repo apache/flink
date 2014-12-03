@@ -1004,6 +1004,7 @@ Similar to Reduce, GroupReduce, and Join, keys can be defined using the differen
 <div data-lang="java" markdown="1">
 
 The example shows how to group by Field Position Keys (Tuple DataSets only). You can do the same with Pojo-types and key expressions.
+
 ~~~java
 // Some CoGroupFunction definition
 class MyCoGrouper
@@ -1017,7 +1018,7 @@ class MyCoGrouper
     Set<Integer> ints = new HashSet<Integer>();
 
     // add all Integer values in group to set
-    for (Tuple2<String, Integer>> val : iVale) {
+    for (Tuple2<String, Integer>> val : iVals) {
       ints.add(val.f1);
     }
 

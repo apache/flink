@@ -50,9 +50,9 @@ public class ShortSerializerTest extends SerializerTestBase<Short> {
 		Random rnd = new Random(874597969123412341L);
 		int rndInt = rnd.nextInt(32767);
 		
-		return new Short[] {new Short((short) 0), new Short((short) 1), new Short((short) -1),
-							new Short((short) rndInt), new Short((short) -rndInt),
-							new Short((short) -32767), new Short((short) 32768)};
+		return new Short[] {Short.valueOf((short) 0), Short.valueOf((short) 1), Short.valueOf((short) -1),
+							Short.valueOf((short) rndInt), Short.valueOf((short) -rndInt),
+							Short.valueOf((short) -32767), Short.valueOf((short) 32768)};
 	}
 }
 	
