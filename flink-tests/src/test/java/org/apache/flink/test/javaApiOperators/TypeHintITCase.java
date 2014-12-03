@@ -48,7 +48,7 @@ public class TypeHintITCase extends JavaProgramTestBase {
 	private String expectedResult;
 
 	public TypeHintITCase(Configuration config) {
-		super(config);	
+		super(config);
 	}
 
 	@Override
