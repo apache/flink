@@ -22,7 +22,8 @@ import java.io.Serializable;
 
 import org.apache.flink.api.java.tuple.Tuple3;
 
-public class Edge<K extends Serializable, V extends Serializable> extends Tuple3<K, K, V>{
+public class Edge<K extends Comparable<K> & Serializable, V extends Serializable> 
+	extends Tuple3<K, K, V>{
 
 	private static final long serialVersionUID = 1L;
 
@@ -40,12 +41,7 @@ public class Edge<K extends Serializable, V extends Serializable> extends Tuple3
 	}
 
 	public Edge<K, V> reverse() {
-		if (f2 != null) {
 			return new Edge<K, V>(this.f1, this.f0, this.f2);
-		}
-		else {
-			return new Edge<K, V>(this.f1, this.f0);
-		}
 	}
 
 	public void setSource(K src) {

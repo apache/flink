@@ -22,7 +22,8 @@ import java.io.Serializable;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 
-public class Vertex<K extends Serializable, V extends Serializable> extends Tuple2<K, V> {
+public class Vertex<K extends Comparable<K> & Serializable, V extends Serializable> 
+	extends Tuple2<K, V> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -48,5 +49,4 @@ public class Vertex<K extends Serializable, V extends Serializable> extends Tupl
 	public void setValue(V val) {
 		this.f1 = val;
 	}
-
 }

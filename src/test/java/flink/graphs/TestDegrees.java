@@ -56,7 +56,6 @@ public class TestDegrees extends JavaProgramTestBase {
 
     private static class GraphProgs {
 
-        @SuppressWarnings("serial")
         public static String runProgram(int progId, String resultPath) throws Exception {
 
             switch (progId) {

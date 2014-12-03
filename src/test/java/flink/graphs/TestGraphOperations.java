@@ -9,8 +9,6 @@ import java.util.List;
 
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.junit.runner.RunWith;
@@ -229,11 +227,11 @@ public class TestGraphOperations extends JavaProgramTestBase {
 					Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
 							TestGraphUtils.getLongLongEdgeData(env), env);
 
-					List<Tuple2<Long, Long>> vertices = new ArrayList<Tuple2<Long, Long>>();
-					List<Tuple3<Long, Long, Long>> edges = new ArrayList<Tuple3<Long, Long, Long>>();
+					List<Vertex<Long, Long>> vertices = new ArrayList<Vertex<Long, Long>>();
+					List<Edge<Long, Long>> edges = new ArrayList<Edge<Long, Long>>();
 
-					vertices.add(new Tuple2<Long, Long>(6L, 6L));
-					edges.add(new Tuple3<Long, Long, Long>(6L, 1L, 61L));
+					vertices.add(new Vertex<Long, Long>(6L, 6L));
+					edges.add(new Edge<Long, Long>(6L, 1L, 61L));
 
 					graph = graph.union(graph.fromCollection(vertices, edges));
 

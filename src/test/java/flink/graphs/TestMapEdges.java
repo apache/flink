@@ -9,7 +9,6 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple1;
-import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.junit.runner.RunWith;
@@ -76,7 +75,7 @@ public class TestMapEdges extends JavaProgramTestBase {
 				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
 						TestGraphUtils.getLongLongEdgeData(env), env);
 				
-				DataSet<Tuple3<Long, Long, Long>> mappedEdges = graph.mapEdges(new MapFunction<Long, Long>() {
+				DataSet<Edge<Long, Long>> mappedEdges = graph.mapEdges(new MapFunction<Long, Long>() {
 					public Long map(Long value) throws Exception {
 						return value+1;
 					}
@@ -101,7 +100,7 @@ public class TestMapEdges extends JavaProgramTestBase {
 				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
 						TestGraphUtils.getLongLongEdgeData(env), env);
 				
-				DataSet<Tuple3<Long, Long, String>> mappedEdges = graph.mapEdges(new MapFunction<Long, String>() {
+				DataSet<Edge<Long, String>> mappedEdges = graph.mapEdges(new MapFunction<Long, String>() {
 					public String map(Long value) throws Exception {
 						return String.format("string(%d)", value);
 					}
@@ -126,7 +125,7 @@ public class TestMapEdges extends JavaProgramTestBase {
 				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
 						TestGraphUtils.getLongLongEdgeData(env), env);
 				
-				DataSet<Tuple3<Long, Long, Tuple1<Long>>> mappedEdges = graph.mapEdges(new MapFunction<Long, Tuple1<Long>>() {
+				DataSet<Edge<Long, Tuple1<Long>>> mappedEdges = graph.mapEdges(new MapFunction<Long, Tuple1<Long>>() {
 					public Tuple1<Long> map(Long value) throws Exception {
 						Tuple1<Long> tupleValue = new Tuple1<Long>();
 						tupleValue.setFields(value);
@@ -153,7 +152,7 @@ public class TestMapEdges extends JavaProgramTestBase {
 				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
 						TestGraphUtils.getLongLongEdgeData(env), env);
 				
-				DataSet<Tuple3<Long, Long, DummyCustomType>> mappedEdges = graph.mapEdges(new MapFunction<Long, DummyCustomType>() {
+				DataSet<Edge<Long, DummyCustomType>> mappedEdges = graph.mapEdges(new MapFunction<Long, DummyCustomType>() {
 					public DummyCustomType map(Long value) throws Exception {
 						DummyCustomType dummyValue = new DummyCustomType();
 						dummyValue.setIntField(value.intValue());						
@@ -180,7 +179,7 @@ public class TestMapEdges extends JavaProgramTestBase {
 				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env),
 						TestGraphUtils.getLongLongEdgeData(env), env);
 				
-				DataSet<Tuple3<Long, Long, DummyCustomParameterizedType<Double>>> mappedEdges = graph.mapEdges(
+				DataSet<Edge<Long, DummyCustomParameterizedType<Double>>> mappedEdges = graph.mapEdges(
 						new MapFunction<Long, DummyCustomParameterizedType<Double>>() {
 					public DummyCustomParameterizedType<Double> map(Long value) throws Exception {
 						DummyCustomParameterizedType<Double> dummyValue = new DummyCustomParameterizedType<Double>();
