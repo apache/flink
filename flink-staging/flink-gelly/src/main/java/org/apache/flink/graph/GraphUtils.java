@@ -36,5 +36,5 @@ public class GraphUtils {
             public Integer reduce(Integer one, Integer two) throws Exception {
                 return one + two;
             }
-    }
+    } 
 }
