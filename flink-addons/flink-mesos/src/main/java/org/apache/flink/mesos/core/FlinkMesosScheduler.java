@@ -56,11 +56,8 @@ public class FlinkMesosScheduler implements Scheduler {
 	private final MesosConfiguration config;
 	private final HashMap<Protos.SlaveID, Protos.TaskInfo> taskManagers = new HashMap<Protos.SlaveID, Protos.TaskInfo>();
 
-	private Protos.FrameworkID frameWorkID = null;
 	private Protos.Offer jobManagerOffer = null;
 	private Protos.TaskInfo jobManager = null;
-	private Protos.Offer webFrontendOffer = null;
-	private Protos.TaskInfo webFrontend = null;
 
 	public FlinkMesosScheduler(MesosConfiguration config) {
 		LOG.debug("Scheduler launched");
@@ -266,7 +263,7 @@ public class FlinkMesosScheduler implements Scheduler {
 			LOG.debug("Rescinded offer was jobManager offer, trying to request new resources");
 			Protos.Request request = Protos.Request
 					.newBuilder()
-					.addResources(MesosUtils.createResourceScalar(MESOS_CPU, 1.0))
+					.addResources(MesosUtils.createResourceScalar(MESOS_CPU, config.getDouble(MesosConstants.MESOS_JOB_MANAGER_CORES, MesosConstants.DEFAULT_MESOS_JOB_MANAGER_CORES)))
 					.addResources(MesosUtils.createResourceScalar(MESOS_MEMORY, config.getDouble(MesosConstants.MESOS_JOB_MANAGER_MEMORY, MesosConstants.DEFAULT_MESOS_JOB_MANAGER_MEMORY)))
 					.build();
 			requestList.add(request);
@@ -300,13 +297,13 @@ public class FlinkMesosScheduler implements Scheduler {
 			schedulerDriver.killTask(taskInfo.getTaskId());
 			LinkedList<Protos.Request> requestList = new LinkedList<Protos.Request>();
 
-			if (taskInfo.getTaskId().equals(jobManager.getTaskId())) {
+			if (jobManager != null && jobManagerOffer != null && taskInfo.getTaskId().equals(jobManager.getTaskId())) {
 				jobManager = null;
 				jobManagerOffer = null;
 
 				Protos.Request request = Protos.Request
 						.newBuilder()
-						.addResources(MesosUtils.createResourceScalar(MESOS_CPU, 1.0))
+						.addResources(MesosUtils.createResourceScalar(MESOS_CPU, config.getDouble(MesosConstants.MESOS_JOB_MANAGER_CORES, MesosConstants.DEFAULT_MESOS_JOB_MANAGER_CORES)))
 						.addResources(MesosUtils.createResourceScalar(MESOS_MEMORY, config.getDouble(MesosConstants.MESOS_JOB_MANAGER_MEMORY, MesosConstants.DEFAULT_MESOS_JOB_MANAGER_MEMORY)))
 						.build();
 				requestList.add(request);
@@ -321,12 +318,11 @@ public class FlinkMesosScheduler implements Scheduler {
 
 	@Override
 	public void frameworkMessage(SchedulerDriver schedulerDriver, Protos.ExecutorID executorID, Protos.SlaveID slaveID, byte[] bytes) {
-
 	}
 
 	@Override
 	public void disconnected(SchedulerDriver schedulerDriver) {
-
+		LOG.info("Scheduler was disconnected from master");
 	}
 
 	@Override
