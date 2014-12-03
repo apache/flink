@@ -44,7 +44,6 @@ import java.util.List;
  * http://mesos.apache.org/documentation/latest/mesos-architecture/
  */
 public class FlinkMesosScheduler implements Scheduler {
-
 	/*
 	Constants for the resource Strings of Mesos
 	 */
@@ -84,6 +83,10 @@ public class FlinkMesosScheduler implements Scheduler {
 		Protos.Resource newcpus = null;
 		Protos.Resource oldcpus = null;
 
+		/*
+		If a TaskManager core number is specified in the configuration, it is considered a maximum limit. All available offers with lower cpu
+		cores available will also be accepted.
+		 */
 		for (Protos.Resource req: required) {
 			for (Protos.Resource avail: offer.getResourcesList()) {
 				if (avail.getName().equals(req.getName()) && avail.getScalar().getValue() < req.getScalar().getValue()) {
@@ -133,6 +136,7 @@ public class FlinkMesosScheduler implements Scheduler {
 			}
 		}
 
+		//Resolve the hostname of the jobmanager to an ip address.
 		try {
 			InetAddress address = InetAddress.getByName(offer.getHostname());
 			LOG.info("Jobmanager address: " + address.getHostAddress());
@@ -142,6 +146,9 @@ public class FlinkMesosScheduler implements Scheduler {
 			this.config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, offer.getHostname());
 		}
 
+		/*
+		The command that executes the executor. -Xmx is used to limit the memory that the jvm uses and the classpath contains the uberjar that needs to be available on every mesos node.
+		 */
 		String flinkJMCommand = "java " + "-Xmx" + MesosUtils.calculateMemory(memory) + "M -cp " + config.getString(MesosConstants.MESOS_UBERJAR_LOCATION, ".") + " org.apache.flink.mesos.executors.FlinkJMExecutor";
 		Protos.ExecutorInfo jobManagerExecutor = MesosUtils.createExecutorInfo("jm", "Jobmanager Executor", flinkJMCommand, this.config);
 
@@ -163,6 +170,7 @@ public class FlinkMesosScheduler implements Scheduler {
 			}
 		}
 
+		//analog to the command in createJobManagerTask()
 		String flinkTMCommand = "java " + "-Xmx" + MesosUtils.calculateMemory(memory) + "M -cp " + config.getString(MesosConstants.MESOS_UBERJAR_LOCATION, ".") + " org.apache.flink.mesos.executors.FlinkTMExecutor";
 		Protos.ExecutorInfo taskManagerExecutor = MesosUtils.createExecutorInfo("tm", "Taskmanager Executor", flinkTMCommand, this.config);
 
@@ -293,6 +301,9 @@ public class FlinkMesosScheduler implements Scheduler {
 
 		LOG.info("Task " + taskInfo.getExecutor().getName() + " is in state: " + taskStatus.getState());
 
+		/*
+		When a task is lost or failed and it is the jobmanager, a new request for resources is send to get resources for a new jm.
+		 */
 		if (taskStatus.getState() == Protos.TaskState.TASK_LOST || taskStatus.getState() == Protos.TaskState.TASK_FAILED) {
 			schedulerDriver.killTask(taskInfo.getTaskId());
 			LinkedList<Protos.Request> requestList = new LinkedList<Protos.Request>();

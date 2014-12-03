@@ -24,7 +24,7 @@ import org.apache.mesos.Protos;
 import java.util.List;
 
 /**
- * Contains a set of useful utilitys for the Mesos module. Most methods make the code
+ * Contains a set of useful utilities for the Mesos module. Most methods make the code
  * more readable when creating Google ProtoBuf classes.
  */
 public class MesosUtils {
@@ -45,6 +45,13 @@ public class MesosUtils {
 				.build();
 	}
 
+	/**
+	 * Offsets the ports by the application id to avoid problems with multiple instances of Flink on Mesos and
+	 * thus multiple jobmanagers.
+	 * @param port Port to be offset.
+	 * @param appId AppId that the offset is calculated from.
+	 * @return
+	 */
 	public static int offsetPort(int port, int appId) {
 		if(port > 65535) {
 			port = 64535;
@@ -55,6 +62,11 @@ public class MesosUtils {
 		return port + (appId % 1000);
 	}
 
+	/**
+	 * Helper method to calculate the memory that is actually given to the executor jvms.
+	 * @param memory Memory that is configured.
+	 * @return Memory that is really made available.
+	 */
 	public static int calculateMemory(double memory) {
 		return (int) (memory * 0.8);
 	}
