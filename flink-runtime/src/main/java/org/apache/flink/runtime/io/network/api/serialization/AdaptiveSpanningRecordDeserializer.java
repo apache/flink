@@ -505,6 +505,8 @@ public class AdaptiveSpanningRecordDeserializer<T extends IOReadableWritable> im
 
 		public void clear() {
 			this.serializationBuffer.clear();
+			this.serializationBuffer.pruneBuffer();
+			this.serializationReadBuffer.releaseArrays();
 
 			this.recordLength = -1;
 			this.lengthBuffer.clear();

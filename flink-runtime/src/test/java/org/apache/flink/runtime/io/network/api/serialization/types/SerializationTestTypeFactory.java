@@ -20,6 +20,7 @@
 package org.apache.flink.runtime.io.network.api.serialization.types;
 
 public enum SerializationTestTypeFactory {
+	
 	BOOLEAN(new BooleanType()),
 	BYTE_ARRAY(new ByteArrayType()),
 	BYTE_SUB_ARRAY(new ByteSubArrayType()),
