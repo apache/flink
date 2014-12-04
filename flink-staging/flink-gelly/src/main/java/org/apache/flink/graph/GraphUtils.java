@@ -13,10 +13,10 @@ import org.apache.flink.api.java.tuple.Tuple;
 public class GraphUtils {
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
-	public static DataSet<Integer> count(DataSet set) {
+	public static DataSet<Integer> count(DataSet set, ExecutionEnvironment env) {
 		List<Integer> list = new ArrayList<>();
 		list.add(0);
-		DataSet<Integer> initialCount = ExecutionEnvironment.getExecutionEnvironment().fromCollection(list);
+		DataSet<Integer> initialCount = env.fromCollection(list);
         return set
                 .map(new OneMapper())
                 .union(initialCount)
