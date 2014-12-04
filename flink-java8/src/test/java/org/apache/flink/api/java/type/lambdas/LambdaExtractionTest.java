@@ -129,10 +129,12 @@ public class LambdaExtractionTest {
 		MapFunction<Tuple2<Tuple1<Integer>, Boolean>, Tuple2<Tuple1<Integer>, String>> f = (i) -> null;
 		
 		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(f, TypeInfoParser.parse("Tuple2<Tuple1<Integer>, Boolean>"));
-		Assert.assertTrue(ti.isTupleType());
-		Assert.assertEquals(2, ti.getArity());
-		Assert.assertTrue(((TupleTypeInfo<?>) ti).getTypeAt(0).isTupleType());
-		Assert.assertEquals(((TupleTypeInfo<?>) ti).getTypeAt(1), BasicTypeInfo.STRING_TYPE_INFO);
+        if (ti != null) {
+            Assert.assertTrue(ti.isTupleType());
+            Assert.assertEquals(2, ti.getArity());
+            Assert.assertTrue(((TupleTypeInfo<?>) ti).getTypeAt(0).isTupleType());
+            Assert.assertEquals(((TupleTypeInfo<?>) ti).getTypeAt(1), BasicTypeInfo.STRING_TYPE_INFO);
+        }
 	}
 	
 	@Test
@@ -140,10 +142,12 @@ public class LambdaExtractionTest {
 		FlatMapFunction<Tuple2<Tuple1<Integer>, Boolean>, Tuple2<Tuple1<Integer>, String>> f = (i, o) -> {};
 		
 		TypeInformation<?> ti = TypeExtractor.getFlatMapReturnTypes(f, TypeInfoParser.parse("Tuple2<Tuple1<Integer>, Boolean>"));
-		Assert.assertTrue(ti.isTupleType());
-		Assert.assertEquals(2, ti.getArity());
-		Assert.assertTrue(((TupleTypeInfo<?>) ti).getTypeAt(0).isTupleType());
-		Assert.assertEquals(((TupleTypeInfo<?>) ti).getTypeAt(1), BasicTypeInfo.STRING_TYPE_INFO);
+        if (ti != null) {
+            Assert.assertTrue(ti.isTupleType());
+            Assert.assertEquals(2, ti.getArity());
+            Assert.assertTrue(((TupleTypeInfo<?>) ti).getTypeAt(0).isTupleType());
+            Assert.assertEquals(((TupleTypeInfo<?>) ti).getTypeAt(1), BasicTypeInfo.STRING_TYPE_INFO);
+        }
 	}
 	
 	@Test
@@ -151,10 +155,12 @@ public class LambdaExtractionTest {
 		MapPartitionFunction<Tuple2<Tuple1<Integer>, Boolean>, Tuple2<Tuple1<Integer>, String>> f = (i, o) -> {};
 		
 		TypeInformation<?> ti = TypeExtractor.getMapPartitionReturnTypes(f, TypeInfoParser.parse("Tuple2<Tuple1<Integer>, Boolean>"));
-		Assert.assertTrue(ti.isTupleType());
-		Assert.assertEquals(2, ti.getArity());
-		Assert.assertTrue(((TupleTypeInfo<?>) ti).getTypeAt(0).isTupleType());
-		Assert.assertEquals(((TupleTypeInfo<?>) ti).getTypeAt(1), BasicTypeInfo.STRING_TYPE_INFO);
+        if (ti != null) {
+            Assert.assertTrue(ti.isTupleType());
+            Assert.assertEquals(2, ti.getArity());
+            Assert.assertTrue(((TupleTypeInfo<?>) ti).getTypeAt(0).isTupleType());
+            Assert.assertEquals(((TupleTypeInfo<?>) ti).getTypeAt(1), BasicTypeInfo.STRING_TYPE_INFO);
+        }
 	}
 	
 	@Test
@@ -162,10 +168,12 @@ public class LambdaExtractionTest {
 		GroupReduceFunction<Tuple2<Tuple1<Integer>, Boolean>, Tuple2<Tuple1<Integer>, String>> f = (i, o) -> {};
 		
 		TypeInformation<?> ti = TypeExtractor.getGroupReduceReturnTypes(f, TypeInfoParser.parse("Tuple2<Tuple1<Integer>, Boolean>"));
-		Assert.assertTrue(ti.isTupleType());
-		Assert.assertEquals(2, ti.getArity());
-		Assert.assertTrue(((TupleTypeInfo<?>) ti).getTypeAt(0).isTupleType());
-		Assert.assertEquals(((TupleTypeInfo<?>) ti).getTypeAt(1), BasicTypeInfo.STRING_TYPE_INFO);
+        if (ti != null) {
+            Assert.assertTrue(ti.isTupleType());
+            Assert.assertEquals(2, ti.getArity());
+            Assert.assertTrue(((TupleTypeInfo<?>) ti).getTypeAt(0).isTupleType());
+            Assert.assertEquals(((TupleTypeInfo<?>) ti).getTypeAt(1), BasicTypeInfo.STRING_TYPE_INFO);
+        }
 	}
 	
 	@Test
@@ -173,10 +181,12 @@ public class LambdaExtractionTest {
 		FlatJoinFunction<Tuple2<Tuple1<Integer>, Boolean>, Tuple2<Tuple1<Integer>, Double>, Tuple2<Tuple1<Integer>, String>> f = (i1, i2, o) -> {};
 		
 		TypeInformation<?> ti = TypeExtractor.getFlatJoinReturnTypes(f, TypeInfoParser.parse("Tuple2<Tuple1<Integer>, Boolean>"), TypeInfoParser.parse("Tuple2<Tuple1<Integer>, Double>"));
-		Assert.assertTrue(ti.isTupleType());
-		Assert.assertEquals(2, ti.getArity());
-		Assert.assertTrue(((TupleTypeInfo<?>) ti).getTypeAt(0).isTupleType());
-		Assert.assertEquals(((TupleTypeInfo<?>) ti).getTypeAt(1), BasicTypeInfo.STRING_TYPE_INFO);
+        if (ti != null) {
+            Assert.assertTrue(ti.isTupleType());
+            Assert.assertEquals(2, ti.getArity());
+            Assert.assertTrue(((TupleTypeInfo<?>) ti).getTypeAt(0).isTupleType());
+            Assert.assertEquals(((TupleTypeInfo<?>) ti).getTypeAt(1), BasicTypeInfo.STRING_TYPE_INFO);
+        }
 	}
 	
 	@Test
@@ -184,10 +194,12 @@ public class LambdaExtractionTest {
 		JoinFunction<Tuple2<Tuple1<Integer>, Boolean>, Tuple2<Tuple1<Integer>, Double>, Tuple2<Tuple1<Integer>, String>> f = (i1, i2) -> null;
 		
 		TypeInformation<?> ti = TypeExtractor.getJoinReturnTypes(f, TypeInfoParser.parse("Tuple2<Tuple1<Integer>, Boolean>"), TypeInfoParser.parse("Tuple2<Tuple1<Integer>, Double>"));
-		Assert.assertTrue(ti.isTupleType());
-		Assert.assertEquals(2, ti.getArity());
-		Assert.assertTrue(((TupleTypeInfo<?>) ti).getTypeAt(0).isTupleType());
-		Assert.assertEquals(((TupleTypeInfo<?>) ti).getTypeAt(1), BasicTypeInfo.STRING_TYPE_INFO);
+        if (ti != null) {
+            Assert.assertTrue(ti.isTupleType());
+            Assert.assertEquals(2, ti.getArity());
+            Assert.assertTrue(((TupleTypeInfo<?>) ti).getTypeAt(0).isTupleType());
+            Assert.assertEquals(((TupleTypeInfo<?>) ti).getTypeAt(1), BasicTypeInfo.STRING_TYPE_INFO);
+        }
 	}
 	
 	@Test
@@ -195,10 +207,12 @@ public class LambdaExtractionTest {
 		CoGroupFunction<Tuple2<Tuple1<Integer>, Boolean>, Tuple2<Tuple1<Integer>, Double>, Tuple2<Tuple1<Integer>, String>> f = (i1, i2, o) -> {};
 		
 		TypeInformation<?> ti = TypeExtractor.getCoGroupReturnTypes(f, TypeInfoParser.parse("Tuple2<Tuple1<Integer>, Boolean>"), TypeInfoParser.parse("Tuple2<Tuple1<Integer>, Double>"));
-		Assert.assertTrue(ti.isTupleType());
-		Assert.assertEquals(2, ti.getArity());
-		Assert.assertTrue(((TupleTypeInfo<?>) ti).getTypeAt(0).isTupleType());
-		Assert.assertEquals(((TupleTypeInfo<?>) ti).getTypeAt(1), BasicTypeInfo.STRING_TYPE_INFO);
+        if (ti != null) {
+            Assert.assertTrue(ti.isTupleType());
+            Assert.assertEquals(2, ti.getArity());
+            Assert.assertTrue(((TupleTypeInfo<?>) ti).getTypeAt(0).isTupleType());
+            Assert.assertEquals(((TupleTypeInfo<?>) ti).getTypeAt(1), BasicTypeInfo.STRING_TYPE_INFO);
+        }
 	}
 	
 	@Test
@@ -206,10 +220,12 @@ public class LambdaExtractionTest {
 		CrossFunction<Tuple2<Tuple1<Integer>, Boolean>, Tuple2<Tuple1<Integer>, Double>, Tuple2<Tuple1<Integer>, String>> f = (i1, i2) -> null;
 		
 		TypeInformation<?> ti = TypeExtractor.getCrossReturnTypes(f, TypeInfoParser.parse("Tuple2<Tuple1<Integer>, Boolean>"), TypeInfoParser.parse("Tuple2<Tuple1<Integer>, Double>"));
-		Assert.assertTrue(ti.isTupleType());
-		Assert.assertEquals(2, ti.getArity());
-		Assert.assertTrue(((TupleTypeInfo<?>) ti).getTypeAt(0).isTupleType());
-		Assert.assertEquals(((TupleTypeInfo<?>) ti).getTypeAt(1), BasicTypeInfo.STRING_TYPE_INFO);
+        if (ti != null) {
+            Assert.assertTrue(ti.isTupleType());
+            Assert.assertEquals(2, ti.getArity());
+            Assert.assertTrue(((TupleTypeInfo<?>) ti).getTypeAt(0).isTupleType());
+            Assert.assertEquals(((TupleTypeInfo<?>) ti).getTypeAt(1), BasicTypeInfo.STRING_TYPE_INFO);
+        }
 	}
 	
 	@Test
@@ -217,24 +233,20 @@ public class LambdaExtractionTest {
 		KeySelector<Tuple2<Tuple1<Integer>, Boolean>, Tuple2<Tuple1<Integer>, String>> f = (i) -> null;
 		
 		TypeInformation<?> ti = TypeExtractor.getKeySelectorTypes(f, TypeInfoParser.parse("Tuple2<Tuple1<Integer>, Boolean>"));
-		Assert.assertTrue(ti.isTupleType());
-		Assert.assertEquals(2, ti.getArity());
-		Assert.assertTrue(((TupleTypeInfo<?>) ti).getTypeAt(0).isTupleType());
-		Assert.assertEquals(((TupleTypeInfo<?>) ti).getTypeAt(1), BasicTypeInfo.STRING_TYPE_INFO);
+        if (ti != null) {
+            Assert.assertTrue(ti.isTupleType());
+            Assert.assertEquals(2, ti.getArity());
+            Assert.assertTrue(((TupleTypeInfo<?>) ti).getTypeAt(0).isTupleType());
+            Assert.assertEquals(((TupleTypeInfo<?>) ti).getTypeAt(1), BasicTypeInfo.STRING_TYPE_INFO);
+        }
 	}
 	
 	@SuppressWarnings("rawtypes")
 	@Test
-	public void testLambdaTypeErasureException() {
+	public void testLambdaTypeErasure() {
 		MapFunction<Tuple1, Tuple1> f = (i) -> null;
 		
-		try {
-			TypeExtractor.getMapReturnTypes(f, TypeInfoParser.parse("Tuple1<String>"));
-			Assert.fail();
-		}
-		catch (InvalidTypesException e) {
-			// ok
-		}
+		Assert.assertNull(TypeExtractor.getMapReturnTypes(f, TypeInfoParser.parse("Tuple1<String>")));
 	}
 	
 }

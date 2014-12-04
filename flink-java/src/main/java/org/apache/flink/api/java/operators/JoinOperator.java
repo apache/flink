@@ -18,9 +18,11 @@
 
 package org.apache.flink.api.java.operators;
 
+
 import java.security.InvalidParameterException;
 import java.util.Arrays;
 
+import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
@@ -40,7 +42,6 @@ import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.functions.SemanticPropUtil;
 import org.apache.flink.api.java.operators.DeltaIteration.SolutionSetPlaceHolder;
-import org.apache.flink.api.java.operators.JoinOperator.DefaultJoin.WrappingFlatJoinFunction;
 import org.apache.flink.api.java.operators.Keys.ExpressionKeys;
 import org.apache.flink.api.java.operators.Keys.IncompatibleKeysException;
 import org.apache.flink.api.java.operators.translation.KeyExtractingMapper;
@@ -55,8 +56,6 @@ import org.apache.flink.util.Collector;
 //CHECKSTYLE.OFF: AvoidStarImport - Needed for TupleGenerator
 import org.apache.flink.api.java.tuple.*;
 //CHECKSTYLE.ON: AvoidStarImport
-
-import com.google.common.base.Preconditions;
 
 /**
  * A {@link DataSet} that is the result of a Join transformation. 
@@ -230,7 +229,7 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		protected void updateTypeDependentProperties() {
 			if (!(function instanceof ProjectFlatJoinFunction)) {
 				if (function instanceof WrappingFunction) {
-					extractSemanticAnnotationsFromUdf(((WrappingFlatJoinFunction<?, ?, ?>) function).getWrappedFunction().getClass());
+					extractSemanticAnnotationsFromUdf(((WrappingFunction<?>) function).getWrappedFunction().getClass());
 				}
 				else {
 					extractSemanticAnnotationsFromUdf(function.getClass());

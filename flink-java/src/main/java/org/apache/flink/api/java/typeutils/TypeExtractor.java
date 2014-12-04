@@ -137,7 +137,7 @@ public class TypeExtractor {
 			final int paramLen = m.getGenericParameterTypes().length - 1;
 			final Type input = (hasCollector)? m.getGenericParameterTypes()[paramLen - 1] : m.getGenericParameterTypes()[paramLen];
 			
-			// validate input only if it has not been type erasured
+			// validate input only if it has not been type erased
 			if (!isTypeErased(input)) {
 				validateInputType((hasIterable)? removeGenericWrapper(input) : input, inType);
 			}
