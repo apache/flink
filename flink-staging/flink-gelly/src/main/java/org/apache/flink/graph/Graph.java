@@ -454,7 +454,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
      * @return Singleton DataSet containing the vertex count
      */
 	public DataSet<Integer> numberOfVertices () {
-        return GraphUtils.count(vertices);
+        return GraphUtils.count(vertices, context);
     }
 
     /**
@@ -462,7 +462,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
      * @return Singleton DataSet containing the edge count
      */
 	public DataSet<Integer> numberOfEdges () {
-        return GraphUtils.count(edges);
+        return GraphUtils.count(edges, context);
     }
 
     /**
@@ -528,7 +528,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 
         DataSet<Tuple2<K, K>> components = iteration.closeWith(changes, changes);
         DataSet<Boolean> result = GraphUtils.count(components.groupBy(1).reduceGroup(
-        		new EmitFirstReducer<K>())).map(new CheckIfOneComponentMapper());	
+        		new EmitFirstReducer<K>()), context).map(new CheckIfOneComponentMapper());	
         return result;
     }
 	
