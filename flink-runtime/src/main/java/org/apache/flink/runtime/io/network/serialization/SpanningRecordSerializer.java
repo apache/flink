@@ -100,7 +100,15 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 			copyToTargetBufferFrom(this.dataBuffer);
 		}
 
-		return getSerializationResult();
+		SerializationResult result = getSerializationResult();
+		
+		// make sure we don't hold onto the large buffers for too long
+		if (result.isFullRecord()) {
+			this.serializationBuffer.pruneBuffer();
+			this.dataBuffer = this.serializationBuffer.wrapAsByteBuffer();
+		}
+		
+		return result;
 	}
 
 	/**

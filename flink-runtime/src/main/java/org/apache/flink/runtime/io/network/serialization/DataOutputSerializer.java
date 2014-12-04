@@ -27,11 +27,19 @@ import java.nio.ByteOrder;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemoryUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A simple and efficient serializer for the {@link java.io.DataOutput} interface.
  */
 public class DataOutputSerializer implements DataOutputView {
+	
+	private static final Logger LOG = LoggerFactory.getLogger(DataOutputSerializer.class);
+	
+	private static final int PRUNE_BUFFER_THRESHOLD = 5 * 1024 * 1024;
+	
+	private final byte[] startBuffer;
 	
 	private byte[] buffer;
 	
@@ -44,7 +52,8 @@ public class DataOutputSerializer implements DataOutputView {
 			throw new IllegalArgumentException();
 		}
 
-		this.buffer = new byte[startSize];
+		this.startBuffer = new byte[startSize];
+		this.buffer = this.startBuffer;
 		this.wrapper = ByteBuffer.wrap(buffer);
 	}
 	
@@ -60,6 +69,17 @@ public class DataOutputSerializer implements DataOutputView {
 
 	public int length() {
 		return this.position;
+	}
+	
+	public void pruneBuffer() {
+		if (this.buffer.length > PRUNE_BUFFER_THRESHOLD) {
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Releasing serialization buffer of " + this.buffer.length + " bytes.");
+			}
+			
+			this.buffer = this.startBuffer;
+			this.wrapper = ByteBuffer.wrap(this.buffer);
+		}
 	}
 
 	@Override
