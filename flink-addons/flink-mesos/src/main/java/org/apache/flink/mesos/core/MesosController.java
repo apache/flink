@@ -31,6 +31,8 @@ import org.apache.flink.mesos.utility.MesosConfiguration;
 import org.apache.flink.mesos.utility.MesosConstants;
 import org.apache.mesos.MesosSchedulerDriver;
 import org.apache.mesos.Protos;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -42,6 +44,8 @@ import java.lang.reflect.Field;
  * Mesos nodes.
  */
 public class MesosController {
+	private static final Logger LOG = LoggerFactory.getLogger(MesosController.class);
+
 	/*
 		These are the possible command line options.
     */
@@ -134,6 +138,7 @@ public class MesosController {
 	 * @throws Exception
 	 */
 	public void run(String[] args) throws Exception {
+
 		Options options = new Options();
 		options.addOption(VERBOSE);
 		options.addOption(FLINK_CONF_DIR);
@@ -148,6 +153,7 @@ public class MesosController {
 		options.addOption(USE_WEB);
 		options.addOption(DYNAMIC_PROPERTIES);
 
+		LOG.info("starting");
 		MesosConfiguration config = new MesosConfiguration();
 		CommandLineParser parser = new PosixParser();
 		CommandLine cmd = null;

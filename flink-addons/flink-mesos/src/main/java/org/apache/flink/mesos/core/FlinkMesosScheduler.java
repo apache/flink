@@ -27,7 +27,6 @@ import org.apache.mesos.Scheduler;
 import org.apache.mesos.SchedulerDriver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
@@ -38,7 +37,7 @@ import java.util.List;
 /**
  * The FlinkMesosScheduler gets offers from the Mesos master about resources that are available on the
  * Mesos slaves. According to the MesosConfiguration given via file or command line options the scheduler decides whether
- * to take the offer and launch a Task- or JobManager on it or to refuse the offer.
+ * to take the offer and launch a Task- or jobmanager on it or to refuse the offer.
  *
  * Further information is available at the official page of Apache Mesos:
  * http://mesos.apache.org/documentation/latest/mesos-architecture/
@@ -84,7 +83,7 @@ public class FlinkMesosScheduler implements Scheduler {
 		Protos.Resource oldcpus = null;
 
 		/*
-		If a TaskManager core number is specified in the configuration, it is considered a maximum limit. All available offers with lower cpu
+		If a taskmanager core number is specified in the configuration, it is considered a maximum limit. All available offers with lower cpu
 		cores available will also be accepted.
 		 */
 		for (Protos.Resource req: required) {
@@ -124,9 +123,9 @@ public class FlinkMesosScheduler implements Scheduler {
 	}
 
 	/**
-	 * Helper method to create a JobManager TaskInfo on the Mesos slave that made the offer.
+	 * Helper method to create a jobmanager TaskInfo on the Mesos slave that made the offer.
 	 * @param offer The resource offer from the Mesos slave.
-	 * @return TaskInfo that contains the information required to launch a JobManager (command to be executed, memory, cpus, etc.)
+	 * @return TaskInfo that contains the information required to launch a jobmanager (command to be executed, memory, cpus, etc.)
 	 */
 	private Protos.TaskInfo createJobManagerTask(Protos.Offer offer, List<Protos.Resource> resources) {
 		double memory = -1.0;
@@ -154,13 +153,13 @@ public class FlinkMesosScheduler implements Scheduler {
 
 		logLaunchInfo("Jobmanager", offer, resources);
 
-		return MesosUtils.createTaskInfo("JobManager", resources, jobManagerExecutor, offer.getSlaveId(), Protos.TaskID.newBuilder().setValue("jm_task-" + jobManagerExecutor.hashCode()).build());
+		return MesosUtils.createTaskInfo("jobmanager", resources, jobManagerExecutor, offer.getSlaveId(), Protos.TaskID.newBuilder().setValue("jm_task-" + jobManagerExecutor.hashCode()).build());
 	}
 
 	/**
-	 * Helper method to create a TaskManager TaskInfo on the Mesos slave that made the offer.
+	 * Helper method to create a taskmanager TaskInfo on the Mesos slave that made the offer.
 	 * @param offer The resource offer from the Mesos slave.
-	 * @return TaskInfo that contains the information required to launch a TaskManager (command to be executed, memory, cpus, etc.)
+	 * @return TaskInfo that contains the information required to launch a taskmanager (command to be executed, memory, cpus, etc.)
 	 */
 	private Protos.TaskInfo createTaskManagerTask(Protos.Offer offer, List<Protos.Resource> resources) {
 		double memory = -1.0;
@@ -176,7 +175,7 @@ public class FlinkMesosScheduler implements Scheduler {
 
 		logLaunchInfo("Taskmanager", offer, resources);
 
-		return MesosUtils.createTaskInfo("TaskManager", resources, taskManagerExecutor, offer.getSlaveId(), Protos.TaskID.newBuilder().setValue("tm_task-" + taskManagerExecutor.hashCode()).build());
+		return MesosUtils.createTaskInfo("taskmanager", resources, taskManagerExecutor, offer.getSlaveId(), Protos.TaskID.newBuilder().setValue("tm_task-" + taskManagerExecutor.hashCode()).build());
 	}
 
 	@Override
@@ -209,7 +208,7 @@ public class FlinkMesosScheduler implements Scheduler {
 
 		/*
 		This loop searches through all the resource offers from the Mesos slaves. If no JobManager is currently
-		running it is started. Also, one TaskManager is started on every node that has sufficient resources available.
+		running it is started. Also, one taskmanager is started on every node that has sufficient resources available.
 		 */
 		for (Protos.Offer offer : offers) {
 			if (jobManager == null && !taskManagers.containsKey(offer.getSlaveId())) {
@@ -225,7 +224,7 @@ public class FlinkMesosScheduler implements Scheduler {
 					jobManagerOffer = offer;
 					offerIDs.add(offer.getId());
 				}
-			} else if (!taskManagers.containsKey(offer.getSlaveId()) && taskManagers.size() < maxTaskManagers) {
+			} else if (!taskManagers.containsKey(offer.getSlaveId()) && taskManagers.size() < maxTaskManagers) { //needs to be changed if no taskmanager should be started on a jobmanager node, useful for testing
 
 				List<Protos.Resource> required = new ArrayList<Protos.Resource>();
 				required.add(MesosUtils.createResourceScalar(MESOS_CPU, this.config.getDouble(MesosConstants.MESOS_TASK_MANAGER_CORES, MesosConstants.DEFAULT_MESOS_TASK_MANAGER_CORES)));
@@ -247,8 +246,8 @@ public class FlinkMesosScheduler implements Scheduler {
 
 
 	/*
-	 * If an offer is no longer available and we tried to deploy a JobManager or TaskManager on it, we try to kill the
-	 * affected manager and rerequest the resources that are necessary to start a new one (especially for JobManager as it is required
+	 * If an offer is no longer available and we tried to deploy a jobmanager or taskmanager on it, we try to kill the
+	 * affected manager and rerequest the resources that are necessary to start a new one (especially for jobmanager as it is required
 	 * for Flink to do any job.
 	 */
 	@Override
@@ -268,7 +267,7 @@ public class FlinkMesosScheduler implements Scheduler {
 			jobManager = null;
 			jobManagerOffer = null;
 
-			LOG.debug("Rescinded offer was jobManager offer, trying to request new resources");
+			LOG.debug("Rescinded offer was jobmanager offer, trying to request new resources");
 			Protos.Request request = Protos.Request
 					.newBuilder()
 					.addResources(MesosUtils.createResourceScalar(MESOS_CPU, config.getDouble(MesosConstants.MESOS_JOB_MANAGER_CORES, MesosConstants.DEFAULT_MESOS_JOB_MANAGER_CORES)))
@@ -282,7 +281,7 @@ public class FlinkMesosScheduler implements Scheduler {
 
 	/**
 	 * Handles status updates from the executors. If TASK_LOST or TASK_FAILED is received from any executor, the task should be killed. In case of a failed
-	 * JobManager we try to allocate new resources.
+	 * jobmanager we try to allocate new resources.
 	 * @param schedulerDriver
 	 * @param taskStatus
 	 */
@@ -297,6 +296,10 @@ public class FlinkMesosScheduler implements Scheduler {
 
 		if (taskInfo == null) {
 			return;
+		}
+
+		if (taskStatus.getState() == Protos.TaskState.TASK_RUNNING && taskInfo.equals(jobManager) && this.config.getBoolean(MesosConstants.MESOS_USE_WEB, false)) {
+			LOG.info("The jobmanager webinterface is available at: " + this.config.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null) + ":" + this.config.getInteger(ConfigConstants.WEB_FRONTEND_PORT_KEY, ConfigConstants.DEFAULT_WEBCLIENT_PORT));
 		}
 
 		LOG.info("Task " + taskInfo.getExecutor().getName() + " is in state: " + taskStatus.getState());

@@ -24,5 +24,6 @@ bin=`cd "$bin"; pwd`
 . "$bin"/config.sh
 
 CLASSPATH_MESOS=$FLINK_LIB_DIR/*mesos.jar
+LOG_SETTING="-Dlog.file="$log" -Dlog4j.configuration=file:"$FLINK_CONF_DIR"/log4j-yarn-session.properties -Dlogback.configurationFile=file:"$FLINK_CONF_DIR"/logback-yarn.xml"
 
-$JAVA_RUN $JVM_ARGS -classpath $CLASSPATH_MESOS org.apache.flink.mesos.core.MesosController -Dflink.base.dir.path=$FLINK_ROOT_DIR -c $FLINK_CONF_DIR -j $CLASSPATH_MESOS $*
+$JAVA_RUN $JVM_ARGS -classpath $CLASSPATH_MESOS $LOG_SETTING org.apache.flink.mesos.core.MesosController -Dflink.base.dir.path=$FLINK_ROOT_DIR -c $FLINK_CONF_DIR -j $CLASSPATH_MESOS $*
