@@ -31,7 +31,7 @@ import java.io.ObjectOutputStream
 import org.apache.flink.api.scala._
 import scala.collection.JavaConverters._
 
-class ElementType(val id: Int) {
+class ElementType(var id: Int) {
   def this() {
     this(-1)
   }

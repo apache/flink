@@ -51,6 +51,11 @@ public final class EnumSerializer<T extends Enum<T>> extends TypeSerializer<T> {
 	}
 
 	@Override
+	public boolean canCreateInstance() {
+		return true;
+	}
+
+	@Override
 	public T createInstance() {
 		return values[0];
 	}

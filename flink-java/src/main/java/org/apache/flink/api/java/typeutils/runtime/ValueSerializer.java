@@ -65,7 +65,12 @@ public class ValueSerializer<T extends Value> extends TypeSerializer<T> {
 	public boolean isStateful() {
 		return true;
 	}
-	
+
+	@Override
+	public boolean canCreateInstance() {
+		return true;
+	}
+
 	@Override
 	public T createInstance() {
 		return InstantiationUtil.instantiate(this.type);

@@ -43,6 +43,11 @@ public final class FloatSerializer extends TypeSerializerSingleton<Float> {
 	}
 
 	@Override
+	public boolean canCreateInstance() {
+		return true;
+	}
+
+	@Override
 	public Float createInstance() {
 		return ZERO;
 	}

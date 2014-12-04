@@ -52,6 +52,11 @@ public final class StreamRecordSerializer<T> extends TypeSerializer<StreamRecord
 	}
 
 	@Override
+	public boolean canCreateInstance() {
+		return typeSerializer.canCreateInstance();
+	}
+
+	@Override
 	public StreamRecord<T> createInstance() {
 		try {
 			StreamRecord<T> t = new StreamRecord<T>();

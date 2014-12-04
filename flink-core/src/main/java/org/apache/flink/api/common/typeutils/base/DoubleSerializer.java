@@ -43,6 +43,11 @@ public final class DoubleSerializer extends TypeSerializerSingleton<Double> {
 	}
 
 	@Override
+	public boolean canCreateInstance() {
+		return true;
+	}
+
+	@Override
 	public Double createInstance() {
 		return ZERO;
 	}

@@ -43,6 +43,11 @@ public class IntPairSerializer extends TypeSerializer<IntPair> {
 	}
 
 	@Override
+	public boolean canCreateInstance() {
+		return true;
+	}
+
+	@Override
 	public IntPair createInstance() {
 		return new IntPair();
 	}

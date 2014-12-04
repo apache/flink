@@ -38,7 +38,12 @@ public class IntListSerializer extends TypeSerializer<IntList> {
 	public boolean isStateful() {
 		return false;
 	}
-	
+
+	@Override
+	public boolean canCreateInstance() {
+		return true;
+	}
+
 	@Override
 	public IntList createInstance() {
 		return new IntList();

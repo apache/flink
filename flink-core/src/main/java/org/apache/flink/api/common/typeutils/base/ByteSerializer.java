@@ -42,7 +42,12 @@ public final class ByteSerializer extends TypeSerializerSingleton<Byte> {
 	public boolean isStateful() {
 		return false;
 	}
-	
+
+	@Override
+	public boolean canCreateInstance() {
+		return true;
+	}
+
 	@Override
 	public Byte createInstance() {
 		return ZERO;

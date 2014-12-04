@@ -42,7 +42,12 @@ public final class CharSerializer extends TypeSerializerSingleton<Character> {
 	public boolean isStateful() {
 		return false;
 	}
-	
+
+	@Override
+	public boolean canCreateInstance() {
+		return true;
+	}
+
 	@Override
 	public Character createInstance() {
 		return ZERO;

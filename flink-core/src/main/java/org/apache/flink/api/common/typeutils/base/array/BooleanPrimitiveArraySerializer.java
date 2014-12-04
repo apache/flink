@@ -31,8 +31,6 @@ public final class BooleanPrimitiveArraySerializer extends TypeSerializerSinglet
 
 	private static final long serialVersionUID = 1L;
 	
-	private static final boolean[] EMPTY = new boolean[0];
-
 	public static final BooleanPrimitiveArraySerializer INSTANCE = new BooleanPrimitiveArraySerializer();
 	
 	
@@ -45,10 +43,16 @@ public final class BooleanPrimitiveArraySerializer extends TypeSerializerSinglet
 	public boolean isStateful() {
 		return false;
 	}
-	
+
+	@Override
+	public boolean canCreateInstance() {
+		return false;
+	}
+
 	@Override
 	public boolean[] createInstance() {
-		return EMPTY;
+		throw new UnsupportedOperationException("BooleanPrimitiveArraySerializer cannot create an" +
+				" instance.");
 	}
 
 	@Override

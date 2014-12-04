@@ -52,6 +52,11 @@ public class CopyableValueSerializer<T extends CopyableValue<T>> extends TypeSer
 	}
 
 	@Override
+	public boolean canCreateInstance() {
+		return true;
+	}
+
+	@Override
 	public T createInstance() {
 		return InstantiationUtil.instantiate(this.valueClass);
 	}

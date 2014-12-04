@@ -40,7 +40,12 @@ public class CharValueSerializer extends TypeSerializerSingleton<CharValue> {
 	public boolean isStateful() {
 		return false;
 	}
-	
+
+	@Override
+	public boolean canCreateInstance() {
+		return true;
+	}
+
 	@Override
 	public CharValue createInstance() {
 		return new CharValue();

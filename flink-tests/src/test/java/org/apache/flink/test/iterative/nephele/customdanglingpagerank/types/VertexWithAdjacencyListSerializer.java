@@ -38,7 +38,12 @@ public final class VertexWithAdjacencyListSerializer extends TypeSerializerSingl
 	public boolean isStateful() {
 		return false;
 	}
-	
+
+	@Override
+	public boolean canCreateInstance() {
+		return true;
+	}
+
 	@Override
 	public VertexWithAdjacencyList createInstance() {
 		return new VertexWithAdjacencyList();

@@ -31,8 +31,6 @@ public final class CharPrimitiveArraySerializer extends TypeSerializerSingleton<
 
 	private static final long serialVersionUID = 1L;
 	
-	private static final char[] EMPTY = new char[0];
-
 	public static final CharPrimitiveArraySerializer INSTANCE = new CharPrimitiveArraySerializer();
 	
 	
@@ -45,10 +43,16 @@ public final class CharPrimitiveArraySerializer extends TypeSerializerSingleton<
 	public boolean isStateful() {
 		return false;
 	}
-	
+
+	@Override
+	public boolean canCreateInstance() {
+		return false;
+	}
+
 	@Override
 	public char[] createInstance() {
-		return EMPTY;
+		throw new UnsupportedOperationException("CharPrimitiveArraySerializer cannot create an " +
+				"instance.");
 	}
 
 	@Override

@@ -31,7 +31,6 @@ public final class BytePrimitiveArraySerializer extends TypeSerializerSingleton<
 
 	private static final long serialVersionUID = 1L;
 	
-	private static final byte[] EMPTY = new byte[0];
 
 	public static final BytePrimitiveArraySerializer INSTANCE = new BytePrimitiveArraySerializer();
 	
@@ -44,10 +43,16 @@ public final class BytePrimitiveArraySerializer extends TypeSerializerSingleton<
 	public boolean isStateful() {
 		return false;
 	}
-	
+
+	@Override
+	public boolean canCreateInstance() {
+		return false;
+	}
+
 	@Override
 	public byte[] createInstance() {
-		return EMPTY;
+		throw new UnsupportedOperationException("BytePrimitiveArraySerializer cannot create an " +
+				"instance.");
 	}
 
 	@Override

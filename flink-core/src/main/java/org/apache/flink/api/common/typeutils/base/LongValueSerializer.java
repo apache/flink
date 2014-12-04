@@ -41,7 +41,12 @@ public final class LongValueSerializer extends TypeSerializerSingleton<LongValue
 	public boolean isStateful() {
 		return false;
 	}
-	
+
+	@Override
+	public boolean canCreateInstance() {
+		return true;
+	}
+
 	@Override
 	public LongValue createInstance() {
 		return new LongValue();

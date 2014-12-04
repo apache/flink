@@ -40,7 +40,12 @@ public final class BooleanSerializer extends TypeSerializerSingleton<Boolean> {
 	public boolean isStateful() {
 		return false;
 	}
-	
+
+	@Override
+	public boolean canCreateInstance() {
+		return true;
+	}
+
 	@Override
 	public Boolean createInstance() {
 		return FALSE;

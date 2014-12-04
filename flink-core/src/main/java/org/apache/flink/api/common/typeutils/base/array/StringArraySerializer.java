@@ -33,8 +33,6 @@ public final class StringArraySerializer extends TypeSerializerSingleton<String[
 
 	private static final long serialVersionUID = 1L;
 	
-	private static final String[] EMPTY = new String[0];
-	
 	public static final StringArraySerializer INSTANCE = new StringArraySerializer();
 	
 	
@@ -47,10 +45,15 @@ public final class StringArraySerializer extends TypeSerializerSingleton<String[
 	public boolean isStateful() {
 		return false;
 	}
-	
+
+	@Override
+	public boolean canCreateInstance() {
+		return false;
+	}
+
 	@Override
 	public String[] createInstance() {
-		return EMPTY;
+		throw new UnsupportedOperationException("StringArraySerializer cannot create an instance.");
 	}
 
 	@Override

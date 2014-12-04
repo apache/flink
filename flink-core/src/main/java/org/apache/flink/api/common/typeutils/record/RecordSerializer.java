@@ -60,7 +60,12 @@ public final class RecordSerializer extends TypeSerializer<Record> {
 	public boolean isStateful() {
 		return false;
 	}
-	
+
+	@Override
+	public boolean canCreateInstance() {
+		return true;
+	}
+
 	@Override
 	public Record createInstance() {
 		return new Record(); 

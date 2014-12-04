@@ -70,9 +70,13 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 	}
 
 	@Override
+	public boolean canCreateInstance() {
+		return false;
+	}
+
+	@Override
 	public T createInstance() {
-		checkKryoInitialized();
-		return kryo.newInstance(typeToInstantiate);
+		throw new UnsupportedOperationException("KryoSerializer cannot create an instance.");
 	}
 
 	@Override

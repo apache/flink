@@ -96,7 +96,12 @@ public class WritableSerializer<T extends Writable> extends TypeSerializer<T> {
 	public boolean isStateful() {
 		return true;
 	}
-	
+
+	@Override
+	public boolean canCreateInstance() {
+		return true;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	
 	private void ensureInstanceInstantiated() {

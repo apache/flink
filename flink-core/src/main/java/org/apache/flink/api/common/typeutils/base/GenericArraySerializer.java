@@ -61,7 +61,12 @@ public final class GenericArraySerializer<C> extends TypeSerializer<C[]> {
 		return this.componentSerializer.isStateful();
 	}
 
-	
+	@Override
+	public boolean canCreateInstance() {
+		return true;
+	}
+
+
 	@Override
 	public C[] createInstance() {
 		return EMPTY;

@@ -41,7 +41,12 @@ public class FloatValueSerializer extends TypeSerializerSingleton<FloatValue> {
 	public boolean isStateful() {
 		return false;
 	}
-	
+
+	@Override
+	public boolean canCreateInstance() {
+		return true;
+	}
+
 	@Override
 	public FloatValue createInstance() {
 		return new FloatValue();

@@ -31,8 +31,6 @@ public final class DoublePrimitiveArraySerializer extends TypeSerializerSingleto
 
 	private static final long serialVersionUID = 1L;
 	
-	private static final double[] EMPTY = new double[0];
-
 	public static final DoublePrimitiveArraySerializer INSTANCE = new DoublePrimitiveArraySerializer();
 	
 	
@@ -45,10 +43,16 @@ public final class DoublePrimitiveArraySerializer extends TypeSerializerSingleto
 	public boolean isStateful() {
 		return false;
 	}
-	
+
+	@Override
+	public boolean canCreateInstance() {
+		return false;
+	}
+
 	@Override
 	public double[] createInstance() {
-		return EMPTY;
+		throw new UnsupportedOperationException("DoublePrimitiveArraySerializer cannot create an " +
+				"instance.");
 	}
 	
 	@Override
