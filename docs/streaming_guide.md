@@ -268,15 +268,18 @@ With `sum`, `min`, and `max` for every incoming tuple the selected field is repl
 
 With `minBy` and `maxBy` the output of the operator is the element with the current minimal or maximal value at the given field. If more components share the minimum or maximum value, the user can decide if the operator should return the first or last element. This can be set by the `first` boolean parameter.
 
+There is also an option to apply user defined aggregations with the usage of the `aggregate(…)` function of the data stream.
+
 ### Window operators
 
-Flink streaming provides very flexible windowing semantics to create arbitrary windows (also referred to as discretizations or slices) of the DataStreams and apply reduce or aggregation operations on them afterwards. Windowing can be used for instance to create rolling aggregations of the most recent N elements, where N could be defined by Time, Count or any arbitrary measure.
+Flink streaming provides very flexible windowing semantics to create arbitrary windows (also referred to as discretizations or slices) of the data streams and apply reduction or aggregation operations on the windows acquired. Windowing can be used for instance to create rolling aggregations of the most recent N elements, where N could be defined by Time, Count or any arbitrary user defined measure.
 
-The user can control the size (eviction) of the windows and the frequency of reduce/aggregation calls (triggers) on them in an intuitive api:
+The user can control the size (eviction) of the windows and the frequency of reduction or aggregation calls (triggers) on them in an intuitive API:
 
-~~~java
-dataStream.window(…).every(…).reduce/reduceGroup/aggregation
-~~~
+
+ * `dataStream.window(…).every(…).reduce(…)`
+ * `dataStream.window(…).every(…).reduceGroup(…)`
+ * `dataStream.window(…).every(…).aggregate(…)`
 
 The next example would create windows that hold elements of the last 5 seconds, and the user defined aggregation/reduce is executed on the windows every second (sliding the window by 1 second):
 
@@ -284,44 +287,42 @@ The next example would create windows that hold elements of the last 5 seconds, 
 dataStream.window(Time.of(5, TimeUnit.SECONDS)).every(Time.of(1, TimeUnit.SECONDS))
 ~~~
 
-This approach is often referred to as policy based windowing. Different policies (count, time, etc.) can be mixed as well; for example to downsample our stream, we can create a window that will take the latest 100 elements of our stream every minute:
+This approach is often referred to as policy based windowing. Different policies (count, time, etc.) can be mixed as well; for example to downsample our stream, a window that takes the latest 100 elements of the stream every minute is created as follows:
 
 ~~~java
 dataStream.window(Count.of(100)).every(Time.of(1, TimeUnit.MINUTES))
 ~~~
 
-The user can also omit the `.every(…)` call which results in a tumbling window, which empties the window after every aggregation call.
+The user can also omit the `.every(…)` call which results in a tumbling window emptying the window after every aggregation call.
 
-Several predefined policies are provided in the API, including delta-based, count-based and time-based policies. These can be accessed through the static methods provided by the PolicyHelper classses:
+Several predefined policies are provided in the API, including delta-based, count-based and time-based policies. These can be accessed through the static methods provided by the `PolicyHelper` classes:
 
-`Time.of(…)`
-`Count.of(…)`
-`Delta.of(…)`
+ * `Time.of(…)`
+ * `Count.of(…)`
+ * `Delta.of(…)`
 
 For detailed description of these policies please refer to the javadocs.
 
-Now we are going to take a deeper look at the policies. 
-
 #### Policy based windowing
-The policy based windowing is a highly flexible way to specify your stream discretisation also called windowing semantics. Two types of policies are used for such a specification:
+The policy based windowing is a highly flexible way to specify stream discretisation also called windowing semantics. Two types of policies are used for such a specification:
 
-1) `TriggerPolicy` This policy defines when to trigger the reduce UDF on the current window and emit the result. In the API it completes a window statement such as: `.window(..).every(...)`, while we pass the triggering policy within `every`. 
+ * `TriggerPolicy` defines when to trigger the reduce UDF on the current window and emit the result. In the API it completes a window statement such as: `.window(…).every(…)`, while the triggering policy is passed within `every`. 
 
-When multiple triggers are used, the reduce/aggregation will be triggered at every trigger.
+When multiple triggers are used, the reduction or aggregation is executed at every trigger.
 
-Several predefined policies are provided in the API, including delta-based, punctuation based, count-based and time-based policies. Policies are in general UDFs and can implement any custom behaviour as well.
+Several predefined policies are provided in the API, including delta-based, punctuation based, count-based and time-based policies. Policies are in general UDFs and can implement any custom behaviour.
 
-2) `Eviction Policy` This policy defines the length of a window as a means of a predicate for evicting tuples when they are no longer needed. In the API this can be defined by the `.window(..)` operation on a stream. There are mostly the same predefined policy types provided as for trigger policies.
+ * `EvictionPolicy` defines the length of a window as a means of a predicate for evicting tuples when they are no longer needed. In the API this can be defined by the `.window(…)` operation on a stream. There are mostly the same predefined policy types provided as for trigger policies.
 
-When multiple evictions are used the strictest one will control the elements in the window. For instance in the call `ds.window(Count.of(5), Time.of(1,TimeUnit.SECONDS)).every(..)` we will get a window of max 5 elements which have arrived in the last second.
+When multiple evictions are used the strictest one controls the elements in the window. For instance in the call `dataStream.window(Count.of(5), Time.of(1,TimeUnit.SECONDS)).every(…)` produces a window of maximum 5 elements which have arrived in the last second.
 
+In addition to the `dataStream.window(…).every(…)` style users can specifically pass the list of trigger and eviction policies during the window call:
 
-In addition to the `ds.window().every()` style users can specifically pass the list of trigger and eviction policies during the window call:
 ~~~java
-myStream.window(ListOfTriggerPolicies,ListOfEvictionPolicies)
+dataStream.window(ListOfTriggerPolicies, ListOfEvictionPolicies)
 ~~~
 
-By default most triggers can only trigger when a new element arrives. This might not be suitable for all the use-cases, especially when time based windowing is used. You may want to trigger not only when an element arrives but also in between. Active policies provide this functionality. The predefined time-based policies are already implemented in such an active way and can hold as an example in case you want to implement your own user defined active policy. 
+By default most triggers can only trigger when a new element arrives. This might not be suitable for all the use-cases, especially when time based windowing is applied. To also provide trigering between elements so called active policies can be used. The predefined time-based policies are already implemented in such a way and can hold as an example for user defined active policy implementations. 
 
 Time-based trigger and eviction policies can work with user defined `TimeStamp` implementations, these policies already cover most use cases.
  
