@@ -47,54 +47,12 @@ public class PageRank implements ProgramDescription {
 
         Graph<Long, Double, Double> network = new Graph<Long, Double, Double>(pages, links, env);
 
-        network.runVertexCentricIteration(new VertexRankUpdater(numVertices, BETA), new RankMessenger(), 60)
-                .getVertices()
-                .print();
+        DataSet<Vertex<Long,Double>> verticesWithRanks = GraphLib.pageRank(network, numVertices, BETA, 60).getVertices();
+
+        verticesWithRanks.print();
 
         env.execute();
     }
-
-    /**
-     * Function that updates the rank of a vertex by summing up the partial ranks from all incoming messages
-     * and then applying the dampening formula.
-     */
-    public static final class VertexRankUpdater extends VertexUpdateFunction<Long, Double, Double> {
-
-        private final long numVertices;
-        private final double beta;
-
-        public VertexRankUpdater(long numVertices, double beta) {
-            this.numVertices = numVertices;
-            this.beta = beta;
-        }
-
-        @Override
-        public void updateVertex(Long vertexKey, Double vertexValue, MessageIterator<Double> inMessages) {
-            double rankSum = 0.0;
-            for (double msg : inMessages) {
-                rankSum += msg;
-            }
-
-            // apply the dampening factor / random jump
-            double newRank = (beta * rankSum) + (1-BETA)/numVertices;
-            setNewVertexValue(newRank);
-        }
-    }
-
-    /**
-     * Distributes the rank of a vertex among all target vertices according to the transition probability,
-     * which is associated with an edge as the edge value.
-     */
-    public static final class RankMessenger extends MessagingFunction<Long, Double, Double, Double> {
-
-        @Override
-        public void sendMessages(Long vertexId, Double newRank) {
-            for (OutgoingEdge<Long, Double> edge : getOutgoingEdges()) {
-                sendMessageTo(edge.target(), newRank * edge.edgeValue());
-            }
-        }
-    }
-
 
     @Override
     public String getDescription() {
