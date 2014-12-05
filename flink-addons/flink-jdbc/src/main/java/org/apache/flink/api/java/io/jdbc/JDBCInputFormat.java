@@ -26,6 +26,7 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 
+import org.apache.flink.api.common.io.NonParallelInput;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,7 +48,7 @@ import org.apache.flink.types.NullValue;
  * @see Tuple
  * @see DriverManager
  */
-public class JDBCInputFormat<OUT extends Tuple> implements InputFormat<OUT, InputSplit> {
+public class JDBCInputFormat<OUT extends Tuple> implements InputFormat<OUT, InputSplit>, NonParallelInput {
 	private static final long serialVersionUID = 1L;
 
 	private static final Logger LOG = LoggerFactory.getLogger(JDBCInputFormat.class);
