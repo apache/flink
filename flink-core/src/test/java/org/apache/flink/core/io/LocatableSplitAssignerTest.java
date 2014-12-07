@@ -20,7 +20,10 @@ package org.apache.flink.core.io;
 
 import static org.junit.Assert.*;
 
+import java.util.Arrays;
+import java.util.Calendar;
 import java.util.HashSet;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -132,17 +135,34 @@ public class LocatableSplitAssignerTest {
 	}
 	
 	@Test
-	public void testSerialSplitAssignmentMixedLocalHost() {
+	public void testSerialSplitAssignmentSomeForRemoteHost() {
 		try {
-			final String[] hosts = { "host1", "host1", "host1", "host2", "host2", "host3" };
-			final int NUM_SPLITS = 10 * hosts.length;
-			
-			// load some splits
+
+			// host1 reads all local
+			// host2 reads 10 local and 10 remote
+			// host3 reads all remote
+			final String[] hosts = { "host1", "host2", "host3" };
+			final int NUM_LOCAL_HOST1_SPLITS = 20;
+			final int NUM_LOCAL_HOST2_SPLITS = 10;
+			final int NUM_REMOTE_SPLITS = 30;
+			final int NUM_LOCAL_SPLITS = NUM_LOCAL_HOST1_SPLITS + NUM_LOCAL_HOST2_SPLITS;
+
+			// load local splits
+			int splitCnt = 0;
 			Set<LocatableInputSplit> splits = new HashSet<LocatableInputSplit>();
-			for (int i = 0; i < NUM_SPLITS; i++) {
-				splits.add(new LocatableInputSplit(i, hosts[i % hosts.length]));
+			// host1 splits
+			for (int i = 0; i < NUM_LOCAL_HOST1_SPLITS; i++) {
+				splits.add(new LocatableInputSplit(splitCnt++, "host1"));
 			}
-			
+			// host2 splits
+			for (int i = 0; i < NUM_LOCAL_HOST2_SPLITS; i++) {
+				splits.add(new LocatableInputSplit(splitCnt++, "host2"));
+			}
+			// load remote splits
+			for (int i = 0; i < NUM_REMOTE_SPLITS; i++) {
+				splits.add(new LocatableInputSplit(splitCnt++, "remoteHost"));
+			}
+
 			// get all available splits
 			LocatableInputSplitAssigner ia = new LocatableInputSplitAssigner(splits);
 			InputSplit is = null;
@@ -150,11 +170,117 @@ public class LocatableSplitAssignerTest {
 			while ((is = ia.getNextInputSplit(hosts[i++ % hosts.length])) != null) {
 				assertTrue(splits.remove(is));
 			}
-			
+
 			// check we had all
 			assertTrue(splits.isEmpty());
 			assertNull(ia.getNextInputSplit("anotherHost"));
-			
+
+			assertEquals(NUM_REMOTE_SPLITS, ia.getNumberOfRemoteAssignments());
+			assertEquals(NUM_LOCAL_SPLITS, ia.getNumberOfLocalAssignments());
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+
+	@Test
+	public void testSerialSplitAssignmentMultiLocalHost() {
+		try {
+
+			final String[] localHosts = { "local1", "local2", "local3" };
+			final String[] remoteHosts = { "remote1", "remote2", "remote3" };
+			final String[] requestingHosts = { "local3", "local2", "local1", "other" };
+
+			final int NUM_THREE_LOCAL_SPLITS = 10;
+			final int NUM_TWO_LOCAL_SPLITS = 10;
+			final int NUM_ONE_LOCAL_SPLITS = 10;
+			final int NUM_LOCAL_SPLITS = 30;
+			final int NUM_REMOTE_SPLITS = 10;
+			final int NUM_SPLITS = 40;
+
+			String[] threeLocalHosts = localHosts;
+			String[] twoLocalHosts = {localHosts[0], localHosts[1], remoteHosts[0]};
+			String[] oneLocalHost = {localHosts[0], remoteHosts[0], remoteHosts[1]};
+			String[] noLocalHost = remoteHosts;
+
+			int splitCnt = 0;
+			Set<LocatableInputSplit> splits = new HashSet<LocatableInputSplit>();
+			// add splits with three local hosts
+			for (int i = 0; i < NUM_THREE_LOCAL_SPLITS; i++) {
+				splits.add(new LocatableInputSplit(splitCnt++, threeLocalHosts));
+			}
+			// add splits with two local hosts
+						for (int i = 0; i < NUM_TWO_LOCAL_SPLITS; i++) {
+				splits.add(new LocatableInputSplit(splitCnt++, twoLocalHosts));
+			}
+			// add splits with two local hosts
+			for (int i = 0; i < NUM_ONE_LOCAL_SPLITS; i++) {
+				splits.add(new LocatableInputSplit(splitCnt++, oneLocalHost));
+			}
+			// add splits with two local hosts
+			for (int i = 0; i < NUM_REMOTE_SPLITS; i++) {
+				splits.add(new LocatableInputSplit(splitCnt++, noLocalHost));
+			}
+
+			// get all available splits
+			LocatableInputSplitAssigner ia = new LocatableInputSplitAssigner(splits);
+			LocatableInputSplit is = null;
+			for (int i = 0; i < NUM_SPLITS; i++) {
+				String host = requestingHosts[i % requestingHosts.length];
+				is = ia.getNextInputSplit(host);
+				// check valid split
+				assertTrue(is != null);
+				// check unassigned split
+				assertTrue(splits.remove(is));
+				// check priority of split
+				if (host.equals(localHosts[0])) {
+					assertTrue(Arrays.equals(is.getHostnames(), oneLocalHost));
+				} else if (host.equals(localHosts[1])) {
+					assertTrue(Arrays.equals(is.getHostnames(), twoLocalHosts));
+				} else if (host.equals(localHosts[2])) {
+					assertTrue(Arrays.equals(is.getHostnames(), threeLocalHosts));
+				} else {
+					assertTrue(Arrays.equals(is.getHostnames(), noLocalHost));
+				}
+			}
+			// check we had all
+			assertTrue(splits.isEmpty());
+			assertNull(ia.getNextInputSplit("anotherHost"));
+
+			assertEquals(NUM_REMOTE_SPLITS, ia.getNumberOfRemoteAssignments());
+			assertEquals(NUM_LOCAL_SPLITS, ia.getNumberOfLocalAssignments());
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+
+	@Test
+	public void testSerialSplitAssignmentMixedLocalHost() {
+		try {
+			final String[] hosts = { "host1", "host1", "host1", "host2", "host2", "host3" };
+			final int NUM_SPLITS = 10 * hosts.length;
+
+			// load some splits
+			Set<LocatableInputSplit> splits = new HashSet<LocatableInputSplit>();
+			for (int i = 0; i < NUM_SPLITS; i++) {
+				splits.add(new LocatableInputSplit(i, hosts[i % hosts.length]));
+			}
+
+			// get all available splits
+			LocatableInputSplitAssigner ia = new LocatableInputSplitAssigner(splits);
+			InputSplit is = null;
+			int i = 0;
+			while ((is = ia.getNextInputSplit(hosts[i++ % hosts.length])) != null) {
+				assertTrue(splits.remove(is));
+			}
+
+			// check we had all
+			assertTrue(splits.isEmpty());
+			assertNull(ia.getNextInputSplit("anotherHost"));
+
 			assertEquals(0, ia.getNumberOfRemoteAssignments());
 			assertEquals(NUM_SPLITS, ia.getNumberOfLocalAssignments());
 		}
@@ -379,5 +505,49 @@ public class LocatableSplitAssignerTest {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
+	}
+
+	@Test
+	public void testAssignmentOfManySplitsRandomly() {
+
+		long seed = Calendar.getInstance().getTimeInMillis();
+
+		final int NUM_SPLITS = 65536;
+		final String[] splitHosts = new String[256];
+		final String[] requestingHosts = new String[256];
+		final Random rand = new Random(seed);
+
+		for (int i = 0; i < splitHosts.length; i++) {
+			splitHosts[i] = "localHost" + i;
+		}
+		for (int i = 0; i < requestingHosts.length; i++) {
+			if (i % 2 == 0) {
+				requestingHosts[i] = "localHost" + i;
+			} else {
+				requestingHosts[i] = "remoteHost" + i;
+			}
+		}
+
+		String[] stringArray = {};
+		Set<String> hosts = new HashSet<String>();
+		Set<LocatableInputSplit> splits = new HashSet<LocatableInputSplit>();
+		for (int i = 0; i < NUM_SPLITS; i++) {
+			while (hosts.size() < 3) {
+				hosts.add(splitHosts[rand.nextInt(splitHosts.length)]);
+			}
+			splits.add(new LocatableInputSplit(i, hosts.toArray(stringArray)));
+			hosts.clear();
+		}
+
+		final LocatableInputSplitAssigner ia = new LocatableInputSplitAssigner(splits);
+
+		for (int i = 0; i < NUM_SPLITS; i++) {
+			LocatableInputSplit split = ia.getNextInputSplit(requestingHosts[rand.nextInt(requestingHosts.length)]);
+			assertTrue(split != null);
+			assertTrue(splits.remove(split));
+		}
+
+		assertTrue(splits.isEmpty());
+		assertNull(ia.getNextInputSplit("testHost"));
 	}
 }
