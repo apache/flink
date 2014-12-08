@@ -931,19 +931,15 @@ public class TaskManager implements TaskOperationProtocol {
 	//  Execution & Initialization
 	// --------------------------------------------------------------------------------------------
 	
-	public static TaskManager createTaskManager(ExecutionMode mode) throws Exception {
+	public static TaskManager createTaskManager(ExecutionMode mode, String defaultJobManagerAddress) throws Exception {
 		
 		// IMPORTANT! At this point, the GlobalConfiguration must have been read!
 		
 		final InetSocketAddress jobManagerAddress;
 		LOG.info("Reading location of job manager from configuration");
 					
-		final String address = GlobalConfiguration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
+		final String address = GlobalConfiguration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, defaultJobManagerAddress);
 		final int port = GlobalConfiguration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
-					
-		if (address == null) {
-			throw new Exception("Job manager address not configured in the GlobalConfiguration.");
-		}
 			
 		// Try to convert configured address to {@link InetAddress}
 		try {
@@ -1059,7 +1055,7 @@ public class TaskManager implements TaskOperationProtocol {
 				"Specify temporary directory.").create(ARG_CONF_DIR);
 		Option defaultJobManagerAddressOpt = OptionBuilder.withArgName("default jobmanager rpc address")
 				.hasArg().withDescription(
-				"Speicify the default jobmanager rpc address.").create("defaultJobManagerAdd");
+				"Specify the default jobmanager rpc address.").create("defaultJobManagerAdd");
 
 		configDirOpt.setRequired(true);
 		tempDir.setRequired(false);
@@ -1084,15 +1080,6 @@ public class TaskManager implements TaskOperationProtocol {
 
 		// First, try to load global configuration
 		GlobalConfiguration.loadConfiguration(configDir);
-
-		// The configuretion does not contain a jobmanager address
-		if (GlobalConfiguration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null) == null) {
-			Configuration c = GlobalConfiguration.getConfiguration();
-			c.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, jobmanagerAdd);
-			LOG.info("Setting jobmanager rpc address to " + jobmanagerAdd);
-			GlobalConfiguration.includeConfiguration(c);
-		}
-
 		if(tempDirVal != null // the YARN TM runner has set a value for the temp dir
 				// the configuration does not contain a temp directory
 				&& GlobalConfiguration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY, null) == null) {
@@ -1107,7 +1094,7 @@ public class TaskManager implements TaskOperationProtocol {
 		
 		// Create a new task manager object
 		try {
-			createTaskManager(ExecutionMode.CLUSTER);
+			createTaskManager(ExecutionMode.CLUSTER, jobmanagerAdd);
 		}
 		catch (Throwable t) {
 			LOG.error("Taskmanager startup failed: " + t.getMessage(), t);
