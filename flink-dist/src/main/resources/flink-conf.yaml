@@ -21,8 +21,8 @@
 # Common
 #==============================================================================
 
-# The jobmanager rpc address will be automatically set to hostname
-# if not specified here.
+# By default, the JobManager address will be set to the host
+# from which the start-cluster or the start-local script is called
 #
 # jobmanager.rpc.address: localhost
 
