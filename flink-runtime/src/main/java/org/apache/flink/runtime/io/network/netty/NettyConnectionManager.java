@@ -72,6 +72,8 @@ public class NettyConnectionManager implements NetworkConnectionManager {
 
 	private Bootstrap out;
 
+	private Thread debugThread;
+
 	public NettyConnectionManager(InetAddress bindAddress, int bindPort, int bufferSize, int numInThreads,
 								int numOutThreads, int lowWaterMark, int highWaterMark) {
 
@@ -157,12 +159,16 @@ public class NettyConnectionManager implements NetworkConnectionManager {
 		}
 
 		if (LOG.isDebugEnabled()) {
-			new Thread(new Runnable() {
+			debugThread = new Thread(new Runnable() {
 				@Override
 				public void run() {
 					Date date = new Date();
 
 					while (true) {
+						if (Thread.interrupted()) {
+							break;
+						}
+
 						try {
 							Thread.sleep(DEBUG_PRINT_QUEUED_ENVELOPES_EVERY_MS);
 
@@ -171,16 +177,17 @@ public class NettyConnectionManager implements NetworkConnectionManager {
 							System.out.println(date);
 							System.out.println(getNonZeroNumQueuedEnvelopes());
 						} catch (InterruptedException e) {
-							e.printStackTrace();
+							break;
 						}
 					}
 				}
-			}).start();
+			});
+			debugThread.start();
 		}
 	}
 
 	@Override
-	public void enqueue(Envelope envelope, RemoteReceiver receiver) throws IOException {
+	public void enqueue(Envelope envelope, RemoteReceiver receiver, boolean isFirstEnvelope) throws IOException {
 		// Get the channel. The channel may be
 		// 1) a channel that already exists (usual case) -> just send the data
 		// 2) a channel that is in buildup (sometimes) -> attach to the future and wait for the actual channel
@@ -225,11 +232,56 @@ public class NettyConnectionManager implements NetworkConnectionManager {
 			}
 		}
 
-		channel.enqueue(envelope);
+		// The first envelope of a logical channel increments the reference counter of the
+		// connection to indicate that it is holding the resource. When unregistering the task,
+		// every logical channel decrements this counter again and the last one to decrement it
+		// to zero releases the connection.
+		if (isFirstEnvelope) {
+			if (channel.incrementReferenceCounter()) {
+				channel.enqueue(envelope);
+			}
+			else {
+				// There was a race with a close, try again.
+				outConnections.remove(receiver, channel);
+
+				enqueue(envelope, receiver, isFirstEnvelope);
+			}
+		}
+		else {
+			channel.enqueue(envelope);
+		}
+	}
+
+	@Override
+	public void close(RemoteReceiver receiver) {
+		Object entry = outConnections.get(receiver);
+
+		if (entry instanceof OutboundConnectionQueue) {
+			OutboundConnectionQueue channel = (OutboundConnectionQueue) entry;
+
+			// It is possible that we decrement without ever having incremented the counter, which
+			// is fine.
+			try {
+				if (channel.decrementReferenceCounter()) {
+					channel.close();
+					outConnections.remove(receiver, channel);
+				}
+			} catch (Exception ignored) {
+			}
+		}
+	}
+
+	@Override
+	public int getNumberOfActiveConnections() {
+		return outConnections.size();
 	}
 
 	@Override
 	public void shutdown() throws IOException {
+		if (debugThread != null) {
+			debugThread.interrupt();
+		}
+
 		if (!in.group().isShuttingDown()) {
 			LOG.info("Shutting down incoming connections.");
 

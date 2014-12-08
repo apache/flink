@@ -16,11 +16,8 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.io.network;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.AbstractID;
 import org.apache.flink.runtime.execution.CancelTaskException;
@@ -45,6 +42,8 @@ import org.apache.flink.runtime.jobgraph.JobID;
 import org.apache.flink.runtime.protocols.ChannelLookupProtocol;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.util.ExceptionUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -113,6 +112,10 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 
 	public GlobalBufferPool getGlobalBufferPool() {
 		return globalBufferPool;
+	}
+
+	public NetworkConnectionManager getNetworkConnectionManager() {
+		return networkConnectionManager;
 	}
 	
 	// -----------------------------------------------------------------------------------------------------------------
@@ -205,8 +208,10 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 		for (ChannelID id : environment.getOutputChannelIDs()) {
 			Channel channel = this.channels.remove(id);
 			if (channel != null) {
+
 				channel.destroy();
-				this.receiverCache.remove(channel);
+
+				removeFromReceiverCacheAndMaybeCloseTcpConnection(channel);
 			}
 		}
 
@@ -215,7 +220,8 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 			Channel channel = this.channels.remove(id);
 			if (channel != null) {
 				channel.destroy();
-				this.receiverCache.remove(channel);
+
+				removeFromReceiverCacheAndMaybeCloseTcpConnection(channel);
 			}
 		}
 
@@ -236,6 +242,14 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 		// the number of channels per buffers has changed after unregistering the task
 		// => redistribute the number of designated buffers of the registered local buffer pools
 		redistributeBuffers();
+	}
+
+	private void removeFromReceiverCacheAndMaybeCloseTcpConnection(Channel channel) {
+		EnvelopeReceiverList receiver = this.receiverCache.remove(channel.getID());
+
+		if (receiver != null && receiver.hasRemoteReceiver()) {
+			networkConnectionManager.close(receiver.getRemoteReceiver());
+		}
 	}
 
 	/**
@@ -336,7 +350,7 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 		final RemoteReceiver ourAddress = new RemoteReceiver(this.ourAddress, connectionIndex);
 		final Envelope senderHint = SenderHintEvent.createEnvelopeWithEvent(envelope, targetChannelID, ourAddress);
 
-		this.networkConnectionManager.enqueue(senderHint, receiver);
+		this.networkConnectionManager.enqueue(senderHint, receiver, true);
 	}
 
 	/**
@@ -471,7 +485,7 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 					generateSenderHint(envelope, remoteReceiver);
 				}
 
-				this.networkConnectionManager.enqueue(envelope, remoteReceiver);
+				this.networkConnectionManager.enqueue(envelope, remoteReceiver, false);
 				success = true;
 			}
 		} finally {
@@ -515,11 +529,7 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 			RemoteReceiver remoteReceiver = receiverList.getRemoteReceiver();
 
 			// Generate sender hint before sending the first envelope over the network
-			if (envelope.getSequenceNumber() == 0) {
-				generateSenderHint(envelope, remoteReceiver);
-			}
-
-			this.networkConnectionManager.enqueue(envelope, remoteReceiver);
+			this.networkConnectionManager.enqueue(envelope, remoteReceiver, envelope.getSequenceNumber() == 0);
 		}
 	}
 

@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.util;
 
 import java.io.BufferedInputStream;
@@ -96,11 +95,16 @@ public abstract class AbstractTestBase {
 		try {
 			
 			int numUnreleasedBCVars = 0;
+
+			int numActiveConnections = 0;
+
 			{
 				TaskManager[] tms = executor.getTaskManagers();
+
 				if (tms != null) {
 					for (TaskManager tm : tms) {
 						numUnreleasedBCVars += tm.getBroadcastVariableManager().getNumberOfVariablesWithReferences();
+						numActiveConnections += tm.getChannelManager().getNetworkConnectionManager().getNumberOfActiveConnections();
 					}
 				}
 			}
@@ -113,12 +117,11 @@ public abstract class AbstractTestBase {
 			}
 			
 			Assert.assertEquals("Not all broadcast variables were released.", 0, numUnreleasedBCVars);
+			Assert.assertEquals("Not all network connections were released.", 0, numActiveConnections);
 		}
 		finally {
 			deleteAllTempFiles();
 		}
-		
-		
 	}
 
 	//------------------

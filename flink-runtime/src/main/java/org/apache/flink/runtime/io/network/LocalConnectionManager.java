@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.io.network;
 
 import java.io.IOException;
@@ -28,7 +27,17 @@ public class LocalConnectionManager implements NetworkConnectionManager {
 	}
 
 	@Override
-	public void enqueue(Envelope envelope, RemoteReceiver receiver) throws IOException {
+	public void enqueue(Envelope envelope, RemoteReceiver receiver, boolean isFirstEnvelope) throws IOException {
+	}
+
+	@Override
+	public void close(RemoteReceiver receiver) {
+
+	}
+
+	@Override
+	public int getNumberOfActiveConnections() {
+		return 0;
 	}
 
 	@Override
