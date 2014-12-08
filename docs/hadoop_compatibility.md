@@ -114,11 +114,8 @@ hadoopOF.getConfiguration().set("mapreduce.output.textoutputformat.separator", "
 TextOutputFormat.setOutputPath(job, new Path(outputPath));
 		
 // Emit data using the Hadoop TextOutputFormat.
-result.output(hadoopOF)
-      .setParallelism(1);
+result.output(hadoopOF);
 ~~~
-
-**Please note:** At the moment, Hadoop OutputFormats must be executed with a parallelism of 1 (DOP = 1). This limitation will be resolved soon.
 
 ### Using Hadoop Mappers and Reducers
 
@@ -192,8 +189,7 @@ hadoopOF.getConfiguration().set("mapreduce.output.textoutputformat.separator", "
 TextOutputFormat.setOutputPath(job, new Path(outputPath));
 		
 // Emit data using the Hadoop TextOutputFormat.
-result.output(hadoopOF)
-      .setParallelism(1);
+result.output(hadoopOF);
 
 // Execute Program
 env.execute("Hadoop WordCount");
