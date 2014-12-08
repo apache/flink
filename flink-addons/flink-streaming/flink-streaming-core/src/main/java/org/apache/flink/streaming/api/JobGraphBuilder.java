@@ -33,6 +33,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.streaming.api.collector.OutputSelector;
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
 import org.apache.flink.streaming.api.invokable.operator.co.CoInvokable;
+import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.api.streamvertex.CoStreamVertex;
 import org.apache.flink.streaming.api.streamvertex.StreamIterationHead;
 import org.apache.flink.streaming.api.streamvertex.StreamIterationTail;
@@ -40,7 +41,6 @@ import org.apache.flink.streaming.api.streamvertex.StreamVertex;
 import org.apache.flink.streaming.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.partitioner.StreamPartitioner.PartitioningStrategy;
 import org.apache.flink.streaming.state.OperatorState;
-import org.apache.flink.streaming.util.serialization.TypeWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,10 +66,10 @@ public class JobGraphBuilder {
 	private Map<String, List<StreamPartitioner<?>>> connectionTypes;
 	private Map<String, String> operatorNames;
 	private Map<String, StreamInvokable<?, ?>> invokableObjects;
-	private Map<String, TypeWrapper<?>> typeWrapperIn1;
-	private Map<String, TypeWrapper<?>> typeWrapperIn2;
-	private Map<String, TypeWrapper<?>> typeWrapperOut1;
-	private Map<String, TypeWrapper<?>> typeWrapperOut2;
+	private Map<String, StreamRecordSerializer<?>> typeSerializersIn1;
+	private Map<String, StreamRecordSerializer<?>> typeSerializersIn2;
+	private Map<String, StreamRecordSerializer<?>> typeSerializersOut1;
+	private Map<String, StreamRecordSerializer<?>> typeSerializersOut2;
 	private Map<String, byte[]> serializedFunctions;
 	private Map<String, byte[]> outputSelectors;
 	private Map<String, Class<? extends AbstractInvokable>> vertexClasses;
@@ -98,10 +98,10 @@ public class JobGraphBuilder {
 		connectionTypes = new HashMap<String, List<StreamPartitioner<?>>>();
 		operatorNames = new HashMap<String, String>();
 		invokableObjects = new HashMap<String, StreamInvokable<?, ?>>();
-		typeWrapperIn1 = new HashMap<String, TypeWrapper<?>>();
-		typeWrapperIn2 = new HashMap<String, TypeWrapper<?>>();
-		typeWrapperOut1 = new HashMap<String, TypeWrapper<?>>();
-		typeWrapperOut2 = new HashMap<String, TypeWrapper<?>>();
+		typeSerializersIn1 = new HashMap<String, StreamRecordSerializer<?>>();
+		typeSerializersIn2 = new HashMap<String, StreamRecordSerializer<?>>();
+		typeSerializersOut1 = new HashMap<String, StreamRecordSerializer<?>>();
+		typeSerializersOut2 = new HashMap<String, StreamRecordSerializer<?>>();
 		serializedFunctions = new HashMap<String, byte[]>();
 		outputSelectors = new HashMap<String, byte[]>();
 		vertexClasses = new HashMap<String, Class<? extends AbstractInvokable>>();
@@ -124,10 +124,10 @@ public class JobGraphBuilder {
 	 *            Name of the vertex
 	 * @param invokableObject
 	 *            User defined operator
-	 * @param inTypeWrapper
-	 *            Input type wrapper for serialization
-	 * @param outTypeWrapper
-	 *            Output type wrapper for serialization
+	 * @param inTypeInfo
+	 *            Input type for serialization
+	 * @param outTypeInfo
+	 *            Output typ for serialization
 	 * @param operatorName
 	 *            Operator type
 	 * @param serializedFunction
@@ -136,14 +136,19 @@ public class JobGraphBuilder {
 	 *            Number of parallel instances created
 	 */
 	public <IN, OUT> void addStreamVertex(String vertexName,
-			StreamInvokable<IN, OUT> invokableObject, TypeWrapper<?> inTypeWrapper,
-			TypeWrapper<?> outTypeWrapper, String operatorName, byte[] serializedFunction,
+			StreamInvokable<IN, OUT> invokableObject, TypeInformation<IN> inTypeInfo,
+			TypeInformation<OUT> outTypeInfo, String operatorName, byte[] serializedFunction,
 			int parallelism) {
 
 		addVertex(vertexName, StreamVertex.class, invokableObject, operatorName,
 				serializedFunction, parallelism);
 
-		addTypeWrappers(vertexName, inTypeWrapper, null, outTypeWrapper, null);
+		StreamRecordSerializer<IN> inSerializer = inTypeInfo != null ? new StreamRecordSerializer<IN>(
+				inTypeInfo) : null;
+		StreamRecordSerializer<OUT> outSerializer = outTypeInfo != null ? new StreamRecordSerializer<OUT>(
+				outTypeInfo) : null;
+
+		addTypeSerializers(vertexName, inSerializer, null, outSerializer, null);
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Vertex: {}", vertexName);
@@ -224,14 +229,16 @@ public class JobGraphBuilder {
 	}
 
 	public <IN1, IN2, OUT> void addCoTask(String vertexName,
-			CoInvokable<IN1, IN2, OUT> taskInvokableObject, TypeWrapper<?> in1TypeWrapper,
-			TypeWrapper<?> in2TypeWrapper, TypeWrapper<?> outTypeWrapper, String operatorName,
-			byte[] serializedFunction, int parallelism) {
+			CoInvokable<IN1, IN2, OUT> taskInvokableObject, TypeInformation<IN1> in1TypeInfo,
+			TypeInformation<IN2> in2TypeInfo, TypeInformation<OUT> outTypeInfo,
+			String operatorName, byte[] serializedFunction, int parallelism) {
 
 		addVertex(vertexName, CoStreamVertex.class, taskInvokableObject, operatorName,
 				serializedFunction, parallelism);
 
-		addTypeWrappers(vertexName, in1TypeWrapper, in2TypeWrapper, outTypeWrapper, null);
+		addTypeSerializers(vertexName, new StreamRecordSerializer<IN1>(in1TypeInfo),
+				new StreamRecordSerializer<IN2>(in2TypeInfo), new StreamRecordSerializer<OUT>(
+						outTypeInfo), null);
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("CO-TASK: {}", vertexName);
@@ -273,12 +280,13 @@ public class JobGraphBuilder {
 		iterationTailCount.put(vertexName, 0);
 	}
 
-	private void addTypeWrappers(String vertexName, TypeWrapper<?> in1, TypeWrapper<?> in2,
-			TypeWrapper<?> out1, TypeWrapper<?> out2) {
-		typeWrapperIn1.put(vertexName, in1);
-		typeWrapperIn2.put(vertexName, in2);
-		typeWrapperOut1.put(vertexName, out1);
-		typeWrapperOut2.put(vertexName, out2);
+	private void addTypeSerializers(String vertexName, StreamRecordSerializer<?> in1,
+			StreamRecordSerializer<?> in2, StreamRecordSerializer<?> out1,
+			StreamRecordSerializer<?> out2) {
+		typeSerializersIn1.put(vertexName, in1);
+		typeSerializersIn2.put(vertexName, in2);
+		typeSerializersOut1.put(vertexName, out1);
+		typeSerializersOut2.put(vertexName, out2);
 	}
 
 	/**
@@ -315,10 +323,10 @@ public class JobGraphBuilder {
 		config.setMutability(mutability.get(vertexName));
 		config.setBufferTimeout(bufferTimeout.get(vertexName));
 
-		config.setTypeWrapperIn1(typeWrapperIn1.get(vertexName));
-		config.setTypeWrapperIn2(typeWrapperIn2.get(vertexName));
-		config.setTypeWrapperOut1(typeWrapperOut1.get(vertexName));
-		config.setTypeWrapperOut2(typeWrapperOut2.get(vertexName));
+		config.setTypeSerializerIn1(typeSerializersIn1.get(vertexName));
+		config.setTypeSerializerIn2(typeSerializersIn2.get(vertexName));
+		config.setTypeSerializerOut1(typeSerializersOut1.get(vertexName));
+		config.setTypeSerializerOut2(typeSerializersOut2.get(vertexName));
 
 		// Set vertex config
 		config.setUserInvokable(invokableObject);
@@ -482,19 +490,10 @@ public class JobGraphBuilder {
 		operatorNames.put(to, operatorNames.get(from));
 		serializedFunctions.put(to, serializedFunctions.get(from));
 
-		typeWrapperIn1.put(to, typeWrapperOut1.get(from));
-		typeWrapperIn2.put(to, typeWrapperOut2.get(from));
-		typeWrapperOut1.put(to, typeWrapperOut1.get(from));
-		typeWrapperOut2.put(to, typeWrapperOut2.get(from));
-	}
-
-	public TypeInformation<?> getInTypeInfo(String id) {
-		System.out.println("DEBUG TypeInfo " + typeWrapperIn1.get(id));
-		return typeWrapperIn1.get(id).getTypeInfo();
-	}
-
-	public TypeInformation<?> getOutTypeInfo(String id) {
-		return typeWrapperOut1.get(id).getTypeInfo();
+		typeSerializersIn1.put(to, typeSerializersOut1.get(from));
+		typeSerializersIn2.put(to, typeSerializersOut2.get(from));
+		typeSerializersOut1.put(to, typeSerializersOut1.get(from));
+		typeSerializersOut2.put(to, typeSerializersOut2.get(from));
 	}
 
 	/**

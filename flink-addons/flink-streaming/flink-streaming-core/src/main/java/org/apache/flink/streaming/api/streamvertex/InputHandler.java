@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.api.streamvertex;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.io.network.api.MutableReader;
@@ -52,7 +51,7 @@ public class InputHandler<IN> {
 
 	@SuppressWarnings("unchecked")
 	protected void setConfigInputs() throws StreamVertexException {
-		setDeserializer();
+		inputSerializer = configuration.getTypeSerializerIn1(streamVertex.userClassLoader);
 
 		int numberOfInputs = configuration.getNumberOfInputs();
 		if (numberOfInputs > 0) {
@@ -71,14 +70,6 @@ public class InputHandler<IN> {
 			}
 
 			inputIter = createInputIterator();
-		}
-	}
-
-	private void setDeserializer() {
-		TypeInformation<IN> inTupleTypeInfo = configuration
-				.getTypeInfoIn1(streamVertex.userClassLoader);
-		if (inTupleTypeInfo != null) {
-			inputSerializer = new StreamRecordSerializer<IN>(inTupleTypeInfo);
 		}
 	}
 

@@ -23,9 +23,11 @@ import java.util.List;
 
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.functions.RichReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.function.aggregation.AggregationFunction;
 import org.apache.flink.streaming.api.function.aggregation.AggregationFunction.AggregationType;
 import org.apache.flink.streaming.api.function.aggregation.ComparableAggregator;
@@ -35,13 +37,12 @@ import org.apache.flink.streaming.api.invokable.operator.GroupedWindowInvokable;
 import org.apache.flink.streaming.api.invokable.operator.WindowGroupReduceInvokable;
 import org.apache.flink.streaming.api.invokable.operator.WindowReduceInvokable;
 import org.apache.flink.streaming.api.windowing.helper.WindowingHelper;
-import org.apache.flink.streaming.api.windowing.policy.TimeTriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.CloneableEvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.CloneableTriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.EvictionPolicy;
+import org.apache.flink.streaming.api.windowing.policy.TimeTriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TumblingEvictionPolicy;
-import org.apache.flink.streaming.util.serialization.FunctionTypeWrapper;
 
 /**
  * A {@link WindowedDataStream} represents a data stream that has been divided
@@ -225,8 +226,7 @@ public class WindowedDataStream<OUT> {
 	 * @return The transformed DataStream
 	 */
 	public SingleOutputStreamOperator<OUT, ?> reduce(ReduceFunction<OUT> reduceFunction) {
-		return dataStream.addFunction("NextGenWindowReduce", reduceFunction,
-				dataStream.outTypeWrapper, dataStream.outTypeWrapper,
+		return dataStream.addFunction("NextGenWindowReduce", reduceFunction, getType(), getType(),
 				getReduceInvokable(reduceFunction));
 	}
 
@@ -245,9 +245,13 @@ public class WindowedDataStream<OUT> {
 	 */
 	public <R> SingleOutputStreamOperator<R, ?> reduceGroup(
 			GroupReduceFunction<OUT, R> reduceFunction) {
-		return dataStream.addFunction("NextGenWindowReduce", reduceFunction,
-				dataStream.outTypeWrapper, new FunctionTypeWrapper<R>(reduceFunction,
-						GroupReduceFunction.class, 1), getReduceGroupInvokable(reduceFunction));
+
+		TypeInformation<OUT> inType = getType();
+		TypeInformation<R> outType = TypeExtractor
+				.getGroupReduceReturnTypes(reduceFunction, inType);
+
+		return dataStream.addFunction("NextGenWindowReduce", reduceFunction, inType, outType,
+				getReduceGroupInvokable(reduceFunction));
 	}
 
 	/**
@@ -261,7 +265,7 @@ public class WindowedDataStream<OUT> {
 	public SingleOutputStreamOperator<OUT, ?> sum(int positionToSum) {
 		dataStream.checkFieldRange(positionToSum);
 		return aggregate((AggregationFunction<OUT>) SumAggregator.getSumFunction(positionToSum,
-				dataStream.getClassAtPos(positionToSum), dataStream.getOutputType()));
+				dataStream.getClassAtPos(positionToSum), getType()));
 	}
 
 	/**
@@ -276,8 +280,7 @@ public class WindowedDataStream<OUT> {
 	 * @return The transformed DataStream.
 	 */
 	public SingleOutputStreamOperator<OUT, ?> sum(String field) {
-		return aggregate((AggregationFunction<OUT>) SumAggregator.getSumFunction(field,
-				getOutputType()));
+		return aggregate((AggregationFunction<OUT>) SumAggregator.getSumFunction(field, getType()));
 	}
 
 	/**
@@ -290,7 +293,7 @@ public class WindowedDataStream<OUT> {
 	 */
 	public SingleOutputStreamOperator<OUT, ?> min(int positionToMin) {
 		dataStream.checkFieldRange(positionToMin);
-		return aggregate(ComparableAggregator.getAggregator(positionToMin, getOutputType(),
+		return aggregate(ComparableAggregator.getAggregator(positionToMin, getType(),
 				AggregationType.MIN));
 	}
 
@@ -307,8 +310,8 @@ public class WindowedDataStream<OUT> {
 	 * @return The transformed DataStream.
 	 */
 	public SingleOutputStreamOperator<OUT, ?> min(String field) {
-		return aggregate(ComparableAggregator.getAggregator(field, getOutputType(),
-				AggregationType.MIN, false));
+		return aggregate(ComparableAggregator.getAggregator(field, getType(), AggregationType.MIN,
+				false));
 	}
 
 	/**
@@ -339,7 +342,7 @@ public class WindowedDataStream<OUT> {
 	 */
 	public SingleOutputStreamOperator<OUT, ?> minBy(int positionToMinBy, boolean first) {
 		dataStream.checkFieldRange(positionToMinBy);
-		return aggregate(ComparableAggregator.getAggregator(positionToMinBy, getOutputType(),
+		return aggregate(ComparableAggregator.getAggregator(positionToMinBy, getType(),
 				AggregationType.MINBY, first));
 	}
 
@@ -359,7 +362,7 @@ public class WindowedDataStream<OUT> {
 	 * @return The transformed DataStream.
 	 */
 	public SingleOutputStreamOperator<OUT, ?> minBy(String field, boolean first) {
-		return aggregate(ComparableAggregator.getAggregator(field, getOutputType(),
+		return aggregate(ComparableAggregator.getAggregator(field, getType(),
 				AggregationType.MINBY, first));
 	}
 
@@ -373,7 +376,7 @@ public class WindowedDataStream<OUT> {
 	 */
 	public SingleOutputStreamOperator<OUT, ?> max(int positionToMax) {
 		dataStream.checkFieldRange(positionToMax);
-		return aggregate(ComparableAggregator.getAggregator(positionToMax, getOutputType(),
+		return aggregate(ComparableAggregator.getAggregator(positionToMax, getType(),
 				AggregationType.MAX));
 	}
 
@@ -390,8 +393,8 @@ public class WindowedDataStream<OUT> {
 	 * @return The transformed DataStream.
 	 */
 	public SingleOutputStreamOperator<OUT, ?> max(String field) {
-		return aggregate(ComparableAggregator.getAggregator(field, getOutputType(),
-				AggregationType.MAX, false));
+		return aggregate(ComparableAggregator.getAggregator(field, getType(), AggregationType.MAX,
+				false));
 	}
 
 	/**
@@ -422,7 +425,7 @@ public class WindowedDataStream<OUT> {
 	 */
 	public SingleOutputStreamOperator<OUT, ?> maxBy(int positionToMaxBy, boolean first) {
 		dataStream.checkFieldRange(positionToMaxBy);
-		return aggregate(ComparableAggregator.getAggregator(positionToMaxBy, getOutputType(),
+		return aggregate(ComparableAggregator.getAggregator(positionToMaxBy, getType(),
 				AggregationType.MAXBY, first));
 	}
 
@@ -442,7 +445,7 @@ public class WindowedDataStream<OUT> {
 	 * @return The transformed DataStream.
 	 */
 	public SingleOutputStreamOperator<OUT, ?> maxBy(String field, boolean first) {
-		return aggregate(ComparableAggregator.getAggregator(field, getOutputType(),
+		return aggregate(ComparableAggregator.getAggregator(field, getType(),
 				AggregationType.MAXBY, first));
 	}
 
@@ -450,7 +453,7 @@ public class WindowedDataStream<OUT> {
 		StreamInvokable<OUT, OUT> invokable = getReduceInvokable(aggregator);
 
 		SingleOutputStreamOperator<OUT, ?> returnStream = dataStream.addFunction("windowReduce",
-				aggregator, dataStream.outTypeWrapper, dataStream.outTypeWrapper, invokable);
+				aggregator, getType(), getType(), invokable);
 
 		return returnStream;
 	}
@@ -576,8 +579,8 @@ public class WindowedDataStream<OUT> {
 	 * 
 	 * @return The output type.
 	 */
-	public TypeInformation<OUT> getOutputType() {
-		return dataStream.getOutputType();
+	public TypeInformation<OUT> getType() {
+		return dataStream.getType();
 	}
 
 	protected WindowedDataStream<OUT> copy() {

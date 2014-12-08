@@ -98,9 +98,8 @@ public class OutputHandler<OUT> {
 	}
 
 	void setSerializers() {
-		outTypeInfo = configuration.getTypeInfoOut1(streamVertex.userClassLoader);
-		if (outTypeInfo != null) {
-			outSerializer = new StreamRecordSerializer<OUT>(outTypeInfo);
+		outSerializer = configuration.getTypeSerializerOut1(streamVertex.userClassLoader);
+		if (outSerializer != null) {
 			outSerializationDelegate = new SerializationDelegate<StreamRecord<OUT>>(outSerializer);
 			outSerializationDelegate.setInstance(outSerializer.createInstance());
 		}
