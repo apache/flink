@@ -60,7 +60,7 @@ public class StreamJoinOperator<I1, I2> extends
 		 */
 		public JoinPredicate<I1, I2> where(int... fields) {
 			return new JoinPredicate<I1, I2>(op, FieldsKeySelector.getSelector(
-					op.input1.getOutputType(), fields));
+					op.input1.getType(), fields));
 		}
 
 		/**
@@ -76,7 +76,7 @@ public class StreamJoinOperator<I1, I2> extends
 		 *         {@link JoinPredicate#equalTo} to continue the Join.
 		 */
 		public JoinPredicate<I1, I2> where(String... fields) {
-			return new JoinPredicate<I1, I2>(op, new PojoKeySelector<I1>(op.input1.getOutputType(),
+			return new JoinPredicate<I1, I2>(op, new PojoKeySelector<I1>(op.input1.getType(),
 					fields));
 		}
 
@@ -135,7 +135,7 @@ public class StreamJoinOperator<I1, I2> extends
 		 * @return The joined data stream.
 		 */
 		public SingleOutputStreamOperator<Tuple2<I1, I2>, ?> equalTo(int... fields) {
-			return createJoinOperator(FieldsKeySelector.getSelector(op.input2.getOutputType(),
+			return createJoinOperator(FieldsKeySelector.getSelector(op.input2.getType(),
 					fields));
 		}
 
@@ -154,7 +154,7 @@ public class StreamJoinOperator<I1, I2> extends
 		 * @return The joined data stream.
 		 */
 		public SingleOutputStreamOperator<Tuple2<I1, I2>, ?> equalTo(String... fields) {
-			return createJoinOperator(new PojoKeySelector<I2>(op.input2.getOutputType(), fields));
+			return createJoinOperator(new PojoKeySelector<I2>(op.input2.getType(), fields));
 		}
 
 		/**

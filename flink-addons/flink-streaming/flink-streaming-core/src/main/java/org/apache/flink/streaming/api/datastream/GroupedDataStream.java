@@ -23,7 +23,6 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.function.aggregation.AggregationFunction;
 import org.apache.flink.streaming.api.invokable.operator.GroupedReduceInvokable;
 import org.apache.flink.streaming.partitioner.StreamPartitioner;
-import org.apache.flink.streaming.util.serialization.FunctionTypeWrapper;
 
 /**
  * A GroupedDataStream represents a {@link DataStream} which has been
@@ -62,9 +61,8 @@ public class GroupedDataStream<OUT> extends DataStream<OUT> {
 	 * @return The transformed DataStream.
 	 */
 	public SingleOutputStreamOperator<OUT, ?> reduce(ReduceFunction<OUT> reducer) {
-		return addFunction("groupReduce", reducer, new FunctionTypeWrapper<OUT>(reducer,
-				ReduceFunction.class, 0), new FunctionTypeWrapper<OUT>(reducer,
-				ReduceFunction.class, 0), new GroupedReduceInvokable<OUT>(reducer, keySelector));
+		return addFunction("groupReduce", reducer, getType(), getType(),
+				new GroupedReduceInvokable<OUT>(reducer, keySelector));
 	}
 
 	/**
@@ -184,7 +182,7 @@ public class GroupedDataStream<OUT> extends DataStream<OUT> {
 				keySelector);
 
 		SingleOutputStreamOperator<OUT, ?> returnStream = addFunction("groupReduce", aggregate,
-				outTypeWrapper, outTypeWrapper, invokable);
+				typeInfo, typeInfo, invokable);
 
 		return returnStream;
 	}

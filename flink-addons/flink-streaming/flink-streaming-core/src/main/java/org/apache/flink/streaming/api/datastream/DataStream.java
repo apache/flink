@@ -38,6 +38,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.JobGraphBuilder;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.function.aggregation.AggregationFunction;
@@ -70,9 +71,6 @@ import org.apache.flink.streaming.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.util.keys.FieldsKeySelector;
 import org.apache.flink.streaming.util.keys.PojoKeySelector;
-import org.apache.flink.streaming.util.serialization.FunctionTypeWrapper;
-import org.apache.flink.streaming.util.serialization.ObjectTypeWrapper;
-import org.apache.flink.streaming.util.serialization.TypeWrapper;
 
 /**
  * A DataStream represents a stream of elements of the same type. A DataStream
@@ -97,7 +95,7 @@ public class DataStream<OUT> {
 	protected List<String> userDefinedNames;
 	protected boolean selectAll;
 	protected StreamPartitioner<OUT> partitioner;
-	protected final TypeWrapper<OUT> outTypeWrapper;
+	protected final TypeInformation<OUT> typeInfo;
 	protected List<DataStream<OUT>> mergedStreams;
 
 	protected final JobGraphBuilder jobGraphBuilder;
@@ -110,11 +108,11 @@ public class DataStream<OUT> {
 	 *            StreamExecutionEnvironment
 	 * @param operatorType
 	 *            The type of the operator in the component
-	 * @param outTypeWrapper
-	 *            Type of the output
+	 * @param typeInfo
+	 *            Type of the datastream
 	 */
 	public DataStream(StreamExecutionEnvironment environment, String operatorType,
-			TypeWrapper<OUT> outTypeWrapper) {
+			TypeInformation<OUT> typeInfo) {
 		if (environment == null) {
 			throw new NullPointerException("context is null");
 		}
@@ -127,7 +125,7 @@ public class DataStream<OUT> {
 		this.userDefinedNames = new ArrayList<String>();
 		this.selectAll = false;
 		this.partitioner = new DistributePartitioner<OUT>(true);
-		this.outTypeWrapper = outTypeWrapper;
+		this.typeInfo = typeInfo;
 		this.mergedStreams = new ArrayList<DataStream<OUT>>();
 		this.mergedStreams.add(this);
 	}
@@ -146,7 +144,7 @@ public class DataStream<OUT> {
 		this.selectAll = dataStream.selectAll;
 		this.partitioner = dataStream.partitioner;
 		this.jobGraphBuilder = dataStream.jobGraphBuilder;
-		this.outTypeWrapper = dataStream.outTypeWrapper;
+		this.typeInfo = dataStream.typeInfo;
 		this.mergedStreams = new ArrayList<DataStream<OUT>>();
 		this.mergedStreams.add(this);
 		if (dataStream.mergedStreams.size() > 1) {
@@ -176,12 +174,12 @@ public class DataStream<OUT> {
 	}
 
 	/**
-	 * Gets the output type.
+	 * Gets the type of the stream.
 	 * 
-	 * @return The output type.
+	 * @return The type of the datastream.
 	 */
-	public TypeInformation<OUT> getOutputType() {
-		return this.outTypeWrapper.getTypeInfo();
+	public TypeInformation<OUT> getType() {
+		return this.typeInfo;
 	}
 
 	/**
@@ -230,7 +228,7 @@ public class DataStream<OUT> {
 	 */
 	public GroupedDataStream<OUT> groupBy(int... fields) {
 
-		return groupBy(FieldsKeySelector.getSelector(getOutputType(), fields));
+		return groupBy(FieldsKeySelector.getSelector(getType(), fields));
 
 	}
 
@@ -248,7 +246,7 @@ public class DataStream<OUT> {
 	 **/
 	public GroupedDataStream<OUT> groupBy(String... fields) {
 
-		return groupBy(new PojoKeySelector<OUT>(getOutputType(), fields));
+		return groupBy(new PojoKeySelector<OUT>(getType(), fields));
 
 	}
 
@@ -277,7 +275,7 @@ public class DataStream<OUT> {
 	public DataStream<OUT> partitionBy(int... fields) {
 
 		return setConnectionType(new FieldsPartitioner<OUT>(FieldsKeySelector.getSelector(
-				getOutputType(), fields)));
+				getType(), fields)));
 	}
 
 	/**
@@ -290,8 +288,8 @@ public class DataStream<OUT> {
 	 */
 	public DataStream<OUT> partitionBy(String... fields) {
 
-		return setConnectionType(new FieldsPartitioner<OUT>(new PojoKeySelector<OUT>(
-				getOutputType(), fields)));
+		return setConnectionType(new FieldsPartitioner<OUT>(new PojoKeySelector<OUT>(getType(),
+				fields)));
 	}
 
 	/**
@@ -387,13 +385,10 @@ public class DataStream<OUT> {
 	 * @return The transformed {@link DataStream}.
 	 */
 	public <R> SingleOutputStreamOperator<R, ?> map(MapFunction<OUT, R> mapper) {
-		FunctionTypeWrapper<OUT> inTypeWrapper = new FunctionTypeWrapper<OUT>(mapper,
-				MapFunction.class, 0);
-		FunctionTypeWrapper<R> outTypeWrapper = new FunctionTypeWrapper<R>(mapper,
-				MapFunction.class, 1);
 
-		return addFunction("map", mapper, inTypeWrapper, outTypeWrapper, new MapInvokable<OUT, R>(
-				mapper));
+		TypeInformation<R> outType = TypeExtractor.getMapReturnTypes(mapper, getType());
+
+		return addFunction("map", mapper, getType(), outType, new MapInvokable<OUT, R>(mapper));
 	}
 
 	/**
@@ -413,13 +408,11 @@ public class DataStream<OUT> {
 	 * @return The transformed {@link DataStream}.
 	 */
 	public <R> SingleOutputStreamOperator<R, ?> flatMap(FlatMapFunction<OUT, R> flatMapper) {
-		FunctionTypeWrapper<OUT> inTypeWrapper = new FunctionTypeWrapper<OUT>(flatMapper,
-				FlatMapFunction.class, 0);
-		FunctionTypeWrapper<R> outTypeWrapper = new FunctionTypeWrapper<R>(flatMapper,
-				FlatMapFunction.class, 1);
 
-		return addFunction("flatMap", flatMapper, inTypeWrapper, outTypeWrapper,
-				new FlatMapInvokable<OUT, R>(flatMapper));
+		TypeInformation<R> outType = TypeExtractor.getFlatMapReturnTypes(flatMapper, getType());
+
+		return addFunction("flatMap", flatMapper, getType(), outType, new FlatMapInvokable<OUT, R>(
+				flatMapper));
 	}
 
 	/**
@@ -434,9 +427,9 @@ public class DataStream<OUT> {
 	 * @return The transformed DataStream.
 	 */
 	public SingleOutputStreamOperator<OUT, ?> reduce(ReduceFunction<OUT> reducer) {
-		return addFunction("reduce", reducer, new FunctionTypeWrapper<OUT>(reducer,
-				ReduceFunction.class, 0), new FunctionTypeWrapper<OUT>(reducer,
-				ReduceFunction.class, 0), new StreamReduceInvokable<OUT>(reducer));
+
+		return addFunction("reduce", reducer, getType(), getType(), new StreamReduceInvokable<OUT>(
+				reducer));
 	}
 
 	/**
@@ -454,11 +447,7 @@ public class DataStream<OUT> {
 	 * @return The filtered DataStream.
 	 */
 	public SingleOutputStreamOperator<OUT, ?> filter(FilterFunction<OUT> filter) {
-		FunctionTypeWrapper<OUT> typeWrapper = new FunctionTypeWrapper<OUT>(filter,
-				FilterFunction.class, 0);
-
-		return addFunction("filter", filter, typeWrapper, typeWrapper, new FilterInvokable<OUT>(
-				filter));
+		return addFunction("filter", filter, getType(), getType(), new FilterInvokable<OUT>(filter));
 	}
 
 	/**
@@ -543,7 +532,7 @@ public class DataStream<OUT> {
 	public SingleOutputStreamOperator<OUT, ?> sum(int positionToSum) {
 		checkFieldRange(positionToSum);
 		return aggregate((AggregationFunction<OUT>) SumAggregator.getSumFunction(positionToSum,
-				getClassAtPos(positionToSum), getOutputType()));
+				getClassAtPos(positionToSum), getType()));
 	}
 
 	/**
@@ -559,8 +548,7 @@ public class DataStream<OUT> {
 	 * @return The transformed DataStream.
 	 */
 	public SingleOutputStreamOperator<OUT, ?> sum(String field) {
-		return aggregate((AggregationFunction<OUT>) SumAggregator.getSumFunction(field,
-				getOutputType()));
+		return aggregate((AggregationFunction<OUT>) SumAggregator.getSumFunction(field, getType()));
 	}
 
 	/**
@@ -573,7 +561,7 @@ public class DataStream<OUT> {
 	 */
 	public SingleOutputStreamOperator<OUT, ?> min(int positionToMin) {
 		checkFieldRange(positionToMin);
-		return aggregate(ComparableAggregator.getAggregator(positionToMin, getOutputType(),
+		return aggregate(ComparableAggregator.getAggregator(positionToMin, getType(),
 				AggregationType.MIN));
 	}
 
@@ -590,8 +578,8 @@ public class DataStream<OUT> {
 	 * @return The transformed DataStream.
 	 */
 	public SingleOutputStreamOperator<OUT, ?> min(String field) {
-		return aggregate(ComparableAggregator.getAggregator(field, getOutputType(),
-				AggregationType.MIN, false));
+		return aggregate(ComparableAggregator.getAggregator(field, getType(), AggregationType.MIN,
+				false));
 	}
 
 	/**
@@ -604,7 +592,7 @@ public class DataStream<OUT> {
 	 */
 	public SingleOutputStreamOperator<OUT, ?> max(int positionToMax) {
 		checkFieldRange(positionToMax);
-		return aggregate(ComparableAggregator.getAggregator(positionToMax, getOutputType(),
+		return aggregate(ComparableAggregator.getAggregator(positionToMax, getType(),
 				AggregationType.MAX));
 	}
 
@@ -621,8 +609,8 @@ public class DataStream<OUT> {
 	 * @return The transformed DataStream.
 	 */
 	public SingleOutputStreamOperator<OUT, ?> max(String field) {
-		return aggregate(ComparableAggregator.getAggregator(field, getOutputType(),
-				AggregationType.MAX, false));
+		return aggregate(ComparableAggregator.getAggregator(field, getType(), AggregationType.MAX,
+				false));
 	}
 
 	/**
@@ -641,7 +629,7 @@ public class DataStream<OUT> {
 	 * @return The transformed DataStream.
 	 */
 	public SingleOutputStreamOperator<OUT, ?> minBy(String field, boolean first) {
-		return aggregate(ComparableAggregator.getAggregator(field, getOutputType(),
+		return aggregate(ComparableAggregator.getAggregator(field, getType(),
 				AggregationType.MINBY, first));
 	}
 
@@ -661,7 +649,7 @@ public class DataStream<OUT> {
 	 * @return The transformed DataStream.
 	 */
 	public SingleOutputStreamOperator<OUT, ?> maxBy(String field, boolean first) {
-		return aggregate(ComparableAggregator.getAggregator(field, getOutputType(),
+		return aggregate(ComparableAggregator.getAggregator(field, getType(),
 				AggregationType.MAXBY, first));
 	}
 
@@ -694,7 +682,7 @@ public class DataStream<OUT> {
 	 */
 	public SingleOutputStreamOperator<OUT, ?> minBy(int positionToMinBy, boolean first) {
 		checkFieldRange(positionToMinBy);
-		return aggregate(ComparableAggregator.getAggregator(positionToMinBy, getOutputType(),
+		return aggregate(ComparableAggregator.getAggregator(positionToMinBy, getType(),
 				AggregationType.MINBY, first));
 	}
 
@@ -727,7 +715,7 @@ public class DataStream<OUT> {
 	 */
 	public SingleOutputStreamOperator<OUT, ?> maxBy(int positionToMaxBy, boolean first) {
 		checkFieldRange(positionToMaxBy);
-		return aggregate(ComparableAggregator.getAggregator(positionToMaxBy, getOutputType(),
+		return aggregate(ComparableAggregator.getAggregator(positionToMaxBy, getType(),
 				AggregationType.MAXBY, first));
 	}
 
@@ -737,11 +725,9 @@ public class DataStream<OUT> {
 	 * @return The transformed DataStream.
 	 */
 	public SingleOutputStreamOperator<Long, ?> count() {
-		TypeWrapper<OUT> inTypeWrapper = outTypeWrapper;
-		TypeWrapper<Long> outTypeWrapper = new ObjectTypeWrapper<Long>(Long.valueOf(0));
+		TypeInformation<Long> outTypeInfo = TypeExtractor.getForObject(Long.valueOf(0));
 
-		return addFunction("counter", null, inTypeWrapper, outTypeWrapper,
-				new CounterInvokable<OUT>());
+		return addFunction("counter", null, getType(), outTypeInfo, new CounterInvokable<OUT>());
 	}
 
 	/**
@@ -803,7 +789,7 @@ public class DataStream<OUT> {
 	public DataStreamSink<OUT> print() {
 		DataStream<OUT> inputStream = this.copy();
 		PrintSinkFunction<OUT> printFunction = new PrintSinkFunction<OUT>();
-		DataStreamSink<OUT> returnStream = addSink(inputStream, printFunction, outTypeWrapper);
+		DataStreamSink<OUT> returnStream = addSink(inputStream, printFunction, getType());
 
 		return returnStream;
 	}
@@ -923,7 +909,7 @@ public class DataStream<OUT> {
 	private DataStreamSink<OUT> writeAsText(DataStream<OUT> inputStream, String path,
 			WriteFormatAsText<OUT> format, long millis, OUT endTuple) {
 		DataStreamSink<OUT> returnStream = addSink(inputStream, new WriteSinkFunctionByMillis<OUT>(
-				path, format, millis, endTuple), inputStream.outTypeWrapper);
+				path, format, millis, endTuple), inputStream.typeInfo);
 		jobGraphBuilder.setMutability(returnStream.getId(), false);
 		return returnStream;
 	}
@@ -951,7 +937,7 @@ public class DataStream<OUT> {
 			WriteFormatAsText<OUT> format, int batchSize, OUT endTuple) {
 		DataStreamSink<OUT> returnStream = addSink(inputStream,
 				new WriteSinkFunctionByBatches<OUT>(path, format, batchSize, endTuple),
-				inputStream.outTypeWrapper);
+				inputStream.typeInfo);
 		jobGraphBuilder.setMutability(returnStream.getId(), false);
 		return returnStream;
 	}
@@ -1074,7 +1060,7 @@ public class DataStream<OUT> {
 	private DataStreamSink<OUT> writeAsCsv(DataStream<OUT> inputStream, String path,
 			WriteFormatAsCsv<OUT> format, long millis, OUT endTuple) {
 		DataStreamSink<OUT> returnStream = addSink(inputStream, new WriteSinkFunctionByMillis<OUT>(
-				path, format, millis, endTuple), inputStream.outTypeWrapper);
+				path, format, millis, endTuple), inputStream.typeInfo);
 		jobGraphBuilder.setMutability(returnStream.getId(), false);
 		return returnStream;
 	}
@@ -1102,7 +1088,7 @@ public class DataStream<OUT> {
 			WriteFormatAsCsv<OUT> format, int batchSize, OUT endTuple) {
 		DataStreamSink<OUT> returnStream = addSink(inputStream,
 				new WriteSinkFunctionByBatches<OUT>(path, format, batchSize, endTuple),
-				inputStream.outTypeWrapper);
+				inputStream.typeInfo);
 		jobGraphBuilder.setMutability(returnStream.getId(), false);
 		return returnStream;
 	}
@@ -1112,7 +1098,7 @@ public class DataStream<OUT> {
 		StreamReduceInvokable<OUT> invokable = new StreamReduceInvokable<OUT>(aggregate);
 
 		SingleOutputStreamOperator<OUT, ?> returnStream = addFunction("reduce", aggregate,
-				outTypeWrapper, outTypeWrapper, invokable);
+				typeInfo, typeInfo, invokable);
 
 		return returnStream;
 	}
@@ -1142,16 +1128,16 @@ public class DataStream<OUT> {
 	 * @return the data stream constructed
 	 */
 	protected <R> SingleOutputStreamOperator<R, ?> addFunction(String functionName,
-			final Function function, TypeWrapper<OUT> inTypeWrapper, TypeWrapper<R> outTypeWrapper,
-			StreamInvokable<OUT, R> functionInvokable) {
+			final Function function, TypeInformation<OUT> inTypeInfo,
+			TypeInformation<R> outTypeInfo, StreamInvokable<OUT, R> functionInvokable) {
 		DataStream<OUT> inputStream = this.copy();
 		@SuppressWarnings({ "unchecked", "rawtypes" })
 		SingleOutputStreamOperator<R, ?> returnStream = new SingleOutputStreamOperator(environment,
-				functionName, outTypeWrapper);
+				functionName, outTypeInfo);
 
 		try {
-			jobGraphBuilder.addStreamVertex(returnStream.getId(), functionInvokable, inTypeWrapper,
-					outTypeWrapper, functionName,
+			jobGraphBuilder.addStreamVertex(returnStream.getId(), functionInvokable, inTypeInfo,
+					outTypeInfo, functionName,
 					SerializationUtils.serialize((Serializable) function), degreeOfParallelism);
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize user defined function");
@@ -1220,18 +1206,16 @@ public class DataStream<OUT> {
 	}
 
 	private DataStreamSink<OUT> addSink(DataStream<OUT> inputStream, SinkFunction<OUT> sinkFunction) {
-		return addSink(inputStream, sinkFunction, new FunctionTypeWrapper<OUT>(sinkFunction,
-				SinkFunction.class, 0));
+		return addSink(inputStream, sinkFunction, getType());
 	}
 
 	private DataStreamSink<OUT> addSink(DataStream<OUT> inputStream,
-			SinkFunction<OUT> sinkFunction, TypeWrapper<OUT> inTypeWrapper) {
-		DataStreamSink<OUT> returnStream = new DataStreamSink<OUT>(environment, "sink",
-				outTypeWrapper);
+			SinkFunction<OUT> sinkFunction, TypeInformation<OUT> inTypeInfo) {
+		DataStreamSink<OUT> returnStream = new DataStreamSink<OUT>(environment, "sink", typeInfo);
 
 		try {
 			jobGraphBuilder.addStreamVertex(returnStream.getId(), new SinkInvokable<OUT>(
-					sinkFunction), inTypeWrapper, null, "sink", SerializationUtils
+					sinkFunction), inTypeInfo, null, "sink", SerializationUtils
 					.serialize(sinkFunction), degreeOfParallelism);
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize SinkFunction");
@@ -1252,7 +1236,7 @@ public class DataStream<OUT> {
 	@SuppressWarnings("rawtypes")
 	protected Class<?> getClassAtPos(int pos) {
 		Class<?> type;
-		TypeInformation<OUT> outTypeInfo = outTypeWrapper.getTypeInfo();
+		TypeInformation<OUT> outTypeInfo = getType();
 		if (outTypeInfo.isTupleType()) {
 			type = ((TupleTypeInfo) outTypeInfo).getTypeAt(pos).getTypeClass();
 

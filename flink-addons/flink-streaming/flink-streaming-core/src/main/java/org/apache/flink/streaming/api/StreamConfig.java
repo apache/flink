@@ -25,15 +25,14 @@ import java.util.Map;
 import org.apache.commons.lang3.SerializationException;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.collector.OutputSelector;
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
+import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
 import org.apache.flink.streaming.api.streamvertex.StreamVertexException;
 import org.apache.flink.streaming.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.state.OperatorState;
-import org.apache.flink.streaming.util.serialization.TypeWrapper;
 import org.apache.flink.util.InstantiationUtil;
 
 public class StreamConfig {
@@ -54,6 +53,12 @@ public class StreamConfig {
 	private static final String USER_FUNCTION = "userfunction";
 	private static final String BUFFER_TIMEOUT = "bufferTimeout";
 	private static final String OPERATOR_STATES = "operatorStates";
+	private static final String TYPE_SERIALIZER_IN_1 = "typeSerializer_in_1";
+	private static final String TYPE_SERIALIZER_IN_2 = "typeSerializer_in_2";
+	private static final String TYPE_SERIALIZER_OUT_1 = "typeSerializer_out_1";
+	private static final String TYPE_SERIALIZER_OUT_2 = "typeSerializer_out_2";
+	private static final String MUTABILITY = "isMutable";
+	private static final String ITERATON_WAIT = "iterationWait";
 
 	// DEFAULT VALUES
 
@@ -61,10 +66,7 @@ public class StreamConfig {
 
 	private static final long DEFAULT_TIMEOUT = 0;
 
-	// STRINGS
-
-	private static final String MUTABILITY = "isMutable";
-	private static final String ITERATON_WAIT = "iterationWait";
+	// CONFIG METHODS
 
 	private Configuration config;
 
@@ -76,65 +78,64 @@ public class StreamConfig {
 		return config;
 	}
 
-	// CONFIGS
-
-	private static final String TYPE_WRAPPER_IN_1 = "typeWrapper_in_1";
-	private static final String TYPE_WRAPPER_IN_2 = "typeWrapper_in_2";
-	private static final String TYPE_WRAPPER_OUT_1 = "typeWrapper_out_1";
-	private static final String TYPE_WRAPPER_OUT_2 = "typeWrapper_out_2";
-
-	public void setTypeWrapperIn1(TypeWrapper<?> typeWrapper) {
-		setTypeWrapper(TYPE_WRAPPER_IN_1, typeWrapper);
+	public void setTypeSerializerIn1(StreamRecordSerializer<?> serializer) {
+		setTypeSerializer(TYPE_SERIALIZER_IN_1, serializer);
 	}
 
-	public void setTypeWrapperIn2(TypeWrapper<?> typeWrapper) {
-		setTypeWrapper(TYPE_WRAPPER_IN_2, typeWrapper);
+	public void setTypeSerializerIn2(StreamRecordSerializer<?> serializer) {
+		setTypeSerializer(TYPE_SERIALIZER_IN_2, serializer);
 	}
 
-	public void setTypeWrapperOut1(TypeWrapper<?> typeWrapper) {
-		setTypeWrapper(TYPE_WRAPPER_OUT_1, typeWrapper);
+	public void setTypeSerializerOut1(StreamRecordSerializer<?> serializer) {
+		setTypeSerializer(TYPE_SERIALIZER_OUT_1, serializer);
 	}
 
-	public void setTypeWrapperOut2(TypeWrapper<?> typeWrapper) {
-		setTypeWrapper(TYPE_WRAPPER_OUT_2, typeWrapper);
-	}
-
-	public <T> TypeInformation<T> getTypeInfoIn1(ClassLoader cl) {
-		return getTypeInfo(TYPE_WRAPPER_IN_1, cl);
-	}
-
-	public <T> TypeInformation<T> getTypeInfoIn2(ClassLoader cl) {
-		return getTypeInfo(TYPE_WRAPPER_IN_2, cl);
-	}
-
-	public <T> TypeInformation<T> getTypeInfoOut1(ClassLoader cl) {
-		return getTypeInfo(TYPE_WRAPPER_OUT_1, cl);
-	}
-
-	public <T> TypeInformation<T> getTypeInfoOut2(ClassLoader cl) {
-		return getTypeInfo(TYPE_WRAPPER_OUT_2, cl);
-	}
-
-	private void setTypeWrapper(String key, TypeWrapper<?> typeWrapper) {
-		config.setBytes(key, SerializationUtils.serialize(typeWrapper));
+	public void setTypeSerializerOut2(StreamRecordSerializer<?> serializer) {
+		setTypeSerializer(TYPE_SERIALIZER_OUT_2, serializer);
 	}
 
 	@SuppressWarnings("unchecked")
-	private <T> TypeInformation<T> getTypeInfo(String key, ClassLoader cl) {
-
-		TypeWrapper<T> typeWrapper;
+	public <T> StreamRecordSerializer<T> getTypeSerializerIn1(ClassLoader cl) {
 		try {
-			typeWrapper = (TypeWrapper<T>) InstantiationUtil.readObjectFromConfig(this.config, key,
-					cl);
+			return (StreamRecordSerializer<T>) InstantiationUtil.readObjectFromConfig(this.config,
+					TYPE_SERIALIZER_IN_1, cl);
 		} catch (Exception e) {
-			throw new RuntimeException("Cannot load typeinfo");
+			throw new RuntimeException("Could not instantiate serializer.");
 		}
-		if (typeWrapper != null) {
-			return typeWrapper.getTypeInfo();
-		} else {
-			return null;
-		}
+	}
 
+	@SuppressWarnings("unchecked")
+	public <T> StreamRecordSerializer<T> getTypeSerializerIn2(ClassLoader cl) {
+		try {
+			return (StreamRecordSerializer<T>) InstantiationUtil.readObjectFromConfig(this.config,
+					TYPE_SERIALIZER_IN_2, cl);
+		} catch (Exception e) {
+			throw new RuntimeException("Could not instantiate serializer.");
+		}
+	}
+
+	@SuppressWarnings("unchecked")
+	public <T> StreamRecordSerializer<T> getTypeSerializerOut1(ClassLoader cl) {
+		try {
+			return (StreamRecordSerializer<T>) InstantiationUtil.readObjectFromConfig(this.config,
+					TYPE_SERIALIZER_OUT_1, cl);
+		} catch (Exception e) {
+			throw new RuntimeException("Could not instantiate serializer.");
+		}
+	}
+
+	@SuppressWarnings("unchecked")
+	public <T> StreamRecordSerializer<T> getTypeSerializerOut2(ClassLoader cl) {
+		try {
+			return (StreamRecordSerializer<T>) InstantiationUtil.readObjectFromConfig(this.config,
+					TYPE_SERIALIZER_OUT_2, cl);
+		} catch (Exception e) {
+			throw new RuntimeException("Could not instantiate serializer.");
+		}
+	}
+
+	private void setTypeSerializer(String key, StreamRecordSerializer<?> typeWrapper) {
+		config.setBytes(key, SerializationUtils.serialize(typeWrapper));
 	}
 
 	public void setMutability(boolean isMutable) {

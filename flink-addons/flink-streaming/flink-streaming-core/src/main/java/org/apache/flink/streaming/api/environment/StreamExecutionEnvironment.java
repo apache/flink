@@ -24,22 +24,21 @@ import java.util.List;
 
 import org.apache.commons.lang3.SerializationException;
 import org.apache.commons.lang3.SerializationUtils;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.client.program.Client;
 import org.apache.flink.client.program.ContextEnvironment;
 import org.apache.flink.streaming.api.JobGraphBuilder;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
-import org.apache.flink.streaming.api.function.source.SocketTextStreamFunction;
 import org.apache.flink.streaming.api.function.source.FileSourceFunction;
 import org.apache.flink.streaming.api.function.source.FileStreamFunction;
 import org.apache.flink.streaming.api.function.source.FromElementsFunction;
 import org.apache.flink.streaming.api.function.source.GenSequenceFunction;
+import org.apache.flink.streaming.api.function.source.SocketTextStreamFunction;
 import org.apache.flink.streaming.api.function.source.SourceFunction;
 import org.apache.flink.streaming.api.invokable.SourceInvokable;
-import org.apache.flink.streaming.util.serialization.FunctionTypeWrapper;
-import org.apache.flink.streaming.util.serialization.ObjectTypeWrapper;
-import org.apache.flink.streaming.util.serialization.TypeWrapper;
 
 /**
  * {@link ExecutionEnvironment} for streaming jobs. An instance of it is
@@ -131,12 +130,14 @@ public abstract class StreamExecutionEnvironment {
 	public long getBufferTimeout() {
 		return this.bufferTimeout;
 	}
-	
+
 	/**
-	 * Sets the default parallelism that will be used for the local execution environment created by
-	 * {@link #createLocalEnvironment()}.
+	 * Sets the default parallelism that will be used for the local execution
+	 * environment created by {@link #createLocalEnvironment()}.
 	 * 
-	 * @param degreeOfParallelism The degree of parallelism to use as the default local parallelism.
+	 * @param degreeOfParallelism
+	 *            The degree of parallelism to use as the default local
+	 *            parallelism.
 	 */
 	public static void setDefaultLocalParallelism(int degreeOfParallelism) {
 		defaultLocalDop = degreeOfParallelism;
@@ -210,14 +211,14 @@ public abstract class StreamExecutionEnvironment {
 					"fromElements needs at least one element as argument");
 		}
 
-		TypeWrapper<OUT> outTypeWrapper = new ObjectTypeWrapper<OUT>(data[0]);
+		TypeInformation<OUT> outTypeInfo = TypeExtractor.getForObject(data[0]);
 		DataStreamSource<OUT> returnStream = new DataStreamSource<OUT>(this, "elements",
-				outTypeWrapper);
+				outTypeInfo);
 
 		try {
 			SourceFunction<OUT> function = new FromElementsFunction<OUT>(data);
 			jobGraphBuilder.addStreamVertex(returnStream.getId(),
-					new SourceInvokable<OUT>(function), null, outTypeWrapper, "source",
+					new SourceInvokable<OUT>(function), null, outTypeInfo, "source",
 					SerializationUtils.serialize(function), 1);
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize elements");
@@ -246,16 +247,16 @@ public abstract class StreamExecutionEnvironment {
 			throw new IllegalArgumentException("Collection must not be empty");
 		}
 
-		TypeWrapper<OUT> outTypeWrapper = new ObjectTypeWrapper<OUT>(data.iterator().next());
-		DataStreamSource<OUT> returnStream = new DataStreamSource<OUT>(this, "elements",
-				outTypeWrapper);
+		TypeInformation<OUT> outTypeInfo = TypeExtractor.getForObject(data.iterator().next());
+		DataStreamSource<OUT> returnStream = new DataStreamSource<OUT>(this, "collection",
+				outTypeInfo);
 
 		try {
 			SourceFunction<OUT> function = new FromElementsFunction<OUT>(data);
 
 			jobGraphBuilder.addStreamVertex(returnStream.getId(), new SourceInvokable<OUT>(
-					new FromElementsFunction<OUT>(data)), null, new ObjectTypeWrapper<OUT>(data
-					.iterator().next()), "source", SerializationUtils.serialize(function), 1);
+					new FromElementsFunction<OUT>(data)), null, outTypeInfo, "source",
+					SerializationUtils.serialize(function), 1);
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize collection");
 		}
@@ -271,17 +272,16 @@ public abstract class StreamExecutionEnvironment {
 	 * @param hostname
 	 *            The host name which a server socket bind.
 	 * @param port
-	 * 			  The port number which a server socket bind. A port number of
-	 * 			  0 means that the port number is automatically allocated.
+	 *            The port number which a server socket bind. A port number of 0
+	 *            means that the port number is automatically allocated.
 	 * @param delimiter
-	 * 			  A character which split received strings into records.
+	 *            A character which split received strings into records.
 	 * @return A DataStream, containing the strings received from socket.
 	 */
 	public DataStreamSource<String> socketTextStream(String hostname, int port, char delimiter) {
 		return addSource(new SocketTextStreamFunction(hostname, port, delimiter));
 	}
-	
-	
+
 	/**
 	 * Creates a new DataStream that contains the strings received infinitely
 	 * from socket. Received strings are decoded by the system's default
@@ -290,8 +290,8 @@ public abstract class StreamExecutionEnvironment {
 	 * @param hostname
 	 *            The host name which a server socket bind.
 	 * @param port
-	 * 			  The port number which a server socket bind. A port number of
-	 * 			  0 means that the port number is automatically allocated.
+	 *            The port number which a server socket bind. A port number of 0
+	 *            means that the port number is automatically allocated.
 	 * @return A DataStream, containing the strings received from socket.
 	 */
 	public DataStreamSource<String> socketTextStream(String hostname, int port) {
@@ -324,14 +324,14 @@ public abstract class StreamExecutionEnvironment {
 	 * @return the data stream constructed
 	 */
 	public <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function) {
-		TypeWrapper<OUT> outTypeWrapper = new FunctionTypeWrapper<OUT>(function,
-				SourceFunction.class, 0);
-		DataStreamSource<OUT> returnStream = new DataStreamSource<OUT>(this, "source",
-				outTypeWrapper);
+		TypeInformation<OUT> outTypeInfo = TypeExtractor.createTypeInfo(SourceFunction.class,
+				function.getClass(), 0, null, null);
+
+		DataStreamSource<OUT> returnStream = new DataStreamSource<OUT>(this, "source", outTypeInfo);
 
 		try {
 			jobGraphBuilder.addStreamVertex(returnStream.getId(),
-					new SourceInvokable<OUT>(function), null, outTypeWrapper, "source",
+					new SourceInvokable<OUT>(function), null, outTypeInfo, "source",
 					SerializationUtils.serialize(function), 1);
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize SourceFunction");

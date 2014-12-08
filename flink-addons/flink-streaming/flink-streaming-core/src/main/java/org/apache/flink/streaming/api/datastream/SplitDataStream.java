@@ -44,7 +44,7 @@ public class SplitDataStream<OUT> {
 	 * @return The output type.
 	 */
 	public TypeInformation<OUT> getOutputType() {
-		return dataStream.getOutputType();
+		return dataStream.getType();
 	}
 	
 	/**

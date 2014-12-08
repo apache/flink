@@ -17,8 +17,8 @@
 
 package org.apache.flink.streaming.api.datastream;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.util.serialization.TypeWrapper;
 
 /**
  * Represents the end of a DataStream.
@@ -28,8 +28,9 @@ import org.apache.flink.streaming.util.serialization.TypeWrapper;
  */
 public class DataStreamSink<IN> extends SingleOutputStreamOperator<IN, DataStreamSink<IN>> {
 
-	protected DataStreamSink(StreamExecutionEnvironment environment, String operatorType, TypeWrapper<IN> outTypeWrapper) {
-		super(environment, operatorType, outTypeWrapper);
+	protected DataStreamSink(StreamExecutionEnvironment environment, String operatorType,
+			TypeInformation<IN> outTypeInfo) {
+		super(environment, operatorType, outTypeInfo);
 	}
 
 	protected DataStreamSink(DataStream<IN> dataStream) {
