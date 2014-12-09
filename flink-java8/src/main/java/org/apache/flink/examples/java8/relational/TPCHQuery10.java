@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.example.java8.relational;
+package org.apache.flink.examples.java8.relational;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
