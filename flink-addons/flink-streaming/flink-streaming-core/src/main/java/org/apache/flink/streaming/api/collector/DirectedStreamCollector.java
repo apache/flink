@@ -17,9 +17,8 @@
 
 package org.apache.flink.streaming.api.collector;
 
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
@@ -61,7 +60,7 @@ public class DirectedStreamCollector<OUT> extends StreamCollector<OUT> {
 		super(channelID, serializationDelegate);
 		this.outputSelector = outputSelector;
 		this.emitted = new HashSet<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>>();
-		this.selectAllOutputs = new ArrayList<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>>();
+		this.selectAllOutputs = new LinkedList<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>>();
 	}
 
 	@Override
@@ -81,19 +80,25 @@ public class DirectedStreamCollector<OUT> extends StreamCollector<OUT> {
 	 *
 	 */
 	protected void emitToOutputs() {
-		Collection<String> outputNames = outputSelector.getOutputs(streamRecord.getObject());
+		Iterable<String> outputNames = outputSelector.select(streamRecord.getObject());
 		emitted.clear();
+
+		for (RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output : selectAllOutputs) {
+			try {
+				output.emit(serializationDelegate);
+			} catch (Exception e) {
+				if (LOG.isErrorEnabled()) {
+					LOG.error("Emit to {} failed due to: {}", output,
+							StringUtils.stringifyException(e));
+				}
+			}
+		}
+		emitted.addAll(selectAllOutputs);
+
 		for (String outputName : outputNames) {
 			List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> outputList = outputMap
 					.get(outputName);
 			try {
-				for (RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output : selectAllOutputs) {
-					if (!emitted.contains(output)) {
-						output.emit(serializationDelegate);
-						emitted.add(output);
-					}
-				}
-
 				if (outputList == null) {
 					if (LOG.isErrorEnabled()) {
 						String format = String.format(

@@ -459,36 +459,52 @@ The Reduce operator for the `ConnectedDataStream` applies a simple reduce transf
 
 ### Output splitting
 
-Most data stream operators support directed outputs, meaning that different data elements are received by only given outputs. The outputs are referenced by their name given at the point of receiving:
+Most data stream operators support directed outputs (output splitting), meaning that different output elements are sent only to specific outputs. The outputs are referenced by their name given at the point of receiving:
 
 ~~~java
 SplitDataStream<Integer> split = someDataStream.split(outputSelector);
-DataStream<Integer> even = split.select("even");
+DataStream<Integer> even = split.select("even”);
 DataStream<Integer> odd = split.select("odd");
 ~~~
 
-Data streams only receive the elements directed to selected output names. These outputs are directed by implementing a selector function (extending `OutputSelector`):
+In the above example the data stream named ‘even’ will only contain elements that are directed to the output named “even”. The user can of course further transform these new stream by for example squaring only the even elements.
+
+Data streams only receive the elements directed to selected output names. The user can also select multiple output names by `splitStream.select(“output1”, “output2”…)`. It is common that a stream listens to all the outputs, so `split.selectAll()` provides this functionality without having to select all names.
+
+The outputs of an operator are directed by implementing a selector function (implementing the `OutputSelector` interface):
 
 ~~~java
-void select(OUT value, Collection<String> outputs);
+Iterable<String> select(OUT value);
 ~~~
 
-The data is sent to all the outputs added to the collection outputs (referenced by their name). This way the direction of the outputs can be determined by the value of the data sent. For example:
+The data is sent to all the outputs returned in the iterable (referenced by their name). This way the direction of the outputs can be determined by the value of the data sent. 
+
+For example to split even and odd numbers:
 
 ~~~java
 @Override
-void select(Integer value, Collection<String> outputs) {
+Iterable<String> select(Integer value) {	
+
+    List<String> outputs = new ArrayList<String>();
+
     if (value % 2 == 0) {
         outputs.add("even");
     } else {
         outputs.add("odd");
     }
+
+    return outputs;
 }
 ~~~
 
-This output selection allows data streams to listen to multiple outputs, and data points to be sent to multiple outputs. A value is sent to all the outputs specified in the `OutputSelector` and a data stream will receive a value if it has selected any of the outputs the value is sent to. The stream will receive the data at most once.
-It is common that a stream listens to all the outputs, so `split.selectAll()` is provided as an alias for explicitly selecting all output names.
+Or more compactly we can use lambda expressions in Java 8:
 
+~~~java
+SplitDataStream<Integer> split = someDataStream
+					.split(x -> Arrays.asList(String.valueOf(x % 2)));
+~~~
+
+Every output will be emitted to the selected outputs exactly once, even if you add the same output names more than once.
 
 ### Iterations
 The Flink Streaming API supports implementing iterative stream processing dataflows similarly to the core Flink API. Iterative streaming programs also implement a step function and embed it into an `IterativeDataStream`.
