@@ -16,14 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.example.java8.wordcount;
+package org.apache.flink.examples.java8.wordcount;
 
 import java.util.Arrays;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.example.java8.wordcount.util.WordCountData;
+import org.apache.flink.examples.java.wordcount.util.WordCountData;
 import org.apache.flink.util.Collector;
 
 /**
