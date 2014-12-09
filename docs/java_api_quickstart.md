@@ -128,7 +128,7 @@ public class WordCount {
 The operations are defined by specialized classes, here the LineSplitter class.
 
 ~~~java
-public class LineSplitter extends FlatMapFunction<String, Tuple2<String, Integer>> {
+public class LineSplitter implements FlatMapFunction<String, Tuple2<String, Integer>> {
 
   @Override
   public void flatMap(String value, Collector<Tuple2<String, Integer>> out) {
