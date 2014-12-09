@@ -127,7 +127,7 @@ public class JobGraphBuilder {
 	 * @param inTypeInfo
 	 *            Input type for serialization
 	 * @param outTypeInfo
-	 *            Output typ for serialization
+	 *            Output type for serialization
 	 * @param operatorName
 	 *            Operator type
 	 * @param serializedFunction

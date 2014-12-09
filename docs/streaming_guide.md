@@ -366,15 +366,19 @@ Calling the `.groupBy(fields)` method on a windowed stream groups the elements b
 The user can also create windows and triggers on a per group basis calling `.window(…).every(…)` on an already grouped data stream. To highlight the differences let us look at to examples.
 
 To get the maximal value by key on the last 100 elements we use the first approach:
+
 ~~~java
 dataStream.window(Count.of(100)).every(…).groupBy(groupingField).max(field);
 ~~~
+
 Using this approach we took the last 100 elements, divided it into groups by key then applied the aggregation.
 
 To create fixed size windows for every key we need to reverse the order of the groupBy call. So to take the max for the last 100 elements in Each group:
+
 ~~~java
 dataStream.groupBy(groupingField).window(Count.of(100)).every(…).max(field);
 ~~~
+
 This will create separate windows for different keys and apply the trigger and eviction policies on a per group basis.
 
 ### Temporal database style operators
@@ -451,7 +455,7 @@ dataStream1.connect(dataStream2)
         })
 ~~~
 
-#### windowReduce on ConnectedDataStream
+#### WindowReduce on ConnectedDataStream
 The windowReduce operator applies a user defined `CoWindowFunction` to time aligned windows of the two data streams and return zero or more elements of an arbitrary type. The user can define the window and slide intervals and can also implement custom timestamps to be used for calculating windows.
 
 #### Reduce on ConnectedDataStream
@@ -495,13 +499,6 @@ Iterable<String> select(Integer value) {
 
     return outputs;
 }
-~~~
-
-Or more compactly we can use lambda expressions in Java 8:
-
-~~~java
-SplitDataStream<Integer> split = someDataStream
-					.split(x -> Arrays.asList(String.valueOf(x % 2)));
 ~~~
 
 Every output will be emitted to the selected outputs exactly once, even if you add the same output names more than once.
@@ -549,6 +546,46 @@ Rich functions provide, in addition to the user-defined function (`map()`, `redu
 
 [Back to top](#top)
 
+### Lambda expressions with Java 8
+
+For a more consice code one can rely on one of the main feautere of Java 8, lambda expressions. The following program has similar functionality to the one provided in the [example](#example-program) section, while showcasing the usage of lambda expressions.
+
+~~~java
+public class StreamingWordCount {
+    public static void main(String[] args) throws Exception {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+	    DataStream<String> text = env.fromElements(
+                "Who's there?",
+                "I think I hear them. Stand, ho! Who's there?");
+
+            DataStream<Tuple2<String, Integer>> counts = 
+		// normalize and split each line
+		text.map(line -> line.toLowerCase().split("\\W+"))
+		// convert splitted line in pairs (2-tuples) containing: (word,1)
+		.flatMap((String[] tokens, Collector<Tuple2<String, Integer>> out) -> {
+		// emit the pairs with non-zero-length words
+			Arrays.stream(tokens)
+				.filter(t -> t.length() > 0)
+				.forEach(t -> out.collect(new Tuple2<>(t, 1)));
+		})
+		// group by the tuple field "0" and sum up tuple field "1"
+		.groupBy(0)
+		.sum(1);
+
+        counts.print();
+
+        env.execute("Streaming WordCount");
+    }
+}
+~~~
+
+For a detailed Java 8 Guide please refer to the [Java 8 Programming Guide](java8_programming_guide.html). Operators specific to streaming, such as Operator splitting also support this usage. [Output splitting](#output-splitting) can be rewritten as follows:
+
+~~~java
+SplitDataStream<Integer> split = someDataStream
+					.split(x -> Arrays.asList(String.valueOf(x % 2)));
+~~~
 
 Operator Settings
 ----------------
