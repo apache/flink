@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.examples.iteration;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Random;
 
@@ -79,8 +78,8 @@ public class IterateExample {
 
 		// apply the step function to add new random value to the tuple and to
 		// increment the counter and split the output with the output selector
-		SplitDataStream<Tuple2<Double, Integer>> step = it.map(new Step()).shuffle().setBufferTimeout(1)
-				.split(new MySelector());
+		SplitDataStream<Tuple2<Double, Integer>> step = it.map(new Step()).shuffle()
+				.setBufferTimeout(1).split(new MySelector());
 
 		// close the iteration by selecting the tuples that were directed to the
 		// 'iterate' channel in the output selector
@@ -129,16 +128,18 @@ public class IterateExample {
 	/**
 	 * OutputSelector testing which tuple needs to be iterated again.
 	 */
-	public static class MySelector extends OutputSelector<Tuple2<Double, Integer>> {
+	public static class MySelector implements OutputSelector<Tuple2<Double, Integer>> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void select(Tuple2<Double, Integer> value, Collection<String> outputs) {
+		public Iterable<String> select(Tuple2<Double, Integer> value) {
+			List<String> output = new ArrayList<String>();
 			if (value.f0 > 100) {
-				outputs.add("output");
+				output.add("output");
 			} else {
-				outputs.add("iterate");
+				output.add("iterate");
 			}
+			return output;
 		}
 
 	}

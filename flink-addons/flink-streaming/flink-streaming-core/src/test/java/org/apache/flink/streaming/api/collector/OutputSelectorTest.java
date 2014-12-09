@@ -20,7 +20,7 @@ package org.apache.flink.streaming.api.collector;
 import static org.junit.Assert.assertEquals;
 
 import java.util.ArrayList;
-import java.util.Collection;
+import java.util.Arrays;
 import java.util.List;
 
 import org.apache.flink.api.java.tuple.Tuple1;
@@ -28,15 +28,19 @@ import org.junit.Test;
 
 public class OutputSelectorTest {
 
-	static final class MyOutputSelector extends OutputSelector<Tuple1<Integer>> {
+	static final class MyOutputSelector implements OutputSelector<Tuple1<Integer>> {
 
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public void select(Tuple1<Integer> tuple, Collection<String> outputs) {
+		public Iterable<String> select(Tuple1<Integer> tuple) {
+
+			String[] outputs = new String[tuple.f0];
+
 			for (Integer i = 0; i < tuple.f0; i++) {
-				outputs.add(i.toString());
+				outputs[i] = i.toString();
 			}
+			return Arrays.asList(outputs);
 		}
 	}
 
@@ -46,9 +50,9 @@ public class OutputSelectorTest {
 		List<String> expectedOutputs = new ArrayList<String>();
 		expectedOutputs.add("0");
 		expectedOutputs.add("1");
-		assertEquals(expectedOutputs, selector.getOutputs(new Tuple1<Integer>(2)));
+		assertEquals(expectedOutputs, selector.select(new Tuple1<Integer>(2)));
 		expectedOutputs.add("2");
-		assertEquals(expectedOutputs, selector.getOutputs(new Tuple1<Integer>(3)));
+		assertEquals(expectedOutputs, selector.select(new Tuple1<Integer>(3)));
 	}
 
 }
