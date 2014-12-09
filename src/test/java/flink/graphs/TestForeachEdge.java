@@ -70,14 +70,14 @@ public class TestForeachEdge extends JavaProgramTestBase {
 		         */
 				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env), 
-						TestGraphUtils.getLongLongEdgeData(env));
+						TestGraphUtils.getLongLongEdgeData(env), env);
 				
 				DataSet<Tuple2<Long, Long>> verticesWithLowestOutNeighbor = 
-						graph.foreachEdge(new OutEdgesFunction<Long, Long, Long, Tuple2<Long, Long>>() {
+						graph.foreachEdge(new OutEdgesFunction<Long, Long, Long, Long>() {
 
 					public Tuple2<Long, Long> iterateOutEdges(
-							Tuple2<Long, Long> v,
-							Iterable<Tuple3<Long, Long, Long>> outEdges) {
+							Vertex<Long, Long> v,
+							Iterable<Edge<Long, Long>> outEdges) {
 						
 						long weight = Long.MAX_VALUE;
 						long minNeighorId = 0;
@@ -91,8 +91,13 @@ public class TestForeachEdge extends JavaProgramTestBase {
 						return new Tuple2<Long, Long>(v.f0, minNeighorId);
 					}
 				});
+				verticesWithLowestOutNeighbor.writeAsCsv(resultPath);
 				env.execute();
-				return "something";
+				return "1,2\n" +
+						"2,3\n" + 
+						"3,4\n" +
+						"4,5\n" + 
+						"5,1\n";
 			}
 			default: 
 				throw new IllegalArgumentException("Invalid program id");

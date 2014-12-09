@@ -326,11 +326,11 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	
 	/**
 	 * Utility function that allows each vertex of the graph
-	 * to access its out-neighbors
+	 * to access its out-edges
 	 * @param edgesFunction the function to apply to the neighborhood
-	 * @return
+	 * @return a dataset of a Tuple2 with the vertex id and the computed value
 	 */
-	public <T> DataSet<T> foreachEdge(OutEdgesFunction<K, VV, EV, T> edgesFunction) {
+	public <T> DataSet<Tuple2<K, T>> foreachEdge(OutEdgesFunction<K, VV, EV, T> edgesFunction) {
 		return vertices.coGroup(edges).where(0).equalTo(0).with(
 				new ApplyCoGroupFunction<K, VV, EV, T>(edgesFunction));
 	}
@@ -344,23 +344,23 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	 */
 	private static final class ApplyCoGroupFunction<K extends Comparable<K> & Serializable, 
 		VV extends Serializable, EV extends Serializable, T> 
-		implements CoGroupFunction<Tuple2<K, VV>, Tuple3<K, K, EV>, T>,
-		ResultTypeQueryable<T> {
+		implements CoGroupFunction<Vertex<K, VV>, Edge<K, EV>, Tuple2<K, T>>,
+		ResultTypeQueryable<Tuple2<K, T>> {
 		
 		private OutEdgesFunction<K, VV, EV, T> function;
 		
 		public ApplyCoGroupFunction (OutEdgesFunction<K, VV, EV, T> fun) {
 			this.function = fun;
 		}
-		public void coGroup(Iterable<Tuple2<K, VV>> vertex,
-				Iterable<Tuple3<K, K, EV>> outEdges, Collector<T> out) throws Exception {
+		public void coGroup(Iterable<Vertex<K, VV>> vertex,
+				Iterable<Edge<K, EV>> outEdges, Collector<Tuple2<K, T>> out) throws Exception {
 			out.collect(function.iterateOutEdges(vertex.iterator().next(), outEdges));
 		}
 		@Override
-		public TypeInformation<T> getProducedType() {
-			// TODO Auto-generated method stub
-			return null;
-		}		
+		public TypeInformation<Tuple2<K, T>> getProducedType() {
+			return new TupleTypeInfo<Tuple2<K, T>>(keyType, 
+					TypeExtractor.createTypeInfo(OutEdgesFunction.class, function.getClass(), 3, null, null));
+		}
 	}
 
 	@ConstantFields("0->1;1->0;2->2")
