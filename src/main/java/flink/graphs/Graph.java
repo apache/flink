@@ -85,6 +85,15 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		Graph.edgeValueType = ((TupleTypeInfo<?>) edges.getType()).getTypeAt(2);
 	}
 
+	/**
+	 * Function that checks whether a graph's ids are valid
+	 * @return
+ 	 */
+	public DataSet<Boolean> validate(GraphValidator<K, VV, EV> validator) {
+
+		return validator.validate(this);
+	}
+
 	public DataSet<Vertex<K, VV>> getVertices() {
 		return vertices;
 	}
