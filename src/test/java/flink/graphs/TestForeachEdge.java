@@ -8,7 +8,6 @@ import java.util.LinkedList;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.junit.runner.RunWith;
@@ -82,13 +81,13 @@ public class TestForeachEdge extends JavaProgramTestBase {
 						long weight = Long.MAX_VALUE;
 						long minNeighorId = 0;
 						
-						for (Tuple3<Long, Long, Long> edge: outEdges) {
-							if (edge.f2 < weight) {
-								weight = edge.f2;
-								minNeighorId = edge.f1;
+						for (Edge<Long, Long> edge: outEdges) {
+							if (edge.getValue() < weight) {
+								weight = edge.getValue();
+								minNeighorId = edge.getTarget();
 							}
 						}
-						return new Tuple2<Long, Long>(v.f0, minNeighorId);
+						return new Tuple2<Long, Long>(v.getId(), minNeighorId);
 					}
 				});
 				verticesWithLowestOutNeighbor.writeAsCsv(resultPath);
