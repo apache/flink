@@ -88,11 +88,10 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	/**
 	 * Function that checks whether a graph's ids are valid
 	 * @return
-	 */
-	public <K extends Comparable<K> & Serializable, VV extends Serializable, EV extends Serializable> DataSet<Boolean>
-	validate(GraphValidator<K, VV, EV> validator) throws Exception {
+ 	 */
+	public DataSet<Boolean> validate(GraphValidator<K, VV, EV> validator) {
 
-		return validator.validate((Graph<K, VV, EV>) this);
+		return validator.validate(this);
 	}
 
 	public DataSet<Vertex<K, VV>> getVertices() {

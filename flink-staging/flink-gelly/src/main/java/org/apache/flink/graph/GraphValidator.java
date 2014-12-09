@@ -9,9 +9,10 @@ import org.apache.flink.api.java.DataSet;
  * @param <VV>
  * @param <EV>
  */
+@SuppressWarnings("serial")
 public abstract class GraphValidator<K extends Comparable<K> & Serializable, VV extends Serializable,
         EV extends Serializable> implements Serializable{
 
-    public abstract DataSet<Boolean> validate(Graph<K, VV, EV> graph) throws Exception;
+    public abstract DataSet<Boolean> validate(Graph<K, VV, EV> graph);
 
 }

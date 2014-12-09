@@ -10,6 +10,7 @@ import org.apache.flink.util.Collector;
 
 import java.io.Serializable;
 
+@SuppressWarnings("serial")
 public class InvalidVertexIdsValidator<K extends Comparable<K> & Serializable, VV extends Serializable,
         EV extends Serializable> extends  GraphValidator<K, VV, EV> {
 
@@ -20,12 +21,12 @@ public class InvalidVertexIdsValidator<K extends Comparable<K> & Serializable, V
      * with respect to its vertex ids.
      */
     @Override
-    public DataSet<Boolean> validate(Graph<K, VV, EV> graph) throws Exception {
+    public DataSet<Boolean> validate(Graph<K, VV, EV> graph) {
         DataSet<Tuple1<K>> edgeIds = graph.getEdges().flatMap(new MapEdgeIds<K, EV>()).distinct();
         DataSet<K> invalidIds = graph.getVertices().coGroup(edgeIds).where(0).equalTo(0)
                 .with(new GroupInvalidIds<K, VV>()).first(1);
 
-        return GraphUtils.count(invalidIds.map(new KToTupleMap()), ExecutionEnvironment.getExecutionEnvironment())
+        return GraphUtils.count(invalidIds.map(new KToTupleMap<K>()), ExecutionEnvironment.getExecutionEnvironment())
                 .map(new InvalidIdsMap());
     }
 
