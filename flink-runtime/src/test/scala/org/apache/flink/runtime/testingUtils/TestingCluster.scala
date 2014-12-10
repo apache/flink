@@ -37,14 +37,6 @@ class TestingCluster(userConfiguration: Configuration) extends FlinkMiniCluster(
     cfg
   }
 
-  override def getJobManagerAkkaConfigString(): String = {
-    super.getJobManagerAkkaConfigString() + TestingUtils.getTestingSerializationBindings
-  }
-
-  override def getTaskManagerAkkaConfigString(index: Int): String = {
-    super.getTaskManagerAkkaConfigString(index) + TestingUtils.getTestingSerializationBindings
-  }
-
   override def startJobManager(implicit system: ActorSystem) = {
     system.actorOf(Props(new JobManager(configuration) with TestingJobManager),
       JobManager.JOB_MANAGER_NAME)

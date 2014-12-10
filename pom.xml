@@ -81,7 +81,7 @@ under the License.
 		<slf4j.version>1.7.7</slf4j.version>
 		<guava.version>17.0</guava.version>
 		<scala.version>2.10.4</scala.version>
-		<akka.version>2.3.6</akka.version>
+		<akka.version>2.3.7</akka.version>
 		<scala.binary.version>2.10</scala.binary.version>
 		<scala.macros.version>2.0.1</scala.macros.version>
 	</properties>
@@ -644,11 +644,11 @@ under the License.
 						<exclude>**/resources/**/font-awesome/**</exclude>
 						<exclude>**/resources/**/jquery*</exclude>
 						<exclude>**/resources/**/bootstrap*</exclude>
-						<exclude>flink-clients/resources/web-docs/js/*d3.js</exclude>
-						<exclude>flink-runtime/resources/web-docs-infoserver/css/sb-admin.css</exclude>
-						<exclude>flink-runtime/resources/web-docs-infoserver/js/flot/*</exclude>
-						<exclude>flink-runtime/resources/web-docs-infoserver/js/jcanvas.min.js</exclude>
-						<exclude>flink-runtime/resources/web-docs-infoserver/js/timeline.js</exclude>
+						<exclude>flink-clients/src/main/resources/web-docs/js/*d3.js</exclude>
+						<exclude>flink-runtime/src/main/resources/web-docs-infoserver/css/sb-admin.css</exclude>
+						<exclude>flink-runtime/src/main/resources/web-docs-infoserver/js/flot/*</exclude>
+						<exclude>flink-runtime/src/main/resources/web-docs-infoserver/js/jcanvas.min.js</exclude>
+						<exclude>flink-runtime/src/main/resources/web-docs-infoserver/js/timeline.js</exclude>
 						<!-- Test Data. -->
 						<exclude>flink-tests/src/test/resources/testdata/terainput.txt</exclude>
 						<exclude>flink-addons/flink-avro/src/test/resources/avro/user.avsc</exclude>

@@ -92,7 +92,7 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
 
   instanceManager.addInstanceListener(scheduler)
 
-  log.info(s"Started job manager. Waiting for incoming messages.")
+  log.info("Started job manager. Waiting for incoming messages.")
 
   override def postStop(): Unit = {
     log.info(s"Stopping job manager ${self.path}.")
@@ -128,7 +128,7 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
             " null."))
         } else {
 
-          log.info(s"Received job ${jobGraph.getJobID} (${jobGraph.getName}}).")
+          log.info(s"Received job ${jobGraph.getJobID} (${jobGraph.getName}).")
 
           // Create the user code class loader
           libraryCacheManager.registerJob(jobGraph.getJobID, jobGraph.getUserJarBlobKeys)
@@ -153,8 +153,10 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
             throw new JobException("The user code class loader could not be initialized.")
           }
 
-          log.debug(s"Running master initialization of job ${jobGraph.getJobID} (${jobGraph
-            .getName}).")
+          if(log.isDebugEnabled) {
+            log.debug(s"Running master initialization of job ${jobGraph.getJobID} (${jobGraph
+              .getName}}).")
+          }
 
           for (vertex <- jobGraph.getVertices) {
             val executableClass = vertex.getInvokableClassName
@@ -169,13 +171,17 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
           // topological sorting of the job vertices
           val sortedTopology = jobGraph.getVerticesSortedTopologicallyFromSources
 
-          log.debug(s"Adding ${sortedTopology.size()} vertices from job graph ${jobGraph
-            .getJobID} (${jobGraph.getName}).")
+          if(log.isDebugEnabled) {
+            log.debug(s"Adding ${sortedTopology.size()} vertices from job graph ${jobGraph
+              .getJobID} (${jobGraph.getName}).")
+          }
 
           executionGraph.attachJobGraph(sortedTopology)
 
-          log.debug(s"Successfully created execution graph from job graph ${jobGraph.getJobID} " +
-            s"(${jobGraph.getName}).")
+          if(log.isDebugEnabled) {
+            log.debug(s"Successfully created execution graph from job graph ${jobGraph.getJobID} " +
+              s"(${jobGraph.getName}).")
+          }
 
           executionGraph.setQueuedSchedulingAllowed(jobGraph.getAllowQueuedScheduling)
 
@@ -261,7 +267,7 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
           val execution = executionGraph.getRegisteredExecutions().get(executionAttempt)
 
           if(execution == null){
-            log.error("Can not find Execution for attempt " + executionAttempt)
+            log.error(s"Can not find Execution for attempt ${executionAttempt}.")
             null
           }else{
             val slot = execution.getAssignedResource
@@ -289,7 +295,9 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
           null
       }
 
-      log.debug("Send next input split {}.", nextInputSplit)
+      if(log.isDebugEnabled) {
+        log.debug(s"Send next input split ${nextInputSplit}.")
+      }
       sender() ! NextInputSplit(nextInputSplit)
     }
 
@@ -297,7 +305,7 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
       currentJobs.get(jobID) match {
         case Some((executionGraph, jobInfo)) => executionGraph.getJobName
           log.info(s"Status of job ${jobID} (${executionGraph.getJobName}) changed to " +
-            s"${newJobStatus}${optionalMessage}.")
+            s"${newJobStatus}${if(optionalMessage == null) "" else optionalMessage}.")
 
           if(newJobStatus.isTerminalState) {
             jobInfo.end = timeStamp

@@ -311,7 +311,9 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
               libraryCacheManager.unregisterTask(jobID, executionID)
             } catch {
               case ioe: IOException =>
-                log.debug(s"Unregistering the execution ${executionID} caused an IOException.")
+                if(log.isDebugEnabled) {
+                  log.debug(s"Unregistering the execution ${executionID} caused an IOException.")
+                }
             }
           }
 
@@ -326,11 +328,17 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
 
     case LogMemoryUsage => {
       memoryMXBean foreach {
-        mxbean => log.debug(TaskManager.getMemoryUsageStatsAsString(mxbean))
+        mxbean =>
+            if(log.isDebugEnabled) {
+              log.debug(TaskManager.getMemoryUsageStatsAsString(mxbean))
+            }
       }
 
       gcMXBeans foreach {
-        mxbeans => log.debug(TaskManager.getGarbageCollectorStatsAsString(mxbeans))
+        mxbeans =>
+            if(log.isDebugEnabled) {
+              log.debug(TaskManager.getGarbageCollectorStatsAsString(mxbeans))
+            }
       }
     }
 

@@ -52,10 +52,6 @@ LocalFlinkMiniCluster(userConfiguration) {
     super.generateConfiguration(config)
   }
 
-  override def getTaskManagerAkkaConfigString(index: Int): String = {
-    super.getTaskManagerAkkaConfigString(index) + TestingUtils.getTestingSerializationBindings
-  }
-
   override def startTaskManager(index: Int)(implicit system: ActorSystem): ActorRef = {
     val config = configuration.clone()
 

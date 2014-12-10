@@ -113,7 +113,13 @@ object AkkaUtils {
          |
          |  actor{
          |    default-dispatcher{
+         |      executor = "default-executor"
+         |
          |      throughput = ${akkaThroughput}
+         |
+         |      fork-join-executor {
+         |        parallelism-factor = 2.0
+         |      }
          |    }
          |  }
          |

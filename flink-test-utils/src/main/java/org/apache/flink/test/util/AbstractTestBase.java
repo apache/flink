@@ -102,6 +102,7 @@ public abstract class AbstractTestBase {
 		config.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, TASK_MANAGER_MEMORY_SIZE);
 		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, taskManagerNumSlots);
 		config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, numTaskManagers);
+		config.setInteger(ConfigConstants.AKKA_ASK_TIMEOUT, 1000000);
 		this.executor = new ForkableFlinkMiniCluster(config);
 	}
 
