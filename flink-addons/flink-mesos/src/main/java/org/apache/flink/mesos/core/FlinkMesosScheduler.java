@@ -18,6 +18,7 @@
 
 package org.apache.flink.mesos.core;
 
+import com.google.common.collect.Maps;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.mesos.utility.MesosConfiguration;
 import org.apache.flink.mesos.utility.MesosConstants;
@@ -27,6 +28,8 @@ import org.apache.mesos.Scheduler;
 import org.apache.mesos.SchedulerDriver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.lang.reflect.Array;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
@@ -53,9 +56,11 @@ public class FlinkMesosScheduler implements Scheduler {
 
 	private final MesosConfiguration config;
 	private final HashMap<Protos.SlaveID, Protos.TaskInfo> taskManagers = new HashMap<Protos.SlaveID, Protos.TaskInfo>();
+	private final HashMap<Protos.OfferID, Protos.Offer> currentOffers = new HashMap<Protos.OfferID, Protos.Offer>();
 
 	private Protos.Offer jobManagerOffer = null;
 	private Protos.TaskInfo jobManager = null;
+
 
 	public FlinkMesosScheduler(MesosConfiguration config) {
 		LOG.debug("Scheduler launched");
@@ -65,9 +70,9 @@ public class FlinkMesosScheduler implements Scheduler {
 
 	private void printOffers(List<Protos.Offer> offers) {
 		for (Protos.Offer offer: offers) {
-			LOG.debug("-----Got offer from " + offer.getSlaveId().getValue() + "-----");
+			LOG.info("-----Got offer from " + offer.getSlaveId().getValue() + "-----");
 			for (Protos.Resource resource: offer.getResourcesList()) {
-				LOG.debug(resource.getName() + " = " + resource.getScalar().getValue());
+				LOG.info(resource.getName() + " = " + resource.getScalar().getValue());
 			}
 		}
 	}
@@ -81,7 +86,6 @@ public class FlinkMesosScheduler implements Scheduler {
 	private boolean resourcesMet(Protos.Offer offer, List<Protos.Resource> required) {
 		Protos.Resource newcpus = null;
 		Protos.Resource oldcpus = null;
-
 		/*
 		If a taskmanager core number is specified in the configuration, it is considered a maximum limit. All available offers with lower cpu
 		cores available will also be accepted.
@@ -113,10 +117,12 @@ public class FlinkMesosScheduler implements Scheduler {
 	 * @param offer The offer of the task.
 	 * @param resources The resources the task has.
 	 */
-	private void logLaunchInfo(String name, Protos.Offer offer, List<Protos.Resource> resources) {
+	private void logLaunchInfo(String name, Protos.Offer offer, List<Protos.Resource> resources, Protos.TaskInfo task) {
 		LOG.info("---- Launching Flink " + name + "----");
 		LOG.info("Hostname: " + offer.getHostname());
+		LOG.info("Offer: " + offer.getId());
 		LOG.info("SlaveID: " + offer.getSlaveId().getValue());
+		LOG.info("TaskID: " + task.getTaskId());
 		for (Protos.Resource resource: resources) {
 			LOG.info(resource.getName() + ": " + resource.getScalar().getValue());
 		}
@@ -150,10 +156,11 @@ public class FlinkMesosScheduler implements Scheduler {
 		 */
 		String flinkJMCommand = "java " + "-Xmx" + MesosUtils.calculateMemory(memory) + "M -cp " + config.getString(MesosConstants.MESOS_UBERJAR_LOCATION, ".") + " org.apache.flink.mesos.executors.FlinkJMExecutor";
 		Protos.ExecutorInfo jobManagerExecutor = MesosUtils.createExecutorInfo("jm", "Jobmanager Executor", flinkJMCommand, this.config);
+		Protos.TaskInfo result = MesosUtils.createTaskInfo("jobmanager", resources, jobManagerExecutor, offer.getSlaveId(), Protos.TaskID.newBuilder().setValue("jm_task-" + jobManagerExecutor.hashCode()).build());
 
-		logLaunchInfo("Jobmanager", offer, resources);
+		logLaunchInfo("Jobmanager", offer, resources, result);
 
-		return MesosUtils.createTaskInfo("jobmanager", resources, jobManagerExecutor, offer.getSlaveId(), Protos.TaskID.newBuilder().setValue("jm_task-" + jobManagerExecutor.hashCode()).build());
+		return result;
 	}
 
 	/**
@@ -172,10 +179,9 @@ public class FlinkMesosScheduler implements Scheduler {
 		//analog to the command in createJobManagerTask()
 		String flinkTMCommand = "java " + "-Xmx" + MesosUtils.calculateMemory(memory) + "M -cp " + config.getString(MesosConstants.MESOS_UBERJAR_LOCATION, ".") + " org.apache.flink.mesos.executors.FlinkTMExecutor";
 		Protos.ExecutorInfo taskManagerExecutor = MesosUtils.createExecutorInfo("tm", "Taskmanager Executor", flinkTMCommand, this.config);
-
-		logLaunchInfo("Taskmanager", offer, resources);
-
-		return MesosUtils.createTaskInfo("taskmanager", resources, taskManagerExecutor, offer.getSlaveId(), Protos.TaskID.newBuilder().setValue("tm_task-" + taskManagerExecutor.hashCode()).build());
+		Protos.TaskInfo result = MesosUtils.createTaskInfo("taskmanager", resources, taskManagerExecutor, offer.getSlaveId(), Protos.TaskID.newBuilder().setValue("tm_task-" + taskManagerExecutor.hashCode()).build());
+		logLaunchInfo("Taskmanager", offer, resources, result);
+		return result;
 	}
 
 	@Override
@@ -194,11 +200,17 @@ public class FlinkMesosScheduler implements Scheduler {
 
 	}
 
+	private void refreshOffers(List<Protos.Offer> offers) {
+		for (Protos.Offer offer: offers) {
+			this.currentOffers.put(offer.getId(), offer);
+		}
+	}
 
 	@Override
 	public void resourceOffers(SchedulerDriver schedulerDriver, List<Protos.Offer> offers) {
 		Integer maxTaskManagers = config.getInteger(MesosConstants.MESOS_MAX_TM_INSTANCES, Integer.MAX_VALUE);
-		printOffers(offers);
+		refreshOffers(offers);
+		//printOffers(offers);
 
 		/*
 		Tasks contains the tasks that are to be executed and offerIDs the corresponding offer.
@@ -224,7 +236,7 @@ public class FlinkMesosScheduler implements Scheduler {
 					jobManagerOffer = offer;
 					offerIDs.add(offer.getId());
 				}
-			} else if (!taskManagers.containsKey(offer.getSlaveId()) && taskManagers.size() < maxTaskManagers) { //needs to be changed if no taskmanager should be started on a jobmanager node, useful for testing
+			} else if (!offer.getSlaveId().equals(jobManager.getSlaveId()) && !taskManagers.containsKey(offer.getSlaveId()) && taskManagers.size() < maxTaskManagers) { //needs to be changed if no taskmanager should be started on a jobmanager node, useful for testing
 
 				List<Protos.Resource> required = new ArrayList<Protos.Resource>();
 				required.add(MesosUtils.createResourceScalar(MESOS_CPU, this.config.getDouble(MesosConstants.MESOS_TASK_MANAGER_CORES, MesosConstants.DEFAULT_MESOS_TASK_MANAGER_CORES)));
@@ -260,6 +272,8 @@ public class FlinkMesosScheduler implements Scheduler {
 		we immediately kill the task and request enough resources for a new one. These new resources will come in via
 		the resourceOffers() method.
 		 */
+		currentOffers.remove(offerID);
+
 		if (jobManagerOffer != null && jobManager != null && jobManagerOffer.getId().equals(offerID)) {
 			LinkedList<Protos.Request> requestList = new LinkedList<Protos.Request>();
 

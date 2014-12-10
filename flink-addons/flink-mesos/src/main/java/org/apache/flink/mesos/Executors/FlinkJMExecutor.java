@@ -91,7 +91,7 @@ public class FlinkJMExecutor extends FlinkExecutor {
 					server.start();
 				}
 			} catch (Exception e) {
-				e.printStackTrace();
+				LOG.error(e.toString());
 				MesosUtils.setTaskState(executorDriver, taskInfo.getTaskId(), Protos.TaskState.TASK_FAILED);
 				this.interrupt();
 			}

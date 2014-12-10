@@ -145,6 +145,7 @@ public class MesosController {
 		options.addOption(FLINK_JAR);
 		options.addOption(JM_MEMORY);
 		options.addOption(TM_MEMORY);
+		options.addOption(NUM_TM);
 		options.addOption(TM_CORES);
 		options.addOption(JM_CORES);
 		options.addOption(SLOTS);
@@ -222,9 +223,10 @@ public class MesosController {
 		if (cmd.hasOption(SLOTS.getOpt())) {
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, new Integer(cmd.getOptionValue(SLOTS.getOpt())));
 		}
-		if (cmd.hasOption(USE_WEB.getOpt())) {
-			config.setBoolean(MesosConstants.MESOS_USE_WEB, true);
+		if (cmd.hasOption(NUM_TM.getOpt())) {
+			config.setInteger(MesosConstants.MESOS_MAX_TM_INSTANCES, new Integer(cmd.getOptionValue(NUM_TM.getOpt())));
 		}
+
 		String[] dynamicProperties = null;
 		if(cmd.hasOption(DYNAMIC_PROPERTIES.getOpt())) {
 			dynamicProperties = cmd.getOptionValues(DYNAMIC_PROPERTIES.getOpt());
@@ -250,7 +252,9 @@ public class MesosController {
 				.build();
 
 		/*
-		The MesosSchedulerDriver executes the FlinkMesosScheduler which is responsible for managing the offers that it
+		The MesosSchedulerDriver executes theif (cmd.hasOption(USE_WEB.getOpt())) {
+			config.setBoolean(MesosConstants.MESOS_USE_WEB, true);
+		} FlinkMesosScheduler which is responsible for managing the offers that it
 		gets from the Mesos master.
 		 */
 		MesosSchedulerDriver driver = new MesosSchedulerDriver(

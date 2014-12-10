@@ -51,10 +51,10 @@ public abstract class FlinkExecutor implements Executor {
 		try {
 			protoConfig = FlinkProtos.Configuration.parseFrom(executorInfo.getData());
 		} catch (InvalidProtocolBufferException e) {
-			e.printStackTrace();
+			throw new RuntimeException(e);
 		}
 		config.fromProtos(protoConfig);
-		LOG.info(config.toString());
+		LOG.debug(config.toString());
 	}
 
 	@Override
