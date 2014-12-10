@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+
 package org.apache.flink.addons.hbase;
 
 import java.io.IOException;
@@ -35,12 +36,12 @@ import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.Pair;
-import org.apache.hadoop.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * {@link InputFormat} subclass that wraps the access for HTables.
+ *
  */
 public abstract class TableInputFormat<T extends Tuple> implements InputFormat<T, TableInputSplit>{
 
@@ -50,41 +51,44 @@ public abstract class TableInputFormat<T extends Tuple> implements InputFormat<T
 
 	/** helper variable to decide whether the input is exhausted or not */
 	private boolean endReached = false;
-	
+
 	// TODO table and scan could be serialized when kryo serializer will be the default
 	protected transient HTable table;
 	protected transient Scan scan;
-	
+
 	/** HBase iterator wrapper */
 	private ResultScanner rs;
+
+	private byte[] lastRow;
+	private int scannedRows;
 
 	// abstract methods allow for multiple table and scanners in the same job
 	protected abstract Scan getScanner();
 	protected abstract String getTableName();
 	protected abstract T mapResultToTuple(Result r);
-	
+
 	/**
 	 * creates a {@link Scan} object and a {@link HTable} connection
-	 * 
+	 *
 	 * @param parameters
-	 * @see Configuration
+	 * @see {@link Configuration}
 	 */
 	@Override
 	public void configure(Configuration parameters) {
 		this.table = createTable();
 		this.scan = getScanner();
 	}
-	
+
 	/** Create an {@link HTable} instance and set it into this format */
 	private HTable createTable() {
 		LOG.info("Initializing HBaseConfiguration");
 		//use files found in the classpath
 		org.apache.hadoop.conf.Configuration hConf = HBaseConfiguration.create();
-		
+
 		try {
 			return new HTable(hConf, getTableName());
 		} catch (Exception e) {
-			LOG.error(StringUtils.stringifyException(e));
+			LOG.error("Error instantiating a new HTable instance", e);
 		}
 		return null;
 	}
@@ -99,11 +103,30 @@ public abstract class TableInputFormat<T extends Tuple> implements InputFormat<T
 		if (this.rs == null){
 			throw new IOException("No table result scanner provided!");
 		}
+		try{
+			Result res = this.rs.next();
+			if (res != null){
+				scannedRows++;
+				lastRow = res.getRow();
+				return mapResultToTuple(res);
+			}
+		}catch (Exception e) {
+			this.rs.close();
+			//workaround for timeout on scan
+			StringBuffer logMsg = new StringBuffer("Error after scan of ")
+					.append(scannedRows)
+					.append(" rows. Retry with a new scanner...");
+			LOG.warn(logMsg.toString(), e);
+			this.scan.setStartRow(lastRow);
+			this.rs = table.getScanner(scan);
+			Result res = this.rs.next();
+			if (res != null) {
+				scannedRows++;
+				lastRow = res.getRow();
+				return mapResultToTuple(res);
+			}
+		}
 
-		Result res = this.rs.next();
-		if (res != null){
-			return mapResultToTuple(res);
-		} 
 		this.endReached = true;
 		return null;
 	}
@@ -122,16 +145,24 @@ public abstract class TableInputFormat<T extends Tuple> implements InputFormat<T
 
 		logSplitInfo("opening", split);
 		scan.setStartRow(split.getStartRow());
-		scan.setStopRow(split.getEndRow());
-		
+		lastRow = split.getEndRow();
+		scan.setStopRow(lastRow);
+
 		this.rs = table.getScanner(scan);
-		endReached = false;
+		this.endReached = false;
+		this.scannedRows = 0;
 	}
-	
+
 	@Override
 	public void close() throws IOException {
-		this.rs.close();
-		this.table.close();
+		if(rs!=null){
+			this.rs.close();
+		}
+		if(table!=null){
+			this.table.close();
+		}
+		LOG.info("Closing split (scanned {} rows)", scannedRows);
+		this.lastRow = null;
 	}
 
 	@Override
@@ -145,7 +176,7 @@ public abstract class TableInputFormat<T extends Tuple> implements InputFormat<T
 		final byte[] stopRow = scan.getStopRow();
 		final boolean scanWithNoLowerBound = startRow.length == 0;
 		final boolean scanWithNoUpperBound = stopRow.length == 0;
-		
+
 		final List<TableInputSplit> splits = new ArrayList<TableInputSplit>(minNumSplits);
 		for (int i = 0; i < keys.getFirst().length; i++) {
 			final byte[] startKey = keys.getFirst()[i];
@@ -161,7 +192,7 @@ public abstract class TableInputFormat<T extends Tuple> implements InputFormat<T
 			// determine if regions contains keys used by the scan
 			boolean isLastRegion = endKey.length == 0;
 			if ((scanWithNoLowerBound || isLastRegion || Bytes.compareTo(startRow, endKey) < 0) &&
-				(scanWithNoUpperBound || Bytes.compareTo(stopRow, startKey) > 0)) {
+					(scanWithNoUpperBound || Bytes.compareTo(stopRow, startKey) > 0)) {
 
 				final byte[] splitStart = scanWithNoLowerBound || Bytes.compareTo(startKey, startRow) >= 0 ? startKey : startRow;
 				final byte[] splitStop = (scanWithNoUpperBound || Bytes.compareTo(endKey, stopRow) <= 0)
@@ -177,7 +208,7 @@ public abstract class TableInputFormat<T extends Tuple> implements InputFormat<T
 		}
 		return splits.toArray(new TableInputSplit[0]);
 	}
-	
+
 	private void logSplitInfo(String action, TableInputSplit split) {
 		int splitId = split.getSplitNumber();
 		String splitStart = Bytes.toString(split.getStartRow());
@@ -200,7 +231,7 @@ public abstract class TableInputFormat<T extends Tuple> implements InputFormat<T
 	 * Note: It is possible that <code>endKey.length() == 0 </code> , for the last (recent) region. <br>
 	 * Override this method, if you want to bulk exclude regions altogether from M-R. By default, no region is excluded(
 	 * i.e. all regions are included).
-	 * 
+	 *
 	 * @param startKey
 	 *        Start key of the region
 	 * @param endKey
@@ -220,4 +251,5 @@ public abstract class TableInputFormat<T extends Tuple> implements InputFormat<T
 	public BaseStatistics getStatistics(BaseStatistics cachedStatistics) {
 		return null;
 	}
+
 }

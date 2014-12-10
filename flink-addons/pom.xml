@@ -39,34 +39,11 @@ under the License.
 		<module>flink-spargel</module>
 		<module>flink-hadoop-compatibility</module>
 		<module>flink-streaming</module>
+		<module>flink-hbase</module>
 	</modules>
 	
 	<!-- See main pom.xml for explanation of profiles -->
 	<profiles>
-		<profile>
-			<id>hadoop-1</id>
-			<activation>
-				<property>
-					<!-- Please do not remove the 'hadoop1' comment. See ./tools/generate_specific_pom.sh -->
-					<!--hadoop1--><name>hadoop.profile</name><value>1</value>
-				</property>
-			</activation>
-			<modules>
-				<!-- No extra modules: flink-hbase is currently not compatible with Hadoop v1 -->
-			</modules>
-		</profile>
-		<profile>
-			<id>hadoop-2</id>
-			<activation>
-				<property>
-					<!-- Please do not remove the 'hadoop2' comment. See ./tools/generate_specific_pom.sh -->
-					<!--hadoop2--><name>!hadoop.profile</name>
-				</property>
-			</activation>
-			<modules>
-				<module>flink-hbase</module>
-			</modules>
-		</profile>
 		<profile>
 			<id>include-yarn</id>
 			<activation>
