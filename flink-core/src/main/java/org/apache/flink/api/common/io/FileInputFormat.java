@@ -66,7 +66,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	 * The timeout (in milliseconds) to wait for a filesystem stream to respond.
 	 */
 	private static long DEFAULT_OPENING_TIMEOUT;
-	
+
 	/**
 	 * Files with that suffix are unsplittable at a file level
 	 * and compressed.
@@ -151,6 +151,12 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	 * Therefore, the FileInputFormat can only read whole files.
 	 */
 	protected boolean unsplittable = false;
+
+	/**
+	 * The flag to specify whether recursive traversal of the input directory
+	 * structure is enabled.
+	 */
+	protected boolean enumerateNestedFiles = false;
 	
 	// --------------------------------------------------------------------------------------------
 	//  Constructors
@@ -231,7 +237,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 		}
 		this.openTimeout = openTimeout;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 	// Getting information about the split that is currently open
 	// --------------------------------------------------------------------------------------------
@@ -278,6 +284,9 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 		else if (this.filePath == null) {
 			throw new IllegalArgumentException("File path was not specified in input format, or configuration."); 
 		}
+
+		Boolean nestedFilesFlag = parameters.getBoolean(ENUMERATE_NESTED_FILES_FLAG, false);
+		this.enumerateNestedFiles = nestedFilesFlag;
 	}
 	
 	/**
@@ -331,6 +340,11 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 					latestModTime = Math.max(s.getModificationTime(), latestModTime);
 					testForUnsplittable(s);
 				}
+				else {
+					if (enumerateNestedFiles) {
+						addNestedFiles(s.getPath(), files, 0, false);
+					}
+				}
 			}
 		} else {
 			files.add(file);
@@ -363,7 +377,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 
 	/**
 	 * Computes the input splits for the file. By default, one file block is one split. If more splits
-	 * are requested than blocks are available, then a split may by a fraction of a block and splits may cross
+	 * are requested than blocks are available, then a split may be a fraction of a block and splits may cross
 	 * block boundaries.
 	 * 
 	 * @param minNumSplits The minimum desired number of file splits.
@@ -397,16 +411,23 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 			// input is directory. list all contained files
 			final FileStatus[] dir = fs.listStatus(path);
 			for (int i = 0; i < dir.length; i++) {
-				if (!dir[i].isDir() && acceptFile(dir[i])) {
-					files.add(dir[i]);
-					totalLength += dir[i].getLen();
-					// as soon as there is one deflate file in a directory, we can not split it
-					testForUnsplittable(dir[i]);
+				if (dir[i].isDir()) {
+					if (enumerateNestedFiles) {
+						totalLength += addNestedFiles(dir[i].getPath(), files, 0, true);
+					}
+				}
+				else {
+					if (acceptFile(dir[i])) {
+						files.add(dir[i]);
+						totalLength += dir[i].getLen();
+						// as soon as there is one deflate file in a directory, we can not split it
+						testForUnsplittable(dir[i]);
+					}
 				}
 			}
 		} else {
 			testForUnsplittable(pathFile);
-			
+
 			files.add(pathFile);
 			totalLength += pathFile.getLen();
 		}
@@ -504,6 +525,31 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 		}
 
 		return inputSplits.toArray(new FileInputSplit[inputSplits.size()]);
+	}
+
+	private long addNestedFiles(Path path, List<FileStatus> files, long length, boolean checkAccept) 
+			throws IOException {
+		final FileSystem fs = path.getFileSystem();
+
+		for(FileStatus dir: fs.listStatus(path)) {
+			if (dir.isDir()) {
+				addNestedFiles(dir.getPath(), files, length, checkAccept);
+			}
+			else {
+				if (checkAccept) {
+					if(acceptFile(dir)) {
+						files.add(dir);
+						length += dir.getLen();
+						testForUnsplittable(dir);
+					}
+				}
+				else {
+					files.add(dir);
+					testForUnsplittable(dir);
+				}
+			}
+		}
+		return length;
 	}
 
 	private boolean testForUnsplittable(FileStatus pathFile) {
@@ -807,6 +853,11 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	 * The config parameter which defines the input file path.
 	 */
 	private static final String FILE_PARAMETER_KEY = "input.file.path";
+
+	/**
+	 * The config parameter which defines whether input directories are recursively traversed.
+	 */
+	private static final String ENUMERATE_NESTED_FILES_FLAG = "recursive.file.enumeration";
 	
 	
 	// ----------------------------------- Config Builder -----------------------------------------
