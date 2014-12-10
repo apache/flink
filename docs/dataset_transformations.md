@@ -179,7 +179,6 @@ val naturalNumbers = intNumbers.filter { _ > 0 }
 
 The Project transformation removes or moves Tuple fields of a Tuple DataSet.
 The `project(int...)` method selects Tuple fields that should be retained by their index and defines their order in the output Tuple.
-The `types(Class<?> ...)`method must give the types of the output Tuple fields.
 
 Projections do not require the definition of a user function.
 
@@ -188,7 +187,7 @@ The following code shows different ways to apply a Project transformation on a D
 ~~~java
 DataSet<Tuple3<Integer, Double, String>> in = // [...]
 // converts Tuple3<Integer, Double, String> into Tuple2<String, Integer>
-DataSet<Tuple2<String, Integer>> out = in.project(2,0).types(String.class, Integer.class);
+DataSet<Tuple2<String, Integer>> out = in.project(2,0);
 ~~~
 
 ### Transformations on Grouped DataSet
@@ -814,8 +813,7 @@ DataSet<Tuple4<Integer, String, Double, Byte>
                   // key definition of second DataSet using a field position key
                   .equalTo(0)
                   // select and reorder fields of matching tuples
-                  .projectFirst(0,2).projectSecond(1).projectFirst(1)
-                  .types(Integer.class, String.class, Double.class, Byte.class);
+                  .projectFirst(0,2).projectSecond(1).projectFirst(1);
 ~~~
 
 `projectFirst(int...)` and `projectSecond(int...)` select the fields of the first and second joined input that should be assembled into an output Tuple. The order of indexes defines the order of fields in the output tuple.
@@ -939,8 +937,7 @@ DataSet<Tuple4<Integer, Byte, Integer, Double>
             result =
             input1.cross(input2)
                   // select and reorder fields of matching tuples
-                  .projectSecond(0).projectFirst(1,0).projectSecond(1)
-                  .types(Integer.class, Byte.class, Integer.class, Double.class);
+                  .projectSecond(0).projectFirst(1,0).projectSecond(1);
 ~~~
 
 The field selection in a Cross projection works the same way as in the projection of Join results.

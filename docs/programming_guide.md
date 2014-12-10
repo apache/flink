@@ -673,7 +673,7 @@ The following transformations are available on data sets of Tuples:
         <p>Selects a subset of fields from the tuples</p>
 {% highlight java %}
 DataSet<Tuple3<Integer, Double, String>> in = // [...]
-DataSet<Tuple2<String, Integer>> out = in.project(2,0).types(String.class, Integer.class);
+DataSet<Tuple2<String, Integer>> out = in.project(2,0);
 {% endhighlight %}
       </td>
     </tr>

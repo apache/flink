@@ -50,6 +50,7 @@ import org.apache.flink.api.java.operators.DataSink;
 import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.operators.DistinctOperator;
 import org.apache.flink.api.java.operators.FilterOperator;
+import org.apache.flink.api.java.operators.ProjectOperator;
 import org.apache.flink.api.java.functions.FirstReducer;
 import org.apache.flink.api.java.operators.FlatMapOperator;
 import org.apache.flink.api.java.operators.GroupReduceOperator;
@@ -232,21 +233,18 @@ public abstract class DataSet<T> {
 	 * Initiates a Project transformation on a {@link Tuple} {@link DataSet}.<br/>
 	 * <b>Note: Only Tuple DataSets can be projected.</b></br>
 	 * The transformation projects each Tuple of the DataSet onto a (sub)set of fields.</br>
-	 * This method returns a {@link Projection} on which {@link Projection#types(Class)} needs to
-	 *   be called to completed the transformation.
+	 * This method returns a {@link ProjectOperator} to complete the transformation.
 	 * 
 	 * @param fieldIndexes The field indexes of the input tuples that are retained.
 	 * 					   The order of fields in the output tuple corresponds to the order of field indexes.
-	 * @return A Projection that needs to be converted into a {@link org.apache.flink.api.java.operators.ProjectOperator} to complete the 
-	 *           Project transformation by calling {@link Projection#types(Class)}.
+	 * @return A ProjectOperator to complete the Project transformation.
 	 * 
 	 * @see Tuple
 	 * @see DataSet
-	 * @see Projection
 	 * @see org.apache.flink.api.java.operators.ProjectOperator
 	 */
-	public Projection<T> project(int... fieldIndexes) {
-		return new Projection<T>(this, fieldIndexes);
+	public <OUT extends Tuple> ProjectOperator<?, OUT> project(int... fieldIndexes) {
+		return new Projection<T>(this, fieldIndexes).projectTupleX();
 	}
 	
 	// --------------------------------------------------------------------------------------------

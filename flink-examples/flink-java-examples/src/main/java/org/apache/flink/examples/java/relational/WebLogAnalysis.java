@@ -113,7 +113,7 @@ public class WebLogAnalysis {
 		// Retain documents with keywords
 		DataSet<Tuple1<String>> filterDocs = documents
 				.filter(new FilterDocByKeyWords())
-				.project(0).types(String.class);
+				.project(0);
 
 		// Filter ranks by minimum rank
 		DataSet<Tuple3<Integer, String, Integer>> filterRanks = ranks
@@ -122,14 +122,13 @@ public class WebLogAnalysis {
 		// Filter visits by visit date
 		DataSet<Tuple1<String>> filterVisits = visits
 				.filter(new FilterVisitsByDate())
-				.project(0).types(String.class);
+				.project(0);
 
 		// Join the filtered documents and ranks, i.e., get all URLs with min rank and keywords
 		DataSet<Tuple3<Integer, String, Integer>> joinDocsRanks = 
 				filterDocs.join(filterRanks)
 							.where(0).equalTo(1)
-							.projectSecond(0,1,2)
-							.types(Integer.class, String.class, Integer.class);
+							.projectSecond(0,1,2);
 
 		// Anti-join urls with visits, i.e., retain all URLs which have NOT been visited in a certain time
 		DataSet<Tuple3<Integer, String, Integer>> result = 
