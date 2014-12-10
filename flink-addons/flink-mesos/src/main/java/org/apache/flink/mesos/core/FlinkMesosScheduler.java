@@ -18,7 +18,6 @@
 
 package org.apache.flink.mesos.core;
 
-import com.google.common.collect.Maps;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.mesos.utility.MesosConfiguration;
 import org.apache.flink.mesos.utility.MesosConstants;
@@ -29,7 +28,6 @@ import org.apache.mesos.SchedulerDriver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.reflect.Array;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
@@ -122,7 +120,7 @@ public class FlinkMesosScheduler implements Scheduler {
 		LOG.info("Hostname: " + offer.getHostname());
 		LOG.info("Offer: " + offer.getId());
 		LOG.info("SlaveID: " + offer.getSlaveId().getValue());
-		LOG.info("TaskID: " + task.getTaskId());
+		LOG.info("TaskID: " + task.getTaskId().getValue());
 		for (Protos.Resource resource: resources) {
 			LOG.info(resource.getName() + ": " + resource.getScalar().getValue());
 		}
@@ -225,34 +223,41 @@ public class FlinkMesosScheduler implements Scheduler {
 		for (Protos.Offer offer : offers) {
 			if (jobManager == null && !taskManagers.containsKey(offer.getSlaveId())) {
 
-				List<Protos.Resource> required = new ArrayList<Protos.Resource>();
-				required.add(MesosUtils.createResourceScalar(MESOS_CPU, this.config.getDouble(MesosConstants.MESOS_JOB_MANAGER_CORES, MesosConstants.DEFAULT_MESOS_JOB_MANAGER_CORES)));
-				required.add(MesosUtils.createResourceScalar(MESOS_MEMORY, this.config.getDouble(MesosConstants.MESOS_JOB_MANAGER_MEMORY, MesosConstants.DEFAULT_MESOS_JOB_MANAGER_MEMORY)));
-
-				if (resourcesMet(offer, required)) {
-					Protos.TaskInfo task = createJobManagerTask(offer, required);
-					tasks.add(task);
-					jobManager = task;
-					jobManagerOffer = offer;
-					offerIDs.add(offer.getId());
-				}
+				handleJM(tasks, offerIDs, offer);
 			} else if (!offer.getSlaveId().equals(jobManager.getSlaveId()) && !taskManagers.containsKey(offer.getSlaveId()) && taskManagers.size() < maxTaskManagers) { //needs to be changed if no taskmanager should be started on a jobmanager node, useful for testing
-
-				List<Protos.Resource> required = new ArrayList<Protos.Resource>();
-				required.add(MesosUtils.createResourceScalar(MESOS_CPU, this.config.getDouble(MesosConstants.MESOS_TASK_MANAGER_CORES, MesosConstants.DEFAULT_MESOS_TASK_MANAGER_CORES)));
-				required.add(MesosUtils.createResourceScalar(MESOS_MEMORY, this.config.getDouble(MesosConstants.MESOS_TASK_MANAGER_MEMORY, MesosConstants.DEFAULT_MESOS_TASK_MANAGER_MEMORY)));
-
-				if (resourcesMet(offer, required)) {
-					Protos.TaskInfo task = createTaskManagerTask(offer, required);
-					taskManagers.put(offer.getSlaveId(), task);
-					tasks.add(task);
-					offerIDs.add(offer.getId());
-				}
+				handleTM(tasks, offerIDs, offer);
 			}
 		}
 
 		if (offerIDs.size() == tasks.size() && offerIDs.size() > 0 && tasks.size() > 0) {
 			schedulerDriver.launchTasks(offerIDs, tasks);
+		}
+	}
+
+	private void handleTM(List<Protos.TaskInfo> tasks, List<Protos.OfferID> offerIDs, Protos.Offer offer) {
+		List<Protos.Resource> required = new ArrayList<Protos.Resource>();
+		required.add(MesosUtils.createResourceScalar(MESOS_CPU, this.config.getDouble(MesosConstants.MESOS_TASK_MANAGER_CORES, MesosConstants.DEFAULT_MESOS_TASK_MANAGER_CORES)));
+		required.add(MesosUtils.createResourceScalar(MESOS_MEMORY, this.config.getDouble(MesosConstants.MESOS_TASK_MANAGER_MEMORY, MesosConstants.DEFAULT_MESOS_TASK_MANAGER_MEMORY)));
+
+		if (resourcesMet(offer, required)) {
+			Protos.TaskInfo task = createTaskManagerTask(offer, required);
+			taskManagers.put(offer.getSlaveId(), task);
+			tasks.add(task);
+			offerIDs.add(offer.getId());
+		}
+	}
+
+	private void handleJM(List<Protos.TaskInfo> tasks, List<Protos.OfferID> offerIDs, Protos.Offer offer) {
+		List<Protos.Resource> required = new ArrayList<Protos.Resource>();
+		required.add(MesosUtils.createResourceScalar(MESOS_CPU, this.config.getDouble(MesosConstants.MESOS_JOB_MANAGER_CORES, MesosConstants.DEFAULT_MESOS_JOB_MANAGER_CORES)));
+		required.add(MesosUtils.createResourceScalar(MESOS_MEMORY, this.config.getDouble(MesosConstants.MESOS_JOB_MANAGER_MEMORY, MesosConstants.DEFAULT_MESOS_JOB_MANAGER_MEMORY)));
+
+		if (resourcesMet(offer, required)) {
+			Protos.TaskInfo task = createJobManagerTask(offer, required);
+			tasks.add(task);
+			jobManager = task;
+			jobManagerOffer = offer;
+			offerIDs.add(offer.getId());
 		}
 	}
 
@@ -325,20 +330,44 @@ public class FlinkMesosScheduler implements Scheduler {
 			schedulerDriver.killTask(taskInfo.getTaskId());
 			LinkedList<Protos.Request> requestList = new LinkedList<Protos.Request>();
 
+			if (taskManagers.containsKey(taskStatus.getSlaveId())) {
+				taskManagers.remove(taskStatus.getSlaveId());
+				if (currentOffers.size() != 0) {
+					List<Protos.TaskInfo> tasks = new ArrayList<Protos.TaskInfo>();
+					List<Protos.OfferID> offerIDs = new ArrayList<Protos.OfferID>();
+					for (Protos.Offer offer: currentOffers.values()) {
+						handleTM(tasks, offerIDs, offer);
+					}
+					if (!tasks.isEmpty()) {
+						schedulerDriver.launchTasks(offerIDs, tasks);
+					}
+				}
+
+			}
+
 			if (jobManager != null && jobManagerOffer != null && taskInfo.getTaskId().equals(jobManager.getTaskId())) {
 				jobManager = null;
 				jobManagerOffer = null;
 
-				Protos.Request request = Protos.Request
-						.newBuilder()
-						.addResources(MesosUtils.createResourceScalar(MESOS_CPU, config.getDouble(MesosConstants.MESOS_JOB_MANAGER_CORES, MesosConstants.DEFAULT_MESOS_JOB_MANAGER_CORES)))
-						.addResources(MesosUtils.createResourceScalar(MESOS_MEMORY, config.getDouble(MesosConstants.MESOS_JOB_MANAGER_MEMORY, MesosConstants.DEFAULT_MESOS_JOB_MANAGER_MEMORY)))
-						.build();
-				requestList.add(request);
+				if (currentOffers.size() != 0) {
+					List<Protos.TaskInfo> tasks = new ArrayList<Protos.TaskInfo>();
+					List<Protos.OfferID> offerIDs = new ArrayList<Protos.OfferID>();
+					for (Protos.Offer offer: currentOffers.values()) {
+						handleJM(tasks, offerIDs, offer);
+					}
+					if (!tasks.isEmpty()) {
+						schedulerDriver.launchTasks(offerIDs, tasks);
+					}
+				} else {
+					Protos.Request request = Protos.Request
+							.newBuilder()
+							.addResources(MesosUtils.createResourceScalar(MESOS_CPU, config.getDouble(MesosConstants.MESOS_JOB_MANAGER_CORES, MesosConstants.DEFAULT_MESOS_JOB_MANAGER_CORES)))
+							.addResources(MesosUtils.createResourceScalar(MESOS_MEMORY, config.getDouble(MesosConstants.MESOS_JOB_MANAGER_MEMORY, MesosConstants.DEFAULT_MESOS_JOB_MANAGER_MEMORY)))
+							.build();
+					requestList.add(request);
 
-				schedulerDriver.requestResources(requestList);
-			} else {
-				taskManagers.remove(taskInfo.getSlaveId());
+					schedulerDriver.requestResources(requestList);
+				}
 			}
 		}
 
