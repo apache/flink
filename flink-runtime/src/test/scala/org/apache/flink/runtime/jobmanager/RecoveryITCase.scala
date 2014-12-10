@@ -156,7 +156,7 @@ WordSpecLike with Matchers with BeforeAndAfterAll {
 
           expectMsg(SubmissionSuccess(jobGraph.getJobID))
 
-          Thread.sleep(300)
+          Thread.sleep(500)
           BlockingOnceReceiver.blocking = false
           taskManagers(0) ! PoisonPill
 

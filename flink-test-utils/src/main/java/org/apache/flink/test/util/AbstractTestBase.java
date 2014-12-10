@@ -65,6 +65,10 @@ public abstract class AbstractTestBase {
 
 	protected static final int DEFAULT_NUM_TASK_MANAGERS = 1;
 
+	protected static final int DEFAULT_AKKA_ASK_TIMEOUT = 1000;
+
+	protected static final String DEFAULT_AKKA_STARTUP_TIMEOUT = "60 s";
+
 	protected final Configuration config;
 	
 	protected ForkableFlinkMiniCluster executor;
@@ -102,7 +106,8 @@ public abstract class AbstractTestBase {
 		config.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, TASK_MANAGER_MEMORY_SIZE);
 		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, taskManagerNumSlots);
 		config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, numTaskManagers);
-		config.setInteger(ConfigConstants.AKKA_ASK_TIMEOUT, 1000000);
+		config.setInteger(ConfigConstants.AKKA_ASK_TIMEOUT, DEFAULT_AKKA_ASK_TIMEOUT);
+		config.setString(ConfigConstants.AKKA_STARTUP_TIMEOUT, DEFAULT_AKKA_STARTUP_TIMEOUT);
 		this.executor = new ForkableFlinkMiniCluster(config);
 	}
 

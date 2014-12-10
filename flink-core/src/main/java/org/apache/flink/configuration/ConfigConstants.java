@@ -292,6 +292,8 @@ public final class ConfigConstants {
 
 	// ------------------------------ AKKA ------------------------------------
 
+	public static final String AKKA_STARTUP_TIMEOUT = "akka.startup-timeout";
+
 	/**
 	 * Hearbeat interval of the transport failure detector
 	 */
@@ -577,6 +579,8 @@ public final class ConfigConstants {
 	public static final String DEFAULT_WEB_ACCESS_FILE_PATH = null;
 	
 	// ------------------------------ Akka Values ------------------------------
+
+	public static String DEFAULT_AKKA_STARTUP_TIMEOUT = "10 s";
 
 	public static String DEFAULT_AKKA_TRANSPORT_HEARTBEAT_INTERVAL = "1000 s";
 

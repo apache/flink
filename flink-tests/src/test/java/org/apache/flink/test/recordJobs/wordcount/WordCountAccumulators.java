@@ -23,7 +23,6 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.Iterator;
-import java.util.Set;
 import java.util.StringTokenizer;
 
 import org.apache.flink.api.common.JobExecutionResult;

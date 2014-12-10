@@ -49,6 +49,8 @@ object AkkaUtils {
   }
 
   def getConfigString(host: String, port: Int, configuration: Configuration): String = {
+    val startupTimeout = configuration.getString(ConfigConstants.AKKA_STARTUP_TIMEOUT,
+      ConfigConstants.DEFAULT_AKKA_STARTUP_TIMEOUT)
     val transportHeartbeatInterval = configuration.getString(ConfigConstants.
       AKKA_TRANSPORT_HEARTBEAT_INTERVAL,
       ConfigConstants.DEFAULT_AKKA_TRANSPORT_HEARTBEAT_INTERVAL)
@@ -87,6 +89,8 @@ object AkkaUtils {
          |  log-dead-letters-during-shutdown = $logLifecycleEvents
          |
          |  remote {
+         |    startup-timeout = $startupTimeout
+         |
          |    transport-failure-detector{
          |      acceptable-heartbeat-pause = $transportHeartbeatPause
          |      heartbeat-interval = $transportHeartbeatInterval
@@ -135,6 +139,7 @@ object AkkaUtils {
        |  daemonic = on
        |
        |  loggers = ["akka.event.slf4j.Slf4jLogger"]
+       |  logger-startup-timeout = 30s
        |  loglevel = "WARNING"
        |  logging-filter = "akka.event.slf4j.Slf4jLoggingFilter"
        |  stdout-loglevel = "WARNING"

@@ -23,10 +23,7 @@ import static org.junit.Assert.assertTrue;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.junit.Assert;
 import org.junit.Test;
 
 @SuppressWarnings("unused")

@@ -46,7 +46,6 @@ import scala.Tuple2;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
-import java.util.concurrent.TimeUnit;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;

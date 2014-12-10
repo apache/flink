@@ -35,7 +35,9 @@ import scala.concurrent.ExecutionContext
 object TestingUtils {
   val testConfig = ConfigFactory.parseString(getDefaultTestingActorSystemConfigString)
 
-  val TESTING_DURATION = 20 second
+  val TESTING_DURATION = 1 minute
+
+  val DEFAULT_AKKA_ASK_TIMEOUT = 1000
 
   def getDefaultTestingActorSystemConfigString: String = {
     val ioRWSerializerClass = classOf[IOReadableWritableSerializer].getCanonicalName
@@ -103,6 +105,7 @@ object TestingUtils {
     config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlots)
     config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, numTaskManagers)
     config.setInteger(ConfigConstants.JOB_MANAGER_DEAD_TASKMANAGER_TIMEOUT_KEY, 1000)
+    config.setInteger(ConfigConstants.AKKA_ASK_TIMEOUT, DEFAULT_AKKA_ASK_TIMEOUT)
     val cluster = new TestingCluster(config)
     cluster
   }

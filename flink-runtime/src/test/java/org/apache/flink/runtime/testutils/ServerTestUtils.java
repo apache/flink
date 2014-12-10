@@ -26,13 +26,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.jar.JarEntry;
-import java.util.jar.JarOutputStream;
-import java.util.jar.Manifest;
 
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;

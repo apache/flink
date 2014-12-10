@@ -18,13 +18,6 @@
 
 package org.apache.flink.runtime.taskmanager;
 
-import static org.junit.Assert.*;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
-
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Props;
@@ -36,7 +29,6 @@ import akka.util.Timeout;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.deployment.ChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.GateDeploymentDescriptor;
@@ -53,21 +45,29 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.RegistrationMessages;
-import org.apache.flink.runtime.messages.TaskManagerMessages.TaskOperationResult;
-import org.apache.flink.runtime.messages.TaskManagerMessages.SubmitTask;
 import org.apache.flink.runtime.messages.TaskManagerMessages.CancelTask;
 import org.apache.flink.runtime.messages.TaskManagerMessages.NotifyWhenRegisteredAtJobManager$;
+import org.apache.flink.runtime.messages.TaskManagerMessages.SubmitTask;
+import org.apache.flink.runtime.messages.TaskManagerMessages.TaskOperationResult;
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.types.IntegerRecord;
-
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.fail;
 
 
 public class TaskManagerTest {
@@ -544,7 +544,7 @@ public class TaskManagerTest {
 				timeout);
 
 		try {
-			FiniteDuration d = new FiniteDuration(2, TimeUnit.SECONDS);
+			FiniteDuration d = new FiniteDuration(20, TimeUnit.SECONDS);
 			Await.ready(response, d);
 		}catch(Exception e){
 			throw new RuntimeException("Exception while waiting for the task manager registration.", e);

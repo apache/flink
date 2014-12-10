@@ -403,8 +403,8 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
           receiver ! UnregisterTask(executionID)
         }
       case Failure(t) =>
-        log.error(t, s"Execution state change notification failed for task ${executionID} " +
-          s"of job ${jobID}.")
+        log.warning(s"Execution state change notification failed for task ${executionID} " +
+          s"of job ${jobID}. Cause ${t.getMessage}.")
     }
   }
 

@@ -32,7 +32,6 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.net.InetAddress;
 
-import akka.actor.ActorRef;
 import org.apache.flink.runtime.instance.InstanceConnectionInfo;
 import org.apache.flink.runtime.profiling.ProfilingException;
 import org.apache.flink.runtime.profiling.impl.types.InternalInstanceProfilingData;

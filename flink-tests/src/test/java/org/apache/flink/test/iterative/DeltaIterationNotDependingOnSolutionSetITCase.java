@@ -31,7 +31,6 @@ import org.apache.flink.api.java.io.LocalCollectionOutputFormat;
 import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.test.util.JavaProgramTestBase;
-import org.junit.Test;
 
 @SuppressWarnings("serial")
 public class DeltaIterationNotDependingOnSolutionSetITCase extends JavaProgramTestBase {
