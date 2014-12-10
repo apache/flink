@@ -1584,7 +1584,7 @@ Data Sources
 <div data-lang="java" markdown="1">
 
 Data sources create the initial data sets, such as from files or from Java collections. The general
-mechanism of of creating data sets is abstracted behind an
+mechanism of creating data sets is abstracted behind an
 {% gh_link /flink-core/src/main/java/org/apache/flink/api/common/io/InputFormat.java "InputFormat"%}.
 Flink comes
 with several built-in formats to create data sets from common file formats. Many of them have
@@ -1662,11 +1662,30 @@ DataSet<Tuple2<String, Integer> dbData =
 // manually provide the type information as shown in the examples above.
 {% endhighlight %}
 
+#### Recursive Traversal of the Input Path Directory
+
+For file-based inputs, when the input path is a directory, nested files are not enumerated by default. Instead, only the files inside the base directory are read, while nested files are ignored. Recursive enumeration of nested files can be enabled through the `recursive.file.enumeration` configuration parameter, like in the following example.
+
+{% highlight java %}
+// enable recursive enumeration of nested input files
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+// create a configuration object
+Configuration parameters = new Configuration();
+
+// set the recursive enumeration parameter
+parameters.setBoolean("recursive.file.enumeration", true);
+
+// pass the configuration to the data source
+DataSet<String> logs = env.readTextFile("file:///path/with.nested/files")
+			  .withParameters(parameters);
+{% endhighlight %}
+
 </div>
 <div data-lang="scala" markdown="1">
 
 Data sources create the initial data sets, such as from files or from Java collections. The general
-mechanism of of creating data sets is abstracted behind an
+mechanism of creating data sets is abstracted behind an
 {% gh_link /flink-core/src/main/java/org/apache/flink/api/common/io/InputFormat.java "InputFormat"%}.
 Flink comes
 with several built-in formats to create data sets from common file formats. Many of them have
@@ -1730,9 +1749,27 @@ val values = env.fromElements("Foo", "bar", "foobar", "fubar")
 // generate a number sequence
 val numbers = env.generateSequence(1, 10000000);
 {% endhighlight %}
-</div>
-</div>
 
+#### Recursive Traversal of the Input Path Directory
+
+For file-based inputs, when the input path is a directory, nested files are not enumerated by default. Instead, only the files inside the base directory are read, while nested files are ignored. Recursive enumeration of nested files can be enabled through the `recursive.file.enumeration` configuration parameter, like in the following example.
+
+{% highlight scala %}
+// enable recursive enumeration of nested input files
+val env  = ExecutionEnvironment.getExecutionEnvironment
+
+// create a configuration object
+val parameters = new Configuration
+
+// set the recursive enumeration parameter
+parameters.setBoolean("recursive.file.enumeration", true)
+
+// pass the configuration to the data source
+env.readTextFile("file:///path/with.nested/files").withParameters(parameters)
+{% endhighlight %}
+
+</div>
+</div>
 [Back to top](#top)
 
 Data Sinks

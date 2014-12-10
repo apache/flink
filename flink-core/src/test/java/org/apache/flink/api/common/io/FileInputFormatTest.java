@@ -18,8 +18,10 @@
 
 package org.apache.flink.api.common.io;
 
+import java.io.BufferedOutputStream;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.net.URI;
@@ -281,6 +283,55 @@ public class FileInputFormatTest {
 			
 			Assert.assertTrue(  (uri1.equals(childUri1) && uri2.equals(childUri2)) ||
 								(uri1.equals(childUri2) && uri2.equals(childUri1)) );
+		}
+		catch (Exception e) {
+			System.err.println(e.getMessage());
+			e.printStackTrace();
+			Assert.fail(e.getMessage());
+		}
+	}
+
+	@Test
+	public void testGetStatsIgnoredUnderscoreFiles() {
+		try {
+			final long SIZE = 2048;
+			final long TOTAL = 2*SIZE;
+
+			// create two accepted and two ignored files
+			File tempDir = new File(System.getProperty("java.io.tmpdir"));
+			File f = null;
+			do {
+				f = new File(tempDir, TestFileUtils.randomFileName(""));
+			} while (f.exists());
+			f.mkdirs();
+			f.deleteOnExit();
+
+			File child1 = new File(f, "dataFile1.txt");
+			File child2 = new File(f, "another_file.bin");
+			File luigiFile = new File(f, "_luigi");
+			File success = new File(f, "_SUCCESS");
+
+			File[] files = { child1, child2, luigiFile, success };
+
+			for (File child : files) {
+				child.deleteOnExit();
+
+				BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(child));
+				try {
+					for (long bytes = SIZE; bytes > 0; bytes--) {
+						out.write(0);
+					}
+				} finally {
+					out.close();
+				}
+			}
+			final DummyFileInputFormat format = new DummyFileInputFormat();
+			format.setFilePath(f.toURI().toString());
+			format.configure(new Configuration());
+
+			// check that only valid files are used for statistics computation
+			BaseStatistics stats = format.getStatistics(null);
+			Assert.assertEquals(TOTAL, stats.getTotalInputSize());
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());
