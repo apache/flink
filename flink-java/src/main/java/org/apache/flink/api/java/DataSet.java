@@ -230,18 +230,20 @@ public abstract class DataSet<T> {
 	// --------------------------------------------------------------------------------------------
 	
 	/**
-	 * Initiates a Project transformation on a {@link Tuple} {@link DataSet}.<br/>
-	 * <b>Note: Only Tuple DataSets can be projected.</b></br>
+	 * Applies a Project transformation on a {@link Tuple} {@link DataSet}.<br/>
+	 * <b>Note: Only Tuple DataSets can be projected using field indexes.</b></br>
 	 * The transformation projects each Tuple of the DataSet onto a (sub)set of fields.</br>
-	 * This method returns a {@link ProjectOperator} to complete the transformation.
-	 * 
-	 * @param fieldIndexes The field indexes of the input tuples that are retained.
+	 * Additional fields can be added to the projection by calling {@link ProjectOperator#project(int[])}.
+	 *
+	 * <b>Note: With the current implementation, the Project transformation looses type information.</b>
+	 *
+	 * @param fieldIndexes The field indexes of the input tuple that are retained.
 	 * 					   The order of fields in the output tuple corresponds to the order of field indexes.
-	 * @return A ProjectOperator to complete the Project transformation.
-	 * 
+	 * @return A ProjectOperator that represents the projected DataSet.
+	 *
 	 * @see Tuple
 	 * @see DataSet
-	 * @see org.apache.flink.api.java.operators.ProjectOperator
+	 * @see ProjectOperator
 	 */
 	public <OUT extends Tuple> ProjectOperator<?, OUT> project(int... fieldIndexes) {
 		return new Projection<T>(this, fieldIndexes).projectTupleX();

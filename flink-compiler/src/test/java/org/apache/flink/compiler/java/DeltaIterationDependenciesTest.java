@@ -45,11 +45,11 @@ public class DeltaIterationDependenciesTest extends CompilerTestBase {
 
 			DataSet<Tuple2<Long, Long>> delta = deltaIteration.getSolutionSet().join(deltaIteration.getWorkset())
 														.where(0).equalTo(0)
-														.projectFirst(1).projectSecond(1).types(Long.class, Long.class);
+														.projectFirst(1).projectSecond(1);
 
 			DataSet<Tuple2<Long, Long>> nextWorkset = deltaIteration.getSolutionSet().join(input)
 														.where(0).equalTo(0)
-														.projectFirst(1).projectSecond(1).types(Long.class, Long.class);
+														.projectFirst(1).projectSecond(1);
 			
 
 			DataSet<Tuple2<Long, Long>> result = deltaIteration.closeWith(delta, nextWorkset);

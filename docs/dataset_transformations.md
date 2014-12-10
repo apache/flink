@@ -985,7 +985,7 @@ DataSet<Tuple3<Integer, Integer, String>>
                   // hint that the second DataSet is very large
             input1.crossWithHuge(input2)
                   // apply a projection (or any Cross function)
-                  .projectFirst(0,1).projectSecond(1).types(Integer.class, String.class, String.class)
+                  .projectFirst(0,1).projectSecond(1);
 ~~~
 
 </div>

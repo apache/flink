@@ -63,8 +63,7 @@ public class CrossOperatorTest {
 		// should work
 		try {
 			ds1.cross(ds2)
-				.projectFirst(0)
-				.types(Integer.class);
+				.projectFirst(0);
 		} catch(Exception e) {
 			Assert.fail();
 		}
@@ -96,8 +95,7 @@ public class CrossOperatorTest {
 		// should work
 		try {
 			ds1.cross(ds2)
-				.projectFirst(0,3)
-				.types(Integer.class, Long.class);
+				.projectFirst(0,3);
 		} catch(Exception e) {
 			Assert.fail();
 		}
@@ -113,8 +111,7 @@ public class CrossOperatorTest {
 		// should work
 		try {
 			ds1.cross(ds2)
-				.projectFirst(0,3)
-				.types(Integer.class, Long.class);
+				.projectFirst(0,3);
 		} catch(Exception e) {
 			Assert.fail();
 		}
@@ -131,8 +128,7 @@ public class CrossOperatorTest {
 		try {
 			ds1.cross(ds2)
 				.projectFirst(0)
-				.projectSecond(3)
-				.types(Integer.class, Long.class);
+				.projectSecond(3);
 		} catch(Exception e) {
 			Assert.fail();
 		}
@@ -167,8 +163,7 @@ public class CrossOperatorTest {
 			ds1.cross(ds2)
 				.projectFirst(0,2)
 				.projectSecond(1,4)
-				.projectFirst(1)
-				.types(Integer.class, String.class, Long.class, Integer.class, Long.class);
+				.projectFirst(1);
 		} catch(Exception e) {
 			Assert.fail();
 		}
@@ -206,8 +201,7 @@ public class CrossOperatorTest {
 			ds1.cross(ds2)
 				.projectSecond(0,2)
 				.projectFirst(1,4)
-				.projectFirst(1)
-				.types(Integer.class, String.class, Long.class, Integer.class, Long.class);
+				.projectFirst(1);
 		} catch(Exception e) {
 			Assert.fail();
 		}
@@ -242,8 +236,7 @@ public class CrossOperatorTest {
 		try {
 			ds1.cross(ds2)
 				.projectFirst()
-				.projectSecond()
-				.types(CustomType.class, CustomType.class);
+				.projectSecond();
 		} catch(Exception e) {
 			Assert.fail();
 		}
@@ -277,8 +270,7 @@ public class CrossOperatorTest {
 		try {
 			ds1.cross(ds2)
 				.projectSecond()
-				.projectFirst(1,4)
-				.types(Tuple5.class, Long.class, Integer.class);
+				.projectFirst(1,4);
 		} catch(Exception e) {
 			Assert.fail();
 		}
@@ -310,8 +302,7 @@ public class CrossOperatorTest {
 
 		// should not work, index out of range
 		ds1.cross(ds2)
-			.projectFirst(5)
-			.types(Integer.class);
+			.projectFirst(5);
 	}
 	
 	@Test(expected=IndexOutOfBoundsException.class)
@@ -335,10 +326,9 @@ public class CrossOperatorTest {
 
 		// should not work, index out of range
 		ds1.cross(ds2)
-			.projectSecond(5)
-			.types(Integer.class);
+			.projectSecond(5);
 	}
-	
+
 	@Test(expected=IndexOutOfBoundsException.class)
 	public void testCrossProjection29() {
 
@@ -432,8 +422,7 @@ public class CrossOperatorTest {
 		// should not work, index out of range
 		ds1.cross(ds2)
 			.projectSecond(0)
-			.projectFirst(5)
-			.types(Integer.class);
+			.projectFirst(5);
 	}
 
 	@Test(expected=IndexOutOfBoundsException.class)
@@ -446,8 +435,7 @@ public class CrossOperatorTest {
 		// should not work, index out of range
 		ds1.cross(ds2)
 			.projectFirst(0)
-			.projectSecond(5)
-			.types(Integer.class);
+			.projectSecond(5);
 	}
 	
 	/*

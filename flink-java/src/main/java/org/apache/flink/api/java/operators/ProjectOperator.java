@@ -20,6 +20,7 @@ package org.apache.flink.api.java.operators;
 
 import java.util.Arrays;
 
+import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -75,7 +76,23 @@ public class ProjectOperator<IN, OUT extends Tuple>
 
 		return ppo;
 	}
-	
+
+	/**
+	 * Continues a Project transformation on a {@link Tuple} {@link DataSet}.<br/>
+	 * <b>Note: Only Tuple DataSets can be projected using field indexes.</b></br>
+	 * The transformation projects each Tuple of the DataSet onto a (sub)set of fields.</br>
+	 * Additional fields can be added to the projection by calling {@link ProjectOperator#project(int[])}.
+	 *
+	 * <b>Note: With the current implementation, the Project transformation looses type information.</b>
+	 *
+	 * @param fieldIndexes The field indexes which are added to the Project transformation.
+	 * 					   The order of fields in the output tuple corresponds to the order of field indexes.
+	 * @return A ProjectOperator that represents the projected DataSet.
+	 *
+	 * @see Tuple
+	 * @see DataSet
+	 * @see ProjectOperator
+	 */
 	@SuppressWarnings("hiding")
 	public <OUT extends Tuple> ProjectOperator<?, OUT> project(int... fieldIndexes) {
 		proj.acceptAdditionalIndexes(fieldIndexes);
@@ -83,14 +100,27 @@ public class ProjectOperator<IN, OUT extends Tuple>
 		return proj.projectTupleX();
 	}
 	/**
-	 * A fake types() call to make codes compatible
+	 * Deprecated method only kept for compatibility.
+	 *
 	 * @param types
+	 *
 	 * @return
 	 */
 	@SuppressWarnings({ "unchecked", "hiding" })
 	@Deprecated
-	public <OUT extends Tuple> ProjectOperator<?, OUT> types(Class<?>... types) {
-		return (ProjectOperator<?, OUT>) this;
+	public <OUT extends Tuple> ProjectOperator<IN, OUT> types(Class<?>... types) {
+		TupleTypeInfo<OUT> typeInfo = (TupleTypeInfo<OUT>)this.getResultType();
+
+		if(types.length != typeInfo.getArity()) {
+			throw new InvalidProgramException("Provided types do not match projection.");
+		}
+		for (int i=0; i<types.length; i++) {
+			Class<?> typeClass = types[i];
+			if (!typeClass.equals(typeInfo.getTypeAt(i).getTypeClass())) {
+				throw new InvalidProgramException("Provided type "+typeClass.getSimpleName()+" at position "+i+" does not match projection");
+			}
+		}
+		return (ProjectOperator<IN, OUT>) this;
 	}
 	
 	public static class Projection<T> {

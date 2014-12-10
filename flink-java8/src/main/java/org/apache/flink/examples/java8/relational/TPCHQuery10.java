@@ -111,21 +111,20 @@ public class TPCHQuery10 {
 				// filter by year
 				orders.filter(order -> Integer.parseInt(order.f2.substring(0, 4)) > 1990)
 				// project fields out that are no longer required
-				.project(0,1).types(Integer.class, Integer.class);
+				.project(0,1);
 
 		// lineitems filtered by flag: (orderkey, extendedprice, discount)
 		DataSet<Tuple3<Integer, Double, Double>> lineitemsFilteredByFlag = 
 				// filter by flag
 				lineitems.filter(lineitem -> lineitem.f3.equals("R"))
 				// project fields out that are no longer required
-				.project(0,1,2).types(Integer.class, Double.class, Double.class);
+				.project(0,1,2);
 
 		// join orders with lineitems: (custkey, extendedprice, discount)
 		DataSet<Tuple3<Integer, Double, Double>> lineitemsOfCustomerKey = 
 				ordersFilteredByYear.joinWithHuge(lineitemsFilteredByFlag)
 									.where(0).equalTo(0)
-									.projectFirst(1).projectSecond(1,2)
-									.types(Integer.class, Double.class, Double.class);
+									.projectFirst(1).projectSecond(1,2);
 
 		// aggregate for revenue: (custkey, revenue)
 		DataSet<Tuple2<Integer, Double>> revenueOfCustomerKey = lineitemsOfCustomerKey
@@ -139,15 +138,13 @@ public class TPCHQuery10 {
 		DataSet<Tuple5<Integer, String, String, String, Double>> customerWithNation = customers
 						.joinWithTiny(nations)
 						.where(3).equalTo(0)
-						.projectFirst(0,1,2).projectSecond(1).projectFirst(4)
-						.types(Integer.class, String.class, String.class, String.class, Double.class);
+						.projectFirst(0,1,2).projectSecond(1).projectFirst(4);
 
 		// join customer (with nation) with revenue (custkey, name, address, nationname, acctbal, revenue)
 		DataSet<Tuple6<Integer, String, String, String, Double, Double>> customerWithRevenue = 
 				customerWithNation.join(revenueOfCustomerKey)
 				.where(0).equalTo(0)
-				.projectFirst(0,1,2,3,4).projectSecond(1)
-				.types(Integer.class, String.class, String.class, String.class, Double.class, Double.class);
+				.projectFirst(0,1,2,3,4).projectSecond(1);
 
 		// emit result
 		customerWithRevenue.writeAsCsv(outputPath);

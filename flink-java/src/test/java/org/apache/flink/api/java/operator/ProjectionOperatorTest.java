@@ -103,14 +103,14 @@ public class ProjectionOperatorTest {
 
 		// should work
 		try {
-			tupleDs.project(0).types(Integer.class);
+			tupleDs.project(0);
 		} catch(Exception e) {
 			Assert.fail();
 		}
 		
 		// should work: dummy types() here
 		try {
-			tupleDs.project(2,1,4).types(String.class, Long.class);
+			tupleDs.project(2,1,4);
 		} catch(Exception e) {
 			Assert.fail();
 		}

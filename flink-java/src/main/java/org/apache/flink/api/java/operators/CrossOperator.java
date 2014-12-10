@@ -150,14 +150,15 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		 * {@link org.apache.flink.api.java.operators.CrossOperator.ProjectCross#projectFirst(int...)} and
 		 * {@link org.apache.flink.api.java.operators.CrossOperator.ProjectCross#projectSecond(int...)}.
 		 *
+ 		 * <b>Note: With the current implementation, the Project transformation looses type information.</b>
+		 *
 		 * @param firstFieldIndexes If the first input is a Tuple DataSet, the indexes of the selected fields.
 		 * 					   For a non-Tuple DataSet, do not provide parameters.
 		 * 					   The order of fields in the output tuple is defined by to the order of field indexes.
-		 * @return A CrossProjection to complete the Cross transformation.
+		 * @return A ProjectCross which represents the projected cross result.
 		 *
 		 * @see Tuple
 		 * @see DataSet
-		 * @see org.apache.flink.api.java.operators.CrossOperator.CrossProjection
 		 * @see org.apache.flink.api.java.operators.CrossOperator.ProjectCross
 		 */
 		public <OUT extends Tuple> ProjectCross<I1, I2, OUT> projectFirst(int... firstFieldIndexes) {
@@ -173,14 +174,15 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		 * {@link org.apache.flink.api.java.operators.CrossOperator.ProjectCross#projectFirst(int...)} and
 		 * {@link org.apache.flink.api.java.operators.CrossOperator.ProjectCross#projectSecond(int...)}.
 		 *
+		 * <b>Note: With the current implementation, the Project transformation looses type information.</b>
+		 *
 		 * @param secondFieldIndexes If the second input is a Tuple DataSet, the indexes of the selected fields.
 		 * 					   For a non-Tuple DataSet, do not provide parameters.
 		 * 					   The order of fields in the output tuple is defined by to the order of field indexes.
-		 * @return A CrossProjection complete the Cross transformation by calling.
+		 * @return A ProjectCross which represents the projected cross result.
 		 *
 		 * @see Tuple
 		 * @see DataSet
-		 * @see org.apache.flink.api.java.operators.CrossOperator.CrossProjection
 		 * @see org.apache.flink.api.java.operators.CrossOperator.ProjectCross
 		 */
 		public <OUT extends Tuple> ProjectCross<I1, I2, OUT> projectSecond(int... secondFieldIndexes) {
@@ -218,7 +220,27 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			
 			this.crossProjection = crossProjection;
 		}
-		
+
+		/**
+		 * Continues a ProjectCross transformation and adds fields of the first cross input to the projection.<br/>
+		 * If the first cross input is a {@link Tuple} {@link DataSet}, fields can be selected by their index.
+		 * If the first cross input is not a Tuple DataSet, no parameters should be passed.<br/>
+		 *
+		 * Additional fields of the first and second input can be added by chaining the method calls of
+		 * {@link org.apache.flink.api.java.operators.CrossOperator.ProjectCross#projectFirst(int...)} and
+		 * {@link org.apache.flink.api.java.operators.CrossOperator.ProjectCross#projectSecond(int...)}.
+		 *
+		 * <b>Note: With the current implementation, the Project transformation looses type information.</b>
+		 *
+		 * @param firstFieldIndexes If the first input is a Tuple DataSet, the indexes of the selected fields.
+		 * 					   For a non-Tuple DataSet, do not provide parameters.
+		 * 					   The order of fields in the output tuple is defined by to the order of field indexes.
+		 * @return A ProjectCross which represents the projected cross result.
+		 *
+		 * @see Tuple
+		 * @see DataSet
+		 * @see org.apache.flink.api.java.operators.CrossOperator.ProjectCross
+		 */
 		@SuppressWarnings("hiding")
 		public <OUT extends Tuple> ProjectCross<I1, I2, OUT> projectFirst(int... firstFieldIndexes) {
 			crossProjection = crossProjection.projectFirst(firstFieldIndexes);
@@ -226,17 +248,55 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 			return crossProjection.projectTupleX();
 		}
 
+		/**
+		 * Continues a ProjectCross transformation and adds fields of the second cross input to the projection.<br/>
+		 * If the second cross input is a {@link Tuple} {@link DataSet}, fields can be selected by their index.
+		 * If the second cross input is not a Tuple DataSet, no parameters should be passed.<br/>
+		 *
+		 * Additional fields of the first and second input can be added by chaining the method calls of
+		 * {@link org.apache.flink.api.java.operators.CrossOperator.ProjectCross#projectFirst(int...)} and
+		 * {@link org.apache.flink.api.java.operators.CrossOperator.ProjectCross#projectSecond(int...)}.
+		 *
+		 * <b>Note: With the current implementation, the Project transformation looses type information.</b>
+		 *
+		 * @param secondFieldIndexes If the second input is a Tuple DataSet, the indexes of the selected fields.
+		 * 					   For a non-Tuple DataSet, do not provide parameters.
+		 * 					   The order of fields in the output tuple is defined by to the order of field indexes.
+		 * @return A ProjectCross which represents the projected cross result.
+		 *
+		 * @see Tuple
+		 * @see DataSet
+		 * @see org.apache.flink.api.java.operators.CrossOperator.ProjectCross
+		 */
 		@SuppressWarnings("hiding")
 		public <OUT extends Tuple> ProjectCross<I1, I2, OUT> projectSecond(int... secondFieldIndexes) {
 			crossProjection = crossProjection.projectSecond(secondFieldIndexes);
 			
 			return crossProjection.projectTupleX();
 		}
-		
+
+		/**
+		 * Deprecated method only kept for compatibility.
+		 *
+		 * @param types
+		 *
+		 * @return
+		 */
 		@SuppressWarnings({ "hiding", "unchecked" })
 		@Deprecated
-		public <OUT extends Tuple> ProjectCross<I1, I2, OUT> types(Class<?>... types) {
-			return (ProjectCross<I1, I2, OUT>) this;
+		public <OUT extends Tuple> CrossOperator<I1, I2, OUT> types(Class<?>... types) {
+			TupleTypeInfo<OUT> typeInfo = (TupleTypeInfo<OUT>)this.getResultType();
+
+			if(types.length != typeInfo.getArity()) {
+				throw new InvalidProgramException("Provided types do not match projection.");
+			}
+			for (int i=0; i<types.length; i++) {
+				Class<?> typeClass = types[i];
+				if (!typeClass.equals(typeInfo.getTypeAt(i).getTypeClass())) {
+					throw new InvalidProgramException("Provided type "+typeClass.getSimpleName()+" at position "+i+" does not match projection");
+				}
+			}
+			return (CrossOperator<I1, I2, OUT>) this;
 		}
 
 		@Override
@@ -410,16 +470,14 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		 * @param firstFieldIndexes If the first input is a Tuple DataSet, the indexes of the selected fields.
 		 * 					   For a non-Tuple DataSet, do not provide parameters.
 		 * 					   The order of fields in the output tuple is defined by to the order of field indexes.
-		 * @return A CrossProjection that needs to be converted into a {@link ProjectOperator} to complete the
-		 *           Cross transformation by calling
-		 *           {@link org.apache.flink.api.java.operators.CrossOperator.CrossProjection#types(Class)}.
+		 * @return An extended CrossProjection.
 		 *
 		 * @see Tuple
 		 * @see DataSet
 		 * @see org.apache.flink.api.java.operators.CrossOperator.CrossProjection
 		 * @see org.apache.flink.api.java.operators.CrossOperator.ProjectCross
 		 */
-		public CrossProjection<I1, I2> projectFirst(int... firstFieldIndexes) {
+		protected CrossProjection<I1, I2> projectFirst(int... firstFieldIndexes) {
 
 			boolean isFirstTuple;
 
@@ -478,16 +536,14 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		 * @param secondFieldIndexes If the second input is a Tuple DataSet, the indexes of the selected fields.
 		 * 					   For a non-Tuple DataSet, do not provide parameters.
 		 * 					   The order of fields in the output tuple is defined by to the order of field indexes.
-		 * @return A CrossProjection that needs to be converted into a {@link ProjectOperator} to complete the
-		 *           Cross transformation by calling
-		 *           {@link org.apache.flink.api.java.operators.CrossOperator.CrossProjection#types(Class)}.
+		 * @return An extended CrossProjection.
 		 *
 		 * @see Tuple
 		 * @see DataSet
 		 * @see org.apache.flink.api.java.operators.CrossOperator.CrossProjection
 		 * @see org.apache.flink.api.java.operators.CrossOperator.ProjectCross
 		 */
-		public CrossProjection<I1, I2> projectSecond(int... secondFieldIndexes) {
+		protected CrossProjection<I1, I2> projectSecond(int... secondFieldIndexes) {
 
 			boolean isSecondTuple;
 
@@ -545,7 +601,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		 * 
 		 * @return The projected DataSet.
 		 * 
-		 * @see Projection
+		 * @see ProjectCross
 		 */
 		@SuppressWarnings("unchecked")
 		public <OUT extends Tuple> ProjectCross<I1, I2, OUT> projectTupleX() {

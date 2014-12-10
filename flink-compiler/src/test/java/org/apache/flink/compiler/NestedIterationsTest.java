@@ -159,7 +159,7 @@ public class NestedIterationsTest extends CompilerTestBase {
 			DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> mainIteration = data2.iterateDelta(data2, 100, 0);
 			
 			DataSet<Tuple2<Long, Long>> joined = mainIteration.getWorkset().join(firstResult).where(0).equalTo(0)
-							.projectFirst(0).projectSecond(0).types(Long.class, Long.class);
+							.projectFirst(0).projectSecond(0);
 			
 			DataSet<Tuple2<Long, Long>> mainResult = mainIteration.closeWith(joined, joined);
 			

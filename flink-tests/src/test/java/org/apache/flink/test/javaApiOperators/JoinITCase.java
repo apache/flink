@@ -343,8 +343,7 @@ public class JoinITCase extends JavaProgramTestBase {
 						   .projectFirst(2,1)
 						   .projectSecond(3)
 						   .projectFirst(0)
-						   .projectSecond(4,1)
-						   .types(String.class, Long.class, String.class, Integer.class, Long.class, Long.class);
+						   .projectSecond(4,1);
 				
 				joinDs.writeAsCsv(resultPath);
 				env.execute();
@@ -372,8 +371,7 @@ public class JoinITCase extends JavaProgramTestBase {
 						   .projectSecond(3)
 						   .projectFirst(2,1)
 						   .projectSecond(4,1)
-						   .projectFirst(0)
-						   .types(String.class, String.class, Long.class, Long.class, Long.class, Integer.class);
+						   .projectFirst(0);
 				
 				joinDs.writeAsCsv(resultPath);
 				env.execute();

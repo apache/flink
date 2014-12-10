@@ -69,7 +69,7 @@ public class IterationsCompilerTest extends CompilerTestBase {
 			DataSet<Tuple2<Long, Long>> result =
 				invariantInput
 					.map(new IdentityMapper<Tuple2<Long, Long>>()).withBroadcastSet(iter.getWorkset(), "bc data")
-					.join(iter.getSolutionSet()).where(0).equalTo(1).projectFirst(1).projectSecond(1).types(Long.class, Long.class);
+					.join(iter.getSolutionSet()).where(0).equalTo(1).projectFirst(1).projectSecond(1);
 			
 			iter.closeWith(result.map(new IdentityMapper<Tuple2<Long,Long>>()), result).print();
 			
@@ -330,12 +330,12 @@ public class IterationsCompilerTest extends CompilerTestBase {
 		DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> depIteration = vertices.iterateDelta(vertices, 100, 0);
 				
 		DataSet<Tuple1<Long>> candidates = depIteration.getWorkset().join(edges).where(0).equalTo(0)
-				.projectSecond(1).types(Long.class);
+				.projectSecond(1);
 		
 		DataSet<Tuple1<Long>> grouped = candidates.groupBy(0).reduceGroup(new Reduce101());
 		
 		DataSet<Tuple2<Long, Long>> candidatesDependencies = 
-				grouped.join(edges).where(0).equalTo(1).projectSecond(0, 1).types(Long.class, Long.class);
+				grouped.join(edges).where(0).equalTo(1).projectSecond(0, 1);
 		
 		DataSet<Tuple2<Long, Long>> verticesWithNewComponents = 
 				candidatesDependencies.join(depIteration.getSolutionSet()).where(0).equalTo(0)

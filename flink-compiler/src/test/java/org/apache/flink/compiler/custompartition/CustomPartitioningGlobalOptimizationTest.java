@@ -21,6 +21,7 @@ package org.apache.flink.compiler.custompartition;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import org.junit.Test;
 
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.functions.Partitioner;
@@ -40,8 +41,6 @@ import org.apache.flink.compiler.plan.SingleInputPlanNode;
 import org.apache.flink.compiler.plan.SinkPlanNode;
 import org.apache.flink.compiler.testfunctions.IdentityGroupReducer;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
-import org.junit.Test;
-
 
 @SuppressWarnings({"serial", "unchecked"})
 public class CustomPartitioningGlobalOptimizationTest extends CompilerTestBase {
@@ -65,7 +64,7 @@ public class CustomPartitioningGlobalOptimizationTest extends CompilerTestBase {
 			joined.groupBy(1).withPartitioner(partitioner)
 				.reduceGroup(new IdentityGroupReducer<Tuple3<Long,Long,Long>>())
 				.print();
-			
+
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
 			
