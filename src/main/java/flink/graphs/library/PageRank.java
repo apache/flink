@@ -1,8 +1,8 @@
-package flink.graphs;
+package flink.graphs.library;
 
 
 import flink.graphs.Graph;
-import org.apache.flink.api.java.DataSet;
+import flink.graphs.GraphAlgorithm;
 import org.apache.flink.spargel.java.MessageIterator;
 import org.apache.flink.spargel.java.MessagingFunction;
 import org.apache.flink.spargel.java.OutgoingEdge;
@@ -10,7 +10,26 @@ import org.apache.flink.spargel.java.VertexUpdateFunction;
 
 import java.io.Serializable;
 
-public class GraphLib {
+public class PageRank<K extends Comparable<K> & Serializable> implements GraphAlgorithm<K, Double, Double> {
+
+    private long numVertices;
+    private double beta;
+    private int maxIterations;
+
+    public PageRank(long numVertices, double beta, int maxIterations) {
+        this.numVertices = numVertices;
+        this.beta = beta;
+        this.maxIterations = maxIterations;
+    }
+
+    @Override
+    public Graph<K, Double, Double> run(Graph<K, Double, Double> network) {
+        return network.runVertexCentricIteration(
+                new VertexRankUpdater<K>(numVertices, beta),
+                new RankMessenger<K>(),
+                maxIterations
+        );
+    }
 
 
     /**
@@ -52,16 +71,5 @@ public class GraphLib {
                 sendMessageTo(edge.target(), newRank * edge.edgeValue());
             }
         }
-    }
-
-    //TODO Get numVertices from graph as long when this is possible (https://github.com/apache/incubator-flink/pull/210)
-    public static <K extends Comparable<K> & Serializable> Graph<K,Double,Double> pageRank (Graph<K,Double,Double> network,
-        long numVertices, double beta, int maxIterations) {
-
-        return network.runVertexCentricIteration(
-                new VertexRankUpdater<K>(numVertices, beta),
-                new RankMessenger<K>(),
-                maxIterations
-        );
     }
 }
