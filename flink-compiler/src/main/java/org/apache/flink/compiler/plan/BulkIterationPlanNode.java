@@ -142,17 +142,17 @@ public class BulkIterationPlanNode extends SingleInputPlanNode implements Iterat
 	}
 
 	private void mergeBranchPlanMaps() {
-		for(OptimizerNode.UnclosedBranchDescriptor desc: template.getOpenBranches()){
+		for (OptimizerNode.UnclosedBranchDescriptor desc: template.getOpenBranches()) {
 			OptimizerNode brancher = desc.getBranchingNode();
 
-			if(branchPlan == null) {
+			if (branchPlan == null) {
 				branchPlan = new HashMap<OptimizerNode, PlanNode>(6);
 			}
 			
-			if(!branchPlan.containsKey(brancher)){
+			if (!branchPlan.containsKey(brancher)) {
 				PlanNode selectedCandidate = null;
 
-				if(rootOfStepFunction.branchPlan != null){
+				if (rootOfStepFunction.branchPlan != null) {
 					selectedCandidate = rootOfStepFunction.branchPlan.get(brancher);
 				}
 
