@@ -29,6 +29,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.configuration.Configuration;
@@ -266,8 +267,8 @@ public class JobGraph implements IOReadableWritable {
 			return Collections.emptyList();
 		}
 		
-		ArrayList<AbstractJobVertex> sorted = new ArrayList<AbstractJobVertex>(this.taskVertices.size());
-		LinkedHashSet<AbstractJobVertex> remaining = new LinkedHashSet<AbstractJobVertex>(this.taskVertices.values());
+		List<AbstractJobVertex> sorted = new ArrayList<AbstractJobVertex>(this.taskVertices.size());
+		Set<AbstractJobVertex> remaining = new LinkedHashSet<AbstractJobVertex>(this.taskVertices.values());
 		
 		// start by finding the vertices with no input edges
 		// and the ones with disconnected inputs (that refer to some standalone data set)
@@ -301,7 +302,7 @@ public class JobGraph implements IOReadableWritable {
 		return sorted;
 	}
 	
-	private void addNodesThatHaveNoNewPredecessors(AbstractJobVertex start, ArrayList<AbstractJobVertex> target, LinkedHashSet<AbstractJobVertex> remaining) {
+	private void addNodesThatHaveNoNewPredecessors(AbstractJobVertex start, List<AbstractJobVertex> target, Set<AbstractJobVertex> remaining) {
 		
 		// forward traverse over all produced data sets and all their consumers
 		for (IntermediateDataSet dataSet : start.getProducedDataSets()) {

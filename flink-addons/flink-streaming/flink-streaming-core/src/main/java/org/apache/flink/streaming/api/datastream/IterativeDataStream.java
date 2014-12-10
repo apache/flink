@@ -20,7 +20,7 @@ package org.apache.flink.streaming.api.datastream;
 import java.util.Arrays;
 import java.util.List;
 
-import org.apache.flink.streaming.partitioner.ForwardPartitioner;
+import org.apache.flink.streaming.partitioner.DistributePartitioner;
 
 /**
  * The iterative data stream represents the start of an iteration in a
@@ -91,8 +91,8 @@ public class IterativeDataStream<IN> extends
 
 		for (DataStream<IN> stream : iterationTail.mergedStreams) {
 			String inputID = stream.getId();
-			jobGraphBuilder.setEdge(inputID, returnStream.getId(), new ForwardPartitioner<IN>(), 0,
-					name, false);
+			jobGraphBuilder.setEdge(inputID, returnStream.getId(), new DistributePartitioner<IN>(
+					true), 0, name, false);
 		}
 
 		return iterationTail;

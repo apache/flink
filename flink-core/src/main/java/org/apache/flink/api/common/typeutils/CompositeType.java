@@ -28,7 +28,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
  * Type Information for Tuple and Pojo types
  * 
  * The class is taking care of serialization and comparators for Tuples as well.
- * See @see {@link Keys} class for fields setup.
  */
 public abstract class CompositeType<T> extends TypeInformation<T> {
 	
@@ -66,7 +65,7 @@ public abstract class CompositeType<T> extends TypeInformation<T> {
 	/**
 	 * Generic implementation of the comparator creation. Composite types are supplying the infrastructure
 	 * to create the actual comparators
-	 * @return
+	 * @return The comparator
 	 */
 	public TypeComparator<T> createComparator(int[] logicalKeyFields, boolean[] orders, int logicalFieldOffset) {
 		initializeNewComparator(logicalKeyFields.length);

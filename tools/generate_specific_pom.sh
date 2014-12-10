@@ -25,7 +25,7 @@
 
 function usage {
   echo "Usage: $0 CURRENT_VERSION NEW_VERSION [POM_NAME]"
-  echo "For example, $0 0.4-SNAPSHOT 0.4-hadoop2-SNAPSHOT"
+  echo "For example, $0 0.8-incubating-SNAPSHOT 0.8-hadoop1-incubating-SNAPSHOT"
   echo "Presumes VERSION has hadoop1 or hadoop2 in it. POM_NAME is optional and"
   echo "allows to specify a different name for the generated pom."
   exit 1
@@ -96,7 +96,7 @@ for p in $poms; do
     -e "s/\(<module>[^<]*\)/\1\/${nupom}/" \
     -e "s/\(relativePath>\.\.\)/\1\/${nupom}/" \
     -e "s/<!--hadoop1-->.*name>.*/${hadoop1}/" \
-    -e "s/<!--hadoop2-->.*<name>.*/${hadoop2}/" \
+    -e "s/<!--hadoop2-->.*name>.*/${hadoop2}/" \
   $p > "$tmp_nuname"
   mv $tmp_nuname $nuname
 done

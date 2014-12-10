@@ -1,6 +1,24 @@
 ---
 title: Flink Overview
 ---
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
 
 Apache Flink (incubating) is a platform for efficient, distributed, general-purpose data processing.
 It features powerful programming abstractions in Java and Scala, a high-performance runtime, and
@@ -14,7 +32,7 @@ a thorough introduction of the Flink API please refer to the
 ## Download
 
 You can download Flink from the [downloads]({{ site.FLINK_DOWNLOAD_URL }}) page
-of the [project website]({{ site.FLINK_WEBSITE_URL }}). This documentation if for version {{ site.FLINK_VERSION_STABLE }}. Be careful
+of the [project website]({{ site.FLINK_WEBSITE_URL }}). This documentation is for version {{ site.FLINK_VERSION_STABLE }}. Be careful
 when picking a version, there are different versions depending on the Hadoop and/or
 HDFS version that you want to use with Flink. Please refer to [building](building.html) if you
 want to build Flink yourself from the source.

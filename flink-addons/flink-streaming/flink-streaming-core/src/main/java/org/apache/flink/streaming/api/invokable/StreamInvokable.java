@@ -152,6 +152,7 @@ public abstract class StreamInvokable<IN, OUT> implements Serializable {
 	 */
 	public void close() throws Exception {
 		isRunning = false;
+		collector.close();
 		if (userFunction instanceof RichFunction) {
 			((RichFunction) userFunction).close();
 		}

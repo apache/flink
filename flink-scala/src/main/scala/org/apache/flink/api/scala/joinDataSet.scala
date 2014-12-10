@@ -66,7 +66,7 @@ class JoinDataSet[L, R](
     rightKeys: Keys[R])
   extends DataSet(defaultJoin) {
 
-  var customPartitioner : Partitioner[_] = _
+  private var customPartitioner : Partitioner[_] = _
   
   /**
    * Creates a new [[DataSet]] where the result for each pair of joined elements is the result
@@ -75,8 +75,9 @@ class JoinDataSet[L, R](
   def apply[O: TypeInformation: ClassTag](fun: (L, R) => O): DataSet[O] = {
     Validate.notNull(fun, "Join function must not be null.")
     val joiner = new FlatJoinFunction[L, R, O] {
+      val cleanFun = clean(fun)
       def join(left: L, right: R, out: Collector[O]) = {
-        out.collect(fun(left, right))
+        out.collect(cleanFun(left, right))
       }
     }
     val joinOperator = new EquiJoin[L, R, O](
@@ -104,8 +105,9 @@ class JoinDataSet[L, R](
   def apply[O: TypeInformation: ClassTag](fun: (L, R, Collector[O]) => Unit): DataSet[O] = {
     Validate.notNull(fun, "Join function must not be null.")
     val joiner = new FlatJoinFunction[L, R, O] {
+      val cleanFun = clean(fun)
       def join(left: L, right: R, out: Collector[O]) = {
-        fun(left, right, out)
+        cleanFun(left, right, out)
       }
     }
     val joinOperator = new EquiJoin[L, R, O](

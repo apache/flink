@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobgraph;
 
+import org.apache.flink.api.common.io.FinalizeOnMaster;
 import org.apache.flink.api.common.io.InitializeOnMaster;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
@@ -31,10 +32,8 @@ public class OutputFormatVertex extends AbstractJobVertex {
 	
 	private static final long serialVersionUID = 1L;
 	
+	private String formatDescription;
 	
-	/** Caches the output format associated to this output vertex. */
-	private transient OutputFormat<?> outputFormat;
-
 	/**
 	 * Creates a new task vertex with the specified name.
 	 * 
@@ -44,23 +43,79 @@ public class OutputFormatVertex extends AbstractJobVertex {
 		super(name);
 	}
 	
+	public void setFormatDescription(String formatDescription) {
+		this.formatDescription = formatDescription;
+	}
+	
+	public String getFormatDescription() {
+		return formatDescription;
+	}
 	
 	@Override
 	public void initializeOnMaster(ClassLoader loader) throws Exception {
-		if (this.outputFormat == null) {
-			TaskConfig cfg = new TaskConfig(getConfiguration());
-			UserCodeWrapper<OutputFormat<?>> wrapper = cfg.<OutputFormat<?>>getStubWrapper(loader);
+		final TaskConfig cfg = new TaskConfig(getConfiguration());
 		
-			if (wrapper == null) {
-				throw new Exception("No output format present in OutputFormatVertex's task configuration.");
-			}
-
-			this.outputFormat = wrapper.getUserCodeObject(OutputFormat.class, loader);
-			this.outputFormat.configure(cfg.getStubParameters());
+		UserCodeWrapper<OutputFormat<?>> wrapper;
+		try {
+			wrapper = cfg.<OutputFormat<?>>getStubWrapper(loader);
+		}
+		catch (Throwable t) {
+			throw new Exception("Deserializing the OutputFormat (" + formatDescription + ") failed: " + t.getMessage(), t);
+		}
+		if (wrapper == null) {
+			throw new Exception("No input format present in InputFormatVertex's task configuration.");
 		}
 		
-		if (this.outputFormat instanceof InitializeOnMaster) {
-			((InitializeOnMaster) this.outputFormat).initializeGlobal(getParallelism());
+		OutputFormat<?> outputFormat;
+		try {
+			outputFormat = wrapper.getUserCodeObject(OutputFormat.class, loader);
+		}
+		catch (Throwable t) {
+			throw new Exception("Instantiating the OutputFormat (" + formatDescription + ") failed: " + t.getMessage(), t);
+		}
+		try {
+			outputFormat.configure(cfg.getStubParameters());
+		}
+		catch (Throwable t) {
+			throw new Exception("Configuring the OutputFormat (" + formatDescription + ") failed: " + t.getMessage(), t);
+		}
+		
+		if (outputFormat instanceof InitializeOnMaster) {
+			((InitializeOnMaster) outputFormat).initializeGlobal(getParallelism());
+		}
+	}
+	
+	@Override
+	public void finalizeOnMaster(ClassLoader loader) throws Exception {
+		final TaskConfig cfg = new TaskConfig(getConfiguration());
+
+		UserCodeWrapper<OutputFormat<?>> wrapper;
+		try {
+			wrapper = cfg.<OutputFormat<?>>getStubWrapper(loader);
+		}
+		catch (Throwable t) {
+			throw new Exception("Deserializing the OutputFormat (" + formatDescription + ") failed: " + t.getMessage(), t);
+		}
+		if (wrapper == null) {
+			throw new Exception("No input format present in InputFormatVertex's task configuration.");
+		}
+
+		OutputFormat<?> outputFormat;
+		try {
+			outputFormat = wrapper.getUserCodeObject(OutputFormat.class, loader);
+		}
+		catch (Throwable t) {
+			throw new Exception("Instantiating the OutputFormat (" + formatDescription + ") failed: " + t.getMessage(), t);
+		}
+		try {
+			outputFormat.configure(cfg.getStubParameters());
+		}
+		catch (Throwable t) {
+			throw new Exception("Configuring the OutputFormat (" + formatDescription + ") failed: " + t.getMessage(), t);
+		}
+		
+		if (outputFormat instanceof FinalizeOnMaster) {
+			((FinalizeOnMaster) outputFormat).finalizeGlobal(getParallelism());
 		}
 	}
 }

@@ -418,18 +418,25 @@ public abstract class TwoInputNode extends OptimizerNode {
 						 *       the pairs of global properties.
 						 * *******************************************************************/
 						
+						outer:
 						for (GlobalPropertiesPair gpp : allGlobalPairs) {
 							if (gpp.getProperties1().isMetBy(c1.getGlobalProperties()) && 
 								gpp.getProperties2().isMetBy(c2.getGlobalProperties()) )
 							{
-								Channel c1Clone = c1.clone();
-								c1Clone.setRequiredGlobalProps(gpp.getProperties1());
-								c2.setRequiredGlobalProps(gpp.getProperties2());
-								
-								// we form a valid combination, so create the local candidates
-								// for this
-								addLocalCandidates(c1Clone, c2, broadcastPlanChannels, igps1, igps2, outputPlans, allLocalPairs, estimator);
-								break;
+								for (OperatorDescriptorDual desc : getProperties()) {
+									if (desc.areCompatible(gpp.getProperties1(), gpp.getProperties2(), 
+											c1.getGlobalProperties(), c2.getGlobalProperties()))
+									{
+										Channel c1Clone = c1.clone();
+										c1Clone.setRequiredGlobalProps(gpp.getProperties1());
+										c2.setRequiredGlobalProps(gpp.getProperties2());
+										
+										// we form a valid combination, so create the local candidates
+										// for this
+										addLocalCandidates(c1Clone, c2, broadcastPlanChannels, igps1, igps2, outputPlans, allLocalPairs, estimator);
+										break outer;
+									}
+								}
 							}
 						}
 						

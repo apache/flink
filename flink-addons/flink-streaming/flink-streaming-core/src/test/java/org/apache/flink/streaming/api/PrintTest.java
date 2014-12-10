@@ -17,14 +17,17 @@
 
 package org.apache.flink.streaming.api;
 
+import java.io.Serializable;
+
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.junit.Test;
 
-public class PrintTest{
+public class PrintTest implements Serializable {
 
+	private static final long serialVersionUID = 1L;
 	private static final long MEMORYSIZE = 32;
 
 	private static final class IdentityMap implements MapFunction<Long, Long> {
@@ -44,12 +47,12 @@ public class PrintTest{
 			return true;
 		}
 	}
-	
+
 	@Test
 	public void test() throws Exception {
 		LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
 		env.generateSequence(1, 10).map(new IdentityMap()).filter(new FilterAll()).print();
 		env.executeTest(MEMORYSIZE);
-		
+
 	}
 }

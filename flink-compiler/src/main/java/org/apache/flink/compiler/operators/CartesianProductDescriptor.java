@@ -78,6 +78,12 @@ public abstract class CartesianProductDescriptor extends OperatorDescriptorDual 
 		return Collections.singletonList(new LocalPropertiesPair(
 			new RequestedLocalProperties(), new RequestedLocalProperties()));
 	}
+	
+	@Override
+	public boolean areCompatible(RequestedGlobalProperties requested1, RequestedGlobalProperties requested2,
+			GlobalProperties produced1, GlobalProperties produced2) {
+		return true;
+	}
 
 	@Override
 	public boolean areCoFulfilled(RequestedLocalProperties requested1, RequestedLocalProperties requested2,

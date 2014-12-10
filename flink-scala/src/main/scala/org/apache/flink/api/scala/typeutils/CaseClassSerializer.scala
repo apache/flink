@@ -32,27 +32,43 @@ abstract class CaseClassSerializer[T <: Product](
   extends TupleSerializerBase[T](clazz, scalaFieldSerializers) {
 
   @transient var fields : Array[AnyRef] = _
-  
-  
+
+  @transient var instanceCreationFailed : Boolean = false
+
   def createInstance: T = {
-    initArray()
-    var i = 0
-    while (i < arity) {
-      fields(i) = fieldSerializers(i).createInstance()
-      i += 1
+    if (instanceCreationFailed) {
+      null.asInstanceOf[T]
     }
-    createInstance(fields)
+    else {
+      initArray()
+      try {
+        var i = 0
+        while (i < arity) {
+          fields(i) = fieldSerializers(i).createInstance()
+          i += 1
+        }
+        createInstance(fields)
+      }
+      catch {
+        case t: Throwable => {
+          instanceCreationFailed = true
+          null.asInstanceOf[T]
+        }
+      }
+    }
   }
+
+  override def isStateful() = true
 
   def copy(from: T, reuse: T): T = {
     copy(from)
   }
-  
+
   def copy(from: T): T = {
     initArray()
     var i = 0
     while (i < arity) {
-      fields(i) = from.productElement(i).asInstanceOf[AnyRef]
+      fields(i) = fieldSerializers(i).copy(from.productElement(i).asInstanceOf[AnyRef])
       i += 1
     }
     createInstance(fields)
@@ -68,16 +84,9 @@ abstract class CaseClassSerializer[T <: Product](
   }
 
   def deserialize(reuse: T, source: DataInputView): T = {
-    initArray()
-    var i = 0
-    while (i < arity) {
-      val field = reuse.productElement(i).asInstanceOf[AnyRef]
-      fields(i) = fieldSerializers(i).deserialize(field, source)
-      i += 1
-    }
-    createInstance(fields)
+    deserialize(source);
   }
-  
+
   def deserialize(source: DataInputView): T = {
     initArray()
     var i = 0
@@ -87,7 +96,7 @@ abstract class CaseClassSerializer[T <: Product](
     }
     createInstance(fields)
   }
-  
+
   def initArray() = {
     if (fields == null) {
       fields = new Array[AnyRef](arity)

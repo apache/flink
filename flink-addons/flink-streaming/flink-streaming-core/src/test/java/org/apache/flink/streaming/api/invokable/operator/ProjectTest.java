@@ -23,12 +23,12 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.streaming.api.datastream.StreamProjection;
 import org.apache.flink.streaming.util.MockInvokable;
-import org.apache.flink.streaming.util.serialization.ObjectTypeWrapper;
-import org.apache.flink.streaming.util.serialization.ProjectTypeWrapper;
-import org.apache.flink.streaming.util.serialization.TypeWrapper;
 import org.junit.Test;
 
 public class ProjectTest implements Serializable {
@@ -37,17 +37,18 @@ public class ProjectTest implements Serializable {
 	@Test
 	public void test() {
 
-		TypeWrapper<Tuple5<Integer, String, Integer, String, Integer>> inTypeWrapper = new ObjectTypeWrapper<Tuple5<Integer, String, Integer, String, Integer>>(
-				new Tuple5<Integer, String, Integer, String, Integer>(2, "a", 3, "b", 4));
+		TypeInformation<Tuple5<Integer, String, Integer, String, Integer>> inType = TypeExtractor
+				.getForObject(new Tuple5<Integer, String, Integer, String, Integer>(2, "a", 3, "b",
+						4));
 
 		int[] fields = new int[] { 4, 4, 3 };
 		Class<?>[] classes = new Class<?>[] { Integer.class, Integer.class, String.class };
 
-		TypeWrapper<Tuple3<Integer, Integer, String>> outTypeWrapper = new ProjectTypeWrapper<Tuple5<Integer, String, Integer, String, Integer>, Tuple3<Integer, Integer, String>>(
-				inTypeWrapper, fields, classes);
-
+		@SuppressWarnings("unchecked")
 		ProjectInvokable<Tuple5<Integer, String, Integer, String, Integer>, Tuple3<Integer, Integer, String>> invokable = new ProjectInvokable<Tuple5<Integer, String, Integer, String, Integer>, Tuple3<Integer, Integer, String>>(
-				fields, outTypeWrapper);
+				fields,
+				(TypeInformation<Tuple3<Integer, Integer, String>>) StreamProjection
+						.extractFieldTypes(fields, classes, inType));
 
 		List<Tuple5<Integer, String, Integer, String, Integer>> input = new ArrayList<Tuple5<Integer, String, Integer, String, Integer>>();
 		input.add(new Tuple5<Integer, String, Integer, String, Integer>(2, "a", 3, "b", 4));

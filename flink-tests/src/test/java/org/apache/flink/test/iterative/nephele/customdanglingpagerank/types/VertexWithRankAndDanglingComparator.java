@@ -32,6 +32,7 @@ public final class VertexWithRankAndDanglingComparator extends TypeComparator<Ve
 	
 	private long reference;
 
+	@SuppressWarnings("rawtypes")
 	private TypeComparator[] comparators = new TypeComparator[]{new LongComparator(true)};
 
 	@Override
@@ -145,6 +146,7 @@ public final class VertexWithRankAndDanglingComparator extends TypeComparator<Ve
 	}
 
 	@Override
+	@SuppressWarnings("rawtypes")
 	public TypeComparator[] getFlatComparators() {
 		return comparators;
 	}

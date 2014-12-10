@@ -126,7 +126,7 @@ public class FirstNITCase extends JavaProgramTestBase {
 				
 				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 				DataSet<Tuple2<Long, Integer>> first = ds.groupBy(1).sortGroup(0, Order.DESCENDING).first(3)
-															.project(1,0).types(Long.class, Integer.class);
+															.project(1,0);
 				
 				first.writeAsText(resultPath);
 				env.execute();

@@ -79,9 +79,9 @@ under the License.
 		<flink.reuseForks>true</flink.reuseForks>
 		<slf4j.version>1.7.7</slf4j.version>
 		<guava.version>17.0</guava.version>
-	   <scala.version>2.10.4</scala.version>
-	   <scala.binary.version>2.10</scala.binary.version>
-	   <scala.macros.version>2.0.1</scala.macros.version>
+		<scala.version>2.10.4</scala.version>
+		<scala.binary.version>2.10</scala.binary.version>
+		<scala.macros.version>2.0.1</scala.macros.version>
 	</properties>
 
 	<dependencies>
@@ -202,7 +202,7 @@ under the License.
 				<version>3.2.1</version>
 			</dependency>
 			
-			<!-- Managed dependency required for HBase in flink-hbase  -->
+			<!-- Managed dependency required for HBase in flink-hbase -->
 			<dependency>
 				<groupId>org.javassist</groupId>
 				<artifactId>javassist</artifactId>
@@ -222,6 +222,39 @@ under the License.
 				<artifactId>stax-api</artifactId>
 				<version>1.0.1</version>
 			</dependency>
+
+			<!-- "Old" stable Hadoop = MapReduce v1 -->
+			<dependency>
+				<groupId>org.apache.hadoop</groupId>
+				<artifactId>hadoop-core</artifactId>
+				<version>${hadoop.version}</version>
+			</dependency>
+			<!-- YARN -->
+			<dependency>
+				<groupId>org.apache.hadoop</groupId>
+				<artifactId>hadoop-common</artifactId>
+				<version>${hadoop.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.hadoop</groupId>
+				<artifactId>hadoop-hdfs</artifactId>
+				<version>${hadoop.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.hadoop</groupId>
+				<artifactId>hadoop-client</artifactId>
+				<version>${hadoop.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.hadoop</groupId>
+				<artifactId>hadoop-mapreduce-client-core</artifactId>
+				<version>${hadoop.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.hadoop</groupId>
+				<artifactId>hadoop-yarn-client</artifactId>
+				<version>${hadoop.version}</version>
+			</dependency>
 		</dependencies>
 	</dependencyManagement>
 
@@ -231,54 +264,24 @@ under the License.
 			<activation>
 				<property>
 					<!-- Please do not remove the 'hadoop1' comment. See ./tools/generate_specific_pom.sh -->
-					<!--hadoop1--><name>!hadoop.profile</name>
+					<!--hadoop1--><name>hadoop.profile</name><value>1</value>
 				</property>
 			</activation>
 			<properties>
 				<hadoop.version>${hadoop-one.version}</hadoop.version>
 			</properties>
-			<dependencyManagement>
-				<dependencies>
-					<!-- "Old" stable Hadoop = MapReduce v1 -->
-					<dependency>
-						<groupId>org.apache.hadoop</groupId>
-						<artifactId>hadoop-core</artifactId>
-						<version>${hadoop.version}</version>
-					</dependency>
-				</dependencies>
-			</dependencyManagement>
 		</profile>
 		<profile>
 			<id>hadoop-2</id>
 			<activation>
 				<property>
-					<!-- Please do not remove the 'hadoop1' comment. See ./tools/generate_specific_pom.sh -->
-					<!--hadoop2--><name>hadoop.profile</name><value>2</value>
+					<!-- Please do not remove the 'hadoop2' comment. See ./tools/generate_specific_pom.sh -->
+					<!--hadoop2--><name>!hadoop.profile</name>
 				</property>
 			</activation>
 			<properties>
 				<hadoop.version>${hadoop-two.version}</hadoop.version>
 			</properties>
-			<dependencyManagement>
-				<dependencies>
-					<!-- YARN -->
-					<dependency>
-						<groupId>org.apache.hadoop</groupId>
-						<artifactId>hadoop-common</artifactId>
-						<version>${hadoop.version}</version>
-					</dependency>
-					<dependency>
-						<groupId>org.apache.hadoop</groupId>
-						<artifactId>hadoop-hdfs</artifactId>
-						<version>${hadoop.version}</version>
-					</dependency>
-					<dependency>
-						<groupId>org.apache.hadoop</groupId>
-						<artifactId>hadoop-client</artifactId>
-						<version>${hadoop.version}</version>
-					</dependency>
-				</dependencies>
-			</dependencyManagement>
 		</profile>
 
 		<profile>
@@ -498,7 +501,6 @@ under the License.
 					</relocations>
 				</configuration>
 			</plugin>
-			
 			<plugin>
 				<groupId>org.apache.rat</groupId>
 				<artifactId>apache-rat-plugin</artifactId>
@@ -553,31 +555,32 @@ under the License.
 						<exclude>**/.*</exclude>
 						<exclude>**/*.prefs</exclude>
 						<exclude>**/*.log</exclude>
-						<!-- Resource files which have values. -->
-						<exclude>**/resources/**</exclude>
+						<!-- External web libraries. -->
+						<exclude>docs/**/bootstrap*</exclude>
+						<exclude>**/resources/**/font-awesome/**</exclude>
+						<exclude>**/resources/**/jquery*</exclude>
+						<exclude>**/resources/**/bootstrap*</exclude>
+						<exclude>flink-clients/resources/web-docs/js/*d3.js</exclude>
+						<exclude>flink-runtime/resources/web-docs-infoserver/css/sb-admin.css</exclude>
+						<exclude>flink-runtime/resources/web-docs-infoserver/js/flot/*</exclude>
+						<exclude>flink-runtime/resources/web-docs-infoserver/js/jcanvas.min.js</exclude>
+						<exclude>flink-runtime/resources/web-docs-infoserver/js/timeline.js</exclude>
+						<!-- Test Data. -->
+						<exclude>flink-tests/src/test/resources/testdata/terainput.txt</exclude>
+						<exclude>flink-addons/flink-avro/src/test/resources/avro/user.avsc</exclude>
 						<!-- Configuration Files. -->
 						<exclude>**/flink-bin/conf/slaves</exclude>
 						<!-- Administrative files in the main trunk. -->
 						<exclude>**/README.md</exclude>
-						<exclude>tools/checkstyle.xml</exclude>
 						<exclude>CHANGELOG</exclude>
-						<exclude>**/*.creole</exclude>
 						<exclude>CONTRIBUTORS</exclude>
 						<exclude>DEPENDENCIES</exclude>
 						<!-- Build files -->
-						<exclude>tools/maven/checkstyle.xml</exclude>
-						<exclude>tools/maven/scalastyle-config.xml</exclude>
-						<exclude>**/scalastyle-output.xml</exclude>
-						<exclude>**/dependency-reduced-pom.xml</exclude>
-						<exclude>tools/maven/suppressions.xml</exclude>
-						<exclude>**/pom.xml</exclude>
-						<exclude>**/pom.hadoop2.xml</exclude>
 						<exclude>**/*.iml</exclude>
+						<exclude>flink-quickstart/**/testArtifact/goal.txt</exclude>
 						<!-- Generated content -->
 						<exclude>**/target/**</exclude>
-						<!-- Documentation -->
-						<exclude>**/docs/**</exclude>
-						<exclude>**/tools/*.md</exclude>
+						<exclude>**/scalastyle-output.xml</exclude>
 					</excludes>
 				</configuration>
 			</plugin>

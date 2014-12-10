@@ -17,92 +17,27 @@
 
 package org.apache.flink.streaming.api.invokable.operator;
 
-import org.apache.flink.api.common.functions.GroupReduceFunction;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.invokable.util.DefaultTimeStamp;
-import org.apache.flink.streaming.api.invokable.util.TimeStamp;
+import java.util.LinkedList;
 
-public class WindowGroupReduceInvokable<IN, OUT> extends BatchGroupReduceInvokable<IN, OUT> {
+import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.streaming.api.windowing.policy.EvictionPolicy;
+import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
+
+public class WindowGroupReduceInvokable<IN, OUT> extends WindowInvokable<IN, OUT> {
 
 	private static final long serialVersionUID = 1L;
-	private long startTime;
-	protected long nextRecordTime;
-	protected TimeStamp<IN> timestamp;
-	protected StreamWindow window;
+	GroupReduceFunction<IN, OUT> reducer;
 
-	public WindowGroupReduceInvokable(GroupReduceFunction<IN, OUT> reduceFunction, long windowSize,
-			long slideInterval, TimeStamp<IN> timestamp) {
-		super(reduceFunction, windowSize, slideInterval);
-		this.timestamp = timestamp;
-		this.startTime = timestamp.getStartTime();
-		this.window = new StreamWindow();
-		this.batch = this.window;
+	public WindowGroupReduceInvokable(GroupReduceFunction<IN, OUT> userFunction,
+			LinkedList<TriggerPolicy<IN>> triggerPolicies,
+			LinkedList<EvictionPolicy<IN>> evictionPolicies) {
+		super(userFunction, triggerPolicies, evictionPolicies);
+		this.reducer = userFunction;
 	}
 
 	@Override
-	public void open(Configuration config) throws Exception {
-		super.open(config);
-		if (timestamp instanceof DefaultTimeStamp) {
-			(new TimeCheck()).start();
-		}
-	}
-
-	protected class StreamWindow extends StreamBatch {
-
-		private static final long serialVersionUID = 1L;
-
-		public StreamWindow() {
-			super();
-		}
-
-		@Override
-		public void addToBuffer(IN nextValue) throws Exception {
-			checkWindowEnd(timestamp.getTimestamp(nextValue));
-			if (minibatchCounter >= 0) {
-				circularList.add(nextValue);
-			}
-		}
-
-		protected synchronized void checkWindowEnd(long timeStamp) {
-			nextRecordTime = timeStamp;
-
-			while (miniBatchEnd()) {
-				circularList.newSlide();
-				minibatchCounter++;
-				if (batchEnd()) {
-					reduceBatch();
-					circularList.shiftWindow(batchPerSlide);
-				}
-			}
-		}
-
-		@Override
-		protected boolean miniBatchEnd() {
-			if (nextRecordTime < startTime + granularity) {
-				return false;
-			} else {
-				startTime += granularity;
-				return true;
-			}
-		}
-
-	}
-
-	private class TimeCheck extends Thread {
-		@Override
-		public void run() {
-			while (true) {
-				try {
-					Thread.sleep(slideSize);
-				} catch (InterruptedException e) {
-				}
-				if (isRunning) {
-					window.checkWindowEnd(System.currentTimeMillis());
-				} else {
-					break;
-				}
-			}
-		}
+	protected void callUserFunction() throws Exception {
+		reducer.reduce(buffer, collector);
 	}
 
 }

@@ -102,6 +102,9 @@ import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+
 /**
  * A task manager receives tasks from the job manager and executes them. After having executed them
  * (or in case of an execution error) it reports the execution result back to the job manager.
@@ -386,7 +389,7 @@ public class TaskManager implements TaskOperationProtocol {
 				ConfigConstants.TASK_MANAGER_DEBUG_MEMORY_USAGE_START_LOG_THREAD,
 				ConfigConstants.DEFAULT_TASK_MANAGER_DEBUG_MEMORY_USAGE_START_LOG_THREAD);
 
-		if (startMemoryUsageLogThread && LOG.isDebugEnabled()) {
+		if (startMemoryUsageLogThread) {
 			final int logIntervalMs = GlobalConfiguration.getInteger(
 					ConfigConstants.TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS,
 					ConfigConstants.DEFAULT_TASK_MANAGER_DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS);
@@ -398,10 +401,8 @@ public class TaskManager implements TaskOperationProtocol {
 						while (!isShutDown()) {
 							Thread.sleep(logIntervalMs);
 
-							if (LOG.isDebugEnabled()) {
-								LOG.debug(getMemoryUsageStatsAsString(memoryMXBean));
-								LOG.debug(getGarbageCollectorStatsAsString(gcMXBeans));
-							}
+							LOG.info(getMemoryUsageStatsAsString(memoryMXBean));
+							LOG.info(getGarbageCollectorStatsAsString(gcMXBeans));
 						}
 					} catch (InterruptedException e) {
 						LOG.warn("Unexpected interruption of memory usage logger thread.");
@@ -893,15 +894,15 @@ public class TaskManager implements TaskOperationProtocol {
 		MemoryUsage heap = memoryMXBean.getHeapMemoryUsage();
 		MemoryUsage nonHeap = memoryMXBean.getNonHeapMemoryUsage();
 
-		int mb = 1 << 20;
+		int mb = 20;
 
-		int heapUsed = (int) (heap.getUsed() / mb);
-		int heapCommitted = (int) (heap.getCommitted() / mb);
-		int heapMax = (int) (heap.getMax() / mb);
+		long heapUsed = heap.getUsed() >> mb;
+		long heapCommitted = heap.getCommitted() >> mb;
+		long heapMax = heap.getMax() >> mb;
 
-		int nonHeapUsed = (int) (nonHeap.getUsed() / mb);
-		int nonHeapCommitted = (int) (nonHeap.getCommitted() / mb);
-		int nonHeapMax = (int) (nonHeap.getMax() / mb);
+		long nonHeapUsed = nonHeap.getUsed() >> mb;
+		long nonHeapCommitted = nonHeap.getCommitted() >> mb;
+		long nonHeapMax = nonHeap.getMax() >> mb;
 
 		String msg = String.format("Memory usage stats: [HEAP: %d/%d/%d MB, NON HEAP: %d/%d/%d MB (used/comitted/max)]",
 				heapUsed, heapCommitted, heapMax, nonHeapUsed, nonHeapCommitted, nonHeapMax);
@@ -1120,21 +1121,21 @@ public class TaskManager implements TaskOperationProtocol {
 	 */
 	private static final void checkTempDirs(final String[] tempDirs) throws Exception {
 		for (int i = 0; i < tempDirs.length; ++i) {
-			final String dir = tempDirs[i];
-			if (dir == null) {
-				throw new Exception("Temporary file directory #" + (i + 1) + " is null.");
-			}
+			final String dir = checkNotNull(tempDirs[i], "Temporary file directory #" + (i + 1) + " is null.");
 
 			final File f = new File(dir);
 
-			if (!f.exists()) {
-				throw new Exception("Temporary file directory '" + f.getAbsolutePath() + "' does not exist.");
-			}
-			if (!f.isDirectory()) {
-				throw new Exception("Temporary file directory '" + f.getAbsolutePath() + "' is not a directory.");
-			}
-			if (!f.canWrite()) {
-				throw new Exception("Temporary file directory '" + f.getAbsolutePath() + "' is not writable.");
+			checkArgument(f.exists(), "Temporary file directory '" + f.getAbsolutePath() + "' does not exist.");
+			checkArgument(f.isDirectory(), "Temporary file directory '" + f.getAbsolutePath() + "' is not a directory.");
+			checkArgument(f.canWrite(), "Temporary file directory '" + f.getAbsolutePath() + "' is not writable.");
+
+			if (LOG.isInfoEnabled()) {
+				long totalSpaceGb = f.getTotalSpace() >>  30;
+				long usableSpaceGb = f.getUsableSpace() >> 30;
+				double usablePercentage = ((double) usableSpaceGb) / totalSpaceGb * 100;
+
+				LOG.info(String.format("Temporary file directory '%s': total %d GB, usable %d GB [%.2f%% usable]",
+						f.getAbsolutePath(), totalSpaceGb, usableSpaceGb, usablePercentage));
 			}
 		}
 	}
@@ -1295,5 +1296,11 @@ public class TaskManager implements TaskOperationProtocol {
 		public int getTimeout() {
 			return timeout;
 		}
+	}
+
+	@Override
+	public void killTaskManager() throws IOException {
+		LOG.info("Killing TaskManager");
+		System.exit(0); // returning 0 because the TM is not stopping in an error condition.
 	}
 }

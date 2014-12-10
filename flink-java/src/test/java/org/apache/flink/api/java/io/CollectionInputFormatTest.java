@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.java.io;
 
 import static org.junit.Assert.assertEquals;
@@ -26,8 +25,11 @@ import static org.junit.Assert.fail;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.io.GenericInputSplit;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
@@ -38,11 +40,13 @@ import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 public class CollectionInputFormatTest {
-	public static class ElementType{
-		private int id;
+	
+	public static class ElementType {
+		private final int id;
 
 		public ElementType(){
 			this(-1);
@@ -52,37 +56,43 @@ public class CollectionInputFormatTest {
 			this.id = id;
 		}
 
-		public int getId(){return id;}
+		public int getId() {
+			return id;
+		}
 
 		@Override
-		public boolean equals(Object obj){
-			if(obj != null && obj instanceof ElementType){
+		public boolean equals(Object obj) {
+			if (obj != null && obj instanceof ElementType) {
 				ElementType et = (ElementType) obj;
-
 				return et.getId() == this.getId();
-			}else {
+			} else {
 				return false;
 			}
+		}
+		
+		@Override
+		public int hashCode() {
+			return id;
 		}
 	}
 
 	@Test
-	public void testSerializability(){
-		Collection<ElementType> inputCollection = new ArrayList<ElementType>();
-		ElementType element1 = new ElementType(1);
-		ElementType element2 = new ElementType(2);
-		ElementType element3 = new ElementType(3);
-		inputCollection.add(element1);
-		inputCollection.add(element2);
-		inputCollection.add(element3);
+	public void testSerializability() {
+		try {
+			Collection<ElementType> inputCollection = new ArrayList<ElementType>();
+			ElementType element1 = new ElementType(1);
+			ElementType element2 = new ElementType(2);
+			ElementType element3 = new ElementType(3);
+			inputCollection.add(element1);
+			inputCollection.add(element2);
+			inputCollection.add(element3);
+	
+			@SuppressWarnings("unchecked")
+			TypeInformation<ElementType> info = (TypeInformation<ElementType>) TypeExtractor.createTypeInfo(ElementType.class);
+	
+			CollectionInputFormat<ElementType> inputFormat = new CollectionInputFormat<ElementType>(inputCollection,
+					info.createSerializer());
 
-		@SuppressWarnings("unchecked")
-		TypeInformation<ElementType> info = (TypeInformation<ElementType>) TypeExtractor.createTypeInfo(ElementType.class);
-
-		CollectionInputFormat<ElementType> inputFormat = new CollectionInputFormat<ElementType>(inputCollection,
-				info.createSerializer());
-
-		try{
 			ByteArrayOutputStream buffer = new ByteArrayOutputStream();
 			ObjectOutputStream out = new ObjectOutputStream(buffer);
 
@@ -108,10 +118,10 @@ public class CollectionInputFormatTest {
 
 				assertEquals(expectedElement, actualElement);
 			}
-		}catch(IOException ex){
-			fail(ex.toString());
-		}catch(ClassNotFoundException ex){
-			fail(ex.toString());
+		}
+		catch(Exception e) {
+			e.printStackTrace();
+			fail(e.toString());
 		}
 	}
 	
@@ -157,7 +167,6 @@ public class CollectionInputFormatTest {
 		};
 		
 		try {
-			
 			List<String> inputCollection = Arrays.asList(data);
 			CollectionInputFormat<String> inputFormat = new CollectionInputFormat<String>(inputCollection, BasicTypeInfo.STRING_TYPE_INFO.createSerializer());
 			
@@ -188,6 +197,138 @@ public class CollectionInputFormatTest {
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testSerializationFailure() {
+		try {
+			// a mock serializer that fails when writing
+			CollectionInputFormat<ElementType> inFormat = new CollectionInputFormat<ElementType>(
+					Collections.singleton(new ElementType()), new TestSerializer(false, true));
+			
+			ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+			ObjectOutputStream out = new ObjectOutputStream(buffer);
+			
+			try {
+				out.writeObject(inFormat);
+				fail("should throw an exception");
+			}
+			catch (TestException e) {
+				// expected
+			}
+			catch (Exception e) {
+				fail("Exception not properly forwarded");
+			}
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testDeserializationFailure() {
+		try {
+			// a mock serializer that fails when writing
+			CollectionInputFormat<ElementType> inFormat = new CollectionInputFormat<ElementType>(
+					Collections.singleton(new ElementType()), new TestSerializer(true, false));
+			
+			ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+			ObjectOutputStream out = new ObjectOutputStream(buffer);
+			out.writeObject(inFormat);
+			out.close();
+			
+			ByteArrayInputStream bais = new ByteArrayInputStream(buffer.toByteArray());
+			ObjectInputStream in = new ObjectInputStream(bais);
+			
+			try {
+				in.readObject();
+				fail("should throw an exception");
+			}
+			catch (Exception e) {
+				assertTrue(e.getCause() instanceof TestException);
+			}
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	private static class TestException extends IOException{
+		private static final long serialVersionUID = 1L;
+	}
+	
+	private static class TestSerializer extends TypeSerializer<ElementType> {
+
+		private static final long serialVersionUID = 1L;
+		
+		private boolean failOnRead;
+		private boolean failOnWrite;
+		
+		public TestSerializer(boolean failOnRead, boolean failOnWrite) {
+			this.failOnRead = failOnRead;
+			this.failOnWrite = failOnWrite;
+		}
+
+		@Override
+		public boolean isImmutableType() {
+			return true;
+		}
+
+		@Override
+		public boolean isStateful() {
+			return false;
+		}
+
+		@Override
+		public ElementType createInstance() {
+			return new ElementType();
+		}
+
+		@Override
+		public ElementType copy(ElementType from) {
+			return from;
+		}
+
+		@Override
+		public ElementType copy(ElementType from, ElementType reuse) {
+			return from;
+		}
+
+		@Override
+		public int getLength() {
+			return 4;
+		}
+
+		@Override
+		public void serialize(ElementType record, DataOutputView target) throws IOException {
+			if (failOnWrite) {
+				throw new TestException();
+			}
+			target.writeInt(record.getId());
+		}
+
+		@Override
+		public ElementType deserialize(DataInputView source) throws IOException {
+			if (failOnRead) {
+				throw new TestException();
+			}
+			return new ElementType(source.readInt());
+		}
+
+		@Override
+		public ElementType deserialize(ElementType reuse, DataInputView source) throws IOException {
+			if (failOnRead) {
+				throw new TestException();
+			}
+			return new ElementType(source.readInt());
+		}
+
+		@Override
+		public void copy(DataInputView source, DataOutputView target) throws IOException {
+			target.writeInt(source.readInt());
 		}
 	}
 }

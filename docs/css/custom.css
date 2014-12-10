@@ -1,9 +1,186 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ * 
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+**/
+
 .extLink {
-	display:inline !important; 
-	padding-right:3px !important;
+	display: inline !important; 
+	padding-right: 3px !important;
 }
 
 .small-font-awesome {
-	font-size:10px;
+	font-size: 10px;
 	padding-right: 10px;
+}
+
+#logo-element {
+    display: inline-block;
+    float: left;
+    width: 40px;
+    margin-top: 5px;
+    margin-right: 5px;
+}
+
+/*** Web Trust CSS ***/
+#af-upfooter {
+	margin-top: 50px;
+}
+
+/* Navigation Bar */
+.navbar {
+    padding-top: 20px;
+    padding-bottom: 20px;
+}
+
+.navbar {
+	border:none !important;
+}
+
+.navbar-default {
+    background: #08131F !important;
+}
+
+.navbar-default .navbar-nav > li > a {
+    color: #fff !important;
+    font-weight: normal;
+}
+
+.navbar-brand img {
+	margin-top: -15px;
+}
+
+@media (min-width: 768px) {
+	.navbar-nav {
+		margin-left: 5%;
+	}
+}
+
+/* Side Bar */
+.af-sidebar ul {
+	list-style-type: none;
+}
+
+.af-sidebar-item.active a {
+	color: #555;
+	text-decoration: underline;
+}
+
+.af-label {
+	background: #08131F;
+	border-radius: 5px;
+	color: #fff;
+	display: block;
+	font-size: 0.95em;
+    margin: 10px 0;
+    padding: 0.4em 0.8em;
+}
+
+.af-sidebar ul ul {
+	background: #fff;
+	list-style-type: disc;
+}
+
+/* Downloads Page */
+.af-download-row {
+    margin-top: 40px;
+    margin-bottom: 40px;	
+}
+
+.af-download-row h3 {
+	font-size: 1.8em;
+	margin: 0 0 15px 0;
+	padding: 0;
+}
+
+.af-download-row h3 span {
+	font-size: 0.7em;
+}
+
+.af-blue-color {
+	color: #3795c6;
+}
+
+.af-download-usage {
+	min-height: 115px;
+}
+
+.af-download-usage p {
+	color: #959595;
+	font-size: 0.9em;
+}
+
+.af-download-button {
+	background: #3795c6;
+	color: #fff !important;
+	font-size: 0.9em;
+	font-weight: bold;
+	display: block;
+	margin: 8px auto;
+	text-align:center;
+	width: 200px;
+}
+
+.af-download-button:hover {
+	background: #006599 !important;
+}
+
+.af-small-download-heading {
+	text-align: center;
+}
+
+.af-small-download-area {
+    margin-top: 40px;
+    margin-bottom: 40px;
+}
+
+/* Community Page */
+
+.af-team-member-inner {
+    padding-top: 20px;	
+}
+
+.af-team-member-img {
+	margin:10px auto;
+	width: 70%;
+}
+
+.af-team-member-img img {
+	border-radius: 100%;
+	margin: auto;
+}
+
+.af-team-member-info {
+	font-size: 0.9em;
+	margin: 15px 0;
+	text-align: center;
+}
+
+.af-mailinglist-item {
+	margin: 40px auto; 
+	text-align: center;
+}
+
+.af-mailinglist-item-inner {
+	background: #ececec;
+	border-radius: 6px;
+	padding: 10px 2% 40px 2%;
+}
+
+.af-mailinglist-item-inner p {
+	font-weight: bold;
+	margin: 20px 0;
 }

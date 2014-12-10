@@ -22,12 +22,23 @@ import org.apache.flink.runtime.io.network.api.ChannelSelector;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 
-/**
- * Empty interface to encapsulate partitioners.
- *
- * @param <T>
- *            Type of the Tuple
- */
-public interface StreamPartitioner<T> extends ChannelSelector<SerializationDelegate<StreamRecord<T>>>,
-		Serializable {
+public abstract class StreamPartitioner<T> implements
+		ChannelSelector<SerializationDelegate<StreamRecord<T>>>, Serializable {
+
+	public enum PartitioningStrategy {
+
+		FORWARD, DISTRIBUTE, SHUFFLE, BROADCAST, GLOBAL, FIELDS;
+
+	}
+
+	private static final long serialVersionUID = 1L;
+	private PartitioningStrategy strategy;
+
+	public StreamPartitioner(PartitioningStrategy strategy) {
+		this.strategy = strategy;
+	}
+
+	public PartitioningStrategy getStrategy() {
+		return strategy;
+	}
 }

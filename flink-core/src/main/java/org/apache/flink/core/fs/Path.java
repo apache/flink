@@ -273,7 +273,7 @@ public class Path implements IOReadableWritable, Serializable {
 		}
 		final int start = slashed ? 1 : 0;
 		return path.length() >= start + 2
-			&& (slashed ? path.charAt(0) == '/' : true)
+			&& (!slashed || path.charAt(0) == '/')
 			&& path.charAt(start + 1) == ':'
 			&& ((path.charAt(start) >= 'A' && path.charAt(start) <= 'Z') || (path.charAt(start) >= 'a' && path
 				.charAt(start) <= 'z'));
@@ -358,7 +358,7 @@ public class Path implements IOReadableWritable, Serializable {
 		// we can't use uri.toString(), which escapes everything, because we
 		// want
 		// illegal characters unescaped in the string, for glob processing, etc.
-		final StringBuffer buffer = new StringBuffer();
+		final StringBuilder buffer = new StringBuilder();
 		if (uri.getScheme() != null) {
 			buffer.append(uri.getScheme());
 			buffer.append(":");

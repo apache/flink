@@ -98,9 +98,8 @@ public class OutputHandler<OUT> {
 	}
 
 	void setSerializers() {
-		outTypeInfo = configuration.getTypeInfoOut1(streamVertex.userClassLoader);
-		if (outTypeInfo != null) {
-			outSerializer = new StreamRecordSerializer<OUT>(outTypeInfo);
+		outSerializer = configuration.getTypeSerializerOut1(streamVertex.userClassLoader);
+		if (outSerializer != null) {
 			outSerializationDelegate = new SerializationDelegate<StreamRecord<OUT>>(outSerializer);
 			outSerializationDelegate.setInstance(outSerializer.createInstance());
 		}
@@ -129,7 +128,6 @@ public class OutputHandler<OUT> {
 				LOG.trace("StreamRecordWriter initiated with {} bufferTimeout for {}",
 						bufferTimeout, streamVertex.getClass().getSimpleName());
 			}
-
 		} else {
 			output = new RecordWriter<SerializationDelegate<StreamRecord<OUT>>>(streamVertex,
 					outputPartitioner);
@@ -155,7 +153,11 @@ public class OutputHandler<OUT> {
 
 	public void flushOutputs() throws IOException, InterruptedException {
 		for (RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output : outputs) {
-			output.flush();
+			if (output instanceof StreamRecordWriter) {
+				((StreamRecordWriter<SerializationDelegate<StreamRecord<OUT>>>) output).close();
+			} else {
+				output.flush();
+			}
 		}
 	}
 

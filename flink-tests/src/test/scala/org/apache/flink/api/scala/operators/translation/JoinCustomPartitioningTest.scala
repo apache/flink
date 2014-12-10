@@ -223,30 +223,4 @@ class JoinCustomPartitioningTest extends CompilerTestBase {
       }
     }
   }
-  
-
-  // ----------------------------------------------------------------------------------------------
-  
-  private class TestPartitionerInt extends Partitioner[Int] {
-  
-    override def partition(key: Int, numPartitions: Int): Int = 0
-  }
-  
-  private class TestPartitionerLong extends Partitioner[Long] {
-  
-    override def partition(key: Long, numPartitions: Int): Int = 0
-  }
-  
-  class Pojo2 {
-  
-    var a: Int = _
-    var b: Int = _
-  }
-  
-  class Pojo3 {
-  
-    var a: Int = _
-    var b: Int = _
-    var c: Int = _
-  }
 }

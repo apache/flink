@@ -28,7 +28,12 @@ import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.compiler.CompilerTestBase;
+import org.apache.flink.compiler.plan.BulkIterationPlanNode;
+import org.apache.flink.compiler.plan.NAryUnionPlanNode;
 import org.apache.flink.compiler.plan.OptimizedPlan;
+import org.apache.flink.compiler.plan.SingleInputPlanNode;
+import org.apache.flink.compiler.plan.SinkPlanNode;
+import org.apache.flink.compiler.plan.WorksetIterationPlanNode;
 import org.apache.flink.compiler.plantranslate.NepheleJobGraphGenerator;
 import org.apache.flink.compiler.testfunctions.IdentityMapper;
 import org.junit.Test;
@@ -99,6 +104,22 @@ public class IterationCompilerTest extends CompilerTestBase {
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
 			
+			SinkPlanNode sink = op.getDataSinks().iterator().next();
+			BulkIterationPlanNode iterNode = (BulkIterationPlanNode) sink.getInput().getSource();
+			
+			// make sure that the root is part of the dynamic path
+			
+			// the "NoOp" that comes after the union.
+			SingleInputPlanNode noop = (SingleInputPlanNode) iterNode.getRootOfStepFunction();
+			NAryUnionPlanNode union = (NAryUnionPlanNode) noop.getInput().getSource();
+			
+			assertTrue(noop.isOnDynamicPath());
+			assertTrue(noop.getCostWeight() >= 1);
+			
+			assertTrue(union.isOnDynamicPath());
+			assertTrue(union.getCostWeight() >= 1);
+			
+			// see that the jobgraph generator can translate this
 			new NepheleJobGraphGenerator().compileJobGraph(op);
 		}
 		catch (Exception e) {
@@ -133,6 +154,30 @@ public class IterationCompilerTest extends CompilerTestBase {
 			
 			Plan p = env.createProgramPlan();
 			OptimizedPlan op = compileNoStats(p);
+			
+			SinkPlanNode sink = op.getDataSinks().iterator().next();
+			WorksetIterationPlanNode iterNode = (WorksetIterationPlanNode) sink.getInput().getSource();
+			
+			// make sure that the root is part of the dynamic path
+			
+			// the "NoOp"a that come after the union.
+			SingleInputPlanNode nextWorksetNoop = (SingleInputPlanNode) iterNode.getNextWorkSetPlanNode();
+			SingleInputPlanNode solutionDeltaNoop = (SingleInputPlanNode) iterNode.getSolutionSetDeltaPlanNode();
+			
+			NAryUnionPlanNode nextWorksetUnion = (NAryUnionPlanNode) nextWorksetNoop.getInput().getSource();
+			NAryUnionPlanNode solutionDeltaUnion = (NAryUnionPlanNode) solutionDeltaNoop.getInput().getSource();
+			
+			assertTrue(nextWorksetNoop.isOnDynamicPath());
+			assertTrue(nextWorksetNoop.getCostWeight() >= 1);
+			
+			assertTrue(solutionDeltaNoop.isOnDynamicPath());
+			assertTrue(solutionDeltaNoop.getCostWeight() >= 1);
+			
+			assertTrue(nextWorksetUnion.isOnDynamicPath());
+			assertTrue(nextWorksetUnion.getCostWeight() >= 1);
+			
+			assertTrue(solutionDeltaUnion.isOnDynamicPath());
+			assertTrue(solutionDeltaUnion.getCostWeight() >= 1);
 			
 			new NepheleJobGraphGenerator().compileJobGraph(op);
 		}

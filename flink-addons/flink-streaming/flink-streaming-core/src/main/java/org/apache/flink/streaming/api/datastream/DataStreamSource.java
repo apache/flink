@@ -17,8 +17,8 @@
 
 package org.apache.flink.streaming.api.datastream;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.util.serialization.TypeWrapper;
 
 /**
  * The DataStreamSource represents the starting point of a DataStream.
@@ -28,8 +28,8 @@ import org.apache.flink.streaming.util.serialization.TypeWrapper;
  */
 public class DataStreamSource<OUT> extends SingleOutputStreamOperator<OUT, DataStreamSource<OUT>> {
 
-	public DataStreamSource(StreamExecutionEnvironment environment, String operatorType, TypeWrapper<OUT> outTypeWrapper) {
-		super(environment, operatorType, outTypeWrapper);
+	public DataStreamSource(StreamExecutionEnvironment environment, String operatorType, TypeInformation<OUT> outTypeInfo) {
+		super(environment, operatorType, outTypeInfo);
 	}
 
 	public DataStreamSource(DataStream<OUT> dataStream) {

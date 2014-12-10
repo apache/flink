@@ -22,6 +22,8 @@ package org.apache.flink.api.common.operators;
 import java.util.List;
 
 import org.apache.flink.api.common.distributions.DataDistribution;
+import org.apache.flink.api.common.io.FinalizeOnMaster;
+import org.apache.flink.api.common.io.InitializeOnMaster;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
@@ -292,13 +294,23 @@ public class GenericDataSinkBase<IN> extends Operator<Nothing> {
 	
 	protected void executeOnCollections(List<IN> inputData) throws Exception {
 		OutputFormat<IN> format = this.formatWrapper.getUserCodeObject();
+		
+		if(format instanceof InitializeOnMaster) {
+			((InitializeOnMaster)format).initializeGlobal(1);
+		}
+		
 		format.configure(this.parameters);
 		
 		format.open(0, 1);
 		for (IN element : inputData) {
 			format.writeRecord(element);
 		}
+		
 		format.close();
+		
+		if(format instanceof FinalizeOnMaster) {
+			((FinalizeOnMaster)format).finalizeGlobal(1);
+		}
 	}
 	
 	// --------------------------------------------------------------------------------------------

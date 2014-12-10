@@ -1,6 +1,24 @@
 ---
 title: "DataSet Transformations"
 ---
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
 
 * This will be replaced by the TOC
 {:toc}
@@ -161,7 +179,6 @@ val naturalNumbers = intNumbers.filter { _ > 0 }
 
 The Project transformation removes or moves Tuple fields of a Tuple DataSet.
 The `project(int...)` method selects Tuple fields that should be retained by their index and defines their order in the output Tuple.
-The `types(Class<?> ...)`method must give the types of the output Tuple fields.
 
 Projections do not require the definition of a user function.
 
@@ -170,7 +187,7 @@ The following code shows different ways to apply a Project transformation on a D
 ~~~java
 DataSet<Tuple3<Integer, Double, String>> in = // [...]
 // converts Tuple3<Integer, Double, String> into Tuple2<String, Integer>
-DataSet<Tuple2<String, Integer>> out = in.project(2,0).types(String.class, Integer.class);
+DataSet<Tuple2<String, Integer>> out = in.project(2,0);
 ~~~
 
 ### Transformations on Grouped DataSet
@@ -796,8 +813,7 @@ DataSet<Tuple4<Integer, String, Double, Byte>
                   // key definition of second DataSet using a field position key
                   .equalTo(0)
                   // select and reorder fields of matching tuples
-                  .projectFirst(0,2).projectSecond(1).projectFirst(1)
-                  .types(Integer.class, String.class, Double.class, Byte.class);
+                  .projectFirst(0,2).projectSecond(1).projectFirst(1);
 ~~~
 
 `projectFirst(int...)` and `projectSecond(int...)` select the fields of the first and second joined input that should be assembled into an output Tuple. The order of indexes defines the order of fields in the output tuple.
@@ -921,8 +937,7 @@ DataSet<Tuple4<Integer, Byte, Integer, Double>
             result =
             input1.cross(input2)
                   // select and reorder fields of matching tuples
-                  .projectSecond(0).projectFirst(1,0).projectSecond(1)
-                  .types(Integer.class, Byte.class, Integer.class, Double.class);
+                  .projectSecond(0).projectFirst(1,0).projectSecond(1);
 ~~~
 
 The field selection in a Cross projection works the same way as in the projection of Join results.
@@ -970,7 +985,7 @@ DataSet<Tuple3<Integer, Integer, String>>
                   // hint that the second DataSet is very large
             input1.crossWithHuge(input2)
                   // apply a projection (or any Cross function)
-                  .projectFirst(0,1).projectSecond(1).types(Integer.class, String.class, String.class)
+                  .projectFirst(0,1).projectSecond(1);
 ~~~
 
 </div>
@@ -1004,6 +1019,7 @@ Similar to Reduce, GroupReduce, and Join, keys can be defined using the differen
 <div data-lang="java" markdown="1">
 
 The example shows how to group by Field Position Keys (Tuple DataSets only). You can do the same with Pojo-types and key expressions.
+
 ~~~java
 // Some CoGroupFunction definition
 class MyCoGrouper
@@ -1017,7 +1033,7 @@ class MyCoGrouper
     Set<Integer> ints = new HashSet<Integer>();
 
     // add all Integer values in group to set
-    for (Tuple2<String, Integer>> val : iVale) {
+    for (Tuple2<String, Integer>> val : iVals) {
       ints.add(val.f1);
     }
 

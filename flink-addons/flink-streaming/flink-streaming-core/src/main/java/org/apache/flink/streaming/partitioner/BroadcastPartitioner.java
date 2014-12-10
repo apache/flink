@@ -26,16 +26,21 @@ import org.apache.flink.streaming.api.streamrecord.StreamRecord;
  * @param <T>
  *            Type of the Tuple
  */
-public class BroadcastPartitioner<T> implements StreamPartitioner<T> {
+public class BroadcastPartitioner<T> extends StreamPartitioner<T> {
 	private static final long serialVersionUID = 1L;
 
 	int[] returnArray;
 	boolean set;
+	int setNumber;
+
+	public BroadcastPartitioner() {
+		super(PartitioningStrategy.BROADCAST);
+	}
 
 	@Override
 	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record,
 			int numberOfOutputChannels) {
-		if (set) {
+		if (set && setNumber == numberOfOutputChannels) {
 			return returnArray;
 		} else {
 			this.returnArray = new int[numberOfOutputChannels];
@@ -43,6 +48,7 @@ public class BroadcastPartitioner<T> implements StreamPartitioner<T> {
 				returnArray[i] = i;
 			}
 			set = true;
+			setNumber = numberOfOutputChannels;
 			return returnArray;
 		}
 	}

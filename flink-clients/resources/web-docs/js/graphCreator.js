@@ -175,8 +175,11 @@ function loadJsonToDagre(data){
 					g.addEdge(null, el.predecessors[j].id, el.id, { label: createLabelEdge(el.predecessors[j]) });	
 				} else {
 					var missingNode = searchForNode(el.predecessors[j].id);
-					g.addNode(missingNode.id, {label: createLabelNode(missingNode, "mirror")});
-					g.addEdge(null, missingNode.id, el.id, { label: createLabelEdge(missingNode) });
+					if (missingNode.alreadyAdded != true) {
+						missingNode.alreadyAdded = true;
+						g.addNode(missingNode.id, {label: createLabelNode(missingNode, "mirror")});
+						g.addEdge(null, missingNode.id, el.id, { label: createLabelEdge(missingNode) });
+					}
 				}
 			}
 		}

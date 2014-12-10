@@ -35,7 +35,6 @@ import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.InputViewDataInputStreamWrapper;
 import org.apache.flink.util.StringUtils;
@@ -44,7 +43,7 @@ import org.apache.flink.util.StringUtils;
  * Base class for all input formats that use blocks of fixed size. The input splits are aligned to these blocks. Without
  * configuration, these block sizes equal the native block sizes of the HDFS.
  */
-public abstract class BinaryInputFormat<T extends IOReadableWritable> extends FileInputFormat<T> {
+public abstract class BinaryInputFormat<T> extends FileInputFormat<T> {
 	private static final long serialVersionUID = 1L;
 
 	/**
@@ -65,8 +64,6 @@ public abstract class BinaryInputFormat<T extends IOReadableWritable> extends Fi
 	private long blockSize = NATIVE_BLOCK_SIZE;
 
 	private DataInputStream dataInputStream;
-
-	private BlockBasedInput blockBasedInput;
 
 	private BlockInfo blockInfo;
 
@@ -96,9 +93,8 @@ public abstract class BinaryInputFormat<T extends IOReadableWritable> extends Fi
 
 		final List<FileInputSplit> inputSplits = new ArrayList<FileInputSplit>(minNumSplits);
 		for (FileStatus file : files) {
-			long splitSize = blockSize;
-			for (long pos = 0, length = file.getLen(); pos < length; pos += splitSize) {
-				long remainingLength = Math.min(pos + splitSize, length) - pos;
+			for (long pos = 0, length = file.getLen(); pos < length; pos += blockSize) {
+				long remainingLength = Math.min(pos + blockSize, length) - pos;
 
 				// get the block locations and make sure they are in order with respect to their offset
 				final BlockLocation[] blocks = fs.getFileBlockLocations(file, pos, remainingLength);
@@ -133,9 +129,9 @@ public abstract class BinaryInputFormat<T extends IOReadableWritable> extends Fi
 		if (pathFile.isDir()) {
 			// input is directory. list all contained files
 			final FileStatus[] partials = fs.listStatus(this.filePath);
-			for (int i = 0; i < partials.length; i++) {
-				if (!partials[i].isDir()) {
-					files.add(partials[i]);
+			for (FileStatus partial : partials) {
+				if (!partial.isDir()) {
+					files.add(partial);
 				}
 			}
 		} else {
@@ -188,7 +184,7 @@ public abstract class BinaryInputFormat<T extends IOReadableWritable> extends Fi
 		return this.createInputSplits(0);
 	}
 
-	protected BlockInfo createBlockInfo() {
+	public BlockInfo createBlockInfo() {
 		return new BlockInfo();
 	}
 
@@ -259,8 +255,8 @@ public abstract class BinaryInputFormat<T extends IOReadableWritable> extends Fi
 		}
 
 		this.stream.seek(this.splitStart + this.blockInfo.getFirstRecordStart());
-		this.blockBasedInput = new BlockBasedInput(this.stream, (int) blockSize);
-		this.dataInputStream = new DataInputStream(this.blockBasedInput);
+		BlockBasedInput blockBasedInput = new BlockBasedInput(this.stream, (int) blockSize);
+		this.dataInputStream = new DataInputStream(blockBasedInput);
 		this.readRecords = 0;
 	}
 

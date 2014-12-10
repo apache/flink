@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.LinkedList;
+
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.record.functions.MapFunction;
 import org.apache.flink.api.java.record.io.DelimitedInputFormat;
@@ -43,6 +44,7 @@ import org.junit.runners.Parameterized.Parameters;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@SuppressWarnings("deprecation")
 @RunWith(Parameterized.class)
 public class UnionITCase extends RecordAPITestBase {
 	private static final Logger LOG = LoggerFactory.getLogger(UnionITCase.class);
@@ -99,7 +101,7 @@ public class UnionITCase extends RecordAPITestBase {
 		}
 	}
 
-	@SuppressWarnings({ "deprecation", "unchecked" })
+	@SuppressWarnings("unchecked")
 	@Override
 	protected Plan getTestJob() {
 		String input1Path = config.getString("UnionTest#Input1Path", "").equals("empty") ? emptyInPath : inPath;

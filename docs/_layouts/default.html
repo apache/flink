@@ -1,25 +1,44 @@
 <!DOCTYPE html>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
 <html lang="en">
   <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Apache Flink (incubating): {{ page.title }}</title>
-    <link rel="stylesheet" href="{{ site.baseurl }}/css/bootstrap.css">
-    <link rel="stylesheet" href="{{ site.baseurl }}/css/bootstrap-lumen-custom.css">
-    <link rel="stylesheet" href="{{ site.baseurl }}/css/syntax.css">
-    <link rel="/css/custom.css">
-    <link rel="css/codetabs.css">
-    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+    <link rel="shortcut icon" href="{{ site.baseurl }}favicon.ico" type="image/x-icon">
+    <link rel="icon" href="{{ site.baseurl }}favicon.ico" type="image/x-icon">
+    <link rel="stylesheet" href="{{ site.baseurl }}css/bootstrap.css">
+    <link rel="stylesheet" href="{{ site.baseurl }}css/bootstrap-lumen-custom.css">
+    <link rel="stylesheet" href="{{ site.baseurl }}css/syntax.css">
+    <link rel="stylesheet" href="{{ site.baseurl }}css/custom.css">
+    <link href="{{ site.baseurl }}css/main/main.css" rel="stylesheet">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
-    <script src="/js/bootstrap.min.js"></script>
-    <script src="js/codetabs.js"></script>
+    <script src="{{ site.baseurl }}js/bootstrap.min.js"></script>
+    <script src="{{ site.baseurl }}js/codetabs.js"></script>
   </head>
   <body>
 
     {% include navbar.html %}
 
-    <div style="padding-top:70px" class="container">
+    <div style="padding-top:120px" class="container">
 
       <div class="row">
         <div class="col-md-3">
@@ -27,9 +46,10 @@
         </div>  
         <div class="col-md-9">
           <h1>{{ page.title }}</h1>
-
+	  
           {{ content }}
-
+	  
+        <!-- Disqus Area -->
           <div style="padding-top:30px" id="disqus_thread"></div>
       
             <script type="text/javascript">
@@ -44,8 +64,6 @@
                 })();
             </script>
             <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
-            <a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
-
           </div>
         </div>
 

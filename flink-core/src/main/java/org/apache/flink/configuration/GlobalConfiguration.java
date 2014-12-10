@@ -288,8 +288,8 @@ public final class GlobalConfiguration {
 		try {
 
 			final DocumentBuilder builder = docBuilderFactory.newDocumentBuilder();
-			Document doc = null;
-			Element root = null;
+			Document doc;
+			Element root;
 
 			doc = builder.parse(file);
 

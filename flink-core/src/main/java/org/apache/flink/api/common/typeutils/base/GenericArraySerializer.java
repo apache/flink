@@ -25,7 +25,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
-
 /**
  * A serializer for arrays of objects.
  * 
@@ -123,28 +122,7 @@ public final class GenericArraySerializer<C> extends TypeSerializer<C[]> {
 	
 	@Override
 	public C[] deserialize(C[] reuse, DataInputView source) throws IOException {
-		int len = source.readInt();
-		
-		if (reuse.length != len) {
-			reuse = create(len);
-		}
-		
-		for (int i = 0; i < len; i++) {
-			boolean isNonNull = source.readBoolean();
-			if (isNonNull) {
-				C ri = reuse[i];
-				if (ri == null) {
-					ri = componentSerializer.deserialize(source);
-				} else {
-					ri = componentSerializer.deserialize(ri, source);
-				}
-				reuse[i] = ri;
-			} else {
-				reuse[i] = null;
-			}
-		}
-		
-		return reuse;
+		return deserialize(source);
 	}
 
 	@Override
@@ -183,5 +161,10 @@ public final class GenericArraySerializer<C> extends TypeSerializer<C[]> {
 		} else {
 			return false;
 		}
+	}
+	
+	@Override
+	public String toString() {
+		return "Serializer " + componentClass.getName() + "[]";
 	}
 }

@@ -95,7 +95,7 @@ public class KafkaTopology {
 
 		@SuppressWarnings("unused")
 		DataStream<String> stream1 = env
-			.addSource(new MyKafkaSource("localhost:2181", "group", "test", 1), SOURCE_PARALELISM)
+			.addSource(new MyKafkaSource("localhost:2181", "group", "test", 1)).setParallelism(1)
 			.addSink(new MyKafkaPrintSink());
 
 		@SuppressWarnings("unused")

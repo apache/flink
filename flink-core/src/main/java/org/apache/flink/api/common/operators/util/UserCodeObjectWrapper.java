@@ -121,4 +121,9 @@ public class UserCodeObjectWrapper<T> implements UserCodeWrapper<T> {
 	public Class<? extends T> getUserCodeClass() {
 		return (Class<? extends T>) userCodeObject.getClass();
 	}
+	
+	@Override
+	public boolean hasObject() {
+		return true;
+	}
 }

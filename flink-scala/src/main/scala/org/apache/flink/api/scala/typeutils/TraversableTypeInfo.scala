@@ -27,7 +27,7 @@ import scala.collection.generic.CanBuildFrom
  */
 abstract class TraversableTypeInfo[T <: TraversableOnce[E], E](
     clazz: Class[T],
-    elementTypeInfo: TypeInformation[E])
+    val elementTypeInfo: TypeInformation[E])
   extends TypeInformation[T] {
 
   override def isBasicType: Boolean = false
@@ -39,5 +39,14 @@ abstract class TraversableTypeInfo[T <: TraversableOnce[E], E](
 
   def createSerializer(): TypeSerializer[T]
 
-  override def toString = s"Collection[$elementTypeInfo]"
+  override def equals(other: Any): Boolean = {
+    if (other.isInstanceOf[TraversableTypeInfo[_, _]]) {
+      val otherTrav = other.asInstanceOf[TraversableTypeInfo[_, _]]
+      otherTrav.getTypeClass == getTypeClass && otherTrav.elementTypeInfo == elementTypeInfo
+    } else {
+      false
+    }
+  }
+
+  override def toString = s"$clazz[$elementTypeInfo]"
 }

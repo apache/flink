@@ -22,12 +22,15 @@ import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.ge
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
@@ -45,9 +48,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.operators.RegularPactTask;
 import org.apache.flink.runtime.protocols.TaskOperationProtocol;
 import org.apache.flink.runtime.taskmanager.TaskOperationResult;
-
 import org.junit.Test;
-
 import org.mockito.Matchers;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -150,7 +151,14 @@ public class ExecutionGraphDeploymentTest {
 	@Test
 	public void testRegistrationOfExecutionsFinishing() {
 		try {
-			Map<ExecutionAttemptID, Execution> executions = setupExecution(7650, 2350);
+			
+			final JobVertexID jid1 = new JobVertexID();
+			final JobVertexID jid2 = new JobVertexID();
+			
+			AbstractJobVertex v1 = new AbstractJobVertex("v1", jid1);
+			AbstractJobVertex v2 = new AbstractJobVertex("v2", jid2);
+			
+			Map<ExecutionAttemptID, Execution> executions = setupExecution(v1, 7650, v2, 2350);
 			
 			for (Execution e : executions.values()) {
 				e.markFinished();
@@ -167,7 +175,14 @@ public class ExecutionGraphDeploymentTest {
 	@Test
 	public void testRegistrationOfExecutionsFailing() {
 		try {
-			Map<ExecutionAttemptID, Execution> executions = setupExecution(7, 6);
+			
+			final JobVertexID jid1 = new JobVertexID();
+			final JobVertexID jid2 = new JobVertexID();
+			
+			AbstractJobVertex v1 = new AbstractJobVertex("v1", jid1);
+			AbstractJobVertex v2 = new AbstractJobVertex("v2", jid2);
+			
+			Map<ExecutionAttemptID, Execution> executions = setupExecution(v1, 7, v2, 6);
 			
 			for (Execution e : executions.values()) {
 				e.markFailed(null);
@@ -184,7 +199,14 @@ public class ExecutionGraphDeploymentTest {
 	@Test
 	public void testRegistrationOfExecutionsFailedExternally() {
 		try {
-			Map<ExecutionAttemptID, Execution> executions = setupExecution(7, 6);
+			
+			final JobVertexID jid1 = new JobVertexID();
+			final JobVertexID jid2 = new JobVertexID();
+			
+			AbstractJobVertex v1 = new AbstractJobVertex("v1", jid1);
+			AbstractJobVertex v2 = new AbstractJobVertex("v2", jid2);
+			
+			Map<ExecutionAttemptID, Execution> executions = setupExecution(v1, 7, v2, 6);
 			
 			for (Execution e : executions.values()) {
 				e.fail(null);
@@ -201,7 +223,14 @@ public class ExecutionGraphDeploymentTest {
 	@Test
 	public void testRegistrationOfExecutionsCanceled() {
 		try {
-			Map<ExecutionAttemptID, Execution> executions = setupExecution(19, 37);
+			
+			final JobVertexID jid1 = new JobVertexID();
+			final JobVertexID jid2 = new JobVertexID();
+			
+			AbstractJobVertex v1 = new AbstractJobVertex("v1", jid1);
+			AbstractJobVertex v2 = new AbstractJobVertex("v2", jid2);
+			
+			Map<ExecutionAttemptID, Execution> executions = setupExecution(v1, 19, v2, 37);
 			
 			for (Execution e : executions.values()) {
 				e.cancel();
@@ -216,14 +245,51 @@ public class ExecutionGraphDeploymentTest {
 		}
 	}
 	
-	private Map<ExecutionAttemptID, Execution> setupExecution(int dop1, int dop2) throws Exception {
+	@Test
+	public void testRegistrationOfExecutionsFailingFinalize() {
+		try {
+			
+			final JobVertexID jid1 = new JobVertexID();
+			final JobVertexID jid2 = new JobVertexID();
+			
+			AbstractJobVertex v1 = new FailingFinalizeJobVertex("v1", jid1);
+			AbstractJobVertex v2 = new AbstractJobVertex("v2", jid2);
+			
+			Map<ExecutionAttemptID, Execution> executions = setupExecution(v1, 6, v2, 4);
+			
+			List<Execution> execList = new ArrayList<Execution>();
+			execList.addAll(executions.values());
+			// sort executions by job vertex. Failing job vertex first
+			Collections.sort(execList, new Comparator<Execution>() {
+				@Override
+				public int compare(Execution o1, Execution o2) {
+					return o1.getVertex().getSimpleName().compareTo(o2.getVertex().getSimpleName());
+				}
+			});
+			
+			int cnt = 0;
+			for (Execution e : execList) {
+				cnt++;
+				e.markFinished();
+				if(cnt <= 6) {
+					// the last execution of the first job vertex triggers the failing finalize hook
+					assertEquals(ExecutionState.FINISHED, e.getState());
+				} else {
+					// all following executions should be canceled
+					assertEquals(ExecutionState.CANCELED, e.getState());
+				}
+			}
+			
+			assertEquals(0, executions.size());
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	private Map<ExecutionAttemptID, Execution> setupExecution(AbstractJobVertex v1, int dop1, AbstractJobVertex v2, int dop2) throws Exception {
 		final JobID jobId = new JobID();
-		
-		final JobVertexID jid1 = new JobVertexID();
-		final JobVertexID jid2 = new JobVertexID();
-		
-		AbstractJobVertex v1 = new AbstractJobVertex("v1", jid1);
-		AbstractJobVertex v2 = new AbstractJobVertex("v2", jid2);
 		
 		v1.setParallelism(dop1);
 		v2.setParallelism(dop2);
@@ -268,5 +334,24 @@ public class ExecutionGraphDeploymentTest {
 		assertEquals(dop1 + dop2, executions.size());
 		
 		return executions;
+	}
+	
+	@SuppressWarnings("serial")
+	public static class FailingFinalizeJobVertex extends AbstractJobVertex {
+
+		public FailingFinalizeJobVertex(String name) {
+			super(name);
+		}
+		
+		public FailingFinalizeJobVertex(String name, JobVertexID id) {
+			super(name, id);
+		}
+		
+		@Override
+		public void finalizeOnMaster(ClassLoader cl) throws Exception {
+			throw new Exception();
+		}
+		
+		
 	}
 }

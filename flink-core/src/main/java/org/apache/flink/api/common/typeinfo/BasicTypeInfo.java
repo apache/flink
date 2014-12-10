@@ -19,9 +19,11 @@
 package org.apache.flink.api.common.typeinfo;
 
 import java.lang.reflect.Constructor;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.BooleanComparator;
@@ -30,6 +32,8 @@ import org.apache.flink.api.common.typeutils.base.ByteComparator;
 import org.apache.flink.api.common.typeutils.base.ByteSerializer;
 import org.apache.flink.api.common.typeutils.base.CharComparator;
 import org.apache.flink.api.common.typeutils.base.CharSerializer;
+import org.apache.flink.api.common.typeutils.base.DateComparator;
+import org.apache.flink.api.common.typeutils.base.DateSerializer;
 import org.apache.flink.api.common.typeutils.base.DoubleComparator;
 import org.apache.flink.api.common.typeutils.base.DoubleSerializer;
 import org.apache.flink.api.common.typeutils.base.FloatComparator;
@@ -42,10 +46,11 @@ import org.apache.flink.api.common.typeutils.base.ShortComparator;
 import org.apache.flink.api.common.typeutils.base.ShortSerializer;
 import org.apache.flink.api.common.typeutils.base.StringComparator;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 
 
 /**
- *
+ * Type information for primitive types (int, long, double, byte, ...), String, Date, and Void.
  */
 public class BasicTypeInfo<T> extends TypeInformation<T> implements AtomicType<T> {
 
@@ -58,6 +63,8 @@ public class BasicTypeInfo<T> extends TypeInformation<T> implements AtomicType<T
 	public static final BasicTypeInfo<Float> FLOAT_TYPE_INFO = new BasicTypeInfo<Float>(Float.class, FloatSerializer.INSTANCE, FloatComparator.class);
 	public static final BasicTypeInfo<Double> DOUBLE_TYPE_INFO = new BasicTypeInfo<Double>(Double.class, DoubleSerializer.INSTANCE, DoubleComparator.class);
 	public static final BasicTypeInfo<Character> CHAR_TYPE_INFO = new BasicTypeInfo<Character>(Character.class, CharSerializer.INSTANCE, CharComparator.class);
+	public static final BasicTypeInfo<Date> DATE_TYPE_INFO = new BasicTypeInfo<Date>(Date.class, DateSerializer.INSTANCE, DateComparator.class);
+	public static final BasicTypeInfo<Void> VOID_TYPE_INFO = new BasicTypeInfo<Void>(Void.class, VoidSerializer.INSTANCE, null);
 	
 	// --------------------------------------------------------------------------------------------
 
@@ -113,7 +120,11 @@ public class BasicTypeInfo<T> extends TypeInformation<T> implements AtomicType<T
 	
 	@Override
 	public TypeComparator<T> createComparator(boolean sortOrderAscending) {
-		return instantiateComparator(comparatorClass, sortOrderAscending);
+		if (comparatorClass != null) {
+			return instantiateComparator(comparatorClass, sortOrderAscending);
+		} else {
+			throw new InvalidTypesException("The type " + clazz.getSimpleName() + " cannot be used as a key.");
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -181,5 +192,8 @@ public class BasicTypeInfo<T> extends TypeInformation<T> implements AtomicType<T
 		TYPES.put(double.class, DOUBLE_TYPE_INFO);
 		TYPES.put(Character.class, CHAR_TYPE_INFO);
 		TYPES.put(char.class, CHAR_TYPE_INFO);
+		TYPES.put(Date.class, DATE_TYPE_INFO);
+		TYPES.put(Void.class, VOID_TYPE_INFO);
+		TYPES.put(void.class, VOID_TYPE_INFO);
 	}
 }
