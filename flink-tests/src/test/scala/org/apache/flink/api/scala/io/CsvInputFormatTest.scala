@@ -44,7 +44,11 @@ class CsvInputFormatTest {
   @Test
   def ignoreSingleCharPrefixComments():Unit = {
     try {
-      val fileContent = "#description of the data\n" + "#successive commented line\n" + "this is|1|2.0|\n" + "a test|3|4.0|\n" + "#next|5|6.0|\n"
+      val fileContent = "#description of the data\n" +
+                        "#successive commented line\n" +
+                        "this is|1|2.0|\n" +
+                        "a test|3|4.0|\n" +
+                        "#next|5|6.0|\n"
       val split = createTempFile(fileContent)
       val format = new ScalaCsvInputFormat[(String, Integer, Double)](
         PATH, createTypeInformation[(String, Integer, Double)])
@@ -80,7 +84,11 @@ class CsvInputFormatTest {
   @Test
   def ignoreMultiCharPrefixComments():Unit = {
     try {
-      val fileContent = "//description of the data\n" + "//successive commented line\n" + "this is|1|2.0|\n" + "a test|3|4.0|\n" + "//next|5|6.0|\n"
+      val fileContent = "//description of the data\n" +
+                        "//successive commented line\n" +
+                        "this is|1|2.0|\n" +
+                        "a test|3|4.0|\n" +
+                        "//next|5|6.0|\n"
       val split = createTempFile(fileContent)
       val format = new ScalaCsvInputFormat[(String, Integer, Double)](
         PATH, createTypeInformation[(String, Integer, Double)])
