@@ -622,8 +622,8 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
      * @return
      */
     public Graph<K, VV, EV> addEdge (Vertex<K,VV> source, Vertex<K,VV> target, EV edgeValue) {
-    	Graph<K,VV,EV> partialGraph = this.fromCollection(Arrays.asList(source, target), 
-    			Arrays.asList(new Edge<K, EV>(source.f0, target.f0, edgeValue)));
+    	Graph<K,VV,EV> partialGraph = this.fromCollection(Arrays.asList(source, target),
+				Arrays.asList(new Edge<K, EV>(source.f0, target.f0, edgeValue)));
         return this.union(partialGraph);
     }
 
@@ -725,8 +725,8 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
     public <M>Graph<K, VV, EV> runVertexCentricIteration(VertexUpdateFunction<K, VV, M> vertexUpdateFunction,
     		MessagingFunction<K, VV, M, EV> messagingFunction, int maximumNumberOfIterations) {
     	DataSet<Tuple2<K, VV>> newVertices = vertices.map(new VertexToTuple2Map<K, VV>()).runOperation(
-    			VertexCentricIteration.withValuedEdges(edges.map(new EdgeToTuple3Map<K, EV>()), 
-    					vertexUpdateFunction, messagingFunction, maximumNumberOfIterations));
+				VertexCentricIteration.withValuedEdges(edges.map(new EdgeToTuple3Map<K, EV>()),
+						vertexUpdateFunction, messagingFunction, maximumNumberOfIterations));
 		return new Graph<K, VV, EV>(newVertices.map(new Tuple2ToVertexMap<K, VV>()), edges, context);
     }
 
@@ -774,6 +774,10 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 																	 final MapFunction<K, VV> mapper) {
 		DataSet<Edge<K, EV>> edges = env.fromCollection(e);
 		return Graph.create(edges, mapper, env);
+	}
+
+	public Graph<K,VV,EV> run (GraphAlgorithm algorithm) {
+		return algorithm.run(this);
 	}
 
 }
