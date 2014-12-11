@@ -121,7 +121,10 @@ object ClosureCleaner {
       accessedFields(cls) = Set[String]()
     for (cls <- func.getClass :: innerClasses)
       getClassReader(cls).accept(new FieldAccessFinder(accessedFields), 0)
-    LOG.info("accessedFields: " + accessedFields)
+
+    if (LOG.isDebugEnabled) {
+      LOG.debug("accessedFields: " + accessedFields)
+    }
 
     val inInterpreter = {
       try {
@@ -148,13 +151,17 @@ object ClosureCleaner {
         val field = cls.getDeclaredField(fieldName)
         field.setAccessible(true)
         val value = field.get(obj)
-        LOG.info("1: Setting " + fieldName + " on " + cls + " to " + value);
+        if (LOG.isDebugEnabled) {
+          LOG.debug("1: Setting " + fieldName + " on " + cls + " to " + value)
+        }
         field.set(outer, value)
       }
     }
 
     if (outer != null) {
-      LOG.info("2: Setting $outer on " + func.getClass + " to " + outer);
+      if (LOG.isDebugEnabled) {
+        LOG.debug("2: Setting $outer on " + func.getClass + " to " + outer)
+      }
       val field = func.getClass.getDeclaredField("$outer")
       field.setAccessible(true)
       field.set(func, outer)
@@ -174,7 +181,9 @@ object ClosureCleaner {
   }
 
   private def instantiateClass(cls: Class[_], outer: AnyRef, inInterpreter: Boolean): AnyRef = {
-    LOG.info("Creating a " + cls + " with outer = " + outer)
+    if (LOG.isDebugEnabled) {
+      LOG.debug("Creating a " + cls + " with outer = " + outer)
+    }
     if (!inInterpreter) {
       // This is a bona fide closure class, whose constructor has no effects
       // other than to set its fields, so use its constructor
@@ -191,7 +200,9 @@ object ClosureCleaner {
       val newCtor = rf.newConstructorForSerialization(cls, parentCtor)
       val obj = newCtor.newInstance().asInstanceOf[AnyRef]
       if (outer != null) {
-        LOG.info("3: Setting $outer on " + cls + " to " + outer);
+        if (LOG.isDebugEnabled) {
+          LOG.debug("3: Setting $outer on " + cls + " to " + outer)
+        }
         val field = cls.getDeclaredField("$outer")
         field.setAccessible(true)
         field.set(obj, outer)
