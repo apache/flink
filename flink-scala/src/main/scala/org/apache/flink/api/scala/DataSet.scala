@@ -250,6 +250,8 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   def withParameters(parameters: Configuration): DataSet[T] = {
     javaSet match {
       case udfOp: UdfOperator[_] => udfOp.withParameters(parameters)
+      case source: DataSource[_] => source.withParameters(parameters)
+      case sink: DataSink[_] => sink.withParameters(parameters)
       case _ =>
         throw new UnsupportedOperationException("Operator " + javaSet.toString + " cannot have " +
           "parameters")
