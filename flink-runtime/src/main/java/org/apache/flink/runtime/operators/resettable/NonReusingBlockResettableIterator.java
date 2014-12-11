@@ -36,41 +36,37 @@ import org.apache.flink.runtime.util.ResettableIterator;
  * access to the data in that block.
  * 
  */
-public class BlockResettableIterator<T> extends AbstractBlockResettableIterator<T> implements ResettableIterator<T> {
+public class NonReusingBlockResettableIterator<T> extends AbstractBlockResettableIterator<T> implements ResettableIterator<T> {
 	
-	public static final Logger LOG = LoggerFactory.getLogger(BlockResettableIterator.class);
+	public static final Logger LOG = LoggerFactory.getLogger(NonReusingBlockResettableIterator.class);
 	
 	// ------------------------------------------------------------------------
 	
 	protected Iterator<T> input;
 	
-	private T nextElement;
+	protected T nextElement;
 
-	private final T reuseElement;
+	protected T leftOverElement;
 	
-	private T leftOverElement;
+	protected boolean readPhase;
 	
-	private boolean readPhase;
-	
-	private boolean noMoreBlocks;
+	protected boolean noMoreBlocks;
 	
 	// ------------------------------------------------------------------------
 	
-	public BlockResettableIterator(MemoryManager memoryManager, Iterator<T> input,
-			TypeSerializer<T> serializer, int numPages, AbstractInvokable ownerTask)
+	public NonReusingBlockResettableIterator(MemoryManager memoryManager, Iterator<T> input,
+			TypeSerializer<T> serializer, int numPages,
+			AbstractInvokable ownerTask)
 	throws MemoryAllocationException
 	{
 		this(memoryManager, serializer, numPages, ownerTask);
 		this.input = input;
 	}
 	
-	public BlockResettableIterator(MemoryManager memoryManager,
-			TypeSerializer<T> serializer, int numPages, AbstractInvokable ownerTask)
+	public NonReusingBlockResettableIterator(MemoryManager memoryManager, TypeSerializer<T> serializer, int numPages, AbstractInvokable ownerTask)
 	throws MemoryAllocationException
 	{
 		super(serializer, memoryManager, numPages, ownerTask);
-		
-		this.reuseElement = serializer.createInstance();
 	}
 	
 	// ------------------------------------------------------------------------
@@ -83,8 +79,6 @@ public class BlockResettableIterator<T> extends AbstractBlockResettableIterator<
 		
 		nextBlock();
 	}
-	
-	
 
 	@Override
 	public boolean hasNext() {
@@ -92,7 +86,7 @@ public class BlockResettableIterator<T> extends AbstractBlockResettableIterator<
 			if (this.nextElement == null) {
 				if (this.readPhase) {
 					// read phase, get next element from buffer
-					T tmp = getNextRecord(this.reuseElement);
+					T tmp = getNextRecord();
 					if (tmp != null) {
 						this.nextElement = tmp;
 						return true;
