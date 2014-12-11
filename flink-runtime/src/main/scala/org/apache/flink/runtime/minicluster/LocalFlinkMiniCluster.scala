@@ -33,6 +33,7 @@ FlinkMiniCluster(userConfiguration){
   import LocalFlinkMiniCluster._
 
   val jobClientActorSystem = AkkaUtils.createActorSystem()
+  var jobClient: Option[ActorRef] = None
 
   override def generateConfiguration(userConfiguration: Configuration): Configuration = {
     val config = getDefaultConfig
@@ -72,13 +73,18 @@ FlinkMiniCluster(userConfiguration){
   }
 
   def getJobClient(): ActorRef ={
-    val config = new Configuration()
+    jobClient match {
+      case Some(jc) => jc
+      case None =>
+        val config = new Configuration()
 
-    config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, HOSTNAME)
-    config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, getJobManagerRPCPort)
+        config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, HOSTNAME)
+        config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, getJobManagerRPCPort)
 
-
-    JobClient.startActorWithConfiguration(config)(jobClientActorSystem)
+        val jc = JobClient.startActorWithConfiguration(config)(jobClientActorSystem)
+        jobClient = Some(jc)
+        jc
+    }
   }
 
   def getJobClientActorSystem: ActorSystem = jobClientActorSystem
