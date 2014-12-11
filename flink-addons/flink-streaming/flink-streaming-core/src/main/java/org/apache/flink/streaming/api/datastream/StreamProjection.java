@@ -83,8 +83,8 @@ public class StreamProjection<IN> {
 		@SuppressWarnings("unchecked")
 		TypeInformation<Tuple1<T0>> outType = (TypeInformation<Tuple1<T0>>) extractFieldTypes(
 				fieldIndexes, types, inTypeInfo);
-		return dataStream.addFunction("projection", null, inTypeInfo, outType,
-				new ProjectInvokable<IN, Tuple1<T0>>(fieldIndexes, outType));
+		return dataStream.transform("projection", outType, new ProjectInvokable<IN, Tuple1<T0>>(
+				fieldIndexes, outType));
 	}
 
 	/**
@@ -111,7 +111,7 @@ public class StreamProjection<IN> {
 		@SuppressWarnings("unchecked")
 		TypeInformation<Tuple2<T0, T1>> outType = (TypeInformation<Tuple2<T0, T1>>) extractFieldTypes(
 				fieldIndexes, types, inTypeInfo);
-		return dataStream.addFunction("projection", null, inTypeInfo, outType,
+		return dataStream.transform("projection", outType,
 				new ProjectInvokable<IN, Tuple2<T0, T1>>(fieldIndexes, outType));
 	}
 
@@ -141,7 +141,7 @@ public class StreamProjection<IN> {
 		@SuppressWarnings("unchecked")
 		TypeInformation<Tuple3<T0, T1, T2>> outType = (TypeInformation<Tuple3<T0, T1, T2>>) extractFieldTypes(
 				fieldIndexes, types, inTypeInfo);
-		return dataStream.addFunction("projection", null, inTypeInfo, outType,
+		return dataStream.transform("projection", outType,
 				new ProjectInvokable<IN, Tuple3<T0, T1, T2>>(fieldIndexes, outType));
 	}
 
@@ -173,7 +173,7 @@ public class StreamProjection<IN> {
 		@SuppressWarnings("unchecked")
 		TypeInformation<Tuple4<T0, T1, T2, T3>> outType = (TypeInformation<Tuple4<T0, T1, T2, T3>>) extractFieldTypes(
 				fieldIndexes, types, inTypeInfo);
-		return dataStream.addFunction("projection", null, inTypeInfo, outType,
+		return dataStream.transform("projection", outType,
 				new ProjectInvokable<IN, Tuple4<T0, T1, T2, T3>>(fieldIndexes, outType));
 	}
 
@@ -206,14 +206,14 @@ public class StreamProjection<IN> {
 		@SuppressWarnings("unchecked")
 		TypeInformation<Tuple5<T0, T1, T2, T3, T4>> outType = (TypeInformation<Tuple5<T0, T1, T2, T3, T4>>) extractFieldTypes(
 				fieldIndexes, types, inTypeInfo);
-		return dataStream.addFunction("projection", null, inTypeInfo, outType,
+		return dataStream.transform("projection", outType,
 				new ProjectInvokable<IN, Tuple5<T0, T1, T2, T3, T4>>(fieldIndexes, outType));
 	}
 
 	/**
 	 * Projects a {@link Tuple} {@link DataStream} to the previously selected
 	 * fields. Requires the classes of the fields of the resulting Tuples.
-	 *
+	 * 
 	 * @param type0
 	 *            The class of field '0' of the result Tuples.
 	 * @param type1
@@ -227,7 +227,7 @@ public class StreamProjection<IN> {
 	 * @param type5
 	 *            The class of field '5' of the result Tuples.
 	 * @return The projected DataStream.
-	 *
+	 * 
 	 * @see Tuple
 	 * @see DataStream
 	 */
@@ -243,14 +243,14 @@ public class StreamProjection<IN> {
 		@SuppressWarnings("unchecked")
 		TypeInformation<Tuple6<T0, T1, T2, T3, T4, T5>> outType = (TypeInformation<Tuple6<T0, T1, T2, T3, T4, T5>>) extractFieldTypes(
 				fieldIndexes, types, inTypeInfo);
-		return dataStream.addFunction("projection", null, inTypeInfo, outType,
+		return dataStream.transform("projection", outType,
 				new ProjectInvokable<IN, Tuple6<T0, T1, T2, T3, T4, T5>>(fieldIndexes, outType));
 	}
 
 	/**
 	 * Projects a {@link Tuple} {@link DataStream} to the previously selected
 	 * fields. Requires the classes of the fields of the resulting Tuples.
-	 *
+	 * 
 	 * @param type0
 	 *            The class of field '0' of the result Tuples.
 	 * @param type1
@@ -266,7 +266,7 @@ public class StreamProjection<IN> {
 	 * @param type6
 	 *            The class of field '6' of the result Tuples.
 	 * @return The projected DataStream.
-	 *
+	 * 
 	 * @see Tuple
 	 * @see DataStream
 	 */
@@ -283,7 +283,7 @@ public class StreamProjection<IN> {
 		TypeInformation<Tuple7<T0, T1, T2, T3, T4, T5, T6>> outType = (TypeInformation<Tuple7<T0, T1, T2, T3, T4, T5, T6>>) extractFieldTypes(
 				fieldIndexes, types, inTypeInfo);
 		return dataStream
-				.addFunction("projection", null, inTypeInfo, outType,
+				.transform("projection", outType,
 						new ProjectInvokable<IN, Tuple7<T0, T1, T2, T3, T4, T5, T6>>(fieldIndexes,
 								outType));
 	}
@@ -291,7 +291,7 @@ public class StreamProjection<IN> {
 	/**
 	 * Projects a {@link Tuple} {@link DataStream} to the previously selected
 	 * fields. Requires the classes of the fields of the resulting Tuples.
-	 *
+	 * 
 	 * @param type0
 	 *            The class of field '0' of the result Tuples.
 	 * @param type1
@@ -309,7 +309,7 @@ public class StreamProjection<IN> {
 	 * @param type7
 	 *            The class of field '7' of the result Tuples.
 	 * @return The projected DataStream.
-	 *
+	 * 
 	 * @see Tuple
 	 * @see DataStream
 	 */
@@ -325,7 +325,7 @@ public class StreamProjection<IN> {
 		@SuppressWarnings("unchecked")
 		TypeInformation<Tuple8<T0, T1, T2, T3, T4, T5, T6, T7>> outType = (TypeInformation<Tuple8<T0, T1, T2, T3, T4, T5, T6, T7>>) extractFieldTypes(
 				fieldIndexes, types, inTypeInfo);
-		return dataStream.addFunction("projection", null, inTypeInfo, outType,
+		return dataStream.transform("projection", outType,
 				new ProjectInvokable<IN, Tuple8<T0, T1, T2, T3, T4, T5, T6, T7>>(fieldIndexes,
 						outType));
 	}
@@ -333,7 +333,7 @@ public class StreamProjection<IN> {
 	/**
 	 * Projects a {@link Tuple} {@link DataStream} to the previously selected
 	 * fields. Requires the classes of the fields of the resulting Tuples.
-	 *
+	 * 
 	 * @param type0
 	 *            The class of field '0' of the result Tuples.
 	 * @param type1
@@ -353,7 +353,7 @@ public class StreamProjection<IN> {
 	 * @param type8
 	 *            The class of field '8' of the result Tuples.
 	 * @return The projected DataStream.
-	 *
+	 * 
 	 * @see Tuple
 	 * @see DataStream
 	 */
@@ -369,7 +369,7 @@ public class StreamProjection<IN> {
 		@SuppressWarnings("unchecked")
 		TypeInformation<Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8>> outType = (TypeInformation<Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8>>) extractFieldTypes(
 				fieldIndexes, types, inTypeInfo);
-		return dataStream.addFunction("projection", null, inTypeInfo, outType,
+		return dataStream.transform("projection", outType,
 				new ProjectInvokable<IN, Tuple9<T0, T1, T2, T3, T4, T5, T6, T7, T8>>(fieldIndexes,
 						outType));
 	}
@@ -377,7 +377,7 @@ public class StreamProjection<IN> {
 	/**
 	 * Projects a {@link Tuple} {@link DataStream} to the previously selected
 	 * fields. Requires the classes of the fields of the resulting Tuples.
-	 *
+	 * 
 	 * @param type0
 	 *            The class of field '0' of the result Tuples.
 	 * @param type1
@@ -399,7 +399,7 @@ public class StreamProjection<IN> {
 	 * @param type9
 	 *            The class of field '9' of the result Tuples.
 	 * @return The projected DataStream.
-	 *
+	 * 
 	 * @see Tuple
 	 * @see DataStream
 	 */
@@ -415,7 +415,7 @@ public class StreamProjection<IN> {
 		@SuppressWarnings("unchecked")
 		TypeInformation<Tuple10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>> outType = (TypeInformation<Tuple10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>>) extractFieldTypes(
 				fieldIndexes, types, inTypeInfo);
-		return dataStream.addFunction("projection", null, inTypeInfo, outType,
+		return dataStream.transform("projection", outType,
 				new ProjectInvokable<IN, Tuple10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>>(
 						fieldIndexes, outType));
 	}
@@ -423,7 +423,7 @@ public class StreamProjection<IN> {
 	/**
 	 * Projects a {@link Tuple} {@link DataStream} to the previously selected
 	 * fields. Requires the classes of the fields of the resulting Tuples.
-	 *
+	 * 
 	 * @param type0
 	 *            The class of field '0' of the result Tuples.
 	 * @param type1
@@ -447,7 +447,7 @@ public class StreamProjection<IN> {
 	 * @param type10
 	 *            The class of field '10' of the result Tuples.
 	 * @return The projected DataStream.
-	 *
+	 * 
 	 * @see Tuple
 	 * @see DataStream
 	 */
@@ -465,7 +465,7 @@ public class StreamProjection<IN> {
 		@SuppressWarnings("unchecked")
 		TypeInformation<Tuple11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>> outType = (TypeInformation<Tuple11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>>) extractFieldTypes(
 				fieldIndexes, types, inTypeInfo);
-		return dataStream.addFunction("projection", null, inTypeInfo, outType,
+		return dataStream.transform("projection", outType,
 				new ProjectInvokable<IN, Tuple11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>>(
 						fieldIndexes, outType));
 	}
@@ -473,7 +473,7 @@ public class StreamProjection<IN> {
 	/**
 	 * Projects a {@link Tuple} {@link DataStream} to the previously selected
 	 * fields. Requires the classes of the fields of the resulting Tuples.
-	 *
+	 * 
 	 * @param type0
 	 *            The class of field '0' of the result Tuples.
 	 * @param type1
@@ -499,7 +499,7 @@ public class StreamProjection<IN> {
 	 * @param type11
 	 *            The class of field '11' of the result Tuples.
 	 * @return The projected DataStream.
-	 *
+	 * 
 	 * @see Tuple
 	 * @see DataStream
 	 */
@@ -518,10 +518,8 @@ public class StreamProjection<IN> {
 		TypeInformation<Tuple12<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>> outType = (TypeInformation<Tuple12<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>>) extractFieldTypes(
 				fieldIndexes, types, inTypeInfo);
 		return dataStream
-				.addFunction(
+				.transform(
 						"projection",
-						null,
-						inTypeInfo,
 						outType,
 						new ProjectInvokable<IN, Tuple12<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>>(
 								fieldIndexes, outType));
@@ -530,7 +528,7 @@ public class StreamProjection<IN> {
 	/**
 	 * Projects a {@link Tuple} {@link DataStream} to the previously selected
 	 * fields. Requires the classes of the fields of the resulting Tuples.
-	 *
+	 * 
 	 * @param type0
 	 *            The class of field '0' of the result Tuples.
 	 * @param type1
@@ -558,7 +556,7 @@ public class StreamProjection<IN> {
 	 * @param type12
 	 *            The class of field '12' of the result Tuples.
 	 * @return The projected DataStream.
-	 *
+	 * 
 	 * @see Tuple
 	 * @see DataStream
 	 */
@@ -577,10 +575,8 @@ public class StreamProjection<IN> {
 		TypeInformation<Tuple13<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>> outType = (TypeInformation<Tuple13<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>>) extractFieldTypes(
 				fieldIndexes, types, inTypeInfo);
 		return dataStream
-				.addFunction(
+				.transform(
 						"projection",
-						null,
-						inTypeInfo,
 						outType,
 						new ProjectInvokable<IN, Tuple13<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>>(
 								fieldIndexes, outType));
@@ -589,7 +585,7 @@ public class StreamProjection<IN> {
 	/**
 	 * Projects a {@link Tuple} {@link DataStream} to the previously selected
 	 * fields. Requires the classes of the fields of the resulting Tuples.
-	 *
+	 * 
 	 * @param type0
 	 *            The class of field '0' of the result Tuples.
 	 * @param type1
@@ -619,7 +615,7 @@ public class StreamProjection<IN> {
 	 * @param type13
 	 *            The class of field '13' of the result Tuples.
 	 * @return The projected DataStream.
-	 *
+	 * 
 	 * @see Tuple
 	 * @see DataStream
 	 */
@@ -638,10 +634,8 @@ public class StreamProjection<IN> {
 		TypeInformation<Tuple14<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>> outType = (TypeInformation<Tuple14<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>>) extractFieldTypes(
 				fieldIndexes, types, inTypeInfo);
 		return dataStream
-				.addFunction(
+				.transform(
 						"projection",
-						null,
-						inTypeInfo,
 						outType,
 						new ProjectInvokable<IN, Tuple14<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>>(
 								fieldIndexes, outType));
@@ -650,7 +644,7 @@ public class StreamProjection<IN> {
 	/**
 	 * Projects a {@link Tuple} {@link DataStream} to the previously selected
 	 * fields. Requires the classes of the fields of the resulting Tuples.
-	 *
+	 * 
 	 * @param type0
 	 *            The class of field '0' of the result Tuples.
 	 * @param type1
@@ -682,7 +676,7 @@ public class StreamProjection<IN> {
 	 * @param type14
 	 *            The class of field '14' of the result Tuples.
 	 * @return The projected DataStream.
-	 *
+	 * 
 	 * @see Tuple
 	 * @see DataStream
 	 */
@@ -702,10 +696,8 @@ public class StreamProjection<IN> {
 		TypeInformation<Tuple15<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>> outType = (TypeInformation<Tuple15<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>>) extractFieldTypes(
 				fieldIndexes, types, inTypeInfo);
 		return dataStream
-				.addFunction(
+				.transform(
 						"projection",
-						null,
-						inTypeInfo,
 						outType,
 						new ProjectInvokable<IN, Tuple15<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>>(
 								fieldIndexes, outType));
@@ -714,7 +706,7 @@ public class StreamProjection<IN> {
 	/**
 	 * Projects a {@link Tuple} {@link DataStream} to the previously selected
 	 * fields. Requires the classes of the fields of the resulting Tuples.
-	 *
+	 * 
 	 * @param type0
 	 *            The class of field '0' of the result Tuples.
 	 * @param type1
@@ -748,7 +740,7 @@ public class StreamProjection<IN> {
 	 * @param type15
 	 *            The class of field '15' of the result Tuples.
 	 * @return The projected DataStream.
-	 *
+	 * 
 	 * @see Tuple
 	 * @see DataStream
 	 */
@@ -768,10 +760,8 @@ public class StreamProjection<IN> {
 		TypeInformation<Tuple16<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>> outType = (TypeInformation<Tuple16<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>>) extractFieldTypes(
 				fieldIndexes, types, inTypeInfo);
 		return dataStream
-				.addFunction(
+				.transform(
 						"projection",
-						null,
-						inTypeInfo,
 						outType,
 						new ProjectInvokable<IN, Tuple16<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>>(
 								fieldIndexes, outType));
@@ -780,7 +770,7 @@ public class StreamProjection<IN> {
 	/**
 	 * Projects a {@link Tuple} {@link DataStream} to the previously selected
 	 * fields. Requires the classes of the fields of the resulting Tuples.
-	 *
+	 * 
 	 * @param type0
 	 *            The class of field '0' of the result Tuples.
 	 * @param type1
@@ -816,7 +806,7 @@ public class StreamProjection<IN> {
 	 * @param type16
 	 *            The class of field '16' of the result Tuples.
 	 * @return The projected DataStream.
-	 *
+	 * 
 	 * @see Tuple
 	 * @see DataStream
 	 */
@@ -836,10 +826,8 @@ public class StreamProjection<IN> {
 		TypeInformation<Tuple17<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>> outType = (TypeInformation<Tuple17<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>>) extractFieldTypes(
 				fieldIndexes, types, inTypeInfo);
 		return dataStream
-				.addFunction(
+				.transform(
 						"projection",
-						null,
-						inTypeInfo,
 						outType,
 						new ProjectInvokable<IN, Tuple17<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>>(
 								fieldIndexes, outType));
@@ -848,7 +836,7 @@ public class StreamProjection<IN> {
 	/**
 	 * Projects a {@link Tuple} {@link DataStream} to the previously selected
 	 * fields. Requires the classes of the fields of the resulting Tuples.
-	 *
+	 * 
 	 * @param type0
 	 *            The class of field '0' of the result Tuples.
 	 * @param type1
@@ -886,7 +874,7 @@ public class StreamProjection<IN> {
 	 * @param type17
 	 *            The class of field '17' of the result Tuples.
 	 * @return The projected DataStream.
-	 *
+	 * 
 	 * @see Tuple
 	 * @see DataStream
 	 */
@@ -906,10 +894,8 @@ public class StreamProjection<IN> {
 		TypeInformation<Tuple18<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17>> outType = (TypeInformation<Tuple18<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17>>) extractFieldTypes(
 				fieldIndexes, types, inTypeInfo);
 		return dataStream
-				.addFunction(
+				.transform(
 						"projection",
-						null,
-						inTypeInfo,
 						outType,
 						new ProjectInvokable<IN, Tuple18<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17>>(
 								fieldIndexes, outType));
@@ -918,7 +904,7 @@ public class StreamProjection<IN> {
 	/**
 	 * Projects a {@link Tuple} {@link DataStream} to the previously selected
 	 * fields. Requires the classes of the fields of the resulting Tuples.
-	 *
+	 * 
 	 * @param type0
 	 *            The class of field '0' of the result Tuples.
 	 * @param type1
@@ -958,7 +944,7 @@ public class StreamProjection<IN> {
 	 * @param type18
 	 *            The class of field '18' of the result Tuples.
 	 * @return The projected DataStream.
-	 *
+	 * 
 	 * @see Tuple
 	 * @see DataStream
 	 */
@@ -979,10 +965,8 @@ public class StreamProjection<IN> {
 		TypeInformation<Tuple19<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18>> outType = (TypeInformation<Tuple19<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18>>) extractFieldTypes(
 				fieldIndexes, types, inTypeInfo);
 		return dataStream
-				.addFunction(
+				.transform(
 						"projection",
-						null,
-						inTypeInfo,
 						outType,
 						new ProjectInvokable<IN, Tuple19<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18>>(
 								fieldIndexes, outType));
@@ -991,7 +975,7 @@ public class StreamProjection<IN> {
 	/**
 	 * Projects a {@link Tuple} {@link DataStream} to the previously selected
 	 * fields. Requires the classes of the fields of the resulting Tuples.
-	 *
+	 * 
 	 * @param type0
 	 *            The class of field '0' of the result Tuples.
 	 * @param type1
@@ -1033,7 +1017,7 @@ public class StreamProjection<IN> {
 	 * @param type19
 	 *            The class of field '19' of the result Tuples.
 	 * @return The projected DataStream.
-	 *
+	 * 
 	 * @see Tuple
 	 * @see DataStream
 	 */
@@ -1054,10 +1038,8 @@ public class StreamProjection<IN> {
 		TypeInformation<Tuple20<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19>> outType = (TypeInformation<Tuple20<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19>>) extractFieldTypes(
 				fieldIndexes, types, inTypeInfo);
 		return dataStream
-				.addFunction(
+				.transform(
 						"projection",
-						null,
-						inTypeInfo,
 						outType,
 						new ProjectInvokable<IN, Tuple20<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19>>(
 								fieldIndexes, outType));
@@ -1066,7 +1048,7 @@ public class StreamProjection<IN> {
 	/**
 	 * Projects a {@link Tuple} {@link DataStream} to the previously selected
 	 * fields. Requires the classes of the fields of the resulting Tuples.
-	 *
+	 * 
 	 * @param type0
 	 *            The class of field '0' of the result Tuples.
 	 * @param type1
@@ -1110,7 +1092,7 @@ public class StreamProjection<IN> {
 	 * @param type20
 	 *            The class of field '20' of the result Tuples.
 	 * @return The projected DataStream.
-	 *
+	 * 
 	 * @see Tuple
 	 * @see DataStream
 	 */
@@ -1132,10 +1114,8 @@ public class StreamProjection<IN> {
 		TypeInformation<Tuple21<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20>> outType = (TypeInformation<Tuple21<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20>>) extractFieldTypes(
 				fieldIndexes, types, inTypeInfo);
 		return dataStream
-				.addFunction(
+				.transform(
 						"projection",
-						null,
-						inTypeInfo,
 						outType,
 						new ProjectInvokable<IN, Tuple21<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20>>(
 								fieldIndexes, outType));
@@ -1144,7 +1124,7 @@ public class StreamProjection<IN> {
 	/**
 	 * Projects a {@link Tuple} {@link DataStream} to the previously selected
 	 * fields. Requires the classes of the fields of the resulting Tuples.
-	 *
+	 * 
 	 * @param type0
 	 *            The class of field '0' of the result Tuples.
 	 * @param type1
@@ -1190,7 +1170,7 @@ public class StreamProjection<IN> {
 	 * @param type21
 	 *            The class of field '21' of the result Tuples.
 	 * @return The projected DataStream.
-	 *
+	 * 
 	 * @see Tuple
 	 * @see DataStream
 	 */
@@ -1212,10 +1192,8 @@ public class StreamProjection<IN> {
 		TypeInformation<Tuple22<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21>> outType = (TypeInformation<Tuple22<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21>>) extractFieldTypes(
 				fieldIndexes, types, inTypeInfo);
 		return dataStream
-				.addFunction(
+				.transform(
 						"projection",
-						null,
-						inTypeInfo,
 						outType,
 						new ProjectInvokable<IN, Tuple22<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21>>(
 								fieldIndexes, outType));
@@ -1224,7 +1202,7 @@ public class StreamProjection<IN> {
 	/**
 	 * Projects a {@link Tuple} {@link DataStream} to the previously selected
 	 * fields. Requires the classes of the fields of the resulting Tuples.
-	 *
+	 * 
 	 * @param type0
 	 *            The class of field '0' of the result Tuples.
 	 * @param type1
@@ -1272,7 +1250,7 @@ public class StreamProjection<IN> {
 	 * @param type22
 	 *            The class of field '22' of the result Tuples.
 	 * @return The projected DataStream.
-	 *
+	 * 
 	 * @see Tuple
 	 * @see DataStream
 	 */
@@ -1295,10 +1273,8 @@ public class StreamProjection<IN> {
 		TypeInformation<Tuple23<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22>> outType = (TypeInformation<Tuple23<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22>>) extractFieldTypes(
 				fieldIndexes, types, inTypeInfo);
 		return dataStream
-				.addFunction(
+				.transform(
 						"projection",
-						null,
-						inTypeInfo,
 						outType,
 						new ProjectInvokable<IN, Tuple23<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22>>(
 								fieldIndexes, outType));
@@ -1307,7 +1283,7 @@ public class StreamProjection<IN> {
 	/**
 	 * Projects a {@link Tuple} {@link DataStream} to the previously selected
 	 * fields. Requires the classes of the fields of the resulting Tuples.
-	 *
+	 * 
 	 * @param type0
 	 *            The class of field '0' of the result Tuples.
 	 * @param type1
@@ -1357,7 +1333,7 @@ public class StreamProjection<IN> {
 	 * @param type23
 	 *            The class of field '23' of the result Tuples.
 	 * @return The projected DataStream.
-	 *
+	 * 
 	 * @see Tuple
 	 * @see DataStream
 	 */
@@ -1380,10 +1356,8 @@ public class StreamProjection<IN> {
 		TypeInformation<Tuple24<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23>> outType = (TypeInformation<Tuple24<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23>>) extractFieldTypes(
 				fieldIndexes, types, inTypeInfo);
 		return dataStream
-				.addFunction(
+				.transform(
 						"projection",
-						null,
-						inTypeInfo,
 						outType,
 						new ProjectInvokable<IN, Tuple24<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23>>(
 								fieldIndexes, outType));
@@ -1392,7 +1366,7 @@ public class StreamProjection<IN> {
 	/**
 	 * Projects a {@link Tuple} {@link DataStream} to the previously selected
 	 * fields. Requires the classes of the fields of the resulting Tuples.
-	 *
+	 * 
 	 * @param type0
 	 *            The class of field '0' of the result Tuples.
 	 * @param type1
@@ -1444,7 +1418,7 @@ public class StreamProjection<IN> {
 	 * @param type24
 	 *            The class of field '24' of the result Tuples.
 	 * @return The projected DataStream.
-	 *
+	 * 
 	 * @see Tuple
 	 * @see DataStream
 	 */
@@ -1467,10 +1441,9 @@ public class StreamProjection<IN> {
 		TypeInformation<Tuple25<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24>> outType = (TypeInformation<Tuple25<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24>>) extractFieldTypes(
 				fieldIndexes, types, inTypeInfo);
 		return dataStream
-				.addFunction(
+				.transform(
 						"projection",
-						null,
-						inTypeInfo,
+
 						outType,
 						new ProjectInvokable<IN, Tuple25<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24>>(
 								fieldIndexes, outType));

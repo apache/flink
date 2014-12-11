@@ -35,6 +35,10 @@ public class FromElementsFunction<T> implements SourceFunction<T> {
 		this.iterable = elements;
 	}
 
+	public FromElementsFunction(Iterable<T> elements) {
+		this.iterable = elements;
+	}
+
 	@Override
 	public void invoke(Collector<T> collector) throws Exception {
 		for (T element : iterable) {

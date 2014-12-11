@@ -29,7 +29,7 @@ import org.apache.flink.streaming.partitioner.StreamPartitioner;
  * partitioned by the given {@link KeySelector}. Operators like {@link #reduce},
  * {@link #batchReduce} etc. can be applied on the {@link GroupedDataStream} to
  * get additional functionality by the grouping.
- *
+ * 
  * @param <OUT>
  *            The output type of the {@link GroupedDataStream}.
  */
@@ -62,8 +62,8 @@ public class GroupedDataStream<OUT> extends DataStream<OUT> {
 	 */
 	@Override
 	public SingleOutputStreamOperator<OUT, ?> reduce(ReduceFunction<OUT> reducer) {
-		return addFunction("groupReduce", clean(reducer), getType(), getType(),
-				new GroupedReduceInvokable<OUT>(clean(reducer), keySelector));
+		return transform("groupReduce", getType(), new GroupedReduceInvokable<OUT>(clean(reducer),
+				keySelector));
 	}
 
 	/**
@@ -182,8 +182,8 @@ public class GroupedDataStream<OUT> extends DataStream<OUT> {
 		GroupedReduceInvokable<OUT> invokable = new GroupedReduceInvokable<OUT>(clean(aggregate),
 				keySelector);
 
-		SingleOutputStreamOperator<OUT, ?> returnStream = addFunction("groupReduce", clean(aggregate),
-				typeInfo, typeInfo, invokable);
+		SingleOutputStreamOperator<OUT, ?> returnStream = transform("groupReduce", typeInfo,
+				invokable);
 
 		return returnStream;
 	}

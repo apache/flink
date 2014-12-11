@@ -37,7 +37,7 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTa
 	protected int instanceID;
 	protected String name;
 	private static int numVertices = 0;
-	protected Object function;
+
 	protected String functionName;
 
 	private InputHandler<IN> inputHandler;
@@ -72,7 +72,6 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTa
 		this.configuration = new StreamConfig(getTaskConfiguration());
 		this.name = configuration.getVertexName();
 		this.functionName = configuration.getFunctionName();
-		this.function = configuration.getFunction(userClassLoader);
 		this.states = configuration.getOperatorStates(userClassLoader);
 		this.context = createRuntimeContext(name, this.states);
 	}
