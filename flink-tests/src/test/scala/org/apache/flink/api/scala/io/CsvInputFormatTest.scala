@@ -47,7 +47,7 @@ class CsvInputFormatTest {
       val format = new ScalaCsvInputFormat[(String, String, String)](
         PATH, createTypeInformation[(String, String, String)])
       format.setDelimiter("\n")
-      format.setFieldDelimiter('|')
+      format.setFieldDelimiter(Array('|'))
       val parameters = new Configuration
       format.configure(parameters)
       format.open(split)
@@ -87,7 +87,7 @@ class CsvInputFormatTest {
       val format = new ScalaCsvInputFormat[(String, String, String)](
         PATH, createTypeInformation[(String, String, String)])
       format.setDelimiter("\n")
-      format.setFieldDelimiter('|')
+      format.setFieldDelimiter(Array('|'))
       val parameters = new Configuration
       format.configure(parameters)
       format.open(split)
@@ -125,7 +125,7 @@ class CsvInputFormatTest {
       val split = createTempFile(fileContent)
       val format = new ScalaCsvInputFormat[(Int, Int, Int, Int, Int)](
         PATH, createTypeInformation[(Int, Int, Int, Int, Int)])
-      format.setFieldDelimiter('|')
+      format.setFieldDelimiter(Array('|'))
       format.configure(new Configuration)
       format.open(split)
       var result: (Int, Int, Int, Int, Int) = null
@@ -159,7 +159,7 @@ class CsvInputFormatTest {
       val fileContent = "111|222|333|444|555|\n666|777|888|999|000|\n"
       val split = createTempFile(fileContent)
       val format = new ScalaCsvInputFormat[(Int, Int)](PATH, createTypeInformation[(Int, Int)])
-      format.setFieldDelimiter('|')
+      format.setFieldDelimiter(Array('|'))
       format.configure(new Configuration)
       format.open(split)
       var result: (Int, Int) = null
@@ -190,7 +190,7 @@ class CsvInputFormatTest {
       val format = new ScalaCsvInputFormat[(Int, Int, Int)](
         PATH,
         createTypeInformation[(Int, Int, Int)])
-      format.setFieldDelimiter('|')
+      format.setFieldDelimiter(Array('|'))
       format.setFields(Array(0, 3, 7), Array(classOf[Integer], classOf[Integer], classOf[Integer]))
       format.configure(new Configuration)
       format.open(split)
@@ -221,7 +221,7 @@ class CsvInputFormatTest {
       val format = new ScalaCsvInputFormat[(Int, Int, Int)](
         PATH,
         createTypeInformation[(Int, Int, Int)])
-      format.setFieldDelimiter('|')
+      format.setFieldDelimiter(Array('|'))
       try {
         format.setFields(Array(8, 1, 3), Array(classOf[Integer],classOf[Integer],classOf[Integer]))
         fail("Input sequence should have been rejected.")

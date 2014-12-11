@@ -29,12 +29,11 @@ public class DoubleValueParser extends FieldParser<DoubleValue> {
 	private DoubleValue result;
 	
 	@Override
-	public int parseField(byte[] bytes, int startPos, int limit, char delim, DoubleValue reusable) {
+	public int parseField(byte[] bytes, int startPos, int limit, char[] delim, DoubleValue reusable) {
 		
 		int i = startPos;
-		final byte delByte = (byte) delim;
 		
-		while (i < limit && bytes[i] != delByte) {
+		while (i < limit && !delimiterNext(bytes, i, delim)) {
 			i++;
 		}
 		
@@ -43,7 +42,7 @@ public class DoubleValueParser extends FieldParser<DoubleValue> {
 			double value = Double.parseDouble(str);
 			reusable.setValue(value);
 			this.result = reusable;
-			return (i == limit) ? limit : i+1;
+			return (i == limit) ? limit : i+ delim.length;
 		}
 		catch (NumberFormatException e) {
 			setErrorState(ParseErrorState.NUMERIC_VALUE_FORMAT_ERROR);

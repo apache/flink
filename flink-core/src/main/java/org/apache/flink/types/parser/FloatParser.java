@@ -27,19 +27,18 @@ public class FloatParser extends FieldParser<Float> {
 	private float result;
 	
 	@Override
-	public int parseField(byte[] bytes, int startPos, int limit, char delim, Float reusable) {
+	public int parseField(byte[] bytes, int startPos, int limit, char[] delim, Float reusable) {
 		
 		int i = startPos;
-		final byte delByte = (byte) delim;
 		
-		while (i < limit && bytes[i] != delByte) {
+		while (i < limit && !delimiterNext(bytes, i, delim)) {
 			i++;
 		}
 		
 		String str = new String(bytes, startPos, i-startPos);
 		try {
 			this.result = Float.parseFloat(str);
-			return (i == limit) ? limit : i+1;
+			return (i == limit) ? limit : i+ delim.length;
 		}
 		catch (NumberFormatException e) {
 			setErrorState(ParseErrorState.NUMERIC_VALUE_FORMAT_ERROR);

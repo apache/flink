@@ -33,7 +33,7 @@ public class ShortValueParser extends FieldParser<ShortValue> {
 	private ShortValue result;
 
 	@Override
-	public int parseField(byte[] bytes, int startPos, int limit, char delimiter, ShortValue reusable) {
+	public int parseField(byte[] bytes, int startPos, int limit, char[] delimiter, ShortValue reusable) {
 		int val = 0;
 		boolean neg = false;
 		
@@ -44,16 +44,16 @@ public class ShortValueParser extends FieldParser<ShortValue> {
 			startPos++;
 			
 			// check for empty field with only the sign
-			if (startPos == limit || bytes[startPos] == delimiter) {
+			if (startPos > limit-delimiter.length || delimiterNext(bytes, startPos, delimiter)) {
 				setErrorState(ParseErrorState.NUMERIC_VALUE_ORPHAN_SIGN);
 				return -1;
 			}
 		}
 		
 		for (int i = startPos; i < limit; i++) {
-			if (bytes[i] == delimiter) {
+			if (delimiterNext(bytes, i, delimiter)) {
 				reusable.setValue((short) (neg ? -val : val));
-				return i+1;
+				return i + delimiter.length;
 			}
 			if (bytes[i] < 48 || bytes[i] > 57) {
 				setErrorState(ParseErrorState.NUMERIC_VALUE_ILLEGAL_CHARACTER);

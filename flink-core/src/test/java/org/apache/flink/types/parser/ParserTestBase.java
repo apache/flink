@@ -83,7 +83,10 @@ public abstract class ParserTestBase<T> {
 				FieldParser<T> parser = getParser();
 				
 				byte[] bytes = testValues[i].getBytes();
-				int numRead = parser.parseField(bytes, 0, bytes.length, '|', parser.createValue());
+
+
+
+				int numRead = parser.parseField(bytes, 0, bytes.length, new char[] {'|'}, parser.createValue());
 				
 				assertTrue("Parser declared the valid value " + testValues[i] + " as invalid.", numRead != -1);
 				assertEquals("Invalid number of bytes read returned.", bytes.length, numRead);
@@ -120,8 +123,8 @@ public abstract class ParserTestBase<T> {
 			int pos2 = 0;
 			
 			for (int i = 0; i < results.length; i++) {
-				pos1 = parser1.parseField(allBytesWithDelimiter, pos1, allBytesWithDelimiter.length, '|', val1);
-				pos2 = parser2.parseField(allBytesNoDelimiterEnd, pos2, allBytesNoDelimiterEnd.length, ',', val2);
+				pos1 = parser1.parseField(allBytesWithDelimiter, pos1, allBytesWithDelimiter.length, new char[] {'|'}, val1);
+				pos2 = parser2.parseField(allBytesNoDelimiterEnd, pos2, allBytesNoDelimiterEnd.length, new char[] {','}, val2);
 				
 				assertTrue("Parser declared the valid value " + testValues[i] + " as invalid.", pos1 != -1);
 				assertTrue("Parser declared the valid value " + testValues[i] + " as invalid.", pos2 != -1);
@@ -150,7 +153,7 @@ public abstract class ParserTestBase<T> {
 				FieldParser<T> parser = getParser();
 				
 				byte[] bytes = testValues[i].getBytes();
-				int numRead = parser.parseField(bytes, 0, bytes.length, '|', parser.createValue());
+				int numRead = parser.parseField(bytes, 0, bytes.length, new char[] {'|'}, parser.createValue());
 				
 				assertTrue("Parser accepted the invalid value " + testValues[i] + ".", numRead == -1);
 			}
@@ -188,7 +191,7 @@ public abstract class ParserTestBase<T> {
 				// read the valid parts
 				int pos = 0;
 				for (int i = 0; i < splitPoint; i++) {
-					pos = parser.parseField(bytes, pos, bytes.length, '%', value);
+					pos = parser.parseField(bytes, pos, bytes.length, new char[] {'%'}, value);
 					
 					assertTrue("Parser declared the valid value " + validValues[i] + " as invalid.", pos != -1);
 					T result = parser.getLastResult();
@@ -196,7 +199,7 @@ public abstract class ParserTestBase<T> {
 				}
 				
 				// fail on the invalid part
-				pos = parser.parseField(bytes, pos, bytes.length, '%', value);
+				pos = parser.parseField(bytes, pos, bytes.length, new char[] {'%'}, value);
 				assertTrue("Parser accepted the invalid value " + invalid + ".", pos == -1);
 			}
 		}
@@ -306,5 +309,76 @@ public abstract class ParserTestBase<T> {
 		}
 		
 		return result;
+	}
+
+
+	private static byte[] concatenateMulti(String[] values, char[] delimiter, boolean delimiterAtEnd) {
+		int len = 0;
+		for (String s : values) {
+			len += s.length() + delimiter.length;
+		}
+
+		if (!delimiterAtEnd) {
+			len -= delimiter.length;
+		}
+
+		int currPos = 0;
+		byte[] result = new byte[len];
+
+		for (int i = 0; i < values.length; i++) {
+			String s = values[i];
+
+			byte[] bytes = s.getBytes();
+			int numBytes = bytes.length;
+			System.arraycopy(bytes, 0, result, currPos, numBytes);
+			currPos += numBytes;
+
+			if (delimiterAtEnd || i < values.length-1) {
+				for(int k=0; k< delimiter.length; k++)
+					result[currPos++] = (byte) delimiter[k];
+			}
+		}
+		return result;
+	}
+
+
+	@Test
+	public void testConcatenatedMultiCharDelim() {
+		try {
+			String[] testValues = getValidTestValues();
+			T[] results = getValidTestResults();
+
+			byte[] allBytesWithDelimiter = concatenateMulti(testValues,  new char[] {'|','*','|'}, true);
+			byte[] allBytesNoDelimiterEnd = concatenateMulti(testValues, new char[] {'|','*','|'}, false);
+
+			FieldParser<T> parser1 = getParser();
+			FieldParser<T> parser2 = getParser();
+
+			T val1 = parser1.createValue();
+			T val2 = parser2.createValue();
+
+			int pos1 = 0;
+			int pos2 = 0;
+
+			for (int i = 0; i < results.length; i++) {
+				pos1 = parser1.parseField(allBytesWithDelimiter, pos1,  allBytesWithDelimiter.length,   new char[] {'|','*','|'}, val1);
+				System.out.println(parser1.getLastResult().toString());
+				assertTrue("1. Parser declared the valid value " + testValues[i] + " as invalid.", pos1 != -1);
+				T result1 = parser1.getLastResult();
+				assertEquals("1. Parser parsed wrong.", results[i], result1);
+
+				pos2 = parser2.parseField(allBytesNoDelimiterEnd, pos2, allBytesNoDelimiterEnd.length,  new char[] {'|','*','|'}, val2);
+				System.out.println(parser2.getLastResult().toString());
+				assertTrue("2. Parser declared the valid value " + testValues[i] + " as invalid.", pos2 != -1);
+				T result2 = parser2.getLastResult();
+				assertEquals("2. Parser parsed wrong.", results[i], result2);
+
+			}
+		}
+		catch (Exception e) {
+			System.err.println(e.getMessage());
+			e.printStackTrace();
+			fail("Test erroneous: " + e.getMessage());
+		}
 	}
 }

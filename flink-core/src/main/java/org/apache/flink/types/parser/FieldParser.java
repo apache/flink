@@ -83,7 +83,7 @@ public abstract class FieldParser<T> {
 	 * 
 	 * @return The index of the next delimiter, if the field was parsed correctly. A value less than 0 otherwise.
 	 */
-	public abstract int parseField(byte[] bytes, int startPos, int limit, char delim, T reuse);
+	public abstract int parseField(byte[] bytes, int startPos, int limit, char[] delim, T reuse);
 	
 	/**
 	 * Gets the parsed field. This method returns the value parsed by the last successful invocation of
@@ -100,6 +100,29 @@ public abstract class FieldParser<T> {
 	 * @return An instance of the parsed value type. 
 	 */
 	public abstract T createValue();
+	
+	/**
+	 * Checks if the delimiter starts at the given position of the byte array 
+	 * The array's valid length is given. 
+	 * 
+	 * Attention: This method assumes that enough characters follow the start position for the delimiter check!
+	 * 
+	 * @param bytes The byte array that holds the value.
+	 * @param startPos The index where the field starts
+	 * 
+	 * @return true if a delimiter is a next position, false otherwise.
+	 */
+	public static final boolean delimiterNext(byte[] bytes, int startPos, char[] delim) {
+
+		for(int pos = 0; pos < delim.length; pos++) {
+			// check each position
+			if(delim[pos] != bytes[startPos+pos]) {
+				return false;
+			}
+		}
+		return true;
+		
+	}
 	
 	/**
 	 * Sets the error state of the parser. Called by subclasses of the parser to set the type of error
@@ -165,4 +188,5 @@ public abstract class FieldParser<T> {
 		PARSERS.put(FloatValue.class, FloatValueParser.class);
 		PARSERS.put(DoubleValue.class, DoubleValueParser.class);
 	}
+	
 }

@@ -38,15 +38,16 @@ public class StringValueParser extends FieldParser<StringValue> {
 	private StringValue result;
 	
 	@Override
-	public int parseField(byte[] bytes, int startPos, int length, char delim, StringValue reusable) {
+	public int parseField(byte[] bytes, int startPos, int length, char[] delim, StringValue reusable) {
 		
 		this.result = reusable;
-		
 		int i = startPos;
-		
-		final byte delByte = (byte) delim;
 		byte current;
-		
+
+
+		String s = new String(bytes);
+		System.out.println("[StringValueParser] Input text:  "+ s);
+
 		// count initial whitespace lines
 		while (i < length && ((current = bytes[i]) == WHITESPACE_SPACE || current == WHITESPACE_TAB)) {
 			i++;
@@ -69,8 +70,15 @@ public class StringValueParser extends FieldParser<StringValue> {
 				
 				i++; // the quote
 				
-				// skip trailing whitespace characters 
-				while (i < length && (current = bytes[i]) != delByte) {
+				// skip trailing whitespace characters
+				while (i < length) {
+
+					if (length-i >= delim.length) {
+						if(delimiterNext(bytes, i, delim)) {
+							return i+delim.length;
+						}
+					}
+					current = bytes[i];
 					if (current == WHITESPACE_SPACE || current == WHITESPACE_TAB) {
 						i++;
 					}
@@ -79,8 +87,10 @@ public class StringValueParser extends FieldParser<StringValue> {
 						return -1;	// illegal case of non-whitespace characters trailing
 					}
 				}
-				
-				return (i == length ? length : i+1);
+				if( i > length ){
+					i--;
+				}
+				return (i == length ? length : i + delim.length);
 			} else {
 				// exited due to line end without quote termination
 				setErrorState(ParseErrorState.UNTERMINATED_QUOTED_STRING);
@@ -88,14 +98,13 @@ public class StringValueParser extends FieldParser<StringValue> {
 			}
 		}
 		else {
-			// unquoted string
-			while (i < length && bytes[i] != delByte) {
+			// unquoted string -delim.length
+			while (i < length && !delimiterNext(bytes, i, delim)) {
 				i++;
 			}
-			
 			// set from the beginning. unquoted strings include the leading whitespaces
 			reusable.setValueAscii(bytes, startPos, i-startPos);
-			return (i == length ? length : i+1);
+			return (i == length ? length : i + delim.length);
 		}
 	}
 	

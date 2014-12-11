@@ -245,7 +245,7 @@ public class CsvReader {
 	
 	private void configureInputFormat(CsvInputFormat<?> format, Class<?>... types) {
 		format.setDelimiter(this.lineDelimiter);
-		format.setFieldDelimiter(this.fieldDelimiter);
+		format.setFieldDelimiter(new char[] {this.fieldDelimiter});
 		format.setSkipFirstLineAsHeader(skipFirstLineAsHeader);
 		if (this.includedMask == null) {
 			format.setFieldTypes(types);

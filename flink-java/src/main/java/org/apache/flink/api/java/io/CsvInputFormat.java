@@ -61,7 +61,7 @@ public class CsvInputFormat<OUT extends Tuple> extends GenericCsvInputFormat<OUT
 		super(filePath);
 
 		setDelimiter(lineDelimiter);
-		setFieldDelimiter(fieldDelimiter);
+		setFieldDelimiter(new char[] {fieldDelimiter});
 
 		setFieldTypes(types);
 	}
