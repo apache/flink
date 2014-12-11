@@ -29,6 +29,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.TextInputFormat;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.client.program.Client;
 import org.apache.flink.client.program.ContextEnvironment;
@@ -36,8 +37,10 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.StreamGraph;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
+import org.apache.flink.streaming.api.function.source.FileMonitoringFunction;
+import org.apache.flink.streaming.api.function.source.FileMonitoringFunction.WatchType;
+import org.apache.flink.streaming.api.function.source.FileReadFunction;
 import org.apache.flink.streaming.api.function.source.FileSourceFunction;
-import org.apache.flink.streaming.api.function.source.FileStreamFunction;
 import org.apache.flink.streaming.api.function.source.FromElementsFunction;
 import org.apache.flink.streaming.api.function.source.GenSequenceFunction;
 import org.apache.flink.streaming.api.function.source.GenericSourceFunction;
@@ -214,34 +217,30 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
-	 * Creates a DataStream that represents the Strings produced by reading the
-	 * given file line wise multiple times(infinite). The file will be read with
-	 * the system's default character set. This functionality can be used for
-	 * testing a topology.
+	 * Creates a DataStream that contains the contents of file created while
+	 * system watches the given path. The file will be read with the system's
+	 * default character set.
 	 * 
 	 * @param filePath
 	 *            The path of the file, as a URI (e.g.,
-	 *            "file:///some/local/file" or "hdfs://host:port/file/path").
-	 * @return The DataStream representing the text file.
+	 *            "file:///some/local/file" or "hdfs://host:port/file/path/").
+	 * @param interval
+	 *            The interval of file watching.
+	 * @param watchType
+	 *            The watch type of file stream. When watchType is
+	 *            {@link WatchType.ONLY_NEW_FILES}, the system processes only
+	 *            new files. {@link WatchType.REPROCESS_WITH_APPENDED} means
+	 *            that the system re-processes all contents of appended file.
+	 *            {@link WatchType.PROCESS_ONLY_APPENDED} means that the system
+	 *            processes only appended contents of files.
+	 * 
+	 * @return The DataStream containing the given directory.
 	 */
-	public DataStreamSource<String> readTextStream(String filePath) {
-		checkIfFileExists(filePath);
-		return addSource(new FileStreamFunction(filePath), null, "textStream");
-	}
+	public DataStream<String> readFileStream(String filePath, long interval, WatchType watchType) {
+		DataStream<Tuple3<String, Long, Long>> source = addSource(new FileMonitoringFunction(
+				filePath, interval, watchType));
 
-	private static void checkIfFileExists(String filePath) {
-		File file = new File(filePath);
-		if (!file.exists()) {
-			throw new IllegalArgumentException("File not found: " + filePath);
-		}
-
-		if (!file.canRead()) {
-			throw new IllegalArgumentException("Cannot read file: " + filePath);
-		}
-
-		if (file.isDirectory()) {
-			throw new IllegalArgumentException("Given path is a directory: " + filePath);
-		}
+		return source.flatMap(new FileReadFunction());
 	}
 
 	/**
