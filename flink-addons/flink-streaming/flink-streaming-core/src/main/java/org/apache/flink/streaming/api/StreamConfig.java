@@ -47,7 +47,6 @@ public class StreamConfig {
 	private static final String OUTPUT_SELECTOR = "outputSelector";
 	private static final String DIRECTED_EMIT = "directedEmit";
 	private static final String FUNCTION_NAME = "operatorName";
-	private static final String FUNCTION = "operator";
 	private static final String VERTEX_NAME = "vertexName";
 	private static final String SERIALIZEDUDF = "serializedudf";
 	private static final String USER_FUNCTION = "userfunction";
@@ -171,21 +170,6 @@ public class StreamConfig {
 
 	public String getVertexName() {
 		return config.getString(VERTEX_NAME, null);
-	}
-
-	public void setFunction(byte[] serializedFunction, String functionName) {
-		if (serializedFunction != null) {
-			config.setBytes(FUNCTION, serializedFunction);
-			config.setString(FUNCTION_NAME, functionName);
-		}
-	}
-
-	public Object getFunction(ClassLoader cl) {
-		try {
-			return InstantiationUtil.readObjectFromConfig(this.config, FUNCTION, cl);
-		} catch (Exception e) {
-			throw new RuntimeException("Cannot deserialize invokable object", e);
-		}
 	}
 
 	public String getFunctionName() {

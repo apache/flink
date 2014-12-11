@@ -17,15 +17,11 @@
 
 package org.apache.flink.streaming.api.datastream;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.commons.lang3.SerializationException;
-import org.apache.commons.lang3.SerializationUtils;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichFilterFunction;
@@ -401,8 +397,7 @@ public class DataStream<OUT> {
 
 		TypeInformation<R> outType = TypeExtractor.getMapReturnTypes(clean(mapper), getType());
 
-		return addFunction("map", clean(mapper), getType(), outType, new MapInvokable<OUT, R>(
-				clean(mapper)));
+		return transform("map", outType, new MapInvokable<OUT, R>(clean(mapper)));
 	}
 
 	/**
@@ -423,10 +418,11 @@ public class DataStream<OUT> {
 	 */
 	public <R> SingleOutputStreamOperator<R, ?> flatMap(FlatMapFunction<OUT, R> flatMapper) {
 
-		TypeInformation<R> outType = TypeExtractor.getFlatMapReturnTypes(clean(flatMapper), getType());
+		TypeInformation<R> outType = TypeExtractor.getFlatMapReturnTypes(clean(flatMapper),
+				getType());
 
-		return addFunction("flatMap", clean(flatMapper), getType(), outType,
-				new FlatMapInvokable<OUT, R>(clean(flatMapper)));
+		return transform("flatMap", outType, new FlatMapInvokable<OUT, R>(clean(flatMapper)));
+
 	}
 
 	/**
@@ -442,8 +438,8 @@ public class DataStream<OUT> {
 	 */
 	public SingleOutputStreamOperator<OUT, ?> reduce(ReduceFunction<OUT> reducer) {
 
-		return addFunction("reduce", clean(reducer), getType(), getType(),
-				new StreamReduceInvokable<OUT>(clean(reducer)));
+		return transform("reduce", getType(), new StreamReduceInvokable<OUT>(clean(reducer)));
+
 	}
 
 	/**
@@ -461,8 +457,8 @@ public class DataStream<OUT> {
 	 * @return The filtered DataStream.
 	 */
 	public SingleOutputStreamOperator<OUT, ?> filter(FilterFunction<OUT> filter) {
-		return addFunction("filter", clean(filter), getType(), getType(), new FilterInvokable<OUT>(clean(
-				filter)));
+		return transform("filter", getType(), new FilterInvokable<OUT>(clean(filter)));
+
 	}
 
 	/**
@@ -742,7 +738,7 @@ public class DataStream<OUT> {
 	public SingleOutputStreamOperator<Long, ?> count() {
 		TypeInformation<Long> outTypeInfo = TypeExtractor.getForObject(Long.valueOf(0));
 
-		return addFunction("counter", null, getType(), outTypeInfo, new CounterInvokable<OUT>());
+		return transform("counter", outTypeInfo, new CounterInvokable<OUT>());
 	}
 
 	/**
@@ -1120,8 +1116,7 @@ public class DataStream<OUT> {
 
 		StreamReduceInvokable<OUT> invokable = new StreamReduceInvokable<OUT>(aggregate);
 
-		SingleOutputStreamOperator<OUT, ?> returnStream = addFunction("reduce", clean(aggregate),
-				typeInfo, typeInfo, invokable);
+		SingleOutputStreamOperator<OUT, ?> returnStream = transform("reduce", typeInfo, invokable);
 
 		return returnStream;
 	}
@@ -1137,34 +1132,28 @@ public class DataStream<OUT> {
 	}
 
 	/**
-	 * Internal function for passing the user defined functions to the JobGraph
-	 * of the job.
+	 * Method for passing user defined invokables along with the type
+	 * informations that will transform the DataStream.
 	 * 
-	 * @param functionName
-	 *            name of the function
-	 * @param function
-	 *            the user defined function
-	 * @param functionInvokable
-	 *            the wrapping JobVertex instance
+	 * @param operatorName
+	 *            name of the operator, for logging purposes
+	 * @param outTypeInfo
+	 *            the output type of the operator
+	 * @param invokable
+	 *            the object containing the transformation logic
 	 * @param <R>
 	 *            type of the return stream
 	 * @return the data stream constructed
 	 */
-	protected <R> SingleOutputStreamOperator<R, ?> addFunction(String functionName,
-			final Function function, TypeInformation<OUT> inTypeInfo,
-			TypeInformation<R> outTypeInfo, StreamInvokable<OUT, R> functionInvokable) {
+	public <R> SingleOutputStreamOperator<R, ?> transform(String operatorName,
+			TypeInformation<R> outTypeInfo, StreamInvokable<OUT, R> invokable) {
 		DataStream<OUT> inputStream = this.copy();
 		@SuppressWarnings({ "unchecked", "rawtypes" })
 		SingleOutputStreamOperator<R, ?> returnStream = new SingleOutputStreamOperator(environment,
-				functionName, outTypeInfo);
+				operatorName, outTypeInfo);
 
-		try {
-			jobGraphBuilder.addStreamVertex(returnStream.getId(), functionInvokable, inTypeInfo,
-					outTypeInfo, functionName,
-					SerializationUtils.serialize((Serializable) function), degreeOfParallelism);
-		} catch (SerializationException e) {
-			throw new RuntimeException("Cannot serialize user defined function");
-		}
+		jobGraphBuilder.addStreamVertex(returnStream.getId(), invokable, getType(), outTypeInfo,
+				operatorName, degreeOfParallelism);
 
 		connectGraph(inputStream, returnStream.getId(), 0);
 
@@ -1235,13 +1224,8 @@ public class DataStream<OUT> {
 			SinkFunction<OUT> sinkFunction, TypeInformation<OUT> inTypeInfo) {
 		DataStreamSink<OUT> returnStream = new DataStreamSink<OUT>(environment, "sink", typeInfo);
 
-		try {
-			jobGraphBuilder.addStreamVertex(returnStream.getId(), new SinkInvokable<OUT>(
-					clean(sinkFunction)), inTypeInfo, null, "sink", SerializationUtils
-					.serialize(clean(sinkFunction)), degreeOfParallelism);
-		} catch (SerializationException e) {
-			throw new RuntimeException("Cannot serialize SinkFunction");
-		}
+		jobGraphBuilder.addStreamVertex(returnStream.getId(), new SinkInvokable<OUT>(
+				clean(sinkFunction)), inTypeInfo, null, "sink", degreeOfParallelism);
 
 		inputStream.connectGraph(inputStream.copy(), returnStream.getId(), 0);
 

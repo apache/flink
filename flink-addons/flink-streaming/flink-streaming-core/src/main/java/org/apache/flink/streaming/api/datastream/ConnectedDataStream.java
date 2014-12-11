@@ -17,13 +17,9 @@
 
 package org.apache.flink.streaming.api.datastream;
 
-import java.io.Serializable;
 import java.util.List;
 
-import org.apache.commons.lang3.SerializationException;
-import org.apache.commons.lang3.SerializationUtils;
 import org.apache.flink.api.common.functions.CrossFunction;
-import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ClosureCleaner;
@@ -53,7 +49,7 @@ import org.apache.flink.util.Collector;
  * The ConnectedDataStream represents a stream for two different data types. It
  * can be used to apply transformations like {@link CoMapFunction} on two
  * {@link DataStream}s
- *
+ * 
  * @param <IN1>
  *            Type of the first input data steam.
  * @param <IN2>
@@ -417,8 +413,9 @@ public class ConnectedDataStream<IN1, IN2> {
 		TypeInformation<OUT> outTypeInfo = TypeExtractor.createTypeInfo(CoMapFunction.class,
 				coMapper.getClass(), 2, null, null);
 
-		return addCoFunction("coMap", clean(coMapper), outTypeInfo,
-				new CoMapInvokable<IN1, IN2, OUT>(clean(coMapper)));
+		return addCoFunction("coMap", outTypeInfo, new CoMapInvokable<IN1, IN2, OUT>(
+				clean(coMapper)));
+
 	}
 
 	/**
@@ -441,8 +438,8 @@ public class ConnectedDataStream<IN1, IN2> {
 		TypeInformation<OUT> outTypeInfo = TypeExtractor.createTypeInfo(CoFlatMapFunction.class,
 				coFlatMapper.getClass(), 2, null, null);
 
-		return addCoFunction("coFlatMap", clean(coFlatMapper), outTypeInfo,
-				new CoFlatMapInvokable<IN1, IN2, OUT>(clean(coFlatMapper)));
+		return addCoFunction("coFlatMap", outTypeInfo, new CoFlatMapInvokable<IN1, IN2, OUT>(
+				clean(coFlatMapper)));
 	}
 
 	/**
@@ -466,8 +463,8 @@ public class ConnectedDataStream<IN1, IN2> {
 		TypeInformation<OUT> outTypeInfo = TypeExtractor.createTypeInfo(CoReduceFunction.class,
 				coReducer.getClass(), 2, null, null);
 
-		return addCoFunction("coReduce", clean(coReducer), outTypeInfo,
-				getReduceInvokable(clean(coReducer)));
+		return addCoFunction("coReduce", outTypeInfo, getReduceInvokable(clean(coReducer)));
+
 	}
 
 	/**
@@ -531,9 +528,9 @@ public class ConnectedDataStream<IN1, IN2> {
 		TypeInformation<OUT> outTypeInfo = TypeExtractor.createTypeInfo(CoWindowFunction.class,
 				coWindowFunction.getClass(), 2, null, null);
 
-		return addCoFunction("coWindowReduce", clean(coWindowFunction), outTypeInfo,
-				new CoWindowInvokable<IN1, IN2, OUT>(clean(coWindowFunction), windowSize, slideInterval,
-						timestamp1, timestamp2));
+		return addCoFunction("coWindowReduce", outTypeInfo, new CoWindowInvokable<IN1, IN2, OUT>(
+				clean(coWindowFunction), windowSize, slideInterval, timestamp1, timestamp2));
+
 	}
 
 	protected <OUT> CoInvokable<IN1, IN2, OUT> getReduceInvokable(
@@ -607,27 +604,21 @@ public class ConnectedDataStream<IN1, IN2> {
 			throw new IllegalArgumentException("Slide interval must be positive");
 		}
 
-		return addCoFunction("coWindowReduce", clean(coWindowFunction), outTypeInfo,
-				new CoWindowInvokable<IN1, IN2, OUT>(clean(coWindowFunction), windowSize, slideInterval,
-						timestamp1, timestamp2));
+		return addCoFunction("coWindowReduce", outTypeInfo, new CoWindowInvokable<IN1, IN2, OUT>(
+				clean(coWindowFunction), windowSize, slideInterval, timestamp1, timestamp2));
+
 	}
 
-	protected <OUT> SingleOutputStreamOperator<OUT, ?> addCoFunction(String functionName,
-			final Function function, TypeInformation<OUT> outTypeInfo,
-			CoInvokable<IN1, IN2, OUT> functionInvokable) {
+	public <OUT> SingleOutputStreamOperator<OUT, ?> addCoFunction(String functionName,
+			TypeInformation<OUT> outTypeInfo, CoInvokable<IN1, IN2, OUT> functionInvokable) {
 
 		@SuppressWarnings({ "unchecked", "rawtypes" })
 		SingleOutputStreamOperator<OUT, ?> returnStream = new SingleOutputStreamOperator(
 				environment, functionName, outTypeInfo);
 
-		try {
-			dataStream1.jobGraphBuilder.addCoTask(returnStream.getId(), functionInvokable,
-					getInputType1(), getInputType2(), outTypeInfo, functionName,
-					SerializationUtils.serialize((Serializable) function),
-					environment.getDegreeOfParallelism());
-		} catch (SerializationException e) {
-			throw new RuntimeException("Cannot serialize user defined function");
-		}
+		dataStream1.jobGraphBuilder.addCoTask(returnStream.getId(), functionInvokable,
+				getInputType1(), getInputType2(), outTypeInfo, functionName,
+				environment.getDegreeOfParallelism());
 
 		dataStream1.connectGraph(dataStream1, returnStream.getId(), 1);
 		dataStream1.connectGraph(dataStream2, returnStream.getId(), 2);

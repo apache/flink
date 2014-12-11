@@ -22,8 +22,6 @@ import java.io.Serializable;
 import java.util.Collection;
 import java.util.List;
 
-import org.apache.commons.lang3.SerializationException;
-import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.Validate;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.InputFormat;
@@ -264,14 +262,10 @@ public abstract class StreamExecutionEnvironment {
 		DataStreamSource<OUT> returnStream = new DataStreamSource<OUT>(this, "elements",
 				outTypeInfo);
 
-		try {
-			SourceFunction<OUT> function = new FromElementsFunction<OUT>(data);
-			jobGraphBuilder.addStreamVertex(returnStream.getId(),
-					new SourceInvokable<OUT>(function), null, outTypeInfo, "source",
-					SerializationUtils.serialize(function), 1);
-		} catch (SerializationException e) {
-			throw new RuntimeException("Cannot serialize elements");
-		}
+		SourceFunction<OUT> function = new FromElementsFunction<OUT>(data);
+		jobGraphBuilder.addStreamVertex(returnStream.getId(), new SourceInvokable<OUT>(function),
+				null, outTypeInfo, "source", 1);
+
 		return returnStream;
 	}
 
@@ -300,15 +294,8 @@ public abstract class StreamExecutionEnvironment {
 		DataStreamSource<OUT> returnStream = new DataStreamSource<OUT>(this, "collection",
 				outTypeInfo);
 
-		try {
-			SourceFunction<OUT> function = new FromElementsFunction<OUT>(data);
-
-			jobGraphBuilder.addStreamVertex(returnStream.getId(), new SourceInvokable<OUT>(
-					new FromElementsFunction<OUT>(data)), null, outTypeInfo, "source",
-					SerializationUtils.serialize(function), 1);
-		} catch (SerializationException e) {
-			throw new RuntimeException("Cannot serialize collection");
-		}
+		jobGraphBuilder.addStreamVertex(returnStream.getId(), new SourceInvokable<OUT>(
+				new FromElementsFunction<OUT>(data)), null, outTypeInfo, "source", 1);
 
 		return returnStream;
 	}
@@ -317,7 +304,7 @@ public abstract class StreamExecutionEnvironment {
 	 * Creates a new DataStream that contains the strings received infinitely
 	 * from socket. Received strings are decoded by the system's default
 	 * character set.
-	 *
+	 * 
 	 * @param hostname
 	 *            The host name which a server socket bind.
 	 * @param port
@@ -335,7 +322,7 @@ public abstract class StreamExecutionEnvironment {
 	 * Creates a new DataStream that contains the strings received infinitely
 	 * from socket. Received strings are decoded by the system's default
 	 * character set, uses '\n' as delimiter.
-	 *
+	 * 
 	 * @param hostname
 	 *            The host name which a server socket bind.
 	 * @param port
@@ -378,12 +365,8 @@ public abstract class StreamExecutionEnvironment {
 
 		DataStreamSource<OUT> returnStream = new DataStreamSource<OUT>(this, "source", outTypeInfo);
 
-		try {
-			jobGraphBuilder.addSourceVertex(returnStream.getId(), function, null, outTypeInfo,
-					"source", SerializationUtils.serialize(function), getDegreeOfParallelism());
-		} catch (SerializationException e) {
-			throw new RuntimeException("Cannot serialize SourceFunction");
-		}
+		jobGraphBuilder.addStreamVertex(returnStream.getId(), new SourceInvokable<OUT>(function),
+				null, outTypeInfo, "source", 1);
 
 		return returnStream;
 	}

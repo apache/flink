@@ -72,7 +72,6 @@ public class JobGraphBuilder {
 	private Map<String, StreamRecordSerializer<?>> typeSerializersIn2;
 	private Map<String, StreamRecordSerializer<?>> typeSerializersOut1;
 	private Map<String, StreamRecordSerializer<?>> typeSerializersOut2;
-	private Map<String, byte[]> serializedFunctions;
 	private Map<String, byte[]> outputSelectors;
 	private Map<String, Class<? extends AbstractInvokable>> vertexClasses;
 	private Map<String, Integer> iterationIds;
@@ -104,7 +103,6 @@ public class JobGraphBuilder {
 		typeSerializersIn2 = new HashMap<String, StreamRecordSerializer<?>>();
 		typeSerializersOut1 = new HashMap<String, StreamRecordSerializer<?>>();
 		typeSerializersOut2 = new HashMap<String, StreamRecordSerializer<?>>();
-		serializedFunctions = new HashMap<String, byte[]>();
 		outputSelectors = new HashMap<String, byte[]>();
 		vertexClasses = new HashMap<String, Class<? extends AbstractInvokable>>();
 		iterationIds = new HashMap<String, Integer>();
@@ -133,18 +131,14 @@ public class JobGraphBuilder {
 	 *            Output type for serialization
 	 * @param operatorName
 	 *            Operator type
-	 * @param serializedFunction
-	 *            Serialized udf
 	 * @param parallelism
 	 *            Number of parallel instances created
 	 */
 	public <IN, OUT> void addStreamVertex(String vertexName,
 			StreamInvokable<IN, OUT> invokableObject, TypeInformation<IN> inTypeInfo,
-			TypeInformation<OUT> outTypeInfo, String operatorName, byte[] serializedFunction,
-			int parallelism) {
+			TypeInformation<OUT> outTypeInfo, String operatorName, int parallelism) {
 
-		addVertex(vertexName, StreamVertex.class, invokableObject, operatorName,
-				serializedFunction, parallelism);
+		addVertex(vertexName, StreamVertex.class, invokableObject, operatorName, parallelism);
 
 		StreamRecordSerializer<IN> inSerializer = inTypeInfo != null ? new StreamRecordSerializer<IN>(
 				inTypeInfo) : null;
@@ -171,8 +165,6 @@ public class JobGraphBuilder {
 	 *            Output type for serialization
 	 * @param operatorName
 	 *            Operator type
-	 * @param serializedFunction
-	 *            Serialized udf
 	 * @param parallelism
 	 *            Number of parallel instances created
 	 */
@@ -185,7 +177,7 @@ public class JobGraphBuilder {
 				function);
 
 		addStreamVertex(vertexName, invokableObject, inTypeInfo, outTypeInfo, operatorName,
-				serializedFunction, parallelism);
+				parallelism);
 	}
 
 	/**
@@ -206,7 +198,7 @@ public class JobGraphBuilder {
 	public void addIterationHead(String vertexName, String iterationHead, Integer iterationID,
 			int parallelism, long waitTime) {
 
-		addVertex(vertexName, StreamIterationHead.class, null, null, null, parallelism);
+		addVertex(vertexName, StreamIterationHead.class, null, null, parallelism);
 
 		iterationIds.put(vertexName, iterationID);
 		iterationIDtoHeadName.put(iterationID, vertexName);
@@ -247,7 +239,7 @@ public class JobGraphBuilder {
 			throw new RuntimeException("Buffer timeout 0 at iteration tail is not supported.");
 		}
 
-		addVertex(vertexName, StreamIterationTail.class, null, null, null, parallelism);
+		addVertex(vertexName, StreamIterationTail.class, null, null, parallelism);
 
 		iterationIds.put(vertexName, iterationID);
 		iterationIDtoTailName.put(iterationID, vertexName);
@@ -264,10 +256,9 @@ public class JobGraphBuilder {
 	public <IN1, IN2, OUT> void addCoTask(String vertexName,
 			CoInvokable<IN1, IN2, OUT> taskInvokableObject, TypeInformation<IN1> in1TypeInfo,
 			TypeInformation<IN2> in2TypeInfo, TypeInformation<OUT> outTypeInfo,
-			String operatorName, byte[] serializedFunction, int parallelism) {
+			String operatorName, int parallelism) {
 
-		addVertex(vertexName, CoStreamVertex.class, taskInvokableObject, operatorName,
-				serializedFunction, parallelism);
+		addVertex(vertexName, CoStreamVertex.class, taskInvokableObject, operatorName, parallelism);
 
 		addTypeSerializers(vertexName, new StreamRecordSerializer<IN1>(in1TypeInfo),
 				new StreamRecordSerializer<IN2>(in2TypeInfo), new StreamRecordSerializer<OUT>(
@@ -289,20 +280,16 @@ public class JobGraphBuilder {
 	 *            The user defined invokable object
 	 * @param operatorName
 	 *            Type of the user defined operator
-	 * @param serializedFunction
-	 *            Serialized operator
 	 * @param parallelism
 	 *            Number of parallel instances created
 	 */
 	private void addVertex(String vertexName, Class<? extends AbstractInvokable> vertexClass,
-			StreamInvokable<?, ?> invokableObject, String operatorName, byte[] serializedFunction,
-			int parallelism) {
+			StreamInvokable<?, ?> invokableObject, String operatorName, int parallelism) {
 
 		vertexClasses.put(vertexName, vertexClass);
 		setParallelism(vertexName, parallelism);
 		invokableObjects.put(vertexName, invokableObject);
 		operatorNames.put(vertexName, operatorName);
-		serializedFunctions.put(vertexName, serializedFunction);
 		outEdgeList.put(vertexName, new ArrayList<String>());
 		outEdgeType.put(vertexName, new ArrayList<Integer>());
 		outEdgeNames.put(vertexName, new ArrayList<List<String>>());
@@ -333,8 +320,6 @@ public class JobGraphBuilder {
 		// Get vertex attributes
 		Class<? extends AbstractInvokable> vertexClass = vertexClasses.get(vertexName);
 		StreamInvokable<?, ?> invokableObject = invokableObjects.get(vertexName);
-		String operatorName = operatorNames.get(vertexName);
-		byte[] serializedFunction = serializedFunctions.get(vertexName);
 		int parallelism = vertexParallelism.get(vertexName);
 		byte[] outputSelector = outputSelectors.get(vertexName);
 		Map<String, OperatorState<?>> state = operatorStates.get(vertexName);
@@ -362,7 +347,6 @@ public class JobGraphBuilder {
 		// Set vertex config
 		config.setUserInvokable(invokableObject);
 		config.setVertexName(vertexName);
-		config.setFunction(serializedFunction, operatorName);
 		config.setOutputSelector(outputSelector);
 		config.setOperatorStates(state);
 
@@ -522,8 +506,8 @@ public class JobGraphBuilder {
 	}
 
 	/**
-	 * Sets udf operator and TypeSerializerWrapper from one vertex to another,
-	 * used with some sinks.
+	 * Sets TypeSerializerWrapper from one vertex to another, used with some
+	 * sinks.
 	 * 
 	 * @param from
 	 *            from
@@ -532,7 +516,6 @@ public class JobGraphBuilder {
 	 */
 	public void setBytesFrom(String from, String to) {
 		operatorNames.put(to, operatorNames.get(from));
-		serializedFunctions.put(to, serializedFunctions.get(from));
 
 		typeSerializersIn1.put(to, typeSerializersOut1.get(from));
 		typeSerializersIn2.put(to, typeSerializersOut2.get(from));

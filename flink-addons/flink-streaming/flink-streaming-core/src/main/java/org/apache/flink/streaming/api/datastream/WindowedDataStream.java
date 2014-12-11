@@ -50,7 +50,7 @@ import org.apache.flink.streaming.api.windowing.policy.TumblingEvictionPolicy;
  * into windows (predefined chunks). User defined function such as
  * {@link #reduce(ReduceFunction)}, {@link #reduceGroup(GroupReduceFunction)} or
  * aggregations can be applied to the windows.
- *
+ * 
  * @param <OUT>
  *            The output type of the {@link WindowedDataStream}
  */
@@ -124,8 +124,8 @@ public class WindowedDataStream<OUT> {
 		this.userEvicters = windowedDataStream.userEvicters;
 		this.allCentral = windowedDataStream.allCentral;
 	}
-	
-	public <F> F clean(F f){
+
+	public <F> F clean(F f) {
 		return dataStream.clean(f);
 	}
 
@@ -231,7 +231,7 @@ public class WindowedDataStream<OUT> {
 	 * @return The transformed DataStream
 	 */
 	public SingleOutputStreamOperator<OUT, ?> reduce(ReduceFunction<OUT> reduceFunction) {
-		return dataStream.addFunction("NextGenWindowReduce", clean(reduceFunction), getType(), getType(),
+		return dataStream.transform("NextGenWindowReduce", getType(),
 				getReduceInvokable(reduceFunction));
 	}
 
@@ -255,7 +255,7 @@ public class WindowedDataStream<OUT> {
 		TypeInformation<R> outType = TypeExtractor
 				.getGroupReduceReturnTypes(reduceFunction, inType);
 
-		return dataStream.addFunction("NextGenWindowReduce", clean(reduceFunction), inType, outType,
+		return dataStream.transform("NextGenWindowReduce", outType,
 				getReduceGroupInvokable(reduceFunction));
 	}
 
@@ -457,8 +457,8 @@ public class WindowedDataStream<OUT> {
 	private SingleOutputStreamOperator<OUT, ?> aggregate(AggregationFunction<OUT> aggregator) {
 		StreamInvokable<OUT, OUT> invokable = getReduceInvokable(aggregator);
 
-		SingleOutputStreamOperator<OUT, ?> returnStream = dataStream.addFunction("windowReduce",
-				clean(aggregator), getType(), getType(), invokable);
+		SingleOutputStreamOperator<OUT, ?> returnStream = dataStream.transform("windowReduce",
+				getType(), invokable);
 
 		return returnStream;
 	}
