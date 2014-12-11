@@ -47,6 +47,10 @@ public class GroupedDataStream<OUT> extends DataStream<OUT> {
 		this.keySelector = dataStream.keySelector;
 	}
 
+	public KeySelector<OUT, ?> getKeySelector() {
+		return this.keySelector;
+	}
+
 	/**
 	 * Applies a reduce transformation on the grouped data stream grouped on by
 	 * the given key position. The {@link ReduceFunction} will receive input
