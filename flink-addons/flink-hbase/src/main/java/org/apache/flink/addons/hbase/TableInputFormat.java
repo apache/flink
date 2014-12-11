@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+
 package org.apache.flink.addons.hbase;
 
 import java.io.IOException;
@@ -41,6 +42,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * {@link InputFormat} subclass that wraps the access for HTables.
+ * 
  */
 public abstract class TableInputFormat<T extends Tuple> implements InputFormat<T, TableInputSplit>{
 
@@ -58,6 +60,9 @@ public abstract class TableInputFormat<T extends Tuple> implements InputFormat<T
 	/** HBase iterator wrapper */
 	private ResultScanner rs;
 
+	private byte[] lastRow;
+	private int scannedRows;
+
 	// abstract methods allow for multiple table and scanners in the same job
 	protected abstract Scan getScanner();
 	protected abstract String getTableName();
@@ -67,7 +72,7 @@ public abstract class TableInputFormat<T extends Tuple> implements InputFormat<T
 	 * creates a {@link Scan} object and a {@link HTable} connection
 	 * 
 	 * @param parameters
-	 * @see Configuration
+	 * @see {@link Configuration}
 	 */
 	@Override
 	public void configure(Configuration parameters) {
@@ -99,11 +104,30 @@ public abstract class TableInputFormat<T extends Tuple> implements InputFormat<T
 		if (this.rs == null){
 			throw new IOException("No table result scanner provided!");
 		}
+		try{
+			Result res = this.rs.next();
+			if (res != null){
+				scannedRows++;
+				lastRow = res.getRow();
+				return mapResultToTuple(res);
+			}
+		}catch (Exception e) {
+			this.rs.close();
+			//workaround for timeout on scan
+			StringBuffer logMsg = new StringBuffer("Error after scan of ")
+				.append(scannedRows)
+				.append(" rows. Retry with a new scanner...");
+			LOG.warn(logMsg.toString(), e);
+			this.scan.setStartRow(lastRow);
+			this.rs = table.getScanner(scan);
+			Result res = this.rs.next();
+			if (res != null) {
+				scannedRows++;
+				lastRow = res.getRow();
+				return mapResultToTuple(res);
+			}
+		}
 
-		Result res = this.rs.next();
-		if (res != null){
-			return mapResultToTuple(res);
-		} 
 		this.endReached = true;
 		return null;
 	}
@@ -122,16 +146,24 @@ public abstract class TableInputFormat<T extends Tuple> implements InputFormat<T
 
 		logSplitInfo("opening", split);
 		scan.setStartRow(split.getStartRow());
-		scan.setStopRow(split.getEndRow());
+		lastRow = split.getEndRow(); 
+		scan.setStopRow(lastRow);
 		
 		this.rs = table.getScanner(scan);
-		endReached = false;
+		this.endReached = false;
+		this.scannedRows = 0;
 	}
 	
 	@Override
 	public void close() throws IOException {
-		this.rs.close();
-		this.table.close();
+		if(rs!=null){
+			this.rs.close();
+		}
+		if(table!=null){
+			this.table.close();
+		}
+		LOG.info("Closing split (scanned {} rows)", scannedRows);
+		this.lastRow = null;
 	}
 
 	@Override
@@ -218,6 +250,8 @@ public abstract class TableInputFormat<T extends Tuple> implements InputFormat<T
 
 	@Override
 	public BaseStatistics getStatistics(BaseStatistics cachedStatistics) {
+		// TODO Auto-generated method stub
 		return null;
 	}
+
 }

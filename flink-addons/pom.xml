@@ -34,6 +34,7 @@ under the License.
 	<packaging>pom</packaging>
 
 	<modules>
+		<module>flink-hbase</module>
 		<module>flink-avro</module>
 		<module>flink-jdbc</module>
 		<module>flink-spargel</module>
@@ -64,7 +65,7 @@ under the License.
 				</property>
 			</activation>
 			<modules>
-				<module>flink-hbase</module>
+				<!-- No extra modules: pact-hbase is currently not compatible with Hadoop v1 -->
 			</modules>
 		</profile>
 		<profile>

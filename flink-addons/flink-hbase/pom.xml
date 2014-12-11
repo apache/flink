@@ -44,13 +44,11 @@ under the License.
 			<artifactId>flink-core</artifactId>
 			<version>${project.version}</version>
 		</dependency>
-		
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-java</artifactId>
 			<version>${project.version}</version>
 		</dependency>
-		
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-clients</artifactId>
@@ -63,14 +61,12 @@ under the License.
 			</exclusions>
 			<scope>test</scope>
 		</dependency>
-		
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-hadoop-compatibility</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
-		
 		<dependency>
 			<groupId>org.apache.hbase</groupId>
 			<artifactId>hbase-client</artifactId>
@@ -84,20 +80,22 @@ under the License.
 			<activation>
 				<property>
 					<!-- Please do not remove the 'hadoop1' comment. See ./tools/generate_specific_pom.sh -->
-					<!--hadoop1--><name>hadoop.profile</name><value>1</value>
+					<!--hadoop1 -->
+					<name>!hadoop.profile</name>
+					<value>1</value>
 				</property>
 			</activation>
 			<properties>
 				<hbase.version>${hbase.hadoop1.version}</hbase.version>
 			</properties>
 		</profile>
-		
 		<profile>
 			<id>hadoop-2</id>
 			<activation>
 				<property>
-					<!-- Please do not remove the 'hadoop2' comment. See ./tools/generate_specific_pom.sh -->
-					<!--hadoop2--><name>!hadoop.profile</name>
+					<!-- Please do not remove the 'hadoop1' comment. See ./tools/generate_specific_pom.sh -->
+					<!--hadoop2 -->
+					<name>!hadoop.profile</name>
 				</property>
 			</activation>
 			<properties>
@@ -111,7 +109,6 @@ under the License.
 				</dependency>
 			</dependencies>
 		</profile>
-		
 		<profile>
 			<id>cdh5.1.3</id>
 			<properties>
