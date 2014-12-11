@@ -29,7 +29,6 @@ import org.apache.flink.api.common.typeutils.record.RecordSerializer;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
-import org.apache.flink.runtime.operators.resettable.BlockResettableIterator;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
@@ -38,7 +37,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 
-public class BlockResettableIteratorTest
+public class NonReusingBlockResettableIteratorTest
 {
 	private static final int MEMORY_CAPACITY = 3 * 128 * 1024;
 	
@@ -85,7 +84,7 @@ public class BlockResettableIteratorTest
 	{
 		final AbstractInvokable memOwner = new DummyInvokable();
 		// create the resettable Iterator
-		final BlockResettableIterator<Record> iterator = new BlockResettableIterator<Record>(
+		final NonReusingBlockResettableIterator<Record> iterator = new NonReusingBlockResettableIterator<Record>(
 				this.memman, this.reader, this.serializer, 1, memOwner);
 		// open the iterator
 		iterator.open();
@@ -124,7 +123,7 @@ public class BlockResettableIteratorTest
 	{
 		final AbstractInvokable memOwner = new DummyInvokable();
 		// create the resettable Iterator
-		final BlockResettableIterator<Record> iterator = new BlockResettableIterator<Record>(
+		final NonReusingBlockResettableIterator<Record> iterator = new NonReusingBlockResettableIterator<Record>(
 				this.memman, this.reader, this.serializer, 2, memOwner);
 		// open the iterator
 		iterator.open();
@@ -164,7 +163,7 @@ public class BlockResettableIteratorTest
 	{
 		final AbstractInvokable memOwner = new DummyInvokable();
 		// create the resettable Iterator
-		final BlockResettableIterator<Record> iterator = new BlockResettableIterator<Record>(
+		final NonReusingBlockResettableIterator<Record> iterator = new NonReusingBlockResettableIterator<Record>(
 				this.memman, this.reader, this.serializer, 12, memOwner);
 		// open the iterator
 		iterator.open();
