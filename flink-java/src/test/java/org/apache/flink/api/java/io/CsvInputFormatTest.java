@@ -53,6 +53,143 @@ public class CsvInputFormatTest {
 	private static final String FIRST_PART = "That is the first part";
 	
 	private static final String SECOND_PART = "That is the second part";
+	
+	@Test
+	public void ignoreInvalidLines() {
+		try {
+			
+			
+			final String fileContent =  "#description of the data\n" + 
+										"header1|header2|header3|\n"+
+										"this is|1|2.0|\n"+
+										"//a comment\n" +
+										"a test|3|4.0|\n" +
+										"#next|5|6.0|\n";
+			
+			final FileInputSplit split = createTempFile(fileContent);
+			
+			CsvInputFormat<Tuple3<String, Integer, Double>> format = 
+					new CsvInputFormat<Tuple3<String, Integer, Double>>(PATH, "\n", '|',  String.class, Integer.class, Double.class);
+			format.setLenient(true);
+		
+			final Configuration parameters = new Configuration();
+			format.configure(parameters);
+			format.open(split);
+			
+			
+			Tuple3<String, Integer, Double> result = new Tuple3<String, Integer, Double>();
+			result = format.nextRecord(result);
+			assertNotNull(result);
+			assertEquals("this is", result.f0);
+			assertEquals(new Integer(1), result.f1);
+			assertEquals(new Double(2.0), result.f2);
+			
+			result = format.nextRecord(result);
+			assertNotNull(result);
+			assertEquals("a test", result.f0);
+			assertEquals(new Integer(3), result.f1);
+			assertEquals(new Double(4.0), result.f2);
+			
+			result = format.nextRecord(result);
+			assertNotNull(result);
+			assertEquals("#next", result.f0);
+			assertEquals(new Integer(5), result.f1);
+			assertEquals(new Double(6.0), result.f2);
+
+			result = format.nextRecord(result);
+			assertNull(result);
+		}
+		catch (Exception ex) {
+			ex.printStackTrace();
+			fail("Test failed due to a " + ex.getClass().getName() + ": " + ex.getMessage());
+		}
+	}
+	
+	@Test
+	public void ignoreSingleCharPrefixComments() {
+		try {
+			final String fileContent = "#description of the data\n" +
+									   "#successive commented line\n" +
+									   "this is|1|2.0|\n" +
+									   "a test|3|4.0|\n" +
+									   "#next|5|6.0|\n";
+			
+			final FileInputSplit split = createTempFile(fileContent);
+			
+			CsvInputFormat<Tuple3<String, Integer, Double>> format = 
+					new CsvInputFormat<Tuple3<String, Integer, Double>>(PATH, "\n", '|', String.class, Integer.class, Double.class);
+			format.setCommentPrefix("#");
+		
+			final Configuration parameters = new Configuration();
+			format.configure(parameters);
+			format.open(split);
+			
+			Tuple3<String, Integer, Double> result = new Tuple3<String, Integer, Double>();
+			
+			result = format.nextRecord(result);
+			assertNotNull(result);
+			assertEquals("this is", result.f0);
+			assertEquals(new Integer(1), result.f1);
+			assertEquals(new Double(2.0), result.f2);
+			
+			result = format.nextRecord(result);
+			assertNotNull(result);
+			assertEquals("a test", result.f0);
+			assertEquals(new Integer(3), result.f1);
+			assertEquals(new Double(4.0), result.f2);
+
+			result = format.nextRecord(result);
+			assertNull(result);
+		}
+		catch (Exception ex) {
+			ex.printStackTrace();
+			fail("Test failed due to a " + ex.getClass().getName() + ": " + ex.getMessage());
+		}
+	}
+	
+	@Test
+	public void ignoreMultiCharPrefixComments() {
+		try {
+			
+			
+			final String fileContent = "//description of the data\n" +
+									   "//successive commented line\n" +
+									   "this is|1|2.0|\n"+
+									   "a test|3|4.0|\n" +
+									   "//next|5|6.0|\n";
+			
+			final FileInputSplit split = createTempFile(fileContent);
+			
+			CsvInputFormat<Tuple3<String, Integer, Double>> format = 
+					new CsvInputFormat<Tuple3<String, Integer, Double>>(PATH, "\n", '|', String.class, Integer.class, Double.class);
+			format.setCommentPrefix("//");
+		
+			final Configuration parameters = new Configuration();
+			format.configure(parameters);
+			format.open(split);
+			
+			Tuple3<String, Integer, Double> result = new Tuple3<String, Integer, Double>();
+			
+			result = format.nextRecord(result);
+			assertNotNull(result);
+			assertEquals("this is", result.f0);
+			assertEquals(new Integer(1), result.f1);
+			assertEquals(new Double(2.0), result.f2);
+			
+			result = format.nextRecord(result);
+			assertNotNull(result);
+			assertEquals("a test", result.f0);
+			assertEquals(new Integer(3), result.f1);
+			assertEquals(new Double(4.0), result.f2);
+			
+			result = format.nextRecord(result);
+			assertNull(result);
+		}
+		catch (Exception ex) {
+			ex.printStackTrace();
+			fail("Test failed due to a " + ex.getClass().getName() + ": " + ex.getMessage());
+		}
+	}
 
 	@Test
 	public void readStringFields() {
