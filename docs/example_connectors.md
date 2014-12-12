@@ -1,5 +1,5 @@
 ---
-title:  "Example: Connectors"
+title:  "Connecting to other systems"
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -20,14 +20,56 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Apache Flink allows users to access many different systems as data sources or sinks. The system is designed for very easy extensibility. Similar to Apache Hadoop, Flink has the concept of so called `InputFormat`s and `OutputFormat`s.
+## Reading from filesystems.
 
-One implementation of these `InputFormat`s is the `HadoopInputFormat`. This is a wrapper that allows users to use all existing Hadoop input formats with Flink.
+Flink has build-in support for the following file systems:
 
-This page shows some examples for connecting Flink to other systems.
+| Filesystem        | Since           | Scheme  | Notes |
+| ------------- |-------------| -----| ------ |
+| Hadoop Distributed File System (HDFS)  | 0.2 | `hdfs://`| All HDFS versions are supported |
+| Amazon S3    |  0.2 | `s3://` |   |
+| MapR file system      | 0.7-incubating      |  `maprfs://` | The user has to manually place the required jar files in the `lib/` dir |
+| Tachyon   |  0.9 | `tachyon://` | Support through Hadoop file system implementation (see below) |
 
 
-## Access Microsoft Azure Table Storage
+
+### Using Hadoop file systems with Apache Flink
+
+Apache Flink allows users to use any file system implementing the `org.apache.hadoop.fs.FileSystem`
+interface. Hadoop ships adapters for FTP, [Hftp](http://hadoop.apache.org/docs/r1.2.1/hftp.html), and others.
+
+Flink has integrated testcases to validate the integration with [Tachyon](http://tachyon-project.org/).
+Other file systems we tested the integration is the
+[Google Cloud Storage Connector for Hadoop](https://cloud.google.com/hadoop/google-cloud-storage-connector).
+
+In order to use a Hadoop file system with Flink, make sure that the `flink-conf.yaml` has set the
+`fs.hdfs.hadoopconf` property set to the Hadoop configuration directory.
+In addition to that, the Hadoop configuration (in that directory) needs to have an entry for each supported file system.
+For example for tachyon support, there must be the following entry in the `core-site.xml` file:
+
+~~~xml
+<property>
+  <name>fs.tachyon.impl</name>
+  <value>tachyon.hadoop.TFS</value>
+</property>
+~~~
+
+
+
+## Connecting to other systems using Input / Output Format wrappers for Hadoop
+
+Apache Flink allows users to access many different systems as data sources or sinks.
+The system is designed for very easy extensibility. Similar to Apache Hadoop, Flink has the concept
+of so called `InputFormat`s and `OutputFormat`s.
+
+One implementation of these `InputFormat`s is the `HadoopInputFormat`. This is a wrapper that allows
+users to use all existing Hadoop input formats with Flink.
+
+This section shows some examples for connecting Flink to other systems.
+[Read more about Hadoop compatibility in Flink](hadoop_compatibility.html).
+
+
+### Access Microsoft Azure Table Storage
 
 _Note: This example works starting from Flink 0.6-incubating_
 

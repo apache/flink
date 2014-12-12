@@ -17,8 +17,7 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
-	
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 	
 	<modelVersion>4.0.0</modelVersion>
@@ -74,40 +73,6 @@ under the License.
 				<dependency>
 					<groupId>org.apache.hadoop</groupId>
 					<artifactId>hadoop-mapreduce-client-core</artifactId>
-					<exclusions>
-						<exclusion>
-							<groupId>asm</groupId>
-							<artifactId>asm</artifactId>
-						</exclusion>
-						<exclusion>
-							<groupId>tomcat</groupId>
-							<artifactId>jasper-compiler</artifactId>
-						</exclusion>
-						<exclusion>
-							<groupId>tomcat</groupId>
-							<artifactId>jasper-runtime</artifactId>
-						</exclusion>
-						<exclusion>
-							<groupId>org.mortbay.jetty</groupId>
-							<artifactId>jetty</artifactId>
-						</exclusion>
-						<exclusion>
-							<groupId>org.mortbay.jetty</groupId>
-							<artifactId>jsp-api-2.1</artifactId>
-						</exclusion>
-						<exclusion>
-							<groupId>org.mortbay.jetty</groupId>
-							<artifactId>jsp-2.1</artifactId>
-						</exclusion>
-						<exclusion>
-							<groupId>org.mortbay.jetty</groupId>
-							<artifactId>jetty-util</artifactId>
-						</exclusion>
-						<exclusion>
-							<groupId>org.eclipse.jdt</groupId>
-							<artifactId>core</artifactId>
-						</exclusion>
-					</exclusions>
 				</dependency>
 			</dependencies>
 		</profile>

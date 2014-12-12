@@ -23,11 +23,11 @@ import java.io.IOException;
 
 import org.apache.flink.core.fs.FSDataOutputStream;
 
-public final class DistributedDataOutputStream extends FSDataOutputStream {
+public final class HadoopDataOutputStream extends FSDataOutputStream {
 
 	private org.apache.hadoop.fs.FSDataOutputStream fdos;
 
-	public DistributedDataOutputStream(org.apache.hadoop.fs.FSDataOutputStream fdos) {
+	public HadoopDataOutputStream(org.apache.hadoop.fs.FSDataOutputStream fdos) {
 		this.fdos = fdos;
 	}
 

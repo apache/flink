@@ -27,7 +27,7 @@ import org.apache.flink.core.fs.Path;
  * Hadoop Distribution File System.
  * 
  */
-public final class DistributedFileStatus implements FileStatus {
+public final class HadoopFileStatus implements FileStatus {
 
 	private org.apache.hadoop.fs.FileStatus fileStatus;
 
@@ -37,7 +37,7 @@ public final class DistributedFileStatus implements FileStatus {
 	 * @param fileStatus
 	 *        the HDFS file status
 	 */
-	public DistributedFileStatus(org.apache.hadoop.fs.FileStatus fileStatus) {
+	public HadoopFileStatus(org.apache.hadoop.fs.FileStatus fileStatus) {
 		this.fileStatus = fileStatus;
 	}
 

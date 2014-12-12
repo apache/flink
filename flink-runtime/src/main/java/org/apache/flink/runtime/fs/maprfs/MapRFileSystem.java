@@ -35,10 +35,10 @@ import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.fs.hdfs.DistributedBlockLocation;
-import org.apache.flink.runtime.fs.hdfs.DistributedDataInputStream;
-import org.apache.flink.runtime.fs.hdfs.DistributedDataOutputStream;
-import org.apache.flink.runtime.fs.hdfs.DistributedFileStatus;
+import org.apache.flink.runtime.fs.hdfs.HadoopBlockLocation;
+import org.apache.flink.runtime.fs.hdfs.HadoopDataInputStream;
+import org.apache.flink.runtime.fs.hdfs.HadoopDataOutputStream;
+import org.apache.flink.runtime.fs.hdfs.HadoopFileStatus;
 
 /**
  * Concrete implementation of the {@link FileSystem} base class for the MapR
@@ -268,27 +268,27 @@ public final class MapRFileSystem extends FileSystem {
 		final org.apache.hadoop.fs.FileStatus status = this.fs
 				.getFileStatus(new org.apache.hadoop.fs.Path(f.toString()));
 
-		return new DistributedFileStatus(status);
+		return new HadoopFileStatus(status);
 	}
 
 	@Override
 	public BlockLocation[] getFileBlockLocations(final FileStatus file,
 			final long start, final long len) throws IOException {
 
-		if (!(file instanceof DistributedFileStatus)) {
+		if (!(file instanceof HadoopFileStatus)) {
 			throw new IOException(
 					"file is not an instance of DistributedFileStatus");
 		}
 
-		final DistributedFileStatus f = (DistributedFileStatus) file;
+		final HadoopFileStatus f = (HadoopFileStatus) file;
 
 		final org.apache.hadoop.fs.BlockLocation[] blkLocations = fs
 				.getFileBlockLocations(f.getInternalFileStatus(), start, len);
 
 		// Wrap up HDFS specific block location objects
-		final DistributedBlockLocation[] distBlkLocations = new DistributedBlockLocation[blkLocations.length];
+		final HadoopBlockLocation[] distBlkLocations = new HadoopBlockLocation[blkLocations.length];
 		for (int i = 0; i < distBlkLocations.length; i++) {
-			distBlkLocations[i] = new DistributedBlockLocation(blkLocations[i]);
+			distBlkLocations[i] = new HadoopBlockLocation(blkLocations[i]);
 		}
 
 		return distBlkLocations;
@@ -301,7 +301,7 @@ public final class MapRFileSystem extends FileSystem {
 		final org.apache.hadoop.fs.FSDataInputStream fdis = this.fs.open(
 				new org.apache.hadoop.fs.Path(f.toString()), bufferSize);
 
-		return new DistributedDataInputStream(fdis);
+		return new HadoopDataInputStream(fdis);
 	}
 
 	@Override
@@ -310,7 +310,7 @@ public final class MapRFileSystem extends FileSystem {
 		final org.apache.hadoop.fs.FSDataInputStream fdis = this.fs
 				.open(new org.apache.hadoop.fs.Path(f.toString()));
 
-		return new DistributedDataInputStream(fdis);
+		return new HadoopDataInputStream(fdis);
 	}
 
 	@Override
@@ -322,7 +322,7 @@ public final class MapRFileSystem extends FileSystem {
 				new org.apache.hadoop.fs.Path(f.toString()), overwrite,
 				bufferSize, replication, blockSize);
 
-		return new DistributedDataOutputStream(fdos);
+		return new HadoopDataOutputStream(fdos);
 	}
 
 	@Override
@@ -332,7 +332,7 @@ public final class MapRFileSystem extends FileSystem {
 		final org.apache.hadoop.fs.FSDataOutputStream fdos = this.fs.create(
 				new org.apache.hadoop.fs.Path(f.toString()), overwrite);
 
-		return new DistributedDataOutputStream(fdos);
+		return new HadoopDataOutputStream(fdos);
 	}
 
 	@Override
@@ -352,7 +352,7 @@ public final class MapRFileSystem extends FileSystem {
 
 		// Convert types
 		for (int i = 0; i < files.length; i++) {
-			files[i] = new DistributedFileStatus(hadoopFiles[i]);
+			files[i] = new HadoopFileStatus(hadoopFiles[i]);
 		}
 
 		return files;

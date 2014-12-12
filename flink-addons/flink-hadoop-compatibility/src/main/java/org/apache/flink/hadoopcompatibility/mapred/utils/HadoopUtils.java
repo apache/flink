@@ -22,7 +22,7 @@ package org.apache.flink.hadoopcompatibility.mapred.utils;
 import java.lang.reflect.Constructor;
 import java.util.Map;
 
-import org.apache.flink.runtime.fs.hdfs.DistributedFileSystem;
+import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.JobContext;
 import org.apache.hadoop.mapred.JobID;
@@ -36,7 +36,7 @@ public class HadoopUtils {
 	 * Merge HadoopConfiguration into JobConf. This is necessary for the HDFS configuration.
 	 */
 	public static void mergeHadoopConf(JobConf jobConf) {
-		org.apache.hadoop.conf.Configuration hadoopConf = DistributedFileSystem.getHadoopConfiguration();
+		org.apache.hadoop.conf.Configuration hadoopConf = HadoopFileSystem.getHadoopConfiguration();
 		for (Map.Entry<String, String> e : hadoopConf) {
 			jobConf.set(e.getKey(), e.getValue());
 		}
