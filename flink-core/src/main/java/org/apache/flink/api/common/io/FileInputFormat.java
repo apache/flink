@@ -328,7 +328,11 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 		// get the file info and check whether the cached statistics are still valid.
 		final FileStatus file = fs.getFileStatus(filePath);
 		long latestModTime = file.getModificationTime();
+		long totalLength = 0;
 
+		if(!acceptFile(file)) {
+			throw new IOException("The given file does not pass the file-filter");
+		}
 		// enumerate all files and check their modification time stamp.
 		if (file.isDir()) {
 			FileStatus[] fss = fs.listStatus(filePath);
@@ -336,38 +340,35 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 			
 			for (FileStatus s : fss) {
 				if (!s.isDir()) {
-					files.add(s);
-					latestModTime = Math.max(s.getModificationTime(), latestModTime);
-					testForUnsplittable(s);
+					if (acceptFile(s)) {
+						files.add(s);
+						totalLength += s.getLen();
+						latestModTime = Math.max(s.getModificationTime(), latestModTime);
+						testForUnsplittable(s);
+					}
 				}
 				else {
 					if (enumerateNestedFiles) {
-						addNestedFiles(s.getPath(), files);
+						totalLength += addNestedFiles(s.getPath(), files, 0);
 					}
 				}
 			}
 		} else {
 			files.add(file);
 			testForUnsplittable(file);
+			totalLength += file.getLen();
 		}
 
 		// check whether the cached statistics are still valid, if we have any
 		if (cachedStats != null && latestModTime <= cachedStats.getLastModificationTime()) {
 			return cachedStats;
 		}
-		
-		// calculate the whole length
-		long len = 0;
-		for (FileStatus s : files) {
-			len += s.getLen();
-		}
 
 		// sanity check
-		if (len <= 0) {
-			len = BaseStatistics.SIZE_UNKNOWN;
+		if (totalLength <= 0) {
+			totalLength = BaseStatistics.SIZE_UNKNOWN;
 		}
-		
-		return new FileBaseStatistics(latestModTime, len, BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
+		return new FileBaseStatistics(latestModTime, totalLength, BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
 	}
 
 	@Override
@@ -549,24 +550,6 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 			}
 		}
 		return length;
-	}
-
-	/**
-	 * Recursively traverse the input directory structure
-	 * and enumerated all nested files.
-	 */
-	private void addNestedFiles(Path path, List<FileStatus> files) throws IOException {
-		final FileSystem fs = path.getFileSystem();
-
-		for(FileStatus dir: fs.listStatus(path)) {
-			if (dir.isDir()) {
-				addNestedFiles(dir.getPath(), files);
-			}
-			else {
-				files.add(dir);
-				testForUnsplittable(dir);
-			}
-		}
 	}
 
 	private boolean testForUnsplittable(FileStatus pathFile) {
