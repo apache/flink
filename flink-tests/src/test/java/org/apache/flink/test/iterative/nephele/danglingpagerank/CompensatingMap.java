@@ -28,6 +28,7 @@ import org.apache.flink.types.DoubleValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 
+@SuppressWarnings("deprecation")
 public class CompensatingMap extends MapFunction {
 
 	private static final long serialVersionUID = 1L;
