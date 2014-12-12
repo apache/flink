@@ -28,6 +28,7 @@ import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.aggregation.AggregationFunction;
 import org.apache.flink.api.java.aggregation.AggregationFunctionFactory;
 import org.apache.flink.api.java.aggregation.Aggregations;
@@ -161,7 +162,7 @@ public class ScalaAggregateOperator<IN> extends SingleInputOperator<IN, IN, Scal
 		genName.setLength(genName.length()-1);
 
 		@SuppressWarnings("rawtypes")
-		RichGroupReduceFunction<IN, IN> function = new AggregatingUdf((TupleSerializerBase) getInputType().createSerializer(), aggFunctions, fields);
+		RichGroupReduceFunction<IN, IN> function = new AggregatingUdf(getInputType().createSerializer(), aggFunctions, fields);
 
 
 		String name = getName() != null ? getName() : genName.toString();
@@ -239,12 +240,12 @@ public class ScalaAggregateOperator<IN> extends SingleInputOperator<IN, IN, Scal
 
 		private TupleSerializerBase<T> serializer;
 
-		public AggregatingUdf(TupleSerializerBase<T> serializer, AggregationFunction<Object>[] aggFunctions, int[] fieldPositions) {
+		public AggregatingUdf(TypeSerializer<T> serializer, AggregationFunction<Object>[] aggFunctions, int[] fieldPositions) {
 			Validate.notNull(serializer);
 			Validate.notNull(aggFunctions);
 			Validate.isTrue(aggFunctions.length == fieldPositions.length);
-
-			this.serializer = serializer;
+			Validate.isInstanceOf(TupleSerializerBase.class, serializer, "Serializer for Scala Aggregate Operator must be a tuple serializer.");
+			this.serializer = (TupleSerializerBase<T>) serializer;
 			this.aggFunctions = aggFunctions;
 			this.fieldPositions = fieldPositions;
 		}
