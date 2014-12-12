@@ -18,22 +18,21 @@
 package org.apache.flink.api.scala.operators
 
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.api.scala.util.CollectionDataSets.MutableTuple3
-import org.apache.flink.configuration.Configuration
-import org.apache.flink.test.util.JavaProgramTestBase
-import org.junit.Assert
+import org.apache.flink.core.fs.FileSystem.WriteMode
+import org.apache.flink.test.util.MultipleProgramsTestBase.ExecutionMode
+import org.apache.flink.test.util.{MultipleProgramsTestBase}
+import org.junit._
+import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.runners.Parameterized.Parameters
-
-import scala.collection.JavaConverters._
-import scala.collection.mutable
 
 import org.apache.flink.api.scala._
 
-
-object UnionProgs {
-  var NUM_PROGRAMS: Int = 3
+@RunWith(classOf[Parameterized])
+class UnionITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
+  private var resultPath: String = null
+  private var expected: String = null
+  private val _tempFolder = new TemporaryFolder()
 
   private final val FULL_TUPLE_3_STRING: String = "1,1,Hi\n" + "2,2,Hello\n" + "3,2," +
     "Hello world\n" + "4,3,Hello world, how are you?\n" + "5,3,I am fine.\n" + "6,3," +
@@ -42,85 +41,61 @@ object UnionProgs {
     "Comment#8\n" + "15,5,Comment#9\n" + "16,6,Comment#10\n" + "17,6,Comment#11\n" + "18,6," +
     "Comment#12\n" + "19,6,Comment#13\n" + "20,6,Comment#14\n" + "21,6,Comment#15\n"
 
-  def runProgram(progId: Int, resultPath: String): String = {
-    progId match {
-      case 1 =>
-        /*
-         * Union of 2 Same Data Sets
-         */
-        val env = ExecutionEnvironment.getExecutionEnvironment
-        val ds = CollectionDataSets.get3TupleDataSet(env)
-        val unionDs = ds.union(CollectionDataSets.get3TupleDataSet(env))
-        unionDs.writeAsCsv(resultPath)
-        env.execute()
-        FULL_TUPLE_3_STRING + FULL_TUPLE_3_STRING
+  @Rule
+  def tempFolder = _tempFolder
 
-      case 2 =>
-        /*
-         * Union of 5 same Data Sets, with multiple unions
-         */
-        val env = ExecutionEnvironment.getExecutionEnvironment
-        val ds = CollectionDataSets.get3TupleDataSet(env)
-        val unionDs = ds
-          .union(CollectionDataSets.get3TupleDataSet(env))
-          .union(CollectionDataSets.get3TupleDataSet(env))
-          .union(CollectionDataSets.get3TupleDataSet(env))
-          .union(CollectionDataSets.get3TupleDataSet(env))
-        unionDs.writeAsCsv(resultPath)
-        env.execute()
-        FULL_TUPLE_3_STRING + FULL_TUPLE_3_STRING + FULL_TUPLE_3_STRING +
-          FULL_TUPLE_3_STRING + FULL_TUPLE_3_STRING
+  @Before
+  def before(): Unit = {
+    resultPath = tempFolder.newFile().toURI.toString
+  }
 
-      case 3 =>
-        /*
-         * Test on union with empty dataset
-         */
-        val env = ExecutionEnvironment.getExecutionEnvironment
-        // Don't know how to make an empty result in an other way than filtering it
-        val empty = CollectionDataSets.get3TupleDataSet(env).filter( t => false )
-        val unionDs = CollectionDataSets.get3TupleDataSet(env).union(empty)
-        unionDs.writeAsCsv(resultPath)
-        env.execute()
-        FULL_TUPLE_3_STRING
+  @After
+  def after: Unit = {
+    compareResultsByLinesInMemory(expected, resultPath)
+  }
 
-      case _ =>
-        throw new IllegalArgumentException("Invalid program id")
-    }
+  @Test
+  def testUnionOf2IdenticalDS: Unit = {
+    /*
+     * Union of 2 Same Data Sets
+     */
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val ds = CollectionDataSets.get3TupleDataSet(env)
+    val unionDs = ds.union(CollectionDataSets.get3TupleDataSet(env))
+    unionDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
+    env.execute()
+    expected = FULL_TUPLE_3_STRING + FULL_TUPLE_3_STRING
+  }
+
+  @Test
+  def testUnionOf5IdenticalDSWithMultipleUnions: Unit = {
+    /*
+     * Union of 5 same Data Sets, with multiple unions
+     */
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val ds = CollectionDataSets.get3TupleDataSet(env)
+    val unionDs = ds
+      .union(CollectionDataSets.get3TupleDataSet(env))
+      .union(CollectionDataSets.get3TupleDataSet(env))
+      .union(CollectionDataSets.get3TupleDataSet(env))
+      .union(CollectionDataSets.get3TupleDataSet(env))
+    unionDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
+    env.execute()
+    expected = FULL_TUPLE_3_STRING + FULL_TUPLE_3_STRING + FULL_TUPLE_3_STRING +
+      FULL_TUPLE_3_STRING + FULL_TUPLE_3_STRING
+  }
+
+  @Test
+  def testUnionWithEmptyDS: Unit = {
+    /*
+     * Test on union with empty dataset
+     */
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    // Don't know how to make an empty result in an other way than filtering it
+    val empty = CollectionDataSets.get3TupleDataSet(env).filter( t => false )
+    val unionDs = CollectionDataSets.get3TupleDataSet(env).union(empty)
+    unionDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
+    env.execute()
+    expected = FULL_TUPLE_3_STRING
   }
 }
-
-
-@RunWith(classOf[Parameterized])
-class UnionITCase(config: Configuration) extends JavaProgramTestBase(config) {
-
-  private var curProgId: Int = config.getInteger("ProgramId", -1)
-  private var resultPath: String = null
-  private var expectedResult: String = null
-
-  protected override def preSubmit(): Unit = {
-    resultPath = getTempDirPath("result")
-  }
-
-  protected def testProgram(): Unit = {
-    expectedResult = UnionProgs.runProgram(curProgId, resultPath)
-  }
-
-  protected override def postSubmit(): Unit = {
-    compareResultsByLinesInMemory(expectedResult, resultPath)
-  }
-}
-
-object UnionITCase {
-  @Parameters
-  def getConfigurations: java.util.Collection[Array[AnyRef]] = {
-    val configs = mutable.MutableList[Array[AnyRef]]()
-    for (i <- 1 to UnionProgs.NUM_PROGRAMS) {
-      val config = new Configuration()
-      config.setInteger("ProgramId", i)
-      configs += Array(config)
-    }
-
-    configs.asJavaCollection
-  }
-}
-

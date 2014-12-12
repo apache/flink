@@ -18,11 +18,8 @@
 
 package org.apache.flink.test.javaApiOperators;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.LinkedList;
 import java.util.List;
 
 import org.apache.flink.api.common.functions.CoGroupFunction;
@@ -39,478 +36,486 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.CustomType;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.POJO;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
+import org.junit.After;
 import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
 
 @RunWith(Parameterized.class)
-public class CoGroupITCase extends JavaProgramTestBase {
-	
-	private static int NUM_PROGRAMS = 13;
-	
-	private int curProgId = config.getInteger("ProgramId", -1);
+public class CoGroupITCase extends MultipleProgramsTestBase {
+
+	public CoGroupITCase(ExecutionMode mode){
+		super(mode);
+	}
+
 	private String resultPath;
-	private String expectedResult;
-	
-	public CoGroupITCase(Configuration config) {
-		super(config);
-	}
-	
-	@Override
-	protected void preSubmit() throws Exception {
-		resultPath = getTempDirPath("result");
+	private String expected;
+
+	@Rule
+	public TemporaryFolder tempFolder = new TemporaryFolder();
+
+	@Before
+	public void before() throws Exception{
+		resultPath = tempFolder.newFile().toURI().toString();
 	}
 
-	@Override
-	protected void testProgram() throws Exception {
-		expectedResult = CoGroupProgs.runProgram(curProgId, resultPath);
+	@After
+	public void after() throws Exception{
+		compareResultsByLinesInMemory(expected, resultPath);
 	}
-	
-	@Override
-	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(expectedResult, resultPath);
-	}
-	
-	@Parameters
-	public static Collection<Object[]> getConfigurations() throws FileNotFoundException, IOException {
 
-		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
-
-		for(int i=1; i <= NUM_PROGRAMS; i++) {
-			Configuration config = new Configuration();
-			config.setInteger("ProgramId", i);
-			tConfigs.add(config);
-		}
-		
-		return toParameterList(tConfigs);
-	}
-	
-	private static class CoGroupProgs {
-		
-		public static String runProgram(int progId, String resultPath) throws Exception {
-			
-			switch(progId) {
-			case 1: {
-				
-				/*
+	@Test
+	public void testCoGroupTuplesWithKeyFieldSelector() throws Exception {
+		/*
 				 * CoGroup on tuples with key field selector
 				 */
-				
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
-				DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.get5TupleDataSet(env);
-				DataSet<Tuple2<Integer, Integer>> coGroupDs = ds.coGroup(ds2).where(0).equalTo(0).with(new Tuple5CoGroup());
-				
-				coGroupDs.writeAsCsv(resultPath);
-				env.execute();
-				
-				// return expected result
-				return "1,0\n" +
-						"2,6\n" +
-						"3,24\n" +
-						"4,60\n" +
-						"5,120\n";
-			}
-			case 2: {
-				
-				/*
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
+		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.get5TupleDataSet(env);
+		DataSet<Tuple2<Integer, Integer>> coGroupDs = ds.coGroup(ds2).where(0).equalTo(0).with(new Tuple5CoGroup());
+
+		coGroupDs.writeAsCsv(resultPath);
+		env.execute();
+
+		expected = "1,0\n" +
+				"2,6\n" +
+				"3,24\n" +
+				"4,60\n" +
+				"5,120\n";
+	}
+
+	@Test
+	public void testCoGroupOnTwoCustomTypeInputsWithKeyExtractors() throws Exception {
+		/*
 				 * CoGroup on two custom type inputs with key extractors
 				 */
-				
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<CustomType> ds = CollectionDataSets.getCustomTypeDataSet(env);
-				DataSet<CustomType> ds2 = CollectionDataSets.getCustomTypeDataSet(env);
-				DataSet<CustomType> coGroupDs = ds.coGroup(ds2).where(new KeySelector<CustomType, Integer>() {
-									private static final long serialVersionUID = 1L;
-									@Override
-									public Integer getKey(CustomType in) {
-										return in.myInt;
-									}
-								}).equalTo(new KeySelector<CustomType, Integer>() {
-									private static final long serialVersionUID = 1L;
-									@Override
-									public Integer getKey(CustomType in) {
-										return in.myInt;
-									}
-								}).with(new CustomTypeCoGroup());
-				
-				coGroupDs.writeAsText(resultPath);
-				env.execute();
-				
-				// return expected result
-				return "1,0,test\n" +
-						"2,6,test\n" +
-						"3,24,test\n" +
-						"4,60,test\n" +
-						"5,120,test\n" +
-						"6,210,test\n";
-			}
-			case 3: {
-				
-				/*
-				 * check correctness of cogroup if UDF returns left input objects
-				 */
-				
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-				DataSet<Tuple3<Integer, Long, String>> ds2 = CollectionDataSets.get3TupleDataSet(env);
-				DataSet<Tuple3<Integer, Long, String>> coGroupDs = ds.coGroup(ds2).where(0).equalTo(0).with(new Tuple3ReturnLeft());
-				
-				coGroupDs.writeAsCsv(resultPath);
-				env.execute();
-				
-				// return expected result
-				return "1,1,Hi\n" +
-						"2,2,Hello\n" +
-						"3,2,Hello world\n" +
-						"4,3,Hello world, how are you?\n" +
-						"5,3,I am fine.\n";
-				
-			}
-			case 4: {
-				
-				/*
-				 * check correctness of cogroup if UDF returns right input objects
-				 */
-				
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
-				DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.get5TupleDataSet(env);
-				DataSet<Tuple5<Integer, Long, Integer, String, Long>> coGroupDs = ds.coGroup(ds2).where(0).equalTo(0).with(new Tuple5ReturnRight());
-				
-				coGroupDs.writeAsCsv(resultPath);
-				env.execute();
-				
-				// return expected result
-				return "1,1,0,Hallo,1\n" +
-						"2,2,1,Hallo Welt,2\n" +
-						"2,3,2,Hallo Welt wie,1\n" +
-						"3,4,3,Hallo Welt wie gehts?,2\n" +
-						"3,5,4,ABC,2\n" +
-						"3,6,5,BCD,3\n";
-				
-			}
-			case 5: {
-				
-				/*
-				 * Reduce with broadcast set
-				 */
-				
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<Integer> intDs = CollectionDataSets.getIntegerDataSet(env);
-				
-				DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
-				DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.get5TupleDataSet(env);
-				DataSet<Tuple3<Integer, Integer, Integer>> coGroupDs = ds.coGroup(ds2).where(0).equalTo(0).with(new Tuple5CoGroupBC()).withBroadcastSet(intDs, "ints");
-				
-				coGroupDs.writeAsCsv(resultPath);
-				env.execute();
-				
-				// return expected result
-				return "1,0,55\n" +
-						"2,6,55\n" +
-						"3,24,55\n" +
-						"4,60,55\n" +
-						"5,120,55\n";
-			}
-			case 6: {
-				
-				/*
-				 * CoGroup on a tuple input with key field selector and a custom type input with key extractor
-				 */
-				
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
-				DataSet<CustomType> ds2 = CollectionDataSets.getCustomTypeDataSet(env);
-				DataSet<Tuple3<Integer, Long, String>> coGroupDs = ds.coGroup(ds2).where(2).equalTo(new KeySelector<CustomType, Integer>() {
-									private static final long serialVersionUID = 1L;
-									@Override
-									public Integer getKey(CustomType in) {
-										return in.myInt;
-									}
-								}).with(new MixedCoGroup());
-				
-				coGroupDs.writeAsCsv(resultPath);
-				env.execute();
-				
-				// return expected result
-				return "0,1,test\n" +
-						"1,2,test\n" +
-						"2,5,test\n" +
-						"3,15,test\n" +
-						"4,33,test\n" +
-						"5,63,test\n" +
-						"6,109,test\n" +
-						"7,4,test\n" + 
-						"8,4,test\n" + 
-						"9,4,test\n" + 
-						"10,5,test\n" + 
-						"11,5,test\n" + 
-						"12,5,test\n" + 
-						"13,5,test\n" +
-						"14,5,test\n"; 
-						
-			}
-			case 7: {
-				
-				/*
-				 * CoGroup on a tuple input with key field selector and a custom type input with key extractor
-				 */
-				
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
-				DataSet<CustomType> ds2 = CollectionDataSets.getCustomTypeDataSet(env);
-				DataSet<CustomType> coGroupDs = ds2.coGroup(ds).where(new KeySelector<CustomType, Integer>() {
-									private static final long serialVersionUID = 1L;
-									@Override
-									public Integer getKey(CustomType in) {
-										return in.myInt;
-									}
-								}).equalTo(2).with(new MixedCoGroup2());
-				
-				coGroupDs.writeAsText(resultPath);
-				env.execute();
-				
-				// return expected result
-				return "0,1,test\n" +
-						"1,2,test\n" +
-						"2,5,test\n" +
-						"3,15,test\n" +
-						"4,33,test\n" +
-						"5,63,test\n" +
-						"6,109,test\n" +
-						"7,4,test\n" + 
-						"8,4,test\n" + 
-						"9,4,test\n" + 
-						"10,5,test\n" + 
-						"11,5,test\n" + 
-						"12,5,test\n" + 
-						"13,5,test\n" +
-						"14,5,test\n"; 
-				
-			}
-			case 8: {
-				/*
-				 * CoGroup with multiple key fields
-				 */
-				
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds1 = CollectionDataSets.get5TupleDataSet(env);
-				DataSet<Tuple3<Integer, Long, String>> ds2 = CollectionDataSets.get3TupleDataSet(env);
-				
-				DataSet<Tuple3<Integer, Long, String>> coGrouped = ds1.coGroup(ds2).
-						where(0,4).equalTo(0,1).with(new Tuple5Tuple3CoGroup());
-				
-				coGrouped.writeAsCsv(resultPath);
-				env.execute();
-				
-				return "1,1,Hallo\n" +
-						"2,2,Hallo Welt\n" +
-						"3,2,Hallo Welt wie gehts?\n" +
-						"3,2,ABC\n" +
-						"5,3,HIJ\n" +
-						"5,3,IJK\n";
-			}
-			case 9: {
-				/*
-				 * CoGroup with multiple key fields
-				 */
-				
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds1 = CollectionDataSets.get5TupleDataSet(env);
-				DataSet<Tuple3<Integer, Long, String>> ds2 = CollectionDataSets.get3TupleDataSet(env);
-				
-				DataSet<Tuple3<Integer, Long, String>> coGrouped = ds1.coGroup(ds2).
-						where(new KeySelector<Tuple5<Integer,Long,Integer,String,Long>, Tuple2<Integer, Long>>() {
-							private static final long serialVersionUID = 1L;
-							
-							@Override
-							public Tuple2<Integer, Long> getKey(Tuple5<Integer,Long,Integer,String,Long> t) {
-								return new Tuple2<Integer, Long>(t.f0, t.f4);
-							}
-						}).
-						equalTo(new KeySelector<Tuple3<Integer,Long,String>, Tuple2<Integer, Long>>() {
-							private static final long serialVersionUID = 1L;
-							
-							@Override
-							public Tuple2<Integer, Long> getKey(Tuple3<Integer,Long,String> t) {
-								return new Tuple2<Integer, Long>(t.f0, t.f1);
-							}
-						}).with(new Tuple5Tuple3CoGroup());
-				
-				coGrouped.writeAsCsv(resultPath);
-				env.execute();
-				
-				return "1,1,Hallo\n" +
-						"2,2,Hallo Welt\n" +
-						"3,2,Hallo Welt wie gehts?\n" +
-						"3,2,ABC\n" +
-						"5,3,HIJ\n" +
-						"5,3,IJK\n";
-			}
-			case 10: {
-				/*
-				 * CoGroup on two custom type inputs using expression keys
-				 */
-				
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<CustomType> ds = CollectionDataSets.getCustomTypeDataSet(env);
-				DataSet<CustomType> ds2 = CollectionDataSets.getCustomTypeDataSet(env);
-				DataSet<CustomType> coGroupDs = ds.coGroup(ds2).where("myInt").equalTo("myInt").with(new CustomTypeCoGroup());
-				
-				coGroupDs.writeAsText(resultPath);
-				env.execute();
-				
-				// return expected result
-				return "1,0,test\n" +
-						"2,6,test\n" +
-						"3,24,test\n" +
-						"4,60,test\n" +
-						"5,120,test\n" +
-						"6,210,test\n";
-			}
-			case 11: {
-				/*
-				 * CoGroup on two custom type inputs using expression keys
-				 */
-				
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<POJO> ds = CollectionDataSets.getSmallPojoDataSet(env);
-				DataSet<Tuple7<Integer, String, Integer, Integer, Long, String, Long>> ds2 = CollectionDataSets.getSmallTuplebasedDataSet(env);
-				DataSet<CustomType> coGroupDs = ds.coGroup(ds2)
-						.where("nestedPojo.longNumber").equalTo(6).with(new CoGroupFunction<POJO, Tuple7<Integer, String, Integer, Integer, Long, String, Long>, CustomType>() {
-						private static final long serialVersionUID = 1L;
 
-						@Override
-						public void coGroup(
-								Iterable<POJO> first,
-								Iterable<Tuple7<Integer, String, Integer, Integer, Long, String, Long>> second,
-								Collector<CustomType> out) throws Exception {
-							for(POJO p : first) {
-								for(Tuple7<Integer, String, Integer, Integer, Long, String, Long> t: second) {
-									Assert.assertTrue(p.nestedPojo.longNumber == t.f6);
-									out.collect(new CustomType(-1, p.nestedPojo.longNumber, "Flink"));
-								}
-							}
-						}
-				});
-				coGroupDs.writeAsText(resultPath);
-				env.execute();
-				
-				// return expected result
-				return 	"-1,20000,Flink\n" +
-						"-1,10000,Flink\n" +
-						"-1,30000,Flink\n";
-			}
-			case 12: {
-				/*
-				 * CoGroup field-selector (expression keys) + key selector function
-				 * The key selector is unnecessary complicated (Tuple1) ;)
-				 */
-				
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<POJO> ds = CollectionDataSets.getSmallPojoDataSet(env);
-				DataSet<Tuple7<Integer, String, Integer, Integer, Long, String, Long>> ds2 = CollectionDataSets.getSmallTuplebasedDataSet(env);
-				DataSet<CustomType> coGroupDs = ds.coGroup(ds2)
-						.where(new KeySelector<POJO, Tuple1<Long>>() {
-							private static final long serialVersionUID = 1L;
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-							@Override
-							public Tuple1<Long> getKey(POJO value)
-									throws Exception {
-								return new Tuple1<Long>(value.nestedPojo.longNumber);
-							}
-						}).equalTo(6).with(new CoGroupFunction<POJO, Tuple7<Integer, String, Integer, Integer, Long, String, Long>, CustomType>() {
-							private static final long serialVersionUID = 1L;
+		DataSet<CustomType> ds = CollectionDataSets.getCustomTypeDataSet(env);
+		DataSet<CustomType> ds2 = CollectionDataSets.getCustomTypeDataSet(env);
+		DataSet<CustomType> coGroupDs = ds.coGroup(ds2).where(new KeySelector4()).equalTo(new
+				KeySelector5()).with(new CustomTypeCoGroup());
 
-						@Override
-						public void coGroup(
-								Iterable<POJO> first,
-								Iterable<Tuple7<Integer, String, Integer, Integer, Long, String, Long>> second,
-								Collector<CustomType> out) throws Exception {
-							for(POJO p : first) {
-								for(Tuple7<Integer, String, Integer, Integer, Long, String, Long> t: second) {
-									Assert.assertTrue(p.nestedPojo.longNumber == t.f6);
-									out.collect(new CustomType(-1, p.nestedPojo.longNumber, "Flink"));
-								}
-							}
-						}
-				});
-				coGroupDs.writeAsText(resultPath);
-				env.execute();
-				
-				// return expected result
-				return 	"-1,20000,Flink\n" +
-						"-1,10000,Flink\n" +
-						"-1,30000,Flink\n";
-			}
-			case 13: {
-				/*
-				 * CoGroup field-selector (expression keys) + key selector function
-				 * The key selector is simple here
-				 */
-				
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<POJO> ds = CollectionDataSets.getSmallPojoDataSet(env);
-				DataSet<Tuple7<Integer, String, Integer, Integer, Long, String, Long>> ds2 = CollectionDataSets.getSmallTuplebasedDataSet(env);
-				DataSet<CustomType> coGroupDs = ds.coGroup(ds2)
-						.where(new KeySelector<POJO, Long>() {
-							private static final long serialVersionUID = 1L;
+		coGroupDs.writeAsText(resultPath);
+		env.execute();
 
-							@Override
-							public Long getKey(POJO value)
-									throws Exception {
-								return value.nestedPojo.longNumber;
-							}
-						}).equalTo(6).with(new CoGroupFunction<POJO, Tuple7<Integer, String, Integer, Integer, Long, String, Long>, CustomType>() {
-							private static final long serialVersionUID = 1L;
-
-						@Override
-						public void coGroup(
-								Iterable<POJO> first,
-								Iterable<Tuple7<Integer, String, Integer, Integer, Long, String, Long>> second,
-								Collector<CustomType> out) throws Exception {
-							for(POJO p : first) {
-								for(Tuple7<Integer, String, Integer, Integer, Long, String, Long> t: second) {
-									Assert.assertTrue(p.nestedPojo.longNumber == t.f6);
-									out.collect(new CustomType(-1, p.nestedPojo.longNumber, "Flink"));
-								}
-							}
-						}
-				});
-				coGroupDs.writeAsText(resultPath);
-				env.execute();
-				
-				// return expected result
-				return 	"-1,20000,Flink\n" +
-						"-1,10000,Flink\n" +
-						"-1,30000,Flink\n";
-			}
-			
-			default: 
-				throw new IllegalArgumentException("Invalid program id");
-			}
-			
-		}
-	
+		expected = "1,0,test\n" +
+				"2,6,test\n" +
+				"3,24,test\n" +
+				"4,60,test\n" +
+				"5,120,test\n" +
+				"6,210,test\n";
 	}
-	
+
+	public static class KeySelector4 implements KeySelector<CustomType, Integer> {
+		private static final long serialVersionUID = 1L;
+		@Override
+		public Integer getKey(CustomType in) {
+			return in.myInt;
+		}
+	}
+
+	public static class KeySelector5 implements KeySelector<CustomType, Integer> {
+		private static final long serialVersionUID = 1L;
+		@Override
+		public Integer getKey(CustomType in) {
+			return in.myInt;
+		}
+	}
+
+	@Test
+	public void testCorrectnessOfCoGroupIfUDFReturnsLeftInputObjects() throws Exception {
+		/*
+		 * check correctness of cogroup if UDF returns left input objects
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+		DataSet<Tuple3<Integer, Long, String>> ds2 = CollectionDataSets.get3TupleDataSet(env);
+		DataSet<Tuple3<Integer, Long, String>> coGroupDs = ds.coGroup(ds2).where(0).equalTo(0).with(new Tuple3ReturnLeft());
+
+		coGroupDs.writeAsCsv(resultPath);
+		env.execute();
+
+		expected = "1,1,Hi\n" +
+				"2,2,Hello\n" +
+				"3,2,Hello world\n" +
+				"4,3,Hello world, how are you?\n" +
+				"5,3,I am fine.\n";
+	}
+
+	@Test
+	public void testCorrectnessOfCoGroupIfUDFReturnsRightInputObjects() throws Exception {
+		/*
+		 * check correctness of cogroup if UDF returns right input objects
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
+		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.get5TupleDataSet(env);
+		DataSet<Tuple5<Integer, Long, Integer, String, Long>> coGroupDs = ds.coGroup(ds2).where(0).equalTo(0).with(new Tuple5ReturnRight());
+
+		coGroupDs.writeAsCsv(resultPath);
+		env.execute();
+
+		expected = "1,1,0,Hallo,1\n" +
+				"2,2,1,Hallo Welt,2\n" +
+				"2,3,2,Hallo Welt wie,1\n" +
+				"3,4,3,Hallo Welt wie gehts?,2\n" +
+				"3,5,4,ABC,2\n" +
+				"3,6,5,BCD,3\n";
+	}
+
+	@Test
+	public void testCoGroupWithBroadcastSet() throws Exception {
+		/*
+		 * Reduce with broadcast set
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Integer> intDs = CollectionDataSets.getIntegerDataSet(env);
+
+		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
+		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 = CollectionDataSets.get5TupleDataSet(env);
+		DataSet<Tuple3<Integer, Integer, Integer>> coGroupDs = ds.coGroup(ds2).where(0).equalTo(0).with(new Tuple5CoGroupBC()).withBroadcastSet(intDs, "ints");
+
+		coGroupDs.writeAsCsv(resultPath);
+		env.execute();
+
+		expected = "1,0,55\n" +
+				"2,6,55\n" +
+				"3,24,55\n" +
+				"4,60,55\n" +
+				"5,120,55\n";
+	}
+
+	@Test
+	public void testCoGroupOnATupleInputWithKeyFieldSelectorAndACustomTypeInputWithKeyExtractor()
+	throws Exception {
+		/*
+		 * CoGroup on a tuple input with key field selector and a custom type input with key extractor
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
+		DataSet<CustomType> ds2 = CollectionDataSets.getCustomTypeDataSet(env);
+		DataSet<Tuple3<Integer, Long, String>> coGroupDs = ds.coGroup(ds2).where(2).equalTo(new
+				KeySelector2()).with(new MixedCoGroup());
+
+		coGroupDs.writeAsCsv(resultPath);
+		env.execute();
+
+		expected = "0,1,test\n" +
+				"1,2,test\n" +
+				"2,5,test\n" +
+				"3,15,test\n" +
+				"4,33,test\n" +
+				"5,63,test\n" +
+				"6,109,test\n" +
+				"7,4,test\n" +
+				"8,4,test\n" +
+				"9,4,test\n" +
+				"10,5,test\n" +
+				"11,5,test\n" +
+				"12,5,test\n" +
+				"13,5,test\n" +
+				"14,5,test\n";
+	}
+
+	public static class KeySelector2 implements KeySelector<CustomType, Integer> {
+		private static final long serialVersionUID = 1L;
+		@Override
+		public Integer getKey(CustomType in) {
+			return in.myInt;
+		}
+	}
+
+	@Test
+	public void testCoGroupOnACustomTypeWithKeyExtractorAndATupleInputWithKeyFieldSelector()
+			throws Exception {
+		/*
+		 * CoGroup on a tuple input with key field selector and a custom type input with key extractor
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
+		DataSet<CustomType> ds2 = CollectionDataSets.getCustomTypeDataSet(env);
+		DataSet<CustomType> coGroupDs = ds2.coGroup(ds).where(new KeySelector3()).equalTo(2).with
+				(new MixedCoGroup2());
+
+		coGroupDs.writeAsText(resultPath);
+		env.execute();
+
+		expected = "0,1,test\n" +
+				"1,2,test\n" +
+				"2,5,test\n" +
+				"3,15,test\n" +
+				"4,33,test\n" +
+				"5,63,test\n" +
+				"6,109,test\n" +
+				"7,4,test\n" +
+				"8,4,test\n" +
+				"9,4,test\n" +
+				"10,5,test\n" +
+				"11,5,test\n" +
+				"12,5,test\n" +
+				"13,5,test\n" +
+				"14,5,test\n";
+
+	}
+
+	public static class KeySelector3 implements KeySelector<CustomType, Integer> {
+		private static final long serialVersionUID = 1L;
+		@Override
+		public Integer getKey(CustomType in) {
+			return in.myInt;
+		}
+	}
+
+	@Test
+	public void testCoGroupWithMultipleKeyFieldsWithFieldSelector() throws Exception {
+		/*
+		 * CoGroup with multiple key fields
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds1 = CollectionDataSets.get5TupleDataSet(env);
+		DataSet<Tuple3<Integer, Long, String>> ds2 = CollectionDataSets.get3TupleDataSet(env);
+
+		DataSet<Tuple3<Integer, Long, String>> coGrouped = ds1.coGroup(ds2).
+				where(0,4).equalTo(0,1).with(new Tuple5Tuple3CoGroup());
+
+		coGrouped.writeAsCsv(resultPath);
+		env.execute();
+
+		expected = "1,1,Hallo\n" +
+				"2,2,Hallo Welt\n" +
+				"3,2,Hallo Welt wie gehts?\n" +
+				"3,2,ABC\n" +
+				"5,3,HIJ\n" +
+				"5,3,IJK\n";
+	}
+
+	@Test
+	public void testCoGroupWithMultipleKeyFieldsWithKeyExtractor() throws Exception {
+		/*
+		 * CoGroup with multiple key fields
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds1 = CollectionDataSets.get5TupleDataSet(env);
+		DataSet<Tuple3<Integer, Long, String>> ds2 = CollectionDataSets.get3TupleDataSet(env);
+
+		DataSet<Tuple3<Integer, Long, String>> coGrouped = ds1.coGroup(ds2).
+				where(new KeySelector7()).
+				equalTo(new KeySelector8()).with(new Tuple5Tuple3CoGroup());
+
+		coGrouped.writeAsCsv(resultPath);
+		env.execute();
+
+		expected = "1,1,Hallo\n" +
+				"2,2,Hallo Welt\n" +
+				"3,2,Hallo Welt wie gehts?\n" +
+				"3,2,ABC\n" +
+				"5,3,HIJ\n" +
+				"5,3,IJK\n";
+	}
+
+	public static class KeySelector7 implements KeySelector<Tuple5<Integer,Long,Integer,String,Long>,
+	Tuple2<Integer, Long>> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public Tuple2<Integer, Long> getKey(Tuple5<Integer,Long,Integer,String,Long> t) {
+			return new Tuple2<Integer, Long>(t.f0, t.f4);
+		}
+	}
+
+	public static class KeySelector8 implements KeySelector<Tuple3<Integer,Long,String>, Tuple2<Integer, Long>> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public Tuple2<Integer, Long> getKey(Tuple3<Integer,Long,String> t) {
+			return new Tuple2<Integer, Long>(t.f0, t.f1);
+		}
+	}
+
+	@Test
+	public void testCoGroupTwoCustomTypeInputsWithExpressionKeys() throws Exception {
+		/*
+		 * CoGroup on two custom type inputs using expression keys
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<CustomType> ds = CollectionDataSets.getCustomTypeDataSet(env);
+		DataSet<CustomType> ds2 = CollectionDataSets.getCustomTypeDataSet(env);
+		DataSet<CustomType> coGroupDs = ds.coGroup(ds2).where("myInt").equalTo("myInt").with(new CustomTypeCoGroup());
+
+		coGroupDs.writeAsText(resultPath);
+		env.execute();
+
+		expected = "1,0,test\n" +
+				"2,6,test\n" +
+				"3,24,test\n" +
+				"4,60,test\n" +
+				"5,120,test\n" +
+				"6,210,test\n";
+	}
+
+	@Test
+	public void testCoGroupOnTwoCustomTypeInputsWithExpressionKeyAndFieldSelector() throws
+			Exception {
+		/*
+		 * CoGroup on two custom type inputs using expression keys
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<POJO> ds = CollectionDataSets.getSmallPojoDataSet(env);
+		DataSet<Tuple7<Integer, String, Integer, Integer, Long, String, Long>> ds2 = CollectionDataSets.getSmallTuplebasedDataSet(env);
+		DataSet<CustomType> coGroupDs = ds.coGroup(ds2)
+				.where("nestedPojo.longNumber").equalTo(6).with(new CoGroup1());
+		coGroupDs.writeAsText(resultPath);
+		env.execute();
+
+		expected = 	"-1,20000,Flink\n" +
+				"-1,10000,Flink\n" +
+				"-1,30000,Flink\n";
+	}
+
+	public static class CoGroup1 implements CoGroupFunction<POJO, Tuple7<Integer, String, Integer, Integer, Long, String, Long>, CustomType> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public void coGroup(
+				Iterable<POJO> first,
+				Iterable<Tuple7<Integer, String, Integer, Integer, Long, String, Long>> second,
+				Collector<CustomType> out) throws Exception {
+			for(POJO p : first) {
+				for(Tuple7<Integer, String, Integer, Integer, Long, String, Long> t: second) {
+					Assert.assertTrue(p.nestedPojo.longNumber == t.f6);
+					out.collect(new CustomType(-1, p.nestedPojo.longNumber, "Flink"));
+				}
+			}
+		}
+	}
+
+	@Test
+	public void testCoGroupFieldSelectorAndComplicatedKeySelector() throws Exception {
+		/*
+		 * CoGroup field-selector (expression keys) + key selector function
+		 * The key selector is unnecessary complicated (Tuple1) ;)
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<POJO> ds = CollectionDataSets.getSmallPojoDataSet(env);
+		DataSet<Tuple7<Integer, String, Integer, Integer, Long, String, Long>> ds2 = CollectionDataSets.getSmallTuplebasedDataSet(env);
+		DataSet<CustomType> coGroupDs = ds.coGroup(ds2)
+				.where(new KeySelector6()).equalTo(6).with(new CoGroup3());
+		coGroupDs.writeAsText(resultPath);
+		env.execute();
+
+		expected = 	"-1,20000,Flink\n" +
+				"-1,10000,Flink\n" +
+				"-1,30000,Flink\n";
+
+	}
+
+	public static class KeySelector6 implements KeySelector<POJO, Tuple1<Long>> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public Tuple1<Long> getKey(POJO value)
+		throws Exception {
+			return new Tuple1<Long>(value.nestedPojo.longNumber);
+		}
+	}
+
+	public static class CoGroup3 implements CoGroupFunction<POJO, Tuple7<Integer,
+			String, Integer, Integer, Long, String, Long>, CustomType> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public void coGroup(
+				Iterable<POJO> first,
+				Iterable<Tuple7<Integer, String, Integer, Integer, Long, String, Long>> second,
+				Collector<CustomType> out) throws Exception {
+			for(POJO p : first) {
+				for(Tuple7<Integer, String, Integer, Integer, Long, String, Long> t: second) {
+					Assert.assertTrue(p.nestedPojo.longNumber == t.f6);
+					out.collect(new CustomType(-1, p.nestedPojo.longNumber, "Flink"));
+				}
+			}
+		}
+	}
+
+	@Test
+	public void testCoGroupFieldSelectorAndKeySelector() throws Exception {
+		/*
+		 * CoGroup field-selector (expression keys) + key selector function
+		 * The key selector is simple here
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<POJO> ds = CollectionDataSets.getSmallPojoDataSet(env);
+		DataSet<Tuple7<Integer, String, Integer, Integer, Long, String, Long>> ds2 = CollectionDataSets.getSmallTuplebasedDataSet(env);
+		DataSet<CustomType> coGroupDs = ds.coGroup(ds2)
+				.where(new KeySelector1()).equalTo(6).with(new CoGroup2());
+		coGroupDs.writeAsText(resultPath);
+		env.execute();
+
+		expected = "-1,20000,Flink\n" +
+				"-1,10000,Flink\n" +
+				"-1,30000,Flink\n";
+	}
+
+	public static class KeySelector1 implements KeySelector<POJO, Long> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public Long getKey(POJO value)
+		throws Exception {
+			return value.nestedPojo.longNumber;
+		}
+	}
+
+	public static class CoGroup2 implements CoGroupFunction<POJO, Tuple7<Integer, String,
+			Integer, Integer, Long, String, Long>, CustomType> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public void coGroup(
+				Iterable<POJO> first,
+				Iterable<Tuple7<Integer, String, Integer, Integer, Long, String, Long>> second,
+				Collector<CustomType> out) throws Exception {
+			for(POJO p : first) {
+				for(Tuple7<Integer, String, Integer, Integer, Long, String, Long> t: second) {
+					Assert.assertTrue(p.nestedPojo.longNumber == t.f6);
+					out.collect(new CustomType(-1, p.nestedPojo.longNumber, "Flink"));
+				}
+			}
+		}
+	}
+
 	public static class Tuple5CoGroup implements CoGroupFunction<Tuple5<Integer, Long, Integer, String, Long>, Tuple5<Integer, Long, Integer, String, Long>, Tuple2<Integer, Integer>> {
 
 		private static final long serialVersionUID = 1L;

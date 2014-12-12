@@ -20,22 +20,10 @@ package org.apache.flink.test.util;
 
 import java.util.Comparator;
 
-import akka.actor.ActorRef;
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.Plan;
-import org.apache.flink.compiler.DataStatistics;
-import org.apache.flink.compiler.PactCompiler;
-import org.apache.flink.compiler.plan.OptimizedPlan;
-import org.apache.flink.compiler.plandump.PlanJSONDumpGenerator;
-import org.apache.flink.compiler.plantranslate.NepheleJobGraphGenerator;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.client.JobClient;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.junit.Assert;
 import org.junit.Test;
-import org.apache.flink.api.java.CollectionEnvironment;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.ExecutionEnvironmentFactory;
 import org.apache.flink.api.java.tuple.Tuple;
 
 
@@ -188,97 +176,6 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
 			System.err.println(e.getMessage());
 			e.printStackTrace();
 			Assert.fail("Post-submit work caused an error: " + e.getMessage());
-		}
-	}
-	
-	private static final class TestEnvironment extends ExecutionEnvironment {
-
-		private final ForkableFlinkMiniCluster executor;
-
-		private JobExecutionResult latestResult;
-		
-		
-		private TestEnvironment(ForkableFlinkMiniCluster executor, int degreeOfParallelism) {
-			this.executor = executor;
-			setDegreeOfParallelism(degreeOfParallelism);
-		}
-
-		@Override
-		public JobExecutionResult execute(String jobName) throws Exception {
-			try {
-				OptimizedPlan op = compileProgram(jobName);
-				
-				NepheleJobGraphGenerator jgg = new NepheleJobGraphGenerator();
-				JobGraph jobGraph = jgg.compileJobGraph(op);
-
-				ActorRef client = this.executor.getJobClient();
-				JobExecutionResult result = JobClient.submitJobAndWait(jobGraph, false, client);
-
-				this.latestResult = result;
-				return result;
-			}
-			catch (Exception e) {
-				System.err.println(e.getMessage());
-				e.printStackTrace();
-				Assert.fail("Job execution failed!");
-				return null;
-			}
-		}
-
-
-		@Override
-		public String getExecutionPlan() throws Exception {
-			OptimizedPlan op = compileProgram("unused");
-			
-			PlanJSONDumpGenerator jsonGen = new PlanJSONDumpGenerator();
-			return jsonGen.getOptimizerPlanAsJSON(op);
-		}
-		
-		
-		private OptimizedPlan compileProgram(String jobName) {
-			Plan p = createProgramPlan(jobName);
-			
-			PactCompiler pc = new PactCompiler(new DataStatistics());
-			return pc.compile(p);
-		}
-		
-		private void setAsContext() {
-			ExecutionEnvironmentFactory factory = new ExecutionEnvironmentFactory() {
-				@Override
-				public ExecutionEnvironment createExecutionEnvironment() {
-					return TestEnvironment.this;
-				}
-			};
-			
-			initializeContextEnvironment(factory);
-		}
-	}
-	
-	private static final class CollectionTestEnvironment extends CollectionEnvironment {
-		
-		private JobExecutionResult latestResult;
-		
-		@Override
-		public JobExecutionResult execute() throws Exception {
-			return execute("test job");
-		}
-		
-		@Override
-		public JobExecutionResult execute(String jobName) throws Exception {
-			JobExecutionResult result = super.execute(jobName);
-			this.latestResult = result;
-			return result;
-		}
-		
-		private void setAsContext() {
-			ExecutionEnvironmentFactory factory = new ExecutionEnvironmentFactory() {
-				@Override
-				public ExecutionEnvironment createExecutionEnvironment() {
-					return CollectionTestEnvironment.this;
-				}
-			};
-			
-			initializeContextEnvironment(factory);
 		}
 	}
 	

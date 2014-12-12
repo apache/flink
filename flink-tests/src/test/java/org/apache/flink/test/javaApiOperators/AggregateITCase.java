@@ -18,135 +18,107 @@
 
 package org.apache.flink.test.javaApiOperators;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.util.Collection;
-import java.util.LinkedList;
-
 import org.apache.flink.api.java.aggregation.Aggregations;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.test.util.MultipleProgramsTestBase;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 
 @RunWith(Parameterized.class)
-public class AggregateITCase extends JavaProgramTestBase {
-	
-	private static int NUM_PROGRAMS = 3;
-	
-	private int curProgId = config.getInteger("ProgramId", -1);
+public class AggregateITCase extends MultipleProgramsTestBase {
+
+
+	public AggregateITCase(ExecutionMode mode){
+		super(mode);
+	}
+
 	private String resultPath;
-	private String expectedResult;
-	
-	public AggregateITCase(Configuration config) {
-		super(config);
-	}
-	
-	@Override
-	protected void preSubmit() throws Exception {
-		resultPath = getTempDirPath("result");
+	private String expected;
+
+	@Rule
+	public TemporaryFolder tempFolder = new TemporaryFolder();
+
+	@Before
+	public void before() throws Exception{
+		resultPath = tempFolder.newFile().toURI().toString();
 	}
 
-	@Override
-	protected void testProgram() throws Exception {
-		expectedResult = AggregateProgs.runProgram(curProgId, resultPath);
+	@After
+	public void after() throws Exception{
+		compareResultsByLinesInMemory(expected, resultPath);
 	}
-	
-	@Override
-	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(expectedResult, resultPath);
-	}
-	
-	@Parameters
-	public static Collection<Object[]> getConfigurations() throws FileNotFoundException, IOException {
 
-		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
-
-		for(int i=1; i <= NUM_PROGRAMS; i++) {
-			Configuration config = new Configuration();
-			config.setInteger("ProgramId", i);
-			tConfigs.add(config);
-		}
-		
-		return toParameterList(tConfigs);
-	}
-	
-	private static class AggregateProgs {
-		
-		public static String runProgram(int progId, String resultPath) throws Exception {
-			
-			switch(progId) {
-			case 1: {
-				/*
+	@Test
+	public void testFullAggregate() throws Exception {
+		/*
 				 * Full Aggregate
 				 */
-				
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-				DataSet<Tuple2<Integer, Long>> aggregateDs = ds
-						.aggregate(Aggregations.SUM, 0)
-						.and(Aggregations.MAX, 1)
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+		DataSet<Tuple2<Integer, Long>> aggregateDs = ds
+				.aggregate(Aggregations.SUM, 0)
+				.and(Aggregations.MAX, 1)
 						.project(0, 1);
-				
-				aggregateDs.writeAsCsv(resultPath);
-				env.execute();
-				
-				// return expected result
-				return "231,6\n";
-			}
-			case 2: {
-				/*
+
+		aggregateDs.writeAsCsv(resultPath);
+		env.execute();
+
+		expected = "231,6\n";
+	}
+
+	@Test
+	public void testGroupedAggregate() throws Exception {
+		/*
 				 * Grouped Aggregate
 				 */
-				
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-				DataSet<Tuple2<Long, Integer>> aggregateDs = ds.groupBy(1)
-						.aggregate(Aggregations.SUM, 0)
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+		DataSet<Tuple2<Long, Integer>> aggregateDs = ds.groupBy(1)
+				.aggregate(Aggregations.SUM, 0)
 						.project(1, 0);
-				
-				aggregateDs.writeAsCsv(resultPath);
-				env.execute();
-				
-				// return expected result
-				return "1,1\n" +
+
+		aggregateDs.writeAsCsv(resultPath);
+		env.execute();
+
+		expected = "1,1\n" +
 				"2,5\n" +
 				"3,15\n" +
 				"4,34\n" +
 				"5,65\n" +
 				"6,111\n";
-			} 
-			case 3: {
-				/*
-				 * Nested Aggregate
-				 */
-				
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-				DataSet<Tuple1<Integer>> aggregateDs = ds.groupBy(1)
-						.aggregate(Aggregations.MIN, 0)
-						.aggregate(Aggregations.MIN, 0)
+	}
+
+	@Test
+	public void testNestedAggregate() throws Exception {
+		/*
+		 * Nested Aggregate
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+		DataSet<Tuple1<Integer>> aggregateDs = ds.groupBy(1)
+				.aggregate(Aggregations.MIN, 0)
+				.aggregate(Aggregations.MIN, 0)
 						.project(0);
-				
-				aggregateDs.writeAsCsv(resultPath);
-				env.execute();
-				
-				// return expected result
-				return "1\n";
-			}
-			default: 
-				throw new IllegalArgumentException("Invalid program id");
-			}
-		}
+
+		aggregateDs.writeAsCsv(resultPath);
+		env.execute();
+
+		expected = "1\n";
 	}
 }

@@ -18,126 +18,96 @@
 
 package org.apache.flink.api.scala.operators
 
-import org.apache.flink.api.java.aggregation.Aggregations
 import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.configuration.Configuration
-import org.apache.flink.test.util.JavaProgramTestBase
+import org.apache.flink.core.fs.FileSystem.WriteMode
+import org.apache.flink.test.util.MultipleProgramsTestBase.ExecutionMode
+import org.apache.flink.test.util.{MultipleProgramsTestBase}
+import org.junit.{Test, After, Before, Rule}
+import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.runners.Parameterized.Parameters
-
-import scala.collection.JavaConverters._
-import scala.collection.mutable
 
 import org.apache.flink.api.scala._
 
-/**
- * These tests are copied from [[AggregateITCase]] replacing calls to aggregate with calls to sum,
- * min, and max
- */
-object SumMinMaxProgs {
-  var NUM_PROGRAMS: Int = 3
-
-  def runProgram(progId: Int, resultPath: String): String = {
-    progId match {
-      case 1 =>
-        // Full aggregate
-        val env = ExecutionEnvironment.getExecutionEnvironment
-        val ds = CollectionDataSets.get3TupleDataSet(env)
-
-        val aggregateDs = ds
-          .sum(0)
-          .andMax(1)
-          // Ensure aggregate operator correctly copies other fields
-          .filter(_._3 != null)
-          .map{ t => (t._1, t._2) }
-
-        aggregateDs.writeAsCsv(resultPath)
-
-        env.execute()
-
-        // return expected result
-        "231,6\n"
-
-      case 2 =>
-        // Grouped aggregate
-        val env = ExecutionEnvironment.getExecutionEnvironment
-        val ds = CollectionDataSets.get3TupleDataSet(env)
-
-        val aggregateDs = ds
-          .groupBy(1)
-          .sum(0)
-          // Ensure aggregate operator correctly copies other fields
-          .filter(_._3 != null)
-          .map { t => (t._2, t._1) }
-
-        aggregateDs.writeAsCsv(resultPath)
-
-        env.execute()
-
-        // return expected result
-        "1,1\n" + "2,5\n" + "3,15\n" + "4,34\n" + "5,65\n" + "6,111\n"
-
-      case 3 =>
-        // Nested aggregate
-        val env = ExecutionEnvironment.getExecutionEnvironment
-        val ds = CollectionDataSets.get3TupleDataSet(env)
-
-        val aggregateDs = ds
-          .groupBy(1)
-          .min(0)
-          .min(0)
-          // Ensure aggregate operator correctly copies other fields
-          .filter(_._3 != null)
-          .map { t => new Tuple1(t._1) }
-
-        aggregateDs.writeAsCsv(resultPath)
-
-        env.execute()
-
-        // return expected result
-        "1\n"
-
-
-      case _ =>
-        throw new IllegalArgumentException("Invalid program id")
-    }
-  }
-}
-
 
 @RunWith(classOf[Parameterized])
-class SumMinMaxITCase(config: Configuration) extends JavaProgramTestBase(config) {
-
-  private var curProgId: Int = config.getInteger("ProgramId", -1)
+class SumMinMaxITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   private var resultPath: String = null
-  private var expectedResult: String = null
+  private var expected: String = null
+  private val _tempFolder = new TemporaryFolder()
 
-  protected override def preSubmit(): Unit = {
-    resultPath = getTempDirPath("result")
+  @Rule
+  def tempFolder = _tempFolder
+
+  @Before
+  def before(): Unit = {
+    resultPath = tempFolder.newFile().toURI.toString
   }
 
-  protected def testProgram(): Unit = {
-    expectedResult = SumMinMaxProgs.runProgram(curProgId, resultPath)
+  @After
+  def after: Unit = {
+    compareResultsByLinesInMemory(expected, resultPath)
   }
 
-  protected override def postSubmit(): Unit = {
-    compareResultsByLinesInMemory(expectedResult, resultPath)
+  @Test
+  def testFullAggregate: Unit = {
+    // Full aggregate
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val ds = CollectionDataSets.get3TupleDataSet(env)
+
+    val aggregateDs = ds
+      .sum(0)
+      .andMax(1)
+      // Ensure aggregate operator correctly copies other fields
+      .filter(_._3 != null)
+      .map{ t => (t._1, t._2) }
+
+    aggregateDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
+
+    env.execute()
+
+    expected = "231,6\n"
+  }
+
+  @Test
+  def testGroupedAggregate: Unit = {
+    // Grouped aggregate
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val ds = CollectionDataSets.get3TupleDataSet(env)
+
+    val aggregateDs = ds
+      .groupBy(1)
+      .sum(0)
+      // Ensure aggregate operator correctly copies other fields
+      .filter(_._3 != null)
+      .map { t => (t._2, t._1) }
+
+    aggregateDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
+
+    env.execute()
+
+    expected = "1,1\n" + "2,5\n" + "3,15\n" + "4,34\n" + "5,65\n" + "6,111\n"
+  }
+
+  @Test
+  def testNestedAggregate: Unit = {
+    // Nested aggregate
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val ds = CollectionDataSets.get3TupleDataSet(env)
+
+    val aggregateDs = ds
+      .groupBy(1)
+      .min(0)
+      .min(0)
+      // Ensure aggregate operator correctly copies other fields
+      .filter(_._3 != null)
+      .map { t => new Tuple1(t._1) }
+
+    aggregateDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
+
+    env.execute()
+
+    expected = "1\n"
   }
 }
-
-object SumMinMaxITCase {
-  @Parameters
-  def getConfigurations: java.util.Collection[Array[AnyRef]] = {
-    val configs = mutable.MutableList[Array[AnyRef]]()
-    for (i <- 1 to SumMinMaxProgs.NUM_PROGRAMS) {
-      val config = new Configuration()
-      config.setInteger("ProgramId", i)
-      configs += Array(config)
-    }
-
-    configs.asJavaCollection
-  }
-}
-

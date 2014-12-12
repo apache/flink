@@ -18,10 +18,7 @@
 
 package org.apache.flink.test.javaApiOperators;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.util.Collection;
-import java.util.LinkedList;
 
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.RichFilterFunction;
@@ -29,315 +26,311 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.CustomType;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.test.util.MultipleProgramsTestBase;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 
 @RunWith(Parameterized.class)
-public class FilterITCase extends JavaProgramTestBase {
-	
-	private static int NUM_PROGRAMS = 8;
-	
-	private int curProgId = config.getInteger("ProgramId", -1);
+public class FilterITCase extends MultipleProgramsTestBase {
+	public FilterITCase(ExecutionMode mode){
+		super(mode);
+	}
+
 	private String resultPath;
-	private String expectedResult;
-	
-	public FilterITCase(Configuration config) {
-		super(config);	
-	}
-	
-	@Override
-	protected void preSubmit() throws Exception {
-		resultPath = getTempDirPath("result");
+	private String expected;
+
+	@Rule
+	public TemporaryFolder tempFolder = new TemporaryFolder();
+
+	@Before
+	public void before() throws Exception{
+		resultPath = tempFolder.newFile().toURI().toString();
 	}
 
-	@Override
-	protected void testProgram() throws Exception {
-		expectedResult = FilterProgs.runProgram(curProgId, resultPath);
+	@After
+	public void after() throws Exception{
+		compareResultsByLinesInMemory(expected, resultPath);
 	}
-	
-	@Override
-	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(expectedResult, resultPath);
+
+	@Test
+	public void testAllRejectingFilter() throws Exception {
+		/*
+		 * Test all-rejecting filter.
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+		DataSet<Tuple3<Integer, Long, String>> filterDs = ds.
+				filter(new Filter1());
+
+		filterDs.writeAsCsv(resultPath);
+		env.execute();
+
+		expected = "\n";
 	}
-	
-	@Parameters
-	public static Collection<Object[]> getConfigurations() throws FileNotFoundException, IOException {
 
-		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
+	public static class Filter1 implements FilterFunction<Tuple3<Integer,Long,String>> {
+		private static final long serialVersionUID = 1L;
 
-		for(int i=1; i <= NUM_PROGRAMS; i++) {
-			Configuration config = new Configuration();
-			config.setInteger("ProgramId", i);
-			tConfigs.add(config);
+		@Override
+		public boolean filter(Tuple3<Integer, Long, String> value) throws Exception {
+			return false;
 		}
-		
-		return toParameterList(tConfigs);
 	}
-	
-	private static class FilterProgs {
-		
-		public static String runProgram(int progId, String resultPath) throws Exception {
-			
-			switch(progId) {
-			case 1: {
-				/*
-				 * Test all-rejecting filter.
-				 */
-				
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-				DataSet<Tuple3<Integer, Long, String>> filterDs = ds.
-						filter(new FilterFunction<Tuple3<Integer,Long,String>>() {
-							private static final long serialVersionUID = 1L;
 
-							@Override
-							public boolean filter(Tuple3<Integer, Long, String> value) throws Exception {
-								return false;
-							}
-						});
-				
-				filterDs.writeAsCsv(resultPath);
-				env.execute();
-				
-				// return expected result
-				return "\n";
-			}
-			case 2: {
-				/*
-				 * Test all-passing filter.
-				 */
-				
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-				DataSet<Tuple3<Integer, Long, String>> filterDs = ds.
-						filter(new FilterFunction<Tuple3<Integer,Long,String>>() {
-							private static final long serialVersionUID = 1L;
+	@Test
+	public void testAllPassingFilter() throws Exception {
+		/*
+		 * Test all-passing filter.
+		 */
 
-							@Override
-							public boolean filter(Tuple3<Integer, Long, String> value) throws Exception {
-								return true;
-							}
-						});
-				filterDs.writeAsCsv(resultPath);
-				env.execute();
-				
-				// return expected result
-				return "1,1,Hi\n" +
-						"2,2,Hello\n" +
-						"3,2,Hello world\n" +
-						"4,3,Hello world, how are you?\n" +
-						"5,3,I am fine.\n" +
-						"6,3,Luke Skywalker\n" +
-						"7,4,Comment#1\n" +
-						"8,4,Comment#2\n" +
-						"9,4,Comment#3\n" +
-						"10,4,Comment#4\n" +
-						"11,5,Comment#5\n" +
-						"12,5,Comment#6\n" +
-						"13,5,Comment#7\n" +
-						"14,5,Comment#8\n" +
-						"15,5,Comment#9\n" +
-						"16,6,Comment#10\n" +
-						"17,6,Comment#11\n" +
-						"18,6,Comment#12\n" +
-						"19,6,Comment#13\n" +
-						"20,6,Comment#14\n" +
-						"21,6,Comment#15\n";
-			}
-			case 3: {
-				/*
-				 * Test filter on String tuple field.
-				 */
-					
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-				DataSet<Tuple3<Integer, Long, String>> filterDs = ds.
-						filter(new FilterFunction<Tuple3<Integer,Long,String>>() {
-							private static final long serialVersionUID = 1L;
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-							@Override
-							public boolean filter(Tuple3<Integer, Long, String> value) throws Exception {
-								return value.f2.contains("world");
-							}
-						});
-				filterDs.writeAsCsv(resultPath);
-				env.execute();
-				
-				// return expected result
-				return "3,2,Hello world\n" +
-						"4,3,Hello world, how are you?\n";
-				
-			}
-			case 4: {
-				/*
+		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+		DataSet<Tuple3<Integer, Long, String>> filterDs = ds.
+				filter(new Filter2());
+		filterDs.writeAsCsv(resultPath);
+		env.execute();
+
+		expected = "1,1,Hi\n" +
+				"2,2,Hello\n" +
+				"3,2,Hello world\n" +
+				"4,3,Hello world, how are you?\n" +
+				"5,3,I am fine.\n" +
+				"6,3,Luke Skywalker\n" +
+				"7,4,Comment#1\n" +
+				"8,4,Comment#2\n" +
+				"9,4,Comment#3\n" +
+				"10,4,Comment#4\n" +
+				"11,5,Comment#5\n" +
+				"12,5,Comment#6\n" +
+				"13,5,Comment#7\n" +
+				"14,5,Comment#8\n" +
+				"15,5,Comment#9\n" +
+				"16,6,Comment#10\n" +
+				"17,6,Comment#11\n" +
+				"18,6,Comment#12\n" +
+				"19,6,Comment#13\n" +
+				"20,6,Comment#14\n" +
+				"21,6,Comment#15\n";
+	}
+
+	public static class Filter2 implements FilterFunction<Tuple3<Integer,Long,String>> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public boolean filter(Tuple3<Integer, Long, String> value) throws Exception {
+			return true;
+		}
+	}
+
+	@Test
+	public void testFilterOnStringTupleField() throws Exception {
+		/*
+		 * Test filter on String tuple field.
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+		DataSet<Tuple3<Integer, Long, String>> filterDs = ds.
+				filter(new Filter3());
+		filterDs.writeAsCsv(resultPath);
+		env.execute();
+
+		expected = "3,2,Hello world\n" +
+				"4,3,Hello world, how are you?\n";
+
+	}
+
+	public static class Filter3 implements FilterFunction<Tuple3<Integer,Long,String>> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public boolean filter(Tuple3<Integer, Long, String> value) throws Exception {
+			return value.f2.contains("world");
+		}
+	}
+
+	@Test
+	public void testFilterOnIntegerTupleField() throws Exception {
+		/*
 				 * Test filter on Integer tuple field.
 				 */
-					
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-				DataSet<Tuple3<Integer, Long, String>> filterDs = ds.
-						filter(new FilterFunction<Tuple3<Integer,Long,String>>() {
-							private static final long serialVersionUID = 1L;
 
-							@Override
-							public boolean filter(Tuple3<Integer, Long, String> value) throws Exception {
-								return (value.f0 % 2) == 0;
-							}
-						});
-				filterDs.writeAsCsv(resultPath);
-				env.execute();
-				
-				// return expected result
-				return "2,2,Hello\n" +
-						"4,3,Hello world, how are you?\n" +
-						"6,3,Luke Skywalker\n" +
-						"8,4,Comment#2\n" +
-						"10,4,Comment#4\n" +
-						"12,5,Comment#6\n" +
-						"14,5,Comment#8\n" +
-						"16,6,Comment#10\n" +
-						"18,6,Comment#12\n" +
-						"20,6,Comment#14\n";
-			}
-			case 5: {
-				/*
-				 * Test filter on basic type
-				 */
-						
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<String> ds = CollectionDataSets.getStringDataSet(env);
-				DataSet<String> filterDs = ds.
-						filter(new FilterFunction<String>() {
-							private static final long serialVersionUID = 1L;
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-							@Override
-							public boolean filter(String value) throws Exception {
-								return value.startsWith("H");
-							}
-						});
-				filterDs.writeAsText(resultPath);
-				env.execute();
-				
-				// return expected result
-				return "Hi\n" +
-					   "Hello\n" + 
-					   "Hello world\n" +
-					   "Hello world, how are you?\n";
-			}
-			case 6: {
-				/*
-				 * Test filter on custom type
-				 */
-						
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<CustomType> ds = CollectionDataSets.getCustomTypeDataSet(env);
-				DataSet<CustomType> filterDs = ds.
-						filter(new FilterFunction<CustomType>() {
-							private static final long serialVersionUID = 1L;
+		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+		DataSet<Tuple3<Integer, Long, String>> filterDs = ds.
+				filter(new Filter4());
+		filterDs.writeAsCsv(resultPath);
+		env.execute();
 
-							@Override
-							public boolean filter(CustomType value) throws Exception {
-								return value.myString.contains("a");
-							}
-						});
-				filterDs.writeAsText(resultPath);
-				env.execute();
-				
-				// return expected result
-				return "3,3,Hello world, how are you?\n" +
-						"3,4,I am fine.\n" +
-						"3,5,Luke Skywalker\n";
-			}
-			case 7: {
-				/*
-				 * Test filter on String tuple field.
-				 */
-					
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<Integer> ints = CollectionDataSets.getIntegerDataSet(env);
-				
-				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-				DataSet<Tuple3<Integer, Long, String>> filterDs = ds.
-						filter(new RichFilterFunction<Tuple3<Integer,Long,String>>() {
-							private static final long serialVersionUID = 1L;
+		expected = "2,2,Hello\n" +
+				"4,3,Hello world, how are you?\n" +
+				"6,3,Luke Skywalker\n" +
+				"8,4,Comment#2\n" +
+				"10,4,Comment#4\n" +
+				"12,5,Comment#6\n" +
+				"14,5,Comment#8\n" +
+				"16,6,Comment#10\n" +
+				"18,6,Comment#12\n" +
+				"20,6,Comment#14\n";
+	}
 
-							int literal = -1;
-							
-							@Override
-							public void open(Configuration config) {
-								Collection<Integer> ints = this.getRuntimeContext().getBroadcastVariable("ints");
-								for(int i: ints) {
-									literal = literal < i ? i : literal;
-								}
-							}
-							
-							@Override
-							public boolean filter(Tuple3<Integer, Long, String> value) throws Exception {
-								return value.f0 < literal;
-							}
-						}).withBroadcastSet(ints, "ints");
-				filterDs.writeAsCsv(resultPath);
-				env.execute();
-				
-				// return expected result
-				return "1,1,Hi\n" +
-						"2,2,Hello\n" +
-						"3,2,Hello world\n" +
-						"4,3,Hello world, how are you?\n";
-			}
-			case 8: {
-				/*
-				 * Test filter with broadcast variables
-				 */
-					
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<Integer> intDs = CollectionDataSets.getIntegerDataSet(env);
-				
-				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-				DataSet<Tuple3<Integer, Long, String>> filterDs = ds.
-						filter(new RichFilterFunction<Tuple3<Integer,Long,String>>() {
-							private static final long serialVersionUID = 1L;
-							private  int broadcastSum = 0;
-							
-							@Override
-							public void open(Configuration config) {
-								Collection<Integer> ints = this.getRuntimeContext().getBroadcastVariable("ints");
-								for(Integer i : ints) {
-									broadcastSum += i;
-								}
-							}
+	public static class Filter4 implements FilterFunction<Tuple3<Integer,Long,String>> {
+		private static final long serialVersionUID = 1L;
 
-							@Override
-							public boolean filter(Tuple3<Integer, Long, String> value) throws Exception {
-								return (value.f1 == (broadcastSum / 11));
-							}
-						}).withBroadcastSet(intDs, "ints");
-				filterDs.writeAsCsv(resultPath);
-				env.execute();
-				
-				// return expected result
-				return "11,5,Comment#5\n" +
-						"12,5,Comment#6\n" +
-						"13,5,Comment#7\n" +
-						"14,5,Comment#8\n" +
-						"15,5,Comment#9\n";
-				
+		@Override
+		public boolean filter(Tuple3<Integer, Long, String> value) throws Exception {
+			return (value.f0 % 2) == 0;
+		}
+	}
+
+	@Test
+	public void testFilterBasicType() throws Exception {
+		/*
+		 * Test filter on basic type
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<String> ds = CollectionDataSets.getStringDataSet(env);
+		DataSet<String> filterDs = ds.
+				filter(new Filter5());
+		filterDs.writeAsText(resultPath);
+		env.execute();
+
+		expected = "Hi\n" +
+				"Hello\n" +
+				"Hello world\n" +
+				"Hello world, how are you?\n";
+	}
+
+	public static class Filter5 implements FilterFunction<String> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public boolean filter(String value) throws Exception {
+			return value.startsWith("H");
+		}
+	}
+
+	@Test
+	public void testFilterOnCustomType() throws Exception {
+		/*
+		 * Test filter on custom type
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<CustomType> ds = CollectionDataSets.getCustomTypeDataSet(env);
+		DataSet<CustomType> filterDs = ds.
+				filter(new Filter6());
+		filterDs.writeAsText(resultPath);
+		env.execute();
+
+		expected = "3,3,Hello world, how are you?\n" +
+				"3,4,I am fine.\n" +
+				"3,5,Luke Skywalker\n";
+	}
+
+	public static class Filter6 implements FilterFunction<CustomType> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public boolean filter(CustomType value) throws Exception {
+			return value.myString.contains("a");
+		}
+	}
+
+	@Test
+	public void testRichFilterOnStringTupleField() throws Exception {
+		/*
+		 * Test filter on String tuple field.
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Integer> ints = CollectionDataSets.getIntegerDataSet(env);
+
+		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+		DataSet<Tuple3<Integer, Long, String>> filterDs = ds.
+				filter(new RichFilter1()).withBroadcastSet(ints, "ints");
+		filterDs.writeAsCsv(resultPath);
+		env.execute();
+
+		expected = "1,1,Hi\n" +
+				"2,2,Hello\n" +
+				"3,2,Hello world\n" +
+				"4,3,Hello world, how are you?\n";
+	}
+
+	public static class RichFilter1 extends RichFilterFunction<Tuple3<Integer,Long,String>> {
+		private static final long serialVersionUID = 1L;
+
+		int literal = -1;
+
+		@Override
+		public void open(Configuration config) {
+			Collection<Integer> ints = this.getRuntimeContext().getBroadcastVariable("ints");
+			for(int i: ints) {
+				literal = literal < i ? i : literal;
 			}
-			default: 
-				throw new IllegalArgumentException("Invalid program id");
+		}
+
+		@Override
+		public boolean filter(Tuple3<Integer, Long, String> value) throws Exception {
+			return value.f0 < literal;
+		}
+	}
+
+	@Test
+	public void testFilterWithBroadcastVariables() throws Exception {
+		/*
+		 * Test filter with broadcast variables
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Integer> intDs = CollectionDataSets.getIntegerDataSet(env);
+
+		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+		DataSet<Tuple3<Integer, Long, String>> filterDs = ds.
+				filter(new RichFilter2()).withBroadcastSet(intDs, "ints");
+		filterDs.writeAsCsv(resultPath);
+		env.execute();
+
+		expected = "11,5,Comment#5\n" +
+				"12,5,Comment#6\n" +
+				"13,5,Comment#7\n" +
+				"14,5,Comment#8\n" +
+				"15,5,Comment#9\n";
+	}
+
+	public static class RichFilter2 extends RichFilterFunction<Tuple3<Integer,Long,String>> {
+		private static final long serialVersionUID = 1L;
+		private  int broadcastSum = 0;
+
+		@Override
+		public void open(Configuration config) {
+			Collection<Integer> ints = this.getRuntimeContext().getBroadcastVariable("ints");
+			for(Integer i : ints) {
+				broadcastSum += i;
 			}
+		}
+
+		@Override
+		public boolean filter(Tuple3<Integer, Long, String> value) throws Exception {
+			return (value.f1 == (broadcastSum / 11));
 		}
 	}
 }

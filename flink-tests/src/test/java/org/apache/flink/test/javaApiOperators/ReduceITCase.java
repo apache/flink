@@ -18,11 +18,8 @@
 
 package org.apache.flink.test.javaApiOperators;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.util.Collection;
 import java.util.Date;
-import java.util.LinkedList;
 
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -38,371 +35,362 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.CustomType;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.PojoWithDateAndEnum;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
+import org.junit.After;
 import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
 
 @SuppressWarnings("serial")
 @RunWith(Parameterized.class)
-public class ReduceITCase extends JavaProgramTestBase {
-	
-	private static int NUM_PROGRAMS = 11;
-	
-	private int curProgId = config.getInteger("ProgramId", -1);
+public class ReduceITCase extends MultipleProgramsTestBase {
+
+	public ReduceITCase(MultipleProgramsTestBase.ExecutionMode mode){
+		super(mode);
+	}
+
 	private String resultPath;
-	private String expectedResult;
-	
-	public ReduceITCase(Configuration config) {
-		super(config);
-	}
-	
-	@Override
-	protected void preSubmit() throws Exception {
-		resultPath = getTempDirPath("result");
+	private String expected;
+
+	@Rule
+	public TemporaryFolder tempFolder = new TemporaryFolder();
+
+	@Before
+	public void before() throws Exception{
+		resultPath = tempFolder.newFile().toURI().toString();
 	}
 
-	@Override
-	protected void testProgram() throws Exception {
-		expectedResult = ReduceProgs.runProgram(curProgId, resultPath);
+	@After
+	public void after() throws Exception{
+		compareResultsByLinesInMemory(expected, resultPath);
 	}
-	
-	@Override
-	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(expectedResult, resultPath);
+
+	@Test
+	public void testReduceOnTuplesWithKeyFieldSelector() throws Exception {
+		/*
+		 * Reduce on tuples with key field selector
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+		DataSet<Tuple3<Integer, Long, String>> reduceDs = ds.
+				groupBy(1).reduce(new Tuple3Reduce("B-)"));
+
+		reduceDs.writeAsCsv(resultPath);
+		env.execute();
+
+		expected = "1,1,Hi\n" +
+				"5,2,B-)\n" +
+				"15,3,B-)\n" +
+				"34,4,B-)\n" +
+				"65,5,B-)\n" +
+				"111,6,B-)\n";
 	}
-	
-	@Parameters
-	public static Collection<Object[]> getConfigurations() throws FileNotFoundException, IOException {
 
-		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
+	@Test
+	public void testReduceOnTupleWithMultipleKeyFieldSelectors() throws Exception{
+		/*
+		 * Reduce on tuples with multiple key field selectors
+		 */
 
-		for(int i=1; i <= NUM_PROGRAMS; i++) {
-			Configuration config = new Configuration();
-			config.setInteger("ProgramId", i);
-			tConfigs.add(config);
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
+		DataSet<Tuple5<Integer, Long, Integer, String, Long>> reduceDs = ds.
+				groupBy(4,0).reduce(new Tuple5Reduce());
+
+		reduceDs.writeAsCsv(resultPath);
+		env.execute();
+
+		expected = "1,1,0,Hallo,1\n" +
+				"2,3,2,Hallo Welt wie,1\n" +
+				"2,2,1,Hallo Welt,2\n" +
+				"3,9,0,P-),2\n" +
+				"3,6,5,BCD,3\n" +
+				"4,17,0,P-),1\n" +
+				"4,17,0,P-),2\n" +
+				"5,11,10,GHI,1\n" +
+				"5,29,0,P-),2\n" +
+				"5,25,0,P-),3\n";
+	}
+
+	@Test
+	public void testReduceOnTuplesWithKeyExtractor() throws Exception {
+		/*
+		 * Reduce on tuples with key extractor
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+		DataSet<Tuple3<Integer, Long, String>> reduceDs = ds.
+				groupBy(new KeySelector1()).reduce(new Tuple3Reduce("B-)"));
+
+		reduceDs.writeAsCsv(resultPath);
+		env.execute();
+
+		expected = "1,1,Hi\n" +
+				"5,2,B-)\n" +
+				"15,3,B-)\n" +
+				"34,4,B-)\n" +
+				"65,5,B-)\n" +
+				"111,6,B-)\n";
+	}
+
+	public static class KeySelector1 implements KeySelector<Tuple3<Integer,Long,String>, Long> {
+		private static final long serialVersionUID = 1L;
+		@Override
+		public Long getKey(Tuple3<Integer, Long, String> in) {
+			return in.f1;
 		}
-		
-		return toParameterList(tConfigs);
 	}
-	
-	private static class ReduceProgs {
-		
-		public static String runProgram(int progId, String resultPath) throws Exception {
-			
-			switch(progId) {
-			case 1: {
-				/*
-				 * Reduce on tuples with key field selector
-				 */
-				
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-				DataSet<Tuple3<Integer, Long, String>> reduceDs = ds.
-						groupBy(1).reduce(new Tuple3Reduce("B-)"));
-				
-				reduceDs.writeAsCsv(resultPath);
-				env.execute();
-				
-				// return expected result
-				return "1,1,Hi\n" +
-						"5,2,B-)\n" +
-						"15,3,B-)\n" +
-						"34,4,B-)\n" +
-						"65,5,B-)\n" +
-						"111,6,B-)\n";
-			}
-			case 2: {
-				/*
-				 * Reduce on tuples with multiple key field selectors
-				 */
-				
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
-				DataSet<Tuple5<Integer, Long, Integer, String, Long>> reduceDs = ds.
-						groupBy(4,0).reduce(new Tuple5Reduce());
-				
-				reduceDs.writeAsCsv(resultPath);
-				env.execute();
-				
-				// return expected result
-				return "1,1,0,Hallo,1\n" +
-						"2,3,2,Hallo Welt wie,1\n" +
-						"2,2,1,Hallo Welt,2\n" +
-						"3,9,0,P-),2\n" +
-						"3,6,5,BCD,3\n" +
-						"4,17,0,P-),1\n" +
-						"4,17,0,P-),2\n" +
-						"5,11,10,GHI,1\n" +
-						"5,29,0,P-),2\n" +
-						"5,25,0,P-),3\n";
-			} 
-			case 3: {
-				/*
-				 * Reduce on tuples with key extractor
-				 */
-				
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-				DataSet<Tuple3<Integer, Long, String>> reduceDs = ds.
-						groupBy(new KeySelector<Tuple3<Integer,Long,String>, Long>() {
-									private static final long serialVersionUID = 1L;
-									@Override
-									public Long getKey(Tuple3<Integer, Long, String> in) {
-										return in.f1;
-									}
-								}).reduce(new Tuple3Reduce("B-)"));
-				
-				reduceDs.writeAsCsv(resultPath);
-				env.execute();
-				
-				// return expected result
-				return "1,1,Hi\n" +
-						"5,2,B-)\n" +
-						"15,3,B-)\n" +
-						"34,4,B-)\n" +
-						"65,5,B-)\n" +
-						"111,6,B-)\n";
-				
-			}
-			case 4: {
-				/*
-				 * Reduce on custom type with key extractor
-				 */
-				
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<CustomType> ds = CollectionDataSets.getCustomTypeDataSet(env);
-				DataSet<CustomType> reduceDs = ds.
-						groupBy(new KeySelector<CustomType, Integer>() {
-									private static final long serialVersionUID = 1L;
-									@Override
-									public Integer getKey(CustomType in) {
-										return in.myInt;
-									}
-								}).reduce(new CustomTypeReduce());
-				
-				reduceDs.writeAsText(resultPath);
-				env.execute();
-				
-				// return expected result
-				return "1,0,Hi\n" +
-						"2,3,Hello!\n" +
-						"3,12,Hello!\n" +
-						"4,30,Hello!\n" +
-						"5,60,Hello!\n" +
-						"6,105,Hello!\n";
-			}
-			case 5: {
-				/*
-				 * All-reduce for tuple
-				 */
 
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-				DataSet<Tuple3<Integer, Long, String>> reduceDs = ds.
-						reduce(new AllAddingTuple3Reduce());
-				
-				reduceDs.writeAsCsv(resultPath);
-				env.execute();
-				
-				// return expected result
-				return "231,91,Hello World\n";
-			}
-			case 6: {
-				/*
-				 * All-reduce for custom types
-				 */
-				
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<CustomType> ds = CollectionDataSets.getCustomTypeDataSet(env);
-				DataSet<CustomType> reduceDs = ds.
-						reduce(new AllAddingCustomTypeReduce());
-				
-				reduceDs.writeAsText(resultPath);
-				env.execute();
-				
-				// return expected result
-				return "91,210,Hello!";
-			}
-			case 7: {
-				
-				/*
-				 * Reduce with broadcast set
-				 */
-				
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<Integer> intDs = CollectionDataSets.getIntegerDataSet(env);
-				
-				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-				DataSet<Tuple3<Integer, Long, String>> reduceDs = ds.
-						groupBy(1).reduce(new BCTuple3Reduce()).withBroadcastSet(intDs, "ints");
-				
-				reduceDs.writeAsCsv(resultPath);
-				env.execute();
-				
-				// return expected result
-				return "1,1,Hi\n" +
-						"5,2,55\n" +
-						"15,3,55\n" +
-						"34,4,55\n" +
-						"65,5,55\n" +
-						"111,6,55\n";
-			}
-			case 8: {
-				/*
-				 * Reduce with UDF that returns the second input object (check mutable object handling)
-				 */
-				
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-				DataSet<Tuple3<Integer, Long, String>> reduceDs = ds.
-						groupBy(1).reduce(new InputReturningTuple3Reduce());
-				
-				reduceDs.writeAsCsv(resultPath);
-				env.execute();
-				
-				// return expected result
-				return "1,1,Hi\n" +
-						"5,2,Hi again!\n" +
-						"15,3,Hi again!\n" +
-						"34,4,Hi again!\n" +
-						"65,5,Hi again!\n" +
-						"111,6,Hi again!\n";
-			}
-			case 9: {
-				/*
-				 * Reduce with a Tuple-returning KeySelector 
-				 */
-				
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<Tuple5<Integer, Long,  Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
-				DataSet<Tuple5<Integer, Long,  Integer, String, Long>> reduceDs = ds .
-						groupBy(
-								new KeySelector<Tuple5<Integer,Long,Integer,String,Long>, Tuple2<Integer, Long>>() {
-									private static final long serialVersionUID = 1L;
-		
-									@Override
-									public Tuple2<Integer, Long> getKey(Tuple5<Integer,Long,Integer,String,Long> t) {
-										return new Tuple2<Integer, Long>(t.f0, t.f4);
-									}
-								}).reduce(new Tuple5Reduce());
-				
-				reduceDs.writeAsCsv(resultPath);
-				env.execute();
-				
-				return "1,1,0,Hallo,1\n" +
-						"2,3,2,Hallo Welt wie,1\n" +
-						"2,2,1,Hallo Welt,2\n" +
-						"3,9,0,P-),2\n" +
-						"3,6,5,BCD,3\n" +
-						"4,17,0,P-),1\n" +
-						"4,17,0,P-),2\n" +
-						"5,11,10,GHI,1\n" +
-						"5,29,0,P-),2\n" +
-						"5,25,0,P-),3\n";
-			}
-			case 10: {
-				/*
-				 * Case 2 with String-based field expression
-				 */
-				
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
-				DataSet<Tuple5<Integer, Long, Integer, String, Long>> reduceDs = ds.
-						groupBy("f4","f0").reduce(new Tuple5Reduce());
-				
-				reduceDs.writeAsCsv(resultPath);
-				env.execute();
-				
-				// return expected result
-				return "1,1,0,Hallo,1\n" +
-						"2,3,2,Hallo Welt wie,1\n" +
-						"2,2,1,Hallo Welt,2\n" +
-						"3,9,0,P-),2\n" +
-						"3,6,5,BCD,3\n" +
-						"4,17,0,P-),1\n" +
-						"4,17,0,P-),2\n" +
-						"5,11,10,GHI,1\n" +
-						"5,29,0,P-),2\n" +
-						"5,25,0,P-),3\n";
-			}
-			case 11: {
-				/**
-				 * Test support for Date and enum serialization
-				 */
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				DataSet<PojoWithDateAndEnum> ds = env.generateSequence(0,2).map(new MapFunction<Long, PojoWithDateAndEnum>() {
-					@Override
-					public PojoWithDateAndEnum map(Long value) throws Exception {
-						int l = value.intValue();
-						switch (l) {
-							case 0:
-								PojoWithDateAndEnum one = new PojoWithDateAndEnum();
-								one.group = "a";
-								one.date = new Date(666);
-								one.cat = CollectionDataSets.Category.CAT_A;
-								return one;
-							case 1:
-								PojoWithDateAndEnum two = new PojoWithDateAndEnum();
-								two.group = "a";
-								two.date = new Date(666);
-								two.cat = CollectionDataSets.Category.CAT_A;
-								return two;
-							case 2:
-								PojoWithDateAndEnum three = new PojoWithDateAndEnum();
-								three.group = "b";
-								three.date = new Date(666);
-								three.cat = CollectionDataSets.Category.CAT_B;
-								return three;
-						}
-						throw new RuntimeException("Unexpected value for l=" + l);
-					}
-				});
-				ds = ds.union(CollectionDataSets.getPojoWithDateAndEnum(env));
+	@Test
+	public void testReduceOnCustomTypeWithKeyExtractor() throws Exception {
+		/*
+		 * Reduce on custom type with key extractor
+		 */
 
-				DataSet<String> res = ds.groupBy("group").reduceGroup(new GroupReduceFunction<CollectionDataSets.PojoWithDateAndEnum, String>() {
-					private static final long serialVersionUID = 1L;
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-					@Override
-					public void reduce(Iterable<PojoWithDateAndEnum> values,
-							Collector<String> out) throws Exception {
-						for(PojoWithDateAndEnum val : values) {
-							if(val.cat == CollectionDataSets.Category.CAT_A) {
-								Assert.assertEquals("a", val.group);
-							} else if(val.cat == CollectionDataSets.Category.CAT_B) {
-								Assert.assertEquals("b", val.group);
-							} else {
-								Assert.fail("error. Cat = "+val.cat);
-							}
-							Assert.assertEquals(666, val.date.getTime());
-						}
-						out.collect("ok");
-					}
-				});
-				
-				res.writeAsText(resultPath);
-				env.execute();
-				return "ok\nok";
-			}
-			
-			default:
-				throw new IllegalArgumentException("Invalid program id");
-			}
-			
+		DataSet<CustomType> ds = CollectionDataSets.getCustomTypeDataSet(env);
+		DataSet<CustomType> reduceDs = ds.
+				groupBy(new KeySelector2()).reduce(new CustomTypeReduce());
+
+		reduceDs.writeAsText(resultPath);
+		env.execute();
+
+		expected = "1,0,Hi\n" +
+				"2,3,Hello!\n" +
+				"3,12,Hello!\n" +
+				"4,30,Hello!\n" +
+				"5,60,Hello!\n" +
+				"6,105,Hello!\n";
+	}
+
+	public static class KeySelector2 implements KeySelector<CustomType, Integer> {
+		private static final long serialVersionUID = 1L;
+		@Override
+		public Integer getKey(CustomType in) {
+			return in.myInt;
 		}
-	
+	}
+
+	@Test
+	public void testAllReduceForTuple() throws Exception {
+		/*
+		 * All-reduce for tuple
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+		DataSet<Tuple3<Integer, Long, String>> reduceDs = ds.
+				reduce(new AllAddingTuple3Reduce());
+
+		reduceDs.writeAsCsv(resultPath);
+		env.execute();
+
+		expected = "231,91,Hello World\n";
+	}
+
+	@Test
+	public void testAllReduceForCustomTypes() throws Exception {
+		/*
+		 * All-reduce for custom types
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<CustomType> ds = CollectionDataSets.getCustomTypeDataSet(env);
+		DataSet<CustomType> reduceDs = ds.
+				reduce(new AllAddingCustomTypeReduce());
+
+		reduceDs.writeAsText(resultPath);
+		env.execute();
+
+		expected = "91,210,Hello!";
+	}
+
+	@Test
+	public void testReduceWithBroadcastSet() throws Exception {
+		/*
+		 * Reduce with broadcast set
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Integer> intDs = CollectionDataSets.getIntegerDataSet(env);
+
+		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+		DataSet<Tuple3<Integer, Long, String>> reduceDs = ds.
+				groupBy(1).reduce(new BCTuple3Reduce()).withBroadcastSet(intDs, "ints");
+
+		reduceDs.writeAsCsv(resultPath);
+		env.execute();
+
+		expected = "1,1,Hi\n" +
+				"5,2,55\n" +
+				"15,3,55\n" +
+				"34,4,55\n" +
+				"65,5,55\n" +
+				"111,6,55\n";
+	}
+
+	@Test
+	public void testReduceWithUDFThatReturnsTheSecondInputObject() throws Exception {
+		/*
+		 * Reduce with UDF that returns the second input object (check mutable object handling)
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+		DataSet<Tuple3<Integer, Long, String>> reduceDs = ds.
+				groupBy(1).reduce(new InputReturningTuple3Reduce());
+
+		reduceDs.writeAsCsv(resultPath);
+		env.execute();
+
+		expected = "1,1,Hi\n" +
+				"5,2,Hi again!\n" +
+				"15,3,Hi again!\n" +
+				"34,4,Hi again!\n" +
+				"65,5,Hi again!\n" +
+				"111,6,Hi again!\n";
+	}
+
+	@Test
+	public void testReduceATupleReturningKeySelector() throws Exception {
+		/*
+		 * Reduce with a Tuple-returning KeySelector
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple5<Integer, Long,  Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
+		DataSet<Tuple5<Integer, Long,  Integer, String, Long>> reduceDs = ds .
+				groupBy(new KeySelector3()).reduce(new Tuple5Reduce());
+
+		reduceDs.writeAsCsv(resultPath);
+		env.execute();
+
+		expected = "1,1,0,Hallo,1\n" +
+				"2,3,2,Hallo Welt wie,1\n" +
+				"2,2,1,Hallo Welt,2\n" +
+				"3,9,0,P-),2\n" +
+				"3,6,5,BCD,3\n" +
+				"4,17,0,P-),1\n" +
+				"4,17,0,P-),2\n" +
+				"5,11,10,GHI,1\n" +
+				"5,29,0,P-),2\n" +
+				"5,25,0,P-),3\n";
+	}
+
+	public static class KeySelector3 implements KeySelector<Tuple5<Integer,Long,Integer,String,Long>, Tuple2<Integer, Long>> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public Tuple2<Integer, Long> getKey(Tuple5<Integer,Long,Integer,String,Long> t) {
+			return new Tuple2<Integer, Long>(t.f0, t.f4);
+		}
+	}
+
+	@Test
+	public void testReduceOnTupleWithMultipleKeyExpressions() throws Exception {
+		/*
+		 * Case 2 with String-based field expression
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
+		DataSet<Tuple5<Integer, Long, Integer, String, Long>> reduceDs = ds.
+				groupBy("f4","f0").reduce(new Tuple5Reduce());
+
+		reduceDs.writeAsCsv(resultPath);
+		env.execute();
+
+		expected = "1,1,0,Hallo,1\n" +
+				"2,3,2,Hallo Welt wie,1\n" +
+				"2,2,1,Hallo Welt,2\n" +
+				"3,9,0,P-),2\n" +
+				"3,6,5,BCD,3\n" +
+				"4,17,0,P-),1\n" +
+				"4,17,0,P-),2\n" +
+				"5,11,10,GHI,1\n" +
+				"5,29,0,P-),2\n" +
+				"5,25,0,P-),3\n";
+	}
+
+	@Test
+	public void testSupportForDataAndEnumSerialization() throws Exception {
+		/**
+		 * Test support for Date and enum serialization
+		 */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<PojoWithDateAndEnum> ds = env.generateSequence(0,2).map(new Mapper1());
+		ds = ds.union(CollectionDataSets.getPojoWithDateAndEnum(env));
+
+		DataSet<String> res = ds.groupBy("group").reduceGroup(new GroupReducer1());
+
+		res.writeAsText(resultPath);
+		env.execute();
+		expected = "ok\nok";
+	}
+
+	public static class Mapper1 implements MapFunction<Long, PojoWithDateAndEnum> {
+		@Override
+		public PojoWithDateAndEnum map(Long value) throws Exception {
+			int l = value.intValue();
+			switch (l) {
+				case 0:
+					PojoWithDateAndEnum one = new PojoWithDateAndEnum();
+					one.group = "a";
+					one.date = new Date(666);
+					one.cat = CollectionDataSets.Category.CAT_A;
+					return one;
+				case 1:
+					PojoWithDateAndEnum two = new PojoWithDateAndEnum();
+					two.group = "a";
+					two.date = new Date(666);
+					two.cat = CollectionDataSets.Category.CAT_A;
+					return two;
+				case 2:
+					PojoWithDateAndEnum three = new PojoWithDateAndEnum();
+					three.group = "b";
+					three.date = new Date(666);
+					three.cat = CollectionDataSets.Category.CAT_B;
+					return three;
+			}
+			throw new RuntimeException("Unexpected value for l=" + l);
+		}
+	}
+
+	public static class GroupReducer1 implements GroupReduceFunction<CollectionDataSets.PojoWithDateAndEnum, String> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public void reduce(Iterable<PojoWithDateAndEnum> values,
+				Collector<String> out) throws Exception {
+			for(PojoWithDateAndEnum val : values) {
+				if(val.cat == CollectionDataSets.Category.CAT_A) {
+					Assert.assertEquals("a", val.group);
+				} else if(val.cat == CollectionDataSets.Category.CAT_B) {
+					Assert.assertEquals("b", val.group);
+				} else {
+					Assert.fail("error. Cat = "+val.cat);
+				}
+				Assert.assertEquals(666, val.date.getTime());
+			}
+			out.collect("ok");
+		}
 	}
 	
 	public static class Tuple3Reduce implements ReduceFunction<Tuple3<Integer, Long, String>> {

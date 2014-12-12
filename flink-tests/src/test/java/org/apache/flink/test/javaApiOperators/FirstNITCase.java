@@ -18,11 +18,6 @@
 
 package org.apache.flink.test.javaApiOperators;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.util.Collection;
-import java.util.LinkedList;
-
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.java.DataSet;
@@ -30,122 +25,94 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.test.util.MultipleProgramsTestBase;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
 
 @RunWith(Parameterized.class)
-public class FirstNITCase extends JavaProgramTestBase {
-	
-	private static int NUM_PROGRAMS = 3;
-	
-	private int curProgId = config.getInteger("ProgramId", -1);
+public class FirstNITCase extends MultipleProgramsTestBase {
+	public FirstNITCase(ExecutionMode mode){
+		super(mode);
+	}
+
 	private String resultPath;
-	private String expectedResult;
-	
-	public FirstNITCase(Configuration config) {
-		super(config);
-	}
-	
-	@Override
-	protected void preSubmit() throws Exception {
-		resultPath = getTempDirPath("result");
+	private String expected;
+
+	@Rule
+	public TemporaryFolder tempFolder = new TemporaryFolder();
+
+	@Before
+	public void before() throws Exception{
+		resultPath = tempFolder.newFile().toURI().toString();
 	}
 
-	@Override
-	protected void testProgram() throws Exception {
-		expectedResult = FirstNProgs.runProgram(curProgId, resultPath);
+	@After
+	public void after() throws Exception{
+		compareResultsByLinesInMemory(expected, resultPath);
 	}
-	
-	@Override
-	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(expectedResult, resultPath);
-	}
-	
-	@Parameters
-	public static Collection<Object[]> getConfigurations() throws FileNotFoundException, IOException {
 
-		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
+	@Test
+	public void testFirstNOnUngroupedDS() throws Exception {
+		/*
+		 * First-n on ungrouped data set
+		 */
 
-		for(int i=1; i <= NUM_PROGRAMS; i++) {
-			Configuration config = new Configuration();
-			config.setInteger("ProgramId", i);
-			tConfigs.add(config);
-		}
-		
-		return toParameterList(tConfigs);
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+		DataSet<Tuple1<Integer>> seven = ds.first(7).map(new OneMapper()).sum(0);
+
+		seven.writeAsText(resultPath);
+		env.execute();
+
+		expected = "(7)\n";
 	}
-	
-	private static class FirstNProgs {
-		
-		public static String runProgram(int progId, String resultPath) throws Exception {
-			
-			switch(progId) {
-			case 1: {
-				/*
-				 * First-n on ungrouped data set
-				 */
-				
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-				DataSet<Tuple1<Integer>> seven = ds.first(7).map(new OneMapper()).sum(0);
-				
-				seven.writeAsText(resultPath);
-				env.execute();
-				
-				// return expected result
-				return "(7)\n";
-			}
-			case 2: {
-				/*
-				 * First-n on grouped data set
-				 */
-				
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-				DataSet<Tuple2<Long, Integer>> first = ds.groupBy(1).first(4)
-															.map(new OneMapper2()).groupBy(0).sum(1);
-				
-				first.writeAsText(resultPath);
-				env.execute();
-				
-				// return expected result
-				return "(1,1)\n(2,2)\n(3,3)\n(4,4)\n(5,4)\n(6,4)\n";
-			}
-			case 3: {
-				/*
-				 * First-n on grouped and sorted data set
-				 */
-				
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-				DataSet<Tuple2<Long, Integer>> first = ds.groupBy(1).sortGroup(0, Order.DESCENDING).first(3)
+
+	@Test
+	public void testFirstNOnGroupedDS() throws Exception {
+		/*
+		 * First-n on grouped data set
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+		DataSet<Tuple2<Long, Integer>> first = ds.groupBy(1).first(4)
+				.map(new OneMapper2()).groupBy(0).sum(1);
+
+		first.writeAsText(resultPath);
+		env.execute();
+
+		expected = "(1,1)\n(2,2)\n(3,3)\n(4,4)\n(5,4)\n(6,4)\n";
+	}
+
+	@Test
+	public void testFirstNOnGroupedAndSortedDS() throws Exception {
+		/*
+		 * First-n on grouped and sorted data set
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+		DataSet<Tuple2<Long, Integer>> first = ds.groupBy(1).sortGroup(0, Order.DESCENDING).first(3)
 															.project(1,0);
-				
-				first.writeAsText(resultPath);
-				env.execute();
-				
-				// return expected result
-				return "(1,1)\n"
-						+ "(2,3)\n(2,2)\n"
-						+ "(3,6)\n(3,5)\n(3,4)\n"
-						+ "(4,10)\n(4,9)\n(4,8)\n"
-						+ "(5,15)\n(5,14)\n(5,13)\n"
-						+ "(6,21)\n(6,20)\n(6,19)\n";
-				
-			}
-			default:
-				throw new IllegalArgumentException("Invalid program id");
-			}
-			
-		}
-	
+
+		first.writeAsText(resultPath);
+		env.execute();
+
+		expected = "(1,1)\n"
+				+ "(2,3)\n(2,2)\n"
+				+ "(3,6)\n(3,5)\n(3,4)\n"
+				+ "(4,10)\n(4,9)\n(4,8)\n"
+				+ "(5,15)\n(5,14)\n(5,13)\n"
+				+ "(6,21)\n(6,20)\n(6,19)\n";
 	}
 	
 	public static class OneMapper implements MapFunction<Tuple3<Integer, Long, String>, Tuple1<Integer>> {

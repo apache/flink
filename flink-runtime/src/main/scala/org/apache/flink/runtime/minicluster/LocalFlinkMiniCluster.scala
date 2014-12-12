@@ -69,7 +69,13 @@ FlinkMiniCluster(userConfiguration){
       config.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, dataPort + index)
     }
 
-    TaskManager.startActorWithConfiguration(HOSTNAME, config, false)(system)
+    val localExecution = if(numTaskManagers == 1){
+      false
+    }else{
+      false
+    }
+
+    TaskManager.startActorWithConfiguration(HOSTNAME, config, localExecution)(system)
   }
 
   def getJobClient(): ActorRef ={

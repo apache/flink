@@ -18,11 +18,7 @@
 
 package org.apache.flink.test.javaApiOperators;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.util.Collection;
 import java.util.HashSet;
-import java.util.LinkedList;
 
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -34,227 +30,212 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.POJO;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
 
 @RunWith(Parameterized.class)
-public class PartitionITCase extends JavaProgramTestBase {
-	
-	private static int NUM_PROGRAMS = 4;
-	
-	private int curProgId = config.getInteger("ProgramId", -1);
+public class PartitionITCase extends MultipleProgramsTestBase {
+
+	public PartitionITCase(MultipleProgramsTestBase.ExecutionMode mode){
+		super(mode);
+	}
+
 	private String resultPath;
-	private String expectedResult;
-	
-	public PartitionITCase(Configuration config) {
-		super(config);	
-	}
-	
-	@Override
-	protected void preSubmit() throws Exception {
-		resultPath = getTempDirPath("result");
+	private String expected;
+
+	@Rule
+	public TemporaryFolder tempFolder = new TemporaryFolder();
+
+	@Before
+	public void before() throws Exception{
+		resultPath = tempFolder.newFile().toURI().toString();
 	}
 
-	@Override
-	protected void testProgram() throws Exception {
-		expectedResult = PartitionProgs.runProgram(curProgId, resultPath);
+	@After
+	public void after() throws Exception{
+		compareResultsByLinesInMemory(expected, resultPath);
 	}
-	
-	@Override
-	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(expectedResult, resultPath);
+
+	@Test
+	public void testHashPartitionByKeyField() throws Exception {
+		/*
+		 * Test hash partition by key field
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+		DataSet<Long> uniqLongs = ds
+				.partitionByHash(1)
+				.mapPartition(new UniqueLongMapper());
+		uniqLongs.writeAsText(resultPath);
+		env.execute();
+
+		expected = "1\n" +
+				"2\n" +
+				"3\n" +
+				"4\n" +
+				"5\n" +
+				"6\n";
 	}
-	
-	@Parameters
-	public static Collection<Object[]> getConfigurations() throws FileNotFoundException, IOException {
 
-		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
+	@Test
+	public void testHashPartitionByKeySelector() throws Exception {
+		/*
+		 * Test hash partition by key selector
+		 */
 
-		for(int i=1; i <= NUM_PROGRAMS; i++) {
-			Configuration config = new Configuration();
-			config.setInteger("ProgramId", i);
-			tConfigs.add(config);
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+		DataSet<Long> uniqLongs = ds
+				.partitionByHash(new KeySelector1())
+				.mapPartition(new UniqueLongMapper());
+		uniqLongs.writeAsText(resultPath);
+		env.execute();
+
+		expected = 	"1\n" +
+				"2\n" +
+				"3\n" +
+				"4\n" +
+				"5\n" +
+				"6\n";
+	}
+
+	public static class KeySelector1 implements KeySelector<Tuple3<Integer,Long,String>, Long> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public Long getKey(Tuple3<Integer, Long, String> value) throws Exception {
+			return value.f1;
 		}
-		
-		return toParameterList(tConfigs);
+
 	}
-	
-	private static class PartitionProgs {
-		
-		public static String runProgram(int progId, String resultPath) throws Exception {
-			
-			switch(progId) {
-			case 0: {
-				/*
-				 * Test hash partition by key field
-				 */
-		
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-				DataSet<Long> uniqLongs = ds
-						.partitionByHash(1)
-						.mapPartition(new UniqueLongMapper());
-				uniqLongs.writeAsText(resultPath);
-				env.execute();
-				
-				// return expected result
-				return 	"1\n" +
-						"2\n" +
-						"3\n" +
-						"4\n" +
-						"5\n" +
-						"6\n";
-			}
-			case 1: {
-				/*
-				 * Test hash partition by key selector
-				 */
-		
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-				DataSet<Long> uniqLongs = ds
-						.partitionByHash(new KeySelector<Tuple3<Integer,Long,String>, Long>() {
-							private static final long serialVersionUID = 1L;
 
-							@Override
-							public Long getKey(Tuple3<Integer, Long, String> value) throws Exception {
-								return value.f1;
-							}
-							
-						})
-						.mapPartition(new UniqueLongMapper());
-				uniqLongs.writeAsText(resultPath);
-				env.execute();
-				
-				// return expected result
-				return 	"1\n" +
-						"2\n" +
-						"3\n" +
-						"4\n" +
-						"5\n" +
-						"6\n";
-			}
-			case 2: {
-				/*
-				 * Test forced rebalancing
-				 */
-		
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+	@Test
+	public void testForcedRebalancing() throws Exception {
+		/*
+		 * Test forced rebalancing
+		 */
 
-				// generate some number in parallel
-				DataSet<Long> ds = env.generateSequence(1,3000);
-				DataSet<Tuple2<Integer, Integer>> uniqLongs = ds
-						// introduce some partition skew by filtering
-						.filter(new FilterFunction<Long>() {
-							private static final long serialVersionUID = 1L;
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-							@Override
-							public boolean filter(Long value) throws Exception {
-								if (value <= 780) {
-									return false;
-								} else {
-									return true;
-								}
-							}
-						})
+		// generate some number in parallel
+		DataSet<Long> ds = env.generateSequence(1,3000);
+		DataSet<Tuple2<Integer, Integer>> uniqLongs = ds
+				// introduce some partition skew by filtering
+				.filter(new Filter1())
 						// rebalance
-						.rebalance()
+				.rebalance()
 						// count values in each partition
-						.map(new PartitionIndexMapper())
-						.groupBy(0)
-						.reduce(new ReduceFunction<Tuple2<Integer, Integer>>() {
-							private static final long serialVersionUID = 1L;
-
-							public Tuple2<Integer, Integer> reduce(Tuple2<Integer, Integer> v1, Tuple2<Integer, Integer> v2) {
-								return new Tuple2<Integer, Integer>(v1.f0, v1.f1+v2.f1);
-							}
-						})
+				.map(new PartitionIndexMapper())
+				.groupBy(0)
+				.reduce(new Reducer1())
 						// round counts to mitigate runtime scheduling effects (lazy split assignment)
-						.map(new MapFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>(){
-							private static final long serialVersionUID = 1L;
+				.map(new Mapper1());
 
-							@Override
-							public Tuple2<Integer, Integer> map(Tuple2<Integer, Integer> value) throws Exception {
-								value.f1 = (value.f1 / 10);
-								return value;
-							}
-							
-						});
-				
-				uniqLongs.writeAsText(resultPath);
-				
-				env.execute();
-				
-				StringBuilder result = new StringBuilder();
-				int numPerPartition = 2220 / env.getDegreeOfParallelism() / 10;
-				for (int i = 0; i < env.getDegreeOfParallelism(); i++) {
-					result.append('(').append(i).append(',').append(numPerPartition).append(")\n");
-				}
-				// return expected result
-				return result.toString();
-			}
-			case 3: {
-				/*
-				 * Test hash partition by key field and different DOP
-				 */
-		
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				env.setDegreeOfParallelism(3);
-				
-				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-				DataSet<Long> uniqLongs = ds
-						.partitionByHash(1).setParallelism(4)
-						.mapPartition(new UniqueLongMapper());
-				uniqLongs.writeAsText(resultPath);
-				
-				env.execute();
-				
-				// return expected result
-				return 	"1\n" +
-						"2\n" +
-						"3\n" +
-						"4\n" +
-						"5\n" +
-						"6\n";
-			}
-			case 4: {
-				/*
-				 * Test hash partition with key expression
-				 */
-		
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				env.setDegreeOfParallelism(3);
-				
-				DataSet<POJO> ds = CollectionDataSets.getDuplicatePojoDataSet(env);
-				DataSet<Long> uniqLongs = ds
-						.partitionByHash("nestedPojo.longNumber").setParallelism(4)
-						.mapPartition(new UniqueNestedPojoLongMapper());
-				uniqLongs.writeAsText(resultPath);
-				
-				env.execute();
-				
-				// return expected result
-				return 	"10000\n" +
-						"20000\n" +
-						"30000\n";
-			}
-			
-			
-			
-			default: 
-				throw new IllegalArgumentException("Invalid program id");
+		uniqLongs.writeAsText(resultPath);
+
+		env.execute();
+
+		StringBuilder result = new StringBuilder();
+		int numPerPartition = 2220 / env.getDegreeOfParallelism() / 10;
+		for (int i = 0; i < env.getDegreeOfParallelism(); i++) {
+			result.append('(').append(i).append(',').append(numPerPartition).append(")\n");
+		}
+
+		expected = result.toString();
+	}
+
+	public static class Filter1 implements FilterFunction<Long> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public boolean filter(Long value) throws Exception {
+			if (value <= 780) {
+				return false;
+			} else {
+				return true;
 			}
 		}
 	}
-	
+
+	public static class Reducer1 implements ReduceFunction<Tuple2<Integer, Integer>> {
+		private static final long serialVersionUID = 1L;
+
+		public Tuple2<Integer, Integer> reduce(Tuple2<Integer, Integer> v1, Tuple2<Integer, Integer> v2) {
+			return new Tuple2<Integer, Integer>(v1.f0, v1.f1+v2.f1);
+		}
+	}
+
+	public static class Mapper1 implements MapFunction<Tuple2<Integer, Integer>, Tuple2<Integer,
+			Integer>>{
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public Tuple2<Integer, Integer> map(Tuple2<Integer, Integer> value) throws Exception {
+			value.f1 = (value.f1 / 10);
+			return value;
+		}
+
+	}
+
+	@Test
+	public void testHashPartitionByKeyFieldAndDifferentDOP() throws Exception {
+		/*
+		 * Test hash partition by key field and different DOP
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setDegreeOfParallelism(3);
+
+		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
+		DataSet<Long> uniqLongs = ds
+				.partitionByHash(1).setParallelism(4)
+				.mapPartition(new UniqueLongMapper());
+		uniqLongs.writeAsText(resultPath);
+
+		env.execute();
+
+		expected = 	"1\n" +
+				"2\n" +
+				"3\n" +
+				"4\n" +
+				"5\n" +
+				"6\n";
+	}
+
+	@Test
+	public void testHashPartitionWithKeyExpression() throws Exception {
+		/*
+		 * Test hash partition with key expression
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setDegreeOfParallelism(3);
+
+		DataSet<POJO> ds = CollectionDataSets.getDuplicatePojoDataSet(env);
+		DataSet<Long> uniqLongs = ds
+				.partitionByHash("nestedPojo.longNumber").setParallelism(4)
+				.mapPartition(new UniqueNestedPojoLongMapper());
+		uniqLongs.writeAsText(resultPath);
+
+		env.execute();
+
+		expected = 	"10000\n" +
+				"20000\n" +
+				"30000\n";
+	}
+
 	public static class UniqueLongMapper implements MapPartitionFunction<Tuple3<Integer,Long,String>, Long> {
 		private static final long serialVersionUID = 1L;
 

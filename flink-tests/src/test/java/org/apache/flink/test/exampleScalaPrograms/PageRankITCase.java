@@ -18,82 +18,68 @@
 
 package org.apache.flink.test.exampleScalaPrograms;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.util.Collection;
-import java.util.LinkedList;
+import java.io.File;
 
-import org.apache.flink.configuration.Configuration;
+import com.google.common.base.Charsets;
+import com.google.common.io.Files;
 import org.apache.flink.examples.scala.graph.PageRankBasic;
 import org.apache.flink.test.testdata.PageRankData;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.test.util.MultipleProgramsTestBase;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
 
 @RunWith(Parameterized.class)
-public class PageRankITCase extends JavaProgramTestBase {
-	
-	private static int NUM_PROGRAMS = 2;
-	
-	private int curProgId = config.getInteger("ProgramId", -1);
-	
+public class PageRankITCase extends MultipleProgramsTestBase {
+
+	public PageRankITCase(ExecutionMode mode){
+		super(mode);
+	}
+
 	private String verticesPath;
 	private String edgesPath;
 	private String resultPath;
-	private String expectedResult;
-	
-	public PageRankITCase(Configuration config) {
-		super(config);
-	}
-	
-	@Override
-	protected void preSubmit() throws Exception {
-		resultPath = getTempDirPath("result");
-		verticesPath = createTempFile("vertices.txt", PageRankData.VERTICES);
-		edgesPath = createTempFile("edges.txt", PageRankData.EDGES);
+	private String expected;
+
+	@Rule
+	public TemporaryFolder tempFolder = new TemporaryFolder();
+
+	@Before
+	public void before() throws Exception{
+		File resultFile = tempFolder.newFile();
+		//Delete file because the Scala API does not respect WriteMode set by the configuration
+		resultFile.delete();
+		resultPath = resultFile.toURI().toString();
+
+		File verticesFile = tempFolder.newFile();
+		Files.write(PageRankData.VERTICES, verticesFile, Charsets.UTF_8);
+
+		File edgesFile = tempFolder.newFile();
+		Files.write(PageRankData.EDGES, edgesFile, Charsets.UTF_8);
+
+		verticesPath = verticesFile.toURI().toString();
+		edgesPath = edgesFile.toURI().toString();
 	}
 
-	@Override
-	protected void testProgram() throws Exception {
-		expectedResult = runProgram(curProgId);
+	@After
+	public void after() throws Exception{
+		compareKeyValueParisWithDelta(expected, resultPath, " ", 0.01);
 	}
-	
-	@Override
-	protected void postSubmit() throws Exception {
-		compareKeyValueParisWithDelta(expectedResult, resultPath, " ", 0.01);
+
+	@Test
+	public void testPageRankWithSmallNumberOfIterations() throws Exception {
+		PageRankBasic.main(new String[] {verticesPath, edgesPath, resultPath, PageRankData.NUM_VERTICES+"", "3"});
+		expected = PageRankData.RANKS_AFTER_3_ITERATIONS;
 	}
-	
-	@Parameters
-	public static Collection<Object[]> getConfigurations() throws FileNotFoundException, IOException {
 
-		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
-
-		for(int i=1; i <= NUM_PROGRAMS; i++) {
-			Configuration config = new Configuration();
-			config.setInteger("ProgramId", i);
-			tConfigs.add(config);
-		}
-		
-		return toParameterList(tConfigs);
-	}
-	
-
-	public String runProgram(int progId) throws Exception {
-		
-		switch(progId) {
-		case 1: {
-			PageRankBasic.main(new String[] {verticesPath, edgesPath, resultPath, PageRankData.NUM_VERTICES+"", "3"});
-			return PageRankData.RANKS_AFTER_3_ITERATIONS;
-		}
-		case 2: {
-			// start with a very high number of iteration such that the dynamic convergence criterion must handle termination
-			PageRankBasic.main(new String[] {verticesPath, edgesPath, resultPath, PageRankData.NUM_VERTICES+"", "1000"});
-			return PageRankData.RANKS_AFTER_EPSILON_0_0001_CONVERGENCE;
-		}
-		
-		default: 
-			throw new IllegalArgumentException("Invalid program id");
-		}
+	@Test
+	public void testPageRankWithConvergence() throws Exception {
+		// start with a very high number of iteration such that the dynamic convergence criterion must handle termination
+		PageRankBasic.main(new String[] {verticesPath, edgesPath, resultPath, PageRankData.NUM_VERTICES+"", "1000"});
+		expected = PageRankData.RANKS_AFTER_EPSILON_0_0001_CONVERGENCE;
 	}
 }

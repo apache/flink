@@ -46,7 +46,6 @@ LocalFlinkMiniCluster(userConfiguration) {
       config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jobManagerRPC)
       config.setInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, taskManagerRPC)
       config.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, taskManagerData)
-
     }
 
     super.generateConfiguration(config)
@@ -68,8 +67,14 @@ LocalFlinkMiniCluster(userConfiguration) {
       config.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, dataPort + index)
     }
 
+    val localExecution = if(numTaskManagers == 1){
+      false
+    }else{
+      false
+    }
+
     val (connectionInfo, jobManagerAkkaURL, taskManagerConfig, networkConnectionConfig) =
-      TaskManager.parseConfiguration(HOSTNAME, config, false)
+      TaskManager.parseConfiguration(HOSTNAME, config, localExecution)
 
     system.actorOf(Props(new TaskManager(connectionInfo, jobManagerAkkaURL, taskManagerConfig,
       networkConnectionConfig) with TestingTaskManager), TaskManager.TASK_MANAGER_NAME + index)

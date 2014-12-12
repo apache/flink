@@ -18,12 +18,10 @@
 
 package org.apache.flink.test.iterative.aggregators;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.util.Collection;
-import java.util.LinkedList;
 import java.util.Random;
 
+import org.apache.flink.test.util.MultipleProgramsTestBase;
+import org.junit.After;
 import org.junit.Assert;
 
 import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
@@ -33,12 +31,14 @@ import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
-import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.util.Collector;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -49,213 +49,185 @@ import org.apache.flink.api.java.operators.IterativeDataSet;
  *
  */
 @RunWith(Parameterized.class)
-public class AggregatorsITCase extends JavaProgramTestBase {
+public class AggregatorsITCase extends MultipleProgramsTestBase {
 
-	private static final int NUM_PROGRAMS = 5;
-	private static final int MAX_ITERATIONS = 20;	
+	private static final int MAX_ITERATIONS = 20;
 	private static final int DOP = 2;
+	private static final String NEGATIVE_ELEMENTS_AGGR = "count.negative.elements";
 
-	private int curProgId = config.getInteger("ProgramId", -1);
+	public AggregatorsITCase(ExecutionMode mode){
+		super(mode);
+	}
+
 	private String resultPath;
-	private String expectedResult;
+	private String expected;
 
-	public AggregatorsITCase(Configuration config) {
-		super(config);
+	@Rule
+	public TemporaryFolder tempFolder = new TemporaryFolder();
+
+	@Before
+	public void before() throws Exception{
+		resultPath = tempFolder.newFile().toURI().toString();
 	}
 
-	@Override
-	protected void preSubmit() throws Exception {
-		resultPath = getTempDirPath("result");
+	@After
+	public void after() throws Exception{
+		compareResultsByLinesInMemory(expected, resultPath);
 	}
 
-	@Override
-	protected void testProgram() throws Exception {
-		expectedResult = AggregatorProgs.runProgram(curProgId, resultPath);
+	@Test
+	public void testAggregatorWithoutParameterForIterate() throws Exception {
+		/*
+		 * Test aggregator without parameter for iterate
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setDegreeOfParallelism(DOP);
+
+		DataSet<Integer> initialSolutionSet = CollectionDataSets.getIntegerDataSet(env);
+		IterativeDataSet<Integer> iteration = initialSolutionSet.iterate(MAX_ITERATIONS);
+
+		// register aggregator
+		LongSumAggregator aggr = new LongSumAggregator();
+		iteration.registerAggregator(NEGATIVE_ELEMENTS_AGGR, aggr);
+
+		// register convergence criterion
+		iteration.registerAggregationConvergenceCriterion(NEGATIVE_ELEMENTS_AGGR, aggr,
+				new NegativeElementsConvergenceCriterion());
+
+		DataSet<Integer> updatedDs = iteration.map(new SubtractOneMap());
+		iteration.closeWith(updatedDs).writeAsText(resultPath);
+		env.execute();
+
+		expected =  "-3\n" + "-2\n" + "-2\n" + "-1\n" + "-1\n"
+				+ "-1\n" + "0\n" + "0\n" + "0\n" + "0\n"
+				+ "1\n" + "1\n" + "1\n" + "1\n" + "1\n";
 	}
 
-	@Override
-	protected void postSubmit() throws Exception {
+	@Test
+	public void testAggregatorWithParameterForIterate() throws Exception {
+		/*
+		 * Test aggregator with parameter for iterate
+		 */
 
-		compareResultsByLinesInMemory(expectedResult, resultPath);
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setDegreeOfParallelism(DOP);
+
+		DataSet<Integer> initialSolutionSet = CollectionDataSets.getIntegerDataSet(env);
+		IterativeDataSet<Integer> iteration = initialSolutionSet.iterate(MAX_ITERATIONS);
+
+		// register aggregator
+		LongSumAggregatorWithParameter aggr = new LongSumAggregatorWithParameter(0);
+		iteration.registerAggregator(NEGATIVE_ELEMENTS_AGGR, aggr);
+
+		// register convergence criterion
+		iteration.registerAggregationConvergenceCriterion(NEGATIVE_ELEMENTS_AGGR, aggr,
+				new NegativeElementsConvergenceCriterion());
+
+		DataSet<Integer> updatedDs = iteration.map(new SubtractOneMapWithParam());
+		iteration.closeWith(updatedDs).writeAsText(resultPath);
+		env.execute();
+
+		expected =  "-3\n" + "-2\n" + "-2\n" + "-1\n" + "-1\n"
+				+ "-1\n" + "0\n" + "0\n" + "0\n" + "0\n"
+				+ "1\n" + "1\n" + "1\n" + "1\n" + "1\n";
 	}
 
-	@Parameters
-	public static Collection<Object[]> getConfigurations() throws FileNotFoundException, IOException {
-
-		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
-
-		for(int i=1; i <= NUM_PROGRAMS; i++) {
-			Configuration config = new Configuration();
-			config.setInteger("ProgramId", i);
-			tConfigs.add(config);
-		}
-
-		return toParameterList(tConfigs);
-	}
-
-	private static class AggregatorProgs {
-
-		private static final String NEGATIVE_ELEMENTS_AGGR = "count.negative.elements";
-
-		public static String runProgram(int progId, String resultPath) throws Exception {
-
-			switch(progId) {
-			case 1: {
-				/*
-				 * Test aggregator without parameter for iterate
-				 */
-
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				env.setDegreeOfParallelism(DOP);
-
-				DataSet<Integer> initialSolutionSet = CollectionDataSets.getIntegerDataSet(env);
-				IterativeDataSet<Integer> iteration = initialSolutionSet.iterate(MAX_ITERATIONS);
-
-				// register aggregator
-				LongSumAggregator aggr = new LongSumAggregator();
-				iteration.registerAggregator(NEGATIVE_ELEMENTS_AGGR, aggr);
-				
-				// register convergence criterion
-				iteration.registerAggregationConvergenceCriterion(NEGATIVE_ELEMENTS_AGGR, aggr, 
-						new NegativeElementsConvergenceCriterion());
-				
-				DataSet<Integer> updatedDs = iteration.map(new SubtractOneMap());
-				iteration.closeWith(updatedDs).writeAsText(resultPath);
-				env.execute();
-
-				// return expected result
-				return "-3\n" + "-2\n" + "-2\n" + "-1\n" + "-1\n"
-				 		+ "-1\n" + "0\n" + "0\n" + "0\n" + "0\n"
-				 		+ "1\n" + "1\n" + "1\n" + "1\n" + "1\n";
-			}
-			case 2: {
-				/*
-				 * Test aggregator with parameter for iterate
-				 */
-				
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				env.setDegreeOfParallelism(DOP);
-
-				DataSet<Integer> initialSolutionSet = CollectionDataSets.getIntegerDataSet(env);
-				IterativeDataSet<Integer> iteration = initialSolutionSet.iterate(MAX_ITERATIONS);
-
-				// register aggregator
-				LongSumAggregatorWithParameter aggr = new LongSumAggregatorWithParameter(0);
-				iteration.registerAggregator(NEGATIVE_ELEMENTS_AGGR, aggr);
-				
-				// register convergence criterion
-				iteration.registerAggregationConvergenceCriterion(NEGATIVE_ELEMENTS_AGGR, aggr, 
-						new NegativeElementsConvergenceCriterion());
-				
-				DataSet<Integer> updatedDs = iteration.map(new SubtractOneMapWithParam());
-				iteration.closeWith(updatedDs).writeAsText(resultPath);
-				env.execute();
-				
-				// return expected result
-				return "-3\n" + "-2\n" + "-2\n" + "-1\n" + "-1\n"
-				 		+ "-1\n" + "0\n" + "0\n" + "0\n" + "0\n"
-				 		+ "1\n" + "1\n" + "1\n" + "1\n" + "1\n";
-			}
-			case 3: {
-				/*
+	@Test
+	public void testConvergenceCriterionWithParameterForIterate() throws Exception {
+		/*
 				 * Test convergence criterion with parameter for iterate
 				 */
-				
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				env.setDegreeOfParallelism(DOP);
 
-				DataSet<Integer> initialSolutionSet = CollectionDataSets.getIntegerDataSet(env);
-				IterativeDataSet<Integer> iteration = initialSolutionSet.iterate(MAX_ITERATIONS);
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setDegreeOfParallelism(DOP);
 
-				// register aggregator
-				LongSumAggregator aggr = new LongSumAggregator();
-				iteration.registerAggregator(NEGATIVE_ELEMENTS_AGGR, aggr);
-				
-				// register convergence criterion
-				iteration.registerAggregationConvergenceCriterion(NEGATIVE_ELEMENTS_AGGR, aggr, 
-						new NegativeElementsConvergenceCriterionWithParam(3));
-				
-				DataSet<Integer> updatedDs = iteration.map(new SubtractOneMap());
-				iteration.closeWith(updatedDs).writeAsText(resultPath);
-				env.execute();
-				
-				// return expected result
-				return "-3\n" + "-2\n" + "-2\n" + "-1\n" + "-1\n"
-				 		+ "-1\n" + "0\n" + "0\n" + "0\n" + "0\n"
-				 		+ "1\n" + "1\n" + "1\n" + "1\n" + "1\n";
-			}
-			case 4: {
-				/*
-				 * Test aggregator without parameter for iterateDelta
-				 */
-				
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				env.setDegreeOfParallelism(DOP);
-				
-				DataSet<Tuple2<Integer, Integer>> initialSolutionSet = CollectionDataSets.getIntegerDataSet(env).map(new TupleMakerMap());
-						
-				DeltaIteration<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> iteration = initialSolutionSet.iterateDelta(
-						initialSolutionSet, MAX_ITERATIONS, 0);
+		DataSet<Integer> initialSolutionSet = CollectionDataSets.getIntegerDataSet(env);
+		IterativeDataSet<Integer> iteration = initialSolutionSet.iterate(MAX_ITERATIONS);
 
-				// register aggregator
-				LongSumAggregator aggr = new LongSumAggregator();
-				iteration.registerAggregator(NEGATIVE_ELEMENTS_AGGR, aggr);
-				
-				DataSet<Tuple2<Integer, Integer>> updatedDs = iteration.getWorkset().map(new AggregateMapDelta());
-				
-				DataSet<Tuple2<Integer, Integer>> newElements = updatedDs.join(iteration.getSolutionSet())
-						.where(0).equalTo(0).flatMap(new UpdateFilter());
-				
-				DataSet<Tuple2<Integer, Integer>> iterationRes = iteration.closeWith(newElements, newElements);
-				DataSet<Integer> result = iterationRes.map(new ProjectSecondMapper());
-				result.writeAsText(resultPath);
-				
-				env.execute();
-				
-				// return expected result
-				return "1\n" + "2\n" + "2\n" + "3\n" + "3\n"
-				 		+ "3\n" + "4\n" + "4\n" + "4\n" + "4\n"
-				 		+ "5\n" + "5\n" + "5\n" + "5\n" + "5\n";
-				
-			}
-			case 5: {
-				/*
-				 * Test aggregator with parameter for iterateDelta
-				 */
-				
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				env.setDegreeOfParallelism(DOP);
-				
-				DataSet<Tuple2<Integer, Integer>> initialSolutionSet = CollectionDataSets.getIntegerDataSet(env).map(new TupleMakerMap());
-						
-				DeltaIteration<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> iteration = initialSolutionSet.iterateDelta(
-						initialSolutionSet, MAX_ITERATIONS, 0);
+		// register aggregator
+		LongSumAggregator aggr = new LongSumAggregator();
+		iteration.registerAggregator(NEGATIVE_ELEMENTS_AGGR, aggr);
 
-				// register aggregator
-				LongSumAggregator aggr = new LongSumAggregatorWithParameter(4);
-				iteration.registerAggregator(NEGATIVE_ELEMENTS_AGGR, aggr);
-				
-				DataSet<Tuple2<Integer, Integer>> updatedDs = iteration.getWorkset().map(new AggregateMapDelta());
-				
-				DataSet<Tuple2<Integer, Integer>> newElements = updatedDs.join(iteration.getSolutionSet())
-						.where(0).equalTo(0).flatMap(new UpdateFilter());
-				
-				DataSet<Tuple2<Integer, Integer>> iterationRes = iteration.closeWith(newElements, newElements);
-				DataSet<Integer> result = iterationRes.map(new ProjectSecondMapper());
-				result.writeAsText(resultPath);
-				
-				env.execute();
-				
-				// return expected result
-				return "1\n" + "2\n" + "2\n" + "3\n" + "3\n"
-				 		+ "3\n" + "4\n" + "4\n" + "4\n" + "4\n"
-				 		+ "5\n" + "5\n" + "5\n" + "5\n" + "5\n";
-			}
-			default:
-				throw new IllegalArgumentException("Invalid program id");
-			}
+		// register convergence criterion
+		iteration.registerAggregationConvergenceCriterion(NEGATIVE_ELEMENTS_AGGR, aggr,
+				new NegativeElementsConvergenceCriterionWithParam(3));
 
-		}
+		DataSet<Integer> updatedDs = iteration.map(new SubtractOneMap());
+		iteration.closeWith(updatedDs).writeAsText(resultPath);
+		env.execute();
+
+		expected = "-3\n" + "-2\n" + "-2\n" + "-1\n" + "-1\n"
+				+ "-1\n" + "0\n" + "0\n" + "0\n" + "0\n"
+				+ "1\n" + "1\n" + "1\n" + "1\n" + "1\n";
+	}
+
+	@Test
+	public void testAggregatorWithoutParameterForIterateDelta() throws Exception {
+		/*
+		 * Test aggregator without parameter for iterateDelta
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setDegreeOfParallelism(DOP);
+
+		DataSet<Tuple2<Integer, Integer>> initialSolutionSet = CollectionDataSets.getIntegerDataSet(env).map(new TupleMakerMap());
+
+		DeltaIteration<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> iteration = initialSolutionSet.iterateDelta(
+				initialSolutionSet, MAX_ITERATIONS, 0);
+
+		// register aggregator
+		LongSumAggregator aggr = new LongSumAggregator();
+		iteration.registerAggregator(NEGATIVE_ELEMENTS_AGGR, aggr);
+
+		DataSet<Tuple2<Integer, Integer>> updatedDs = iteration.getWorkset().map(new AggregateMapDelta());
+
+		DataSet<Tuple2<Integer, Integer>> newElements = updatedDs.join(iteration.getSolutionSet())
+				.where(0).equalTo(0).flatMap(new UpdateFilter());
+
+		DataSet<Tuple2<Integer, Integer>> iterationRes = iteration.closeWith(newElements, newElements);
+		DataSet<Integer> result = iterationRes.map(new ProjectSecondMapper());
+		result.writeAsText(resultPath);
+
+		env.execute();
+
+		expected = "1\n" + "2\n" + "2\n" + "3\n" + "3\n"
+				+ "3\n" + "4\n" + "4\n" + "4\n" + "4\n"
+				+ "5\n" + "5\n" + "5\n" + "5\n" + "5\n";
+	}
+
+	@Test
+	public void testAggregatorWithParameterForIterateDelta() throws Exception {
+		/*
+		 * Test aggregator with parameter for iterateDelta
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setDegreeOfParallelism(DOP);
+
+		DataSet<Tuple2<Integer, Integer>> initialSolutionSet = CollectionDataSets.getIntegerDataSet(env).map(new TupleMakerMap());
+
+		DeltaIteration<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> iteration = initialSolutionSet.iterateDelta(
+				initialSolutionSet, MAX_ITERATIONS, 0);
+
+		// register aggregator
+		LongSumAggregator aggr = new LongSumAggregatorWithParameter(4);
+		iteration.registerAggregator(NEGATIVE_ELEMENTS_AGGR, aggr);
+
+		DataSet<Tuple2<Integer, Integer>> updatedDs = iteration.getWorkset().map(new AggregateMapDelta());
+
+		DataSet<Tuple2<Integer, Integer>> newElements = updatedDs.join(iteration.getSolutionSet())
+				.where(0).equalTo(0).flatMap(new UpdateFilter());
+
+		DataSet<Tuple2<Integer, Integer>> iterationRes = iteration.closeWith(newElements, newElements);
+		DataSet<Integer> result = iterationRes.map(new ProjectSecondMapper());
+		result.writeAsText(resultPath);
+
+		env.execute();
+
+		expected = "1\n" + "2\n" + "2\n" + "3\n" + "3\n"
+				+ "3\n" + "4\n" + "4\n" + "4\n" + "4\n"
+				+ "5\n" + "5\n" + "5\n" + "5\n" + "5\n";
 	}
 
 	@SuppressWarnings("serial")
@@ -294,7 +266,7 @@ public class AggregatorsITCase extends JavaProgramTestBase {
 		@Override
 		public void open(Configuration conf) {
 
-			aggr = getIterationRuntimeContext().getIterationAggregator(AggregatorProgs.NEGATIVE_ELEMENTS_AGGR);
+			aggr = getIterationRuntimeContext().getIterationAggregator(NEGATIVE_ELEMENTS_AGGR);
 		}
 
 		@Override
@@ -316,7 +288,7 @@ public class AggregatorsITCase extends JavaProgramTestBase {
 		@Override
 		public void open(Configuration conf) {
 
-			aggr = getIterationRuntimeContext().getIterationAggregator(AggregatorProgs.NEGATIVE_ELEMENTS_AGGR);
+			aggr = getIterationRuntimeContext().getIterationAggregator(NEGATIVE_ELEMENTS_AGGR);
 		}
 
 		@Override
@@ -366,11 +338,11 @@ public class AggregatorsITCase extends JavaProgramTestBase {
 		@Override
 		public void open(Configuration conf) {
 
-			aggr = getIterationRuntimeContext().getIterationAggregator(AggregatorProgs.NEGATIVE_ELEMENTS_AGGR);
+			aggr = getIterationRuntimeContext().getIterationAggregator(NEGATIVE_ELEMENTS_AGGR);
 			superstep = getIterationRuntimeContext().getSuperstepNumber();
 
 			if (superstep > 1) {
-				previousAggr = getIterationRuntimeContext().getPreviousIterationAggregate(AggregatorProgs.NEGATIVE_ELEMENTS_AGGR);
+				previousAggr = getIterationRuntimeContext().getPreviousIterationAggregate(NEGATIVE_ELEMENTS_AGGR);
 				// check previous aggregator value
 				Assert.assertEquals(superstep - 1, previousAggr.getValue());
 			}
@@ -429,11 +401,11 @@ public class AggregatorsITCase extends JavaProgramTestBase {
 		@Override
 		public void open(Configuration conf) {
 
-			aggr = getIterationRuntimeContext().getIterationAggregator(AggregatorProgs.NEGATIVE_ELEMENTS_AGGR);
+			aggr = getIterationRuntimeContext().getIterationAggregator(NEGATIVE_ELEMENTS_AGGR);
 			superstep = getIterationRuntimeContext().getSuperstepNumber();
 
 			if (superstep > 1) {
-				previousAggr = getIterationRuntimeContext().getPreviousIterationAggregate(AggregatorProgs.NEGATIVE_ELEMENTS_AGGR);
+				previousAggr = getIterationRuntimeContext().getPreviousIterationAggregate(NEGATIVE_ELEMENTS_AGGR);
 
 				// check previous aggregator value
 				switch(superstep) {

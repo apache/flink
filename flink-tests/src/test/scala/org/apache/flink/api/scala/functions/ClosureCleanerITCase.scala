@@ -19,8 +19,12 @@ package org.apache.flink.api.scala.functions
 
 import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.test.util.JavaProgramTestBase
+import org.apache.flink.core.fs.FileSystem.WriteMode
+import org.apache.flink.test.util.MultipleProgramsTestBase.ExecutionMode
+import org.apache.flink.test.util.{MultipleProgramsTestBase, JavaProgramTestBase}
 import org.junit.Assert.fail
+import org.junit.{After, Before, Test, Rule}
+import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.runners.Parameterized.Parameters
@@ -34,79 +38,75 @@ import org.apache.flink.api.common.InvalidProgramException
 /* The test cases are originally from the Apache Spark project. Like the ClosureCleaner itself. */
 
 @RunWith(classOf[Parameterized])
-class ClosureCleanerITCase(config: Configuration) extends JavaProgramTestBase(config) {
+class ClosureCleanerITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
 
-  private var curProgId: Int = config.getInteger("ProgramId", -1)
-  private var resultPath: String = null
-  private var expectedResult: String = null
+  val _tempFolder = new TemporaryFolder()
+  var resultPath: String = _
+  var result: String = _
 
-  protected override def preSubmit(): Unit = {
-    resultPath = getTempDirPath("result")
+  @Rule
+  def tempFolder = _tempFolder
+
+  @Before
+  def before(): Unit = {
+    resultPath = tempFolder.newFile().toURI.toString
   }
 
-  protected def testProgram(): Unit = {
-    expectedResult = curProgId match {
-      case 1 =>
-        TestObject.run(resultPath)
-        "30" // 6 + 7 + 8 + 9
-
-      case 2 =>
-        val obj = new TestClass
-        obj.run(resultPath)
-        "30" // 6 + 7 + 8 + 9
-
-      case 3 =>
-        val obj = new TestClassWithoutDefaultConstructor(5)
-        obj.run(resultPath)
-        "30" // 6 + 7 + 8 + 9
-
-
-      case 4 =>
-        val obj = new TestClassWithoutFieldAccess
-        obj.run(resultPath)
-        "30" // 6 + 7 + 8 + 9
-
-      case 5 =>
-        TestObjectWithNesting.run(resultPath)
-        "27"
-
-      case 6 =>
-        val obj = new TestClassWithNesting(1)
-        obj.run(resultPath)
-        "27"
-
-      case 7 =>
-        TestObjectWithBogusReturns.run(resultPath)
-        "1"
-
-      case 8 =>
-        TestObjectWithNestedReturns.run(resultPath)
-        "1"
-
-      case _ =>
-        throw new IllegalArgumentException("Invalid program id")
-    }
+  @After
+  def after: Unit = {
+    compareResultsByLinesInMemory(result, resultPath)
   }
 
-  protected override def postSubmit(): Unit = {
-    compareResultsByLinesInMemory(expectedResult, resultPath)
+  @Test
+  def testObject: Unit = {
+    TestObject.run(resultPath)
+    result = "30"
   }
-}
 
-object ClosureCleanerITCase {
+  @Test
+  def testClass: Unit = {
+    val obj = new TestClass
+    obj.run(resultPath)
+    result = "30"
+  }
 
-  val NUM_PROGRAMS = 6
+  @Test
+  def testClassWithoutDefaulConstructor: Unit = {
+    val obj = new TestClassWithoutDefaultConstructor(5)
+    obj.run(resultPath)
+    result = "30"
+  }
 
-  @Parameters
-  def getConfigurations: java.util.Collection[Array[AnyRef]] = {
-    val configs = mutable.MutableList[Array[AnyRef]]()
-    for (i <- 1 to NUM_PROGRAMS) {
-      val config = new Configuration()
-      config.setInteger("ProgramId", i)
-      configs += Array(config)
-    }
+  @Test
+  def testClassWithoutFieldAccess: Unit = {
+    val obj = new TestClassWithoutFieldAccess
+    obj.run(resultPath)
+    result = "30" // 6 + 7 + 8 + 9
+  }
 
-    configs.asJavaCollection
+  @Test
+  def testObjectWithNesting: Unit = {
+    TestObjectWithNesting.run(resultPath)
+    result = "27"
+  }
+
+  @Test
+  def testClassWithNesting: Unit = {
+    val obj = new TestClassWithNesting(1)
+    obj.run(resultPath)
+    result = "27"
+  }
+
+  @Test
+  def testObjectWithBogusReturns: Unit = {
+    TestObjectWithBogusReturns.run(resultPath)
+    result = "1"
+  }
+
+  @Test
+  def testObjectWithNestedReturns: Unit = {
+    TestObjectWithNestedReturns.run(resultPath)
+    result = "1"
   }
 }
 
@@ -121,7 +121,7 @@ object TestObject {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val nums = env.fromElements(1, 2, 3, 4)
 
-    nums.map(_ + x).reduce(_ + _).writeAsText(resultPath)
+    nums.map(_ + x).reduce(_ + _).writeAsText(resultPath, WriteMode.OVERWRITE)
 
     env.execute()
   }
@@ -138,7 +138,7 @@ class TestClass extends Serializable {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val nums = env.fromElements(1, 2, 3, 4)
 
-    nums.map(_ + getX).reduce(_ + _).writeAsText(resultPath)
+    nums.map(_ + getX).reduce(_ + _).writeAsText(resultPath, WriteMode.OVERWRITE)
 
     env.execute()
   }
@@ -153,7 +153,7 @@ class TestClassWithoutDefaultConstructor(x: Int) extends Serializable {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val nums = env.fromElements(1, 2, 3, 4)
 
-    nums.map(_ + getX).reduce(_ + _).writeAsText(resultPath)
+    nums.map(_ + getX).reduce(_ + _).writeAsText(resultPath, WriteMode.OVERWRITE)
 
     env.execute()
   }
@@ -171,7 +171,7 @@ class TestClassWithoutFieldAccess {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val nums = env.fromElements(1, 2, 3, 4)
 
-    nums.map(_ + x).reduce(_ + _).writeAsText(resultPath)
+    nums.map(_ + x).reduce(_ + _).writeAsText(resultPath, WriteMode.OVERWRITE)
 
     env.execute()
   }
@@ -193,7 +193,7 @@ object TestObjectWithBogusReturns {
       case _ => fail("Bogus return statement not detected.")
     }
 
-    nums.writeAsText(resultPath)
+    nums.writeAsText(resultPath, WriteMode.OVERWRITE)
 
     env.execute()
   }
@@ -213,7 +213,7 @@ object TestObjectWithNestedReturns {
         foo()
     }
 
-    nums.writeAsText(resultPath)
+    nums.writeAsText(resultPath, WriteMode.OVERWRITE)
 
     env.execute()
   }
@@ -235,7 +235,7 @@ object TestObjectWithNesting {
         in.map(_ + x + y).reduce(_ + _).withBroadcastSet(nums, "nums")
     }
 
-    result.writeAsText(resultPath)
+    result.writeAsText(resultPath, WriteMode.OVERWRITE)
 
     env.execute()
   }
@@ -259,7 +259,7 @@ class TestClassWithNesting(val y: Int) extends Serializable {
         in.map(_ + x + getY).reduce(_ + _).withBroadcastSet(nums, "nums")
     }
 
-    result.writeAsText(resultPath)
+    result.writeAsText(resultPath, WriteMode.OVERWRITE)
 
     env.execute()
   }

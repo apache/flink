@@ -18,9 +18,6 @@
 
 package org.apache.flink.test.javaApiOperators;
 
-import java.io.IOException;
-import java.util.Collection;
-import java.util.LinkedList;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -31,280 +28,266 @@ import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.CustomType;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets.POJO;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.test.util.MultipleProgramsTestBase;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
 
 @SuppressWarnings("serial")
 @RunWith(Parameterized.class)
-public class DistinctITCase extends JavaProgramTestBase {
-	
-	private static int NUM_PROGRAMS = 8;
-	
-	private int curProgId = config.getInteger("ProgramId", -1);
+public class DistinctITCase extends MultipleProgramsTestBase {
+
+	public DistinctITCase(ExecutionMode mode){
+		super(mode);
+	}
+
 	private String resultPath;
-	private String expectedResult;
-	
-	public DistinctITCase(Configuration config) {
-		super(config);
-	}
-	
-	@Override
-	protected void preSubmit() throws Exception {
-		resultPath = getTempDirPath("result");
+	private String expected;
+
+	@Rule
+	public TemporaryFolder tempFolder = new TemporaryFolder();
+
+	@Before
+	public void before() throws Exception{
+		resultPath = tempFolder.newFile().toURI().toString();
 	}
 
-	@Override
-	protected void testProgram() throws Exception {
-		expectedResult = DistinctProgs.runProgram(curProgId, resultPath);
+	@After
+	public void after() throws Exception{
+		compareResultsByLinesInMemory(expected, resultPath);
 	}
-	
-	@Override
-	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(expectedResult, resultPath);
-	}
-	
-	@Parameters
-	public static Collection<Object[]> getConfigurations() throws IOException {
-		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
 
-		for(int i=1; i <= NUM_PROGRAMS; i++) {
-			Configuration config = new Configuration();
-			config.setInteger("ProgramId", i);
-			tConfigs.add(config);
-		}
-		
-		return toParameterList(tConfigs);
+	@Test
+	public void testCorrectnessOfDistinctOnTuplesWithKeyFieldSelector() throws Exception {
+		/*
+		 * check correctness of distinct on tuples with key field selector
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.getSmall3TupleDataSet(env);
+		DataSet<Tuple3<Integer, Long, String>> distinctDs = ds.union(ds).distinct(0, 1, 2);
+
+		distinctDs.writeAsCsv(resultPath);
+		env.execute();
+
+		expected = "1,1,Hi\n" +
+				"2,2,Hello\n" +
+				"3,2,Hello world\n";
 	}
-	
-	private static class DistinctProgs {
-		
-		public static String runProgram(int progId, String resultPath) throws Exception {
-			
-			switch(progId) {
-			case 1: {
-				
-				/*
-				 * check correctness of distinct on tuples with key field selector
-				 */
-				
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.getSmall3TupleDataSet(env);
-				DataSet<Tuple3<Integer, Long, String>> distinctDs = ds.union(ds).distinct(0, 1, 2);
-				
-				distinctDs.writeAsCsv(resultPath);
-				env.execute();
-				
-				// return expected result
-				return "1,1,Hi\n" +
-						"2,2,Hello\n" +
-						"3,2,Hello world\n";
-			}
-			case 2: {
-				
-				/*
-				 * check correctness of distinct on tuples with key field selector with not all fields selected
-				 */
-				
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<Tuple5<Integer, Long,  Integer, String, Long>> ds = CollectionDataSets.getSmall5TupleDataSet(env);
+
+	@Test
+	public void testCorrectnessOfDistinctOnTuplesWithKeyFieldSelectorWithNotAllFieldsSelected()
+	throws Exception{
+		/*
+		 * check correctness of distinct on tuples with key field selector with not all fields selected
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple5<Integer, Long,  Integer, String, Long>> ds = CollectionDataSets.getSmall5TupleDataSet(env);
 				DataSet<Tuple1<Integer>> distinctDs = ds.union(ds).distinct(0).project(0);
-				
-				distinctDs.writeAsCsv(resultPath);
-				env.execute();
-				
-				// return expected result
-				return "1\n" +
-						"2\n";
-			}
-			case 3: {
-				
-				/*
-				 * check correctness of distinct on tuples with key extractor function
-				 */
-				
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<Tuple5<Integer, Long,  Integer, String, Long>> ds = CollectionDataSets.getSmall5TupleDataSet(env);
-				DataSet<Tuple1<Integer>> reduceDs = ds.union(ds)
-						.distinct(new KeySelector<Tuple5<Integer, Long,  Integer, String, Long>, Integer>() {
-									private static final long serialVersionUID = 1L;
-									@Override
-									public Integer getKey(Tuple5<Integer, Long,  Integer, String, Long> in) {
-										return in.f0;
-									}
-								}).project(0);
-				
-				reduceDs.writeAsCsv(resultPath);
-				env.execute();
-				
-				// return expected result
-				return "1\n" +
-						"2\n";
-								
-			}
-			case 4: {
-				
-				/*
-				 * check correctness of distinct on custom type with type extractor
-				 */
-				
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<CustomType> ds = CollectionDataSets.getCustomTypeDataSet(env);
-				DataSet<Tuple1<Integer>> reduceDs = ds
-						.distinct(new KeySelector<CustomType, Integer>() {
-									private static final long serialVersionUID = 1L;
-									@Override
-									public Integer getKey(CustomType in) {
-										return in.myInt;
-									}
-								})
-						.map(new RichMapFunction<CustomType, Tuple1<Integer>>() {
-							@Override
-							public Tuple1<Integer> map(CustomType value) throws Exception {
-								return new Tuple1<Integer>(value.myInt);
-							}
-						});
-				
-				reduceDs.writeAsCsv(resultPath);
-				env.execute();
-				
-				// return expected result
-				return "1\n" +
-						"2\n" +
-						"3\n" +
-						"4\n" +
-						"5\n" +
-						"6\n";
-				
-			}
-			case 5: {
-				
-				/*
-				 * check correctness of distinct on tuples
-				 */
-				
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.getSmall3TupleDataSet(env);
-				DataSet<Tuple3<Integer, Long, String>> distinctDs = ds.union(ds).distinct();
-				
-				distinctDs.writeAsCsv(resultPath);
-				env.execute();
-				
-				// return expected result
-				return "1,1,Hi\n" +
-						"2,2,Hello\n" +
-						"3,2,Hello world\n";
-			}
-			case 6: {
-				
-				/*
-				 * check correctness of distinct on custom type with tuple-returning type extractor
-				 */
-				
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
-				DataSet<Tuple2<Integer, Long>> reduceDs = ds
-						.distinct(new KeySelector<Tuple5<Integer, Long, Integer, String, Long>, Tuple2<Integer, Long>>() {
-									private static final long serialVersionUID = 1L;
-									@Override
-									public Tuple2<Integer,Long> getKey(Tuple5<Integer, Long, Integer, String, Long> t) {
-										return new Tuple2<Integer, Long>(t.f0, t.f4);
-									}
-								})
+
+		distinctDs.writeAsCsv(resultPath);
+		env.execute();
+
+		expected = "1\n" +
+				"2\n";
+	}
+
+	@Test
+	public void testCorrectnessOfDistinctOnTuplesWithKeyExtractorFunction() throws Exception {
+		/*
+		 * check correctness of distinct on tuples with key extractor function
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple5<Integer, Long,  Integer, String, Long>> ds = CollectionDataSets.getSmall5TupleDataSet(env);
+		DataSet<Tuple1<Integer>> reduceDs = ds.union(ds)
+				.distinct(new KeySelector1()).project(0);
+
+
+		reduceDs.writeAsCsv(resultPath);
+		env.execute();
+
+		expected = "1\n" +
+				"2\n";
+	}
+
+	public static class KeySelector1 implements KeySelector<Tuple5<Integer, Long,  Integer, String, Long>, Integer> {
+		private static final long serialVersionUID = 1L;
+		@Override
+		public Integer getKey(Tuple5<Integer, Long,  Integer, String, Long> in) {
+			return in.f0;
+		}
+	}
+
+	@Test
+	public void testCorrectnessOfDistinctOnCustomTypeWithTypeExtractor() throws Exception {
+		/*
+		 * check correctness of distinct on custom type with type extractor
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<CustomType> ds = CollectionDataSets.getCustomTypeDataSet(env);
+		DataSet<Tuple1<Integer>> reduceDs = ds
+				.distinct(new KeySelector3())
+				.map(new Mapper3());
+
+		reduceDs.writeAsCsv(resultPath);
+		env.execute();
+
+		expected = "1\n" +
+				"2\n" +
+				"3\n" +
+				"4\n" +
+				"5\n" +
+				"6\n";
+	}
+
+	public static class Mapper3 extends RichMapFunction<CustomType, Tuple1<Integer>> {
+		@Override
+		public Tuple1<Integer> map(CustomType value) throws Exception {
+			return new Tuple1<Integer>(value.myInt);
+		}
+	}
+
+	public static class KeySelector3 implements KeySelector<CustomType, Integer> {
+		private static final long serialVersionUID = 1L;
+		@Override
+		public Integer getKey(CustomType in) {
+			return in.myInt;
+		}
+	}
+
+	@Test
+	public void testCorrectnessOfDistinctOnTuples() throws Exception{
+		/*
+		 * check correctness of distinct on tuples
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.getSmall3TupleDataSet(env);
+		DataSet<Tuple3<Integer, Long, String>> distinctDs = ds.union(ds).distinct();
+
+		distinctDs.writeAsCsv(resultPath);
+		env.execute();
+
+		expected = "1,1,Hi\n" +
+				"2,2,Hello\n" +
+				"3,2,Hello world\n";
+	}
+
+	@Test
+	public void testCorrectnessOfDistinctOnCustomTypeWithTupleReturningTypeExtractor() throws
+			Exception{
+		/*
+		 * check correctness of distinct on custom type with tuple-returning type extractor
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds = CollectionDataSets.get5TupleDataSet(env);
+		DataSet<Tuple2<Integer, Long>> reduceDs = ds
+				.distinct(new KeySelector2())
 						.project(0,4);
-				
-				reduceDs.writeAsCsv(resultPath);
-				env.execute();
-				
-				// return expected result
-				return "1,1\n" +
-						"2,1\n" +
-						"2,2\n" +
-						"3,2\n" +
-						"3,3\n" +
-						"4,1\n" +
-						"4,2\n" +
-						"5,1\n" +
-						"5,2\n" +
-						"5,3\n";
-			}
-			case 7: {
-				
-				/*
-				 * check correctness of distinct on tuples with field expressions
-				 */
-				
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<Tuple5<Integer, Long,  Integer, String, Long>> ds = CollectionDataSets.getSmall5TupleDataSet(env);
-				DataSet<Tuple1<Integer>> reduceDs = ds.union(ds)
+
+		reduceDs.writeAsCsv(resultPath);
+		env.execute();
+
+		expected = "1,1\n" +
+				"2,1\n" +
+				"2,2\n" +
+				"3,2\n" +
+				"3,3\n" +
+				"4,1\n" +
+				"4,2\n" +
+				"5,1\n" +
+				"5,2\n" +
+				"5,3\n";
+	}
+
+	public static class KeySelector2 implements KeySelector<Tuple5<Integer, Long, Integer, String, Long>, Tuple2<Integer, Long>> {
+		private static final long serialVersionUID = 1L;
+		@Override
+		public Tuple2<Integer,Long> getKey(Tuple5<Integer, Long, Integer, String, Long> t) {
+			return new Tuple2<Integer, Long>(t.f0, t.f4);
+		}
+	}
+
+	@Test
+	public void testCorrectnessOfDistinctOnTuplesWithFieldExpressions() throws Exception {
+		/*
+		 * check correctness of distinct on tuples with field expressions
+		 */
+
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Tuple5<Integer, Long,  Integer, String, Long>> ds = CollectionDataSets.getSmall5TupleDataSet(env);
+		DataSet<Tuple1<Integer>> reduceDs = ds.union(ds)
 						.distinct("f0").project(0);
-				
-				reduceDs.writeAsCsv(resultPath);
-				env.execute();
-				
-				// return expected result
-				return "1\n" +
-						"2\n";
-								
-			}
-			case 8: {
-				
-				/*
-				 * check correctness of distinct on Pojos
-				 */
-				
-				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-				
-				DataSet<POJO> ds = CollectionDataSets.getDuplicatePojoDataSet(env);
-				DataSet<Integer> reduceDs = ds.distinct("nestedPojo.longNumber").map(new MapFunction<CollectionDataSets.POJO, Integer>() {
-					@Override
-					public Integer map(POJO value) throws Exception {
-						return (int) value.nestedPojo.longNumber;
-					}
-				});
-				
-				reduceDs.writeAsText(resultPath);
-				env.execute();
-				
-				// return expected result
-				return "10000\n20000\n30000\n";
-			}
-			case 9: {
 
-					/*
-					 * distinct on full Pojo
-					 */
-					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		reduceDs.writeAsCsv(resultPath);
+		env.execute();
 
-					DataSet<POJO> ds = CollectionDataSets.getDuplicatePojoDataSet(env);
-					DataSet<Integer> reduceDs = ds.distinct().map(new MapFunction<CollectionDataSets.POJO, Integer>() {
-						@Override
-						public Integer map(POJO value) throws Exception {
-							return (int) value.nestedPojo.longNumber;
-						}
-					});
+		expected = "1\n" +
+				"2\n";
+	}
 
-					reduceDs.writeAsText(resultPath);
-					env.execute();
+	@Test
+	public void testCorrectnessOfDistinctOnPojos() throws Exception {
+		/*
+		 * check correctness of distinct on Pojos
+		 */
 
-					// return expected result
-					return "10000\n20000\n30000\n";
-				}
-			default: 
-				throw new IllegalArgumentException("Invalid program id");
-			}
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<POJO> ds = CollectionDataSets.getDuplicatePojoDataSet(env);
+		DataSet<Integer> reduceDs = ds.distinct("nestedPojo.longNumber").map(new Mapper2());
+
+		reduceDs.writeAsText(resultPath);
+		env.execute();
+
+		expected = "10000\n20000\n30000\n";
+	}
+
+	public static class Mapper2 implements MapFunction<CollectionDataSets.POJO, Integer> {
+		@Override
+		public Integer map(POJO value) throws Exception {
+			return (int) value.nestedPojo.longNumber;
+		}
+	}
+
+	@Test
+	public void testDistinctOnFullPojo() throws Exception {
+		/*
+		 * distinct on full Pojo
+		 */
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<POJO> ds = CollectionDataSets.getDuplicatePojoDataSet(env);
+		DataSet<Integer> reduceDs = ds.distinct().map(new Mapper1());
+
+		reduceDs.writeAsText(resultPath);
+		env.execute();
+
+		expected = "10000\n20000\n30000\n";
+	}
+
+	public static class Mapper1 implements MapFunction<CollectionDataSets.POJO, Integer> {
+		@Override
+		public Integer map(POJO value) throws Exception {
+			return (int) value.nestedPojo.longNumber;
 		}
 	}
 }

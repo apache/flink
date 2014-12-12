@@ -19,7 +19,11 @@ package org.apache.flink.api.scala.operators
 
 import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.test.util.JavaProgramTestBase
+import org.apache.flink.core.fs.FileSystem.WriteMode
+import org.apache.flink.test.util.MultipleProgramsTestBase.ExecutionMode
+import org.apache.flink.test.util.{MultipleProgramsTestBase, JavaProgramTestBase}
+import org.junit.{Test, After, Before, Rule}
+import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.apache.flink.api.scala._
@@ -57,108 +61,94 @@ class PojoWithPojo(var myString: String, var myInt: Int, var nested: Nested) {
   override def toString = s"myString=$myString myInt=$myInt nested.myLong=${nested.myLong}"
 }
 
-object ExampleProgs {
-  var NUM_PROGRAMS: Int = 4
-
-  def runProgram(progId: Int, resultPath: String, onCollection: Boolean): String = {
-    progId match {
-      case 1 =>
-        /*
-          Test nested tuples with int offset
-         */
-        val env = ExecutionEnvironment.getExecutionEnvironment
-        val ds = env.fromElements( (("this","is"), 1), (("this", "is"),2), (("this","hello"),3) )
-
-        val grouped = ds.groupBy(0).reduce( { (e1, e2) => ((e1._1._1, e1._1._2), e1._2 + e2._2)})
-        grouped.writeAsText(resultPath)
-        env.execute()
-        "((this,hello),3)\n((this,is),3)\n"
-
-      case 2 =>
-        /*
-          Test nested tuples with int offset
-         */
-        val env = ExecutionEnvironment.getExecutionEnvironment
-        val ds = env.fromElements( (("this","is"), 1), (("this", "is"),2), (("this","hello"),3) )
-
-        val grouped = ds.groupBy("_1._1").reduce{
-          (e1, e2) => ((e1._1._1, e1._1._2), e1._2 + e2._2)
-        }
-        grouped.writeAsText(resultPath)
-        env.execute()
-        "((this,is),6)\n"
-
-      case 3 =>
-        /*
-          Test nested pojos
-         */
-        val env = ExecutionEnvironment.getExecutionEnvironment
-        val ds = env.fromElements(
-          new PojoWithPojo("one", 1, 1L),
-          new PojoWithPojo("one", 1, 1L),
-          new PojoWithPojo("two", 666, 2L) )
-
-        val grouped = ds.groupBy("nested.myLong").reduce {
-          (p1, p2) =>
-            p1.myInt += p2.myInt
-            p1
-        }
-        grouped.writeAsText(resultPath)
-        env.execute()
-        "myString=two myInt=666 nested.myLong=2\nmyString=one myInt=2 nested.myLong=1\n"
-
-      case 4 =>
-        /*
-          Test pojo with nested case class
-         */
-        val env = ExecutionEnvironment.getExecutionEnvironment
-        val ds = env.fromElements(
-          new Pojo("one", 1, 1L),
-          new Pojo("one", 1, 1L),
-          new Pojo("two", 666, 2L) )
-
-        val grouped = ds.groupBy("nested.myLong").reduce {
-          (p1, p2) =>
-            p1.myInt += p2.myInt
-            p1
-        }
-        grouped.writeAsText(resultPath)
-        env.execute()
-        "myString=two myInt=666 nested.myLong=2\nmyString=one myInt=2 nested.myLong=1\n"
-    }
-  }
-}
-
 @RunWith(classOf[Parameterized])
-class ExamplesITCase(config: Configuration) extends JavaProgramTestBase(config) {
-
-  private var curProgId: Int = config.getInteger("ProgramId", -1)
+class ExamplesITCase(mode: ExecutionMode) extends MultipleProgramsTestBase(mode) {
   private var resultPath: String = null
-  private var expectedResult: String = null
+  private var expected: String = null
+  private val _tempFolder = new TemporaryFolder()
 
-  protected override def preSubmit(): Unit = {
-    resultPath = getTempDirPath("result")
+  @Rule
+  def tempFolder = _tempFolder
+
+  @Before
+  def before(): Unit = {
+    resultPath = tempFolder.newFile().toURI.toString
   }
 
-  protected def testProgram(): Unit = {
-    expectedResult = ExampleProgs.runProgram(curProgId, resultPath, isCollectionExecution)
+  @After
+  def after: Unit = {
+    compareResultsByLinesInMemory(expected, resultPath)
   }
 
-  protected override def postSubmit(): Unit = {
-    compareResultsByLinesInMemory(expectedResult, resultPath)
-  }
-}
+  @Test
+  def testNestesdTuplesWithIntOffset: Unit = {
+    /*
+     * Test nested tuples with int offset
+     */
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val ds = env.fromElements( (("this","is"), 1), (("this", "is"),2), (("this","hello"),3) )
 
-object ExamplesITCase {
-  @Parameters
-  def getConfigurations: java.util.Collection[Array[AnyRef]] = {
-    val configs = mutable.MutableList[Array[AnyRef]]()
-    for (i <- 1 to ExampleProgs.NUM_PROGRAMS) {
-      val config = new Configuration()
-      config.setInteger("ProgramId", i)
-      configs += Array(config)
+    val grouped = ds.groupBy(0).reduce( { (e1, e2) => ((e1._1._1, e1._1._2), e1._2 + e2._2)})
+    grouped.writeAsText(resultPath, writeMode = WriteMode.OVERWRITE)
+    env.execute()
+    expected = "((this,hello),3)\n((this,is),3)\n"
+  }
+
+  @Test
+  def testNestedTuplesWithExpressionKeys: Unit = {
+    /*
+     * Test nested tuples with expression keys
+     */
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val ds = env.fromElements( (("this","is"), 1), (("this", "is"),2), (("this","hello"),3) )
+
+    val grouped = ds.groupBy("_1._1").reduce{
+      (e1, e2) => ((e1._1._1, e1._1._2), e1._2 + e2._2)
     }
+    grouped.writeAsText(resultPath, WriteMode.OVERWRITE)
+    env.execute()
+    expected = "((this,is),6)\n"
+  }
 
-    configs.asJavaCollection
+  @Test
+  def testNestedPojos: Unit = {
+    /*
+     * Test nested pojos
+     */
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val ds = env.fromElements(
+      new PojoWithPojo("one", 1, 1L),
+      new PojoWithPojo("one", 1, 1L),
+      new PojoWithPojo("two", 666, 2L) )
+
+    val grouped = ds.groupBy("nested.myLong").reduce {
+      (p1, p2) =>
+        p1.myInt += p2.myInt
+        p1
+    }
+    grouped.writeAsText(resultPath, WriteMode.OVERWRITE)
+    env.execute()
+    expected = "myString=two myInt=666 nested.myLong=2\nmyString=one myInt=2 nested.myLong=1\n"
+  }
+
+  @Test
+  def testPojoWithNestedCaseClass: Unit = {
+    /*
+     * Test pojo with nested case class
+     */
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val ds = env.fromElements(
+      new Pojo("one", 1, 1L),
+      new Pojo("one", 1, 1L),
+      new Pojo("two", 666, 2L) )
+
+    val grouped = ds.groupBy("nested.myLong").reduce {
+      (p1, p2) =>
+        p1.myInt += p2.myInt
+        p1
+    }
+    grouped.writeAsText(resultPath, writeMode = WriteMode.OVERWRITE)
+    env.execute()
+    expected = "myString=two myInt=666 nested.myLong=2\nmyString=one myInt=2 nested.myLong=1\n"
   }
 }
