@@ -1143,9 +1143,11 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    */
   def writeAsText(
       filePath: String,
-      writeMode: FileSystem.WriteMode = WriteMode.NO_OVERWRITE): DataSink[T] = {
+      writeMode: FileSystem.WriteMode = null): DataSink[T] = {
     val tof: TextOutputFormat[T] = new TextOutputFormat[T](new Path(filePath))
-    tof.setWriteMode(writeMode)
+    if (writeMode != null) {
+      tof.setWriteMode(writeMode)
+    }
     output(tof)
   }
 
@@ -1158,10 +1160,12 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
       filePath: String,
       rowDelimiter: String = ScalaCsvOutputFormat.DEFAULT_LINE_DELIMITER,
       fieldDelimiter: String = ScalaCsvOutputFormat.DEFAULT_FIELD_DELIMITER,
-      writeMode: FileSystem.WriteMode = WriteMode.NO_OVERWRITE): DataSink[T] = {
+      writeMode: FileSystem.WriteMode = null): DataSink[T] = {
     Validate.isTrue(javaSet.getType.isTupleType, "CSV output can only be used with Tuple DataSets.")
     val of = new ScalaCsvOutputFormat[Product](new Path(filePath), rowDelimiter, fieldDelimiter)
-    of.setWriteMode(writeMode)
+    if (writeMode != null) {
+      of.setWriteMode(writeMode)
+    }
     output(of.asInstanceOf[OutputFormat[T]])
   }
 
@@ -1172,11 +1176,13 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   def write(
       outputFormat: FileOutputFormat[T],
       filePath: String,
-      writeMode: FileSystem.WriteMode = WriteMode.NO_OVERWRITE): DataSink[T] = {
+      writeMode: FileSystem.WriteMode = null): DataSink[T] = {
     Validate.notNull(filePath, "File path must not be null.")
     Validate.notNull(outputFormat, "Output format must not be null.")
     outputFormat.setOutputFilePath(new Path(filePath))
-    outputFormat.setWriteMode(writeMode)
+    if (writeMode != null) {
+      outputFormat.setWriteMode(writeMode)
+    }
     output(outputFormat)
   }
 
