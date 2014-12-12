@@ -342,7 +342,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 				}
 				else {
 					if (enumerateNestedFiles) {
-						addNestedFiles(s.getPath(), files, 0, false);
+						addNestedFiles(s.getPath(), files);
 					}
 				}
 			}
@@ -413,7 +413,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 			for (int i = 0; i < dir.length; i++) {
 				if (dir[i].isDir()) {
 					if (enumerateNestedFiles) {
-						totalLength += addNestedFiles(dir[i].getPath(), files, 0, true);
+						totalLength += addNestedFiles(dir[i].getPath(), files, 0);
 					}
 				}
 				else {
@@ -527,29 +527,46 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 		return inputSplits.toArray(new FileInputSplit[inputSplits.size()]);
 	}
 
-	private long addNestedFiles(Path path, List<FileStatus> files, long length, boolean checkAccept) 
+	/**
+	 * Recursively traverse the input directory structure
+	 * and enumerate all accepted nested files.
+	 * @return the total length of accepted files.
+	 */
+	private long addNestedFiles(Path path, List<FileStatus> files, long length)
 			throws IOException {
 		final FileSystem fs = path.getFileSystem();
 
 		for(FileStatus dir: fs.listStatus(path)) {
 			if (dir.isDir()) {
-				addNestedFiles(dir.getPath(), files, length, checkAccept);
+				addNestedFiles(dir.getPath(), files, length);
 			}
 			else {
-				if (checkAccept) {
-					if(acceptFile(dir)) {
-						files.add(dir);
-						length += dir.getLen();
-						testForUnsplittable(dir);
-					}
-				}
-				else {
+				if(acceptFile(dir)) {
 					files.add(dir);
+					length += dir.getLen();
 					testForUnsplittable(dir);
 				}
 			}
 		}
 		return length;
+	}
+
+	/**
+	 * Recursively traverse the input directory structure
+	 * and enumerated all nested files.
+	 */
+	private void addNestedFiles(Path path, List<FileStatus> files) throws IOException {
+		final FileSystem fs = path.getFileSystem();
+
+		for(FileStatus dir: fs.listStatus(path)) {
+			if (dir.isDir()) {
+				addNestedFiles(dir.getPath(), files);
+			}
+			else {
+				files.add(dir);
+				testForUnsplittable(dir);
+			}
+		}
 	}
 
 	private boolean testForUnsplittable(FileStatus pathFile) {
