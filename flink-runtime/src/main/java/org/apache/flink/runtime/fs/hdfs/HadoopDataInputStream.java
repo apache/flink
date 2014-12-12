@@ -28,7 +28,7 @@ import org.apache.flink.core.fs.FSDataInputStream;
  * Hadoop Distributed File System.
  * 
  */
-public final class DistributedDataInputStream extends FSDataInputStream {
+public final class HadoopDataInputStream extends FSDataInputStream {
 
 	private org.apache.hadoop.fs.FSDataInputStream fsDataInputStream = null;
 
@@ -38,7 +38,7 @@ public final class DistributedDataInputStream extends FSDataInputStream {
 	 * @param fsDataInputStream
 	 *        the HDFS input stream
 	 */
-	public DistributedDataInputStream(org.apache.hadoop.fs.FSDataInputStream fsDataInputStream) {
+	public HadoopDataInputStream(org.apache.hadoop.fs.FSDataInputStream fsDataInputStream) {
 		this.fsDataInputStream = fsDataInputStream;
 	}
 

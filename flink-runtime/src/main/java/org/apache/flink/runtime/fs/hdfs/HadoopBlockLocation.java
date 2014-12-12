@@ -30,7 +30,7 @@ import org.apache.flink.core.fs.BlockLocation;
  * Hadoop Distributed File System.
  * 
  */
-public final class DistributedBlockLocation implements BlockLocation {
+public final class HadoopBlockLocation implements BlockLocation {
 
 	/**
 	 * Specifies the character separating the hostname from the domain name.
@@ -58,7 +58,7 @@ public final class DistributedBlockLocation implements BlockLocation {
 	 * @param blockLocation
 	 *        the original HDFS block location
 	 */
-	public DistributedBlockLocation(final org.apache.hadoop.fs.BlockLocation blockLocation) {
+	public HadoopBlockLocation(final org.apache.hadoop.fs.BlockLocation blockLocation) {
 
 		this.blockLocation = blockLocation;
 	}
