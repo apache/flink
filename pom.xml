@@ -580,6 +580,7 @@ under the License.
 						<exclude>flink-quickstart/**/testArtifact/goal.txt</exclude>
 						<!-- Generated content -->
 						<exclude>**/target/**</exclude>
+						<exclude>docs/_site/**</exclude>
 						<exclude>**/scalastyle-output.xml</exclude>
 					</excludes>
 				</configuration>
