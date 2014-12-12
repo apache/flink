@@ -33,7 +33,8 @@ You can:
 - use a Hadoop `Mapper` as [FlatMapFunction](dataset_transformations.html#flatmap).
 - use a Hadoop `Reducer` as [GroupReduceFunction](dataset_transformations.html#groupreduce-on-grouped-dataset).
 
-This document shows how to use existing Hadoop MapReduce code with Flink.
+This document shows how to use existing Hadoop MapReduce code with Flink. Please refer to the
+[Connecting to other systems](example_connectors.html) guide for reading from Hadoop supported file systems.
 
 ### Project Configuration
 

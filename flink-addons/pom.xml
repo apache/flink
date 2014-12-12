@@ -45,6 +45,22 @@ under the License.
 	<!-- See main pom.xml for explanation of profiles -->
 	<profiles>
 		<profile>
+			<id>hadoop-2</id>
+			<activation>
+				<property>
+					<!-- Please do not remove the 'hadoop2' comment. See ./tools/generate_specific_pom.sh -->
+					<!--hadoop2--><name>!hadoop.profile</name>
+				</property>
+			</activation>
+			<modules>
+				<!-- Include the Flink-tachyon project only for HD2.
+				 	The HDFS minicluster interfaces changed between the two versions.
+				 -->
+				<module>flink-tachyon</module>
+			</modules>
+		</profile>
+
+		<profile>
 			<id>include-yarn</id>
 			<activation>
 				<property>

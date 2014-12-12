@@ -15,8 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-
 package org.apache.flink.runtime.fs.hdfs;
 
 import java.io.File;
@@ -25,6 +23,7 @@ import java.lang.reflect.Method;
 import java.net.URI;
 import java.net.UnknownHostException;
 
+import org.apache.flink.core.fs.AbstractHadoopWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.configuration.ConfigConstants;
@@ -39,12 +38,16 @@ import org.apache.flink.util.InstantiationUtil;
 import org.apache.hadoop.conf.Configuration;
 
 /**
- * Concrete implementation of the {@link FileSystem} base class for the Hadoop Distribution File System. The
- * class is essentially a wrapper class which encapsulated the original Hadoop HDFS API.
+ * Concrete implementation of the {@link FileSystem} base class for the Hadoop File System. The
+ * class is a wrapper class which encapsulated the original Hadoop HDFS API.
+ *
+ * If no file system class is specified, the wrapper will automatically load the Hadoop
+ * distributed file system (HDFS).
+ *
  */
-public final class DistributedFileSystem extends FileSystem {
+public final class HadoopFileSystem extends FileSystem implements AbstractHadoopWrapper {
 	
-	private static final Logger LOG = LoggerFactory.getLogger(DistributedFileSystem.class);
+	private static final Logger LOG = LoggerFactory.getLogger(HadoopFileSystem.class);
 	
 	private static final String DEFAULT_HDFS_CLASS = "org.apache.hadoop.hdfs.DistributedFileSystem";
 	
@@ -52,7 +55,6 @@ public final class DistributedFileSystem extends FileSystem {
 	 * Configuration value name for the DFS implementation name. Usually not specified in hadoop configurations.
 	 */
 	private static final String HDFS_IMPLEMENTATION_KEY = "fs.hdfs.impl";
-	
 
 	private final org.apache.hadoop.conf.Configuration conf;
 
@@ -65,30 +67,37 @@ public final class DistributedFileSystem extends FileSystem {
 	 * @throws IOException
 	 *         throw if the required HDFS classes cannot be instantiated
 	 */
-	public DistributedFileSystem() throws IOException {
-
+	public HadoopFileSystem(Class<? extends org.apache.hadoop.fs.FileSystem> fsClass) throws IOException {
 		// Create new Hadoop configuration object
 		this.conf = getHadoopConfiguration();
 
+		if(fsClass == null) {
+			fsClass = getDefaultHDFSClass();
+		}
+
+		this.fs = instantiateFileSystem(fsClass);
+	}
+
+	private Class<? extends org.apache.hadoop.fs.FileSystem> getDefaultHDFSClass() throws IOException {
 		Class<? extends org.apache.hadoop.fs.FileSystem> fsClass = null;
-		
+
 		// try to get the FileSystem implementation class Hadoop 2.0.0 style
 		{
 			LOG.debug("Trying to load HDFS class Hadoop 2.x style.");
-			
+
 			Object fsHandle = null;
 			try {
 				Method newApi = org.apache.hadoop.fs.FileSystem.class.getMethod("getFileSystemClass", String.class, org.apache.hadoop.conf.Configuration.class);
-				fsHandle = newApi.invoke(null, "hdfs", conf); 
+				fsHandle = newApi.invoke(null, "hdfs", conf);
 			} catch (Exception e) {
 				// if we can't find the FileSystem class using the new API,
 				// clazz will still be null, we assume we're running on an older Hadoop version
 			}
-			
+
 			if (fsHandle != null) {
 				if (fsHandle instanceof Class && org.apache.hadoop.fs.FileSystem.class.isAssignableFrom((Class<?>) fsHandle)) {
 					fsClass = ((Class<?>) fsHandle).asSubclass(org.apache.hadoop.fs.FileSystem.class);
-					
+
 					if (LOG.isDebugEnabled()) {
 						LOG.debug("Loaded '" + fsClass.getName() + "' as HDFS class.");
 					}
@@ -99,7 +108,7 @@ public final class DistributedFileSystem extends FileSystem {
 				}
 			}
 		}
-		
+
 		// fall back to an older Hadoop version
 		if (fsClass == null)
 		{
@@ -110,12 +119,12 @@ public final class DistributedFileSystem extends FileSystem {
 			}
 
 			Class<?> classFromConfig = conf.getClass(HDFS_IMPLEMENTATION_KEY, null);
-			
+
 			if (classFromConfig != null)
 			{
 				if (org.apache.hadoop.fs.FileSystem.class.isAssignableFrom(classFromConfig)) {
 					fsClass = classFromConfig.asSubclass(org.apache.hadoop.fs.FileSystem.class);
-					
+
 					if (LOG.isDebugEnabled()) {
 						LOG.debug("Loaded HDFS class '" + fsClass.getName() + "' as specified in configuration.");
 					}
@@ -124,9 +133,9 @@ public final class DistributedFileSystem extends FileSystem {
 					if (LOG.isDebugEnabled()) {
 						LOG.debug("HDFS class specified by " + HDFS_IMPLEMENTATION_KEY + " is of wrong type.");
 					}
-					
+
 					throw new IOException("HDFS class specified by " + HDFS_IMPLEMENTATION_KEY +
-						" cannot be cast to a FileSystem type.");
+							" cannot be cast to a FileSystem type.");
 				}
 			}
 			else {
@@ -134,7 +143,7 @@ public final class DistributedFileSystem extends FileSystem {
 				if (LOG.isDebugEnabled()) {
 					LOG.debug("Trying to load default HDFS implementation " + DEFAULT_HDFS_CLASS);
 				}
-				
+
 				try {
 					Class <?> reflectedClass = Class.forName(DEFAULT_HDFS_CLASS);
 					if (org.apache.hadoop.fs.FileSystem.class.isAssignableFrom(reflectedClass)) {
@@ -143,25 +152,24 @@ public final class DistributedFileSystem extends FileSystem {
 						if (LOG.isDebugEnabled()) {
 							LOG.debug("Default HDFS class is of wrong type.");
 						}
-						
-						throw new IOException("The default HDFS class '" + DEFAULT_HDFS_CLASS + 
-							"' cannot be cast to a FileSystem type.");
+
+						throw new IOException("The default HDFS class '" + DEFAULT_HDFS_CLASS +
+								"' cannot be cast to a FileSystem type.");
 					}
 				}
 				catch (ClassNotFoundException e) {
 					if (LOG.isDebugEnabled()) {
 						LOG.debug("Default HDFS class cannot be loaded.");
 					}
-					
+
 					throw new IOException("No HDFS class has been configured and the default class '" +
 							DEFAULT_HDFS_CLASS + "' cannot be loaded.");
 				}
 			}
 		}
-		
-		this.fs = instantiateFileSystem(fsClass);
+		return fsClass;
 	}
-	
+
 	/**
 	 * Returns a new Hadoop Configuration object using the path to the hadoop conf configured 
 	 * in the main configuration (flink-conf.yaml).
@@ -256,12 +264,12 @@ public final class DistributedFileSystem extends FileSystem {
 	public void initialize(URI path) throws IOException {
 		
 		// For HDFS we have to have an authority
-		if (path.getAuthority() == null) {
+		if (path.getAuthority() == null && path.getScheme().equals("hdfs")) {
 			
-			String configEntry = this.conf.get("fs.default.name", null);
+			String configEntry = this.conf.get("fs.defaultFS", null);
 			if (configEntry == null) {
 				// fs.default.name deprecated as of hadoop 2.2.0 http://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-common/DeprecatedProperties.html
-				configEntry = this.conf.get("fs.defaultFS", null);
+				configEntry = this.conf.get("fs.default.name", null);
 			}
 			
 			if (LOG.isDebugEnabled()) {
@@ -298,12 +306,12 @@ public final class DistributedFileSystem extends FileSystem {
 			} 
 		}
 		else {
-			// Initialize HDFS
+			// Initialize file system
 			try {
 				this.fs.initialize(path, this.conf);
 			}
 			catch (UnknownHostException e) {
-				String message = "The HDFS NameNode host at '" + path.getAuthority()
+				String message = "The (HDFS NameNode) host at '" + path.getAuthority()
 						+ "', specified by file path '" + path.toString() + "', cannot be resolved"
 						+ (e.getMessage() != null ? ": " + e.getMessage() : ".");
 				
@@ -331,26 +339,26 @@ public final class DistributedFileSystem extends FileSystem {
 	@Override
 	public FileStatus getFileStatus(final Path f) throws IOException {
 		org.apache.hadoop.fs.FileStatus status = this.fs.getFileStatus(new org.apache.hadoop.fs.Path(f.toString()));
-		return new DistributedFileStatus(status);
+		return new HadoopFileStatus(status);
 	}
 
 	@Override
 	public BlockLocation[] getFileBlockLocations(final FileStatus file, final long start, final long len)
 	throws IOException
 	{
-		if (!(file instanceof DistributedFileStatus)) {
+		if (!(file instanceof HadoopFileStatus)) {
 			throw new IOException("file is not an instance of DistributedFileStatus");
 		}
 
-		final DistributedFileStatus f = (DistributedFileStatus) file;
+		final HadoopFileStatus f = (HadoopFileStatus) file;
 
 		final org.apache.hadoop.fs.BlockLocation[] blkLocations = fs.getFileBlockLocations(f.getInternalFileStatus(),
 			start, len);
 
 		// Wrap up HDFS specific block location objects
-		final DistributedBlockLocation[] distBlkLocations = new DistributedBlockLocation[blkLocations.length];
+		final HadoopBlockLocation[] distBlkLocations = new HadoopBlockLocation[blkLocations.length];
 		for (int i = 0; i < distBlkLocations.length; i++) {
-			distBlkLocations[i] = new DistributedBlockLocation(blkLocations[i]);
+			distBlkLocations[i] = new HadoopBlockLocation(blkLocations[i]);
 		}
 
 		return distBlkLocations;
@@ -362,13 +370,13 @@ public final class DistributedFileSystem extends FileSystem {
 		final org.apache.hadoop.fs.FSDataInputStream fdis = this.fs.open(new org.apache.hadoop.fs.Path(f.toString()),
 			bufferSize);
 
-		return new DistributedDataInputStream(fdis);
+		return new HadoopDataInputStream(fdis);
 	}
 
 	@Override
 	public FSDataInputStream open(final Path f) throws IOException {
 		final org.apache.hadoop.fs.FSDataInputStream fdis = fs.open(new org.apache.hadoop.fs.Path(f.toString()));
-		return new DistributedDataInputStream(fdis);
+		return new HadoopDataInputStream(fdis);
 	}
 
 	@Override
@@ -378,7 +386,7 @@ public final class DistributedFileSystem extends FileSystem {
 	{
 		final org.apache.hadoop.fs.FSDataOutputStream fdos = this.fs.create(
 			new org.apache.hadoop.fs.Path(f.toString()), overwrite, bufferSize, replication, blockSize);
-		return new DistributedDataOutputStream(fdos);
+		return new HadoopDataOutputStream(fdos);
 	}
 
 
@@ -386,7 +394,7 @@ public final class DistributedFileSystem extends FileSystem {
 	public FSDataOutputStream create(final Path f, final boolean overwrite) throws IOException {
 		final org.apache.hadoop.fs.FSDataOutputStream fsDataOutputStream = this.fs
 			.create(new org.apache.hadoop.fs.Path(f.toString()), overwrite);
-		return new DistributedDataOutputStream(fsDataOutputStream);
+		return new HadoopDataOutputStream(fsDataOutputStream);
 	}
 
 	@Override
@@ -401,7 +409,7 @@ public final class DistributedFileSystem extends FileSystem {
 
 		// Convert types
 		for (int i = 0; i < files.length; i++) {
-			files[i] = new DistributedFileStatus(hadoopFiles[i]);
+			files[i] = new HadoopFileStatus(hadoopFiles[i]);
 		}
 		
 		return files;
@@ -427,5 +435,24 @@ public final class DistributedFileSystem extends FileSystem {
 	@Override
 	public boolean isDistributedFS() {
 		return true;
+	}
+
+	@Override
+	public Class<?> getHadoopWrapperClassNameForFileSystem(String scheme) {
+		Configuration hadoopConf = getHadoopConfiguration();
+		Class<? extends org.apache.hadoop.fs.FileSystem> clazz =  null;
+		// We can activate this block once we drop Hadoop1 support (only hd2 has the getFileSystemClass-method)
+//		try {
+//			clazz = org.apache.hadoop.fs.FileSystem.getFileSystemClass(scheme, hadoopConf);
+//		} catch (IOException e) {
+//			LOG.info("Flink could not load the Hadoop File system implementation for scheme "+scheme);
+//			return null;
+//		}
+		clazz = hadoopConf.getClass("fs." + scheme + ".impl", null, org.apache.hadoop.fs.FileSystem.class);
+
+		if(clazz != null && LOG.isDebugEnabled()) {
+			LOG.debug("Flink supports "+scheme+" with the Hadoop file system wrapper, impl "+clazz);
+		}
+		return clazz;
 	}
 }

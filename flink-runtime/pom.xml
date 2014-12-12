@@ -70,6 +70,7 @@ under the License.
 			<version>1.8.1</version>
 		</dependency>
 
+
 		<dependency>
 			<groupId>io.netty</groupId>
 			<artifactId>netty-all</artifactId>
@@ -355,40 +356,6 @@ under the License.
 				<dependency>
 					<groupId>org.apache.hadoop</groupId>
 					<artifactId>hadoop-core</artifactId>
-					<exclusions>
-						<exclusion>
-							<groupId>asm</groupId>
-							<artifactId>asm</artifactId>
-						</exclusion>
-						<exclusion>
-							<groupId>tomcat</groupId>
-							<artifactId>jasper-compiler</artifactId>
-						</exclusion>
-						<exclusion>
-							<groupId>tomcat</groupId>
-							<artifactId>jasper-runtime</artifactId>
-						</exclusion>
-						<exclusion>
-							<groupId>org.mortbay.jetty</groupId>
-							<artifactId>jetty</artifactId>
-						</exclusion>
-						<exclusion>
-							<groupId>org.mortbay.jetty</groupId>
-							<artifactId>jsp-api-2.1</artifactId>
-						</exclusion>
-						<exclusion>
-							<groupId>org.mortbay.jetty</groupId>
-							<artifactId>jsp-2.1</artifactId>
-						</exclusion>
-						<exclusion>
-							<groupId>org.mortbay.jetty</groupId>
-							<artifactId>jetty-util</artifactId>
-						</exclusion>
-						<exclusion>
-							<groupId>org.eclipse.jdt</groupId>
-							<artifactId>core</artifactId>
-						</exclusion>
-					</exclusions>
 				</dependency>
 			</dependencies>
 		</profile>
@@ -404,86 +371,10 @@ under the License.
 				<dependency>
 					<groupId>org.apache.hadoop</groupId>
 					<artifactId>hadoop-common</artifactId>
-					<exclusions>
-						<exclusion>
-							<groupId>asm</groupId>
-							<artifactId>asm</artifactId>
-						</exclusion>
-						<exclusion>
-							<groupId>tomcat</groupId>
-								<artifactId>jasper-compiler</artifactId>
-						</exclusion>
-						<exclusion>
-							<groupId>tomcat</groupId>
-							<artifactId>jasper-runtime</artifactId>
-						</exclusion>
-						<exclusion>
-							<groupId>org.mortbay.jetty</groupId>
-							<artifactId>jetty</artifactId>
-						</exclusion>
-						<exclusion>
-							<groupId>org.mortbay.jetty</groupId>
-							<artifactId>jsp-api-2.1</artifactId>
-						</exclusion>
-						<exclusion>
-							<groupId>org.mortbay.jetty</groupId>
-							<artifactId>jsp-2.1</artifactId>
-						</exclusion>
-						<exclusion>
-							<groupId>org.mortbay.jetty</groupId>
-							<artifactId>jetty-util</artifactId>
-						</exclusion>
-						<exclusion>
-							<groupId>org.eclipse.jdt</groupId>
-							<artifactId>core</artifactId>
-						</exclusion>
-						<exclusion>
-							<groupId>javax.servlet</groupId>
-							<artifactId>servlet-api</artifactId>
-						</exclusion>
-					</exclusions>
 				</dependency>
 				<dependency>
 					<groupId>org.apache.hadoop</groupId>
 					<artifactId>hadoop-hdfs</artifactId>
-					<exclusions>
-						<exclusion>
-							<groupId>asm</groupId>
-							<artifactId>asm</artifactId>
-						</exclusion>
-						<exclusion>
-							<groupId>tomcat</groupId>
-								<artifactId>jasper-compiler</artifactId>
-						</exclusion>
-						<exclusion>
-							<groupId>tomcat</groupId>
-							<artifactId>jasper-runtime</artifactId>
-						</exclusion>
-						<exclusion>
-							<groupId>org.mortbay.jetty</groupId>
-							<artifactId>jetty</artifactId>
-						</exclusion>
-						<exclusion>
-							<groupId>org.mortbay.jetty</groupId>
-							<artifactId>jsp-api-2.1</artifactId>
-						</exclusion>
-						<exclusion>
-							<groupId>org.mortbay.jetty</groupId>
-							<artifactId>jsp-2.1</artifactId>
-						</exclusion>
-						<exclusion>
-							<groupId>org.mortbay.jetty</groupId>
-							<artifactId>jetty-util</artifactId>
-						</exclusion>
-						<exclusion>
-							<groupId>org.eclipse.jdt</groupId>
-							<artifactId>core</artifactId>
-						</exclusion>
-						<exclusion>
-							<groupId>javax.servlet</groupId>
-							<artifactId>servlet-api</artifactId>
-						</exclusion>
-					</exclusions>
 				</dependency>
 			</dependencies>
 		</profile>

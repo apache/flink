@@ -28,6 +28,7 @@ package org.apache.flink.core.fs;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.HashMap;
@@ -36,6 +37,8 @@ import java.util.Map;
 import org.apache.flink.util.ClassUtils;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * An abstract base class for a fairly generic file system. It
@@ -43,14 +46,17 @@ import org.apache.flink.util.StringUtils;
  * one that reflects the locally-connected disk.
  */
 public abstract class FileSystem {
+	private static final Logger LOG = LoggerFactory.getLogger(FileSystem.class);
 
 	private static final String LOCAL_FILESYSTEM_CLASS = "org.apache.flink.core.fs.local.LocalFileSystem";
 	
-	private static final String HADOOP_DISTRIBUTED_FILESYSTEM_CLASS = "org.apache.flink.runtime.fs.hdfs.DistributedFileSystem";
+	private static final String HADOOP_WRAPPER_FILESYSTEM_CLASS = "org.apache.flink.runtime.fs.hdfs.HadoopFileSystem";
 
 	private static final String MAPR_FILESYSTEM_CLASS = "org.apache.flink.runtime.fs.maprfs.MapRFileSystem";
 	
 	private static final String S3_FILESYSTEM_CLASS = "org.apache.flink.runtime.fs.s3.S3FileSystem";
+
+	private static final String HADOOP_WRAPPER_SCHEME = "hdwrapper";
 
 	
 	/** Object used to protect calls to specific methods.*/
@@ -148,7 +154,7 @@ public abstract class FileSystem {
 	private static final Map<String, String> FSDIRECTORY = new HashMap<String, String>();
 
 	static {
-		FSDIRECTORY.put("hdfs", HADOOP_DISTRIBUTED_FILESYSTEM_CLASS);
+		FSDIRECTORY.put("hdfs", HADOOP_WRAPPER_FILESYSTEM_CLASS);
 		FSDIRECTORY.put("maprfs", MAPR_FILESYSTEM_CLASS);
 		FSDIRECTORY.put("file", LOCAL_FILESYSTEM_CLASS);
 		FSDIRECTORY.put("s3", S3_FILESYSTEM_CLASS);
@@ -188,7 +194,6 @@ public abstract class FileSystem {
 	 *         thrown if a reference to the file system instance could not be obtained
 	 */
 	public static FileSystem get(URI uri) throws IOException {
-
 		FileSystem fs = null;
 
 		synchronized (SYNCHRONIZATION_OBJECT) {
@@ -222,36 +227,95 @@ public abstract class FileSystem {
 			}
 
 			// Try to create a new file system
+
 			if (!FSDIRECTORY.containsKey(uri.getScheme())) {
-				throw new IOException("No file system found with scheme " + uri.getScheme()
-						+ ", referenced in file URI '" + uri.toString() + "'.");
-			}
+				// no build in support for this file system. Falling back to Hadoop's FileSystem impl.
+				Class<?> wrapperClass = getHadoopWrapperClassNameForFileSystem(uri.getScheme());
+				if(wrapperClass != null) {
+					// hadoop has support for the FileSystem
+					FSKey wrappedKey = new FSKey(HADOOP_WRAPPER_SCHEME + "+" + uri.getScheme(), uri.getAuthority());
+					if (CACHE.containsKey(wrappedKey)) {
+						return CACHE.get(wrappedKey);
+					}
+					// cache didn't contain the file system. instantiate it:
 
-			Class<? extends FileSystem> fsClass;
-			try {
-				fsClass = ClassUtils.getFileSystemByName(FSDIRECTORY.get(uri.getScheme()));
-			} catch (ClassNotFoundException e1) {
-				throw new IOException(StringUtils.stringifyException(e1));
-			}
+					// by now we know that the HadoopFileSystem wrapper can wrap the file system.
+					fs = instantiateHadoopFileSystemWrapper(wrapperClass);
+					fs.initialize(uri);
+					System.out.println("Initializing new instance of wrapper for "+wrapperClass);
+					CACHE.put(wrappedKey, fs);
 
-			try {
-				fs = fsClass.newInstance();
-			}
-			catch (InstantiationException e) {
-				throw new IOException("Could not instantiate file system class: " + e.getMessage(), e);
-			}
-			catch (IllegalAccessException e) {
-				throw new IOException("Could not instantiate file system class: " + e.getMessage(), e);
-			}
+				} else {
+					// we can not read from this file system.
+					throw new IOException("No file system found with scheme " + uri.getScheme()
+							+ ", referenced in file URI '" + uri.toString() + "'.");
+				}
+			} else {
+				// we end up here if we have a file system with build-in flink support.
+				String fsClass = FSDIRECTORY.get(uri.getScheme());
+				if(fsClass.equals(HADOOP_WRAPPER_FILESYSTEM_CLASS)) {
+					fs = instantiateHadoopFileSystemWrapper(null);
+				} else {
+					fs = instantiateFileSystem(fsClass);
+				}
+				System.out.println("Initializing new instance of native class for "+fsClass);
+				// Initialize new file system object
+				fs.initialize(uri);
 
-			// Initialize new file system object
-			fs.initialize(uri);
-
-			// Add new file system object to cache
-			CACHE.put(key, fs);
+				// Add new file system object to cache
+				CACHE.put(key, fs);
+			}
 		}
 
 		return fs;
+	}
+
+	//Class must implement Hadoop FileSystem interface. The class is not avaiable in 'flink-core'.
+	private static FileSystem instantiateHadoopFileSystemWrapper(Class<?> wrappedFileSystem) throws IOException {
+		FileSystem fs = null;
+		Class<? extends FileSystem> fsClass;
+		try {
+			fsClass = ClassUtils.getFileSystemByName(HADOOP_WRAPPER_FILESYSTEM_CLASS);
+			Constructor<? extends FileSystem> fsClassCtor = fsClass.getConstructor(Class.class);
+			fs = fsClassCtor.newInstance(wrappedFileSystem);
+		} catch (Throwable e) {
+			throw new IOException("Error loading Hadoop FS wrapper", e);
+		}
+		return fs;
+	}
+
+	private static FileSystem instantiateFileSystem(String className) throws IOException {
+		FileSystem fs = null;
+		Class<? extends FileSystem> fsClass;
+		try {
+			fsClass = ClassUtils.getFileSystemByName(className);
+		} catch (ClassNotFoundException e1) {
+			throw new IOException(StringUtils.stringifyException(e1));
+		}
+
+		try {
+			fs = fsClass.newInstance();
+		}
+		catch (InstantiationException e) {
+			throw new IOException("Could not instantiate file system class: " + e.getMessage(), e);
+		}
+		catch (IllegalAccessException e) {
+			throw new IOException("Could not instantiate file system class: " + e.getMessage(), e);
+		}
+		return fs;
+	}
+
+	private static AbstractHadoopWrapper hadoopWrapper;
+
+	private static Class<?> getHadoopWrapperClassNameForFileSystem(String scheme) {
+		if(hadoopWrapper == null) {
+			try {
+				hadoopWrapper = (AbstractHadoopWrapper) instantiateHadoopFileSystemWrapper(null);
+			} catch (IOException e) {
+				throw new RuntimeException("Error creating new Hadoop wrapper", e);
+			}
+		}
+		return hadoopWrapper.getHadoopWrapperClassNameForFileSystem(scheme);
 	}
 
 	/**
