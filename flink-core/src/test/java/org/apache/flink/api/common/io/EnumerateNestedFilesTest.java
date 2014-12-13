@@ -187,6 +187,64 @@ public class EnumerateNestedFilesTest {
 		}
 	}
 
+	/**
+	 * Test with two nested directories and recursive.file.enumeration = true
+	 */
+	@Test
+	public void testTwoNestedDirectoriesWithFilteredFilesTrue() {
+
+		String sep = System.getProperty("file.separator");
+
+		try {
+			String firstLevelDir = TestFileUtils.randomFileName();
+			String secondLevelDir = TestFileUtils.randomFileName();
+			String thirdLevelDir = TestFileUtils.randomFileName();
+			String secondLevelFilterDir = "_"+TestFileUtils.randomFileName();
+			String thirdLevelFilterDir = "_"+TestFileUtils.randomFileName();
+
+			File nestedDir = new File(tempPath + sep + firstLevelDir);
+			nestedDir.mkdirs();
+			nestedDir.deleteOnExit();
+
+			File insideNestedDir = new File(tempPath + sep + firstLevelDir + sep + secondLevelDir);
+			insideNestedDir.mkdirs();
+			insideNestedDir.deleteOnExit();
+			File insideNestedDirFiltered = new File(tempPath + sep + firstLevelDir + sep + secondLevelFilterDir);
+			insideNestedDirFiltered.mkdirs();
+			insideNestedDirFiltered.deleteOnExit();
+			File filteredFile = new File(tempPath + sep + firstLevelDir + sep + "_IWillBeFiltered");
+			filteredFile.createNewFile();
+			filteredFile.deleteOnExit();
+
+			File nestedNestedDir = new File(tempPath + sep + firstLevelDir + sep + secondLevelDir + sep + thirdLevelDir);
+			nestedNestedDir.mkdirs();
+			nestedNestedDir.deleteOnExit();
+			File nestedNestedDirFiltered = new File(tempPath + sep + firstLevelDir + sep + secondLevelDir + sep + thirdLevelFilterDir);
+			nestedNestedDirFiltered.mkdirs();
+			nestedNestedDirFiltered.deleteOnExit();
+
+			// create a file in the first-level, two files in the second level and one in the third level
+			TestFileUtils.createTempFileInDirectory(nestedDir.getAbsolutePath(), "paella");
+			TestFileUtils.createTempFileInDirectory(insideNestedDir.getAbsolutePath(), "kalamari");
+			TestFileUtils.createTempFileInDirectory(insideNestedDir.getAbsolutePath(), "fideua");
+			TestFileUtils.createTempFileInDirectory(nestedNestedDir.getAbsolutePath(), "bravas");
+			// create files which are filtered
+			TestFileUtils.createTempFileInDirectory(insideNestedDirFiltered.getAbsolutePath(), "kalamari");
+			TestFileUtils.createTempFileInDirectory(insideNestedDirFiltered.getAbsolutePath(), "fideua");
+			TestFileUtils.createTempFileInDirectory(nestedNestedDirFiltered.getAbsolutePath(), "bravas");
+
+			this.format.setFilePath(new Path(nestedDir.toURI().toString()));
+			this.config.setBoolean("recursive.file.enumeration", true);
+			format.configure(this.config);
+
+			FileInputSplit[] splits = format.createInputSplits(1);
+			Assert.assertEquals(4, splits.length);
+		} catch (Exception ex) {
+			ex.printStackTrace();
+			Assert.fail(ex.getMessage());
+		}
+	}
+
 	@Test
 	public void testGetStatisticsOneFileInNestedDir() {
 		try {

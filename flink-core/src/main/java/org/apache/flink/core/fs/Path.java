@@ -316,8 +316,13 @@ public class Path implements IOReadableWritable, Serializable {
 	 */
 	public String getName() {
 		final String path = uri.getPath();
-		final int slash = path.lastIndexOf(SEPARATOR);
-		return path.substring(slash + 1);
+		if (path.endsWith(SEPARATOR)) {
+			final int slash = path.lastIndexOf(SEPARATOR, path.length() - SEPARATOR.length() - 1);
+			return path.substring(slash + 1, path.length() - SEPARATOR.length());
+		} else {
+			final int slash = path.lastIndexOf(SEPARATOR);
+			return path.substring(slash + 1);
+		}
 	}
 
 	/**

@@ -313,7 +313,7 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 		}
 		catch (Throwable t) {
 			if (LOG.isErrorEnabled()) {
-				LOG.error("Unexpected problen while getting the file statistics for file '" + this.filePath + "': "
+				LOG.error("Unexpected problem while getting the file statistics for file '" + this.filePath + "': "
 						+ t.getMessage(), t);
 			}
 		}
@@ -330,9 +330,6 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 		long latestModTime = file.getModificationTime();
 		long totalLength = 0;
 
-		if(!acceptFile(file)) {
-			throw new IOException("The given file does not pass the file-filter");
-		}
 		// enumerate all files and check their modification time stamp.
 		if (file.isDir()) {
 			FileStatus[] fss = fs.listStatus(filePath);
@@ -348,8 +345,8 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 					}
 				}
 				else {
-					if (enumerateNestedFiles) {
-						totalLength += addNestedFiles(s.getPath(), files, 0);
+					if (enumerateNestedFiles && acceptFile(s)) {
+						totalLength += addNestedFiles(s.getPath(), files, 0, false);
 					}
 				}
 			}
@@ -405,16 +402,19 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 		final FileSystem fs = path.getFileSystem();
 		final FileStatus pathFile = fs.getFileStatus(path);
 
-		if(!acceptFile(pathFile)) {
-			throw new IOException("The given file does not pass the file-filter");
-		}
 		if (pathFile.isDir()) {
 			// input is directory. list all contained files
 			final FileStatus[] dir = fs.listStatus(path);
 			for (int i = 0; i < dir.length; i++) {
 				if (dir[i].isDir()) {
 					if (enumerateNestedFiles) {
-						totalLength += addNestedFiles(dir[i].getPath(), files, 0);
+						if(acceptFile(dir[i])) {
+							totalLength += addNestedFiles(dir[i].getPath(), files, 0, true);
+						} else {
+							if (LOG.isDebugEnabled()) {
+								LOG.debug("Directory "+dir[i].getPath().toString()+" did not pass the file-filter and is excluded.");
+							}
+						}
 					}
 				}
 				else {
@@ -423,6 +423,10 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 						totalLength += dir[i].getLen();
 						// as soon as there is one deflate file in a directory, we can not split it
 						testForUnsplittable(dir[i]);
+					} else {
+						if (LOG.isDebugEnabled()) {
+							LOG.debug("File "+dir[i].getPath().toString()+" did not pass the file-filter and is excluded.");
+						}
 					}
 				}
 			}
@@ -533,19 +537,29 @@ public abstract class FileInputFormat<OT> implements InputFormat<OT, FileInputSp
 	 * and enumerate all accepted nested files.
 	 * @return the total length of accepted files.
 	 */
-	private long addNestedFiles(Path path, List<FileStatus> files, long length)
+	private long addNestedFiles(Path path, List<FileStatus> files, long length, boolean logExcludedFiles)
 			throws IOException {
 		final FileSystem fs = path.getFileSystem();
 
 		for(FileStatus dir: fs.listStatus(path)) {
 			if (dir.isDir()) {
-				addNestedFiles(dir.getPath(), files, length);
+				if (acceptFile(dir)) {
+					addNestedFiles(dir.getPath(), files, length, logExcludedFiles);
+				} else {
+					if (logExcludedFiles && LOG.isDebugEnabled()) {
+						LOG.debug("Directory "+dir.getPath().toString()+" did not pass the file-filter and is excluded.");
+					}
+				}
 			}
 			else {
 				if(acceptFile(dir)) {
 					files.add(dir);
 					length += dir.getLen();
 					testForUnsplittable(dir);
+				} else {
+					if (logExcludedFiles && LOG.isDebugEnabled()) {
+						LOG.debug("Directory "+dir.getPath().toString()+" did not pass the file-filter and is excluded.");
+					}
 				}
 			}
 		}
