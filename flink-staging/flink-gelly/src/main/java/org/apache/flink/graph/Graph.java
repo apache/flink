@@ -49,6 +49,12 @@ import org.apache.flink.spargel.java.VertexUpdateFunction;
 import org.apache.flink.util.Collector;
 import org.apache.flink.types.NullValue;
 
+import flink.graphs.utils.EdgeToTuple3Map;
+import flink.graphs.utils.GraphUtils;
+import flink.graphs.utils.Tuple2ToVertexMap;
+import flink.graphs.utils.VertexToTuple2Map;
+import flink.graphs.validation.GraphValidator;
+
 @SuppressWarnings("serial")
 public class Graph<K extends Comparable<K> & Serializable, VV extends Serializable,
 	EV extends Serializable> implements Serializable {

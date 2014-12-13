@@ -1,9 +1,11 @@
-package flink.graphs;
+package flink.graphs.utils;
 
 import java.io.Serializable;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple3;
+
+import flink.graphs.Edge;
 
 public class EdgeToTuple3Map<K extends Comparable<K> & Serializable, 
 	EV extends Serializable> implements MapFunction<Edge<K, EV>, Tuple3<K, K, EV>> {

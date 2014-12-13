@@ -1,6 +1,9 @@
-package flink.graphs;
+package flink.graphs.validation;
 import java.io.Serializable;
+
 import org.apache.flink.api.java.DataSet;
+
+import flink.graphs.Graph;
 
 /**
  * A validation method for different types of Graphs
