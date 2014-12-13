@@ -21,6 +21,7 @@ package flink.graphs;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 
 import org.apache.flink.api.common.functions.CoGroupFunction;
@@ -330,43 +331,110 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	}
 	
 	/**
-	 * Utility function that allows each vertex of the graph
-	 * to access its out-edges
-	 * @param edgesFunction the function to apply to the neighborhood
+	 * Compute an aggregate over the edges of each vertex.
+	 * @param edgesFunction edgesFunction the function to apply to the neighborhood
+	 * @param direction the edge direction (in-, out-, all-)
 	 * @return a dataset of a Tuple2 with the vertex id and the computed value
+	 * @throws IllegalArgumentException
 	 */
-	public <T> DataSet<Tuple2<K, T>> foreachEdge(OutEdgesFunction<K, VV, EV, T> edgesFunction) {
-		return vertices.coGroup(edges).where(0).equalTo(0).with(
-				new ApplyCoGroupFunction<K, VV, EV, T>(edgesFunction));
+	public <T> DataSet<Tuple2<K, T>> reduceOnEdges(EdgesFunction<K, VV, EV, T> edgesFunction,
+			EdgeDirection direction) throws IllegalArgumentException {
+		switch (direction) {
+		case IN:
+			return vertices.coGroup(edges).where(0).equalTo(1).with(
+					new ApplyCoGroupFunction<K, VV, EV, T>(edgesFunction));
+		case OUT:
+			return vertices.coGroup(edges).where(0).equalTo(0).with(
+					new ApplyCoGroupFunction<K, VV, EV, T>(edgesFunction));
+		case ALL:
+			return vertices.coGroup(edges.flatMap(new EmitOneEdgePerNode<K, VV, EV>()))
+					.where(0).equalTo(0)
+					.with(new ApplyCoGroupFunctionOnAllEdges<K, VV, EV, T>(edgesFunction));
+		default:
+			throw new IllegalArgumentException("Illegal edge direction");
+		}
 	}
 
-	/**
-	 * 
-	 * @param <K>
-	 * @param <VV>
-	 * @param <EV>
-	 * @param <T>
-	 */
+	private static final class EmitOneEdgePerNode<K extends Comparable<K> & Serializable, 
+		VV extends Serializable, EV extends Serializable> implements FlatMapFunction<
+		Edge<K, EV>, Tuple2<K, Edge<K, EV>>> {
+		public void flatMap(Edge<K, EV> edge, Collector<Tuple2<K, Edge<K, EV>>> out) {
+			out.collect(new Tuple2<K, Edge<K, EV>>(edge.getSource(), edge));
+			out.collect(new Tuple2<K, Edge<K, EV>>(edge.getTarget(), edge));
+		}
+	}
+
 	private static final class ApplyCoGroupFunction<K extends Comparable<K> & Serializable, 
 		VV extends Serializable, EV extends Serializable, T> 
 		implements CoGroupFunction<Vertex<K, VV>, Edge<K, EV>, Tuple2<K, T>>,
 		ResultTypeQueryable<Tuple2<K, T>> {
 		
-		private OutEdgesFunction<K, VV, EV, T> function;
+		private EdgesFunction<K, VV, EV, T> function;
 		
-		public ApplyCoGroupFunction (OutEdgesFunction<K, VV, EV, T> fun) {
+		public ApplyCoGroupFunction (EdgesFunction<K, VV, EV, T> fun) {
 			this.function = fun;
 		}
 		public void coGroup(Iterable<Vertex<K, VV>> vertex,
-				Iterable<Edge<K, EV>> outEdges, Collector<Tuple2<K, T>> out) throws Exception {
-			out.collect(function.iterateOutEdges(vertex.iterator().next(), outEdges));
+				Iterable<Edge<K, EV>> edges, Collector<Tuple2<K, T>> out) throws Exception {
+			out.collect(function.iterateEdges(vertex.iterator().next(), edges));
 		}
 		@Override
 		public TypeInformation<Tuple2<K, T>> getProducedType() {
 			return new TupleTypeInfo<Tuple2<K, T>>(keyType, 
-					TypeExtractor.createTypeInfo(OutEdgesFunction.class, function.getClass(), 3, null, null));
+					TypeExtractor.createTypeInfo(EdgesFunction.class, function.getClass(), 3, null, null));
 		}
 	}
+
+	private static final class ApplyCoGroupFunctionOnAllEdges<K extends Comparable<K> & Serializable, 
+		VV extends Serializable, EV extends Serializable, T> 
+		implements CoGroupFunction<Vertex<K, VV>, Tuple2<K, Edge<K, EV>>, Tuple2<K, T>>,
+		ResultTypeQueryable<Tuple2<K, T>> {
+
+	private EdgesFunction<K, VV, EV, T> function;
+
+	public ApplyCoGroupFunctionOnAllEdges (EdgesFunction<K, VV, EV, T> fun) {
+		this.function = fun;
+	}
+
+	public void coGroup(Iterable<Vertex<K, VV>> vertex,
+			final Iterable<Tuple2<K, Edge<K, EV>>> keysWithEdges, Collector<Tuple2<K, T>> out) 
+					throws Exception {
+
+		final Iterator<Edge<K, EV>> edgesIterator = new Iterator<Edge<K,EV>>() {
+
+			final Iterator<Tuple2<K, Edge<K, EV>>> keysWithEdgesIterator = keysWithEdges.iterator();
+
+			@Override
+			public boolean hasNext() {
+				return keysWithEdgesIterator.hasNext();
+			}
+
+			@Override
+			public Edge<K, EV> next() {
+				return keysWithEdgesIterator.next().f1;
+			}
+
+			@Override
+			public void remove() {
+				keysWithEdgesIterator.remove();
+			}			
+		};
+		
+		Iterable<Edge<K, EV>> edgesIterable = new Iterable<Edge<K,EV>>() {
+			public Iterator<Edge<K, EV>> iterator() {
+				return edgesIterator;
+			}
+		};
+
+		out.collect(function.iterateEdges(vertex.iterator().next(), edgesIterable));
+	}
+
+	@Override
+	public TypeInformation<Tuple2<K, T>> getProducedType() {
+		return new TupleTypeInfo<Tuple2<K, T>>(keyType, 
+				TypeExtractor.createTypeInfo(EdgesFunction.class, function.getClass(), 3, null, null));
+	}
+}
 
 	@ConstantFields("0->1;1->0;2->2")
 	private static final class ReverseEdgesMap<K extends Comparable<K> & Serializable, 
