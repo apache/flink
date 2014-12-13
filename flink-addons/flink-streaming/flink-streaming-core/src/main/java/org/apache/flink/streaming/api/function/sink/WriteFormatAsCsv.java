@@ -25,7 +25,7 @@ import java.util.ArrayList;
 
 /**
  * Writes tuples in csv format.
- *
+ * 
  * @param <IN>
  *            Input tuple type
  */
@@ -37,8 +37,8 @@ public class WriteFormatAsCsv<IN> extends WriteFormat<IN> {
 		try {
 			PrintWriter outStream = new PrintWriter(new BufferedWriter(new FileWriter(path, true)));
 			for (IN tupleToWrite : tupleList) {
-				outStream.println(tupleToWrite.toString().substring(1,
-						tupleToWrite.toString().length() - 1));
+				String strTuple = tupleToWrite.toString();
+				outStream.println(strTuple.substring(1, strTuple.length() - 1));
 			}
 			outStream.close();
 		} catch (IOException e) {

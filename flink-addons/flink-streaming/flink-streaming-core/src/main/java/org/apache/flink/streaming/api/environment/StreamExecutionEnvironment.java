@@ -212,7 +212,8 @@ public abstract class StreamExecutionEnvironment {
 	/**
 	 * Creates a DataStream that represents the Strings produced by reading the
 	 * given file line wise multiple times(infinite). The file will be read with
-	 * the system's default character set.
+	 * the system's default character set. This functionality can be used for
+	 * testing a topology.
 	 * 
 	 * @param filePath
 	 *            The path of the file, as a URI (e.g.,
@@ -350,8 +351,17 @@ public abstract class StreamExecutionEnvironment {
 		return addSource(new GenSequenceFunction(from, to));
 	}
 
+	private DataStreamSource<String> addFileSource(InputFormat<String, ?> inputFormat,
+			TypeInformation<String> typeInfo) {
+		FileSourceFunction function = new FileSourceFunction(inputFormat, typeInfo);
+		DataStreamSource<String> returnStream = addSource(function);
+		jobGraphBuilder.setInputFormat(returnStream.getId(), inputFormat);
+		return returnStream;
+	}
+
 	/**
-	 * Ads a data source thus opening a {@link DataStream}.
+	 * Create a DataStream using a user defined source function for arbitrary
+	 * source functionality.
 	 * 
 	 * @param function
 	 *            the user defined function
@@ -371,11 +381,27 @@ public abstract class StreamExecutionEnvironment {
 		return returnStream;
 	}
 
-	private DataStreamSource<String> addFileSource(InputFormat<String, ?> inputFormat,
-			TypeInformation<String> typeInfo) {
-		FileSourceFunction function = new FileSourceFunction(inputFormat, typeInfo);
-		DataStreamSource<String> returnStream = addSource(function);
-		jobGraphBuilder.setInputFormat(returnStream.getId(), inputFormat);
+	/**
+	 * Ads a data source with a custom type information thus opening a
+	 * {@link DataStream}. Only in very special cases does the user need to
+	 * support type information. Otherwise use
+	 * {@link #addSource(SourceFunction)}
+	 * 
+	 * @param function
+	 *            the user defined function
+	 * @param outTypeInfo
+	 *            the user defined type information for the stream
+	 * @param <OUT>
+	 *            type of the returned stream
+	 * @return the data stream constructed
+	 */
+	public <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function,
+			TypeInformation<OUT> outTypeInfo) {
+
+		DataStreamSource<OUT> returnStream = new DataStreamSource<OUT>(this, "source", outTypeInfo);
+
+		jobGraphBuilder.addStreamVertex(returnStream.getId(), new SourceInvokable<OUT>(function),
+				null, outTypeInfo, "source", 1);
 
 		return returnStream;
 	}
