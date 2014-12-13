@@ -3,6 +3,7 @@ package flink.graphs.library;
 
 import flink.graphs.Graph;
 import flink.graphs.GraphAlgorithm;
+
 import org.apache.flink.spargel.java.MessageIterator;
 import org.apache.flink.spargel.java.MessagingFunction;
 import org.apache.flink.spargel.java.OutgoingEdge;
@@ -36,7 +37,8 @@ public class PageRank<K extends Comparable<K> & Serializable> implements GraphAl
      * Function that updates the rank of a vertex by summing up the partial ranks from all incoming messages
      * and then applying the dampening formula.
      */
-    public static final class VertexRankUpdater<K extends Comparable<K> & Serializable> extends VertexUpdateFunction<K, Double, Double> {
+    @SuppressWarnings("serial")
+	public static final class VertexRankUpdater<K extends Comparable<K> & Serializable> extends VertexUpdateFunction<K, Double, Double> {
 
         private final long numVertices;
         private final double beta;
@@ -63,7 +65,8 @@ public class PageRank<K extends Comparable<K> & Serializable> implements GraphAl
      * Distributes the rank of a vertex among all target vertices according to the transition probability,
      * which is associated with an edge as the edge value.
      */
-    public static final class RankMessenger<K extends Comparable<K> & Serializable> extends MessagingFunction<K, Double, Double, Double> {
+    @SuppressWarnings("serial")
+	public static final class RankMessenger<K extends Comparable<K> & Serializable> extends MessagingFunction<K, Double, Double, Double> {
 
         @Override
         public void sendMessages(K vertexId, Double newRank) {

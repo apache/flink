@@ -1,4 +1,4 @@
-package flink.graphs;
+package flink.graphs.validation;
 
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
@@ -7,6 +7,11 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.util.Collector;
+
+import flink.graphs.Edge;
+import flink.graphs.Graph;
+import flink.graphs.Vertex;
+import flink.graphs.utils.GraphUtils;
 
 import java.io.Serializable;
 
