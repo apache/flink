@@ -44,9 +44,9 @@ import org.apache.flink.streaming.api.function.aggregation.ComparableAggregator;
 import org.apache.flink.streaming.api.function.aggregation.SumAggregator;
 import org.apache.flink.streaming.api.function.sink.PrintSinkFunction;
 import org.apache.flink.streaming.api.function.sink.SinkFunction;
+import org.apache.flink.streaming.api.function.sink.WriteFormat;
 import org.apache.flink.streaming.api.function.sink.WriteFormatAsCsv;
 import org.apache.flink.streaming.api.function.sink.WriteFormatAsText;
-import org.apache.flink.streaming.api.function.sink.WriteSinkFunctionByBatches;
 import org.apache.flink.streaming.api.function.sink.WriteSinkFunctionByMillis;
 import org.apache.flink.streaming.api.invokable.SinkInvokable;
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
@@ -275,7 +275,9 @@ public class DataStream<OUT> {
 
 	/**
 	 * Sets the partitioning of the {@link DataStream} so that the output is
-	 * partitioned by the selected fields.
+	 * partitioned by the selected fields. This setting only effects the how the
+	 * outputs will be distributed between the parallel instances of the next
+	 * processing operator.
 	 * 
 	 * @param fields
 	 *            The fields to partition by.
@@ -289,7 +291,9 @@ public class DataStream<OUT> {
 
 	/**
 	 * Sets the partitioning of the {@link DataStream} so that the output is
-	 * partitioned by the given field expressions.
+	 * partitioned by the given field expressions. This setting only effects the
+	 * how the outputs will be distributed between the parallel instances of the
+	 * next processing operator.
 	 * 
 	 * @param fields
 	 *            The fields expressions to partition by.
@@ -303,7 +307,9 @@ public class DataStream<OUT> {
 
 	/**
 	 * Sets the partitioning of the {@link DataStream} so that the output is
-	 * partitioned using the given {@link KeySelector}.
+	 * partitioned using the given {@link KeySelector}. This setting only
+	 * effects the how the outputs will be distributed between the parallel
+	 * instances of the next processing operator.
 	 * 
 	 * @param keySelector
 	 * @return
@@ -314,7 +320,9 @@ public class DataStream<OUT> {
 
 	/**
 	 * Sets the partitioning of the {@link DataStream} so that the output tuples
-	 * are broadcasted to every parallel instance of the next component.
+	 * are broadcasted to every parallel instance of the next component. This
+	 * setting only effects the how the outputs will be distributed between the
+	 * parallel instances of the next processing operator.
 	 * 
 	 * @return The DataStream with broadcast partitioning set.
 	 */
@@ -324,7 +332,9 @@ public class DataStream<OUT> {
 
 	/**
 	 * Sets the partitioning of the {@link DataStream} so that the output tuples
-	 * are shuffled to the next component.
+	 * are shuffled to the next component. This setting only effects the how the
+	 * outputs will be distributed between the parallel instances of the next
+	 * processing operator.
 	 * 
 	 * @return The DataStream with shuffle partitioning set.
 	 */
@@ -334,8 +344,10 @@ public class DataStream<OUT> {
 
 	/**
 	 * Sets the partitioning of the {@link DataStream} so that the output tuples
-	 * are forwarded to the local subtask of the next component. This is the
-	 * default partitioner setting.
+	 * are forwarded to the local subtask of the next component (whenever
+	 * possible). This is the default partitioner setting. This setting only
+	 * effects the how the outputs will be distributed between the parallel
+	 * instances of the next processing operator.
 	 * 
 	 * @return The DataStream with shuffle partitioning set.
 	 */
@@ -345,7 +357,9 @@ public class DataStream<OUT> {
 
 	/**
 	 * Sets the partitioning of the {@link DataStream} so that the output tuples
-	 * are distributed evenly to the next component.
+	 * are distributed evenly to the next component.This setting only effects
+	 * the how the outputs will be distributed between the parallel instances of
+	 * the next processing operator.
 	 * 
 	 * @return The DataStream with shuffle partitioning set.
 	 */
@@ -547,9 +561,9 @@ public class DataStream<OUT> {
 	}
 
 	/**
-	 * Applies an aggregation that that gives the sum of the pojo data stream at
-	 * the given field expression. A field expression is either the name of a
-	 * public field or a getter method with parentheses of the
+	 * Applies an aggregation that that gives the current sum of the pojo data
+	 * stream at the given field expression. A field expression is either the
+	 * name of a public field or a getter method with parentheses of the
 	 * {@link DataStream}S underlying type. A dot can be used to drill down into
 	 * objects, as in {@code "field1.getInnerField2()" }.
 	 * 
@@ -563,8 +577,8 @@ public class DataStream<OUT> {
 	}
 
 	/**
-	 * Applies an aggregation that that gives the minimum of the data stream at
-	 * the given position.
+	 * Applies an aggregation that that gives the current minimum of the data
+	 * stream at the given position.
 	 * 
 	 * @param positionToMin
 	 *            The position in the data point to minimize
@@ -577,9 +591,9 @@ public class DataStream<OUT> {
 	}
 
 	/**
-	 * Applies an aggregation that that gives the minimum of the pojo data
-	 * stream at the given field expression. A field expression is either the
-	 * name of a public field or a getter method with parentheses of the
+	 * Applies an aggregation that that gives the current minimum of the pojo
+	 * data stream at the given field expression. A field expression is either
+	 * the name of a public field or a getter method with parentheses of the
 	 * {@link DataStream}S underlying type. A dot can be used to drill down into
 	 * objects, as in {@code "field1.getInnerField2()" }.
 	 * 
@@ -594,8 +608,8 @@ public class DataStream<OUT> {
 	}
 
 	/**
-	 * Applies an aggregation that gives the maximum of the data stream at the
-	 * given position.
+	 * Applies an aggregation that gives the current maximum of the data stream
+	 * at the given position.
 	 * 
 	 * @param positionToMax
 	 *            The position in the data point to maximize
@@ -608,9 +622,9 @@ public class DataStream<OUT> {
 	}
 
 	/**
-	 * Applies an aggregation that that gives the maximum of the pojo data
-	 * stream at the given field expression. A field expression is either the
-	 * name of a public field or a getter method with parentheses of the
+	 * Applies an aggregation that that gives the current maximum of the pojo
+	 * data stream at the given field expression. A field expression is either
+	 * the name of a public field or a getter method with parentheses of the
 	 * {@link DataStream}S underlying type. A dot can be used to drill down into
 	 * objects, as in {@code "field1.getInnerField2()" }.
 	 * 
@@ -625,11 +639,11 @@ public class DataStream<OUT> {
 	}
 
 	/**
-	 * Applies an aggregation that that gives the minimum element of the pojo
-	 * data stream by the given field expression. A field expression is either
-	 * the name of a public field or a getter method with parentheses of the
-	 * {@link DataStream}S underlying type. A dot can be used to drill down into
-	 * objects, as in {@code "field1.getInnerField2()" }.
+	 * Applies an aggregation that that gives the current minimum element of the
+	 * pojo data stream by the given field expression. A field expression is
+	 * either the name of a public field or a getter method with parentheses of
+	 * the {@link DataStream}S underlying type. A dot can be used to drill down
+	 * into objects, as in {@code "field1.getInnerField2()" }.
 	 * 
 	 * @param field
 	 *            The field expression based on which the aggregation will be
@@ -645,11 +659,11 @@ public class DataStream<OUT> {
 	}
 
 	/**
-	 * Applies an aggregation that that gives the maximum element of the pojo
-	 * data stream by the given field expression. A field expression is either
-	 * the name of a public field or a getter method with parentheses of the
-	 * {@link DataStream}S underlying type. A dot can be used to drill down into
-	 * objects, as in {@code "field1.getInnerField2()" }.
+	 * Applies an aggregation that that gives the current maximum element of the
+	 * pojo data stream by the given field expression. A field expression is
+	 * either the name of a public field or a getter method with parentheses of
+	 * the {@link DataStream}S underlying type. A dot can be used to drill down
+	 * into objects, as in {@code "field1.getInnerField2()" }.
 	 * 
 	 * @param field
 	 *            The field expression based on which the aggregation will be
@@ -677,7 +691,7 @@ public class DataStream<OUT> {
 	public SingleOutputStreamOperator<OUT, ?> minBy(int positionToMinBy) {
 		return this.minBy(positionToMinBy, true);
 	}
-	
+
 	/**
 	 * Applies an aggregation that that gives the current element with the
 	 * minimum value at the given position, if more elements have the minimum
@@ -724,7 +738,7 @@ public class DataStream<OUT> {
 	public SingleOutputStreamOperator<OUT, ?> maxBy(int positionToMaxBy) {
 		return this.maxBy(positionToMaxBy, true);
 	}
-	
+
 	/**
 	 * Applies an aggregation that that gives the current element with the
 	 * maximum value at the given position, if more elements have the maximum
@@ -759,7 +773,8 @@ public class DataStream<OUT> {
 	}
 
 	/**
-	 * Applies an aggregation that gives the count of the values.
+	 * Creates a new DataStream containing the current number (count) of
+	 * received records.
 	 * 
 	 * @return The transformed DataStream.
 	 */
@@ -826,9 +841,8 @@ public class DataStream<OUT> {
 	 * @return The closed DataStream.
 	 */
 	public DataStreamSink<OUT> print() {
-		DataStream<OUT> inputStream = this.copy();
 		PrintSinkFunction<OUT> printFunction = new PrintSinkFunction<OUT>();
-		DataStreamSink<OUT> returnStream = addSink(inputStream, printFunction, getType());
+		DataStreamSink<OUT> returnStream = addSink(printFunction);
 
 		return returnStream;
 	}
@@ -841,25 +855,10 @@ public class DataStream<OUT> {
 	 * @return The closed DataStream.
 	 */
 	public DataStreamSink<OUT> printToErr() {
-		DataStream<OUT> inputStream = this.copy();
 		PrintSinkFunction<OUT> printFunction = new PrintSinkFunction<OUT>(true);
-		DataStreamSink<OUT> returnStream = addSink(inputStream, printFunction, getType());
+		DataStreamSink<OUT> returnStream = addSink(printFunction);
 
 		return returnStream;
-	}
-
-	/**
-	 * Writes a DataStream to the file specified by path in text format. For
-	 * every element of the DataStream the result of {@link Object#toString()}
-	 * is written.
-	 * 
-	 * @param path
-	 *            is the path to the location where the tuples are written
-	 * 
-	 * @return The closed DataStream
-	 */
-	public DataStreamSink<OUT> writeAsText(String path) {
-		return writeAsText(this, path, new WriteFormatAsText<OUT>(), 1, null);
 	}
 
 	/**
@@ -876,122 +875,7 @@ public class DataStream<OUT> {
 	 * @return The closed DataStream
 	 */
 	public DataStreamSink<OUT> writeAsText(String path, long millis) {
-		return writeAsText(this, path, new WriteFormatAsText<OUT>(), millis, null);
-	}
-
-	/**
-	 * Writes a DataStream to the file specified by path in text format. The
-	 * writing is performed periodically in equally sized batches. For every
-	 * element of the DataStream the result of {@link Object#toString()} is
-	 * written.
-	 * 
-	 * @param path
-	 *            is the path to the location where the tuples are written
-	 * @param batchSize
-	 *            is the size of the batches, i.e. the number of tuples written
-	 *            to the file at a time
-	 * 
-	 * @return The closed DataStream
-	 */
-	public DataStreamSink<OUT> writeAsText(String path, int batchSize) {
-		return writeAsText(this, path, new WriteFormatAsText<OUT>(), batchSize, null);
-	}
-
-	/**
-	 * Writes a DataStream to the file specified by path in text format. The
-	 * writing is performed periodically, in every millis milliseconds. For
-	 * every element of the DataStream the result of {@link Object#toString()}
-	 * is written.
-	 * 
-	 * @param path
-	 *            is the path to the location where the tuples are written
-	 * @param millis
-	 *            is the file update frequency
-	 * @param endTuple
-	 *            is a special tuple indicating the end of the stream. If an
-	 *            endTuple is caught, the last pending batch of tuples will be
-	 *            immediately appended to the target file regardless of the
-	 *            system time.
-	 * 
-	 * @return The closed DataStream
-	 */
-	public DataStreamSink<OUT> writeAsText(String path, long millis, OUT endTuple) {
-		return writeAsText(this, path, new WriteFormatAsText<OUT>(), millis, endTuple);
-	}
-
-	/**
-	 * Writes a DataStream to the file specified by path in text format. The
-	 * writing is performed periodically in equally sized batches. For every
-	 * element of the DataStream the result of {@link Object#toString()} is
-	 * written.
-	 * 
-	 * @param path
-	 *            is the path to the location where the tuples are written
-	 * @param batchSize
-	 *            is the size of the batches, i.e. the number of tuples written
-	 *            to the file at a time
-	 * @param endTuple
-	 *            is a special tuple indicating the end of the stream. If an
-	 *            endTuple is caught, the last pending batch of tuples will be
-	 *            immediately appended to the target file regardless of the
-	 *            batchSize.
-	 * 
-	 * @return The closed DataStream
-	 */
-	public DataStreamSink<OUT> writeAsText(String path, int batchSize, OUT endTuple) {
-		return writeAsText(this, path, new WriteFormatAsText<OUT>(), batchSize, endTuple);
-	}
-
-	/**
-	 * Writes a DataStream to the file specified by path in text format. The
-	 * writing is performed periodically, in every millis milliseconds. For
-	 * every element of the DataStream the result of {@link Object#toString()}
-	 * is written.
-	 * 
-	 * @param path
-	 *            is the path to the location where the tuples are written
-	 * @param millis
-	 *            is the file update frequency
-	 * @param endTuple
-	 *            is a special tuple indicating the end of the stream. If an
-	 *            endTuple is caught, the last pending batch of tuples will be
-	 *            immediately appended to the target file regardless of the
-	 *            system time.
-	 * 
-	 * @return the data stream constructed
-	 */
-	private DataStreamSink<OUT> writeAsText(DataStream<OUT> inputStream, String path,
-			WriteFormatAsText<OUT> format, long millis, OUT endTuple) {
-		DataStreamSink<OUT> returnStream = addSink(inputStream, new WriteSinkFunctionByMillis<OUT>(
-				path, format, millis, endTuple), inputStream.typeInfo);
-		return returnStream;
-	}
-
-	/**
-	 * Writes a DataStream to the file specified by path in text format. The
-	 * writing is performed periodically in equally sized batches. For every
-	 * element of the DataStream the result of {@link Object#toString()} is
-	 * written.
-	 * 
-	 * @param path
-	 *            is the path to the location where the tuples are written
-	 * @param batchSize
-	 *            is the size of the batches, i.e. the number of tuples written
-	 *            to the file at a time
-	 * @param endTuple
-	 *            is a special tuple indicating the end of the stream. If an
-	 *            endTuple is caught, the last pending batch of tuples will be
-	 *            immediately appended to the target file regardless of the
-	 *            batchSize.
-	 * 
-	 * @return the data stream constructed
-	 */
-	private DataStreamSink<OUT> writeAsText(DataStream<OUT> inputStream, String path,
-			WriteFormatAsText<OUT> format, int batchSize, OUT endTuple) {
-		DataStreamSink<OUT> returnStream = addSink(inputStream,
-				new WriteSinkFunctionByBatches<OUT>(path, format, batchSize, endTuple),
-				inputStream.typeInfo);
-		return returnStream;
+		return writeAsText(path, new WriteFormatAsText<OUT>(), millis);
 	}
 
 	/**
@@ -1004,8 +888,8 @@ public class DataStream<OUT> {
 	 * 
 	 * @return The closed DataStream
 	 */
-	public DataStreamSink<OUT> writeAsCsv(String path) {
-		return writeAsCsv(this, path, new WriteFormatAsCsv<OUT>(), 1, null);
+	public DataStreamSink<OUT> writeAsText(String path) {
+		return writeAsText(path, 0);
 	}
 
 	/**
@@ -1022,25 +906,24 @@ public class DataStream<OUT> {
 	 * @return The closed DataStream
 	 */
 	public DataStreamSink<OUT> writeAsCsv(String path, long millis) {
-		return writeAsCsv(this, path, new WriteFormatAsCsv<OUT>(), millis, null);
+		if (!getType().isTupleType()) {
+			throw new RuntimeException("Only tuple data streams can be written in csv format");
+		}
+		return writeAsText(path, new WriteFormatAsCsv<OUT>(), millis);
 	}
 
 	/**
-	 * Writes a DataStream to the file specified by path in text format. The
-	 * writing is performed periodically in equally sized batches. For every
-	 * element of the DataStream the result of {@link Object#toString()} is
-	 * written.
+	 * Writes a DataStream to the file specified by path in text format. For
+	 * every element of the DataStream the result of {@link Object#toString()}
+	 * is written.
 	 * 
 	 * @param path
 	 *            is the path to the location where the tuples are written
-	 * @param batchSize
-	 *            is the size of the batches, i.e. the number of tuples written
-	 *            to the file at a time
 	 * 
 	 * @return The closed DataStream
 	 */
-	public DataStreamSink<OUT> writeAsCsv(String path, int batchSize) {
-		return writeAsCsv(this, path, new WriteFormatAsCsv<OUT>(), batchSize, null);
+	public DataStreamSink<OUT> writeAsCsv(String path) {
+		return writeAsCsv(path, 0);
 	}
 
 	/**
@@ -1053,90 +936,12 @@ public class DataStream<OUT> {
 	 *            is the path to the location where the tuples are written
 	 * @param millis
 	 *            is the file update frequency
-	 * @param endTuple
-	 *            is a special tuple indicating the end of the stream. If an
-	 *            endTuple is caught, the last pending batch of tuples will be
-	 *            immediately appended to the target file regardless of the
-	 *            system time.
-	 * 
-	 * @return The closed DataStream
-	 */
-	public DataStreamSink<OUT> writeAsCsv(String path, long millis, OUT endTuple) {
-		return writeAsCsv(this, path, new WriteFormatAsCsv<OUT>(), millis, endTuple);
-	}
-
-	/**
-	 * Writes a DataStream to the file specified by path in text format. The
-	 * writing is performed periodically in equally sized batches. For every
-	 * element of the DataStream the result of {@link Object#toString()} is
-	 * written.
-	 * 
-	 * @param path
-	 *            is the path to the location where the tuples are written
-	 * @param batchSize
-	 *            is the size of the batches, i.e. the number of tuples written
-	 *            to the file at a time
-	 * @param endTuple
-	 *            is a special tuple indicating the end of the stream. If an
-	 *            endTuple is caught, the last pending batch of tuples will be
-	 *            immediately appended to the target file regardless of the
-	 *            batchSize.
-	 * 
-	 * @return The closed DataStream
-	 */
-	public DataStreamSink<OUT> writeAsCsv(String path, int batchSize, OUT endTuple) {
-		return writeAsCsv(this, path, new WriteFormatAsCsv<OUT>(), batchSize, endTuple);
-	}
-
-	/**
-	 * Writes a DataStream to the file specified by path in csv format. The
-	 * writing is performed periodically, in every millis milliseconds. For
-	 * every element of the DataStream the result of {@link Object#toString()}
-	 * is written.
-	 * 
-	 * @param path
-	 *            is the path to the location where the tuples are written
-	 * @param millis
-	 *            is the file update frequency
-	 * @param endTuple
-	 *            is a special tuple indicating the end of the stream. If an
-	 *            endTuple is caught, the last pending batch of tuples will be
-	 *            immediately appended to the target file regardless of the
-	 *            system time.
 	 * 
 	 * @return the data stream constructed
 	 */
-	private DataStreamSink<OUT> writeAsCsv(DataStream<OUT> inputStream, String path,
-			WriteFormatAsCsv<OUT> format, long millis, OUT endTuple) {
-		DataStreamSink<OUT> returnStream = addSink(inputStream, new WriteSinkFunctionByMillis<OUT>(
-				path, format, millis, endTuple), inputStream.typeInfo);
-		return returnStream;
-	}
-
-	/**
-	 * Writes a DataStream to the file specified by path in csv format. The
-	 * writing is performed periodically in equally sized batches. For every
-	 * element of the DataStream the result of {@link Object#toString()} is
-	 * written.
-	 * 
-	 * @param path
-	 *            is the path to the location where the tuples are written
-	 * @param batchSize
-	 *            is the size of the batches, i.e. the number of tuples written
-	 *            to the file at a time
-	 * @param endTuple
-	 *            is a special tuple indicating the end of the stream. If an
-	 *            endTuple is caught, the last pending batch of tuples will be
-	 *            immediately appended to the target file regardless of the
-	 *            batchSize.
-	 * 
-	 * @return the data stream constructed
-	 */
-	private DataStreamSink<OUT> writeAsCsv(DataStream<OUT> inputStream, String path,
-			WriteFormatAsCsv<OUT> format, int batchSize, OUT endTuple) {
-		DataStreamSink<OUT> returnStream = addSink(inputStream,
-				new WriteSinkFunctionByBatches<OUT>(path, format, batchSize, endTuple),
-				inputStream.typeInfo);
+	private DataStreamSink<OUT> writeAsText(String path, WriteFormat<OUT> format, long millis) {
+		DataStreamSink<OUT> returnStream = addSink(new WriteSinkFunctionByMillis<OUT>(path, format,
+				millis));
 		return returnStream;
 	}
 
@@ -1241,21 +1046,13 @@ public class DataStream<OUT> {
 	 * @return The closed DataStream.
 	 */
 	public DataStreamSink<OUT> addSink(SinkFunction<OUT> sinkFunction) {
-		return addSink(this.copy(), sinkFunction);
-	}
 
-	private DataStreamSink<OUT> addSink(DataStream<OUT> inputStream, SinkFunction<OUT> sinkFunction) {
-		return addSink(inputStream, sinkFunction, getType());
-	}
-
-	private DataStreamSink<OUT> addSink(DataStream<OUT> inputStream,
-			SinkFunction<OUT> sinkFunction, TypeInformation<OUT> inTypeInfo) {
 		DataStreamSink<OUT> returnStream = new DataStreamSink<OUT>(environment, "sink", typeInfo);
 
 		jobGraphBuilder.addStreamVertex(returnStream.getId(), new SinkInvokable<OUT>(
-				clean(sinkFunction)), inTypeInfo, null, "sink", degreeOfParallelism);
+				clean(sinkFunction)), getType(), null, "sink", degreeOfParallelism);
 
-		inputStream.connectGraph(inputStream.copy(), returnStream.getId(), 0);
+		this.connectGraph(this.copy(), returnStream.getId(), 0);
 
 		return returnStream;
 	}

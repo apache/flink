@@ -25,6 +25,7 @@ import scala.reflect.ClassTag
 import org.apache.flink.streaming.api.datastream.DataStreamSource
 import org.apache.flink.streaming.api.invokable.SourceInvokable
 import org.apache.flink.streaming.api.function.source.FromElementsFunction
+import org.apache.flink.streaming.api.function.source.SourceFunction
 
 class StreamExecutionEnvironment(javaEnv: JavaEnv) {
 
@@ -44,10 +45,78 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    */
   def getDegreeOfParallelism = javaEnv.getDegreeOfParallelism
 
+  /**
+   * Sets the maximum time frequency (milliseconds) for the flushing of the
+   * output buffers. By default the output buffers flush frequently to provide
+   * low latency and to aid smooth developer experience. Setting the parameter
+   * can result in three logical modes:
+   *
+   * <ul>
+   * <li>
+   * A positive integer triggers flushing periodically by that integer</li>
+   * <li>
+   * 0 triggers flushing after every record thus minimizing latency</li>
+   * <li>
+   * -1 triggers flushing only when the output buffer is full thus maximizing
+   * throughput</li>
+   * </ul>
+   *
+   */
+  def setBufferTimeout(timeoutMillis: Long): StreamExecutionEnvironment = {
+    javaEnv.setBufferTimeout(timeoutMillis)
+    this
+  }
+
+  /**
+   * Gets the default buffer timeout set for this environment
+   */
+  def getBufferTimout: Long = javaEnv.getBufferTimeout()
+
+  /**
+   * Creates a DataStream that represents the Strings produced by reading the
+   * given file line wise. The file will be read with the system's default
+   * character set.
+   *
+   */
+  def readTextFile(filePath: String): DataStream[String] =
+    new DataStream[String](javaEnv.readTextFile(filePath))
+
+  /**
+   * Creates a DataStream that represents the Strings produced by reading the
+   * given file line wise multiple times(infinite). The file will be read with
+   * the system's default character set. This functionality can be used for
+   * testing a topology.
+   *
+   */
+  def readTextStream(StreamPath: String): DataStream[String] =
+    new DataStream[String](javaEnv.readTextStream(StreamPath))
+
+  /**
+   * Creates a new DataStream that contains the strings received infinitely
+   * from socket. Received strings are decoded by the system's default
+   * character set.
+   *
+   */
+  def socketTextStream(hostname: String, port: Int, delimiter: Char): DataStream[String] =
+    new DataStream[String](javaEnv.socketTextStream(hostname, port, delimiter))
+
+  /**
+   * Creates a new DataStream that contains the strings received infinitely
+   * from socket. Received strings are decoded by the system's default
+   * character set, uses '\n' as delimiter.
+   *
+   */
+  def socketTextStream(hostname: String, port: Int): DataStream[String] =
+    new DataStream[String](javaEnv.socketTextStream(hostname, port))
+
+  /**
+   * Creates a new DataStream that contains a sequence of numbers.
+   *
+   */
   def generateSequence(from: Long, to: Long): DataStream[java.lang.Long] = new DataStream(javaEnv.generateSequence(from, to))
 
   /**
-   * Creates a new data stream that contains the given elements. The elements must all be of the
+   * Creates a DataStream that contains the given elements. The elements must all be of the
    * same type and must be serializable.
    *
    * * Note that this operation will result in a non-parallel data source, i.e. a data source with
@@ -78,7 +147,37 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     new DataStream(returnStream)
   }
 
+  /**
+   * Create a DataStream using a user defined source function for arbitrary
+   * source functionality.
+   *
+   */
+  def addSource[T: ClassTag: TypeInformation](function: SourceFunction[T]): DataStream[T] = {
+    Validate.notNull(function, "Function must not be null.")
+    val typeInfo = implicitly[TypeInformation[T]]
+    new DataStream[T](javaEnv.addSource(function, typeInfo))
+  }
+
+  /**
+   * Triggers the program execution. The environment will execute all parts of
+   * the program that have resulted in a "sink" operation. Sink operations are
+   * for example printing results or forwarding them to a message queue.
+   * <p>
+   * The program execution will be logged and displayed with a generated
+   * default name.
+   *
+   */
   def execute() = javaEnv.execute()
+
+  /**
+   * Triggers the program execution. The environment will execute all parts of
+   * the program that have resulted in a "sink" operation. Sink operations are
+   * for example printing results or forwarding them to a message queue.
+   * <p>
+   * The program execution will be logged and displayed with the provided name
+   *
+   */
+  def execute(jobName: String) = javaEnv.execute(jobName)
 
 }
 
@@ -108,7 +207,7 @@ object StreamExecutionEnvironment {
    * Creates a remote execution environment. The remote environment sends (parts of) the program to
    * a cluster for execution. Note that all file paths used in the program must be accessible from
    * the cluster. The execution will use the cluster's default degree of parallelism, unless the
-   * parallelism is set explicitly via [[ExecutionEnvironment.setDegreeOfParallelism()]].
+   * parallelism is set explicitly via [[StreamExecutionEnvironment.setDegreeOfParallelism()]].
    *
    * @param host The host name or address of the master (JobManager),
    *             where the program should be executed.

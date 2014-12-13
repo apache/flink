@@ -35,13 +35,11 @@ public abstract class WriteSinkFunction<IN> implements SinkFunction<IN> {
 
 	protected final String path;
 	protected ArrayList<IN> tupleList = new ArrayList<IN>();
-	protected final IN endTuple;
 	protected WriteFormat<IN> format;
 
-	public WriteSinkFunction(String path, WriteFormat<IN> format, IN endTuple) {
+	public WriteSinkFunction(String path, WriteFormat<IN> format) {
 		this.path = path;
 		this.format = format;
-		this.endTuple = endTuple;
 		cleanFile(path);
 	}
 
@@ -82,16 +80,13 @@ public abstract class WriteSinkFunction<IN> implements SinkFunction<IN> {
 	 */
 	@Override
 	public void invoke(IN tuple) {
-		if (!tuple.equals(endTuple)) {
-			tupleList.add(tuple);
-			if (updateCondition()) {
-				format.write(path, tupleList);
-				resetParameters();
-			}
-		} else {
+
+		tupleList.add(tuple);
+		if (updateCondition()) {
 			format.write(path, tupleList);
 			resetParameters();
 		}
+
 	}
 
 }

@@ -37,6 +37,7 @@ import org.apache.flink.streaming.api.datastream.GroupedDataStream
 import org.apache.flink.api.common.functions.ReduceFunction
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.common.functions.FilterFunction
+import org.apache.flink.streaming.api.function.sink.SinkFunction
 
 class DataStream[T](javaStream: JavaStream[T]) {
 
@@ -86,15 +87,36 @@ class DataStream[T](javaStream: JavaStream[T]) {
         "parallelism.")
   }
 
+  /**
+   * Creates a new DataStream by merging DataStream outputs of
+   * the same type with each other. The DataStreams merged using this operator
+   * will be transformed simultaneously.
+   *
+   */
   def merge(dataStreams: DataStream[T]*): DataStream[T] =
     new DataStream[T](javaStream.merge(dataStreams.map(_.getJavaStream): _*))
 
+  /**
+   * Groups the elements of a DataStream by the given key positions (for tuple/array types) to
+   * be used with grouped operators like grouped reduce or grouped aggregations
+   *
+   */
   def groupBy(fields: Int*): DataStream[T] =
     new DataStream[T](javaStream.groupBy(fields: _*))
 
+  /**
+   * Groups the elements of a DataStream by the given field expressions to
+   * be used with grouped operators like grouped reduce or grouped aggregations
+   *
+   */
   def groupBy(firstField: String, otherFields: String*): DataStream[T] =
     new DataStream[T](javaStream.groupBy(firstField +: otherFields.toArray: _*))
 
+  /**
+   * Groups the elements of a DataStream by the given K key to
+   * be used with grouped operators like grouped reduce or grouped aggregations
+   *
+   */
   def groupBy[K: TypeInformation](fun: T => K): DataStream[T] = {
 
     val keyExtractor = new KeySelector[T, K] {
@@ -104,12 +126,27 @@ class DataStream[T](javaStream: JavaStream[T]) {
     new DataStream[T](javaStream.groupBy(keyExtractor))
   }
 
+  /**
+   * Sets the partitioning of the DataStream so that the output is
+   * partitioned by the selected fields. This setting only effects the how the outputs will be distributed between the parallel instances of the next processing operator.
+   *
+   */
   def partitionBy(fields: Int*): DataStream[T] =
     new DataStream[T](javaStream.partitionBy(fields: _*))
 
+  /**
+   * Sets the partitioning of the DataStream so that the output is
+   * partitioned by the selected fields. This setting only effects the how the outputs will be distributed between the parallel instances of the next processing operator.
+   *
+   */
   def partitionBy(firstField: String, otherFields: String*): DataStream[T] =
     new DataStream[T](javaStream.partitionBy(firstField +: otherFields.toArray: _*))
 
+  /**
+   * Sets the partitioning of the DataStream so that the output is
+   * partitioned by the given Key. This setting only effects the how the outputs will be distributed between the parallel instances of the next processing operator.
+   *
+   */
   def partitionBy[K: TypeInformation](fun: T => K): DataStream[T] = {
 
     val keyExtractor = new KeySelector[T, K] {
@@ -119,56 +156,124 @@ class DataStream[T](javaStream: JavaStream[T]) {
     new DataStream[T](javaStream.partitionBy(keyExtractor))
   }
 
+  /**
+   * Sets the partitioning of the DataStream so that the output tuples
+   * are broadcasted to every parallel instance of the next component. This
+   * setting only effects the how the outputs will be distributed between the
+   * parallel instances of the next processing operator.
+   *
+   */
   def broadcast: DataStream[T] = new DataStream[T](javaStream.broadcast())
 
+  /**
+   * Sets the partitioning of the DataStream so that the output tuples
+   * are shuffled to the next component. This setting only effects the how the
+   * outputs will be distributed between the parallel instances of the next
+   * processing operator.
+   *
+   */
   def shuffle: DataStream[T] = new DataStream[T](javaStream.shuffle())
 
+  /**
+   * Sets the partitioning of the DataStream so that the output tuples
+   * are forwarded to the local subtask of the next component (whenever
+   * possible). This is the default partitioner setting. This setting only
+   * effects the how the outputs will be distributed between the parallel
+   * instances of the next processing operator.
+   *
+   */
   def forward: DataStream[T] = new DataStream[T](javaStream.forward())
 
+  /**
+   * Sets the partitioning of the DataStream so that the output tuples
+   * are distributed evenly to the next component.This setting only effects
+   * the how the outputs will be distributed between the parallel instances of
+   * the next processing operator.
+   *
+   */
   def distribute: DataStream[T] = new DataStream[T](javaStream.distribute())
 
+  /**
+   * Applies an aggregation that that gives the current maximum of the data stream at
+   * the given position.
+   *
+   */
   def max(field: Any): DataStream[T] = field match {
     case field: Int => return new DataStream[T](javaStream.max(field))
     case field: String => return new DataStream[T](javaStream.max(field))
     case _ => throw new IllegalArgumentException("Aggregations are only supported by field position (Int) or field expression (String)")
   }
 
+  /**
+   * Applies an aggregation that that gives the current minimum of the data stream at
+   * the given position.
+   *
+   */
   def min(field: Any): DataStream[T] = field match {
     case field: Int => return new DataStream[T](javaStream.min(field))
     case field: String => return new DataStream[T](javaStream.min(field))
     case _ => throw new IllegalArgumentException("Aggregations are only supported by field position (Int) or field expression (String)")
   }
 
+  /**
+   * Applies an aggregation that sums the data stream at the given position.
+   *
+   */
   def sum(field: Any): DataStream[T] = field match {
     case field: Int => return new DataStream[T](javaStream.sum(field))
     case field: String => return new DataStream[T](javaStream.sum(field))
     case _ => throw new IllegalArgumentException("Aggregations are only supported by field position (Int) or field expression (String)")
   }
 
+  /**
+   * Applies an aggregation that that gives the current maximum element of the data stream by
+   * the given position. When equality, returns the first.
+   *
+   */
   def maxBy(field: Any): DataStream[T] = field match {
     case field: Int => return new DataStream[T](javaStream.maxBy(field))
     case field: String => return new DataStream[T](javaStream.maxBy(field))
     case _ => throw new IllegalArgumentException("Aggregations are only supported by field position (Int) or field expression (String)")
   }
 
+  /**
+   * Applies an aggregation that that gives the current minimum element of the data stream by
+   * the given position. When equality, returns the first.
+   *
+   */
   def minBy(field: Any): DataStream[T] = field match {
     case field: Int => return new DataStream[T](javaStream.minBy(field))
     case field: String => return new DataStream[T](javaStream.minBy(field))
     case _ => throw new IllegalArgumentException("Aggregations are only supported by field position (Int) or field expression (String)")
   }
 
+  /**
+   * Applies an aggregation that that gives the current minimum element of the data stream by
+   * the given position. When equality, the user can set to get the first or last element with the minimal value.
+   *
+   */
   def minBy(field: Any, first: Boolean): DataStream[T] = field match {
     case field: Int => return new DataStream[T](javaStream.minBy(field, first))
     case field: String => return new DataStream[T](javaStream.minBy(field, first))
     case _ => throw new IllegalArgumentException("Aggregations are only supported by field position (Int) or field expression (String)")
   }
 
+  /**
+   * Applies an aggregation that that gives the current maximum element of the data stream by
+   * the given position. When equality, the user can set to get the first or last element with the maximal value.
+   *
+   */
   def maxBy(field: Any, first: Boolean): DataStream[T] = field match {
     case field: Int => return new DataStream[T](javaStream.maxBy(field, first))
     case field: String => return new DataStream[T](javaStream.maxBy(field, first))
     case _ => throw new IllegalArgumentException("Aggregations are only supported by field position (Int) or field expression (String)")
   }
 
+  /**
+   * Creates a new DataStream containing the current number (count) of
+   * received records.
+   *
+   */
   def count: DataStream[java.lang.Long] = new DataStream[java.lang.Long](javaStream.count())
 
   /**
@@ -239,7 +344,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
   }
 
   /**
-   * Creates a new [[DataStream]] by merging the elements of this DataStream using an associative reduce
+   * Creates a new [[DataStream]] by reducing the elements of this DataStream using an associative reduce
    * function.
    */
   def reduce(reducer: ReduceFunction[T]): DataStream[T] = {
@@ -253,7 +358,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
   }
 
   /**
-   * Creates a new [[DataStream]] by merging the elements of this DataStream using an associative reduce
+   * Creates a new [[DataStream]] by reducing the elements of this DataStream using an associative reduce
    * function.
    */
   def reduce(fun: (T, T) => T): DataStream[T] = {
@@ -268,7 +373,7 @@ class DataStream[T](javaStream: JavaStream[T]) {
   }
 
   /**
-   * Creates a new DataSet that contains only the elements satisfying the given filter predicate.
+   * Creates a new DataStream that contains only the elements satisfying the given filter predicate.
    */
   def filter(filter: FilterFunction[T]): DataStream[T] = {
     if (filter == null) {
@@ -277,6 +382,9 @@ class DataStream[T](javaStream: JavaStream[T]) {
     new DataStream[T](javaStream.filter(filter))
   }
 
+  /**
+   * Creates a new DataStream that contains only the elements satisfying the given filter predicate.
+   */
   def filter(fun: T => Boolean): DataStream[T] = {
     if (fun == null) {
       throw new NullPointerException("Filter function must not be null.")
@@ -288,6 +396,71 @@ class DataStream[T](javaStream: JavaStream[T]) {
     this.filter(filter)
   }
 
-  def print() = javaStream.print()
+  /**
+   * Writes a DataStream to the standard output stream (stdout). For each
+   * element of the DataStream the result of .toString is
+   * written.
+   *
+   */
+  def print(): DataStream[T] = new DataStream[T](javaStream.print())
+
+  /**
+   * Writes a DataStream to the file specified by path in text format. The
+   * writing is performed periodically, in every millis milliseconds. For
+   * every element of the DataStream the result of .toString
+   * is written.
+   *
+   */
+  def writeAsText(path: String, millis: Long): DataStream[T] = new DataStream[T](javaStream.writeAsText(path, millis))
+
+  /**
+   * Writes a DataStream to the file specified by path in text format.
+   * For every element of the DataStream the result of .toString
+   * is written.
+   *
+   */
+  def writeAsText(path: String): DataStream[T] = new DataStream[T](javaStream.writeAsText(path))
+
+  /**
+   * Writes a DataStream to the file specified by path in text format. The
+   * writing is performed periodically, in every millis milliseconds. For
+   * every element of the DataStream the result of .toString
+   * is written.
+   *
+   */
+  def writeAsCsv(path: String, millis: Long): DataStream[T] = new DataStream[T](javaStream.writeAsCsv(path, millis))
+
+  /**
+   * Writes a DataStream to the file specified by path in text format.
+   * For every element of the DataStream the result of .toString
+   * is written.
+   *
+   */
+  def writeAsCsv(path: String): DataStream[T] = new DataStream[T](javaStream.writeAsCsv(path))
+
+  /**
+   * Adds the given sink to this DataStream. Only streams with sinks added
+   * will be executed once the StreamExecutionEnvironment.execute(...)
+   * method is called.
+   *
+   */
+  def addSink(sinkFuntion: SinkFunction[T]): DataStream[T] = new DataStream[T](javaStream.addSink(sinkFuntion))
+
+  /**
+   * Adds the given sink to this DataStream. Only streams with sinks added
+   * will be executed once the StreamExecutionEnvironment.execute(...)
+   * method is called.
+   *
+   */
+  def addSink(fun: T => Unit): DataStream[T] = {
+    if (fun == null) {
+      throw new NullPointerException("Sink function must not be null.")
+    }
+    val sinkFunction = new SinkFunction[T] {
+      val cleanFun = clean(fun)
+      def invoke(in: T) = cleanFun(in)
+    }
+    this.addSink(sinkFunction)
+  }
 
 }

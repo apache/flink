@@ -17,11 +17,10 @@
 
 package org.apache.flink.streaming.api.function.sink;
 
-
 /**
  * Implementation of WriteSinkFunction. Writes tuples to file in every millis
  * milliseconds.
- *
+ * 
  * @param <IN>
  *            Input tuple type
  */
@@ -31,8 +30,8 @@ public class WriteSinkFunctionByMillis<IN> extends WriteSinkFunction<IN> {
 	private final long millis;
 	private long lastTime;
 
-	public WriteSinkFunctionByMillis(String path, WriteFormat<IN> format, long millis, IN endTuple) {
-		super(path, format, endTuple);
+	public WriteSinkFunctionByMillis(String path, WriteFormat<IN> format, long millis) {
+		super(path, format);
 		this.millis = millis;
 		lastTime = System.currentTimeMillis();
 	}
