@@ -3,19 +3,12 @@ package flink.graphs.example;
 
 import flink.graphs.*;
 import flink.graphs.library.PageRank;
+
 import org.apache.flink.api.common.ProgramDescription;
 import org.apache.flink.api.common.functions.*;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.tuple.Tuple1;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
-
-import java.util.Collection;
-import java.util.List;
-
 
 public class PageRankExample implements ProgramDescription {
 
@@ -27,7 +20,7 @@ public class PageRankExample implements ProgramDescription {
 
         DataSet<Edge<Long,Double>> links = getLinksDataSet(env);
 
-        Graph<Long, Double, Double> network = new Graph(pages, links, env);
+        Graph<Long, Double, Double> network = new Graph<Long, Double, Double>(pages, links, env);
 
         DataSet<Vertex<Long,Double>> pageRanks =
                 network.run(new PageRank<Long>(numPages, DAMPENING_FACTOR, maxIterations)).getVertices();
@@ -46,8 +39,8 @@ public class PageRankExample implements ProgramDescription {
     private static long numPages = 10;
     private static int maxIterations = 10;
 
-
-    private static DataSet<Vertex<Long,Double>> getPagesDataSet(ExecutionEnvironment env) {
+    @SuppressWarnings("serial")
+	private static DataSet<Vertex<Long,Double>> getPagesDataSet(ExecutionEnvironment env) {
             return env.generateSequence(1, numPages)
                     .map(new MapFunction<Long, Vertex<Long, Double>>() {
                         @Override
@@ -58,6 +51,7 @@ public class PageRankExample implements ProgramDescription {
 
     }
 
+    @SuppressWarnings("serial")
     private static DataSet<Edge<Long, Double>> getLinksDataSet(ExecutionEnvironment env) {
             return env.generateSequence(1, numPages)
                     .flatMap(new FlatMapFunction<Long, Edge<Long, Double>>() {
