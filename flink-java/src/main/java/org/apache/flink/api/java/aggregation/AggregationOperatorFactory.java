@@ -19,10 +19,10 @@
 package org.apache.flink.api.java.aggregation;
 
 import static java.lang.String.format;
-import static java.util.Arrays.asList;
 import static org.apache.flink.api.java.aggregation.Aggregations.key;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Vector;
 
@@ -129,7 +129,7 @@ public class AggregationOperatorFactory {
 						int field = function.getInputPosition();
 						Validate.isTrue(ArrayUtils.contains(groupKeys, field),
 								format("The key %d is not in the grouping %s", 
-										field, asList(groupKeys)));
+										field, Arrays.toString(groupKeys)));
 						definedByUser.add(field);
 					}
 				}
@@ -249,7 +249,8 @@ public class AggregationOperatorFactory {
 			// validate input field exists
 			int arity = inputTypeAsTuple.getArity();
 			int fieldPosition = function.getInputPosition();
-			Validate.inclusiveBetween(0, arity - 1, fieldPosition);
+			Validate.inclusiveBetween(0, arity - 1, fieldPosition, 
+					format("The requested field %d (indexed from 0) is not valid for a tuple with arity %d (index from 1)", fieldPosition, arity));
 
 			// assume field type is simple
 			TypeInformation<Object> fieldType = inputTypeAsTuple.getTypeAt(fieldPosition);
