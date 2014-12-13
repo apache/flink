@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.examples.java.aggregation;
+package org.apache.flink.test.javaApiOperators;
 
 import static java.util.Arrays.asList;
 import static org.apache.flink.api.java.aggregation.Aggregations.allKeys;
@@ -55,55 +55,13 @@ import org.hamcrest.TypeSafeMatcher;
 import org.junit.Before;
 import org.junit.Test;
 
-public class AggregationApi1Test {
+public class AggregationLocalITCase {
 
 	private ExecutionEnvironment env;
-	
+
 	@Before
 	public void setup() {
 		env = ExecutionEnvironment.getExecutionEnvironment();
-	}
-	
-	@Test(expected=IllegalArgumentException.class)
-	public void errorIfNoAggregationIsSpecified() {
-		// given
-		Tuple1<Long>[] tuples = new Tuple1Builder<Long>().add(1L).build();
-		DataSet<Tuple1<Long>> input = env.fromElements(tuples);
-
-		// when
-		input.aggregate();
-	}
-
-	@Test(expected=IllegalArgumentException.class)
-	public void errorIfNotATuple() {
-		// given
-		DataSet<Long> input = env.fromElements(1L);
-
-		// when
-		input.aggregate(sum(0));
-	}
-
-	@Test(expected=IllegalArgumentException.class)
-	public void errorIfTupleContentIsNotBasicType() {
-		// given
-		DataSet<Tuple1<Object>> input = env.fromElements(new Tuple1Builder<Object>().add(new Object()).build());
-
-		// when
-		input.aggregate(sum(0));
-	}
-	
-	@Test(expected=IllegalArgumentException.class)
-	public void errorIfNotExistingFieldIsSpecified() {
-		// given
-		Tuple1<Long>[] tuples = new Tuple1Builder<Long>()
-				.add(1L)
-				.add(2L)
-				.add(3L)
-				.build();
-		DataSet<Tuple1<Long>> input = env.fromElements(tuples);
-
-		// when
-		input.aggregate(sum(1));
 	}
 
 	@Test
@@ -123,7 +81,7 @@ public class AggregationApi1Test {
 		// then
 		assertThat(output, dataSetWithTuple(1L, 3L, 3L, 6L, 2.0));
 	}
-	
+
 	@Test
 	public void shouldComputeMinAndMaxOfStringsAndCountThem() {
 		// given
@@ -141,16 +99,7 @@ public class AggregationApi1Test {
 		// then
 		assertThat(output, dataSetWithTuple("one", "two", 3L));
 	}
-	
-	@Test(expected=IllegalArgumentException.class)
-	public void errorIfSumIsCalledOnString() {
-		// given
-		DataSet<Tuple1<String>> input = env.fromElements(new Tuple1Builder<String>().add("one").build());
 
-		// when
-		input.aggregate(sum(0));
-	}
-	
 	@Test
 	public void shouldComputeAggregationsOnDifferentFields() {
 		// given
@@ -168,7 +117,7 @@ public class AggregationApi1Test {
 		// then
 		assertThat(output, dataSetWithTuple(11L, 13L, 12.0, 21L, 23L, 22.0, 3L));
 	}
-	
+
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
 	public void shouldComputeTupleMaxArityManyAggregations() {
@@ -180,7 +129,7 @@ public class AggregationApi1Test {
 		for (int i = 0; i < Tuple.MAX_ARITY; ++i) {
 			functions[i] = count();
 		}
-		
+
 		// when
 		DataSet<Tuple> output = input.aggregate(functions);
 
@@ -188,7 +137,7 @@ public class AggregationApi1Test {
 		List<Long> results = Collections.nCopies(num, 1L);
 		assertThat(output, dataSetWithTuples(results));
 	}
-	
+
 	@Test
 	public void shouldComputeSumOfDifferentTypes() {
 		// given
@@ -207,21 +156,7 @@ public class AggregationApi1Test {
 		// then
 		assertThat(output, dataSetWithTuple(6L, 6, 6.6, 6.6f, (byte) 6, (short) 6));
 	}
-	
-	@SuppressWarnings("rawtypes")
-	@Test(expected=IllegalArgumentException.class)
-	public void errorIfTooManyAggregations() {
-		// given
-		Tuple1<Long>[] tuples = new Tuple1Builder<Long>().add(1L).build();
-		DataSet<Tuple1<Long>> input = env.fromElements(tuples);
-		int num = Tuple.MAX_ARITY + 1;
-		AggregationFunction[] functions = new AggregationFunction[num];
-		Arrays.fill(functions, count());
 
-		// when
-		input.aggregate(functions);
-	}
-	
 	@SuppressWarnings("unchecked")
 	@Test
 	public void shouldComputeAggregationAfterGrouping() {
@@ -282,31 +217,11 @@ public class AggregationApi1Test {
 		assertThat(output, dataSetWithTuples(asList("a", "A", 11.5), asList("a", "B", 21.5)));
 	}
 
-	@Test(expected=IllegalArgumentException.class)
-	public void errorIfKeyIsUsedWithoutGrouping() {
-		// given
-		Tuple2<String, Long>[] tuples = new Tuple2Builder<String, Long>().add("key", 1L).build();
-		DataSet<Tuple2<String, Long>> input = env.fromElements(tuples);
-
-		// when
-		input.aggregate(key(0), average(1));
-	}
-	
-	@Test(expected=IllegalArgumentException.class)
-	public void errorIfKeyIsUsedThatIsNotInGrouping() {
-		// given
-		Tuple2<String, Long>[] tuples = new Tuple2Builder<String, Long>().add("key", 1L).build();
-		DataSet<Tuple2<String, Long>> input = env.fromElements(tuples);
-
-		// when
-		input.groupBy(0).aggregate(key(1), average(1));
-	}
-
 	@SuppressWarnings("unchecked")
 	private Matcher<DataSet<? extends Tuple>> dataSetWithTuple(Object... singleTuple) {
 		return dataSetWithTuples(asList(singleTuple));
 	}
-	
+
 	/**
 	 * Match a DataSet against a list of tuples.
 	 * 
@@ -321,11 +236,11 @@ public class AggregationApi1Test {
 	 */
 	private Matcher<DataSet<? extends Tuple>> dataSetWithTuples(final List<? extends Object>... tuples) {
         return new TypeSafeMatcher<DataSet<? extends Tuple>>() {
- 
+
         	private final double DELTA = 0.001;
-        	
+
         	List<Tuple> output = null;
- 
+
             @SuppressWarnings({ "unchecked", "rawtypes" }) // TODO can this be made type-safe?
 			@Override
             public boolean matchesSafely(DataSet<? extends Tuple> item) {

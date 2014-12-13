@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.java.operators;
 
+import static org.apache.flink.api.java.aggregation.Aggregations.average;
+import static org.apache.flink.api.java.aggregation.Aggregations.key;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.nullValue;
@@ -86,5 +88,15 @@ public class UnsortedGroupingTest {
 		UnsortedGrouping<Tuple2<String, Long>> grouping = input.groupBy(0);
 		return grouping;
 	}
-	
+
+	@Test(expected=IllegalArgumentException.class)
+	public void errorIfKeyIsUsedThatIsNotInGrouping() {
+		// given
+		Tuple2<String, Long>[] tuples = new Tuple2Builder<String, Long>().add("key", 1L).build();
+		DataSet<Tuple2<String, Long>> input = env.fromElements(tuples);
+
+		// when
+		input.groupBy(0).aggregate(key(1), average(1));
+	}
+
 }

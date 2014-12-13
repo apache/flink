@@ -18,6 +18,10 @@
 
 package org.apache.flink.api.java;
 
+import static org.apache.flink.api.java.aggregation.Aggregations.average;
+import static org.apache.flink.api.java.aggregation.Aggregations.count;
+import static org.apache.flink.api.java.aggregation.Aggregations.key;
+import static org.apache.flink.api.java.aggregation.Aggregations.sum;
 import static org.apache.flink.util.TestHelper.uniqueInt;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
@@ -26,9 +30,16 @@ import static org.junit.Assert.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
+import java.util.Arrays;
+
 import org.apache.flink.api.java.aggregation.AggregationFunction;
 import org.apache.flink.api.java.aggregation.AggregationOperatorFactory;
 import org.apache.flink.api.java.operators.AggregationOperator;
+import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.tuple.Tuple1;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.builder.Tuple1Builder;
+import org.apache.flink.api.java.tuple.builder.Tuple2Builder;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -78,4 +89,79 @@ public class DataSetTest {
 		assertThat(aggregationOperatorFactory, is(AggregationOperatorFactory.getInstance()));
 	}
 	
+	@Test(expected=IllegalArgumentException.class)
+	public void errorIfNoAggregationIsSpecified() {
+		// given
+		Tuple1<Long>[] tuples = new Tuple1Builder<Long>().add(1L).build();
+		DataSet<Tuple1<Long>> input = env.fromElements(tuples);
+
+		// when
+		input.aggregate();
+	}
+
+	@Test(expected=IllegalArgumentException.class)
+	public void errorIfNotATuple() {
+		// given
+		DataSet<Long> input = env.fromElements(1L);
+
+		// when
+		input.aggregate(sum(0));
+	}
+
+	@Test(expected=IllegalArgumentException.class)
+	public void errorIfTupleContentIsNotBasicType() {
+		// given
+		DataSet<Tuple1<Object>> input = env.fromElements(new Tuple1Builder<Object>().add(new Object()).build());
+
+		// when
+		input.aggregate(sum(0));
+	}
+
+	@Test(expected=IllegalArgumentException.class)
+	public void errorIfNotExistingFieldIsSpecified() {
+		// given
+		Tuple1<Long>[] tuples = new Tuple1Builder<Long>()
+				.add(1L)
+				.add(2L)
+				.add(3L)
+				.build();
+		DataSet<Tuple1<Long>> input = env.fromElements(tuples);
+
+		// when
+		input.aggregate(sum(1));
+	}
+
+	@Test(expected=IllegalArgumentException.class)
+	public void errorIfSumIsCalledOnString() {
+		// given
+		DataSet<Tuple1<String>> input = env.fromElements(new Tuple1Builder<String>().add("one").build());
+
+		// when
+		input.aggregate(sum(0));
+	}
+
+	@SuppressWarnings("rawtypes")
+	@Test(expected=IllegalArgumentException.class)
+	public void errorIfTooManyAggregations() {
+		// given
+		Tuple1<Long>[] tuples = new Tuple1Builder<Long>().add(1L).build();
+		DataSet<Tuple1<Long>> input = env.fromElements(tuples);
+		int num = Tuple.MAX_ARITY + 1;
+		AggregationFunction[] functions = new AggregationFunction[num];
+		Arrays.fill(functions, count());
+
+		// when
+		input.aggregate(functions);
+	}
+
+	@Test(expected=IllegalArgumentException.class)
+	public void errorIfKeyIsUsedWithoutGrouping() {
+		// given
+		Tuple2<String, Long>[] tuples = new Tuple2Builder<String, Long>().add("key", 1L).build();
+		DataSet<Tuple2<String, Long>> input = env.fromElements(tuples);
+
+		// when
+		input.aggregate(key(0), average(1));
+	}
+
 }
