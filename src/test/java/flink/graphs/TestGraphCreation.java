@@ -18,6 +18,7 @@ import org.junit.runners.Parameterized.Parameters;
 
 import flink.graphs.TestGraphUtils.DummyCustomParameterizedType;
 import flink.graphs.TestGraphUtils.DummyCustomType;
+import flink.graphs.validation.InvalidVertexIdsValidator;
 
 @RunWith(Parameterized.class)
 public class TestGraphCreation extends JavaProgramTestBase {

@@ -8,15 +8,11 @@ import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.aggregation.Aggregations;
-import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.test.testdata.ConnectedComponentsData;
 import org.apache.flink.types.NullValue;
 
-import flink.graphs.Edge;
 import flink.graphs.Graph;
-import flink.graphs.example.utils.EdgeWithLongIdNullValueParser;
 import flink.graphs.example.utils.ExampleUtils;
 
 /**
@@ -31,8 +27,7 @@ import flink.graphs.example.utils.ExampleUtils;
  *
  */
 public class GraphMetrics implements ProgramDescription {
-	
-	static final int NUM_EDGES = 1000;
+
 	static final int NUM_VERTICES = 100;
 	static final long SEED = 9876;
 	
@@ -46,13 +41,9 @@ public class GraphMetrics implements ProgramDescription {
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		/** create random input edges **/
-		DataSet<String> edgeString = env.fromElements(ConnectedComponentsData.getRandomOddEvenEdges(
-				NUM_EDGES, NUM_VERTICES, SEED).split("\n"));
-		DataSet<Edge<Long, NullValue>> edges = edgeString.map(new EdgeWithLongIdNullValueParser());
-
-		/** create the graph from the edges **/
-		Graph<Long, NullValue, NullValue> graph = Graph.create(edges, env);
+		/** create a random graph **/
+		Graph<Long, NullValue, NullValue> graph = Graph.create(ExampleUtils
+				.getRandomEdges(env, NUM_VERTICES), env);
 		
 		/** get the number of vertices **/
 		DataSet<Integer> numVertices = graph.numberOfVertices();
@@ -63,8 +54,8 @@ public class GraphMetrics implements ProgramDescription {
 		/** compute the average node degree **/
 		DataSet<Tuple2<Long, Long>> verticesWithDegrees = graph.getDegrees();
 
-		DataSet<Double> avgNodeDegree = verticesWithDegrees.project(1).types(Long.class)
-				.aggregate(Aggregations.SUM, 0).map(new AvgNodeDegreeMapper())
+		DataSet<Double> avgNodeDegree = verticesWithDegrees
+				.aggregate(Aggregations.SUM, 1).map(new AvgNodeDegreeMapper())
 				.withBroadcastSet(numVertices, "numberOfVertices");
 		
 		/** find the vertex with the maximum in-degree **/
@@ -92,7 +83,7 @@ public class GraphMetrics implements ProgramDescription {
 	}
 	
 	@SuppressWarnings("serial")
-	private static final class AvgNodeDegreeMapper extends RichMapFunction<Tuple1<Long>, Double> {
+	private static final class AvgNodeDegreeMapper extends RichMapFunction<Tuple2<Long, Long>, Double> {
 
 		private int numberOfVertices;
 		
@@ -103,8 +94,8 @@ public class GraphMetrics implements ProgramDescription {
 			numberOfVertices = bCastSet.iterator().next();
 		}
 		
-		public Double map(Tuple1<Long> sum) {
-			return (double) (sum.f0 / numberOfVertices) ;
+		public Double map(Tuple2<Long, Long> sumTuple) {
+			return (double) (sumTuple.f1 / numberOfVertices) ;
 		}
 	}
 

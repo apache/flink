@@ -2,10 +2,17 @@ package flink.graphs.example.utils;
 
 import java.io.PrintStream;
 
+import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.types.NullValue;
+import org.apache.flink.util.Collector;
+
+import flink.graphs.Edge;
+import flink.graphs.Vertex;
 
 public class ExampleUtils {
 
@@ -69,4 +76,32 @@ public class ExampleUtils {
 		@Override
 		public void configure(Configuration parameters) {}
 	}
+
+	@SuppressWarnings("serial")
+	public static DataSet<Vertex<Long, NullValue>> getVertexIds(ExecutionEnvironment env,
+			final long numVertices) {
+        return env.generateSequence(1, numVertices)
+                .map(new MapFunction<Long, Vertex<Long, NullValue>>() {
+                    public Vertex<Long, NullValue> map(Long l) {
+                        return new Vertex<Long, NullValue>(l, NullValue.getInstance());
+                    }
+                });
+	}
+
+	@SuppressWarnings("serial")
+	public static DataSet<Edge<Long, NullValue>> getRandomEdges(ExecutionEnvironment env,
+			final long numVertices) {
+	        return env.generateSequence(1, numVertices)
+	                .flatMap(new FlatMapFunction<Long, Edge<Long, NullValue>>() {
+	                    @Override
+	                    public void flatMap(Long key, Collector<Edge<Long, NullValue>> out) throws Exception {
+	                        int numOutEdges = (int) (Math.random() * (numVertices / 2));
+	                        for (int i = 0; i < numOutEdges; i++) {
+	                            long target = (long) (Math.random() * numVertices) + 1;
+	                            out.collect(new Edge<Long, NullValue>(key, target, NullValue.getInstance()));
+	                        }
+	                    }
+	                });
+	}
 }
+
