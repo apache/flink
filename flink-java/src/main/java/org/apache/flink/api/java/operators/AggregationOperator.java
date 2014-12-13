@@ -112,7 +112,7 @@ public class AggregationOperator<IN, OUT extends Tuple> extends SingleInputOpera
 		@SuppressWarnings("unchecked")
 		MapFunction<IN, Tuple> udf = (MapFunction<IN, Tuple>) new AggregationMapIntermediateUdf<Tuple, Tuple>(intermediateFunctions);
 		UnaryOperatorInformation<IN, Tuple> operatorInfo = new UnaryOperatorInformation<IN, Tuple>(getInputType(), intermediateType);
-		String name = createOperatorName("aggregate/intermediate-mapper", intermediateFunctions);
+		String name = createOperatorName("init aggregates", intermediateFunctions);
 		MapOperatorBase<IN, Tuple, MapFunction<IN, Tuple>> intermediateMapper = new MapOperatorBase<IN, Tuple, MapFunction<IN, Tuple>>(udf, operatorInfo, name);
 		intermediateMapper.setDegreeOfParallelism(input.getDegreeOfParallelism());
 		return intermediateMapper;
@@ -121,7 +121,7 @@ public class AggregationOperator<IN, OUT extends Tuple> extends SingleInputOpera
 	private ReduceOperatorBase<Tuple, ReduceFunction<Tuple>> createReducer() {
 		ReduceFunction<Tuple> udf = new AggregationReduceUdf<Tuple>(intermediateFunctions);
 		UnaryOperatorInformation<Tuple, Tuple> operatorInfo = new UnaryOperatorInformation<Tuple, Tuple>(intermediateType, intermediateType);
-		String name = createOperatorName("aggregate/reducer", intermediateFunctions);
+		String name = createOperatorName("aggregate", intermediateFunctions);
 		ReduceOperatorBase<Tuple, ReduceFunction<Tuple>> reducer = new ReduceOperatorBase<Tuple, ReduceFunction<Tuple>>(udf, operatorInfo, groupKeys, name);
 		reducer.setDegreeOfParallelism(this.getParallelism());
 		return reducer;
@@ -130,7 +130,7 @@ public class AggregationOperator<IN, OUT extends Tuple> extends SingleInputOpera
 	private MapOperatorBase<Tuple, OUT, MapFunction<Tuple, OUT>> createFinalMapper() {
 		MapFunction<Tuple, OUT> udf = new AggregationMapFinalUdf<Tuple, OUT>(finalFunctions);
 		UnaryOperatorInformation<Tuple, OUT> operatorInfo = new UnaryOperatorInformation<Tuple, OUT>(intermediateType, getResultType());
-		String name = createOperatorName("aggregate/final-mapper", finalFunctions);
+		String name = createOperatorName("finalize aggregates", finalFunctions);
 		MapOperatorBase<Tuple, OUT, MapFunction<Tuple, OUT>> finalMapper = new MapOperatorBase<Tuple, OUT, MapFunction<Tuple, OUT>>(udf, operatorInfo, name);
 		finalMapper.setDegreeOfParallelism(this.getParallelism());
 		return finalMapper;
