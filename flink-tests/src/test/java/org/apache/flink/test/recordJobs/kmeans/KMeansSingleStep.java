@@ -16,9 +16,7 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.recordJobs.kmeans;
-
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -47,7 +45,7 @@ import org.apache.flink.types.Record;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
 
-
+@SuppressWarnings("deprecation")
 public class KMeansSingleStep implements Program, ProgramDescription {
 	
 	private static final long serialVersionUID = 1L;

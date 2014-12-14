@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.recordJobTests;
 
 import java.io.Serializable;
@@ -40,6 +39,7 @@ import org.apache.flink.util.Collector;
 /**
  * test the collection and iterator data input using join operator
  */
+@SuppressWarnings("deprecation")
 public class CollectionSourceTest extends RecordAPITestBase {
 
 	private static final int DOP = 4;

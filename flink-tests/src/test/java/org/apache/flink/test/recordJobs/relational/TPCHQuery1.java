@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.recordJobs.relational;
 
 import org.apache.flink.api.common.Plan;
@@ -32,7 +31,7 @@ import org.apache.flink.test.recordJobs.util.IntTupleDataInFormat;
 import org.apache.flink.test.recordJobs.util.StringTupleDataOutFormat;
 import org.apache.flink.types.StringValue;
 
-
+@SuppressWarnings("deprecation")
 public class TPCHQuery1 implements Program, ProgramDescription {
 
 	private static final long serialVersionUID = 1L;

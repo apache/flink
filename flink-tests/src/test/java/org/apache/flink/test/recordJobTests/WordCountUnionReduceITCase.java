@@ -41,6 +41,7 @@ import org.apache.flink.types.StringValue;
  * This test case is an adaption of issue #192 (and #124), which revealed problems with the union readers in Nephele.
  * The problems have been fixed with commit 1228a5e. Without this commit the test will deadlock.
  */
+@SuppressWarnings("deprecation")
 public class WordCountUnionReduceITCase extends RecordAPITestBase {
 
 	private static final int MULTIPLY = 1000;

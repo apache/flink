@@ -16,9 +16,7 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.recordJobs.relational.query9Util;
-
 
 import org.apache.flink.api.java.record.functions.JoinFunction;
 import org.apache.flink.test.recordJobs.util.Tuple;
@@ -27,7 +25,7 @@ import org.apache.flink.types.Record;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.Collector;
 
-@SuppressWarnings("serial")
+@SuppressWarnings({ "deprecation", "serial" })
 public class SuppliersJoin extends JoinFunction {
 	
 	private IntValue suppKey = new IntValue();

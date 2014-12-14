@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.recordJobs.wordcount;
 
 import java.util.Iterator;
@@ -46,6 +45,7 @@ import org.apache.flink.util.Collector;
  * Implements a word count which takes the input file and counts the number of
  * the occurrences of each word in the file.
  */
+@SuppressWarnings("deprecation")
 public class WordCount implements Program, ProgramDescription {
 	
 	private static final long serialVersionUID = 1L;

@@ -33,6 +33,7 @@ import org.apache.flink.util.Collector;
  * Reduce PACT determines the closes cluster center for a data point. This
  * is a minimum aggregation. Hence, a Combiner can be easily implemented.
  */
+@SuppressWarnings("deprecation")
 @Combinable
 @ConstantFields(1)
 public class FindNearestCenter extends ReduceFunction implements Serializable {

@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.recordJobs.wordcount;
 
 import java.io.IOException;
@@ -57,6 +56,7 @@ import org.apache.flink.util.Collector;
  * This is similar to the WordCount example and additionally demonstrates how to
  * use custom accumulators (built-in or custom).
  */
+@SuppressWarnings("deprecation")
 public class WordCountAccumulators implements Program, ProgramDescription {
 	
 	private static final long serialVersionUID = 1L;

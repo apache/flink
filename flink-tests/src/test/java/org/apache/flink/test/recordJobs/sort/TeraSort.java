@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.recordJobs.sort;
 
 import org.apache.flink.api.common.Plan;
@@ -38,6 +37,7 @@ import org.apache.flink.test.recordJobs.sort.tsUtil.TeraOutputFormat;
  * href="http://hadoop.apache.org/common/docs/current/api/org/apache/hadoop/examples/terasort/TeraGen.html">
  * http://hadoop.apache.org/common/docs/current/api/org/apache/hadoop/examples/terasort/TeraGen.html</a>.
  */
+@SuppressWarnings("deprecation")
 public final class TeraSort implements Program, ProgramDescription {
 
 	private static final long serialVersionUID = 1L;

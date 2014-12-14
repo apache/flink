@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.recordJobs.graph;
 
 import java.io.Serializable;
@@ -52,6 +51,7 @@ import org.apache.flink.util.Collector;
  * The algorithm was published as MapReduce job by J. Cohen in "Graph Twiddling in a MapReduce World".
  * The Pact version was described in "MapReduce and PACT - Comparing Data Parallel Programming Models" (BTW 2011).
  */
+@SuppressWarnings("deprecation")
 public class EnumTrianglesRdfFoaf implements Program, ProgramDescription {
 
 	private static final long serialVersionUID = 1L;

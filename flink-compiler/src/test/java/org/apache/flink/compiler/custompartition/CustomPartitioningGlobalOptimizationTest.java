@@ -21,19 +21,13 @@ package org.apache.flink.compiler.custompartition;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import org.junit.Test;
 
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.operators.JoinOperator;
-import org.apache.flink.api.java.operators.JoinOperator.ProjectJoin;
-import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.compiler.CompilerTestBase;
 import org.apache.flink.compiler.plan.DualInputPlanNode;
 import org.apache.flink.compiler.plan.OptimizedPlan;
@@ -41,6 +35,7 @@ import org.apache.flink.compiler.plan.SingleInputPlanNode;
 import org.apache.flink.compiler.plan.SinkPlanNode;
 import org.apache.flink.compiler.testfunctions.IdentityGroupReducer;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
+import org.junit.Test;
 
 @SuppressWarnings({"serial", "unchecked"})
 public class CustomPartitioningGlobalOptimizationTest extends CompilerTestBase {

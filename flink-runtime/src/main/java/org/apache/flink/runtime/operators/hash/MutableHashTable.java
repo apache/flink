@@ -1129,9 +1129,6 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
 	 * may free new buffers then.
 	 * 
 	 * @return The next buffer to be used by the hash-table, or null, if no buffer remains.
-	 * @throws IOException Thrown, if the thread is interrupted while grabbing the next buffer. The I/O
-	 *                     exception replaces the <tt>InterruptedException</tt> to consolidate the exception
-	 *                     signatures.
 	 */
 	final MemorySegment getNextBuffer() {
 		// check if the list directly offers memory

@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.recordJobs.sort;
 
 import java.io.Serializable;
@@ -42,6 +41,7 @@ import org.apache.flink.util.Collector;
  * This job shows how to define ordered input for a Reduce contract.
  * The inputs for CoGroups can be (individually) ordered as well.  
  */
+@SuppressWarnings("deprecation")
 public class ReduceGroupSort implements Program, ProgramDescription {
 	
 	private static final long serialVersionUID = 1L;

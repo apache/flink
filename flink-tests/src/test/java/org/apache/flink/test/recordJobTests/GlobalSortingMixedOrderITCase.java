@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.recordJobTests;
 
 import java.io.IOException;
@@ -39,6 +38,7 @@ import org.apache.flink.test.util.RecordAPITestBase;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Key;
 
+@SuppressWarnings("deprecation")
 public class GlobalSortingMixedOrderITCase extends RecordAPITestBase {
 	
 	private static final int NUM_RECORDS = 100000;

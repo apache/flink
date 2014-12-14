@@ -36,7 +36,7 @@ import org.apache.flink.test.recordJobs.graph.pageRankUtil.PageRankStatsAggregat
 import org.apache.flink.test.recordJobs.graph.pageRankUtil.PageWithRankOutFormat;
 import org.apache.flink.types.LongValue;
 
-
+@SuppressWarnings("deprecation")
 public class DanglingPageRank implements Program, ProgramDescription {
 	
 	private static final long serialVersionUID = 1L;

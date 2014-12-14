@@ -35,6 +35,7 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.ReflectionUtil;
 
+@SuppressWarnings("deprecation")
 public class SpargelIteration {
 	
 	private static final String DEFAULT_NAME = "<unnamed vertex-centric iteration>";

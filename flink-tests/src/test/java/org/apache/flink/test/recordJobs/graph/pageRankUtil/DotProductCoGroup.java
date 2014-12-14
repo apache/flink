@@ -37,6 +37,7 @@ import org.apache.flink.util.Collector;
  * INPUT = (pageId, currentRank, dangling), (pageId, partialRank).
  * OUTPUT = (pageId, newRank, dangling)
  */
+@SuppressWarnings("deprecation")
 @ConstantFieldsFirst(0)
 public class DotProductCoGroup extends CoGroupFunction implements Serializable {
 	private static final long serialVersionUID = 1L;

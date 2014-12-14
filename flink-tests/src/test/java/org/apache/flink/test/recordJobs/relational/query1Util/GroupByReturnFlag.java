@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.recordJobs.relational.query1Util;
 
 import java.util.Iterator;
@@ -28,6 +27,7 @@ import org.apache.flink.types.Record;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.Collector;
 
+@SuppressWarnings("deprecation")
 public class GroupByReturnFlag extends ReduceFunction {
 
 	private static final long serialVersionUID = 1L;

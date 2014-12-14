@@ -16,9 +16,7 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.recordJobs.relational.query9Util;
-
 
 import org.apache.flink.api.java.record.functions.JoinFunction;
 import org.apache.flink.types.IntValue;
@@ -26,7 +24,7 @@ import org.apache.flink.types.Record;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.Collector;
 
-@SuppressWarnings("serial")
+@SuppressWarnings({ "deprecation", "serial" })
 public class PartListJoin extends JoinFunction {
 
 	private final StringIntPair amountYearPair = new StringIntPair();

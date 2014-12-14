@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.recordJobs.relational.query1Util;
 
 import java.text.DateFormat;
@@ -38,8 +37,8 @@ import org.slf4j.LoggerFactory;
  * TODO: add parametrisation; first version uses a static interval = 90
  * 
  * In prepration of the following reduce step (see {@link GroupByReturnFlag}) the key has to be set to &quot;return flag&quot;
- * 
  */
+@SuppressWarnings("deprecation")
 public class LineItemFilter extends MapFunction {
 
 	private static final long serialVersionUID = 1L;

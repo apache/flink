@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.recordJobs.graph.pageRankUtil;
 
 import java.io.Serializable;
@@ -32,6 +31,7 @@ import org.apache.flink.util.Collector;
  * INPUT = (pageId, rank, dangling), (pageId, neighbors-list).
  * OUTPUT = (targetPageId, partialRank)
  */
+@SuppressWarnings("deprecation")
 public class DotProductMatch extends JoinFunction implements Serializable {
 	private static final long serialVersionUID = 1L;
 

@@ -71,7 +71,7 @@ public abstract class TableInputFormat<T extends Tuple> implements InputFormat<T
 	 * creates a {@link Scan} object and a {@link HTable} connection
 	 *
 	 * @param parameters
-	 * @see {@link Configuration}
+	 * @see Configuration
 	 */
 	@Override
 	public void configure(Configuration parameters) {

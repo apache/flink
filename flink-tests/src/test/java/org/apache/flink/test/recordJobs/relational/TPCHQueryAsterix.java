@@ -57,7 +57,7 @@ import org.apache.flink.util.Collector;
  * GROUP BY c_mktsegment;
  * 
  */
-
+@SuppressWarnings("deprecation")
 public class TPCHQueryAsterix implements Program, ProgramDescription {
 
 	private static final long serialVersionUID = 1L;

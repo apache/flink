@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.recordJobs.graph;
 
 import java.io.Serializable;
@@ -43,9 +42,7 @@ import org.apache.flink.types.LongValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 
-/**
- *
- */
+@SuppressWarnings("deprecation")
 public class WorksetConnectedComponents implements Program, ProgramDescription {
 	
 	private static final long serialVersionUID = 1L;

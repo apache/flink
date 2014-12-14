@@ -71,7 +71,7 @@ public class ScalaCsvInputFormat<OUT extends Product> extends GenericCsvInputFor
 		TupleTypeInfoBase<OUT> tupleType = (TupleTypeInfoBase<OUT>) typeInfo;
 		serializer = (TupleSerializerBase<OUT>)tupleType.createSerializer();
 
-		Class[] classes = new Class[tupleType.getArity()];
+		Class<?>[] classes = new Class[tupleType.getArity()];
 		for (int i = 0; i < tupleType.getArity(); i++) {
 			classes[i] = tupleType.getTypeAt(i).getTypeClass();
 		}

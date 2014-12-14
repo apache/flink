@@ -422,8 +422,10 @@ public class CollectionDataSets {
 	}
 
 	public static class FromTupleWithCTor extends FromTuple {
-		public FromTupleWithCTor() {
-		}
+
+		private static final long serialVersionUID = 1L;
+
+		public FromTupleWithCTor() {}
 
 		public FromTupleWithCTor(int special, long tupleField) {
 			this.special = special;

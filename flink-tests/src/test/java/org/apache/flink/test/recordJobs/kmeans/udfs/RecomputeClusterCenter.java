@@ -37,6 +37,7 @@ import org.apache.flink.util.Collector;
  * 0: clusterID
  * 1: clusterVector
  */
+@SuppressWarnings("deprecation")
 @Combinable
 @ConstantFields(0)
 public class RecomputeClusterCenter extends ReduceFunction implements Serializable {

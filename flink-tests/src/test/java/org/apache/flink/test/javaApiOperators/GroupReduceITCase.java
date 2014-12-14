@@ -94,6 +94,7 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 		return toParameterList(tConfigs);
 	}
 	
+	@SuppressWarnings("unused")
 	private static class GroupReduceProgs {
 		
 		public static String runProgram(int progId, String resultPath, boolean collectionExecution) throws Exception {
@@ -555,6 +556,7 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 					DataSet<Integer> reduceDs = ds.groupBy("hadoopFan", "theTuple.*") // full tuple selection
 							.reduceGroup(new GroupReduceFunction<PojoContainingTupleAndWritable, Integer>() {
 								private static final long serialVersionUID = 1L;
+								
 								@Override
 								public void reduce(Iterable<PojoContainingTupleAndWritable> values,
 										Collector<Integer> out)

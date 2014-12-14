@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.test.recordJobs.graph;
 
 import org.apache.flink.api.common.Plan;
@@ -43,6 +42,7 @@ import org.apache.flink.types.IntValue;
  * to compute the degrees of the vertices and to select the lower-degree vertex for the
  * enumeration of open triads.
  */
+@SuppressWarnings("deprecation")
 public class EnumTrianglesWithDegrees implements Program, ProgramDescription {
 	
 	private static final long serialVersionUID = 1L;

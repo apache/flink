@@ -35,7 +35,7 @@ import org.apache.flink.runtime.memorymanager.ListMemorySegmentSource;
 /**
  * In-memory partition with overflow buckets for {@link CompactingHashTable}
  * 
- * @param T record type
+ * @param <T> record type
  */
 public class InMemoryPartition<T> {
 	
