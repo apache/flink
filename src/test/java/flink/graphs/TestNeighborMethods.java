@@ -17,7 +17,7 @@ import org.junit.runners.Parameterized.Parameters;
 @RunWith(Parameterized.class)
 public class TestNeighborMethods extends JavaProgramTestBase {
 
-	private static int NUM_PROGRAMS = 3;
+	private static int NUM_PROGRAMS = 6;
 	
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -72,7 +72,7 @@ public class TestNeighborMethods extends JavaProgramTestBase {
 						TestGraphUtils.getLongLongEdgeData(env), env);
 
 				DataSet<Tuple2<Long, Long>> verticesWithLowestOutNeighbor = 
-						graph.reduceOnEdges(new EdgesFunction<Long, Long, Long, Long>() {
+						graph.reduceOnEdges(new EdgesFunctionWithVertexValue<Long, Long, Long, Long>() {
 
 					public Tuple2<Long, Long> iterateEdges(
 							Vertex<Long, Long> v,
@@ -108,7 +108,7 @@ public class TestNeighborMethods extends JavaProgramTestBase {
 						TestGraphUtils.getLongLongEdgeData(env), env);
 
 				DataSet<Tuple2<Long, Long>> verticesWithLowestOutNeighbor = 
-						graph.reduceOnEdges(new EdgesFunction<Long, Long, Long, Long>() {
+						graph.reduceOnEdges(new EdgesFunctionWithVertexValue<Long, Long, Long, Long>() {
 
 					public Tuple2<Long, Long> iterateEdges(
 							Vertex<Long, Long> v,
@@ -144,7 +144,7 @@ public class TestNeighborMethods extends JavaProgramTestBase {
 						TestGraphUtils.getLongLongEdgeData(env), env);
 
 				DataSet<Tuple2<Long, Long>> verticesWithMaxEdgeWeight = 
-						graph.reduceOnEdges(new EdgesFunction<Long, Long, Long, Long>() {
+						graph.reduceOnEdges(new EdgesFunctionWithVertexValue<Long, Long, Long, Long>() {
 
 					public Tuple2<Long, Long> iterateEdges(Vertex<Long, Long> v,
 							Iterable<Edge<Long, Long>> edges) {
@@ -167,10 +167,124 @@ public class TestNeighborMethods extends JavaProgramTestBase {
 						"4,45\n" + 
 						"5,51\n";
 			}
+			case 4: {
+				/*
+				 * Get the lowest-weight out-neighbor
+				 * for each vertex
+		         */
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env), 
+						TestGraphUtils.getLongLongEdgeData(env), env);
+
+				DataSet<Tuple2<Long, Long>> verticesWithLowestOutNeighbor = 
+						graph.reduceOnEdges(new EdgesFunction<Long, Long, Long>() {
+
+					public Tuple2<Long, Long> iterateEdges(Iterable<Tuple2<Long, Edge<Long, Long>>> edges) {
+
+						long weight = Long.MAX_VALUE;
+						long minNeighorId = 0;
+						long vertexId = -1;
+						long i=0;
+
+						for (Tuple2<Long, Edge<Long, Long>> edge: edges) {
+							if (edge.f1.getValue() < weight) {
+								weight = edge.f1.getValue();
+								minNeighorId = edge.f1.getTarget();
+							}
+							if (i==0) {
+								vertexId = edge.f0;
+							} i++;
+						}
+						return new Tuple2<Long, Long>(vertexId, minNeighorId);
+					}
+				}, EdgeDirection.OUT);
+				verticesWithLowestOutNeighbor.writeAsCsv(resultPath);
+				env.execute();
+				return "1,2\n" +
+						"2,3\n" + 
+						"3,4\n" +
+						"4,5\n" + 
+						"5,1\n";
+			}
+			case 5: {
+				/*
+				 * Get the lowest-weight in-neighbor
+				 * for each vertex
+		         */
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env), 
+						TestGraphUtils.getLongLongEdgeData(env), env);
+
+				DataSet<Tuple2<Long, Long>> verticesWithLowestOutNeighbor = 
+						graph.reduceOnEdges(new EdgesFunction<Long, Long, Long>() {
+
+					public Tuple2<Long, Long> iterateEdges(Iterable<Tuple2<Long, Edge<Long, Long>>> edges) {
+						
+						long weight = Long.MAX_VALUE;
+						long minNeighorId = 0;
+						long vertexId = -1;
+						long i=0;
+
+						for (Tuple2<Long, Edge<Long, Long>> edge: edges) {
+							if (edge.f1.getValue() < weight) {
+								weight = edge.f1.getValue();
+								minNeighorId = edge.f1.getSource();
+							}
+							if (i==0) {
+								vertexId = edge.f0;
+							} i++;
+						}
+						return new Tuple2<Long, Long>(vertexId, minNeighorId);
+					}
+				}, EdgeDirection.IN);
+				verticesWithLowestOutNeighbor.writeAsCsv(resultPath);
+				env.execute();
+				return "1,5\n" +
+						"2,1\n" + 
+						"3,1\n" +
+						"4,3\n" + 
+						"5,3\n";
+			}
+			case 6: {
+				/*
+				 * Get the maximum weight among all edges
+				 * of a vertex
+		         */
+				final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+				Graph<Long, Long, Long> graph = Graph.create(TestGraphUtils.getLongLongVertexData(env), 
+						TestGraphUtils.getLongLongEdgeData(env), env);
+
+				DataSet<Tuple2<Long, Long>> verticesWithMaxEdgeWeight = 
+						graph.reduceOnEdges(new EdgesFunction<Long, Long, Long>() {
+
+					public Tuple2<Long, Long> iterateEdges(Iterable<Tuple2<Long, Edge<Long, Long>>> edges) {
+						
+						long weight = Long.MIN_VALUE;
+						long vertexId = -1;
+						long i=0;
+
+						for (Tuple2<Long, Edge<Long, Long>> edge: edges) {
+							if (edge.f1.getValue() > weight) {
+								weight = edge.f1.getValue();
+							}
+							if (i==0) {
+								vertexId = edge.f0;
+							} i++;
+						}
+						return new Tuple2<Long, Long>(vertexId, weight);
+					}
+				}, EdgeDirection.ALL);
+				verticesWithMaxEdgeWeight.writeAsCsv(resultPath);
+				env.execute();
+				return "1,51\n" +
+						"2,23\n" + 
+						"3,35\n" +
+						"4,45\n" + 
+						"5,51\n";
+			}
 			default: 
 				throw new IllegalArgumentException("Invalid program id");
 			}
 		}
 	}
-	
 }
