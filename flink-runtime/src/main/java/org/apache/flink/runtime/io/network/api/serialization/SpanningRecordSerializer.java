@@ -104,6 +104,7 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 		
 		// make sure we don't hold onto the large buffers for too long
 		if (result.isFullRecord()) {
+			this.serializationBuffer.clear();
 			this.serializationBuffer.pruneBuffer();
 			this.dataBuffer = this.serializationBuffer.wrapAsByteBuffer();
 		}

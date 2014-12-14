@@ -71,7 +71,7 @@ public class DataInputDeserializer implements DataInputView {
 			throw new NullPointerException();
 		}
 
-		if (start < 0 || len < 0 || start + len >= buffer.length) {
+		if (start < 0 || len < 0 || start + len > buffer.length) {
 			throw new IllegalArgumentException();
 		}
 

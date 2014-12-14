@@ -16,20 +16,21 @@
  * limitations under the License.
  */
 
+package org.apache.flink.runtime.io.network.serialization;
 
-package org.apache.flink.runtime.io.network.api.serialization;
-
-import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.junit.Assert;
 
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult;
-import org.apache.flink.runtime.io.network.api.serialization.types.SerializationTestType;
-import org.apache.flink.runtime.io.network.api.serialization.types.SerializationTestTypeFactory;
-import org.apache.flink.runtime.io.network.api.serialization.types.Util;
+import org.apache.flink.runtime.io.network.Buffer;
+import org.apache.flink.runtime.io.network.serialization.AdaptiveSpanningRecordDeserializer;
+import org.apache.flink.runtime.io.network.serialization.RecordDeserializer;
+import org.apache.flink.runtime.io.network.serialization.RecordSerializer;
+import org.apache.flink.runtime.io.network.serialization.SpanningRecordSerializer;
+import org.apache.flink.runtime.io.network.serialization.RecordDeserializer.DeserializationResult;
+import org.apache.flink.runtime.io.network.serialization.types.SerializationTestType;
+import org.apache.flink.runtime.io.network.serialization.types.SerializationTestTypeFactory;
+import org.apache.flink.runtime.io.network.serialization.types.Util;
 import org.junit.Test;
-import org.mockito.Mockito;
 
 import java.util.ArrayDeque;
 
@@ -41,8 +42,10 @@ public class SpanningRecordSerializationTest {
 		final int NUM_VALUES = 10;
 
 		try {
-			test(Util.randomRecords(NUM_VALUES, SerializationTestTypeFactory.INT), SEGMENT_SIZE);
-		} catch (Exception e) {
+			testNonSpillingDeserializer(Util.randomRecords(NUM_VALUES, SerializationTestTypeFactory.INT), SEGMENT_SIZE);
+			testSpillingDeserializer(Util.randomRecords(NUM_VALUES, SerializationTestTypeFactory.INT), SEGMENT_SIZE);
+		}
+		catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail("Test encountered an unexpected exception.");
 		}
@@ -54,8 +57,10 @@ public class SpanningRecordSerializationTest {
 		final int NUM_VALUES = 64;
 
 		try {
-			test(Util.randomRecords(NUM_VALUES, SerializationTestTypeFactory.INT), SEGMENT_SIZE);
-		} catch (Exception e) {
+			testNonSpillingDeserializer(Util.randomRecords(NUM_VALUES, SerializationTestTypeFactory.INT), SEGMENT_SIZE);
+			testSpillingDeserializer(Util.randomRecords(NUM_VALUES, SerializationTestTypeFactory.INT), SEGMENT_SIZE);
+		}
+		catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail("Test encountered an unexpected exception.");
 		}
@@ -67,8 +72,10 @@ public class SpanningRecordSerializationTest {
 		final int NUM_VALUES = 248;
 
 		try {
-			test(Util.randomRecords(NUM_VALUES, SerializationTestTypeFactory.INT), SEGMENT_SIZE);
-		} catch (Exception e) {
+			testNonSpillingDeserializer(Util.randomRecords(NUM_VALUES, SerializationTestTypeFactory.INT), SEGMENT_SIZE);
+			testSpillingDeserializer(Util.randomRecords(NUM_VALUES, SerializationTestTypeFactory.INT), SEGMENT_SIZE);
+		}
+		catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail("Test encountered an unexpected exception.");
 		}
@@ -80,8 +87,10 @@ public class SpanningRecordSerializationTest {
 		final int NUM_VALUES = 10000;
 
 		try {
-			test(Util.randomRecords(NUM_VALUES), SEGMENT_SIZE);
-		} catch (Exception e) {
+			testNonSpillingDeserializer(Util.randomRecords(NUM_VALUES), SEGMENT_SIZE);
+			testSpillingDeserializer(Util.randomRecords(NUM_VALUES), SEGMENT_SIZE);
+		}
+		catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail("Test encountered an unexpected exception.");
 		}
@@ -89,6 +98,20 @@ public class SpanningRecordSerializationTest {
 
 	// -----------------------------------------------------------------------------------------------------------------
 
+	private void testNonSpillingDeserializer(Util.MockRecords records, int segmentSize) throws Exception {
+		RecordSerializer<SerializationTestType> serializer = new SpanningRecordSerializer<SerializationTestType>();
+		RecordDeserializer<SerializationTestType> deserializer = new AdaptiveSpanningRecordDeserializer<SerializationTestType>();
+		
+		test(records, segmentSize, serializer, deserializer);
+	}
+	
+	private void testSpillingDeserializer(Util.MockRecords records, int segmentSize) throws Exception {
+		RecordSerializer<SerializationTestType> serializer = new SpanningRecordSerializer<SerializationTestType>();
+		RecordDeserializer<SerializationTestType> deserializer = new SpillingAdaptiveSpanningRecordDeserializer<SerializationTestType>();
+		
+		test(records, segmentSize, serializer, deserializer);
+	}
+	
 	/**
 	 * Iterates over the provided records and tests whether {@link SpanningRecordSerializer} and {@link AdaptiveSpanningRecordDeserializer}
 	 * interact as expected.
@@ -98,13 +121,14 @@ public class SpanningRecordSerializationTest {
 	 * @param records records to test
 	 * @param segmentSize size for the {@link MemorySegment}
 	 */
-	private void test (Util.MockRecords records, int segmentSize) throws Exception {
+	private void test(Util.MockRecords records, int segmentSize, 
+			RecordSerializer<SerializationTestType> serializer,
+			RecordDeserializer<SerializationTestType> deserializer)
+		throws Exception
+	{
 		final int SERIALIZATION_OVERHEAD = 4; // length encoding
 
-		final RecordSerializer<SerializationTestType> serializer = new SpanningRecordSerializer<SerializationTestType>();
-		final RecordDeserializer<SerializationTestType> deserializer = new AdaptiveSpanningRecordDeserializer<SerializationTestType>();
-
-		final Buffer buffer = new Buffer(new MemorySegment(new byte[segmentSize]), Mockito.mock(BufferRecycler.class));
+		final Buffer buffer = new Buffer(new MemorySegment(new byte[segmentSize]), segmentSize, null);
 
 		final ArrayDeque<SerializationTestType> serializedRecords = new ArrayDeque<SerializationTestType>();
 
