@@ -332,12 +332,13 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	
 	/**
 	 * Compute an aggregate over the edges of each vertex.
-	 * @param edgesFunction edgesFunction the function to apply to the neighborhood
+	 * The function applied on the edges has access to the vertex value.
+	 * @param edgesFunction the function to apply to the neighborhood
 	 * @param direction the edge direction (in-, out-, all-)
 	 * @return a dataset of a Tuple2 with the vertex id and the computed value
 	 * @throws IllegalArgumentException
 	 */
-	public <T> DataSet<Tuple2<K, T>> reduceOnEdges(EdgesFunction<K, VV, EV, T> edgesFunction,
+	public <T> DataSet<Tuple2<K, T>> reduceOnEdges(EdgesFunctionWithVertexValue<K, VV, EV, T> edgesFunction,
 			EdgeDirection direction) throws IllegalArgumentException {
 		switch (direction) {
 		case IN:
@@ -355,6 +356,92 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		}
 	}
 
+	/**
+	 * Compute an aggregate over the edges of each vertex.
+	 * The function applied on the edges only has access to the vertex id
+	 * (not the vertex value).
+	 * @param edgesFunction the function to apply to the neighborhood
+	 * @param direction the edge direction (in-, out-, all-)
+	 * @return a dataset of a Tuple2 with the vertex id and the computed value
+	 * @throws IllegalArgumentException
+	 */
+	public <T> DataSet<Tuple2<K, T>> reduceOnEdges(EdgesFunction<K, EV, T> edgesFunction,
+			EdgeDirection direction) throws IllegalArgumentException {
+		switch (direction) {
+		case IN:
+			return edges.map(new ProjectVertexIdMap<K, EV>(1))
+					.groupBy(0).reduceGroup(new ApplyGroupReduceFunction<K, EV, T>(edgesFunction));
+		case OUT:
+			return edges.map(new ProjectVertexIdMap<K, EV>(0))
+					.groupBy(0).reduceGroup(new ApplyGroupReduceFunction<K, EV, T>(edgesFunction));
+		case ALL:
+			return edges.flatMap(new EmitOneEdgePerNode<K, VV, EV>()).groupBy(0)
+					.reduceGroup(new ApplyGroupReduceFunctionOnAllEdges<K, EV, T>(edgesFunction));
+		default:
+			throw new IllegalArgumentException("Illegal edge direction");
+		}
+	}
+
+	private static final class ProjectVertexIdMap<K extends Comparable<K> & Serializable, 
+		EV extends Serializable> implements MapFunction<Edge<K, EV>, Tuple2<K, Edge<K, EV>>> {
+
+		private int fieldPosition;
+
+		public ProjectVertexIdMap(int position) {
+			this.fieldPosition = position;
+		}
+
+		@SuppressWarnings("unchecked")
+		public Tuple2<K, Edge<K, EV>> map(Edge<K, EV> edge) {
+			return new Tuple2<K, Edge<K, EV>>((K) edge.getField(fieldPosition), edge);
+		}
+	}
+
+	private static final class ApplyGroupReduceFunctionOnAllEdges<K extends Comparable<K> & Serializable, 
+		EV extends Serializable, T> implements GroupReduceFunction<Tuple2<K, Edge<K, EV>>, Tuple2<K, T>>,
+		ResultTypeQueryable<Tuple2<K, T>> {
+	
+		private EdgesFunction<K, EV, T> function;
+
+		public ApplyGroupReduceFunctionOnAllEdges(EdgesFunction<K, EV, T> fun) {
+			this.function = fun;
+		}
+
+		public void reduce(final Iterable<Tuple2<K, Edge<K, EV>>> keysWithEdges,
+				Collector<Tuple2<K, T>> out) throws Exception {
+			out.collect(function.iterateEdges(keysWithEdges));
+		}
+
+		@Override
+		public TypeInformation<Tuple2<K, T>> getProducedType() {
+			return new TupleTypeInfo<Tuple2<K, T>>(keyType, 
+					TypeExtractor.createTypeInfo(EdgesFunction.class, function.getClass(), 2, null, null));
+		}
+	}
+
+	private static final class ApplyGroupReduceFunction<K extends Comparable<K> & Serializable, 
+		EV extends Serializable, T> implements GroupReduceFunction<Tuple2<K, Edge<K, EV>>, Tuple2<K, T>>,
+		ResultTypeQueryable<Tuple2<K, T>> {
+
+		private EdgesFunction<K, EV, T> function;
+
+		public ApplyGroupReduceFunction(EdgesFunction<K, EV, T> fun) {
+			this.function = fun;
+		}
+
+		public void reduce(Iterable<Tuple2<K, Edge<K, EV>>> edges,
+				Collector<Tuple2<K, T>> out) throws Exception {
+			out.collect(function.iterateEdges(edges));
+			
+		}
+
+		@Override
+		public TypeInformation<Tuple2<K, T>> getProducedType() {
+			return new TupleTypeInfo<Tuple2<K, T>>(keyType, 
+					TypeExtractor.createTypeInfo(EdgesFunction.class, function.getClass(), 2, null, null));
+		}	
+	}
+
 	private static final class EmitOneEdgePerNode<K extends Comparable<K> & Serializable, 
 		VV extends Serializable, EV extends Serializable> implements FlatMapFunction<
 		Edge<K, EV>, Tuple2<K, Edge<K, EV>>> {
@@ -369,9 +456,9 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		implements CoGroupFunction<Vertex<K, VV>, Edge<K, EV>, Tuple2<K, T>>,
 		ResultTypeQueryable<Tuple2<K, T>> {
 		
-		private EdgesFunction<K, VV, EV, T> function;
+		private EdgesFunctionWithVertexValue<K, VV, EV, T> function;
 		
-		public ApplyCoGroupFunction (EdgesFunction<K, VV, EV, T> fun) {
+		public ApplyCoGroupFunction (EdgesFunctionWithVertexValue<K, VV, EV, T> fun) {
 			this.function = fun;
 		}
 		public void coGroup(Iterable<Vertex<K, VV>> vertex,
@@ -381,7 +468,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		@Override
 		public TypeInformation<Tuple2<K, T>> getProducedType() {
 			return new TupleTypeInfo<Tuple2<K, T>>(keyType, 
-					TypeExtractor.createTypeInfo(EdgesFunction.class, function.getClass(), 3, null, null));
+					TypeExtractor.createTypeInfo(EdgesFunctionWithVertexValue.class, function.getClass(), 3, null, null));
 		}
 	}
 
@@ -390,15 +477,14 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 		implements CoGroupFunction<Vertex<K, VV>, Tuple2<K, Edge<K, EV>>, Tuple2<K, T>>,
 		ResultTypeQueryable<Tuple2<K, T>> {
 
-	private EdgesFunction<K, VV, EV, T> function;
+	private EdgesFunctionWithVertexValue<K, VV, EV, T> function;
 
-	public ApplyCoGroupFunctionOnAllEdges (EdgesFunction<K, VV, EV, T> fun) {
+	public ApplyCoGroupFunctionOnAllEdges (EdgesFunctionWithVertexValue<K, VV, EV, T> fun) {
 		this.function = fun;
 	}
 
-	public void coGroup(Iterable<Vertex<K, VV>> vertex,
-			final Iterable<Tuple2<K, Edge<K, EV>>> keysWithEdges, Collector<Tuple2<K, T>> out) 
-					throws Exception {
+	public void coGroup(Iterable<Vertex<K, VV>> vertex, final Iterable<Tuple2<K, Edge<K, EV>>> keysWithEdges, 
+			Collector<Tuple2<K, T>> out) throws Exception {
 
 		final Iterator<Edge<K, EV>> edgesIterator = new Iterator<Edge<K,EV>>() {
 
@@ -432,7 +518,7 @@ public class Graph<K extends Comparable<K> & Serializable, VV extends Serializab
 	@Override
 	public TypeInformation<Tuple2<K, T>> getProducedType() {
 		return new TupleTypeInfo<Tuple2<K, T>>(keyType, 
-				TypeExtractor.createTypeInfo(EdgesFunction.class, function.getClass(), 3, null, null));
+				TypeExtractor.createTypeInfo(EdgesFunctionWithVertexValue.class, function.getClass(), 3, null, null));
 	}
 }
 
