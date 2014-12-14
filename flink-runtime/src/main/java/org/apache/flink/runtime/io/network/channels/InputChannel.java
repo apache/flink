@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.io.network.channels;
 
 import org.slf4j.Logger;
@@ -30,9 +29,9 @@ import org.apache.flink.runtime.io.network.bufferprovider.BufferAvailabilityList
 import org.apache.flink.runtime.io.network.bufferprovider.BufferProvider;
 import org.apache.flink.runtime.io.network.gates.InputChannelResult;
 import org.apache.flink.runtime.io.network.gates.InputGate;
-import org.apache.flink.runtime.io.network.serialization.AdaptiveSpanningRecordDeserializer;
 import org.apache.flink.runtime.io.network.serialization.RecordDeserializer;
 import org.apache.flink.runtime.io.network.serialization.RecordDeserializer.DeserializationResult;
+import org.apache.flink.runtime.io.network.serialization.SpillingAdaptiveSpanningRecordDeserializer;
 import org.apache.flink.runtime.jobgraph.JobID;
 
 import java.io.IOException;
@@ -113,7 +112,7 @@ public class InputChannel<T extends IOReadableWritable> extends Channel implemen
 						final ChannelID connectedChannelID, ChannelType type) {
 		super(channelIndex, channelID, connectedChannelID, type);
 		this.inputGate = inputGate;
-		this.deserializer = new AdaptiveSpanningRecordDeserializer<T>();
+		this.deserializer = new SpillingAdaptiveSpanningRecordDeserializer<T>();
 	}
 
 	/**
