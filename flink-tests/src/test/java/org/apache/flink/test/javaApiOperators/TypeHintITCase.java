@@ -122,17 +122,9 @@ public class TypeHintITCase extends JavaProgramTestBase {
 
 				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.getSmall3TupleDataSet(env);
 				@SuppressWarnings({ "rawtypes", "unchecked" })
-				DataSet<Object> identityMapDs = ds.
-				flatMap(new FlatMapFunction<Tuple3<Integer, Long, String>, Object>() {
-					private static final long serialVersionUID = 1L;
-
-					@Override
-					public void flatMap(
-							Tuple3<Integer, Long, String> value,
-							Collector<Object> out) throws Exception {
-						out.collect(value.f0);
-					}
-				}).returns((Class) Integer.class);
+				DataSet<Integer> identityMapDs = ds.
+				flatMap(new FlatMapper<Tuple3<Integer, Long, String>, Integer>())
+				.returns((Class) Integer.class);
 				identityMapDs.writeAsText(resultPath);
 				env.execute();
 
@@ -156,6 +148,16 @@ public class TypeHintITCase extends JavaProgramTestBase {
 		@Override
 		public V map(T value) throws Exception {
 			return (V) value;
+		}
+	}
+	
+	public static class FlatMapper<T, V> implements FlatMapFunction<T, V> {
+		private static final long serialVersionUID = 1L;
+
+		@SuppressWarnings({ "unchecked", "rawtypes" })
+		@Override
+		public void flatMap(T value, Collector<V> out) throws Exception {
+			out.collect((V) ((Tuple3)value).f0);
 		}
 	}
 

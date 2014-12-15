@@ -69,6 +69,7 @@ import org.apache.flink.api.java.operators.UnsortedGrouping;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
+import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
@@ -94,22 +95,26 @@ public abstract class DataSet<T> {
 	
 	private TypeInformation<T> type;
 	
+	private boolean typeUsed = false;
 	
-	protected DataSet(ExecutionEnvironment context, TypeInformation<T> type) {
+	protected DataSet(ExecutionEnvironment context, TypeInformation<T> typeInfo) {
 		if (context == null) {
 			throw new NullPointerException("context is null");
 		}
 
 		this.context = context;
-		this.type = type;
+		this.type = typeInfo;
 	}
 
-	protected void setType(TypeInformation<T> type) {
-		this.type = type;
+	protected void fillInType(TypeInformation<T> typeInfo) {
+		if (typeUsed) {
+			throw new IllegalStateException("TypeInformation cannot be filled in for the type after it has been used.");
+		}
+		this.type = typeInfo;
 	}
 	
 	protected boolean isTypeValid() {
-		return type != null;
+		return type != null && !(type instanceof MissingTypeInfo);
 	}
 
 	/**
@@ -132,10 +137,18 @@ public abstract class DataSet<T> {
 	 */
 	public TypeInformation<T> getType() {
 		if (type == null) {
-			throw new InvalidTypesException("The return type could not be determined automatically. "
-					+ "See the log for more information. "
+			throw new InvalidTypesException("The return type is invalid. "
 					+ "Please provide type information manually.");
 		}
+		else if (type instanceof MissingTypeInfo) {
+			MissingTypeInfo typeInfo = (MissingTypeInfo) type;
+			throw new InvalidTypesException("The type of function '" + typeInfo.getFunctionName()
+					+ "' could not be determined automatically. Please check if your program contains errors. "
+					+ "If not, you can give type information hints by implementing the interface "
+					+ "ResultTypeQueryable in your function or using the returns() method of the operator.",
+					typeInfo.getTypeException());
+		}
+		typeUsed = true;
 		return this.type;
 	}
 	

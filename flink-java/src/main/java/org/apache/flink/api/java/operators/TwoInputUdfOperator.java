@@ -251,7 +251,7 @@ public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOp
 		if (typeInfo == null) {
 			throw new IllegalArgumentException("Type information must not be null.");
 		}
-		setType(typeInfo);
+		fillInType(typeInfo);
 		updateTypeDependentProperties();
 		@SuppressWarnings("unchecked")
 		O returnType = (O) this;
@@ -277,21 +277,23 @@ public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOp
 	 * <li>Arrays such as <code>String[].class</code>, etc.</li>
 	 * </ul>
 	 *
-	 * @param typeClazz
+	 * @param typeClass
 	 *            class as a return type hint
 	 * @return This operator with a given return type hint.
 	 */
 	@SuppressWarnings("unchecked")
-	public O returns(Class<OUT> typeClazz) {
-		if (typeClazz == null) {
+	public O returns(Class<OUT> typeClass) {
+		if (typeClass == null) {
 			throw new IllegalArgumentException("Type class must not be null.");
 		}
 		
-		TypeInformation<OUT> ti = (TypeInformation<OUT>) TypeExtractor.createTypeInfo(typeClazz);
-		if (ti == null) {
-			throw new InvalidTypesException("The given class is not suited for providing necessary type information.");
+		try {
+			TypeInformation<OUT> ti = (TypeInformation<OUT>) TypeExtractor.createTypeInfo(typeClass);
+			return returns(ti);
 		}
-		return returns(ti);
+		catch (InvalidTypesException e) {
+			throw new InvalidTypesException("The given class is not suited for providing necessary type information.", e);
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------
