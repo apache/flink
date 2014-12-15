@@ -57,6 +57,11 @@ public class LocalDataInputStream extends FSDataInputStream {
 		this.fis.getChannel().position(desired);
 	}
 
+	@Override
+	public long getPos() throws IOException {
+		return this.fis.getChannel().position();
+	}
+
 
 	@Override
 	public int read() throws IOException {

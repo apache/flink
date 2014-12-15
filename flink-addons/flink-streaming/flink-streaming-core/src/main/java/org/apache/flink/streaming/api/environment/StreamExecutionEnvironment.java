@@ -26,17 +26,21 @@ import org.apache.commons.lang3.SerializationException;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.client.program.Client;
 import org.apache.flink.client.program.ContextEnvironment;
 import org.apache.flink.streaming.api.JobGraphBuilder;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
+import org.apache.flink.streaming.api.function.source.FileReadFunction;
+import org.apache.flink.streaming.api.function.source.SocketTextStreamFunction;
 import org.apache.flink.streaming.api.function.source.FileSourceFunction;
-import org.apache.flink.streaming.api.function.source.FileStreamFunction;
+import org.apache.flink.streaming.api.function.source.TextStreamFunction;
 import org.apache.flink.streaming.api.function.source.FromElementsFunction;
 import org.apache.flink.streaming.api.function.source.GenSequenceFunction;
-import org.apache.flink.streaming.api.function.source.SocketTextStreamFunction;
+import org.apache.flink.streaming.api.function.source.FileMonitoringFunction;
+import org.apache.flink.streaming.api.function.source.FileMonitoringFunction.WatchType;
 import org.apache.flink.streaming.api.function.source.SourceFunction;
 import org.apache.flink.streaming.api.invokable.SourceInvokable;
 
@@ -174,7 +178,7 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	public DataStreamSource<String> readTextStream(String filePath) {
 		checkIfFileExists(filePath);
-		return addSource(new FileStreamFunction(filePath));
+		return addSource(new TextStreamFunction(filePath));
 	}
 
 	private static void checkIfFileExists(String filePath) {
@@ -190,6 +194,33 @@ public abstract class StreamExecutionEnvironment {
 		if (file.isDirectory()) {
 			throw new IllegalArgumentException("Given path is a directory: " + filePath);
 		}
+	}
+
+	/**
+	 * Creates a DataStream that contains the contents of file created while
+	 * system watches the given path. The file will be read with the system's
+	 * default character set.
+	 *
+	 * @param filePath
+	 *            The path of the file, as a URI (e.g.,
+	 *            "file:///some/local/file" or "hdfs://host:port/file/path/").
+	 * @param interval
+	 *			  The interval of file watching.
+	 * @param watchType
+	 *            The watch type of file stream. When watchType is
+	 *            {@link WatchType.ONLY_NEW_FILES}, the system processes only
+	 *            new files. {@link WatchType.REPROCESS_WITH_APPENDED} means
+	 *            that the system re-processes all contents of appended file.
+	 *            {@link WatchType.PROCESS_ONLY_APPENDED} means that the system
+	 *            processes only appended contents of files.
+	 *
+	 * @return The DataStream containing the given directory.
+	 */
+	public DataStreamSource<String> readFileStream(String filePath, long interval, WatchType watchType) {
+		DataStream<Tuple3<String, Long, Long>> source =
+				addSource(new FileMonitoringFunction(filePath, interval, watchType)).setParallelism(1);
+
+		return new DataStreamSource<String>(source.flatMap(new FileReadFunction()));
 	}
 
 	/**

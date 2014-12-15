@@ -45,4 +45,10 @@ public abstract class FSDataInputStream extends InputStream {
 	 */
 	public abstract void seek(long desired) throws IOException;
 
+	/**
+	 * Get the current position in the input stream.
+	 *
+	 * @return current position in the input stream
+	 */
+	public abstract long getPos() throws IOException;
 }
