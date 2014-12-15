@@ -70,9 +70,9 @@ public class SplitDataStream<OUT> {
 		return returnStream;
 	}
 
-	private DataStream<OUT> selectOutput(String[] outputName) {
+	private DataStream<OUT> selectOutput(String[] outputNames) {
 		DataStream<OUT> returnStream = dataStream.copy();
-		returnStream.userDefinedNames = Arrays.asList(outputName);
+		returnStream.userDefinedNames = Arrays.asList(outputNames);
 		return returnStream;
 	}
 
