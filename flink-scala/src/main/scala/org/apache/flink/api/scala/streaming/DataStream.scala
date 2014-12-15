@@ -38,6 +38,10 @@ import org.apache.flink.api.common.functions.ReduceFunction
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.common.functions.FilterFunction
 import org.apache.flink.streaming.api.function.sink.SinkFunction
+import org.apache.flink.streaming.api.windowing.helper.WindowingHelper
+import org.apache.flink.streaming.api.windowing.policy.EvictionPolicy
+import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy
+import scala.collection.JavaConversions._
 
 class DataStream[T](javaStream: JavaStream[T]) {
 
@@ -397,6 +401,29 @@ class DataStream[T](javaStream: JavaStream[T]) {
   }
 
   /**
+   * Create a WindowedDataStream that can be used to apply
+   * transformation like .reduce(...) or aggregations on
+   * preset chunks(windows) of the data stream. To define the windows one or
+   * more WindowingHelper-s such as Time, Count and
+   * Delta can be used.</br></br> When applied to a grouped data
+   * stream, the windows (evictions) and slide sizes (triggers) will be
+   * computed on a per group basis. </br></br> For more advanced control over
+   * the trigger and eviction policies please use to
+   * window(List(triggers), List(evicters))
+   */
+  def window(windowingHelper: WindowingHelper[_]*): WindowedDataStream[T] = new WindowedDataStream[T](javaStream.window(windowingHelper: _*))
+
+  /**
+   * Create a WindowedDataStream using the given TriggerPolicy-s and EvictionPolicy-s.
+   * Windowing can be used to apply transformation like .reduce(...) or aggregations on
+   * preset chunks(windows) of the data stream.</br></br>For most common
+   * use-cases please refer to window(WindowingHelper[_]*)
+   *
+   */
+  def window(triggers: List[TriggerPolicy[T]], evicters: List[EvictionPolicy[T]]): WindowedDataStream[T] = new WindowedDataStream[T](javaStream.window(triggers, evicters))
+
+  /**
+   * >>>>>>> 12178aa... [scala] [streaming] Windowing functionality added to scala api
    * Writes a DataStream to the standard output stream (stdout). For each
    * element of the DataStream the result of .toString is
    * written.

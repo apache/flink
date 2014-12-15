@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.scala.streaming
 
+import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.environment.{ StreamExecutionEnvironment => JavaEnv }
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.commons.lang.Validate
@@ -26,6 +27,8 @@ import org.apache.flink.streaming.api.datastream.DataStreamSource
 import org.apache.flink.streaming.api.invokable.SourceInvokable
 import org.apache.flink.streaming.api.function.source.FromElementsFunction
 import org.apache.flink.streaming.api.function.source.SourceFunction
+import scala.collection.JavaConversions._
+import org.apache.flink.util.Collector
 
 class StreamExecutionEnvironment(javaEnv: JavaEnv) {
 
@@ -113,7 +116,16 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * Creates a new DataStream that contains a sequence of numbers.
    *
    */
-  def generateSequence(from: Long, to: Long): DataStream[java.lang.Long] = new DataStream(javaEnv.generateSequence(from, to))
+  def generateSequence(from: Long, to: Long): DataStream[Long] = {
+    val source = new SourceFunction[Long] {
+      override def invoke(out: Collector[Long]) = {
+        for (i <- from.to(to)) {
+          out.collect(i)
+        }
+      }
+    }
+    addSource(source)
+  }
 
   /**
    * Creates a DataStream that contains the given elements. The elements must all be of the
