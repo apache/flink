@@ -52,7 +52,7 @@ defaults:
     values:
       layout: default
 
-markdown: kramdown
+markdown: KramdownPygments
 highlighter: pygments
 
 kramdown:

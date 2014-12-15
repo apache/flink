@@ -87,12 +87,12 @@ The `-Pvendor-repos` activates a Maven [build profile](http://maven.apache.org/g
 
 **Build Flink for `hadoop2` versions before 2.2.0**
 
-Maven will automatically build Flink with its YARN client. But there were some changes in Hadoop versions before the 2.2.0 Hadoop release that are not supported by Flink's YARN client. Therefore, you can disable building the YARN client with the following string: `-P\!include-yarn`. 
+Maven will automatically build Flink with its YARN client. But there were some changes in Hadoop versions before the 2.2.0 Hadoop release that are not supported by Flink's YARN client. Therefore, you can disable building the YARN client with the following string: `-P!include-yarn`. 
 
 So if you are building Flink for Hadoop `2.0.0-alpha`, use the following command:
 
 ~~~bash
--P\!include-yarn -Dhadoop.version=2.0.0-alpha
+-P!include-yarn -Dhadoop.version=2.0.0-alpha
 ~~~
 
 ## Background
