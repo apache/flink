@@ -92,8 +92,8 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    * Returns the execution environment associated with the current DataSet.
    * @return associated execution environment
    */
-  def getExecutionEnvironment: ExecutionEnvironment = new ExecutionEnvironment(set
-    .getExecutionEnvironment)
+  def getExecutionEnvironment: ExecutionEnvironment =
+    new ExecutionEnvironment(set.getExecutionEnvironment)
 
   /**
    * Returns the underlying Java DataSet.
@@ -110,11 +110,13 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
    *
    * @param f the closure to clean
    * @param checkSerializable whether or not to immediately check <tt>f</tt> for serializability
-   * @throws <tt>SparkException<tt> if <tt>checkSerializable</tt> is set but <tt>f</tt> is not
-   *   serializable
+   * @throws InvalidProgramException if <tt>checkSerializable</tt> is set but <tt>f</tt>
+   *          is not serializable
    */
   private[flink] def clean[F <: AnyRef](f: F, checkSerializable: Boolean = true): F = {
-    ClosureCleaner.clean(f, checkSerializable)
+    if (set.getExecutionEnvironment.getConfig.isClosureCleanerEnabled) {
+      ClosureCleaner.clean(f, checkSerializable)
+    }
     f
   }
 
