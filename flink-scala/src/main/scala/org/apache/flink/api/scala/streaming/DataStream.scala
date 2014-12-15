@@ -41,7 +41,9 @@ import org.apache.flink.streaming.api.function.sink.SinkFunction
 import org.apache.flink.streaming.api.windowing.helper.WindowingHelper
 import org.apache.flink.streaming.api.windowing.policy.EvictionPolicy
 import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy
+import org.apache.flink.streaming.api.collector.OutputSelector
 import scala.collection.JavaConversions._
+import java.util.HashMap
 
 class DataStream[T](javaStream: JavaStream[T]) {
 
@@ -423,7 +425,36 @@ class DataStream[T](javaStream: JavaStream[T]) {
   def window(triggers: List[TriggerPolicy[T]], evicters: List[EvictionPolicy[T]]): WindowedDataStream[T] = new WindowedDataStream[T](javaStream.window(triggers, evicters))
 
   /**
-   * >>>>>>> 12178aa... [scala] [streaming] Windowing functionality added to scala api
+   *
+   * Operator used for directing tuples to specific named outputs using an
+   * OutputSelector. Calling this method on an operator creates a new
+   * SplitDataStream.
+   */
+  def split(selector: OutputSelector[T]): SplitDataStream[T] = javaStream match {
+    case op: SingleOutputStreamOperator[_, _] => new SplitDataStream[T](op.split(selector))
+    case _ =>
+      throw new UnsupportedOperationException("Operator " + javaStream.toString + " can not be " +
+        "split.")
+  }
+
+  /**
+   * Creates a new SplitDataStream that contains only the elements satisfying the
+   *  given output selector predicate.
+   */
+  def split(fun: T => TraversableOnce[String]): SplitDataStream[T] = {
+    if (fun == null) {
+      throw new NullPointerException("OutputSelector must not be null.")
+    }
+    val selector = new OutputSelector[T] {
+      val cleanFun = clean(fun)
+      def select(in: T): java.lang.Iterable[String] = {
+        asJavaIterable(cleanFun(in).toIterable)
+      }
+    }
+    split(selector)
+  }
+
+  /**
    * Writes a DataStream to the standard output stream (stdout). For each
    * element of the DataStream the result of .toString is
    * written.
