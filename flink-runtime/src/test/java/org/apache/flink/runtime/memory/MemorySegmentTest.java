@@ -24,10 +24,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.nio.ByteBuffer;
 import java.util.Random;
 
 import org.junit.Assert;
-
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
 import org.junit.After;
@@ -543,6 +543,32 @@ public class MemorySegmentTest {
 			for (int i = 0; i <= PAGE_SIZE - 2; i += 2) {
 				assertEquals((short) random.nextInt(), segment.getShort(i));
 			}
+		}
+	}
+	
+	@Test
+	public void testByteBufferWrapping() {
+		try {
+			MemorySegment seg = new MemorySegment(new byte[1024]);
+			
+			ByteBuffer buf1 = seg.wrap(13, 47);
+			assertEquals(13, buf1.position());
+			assertEquals(60, buf1.limit());
+			assertEquals(47, buf1.remaining());
+			
+			ByteBuffer buf2 = seg.wrap(500, 267);
+			assertEquals(500, buf2.position());
+			assertEquals(767, buf2.limit());
+			assertEquals(267, buf2.remaining());
+			
+			ByteBuffer buf3 = seg.wrap(0, 1024);
+			assertEquals(0, buf3.position());
+			assertEquals(1024, buf3.limit());
+			assertEquals(1024, buf3.remaining());
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			Assert.fail(e.getMessage());
 		}
 	}
 }
