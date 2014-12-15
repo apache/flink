@@ -21,7 +21,10 @@
 # Common
 #==============================================================================
 
-jobmanager.rpc.address: localhost
+# By default, the JobManager address will be set to the host
+# from which the start-cluster or the start-local script is called
+#
+# jobmanager.rpc.address: localhost
 
 jobmanager.rpc.port: 6123
 

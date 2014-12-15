@@ -168,6 +168,8 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 			} catch (UnknownHostException e) {
 				throw new Exception("Cannot convert " + ipcAddressString + " to an IP address: " + e.getMessage(), e);
 			}
+		} else {
+			ipcAddress = InetAddress.getLocalHost();
 		}
 
 		final int ipcPort = GlobalConfiguration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.instance;
 
+import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -58,7 +59,7 @@ public class LocalInstanceManager extends InstanceManager {
 				GlobalConfiguration.includeConfiguration(tm);
 			}
 
-			taskManagers.add(TaskManager.createTaskManager(execMode));
+			taskManagers.add(TaskManager.createTaskManager(execMode, InetAddress.getLocalHost().getHostName()));
 		}
 	}
 

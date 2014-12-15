@@ -931,19 +931,15 @@ public class TaskManager implements TaskOperationProtocol {
 	//  Execution & Initialization
 	// --------------------------------------------------------------------------------------------
 	
-	public static TaskManager createTaskManager(ExecutionMode mode) throws Exception {
+	public static TaskManager createTaskManager(ExecutionMode mode, String defaultJobManagerAddress) throws Exception {
 		
 		// IMPORTANT! At this point, the GlobalConfiguration must have been read!
 		
 		final InetSocketAddress jobManagerAddress;
 		LOG.info("Reading location of job manager from configuration");
 					
-		final String address = GlobalConfiguration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
+		final String address = GlobalConfiguration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, defaultJobManagerAddress);
 		final int port = GlobalConfiguration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
-					
-		if (address == null) {
-			throw new Exception("Job manager address not configured in the GlobalConfiguration.");
-		}
 			
 		// Try to convert configured address to {@link InetAddress}
 		try {
@@ -1057,12 +1053,17 @@ public class TaskManager implements TaskOperationProtocol {
 		Option tempDir = OptionBuilder.withArgName("temporary directory (overwrites configured option)")
 				.hasArg().withDescription(
 				"Specify temporary directory.").create(ARG_CONF_DIR);
+		Option defaultJobManagerAddressOpt = OptionBuilder.withArgName("default jobmanager rpc address")
+				.hasArg().withDescription(
+				"Specify the default jobmanager rpc address.").create("defaultJobManagerAdd");
+
 		configDirOpt.setRequired(true);
 		tempDir.setRequired(false);
+		defaultJobManagerAddressOpt.setRequired(false);
 		Options options = new Options();
 		options.addOption(configDirOpt);
 		options.addOption(tempDir);
-		
+		options.addOption(defaultJobManagerAddressOpt);
 
 		CommandLineParser parser = new GnuParser();
 		CommandLine line = null;
@@ -1075,6 +1076,7 @@ public class TaskManager implements TaskOperationProtocol {
 
 		String configDir = line.getOptionValue(configDirOpt.getOpt(), null);
 		String tempDirVal = line.getOptionValue(tempDir.getOpt(), null);
+		String jobmanagerAdd = line.getOptionValue(defaultJobManagerAddressOpt.getOpt(), null);
 
 		// First, try to load global configuration
 		GlobalConfiguration.loadConfiguration(configDir);
@@ -1092,7 +1094,7 @@ public class TaskManager implements TaskOperationProtocol {
 		
 		// Create a new task manager object
 		try {
-			createTaskManager(ExecutionMode.CLUSTER);
+			createTaskManager(ExecutionMode.CLUSTER, jobmanagerAdd);
 		}
 		catch (Throwable t) {
 			LOG.error("Taskmanager startup failed: " + t.getMessage(), t);
