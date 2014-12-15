@@ -260,6 +260,30 @@ public class WindowedDataStream<OUT> {
 	}
 
 	/**
+	 * Applies a reduceGroup transformation on the windowed data stream by
+	 * reducing the current window at every trigger. In contrast with the
+	 * standard binary reducer, with reduceGroup the user can access all
+	 * elements of the window at the same time through the iterable interface.
+	 * The user can also extend the {@link RichGroupReduceFunction} to gain
+	 * access to other features provided by the
+	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
+	 * </br> </br> This version of reduceGroup uses user supplied
+	 * typeinformation for serializaton. Use this only when the system is unable
+	 * to detect type information using:
+	 * {@link #reduceGroup(GroupReduceFunction)}
+	 * 
+	 * @param reduceFunction
+	 *            The reduce function that will be applied to the windows.
+	 * @return The transformed DataStream
+	 */
+	public <R> SingleOutputStreamOperator<R, ?> reduceGroup(
+			GroupReduceFunction<OUT, R> reduceFunction, TypeInformation<R> outType) {
+
+		return dataStream.transform("NextGenWindowReduce", outType,
+				getReduceGroupInvokable(reduceFunction));
+	}
+
+	/**
 	 * Applies an aggregation that sums every window of the data stream at the
 	 * given position.
 	 * 
@@ -329,6 +353,19 @@ public class WindowedDataStream<OUT> {
 	 * @return The transformed DataStream.
 	 */
 	public SingleOutputStreamOperator<OUT, ?> minBy(int positionToMinBy) {
+		return this.minBy(positionToMinBy, true);
+	}
+
+	/**
+	 * Applies an aggregation that gives the minimum element of every window of
+	 * the data stream by the given position. If more elements have the same
+	 * minimum value the operator returns the first element by default.
+	 * 
+	 * @param positionToMinBy
+	 *            The position to minimize by
+	 * @return The transformed DataStream.
+	 */
+	public SingleOutputStreamOperator<OUT, ?> minBy(String positionToMinBy) {
 		return this.minBy(positionToMinBy, true);
 	}
 
@@ -412,6 +449,19 @@ public class WindowedDataStream<OUT> {
 	 * @return The transformed DataStream.
 	 */
 	public SingleOutputStreamOperator<OUT, ?> maxBy(int positionToMaxBy) {
+		return this.maxBy(positionToMaxBy, true);
+	}
+
+	/**
+	 * Applies an aggregation that gives the maximum element of every window of
+	 * the data stream by the given position. If more elements have the same
+	 * maximum value the operator returns the first by default.
+	 * 
+	 * @param positionToMaxBy
+	 *            The position to maximize by
+	 * @return The transformed DataStream.
+	 */
+	public SingleOutputStreamOperator<OUT, ?> maxBy(String positionToMaxBy) {
 		return this.maxBy(positionToMaxBy, true);
 	}
 
@@ -596,6 +646,10 @@ public class WindowedDataStream<OUT> {
 	 */
 	public TypeInformation<OUT> getType() {
 		return dataStream.getType();
+	}
+
+	public DataStream<OUT> getDataStream() {
+		return dataStream;
 	}
 
 	protected WindowedDataStream<OUT> copy() {
