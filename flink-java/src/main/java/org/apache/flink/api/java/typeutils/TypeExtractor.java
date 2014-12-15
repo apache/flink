@@ -131,42 +131,58 @@ public class TypeExtractor {
 	@SuppressWarnings("unchecked")
 	private static <IN, OUT> TypeInformation<OUT> getUnaryOperatorReturnType(Function function, Class<?> baseClass, boolean hasIterable, boolean hasCollector, TypeInformation<IN> inType) {
 		TypeInformation<OUT> ti = null;
+
 		final Method m = FunctionUtils.checkAndExtractLambdaMethod(function);
 		if (m != null) {
 			// parameters must be accessed from behind, since JVM can add additional parameters e.g. when using local variables inside lambda function
 			final int paramLen = m.getGenericParameterTypes().length - 1;
 			final Type input = (hasCollector)? m.getGenericParameterTypes()[paramLen - 1] : m.getGenericParameterTypes()[paramLen];
-			
+
 			// validate input only if it has not been type erased
 			if (!isTypeErased(input)) {
 				validateInputType((hasIterable)? removeGenericWrapper(input) : input, inType);
 			}
-			
-			if (function instanceof ResultTypeQueryable) {
-				ti = ((ResultTypeQueryable<OUT>) function).getProducedType();
-			}
-			else {
-				final Type returnType = (hasCollector)? removeGenericWrapper(m.getGenericParameterTypes()[paramLen]) : m.getGenericReturnType();
-				if (!isTypeErased(returnType)) {
-					ti = new TypeExtractor().privateCreateTypeInfo(returnType, inType, null);
+
+			try {
+				if (function instanceof ResultTypeQueryable) {
+					ti = ((ResultTypeQueryable<OUT>) function).getProducedType();
 				}
 				else {
-					LOG.warn("The generic type parameters of '" + function.getClass() + "' are missing. \n"
-							+ "It seems that your compiler has not stored them into the .class file. \n"
-							+ "Currently, only the Eclipse JDT compiler preserves the type information necessary to use the lambdas feature type-safely. \n"
-							+ "See the documentation for more information about how to compile jobs containing lambda expressions. "
-							+ "Alternatively, you can provide type information manually.");
+					final Type returnType = (hasCollector)? removeGenericWrapper(m.getGenericParameterTypes()[paramLen]) : m.getGenericReturnType();
+					if (!isTypeErased(returnType)) {
+						ti = new TypeExtractor().privateCreateTypeInfo(returnType, inType, null);
+					}
+					else {
+						throw new InvalidTypesException("The generic type parameters of '" + function.getClass() + "' are missing. \n"
+								+ "It seems that your compiler has not stored them into the .class file. \n"
+								+ "Currently, only the Eclipse JDT compiler preserves the type information necessary to use the lambdas feature type-safely. \n"
+								+ "See the documentation for more information about how to compile jobs containing lambda expressions. "
+								+ "Alternatively, you can provide type information manually.");
+					}
 				}
+			}
+			catch (InvalidTypesException e) {
+				ti = (TypeInformation<OUT>) new MissingTypeInfo(function.toString(), e);
 			}
 		}
 		else {
 			validateInputType(baseClass, function.getClass(), 0, inType);
-			if (function instanceof ResultTypeQueryable) {
-				ti = ((ResultTypeQueryable<OUT>) function).getProducedType();
+
+			try {
+				if (function instanceof ResultTypeQueryable) {
+					ti = ((ResultTypeQueryable<OUT>) function).getProducedType();
+				}
+				else {
+					ti = new TypeExtractor().privateCreateTypeInfo(baseClass, function.getClass(), 1, inType, null);
+				}
 			}
-			else {
-				ti = new TypeExtractor().privateCreateTypeInfo(baseClass, function.getClass(), 1, inType, null);
+			catch (InvalidTypesException e) {
+				ti = (TypeInformation<OUT>) new MissingTypeInfo(function.toString(), e);
 			}
+		}
+
+		if (ti == null) {
+			return (TypeInformation<OUT>) new MissingTypeInfo(function.toString());
 		}
 		return ti;
 	}
@@ -174,47 +190,63 @@ public class TypeExtractor {
 	@SuppressWarnings("unchecked")
 	private static <IN1, IN2, OUT> TypeInformation<OUT> getBinaryOperatorReturnType(Function function, Class<?> baseClass, boolean hasIterables, boolean hasCollector, TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type) {
 		TypeInformation<OUT> ti = null;
+
 		final Method m = FunctionUtils.checkAndExtractLambdaMethod(function);
 		if (m != null) {
 			// parameters must be accessed from behind, since JVM can add additional parameters e.g. when using local variables inside lambda function
 			final int paramLen = m.getGenericParameterTypes().length - 1;
 			final Type input1 = (hasCollector)? m.getGenericParameterTypes()[paramLen - 2] : m.getGenericParameterTypes()[paramLen - 1];
 			final Type input2 = (hasCollector)? m.getGenericParameterTypes()[paramLen - 1] : m.getGenericParameterTypes()[paramLen];
-			
-			// validate input only if it has not been type erasured
+
+			// validate input only if it has not been type erased
 			if (!isTypeErased(input1)) {
 				validateInputType((hasIterables)? removeGenericWrapper(input1) : input1, in1Type);
 			}
 			if (!isTypeErased(input2)) {
 				validateInputType((hasIterables)? removeGenericWrapper(input2) : input2, in2Type);
 			}
-			
-			if (function instanceof ResultTypeQueryable) {
-				ti = ((ResultTypeQueryable<OUT>) function).getProducedType();
-			}
-			else {
-				final Type returnType = (hasCollector)? removeGenericWrapper(m.getGenericParameterTypes()[paramLen]) : m.getGenericReturnType();
-				if (!isTypeErased(returnType)) {
-					ti = new TypeExtractor().privateCreateTypeInfo(returnType, in1Type, in2Type);
+
+			try {
+				if (function instanceof ResultTypeQueryable) {
+					ti = ((ResultTypeQueryable<OUT>) function).getProducedType();
 				}
 				else {
-					LOG.warn("The generic type parameters of '" + function.getClass() + "' are missing. \n"
-							+ "It seems that your compiler has not stored them into the .class file. \n"
-							+ "Currently, only the Eclipse JDT compiler preserves the type information necessary to use the lambdas feature type-safely. \n"
-							+ "See the documentation for more information about how to compile jobs containing lambda expressions. "
-							+ "Alternatively, you can provide type information manually.");
+					final Type returnType = (hasCollector)? removeGenericWrapper(m.getGenericParameterTypes()[paramLen]) : m.getGenericReturnType();
+					if (!isTypeErased(returnType)) {
+						ti = new TypeExtractor().privateCreateTypeInfo(returnType, in1Type, in2Type);
+					}
+					else {
+						throw new InvalidTypesException("The generic type parameters of '" + function.getClass() + "' are missing. \n"
+								+ "It seems that your compiler has not stored them into the .class file. \n"
+								+ "Currently, only the Eclipse JDT compiler preserves the type information necessary to use the lambdas feature type-safely. \n"
+								+ "See the documentation for more information about how to compile jobs containing lambda expressions. "
+								+ "Alternatively, you can provide type information manually.");
+					}
 				}
+			}
+			catch (InvalidTypesException e) {
+				ti = (TypeInformation<OUT>) new MissingTypeInfo(function.toString(), e);
 			}
 		}
 		else {
 			validateInputType(baseClass, function.getClass(), 0, in1Type);
 			validateInputType(baseClass, function.getClass(), 1, in2Type);
-			if (function instanceof ResultTypeQueryable) {
-				ti = ((ResultTypeQueryable<OUT>) function).getProducedType();
+
+			try {
+				if (function instanceof ResultTypeQueryable) {
+					ti = ((ResultTypeQueryable<OUT>) function).getProducedType();
+				}
+				else {
+					ti = new TypeExtractor().privateCreateTypeInfo(baseClass, function.getClass(), 2, in1Type, in2Type);
+				}
 			}
-			else {
-				ti = new TypeExtractor().privateCreateTypeInfo(baseClass, function.getClass(), 2, in1Type, in2Type);
+			catch (InvalidTypesException e) {
+				ti = (TypeInformation<OUT>) new MissingTypeInfo(function.toString(), e);
 			}
+		}
+
+		if (ti == null) {
+			return (TypeInformation<OUT>) new MissingTypeInfo(function.toString());
 		}
 		return ti;
 	}
@@ -279,7 +311,6 @@ public class TypeExtractor {
 		return (TypeInformation<OUT>) createTypeInfoWithTypeHierarchy(typeHierarchy, returnType, in1Type, in2Type);
 	}
 
-
 	/**
 	 * @param curT : start type
 	 * @return Type The immediate child of the top class
@@ -325,8 +356,7 @@ public class TypeExtractor {
 			
 			// check if immediate child of Tuple has generics
 			if (curT instanceof Class<?>) {
-				LOG.warn("Tuple '" + curT.toString()  + "' is not parameterized. Please provide type information manually.");
-				return null;
+				throw new InvalidTypesException("Tuple '" + curT.toString()  + "' is not parameterized.");
 			}
 			
 			typeHierarchy.add(curT);
@@ -356,19 +386,18 @@ public class TypeExtractor {
 					
 					// variable could not be determined
 					if (tupleSubTypes[i] == null) {
-						LOG.warn("Type of TypeVariable '" + ((TypeVariable<?>) subtypes[i]).getName() + "' in '"
+						// mark entire tuple as invalid
+						throw new InvalidTypesException("Type of TypeVariable '" + ((TypeVariable<?>) subtypes[i]).getName() + "' in '"
 								+ ((TypeVariable<?>) subtypes[i]).getGenericDeclaration()
 								+ "' could not be determined. This is most likely a type erasure problem. "
 								+ "The type extraction currently supports types with generic variables only in cases where "
-								+ "all variables in the return type can be deduced from the input type(s). "
-								+ "Please provide type information manually.");
-						return null; // mark entire tuple as invalid
+								+ "all variables in the return type can be deduced from the input type(s).");
 					}
 				} else {
 					tupleSubTypes[i] = createTypeInfoWithTypeHierarchy(new ArrayList<Type>(typeHierarchy), subtypes[i], in1Type, in2Type);
 					
 					if(tupleSubTypes[i] == null) {
-						return null; // mark entire tuple as invalid
+						throw new InvalidTypesException("The type of tuple field " + i + " could not be determined.");
 					}
 				}
 			}
@@ -403,12 +432,10 @@ public class TypeExtractor {
 				if (typeInfo != null) {
 					return typeInfo;
 				} else {
-					LOG.warn("Type of TypeVariable '" + ((TypeVariable<?>) t).getName() + "' in '"
+					throw new InvalidTypesException("Type of TypeVariable '" + ((TypeVariable<?>) t).getName() + "' in '"
 							+ ((TypeVariable<?>) t).getGenericDeclaration() + "' could not be determined. This is most likely a type erasure problem. "
 							+ "The type extraction currently supports types with generic variables only in cases where "
-							+ "all variables in the return type can be deduced from the input type(s). "
-							+ "Please provide type information manually.");
-					return null;
+							+ "all variables in the return type can be deduced from the input type(s).");
 				}
 			}
 		}
@@ -454,8 +481,7 @@ public class TypeExtractor {
 			return privateGetForClass((Class<OUT>) t, new ArrayList<Type>());
 		}
 		
-		LOG.warn("Type information could not be created. Please provide type information manually.");
-		return null;
+		throw new InvalidTypesException("Unknown type.");
 	}
 	
 	private <IN1, IN2> TypeInformation<?> createTypeInfoFromInputs(TypeVariable<?> returnTypeVar, ArrayList<Type> returnTypeHierarchy, 
@@ -1158,9 +1184,7 @@ public class TypeExtractor {
 		}
 		return false;
 	}
-	
 
-	
 	// recursively determine all declared methods
 	private static List<Method> getAllDeclaredMethods(Class<?> clazz) {
 		List<Method> result = new ArrayList<Method>();
@@ -1187,7 +1211,6 @@ public class TypeExtractor {
 	private static boolean isClassType(Type t) {
 		return t instanceof Class<?> || t instanceof ParameterizedType;
 	}
-
 
 	public static <X> TypeInformation<X> getForObject(X value) {
 		return new TypeExtractor().privateGetForObject(value);
