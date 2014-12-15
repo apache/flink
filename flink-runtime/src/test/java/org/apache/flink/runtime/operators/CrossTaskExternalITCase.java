@@ -19,6 +19,7 @@
 
 package org.apache.flink.runtime.operators;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.junit.Assert;
 
 import org.apache.flink.api.common.functions.CrossFunction;
@@ -37,8 +38,8 @@ public class CrossTaskExternalITCase extends DriverTestBase<CrossFunction<Record
 	
 	private final CountingOutputCollector output = new CountingOutputCollector();
 
-	public CrossTaskExternalITCase() {
-		super(CROSS_MEM, 0);
+	public CrossTaskExternalITCase(ExecutionConfig config) {
+		super(config, CROSS_MEM, 0);
 		cross_frac = (double)CROSS_MEM/this.getMemoryManager().getMemorySize();
 	}
 	

@@ -19,6 +19,7 @@
 
 package org.apache.flink.runtime.operators;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.junit.Assert;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.typeutils.record.RecordComparator;
@@ -55,8 +56,8 @@ public class MatchTaskExternalITCase extends DriverTestBase<FlatJoinFunction<Rec
 	
 	private final CountingOutputCollector output = new CountingOutputCollector();
 	
-	public MatchTaskExternalITCase() {
-		super(HASH_MEM, 2, SORT_MEM);
+	public MatchTaskExternalITCase(ExecutionConfig config) {
+		super(config, HASH_MEM, 2, SORT_MEM);
 		bnljn_frac = (double)BNLJN_MEM/this.getMemoryManager().getMemorySize();
 		hash_frac = (double)HASH_MEM/this.getMemoryManager().getMemorySize();
 	}

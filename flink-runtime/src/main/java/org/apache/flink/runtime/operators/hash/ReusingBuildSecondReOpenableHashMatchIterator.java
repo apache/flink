@@ -32,16 +32,18 @@ import org.apache.flink.runtime.memorymanager.MemoryAllocationException;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
 import org.apache.flink.util.MutableObjectIterator;
 
-public class BuildSecondReOpenableHashMatchIterator<V1, V2, O> extends BuildSecondHashMatchIterator<V1, V2, O> {
+public class ReusingBuildSecondReOpenableHashMatchIterator<V1, V2, O> extends ReusingBuildSecondHashMatchIterator<V1, V2, O> {
 
 	
 	private final ReOpenableMutableHashTable<V2, V1> reopenHashTable;
 	
-	public BuildSecondReOpenableHashMatchIterator(
+	public ReusingBuildSecondReOpenableHashMatchIterator(
 			MutableObjectIterator<V1> firstInput,
 			MutableObjectIterator<V2> secondInput,
-			TypeSerializer<V1> serializer1, TypeComparator<V1> comparator1,
-			TypeSerializer<V2> serializer2, TypeComparator<V2> comparator2,
+			TypeSerializer<V1> serializer1,
+			TypeComparator<V1> comparator1,
+			TypeSerializer<V2> serializer2,
+			TypeComparator<V2> comparator2,
 			TypePairComparator<V1, V2> pairComparator,
 			MemoryManager memManager,
 			IOManager ioManager,

@@ -63,7 +63,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 @SuppressWarnings({"serial", "deprecation"})
-public class HashMatchIteratorITCase {
+public class ReusingHashMatchIteratorITCase {
 	
 	private static final int MEMORY_SIZE = 16000000;		// total memory
 
@@ -151,8 +151,8 @@ public class HashMatchIteratorITCase {
 			input2.reset();
 	
 			// compare with iterator values
-			BuildFirstHashMatchIterator<Record, Record, Record> iterator = 
-					new BuildFirstHashMatchIterator<Record, Record, Record>(
+			ReusingBuildFirstHashMatchIterator<Record, Record, Record> iterator =
+					new ReusingBuildFirstHashMatchIterator<Record, Record, Record>(
 						input1, input2, this.recordSerializer, this.record1Comparator, 
 						this.recordSerializer, this.record2Comparator, this.recordPairComparator,
 						this.memoryManager, ioManager, this.parentTask, 1.0);
@@ -238,8 +238,8 @@ public class HashMatchIteratorITCase {
 			final JoinFunction matcher = new RecordMatchRemovingJoin(expectedMatchesMap);
 			final Collector<Record> collector = new DiscardingOutputCollector<Record>();
 	
-			BuildFirstHashMatchIterator<Record, Record, Record> iterator = 
-					new BuildFirstHashMatchIterator<Record, Record, Record>(
+			ReusingBuildFirstHashMatchIterator<Record, Record, Record> iterator =
+					new ReusingBuildFirstHashMatchIterator<Record, Record, Record>(
 						input1, input2, this.recordSerializer, this.record1Comparator, 
 						this.recordSerializer, this.record2Comparator, this.recordPairComparator,
 						this.memoryManager, ioManager, this.parentTask, 1.0);
@@ -287,8 +287,8 @@ public class HashMatchIteratorITCase {
 			input2.reset();
 	
 			// compare with iterator values			
-			BuildSecondHashMatchIterator<Record, Record, Record> iterator = 
-				new BuildSecondHashMatchIterator<Record, Record, Record>(
+			ReusingBuildSecondHashMatchIterator<Record, Record, Record> iterator =
+				new ReusingBuildSecondHashMatchIterator<Record, Record, Record>(
 					input1, input2, this.recordSerializer, this.record1Comparator, 
 					this.recordSerializer, this.record2Comparator, this.recordPairComparator,
 					this.memoryManager, ioManager, this.parentTask, 1.0);
@@ -374,8 +374,8 @@ public class HashMatchIteratorITCase {
 			final JoinFunction matcher = new RecordMatchRemovingJoin(expectedMatchesMap);
 			final Collector<Record> collector = new DiscardingOutputCollector<Record>();
 	
-			BuildSecondHashMatchIterator<Record, Record, Record> iterator = 
-				new BuildSecondHashMatchIterator<Record, Record, Record>(
+			ReusingBuildSecondHashMatchIterator<Record, Record, Record> iterator =
+				new ReusingBuildSecondHashMatchIterator<Record, Record, Record>(
 					input1, input2, this.recordSerializer, this.record1Comparator, 
 					this.recordSerializer, this.record2Comparator, this.recordPairComparator,
 					this.memoryManager, ioManager, this.parentTask, 1.0);
@@ -421,8 +421,8 @@ public class HashMatchIteratorITCase {
 			input2.reset();
 	
 			// compare with iterator values
-			BuildSecondHashMatchIterator<IntPair, Record, Record> iterator = 
-					new BuildSecondHashMatchIterator<IntPair, Record, Record>(
+			ReusingBuildSecondHashMatchIterator<IntPair, Record, Record> iterator =
+					new ReusingBuildSecondHashMatchIterator<IntPair, Record, Record>(
 						input1, input2, this.pairSerializer, this.pairComparator,
 						this.recordSerializer, this.record2Comparator, this.pairRecordPairComparator,
 						this.memoryManager, this.ioManager, this.parentTask, 1.0);
@@ -468,8 +468,8 @@ public class HashMatchIteratorITCase {
 			input2.reset();
 	
 			// compare with iterator values
-			BuildFirstHashMatchIterator<IntPair, Record, Record> iterator = 
-					new BuildFirstHashMatchIterator<IntPair, Record, Record>(
+			ReusingBuildFirstHashMatchIterator<IntPair, Record, Record> iterator =
+					new ReusingBuildFirstHashMatchIterator<IntPair, Record, Record>(
 						input1, input2, this.pairSerializer, this.pairComparator, 
 						this.recordSerializer, this.record2Comparator, this.recordPairPairComparator,
 						this.memoryManager, this.ioManager, this.parentTask, 1.0);

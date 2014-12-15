@@ -19,6 +19,7 @@
 
 package org.apache.flink.runtime.operators;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.functions.ReduceFunction;
@@ -48,6 +49,8 @@ public class AllReduceDriver<T> implements PactDriver<ReduceFunction<T>, T> {
 	private TypeSerializer<T> serializer;
 	
 	private boolean running;
+
+	private boolean objectReuseEnabled = false;
 
 	// ------------------------------------------------------------------------
 
@@ -86,6 +89,13 @@ public class AllReduceDriver<T> implements PactDriver<ReduceFunction<T>, T> {
 		TypeSerializerFactory<T> serializerFactory = this.taskContext.getInputSerializer(0);
 		this.serializer = serializerFactory.getSerializer();
 		this.input = this.taskContext.getInput(0);
+
+		ExecutionConfig executionConfig = taskContext.getExecutionConfig();
+		this.objectReuseEnabled = executionConfig.isObjectReuseEnabled();
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("AllReduceDriver object reuse: " + (this.objectReuseEnabled ? "ENABLED" : "DISABLED") + ".");
+		}
 	}
 
 	@Override
@@ -97,19 +107,35 @@ public class AllReduceDriver<T> implements PactDriver<ReduceFunction<T>, T> {
 		final ReduceFunction<T> stub = this.taskContext.getStub();
 		final MutableObjectIterator<T> input = this.input;
 		final TypeSerializer<T> serializer = this.serializer;
-		
-		T val1 = serializer.createInstance();
-		
-		if ((val1 = input.next(val1)) == null) {
-			return;
+
+
+		if (objectReuseEnabled) {
+			T val1 = serializer.createInstance();
+
+			if ((val1 = input.next(val1)) == null) {
+				return;
+			}
+
+			T val2 = serializer.createInstance();
+			while (running && (val2 = input.next(val2)) != null) {
+				val1 = stub.reduce(val1, val2);
+			}
+
+			this.taskContext.getOutputCollector().collect(val1);
+		} else {
+			T val1 = serializer.createInstance();
+
+			if ((val1 = input.next(val1)) == null) {
+				return;
+			}
+
+			T val2;
+			while (running && (val2 = input.next(serializer.createInstance())) != null) {
+				val1 = stub.reduce(val1, val2);
+			}
+
+			this.taskContext.getOutputCollector().collect(val1);
 		}
-		
-		T val2;
-		while (running && (val2 = input.next(serializer.createInstance())) != null) {
-			val1 = stub.reduce(val1, val2);
-		}
-		
-		this.taskContext.getOutputCollector().collect(val1);
 	}
 
 	@Override

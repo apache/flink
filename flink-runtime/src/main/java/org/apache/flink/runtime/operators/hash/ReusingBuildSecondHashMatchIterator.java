@@ -38,19 +38,17 @@ import org.apache.flink.util.MutableObjectIterator;
 
 /**
  * An implementation of the {@link org.apache.flink.runtime.operators.util.JoinTaskIterator} that uses a hybrid-hash-join
- * internally to match the records with equal key. The build side of the hash is the first input of the match.  
+ * internally to match the records with equal key. The build side of the hash is the second input of the match.  
  */
-public class BuildFirstHashMatchIterator<V1, V2, O> implements JoinTaskIterator<V1, V2, O> {
+public class ReusingBuildSecondHashMatchIterator<V1, V2, O> extends HashMatchIteratorBase implements JoinTaskIterator<V1, V2, O> {
 	
-	protected final MutableHashTable<V1, V2> hashJoin;
+	protected final MutableHashTable<V2, V1> hashJoin;
 	
-	private final V1 nextBuildSideObject;
+	private final V2 nextBuildSideObject;
 	
-	private final V1 tempBuildSideRecord;
+	private final V2 tempBuildSideRecord;
 	
-	private final V2 probeCopy;
-	
-	protected final TypeSerializer<V2> probeSideSerializer;
+	protected final TypeSerializer<V1> probeSideSerializer;
 	
 	private final MemoryManager memManager;
 	
@@ -62,23 +60,29 @@ public class BuildFirstHashMatchIterator<V1, V2, O> implements JoinTaskIterator<
 	
 	// --------------------------------------------------------------------------------------------
 	
-	public BuildFirstHashMatchIterator(MutableObjectIterator<V1> firstInput, MutableObjectIterator<V2> secondInput,
-			TypeSerializer<V1> serializer1, TypeComparator<V1> comparator1,
-			TypeSerializer<V2> serializer2, TypeComparator<V2> comparator2,
-			TypePairComparator<V2, V1> pairComparator,
-			MemoryManager memManager, IOManager ioManager, AbstractInvokable ownerTask, double memoryFraction)
+	public ReusingBuildSecondHashMatchIterator(
+			MutableObjectIterator<V1> firstInput,
+			MutableObjectIterator<V2> secondInput,
+			TypeSerializer<V1> serializer1,
+			TypeComparator<V1> comparator1,
+			TypeSerializer<V2> serializer2,
+			TypeComparator<V2> comparator2,
+			TypePairComparator<V1, V2> pairComparator,
+			MemoryManager memManager,
+			IOManager ioManager,
+			AbstractInvokable ownerTask,
+			double memoryFraction)
 	throws MemoryAllocationException
 	{		
 		this.memManager = memManager;
 		this.firstInput = firstInput;
 		this.secondInput = secondInput;
-		this.probeSideSerializer = serializer2;
+		this.probeSideSerializer = serializer1;
 		
-		this.nextBuildSideObject = serializer1.createInstance();
-		this.tempBuildSideRecord = serializer1.createInstance();
-		this.probeCopy = serializer2.createInstance();
-		
-		this.hashJoin = getHashJoin(serializer1, comparator1, serializer2, comparator2, pairComparator,
+		this.nextBuildSideObject = serializer2.createInstance();
+		this.tempBuildSideRecord = serializer2.createInstance();
+
+		this.hashJoin = getHashJoin(serializer2, comparator2, serializer1, comparator1, pairComparator,
 			memManager, ioManager, ownerTask, memoryFraction);
 	}
 	
@@ -86,9 +90,8 @@ public class BuildFirstHashMatchIterator<V1, V2, O> implements JoinTaskIterator<
 	
 	@Override
 	public void open() throws IOException, MemoryAllocationException, InterruptedException {
-		this.hashJoin.open(this.firstInput, this.secondInput);
+		this.hashJoin.open(this.secondInput, this.firstInput);
 	}
-	
 
 	@Override
 	public void close() {
@@ -101,43 +104,37 @@ public class BuildFirstHashMatchIterator<V1, V2, O> implements JoinTaskIterator<
 	}
 
 	@Override
-	public final boolean callWithNextKey(FlatJoinFunction<V1, V2, O> matchFunction, Collector<O> collector)
+	public boolean callWithNextKey(FlatJoinFunction<V1, V2, O> matchFunction, Collector<O> collector)
 	throws Exception
 	{
 		if (this.hashJoin.nextRecord())
 		{
 			// we have a next record, get the iterators to the probe and build side values
-			final MutableHashTable.HashBucketIterator<V1, V2> buildSideIterator = this.hashJoin.getBuildSideIterator();
-			V1 nextBuildSideRecord = this.nextBuildSideObject;
+			final MutableHashTable.HashBucketIterator<V2, V1> buildSideIterator = this.hashJoin.getBuildSideIterator();
+			V2 nextBuildSideRecord = this.nextBuildSideObject;
 			
 			// get the first build side value
 			if ((nextBuildSideRecord = buildSideIterator.next(nextBuildSideRecord)) != null) {
-				V1 tmpRec = this.tempBuildSideRecord;
-				final V2 probeRecord = this.hashJoin.getCurrentProbeRecord();
+				V2 tmpRec = this.tempBuildSideRecord;
+				final V1 probeRecord = this.hashJoin.getCurrentProbeRecord();
 				
 				// check if there is another build-side value
 				if ((tmpRec = buildSideIterator.next(tmpRec)) != null) {
-					// more than one build-side value --> copy the probe side
-					V2 probeCopy = this.probeCopy;
-					probeCopy = this.probeSideSerializer.copy(probeRecord, probeCopy);
-					
 					// call match on the first pair
-					matchFunction.join(nextBuildSideRecord, probeCopy, collector);
+					matchFunction.join(probeRecord, nextBuildSideRecord, collector);
 					
 					// call match on the second pair
-					probeCopy = this.probeSideSerializer.copy(probeRecord, probeCopy);
-					matchFunction.join(tmpRec, probeCopy, collector);
+					matchFunction.join(probeRecord, tmpRec, collector);
 					
 					while (this.running && ((nextBuildSideRecord = buildSideIterator.next(nextBuildSideRecord)) != null)) {
 						// call match on the next pair
 						// make sure we restore the value of the probe side record
-						probeCopy = this.probeSideSerializer.copy(probeRecord, probeCopy);
-						matchFunction.join(nextBuildSideRecord, probeCopy, collector);
+						matchFunction.join(probeRecord, nextBuildSideRecord, collector);
 					}
 				}
 				else {
 					// only single pair matches
-					matchFunction.join(nextBuildSideRecord, probeRecord, collector);
+					matchFunction.join(probeRecord, nextBuildSideRecord, collector);
 				}
 			}
 			return true;
@@ -146,23 +143,10 @@ public class BuildFirstHashMatchIterator<V1, V2, O> implements JoinTaskIterator<
 			return false;
 		}
 	}
-
+	
 	@Override
 	public void abort() {
 		this.running = false;
 		this.hashJoin.abort();
-	}
-	
-	// --------------------------------------------------------------------------------------------
-	
-	public <BT, PT> MutableHashTable<BT, PT> getHashJoin(TypeSerializer<BT> buildSideSerializer, TypeComparator<BT> buildSideComparator,
-			TypeSerializer<PT> probeSideSerializer, TypeComparator<PT> probeSideComparator,
-			TypePairComparator<PT, BT> pairComparator,
-			MemoryManager memManager, IOManager ioManager, AbstractInvokable ownerTask, double memoryFraction)
-	throws MemoryAllocationException
-	{
-		final int numPages = memManager.computeNumberOfPages(memoryFraction);
-		final List<MemorySegment> memorySegments = memManager.allocatePages(ownerTask, numPages);
-		return new MutableHashTable<BT, PT>(buildSideSerializer, probeSideSerializer, buildSideComparator, probeSideComparator, pairComparator, memorySegments, ioManager);
 	}
 }

@@ -373,9 +373,7 @@ public final class FixedLengthRecordSorter<T> implements InMemorySorter<T> {
 					this.currentInSegment++;
 
 					try {
-						// This might blow up in our face, but we ignore the readWithNormalization/
-						// writeWithNormalization methods for now.
-						return this.comp.readWithKeyDenormalization(null, this.in);
+						return this.comp.readWithKeyDenormalization(serializer.createInstance(), this.in);
 					}
 					catch (IOException ioe) {
 						throw new RuntimeException(ioe);

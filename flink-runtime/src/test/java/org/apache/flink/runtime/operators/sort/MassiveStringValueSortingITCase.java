@@ -279,6 +279,11 @@ public class MassiveStringValueSortingITCase {
 			reuse.setValue(line);
 			return reuse;
 		}
+
+		@Override
+		public StringValue next() throws IOException {
+			return next(new StringValue());
+		}
 	}
 	
 	private static final class StringValueTupleReaderMutableObjectIterator implements MutableObjectIterator<Tuple2<StringValue, StringValue[]>> {
@@ -305,6 +310,11 @@ public class MassiveStringValueSortingITCase {
 			}
 			
 			return reuse;
+		}
+
+		@Override
+		public Tuple2<StringValue, StringValue[]> next() throws IOException {
+			return next(new Tuple2<StringValue, StringValue[]>(new StringValue(), new StringValue[0]));
 		}
 	}
 	

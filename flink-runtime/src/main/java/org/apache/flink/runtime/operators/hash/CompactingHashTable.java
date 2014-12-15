@@ -1332,7 +1332,7 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T>{
 			super(probeTypeComparator, pairComparator);
 		}
 		
-		public T getMatchFor(PT probeSideRecord, T targetForMatch) {
+		public T getMatchFor(PT probeSideRecord, T reuse) {
 			if(closed.get()) {
 				return null;
 			}
@@ -1372,13 +1372,13 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T>{
 						
 						// deserialize the key to check whether it is really equal, or whether we had only a hash collision
 						try {
-							targetForMatch = p.readRecordAt(pointer, targetForMatch);
+							reuse = p.readRecordAt(pointer, reuse);
 							
-							if (this.pairComparator.equalToReference(targetForMatch)) {
+							if (this.pairComparator.equalToReference(reuse)) {
 								this.partition = p;
 								this.bucket = bucket;
 								this.pointerOffsetInBucket = pointerOffset;
-								return targetForMatch;
+								return reuse;
 							}
 						}
 						catch (IOException e) {
@@ -1404,7 +1404,80 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T>{
 				numInSegment = 0;
 			}
 		}
-		
+
+		public T getMatchFor(PT probeSideRecord) {
+			if(closed.get()) {
+				return null;
+			}
+			final int searchHashCode = hash(this.probeTypeComparator.hash(probeSideRecord));
+
+			final int posHashCode = searchHashCode % numBuckets;
+
+			// get the bucket for the given hash code
+			MemorySegment bucket = buckets[posHashCode >> bucketsPerSegmentBits];
+			int bucketInSegmentOffset = (posHashCode & bucketsPerSegmentMask) << NUM_INTRA_BUCKET_BITS;
+
+			// get the basic characteristics of the bucket
+			final int partitionNumber = bucket.get(bucketInSegmentOffset + HEADER_PARTITION_OFFSET);
+			final InMemoryPartition<T> p = partitions.get(partitionNumber);
+			final MemorySegment[] overflowSegments = p.overflowSegments;
+
+			this.pairComparator.setReference(probeSideRecord);
+
+			int countInSegment = bucket.getInt(bucketInSegmentOffset + HEADER_COUNT_OFFSET);
+			int numInSegment = 0;
+			int posInSegment = bucketInSegmentOffset + BUCKET_HEADER_LENGTH;
+
+			// loop over all segments that are involved in the bucket (original bucket plus overflow buckets)
+			while (true) {
+
+				while (numInSegment < countInSegment) {
+
+					final int thisCode = bucket.getInt(posInSegment);
+					posInSegment += HASH_CODE_LEN;
+
+					// check if the hash code matches
+					if (thisCode == searchHashCode) {
+						// get the pointer to the pair
+						final int pointerOffset = bucketInSegmentOffset + BUCKET_POINTER_START_OFFSET + (numInSegment * POINTER_LEN);
+						final long pointer = bucket.getLong(pointerOffset);
+						numInSegment++;
+
+						// deserialize the key to check whether it is really equal, or whether we had only a hash collision
+						try {
+							T result = p.readRecordAt(pointer);
+
+							if (this.pairComparator.equalToReference(result)) {
+								this.partition = p;
+								this.bucket = bucket;
+								this.pointerOffsetInBucket = pointerOffset;
+								return result;
+							}
+						}
+						catch (IOException e) {
+							throw new RuntimeException("Error deserializing record from the hashtable: " + e.getMessage(), e);
+						}
+					}
+					else {
+						numInSegment++;
+					}
+				}
+
+				// this segment is done. check if there is another chained bucket
+				final long forwardPointer = bucket.getLong(bucketInSegmentOffset + HEADER_FORWARD_OFFSET);
+				if (forwardPointer == BUCKET_FORWARD_POINTER_NOT_SET) {
+					return null;
+				}
+
+				final int overflowSegNum = (int) (forwardPointer >>> 32);
+				bucket = overflowSegments[overflowSegNum];
+				bucketInSegmentOffset = (int) (forwardPointer & 0xffffffff);
+				countInSegment = bucket.getInt(bucketInSegmentOffset + HEADER_COUNT_OFFSET);
+				posInSegment = bucketInSegmentOffset + BUCKET_HEADER_LENGTH;
+				numInSegment = 0;
+			}
+		}
+
 		public void updateMatch(T record) throws IOException {
 			if(closed.get()) {
 				return;

@@ -19,6 +19,7 @@
 
 package org.apache.flink.runtime.operators;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -43,7 +44,9 @@ import org.apache.flink.util.MutableObjectIterator;
 public interface PactTaskContext<S, OT> {
 	
 	TaskConfig getTaskConfig();
-	
+
+	ExecutionConfig getExecutionConfig();
+
 	ClassLoader getUserCodeClassLoader();
 	
 	MemoryManager getMemoryManager();

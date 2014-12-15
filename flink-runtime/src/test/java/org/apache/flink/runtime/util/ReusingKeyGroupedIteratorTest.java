@@ -25,7 +25,6 @@ import java.util.NoSuchElementException;
 
 import org.apache.flink.api.common.typeutils.record.RecordComparator;
 import org.apache.flink.api.common.typeutils.record.RecordSerializer;
-import org.apache.flink.runtime.util.KeyGroupedIterator;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.types.StringValue;
@@ -39,11 +38,11 @@ import org.junit.Test;
  * Test for the key grouped iterator, which advances in windows containing the same key and provides a sub-iterator
  * over the records with the same key.
  */
-public class KeyGroupedIteratorTest {
+public class ReusingKeyGroupedIteratorTest {
 	
 	private MutableObjectIterator<Record> sourceIter;		// the iterator that provides the input
 	
-	private KeyGroupedIterator<Record> psi;						// the grouping iterator, progressing in key steps
+	private ReusingKeyGroupedIterator<Record> psi;						// the grouping iterator, progressing in key steps
 	
 	@Before
 	public void setup() {
@@ -100,7 +99,7 @@ public class KeyGroupedIteratorTest {
 		@SuppressWarnings("unchecked")
 		final RecordComparator comparator = new RecordComparator(new int[] {0}, new Class[] {IntValue.class});
 		
-		this.psi = new KeyGroupedIterator<Record>(this.sourceIter, serializer, comparator);
+		this.psi = new ReusingKeyGroupedIterator<Record>(this.sourceIter, serializer, comparator);
 	}
 
 	@Test

@@ -69,14 +69,14 @@ public class Plan implements Visitable<Operator<?>> {
 	protected int defaultParallelism = DEFAULT_PARALELLISM;
 	
 	/**
-	 * The number of times failed tasks are re-executed.
-	 */
-	protected int numberOfExecutionRetries;
-
-	/**
 	 * Hash map for files in the distributed cache: registered name to cache entry.
 	 */
 	protected HashMap<String, DistributedCacheEntry> cacheFile = new HashMap<String, DistributedCacheEntry>();
+
+	/**
+	 * Config object for runtime execution parameters.
+	 */
+	protected ExecutionConfig executionConfig = new ExecutionConfig();
 
 	// ------------------------------------------------------------------------
 
@@ -264,20 +264,6 @@ public class Plan implements Visitable<Operator<?>> {
 	}
 	
 	/**
-	 * Sets the number of times that failed tasks are re-executed. A value of zero
-	 * effectively disables fault tolerance. A value of {@code -1} indicates that the system
-	 * default value (as defined in the configuration) should be used.
-	 * 
-	 * @param numberOfExecutionRetries The number of times the system will try to re-execute failed tasks.
-	 */
-	public void setNumberOfExecutionRetries(int numberOfExecutionRetries) {
-		if (numberOfExecutionRetries < -1) {
-			throw new IllegalArgumentException("The number of execution retries must be non-negative, or -1 (use system default)");
-		}
-		this.numberOfExecutionRetries = numberOfExecutionRetries;
-	}
-	
-	/**
 	 * Gets the number of times the system will try to re-execute failed tasks. A value
 	 * of {@code -1} indicates that the system default value (as defined in the configuration)
 	 * should be used.
@@ -285,7 +271,7 @@ public class Plan implements Visitable<Operator<?>> {
 	 * @return The number of times the system will try to re-execute failed tasks.
 	 */
 	public int getNumberOfExecutionRetries() {
-		return numberOfExecutionRetries;
+		return executionConfig.getNumberOfExecutionRetries();
 	}
 	
 	/**
@@ -297,7 +283,23 @@ public class Plan implements Visitable<Operator<?>> {
 	public String getPostPassClassName() {
 		return "org.apache.flink.compiler.postpass.RecordModelPostPass";
 	}
-	
+
+	/**
+	 * Sets the runtime config object.
+	 * @return
+	 */
+	public ExecutionConfig getExecutionConfig() {
+		return executionConfig;
+	}
+
+	/**
+	 * Gets the runtime config object.
+	 * @param executionConfig
+	 */
+	public void setExecutionConfig(ExecutionConfig executionConfig) {
+		this.executionConfig = executionConfig;
+	}
+
 	// ------------------------------------------------------------------------
 
 	/**

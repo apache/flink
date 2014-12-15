@@ -18,12 +18,15 @@
 
 package org.apache.flink.runtime.operators;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.util.InstantiationUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.accumulators.Accumulator;
@@ -36,10 +39,8 @@ import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.api.BufferWriter;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
-import org.apache.flink.runtime.operators.chaining.ChainedCollectorMapDriver;
 import org.apache.flink.runtime.operators.chaining.ChainedDriver;
 import org.apache.flink.runtime.operators.chaining.ExceptionInChainedStubException;
-import org.apache.flink.runtime.operators.shipping.OutputCollector;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.util.Collector;
 
@@ -74,6 +75,23 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 	// cancel flag
 	private volatile boolean taskCanceled = false;
 
+	private ExecutionConfig getExecutionConfig() {
+		ExecutionConfig executionConfig = new ExecutionConfig();
+		try {
+			ExecutionConfig c = (ExecutionConfig) InstantiationUtil.readObjectFromConfig(
+					getJobConfiguration(),
+					ExecutionConfig.CONFIG_KEY,
+					this.getClass().getClassLoader());
+			if (c != null) {
+				executionConfig = c;
+			}
+		} catch (IOException e) {
+			throw new RuntimeException("Could not load ExecutionConfig from Job Configuration: " + e);
+		} catch (ClassNotFoundException e) {
+			throw new RuntimeException("Could not load ExecutionConfig from Job Configuration: " + e);
+		}
+		return executionConfig;
+	}
 
 	@Override
 	public void registerInputOutput() {
@@ -102,6 +120,27 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 		if (LOG.isDebugEnabled()) {
 			LOG.debug(getLogString("Starting data source operator"));
 		}
+
+		ExecutionConfig executionConfig = new ExecutionConfig();
+		try {
+			ExecutionConfig c = (ExecutionConfig) InstantiationUtil.readObjectFromConfig(
+					getJobConfiguration(),
+					ExecutionConfig.CONFIG_KEY,
+					this.getClass().getClassLoader());
+			if (c != null) {
+				executionConfig = c;
+			}
+		} catch (IOException e) {
+			throw new RuntimeException("Could not load ExecutionConfig from Job Configuration: " + e);
+		} catch (ClassNotFoundException e) {
+			throw new RuntimeException("Could not load ExecutionConfig from Job Configuration: " + e);
+		}
+
+		boolean objectReuseEnabled = executionConfig.isObjectReuseEnabled();
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("DataSourceTask object reuse: " + (objectReuseEnabled ? "ENABLED" : "DISABLED") + ".");
+		}
 		
 		final TypeSerializer<OT> serializer = this.serializerFactory.getSerializer();
 		
@@ -121,8 +160,6 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 				// get start and end
 				final InputSplit split = splitIterator.next();
 				
-				OT record = serializer.createInstance();
-	
 				if (LOG.isDebugEnabled()) {
 					LOG.debug(getLogString("Opening input split " + split.toString()));
 				}
@@ -137,48 +174,31 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 				}
 				
 				try {
-					// special case to make the loops tighter
-					if (this.output instanceof OutputCollector) {
-						final OutputCollector<OT> output = (OutputCollector<OT>) this.output;
-						
+
+					final Collector<OT> output = this.output;
+
+					if (objectReuseEnabled) {
+						OT reuse = serializer.createInstance();
+
 						// as long as there is data to read
 						while (!this.taskCanceled && !format.reachedEnd()) {
-							
+
 							OT returned;
-							if ((returned = format.nextRecord(record)) != null) {
+							if ((returned = format.nextRecord(reuse)) != null) {
 								output.collect(returned);
-								record = returned;
+							}
+						}
+					} else {
+						// as long as there is data to read
+						while (!this.taskCanceled && !format.reachedEnd()) {
+
+							OT returned;
+							if ((returned = format.nextRecord(serializer.createInstance())) != null) {
+								output.collect(returned);
 							}
 						}
 					}
-					else if (this.output instanceof ChainedCollectorMapDriver) {
-						@SuppressWarnings("unchecked")
-						final ChainedCollectorMapDriver<OT, ?> output = (ChainedCollectorMapDriver<OT, ?>) this.output;
-						
-						// as long as there is data to read
-						while (!this.taskCanceled && !format.reachedEnd()) {
-							
-							OT returned;
-							if ((returned = format.nextRecord(record)) != null) {
-								output.collect(returned);
-								record = returned;
-							}
-						}
-					}
-					else {
-						final Collector<OT> output = this.output;
-						
-						// as long as there is data to read
-						while (!this.taskCanceled && !format.reachedEnd()) {
-							
-							OT returned;
-							if ((returned = format.nextRecord(record)) != null) {
-								output.collect(returned);
-								record = returned;
-							}
-						}
-					}
-					
+
 					if (LOG.isDebugEnabled() && !this.taskCanceled) {
 						LOG.debug(getLogString("Closing input split " + split.toString()));
 					}
@@ -285,7 +305,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 	private void initOutputs(ClassLoader cl) throws Exception {
 		this.chainedTasks = new ArrayList<ChainedDriver<?, ?>>();
 		this.eventualOutputs = new ArrayList<BufferWriter>();
-		this.output = RegularPactTask.initOutputs(this, cl, this.config, this.chainedTasks, this.eventualOutputs);
+		this.output = RegularPactTask.initOutputs(this, cl, this.config, this.chainedTasks, this.eventualOutputs, getExecutionConfig());
 	}
 
 	// ------------------------------------------------------------------------

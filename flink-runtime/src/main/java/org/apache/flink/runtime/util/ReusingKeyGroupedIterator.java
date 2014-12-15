@@ -31,14 +31,16 @@ import org.apache.flink.util.TraversableOnceException;
  * The KeyValueIterator returns a key and all values that belong to the key (share the same key).
  * 
  */
-public final class KeyGroupedIterator<E> {
+public final class ReusingKeyGroupedIterator<E> {
 	
 	private final MutableObjectIterator<E> iterator;
 
 	private final TypeSerializer<E> serializer;
 	
 	private final TypeComparator<E> comparator;
-	
+
+	private E reuse;
+
 	private E current;
 	
 	private E lookahead;
@@ -57,8 +59,8 @@ public final class KeyGroupedIterator<E> {
 	 * @param serializer The serializer for the data type iterated over.
 	 * @param comparator The comparator for the data type iterated over.
 	 */
-	public KeyGroupedIterator(MutableObjectIterator<E> iterator,
-			TypeSerializer<E> serializer, TypeComparator<E> comparator)
+	public ReusingKeyGroupedIterator(MutableObjectIterator<E> iterator, TypeSerializer<E>
+			serializer, TypeComparator<E> comparator)
 	{
 		if (iterator == null || serializer == null || comparator == null) {
 			throw new NullPointerException();
@@ -67,6 +69,7 @@ public final class KeyGroupedIterator<E> {
 		this.iterator = iterator;
 		this.serializer = serializer;
 		this.comparator = comparator;
+		this.reuse = this.serializer.createInstance();
 	}
 
 	/**
@@ -83,7 +86,7 @@ public final class KeyGroupedIterator<E> {
 				this.valuesIterator = null;
 				return false;
 			}
-			this.current = this.serializer.createInstance();
+			this.current = this.reuse;
 			if ((this.current = this.iterator.next(this.current)) != null) {
 				this.comparator.setReference(this.current);
 				this.lookAheadHasNext = false;
@@ -155,19 +158,19 @@ public final class KeyGroupedIterator<E> {
 	
 	public final class ValuesIterator implements Iterator<E>, Iterable<E> {
 		
-		private final TypeSerializer<E> serializer = KeyGroupedIterator.this.serializer;
-		private final TypeComparator<E> comparator = KeyGroupedIterator.this.comparator; 
+		private final TypeSerializer<E> serializer = ReusingKeyGroupedIterator.this.serializer;
+		private final TypeComparator<E> comparator = ReusingKeyGroupedIterator.this.comparator;
 		
 		private E staging = this.serializer.createInstance();
 		private boolean currentIsUnconsumed = false;
 		
 		private boolean iteratorAvailable = true;
-		
+
 		private ValuesIterator() {}
 
 		@Override
 		public boolean hasNext() {
-			if (KeyGroupedIterator.this.current == null || KeyGroupedIterator.this.lookAheadHasNext) {
+			if (ReusingKeyGroupedIterator.this.current == null || ReusingKeyGroupedIterator.this.lookAheadHasNext) {
 				return false;
 			}
 			if (this.currentIsUnconsumed) {
@@ -177,27 +180,27 @@ public final class KeyGroupedIterator<E> {
 			try {
 				// read the next value into the staging record to make sure we keep the
 				// current as it is in case the key changed
-				E stagingStaging = KeyGroupedIterator.this.iterator.next(this.staging);
+				E stagingStaging = ReusingKeyGroupedIterator.this.iterator.next(this.staging);
 				if (stagingStaging != null) {
 					this.staging = stagingStaging;
 					if (this.comparator.equalToReference(this.staging)) {
 						// same key, next value is in staging, so exchange staging with current
 						final E tmp = this.staging;
-						this.staging = KeyGroupedIterator.this.current;
-						KeyGroupedIterator.this.current = tmp;
+						this.staging = ReusingKeyGroupedIterator.this.current;
+						ReusingKeyGroupedIterator.this.current = tmp;
 						this.currentIsUnconsumed = true;
 						return true;
 					} else {
 						// moved to the next key, no more values here
-						KeyGroupedIterator.this.lookAheadHasNext = true;
-						KeyGroupedIterator.this.lookahead = this.staging;
-						this.staging = KeyGroupedIterator.this.current;
+						ReusingKeyGroupedIterator.this.lookAheadHasNext = true;
+						ReusingKeyGroupedIterator.this.lookahead = this.staging;
+						this.staging = ReusingKeyGroupedIterator.this.current;
 						return false;						
 					}
 				}
 				else {
 					// backing iterator is consumed
-					KeyGroupedIterator.this.done = true;
+					ReusingKeyGroupedIterator.this.done = true;
 					return false;
 				}
 			}
@@ -214,7 +217,7 @@ public final class KeyGroupedIterator<E> {
 		public E next() {
 			if (this.currentIsUnconsumed || hasNext()) {
 				this.currentIsUnconsumed = false;
-				return KeyGroupedIterator.this.current;
+				return ReusingKeyGroupedIterator.this.current;
 			} else {
 				throw new NoSuchElementException();
 			}

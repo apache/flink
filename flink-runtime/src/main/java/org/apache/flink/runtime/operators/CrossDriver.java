@@ -19,6 +19,7 @@
 
 package org.apache.flink.runtime.operators;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.functions.CrossFunction;
@@ -62,7 +63,9 @@ public class CrossDriver<T1, T2, OT> implements PactDriver<CrossFunction<T1, T2,
 	private boolean firstIsOuter;
 	
 	private volatile boolean running;
-	
+
+	private boolean objectReuseEnabled = false;
+
 	// ------------------------------------------------------------------------
 
 
@@ -140,6 +143,13 @@ public class CrossDriver<T1, T2, OT> implements PactDriver<CrossFunction<T1, T2,
 			}
 			this.memPagesForBlockSide = numPages - this.memPagesForSpillingSide;
 		}
+
+		ExecutionConfig executionConfig = taskContext.getExecutionConfig();
+		this.objectReuseEnabled = executionConfig.isObjectReuseEnabled();
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("CrossDriver object reuse: " + (this.objectReuseEnabled ? "ENABLED" : "DISABLED") + ".");
+		}
 	}
 
 
@@ -201,30 +211,47 @@ public class CrossDriver<T1, T2, OT> implements PactDriver<CrossFunction<T1, T2,
 				this.taskContext.getOwningNepheleTask());
 		this.spillIter = spillVals;
 		
-		T1 val1;
-		final T1 val1Reuse = serializer1.createInstance();
-		T2 val2;
-		final T2 val2Reuse = serializer2.createInstance();
-		T2 val2Copy = serializer2.createInstance();
-		
+
 		final CrossFunction<T1, T2, OT> crosser = this.taskContext.getStub();
 		final Collector<OT> collector = this.taskContext.getOutputCollector();
-		
-		// for all blocks
-		do {
-			// for all values from the spilling side
-			while (this.running && ((val2 = spillVals.next(val2Reuse)) != null)) {
-				// for all values in the block
-				while ((val1 = blockVals.next(val1Reuse)) != null) {
-					val2Copy = serializer2.copy(val2, val2Copy);
-					collector.collect(crosser.cross(val1,val2Copy));
-					//crosser.cross(val1, val2Copy, collector);
+
+
+		if (objectReuseEnabled) {
+			final T1 val1Reuse = serializer1.createInstance();
+			final T2 val2Reuse = serializer2.createInstance();
+			T1 val1;
+			T2 val2;
+
+			// for all blocks
+			do {
+				// for all values from the spilling side
+				while (this.running && ((val2 = spillVals.next(val2Reuse)) != null)) {
+					// for all values in the block
+					while ((val1 = blockVals.next(val1Reuse)) != null) {
+						collector.collect(crosser.cross(val1, val2));
+					}
+					blockVals.reset();
 				}
-				blockVals.reset();
-			}
-			spillVals.reset();
+				spillVals.reset();
+			} while (this.running && blockVals.nextBlock());
+		} else {
+			T1 val1;
+			T2 val2;
+
+			// for all blocks
+			do {
+				// for all values from the spilling side
+				while (this.running && ((val2 = spillVals.next()) != null)) {
+					// for all values in the block
+					while ((val1 = blockVals.next()) != null) {
+						collector.collect(crosser.cross(val1, serializer2.copy(val2)));
+					}
+					blockVals.reset();
+				}
+				spillVals.reset();
+			} while (this.running && blockVals.nextBlock());
+
 		}
-		while (this.running && blockVals.nextBlock());
 	}
 	
 	private void runBlockedOuterSecond() throws Exception {
@@ -249,30 +276,45 @@ public class CrossDriver<T1, T2, OT> implements PactDriver<CrossFunction<T1, T2,
 						this.taskContext.getOwningNepheleTask());
 		this.blockIter = blockVals;
 		
-		T1 val1;
-		final T1 val1Reuse = serializer1.createInstance();
-		T1 val1Copy = serializer1.createInstance();
-		T2 val2;
-		final T2 val2Reuse = serializer2.createInstance();
-
 		final CrossFunction<T1, T2, OT> crosser = this.taskContext.getStub();
 		final Collector<OT> collector = this.taskContext.getOutputCollector();
-		
-		// for all blocks
-		do {
-			// for all values from the spilling side
-			while (this.running && ((val1 = spillVals.next(val1Reuse)) != null)) {
-				// for all values in the block
-				while (this.running && ((val2 = blockVals.next(val2Reuse)) != null)) {
-					val1Copy = serializer1.copy(val1, val1Copy);
-					collector.collect(crosser.cross(val1Copy, val2));
-					//crosser.cross(val1Copy, val2, collector);
+
+		if (objectReuseEnabled) {
+			final T1 val1Reuse = serializer1.createInstance();
+			final T2 val2Reuse = serializer2.createInstance();
+			T1 val1;
+			T2 val2;
+
+			// for all blocks
+			do {
+				// for all values from the spilling side
+				while (this.running && ((val1 = spillVals.next(val1Reuse)) != null)) {
+					// for all values in the block
+					while (this.running && ((val2 = blockVals.next(val2Reuse)) != null)) {
+						collector.collect(crosser.cross(val1, val2));
+					}
+					blockVals.reset();
 				}
-				blockVals.reset();
-			}
-			spillVals.reset();
+				spillVals.reset();
+			} while (this.running && blockVals.nextBlock());
+		} else {
+			T1 val1;
+			T2 val2;
+
+			// for all blocks
+			do {
+				// for all values from the spilling side
+				while (this.running && ((val1 = spillVals.next()) != null)) {
+					// for all values in the block
+					while (this.running && ((val2 = blockVals.next()) != null)) {
+						collector.collect(crosser.cross(serializer1.copy(val1), val2));
+					}
+					blockVals.reset();
+				}
+				spillVals.reset();
+			} while (this.running && blockVals.nextBlock());
+
 		}
-		while (this.running && blockVals.nextBlock());
 	}
 	
 	private void runStreamedOuterFirst() throws Exception {
@@ -292,24 +334,36 @@ public class CrossDriver<T1, T2, OT> implements PactDriver<CrossFunction<T1, T2,
 				this.taskContext.getOwningNepheleTask());
 		this.spillIter = spillVals;
 		
-		T1 val1;
-		final T1 val1Reuse = serializer1.createInstance();
-		T1 val1Copy = serializer1.createInstance();
-		T2 val2;
-		final T2 val2Reuse = serializer2.createInstance();
-
 		final CrossFunction<T1, T2, OT> crosser = this.taskContext.getStub();
 		final Collector<OT> collector = this.taskContext.getOutputCollector();
-		
-		// for all blocks
-		while (this.running && ((val1 = in1.next(val1Reuse)) != null)) {
-			// for all values from the spilling side
-			while (this.running && ((val2 = spillVals.next(val2Reuse)) != null)) {
-				val1Copy = serializer1.copy(val1, val1Copy);
-				collector.collect(crosser.cross(val1Copy, val2));
-				//crosser.cross(val1Copy, val2, collector);
+
+		if (objectReuseEnabled) {
+			final T1 val1Reuse = serializer1.createInstance();
+			final T2 val2Reuse = serializer2.createInstance();
+			T1 val1;
+			T2 val2;
+
+			// for all blocks
+			while (this.running && ((val1 = in1.next(val1Reuse)) != null)) {
+				// for all values from the spilling side
+				while (this.running && ((val2 = spillVals.next(val2Reuse)) != null)) {
+					collector.collect(crosser.cross(val1, val2));
+				}
+				spillVals.reset();
 			}
-			spillVals.reset();
+		} else {
+			T1 val1;
+			T2 val2;
+
+			// for all blocks
+			while (this.running && ((val1 = in1.next()) != null)) {
+				// for all values from the spilling side
+				while (this.running && ((val2 = spillVals.next()) != null)) {
+					collector.collect(crosser.cross(serializer1.copy(val1), val2));
+				}
+				spillVals.reset();
+			}
+
 		}
 	}
 	
@@ -328,25 +382,38 @@ public class CrossDriver<T1, T2, OT> implements PactDriver<CrossFunction<T1, T2,
 				in1, serializer1, this.memManager, this.taskContext.getIOManager(), this.memPagesForSpillingSide,
 				this.taskContext.getOwningNepheleTask());
 		this.spillIter = spillVals;
-		
-		T1 val1;
-		final T1 val1Reuse = serializer1.createInstance();
-		T2 val2;
-		final T2 val2Reuse = serializer2.createInstance();
-		T2 val2Copy = serializer2.createInstance();
-		
+
 		final CrossFunction<T1, T2, OT> crosser = this.taskContext.getStub();
 		final Collector<OT> collector = this.taskContext.getOutputCollector();
-		
-		// for all blocks
-		while (this.running && (val2 = in2.next(val2Reuse)) != null) {
-			// for all values from the spilling side
-			while (this.running && (val1 = spillVals.next(val1Reuse)) != null) {
-				val2Copy = serializer2.copy(val2, val2Copy);
-				collector.collect(crosser.cross(val1, val2Copy));
-				//crosser.cross(val1, val2Copy, collector);
+
+		if (objectReuseEnabled) {
+			final T1 val1Reuse = serializer1.createInstance();
+			final T2 val2Reuse = serializer2.createInstance();
+			T1 val1;
+			T2 val2;
+
+			// for all blocks
+			while (this.running && (val2 = in2.next(val2Reuse)) != null) {
+				// for all values from the spilling side
+				while (this.running && (val1 = spillVals.next(val1Reuse)) != null) {
+					collector.collect(crosser.cross(val1, val2));
+					//crosser.cross(val1, val2Copy, collector);
+				}
+				spillVals.reset();
 			}
-			spillVals.reset();
+		} else {
+			T1 val1;
+			T2 val2;
+
+			// for all blocks
+			while (this.running && (val2 = in2.next()) != null) {
+				// for all values from the spilling side
+				while (this.running && (val1 = spillVals.next()) != null) {
+					collector.collect(crosser.cross(val1, serializer2.copy(val2)));
+				}
+				spillVals.reset();
+			}
+
 		}
 	}
 }

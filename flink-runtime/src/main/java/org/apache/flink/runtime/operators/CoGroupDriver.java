@@ -19,13 +19,15 @@
 
 package org.apache.flink.runtime.operators;
 
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.runtime.operators.sort.NonReusingSortMergeCoGroupIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.runtime.operators.sort.SortMergeCoGroupIterator;
+import org.apache.flink.runtime.operators.sort.ReusingSortMergeCoGroupIterator;
 import org.apache.flink.runtime.operators.util.CoGroupTaskIterator;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.util.Collector;
@@ -39,7 +41,7 @@ import org.apache.flink.util.MutableObjectIterator;
  * The CoGroupTask group all pairs that share the same key from both inputs. Each for each key, the sets of values that
  * were pair with that key of both inputs are handed to the <code>coGroup()</code> method of the CoGroupFunction.
  * 
- * @see org.apache.flink.api.java.record.functions.CoGroupFunction
+ * @see org.apache.flink.api.common.functions.CoGroupFunction
  */
 public class CoGroupDriver<IT1, IT2, OT> implements PactDriver<CoGroupFunction<IT1, IT2, OT>, OT> {
 	
@@ -51,6 +53,8 @@ public class CoGroupDriver<IT1, IT2, OT> implements PactDriver<CoGroupFunction<I
 	private CoGroupTaskIterator<IT1, IT2> coGroupIterator;				// the iterator that does the actual cogroup
 	
 	private volatile boolean running;
+
+	private boolean objectReuseEnabled = false;
 
 	// ------------------------------------------------------------------------
 
@@ -105,10 +109,28 @@ public class CoGroupDriver<IT1, IT2, OT> implements PactDriver<CoGroupFunction<I
 			throw new Exception("Missing pair comparator factory for CoGroup driver");
 		}
 
-		// create CoGropuTaskIterator according to provided local strategy.
-		this.coGroupIterator = new SortMergeCoGroupIterator<IT1, IT2>(in1, in2,
-				serializer1, groupComparator1,  serializer2, groupComparator2,
-				pairComparatorFactory.createComparator12(groupComparator1, groupComparator2));
+		ExecutionConfig executionConfig = taskContext.getExecutionConfig();
+		this.objectReuseEnabled = executionConfig.isObjectReuseEnabled();
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("CoGroupDriver object reuse: " + (this.objectReuseEnabled ? "ENABLED" : "DISABLED") + ".");
+		}
+
+		if (objectReuseEnabled) {
+			// create CoGropuTaskIterator according to provided local strategy.
+			this.coGroupIterator = new ReusingSortMergeCoGroupIterator<IT1, IT2>(
+					in1, in2,
+					serializer1, groupComparator1,
+					serializer2, groupComparator2,
+					pairComparatorFactory.createComparator12(groupComparator1, groupComparator2));
+		} else {
+			// create CoGropuTaskIterator according to provided local strategy.
+			this.coGroupIterator = new NonReusingSortMergeCoGroupIterator<IT1, IT2>(
+					in1, in2,
+					serializer1, groupComparator1,
+					serializer2, groupComparator2,
+					pairComparatorFactory.createComparator12(groupComparator1, groupComparator2));
+		}
 		
 		// open CoGroupTaskIterator - this triggers the sorting and blocks until the iterator is ready
 		this.coGroupIterator.open();

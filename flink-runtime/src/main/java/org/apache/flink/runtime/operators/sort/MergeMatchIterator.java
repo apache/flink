@@ -36,7 +36,7 @@ import org.apache.flink.runtime.memorymanager.MemoryManager;
 import org.apache.flink.runtime.operators.resettable.BlockResettableIterator;
 import org.apache.flink.runtime.operators.resettable.SpillingResettableIterator;
 import org.apache.flink.runtime.operators.util.JoinTaskIterator;
-import org.apache.flink.runtime.util.KeyGroupedIterator;
+import org.apache.flink.runtime.util.ReusingKeyGroupedIterator;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
@@ -56,9 +56,9 @@ public class MergeMatchIterator<T1, T2, O> implements JoinTaskIterator<T1, T2, O
 	
 	private TypePairComparator<T1, T2> comp;
 	
-	private KeyGroupedIterator<T1> iterator1;
+	private ReusingKeyGroupedIterator<T1> iterator1;
 
-	private KeyGroupedIterator<T2> iterator2;
+	private ReusingKeyGroupedIterator<T2> iterator2;
 	
 	private final TypeSerializer<T1> serializer1;
 	
@@ -104,8 +104,8 @@ public class MergeMatchIterator<T1, T2, O> implements JoinTaskIterator<T1, T2, O
 		this.memoryManager = memoryManager;
 		this.ioManager = ioManager;
 		
-		this.iterator1 = new KeyGroupedIterator<T1>(input1, this.serializer1, comparator1.duplicate());
-		this.iterator2 = new KeyGroupedIterator<T2>(input2, this.serializer2, comparator2.duplicate());
+		this.iterator1 = new ReusingKeyGroupedIterator<T1>(input1, this.serializer1, comparator1.duplicate());
+		this.iterator2 = new ReusingKeyGroupedIterator<T2>(input2, this.serializer2, comparator2.duplicate());
 		
 		final int numPagesForSpiller = numMemoryPages > 20 ? 2 : 1;
 		this.blockIt = new BlockResettableIterator<T2>(this.memoryManager, this.serializer2,
@@ -190,8 +190,8 @@ public class MergeMatchIterator<T1, T2, O> implements JoinTaskIterator<T1, T2, O
 		
 		// here, we have a common key! call the match function with the cross product of the
 		// values
-		final KeyGroupedIterator<T1>.ValuesIterator values1 = this.iterator1.getValues();
-		final KeyGroupedIterator<T2>.ValuesIterator values2 = this.iterator2.getValues();
+		final ReusingKeyGroupedIterator<T1>.ValuesIterator values1 = this.iterator1.getValues();
+		final ReusingKeyGroupedIterator<T2>.ValuesIterator values2 = this.iterator2.getValues();
 		
 		final T1 firstV1 = values1.next();
 		final T2 firstV2 = values2.next();	

@@ -19,14 +19,15 @@
 
 package org.apache.flink.runtime.operators;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.operators.util.TaskConfig;
-import org.apache.flink.runtime.util.KeyGroupedIterator;
-import org.apache.flink.runtime.util.KeyGroupedIteratorImmutable;
+import org.apache.flink.runtime.util.ReusingKeyGroupedIterator;
+import org.apache.flink.runtime.util.NonReusingKeyGroupedIterator;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
@@ -51,10 +52,10 @@ public class GroupReduceDriver<IT, OT> implements PactDriver<GroupReduceFunction
 	private TypeSerializer<IT> serializer;
 
 	private TypeComparator<IT> comparator;
-	
-	private boolean mutableObjectMode = false;
-	
+
 	private volatile boolean running;
+
+	private boolean objectReuseEnabled = false;
 
 	// ------------------------------------------------------------------------
 
@@ -92,11 +93,12 @@ public class GroupReduceDriver<IT, OT> implements PactDriver<GroupReduceFunction
 		this.serializer = this.taskContext.<IT>getInputSerializer(0).getSerializer();
 		this.comparator = this.taskContext.getDriverComparator(0);
 		this.input = this.taskContext.getInput(0);
-		
-		this.mutableObjectMode = config.getMutableObjectMode();
-		
+
+		ExecutionConfig executionConfig = taskContext.getExecutionConfig();
+		this.objectReuseEnabled = executionConfig.isObjectReuseEnabled();
+
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("GroupReduceDriver uses " + (this.mutableObjectMode ? "MUTABLE" : "IMMUTABLE") + " object mode.");
+			LOG.debug("GroupReduceDriver object reuse: " + (this.objectReuseEnabled ? "ENABLED" : "DISABLED") + ".");
 		}
 	}
 
@@ -110,15 +112,15 @@ public class GroupReduceDriver<IT, OT> implements PactDriver<GroupReduceFunction
 		final GroupReduceFunction<IT, OT> stub = this.taskContext.getStub();
 		final Collector<OT> output = this.taskContext.getOutputCollector();
 		
-		if (mutableObjectMode) {
-			final KeyGroupedIterator<IT> iter = new KeyGroupedIterator<IT>(this.input, this.serializer, this.comparator);
+		if (objectReuseEnabled) {
+			final ReusingKeyGroupedIterator<IT> iter = new ReusingKeyGroupedIterator<IT>(this.input, this.serializer, this.comparator);
 			// run stub implementation
 			while (this.running && iter.nextKey()) {
 				stub.reduce(iter.getValues(), output);
 			}
 		}
 		else {
-			final KeyGroupedIteratorImmutable<IT> iter = new KeyGroupedIteratorImmutable<IT>(this.input, this.serializer, this.comparator);
+			final NonReusingKeyGroupedIterator<IT> iter = new NonReusingKeyGroupedIterator<IT>(this.input, this.serializer, this.comparator);
 			// run stub implementation
 			while (this.running && iter.nextKey()) {
 				stub.reduce(iter.getValues(), output);

@@ -53,6 +53,7 @@ public final class TupleSerializer<T extends Tuple> extends TupleSerializerBase<
 
 	@Override
 	public T createInstance(Object[] fields) {
+
 		try {
 			T t = tupleClass.newInstance();
 

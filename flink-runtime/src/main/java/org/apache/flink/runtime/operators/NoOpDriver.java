@@ -19,9 +19,13 @@
 
 package org.apache.flink.runtime.operators;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A driver that does nothing but forward data from its input to its output.
@@ -29,12 +33,15 @@ import org.apache.flink.util.MutableObjectIterator;
  * @param <T> The data type.
  */
 public class NoOpDriver<T> implements PactDriver<AbstractRichFunction, T> {
-	
+
+	private static final Logger LOG = LoggerFactory.getLogger(MapPartitionDriver.class);
+
 	private PactTaskContext<AbstractRichFunction, T> taskContext;
 	
 	private volatile boolean running;
-	
-	
+
+	private boolean objectReuseEnabled = false;
+
 	@Override
 	public void setup(PactTaskContext<AbstractRichFunction, T> context) {
 		this.taskContext = context;
@@ -57,17 +64,34 @@ public class NoOpDriver<T> implements PactDriver<AbstractRichFunction, T> {
 	}
 
 	@Override
-	public void prepare() {}
+	public void prepare() {
+		ExecutionConfig executionConfig = taskContext.getExecutionConfig();
+		this.objectReuseEnabled = executionConfig.isObjectReuseEnabled();
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("NoOpDriver object reuse: " + (this.objectReuseEnabled ? "ENABLED" : "DISABLED") + ".");
+		}
+	}
 
 	@Override
 	public void run() throws Exception {
 		// cache references on the stack
 		final MutableObjectIterator<T> input = this.taskContext.getInput(0);
 		final Collector<T> output = this.taskContext.getOutputCollector();
-		T record = this.taskContext.<T>getInputSerializer(0).getSerializer().createInstance();
 
-		while (this.running && ((record = input.next(record)) != null)) {
-			output.collect(record);
+		if (objectReuseEnabled) {
+			T record = this.taskContext.<T>getInputSerializer(0).getSerializer().createInstance();
+
+			while (this.running && ((record = input.next(record)) != null)) {
+				output.collect(record);
+			}
+		} else {
+			T record;
+			TypeSerializer<T> serializer = this.taskContext.<T>getInputSerializer(0).getSerializer();
+			while (this.running && ((record = input.next(serializer.createInstance())) != null)) {
+				output.collect(record);
+			}
+
 		}
 	}
 	

@@ -37,7 +37,7 @@ public class ExecutionConfig implements Serializable {
 
 	// For future use...
 //	private boolean forceGenericSerializer = false;
-//	private boolean objectReuse = false;
+	private boolean objectReuse = false;
 
 	/**
 	 * Enables the ClosureCleaner. This analyzes user code functions and sets fields to null
@@ -143,17 +143,30 @@ public class ExecutionConfig implements Serializable {
 //		return forceGenericSerializer;
 //	}
 //
-//	public ExecutionConfig enableObjectReuse() {
-//		objectReuse = true;
-//		return this;
-//	}
-//
-//	public ExecutionConfig disableObjectReuse() {
-//		objectReuse = false;
-//		return this;
-//	}
-//
-//	public boolean isObjectReuseEnabled() {
-//		return objectReuse;
-//	}
+
+	/**
+	 * Enables reusing objects that Flink internally uses for deserialization and passing
+	 * data to user-code functions. Keep in mind that this can lead to bugs when the
+	 * user-code function of an operation is not aware of this behaviour.
+	 */
+	public ExecutionConfig enableObjectReuse() {
+		objectReuse = true;
+		return this;
+	}
+
+	/**
+	 * Disables reusing objects that Flink internally uses for deserialization and passing
+	 * data to user-code functions. @see #enableObjectReuse()
+	 */
+	public ExecutionConfig disableObjectReuse() {
+		objectReuse = false;
+		return this;
+	}
+
+	/**
+	 * Returns whether object reuse has been enabled or disabled. @see #enableObjectReuse()
+	 */
+	public boolean isObjectReuseEnabled() {
+		return objectReuse;
+	}
 }

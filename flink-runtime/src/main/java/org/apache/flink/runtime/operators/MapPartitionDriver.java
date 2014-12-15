@@ -19,10 +19,14 @@
 
 package org.apache.flink.runtime.operators;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.MapPartitionFunction;
-import org.apache.flink.runtime.util.MutableToRegularIteratorWrapper;
+import org.apache.flink.runtime.util.NonReusingMutableToRegularIteratorWrapper;
+import org.apache.flink.runtime.util.ReusingMutableToRegularIteratorWrapper;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * MapPartition task which is executed by a Nephele task manager. The task has a single
@@ -39,7 +43,11 @@ import org.apache.flink.util.MutableObjectIterator;
  */
 public class MapPartitionDriver<IT, OT> implements PactDriver<MapPartitionFunction<IT, OT>, OT> {
 
+	private static final Logger LOG = LoggerFactory.getLogger(MapPartitionDriver.class);
+
 	private PactTaskContext<MapPartitionFunction<IT, OT>, OT> taskContext;
+
+	private boolean objectReuseEnabled = false;
 
 	@Override
 	public void setup(PactTaskContext<MapPartitionFunction<IT, OT>, OT> context) {
@@ -65,7 +73,12 @@ public class MapPartitionDriver<IT, OT> implements PactDriver<MapPartitionFuncti
 
 	@Override
 	public void prepare() {
-		// nothing, since a mapper does not need any preparation
+		ExecutionConfig executionConfig = taskContext.getExecutionConfig();
+		this.objectReuseEnabled = executionConfig.isObjectReuseEnabled();
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("MapPartitionDriver object reuse: " + (this.objectReuseEnabled ? "ENABLED" : "DISABLED") + ".");
+		}
 	}
 
 	@Override
@@ -75,8 +88,15 @@ public class MapPartitionDriver<IT, OT> implements PactDriver<MapPartitionFuncti
 		final MapPartitionFunction<IT, OT> function = this.taskContext.getStub();
 		final Collector<OT> output = this.taskContext.getOutputCollector();
 
-		final MutableToRegularIteratorWrapper<IT> inIter = new MutableToRegularIteratorWrapper<IT>(input, this.taskContext.<IT>getInputSerializer(0).getSerializer());
-		function.mapPartition(inIter, output);
+		if (objectReuseEnabled) {
+			final ReusingMutableToRegularIteratorWrapper<IT> inIter = new ReusingMutableToRegularIteratorWrapper<IT>(input, this.taskContext.<IT>getInputSerializer(0).getSerializer());
+
+			function.mapPartition(inIter, output);
+		} else {
+			final NonReusingMutableToRegularIteratorWrapper<IT> inIter = new NonReusingMutableToRegularIteratorWrapper<IT>(input, this.taskContext.<IT>getInputSerializer(0).getSerializer());
+
+			function.mapPartition(inIter, output);
+		}
 	}
 
 	@Override

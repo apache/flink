@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.operators;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.operators.util.JoinHashMap;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -30,7 +31,8 @@ import org.apache.flink.runtime.iterative.task.AbstractIterativePactTask;
 import org.apache.flink.runtime.operators.hash.CompactingHashTable;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.runtime.util.EmptyIterator;
-import org.apache.flink.runtime.util.KeyGroupedIterator;
+import org.apache.flink.runtime.util.NonReusingKeyGroupedIterator;
+import org.apache.flink.runtime.util.ReusingKeyGroupedIterator;
 import org.apache.flink.runtime.util.SingleElementIterator;
 import org.apache.flink.util.Collector;
 
@@ -45,12 +47,16 @@ public class CoGroupWithSolutionSetSecondDriver<IT1, IT2, OT> implements Resetta
 	private TypeSerializer<IT1> probeSideSerializer;
 	
 	private TypeComparator<IT1> probeSideComparator;
-	
+
+	private TypeSerializer<IT2> solutionSetSerializer;
+
 	private TypePairComparator<IT1, IT2> pairComparator;
 	
 	private IT2 solutionSideRecord;
 	
 	protected volatile boolean running;
+
+	private boolean objectReuseEnabled = false;
 
 	// --------------------------------------------------------------------------------------------
 	
@@ -95,7 +101,6 @@ public class CoGroupWithSolutionSetSecondDriver<IT1, IT2, OT> implements Resetta
 	@SuppressWarnings("unchecked")
 	public void initialize() throws Exception {
 		
-		final TypeSerializer<IT2> solutionSetSerializer;
 		final TypeComparator<IT2> solutionSetComparator;
 		
 		// grab a handle to the hash table from the iteration broker
@@ -129,8 +134,13 @@ public class CoGroupWithSolutionSetSecondDriver<IT1, IT2, OT> implements Resetta
 		
 		this.probeSideSerializer = taskContext.<IT1>getInputSerializer(0).getSerializer();
 		this.probeSideComparator = probeSideComparatorFactory.createComparator();
-		
-		solutionSideRecord = solutionSetSerializer.createInstance();
+
+		ExecutionConfig executionConfig = taskContext.getExecutionConfig();
+		objectReuseEnabled = executionConfig.isObjectReuseEnabled();
+
+		if (objectReuseEnabled) {
+			solutionSideRecord = solutionSetSerializer.createInstance();
+		};
 		
 		TypePairComparatorFactory<IT1, IT2> factory = taskContext.getTaskConfig().getPairComparatorFactory(taskContext.getUserCodeClassLoader());
 		pairComparator = factory.createComparator12(this.probeSideComparator, solutionSetComparator);
@@ -149,46 +159,84 @@ public class CoGroupWithSolutionSetSecondDriver<IT1, IT2, OT> implements Resetta
 		final CoGroupFunction<IT1, IT2, OT> coGroupStub = taskContext.getStub();
 		final Collector<OT> collector = taskContext.getOutputCollector();
 
-		final KeyGroupedIterator<IT1> probeSideInput = new KeyGroupedIterator<IT1>(taskContext.<IT1>getInput(0), probeSideSerializer, probeSideComparator);
 		final SingleElementIterator<IT2> siIter = new SingleElementIterator<IT2>();
 		final Iterable<IT2> emptySolutionSide = EmptyIterator.<IT2>get();
-		
-		if (this.hashTable != null) {
-			final CompactingHashTable<IT2> join = hashTable;
-			final CompactingHashTable<IT2>.HashTableProber<IT1> prober = join.getProber(this.probeSideComparator, this.pairComparator);
-			
-			IT2 buildSideRecord = solutionSideRecord;
-			
-			while (this.running && probeSideInput.nextKey()) {
-				IT1 current = probeSideInput.getCurrent();
-	
-				buildSideRecord = prober.getMatchFor(current, buildSideRecord);
-				if (buildSideRecord != null) {
-					siIter.set(buildSideRecord);
-					coGroupStub.coGroup(probeSideInput.getValues(), siIter, collector);
+
+		if (objectReuseEnabled) {
+			final ReusingKeyGroupedIterator<IT1> probeSideInput = new ReusingKeyGroupedIterator<IT1>(taskContext.<IT1>getInput(0), probeSideSerializer, probeSideComparator);
+
+			if (this.hashTable != null) {
+				final CompactingHashTable<IT2> join = hashTable;
+				final CompactingHashTable<IT2>.HashTableProber<IT1> prober = join.getProber(this.probeSideComparator, this.pairComparator);
+
+				IT2 buildSideRecord = solutionSideRecord;
+
+				while (this.running && probeSideInput.nextKey()) {
+					IT1 current = probeSideInput.getCurrent();
+
+					buildSideRecord = prober.getMatchFor(current, buildSideRecord);
+					if (buildSideRecord != null) {
+						siIter.set(buildSideRecord);
+						coGroupStub.coGroup(probeSideInput.getValues(), siIter, collector);
+					} else {
+						coGroupStub.coGroup(probeSideInput.getValues(), emptySolutionSide, collector);
+					}
 				}
-				else {
-					coGroupStub.coGroup(probeSideInput.getValues(), emptySolutionSide, collector);
+			} else {
+				final JoinHashMap<IT2> join = this.objectMap;
+				final JoinHashMap<IT2>.Prober<IT1> prober = join.createProber(this.probeSideComparator, this.pairComparator);
+				final TypeSerializer<IT2> serializer = join.getBuildSerializer();
+
+				while (this.running && probeSideInput.nextKey()) {
+					IT1 current = probeSideInput.getCurrent();
+
+					IT2 buildSideRecord = prober.lookupMatch(current);
+					if (buildSideRecord != null) {
+						siIter.set(serializer.copy(buildSideRecord));
+						coGroupStub.coGroup(probeSideInput.getValues(), siIter, collector);
+					} else {
+						coGroupStub.coGroup(probeSideInput.getValues(), emptySolutionSide, collector);
+					}
 				}
 			}
-		}
-		else {
-			final JoinHashMap<IT2> join = this.objectMap;
-			final JoinHashMap<IT2>.Prober<IT1> prober = join.createProber(this.probeSideComparator, this.pairComparator);
-			final TypeSerializer<IT2> serializer = join.getBuildSerializer();
-			
-			while (this.running && probeSideInput.nextKey()) {
-				IT1 current = probeSideInput.getCurrent();
-	
-				IT2 buildSideRecord = prober.lookupMatch(current);
-				if (buildSideRecord != null) {
-					siIter.set(serializer.copy(buildSideRecord));
-					coGroupStub.coGroup(probeSideInput.getValues(), siIter, collector);
+		} else {
+			final NonReusingKeyGroupedIterator<IT1> probeSideInput = new NonReusingKeyGroupedIterator<IT1>(taskContext.<IT1>getInput(0), probeSideSerializer, probeSideComparator);
+
+			if (this.hashTable != null) {
+				final CompactingHashTable<IT2> join = hashTable;
+				final CompactingHashTable<IT2>.HashTableProber<IT1> prober = join.getProber(this.probeSideComparator, this.pairComparator);
+
+				IT2 buildSideRecord;
+
+				while (this.running && probeSideInput.nextKey()) {
+					IT1 current = probeSideInput.getCurrent();
+
+					buildSideRecord = prober.getMatchFor(current);
+					if (buildSideRecord != null) {
+						siIter.set(solutionSetSerializer.copy(buildSideRecord));
+						coGroupStub.coGroup(probeSideInput.getValues(), siIter, collector);
+					} else {
+						coGroupStub.coGroup(probeSideInput.getValues(), emptySolutionSide, collector);
+					}
 				}
-				else {
-					coGroupStub.coGroup(probeSideInput.getValues(), emptySolutionSide, collector);
+			} else {
+				final JoinHashMap<IT2> join = this.objectMap;
+				final JoinHashMap<IT2>.Prober<IT1> prober = join.createProber(this.probeSideComparator, this.pairComparator);
+				final TypeSerializer<IT2> serializer = join.getBuildSerializer();
+
+				while (this.running && probeSideInput.nextKey()) {
+					IT1 current = probeSideInput.getCurrent();
+
+					IT2 buildSideRecord = prober.lookupMatch(current);
+					if (buildSideRecord != null) {
+						siIter.set(serializer.copy(buildSideRecord));
+						coGroupStub.coGroup(probeSideInput.getValues(), siIter, collector);
+					} else {
+						coGroupStub.coGroup(probeSideInput.getValues(), emptySolutionSide, collector);
+					}
 				}
 			}
+
 		}
 	}
 

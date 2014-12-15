@@ -55,6 +55,7 @@ import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
+import org.apache.flink.runtime.plugable.NonReusingDeserializationDelegate;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.MutableObjectIterator;
 
@@ -192,8 +193,15 @@ public class MockEnvironment implements Environment, BufferProvider, LocalBuffer
 		public InputChannelResult readRecord(DeserializationDelegate<Record> target) throws IOException, InterruptedException {
 
 			Record reuse = target != null ? target.getInstance() : null;
+
+			// Handle NonReusingDeserializationDelegate, which by default
+			// does not have a Record instance
+			if (reuse == null && target != null) {
+				reuse = new Record();
+				target.setInstance(reuse);
+			}
 			
-			if ((reuse = it.next(reuse)) != null) {
+			if (it.next(reuse) != null) {
 				// everything comes from the same source channel and buffer in this mock
 				notifyRecordIsAvailable(0);
 				return InputChannelResult.INTERMEDIATE_RECORD_FROM_BUFFER;
