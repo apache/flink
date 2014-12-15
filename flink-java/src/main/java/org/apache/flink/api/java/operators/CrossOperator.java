@@ -138,7 +138,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 				throw new NullPointerException("Cross function must not be null.");
 			}
 			TypeInformation<R> returnType = TypeExtractor.getCrossReturnTypes(function, input1.getType(), input2.getType());
-			return new CrossOperator<I1, I2, R>(input1, input2, function, returnType, Utils.getCallLocationName());
+			return new CrossOperator<I1, I2, R>(input1, input2, clean(function), returnType, Utils.getCallLocationName());
 		}
 		
 		/**

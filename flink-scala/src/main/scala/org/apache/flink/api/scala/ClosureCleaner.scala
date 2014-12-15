@@ -172,7 +172,7 @@ object ClosureCleaner {
     }
   }
 
-  private def ensureSerializable(func: AnyRef) {
+  def ensureSerializable(func: AnyRef) {
     try {
       InstantiationUtil.serializeObject(func)
     } catch {
