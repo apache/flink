@@ -29,7 +29,6 @@ import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.api.java.aggregation.deprecated.AggregationFunction;
 import org.apache.flink.api.java.aggregation.deprecated.AggregationFunctionFactory;
 import org.apache.flink.api.java.aggregation.deprecated.Aggregations;
