@@ -21,6 +21,7 @@ package org.apache.flink.runtime.operators;
 import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.junit.Assert;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.typeutils.record.RecordComparator;
@@ -49,8 +50,8 @@ public class CombineTaskTest extends DriverTestBase<RichGroupReduceFunction<Reco
 	private final RecordComparator comparator = new RecordComparator(
 		new int[]{0}, (Class<? extends Key<?>>[])new Class[]{ IntValue.class });
 
-	public CombineTaskTest() {
-		super(COMBINE_MEM, 0);
+	public CombineTaskTest(ExecutionConfig config) {
+		super(config, COMBINE_MEM, 0);
 
 		combine_frac = (double)COMBINE_MEM/this.getMemoryManager().getMemorySize();
 	}

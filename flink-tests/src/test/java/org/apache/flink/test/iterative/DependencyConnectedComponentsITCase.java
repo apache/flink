@@ -57,6 +57,9 @@ public class DependencyConnectedComponentsITCase extends JavaProgramTestBase {
 	
 	@Override
 	protected void preSubmit() throws Exception {
+		verticesInput.clear();
+		edgesInput.clear();
+
 		// vertices input
 		verticesInput.add(new Tuple2<Long, Long>(1l,1l));
 		verticesInput.add(new Tuple2<Long, Long>(2l,2l));

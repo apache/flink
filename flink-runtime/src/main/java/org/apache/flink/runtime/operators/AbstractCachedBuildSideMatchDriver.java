@@ -19,12 +19,15 @@
 
 package org.apache.flink.runtime.operators;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.runtime.operators.hash.BuildFirstReOpenableHashMatchIterator;
-import org.apache.flink.runtime.operators.hash.BuildSecondReOpenableHashMatchIterator;
+import org.apache.flink.runtime.operators.hash.NonReusingBuildFirstReOpenableHashMatchIterator;
+import org.apache.flink.runtime.operators.hash.NonReusingBuildSecondReOpenableHashMatchIterator;
+import org.apache.flink.runtime.operators.hash.ReusingBuildFirstReOpenableHashMatchIterator;
+import org.apache.flink.runtime.operators.hash.ReusingBuildSecondReOpenableHashMatchIterator;
 import org.apache.flink.runtime.operators.util.JoinTaskIterator;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.util.Collector;
@@ -37,7 +40,10 @@ public abstract class AbstractCachedBuildSideMatchDriver<IT1, IT2, OT> extends M
 	private final int buildSideIndex;
 	
 	private final int probeSideIndex;
-	
+
+	private boolean objectReuseEnabled = false;
+
+
 	protected AbstractCachedBuildSideMatchDriver(int buildSideIndex, int probeSideIndex) {
 		this.buildSideIndex = buildSideIndex;
 		this.probeSideIndex = probeSideIndex;
@@ -69,34 +75,67 @@ public abstract class AbstractCachedBuildSideMatchDriver<IT1, IT2, OT> extends M
 
 		double availableMemory = config.getRelativeMemoryDriver();
 
-		if (buildSideIndex == 0 && probeSideIndex == 1) {
-			
-			matchIterator = 
-					new BuildFirstReOpenableHashMatchIterator<IT1, IT2, OT>(input1, input2, 
-							serializer1, comparator1, 
-							serializer2, comparator2, 
-							pairComparatorFactory.createComparator21(comparator1, comparator2), 
-							this.taskContext.getMemoryManager(),
-							this.taskContext.getIOManager(),
-							this.taskContext.getOwningNepheleTask(),
-							availableMemory
-							);
-			
-		} else if (buildSideIndex == 1 && probeSideIndex == 0) {
+		ExecutionConfig executionConfig = taskContext.getExecutionConfig();
+		objectReuseEnabled = executionConfig.isObjectReuseEnabled();
 
-			matchIterator = 
-					new BuildSecondReOpenableHashMatchIterator<IT1, IT2, OT>(input1, input2, 
-							serializer1, comparator1, 
-							serializer2, comparator2, 
-							pairComparatorFactory.createComparator12(comparator1, comparator2), 
-							this.taskContext.getMemoryManager(),
-							this.taskContext.getIOManager(),
-							this.taskContext.getOwningNepheleTask(),
-							availableMemory
-							);
-			
+		if (objectReuseEnabled) {
+			if (buildSideIndex == 0 && probeSideIndex == 1) {
+
+				matchIterator = new ReusingBuildFirstReOpenableHashMatchIterator<IT1, IT2, OT>(
+						input1, input2,
+						serializer1, comparator1,
+						serializer2, comparator2,
+						pairComparatorFactory.createComparator21(comparator1, comparator2),
+						this.taskContext.getMemoryManager(),
+						this.taskContext.getIOManager(),
+						this.taskContext.getOwningNepheleTask(),
+						availableMemory);
+
+
+			} else if (buildSideIndex == 1 && probeSideIndex == 0) {
+
+				matchIterator = new ReusingBuildSecondReOpenableHashMatchIterator<IT1, IT2, OT>(
+						input1, input2,
+						serializer1, comparator1,
+						serializer2, comparator2,
+						pairComparatorFactory.createComparator12(comparator1, comparator2),
+						this.taskContext.getMemoryManager(),
+						this.taskContext.getIOManager(),
+						this.taskContext.getOwningNepheleTask(),
+						availableMemory);
+
+			} else {
+				throw new Exception("Error: Inconsistent setup for repeatable hash join driver.");
+			}
 		} else {
-			throw new Exception("Error: Inconcistent setup for repeatable hash join driver.");
+			if (buildSideIndex == 0 && probeSideIndex == 1) {
+
+				matchIterator = new NonReusingBuildFirstReOpenableHashMatchIterator<IT1, IT2, OT>(
+						input1, input2,
+						serializer1, comparator1,
+						serializer2, comparator2,
+						pairComparatorFactory.createComparator21(comparator1, comparator2),
+						this.taskContext.getMemoryManager(),
+						this.taskContext.getIOManager(),
+						this.taskContext.getOwningNepheleTask(),
+						availableMemory);
+
+
+			} else if (buildSideIndex == 1 && probeSideIndex == 0) {
+
+				matchIterator = new NonReusingBuildSecondReOpenableHashMatchIterator<IT1, IT2, OT>(
+						input1, input2,
+						serializer1, comparator1,
+						serializer2, comparator2,
+						pairComparatorFactory.createComparator12(comparator1, comparator2),
+						this.taskContext.getMemoryManager(),
+						this.taskContext.getIOManager(),
+						this.taskContext.getOwningNepheleTask(),
+						availableMemory);
+
+			} else {
+				throw new Exception("Error: Inconsistent setup for repeatable hash join driver.");
+			}
 		}
 		
 		this.matchIterator.open();
@@ -113,21 +152,8 @@ public abstract class AbstractCachedBuildSideMatchDriver<IT1, IT2, OT> extends M
 		final FlatJoinFunction<IT1, IT2, OT> matchStub = this.taskContext.getStub();
 		final Collector<OT> collector = this.taskContext.getOutputCollector();
 		
-		if (buildSideIndex == 0) {
+		while (this.running && matchIterator != null && matchIterator.callWithNextKey(matchStub, collector));
 			
-			final BuildFirstReOpenableHashMatchIterator<IT1, IT2, OT> matchIterator = (BuildFirstReOpenableHashMatchIterator<IT1, IT2, OT>) this.matchIterator;
-			
-			while (this.running && matchIterator != null && matchIterator.callWithNextKey(matchStub, collector));
-			
-		} else if (buildSideIndex == 1) {
-			
-			final BuildSecondReOpenableHashMatchIterator<IT1, IT2, OT> matchIterator = (BuildSecondReOpenableHashMatchIterator<IT1, IT2, OT>) this.matchIterator;
-			
-			while (this.running && matchIterator != null && matchIterator.callWithNextKey(matchStub, collector));
-			
-		} else {
-			throw new Exception();
-		}
 	}
 
 	@Override
@@ -138,14 +164,25 @@ public abstract class AbstractCachedBuildSideMatchDriver<IT1, IT2, OT> extends M
 		
 		MutableObjectIterator<IT1> input1 = this.taskContext.getInput(0);
 		MutableObjectIterator<IT2> input2 = this.taskContext.getInput(1);
-		
-		if (buildSideIndex == 0 && probeSideIndex == 1) {
-			final BuildFirstReOpenableHashMatchIterator<IT1, IT2, OT> matchIterator = (BuildFirstReOpenableHashMatchIterator<IT1, IT2, OT>) this.matchIterator;
-			matchIterator.reopenProbe(input2);
-		}
-		else {
-			final BuildSecondReOpenableHashMatchIterator<IT1, IT2, OT> matchIterator = (BuildSecondReOpenableHashMatchIterator<IT1, IT2, OT>) this.matchIterator;
-			matchIterator.reopenProbe(input1);
+
+		if (objectReuseEnabled) {
+			if (buildSideIndex == 0 && probeSideIndex == 1) {
+				final ReusingBuildFirstReOpenableHashMatchIterator<IT1, IT2, OT> matchIterator = (ReusingBuildFirstReOpenableHashMatchIterator<IT1, IT2, OT>) this.matchIterator;
+
+				matchIterator.reopenProbe(input2);
+			} else {
+				final ReusingBuildSecondReOpenableHashMatchIterator<IT1, IT2, OT> matchIterator = (ReusingBuildSecondReOpenableHashMatchIterator<IT1, IT2, OT>) this.matchIterator;
+				matchIterator.reopenProbe(input1);
+			}
+		} else {
+			if (buildSideIndex == 0 && probeSideIndex == 1) {
+				final NonReusingBuildFirstReOpenableHashMatchIterator<IT1, IT2, OT> matchIterator = (NonReusingBuildFirstReOpenableHashMatchIterator<IT1, IT2, OT>) this.matchIterator;
+
+				matchIterator.reopenProbe(input2);
+			} else {
+				final NonReusingBuildSecondReOpenableHashMatchIterator<IT1, IT2, OT> matchIterator = (NonReusingBuildSecondReOpenableHashMatchIterator<IT1, IT2, OT>) this.matchIterator;
+				matchIterator.reopenProbe(input1);
+			}
 		}
 	}
 

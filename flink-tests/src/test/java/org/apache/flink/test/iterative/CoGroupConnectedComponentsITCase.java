@@ -100,7 +100,7 @@ public class CoGroupConnectedComponentsITCase extends RecordAPITestBase {
 			}
 			Record old = current.next();
 			long oldId = old.getField(1, LongValue.class).getValue();
-			
+
 			long minimumComponentID = Long.MAX_VALUE;
 
 			while (candidates.hasNext()) {
@@ -110,7 +110,7 @@ public class CoGroupConnectedComponentsITCase extends RecordAPITestBase {
 					minimumComponentID = candidateComponentID;
 				}
 			}
-			
+
 			if (minimumComponentID < oldId) {
 				newComponentId.setValue(minimumComponentID);
 				old.setField(1, newComponentId);

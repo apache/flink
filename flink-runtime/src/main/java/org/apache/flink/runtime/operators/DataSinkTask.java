@@ -19,7 +19,9 @@
 
 package org.apache.flink.runtime.operators;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
+import org.apache.flink.util.InstantiationUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.io.CleanupWhenUnsuccessful;
@@ -40,6 +42,8 @@ import org.apache.flink.runtime.operators.util.CloseableInputProvider;
 import org.apache.flink.runtime.operators.util.ReaderIterator;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.util.MutableObjectIterator;
+
+import java.io.IOException;
 
 /**
  * DataSinkTask which is executed by a task manager. The task hands the data to an output format.
@@ -75,7 +79,6 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 	private volatile boolean taskCanceled;
 	
 	private volatile boolean cleanupCalled;
-	
 
 	@Override
 	public void registerInputOutput() {
@@ -106,6 +109,22 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 		if (LOG.isDebugEnabled()) {
 			LOG.debug(getLogString("Starting data sink operator"));
 		}
+
+		ExecutionConfig executionConfig = new ExecutionConfig();
+		try {
+			ExecutionConfig c = (ExecutionConfig) InstantiationUtil.readObjectFromConfig(
+					getJobConfiguration(),
+					ExecutionConfig.CONFIG_KEY,
+					this.getClass().getClassLoader());
+			if (c != null) {
+				executionConfig = c;
+			}
+		} catch (IOException e) {
+			throw new RuntimeException("Could not load ExecutionConfig from Job Configuration: " + e);
+		} catch (ClassNotFoundException e) {
+			throw new RuntimeException("Could not load ExecutionConfig from Job Configuration: " + e);
+		}
+		boolean objectReuseEnabled = executionConfig.isObjectReuseEnabled();
 		
 		try {
 			
@@ -150,10 +169,8 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 			final TypeSerializer<IT> serializer = this.inputTypeSerializerFactory.getSerializer();
 			final MutableObjectIterator<IT> input = this.input;
 			final OutputFormat<IT> format = this.format;
-			
-			
-			IT record = serializer.createInstance();
-			
+
+
 			// check if task has been canceled
 			if (this.taskCanceled) {
 				return;
@@ -166,9 +183,20 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 			// open
 			format.open(this.getEnvironment().getIndexInSubtaskGroup(), this.getEnvironment().getCurrentNumberOfSubtasks());
 
-			// work!
-			while (!this.taskCanceled && ((record = input.next(record)) != null)) {
-				format.writeRecord(record);
+			if (objectReuseEnabled) {
+				IT record = serializer.createInstance();
+
+				// work!
+				while (!this.taskCanceled && ((record = input.next(record)) != null)) {
+					format.writeRecord(record);
+				}
+			} else {
+				IT record;
+
+				// work!
+				while (!this.taskCanceled && ((record = input.next()) != null)) {
+					format.writeRecord(record);
+				}
 			}
 			
 			// close. We close here such that a regular close throwing an exception marks a task as failed.

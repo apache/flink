@@ -37,11 +37,11 @@ import org.junit.Test;
  * Test for the safe key grouped iterator, which advances in windows containing the same key and provides a sub-iterator
  * over the records with the same key.
  */
-public class KeyGroupedIteratorImmutableTest {
+public class NonReusingKeyGroupedIteratorTest {
 	
 	private MutableObjectIterator<Record> sourceIter;		// the iterator that provides the input
 	
-	private KeyGroupedIteratorImmutable<Record> psi;					// the grouping iterator, progressing in key steps
+	private NonReusingKeyGroupedIterator<Record> psi;					// the grouping iterator, progressing in key steps
 	
 	@Before
 	public void setup()
@@ -98,7 +98,7 @@ public class KeyGroupedIteratorImmutableTest {
 		@SuppressWarnings("unchecked")
 		final RecordComparator comparator = new RecordComparator(new int[] {0}, new Class[] {IntValue.class});
 		
-		this.psi = new KeyGroupedIteratorImmutable<Record>(this.sourceIter, serializer, comparator);
+		this.psi = new NonReusingKeyGroupedIterator<Record>(this.sourceIter, serializer, comparator);
 	}
 
 	@Test

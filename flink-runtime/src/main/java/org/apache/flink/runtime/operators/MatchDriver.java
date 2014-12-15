@@ -19,6 +19,9 @@
 
 package org.apache.flink.runtime.operators;
 
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.runtime.operators.hash.NonReusingBuildFirstHashMatchIterator;
+import org.apache.flink.runtime.operators.hash.NonReusingBuildSecondHashMatchIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
@@ -27,8 +30,8 @@ import org.apache.flink.api.common.typeutils.TypePairComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
-import org.apache.flink.runtime.operators.hash.BuildFirstHashMatchIterator;
-import org.apache.flink.runtime.operators.hash.BuildSecondHashMatchIterator;
+import org.apache.flink.runtime.operators.hash.ReusingBuildFirstHashMatchIterator;
+import org.apache.flink.runtime.operators.hash.ReusingBuildSecondHashMatchIterator;
 import org.apache.flink.runtime.operators.sort.MergeMatchIterator;
 import org.apache.flink.runtime.operators.util.JoinTaskIterator;
 import org.apache.flink.runtime.operators.util.TaskConfig;
@@ -53,7 +56,9 @@ public class MatchDriver<IT1, IT2, OT> implements PactDriver<FlatJoinFunction<IT
 	private volatile JoinTaskIterator<IT1, IT2, OT> matchIterator;		// the iterator that does the actual matching
 	
 	protected volatile boolean running;
-	
+
+	private boolean objectReuseEnabled = false;
+
 	// ------------------------------------------------------------------------
 
 	@Override
@@ -96,7 +101,7 @@ public class MatchDriver<IT1, IT2, OT> implements PactDriver<FlatJoinFunction<IT
 		
 		final MutableObjectIterator<IT1> in1 = this.taskContext.getInput(0);
 		final MutableObjectIterator<IT2> in2 = this.taskContext.getInput(1);
-		
+
 		// get the key positions and types
 		final TypeSerializer<IT1> serializer1 = this.taskContext.<IT1>getInputSerializer(0).getSerializer();
 		final TypeSerializer<IT2> serializer2 = this.taskContext.<IT2>getInputSerializer(1).getSerializer();
@@ -109,25 +114,44 @@ public class MatchDriver<IT1, IT2, OT> implements PactDriver<FlatJoinFunction<IT
 			throw new Exception("Missing pair comparator factory for Match driver");
 		}
 
+		ExecutionConfig executionConfig = taskContext.getExecutionConfig();
+		this.objectReuseEnabled = executionConfig.isObjectReuseEnabled();
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("MatchDriver object reuse: " + (this.objectReuseEnabled ? "ENABLED" : "DISABLED") + ".");
+		}
+
 		// create and return MatchTaskIterator according to provided local strategy.
-		switch (ls) {
-		case MERGE:
-			this.matchIterator = new MergeMatchIterator<IT1, IT2, OT>(in1, in2, serializer1, comparator1,
-					serializer2, comparator2, pairComparatorFactory.createComparator12(comparator1, comparator2),
-					memoryManager, ioManager, numPages, this.taskContext.getOwningNepheleTask());
-			break;
-		case HYBRIDHASH_BUILD_FIRST:
-			this.matchIterator = new BuildFirstHashMatchIterator<IT1, IT2, OT>(in1, in2, serializer1, comparator1,
-				serializer2, comparator2, pairComparatorFactory.createComparator21(comparator1, comparator2),
-				memoryManager, ioManager, this.taskContext.getOwningNepheleTask(), fractionAvailableMemory);
-			break;
-		case HYBRIDHASH_BUILD_SECOND:
-			this.matchIterator = new BuildSecondHashMatchIterator<IT1, IT2, OT>(in1, in2, serializer1, comparator1,
-					serializer2, comparator2, pairComparatorFactory.createComparator12(comparator1, comparator2),
-					memoryManager, ioManager, this.taskContext.getOwningNepheleTask(), fractionAvailableMemory);
-			break;
-		default:
-			throw new Exception("Unsupported driver strategy for Match driver: " + ls.name());
+		if (this.objectReuseEnabled) {
+			switch (ls) {
+				case MERGE:
+					this.matchIterator = new MergeMatchIterator<IT1, IT2, OT>(in1, in2, serializer1, comparator1, serializer2, comparator2, pairComparatorFactory.createComparator12(comparator1, comparator2), memoryManager, ioManager, numPages, this.taskContext.getOwningNepheleTask());
+
+					break;
+				case HYBRIDHASH_BUILD_FIRST:
+					this.matchIterator = new ReusingBuildFirstHashMatchIterator<IT1, IT2, OT>(in1, in2, serializer1, comparator1, serializer2, comparator2, pairComparatorFactory.createComparator21(comparator1, comparator2), memoryManager, ioManager, this.taskContext.getOwningNepheleTask(), fractionAvailableMemory);
+					break;
+				case HYBRIDHASH_BUILD_SECOND:
+					this.matchIterator = new ReusingBuildSecondHashMatchIterator<IT1, IT2, OT>(in1, in2, serializer1, comparator1, serializer2, comparator2, pairComparatorFactory.createComparator12(comparator1, comparator2), memoryManager, ioManager, this.taskContext.getOwningNepheleTask(), fractionAvailableMemory);
+					break;
+				default:
+					throw new Exception("Unsupported driver strategy for Match driver: " + ls.name());
+			}
+		} else {
+			switch (ls) {
+				case MERGE:
+					this.matchIterator = new MergeMatchIterator<IT1, IT2, OT>(in1, in2, serializer1, comparator1, serializer2, comparator2, pairComparatorFactory.createComparator12(comparator1, comparator2), memoryManager, ioManager, numPages, this.taskContext.getOwningNepheleTask());
+
+					break;
+				case HYBRIDHASH_BUILD_FIRST:
+					this.matchIterator = new NonReusingBuildFirstHashMatchIterator<IT1, IT2, OT>(in1, in2, serializer1, comparator1, serializer2, comparator2, pairComparatorFactory.createComparator21(comparator1, comparator2), memoryManager, ioManager, this.taskContext.getOwningNepheleTask(), fractionAvailableMemory);
+					break;
+				case HYBRIDHASH_BUILD_SECOND:
+					this.matchIterator = new NonReusingBuildSecondHashMatchIterator<IT1, IT2, OT>(in1, in2, serializer1, comparator1, serializer2, comparator2, pairComparatorFactory.createComparator12(comparator1, comparator2), memoryManager, ioManager, this.taskContext.getOwningNepheleTask(), fractionAvailableMemory);
+					break;
+				default:
+					throw new Exception("Unsupported driver strategy for Match driver: " + ls.name());
+			}
 		}
 		
 		// open MatchTaskIterator - this triggers the sorting or hash-table building

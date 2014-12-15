@@ -20,6 +20,7 @@ package org.apache.flink.runtime.operators;
 
 import akka.actor.ActorRef;
 import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.accumulators.Accumulator;
@@ -1057,7 +1058,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 
 		ClassLoader userCodeClassLoader = getUserCodeClassLoader();
 
-		this.output = initOutputs(this, userCodeClassLoader, this.config, this.chainedTasks, this.eventualOutputs);
+		this.output = initOutputs(this, userCodeClassLoader, this.config, this.chainedTasks, this.eventualOutputs, this.getExecutionConfig());
 	}
 
 	public DistributedRuntimeUDFContext createRuntimeContext(String taskName) {
@@ -1073,6 +1074,25 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	@Override
 	public TaskConfig getTaskConfig() {
 		return this.config;
+	}
+
+	@Override
+	public ExecutionConfig getExecutionConfig() {
+		try {
+			ExecutionConfig c = (ExecutionConfig) InstantiationUtil.readObjectFromConfig(
+					getOwningNepheleTask().getJobConfiguration(),
+					ExecutionConfig.CONFIG_KEY,
+					this.getClass().getClassLoader());
+			if (c != null) {
+				return c;
+			} else {
+				return new ExecutionConfig();
+			}
+		} catch (IOException e) {
+			throw new RuntimeException("Could not load ExecutionConfig from Job Configuration: " + e);
+		} catch (ClassNotFoundException e) {
+			throw new RuntimeException("Could not load ExecutionConfig from Job Configuration: " + e);
+		}
 	}
 
 	@Override
@@ -1318,7 +1338,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 	 */
 	@SuppressWarnings("unchecked")
 	public static <T> Collector<T> initOutputs(AbstractInvokable nepheleTask, ClassLoader cl, TaskConfig config,
-					List<ChainedDriver<?, ?>> chainedTasksTarget, List<BufferWriter> eventualOutputs)
+					List<ChainedDriver<?, ?>> chainedTasksTarget, List<BufferWriter> eventualOutputs, ExecutionConfig executionConfig)
 	throws Exception
 	{
 		final int numOutputs = config.getNumOutputs();
@@ -1355,7 +1375,7 @@ public class RegularPactTask<S extends Function, OT> extends AbstractInvokable i
 					previous = getOutputCollector(nepheleTask, chainedStubConf, cl, eventualOutputs, chainedStubConf.getNumOutputs());
 				}
 
-				ct.setup(chainedStubConf, taskName, previous, nepheleTask, cl);
+				ct.setup(chainedStubConf, taskName, previous, nepheleTask, cl, executionConfig);
 				chainedTasksTarget.add(0, ct);
 
 				previous = ct;

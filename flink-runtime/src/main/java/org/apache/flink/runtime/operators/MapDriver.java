@@ -19,6 +19,7 @@
 
 package org.apache.flink.runtime.operators;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
@@ -41,12 +42,17 @@ public class MapDriver<IT, OT> implements PactDriver<MapFunction<IT, OT>, OT> {
 	private PactTaskContext<MapFunction<IT, OT>, OT> taskContext;
 	
 	private volatile boolean running;
+
+	private boolean objectReuseEnabled = false;
 	
 	
 	@Override
 	public void setup(PactTaskContext<MapFunction<IT, OT>, OT> context) {
 		this.taskContext = context;
 		this.running = true;
+
+		ExecutionConfig executionConfig = taskContext.getExecutionConfig();
+		this.objectReuseEnabled = executionConfig.isObjectReuseEnabled();
 	}
 
 	@Override

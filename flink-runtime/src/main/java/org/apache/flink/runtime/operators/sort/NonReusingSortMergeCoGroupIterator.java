@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,49 +18,51 @@
 
 package org.apache.flink.runtime.operators.sort;
 
-import java.io.IOException;
-import java.util.Collections;
-
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.operators.util.CoGroupTaskIterator;
-import org.apache.flink.runtime.util.KeyGroupedIterator;
+import org.apache.flink.runtime.util.ReusingKeyGroupedIterator;
 import org.apache.flink.util.MutableObjectIterator;
 
+import java.io.IOException;
+import java.util.Collections;
 
-public class SortMergeCoGroupIterator<T1, T2> implements CoGroupTaskIterator<T1, T2> {
-	
+
+public class NonReusingSortMergeCoGroupIterator<T1, T2> implements CoGroupTaskIterator<T1, T2> {
+
 	private static enum MatchStatus {
 		NONE_REMAINED, FIRST_REMAINED, SECOND_REMAINED, FIRST_EMPTY, SECOND_EMPTY
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	private MatchStatus matchStatus;
-	
-	private Iterable<T1> firstReturn;
-	
-	private Iterable<T2> secondReturn;
-	
-	private TypePairComparator<T1, T2> comp;
-	
-	private KeyGroupedIterator<T1> iterator1;
 
-	private KeyGroupedIterator<T2> iterator2;
+	private Iterable<T1> firstReturn;
+
+	private Iterable<T2> secondReturn;
+
+	private TypePairComparator<T1, T2> comp;
+
+	private ReusingKeyGroupedIterator<T1> iterator1;
+
+	private ReusingKeyGroupedIterator<T2> iterator2;
 
 	// --------------------------------------------------------------------------------------------
-	
-	public SortMergeCoGroupIterator(MutableObjectIterator<T1> input1, MutableObjectIterator<T2> input2,
+
+	public NonReusingSortMergeCoGroupIterator(
+			MutableObjectIterator<T1> input1,
+			MutableObjectIterator<T2> input2,
 			TypeSerializer<T1> serializer1, TypeComparator<T1> groupingComparator1,
 			TypeSerializer<T2> serializer2, TypeComparator<T2> groupingComparator2,
 			TypePairComparator<T1, T2> pairComparator)
-	{		
+	{
 
 		this.comp = pairComparator;
-		
-		this.iterator1 = new KeyGroupedIterator<T1>(input1, serializer1, groupingComparator1);
-		this.iterator2 = new KeyGroupedIterator<T2>(input2, serializer2, groupingComparator2);
+
+		this.iterator1 = new ReusingKeyGroupedIterator<T1>(input1, serializer1, groupingComparator1);
+		this.iterator2 = new ReusingKeyGroupedIterator<T2>(input2, serializer2, groupingComparator2);
 	}
 
 	@Override
@@ -86,7 +88,7 @@ public class SortMergeCoGroupIterator<T1, T2> implements CoGroupTaskIterator<T1,
 	public boolean next() throws IOException {
 		boolean firstEmpty = true;
 		boolean secondEmpty = true;
-		
+
 		if (this.matchStatus != MatchStatus.FIRST_EMPTY) {
 			if (this.matchStatus == MatchStatus.FIRST_REMAINED) {
 				// comparator is still set correctly
@@ -130,7 +132,7 @@ public class SortMergeCoGroupIterator<T1, T2> implements CoGroupTaskIterator<T1,
 		else {
 			// both inputs are not empty
 			final int comp = this.comp.compareToReference(this.iterator2.getCurrent());
-			
+
 			if (0 == comp) {
 				// keys match
 				this.firstReturn = this.iterator1.getValues();

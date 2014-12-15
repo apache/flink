@@ -24,13 +24,12 @@ import org.apache.flink.api.common.operators.CollectionExecutor;
 
 public class CollectionEnvironment extends ExecutionEnvironment {
 
-	private boolean mutableObjectSafeMode = true;
-	
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
 		Plan p = createProgramPlan(jobName);
-		
-		CollectionExecutor exec = new CollectionExecutor(mutableObjectSafeMode);
+
+		// We need to reverse here. Object-Reuse enabled, means safe mode is disabled.
+		CollectionExecutor exec = new CollectionExecutor(!getConfig().isObjectReuseEnabled());
 		return exec.execute(p);
 	}
 	

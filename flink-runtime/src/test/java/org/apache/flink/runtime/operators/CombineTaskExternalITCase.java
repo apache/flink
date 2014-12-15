@@ -22,6 +22,7 @@ package org.apache.flink.runtime.operators;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.junit.Assert;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.typeutils.record.RecordComparator;
@@ -46,8 +47,8 @@ public class CombineTaskExternalITCase extends DriverTestBase<RichGroupReduceFun
 	private final RecordComparator comparator = new RecordComparator(
 		new int[]{0}, (Class<? extends Key<?>>[])new Class[]{ IntValue.class });
 
-	public CombineTaskExternalITCase() {
-		super(COMBINE_MEM, 0);
+	public CombineTaskExternalITCase(ExecutionConfig config) {
+		super(config, COMBINE_MEM, 0);
 
 		combine_frac = (double)COMBINE_MEM/this.getMemoryManager().getMemorySize();
 	}

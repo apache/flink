@@ -30,8 +30,8 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memorymanager.DefaultMemoryManager;
 import org.apache.flink.runtime.memorymanager.MemoryManager;
-import org.apache.flink.runtime.operators.hash.BuildFirstHashMatchIterator;
-import org.apache.flink.runtime.operators.hash.BuildSecondHashMatchIterator;
+import org.apache.flink.runtime.operators.hash.ReusingBuildFirstHashMatchIterator;
+import org.apache.flink.runtime.operators.hash.ReusingBuildSecondHashMatchIterator;
 import org.apache.flink.runtime.operators.sort.MergeMatchIterator;
 import org.apache.flink.runtime.operators.sort.UnilateralSortMerger;
 import org.apache.flink.runtime.operators.testutils.DiscardingOutputCollector;
@@ -183,8 +183,8 @@ public class HashVsSortMiniBenchmark {
 			long start = System.nanoTime();
 			
 			// compare with iterator values
-			final BuildFirstHashMatchIterator<Record, Record, Record> iterator = 
-					new BuildFirstHashMatchIterator<Record, Record, Record>(
+			final ReusingBuildFirstHashMatchIterator<Record, Record, Record> iterator =
+					new ReusingBuildFirstHashMatchIterator<Record, Record, Record>(
 						input1, input2, this.serializer1.getSerializer(), this.comparator1, 
 							this.serializer2.getSerializer(), this.comparator2, this.pairComparator11,
 							this.memoryManager, this.ioManager, this.parentTask, MEMORY_SIZE);
@@ -222,8 +222,8 @@ public class HashVsSortMiniBenchmark {
 			long start = System.nanoTime();
 			
 			// compare with iterator values
-			BuildSecondHashMatchIterator<Record, Record, Record> iterator = 
-					new BuildSecondHashMatchIterator<Record, Record, Record>(
+			ReusingBuildSecondHashMatchIterator<Record, Record, Record> iterator =
+					new ReusingBuildSecondHashMatchIterator<Record, Record, Record>(
 						input1, input2, this.serializer1.getSerializer(), this.comparator1, 
 						this.serializer2.getSerializer(), this.comparator2, this.pairComparator11,
 						this.memoryManager, this.ioManager, this.parentTask, MEMORY_SIZE);

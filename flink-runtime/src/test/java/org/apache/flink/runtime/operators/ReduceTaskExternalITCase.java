@@ -21,6 +21,7 @@ package org.apache.flink.runtime.operators;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.junit.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,8 +49,8 @@ public class ReduceTaskExternalITCase extends DriverTestBase<RichGroupReduceFunc
 	private final List<Record> outList = new ArrayList<Record>();
 	
 	
-	public ReduceTaskExternalITCase() {
-		super(0, 1, 3*1024*1024);
+	public ReduceTaskExternalITCase(ExecutionConfig config) {
+		super(config, 0, 1, 3*1024*1024);
 	}
 	
 	

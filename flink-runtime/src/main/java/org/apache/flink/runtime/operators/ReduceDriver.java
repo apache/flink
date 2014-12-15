@@ -19,6 +19,7 @@
 
 package org.apache.flink.runtime.operators;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.functions.ReduceFunction;
@@ -51,6 +52,8 @@ public class ReduceDriver<T> implements PactDriver<ReduceFunction<T>, T> {
 	private TypeComparator<T> comparator;
 	
 	private volatile boolean running;
+
+	private boolean objectReuseEnabled = false;
 
 	// ------------------------------------------------------------------------
 
@@ -88,6 +91,13 @@ public class ReduceDriver<T> implements PactDriver<ReduceFunction<T>, T> {
 		this.serializer = this.taskContext.<T>getInputSerializer(0).getSerializer();
 		this.comparator = this.taskContext.getDriverComparator(0);
 		this.input = this.taskContext.getInput(0);
+
+		ExecutionConfig executionConfig = taskContext.getExecutionConfig();
+		this.objectReuseEnabled = executionConfig.isObjectReuseEnabled();
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("ReduceDriver object reuse: " + (this.objectReuseEnabled ? "ENABLED" : "DISABLED") + ".");
+		}
 	}
 
 	@Override
@@ -104,26 +114,60 @@ public class ReduceDriver<T> implements PactDriver<ReduceFunction<T>, T> {
 		final ReduceFunction<T> function = this.taskContext.getStub();
 		
 		final Collector<T> output = this.taskContext.getOutputCollector();
-		
-		T value = input.next(serializer.createInstance());
-		
-		// iterate over key groups
-		while (this.running && value != null) {
-			comparator.setReference(value);
-			T res = value;
-			
-			// iterate within a key group
-			while ((value = input.next(serializer.createInstance())) != null) {
-				if (comparator.equalToReference(value)) {
-					// same group, reduce
-					res = function.reduce(res, value);
-				} else {
-					// new key group
-					break;
+
+		if (objectReuseEnabled) {
+			// We only need two objects. The user function is expected to return
+			// the first input as the result. The output value is also expected
+			// to have the same key fields as the input elements.
+
+			T reuse1 = serializer.createInstance();
+			T reuse2 = serializer.createInstance();
+
+			T value = input.next(reuse1);
+
+			// iterate over key groups
+			while (this.running && value != null) {
+				comparator.setReference(value);
+				T res = value;
+
+				// iterate within a key group
+				while ((value = input.next(reuse2)) != null) {
+					if (comparator.equalToReference(value)) {
+						// same group, reduce
+						res = function.reduce(res, value);
+					} else {
+						// new key group
+						break;
+					}
+				}
+
+				output.collect(res);
+
+				if (value != null) {
+					value = serializer.copy(value, reuse1);
 				}
 			}
-			
-			output.collect(res);
+		} else {
+			T value = input.next(serializer.createInstance());
+
+			// iterate over key groups
+			while (this.running && value != null) {
+				comparator.setReference(value);
+				T res = value;
+
+				// iterate within a key group
+				while ((value = input.next(serializer.createInstance())) != null) {
+					if (comparator.equalToReference(value)) {
+						// same group, reduce
+						res = function.reduce(res, value);
+					} else {
+						// new key group
+						break;
+					}
+				}
+
+				output.collect(res);
+			}
 		}
 	}
 

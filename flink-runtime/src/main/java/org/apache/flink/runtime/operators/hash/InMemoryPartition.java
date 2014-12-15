@@ -235,6 +235,11 @@ public class InMemoryPartition<T> {
 		this.readView.setReadPosition(pointer);
 		return this.serializer.deserialize(reuse, this.readView);
 	}
+
+	public T readRecordAt(long pointer) throws IOException {
+		this.readView.setReadPosition(pointer);
+		return this.serializer.deserialize(this.readView);
+	}
 	
 	/**
 	 * UNSAFE!! overwrites record

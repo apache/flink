@@ -85,7 +85,7 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
 	// --------------------------------------------------------------------------------------------
 
 	@Test
-	public void testJob() throws Exception {
+	public void testJobWithObjectReuse() throws Exception {
 		isCollectionExecution = false;
 		
 		startCluster();
@@ -102,6 +102,7 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
 			
 			// prepare the test environment
 			TestEnvironment env = new TestEnvironment(this.executor, this.degreeOfParallelism);
+			env.getConfig().enableObjectReuse();
 			env.setAsContext();
 			
 			// call the test program
@@ -117,6 +118,54 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
 			
 			Assert.assertNotNull("The test program never triggered an execution.", this.latestExecutionResult);
 			
+			// post-submit
+			try {
+				postSubmit();
+			}
+			catch (Exception e) {
+				System.err.println(e.getMessage());
+				e.printStackTrace();
+				Assert.fail("Post-submit work caused an error: " + e.getMessage());
+			}
+		} finally {
+			stopCluster();
+		}
+	}
+
+	@Test
+	public void testJobWithoutObjectReuse() throws Exception {
+		isCollectionExecution = false;
+
+		startCluster();
+		try {
+			// pre-submit
+			try {
+				preSubmit();
+			}
+			catch (Exception e) {
+				System.err.println(e.getMessage());
+				e.printStackTrace();
+				Assert.fail("Pre-submit work caused an error: " + e.getMessage());
+			}
+
+			// prepare the test environment
+			TestEnvironment env = new TestEnvironment(this.executor, this.degreeOfParallelism);
+			env.getConfig().disableObjectReuse();
+			env.setAsContext();
+
+			// call the test program
+			try {
+				testProgram();
+				this.latestExecutionResult = env.latestResult;
+			}
+			catch (Exception e) {
+				System.err.println(e.getMessage());
+				e.printStackTrace();
+				Assert.fail("Error while calling the test program: " + e.getMessage());
+			}
+
+			Assert.assertNotNull("The test program never triggered an execution.", this.latestExecutionResult);
+
 			// post-submit
 			try {
 				postSubmit();

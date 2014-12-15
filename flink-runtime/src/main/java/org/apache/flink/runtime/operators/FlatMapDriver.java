@@ -19,9 +19,12 @@
 
 package org.apache.flink.runtime.operators;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Map task which is executed by a Nephele task manager. The task has a single
@@ -37,12 +40,15 @@ import org.apache.flink.util.MutableObjectIterator;
  * @param <OT> The mapper's output data type.
  */
 public class FlatMapDriver<IT, OT> implements PactDriver<FlatMapFunction<IT, OT>, OT> {
-	
+
+	private static final Logger LOG = LoggerFactory.getLogger(FlatMapDriver.class);
+
 	private PactTaskContext<FlatMapFunction<IT, OT>, OT> taskContext;
 	
 	private volatile boolean running;
-	
-	
+
+	private boolean objectReuseEnabled = false;
+
 	@Override
 	public void setup(PactTaskContext<FlatMapFunction<IT, OT>, OT> context) {
 		this.taskContext = context;
@@ -68,8 +74,12 @@ public class FlatMapDriver<IT, OT> implements PactDriver<FlatMapFunction<IT, OT>
 
 	@Override
 	public void prepare() {
-		// nothing, since a mapper does not need any preparation
-	}
+		ExecutionConfig executionConfig = taskContext.getExecutionConfig();
+		this.objectReuseEnabled = executionConfig.isObjectReuseEnabled();
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("FlatMapDriver object reuse: " + (this.objectReuseEnabled ? "ENABLED" : "DISABLED") + ".");
+		}	}
 
 	@Override
 	public void run() throws Exception {
@@ -78,10 +88,19 @@ public class FlatMapDriver<IT, OT> implements PactDriver<FlatMapFunction<IT, OT>
 		final FlatMapFunction<IT, OT> function = this.taskContext.getStub();
 		final Collector<OT> output = this.taskContext.getOutputCollector();
 
-		IT record = this.taskContext.<IT>getInputSerializer(0).getSerializer().createInstance();
+		if (objectReuseEnabled) {
+			IT record = this.taskContext.<IT>getInputSerializer(0).getSerializer().createInstance();
 
-		while (this.running && ((record = input.next(record)) != null)) {
-			function.flatMap(record, output);
+
+			while (this.running && ((record = input.next(record)) != null)) {
+				function.flatMap(record, output);
+			}
+		} else {
+			IT record;
+
+			while (this.running && ((record = input.next()) != null)) {
+				function.flatMap(record, output);
+			}
 		}
 	}
 

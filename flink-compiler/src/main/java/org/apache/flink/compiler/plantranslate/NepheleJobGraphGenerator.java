@@ -18,6 +18,7 @@
 
 package org.apache.flink.compiler.plantranslate;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -27,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.aggregators.AggregatorRegistry;
 import org.apache.flink.api.common.aggregators.AggregatorWithName;
 import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
@@ -82,6 +84,7 @@ import org.apache.flink.runtime.operators.chaining.ChainedDriver;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.apache.flink.runtime.operators.util.TaskConfig;
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Visitor;
 
 /**
@@ -209,7 +212,16 @@ public class NepheleJobGraphGenerator implements Visitor<PlanNode> {
 		for (Entry<String, DistributedCacheEntry> e : program.getOriginalPactPlan().getCachedFiles()) {
 			DistributedCache.writeFileInfoToConfig(e.getKey(), e.getValue(), graph.getJobConfiguration());
 		}
-		
+
+		try {
+			InstantiationUtil.writeObjectToConfig(
+					program.getOriginalPactPlan().getExecutionConfig(),
+					graph.getJobConfiguration(),
+					ExecutionConfig.CONFIG_KEY);
+		} catch (IOException e) {
+			throw new RuntimeException("Config object could not be written to Job Configuration: " + e);
+		}
+
 		// release all references again
 		this.vertices = null;
 		this.chainedTasks = null;
