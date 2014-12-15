@@ -80,7 +80,7 @@ public class HadoopRecordInputFormat<K, V> implements InputFormat<Record, Hadoop
 		org.apache.hadoop.mapred.InputSplit[] splitArray = hadoopInputFormat.getSplits(jobConf, minNumSplits);
 		HadoopInputSplit[] hiSplit = new HadoopInputSplit[splitArray.length];
 		for(int i=0;i<splitArray.length;i++){
-			hiSplit[i] = new HadoopInputSplit(splitArray[i], jobConf);
+			hiSplit[i] = new HadoopInputSplit(i, splitArray[i], jobConf);
 		}
 		return hiSplit;
 	}

@@ -24,9 +24,9 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 
+import org.apache.flink.api.common.io.LocatableInputSplitAssigner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.FileInputFormat.FileBaseStatistics;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
@@ -143,14 +143,14 @@ public class HadoopInputFormat<K extends Writable, V extends Writable> implement
 		org.apache.hadoop.mapred.InputSplit[] splitArray = mapredInputFormat.getSplits(jobConf, minNumSplits);
 		HadoopInputSplit[] hiSplit = new HadoopInputSplit[splitArray.length];
 		for(int i=0;i<splitArray.length;i++){
-			hiSplit[i] = new HadoopInputSplit(splitArray[i], jobConf);
+			hiSplit[i] = new HadoopInputSplit(i, splitArray[i], jobConf);
 		}
 		return hiSplit;
 	}
 	
 	@Override
 	public InputSplitAssigner getInputSplitAssigner(HadoopInputSplit[] inputSplits) {
-		return new DefaultInputSplitAssigner(inputSplits);
+		return new LocatableInputSplitAssigner(inputSplits);
 	}
 	
 	@Override

@@ -21,7 +21,7 @@ package org.apache.flink.hadoopcompatibility.mapred.wrapper;
 
 import java.io.IOException;
 
-import org.apache.flink.core.io.InputSplit;
+import org.apache.flink.core.io.LocatableInputSplit;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.hadoop.conf.Configurable;
@@ -29,7 +29,7 @@ import org.apache.hadoop.io.WritableFactories;
 import org.apache.hadoop.mapred.JobConf;
 
 
-public class HadoopInputSplit implements InputSplit {
+public class HadoopInputSplit extends LocatableInputSplit {
 
 	private static final long serialVersionUID = 1L;
 
@@ -50,10 +50,13 @@ public class HadoopInputSplit implements InputSplit {
 		super();
 	}
 
-	public HadoopInputSplit(org.apache.hadoop.mapred.InputSplit hInputSplit, JobConf jobconf) {
+	public HadoopInputSplit(int splitNumber, org.apache.hadoop.mapred.InputSplit hInputSplit, JobConf jobconf) {
+
+		this.splitNumber = splitNumber;
 		this.hadoopInputSplit = hInputSplit;
 		this.hadoopInputSplitTypeName = hInputSplit.getClass().getName();
 		this.jobConf = jobconf;
+
 	}
 
 	@Override
@@ -66,7 +69,7 @@ public class HadoopInputSplit implements InputSplit {
 
 	@Override
 	public void read(DataInputView in) throws IOException {
-		this.splitNumber=in.readInt();
+		this.splitNumber = in.readInt();
 		this.hadoopInputSplitTypeName = in.readUTF();
 		if(hadoopInputSplit == null) {
 			try {
@@ -92,12 +95,12 @@ public class HadoopInputSplit implements InputSplit {
 		return this.splitNumber;
 	}
 
-	public void setSplitNumber(int splitNumber) {
-		this.splitNumber = splitNumber;
-	}
-
-	public void setHadoopInputSplit(
-			org.apache.hadoop.mapred.InputSplit hadoopInputSplit) {
-		this.hadoopInputSplit = hadoopInputSplit;
+	@Override
+	public String[] getHostnames() {
+		try {
+			return this.hadoopInputSplit.getLocations();
+		} catch(IOException ioe) {
+			return new String[0];
+		}
 	}
 }
