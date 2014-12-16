@@ -24,8 +24,10 @@ import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.testingUtils.{TestingUtils, TestingTaskManager}
 
-class ForkableFlinkMiniCluster(userConfiguration: Configuration) extends
-LocalFlinkMiniCluster(userConfiguration) {
+class ForkableFlinkMiniCluster(userConfiguration: Configuration, singleActorSystem: Boolean)
+  extends LocalFlinkMiniCluster(userConfiguration, singleActorSystem) {
+
+  def this(userConfiguration: Configuration) = this(userConfiguration, true)
 
   override def generateConfiguration(userConfiguration: Configuration): Configuration = {
     val forNumberString = System.getProperty("forkNumber")
@@ -68,7 +70,7 @@ LocalFlinkMiniCluster(userConfiguration) {
     }
 
     val localExecution = if(numTaskManagers == 1){
-      false
+      true
     }else{
       false
     }

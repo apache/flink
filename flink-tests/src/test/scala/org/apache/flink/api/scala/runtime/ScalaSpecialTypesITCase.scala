@@ -45,7 +45,7 @@ class ScalaSpecialTypesITCase(mode: ExecutionMode) extends MultipleProgramsTestB
       case 2 => Right(20)
     })
 
-    val resultPath = tempFolder.newFile().toPath.toUri.toString
+    val resultPath = tempFolder.newFile().toURI.toString
 
     val result = eithers.map{
       _ match {
@@ -68,7 +68,7 @@ class ScalaSpecialTypesITCase(mode: ExecutionMode) extends MultipleProgramsTestB
       case 2 => Left(20)
     })
 
-    val resultPath = tempFolder.newFile().toPath.toUri.toString
+    val resultPath = tempFolder.newFile().toURI.toString
 
     val result = eithers.map(_ match {
       case Left(i) => i
@@ -89,7 +89,7 @@ class ScalaSpecialTypesITCase(mode: ExecutionMode) extends MultipleProgramsTestB
       case 2 => Right(20)
     })
 
-    val resultPath = tempFolder.newFile().toPath.toUri.toString
+    val resultPath = tempFolder.newFile().toURI.toString
 
     val result = eithers.map(_ match {
       case Right(i) => i
@@ -110,7 +110,7 @@ class ScalaSpecialTypesITCase(mode: ExecutionMode) extends MultipleProgramsTestB
       case 2 => None
     })
 
-    val resultPath = tempFolder.newFile().toPath.toUri.toString
+    val resultPath = tempFolder.newFile().toURI.toString
 
 
     val result = eithers.map(_ match {
@@ -133,7 +133,7 @@ class ScalaSpecialTypesITCase(mode: ExecutionMode) extends MultipleProgramsTestB
       case 2 => Some(20)
     })
 
-    val resultPath = tempFolder.newFile().toPath.toUri.toString
+    val resultPath = tempFolder.newFile().toURI.toString
 
     val result = eithers.map(_ match {
       case Some(i) => i
@@ -154,7 +154,7 @@ class ScalaSpecialTypesITCase(mode: ExecutionMode) extends MultipleProgramsTestB
       case 2 => None
     })
 
-    val resultPath = tempFolder.newFile().toPath.toUri.toString
+    val resultPath = tempFolder.newFile().toURI.toString
 
     val result = eithers.map(_ match {
       case None => 20

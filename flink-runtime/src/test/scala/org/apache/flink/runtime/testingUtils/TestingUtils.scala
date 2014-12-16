@@ -100,14 +100,14 @@ object TestingUtils {
       networkConnectionConfig) with TestingTaskManager))
   }
 
-  def startTestingCluster(numSlots: Int, numTaskManagers: Int = 1): FlinkMiniCluster = {
+  def startTestingCluster(numSlots: Int, numTMs: Int = 1, timeout: Int = DEFAULT_AKKA_ASK_TIMEOUT):
+  FlinkMiniCluster = {
     val config = new Configuration()
     config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlots)
-    config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, numTaskManagers)
+    config.setInteger(ConfigConstants.LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, numTMs)
     config.setInteger(ConfigConstants.JOB_MANAGER_DEAD_TASKMANAGER_TIMEOUT_KEY, 1000)
-    config.setInteger(ConfigConstants.AKKA_ASK_TIMEOUT, DEFAULT_AKKA_ASK_TIMEOUT)
-    val cluster = new TestingCluster(config)
-    cluster
+    config.setInteger(ConfigConstants.AKKA_ASK_TIMEOUT, timeout)
+    new TestingCluster(config)
   }
 
   def setGlobalExecutionContext(): Unit = {

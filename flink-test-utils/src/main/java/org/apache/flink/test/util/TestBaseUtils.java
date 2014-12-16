@@ -52,6 +52,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public class TestBaseUtils {
+
 	protected static final int MINIMUM_HEAP_SIZE_MB = 192;
 
 	protected static final long TASK_MANAGER_MEMORY_SIZE = 80;
@@ -78,7 +79,7 @@ public class TestBaseUtils {
 	}
 
 	protected static ForkableFlinkMiniCluster startCluster(int numTaskManagers, int
-			taskManagerNumSlots) {
+			taskManagerNumSlots) throws Exception {
 		Configuration config = new Configuration();
 		config.setBoolean(ConfigConstants.FILESYSTEM_DEFAULT_OVERWRITE_KEY, true);
 		config.setBoolean(ConfigConstants.TASK_MANAGER_MEMORY_LAZY_ALLOCATION_KEY, true);

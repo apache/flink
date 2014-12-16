@@ -73,7 +73,6 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
   import taskManagerConfig.{timeout => tmTimeout, _}
   implicit val timeout = tmTimeout
 
-
   log.info(s"Starting task manager at ${self.path}.")
 
   val REGISTRATION_DELAY = 0 seconds
@@ -558,7 +557,7 @@ object TaskManager {
             "configuration.")
         }
 
-        JobManager.getAkkaURL(jobManagerAddress + ":" + jobManagerRPCPort)
+        JobManager.getRemoteAkkaURL(jobManagerAddress + ":" + jobManagerRPCPort)
     }
 
     val slots = configuration.getInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 1)
@@ -665,10 +664,6 @@ object TaskManager {
   def startProfiler(instancePath: String, reportInterval: Long)(implicit system: ActorSystem):
   ActorRef = {
     system.actorOf(Props(classOf[TaskManagerProfiler], instancePath, reportInterval), PROFILER_NAME)
-  }
-
-  def getAkkaURL(address: String): String = {
-    s"akka.tcp://flink@${address}/user/taskmanager"
   }
 
   def checkTempDirs(tmpDirs: Array[String]): Unit = {

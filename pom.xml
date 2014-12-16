@@ -662,7 +662,6 @@ under the License.
 						<!-- Build files -->
 						<exclude>**/*.iml</exclude>
 						<exclude>flink-quickstart/**/testArtifact/goal.txt</exclude>
-						<exclude>atlassian-ide-plugin.xml</exclude>
 						<!-- Generated content -->
 						<exclude>**/target/**</exclude>
 						<exclude>docs/_site/**</exclude>

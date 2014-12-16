@@ -22,7 +22,7 @@ import java.util.concurrent.TimeUnit
 
 import akka.pattern.ask
 import akka.actor.{ActorRef, ActorSystem}
-import com.typesafe.config.{ConfigFactory, Config}
+import com.typesafe.config.{ConfigFactory}
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.messages.TaskManagerMessages.NotifyWhenRegisteredAtJobManager
@@ -31,7 +31,8 @@ import org.slf4j.LoggerFactory
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{Future, Await}
 
-abstract class FlinkMiniCluster(userConfiguration: Configuration) {
+abstract class FlinkMiniCluster(userConfiguration: Configuration,
+                                val singleActorSystem: Boolean) {
   import FlinkMiniCluster._
 
   val HOSTNAME = "localhost"
@@ -41,6 +42,10 @@ abstract class FlinkMiniCluster(userConfiguration: Configuration) {
 
   val configuration = generateConfiguration(userConfiguration)
 
+  if(singleActorSystem){
+    configuration.setString(ConfigConstants.JOB_MANAGER_AKKA_URL, "akka://flink/user/jobmanager")
+  }
+
   val jobManagerActorSystem = startJobManagerActorSystem()
   val jobManagerActor = startJobManager(jobManagerActorSystem)
 
@@ -48,7 +53,13 @@ abstract class FlinkMiniCluster(userConfiguration: Configuration) {
     .LOCAL_INSTANCE_MANAGER_NUMBER_TASK_MANAGER, 1)
 
   val actorSystemsTaskManagers = for(i <- 0 until numTaskManagers) yield {
-    val actorSystem = startTaskManagerActorSystem(i)
+    val actorSystem = if(singleActorSystem) {
+      jobManagerActorSystem
+    }
+    else{
+      startTaskManagerActorSystem(i)
+    }
+
     (actorSystem, startTaskManager(i)(actorSystem))
   }
 
@@ -66,7 +77,12 @@ abstract class FlinkMiniCluster(userConfiguration: Configuration) {
     val port = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, ConfigConstants
       .DEFAULT_JOB_MANAGER_IPC_PORT)
 
-    AkkaUtils.getConfigString(HOSTNAME, port, configuration)
+    if(singleActorSystem){
+      AkkaUtils.getLocalConfigString(configuration)
+    }else{
+      AkkaUtils.getConfigString(HOSTNAME, port, configuration)
+    }
+
   }
 
   def startJobManagerActorSystem(): ActorSystem = {
@@ -111,13 +127,23 @@ abstract class FlinkMiniCluster(userConfiguration: Configuration) {
   }
 
   def shutdown(): Unit = {
-    taskManagerActorSystems foreach { _.shutdown() }
+    if(!singleActorSystem){
+      taskManagerActorSystems foreach {
+        _.shutdown()
+      }
+    }
+
     jobManagerActorSystem.shutdown()
   }
 
   def awaitTermination(): Unit = {
     jobManagerActorSystem.awaitTermination()
-    taskManagerActorSystems foreach { _.awaitTermination()}
+
+    if(!singleActorSystem) {
+      taskManagerActorSystems foreach {
+        _.awaitTermination()
+      }
+    }
   }
 
   def waitForTaskManagersToBeRegistered(): Unit = {

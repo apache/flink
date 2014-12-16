@@ -26,7 +26,9 @@ import org.apache.flink.runtime.minicluster.FlinkMiniCluster
 import org.apache.flink.runtime.net.NetUtils
 import org.apache.flink.runtime.taskmanager.TaskManager
 
-class TestingCluster(userConfiguration: Configuration) extends FlinkMiniCluster(userConfiguration) {
+class TestingCluster(userConfiguration: Configuration) extends FlinkMiniCluster(userConfiguration,
+  true) {
+
   override def generateConfiguration(userConfig: Configuration): Configuration = {
     val cfg = new Configuration()
     cfg.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, "localhost")

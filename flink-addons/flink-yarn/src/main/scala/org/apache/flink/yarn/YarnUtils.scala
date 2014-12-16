@@ -32,7 +32,7 @@ object YarnUtils {
     AkkaUtils.createActorSystem(akkaConfig)
   }
 
-  def createActorSystem: ActorSystem = {
+  def createActorSystem(): ActorSystem = {
     val akkaConfig = ConfigFactory.parseString(AkkaUtils.getDefaultActorSystemConfigString +
       getConfigString)
 
@@ -40,12 +40,31 @@ object YarnUtils {
   }
 
   def getConfigString: String = {
-    s"""akka.loglevel = "INFO"
-      |akka.stdout-loglevel = "INFO"
-      |akka.log-dead-letters-during-shutdown = off
-      |akka.log-dead-letters = off
-      |akka.remote.log-remote-lifecycle-events=off
-      |""".stripMargin
+    """
+    |akka{
+    |  loglevel = "INFO"
+    |  stdout-loglevel = "INFO"
+    |  log-dead-letters-during-shutdown = off
+    |  log-dead-letters = off
+    |
+    |  actor {
+    |    provider = "akka.remote.RemoteActorRefProvider"
+    |  }
+    |
+    |  remote{
+    |    log-remote-lifecycle-events = off
+    |
+    |    netty{
+    |      tcp{
+    |        port = 0
+    |        transport-class = "akka.remote.transport.netty.NettyTransport"
+    |        tcp-nodelay = on
+    |        maximum-frame-size = 1MB
+    |        execution-pool-size = 4
+    |      }
+    |    }
+    |  }
+    |}""".stripMargin
   }
 
   def startActorSystemAndTaskManager(args: Array[String]): (ActorSystem, ActorRef) = {

@@ -58,7 +58,7 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
 
   Execution.timeout = timeout;
 
-  log.info("Starting job manager.")
+  log.info(s"Starting job manager at ${self.path}.")
 
   val (archiveCount,
     profiling,
@@ -520,7 +520,7 @@ object JobManager {
     actorSystem.actorOf(props, JOB_MANAGER_NAME)
   }
 
-  def getAkkaURL(address: String): String = {
+  def getRemoteAkkaURL(address: String): String = {
     s"akka.tcp://flink@${address}/user/${JOB_MANAGER_NAME}"
   }
 
@@ -541,6 +541,6 @@ object JobManager {
 
   def getJobManager(address: InetSocketAddress)(implicit system: ActorSystem, timeout:
   FiniteDuration): ActorRef = {
-    AkkaUtils.getReference(getAkkaURL(address.getHostName + ":" + address.getPort))
+    AkkaUtils.getReference(getRemoteAkkaURL(address.getHostName + ":" + address.getPort))
   }
 }

@@ -44,6 +44,10 @@ object AkkaUtils {
     createActorSystem(getDefaultActorSystemConfig)
   }
 
+  def createLocalActorSystem(): ActorSystem = {
+    createActorSystem(getDefaultLocalActorSystemConfig)
+  }
+
   def createActorSystem(akkaConfig: Config): ActorSystem = {
     ActorSystem.create("flink", akkaConfig)
   }
@@ -133,20 +137,47 @@ object AkkaUtils {
     getDefaultActorSystemConfigString + configString
   }
 
+  def getLocalConfigString(configuration: Configuration): String = {
+    val akkaThroughput = configuration.getInteger(ConfigConstants.AKKA_DISPATCHER_THROUGHPUT,
+      ConfigConstants.DEFAULT_AKKA_DISPATCHER_THROUGHPUT)
+    val lifecycleEvents = configuration.getBoolean(ConfigConstants.AKKA_LOG_LIFECYCLE_EVENTS,
+      ConfigConstants.DEFAULT_AKKA_LOG_LIFECYCLE_EVENTS)
+
+    val logLifecycleEvents = if (lifecycleEvents) "on" else "off"
+
+    val logLevel = configuration.getString(ConfigConstants.AKKA_LOG_LEVEL,
+      ConfigConstants.DEFAULT_AKKA_LOG_LEVEL)
+
+    val configString =
+      s"""
+         |akka {
+         |  loglevel = $logLevel
+         |  stdout-loglevel = $logLevel
+         |
+         |  log-dead-letters = $logLifecycleEvents
+         |  log-dead-letters-during-shutdown = $logLifecycleEvents
+         |
+         |  actor{
+         |    default-dispatcher{
+         |      executor = "default-executor"
+         |
+         |      throughput = ${akkaThroughput}
+         |
+         |      fork-join-executor {
+         |        parallelism-factor = 2.0
+         |      }
+         |    }
+         |  }
+         |
+         |}
+       """.stripMargin
+
+    getDefaultLocalActorSystemConfigString + configString
+  }
+
   def getDefaultActorSystemConfigString: String = {
-    """
+    val config = """
        |akka {
-       |  daemonic = on
-       |
-       |  loggers = ["akka.event.slf4j.Slf4jLogger"]
-       |  logger-startup-timeout = 30s
-       |  loglevel = "WARNING"
-       |  logging-filter = "akka.event.slf4j.Slf4jLoggingFilter"
-       |  stdout-loglevel = "WARNING"
-       |  jvm-exit-on-fatal-error = off
-       |  log-config-on-start = on
-       |  serialize-messages = on
-       |
        |  actor {
        |    provider = "akka.remote.RemoteActorRefProvider"
        |  }
@@ -164,7 +195,26 @@ object AkkaUtils {
        |  }
        |}
      """.stripMargin
-    }
+
+    getDefaultLocalActorSystemConfigString + config
+  }
+
+  def getDefaultLocalActorSystemConfigString: String = {
+    """
+      |akka {
+      |  daemonic = on
+      |
+      |  loggers = ["akka.event.slf4j.Slf4jLogger"]
+      |  logger-startup-timeout = 30s
+      |  loglevel = "DEBUG"
+      |  logging-filter = "akka.event.slf4j.Slf4jLoggingFilter"
+      |  stdout-loglevel = "DEBUG"
+      |  jvm-exit-on-fatal-error = off
+      |  log-config-on-start = off
+      |  serialize-messages = on
+      |}
+    """.stripMargin
+  }
 
   // scalastyle:off line.size.limit
 
@@ -345,6 +395,10 @@ object AkkaUtils {
 
   def getDefaultActorSystemConfig = {
     ConfigFactory.parseString(getDefaultActorSystemConfigString)
+  }
+
+  def getDefaultLocalActorSystemConfig = {
+    ConfigFactory.parseString(getDefaultLocalActorSystemConfigString)
   }
 
   def getChild(parent: ActorRef, child: String)(implicit system: ActorSystem, timeout:

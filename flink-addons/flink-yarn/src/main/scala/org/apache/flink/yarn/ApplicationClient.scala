@@ -85,7 +85,8 @@ class ApplicationClient(appId: ApplicationId, port: Int, yarnClient: YarnClient,
 
           writeYarnProperties(address)
 
-          jobManager = Some(AkkaUtils.getReference(JobManager.getAkkaURL(address))(system, timeout))
+          jobManager = Some(AkkaUtils.getReference(JobManager.getRemoteAkkaURL(address))(system,
+            timeout))
           jobManager.get ! RegisterMessageListener
 
           pollingTimer foreach {

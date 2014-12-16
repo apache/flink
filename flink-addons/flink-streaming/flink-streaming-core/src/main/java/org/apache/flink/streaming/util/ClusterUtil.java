@@ -57,7 +57,7 @@ public class ClusterUtil {
 		}
 
 		try {
-			exec = new LocalFlinkMiniCluster(configuration);
+			exec = new LocalFlinkMiniCluster(configuration, true);
 
 			Client client = new Client(new InetSocketAddress("localhost", exec.getJobManagerRPCPort()),
 					configuration, ClusterUtil.class.getClassLoader());

@@ -100,7 +100,7 @@ public class LocalExecutor extends PlanExecutor {
 				configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, getTaskManagerNumSlots());
 				configuration.setBoolean(ConfigConstants.FILESYSTEM_DEFAULT_OVERWRITE_KEY, isDefaultOverwriteFiles());
 				// start it up
-				this.flink = new LocalFlinkMiniCluster(configuration);
+				this.flink = new LocalFlinkMiniCluster(configuration, true);
 			} else {
 				throw new IllegalStateException("The local executor was already started.");
 			}

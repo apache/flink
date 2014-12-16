@@ -58,7 +58,7 @@ public abstract class AbstractTestBase extends TestBaseUtils {
 	//  Local Test Cluster Life Cycle
 	// --------------------------------------------------------------------------------------------
 
-	public void startCluster(){
+	public void startCluster() throws Exception{
 		this.executor = startCluster(numTaskManagers, taskManagerNumSlots);
 	}
 

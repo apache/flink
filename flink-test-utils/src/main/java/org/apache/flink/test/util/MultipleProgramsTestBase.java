@@ -46,7 +46,6 @@ public class MultipleProgramsTestBase extends TestBaseUtils {
 	@BeforeClass
 	public static void setup() throws Exception{
 		cluster = TestBaseUtils.startCluster(1, 4);
-
 	}
 
 	@AfterClass

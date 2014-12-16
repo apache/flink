@@ -107,7 +107,7 @@ object JobClient{
             "configuration.")
         }
 
-        JobManager.getAkkaURL(jobManagerAddress + ":" + jobManagerRPCPort)
+        JobManager.getRemoteAkkaURL(jobManagerAddress + ":" + jobManagerRPCPort)
     }
   }
 

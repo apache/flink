@@ -380,15 +380,9 @@ public class ChannelManager implements EnvelopeDispatcher, BufferProviderBroker 
 
 		while (true) {
 			ConnectionInfoLookupResponse lookupResponse;
-			synchronized (this.channelLookup) {
-				try{
-					lookupResponse = AkkaUtils.<JobManagerMessages.ConnectionInformation>ask(channelLookup,
-							new JobManagerMessages.LookupConnectionInformation(connectionInfo, jobID,
-									sourceChannelID), timeout).response();
-				}catch(IOException ioe) {
-					throw ioe;
-				}
-			}
+			lookupResponse = AkkaUtils.<JobManagerMessages.ConnectionInformation>ask(channelLookup,
+					new JobManagerMessages.LookupConnectionInformation(connectionInfo, jobID,
+							sourceChannelID), timeout).response();
 
 			if (lookupResponse.receiverReady()) {
 				receiverList = new EnvelopeReceiverList(lookupResponse);
