@@ -54,13 +54,16 @@ public class ClosureCleaner {
 			if (f.getName().startsWith("this$")) {
 				// found our field:
 				this0Name = f.getName();
+				cleanThis0(func, cls, f.getName());
 			}
 		}
 
-		if (this0Name == null) {
-			// no this$0 field, just return
-			return;
+		if (checkSerializable) {
+			ensureSerializable(func);
 		}
+	}
+
+	private static void cleanThis0(Object func, Class<?> cls, String this0Name) {
 
 		This0AccessFinder this0Finder = new This0AccessFinder(this0Name);
 
@@ -77,21 +80,18 @@ public class ClosureCleaner {
 				this0 = func.getClass().getDeclaredField(this0Name);
 			} catch (NoSuchFieldException e) {
 				// has no this$0, just return
-				throw new RuntimeException("Could not set this$0: " + e);
+				throw new RuntimeException("Could not set " + this0Name + ": " + e);
 			}
 			this0.setAccessible(true);
 			try {
 				this0.set(func, null);
 			} catch (IllegalAccessException e) {
 				// should not happen, since we use setAccessible
-				throw new RuntimeException("Could not set this$0: " + e);
+				throw new RuntimeException("Could not set " + this0Name + ": " + e);
 			}
 		}
-
-		if (checkSerializable) {
-			ensureSerializable(func);
-		}
 	}
+
 
 	public static void ensureSerializable(Object func) {
 		try {

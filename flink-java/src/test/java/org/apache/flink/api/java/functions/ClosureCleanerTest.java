@@ -179,9 +179,13 @@ class NestedNonSerializableMapCreator implements MapCreator {
 			return new MapFunction<Integer, Integer>() {
 				@Override
 				public Integer map(Integer value) throws Exception {
-					return value + add;
+					return value + getMeTheAdd();
 				}
 			};
+		}
+
+		public int getMeTheAdd() {
+			return add;
 		}
 
 	}
