@@ -206,9 +206,9 @@ object AkkaUtils {
       |
       |  loggers = ["akka.event.slf4j.Slf4jLogger"]
       |  logger-startup-timeout = 30s
-      |  loglevel = "DEBUG"
+      |  loglevel = "WARNING"
       |  logging-filter = "akka.event.slf4j.Slf4jLoggingFilter"
-      |  stdout-loglevel = "DEBUG"
+      |  stdout-loglevel = "WARNING"
       |  jvm-exit-on-fatal-error = off
       |  log-config-on-start = off
       |  serialize-messages = on

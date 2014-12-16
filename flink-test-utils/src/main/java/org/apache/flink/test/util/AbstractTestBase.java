@@ -29,6 +29,7 @@ import org.apache.flink.configuration.Configuration;
 
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
+import org.junit.Assert;
 import scala.concurrent.duration.FiniteDuration;
 
 public abstract class AbstractTestBase extends TestBaseUtils {

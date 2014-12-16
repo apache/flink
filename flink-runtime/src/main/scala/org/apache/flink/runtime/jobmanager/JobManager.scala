@@ -133,10 +133,12 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
           // Create the user code class loader
           libraryCacheManager.registerJob(jobGraph.getJobID, jobGraph.getUserJarBlobKeys)
 
+          val userCodeLoader = libraryCacheManager.getClassLoader(jobGraph.getJobID)
+
           val (executionGraph, jobInfo) = currentJobs.getOrElseUpdate(jobGraph.getJobID(),
             (new ExecutionGraph(jobGraph.getJobID, jobGraph.getName,
-              jobGraph.getJobConfiguration, jobGraph.getUserJarBlobKeys), JobInfo(sender(),
-              System.currentTimeMillis())))
+              jobGraph.getJobConfiguration, jobGraph.getUserJarBlobKeys, userCodeLoader),
+              JobInfo(sender(), System.currentTimeMillis())))
 
           val jobNumberRetries = if(jobGraph.getNumberOfExecutionRetries >= 0){
             jobGraph.getNumberOfExecutionRetries
@@ -146,8 +148,6 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
 
           executionGraph.setNumberOfRetriesLeft(jobNumberRetries)
           executionGraph.setDelayBeforeRetrying(delayBetweenRetries)
-
-          val userCodeLoader = libraryCacheManager.getClassLoader(jobGraph.getJobID)
 
           if (userCodeLoader == null) {
             throw new JobException("The user code class loader could not be initialized.")
@@ -253,7 +253,9 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
         currentJobs.get(taskExecutionState.getJobID) match {
           case Some((executionGraph, _)) =>
             val originalSender = sender()
-            originalSender ! executionGraph.updateState(taskExecutionState)
+            Future {
+              originalSender ! executionGraph.updateState(taskExecutionState)
+            }
           case None => log.error(s"Cannot find execution graph for ID ${taskExecutionState
             .getJobID} to change state to ${taskExecutionState.getExecutionState}.")
             sender() ! false
@@ -350,9 +352,11 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
       currentJobs.get(jobID) match {
         case Some((executionGraph, _)) =>
           val originalSender = sender()
-          originalSender ! ConnectionInformation(
-            executionGraph.lookupConnectionInfoAndDeployReceivers
-              (connectionInformation, sourceChannelID))
+          Future {
+            originalSender ! ConnectionInformation(
+              executionGraph.lookupConnectionInfoAndDeployReceivers
+                (connectionInformation, sourceChannelID))
+          }
         case None =>
           log.error(s"Cannot find execution graph for job ID ${jobID}.")
           sender() ! ConnectionInformation(ConnectionInfoLookupResponse.createReceiverNotFound())

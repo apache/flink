@@ -580,7 +580,7 @@ public final class ConfigConstants {
 	
 	// ------------------------------ Akka Values ------------------------------
 
-	public static String DEFAULT_AKKA_STARTUP_TIMEOUT = "10 s";
+	public static String DEFAULT_AKKA_STARTUP_TIMEOUT = "60 s";
 
 	public static String DEFAULT_AKKA_TRANSPORT_HEARTBEAT_INTERVAL = "1000 s";
 
