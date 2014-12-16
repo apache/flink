@@ -31,55 +31,58 @@ import org.apache.flink.util.Collector;
  */
 public class SlidingExample {
 
-	private static final int PARALLELISM = 1;
+	// *************************************************************************
+	// PROGRAM
+	// *************************************************************************
 
 	public static void main(String[] args) throws Exception {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment
-				.createLocalEnvironment(PARALLELISM);
+
+		if (!parseParameters(args)) {
+			return;
+		}
+
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		/*
 		 * SIMPLE-EXAMPLE: Use this to always keep the newest 10 elements in the
 		 * buffer Resulting windows will have an overlap of 5 elements
 		 */
-		
+
 		// DataStream<String> stream = env.addSource(new CountingSource())
 		// .window(Count.of(10))
 		// .every(Count.of(5))
-		// .reduce(reduceFunction);
-		
+		// .reduce(new Concat());
+
 		/*
 		 * ADVANCED-EXAMPLE: Use this to have the last element of the last
 		 * window as first element of the next window while the window size is
 		 * always 5
 		 */
-		
-		// This reduce function does a String concat.
-		ReduceFunction<String> reduceFunction = new ReduceFunction<String>() {
-
-			/**
-			 * default version ID
-			 */
-			private static final long serialVersionUID = 1L;
-
-			@Override
-			public String reduce(String value1, String value2) throws Exception {
-				return value1 + "|" + value2;
-			}
-
-		};
 
 		DataStream<String> stream = env.addSource(new CountingSource())
-				.window(Count.of(5).withDelete(4))
-				.every(Count.of(4).startingAt(-1))
-				.reduce(reduceFunction);
+				.window(Count.of(5)
+				.withDelete(4))
+				.every(Count.of(4)
+				.startingAt(-1))
+				.reduce(new Concat());
 
-		stream.print();
+		// emit result
+		if (fileOutput) {
+			stream.writeAsText(outputPath, 1);
+		} else {
+			stream.print();
+		}
 
-		env.execute();
+		// execute the program
+		env.execute("Sliding Example");
 	}
 
-	@SuppressWarnings("serial")
-	private static class CountingSource implements SourceFunction<String> {
+	// *************************************************************************
+	// USER FUNCTIONS
+	// *************************************************************************
+
+	private static final class CountingSource implements SourceFunction<String> {
+		private static final long serialVersionUID = 1L;
 
 		private int counter = 0;
 
@@ -93,6 +96,44 @@ public class SlidingExample {
 				collector.collect("V" + counter++);
 			}
 		}
-
 	}
+
+	/**
+	 * This reduce function does a String concat.
+	 */
+	private static final class Concat implements ReduceFunction<String> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public String reduce(String value1, String value2) throws Exception {
+			return value1 + "|" + value2;
+		}
+	}
+
+	// *************************************************************************
+	// UTIL METHODS
+	// *************************************************************************
+	
+	private static boolean fileOutput = false;
+	private static String outputPath;
+
+	private static boolean parseParameters(String[] args) {
+
+		if (args.length > 0) {
+			// parse input arguments
+			fileOutput = true;
+			if (args.length == 1) {
+				outputPath = args[0];
+			} else {
+				System.err.println("Usage: SlidingExample <result path>");
+				return false;
+			}
+		} else {
+			System.out.println("Executing SlidingExample with generated data.");
+			System.out.println("  Provide parameter to write to file.");
+			System.out.println("  Usage: SlidingExample <result path>");
+		}
+		return true;
+	}
+
 }

@@ -15,13 +15,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.examples.window.join;
+package org.apache.flink.streaming.examples.join;
 
 import java.util.Random;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.function.source.RichSourceFunction;
 import org.apache.flink.streaming.api.function.source.SourceFunction;
 import org.apache.flink.util.Collector;
 
@@ -115,13 +117,14 @@ public class WindowJoin {
 	/**
 	 * Continuously emit tuples with random names and integers (salaries).
 	 */
-	public static class SalarySource implements SourceFunction<Tuple2<String, Integer>> {
+	public static class SalarySource extends RichSourceFunction<Tuple2<String, Integer>> {
 		private static final long serialVersionUID = 1L;
 
-		private Random rand;
-		private Tuple2<String, Integer> outTuple;
+		private transient Random rand;
+		private transient Tuple2<String, Integer> outTuple;
 
-		public SalarySource() {
+		public void open(Configuration parameters) throws Exception {
+			super.open(parameters);
 			rand = new Random();
 			outTuple = new Tuple2<String, Integer>();
 		}
