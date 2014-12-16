@@ -45,7 +45,11 @@ public class MapOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT, MapOpe
 		
 		this.defaultName = defaultName;
 		this.function = function;
-		extractSemanticAnnotationsFromUdf(function.getClass());
+	}
+	
+	@Override
+	protected MapFunction<IN, OUT> getFunction() {
+		return function;
 	}
 	
 	@Override

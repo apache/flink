@@ -56,8 +56,7 @@ public class DualInputSemanticProperties extends SemanticProperties {
 
 	
 	public DualInputSemanticProperties() {
-		super();
-		this.init();
+		init();
 	}
 	
 	/**
@@ -251,9 +250,19 @@ public class DualInputSemanticProperties extends SemanticProperties {
 	 */
 	@Override
 	public void clearProperties() {
-		this.init();
 		super.clearProperties();
+		init();
 	}
+	
+	@Override
+	public boolean isEmpty() {
+		return super.isEmpty() &&
+				(forwardedFields1 == null || forwardedFields1.isEmpty()) &&
+				(forwardedFields2 == null || forwardedFields2.isEmpty()) &&
+				(readFields1 == null || readFields1.size() == 0) &&
+				(readFields2 == null || readFields2.size() == 0);
+	}
+	
 	
 	private void init() {
 		this.forwardedFields1 = new HashMap<Integer,FieldSet>();
@@ -261,5 +270,4 @@ public class DualInputSemanticProperties extends SemanticProperties {
 		this.readFields1 = null;
 		this.readFields2 = null;
 	}
-		
 }

@@ -41,7 +41,11 @@ public class FilterOperator<T> extends SingleInputUdfOperator<T, T, FilterOperat
 		
 		this.function = function;
 		this.defaultName = defaultName;
-		extractSemanticAnnotationsFromUdf(function.getClass());
+	}
+	
+	@Override
+	protected FilterFunction<T> getFunction() {
+		return function;
 	}
 	
 	@Override
@@ -51,17 +55,17 @@ public class FilterOperator<T> extends SingleInputUdfOperator<T, T, FilterOperat
 		
 		// create operator
 		PlanFilterOperator<T> po = new PlanFilterOperator<T>(function, name, getInputType());
-		// set input
 		po.setInput(input);
+		
 		// set dop
-		if(this.getParallelism() > 0) {
+		if (getParallelism() > 0) {
 			// use specified dop
-			po.setDegreeOfParallelism(this.getParallelism());
+			po.setDegreeOfParallelism(getParallelism());
 		} else {
 			// if no dop has been specified, use dop of input operator to enable chaining
 			po.setDegreeOfParallelism(input.getDegreeOfParallelism());
 		}
-				
+		
 		return po;
 	}
 }

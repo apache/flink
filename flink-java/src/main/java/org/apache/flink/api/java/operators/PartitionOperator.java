@@ -40,7 +40,7 @@ import com.google.common.base.Preconditions;
  *
  * @param <T> The type of the data being partitioned.
  */
-public class PartitionOperator<T> extends SingleInputUdfOperator<T, T, PartitionOperator<T>> {
+public class PartitionOperator<T> extends SingleInputOperator<T, T, PartitionOperator<T>> {
 	
 	private final Keys<T> pKeys;
 	private final PartitionMethod pMethod;

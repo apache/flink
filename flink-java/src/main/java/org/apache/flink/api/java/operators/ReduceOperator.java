@@ -61,8 +61,6 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 		this.function = function;
 		this.grouper = null;
 		this.defaultName = defaultName;
-		
-		extractSemanticAnnotationsFromUdf(function.getClass());
 	}
 	
 	
@@ -72,8 +70,11 @@ public class ReduceOperator<IN> extends SingleInputUdfOperator<IN, IN, ReduceOpe
 		this.function = function;
 		this.grouper = input;
 		this.defaultName = defaultName;
-		
-		extractSemanticAnnotationsFromUdf(function.getClass());
+	}
+	
+	@Override
+	protected ReduceFunction<IN> getFunction() {
+		return function;
 	}
 
 	@Override
