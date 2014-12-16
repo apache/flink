@@ -18,9 +18,11 @@
 
 package org.apache.flink.api.java.operators;
 
+
 import java.security.InvalidParameterException;
 import java.util.Arrays;
 
+import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
@@ -54,8 +56,6 @@ import org.apache.flink.util.Collector;
 //CHECKSTYLE.OFF: AvoidStarImport - Needed for TupleGenerator
 import org.apache.flink.api.java.tuple.*;
 //CHECKSTYLE.ON: AvoidStarImport
-
-import com.google.common.base.Preconditions;
 
 /**
  * A {@link DataSet} that is the result of a Join transformation. 
@@ -201,10 +201,8 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			this.function = function;
 			this.joinLocationName = joinLocationName;
 
-			if (!(function instanceof ProjectFlatJoinFunction)) {
-				extractSemanticAnnotationsFromUdf(function.getClass());
-			} else {
-				generateProjectionProperties(((ProjectFlatJoinFunction<?, ?, ?>) function));
+			if (isTypeValid()) {
+				updateTypeDependentProperties();
 			}
 		}
 
@@ -222,10 +220,22 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 
 			this.function = generatedFunction;
 
-			if (!(generatedFunction instanceof ProjectFlatJoinFunction)) {
-				extractSemanticAnnotationsFromUdf(function.getClass());
+			if (isTypeValid()) {
+				updateTypeDependentProperties();
+			}
+		}
+
+		@Override
+		protected void updateTypeDependentProperties() {
+			if (!(function instanceof ProjectFlatJoinFunction)) {
+				if (function instanceof WrappingFunction) {
+					extractSemanticAnnotationsFromUdf(((WrappingFunction<?>) function).getWrappedFunction().getClass());
+				}
+				else {
+					extractSemanticAnnotationsFromUdf(function.getClass());
+				}
 			} else {
-				generateProjectionProperties(((ProjectFlatJoinFunction<?, ?, ?>) generatedFunction));
+				generateProjectionProperties(((ProjectFlatJoinFunction<?, ?, ?>) function));
 			}
 		}
 
