@@ -34,6 +34,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * The FlinkMesosScheduler gets offers from the Mesos master about resources that are available on the
@@ -54,25 +55,17 @@ public class FlinkMesosScheduler implements Scheduler {
 
 	private final MesosConfiguration config;
 	private final HashMap<Protos.SlaveID, Protos.TaskInfo> taskManagers = new HashMap<Protos.SlaveID, Protos.TaskInfo>();
-	private final HashMap<Protos.OfferID, Protos.Offer> currentOffers = new HashMap<Protos.OfferID, Protos.Offer>();
+	private Map<Protos.OfferID, Protos.Offer> currentOffers = new HashMap<Protos.OfferID, Protos.Offer>();
 
 	private Protos.Offer jobManagerOffer = null;
 	private Protos.TaskInfo jobManager = null;
-
+	private boolean jm_running = false;
+	private static int counter = 0;
 
 	public FlinkMesosScheduler(MesosConfiguration config) {
 		LOG.debug("Scheduler launched");
 		LOG.debug("jar dir: " + config.getString(MesosConstants.MESOS_UBERJAR_LOCATION, null));
 		this.config = config;
-	}
-
-	private void printOffers(List<Protos.Offer> offers) {
-		for (Protos.Offer offer: offers) {
-			LOG.info("-----Got offer from " + offer.getSlaveId().getValue() + "-----");
-			for (Protos.Resource resource: offer.getResourcesList()) {
-				LOG.info(resource.getName() + " = " + resource.getScalar().getValue());
-			}
-		}
 	}
 
 	/**
@@ -118,7 +111,7 @@ public class FlinkMesosScheduler implements Scheduler {
 	private void logLaunchInfo(String name, Protos.Offer offer, List<Protos.Resource> resources, Protos.TaskInfo task) {
 		LOG.info("---- Launching Flink " + name + "----");
 		LOG.info("Hostname: " + offer.getHostname());
-		LOG.info("Offer: " + offer.getId());
+		LOG.info("Offer: " + offer.getId().getValue());
 		LOG.info("SlaveID: " + offer.getSlaveId().getValue());
 		LOG.info("TaskID: " + task.getTaskId().getValue());
 		for (Protos.Resource resource: resources) {
@@ -177,7 +170,7 @@ public class FlinkMesosScheduler implements Scheduler {
 		//analog to the command in createJobManagerTask()
 		String flinkTMCommand = "java " + "-Xmx" + MesosUtils.calculateMemory(memory) + "M -cp " + config.getString(MesosConstants.MESOS_UBERJAR_LOCATION, ".") + " org.apache.flink.mesos.executors.FlinkTMExecutor";
 		Protos.ExecutorInfo taskManagerExecutor = MesosUtils.createExecutorInfo("tm", "Taskmanager Executor", flinkTMCommand, this.config);
-		Protos.TaskInfo result = MesosUtils.createTaskInfo("taskmanager", resources, taskManagerExecutor, offer.getSlaveId(), Protos.TaskID.newBuilder().setValue("tm_task-" + taskManagerExecutor.hashCode()).build());
+		Protos.TaskInfo result = MesosUtils.createTaskInfo("taskmanager", resources, taskManagerExecutor, offer.getSlaveId(), Protos.TaskID.newBuilder().setValue("tm_task-" + counter++).build());
 		logLaunchInfo("Taskmanager", offer, resources, result);
 		return result;
 	}
@@ -186,11 +179,9 @@ public class FlinkMesosScheduler implements Scheduler {
 	public void registered(SchedulerDriver schedulerDriver, Protos.FrameworkID frameworkID, Protos.MasterInfo masterInfo) {
 		LOG.info("Flink was registered: " + frameworkID.getValue() + " " + masterInfo.getHostname());
 
-		if (this.config != null) {
-			int port = this.config.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
-			port = MesosUtils.offsetPort(port, frameworkID.hashCode());
-			this.config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, port);
-		}
+		int port = this.config.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
+		port = MesosUtils.offsetPort(port, frameworkID.hashCode());
+		this.config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, port);
 	}
 
 	@Override
@@ -199,9 +190,16 @@ public class FlinkMesosScheduler implements Scheduler {
 	}
 
 	private void refreshOffers(List<Protos.Offer> offers) {
-		for (Protos.Offer offer: offers) {
-			this.currentOffers.put(offer.getId(), offer);
+		Map<Protos.OfferID, Protos.Offer> newOffers = new HashMap<Protos.OfferID, Protos.Offer>(this.currentOffers);
+		for (Protos.Offer offer : offers) {
+			for (Protos.Offer cOffer: this.currentOffers.values()) {
+				if (!(offer.getSlaveId().equals(cOffer.getSlaveId()) || offer.getId().equals(cOffer.getId()))) {
+					newOffers.remove(cOffer);
+				}
+			}
+			newOffers.put(offer.getId(), offer);
 		}
+		this.currentOffers = newOffers;
 	}
 
 	@Override
@@ -210,31 +208,130 @@ public class FlinkMesosScheduler implements Scheduler {
 		refreshOffers(offers);
 		//printOffers(offers);
 
-		/*
-		Tasks contains the tasks that are to be executed and offerIDs the corresponding offer.
-		 */
-		List<Protos.TaskInfo> tasks = new LinkedList<Protos.TaskInfo>();
-		List<Protos.OfferID> offerIDs = new LinkedList<Protos.OfferID>();
+
 
 		/*
 		This loop searches through all the resource offers from the Mesos slaves. If no JobManager is currently
 		running it is started. Also, one taskmanager is started on every node that has sufficient resources available.
 		 */
+		List<Protos.OfferID> offerIDs = new LinkedList<Protos.OfferID>();
 		for (Protos.Offer offer : offers) {
 			if (jobManager == null && !taskManagers.containsKey(offer.getSlaveId())) {
-
-				handleJM(tasks, offerIDs, offer);
-			} else if (!offer.getSlaveId().equals(jobManager.getSlaveId()) && !taskManagers.containsKey(offer.getSlaveId()) && taskManagers.size() < maxTaskManagers) { //needs to be changed if no taskmanager should be started on a jobmanager node, useful for testing
-				handleTM(tasks, offerIDs, offer);
+				List<Protos.TaskInfo> tasks = new LinkedList<Protos.TaskInfo>();
+				List<Protos.OfferID> launchIDs = new LinkedList<Protos.OfferID>();
+				handleJM(tasks, launchIDs, offer);
+				schedulerDriver.launchTasks(launchIDs, tasks);
+				offerIDs.addAll(launchIDs);
+			} else if (jm_running && !offer.getSlaveId().equals(jobManager.getSlaveId()) && !taskManagers.containsKey(offer.getSlaveId()) && taskManagers.size() < maxTaskManagers) { //needs to be changed if no taskmanager should be started on a jobmanager node, useful for testing
+				List<Protos.TaskInfo> tasks = new LinkedList<Protos.TaskInfo>();
+				List<Protos.OfferID> launchIDs = new LinkedList<Protos.OfferID>();
+				handleTM(tasks, launchIDs, offer);
+				schedulerDriver.launchTasks(launchIDs, tasks);
+				offerIDs.addAll(launchIDs);
 			}
 		}
+		clearOfferIDs(offerIDs);
+	}
 
-		if (offerIDs.size() == tasks.size() && offerIDs.size() > 0 && tasks.size() > 0) {
-			schedulerDriver.launchTasks(offerIDs, tasks);
+	/**
+	 * Handles status updates from the executors. If TASK_LOST or TASK_FAILED is received from any executor, the task should be killed. In case of a failed
+	 * jobmanager we try to allocate new resources.
+	 * @param schedulerDriver
+	 * @param taskStatus
+	 */
+	@Override
+	public void statusUpdate(SchedulerDriver schedulerDriver, Protos.TaskStatus taskStatus) {
+		Integer maxTaskManagers = config.getInteger(MesosConstants.MESOS_MAX_TM_INSTANCES, Integer.MAX_VALUE);
+		Protos.TaskInfo taskInfo = null;
+		Protos.TaskState taskState = taskStatus.getState();
+		Protos.SlaveID slaveId = taskStatus.getSlaveId();
+		boolean isJM = false;
+
+		if (jobManager != null) {
+			isJM = taskStatus.getTaskId().equals(jobManager.getTaskId());
+			taskInfo = isJM ? jobManager : taskManagers.get(slaveId);
+		}
+
+		if (taskInfo == null) {
+			return;
+		}
+
+		LOG.info("---- StatusUpdate ----");
+		LOG.info("Task " + taskInfo.getTaskId().getValue() + " is in state: " + taskState);
+		if (isJM) {
+			ArrayList<Protos.OfferID> offerIDs = new ArrayList<Protos.OfferID>();
+			switch (taskState) {
+				case TASK_RUNNING:
+					jm_running = true;
+					if (this.config.getBoolean(MesosConstants.MESOS_USE_WEB, false)) {
+						LOG.info("The jobmanager webinterface is available at: " + this.config.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null) + ":" + this.config.getInteger(ConfigConstants.WEB_FRONTEND_PORT_KEY, ConfigConstants.DEFAULT_WEBCLIENT_PORT));
+					}
+
+					for (Protos.Offer offer : currentOffers.values()) {
+						if (!offer.getSlaveId().equals(jobManagerOffer.getSlaveId()) && taskManagers.size() < maxTaskManagers) {
+							ArrayList<Protos.TaskInfo> tasks = new ArrayList<Protos.TaskInfo>();
+							ArrayList<Protos.OfferID> launchIDs = new ArrayList<Protos.OfferID>();
+							handleTM(tasks, launchIDs, offer);
+							schedulerDriver.launchTasks(launchIDs, tasks);
+							offerIDs.addAll(launchIDs);
+						}
+					}
+					clearOfferIDs(offerIDs);
+					break;
+				case TASK_FAILED:
+				case TASK_KILLED:
+				case TASK_LOST:
+					jm_running = false;
+					jobManager = null;
+					jobManagerOffer = null;
+
+					for (Protos.TaskInfo killTask : taskManagers.values()) {
+						schedulerDriver.killTask(killTask.getTaskId());
+					}
+					taskManagers.clear();
+
+					for (Protos.Offer offer : currentOffers.values()) {
+						if (jobManager == null) {
+							ArrayList<Protos.TaskInfo> tasks = new ArrayList<Protos.TaskInfo>();
+							ArrayList<Protos.OfferID> launchIDs = new ArrayList<Protos.OfferID>();
+							handleJM(tasks, launchIDs, offer);
+							schedulerDriver.launchTasks(launchIDs, tasks);
+							offerIDs.addAll(launchIDs);
+							break;
+						}
+					}
+					break;
+			}
+		} else {
+			switch (taskState) {
+				case TASK_LOST:
+				case TASK_KILLED:
+				case TASK_FAILED:
+					taskManagers.remove(slaveId);
+					ArrayList<Protos.TaskInfo> tasks = new ArrayList<Protos.TaskInfo>();
+					ArrayList<Protos.OfferID> offerIDs = new ArrayList<Protos.OfferID>();
+					for (Protos.Offer offer : currentOffers.values()) {
+						if (offer.getSlaveId().equals(slaveId) && taskManagers.size() < maxTaskManagers) {
+							handleTM(tasks, offerIDs, offer);
+							break;
+						}
+					}
+					if (tasks.size() == 1 && offerIDs.size() == 1) {
+						clearOfferIDs(offerIDs);
+						schedulerDriver.launchTasks(offerIDs, tasks);
+					}
+					break;
+			}
 		}
 	}
 
-	private void handleTM(List<Protos.TaskInfo> tasks, List<Protos.OfferID> offerIDs, Protos.Offer offer) {
+	private void clearOfferIDs(List<Protos.OfferID> offerIDs) {
+		for (Protos.OfferID id: offerIDs) {
+			this.currentOffers.remove(id);
+		}
+	}
+
+	synchronized private void handleTM(List<Protos.TaskInfo> tasks, List<Protos.OfferID> offerIDs, Protos.Offer offer) {
 		List<Protos.Resource> required = new ArrayList<Protos.Resource>();
 		required.add(MesosUtils.createResourceScalar(MESOS_CPU, this.config.getDouble(MesosConstants.MESOS_TASK_MANAGER_CORES, MesosConstants.DEFAULT_MESOS_TASK_MANAGER_CORES)));
 		required.add(MesosUtils.createResourceScalar(MESOS_MEMORY, this.config.getDouble(MesosConstants.MESOS_TASK_MANAGER_MEMORY, MesosConstants.DEFAULT_MESOS_TASK_MANAGER_MEMORY)));
@@ -247,7 +344,7 @@ public class FlinkMesosScheduler implements Scheduler {
 		}
 	}
 
-	private void handleJM(List<Protos.TaskInfo> tasks, List<Protos.OfferID> offerIDs, Protos.Offer offer) {
+	synchronized private void handleJM(List<Protos.TaskInfo> tasks, List<Protos.OfferID> offerIDs, Protos.Offer offer) {
 		List<Protos.Resource> required = new ArrayList<Protos.Resource>();
 		required.add(MesosUtils.createResourceScalar(MESOS_CPU, this.config.getDouble(MesosConstants.MESOS_JOB_MANAGER_CORES, MesosConstants.DEFAULT_MESOS_JOB_MANAGER_CORES)));
 		required.add(MesosUtils.createResourceScalar(MESOS_MEMORY, this.config.getDouble(MesosConstants.MESOS_JOB_MANAGER_MEMORY, MesosConstants.DEFAULT_MESOS_JOB_MANAGER_MEMORY)));
@@ -270,16 +367,15 @@ public class FlinkMesosScheduler implements Scheduler {
 	@Override
 	public void offerRescinded(SchedulerDriver schedulerDriver, Protos.OfferID offerID) {
 		//TODO: Verify that this mechanism actually works as expected
-		LOG.debug("Resource offer with ID: " + offerID.getValue() + " was rescinded.");
+		LOG.info("Resource offer with ID: " + offerID.getValue() + " was rescinded.");
 
 		/*
 		Check whether the rescinded offer is the one the jobmanager should be started on. If that is the case,
 		we immediately kill the task and request enough resources for a new one. These new resources will come in via
 		the resourceOffers() method.
 		 */
-		currentOffers.remove(offerID);
 
-		if (jobManagerOffer != null && jobManager != null && jobManagerOffer.getId().equals(offerID)) {
+		/*if (jobManagerOffer != null && jobManager != null && jobManagerOffer.getId().equals(offerID)) {
 			LinkedList<Protos.Request> requestList = new LinkedList<Protos.Request>();
 
 			schedulerDriver.killTask(jobManager.getTaskId());
@@ -295,83 +391,9 @@ public class FlinkMesosScheduler implements Scheduler {
 			requestList.add(request);
 
 			schedulerDriver.requestResources(requestList);
-		}
+		}*/
 	}
 
-	/**
-	 * Handles status updates from the executors. If TASK_LOST or TASK_FAILED is received from any executor, the task should be killed. In case of a failed
-	 * jobmanager we try to allocate new resources.
-	 * @param schedulerDriver
-	 * @param taskStatus
-	 */
-	@Override
-	public void statusUpdate(SchedulerDriver schedulerDriver, Protos.TaskStatus taskStatus) {
-
-		Protos.TaskInfo taskInfo = null;
-
-		if (jobManagerOffer != null) {
-			taskInfo = taskStatus.getSlaveId().equals(jobManagerOffer.getSlaveId()) ? jobManager : taskManagers.get(taskStatus.getSlaveId());
-		}
-
-		if (taskInfo == null) {
-			return;
-		}
-
-		if (taskStatus.getState() == Protos.TaskState.TASK_RUNNING && taskInfo.equals(jobManager) && this.config.getBoolean(MesosConstants.MESOS_USE_WEB, false)) {
-			LOG.info("The jobmanager webinterface is available at: " + this.config.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null) + ":" + this.config.getInteger(ConfigConstants.WEB_FRONTEND_PORT_KEY, ConfigConstants.DEFAULT_WEBCLIENT_PORT));
-		}
-
-		LOG.info("Task " + taskInfo.getExecutor().getName() + " is in state: " + taskStatus.getState());
-
-		/*
-		When a task is lost or failed and it is the jobmanager, a new request for resources is send to get resources for a new jm.
-		 */
-		if (taskStatus.getState() == Protos.TaskState.TASK_LOST || taskStatus.getState() == Protos.TaskState.TASK_FAILED) {
-			schedulerDriver.killTask(taskInfo.getTaskId());
-			LinkedList<Protos.Request> requestList = new LinkedList<Protos.Request>();
-
-			if (taskManagers.containsKey(taskStatus.getSlaveId())) {
-				taskManagers.remove(taskStatus.getSlaveId());
-				if (currentOffers.size() != 0) {
-					List<Protos.TaskInfo> tasks = new ArrayList<Protos.TaskInfo>();
-					List<Protos.OfferID> offerIDs = new ArrayList<Protos.OfferID>();
-					for (Protos.Offer offer: currentOffers.values()) {
-						handleTM(tasks, offerIDs, offer);
-					}
-					if (!tasks.isEmpty()) {
-						schedulerDriver.launchTasks(offerIDs, tasks);
-					}
-				}
-
-			}
-
-			if (jobManager != null && jobManagerOffer != null && taskInfo.getTaskId().equals(jobManager.getTaskId())) {
-				jobManager = null;
-				jobManagerOffer = null;
-
-				if (currentOffers.size() != 0) {
-					List<Protos.TaskInfo> tasks = new ArrayList<Protos.TaskInfo>();
-					List<Protos.OfferID> offerIDs = new ArrayList<Protos.OfferID>();
-					for (Protos.Offer offer: currentOffers.values()) {
-						handleJM(tasks, offerIDs, offer);
-					}
-					if (!tasks.isEmpty()) {
-						schedulerDriver.launchTasks(offerIDs, tasks);
-					}
-				} else {
-					Protos.Request request = Protos.Request
-							.newBuilder()
-							.addResources(MesosUtils.createResourceScalar(MESOS_CPU, config.getDouble(MesosConstants.MESOS_JOB_MANAGER_CORES, MesosConstants.DEFAULT_MESOS_JOB_MANAGER_CORES)))
-							.addResources(MesosUtils.createResourceScalar(MESOS_MEMORY, config.getDouble(MesosConstants.MESOS_JOB_MANAGER_MEMORY, MesosConstants.DEFAULT_MESOS_JOB_MANAGER_MEMORY)))
-							.build();
-					requestList.add(request);
-
-					schedulerDriver.requestResources(requestList);
-				}
-			}
-		}
-
-	}
 
 	@Override
 	public void frameworkMessage(SchedulerDriver schedulerDriver, Protos.ExecutorID executorID, Protos.SlaveID slaveID, byte[] bytes) {
