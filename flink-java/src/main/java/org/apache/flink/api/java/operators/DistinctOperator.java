@@ -57,8 +57,6 @@ public class DistinctOperator<T> extends SingleInputOperator<T, T, DistinctOpera
 		// if keys is null distinction is done on all tuple fields
 		if (keys == null) {
 			if (input.getType() instanceof CompositeType) {
-
-				CompositeType<?> cType = (CompositeType<?>) input.getType();
 				keys = new Keys.ExpressionKeys<T>(new String[] {Keys.ExpressionKeys.SELECT_ALL_CHAR }, input.getType());
 			}
 			else {

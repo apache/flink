@@ -82,17 +82,6 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 		this.defaultName = defaultName;
 
 		checkCombinability();
-
-		if (isTypeValid()) {
-			updateTypeDependentProperties();
-		}
-	}
-
-	@Override
-	protected void updateTypeDependentProperties() {
-		if (grouper != null) {
-			extractSemanticAnnotationsFromUdf(function.getClass());
-		}
 	}
 
 	private void checkCombinability() {
@@ -100,6 +89,12 @@ public class GroupReduceOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT
 				function.getClass().getAnnotation(RichGroupReduceFunction.Combinable.class) != null) {
 			this.combinable = true;
 		}
+	}
+	
+	
+	@Override
+	protected GroupReduceFunction<IN, OUT> getFunction() {
+		return function;
 	}
 
 	

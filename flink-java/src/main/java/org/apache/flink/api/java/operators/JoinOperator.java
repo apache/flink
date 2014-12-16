@@ -18,11 +18,11 @@
 
 package org.apache.flink.api.java.operators;
 
-
 import java.security.InvalidParameterException;
 import java.util.Arrays;
 
 import com.google.common.base.Preconditions;
+
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
@@ -200,10 +200,6 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			
 			this.function = function;
 			this.joinLocationName = joinLocationName;
-
-			if (isTypeValid()) {
-				updateTypeDependentProperties();
-			}
 		}
 
 		public EquiJoin(DataSet<I1> input1, DataSet<I2> input2,
@@ -219,49 +215,21 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			}
 
 			this.function = generatedFunction;
-
-			if (isTypeValid()) {
-				updateTypeDependentProperties();
-			}
+		}
+		
+		@Override
+		protected FlatJoinFunction<I1, I2, OUT> getFunction() {
+			return function;
 		}
 
 		@Override
-		protected void updateTypeDependentProperties() {
-			if (!(function instanceof ProjectFlatJoinFunction)) {
-				if (function instanceof WrappingFunction) {
-					extractSemanticAnnotationsFromUdf(((WrappingFunction<?>) function).getWrappedFunction().getClass());
-				}
-				else {
-					extractSemanticAnnotationsFromUdf(function.getClass());
-				}
+		protected DualInputSemanticProperties extractSemanticAnnotationsFromUdf(Class<?> udfClass) {
+			if (function instanceof DefaultJoin.WrappingFlatJoinFunction) {
+				return super.extractSemanticAnnotationsFromUdf(((WrappingFunction<?>) function).getWrappedFunction().getClass());
 			} else {
-				generateProjectionProperties(((ProjectFlatJoinFunction<?, ?, ?>) function));
+				return super.extractSemanticAnnotationsFromUdf(function.getClass());
 			}
 		}
-
-		public void generateProjectionProperties(ProjectFlatJoinFunction<?, ?, ?> pjf) {
-			DualInputSemanticProperties props = SemanticPropUtil.createProjectionPropertiesDual(pjf.getFields(), pjf.getIsFromFirst());
-			setSemanticProperties(props);
-		}
-
-		// TODO
-//		public EquiJoin<I1, I2, OUT> leftOuter() {
-//			this.preserve1 = true;
-//			return this;
-//		}
-
-		// TODO
-//		public EquiJoin<I1, I2, OUT> rightOuter() {
-//			this.preserve2 = true;
-//			return this;
-//		}
-		
-		// TODO
-//		public EquiJoin<I1, I2, OUT> fullOuter() {
-//			this.preserve1 = true;
-//			this.preserve2 = true;
-//			return this;
-//		}
 		
 		@Override
 		protected JoinOperatorBase<?, ?, OUT, ?> translateToDataFlow(Operator<I1> input1, Operator<I2> input2) {
@@ -657,6 +625,11 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 			
 			this.joinProj = joinProj;
 		}
+		
+		@Override
+		protected ProjectFlatJoinFunction<I1, I2, OUT> getFunction() {
+			return (ProjectFlatJoinFunction<I1, I2, OUT>) super.getFunction();
+		}
 
 		/**
 		 * Continues a ProjectJoin transformation and adds fields of the first join input to the projection.<br/>
@@ -716,8 +689,6 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		 * Deprecated method only kept for compatibility.
 		 *
 		 * @param types
-		 *
-		 * @return
 		 */
 		@SuppressWarnings({ "unchecked", "hiding" })
 		@Deprecated
@@ -745,6 +716,13 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 		public JoinOperator<I1, I2, OUT> withConstantSetSecond(String... constantSetSecond) {
 			throw new InvalidProgramException("The semantic properties (constant fields and forwarded fields) are automatically calculated.");
 		}
+		
+		@Override
+		protected DualInputSemanticProperties extractSemanticAnnotationsFromUdf(Class<?> udfClass) {
+			// we do not extract the annotation, we construct the properties from the projection#
+			return SemanticPropUtil.createProjectionPropertiesDual(getFunction().getFields(), getFunction().getIsFromFirst());
+		}
+
 	}
 	
 //	@SuppressWarnings("unused")
@@ -1292,11 +1270,12 @@ public abstract class JoinOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, 
 	// GENERATED FROM org.apache.flink.api.java.tuple.TupleGenerator.
 
 		/**
-		 * Chooses a projectTupleX according to the length of {@link JoinProjection#fieldIndexes} 
+		 * Chooses a projectTupleX according to the length of
+		 * {@link org.apache.flink.api.java.operators.JoinOperator.JoinProjection#fieldIndexes} 
 		 * 
 		 * @return The projected DataSet.
 		 * 
-		 * @see ProjectJoin
+		 * @see org.apache.flink.api.java.operators.JoinOperator.ProjectJoin
 		 */
 		@SuppressWarnings("unchecked")
 		public <OUT extends Tuple> ProjectJoin<I1, I2, OUT> projectTupleX() {

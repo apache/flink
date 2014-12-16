@@ -27,23 +27,18 @@ import org.apache.flink.api.common.operators.util.FieldSet;
  * Container for the semantic properties associated to a single input operator.
  */
 public class SingleInputSemanticProperties extends SemanticProperties {
+	
 	private static final long serialVersionUID = 1L;
 	
-	/**
-	 * Mapping from fields in the source record(s) to fields in the destination
-	 * record(s).  
-	 */
+	/**Mapping from fields in the source record(s) to fields in the destination record(s). */
 	private Map<Integer,FieldSet> forwardedFields;
 	
-	/**
-	 * Set of fields that are read in the source record(s).
-	 */
+	/** Set of fields that are read in the source record(s).*/
 	private FieldSet readFields;
 
 	
 	public SingleInputSemanticProperties() {
-		super();
-		this.init();
+		init();
 	}
 	
 	/**
@@ -140,8 +135,15 @@ public class SingleInputSemanticProperties extends SemanticProperties {
 	 */
 	@Override
 	public void clearProperties() {
-		this.init();
 		super.clearProperties();
+		init();
+	}
+	
+	@Override
+	public boolean isEmpty() {
+		return super.isEmpty() &&
+				(forwardedFields == null || forwardedFields.isEmpty()) &&
+				(readFields == null || readFields.size() == 0);
 	}
 	
 	private void init() {
@@ -205,6 +207,11 @@ public class SingleInputSemanticProperties extends SemanticProperties {
 		@Override
 		public void setWrittenFields(FieldSet writtenFields) {
 			throw new UnsupportedOperationException();
+		}
+		
+		@Override
+		public boolean isEmpty() {
+			return false;
 		}
 	}
 }

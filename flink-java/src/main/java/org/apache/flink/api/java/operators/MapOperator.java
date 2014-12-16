@@ -45,15 +45,11 @@ public class MapOperator<IN, OUT> extends SingleInputUdfOperator<IN, OUT, MapOpe
 		
 		this.defaultName = defaultName;
 		this.function = function;
-
-		if (isTypeValid()) {
-			updateTypeDependentProperties();
-		}
 	}
 	
 	@Override
-	protected void updateTypeDependentProperties() {
-		extractSemanticAnnotationsFromUdf(function.getClass());
+	protected MapFunction<IN, OUT> getFunction() {
+		return function;
 	}
 	
 	@Override

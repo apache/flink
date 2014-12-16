@@ -43,7 +43,7 @@ import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
 
-@SuppressWarnings("serial")
+@SuppressWarnings({ "serial", "deprecation" })
 public class ReduceWrappingFunctionTest {
 
 	@SuppressWarnings("unchecked")

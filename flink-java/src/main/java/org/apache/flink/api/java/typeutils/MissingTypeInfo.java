@@ -22,11 +22,16 @@ import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
+/**
+ * A special type information signifying that the type extraction failed. It contains
+ * additional error information.
+ */
 public class MissingTypeInfo extends TypeInformation<InvalidTypesException> {
 
 	private String functionName;
 	private InvalidTypesException typeException;
 
+	
 	public MissingTypeInfo(String functionName) {
 		this(functionName, new InvalidTypesException("An unknown error occured."));
 	}
@@ -35,7 +40,9 @@ public class MissingTypeInfo extends TypeInformation<InvalidTypesException> {
 		this.functionName = functionName;
 		this.typeException = typeException;
 	}
-
+	
+	// --------------------------------------------------------------------------------------------
+	
 	public String getFunctionName() {
 		return functionName;
 	}
@@ -44,39 +51,40 @@ public class MissingTypeInfo extends TypeInformation<InvalidTypesException> {
 		return typeException;
 	}
 
+	// --------------------------------------------------------------------------------------------
+	
 	@Override
 	public boolean isBasicType() {
-		return false;
+		throw new UnsupportedOperationException("The missing type information cannot be used as a type information.");
 	}
 
 	@Override
 	public boolean isTupleType() {
-		return false;
+		throw new UnsupportedOperationException("The missing type information cannot be used as a type information.");
 	}
 
 	@Override
 	public int getArity() {
-		return 0;
+		throw new UnsupportedOperationException("The missing type information cannot be used as a type information.");
 	}
 
 	@Override
 	public Class<InvalidTypesException> getTypeClass() {
-		return InvalidTypesException.class;
+		throw new UnsupportedOperationException("The missing type information cannot be used as a type information.");
 	}
 
 	@Override
 	public boolean isKeyType() {
-		return false;
+		throw new UnsupportedOperationException("The missing type information cannot be used as a type information.");
 	}
 
 	@Override
 	public TypeSerializer<InvalidTypesException> createSerializer() {
-		throw new UnsupportedOperationException("A serializer for missing type information does not exist.");
+		throw new UnsupportedOperationException("The missing type information cannot be used as a type information.");
 	}
 
 	@Override
 	public int getTotalFields() {
-		return 0;
+		throw new UnsupportedOperationException("The missing type information cannot be used as a type information.");
 	}
-
 }

@@ -45,15 +45,11 @@ public class MapPartitionOperator<IN, OUT> extends SingleInputUdfOperator<IN, OU
 		
 		this.function = function;
 		this.defaultName = defaultName;
-
-		if (isTypeValid()) {
-			updateTypeDependentProperties();
-		}
 	}
 	
 	@Override
-	protected void updateTypeDependentProperties() {
-		extractSemanticAnnotationsFromUdf(function.getClass());
+	protected MapPartitionFunction<IN, OUT> getFunction() {
+		return function;
 	}
 	
 	@Override

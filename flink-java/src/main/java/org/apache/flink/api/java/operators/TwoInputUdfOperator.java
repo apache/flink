@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.operators.DualInputSemanticProperties;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -70,19 +71,7 @@ public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOp
 		super(input1, input2, resultType);
 	}
 	
-	protected void extractSemanticAnnotationsFromUdf(Class<?> udfClass) {
-		Set<Annotation> annotations = FunctionAnnotation.readDualConstantAnnotations(udfClass);
-		
-		DualInputSemanticProperties dsp = SemanticPropUtil.getSemanticPropsDual(annotations,
-					getInput1Type(), getInput2Type(), getResultType());
-
-		setSemanticProperties(dsp);
-	}
-	
-	protected void updateTypeDependentProperties() {
-		// can be overwritten in subclasses for actions that depend on the return type
-		// which may not be available immediately (e.g. if type is missing at instantiation)
-	}
+	protected abstract Function getFunction();
 
 	// --------------------------------------------------------------------------------------------
 	// Fluent API methods
@@ -252,7 +241,7 @@ public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOp
 			throw new IllegalArgumentException("Type information must not be null.");
 		}
 		fillInType(typeInfo);
-		updateTypeDependentProperties();
+		
 		@SuppressWarnings("unchecked")
 		O returnType = (O) this;
 		return returnType;
@@ -314,6 +303,11 @@ public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOp
 
 	@Override
 	public DualInputSemanticProperties getSemanticProperties() {
+		if (udfSemantics == null) {
+			DualInputSemanticProperties props = extractSemanticAnnotationsFromUdf(getFunction().getClass());
+			udfSemantics = props != null ? props : new DualInputSemanticProperties();
+		}
+		
 		return this.udfSemantics;
 	}
 
@@ -327,5 +321,11 @@ public abstract class TwoInputUdfOperator<IN1, IN2, OUT, O extends TwoInputUdfOp
 	 */
 	public void setSemanticProperties(DualInputSemanticProperties properties) {
 		this.udfSemantics = properties;
+	}
+	
+	
+	protected DualInputSemanticProperties extractSemanticAnnotationsFromUdf(Class<?> udfClass) {
+		Set<Annotation> annotations = FunctionAnnotation.readDualConstantAnnotations(udfClass);
+		return SemanticPropUtil.getSemanticPropsDual(annotations, getInput1Type(), getInput2Type(), getResultType());
 	}
 }

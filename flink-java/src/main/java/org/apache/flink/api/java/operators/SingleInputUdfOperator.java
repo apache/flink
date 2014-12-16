@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -68,16 +69,7 @@ public abstract class SingleInputUdfOperator<IN, OUT, O extends SingleInputUdfOp
 	}
 	
 	
-	protected void extractSemanticAnnotationsFromUdf(Class<?> udfClass) {
-		Set<Annotation> annotations = FunctionAnnotation.readSingleConstantAnnotations(udfClass);
-		SingleInputSemanticProperties sp = SemanticPropUtil.getSemanticPropsSingle(annotations, getInputType(), getResultType());
-		setSemanticProperties(sp);
-	}
-
-	protected void updateTypeDependentProperties() {
-		// can be overwritten in subclasses for actions that depend on the return type
-		// which may not be available immediately (e.g. if type is missing at instantiation)
-	}
+	protected abstract Function getFunction();
 
 	// --------------------------------------------------------------------------------------------
 	// Fluent API methods
@@ -210,7 +202,6 @@ public abstract class SingleInputUdfOperator<IN, OUT, O extends SingleInputUdfOp
 			throw new IllegalArgumentException("Type information must not be null.");
 		}
 		fillInType(typeInfo);
-		updateTypeDependentProperties();
 		@SuppressWarnings("unchecked")
 		O returnType = (O) this;
 		return returnType;
@@ -272,6 +263,11 @@ public abstract class SingleInputUdfOperator<IN, OUT, O extends SingleInputUdfOp
 
 	@Override
 	public SingleInputSemanticProperties getSemanticProperties() {
+		if (udfSemantics == null) {
+			SingleInputSemanticProperties props = extractSemanticAnnotations(getFunction().getClass());
+			udfSemantics = props != null ? props : new SingleInputSemanticProperties();
+		}
+		
 		return this.udfSemantics;
 	}
 
@@ -285,5 +281,10 @@ public abstract class SingleInputUdfOperator<IN, OUT, O extends SingleInputUdfOp
 	 */
 	public void setSemanticProperties(SingleInputSemanticProperties properties) {
 		this.udfSemantics = properties;
+	}
+	
+	protected SingleInputSemanticProperties extractSemanticAnnotations(Class<?> udfClass) {
+		Set<Annotation> annotations = FunctionAnnotation.readSingleConstantAnnotations(udfClass);
+		return SemanticPropUtil.getSemanticPropsSingle(annotations, getInputType(), getResultType());
 	}
 }

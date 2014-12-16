@@ -30,10 +30,9 @@ public abstract class SemanticProperties implements Serializable {
 	
 	private static final long serialVersionUID = 1L;
 
-	/**
-	 * Set of fields that are written in the destination record(s).
-	 */
+	/** Set of fields that are written in the destination record(s).*/
 	private FieldSet writtenFields;
+	
 	
 	/**
 	 * Adds, to the existing information, field(s) that are written in
@@ -71,10 +70,10 @@ public abstract class SemanticProperties implements Serializable {
 	 * Clears the object.
 	 */
 	public void clearProperties() {
-		this.init();
+		this.writtenFields = null;
 	}
 	
-	private void init() {
-		this.writtenFields = null;
+	public boolean isEmpty() {
+		return this.writtenFields == null || this.writtenFields.size() == 0;
 	}
 }

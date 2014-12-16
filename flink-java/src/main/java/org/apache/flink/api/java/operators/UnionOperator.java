@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.java.operators;
 
+import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.Union;
 import org.apache.flink.api.java.DataSet;
@@ -31,6 +31,7 @@ import org.apache.flink.api.java.DataSet;
 public class UnionOperator<T> extends TwoInputOperator<T, T, T, UnionOperator<T>> {
 
 	private final String unionLocationName;
+	
 	/**
 	 * Create an operator that produces the union of the two given data sets.
 	 * 
@@ -39,6 +40,11 @@ public class UnionOperator<T> extends TwoInputOperator<T, T, T, UnionOperator<T>
 	 */
 	public UnionOperator(DataSet<T> input1, DataSet<T> input2, String unionLocationName) {
 		super(input1, input2, input1.getType());
+		
+		if (!input1.getType().equals(input2.getType())) {
+			throw new InvalidProgramException("Cannot union inputs of different types. Input1=" 
+					+ input1.getType() + ", input2=" + input2.getType());
+		}
 		
 		this.unionLocationName = unionLocationName;
 	}
