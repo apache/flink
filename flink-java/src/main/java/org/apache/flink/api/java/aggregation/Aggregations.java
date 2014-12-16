@@ -18,28 +18,70 @@
 
 package org.apache.flink.api.java.aggregation;
 
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.operators.UnsortedGrouping;
+
 /**
- *
+ * Convenience factory to create {@link AggregationFunction}s.
+ * 
+ * @see DataSet
+ * @see UnsortedGrouping
  */
-public enum Aggregations {
+@SuppressWarnings("rawtypes")
+public class Aggregations {
+
+	/**
+	 * Compute the minimum value.
+	 * @param field Tuple field index.
+	 */
+	public static AggregationFunction min(int field) {
+		return new MinAggregationFunction(field);
+	}
 	
-	SUM (new SumAggregationFunction.SumAggregationFunctionFactory()),
-	MIN (new MinAggregationFunction.MinAggregationFunctionFactory()),
-	MAX (new MaxAggregationFunction.MaxAggregationFunctionFactory()),
-//	AVG (new AvgAggregationFunction.AvgAggregationFunctionFactory())
-	;
-//	STD_DEV;
+	/**
+	 * Compute the maximum value.
+	 * @param field Tuple field index.
+	 */
+	public static AggregationFunction max(int field) {
+		return new MaxAggregationFunction(field);
+	}
 	
-	// --------------------------------------------------------------------------------------------
+	/**
+	 * Count the number of tuples.
+	 */
+	public static AggregationFunction count() {
+		return new CountAggregationFunction();
+	}
 	
-	private final AggregationFunctionFactory factory;
-		
-	private Aggregations(AggregationFunctionFactory factory) {
-		this.factory = factory;
+	/**
+	 * Compute the sum.
+	 * @param field Tuple field index.
+	 */
+	public static AggregationFunction sum(int field) {
+		return new SumAggregationFunction(field);
+	}
+	
+	/**
+	 * Compute the average.
+	 * @param field Tuple field index.
+	 */
+	public static AggregationFunction average(int field) {
+		return new AverageAggregationFunction(field);
+	}
+	
+	/**
+	 * Select a grouped field to be included in the result.
+	 * @param field Tuple field index.
+	 */
+	public static AggregationFunction key(int field) {
+		return new KeySelectionAggregationFunction(field);
+	}
+	
+	/**
+	 * Include all group keys in the result.
+	 */
+	public static AggregationFunction allKeys() {
+		return KeySelectionAggregationFunction.INCLUDE_ALL_KEYS_FUNCTION;
 	}
 
-	public AggregationFunctionFactory getFactory() {
-		return this.factory;
-	}
-	
 }

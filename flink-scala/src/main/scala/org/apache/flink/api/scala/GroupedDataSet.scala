@@ -24,7 +24,7 @@ import scala.collection.JavaConverters._
 import org.apache.commons.lang3.Validate
 import org.apache.flink.api.common.functions.{GroupReduceFunction, ReduceFunction}
 import org.apache.flink.api.common.operators.Order
-import org.apache.flink.api.java.aggregation.Aggregations
+import org.apache.flink.api.java.aggregation.deprecated.Aggregations
 import org.apache.flink.api.java.operators._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.util.Collector

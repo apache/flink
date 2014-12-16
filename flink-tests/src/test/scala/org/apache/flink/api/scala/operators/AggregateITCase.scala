@@ -17,7 +17,7 @@
  */
 package org.apache.flink.api.scala.operators
 
-import org.apache.flink.api.java.aggregation.Aggregations
+import org.apache.flink.api.java.aggregation.deprecated.Aggregations
 import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.configuration.Configuration

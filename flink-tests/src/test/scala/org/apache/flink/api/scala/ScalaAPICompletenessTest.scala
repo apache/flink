@@ -57,6 +57,29 @@ class ScalaAPICompletenessTest {
       "org.apache.flink.api.java.ExecutionEnvironment.localExecutionIsAllowed",
       "org.apache.flink.api.java.ExecutionEnvironment.setDefaultLocalParallelism",
 
+      // exclude aggregation API changes
+      "org.apache.flink.api.java.DataSet.min",
+      "org.apache.flink.api.java.DataSet.max",
+      "org.apache.flink.api.java.DataSet.count",
+      "org.apache.flink.api.java.DataSet.sum",
+      "org.apache.flink.api.java.DataSet.average",
+      "org.apache.flink.api.java.DataSet._min",
+      "org.apache.flink.api.java.DataSet._max",
+      "org.apache.flink.api.java.DataSet._sum",
+      "org.apache.flink.api.java.operators.UnsortedGrouping.key",
+      "org.apache.flink.api.java.operators.UnsortedGrouping.min",
+      "org.apache.flink.api.java.operators.UnsortedGrouping.max",
+      "org.apache.flink.api.java.operators.UnsortedGrouping.count",
+      "org.apache.flink.api.java.operators.UnsortedGrouping.sum",
+      "org.apache.flink.api.java.operators.UnsortedGrouping.average",
+      "org.apache.flink.api.java.operators.UnsortedGrouping._min",
+      "org.apache.flink.api.java.operators.UnsortedGrouping._max",
+      "org.apache.flink.api.java.operators.UnsortedGrouping._sum",
+      "org.apache.flink.api.java.DataSet.getAggregationOperatorFactory",
+      "org.apache.flink.api.java.DataSet.setAggregationOperatorFactory",
+      "org.apache.flink.api.java.operators.UnsortedGrouping.getAggregationOperatorFactory",
+      "org.apache.flink.api.java.operators.UnsortedGrouping.setAggregationOperatorFactory",
+
       // This is really just a mapper, which in Scala can easily expressed as a map lambda
       "org.apache.flink.api.java.DataSet.writeAsFormattedText",
 

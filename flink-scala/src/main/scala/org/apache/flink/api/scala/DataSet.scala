@@ -23,7 +23,7 @@ import org.apache.flink.api.common.aggregators.Aggregator
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.common.io.{FileOutputFormat, OutputFormat}
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase.PartitionMethod
-import org.apache.flink.api.java.aggregation.Aggregations
+import org.apache.flink.api.java.aggregation.deprecated.Aggregations
 import org.apache.flink.api.java.functions.{FirstReducer, KeySelector}
 import org.apache.flink.api.java.io.{PrintingOutputFormat, TextOutputFormat}
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;

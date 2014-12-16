@@ -30,9 +30,9 @@ import org.apache.flink.api.common.operators.SingleInputSemanticProperties;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.base.GroupReduceOperatorBase;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.aggregation.AggregationFunction;
-import org.apache.flink.api.java.aggregation.AggregationFunctionFactory;
-import org.apache.flink.api.java.aggregation.Aggregations;
+import org.apache.flink.api.java.aggregation.deprecated.AggregationFunction;
+import org.apache.flink.api.java.aggregation.deprecated.AggregationFunctionFactory;
+import org.apache.flink.api.java.aggregation.deprecated.Aggregations;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction.Combinable;
 import org.apache.flink.api.java.tuple.Tuple;
@@ -46,6 +46,7 @@ import org.apache.flink.util.Collector;
  * 
  * @param <IN> The type of the data set aggregated by the operator.
  */
+@Deprecated
 public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, AggregateOperator<IN>> {
 	
 	private final List<AggregationFunction<?>> aggregationFunctions = new ArrayList<AggregationFunction<?>>(4);

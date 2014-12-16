@@ -19,8 +19,8 @@ package org.apache.flink.api.scala.operators
 
 import org.junit.Assert
 import org.apache.flink.api.common.InvalidProgramException
-import org.apache.flink.api.java.aggregation.Aggregations
-import org.apache.flink.api.java.aggregation.UnsupportedAggregationTypeException
+import org.apache.flink.api.java.aggregation.deprecated.Aggregations
+import org.apache.flink.api.java.aggregation.deprecated.UnsupportedAggregationTypeException
 import org.junit.Test
 
 import org.apache.flink.api.scala._

@@ -18,9 +18,28 @@
 
 package org.apache.flink.api.java.aggregation;
 
+import static org.apache.flink.util.TestHelper.uniqueInt;
+import static org.hamcrest.CoreMatchers.is;
+import static org.junit.Assert.assertThat;
 
-public interface AggregationFunctionFactory extends java.io.Serializable {
+import org.junit.Test;
 
-	<T> AggregationFunction<T> createAggregationFunction(Class<T> type);
-	
+public class MinAggregationFunctionTest {
+
+	private MinAggregationFunction<Integer> function = new MinAggregationFunction<Integer>(-1);
+
+	@Test
+	public void shouldReturnMinimum() {
+		// given
+		int value1 = uniqueInt();
+		int value2 = uniqueInt();
+		int expected = Math.min(value1, value2);
+
+		// when
+		Integer actual = function.reduce(value1, value2); 
+		
+		// then
+		assertThat(actual, is(expected));
+	}
+
 }

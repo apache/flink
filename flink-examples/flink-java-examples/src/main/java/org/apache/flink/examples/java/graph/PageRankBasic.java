@@ -18,7 +18,7 @@
 
 package org.apache.flink.examples.java.graph;
 
-import static org.apache.flink.api.java.aggregation.Aggregations.SUM;
+import static org.apache.flink.api.java.aggregation.deprecated.Aggregations.SUM;
 
 import java.util.ArrayList;
 

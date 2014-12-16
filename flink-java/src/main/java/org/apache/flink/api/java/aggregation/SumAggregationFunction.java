@@ -18,174 +18,109 @@
 
 package org.apache.flink.api.java.aggregation;
 
+import java.io.Serializable;
 
-public abstract class SumAggregationFunction<T> extends AggregationFunction<T> {
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+
+/**
+ * Sum aggregation function.
+ * 
+ * <p><b>Note: The input type must be set using {@link setInputType}
+ * before this aggregation function can be used.</b>
+ * 
+ * @param <T> The input and output type. Must extend {@link Number}.
+ */
+public class SumAggregationFunction<T extends Number> extends InputTypeAggregationFunction<T> implements Serializable {
+	private static final long serialVersionUID = -4610234679407339317L;
 	
-	private static final long serialVersionUID = 1L;
+	private DelegatedSumAggregationFunction<T> delegate;
+
+	public SumAggregationFunction(int field) {
+		super("sum", field);
+	}
+	
+	@SuppressWarnings("unchecked")
+	@Override
+	public void setInputType(BasicTypeInfo<T> inputType) {
+		super.setInputType(inputType);
+		if (inputType.getTypeClass() == Long.class) {
+			delegate = (DelegatedSumAggregationFunction<T>) new LongSumAggregationFunction();
+		} else if (inputType.getTypeClass() == Integer.class) {
+			delegate = (DelegatedSumAggregationFunction<T>) new IntegerSumAggregationFunction();
+		} else if (inputType.getTypeClass() == Double.class) {
+			delegate = (DelegatedSumAggregationFunction<T>) new DoubleSumAggregationFunction();
+		} else if (inputType.getTypeClass() == Float.class) {
+			delegate = (DelegatedSumAggregationFunction<T>) new FloatSumAggregationFunction();
+		} else if (inputType.getTypeClass() == Short.class) {
+			delegate = (DelegatedSumAggregationFunction<T>) new ShortSumAggregationFunction();
+		} else if (inputType.getTypeClass() == Byte.class) {
+			delegate = (DelegatedSumAggregationFunction<T>) new ByteSumAggregationFunction();
+		} else {
+			throw new IllegalArgumentException("Unknown input type for sum aggregation function.");
+		}
+	}
+
+	private static interface DelegatedSumAggregationFunction<T extends Number> {
+		public T reduce(T lhs, T rhs);
+	}
+	
+	private static class LongSumAggregationFunction implements DelegatedSumAggregationFunction<Long>, Serializable {
+		private static final long serialVersionUID = 1047115816680232356L;
+		
+		@Override
+		public Long reduce(Long lhs, Long rhs) {
+			return lhs + rhs;
+		}
+	}
+
+	private static class IntegerSumAggregationFunction implements DelegatedSumAggregationFunction<Integer>, Serializable {
+		private static final long serialVersionUID = 8585263516508258383L;
+
+		@Override
+		public Integer reduce(Integer lhs, Integer rhs) {
+			return lhs + rhs;
+		}
+	}
+
+	private static class DoubleSumAggregationFunction implements DelegatedSumAggregationFunction<Double>, Serializable {
+		private static final long serialVersionUID = 7694204706135707202L;
+
+		@Override
+		public Double reduce(Double lhs, Double rhs) {
+			return lhs + rhs;
+		}
+	}
+
+	private static class FloatSumAggregationFunction implements DelegatedSumAggregationFunction<Float>, Serializable {
+		private static final long serialVersionUID = -556020226468154664L;
+
+		@Override
+		public Float reduce(Float lhs, Float rhs) {
+			return lhs + rhs;
+		}
+	}
+
+	private static class ByteSumAggregationFunction implements DelegatedSumAggregationFunction<Byte>, Serializable {
+		private static final long serialVersionUID = 1796225860081673684L;
+
+		@Override
+		public Byte reduce(Byte lhs, Byte rhs) {
+			return (byte) (lhs + rhs);
+		}
+	}
+
+	private static class ShortSumAggregationFunction implements DelegatedSumAggregationFunction<Short>, Serializable {
+		private static final long serialVersionUID = 4132230028758671602L;
+
+		@Override
+		public Short reduce(Short lhs, Short rhs) {
+			return (short) (lhs + rhs);
+		}
+	}
 
 	@Override
-	public String toString() {
-		return "SUM";
-	}
-	
-	// --------------------------------------------------------------------------------------------
-	
-	public static final class ByteSumAgg extends SumAggregationFunction<Byte> {
-		private static final long serialVersionUID = 1L;
-		
-		private long agg;
-
-		@Override
-		public void initializeAggregate() {
-			agg = 0;
-		}
-
-		@Override
-		public void aggregate(Byte value) {
-			agg += value;
-		}
-
-		@Override
-		public Byte getAggregate() {
-			return (byte) agg;
-		}
-	}
-	
-	public static final class ShortSumAgg extends SumAggregationFunction<Short> {
-		private static final long serialVersionUID = 1L;
-		
-		private long agg;
-
-		@Override
-		public void initializeAggregate() {
-			agg = 0;
-		}
-
-		@Override
-		public void aggregate(Short value) {
-			agg += value;
-		}
-
-		@Override
-		public Short getAggregate() {
-			return (short) agg;
-		}
-	}
-	
-	public static final class IntSumAgg extends SumAggregationFunction<Integer> {
-		private static final long serialVersionUID = 1L;
-		
-		private long agg;
-
-		@Override
-		public void initializeAggregate() {
-			agg = 0;
-		}
-
-		@Override
-		public void aggregate(Integer value) {
-			agg += value;
-		}
-
-		@Override
-		public Integer getAggregate() {
-			return (int) agg;
-		}
-	}
-	
-	public static final class LongSumAgg extends SumAggregationFunction<Long> {
-		private static final long serialVersionUID = 1L;
-		
-		private long agg;
-
-		@Override
-		public void initializeAggregate() {
-			agg = 0L;
-		}
-
-		@Override
-		public void aggregate(Long value) {
-			agg += value;
-		}
-
-		@Override
-		public Long getAggregate() {
-			return agg;
-		}
-	}
-	
-	public static final class FloatSumAgg extends SumAggregationFunction<Float> {
-		private static final long serialVersionUID = 1L;
-		
-		private float agg;
-
-		@Override
-		public void initializeAggregate() {
-			agg = 0.0f;
-		}
-
-		@Override
-		public void aggregate(Float value) {
-			agg += value;
-		}
-
-		@Override
-		public Float getAggregate() {
-			return agg;
-		}
-	}
-	
-	public static final class DoubleSumAgg extends SumAggregationFunction<Double> {
-		private static final long serialVersionUID = 1L;
-		
-		private double agg;
-
-		@Override
-		public void initializeAggregate() {
-			agg = 0.0;
-		}
-
-		@Override
-		public void aggregate(Double value) {
-			agg += value;
-		}
-
-		@Override
-		public Double getAggregate() {
-			return agg;
-		}
-	}
-	
-	// --------------------------------------------------------------------------------------------
-	
-	public static final class SumAggregationFunctionFactory implements AggregationFunctionFactory {
-		private static final long serialVersionUID = 1L;
-		
-		@SuppressWarnings("unchecked")
-		@Override
-		public <T> AggregationFunction<T> createAggregationFunction(Class<T> type) {
-			if (type == Long.class) {
-				return (AggregationFunction<T>) new LongSumAgg();
-			}
-			else if (type == Integer.class) {
-				return (AggregationFunction<T>) new IntSumAgg();
-			}
-			else if (type == Double.class) {
-				return (AggregationFunction<T>) new DoubleSumAgg();
-			}
-			else if (type == Float.class) {
-				return (AggregationFunction<T>) new FloatSumAgg();
-			}
-			else if (type == Byte.class) {
-				return (AggregationFunction<T>) new ByteSumAgg();
-			}
-			else if (type == Short.class) {
-				return (AggregationFunction<T>) new ShortSumAgg();
-			}
-			else {
-				throw new UnsupportedAggregationTypeException("The type " + type.getName() + 
-					" has currently not supported for built-in sum aggregations.");
-			}
-		}
+	public T reduce(T value1, T value2) {
+		T result = delegate.reduce(value1, value2);
+		return result;
 	}
 }

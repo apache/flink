@@ -18,52 +18,22 @@
 
 package org.apache.flink.api.java.aggregation;
 
+/**
+ * Min aggregation function.
+ * 
+ * @param <T> The input and output type. Must extend {@link Number}.
+ */
+public class MinAggregationFunction<T extends Comparable<T>> extends InputTypeAggregationFunction<T> {
+	private static final long serialVersionUID = -1587835317837938137L;
 
-public class MinAggregationFunction<T extends Comparable<T>> extends AggregationFunction<T> {
-	private static final long serialVersionUID = 1L;
-
-	private T value;
-
-	@Override
-	public void initializeAggregate() {
-		value = null;
-	}
-
-	@Override
-	public void aggregate(T val) {
-		if (value != null) {
-			int cmp = value.compareTo(val);
-			value = (cmp < 0) ? value : val;
-		} else {
-			value = val;
-		}
-	}
-
-	@Override
-	public T getAggregate() {
-		return value;
+	public MinAggregationFunction(int field) {
+		super("min", field);
 	}
 	
 	@Override
-	public String toString() {
-		return "MIN";
+	public T reduce(T value1, T value2) {
+		T min = value1.compareTo(value2) <= 0 ? value1 : value2;
+		return min;
 	}
-	
-	// --------------------------------------------------------------------------------------------
-	
-	public static final class MinAggregationFunctionFactory implements AggregationFunctionFactory {
-		private static final long serialVersionUID = 1L;
-		
-		@SuppressWarnings({ "unchecked", "rawtypes" })
-		@Override
-		public <T> AggregationFunction<T> createAggregationFunction(Class<T> type) {
-			if (Comparable.class.isAssignableFrom(type)) {
-				return (AggregationFunction<T>) new MinAggregationFunction();
-			} else {
-				throw new UnsupportedAggregationTypeException("The type " + type.getName() + 
-					" is not supported for minimum aggregation. " +
-					"Minimum aggregatable types must implement the Comparable interface.");
-			}
-		}
-	}
+
 }

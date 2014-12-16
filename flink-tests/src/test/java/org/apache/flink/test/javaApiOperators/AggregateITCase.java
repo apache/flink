@@ -18,12 +18,20 @@
 
 package org.apache.flink.test.javaApiOperators;
 
+import static org.apache.flink.api.java.aggregation.Aggregations.key;
+import static org.apache.flink.api.java.aggregation.Aggregations.max;
+import static org.apache.flink.api.java.aggregation.Aggregations.average;
+import static org.apache.flink.api.java.aggregation.Aggregations.count;
+import static org.apache.flink.api.java.aggregation.Aggregations.min;
+import static org.apache.flink.api.java.aggregation.Aggregations.sum;
+
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.LinkedList;
 
-import org.apache.flink.api.java.aggregation.Aggregations;
+import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -33,8 +41,6 @@ import org.apache.flink.test.util.JavaProgramTestBase;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
 
 @RunWith(Parameterized.class)
 public class AggregateITCase extends JavaProgramTestBase {
@@ -92,15 +98,13 @@ public class AggregateITCase extends JavaProgramTestBase {
 				
 				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 				DataSet<Tuple2<Integer, Long>> aggregateDs = ds
-						.aggregate(Aggregations.SUM, 0)
-						.and(Aggregations.MAX, 1)
-						.project(0, 1);
+						.aggregate(count(), sum(0), min(0), max(0), average(0), sum(1), min(1), max(1), average(1), min(2), max(2));
 				
 				aggregateDs.writeAsCsv(resultPath);
 				env.execute();
 				
 				// return expected result
-				return "231,6\n";
+				return "21,231,1,21,11.0,91,1,6,4.333333333333333,Comment#1,Luke Skywalker\n";
 			}
 			case 2: {
 				/*
@@ -111,19 +115,18 @@ public class AggregateITCase extends JavaProgramTestBase {
 				
 				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 				DataSet<Tuple2<Long, Integer>> aggregateDs = ds.groupBy(1)
-						.aggregate(Aggregations.SUM, 0)
-						.project(1, 0);
+						.aggregate(key(1), count(), sum(0), min(0), max(0), average(0), min(2), max(2));
 				
 				aggregateDs.writeAsCsv(resultPath);
 				env.execute();
 				
 				// return expected result
-				return "1,1\n" +
-				"2,5\n" +
-				"3,15\n" +
-				"4,34\n" +
-				"5,65\n" +
-				"6,111\n";
+				return "1,1,1,1,1,1.0,Hi,Hi\n" +
+				"2,2,5,2,3,2.5,Hello,Hello world\n" +
+				"3,3,15,4,6,5.0,Hello world, how are you?,Luke Skywalker\n" +
+				"4,4,34,7,10,8.5,Comment#1,Comment#4\n" +
+				"5,5,65,11,15,13.0,Comment#5,Comment#9\n" +
+				"6,6,111,16,21,18.5,Comment#10,Comment#15\n";
 			} 
 			case 3: {
 				/*
@@ -134,15 +137,14 @@ public class AggregateITCase extends JavaProgramTestBase {
 				
 				DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
 				DataSet<Tuple1<Integer>> aggregateDs = ds.groupBy(1)
-						.aggregate(Aggregations.MIN, 0)
-						.aggregate(Aggregations.MIN, 0)
-						.project(0);
+						.aggregate(count(), min(0), max(0), sum(0), average(0))
+						.aggregate(sum(0), sum(1), sum(2), sum(3), sum(4));
 				
 				aggregateDs.writeAsCsv(resultPath);
 				env.execute();
 				
 				// return expected result
-				return "1\n";
+				return "21,41,56,231,48.5\n";
 			}
 			default: 
 				throw new IllegalArgumentException("Invalid program id");

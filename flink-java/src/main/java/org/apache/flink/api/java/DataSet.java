@@ -29,10 +29,13 @@ import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.io.OutputFormat;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase.PartitionMethod;
-import org.apache.flink.api.java.aggregation.Aggregations;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.aggregation.AggregationFunction;
+import org.apache.flink.api.java.aggregation.AggregationOperatorFactory;
+import org.apache.flink.api.java.aggregation.deprecated.Aggregations;
+import org.apache.flink.api.java.functions.FirstReducer;
 import org.apache.flink.api.java.functions.FormattingMapper;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.functions.SelectByMaxFunction;
@@ -42,6 +45,7 @@ import org.apache.flink.api.java.io.PrintingOutputFormat;
 import org.apache.flink.api.java.io.TextOutputFormat;
 import org.apache.flink.api.java.io.TextOutputFormat.TextFormatter;
 import org.apache.flink.api.java.operators.AggregateOperator;
+import org.apache.flink.api.java.operators.AggregationOperator;
 import org.apache.flink.api.java.operators.CoGroupOperator;
 import org.apache.flink.api.java.operators.CoGroupOperator.CoGroupOperatorSets;
 import org.apache.flink.api.java.operators.CrossOperator;
@@ -93,6 +97,7 @@ public abstract class DataSet<T> {
 	
 	private final TypeInformation<T> type;
 	
+	private AggregationOperatorFactory aggregationOperatorFactory = AggregationOperatorFactory.getInstance();
 	
 	protected DataSet(ExecutionEnvironment context, TypeInformation<T> type) {
 		if (context == null) {
@@ -269,10 +274,37 @@ public abstract class DataSet<T> {
 	 * @see AggregateOperator
 	 * @see DataSet
 	 */
+	@Deprecated
 	public AggregateOperator<T> aggregate(Aggregations agg, int field) {
 		return new AggregateOperator<T>(this, agg, field, Utils.getCallLocationName());
 	}
 
+	/**
+	 * Applies a list of aggregation transformations on a non-grouped
+	 * {@link Tuple} {@link DataSet}.
+	 *
+	 * <p><b>Note: Only Tuple DataSets can be aggregated.</b>
+	 *
+	 * <p>The transformation applies each aggregation function listed in
+	 * {@code functions} on the Tuple field specified in the respective
+	 * function. Multiple aggregation functions on the same or a different
+	 * field can be specified. Convenience functions to construct
+	 * aggregation functions are listed in {@link Aggregations}. The
+	 * result is a {@code n}-Tuple where {@code n} is the number of
+	 * aggregation functions.
+	 *
+	 * @param functions	A non-empty list of Aggregation functions.
+	 * @return An {@link AggregationOperator} that represents the aggregated DataSet.
+	 *
+	 * @See Tuple
+	 * @See Aggregations
+	 * @See AggregationOperator
+	 */
+	public <R extends Tuple> AggregationOperator<T, R> aggregate(AggregationFunction<?, ?>... functions) {
+		AggregationOperator<T, R> aggregationOperator = getAggregationOperatorFactory().aggregate(this, functions);
+		return aggregationOperator;
+	}
+	
 	/**
 	 * Syntactic sugar for aggregate (SUM, field)
 	 * @param field The index of the Tuple field on which the aggregation function is applied.
@@ -280,7 +312,8 @@ public abstract class DataSet<T> {
 	 *
 	 * @see org.apache.flink.api.java.operators.AggregateOperator
 	 */
-	public AggregateOperator<T> sum (int field) {
+	@Deprecated
+	public AggregateOperator<T> sum(int field) {
 		return this.aggregate (Aggregations.SUM, field);
 	}
 
@@ -297,8 +330,9 @@ public abstract class DataSet<T> {
 	 * @see #aggregate(Aggregations, int)
 	 * @see #maxBy(int...)
 	 */
+	@Deprecated
 	public AggregateOperator<T> max(int field) {
-		return aggregate(Aggregations.MAX, field);
+		return aggregate (Aggregations.MAX, field);
 	}
 
 	/**
@@ -314,8 +348,9 @@ public abstract class DataSet<T> {
 	 * @see #aggregate(Aggregations, int)
 	 * @see #minBy(int...)
 	 */
+	@Deprecated
 	public AggregateOperator<T> min(int field) {
-		return aggregate(Aggregations.MIN, field);
+		return aggregate (Aggregations.MIN, field);
 	}
 	
 	/**
@@ -1268,6 +1303,14 @@ public abstract class DataSet<T> {
 		if (set1.context != set2.context) {
 			throw new IllegalArgumentException("The two inputs have different execution contexts.");
 		}
+	}
+
+	AggregationOperatorFactory getAggregationOperatorFactory() {
+		return aggregationOperatorFactory;
+	}
+
+	void setAggregationOperatorFactory(AggregationOperatorFactory aggregationOperatorFactory) {
+		this.aggregationOperatorFactory = aggregationOperatorFactory;
 	}
 
 }

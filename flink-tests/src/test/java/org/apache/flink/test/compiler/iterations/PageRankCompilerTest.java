@@ -19,7 +19,7 @@
 
 package org.apache.flink.test.compiler.iterations;
 
-import static org.apache.flink.api.java.aggregation.Aggregations.SUM;
+import static org.apache.flink.api.java.aggregation.deprecated.Aggregations.SUM;
 import static org.junit.Assert.fail;
 
 import org.apache.flink.api.common.Plan;
