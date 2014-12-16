@@ -20,7 +20,7 @@ package org.apache.flink.api.scala
 import java.util.UUID
 
 import org.apache.commons.lang3.Validate
-import org.apache.flink.api.common.JobExecutionResult
+import org.apache.flink.api.common.{ExecutionConfig, JobExecutionResult}
 import org.apache.flink.api.java.io._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
@@ -28,7 +28,8 @@ import org.apache.flink.api.java.typeutils.{ValueTypeInfo, TupleTypeInfoBase}
 import org.apache.flink.api.scala.operators.ScalaCsvInputFormat
 import org.apache.flink.core.fs.Path
 
-import org.apache.flink.api.java.{ExecutionEnvironment => JavaEnv, CollectionEnvironment}
+import org.apache.flink.api.java.{ExecutionEnvironment => JavaEnv,
+CollectionEnvironment}
 import org.apache.flink.api.common.io.{InputFormat, FileInputFormat}
 
 import org.apache.flink.api.java.operators.DataSource
@@ -59,6 +60,19 @@ import scala.reflect.ClassTag
  *  be created.
  */
 class ExecutionEnvironment(javaEnv: JavaEnv) {
+  /**
+   * Sets the config object.
+   */
+  def setConfig(config: ExecutionConfig): Unit = {
+    javaEnv.setConfig(config)
+  }
+
+  /**
+   * Gets the config object.
+   */
+  def getConfig: ExecutionConfig = {
+    javaEnv.getConfig
+  }
 
   /**
    * Sets the degree of parallelism (DOP) for operations executed through this environment.

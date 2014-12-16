@@ -149,7 +149,7 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 			keys1.validateCustomPartitioner(partitioner, null);
 			keys2.validateCustomPartitioner(partitioner, null);
 		}
-		this.customPartitioner = partitioner;
+		this.customPartitioner = getInput1().clean(partitioner);
 		return this;
 	}
 	
@@ -590,7 +590,7 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 						keys1.validateCustomPartitioner(partitioner, null);
 						keys2.validateCustomPartitioner(partitioner, null);
 					}
-					this.customPartitioner = partitioner;
+					this.customPartitioner = input1.clean(partitioner);
 					return this;
 				}
 				
@@ -619,7 +619,7 @@ public class CoGroupOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OU
 					}
 					TypeInformation<R> returnType = TypeExtractor.getCoGroupReturnTypes(function, input1.getType(), input2.getType());
 					
-					return new CoGroupOperator<I1, I2, R>(input1, input2, keys1, keys2, function, returnType,
+					return new CoGroupOperator<I1, I2, R>(input1, input2, keys1, keys2, input1.clean(function), returnType,
 							groupSortKeyOrderFirst, groupSortKeyOrderSecond,
 							customPartitioner, Utils.getCallLocationName());
 				}
