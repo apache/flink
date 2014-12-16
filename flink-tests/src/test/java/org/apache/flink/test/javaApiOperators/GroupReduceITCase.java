@@ -53,7 +53,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 @RunWith(Parameterized.class)
 public class GroupReduceITCase extends JavaProgramTestBase {
 	
-	private static int NUM_PROGRAMS = 26;
+	private static int NUM_PROGRAMS = 28;
 	
 	private int curProgId = config.getInteger("ProgramId", -1);
 	private String resultPath;
@@ -763,7 +763,74 @@ public class GroupReduceITCase extends JavaProgramTestBase {
 					// return expected result
 					return "b\nccc\nee\n";
 				}
-				
+
+				case 27: {
+					/*
+					 * Test Java collections within pojos ( == test kryo)
+					 */
+					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+					env.setDegreeOfParallelism(1);
+
+					DataSet<CollectionDataSets.PojoWithCollection> ds = CollectionDataSets.getPojoWithCollection(env);
+					// f0.f0 is first integer
+					DataSet<String> reduceDs = ds.groupBy("key")
+							.reduceGroup(new GroupReduceFunction<CollectionDataSets.PojoWithCollection, String>() {
+								@Override
+								public void reduce(
+										Iterable<CollectionDataSets.PojoWithCollection> values,
+										Collector<String> out) throws Exception {
+									StringBuilder concat = new StringBuilder();
+									concat.append("call");
+									for(CollectionDataSets.PojoWithCollection value : values) {
+										concat.append("For key "+value.key+" we got: ");
+										for(CollectionDataSets.Pojo1 p :value.pojos) {
+											concat.append("pojo.a="+p.a);
+										}
+									}
+									out.collect(concat.toString());
+								}
+							});
+					reduceDs.writeAsText(resultPath);
+					env.execute();
+
+					// return expected result
+					return "callFor key 0 we got: pojo.a=apojo.a=bFor key 0 we got: pojo.a=a2pojo.a=b2\n";
+				}
+
+				case 28: {
+					/*
+					 * Group by generic type
+					 */
+					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+					env.setDegreeOfParallelism(1);
+
+					DataSet<CollectionDataSets.PojoWithCollection> ds = CollectionDataSets.getPojoWithCollection(env);
+					// f0.f0 is first integer
+					DataSet<String> reduceDs = ds.groupBy("bigInt")
+							.reduceGroup(new GroupReduceFunction<CollectionDataSets.PojoWithCollection, String>() {
+								@Override
+								public void reduce(
+										Iterable<CollectionDataSets.PojoWithCollection> values,
+										Collector<String> out) throws Exception {
+									StringBuilder concat = new StringBuilder();
+									concat.append("call");
+									for(CollectionDataSets.PojoWithCollection value : values) {
+										concat.append("\nFor key "+value.bigInt+" we got:\n"+value);
+									}
+									out.collect(concat.toString());
+								}
+							});
+					reduceDs.writeAsText(resultPath);
+					env.execute();
+
+					// return expected result
+					return "call\n" +
+							"For key 92233720368547758070 we got:\n" +
+							"PojoWithCollection{pojos.size()=2, key=0, sqlDate=2033-05-18, bigInt=92233720368547758070, bigDecimalKeepItNull=null, scalaBigInt=10, mixed=[{someKey=1}, /this/is/wrong, uhlala]}\n" +
+							"For key 92233720368547758070 we got:\n" +
+							"PojoWithCollection{pojos.size()=2, key=0, sqlDate=1976-05-03, bigInt=92233720368547758070, bigDecimalKeepItNull=null, scalaBigInt=31104000, mixed=null}\n";
+				}
+
 				default: {
 					throw new IllegalArgumentException("Invalid program id");
 				}
