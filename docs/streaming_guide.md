@@ -505,7 +505,7 @@ Every output will be emitted to the selected outputs exactly once, even if you a
 
 ### Iterations
 The Flink Streaming API supports implementing iterative stream processing dataflows similarly to the core Flink API. Iterative streaming programs also implement a step function and embed it into an `IterativeDataStream`.
-Unlike in the core API the user does not define the maximum number of iterations, but at the tail of each iteration the output is both streamed forward to the next operator and also streamed back to the iteration head. The user controls the output of the iteration tail using [output splitting](#output-splitting).
+Unlike in the core API the user does not define the maximum number of iterations, but at the tail of each iteration part of the output is streamed forward to the next operator and part is streamed back to the iteration head. The user controls the output of the iteration tail using [output splitting](#output-splitting).
 To start an iterative part of the program the user defines the iteration starting point:
 
 ~~~java
@@ -517,20 +517,18 @@ The operator applied on the iteration starting point is the head of the iteratio
 DataStream<Integer> head = iteration.map(new IterationHead());
 ~~~
 
-To close an iteration and define the iteration tail, the user calls `.closeWith(tail)` method of the `IterativeDataStream`:
+To close an iteration and define the iteration tail, the user calls `.closeWith(iterationTail)` method of the `IterativeDataStream`.
+
+A common pattern is to use output splitting:
 
 ~~~java
-DataStream<Integer> tail = head.map(new IterationTail());
-iteration.closeWith(tail);
-~~~
-Or to use with output splitting:
-
-~~~java
-SplitDataStream<Integer> tail = head.map(new IterationTail()).split(outputSelector);
-iteration.closeWith(tail.select("iterate"));
+SplitDataStream<..> tailOperator = head.map(new IterationTail()).split(outputSelector);
+iteration.closeWith(tailOperator.select("iterate"));
 ~~~ 
 
-Because iterative streaming programs do not have a set number of iteratons for each data element, the streaming program has no information on the end of its input. From this it follows that iterative streaming programs run until the user manually stops the program. While this is acceptable under normal circumstances a method is provided to allow iterative programs to shut down automatically if no input received by the iteration head for a predefined number of milliseconds.
+In these case all output directed to the “iterate” edge would be fed back to the iteration head.
+
+Because iterative streaming programs do not have a set number of iterations for each data element, the streaming program has no information on the end of its input. From this it follows that iterative streaming programs run until the user manually stops the program. While this is acceptable under normal circumstances a method is provided to allow iterative programs to shut down automatically if no input received by the iteration head for a predefined number of milliseconds.
 To use this function the user needs to call, the `iteration.setMaxWaitTime(millis)` to control the max wait time. 
 
 ### Rich functions

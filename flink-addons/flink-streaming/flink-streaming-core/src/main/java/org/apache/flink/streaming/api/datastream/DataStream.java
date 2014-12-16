@@ -345,24 +345,24 @@ public class DataStream<OUT> {
 	}
 
 	/**
-	 * Initiates an iterative part of the program that executes multiple times
-	 * and feeds back data streams. The iterative part needs to be closed by
-	 * calling {@link IterativeDataStream#closeWith(DataStream)}. The
-	 * transformation of this IterativeDataStream will be the iteration head.
-	 * The data stream given to the {@code closeWith(DataStream)} method is the
-	 * data stream that will be fed back and used as the input for the iteration
-	 * head. Unlike in batch processing by default the output of the iteration
-	 * stream is directed to both to the iteration head and the next component.
-	 * To direct tuples to the iteration head or the output specifically one can
-	 * use the {@code split(OutputSelector)} on the iteration tail while
-	 * referencing the iteration head as 'iterate'.
+	 * Initiates an iterative part of the program that feeds back data streams.
+	 * The iterative part needs to be closed by calling
+	 * {@link IterativeDataStream#closeWith(DataStream)}. The transformation of
+	 * this IterativeDataStream will be the iteration head. The data stream
+	 * given to the {@link IterativeDataStream#closeWith(DataStream)} method is
+	 * the data stream that will be fed back and used as the input for the
+	 * iteration head. A common usage pattern for streaming iterations is to use
+	 * output splitting to send a part of the closing data stream to the head.
+	 * Refer to {@link SingleOutputStreamOperator#split(OutputSelector)} for
+	 * more information.
 	 * <p>
 	 * The iteration edge will be partitioned the same way as the first input of
 	 * the iteration head.
 	 * <p>
 	 * By default a DataStream with iteration will never terminate, but the user
 	 * can use the {@link IterativeDataStream#setMaxWaitTime} call to set a max
-	 * waiting time for the iteration.
+	 * waiting time for the iteration head. If no data received in the set time,
+	 * the stream terminates.
 	 * 
 	 * @return The iterative data stream created.
 	 */
@@ -1118,7 +1118,7 @@ public class DataStream<OUT> {
 		return returnStream;
 	}
 
-	protected <R> DataStream<OUT> addIterationSource(String iterationID, long waitTime) {
+	protected <R> DataStream<OUT> addIterationSource(Integer iterationID, long waitTime) {
 
 		DataStream<R> returnStream = new DataStreamSource<R>(environment, "iterationSource", null);
 
@@ -1162,8 +1162,7 @@ public class DataStream<OUT> {
 
 		if (inputStream instanceof IterativeDataStream) {
 			IterativeDataStream<OUT> iterativeStream = (IterativeDataStream<OUT>) inputStream;
-			returnStream.addIterationSource(iterativeStream.iterationID.toString(),
-					iterativeStream.waitTime);
+			returnStream.addIterationSource(iterativeStream.iterationID, iterativeStream.waitTime);
 		}
 
 		return returnStream;

@@ -228,12 +228,12 @@ public class StreamConfig {
 		}
 	}
 
-	public void setIterationId(String iterationId) {
-		config.setString(ITERATION_ID, iterationId);
+	public void setIterationId(Integer iterationId) {
+		config.setInteger(ITERATION_ID, iterationId);
 	}
 
-	public String getIterationId() {
-		return config.getString(ITERATION_ID, "iteration-0");
+	public Integer getIterationId() {
+		return config.getInteger(ITERATION_ID, 0);
 	}
 
 	public void setIterationWaitTime(long time) {
