@@ -92,7 +92,7 @@ public class SortedGrouping<T> extends Grouping<T> {
 		super(set, keys);
 
 		if (!(this.keys instanceof Keys.SelectorFunctionKeys)) {
-			throw new InvalidProgramException("Sorting on KeySelector only works for KeySelector grouping.");
+			throw new InvalidProgramException("Sorting on KeySelector keys only works with KeySelector grouping.");
 		}
 
 		this.groupSortKeyPositions = keySelector.computeLogicalKeyPositions();

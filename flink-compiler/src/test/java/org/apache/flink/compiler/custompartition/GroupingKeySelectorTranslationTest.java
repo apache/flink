@@ -115,41 +115,8 @@ public class GroupingKeySelectorTranslationTest extends CompilerTestBase {
 			
 			data.groupBy(new TestKeySelector<Tuple3<Integer,Integer,Integer>>())
 				.withPartitioner(new TestPartitionerInt())
-				.sortGroup(1, Order.ASCENDING)
+				.sortGroup(new TestKeySelector<Tuple3<Integer, Integer, Integer>>(), Order.ASCENDING)
 				.reduceGroup(new IdentityGroupReducer<Tuple3<Integer,Integer,Integer>>())
-				.print();
-			
-			Plan p = env.createProgramPlan();
-			OptimizedPlan op = compileNoStats(p);
-			
-			SinkPlanNode sink = op.getDataSinks().iterator().next();
-			SingleInputPlanNode reducer = (SingleInputPlanNode) sink.getInput().getSource();
-			SingleInputPlanNode combiner = (SingleInputPlanNode) reducer.getInput().getSource();
-			
-			assertEquals(ShipStrategyType.FORWARD, sink.getInput().getShipStrategy());
-			assertEquals(ShipStrategyType.PARTITION_CUSTOM, reducer.getInput().getShipStrategy());
-			assertEquals(ShipStrategyType.FORWARD, combiner.getInput().getShipStrategy());
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-	
-	@Test
-	public void testCustomPartitioningKeySelectorGroupReduceSorted2() {
-		try {
-			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			
-			DataSet<Tuple4<Integer,Integer,Integer, Integer>> data = env.fromElements(new Tuple4<Integer,Integer,Integer,Integer>(0, 0, 0, 0))
-					.rebalance().setParallelism(4);
-			
-			data
-				.groupBy(new TestKeySelector<Tuple4<Integer,Integer,Integer,Integer>>())
-				.withPartitioner(new TestPartitionerInt())
-				.sortGroup(1, Order.ASCENDING)
-				.sortGroup(2, Order.DESCENDING)
-				.reduceGroup(new IdentityGroupReducer<Tuple4<Integer,Integer,Integer,Integer>>())
 				.print();
 			
 			Plan p = env.createProgramPlan();

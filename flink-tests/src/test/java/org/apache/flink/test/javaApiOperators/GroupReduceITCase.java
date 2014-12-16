@@ -835,7 +835,6 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 				.reduceGroup(new Tuple3SortedGroupReduceWithCombine());
 
 		reduceDs.writeAsCsv(resultPath);
-		reduceDs.print();
 		env.execute();
 
 		// return expected result
@@ -1302,7 +1301,6 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
 		public void combine(Iterable<Tuple3<Integer, Long, String>> values, Collector<Tuple3<Integer, Long, String>> out) {
 			int sum = 0;
 			long key = 0;
-			System.out.println("im in");
 			StringBuilder concat = new StringBuilder();
 
 			for (Tuple3<Integer, Long, String> next : values) {

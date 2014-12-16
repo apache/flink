@@ -231,6 +231,10 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	 * @see Order
 	 */
 	public SortedGrouping<T> sortGroup(int field, Order order) {
+		if (this.getKeys() instanceof Keys.SelectorFunctionKeys) {
+			throw new InvalidProgramException("KeySelector grouping keys and field index group-sorting keys cannot be used together.");
+		}
+
 		SortedGrouping<T> sg = new SortedGrouping<T>(this.dataSet, this.keys, field, order);
 		sg.customPartitioner = getCustomPartitioner();
 		return sg;
@@ -248,6 +252,10 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	 * @see Order
 	 */
 	public SortedGrouping<T> sortGroup(String field, Order order) {
+		if (this.getKeys() instanceof Keys.SelectorFunctionKeys) {
+			throw new InvalidProgramException("KeySelector grouping keys and field expression group-sorting keys cannot be used together.");
+		}
+
 		SortedGrouping<T> sg = new SortedGrouping<T>(this.dataSet, this.keys, field, order);
 		sg.customPartitioner = getCustomPartitioner();
 		return sg;
@@ -256,7 +264,6 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	/**
 	 * Sorts elements within a group on a key extracted by the specified {@link org.apache.flink.api.java.functions.KeySelector}
 	 * in the specified {@link Order}.</br>
-	 * <b>Note: Only groups of Tuple elements and Pojos can be sorted.</b><br/>
 	 * Chaining {@link #sortGroup(KeySelector, Order)} calls is not supported.
 	 *
 	 * @param keySelector The KeySelector with which the group is sorted.
@@ -266,8 +273,14 @@ public class UnsortedGrouping<T> extends Grouping<T> {
 	 * @see Order
 	 */
 	public <K> SortedGrouping<T> sortGroup(KeySelector<T, K> keySelector, Order order) {
+		if (!(this.getKeys() instanceof Keys.SelectorFunctionKeys)) {
+			throw new InvalidProgramException("KeySelector group-sorting keys can only be used with KeySelector grouping keys.");
+		}
+
 		TypeInformation<K> keyType = TypeExtractor.getKeySelectorTypes(keySelector, this.dataSet.getType());
-		return new SortedGrouping<T>(this.dataSet, this.keys, new Keys.SelectorFunctionKeys<T, K>(keySelector, this.dataSet.getType(), keyType), order);
+		SortedGrouping<T> sg = new SortedGrouping<T>(this.dataSet, this.keys, new Keys.SelectorFunctionKeys<T, K>(keySelector, this.dataSet.getType(), keyType), order);
+		sg.customPartitioner = getCustomPartitioner();
+		return sg;
 	}
 	
 }

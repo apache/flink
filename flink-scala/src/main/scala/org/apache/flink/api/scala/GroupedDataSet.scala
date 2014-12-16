@@ -67,6 +67,10 @@ class GroupedDataSet[T: ClassTag](
     if (field >= set.getType.getArity) {
       throw new IllegalArgumentException("Order key out of tuple bounds.")
     }
+    if (keys.isInstanceOf[Keys.SelectorFunctionKeys[_, _]]) {
+      throw new InvalidProgramException("KeySelector grouping keys and field index group-sorting " +
+        "keys cannot be used together.")
+    }
     if (groupSortKeySelector.nonEmpty) {
       throw new InvalidProgramException("Chaining sortGroup with KeySelector sorting is not " +
         "supported.")
@@ -87,6 +91,10 @@ class GroupedDataSet[T: ClassTag](
       throw new InvalidProgramException("Chaining sortGroup with KeySelector sorting is not" +
         "supported.")
     }
+    if (keys.isInstanceOf[Keys.SelectorFunctionKeys[_, _]]) {
+      throw new InvalidProgramException("KeySelector grouping keys and field expression " +
+        "group-sorting keys cannot be used together.")
+    }
     groupSortKeyPositions += Right(field)
     groupSortOrders += order
     this
@@ -102,6 +110,10 @@ class GroupedDataSet[T: ClassTag](
     if (groupSortOrders.length != 0) {
       throw new InvalidProgramException("Chaining sortGroup with KeySelector sorting is not" +
         "supported.")
+    }
+    if (!keys.isInstanceOf[Keys.SelectorFunctionKeys[_, _]]) {
+      throw new InvalidProgramException("Sorting on KeySelector keys only works with KeySelector " +
+        "grouping.")
     }
 
     groupSortOrders += order
@@ -121,7 +133,12 @@ class GroupedDataSet[T: ClassTag](
   private def maybeCreateSortedGrouping(): Grouping[T] = {
     groupSortKeySelector match {
       case Some(keySelector) =>
-        new SortedGrouping[T](set.javaSet, keys, keySelector, groupSortOrders(0))
+        if (partitioner == null) {
+          new SortedGrouping[T](set.javaSet, keys, keySelector, groupSortOrders(0))
+        } else {
+          new SortedGrouping[T](set.javaSet, keys, keySelector, groupSortOrders(0))
+            .withPartitioner(partitioner)
+        }
       case None =>
         if (groupSortKeyPositions.length > 0) {
           val grouping = groupSortKeyPositions(0) match {
