@@ -21,10 +21,12 @@ package org.apache.flink.api.common;
 import java.io.Serializable;
 
 /**
- * A configuration config for configuring behaviour of the system, such as whether to use
+ * A configuration config for configuring behavior of the system, such as whether to use
  * the closure cleaner, object-reuse mode...
  */
 public class ExecutionConfig implements Serializable {
+	
+	private static final long serialVersionUID = 1L;
 
 	// Key for storing it in the Job Configuration
 	public static final String CONFIG_KEY = "runtime.config";

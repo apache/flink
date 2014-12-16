@@ -56,7 +56,6 @@ under the License.
 		<dependency>
 			<groupId>org.ow2.asm</groupId>
 			<artifactId>asm</artifactId>
-			<version>4.0</version>
 		</dependency>
 		
 		<!--  guava needs to be in "provided" scope, to make sure it is not included into the jars by the shading -->

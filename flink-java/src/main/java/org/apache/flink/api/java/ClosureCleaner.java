@@ -46,14 +46,11 @@ public class ClosureCleaner {
 	public static void clean(Object func, boolean checkSerializable) {
 		Class<?> cls = func.getClass();
 
-		String this0Name = null;
-
 		// First find the field name of the "this$0" field, this can
 		// be "field$x" depending on the nesting
 		for (Field f: cls.getDeclaredFields()) {
 			if (f.getName().startsWith("this$")) {
 				// found our field:
-				this0Name = f.getName();
 				cleanThis0(func, cls, f.getName());
 			}
 		}
