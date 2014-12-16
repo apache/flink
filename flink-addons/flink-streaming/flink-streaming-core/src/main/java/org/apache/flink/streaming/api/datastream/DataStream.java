@@ -780,7 +780,7 @@ public class DataStream<OUT> {
 	}
 
 	/**
-	 * Writes a DataStream to the standard output stream (stdout). For each
+	 * Writes a DataStream to the standard output stream (stdout).<br> For each
 	 * element of the DataStream the result of {@link Object#toString()} is
 	 * written.
 	 * 
@@ -789,6 +789,21 @@ public class DataStream<OUT> {
 	public DataStreamSink<OUT> print() {
 		DataStream<OUT> inputStream = this.copy();
 		PrintSinkFunction<OUT> printFunction = new PrintSinkFunction<OUT>();
+		DataStreamSink<OUT> returnStream = addSink(inputStream, printFunction, getType());
+
+		return returnStream;
+	}
+	
+	/**
+	 * Writes a DataStream to the standard output stream (stderr).<br> For each
+	 * element of the DataStream the result of {@link Object#toString()} is
+	 * written.
+	 * 
+	 * @return The closed DataStream.
+	 */
+	public DataStreamSink<OUT> printToErr() {
+		DataStream<OUT> inputStream = this.copy();
+		PrintSinkFunction<OUT> printFunction = new PrintSinkFunction<OUT>(true);
 		DataStreamSink<OUT> returnStream = addSink(inputStream, printFunction, getType());
 
 		return returnStream;

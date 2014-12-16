@@ -34,7 +34,7 @@ import org.apache.flink.streaming.state.OperatorState;
  */
 public class StreamingRuntimeContext extends RuntimeUDFContext {
 
-	private Environment env;
+	public Environment env;
 	private final Map<String, OperatorState<?>> operatorStates;
 
 	public StreamingRuntimeContext(String name, Environment env, ClassLoader userCodeClassLoader,
