@@ -58,6 +58,12 @@ under the License.
 			<artifactId>asm</artifactId>
 		</dependency>
 		
+		<dependency>
+			<groupId>com.twitter</groupId>
+			<artifactId>chill_2.10</artifactId>
+			<version>0.5.1</version>
+		</dependency>
+
 		<!--  guava needs to be in "provided" scope, to make sure it is not included into the jars by the shading -->
 		<dependency>
 			<groupId>com.google.guava</groupId>

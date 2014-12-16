@@ -18,11 +18,17 @@
 
 package org.apache.flink.test.javaApiOperators.util;
 
+import java.io.File;
 import java.io.Serializable;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Hashtable;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -33,6 +39,7 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.hadoop.io.IntWritable;
+import scala.math.BigInt;
 
 /**
  * #######################################################################################################
@@ -496,6 +503,13 @@ public class CollectionDataSets {
 	public static class Pojo1 {
 		public String a;
 		public String b;
+
+		public Pojo1() {}
+
+		public Pojo1(String a, String b) {
+			this.a = a;
+			this.b = b;
+		}
 	}
 
 	public static class Pojo2 {
@@ -558,6 +572,69 @@ public class CollectionDataSets {
 		three.group = "b"; three.date = new Date(666); three.cat = Category.CAT_B;
 		data.add(three);
 		
+		return env.fromCollection(data);
+	}
+
+	public static class PojoWithCollection {
+		public List<Pojo1> pojos;
+		public int key;
+		public java.sql.Date sqlDate;
+		public BigInteger bigInt;
+		public BigDecimal bigDecimalKeepItNull;
+		public BigInt scalaBigInt;
+		public List<Object> mixed;
+
+		@Override
+		public String toString() {
+			return "PojoWithCollection{" +
+					"pojos.size()=" + pojos.size() +
+					", key=" + key +
+					", sqlDate=" + sqlDate +
+					", bigInt=" + bigInt +
+					", bigDecimalKeepItNull=" + bigDecimalKeepItNull +
+					", scalaBigInt=" + scalaBigInt +
+					", mixed=" + mixed +
+					'}';
+		}
+	}
+
+	public static DataSet<PojoWithCollection> getPojoWithCollection(ExecutionEnvironment env) {
+		List<PojoWithCollection> data = new ArrayList<PojoWithCollection>();
+
+		List<Pojo1> pojosList1 = new ArrayList<Pojo1>();
+		pojosList1.add(new Pojo1("a", "aa"));
+		pojosList1.add(new Pojo1("b", "bb"));
+
+		List<Pojo1> pojosList2 = new ArrayList<Pojo1>();
+		pojosList2.add(new Pojo1("a2", "aa2"));
+		pojosList2.add(new Pojo1("b2", "bb2"));
+
+		PojoWithCollection pwc1 = new PojoWithCollection();
+		pwc1.pojos = pojosList1;
+		pwc1.key = 0;
+		pwc1.bigInt = BigInteger.valueOf(Long.MAX_VALUE).multiply(BigInteger.TEN);
+		pwc1.scalaBigInt = BigInt.int2bigInt(10);
+		pwc1.bigDecimalKeepItNull = null;
+		pwc1.sqlDate = new java.sql.Date(2000000000000L); // 2033 ;)
+		pwc1.mixed = new ArrayList<Object>();
+		Map<String, Integer> map = new HashMap<String, Integer>();
+		map.put("someKey", 1); // map.put("anotherKey", 2); map.put("third", 3);
+		pwc1.mixed.add(map);
+		pwc1.mixed.add(new File("/this/is/wrong"));
+		pwc1.mixed.add("uhlala");
+
+		PojoWithCollection pwc2 = new PojoWithCollection();
+		pwc2.pojos = pojosList2;
+		pwc2.key = 0;
+		pwc2.bigInt = BigInteger.valueOf(Long.MAX_VALUE).multiply(BigInteger.TEN);
+		pwc2.scalaBigInt = BigInt.int2bigInt(31104000);
+		pwc2.bigDecimalKeepItNull = null;
+		pwc2.sqlDate = new java.sql.Date(200000000000L); // 1976
+
+
+		data.add(pwc1);
+		data.add(pwc2);
+
 		return env.fromCollection(data);
 	}
 
