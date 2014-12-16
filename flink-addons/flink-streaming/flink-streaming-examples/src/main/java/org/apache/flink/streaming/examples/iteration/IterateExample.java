@@ -68,7 +68,7 @@ public class IterateExample {
 		// obtain execution environment and set setBufferTimeout(0) to enable
 		// continuous flushing of the output buffers (lowest latency)
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment()
-				.setBufferTimeout(0);
+				.setBufferTimeout(1);
 
 		// create an iterative data stream from the input
 		IterativeDataStream<Tuple2<Double, Integer>> it = env.fromCollection(input).shuffle()
@@ -80,7 +80,7 @@ public class IterateExample {
 		// apply the step function to add new random value to the tuple and to
 		// increment the counter and split the output with the output selector
 		SplitDataStream<Tuple2<Double, Integer>> step = it.map(new Step()).shuffle()
-				.setBufferTimeout(1).split(new MySelector());
+				.split(new MySelector());
 
 		// close the iteration by selecting the tuples that were directed to the
 		// 'iterate' channel in the output selector

@@ -17,11 +17,6 @@
 
 package org.apache.flink.streaming.api.datastream;
 
-import java.util.Arrays;
-import java.util.List;
-
-import org.apache.flink.streaming.partitioner.DistributePartitioner;
-
 /**
  * The iterative data stream represents the start of an iteration in a
  * {@link DataStream}.
@@ -52,49 +47,27 @@ public class IterativeDataStream<IN> extends
 
 	/**
 	 * Closes the iteration. This method defines the end of the iterative
-	 * program part. By default the DataStream represented by the parameter will
-	 * be fed back to the iteration head, however the user can explicitly select
-	 * which tuples should be iterated by {@code directTo(OutputSelector)}.
-	 * Tuples directed to 'iterate' will be fed back to the iteration head.
+	 * program part that will be fed back to the start of the iteration. </br>
+	 * </br>A common usage pattern for streaming iterations is to use output
+	 * splitting to send a part of the closing data stream to the head. Refer to
+	 * {@link SingleOutputStreamOperator#split(OutputSelector)} for more
+	 * information.
+	 * 
 	 * 
 	 * @param iterationResult
-	 *            The data stream that can be fed back to the next iteration.
+	 *            The data stream that is fed back to the next iteration head.
+	 * @return Returns the stream that was fed back to the iteration. In most
+	 *         cases no further transformation are applied on this stream.
 	 * 
 	 */
-	public DataStream<IN> closeWith(DataStream<IN> iterationResult) {
-		return closeWith(iterationResult, "iterate");
-	}
+	public DataStream<IN> closeWith(DataStream<IN> iterationTail) {
+		DataStream<IN> iterationSink = new DataStreamSink<IN>(environment, "iterationSink", null);
 
-	/**
-	 * Closes the iteration. This method defines the end of the iterative
-	 * program part. By default the DataStream represented by the parameter will
-	 * be fed back to the iteration head, however the user can explicitly select
-	 * which tuples should be iterated by {@code directTo(OutputSelector)}.
-	 * Tuples directed to 'iterate' will be fed back to the iteration head.
-	 * 
-	 * @param iterationTail
-	 *            The data stream that can be fed back to the next iteration.
-	 * @param iterationName
-	 *            Name of the iteration edge (backward edge to iteration head)
-	 *            when used with directed emits
-	 * 
-	 */
-	public <R> DataStream<IN> closeWith(DataStream<IN> iterationTail, String iterationName) {
-		DataStream<R> returnStream = new DataStreamSink<R>(environment, "iterationSink", null);
-
-		jobGraphBuilder.addIterationTail(returnStream.getId(), iterationTail.getId(),
-				iterationID.toString(), iterationTail.getParallelism(), waitTime);
+		jobGraphBuilder.addIterationTail(iterationSink.getId(), iterationTail.getId(), iterationID,
+				iterationTail.getParallelism(), waitTime);
 
 		jobGraphBuilder.setIterationSourceSettings(iterationID.toString(), iterationTail.getId());
-
-		List<String> name = Arrays.asList(new String[] { iterationName });
-
-		for (DataStream<IN> stream : iterationTail.mergedStreams) {
-			String inputID = stream.getId();
-			jobGraphBuilder.setEdge(inputID, returnStream.getId(), new DistributePartitioner<IN>(
-					true), 0, name, false);
-		}
-
+		connectGraph(iterationTail, iterationSink.getId(), 0);
 		return iterationTail;
 	}
 

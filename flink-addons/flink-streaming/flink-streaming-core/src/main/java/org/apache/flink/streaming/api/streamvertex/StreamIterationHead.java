@@ -36,7 +36,7 @@ public class StreamIterationHead<OUT extends Tuple> extends StreamVertex<OUT,OUT
 	private OutputHandler<OUT> outputHandler;
 
 	private static int numSources;
-	private String iterationId;
+	private Integer iterationId;
 	@SuppressWarnings("rawtypes")
 	private BlockingQueue<StreamRecord> dataChannel;
 	private long iterationWaitTime;
@@ -58,7 +58,7 @@ public class StreamIterationHead<OUT extends Tuple> extends StreamVertex<OUT,OUT
 		shouldWait = iterationWaitTime > 0;
 
 		try {
-			BlockingQueueBroker.instance().handIn(iterationId, dataChannel);
+			BlockingQueueBroker.instance().handIn(iterationId.toString(), dataChannel);
 		} catch (Exception e) {
 
 		}

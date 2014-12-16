@@ -76,9 +76,9 @@ public class JobGraphBuilder {
 	private Map<String, byte[]> serializedFunctions;
 	private Map<String, byte[]> outputSelectors;
 	private Map<String, Class<? extends AbstractInvokable>> vertexClasses;
-	private Map<String, String> iterationIds;
-	private Map<String, String> iterationIDtoHeadName;
-	private Map<String, String> iterationIDtoTailName;
+	private Map<String, Integer> iterationIds;
+	private Map<Integer, String> iterationIDtoHeadName;
+	private Map<Integer, String> iterationIDtoTailName;
 	private Map<String, Integer> iterationTailCount;
 	private Map<String, Long> iterationWaitTime;
 	private Map<String, Map<String, OperatorState<?>>> operatorStates;
@@ -109,9 +109,9 @@ public class JobGraphBuilder {
 		serializedFunctions = new HashMap<String, byte[]>();
 		outputSelectors = new HashMap<String, byte[]>();
 		vertexClasses = new HashMap<String, Class<? extends AbstractInvokable>>();
-		iterationIds = new HashMap<String, String>();
-		iterationIDtoHeadName = new HashMap<String, String>();
-		iterationIDtoTailName = new HashMap<String, String>();
+		iterationIds = new HashMap<String, Integer>();
+		iterationIDtoHeadName = new HashMap<Integer, String>();
+		iterationIDtoTailName = new HashMap<Integer, String>();
 		iterationTailCount = new HashMap<String, Integer>();
 		iterationWaitTime = new HashMap<String, Long>();
 		operatorStates = new HashMap<String, Map<String, OperatorState<?>>>();
@@ -205,7 +205,7 @@ public class JobGraphBuilder {
 	 * @param waitTime
 	 *            Max wait time for next record
 	 */
-	public void addIterationHead(String vertexName, String iterationHead, String iterationID,
+	public void addIterationHead(String vertexName, String iterationHead, Integer iterationID,
 			int parallelism, long waitTime) {
 
 		addVertex(vertexName, StreamIterationHead.class, null, null, null, parallelism);
@@ -242,7 +242,7 @@ public class JobGraphBuilder {
 	 * @param waitTime
 	 *            Max waiting time for next record
 	 */
-	public void addIterationTail(String vertexName, String iterationTail, String iterationID,
+	public void addIterationTail(String vertexName, String iterationTail, Integer iterationID,
 			int parallelism, long waitTime) {
 
 		if (bufferTimeout.get(iterationTail) == 0) {
@@ -558,7 +558,7 @@ public class JobGraphBuilder {
 			vertex.setSlotSharingGroup(shareGroup);
 		}
 
-		for (String iterID : new HashSet<String>(iterationIds.values())) {
+		for (Integer iterID : new HashSet<Integer>(iterationIds.values())) {
 			CoLocationGroup ccg = new CoLocationGroup();
 			AbstractJobVertex tail = streamVertices.get(iterationIDtoTailName.get(iterID));
 			AbstractJobVertex head = streamVertices.get(iterationIDtoHeadName.get(iterID));

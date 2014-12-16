@@ -27,13 +27,13 @@ import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class StreamIterationTail<IN extends Tuple> extends StreamVertex<IN,IN> {
+public class StreamIterationTail<IN extends Tuple> extends StreamVertex<IN, IN> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamIterationTail.class);
 
 	private InputHandler<IN> inputHandler;
 
-	private String iterationId;
+	private Integer iterationId;
 	@SuppressWarnings("rawtypes")
 	private BlockingQueue<StreamRecord> dataChannel;
 	private long iterationWaitTime;
@@ -50,7 +50,7 @@ public class StreamIterationTail<IN extends Tuple> extends StreamVertex<IN,IN> {
 			iterationId = configuration.getIterationId();
 			iterationWaitTime = configuration.getIterationWaitTime();
 			shouldWait = iterationWaitTime > 0;
-			dataChannel = BlockingQueueBroker.instance().get(iterationId);
+			dataChannel = BlockingQueueBroker.instance().get(iterationId.toString());
 		} catch (Exception e) {
 			throw new StreamVertexException(String.format(
 					"Cannot register inputs of StreamIterationSink %s", iterationId), e);
