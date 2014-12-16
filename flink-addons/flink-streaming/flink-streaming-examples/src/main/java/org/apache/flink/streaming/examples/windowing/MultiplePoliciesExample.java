@@ -30,57 +30,103 @@ import org.apache.flink.util.Collector;
  */
 public class MultiplePoliciesExample {
 
-	private static final int PARALLELISM = 2;
+	// *************************************************************************
+	// PROGRAM
+	// *************************************************************************
 
 	public static void main(String[] args) throws Exception {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment
-				.createLocalEnvironment(PARALLELISM);
 
-		// This reduce function does a String concat.
-		GroupReduceFunction<String, String> reducer = new GroupReduceFunction<String, String>() {
+		if (!parseParameters(args)) {
+			return;
+		}
 
-			/**
-			 * Auto generates version ID
-			 */
-			private static final long serialVersionUID = 1L;
-
-			@Override
-			public void reduce(Iterable<String> values, Collector<String> out) throws Exception {
-				String output = "|";
-				for (String v : values) {
-					output = output + v + "|";
-				}
-				out.collect(output);
-			}
-
-		};
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		DataStream<String> stream = env.addSource(new BasicSource())
 				.groupBy(0)
 				.window(Count.of(2))
 				.every(Count.of(3), Count.of(5))
-				.reduceGroup(reducer);
+				.reduceGroup(new Concat());
 
-		stream.print();
+		// emit result
+		if (fileOutput) {
+			stream.writeAsText(outputPath, 1);
+		} else {
+			stream.print();
+		}
 
-		env.execute();
+		// execute the program
+		env.execute("Multiple Policies Example");
 	}
 
-	public static class BasicSource implements SourceFunction<String> {
+	/**
+	 * This source function indefinitely provides String inputs for the
+	 * topology.
+	 */
+	public static final class BasicSource implements SourceFunction<String> {
 
 		private static final long serialVersionUID = 1L;
 
-		String str1 = new String("streaming");
-		String str2 = new String("flink");
+		private final static String STR_1 = new String("streaming");
+		private final static String STR_2 = new String("flink");
 
 		@Override
 		public void invoke(Collector<String> out) throws Exception {
 			// continuous emit
 			while (true) {
-				out.collect(str1);
-				out.collect(str2);
+				out.collect(STR_1);
+				out.collect(STR_2);
 			}
 		}
 	}
 
+	// *************************************************************************
+	// USER FUNCTIONS
+	// *************************************************************************
+
+	/**
+	 * This reduce function does a String concat.
+	 */
+	public static final class Concat implements GroupReduceFunction<String, String> {
+
+		/**
+		 * Auto generates version ID
+		 */
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public void reduce(Iterable<String> values, Collector<String> out) throws Exception {
+			String output = "|";
+			for (String v : values) {
+				output = output + v + "|";
+			}
+			out.collect(output);
+		}
+	}
+
+	// *************************************************************************
+	// UTIL METHODS
+	// *************************************************************************
+
+	private static boolean fileOutput = false;
+	private static String outputPath;
+
+	private static boolean parseParameters(String[] args) {
+
+		if (args.length > 0) {
+			// parse input arguments
+			fileOutput = true;
+			if (args.length == 1) {
+				outputPath = args[0];
+			} else {
+				System.err.println("Usage: MultiplePoliciesExample <result path>");
+				return false;
+			}
+		} else {
+			System.out.println("Executing MultiplePoliciesExample with generated data.");
+			System.out.println("  Provide parameter to write to file.");
+			System.out.println("  Usage: MultiplePoliciesExample <result path>");
+		}
+		return true;
+	}
 }

@@ -34,32 +34,44 @@ import org.apache.flink.util.Collector;
  */
 public class DeltaExtractExample {
 
-	private static final int PARALLELISM = 1;
+	// *************************************************************************
+	// PROGRAM
+	// *************************************************************************
 
-	@SuppressWarnings({ "serial", "rawtypes", "unchecked" })
 	public static void main(String[] args) throws Exception {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment
-				.createLocalEnvironment(PARALLELISM);
 
-		ReduceFunction<Tuple3<Double, Double, String>> concatStrings = new ReduceFunction<Tuple3<Double, Double, String>>() {
-			@Override
-			public Tuple3 reduce(Tuple3 value1, Tuple3 value2) throws Exception {
-				return new Tuple3(value1.f0, value2.f1, value1.f2 + "|" + value2.f2);
-			}
-		};
+		if (!parseParameters(args)) {
+			return;
+		}
 
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		@SuppressWarnings({ "unchecked", "rawtypes" })
 		DataStream dstream = env
 				.addSource(new CountingSource())
 				.window(Delta.of(new EuclideanDistance(new FieldsFromTuple(0, 1)), new Tuple3(0d,
-						0d, "foo"), 1.2)).every(Count.of(2)).reduce(concatStrings);
+						0d, "foo"), 1.2))
+				.every(Count.of(2))
+				.reduce(new ConcatStrings());
 
-		dstream.print();
-		env.execute();
+		// emit result
+		if (fileOutput) {
+			dstream.writeAsText(outputPath, 1);
+		} else {
+			dstream.print();
+		}
+
+		// execute the program
+		env.execute("Delta Extract Example");
 
 	}
 
-	@SuppressWarnings("serial")
+	// *************************************************************************
+	// USER FUNCTIONS
+	// *************************************************************************
+
 	private static class CountingSource implements SourceFunction<Tuple3<Double, Double, String>> {
+		private static final long serialVersionUID = 1L;
 
 		private int counter = 0;
 
@@ -75,4 +87,41 @@ public class DeltaExtractExample {
 		}
 	}
 
+	private static final class ConcatStrings implements
+			ReduceFunction<Tuple3<Double, Double, String>> {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public Tuple3<Double, Double, String> reduce(Tuple3<Double, Double, String> value1,
+				Tuple3<Double, Double, String> value2) throws Exception {
+			return new Tuple3<Double, Double, String>(value1.f0, value2.f1, value1.f2 + "|"
+					+ value2.f2);
+		}
+	}
+
+	// *************************************************************************
+	// UTIL METHODS
+	// *************************************************************************
+
+	private static boolean fileOutput = false;
+	private static String outputPath;
+
+	private static boolean parseParameters(String[] args) {
+
+		if (args.length > 0) {
+			// parse input arguments
+			fileOutput = true;
+			if (args.length == 1) {
+				outputPath = args[0];
+			} else {
+				System.err.println("Usage: DeltaExtractExample <result path>");
+				return false;
+			}
+		} else {
+			System.out.println("Executing DeltaExtractExample with generated data.");
+			System.out.println("  Provide parameter to write to file.");
+			System.out.println("  Usage: DeltaExtractExample <result path>");
+		}
+		return true;
+	}
 }

@@ -21,9 +21,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.collector.OutputSelector;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.IterativeDataStream;
@@ -109,12 +110,12 @@ public class IterateExample {
 	 * Iteration step function which takes an input (Double , Integer) and
 	 * produces an output (Double + random, Integer + 1).
 	 */
-	public static class Step implements
-			MapFunction<Tuple2<Double, Integer>, Tuple2<Double, Integer>> {
+	public static class Step extends
+			RichMapFunction<Tuple2<Double, Integer>, Tuple2<Double, Integer>> {
 		private static final long serialVersionUID = 1L;
-		private Random rnd;
+		private transient Random rnd;
 
-		public Step() {
+		public void open(Configuration parameters) {
 			rnd = new Random();
 		}
 
@@ -122,7 +123,6 @@ public class IterateExample {
 		public Tuple2<Double, Integer> map(Tuple2<Double, Integer> value) throws Exception {
 			return new Tuple2<Double, Integer>(value.f0 + rnd.nextDouble(), value.f1 + 1);
 		}
-
 	}
 
 	/**

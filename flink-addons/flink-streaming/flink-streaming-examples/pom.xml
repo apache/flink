@@ -172,12 +172,12 @@ under the License.
 
 							<archive>
 								<manifestEntries>
-									<program-class>org.apache.flink.streaming.examples.window.join.WindowJoin</program-class>
+									<program-class>org.apache.flink.streaming.examples.join.WindowJoin</program-class>
 								</manifestEntries>
 							</archive>
 
 							<includes>
-								<include>org/apache/flink/streaming/examples/window/join/*.class</include>			
+								<include>org/apache/flink/streaming/examples/join/*.class</include>			
 							</includes>
 						</configuration>
 					</execution>
@@ -249,6 +249,98 @@ under the License.
 							<includes>
 								<include>org/apache/flink/streaming/examples/socket/SocketTextStreamWordCount.class</include>
 								<include>org/apache/flink/streaming/examples/wordcount/WordCount$Tokenizer.class</include>
+							</includes>
+						</configuration>
+					</execution>
+
+					<!-- DeltaExract -->
+					<execution>
+						<id>DeltaExract</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+						<configuration>
+							<classifier>DeltaExract</classifier>
+
+							<archive>
+								<manifestEntries>
+									<program-class>org.apache.flink.streaming.examples.windowing.DeltaExtractExample</program-class>
+								</manifestEntries>
+							</archive>
+
+							<includes>
+								<include>org/apache/flink/streaming/examples/windowing/DeltaExtractExample.class</include>
+								<include>org/apache/flink/streaming/examples/windowing/DeltaExtractExample$*.class</include>
+							</includes>
+						</configuration>
+					</execution>
+
+					<!-- MultiplePolicies -->
+					<execution>
+						<id>MultiplePolicies</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+						<configuration>
+							<classifier>MultiplePolicies</classifier>
+
+							<archive>
+								<manifestEntries>
+									<program-class>org.apache.flink.streaming.examples.windowing.MultiplePoliciesExample</program-class>
+								</manifestEntries>
+							</archive>
+
+							<includes>
+								<include>org/apache/flink/streaming/examples/windowing/MultiplePoliciesExample.class</include>
+								<include>org/apache/flink/streaming/examples/windowing/MultiplePoliciesExample$*.class</include>
+							</includes>
+						</configuration>
+					</execution>
+
+					<!-- SlidingExample -->
+					<execution>
+						<id>SlidingExample</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+						<configuration>
+							<classifier>SlidingExample</classifier>
+
+							<archive>
+								<manifestEntries>
+									<program-class>org.apache.flink.streaming.examples.windowing.SlidingExample</program-class>
+								</manifestEntries>
+							</archive>
+
+							<includes>
+								<include>org/apache/flink/streaming/examples/windowing/SlidingExample.class</include>
+								<include>org/apache/flink/streaming/examples/windowing/SlidingExample$*.class</include>
+							</includes>
+						</configuration>
+					</execution>
+
+					<!-- TimeWindowing -->
+					<execution>
+						<id>TimeWindowing</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+						<configuration>
+							<classifier>TimeWindowing</classifier>
+
+							<archive>
+								<manifestEntries>
+									<program-class>org.apache.flink.streaming.examples.windowing.TimeWindowingExample</program-class>
+								</manifestEntries>
+							</archive>
+
+							<includes>
+								<include>org/apache/flink/streaming/examples/windowing/TimeWindowingExample.class</include>
+								<include>org/apache/flink/streaming/examples/windowing/TimeWindowingExample$*.class</include>
 							</includes>
 						</configuration>
 					</execution>
