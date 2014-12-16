@@ -18,9 +18,51 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
+
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.junit.Test;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.LinkedList;
 
 public class KryoGenericTypeSerializerTest extends AbstractGenericTypeSerializerTest {
+
+	@Test
+	public void testJavaList(){
+		Collection<Integer> a = new ArrayList<Integer>();
+
+		fillCollection(a);
+
+		runTests(a);
+	}
+
+	@Test
+	public void testJavaSet(){
+		Collection<Integer> b = new HashSet<Integer>();
+
+		fillCollection(b);
+
+		runTests(b);
+	}
+
+	@Test
+	public void testJavaDequeue(){
+		Collection<Integer> c = new LinkedList<Integer>();
+
+		fillCollection(c);
+
+		runTests(c);
+	}
+
+	private void fillCollection(Collection<Integer> coll){
+		coll.add(42);
+		coll.add(1337);
+		coll.add(49);
+		coll.add(1);
+	}
+
 	@Override
 	protected <T> TypeSerializer<T> createSerializer(Class<T> type) {
 		return new KryoSerializer<T>(type);
