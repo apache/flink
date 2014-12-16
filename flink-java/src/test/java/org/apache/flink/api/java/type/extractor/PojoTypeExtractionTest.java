@@ -19,6 +19,7 @@ package org.apache.flink.api.java.type.extractor;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 
@@ -137,6 +138,34 @@ public class PojoTypeExtractionTest {
 			this.a = a;
 		}
 	}
+
+	public static class PojoWithGenericFields {
+		private Collection<String> users;
+		private boolean favorited;
+
+		public boolean isFavorited() {
+			return favorited;
+		}
+
+		public void setFavorited(boolean favorited) {
+			this.favorited = favorited;
+		}
+
+		public Collection<String> getUsers() {
+			return users;
+		}
+
+		public void setUsers(Collection<String> users) {
+			this.users = users;
+		}
+	}
+	@Test
+	public void testPojoWithGenericFields() {
+		TypeInformation<?> typeForClass = TypeExtractor.createTypeInfo(PojoWithGenericFields.class);
+
+		Assert.assertTrue(typeForClass instanceof PojoTypeInfo<?>);
+	}
+
 
 	// in this test, the location of the getters and setters is mixed across the type hierarchy.
 	public static class TypedPojoGetterSetterCheck extends GenericPojoGetterSetterCheck<String> {
