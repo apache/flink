@@ -112,7 +112,6 @@ public class LocalInstanceManagerTest {
 				assertEquals(2, tms.length);
 				for (TaskManager tm : tms) {
 					assertEquals(ExecutionMode.CLUSTER, tm.getExecutionMode());
-					assertTrue(tm.getConnectionInfo().address().isLoopbackAddress());
 				}
 			}
 			finally {
