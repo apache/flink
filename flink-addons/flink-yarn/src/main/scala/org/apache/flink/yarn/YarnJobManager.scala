@@ -22,7 +22,7 @@ import java.io.{IOException, File}
 import java.nio.ByteBuffer
 import java.util.{ Collections}
 
-import akka.actor.{PoisonPill, ActorRef}
+import akka.actor.{ActorRef}
 import org.apache.flink.configuration.ConfigConstants
 import org.apache.flink.runtime.ActorLogMessages
 import org.apache.flink.runtime.jobmanager.JobManager

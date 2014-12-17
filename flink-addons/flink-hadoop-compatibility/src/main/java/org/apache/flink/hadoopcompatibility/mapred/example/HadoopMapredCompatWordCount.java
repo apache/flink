@@ -92,7 +92,7 @@ public class HadoopMapredCompatWordCount {
 			// normalize and split the line
 			String line = v.toString();
 			String[] tokens = line.toLowerCase().split("\\W+");
-			
+
 			// emit the pairs
 			for (String token : tokens) {
 				if (token.length() > 0) {
@@ -119,8 +119,8 @@ public class HadoopMapredCompatWordCount {
 			while(vs.hasNext()) {
 				cnt += vs.next().get();
 			}
+
 			out.collect(k, new LongWritable(cnt));
-			
 		}
 		
 		@Override

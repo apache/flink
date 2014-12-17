@@ -42,8 +42,8 @@ object YarnUtils {
   def getConfigString: String = {
     """
     |akka{
-    |  loglevel = "INFO"
-    |  stdout-loglevel = "INFO"
+    |  loglevel = "DEBUG"
+    |  stdout-loglevel = "DEBUG"
     |  log-dead-letters-during-shutdown = off
     |  log-dead-letters = off
     |
@@ -56,7 +56,6 @@ object YarnUtils {
     |
     |    netty{
     |      tcp{
-    |        port = 0
     |        transport-class = "akka.remote.transport.netty.NettyTransport"
     |        tcp-nodelay = on
     |        maximum-frame-size = 1MB
