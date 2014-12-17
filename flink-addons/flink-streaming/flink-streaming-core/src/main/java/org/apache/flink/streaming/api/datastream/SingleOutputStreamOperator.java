@@ -115,7 +115,8 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 	 */
 	public SplitDataStream<OUT> split(OutputSelector<OUT> outputSelector) {
 		try {
-			jobGraphBuilder.setOutputSelector(id, SerializationUtils.serialize(outputSelector));
+			jobGraphBuilder.setOutputSelector(id,
+					SerializationUtils.serialize(clean(outputSelector)));
 
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize OutputSelector");

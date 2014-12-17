@@ -25,6 +25,7 @@ import java.util.List;
 import org.apache.commons.lang3.SerializationException;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.Validate;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -54,9 +55,9 @@ public abstract class StreamExecutionEnvironment {
 
 	private static int defaultLocalDop = Runtime.getRuntime().availableProcessors();
 
-	private int degreeOfParallelism = 1;
-
 	private long bufferTimeout = 100;
+
+	private ExecutionConfig config = new ExecutionConfig();
 
 	protected JobGraphBuilder jobGraphBuilder;
 
@@ -72,6 +73,21 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
+	 * Sets the config object.
+	 */
+	public void setConfig(ExecutionConfig config) {
+		Validate.notNull(config);
+		this.config = config;
+	}
+
+	/**
+	 * Gets the config object.
+	 */
+	public ExecutionConfig getConfig() {
+		return config;
+	}
+
+	/**
 	 * Gets the degree of parallelism with which operation are executed by
 	 * default. Operations can individually override this value to use a
 	 * specific degree of parallelism via {@link DataStream#setParallelism}.
@@ -80,7 +96,7 @@ public abstract class StreamExecutionEnvironment {
 	 *         override that value.
 	 */
 	public int getDegreeOfParallelism() {
-		return this.degreeOfParallelism;
+		return config.getDegreeOfParallelism();
 	}
 
 	/**
@@ -100,7 +116,7 @@ public abstract class StreamExecutionEnvironment {
 		if (degreeOfParallelism < 1) {
 			throw new IllegalArgumentException("Degree of parallelism must be at least one.");
 		}
-		this.degreeOfParallelism = degreeOfParallelism;
+		config.setDegreeOfParallelism(degreeOfParallelism);
 		return this;
 	}
 

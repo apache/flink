@@ -35,6 +35,7 @@ import org.apache.flink.api.common.functions.RichReduceFunction;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -182,6 +183,18 @@ public class DataStream<OUT> {
 		return this.typeInfo;
 	}
 
+	public <F> F clean(F f) {
+		if (getExecutionEnvironment().getConfig().isClosureCleanerEnabled()) {
+			ClosureCleaner.clean(f, true);
+		}
+		ClosureCleaner.ensureSerializable(f);
+		return f;
+	}
+
+	public StreamExecutionEnvironment getExecutionEnvironment() {
+		return environment;
+	}
+
 	/**
 	 * Creates a new {@link DataStream} by merging {@link DataStream} outputs of
 	 * the same type with each other. The DataStreams merged using this operator
@@ -261,7 +274,7 @@ public class DataStream<OUT> {
 	 * @return The grouped {@link DataStream}
 	 */
 	public GroupedDataStream<OUT> groupBy(KeySelector<OUT, ?> keySelector) {
-		return new GroupedDataStream<OUT>(this, keySelector);
+		return new GroupedDataStream<OUT>(this, clean(keySelector));
 	}
 
 	/**
@@ -300,7 +313,7 @@ public class DataStream<OUT> {
 	 * @return
 	 */
 	public DataStream<OUT> partitionBy(KeySelector<OUT, ?> keySelector) {
-		return setConnectionType(new FieldsPartitioner<OUT>(keySelector));
+		return setConnectionType(new FieldsPartitioner<OUT>(clean(keySelector)));
 	}
 
 	/**
@@ -386,9 +399,10 @@ public class DataStream<OUT> {
 	 */
 	public <R> SingleOutputStreamOperator<R, ?> map(MapFunction<OUT, R> mapper) {
 
-		TypeInformation<R> outType = TypeExtractor.getMapReturnTypes(mapper, getType());
+		TypeInformation<R> outType = TypeExtractor.getMapReturnTypes(clean(mapper), getType());
 
-		return addFunction("map", mapper, getType(), outType, new MapInvokable<OUT, R>(mapper));
+		return addFunction("map", clean(mapper), getType(), outType, new MapInvokable<OUT, R>(
+				clean(mapper)));
 	}
 
 	/**
@@ -409,10 +423,10 @@ public class DataStream<OUT> {
 	 */
 	public <R> SingleOutputStreamOperator<R, ?> flatMap(FlatMapFunction<OUT, R> flatMapper) {
 
-		TypeInformation<R> outType = TypeExtractor.getFlatMapReturnTypes(flatMapper, getType());
+		TypeInformation<R> outType = TypeExtractor.getFlatMapReturnTypes(clean(flatMapper), getType());
 
-		return addFunction("flatMap", flatMapper, getType(), outType, new FlatMapInvokable<OUT, R>(
-				flatMapper));
+		return addFunction("flatMap", clean(flatMapper), getType(), outType,
+				new FlatMapInvokable<OUT, R>(clean(flatMapper)));
 	}
 
 	/**
@@ -428,8 +442,8 @@ public class DataStream<OUT> {
 	 */
 	public SingleOutputStreamOperator<OUT, ?> reduce(ReduceFunction<OUT> reducer) {
 
-		return addFunction("reduce", reducer, getType(), getType(), new StreamReduceInvokable<OUT>(
-				reducer));
+		return addFunction("reduce", clean(reducer), getType(), getType(),
+				new StreamReduceInvokable<OUT>(clean(reducer)));
 	}
 
 	/**
@@ -447,7 +461,8 @@ public class DataStream<OUT> {
 	 * @return The filtered DataStream.
 	 */
 	public SingleOutputStreamOperator<OUT, ?> filter(FilterFunction<OUT> filter) {
-		return addFunction("filter", filter, getType(), getType(), new FilterInvokable<OUT>(filter));
+		return addFunction("filter", clean(filter), getType(), getType(), new FilterInvokable<OUT>(clean(
+				filter)));
 	}
 
 	/**
@@ -780,9 +795,9 @@ public class DataStream<OUT> {
 	}
 
 	/**
-	 * Writes a DataStream to the standard output stream (stdout).<br> For each
-	 * element of the DataStream the result of {@link Object#toString()} is
-	 * written.
+	 * Writes a DataStream to the standard output stream (stdout).<br>
+	 * For each element of the DataStream the result of
+	 * {@link Object#toString()} is written.
 	 * 
 	 * @return The closed DataStream.
 	 */
@@ -793,11 +808,11 @@ public class DataStream<OUT> {
 
 		return returnStream;
 	}
-	
+
 	/**
-	 * Writes a DataStream to the standard output stream (stderr).<br> For each
-	 * element of the DataStream the result of {@link Object#toString()} is
-	 * written.
+	 * Writes a DataStream to the standard output stream (stderr).<br>
+	 * For each element of the DataStream the result of
+	 * {@link Object#toString()} is written.
 	 * 
 	 * @return The closed DataStream.
 	 */
@@ -1112,7 +1127,7 @@ public class DataStream<OUT> {
 
 		StreamReduceInvokable<OUT> invokable = new StreamReduceInvokable<OUT>(aggregate);
 
-		SingleOutputStreamOperator<OUT, ?> returnStream = addFunction("reduce", aggregate,
+		SingleOutputStreamOperator<OUT, ?> returnStream = addFunction("reduce", clean(aggregate),
 				typeInfo, typeInfo, invokable);
 
 		return returnStream;
@@ -1229,8 +1244,8 @@ public class DataStream<OUT> {
 
 		try {
 			jobGraphBuilder.addStreamVertex(returnStream.getId(), new SinkInvokable<OUT>(
-					sinkFunction), inTypeInfo, null, "sink", SerializationUtils
-					.serialize(sinkFunction), degreeOfParallelism);
+					clean(sinkFunction)), inTypeInfo, null, "sink", SerializationUtils
+					.serialize(clean(sinkFunction)), degreeOfParallelism);
 		} catch (SerializationException e) {
 			throw new RuntimeException("Cannot serialize SinkFunction");
 		}
