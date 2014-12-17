@@ -1,4 +1,4 @@
-package flink.graphs;
+package flink.graphs.utils;
 
 import java.util.ArrayList;
 import java.util.List;

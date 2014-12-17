@@ -18,6 +18,7 @@ import org.junit.runners.Parameterized.Parameters;
 
 import flink.graphs.TestGraphUtils.DummyCustomParameterizedType;
 import flink.graphs.TestGraphUtils.DummyCustomType;
+import flink.graphs.validation.InvalidVertexIdsValidator;
 
 @RunWith(Parameterized.class)
 public class TestGraphCreation extends JavaProgramTestBase {
@@ -196,8 +197,8 @@ public class TestGraphCreation extends JavaProgramTestBase {
 					final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 					DataSet<Vertex<Long, Long>> vertices = TestGraphUtils.getLongLongVertexData(env);
 					DataSet<Edge<Long, Long>> edges = TestGraphUtils.getLongLongEdgeData(env);
-					Graph<Long, Long, Long> graph = new Graph(vertices, edges, env);
-					DataSet<Boolean> result = graph.validate(new InvalidVertexIdsValidator());
+					Graph<Long, Long, Long> graph = new Graph<Long, Long, Long>(vertices, edges, env);
+					DataSet<Boolean> result = graph.validate(new InvalidVertexIdsValidator<Long, Long, Long>());
 					result.writeAsText(resultPath);
 					env.execute();
 
@@ -211,8 +212,8 @@ public class TestGraphCreation extends JavaProgramTestBase {
 					DataSet<Vertex<Long, Long>> vertices = TestGraphUtils.getLongLongInvalidVertexData(env);
 					DataSet<Edge<Long, Long>> edges = TestGraphUtils.getLongLongEdgeData(env);
 
-					Graph<Long, Long, Long> graph = new Graph(vertices, edges, env);
-					DataSet<Boolean> result = graph.validate(new InvalidVertexIdsValidator());
+					Graph<Long, Long, Long> graph = new Graph<Long, Long, Long>(vertices, edges, env);
+					DataSet<Boolean> result = graph.validate(new InvalidVertexIdsValidator<Long, Long, Long>());
 					result.writeAsText(resultPath);
 					env.execute();
 
