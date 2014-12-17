@@ -17,16 +17,16 @@
 
 package org.apache.flink.streaming.api.invokable;
 
+import java.io.IOException;
 import java.io.Serializable;
 
 import org.apache.flink.api.common.functions.Function;
-import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.function.source.SourceFunction;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
+import org.apache.flink.streaming.api.streamvertex.StreamTaskContext;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 import org.apache.flink.util.StringUtils;
@@ -45,9 +45,11 @@ public abstract class StreamInvokable<IN, OUT> implements Serializable {
 	private static final long serialVersionUID = 1L;
 	private static final Logger LOG = LoggerFactory.getLogger(StreamInvokable.class);
 
+	protected StreamTaskContext<OUT> taskContext;
+
 	protected MutableObjectIterator<StreamRecord<IN>> recordIterator;
 	protected StreamRecordSerializer<IN> inSerializer;
-	protected StreamRecord<IN> reuse;
+	protected StreamRecord<IN> nextRecord;
 	protected boolean isMutable;
 
 	protected Collector<OUT> collector;
@@ -61,48 +63,43 @@ public abstract class StreamInvokable<IN, OUT> implements Serializable {
 	/**
 	 * Initializes the {@link StreamInvokable} for input and output handling
 	 * 
-	 * @param collector
-	 *            Collector object for collecting the outputs for the operator
-	 * @param recordIterator
-	 *            Iterator for reading in the input records
-	 * @param serializer
-	 *            Serializer used to deserialize inputs
-	 * @param isMutable
-	 *            Mutability setting for the operator
+	 * @param taskContext
+	 *            StreamTaskContext representing the vertex
 	 */
-	public void initialize(Collector<OUT> collector,
-			MutableObjectIterator<StreamRecord<IN>> recordIterator,
-			StreamRecordSerializer<IN> serializer, boolean isMutable) {
-		this.collector = collector;
-		this.recordIterator = recordIterator;
-		this.inSerializer = serializer;
+	public void setup(StreamTaskContext<OUT> taskContext) {
+		this.collector = taskContext.getOutputCollector();
+		this.recordIterator = taskContext.getInput(0);
+		this.inSerializer = taskContext.getInputSerializer(0);
 		if (this.inSerializer != null) {
-			this.reuse = serializer.createInstance();
+			this.nextRecord = inSerializer.createInstance();
 		}
-		this.isMutable = isMutable;
+		this.taskContext = taskContext;
 	}
 
 	/**
-	 * Re-initializes the object in which the next input record will be read in
+	 * Method that will be called when the operator starts, should encode the
+	 * processing logic
 	 */
-	protected void resetReuse() {
-		this.reuse = inSerializer.createInstance();
+	public abstract void invoke() throws Exception;
+
+	/*
+	 * Reads the next record from the reader iterator and stores it in the
+	 * nextRecord variable
+	 */
+	protected StreamRecord<IN> readNext() {
+		this.nextRecord = inSerializer.createInstance();
+		try {
+			return nextRecord = recordIterator.next(nextRecord);
+		} catch (IOException e) {
+			throw new RuntimeException("Could not read next record.");
+		}
 	}
-
-	/**
-	 * Method that will be called if the mutability setting is set to immutable
-	 */
-	protected abstract void immutableInvoke() throws Exception;
-
-	/**
-	 * Method that will be called if the mutability setting is set to mutable
-	 */
-	protected abstract void mutableInvoke() throws Exception;
 
 	/**
 	 * The call of the user implemented function should be implemented here
 	 */
-	protected abstract void callUserFunction() throws Exception;
+	protected void callUserFunction() throws Exception {
+	}
 
 	/**
 	 * Method for logging exceptions thrown during the user function call
@@ -119,20 +116,6 @@ public abstract class StreamInvokable<IN, OUT> implements Serializable {
 	}
 
 	/**
-	 * Method that will be called when the stream starts. The user should encode
-	 * the processing functionality in {@link #mutableInvoke()} and
-	 * {@link #immutableInvoke()}
-	 * 
-	 */
-	public void invoke() throws Exception {
-		if (this.isMutable) {
-			mutableInvoke();
-		} else {
-			immutableInvoke();
-		}
-	}
-
-	/**
 	 * Open method to be used if the user defined function extends the
 	 * RichFunction class
 	 * 
@@ -141,9 +124,7 @@ public abstract class StreamInvokable<IN, OUT> implements Serializable {
 	 */
 	public void open(Configuration parameters) throws Exception {
 		isRunning = true;
-		if (userFunction instanceof RichFunction) {
-			((RichFunction) userFunction).open(parameters);
-		}
+		FunctionUtils.openFunction(userFunction, parameters);
 	}
 
 	/**
@@ -154,16 +135,10 @@ public abstract class StreamInvokable<IN, OUT> implements Serializable {
 	public void close() throws Exception {
 		isRunning = false;
 		collector.close();
-		if (userFunction instanceof RichFunction) {
-			((RichFunction) userFunction).close();
-		}
+		FunctionUtils.closeFunction(userFunction);
 	}
 
 	public void setRuntimeContext(RuntimeContext t) {
 		FunctionUtils.setFunctionRuntimeContext(userFunction, t);
-	}
-
-	public SourceFunction<OUT> getSourceFunction() {
-		return null;
 	}
 }

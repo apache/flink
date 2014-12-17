@@ -29,8 +29,6 @@ import org.apache.flink.streaming.api.windowing.policy.ActiveTriggerCallback;
 import org.apache.flink.streaming.api.windowing.policy.ActiveTriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.EvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public abstract class WindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> {
 
@@ -38,8 +36,6 @@ public abstract class WindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> 
 	 * Auto-generated serial version UID
 	 */
 	private static final long serialVersionUID = -8038984294071650730L;
-
-	private static final Logger LOG = LoggerFactory.getLogger(WindowInvokable.class);
 
 	private LinkedList<TriggerPolicy<IN>> triggerPolicies;
 	private LinkedList<EvictionPolicy<IN>> evictionPolicies;
@@ -120,20 +116,19 @@ public abstract class WindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> 
 	}
 
 	@Override
-	protected void immutableInvoke() throws Exception {
+	public void invoke() throws Exception {
 
 		// Prevent empty data streams
-		if ((reuse = recordIterator.next(reuse)) == null) {
+		if (readNext() == null) {
 			throw new RuntimeException("DataStream must not be empty");
 		}
 
 		// Continuously run
-		while (reuse != null) {
-			processRealElement(reuse.getObject());
+		while (nextRecord != null) {
+			processRealElement(nextRecord.getObject());
 
-			// Recreate the reuse-StremRecord object and load next StreamRecord
-			resetReuse();
-			reuse = recordIterator.next(reuse);
+			// Load next StreamRecord
+			readNext();
 		}
 
 		// Stop all remaining threads from policies
@@ -144,14 +139,6 @@ public abstract class WindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> 
 		// finally trigger the buffer.
 		emitFinalWindow(null);
 
-	}
-
-	@Override
-	protected void mutableInvoke() throws Exception {
-		if (LOG.isInfoEnabled()) {
-			LOG.info("There is currently no mutable implementation of this operator. Immutable version is used.");
-		}
-		immutableInvoke();
 	}
 
 	/**
@@ -363,10 +350,10 @@ public abstract class WindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> 
 	 * 
 	 * @return true in case the buffer is empty otherwise false.
 	 */
-	protected boolean isBufferEmpty(){
+	protected boolean isBufferEmpty() {
 		return buffer.isEmpty();
 	}
-	
+
 	/**
 	 * This method does the final reduce at the end of the stream and emits the
 	 * result.

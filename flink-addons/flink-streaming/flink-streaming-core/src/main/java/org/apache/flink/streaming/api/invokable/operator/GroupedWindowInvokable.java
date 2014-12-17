@@ -37,8 +37,6 @@ import org.apache.flink.streaming.api.windowing.policy.CloneableEvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.CloneableTriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.EvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * This invokable allows windowing based on {@link TriggerPolicy} and
@@ -79,8 +77,6 @@ public class GroupedWindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> {
 	 * Auto-generated serial version UID
 	 */
 	private static final long serialVersionUID = -3469545957144404137L;
-
-	private static final Logger LOG = LoggerFactory.getLogger(GroupedWindowInvokable.class);
 
 	private KeySelector<IN, ?> keySelector;
 	private Configuration parameters;
@@ -226,23 +222,23 @@ public class GroupedWindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> {
 	}
 
 	@Override
-	protected void immutableInvoke() throws Exception {
+	public void invoke() throws Exception {
 		// Prevent empty data streams
-		if ((reuse = recordIterator.next(reuse)) == null) {
+		if (readNext() == null) {
 			throw new RuntimeException("DataStream must not be empty");
 		}
 
 		// Continuously run
-		while (reuse != null) {
-			WindowInvokable<IN, OUT> groupInvokable = windowingGroups.get(keySelector.getKey(reuse
-					.getObject()));
+		while (nextRecord != null) {
+			WindowInvokable<IN, OUT> groupInvokable = windowingGroups.get(keySelector
+					.getKey(nextRecord.getObject()));
 			if (groupInvokable == null) {
-				groupInvokable = makeNewGroup(reuse);
+				groupInvokable = makeNewGroup(nextRecord);
 			}
 
 			// Run the precalls for central active triggers
 			for (ActiveTriggerPolicy<IN> trigger : activeCentralTriggerPolicies) {
-				Object[] result = trigger.preNotifyTrigger(reuse.getObject());
+				Object[] result = trigger.preNotifyTrigger(nextRecord.getObject());
 				for (Object in : result) {
 
 					// If central eviction is used, handle it here
@@ -260,7 +256,7 @@ public class GroupedWindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> {
 
 			// Process non-active central triggers
 			for (TriggerPolicy<IN> triggerPolicy : centralTriggerPolicies) {
-				if (triggerPolicy.notifyTrigger(reuse.getObject())) {
+				if (triggerPolicy.notifyTrigger(nextRecord.getObject())) {
 					currentTriggerPolicies.add(triggerPolicy);
 				}
 			}
@@ -268,12 +264,12 @@ public class GroupedWindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> {
 			if (currentTriggerPolicies.isEmpty()) {
 
 				// only add the element to its group
-				groupInvokable.processRealElement(reuse.getObject());
+				groupInvokable.processRealElement(nextRecord.getObject());
 				checkForEmptyGroupBuffer(groupInvokable);
 
 				// If central eviction is used, handle it here
 				if (!centralEvictionPolicies.isEmpty()) {
-					evictElements(centralEviction(reuse.getObject(), false));
+					evictElements(centralEviction(nextRecord.getObject(), false));
 					deleteOrderForCentralEviction.add(groupInvokable);
 				}
 
@@ -283,20 +279,21 @@ public class GroupedWindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> {
 				for (WindowInvokable<IN, OUT> group : windowingGroups.values()) {
 					if (group == groupInvokable) {
 						// process real with initialized policies
-						group.processRealElement(reuse.getObject(), currentTriggerPolicies);
+						group.processRealElement(nextRecord.getObject(), currentTriggerPolicies);
 					} else {
 						// process like a fake but also initialized with
 						// policies
-						group.externalTriggerFakeElement(reuse.getObject(), currentTriggerPolicies);
+						group.externalTriggerFakeElement(nextRecord.getObject(),
+								currentTriggerPolicies);
 					}
-					
-					//remove group in case it has an empty buffer
-					//checkForEmptyGroupBuffer(group);
+
+					// remove group in case it has an empty buffer
+					// checkForEmptyGroupBuffer(group);
 				}
 
 				// If central eviction is used, handle it here
 				if (!centralEvictionPolicies.isEmpty()) {
-					evictElements(centralEviction(reuse.getObject(), true));
+					evictElements(centralEviction(nextRecord.getObject(), true));
 					deleteOrderForCentralEviction.add(groupInvokable);
 				}
 			}
@@ -304,9 +301,8 @@ public class GroupedWindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> {
 			// clear current trigger list
 			currentTriggerPolicies.clear();
 
-			// Recreate the reuse-StremRecord object and load next StreamRecord
-			resetReuse();
-			reuse = recordIterator.next(reuse);
+			// read next record
+			readNext();
 		}
 
 		// Stop all remaining threads from policies
@@ -358,26 +354,11 @@ public class GroupedWindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> {
 					clonedDistributedEvictionPolicies);
 		}
 
-		groupInvokable.initialize(collector, recordIterator, inSerializer, isMutable);
+		groupInvokable.setup(taskContext);
 		groupInvokable.open(this.parameters);
 		windowingGroups.put(keySelector.getKey(element.getObject()), groupInvokable);
 
 		return groupInvokable;
-	}
-
-	@Override
-	protected void mutableInvoke() throws Exception {
-		if (LOG.isInfoEnabled()) {
-			LOG.info("There is currently no mutable implementation of this operator. Immutable version is used.");
-		}
-		immutableInvoke();
-	}
-
-	@Override
-	protected void callUserFunction() throws Exception {
-		// This method gets never called directly. The user function calls are
-		// all delegated to the invokable instanced which handle/represent the
-		// groups.
 	}
 
 	@Override
@@ -456,12 +437,13 @@ public class GroupedWindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> {
 	 *            buffer.
 	 */
 	private void evictElements(int numToEvict) {
-		HashSet<WindowInvokable<IN, OUT>> usedGroups=new HashSet<WindowInvokable<IN,OUT>>();
+		HashSet<WindowInvokable<IN, OUT>> usedGroups = new HashSet<WindowInvokable<IN, OUT>>();
 		for (; numToEvict > 0; numToEvict--) {
-			WindowInvokable<IN, OUT> currentGroup=deleteOrderForCentralEviction.getFirst();
-			//Do the eviction
+			WindowInvokable<IN, OUT> currentGroup = deleteOrderForCentralEviction.getFirst();
+			// Do the eviction
 			currentGroup.evictFirst();
-			//Remember groups which possibly have an empty buffer after the eviction
+			// Remember groups which possibly have an empty buffer after the
+			// eviction
 			usedGroups.add(currentGroup);
 			try {
 				deleteOrderForCentralEviction.removeFirst();
@@ -471,13 +453,13 @@ public class GroupedWindowInvokable<IN, OUT> extends StreamInvokable<IN, OUT> {
 			}
 
 		}
-		
-		//Remove groups with empty buffer
-		for (WindowInvokable<IN, OUT> group:usedGroups){
+
+		// Remove groups with empty buffer
+		for (WindowInvokable<IN, OUT> group : usedGroups) {
 			checkForEmptyGroupBuffer(group);
 		}
 	}
-	
+
 	/**
 	 * Checks if the element buffer of a given windowing group is empty. If so,
 	 * the group will be deleted.

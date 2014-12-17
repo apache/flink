@@ -26,7 +26,7 @@ import java.util.List;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.function.co.CoReduceFunction;
 import org.apache.flink.streaming.api.invokable.operator.co.CoGroupedBatchReduceInvokable;
-import org.apache.flink.streaming.util.MockCoInvokable;
+import org.apache.flink.streaming.util.MockCoContext;
 import org.apache.flink.streaming.util.keys.TupleKeySelector;
 import org.junit.Test;
 
@@ -99,7 +99,7 @@ public class CoGroupedBatchReduceTest {
 				new MyCoReduceFunction(), 4L, 3L, 4L, 3L, new TupleKeySelector(0),
 				new TupleKeySelector(0));
 
-		List<String> result = MockCoInvokable.createAndExecute(invokable, inputs1, inputs2);
+		List<String> result = MockCoContext.createAndExecute(invokable, inputs1, inputs2);
 
 		Collections.sort(result);
 		Collections.sort(expected);
@@ -146,7 +146,7 @@ public class CoGroupedBatchReduceTest {
 				new MyCoReduceFunction(), 4L, 3L, 2L, 2L, new TupleKeySelector(0),
 				new TupleKeySelector(0));
 
-		List<String> result = MockCoInvokable.createAndExecute(invokable, inputs1, inputs2);
+		List<String> result = MockCoContext.createAndExecute(invokable, inputs1, inputs2);
 
 		Collections.sort(result);
 		Collections.sort(expected);

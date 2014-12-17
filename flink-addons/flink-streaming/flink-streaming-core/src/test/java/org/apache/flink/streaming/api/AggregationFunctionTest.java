@@ -33,7 +33,7 @@ import org.apache.flink.streaming.api.function.aggregation.ComparableAggregator;
 import org.apache.flink.streaming.api.function.aggregation.SumAggregator;
 import org.apache.flink.streaming.api.invokable.operator.GroupedReduceInvokable;
 import org.apache.flink.streaming.api.invokable.operator.StreamReduceInvokable;
-import org.apache.flink.streaming.util.MockInvokable;
+import org.apache.flink.streaming.util.MockContext;
 import org.apache.flink.streaming.util.keys.TupleKeySelector;
 import org.junit.Test;
 
@@ -102,24 +102,24 @@ public class AggregationFunctionTest {
 				.getAggregator(1, type1, AggregationType.MAX);
 		ReduceFunction<Integer> maxFunction0 = ComparableAggregator.getAggregator(0,
 				type2, AggregationType.MAX);
-		List<Tuple2<Integer, Integer>> sumList = MockInvokable.createAndExecute(
+		List<Tuple2<Integer, Integer>> sumList = MockContext.createAndExecute(
 				new StreamReduceInvokable<Tuple2<Integer, Integer>>(sumFunction), getInputList());
 
-		List<Tuple2<Integer, Integer>> minList = MockInvokable.createAndExecute(
+		List<Tuple2<Integer, Integer>> minList = MockContext.createAndExecute(
 				new StreamReduceInvokable<Tuple2<Integer, Integer>>(minFunction), getInputList());
 
-		List<Tuple2<Integer, Integer>> maxList = MockInvokable.createAndExecute(
+		List<Tuple2<Integer, Integer>> maxList = MockContext.createAndExecute(
 				new StreamReduceInvokable<Tuple2<Integer, Integer>>(maxFunction), getInputList());
 
-		List<Tuple2<Integer, Integer>> groupedSumList = MockInvokable.createAndExecute(
+		List<Tuple2<Integer, Integer>> groupedSumList = MockContext.createAndExecute(
 				new GroupedReduceInvokable<Tuple2<Integer, Integer>>(sumFunction,
 						new TupleKeySelector<Tuple2<Integer, Integer>>(0)), getInputList());
 
-		List<Tuple2<Integer, Integer>> groupedMinList = MockInvokable.createAndExecute(
+		List<Tuple2<Integer, Integer>> groupedMinList = MockContext.createAndExecute(
 				new GroupedReduceInvokable<Tuple2<Integer, Integer>>(minFunction,
 						new TupleKeySelector<Tuple2<Integer, Integer>>(0)), getInputList());
 
-		List<Tuple2<Integer, Integer>> groupedMaxList = MockInvokable.createAndExecute(
+		List<Tuple2<Integer, Integer>> groupedMaxList = MockContext.createAndExecute(
 				new GroupedReduceInvokable<Tuple2<Integer, Integer>>(maxFunction,
 						new TupleKeySelector<Tuple2<Integer, Integer>>(0)), getInputList());
 
@@ -129,11 +129,11 @@ public class AggregationFunctionTest {
 		assertEquals(expectedGroupSumList, groupedSumList);
 		assertEquals(expectedGroupMinList, groupedMinList);
 		assertEquals(expectedGroupMaxList, groupedMaxList);
-		assertEquals(expectedSumList0, MockInvokable.createAndExecute(
+		assertEquals(expectedSumList0, MockContext.createAndExecute(
 				new StreamReduceInvokable<Integer>(sumFunction0), simpleInput));
-		assertEquals(expectedMinList0, MockInvokable.createAndExecute(
+		assertEquals(expectedMinList0, MockContext.createAndExecute(
 				new StreamReduceInvokable<Integer>(minFunction0), simpleInput));
-		assertEquals(expectedMaxList0, MockInvokable.createAndExecute(
+		assertEquals(expectedMaxList0, MockContext.createAndExecute(
 				new StreamReduceInvokable<Integer>(maxFunction0), simpleInput));
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
@@ -210,16 +210,16 @@ public class AggregationFunctionTest {
 		minByLastExpected.add(new Tuple2<Integer, Integer>(0, 6));
 		minByLastExpected.add(new Tuple2<Integer, Integer>(0, 6));
 
-		assertEquals(maxByFirstExpected, MockInvokable.createAndExecute(
+		assertEquals(maxByFirstExpected, MockContext.createAndExecute(
 				new StreamReduceInvokable<Tuple2<Integer, Integer>>(maxByFunctionFirst),
 				getInputList()));
-		assertEquals(maxByLastExpected, MockInvokable.createAndExecute(
+		assertEquals(maxByLastExpected, MockContext.createAndExecute(
 				new StreamReduceInvokable<Tuple2<Integer, Integer>>(maxByFunctionLast),
 				getInputList()));
-		assertEquals(minByLastExpected, MockInvokable.createAndExecute(
+		assertEquals(minByLastExpected, MockContext.createAndExecute(
 				new StreamReduceInvokable<Tuple2<Integer, Integer>>(minByFunctionLast),
 				getInputList()));
-		assertEquals(minByFirstExpected, MockInvokable.createAndExecute(
+		assertEquals(minByFirstExpected, MockContext.createAndExecute(
 				new StreamReduceInvokable<Tuple2<Integer, Integer>>(minByFunctionFirst),
 				getInputList()));
 
@@ -284,16 +284,16 @@ public class AggregationFunctionTest {
 		minByLastExpected.add(new Tuple2<Integer, Integer>(0, 6));
 		minByLastExpected.add(new Tuple2<Integer, Integer>(0, 6));
 
-		assertEquals(maxByFirstExpected, MockInvokable.createAndExecute(
+		assertEquals(maxByFirstExpected, MockContext.createAndExecute(
 				new StreamReduceInvokable<Tuple2<Integer, Integer>>(maxByFunctionFirst),
 				getInputList()));
-		assertEquals(maxByLastExpected, MockInvokable.createAndExecute(
+		assertEquals(maxByLastExpected, MockContext.createAndExecute(
 				new StreamReduceInvokable<Tuple2<Integer, Integer>>(maxByFunctionLast),
 				getInputList()));
-		assertEquals(minByLastExpected, MockInvokable.createAndExecute(
+		assertEquals(minByLastExpected, MockContext.createAndExecute(
 				new StreamReduceInvokable<Tuple2<Integer, Integer>>(minByFunctionLast),
 				getInputList()));
-		assertEquals(minByFirstExpected, MockInvokable.createAndExecute(
+		assertEquals(minByFirstExpected, MockContext.createAndExecute(
 				new StreamReduceInvokable<Tuple2<Integer, Integer>>(minByFunctionFirst),
 				getInputList()));
 	}

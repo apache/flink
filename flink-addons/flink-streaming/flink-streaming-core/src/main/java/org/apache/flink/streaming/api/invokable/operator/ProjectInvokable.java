@@ -39,13 +39,8 @@ public class ProjectInvokable<IN, OUT extends Tuple> extends StreamInvokable<IN,
 	}
 
 	@Override
-	protected void immutableInvoke() throws Exception {
-		mutableInvoke();
-	}
-
-	@Override
-	protected void mutableInvoke() throws Exception {
-		while ((reuse = recordIterator.next(reuse)) != null) {
+	public void invoke() throws Exception {
+		while (readNext() != null) {
 			callUserFunctionAndLogException();
 		}
 	}
@@ -53,7 +48,7 @@ public class ProjectInvokable<IN, OUT extends Tuple> extends StreamInvokable<IN,
 	@Override
 	protected void callUserFunction() throws Exception {
 		for (int i = 0; i < this.numFields; i++) {
-			outTuple.setField(reuse.getField(fields[i]), i);
+			outTuple.setField(nextRecord.getField(fields[i]), i);
 		}
 		collector.collect(outTuple);
 	}

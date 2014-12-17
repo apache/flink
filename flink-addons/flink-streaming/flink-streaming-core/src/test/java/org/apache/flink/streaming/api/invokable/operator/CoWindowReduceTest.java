@@ -28,7 +28,7 @@ import java.util.List;
 import org.apache.flink.streaming.api.function.co.CoReduceFunction;
 import org.apache.flink.streaming.api.invokable.operator.co.CoWindowReduceInvokable;
 import org.apache.flink.streaming.api.invokable.util.TimeStamp;
-import org.apache.flink.streaming.util.MockCoInvokable;
+import org.apache.flink.streaming.util.MockCoContext;
 import org.junit.Test;
 
 public class CoWindowReduceTest {
@@ -114,7 +114,7 @@ public class CoWindowReduceTest {
 		expected.add("abcde");
 		expected.add("fghi");
 
-		List<String> result = MockCoInvokable.createAndExecute(invokable, inputs, inputs2);
+		List<String> result = MockCoContext.createAndExecute(invokable, inputs, inputs2);
 
 		Collections.sort(result);
 		Collections.sort(expected);
@@ -160,7 +160,7 @@ public class CoWindowReduceTest {
 		expected.add("fgh");
 		expected.add("hi");
 
-		List<String> result = MockCoInvokable.createAndExecute(invokable, inputs, inputs2);
+		List<String> result = MockCoContext.createAndExecute(invokable, inputs, inputs2);
 
 		Collections.sort(result);
 		Collections.sort(expected);

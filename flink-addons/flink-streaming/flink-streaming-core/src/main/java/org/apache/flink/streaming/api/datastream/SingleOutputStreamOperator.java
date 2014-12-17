@@ -71,24 +71,6 @@ public class SingleOutputStreamOperator<OUT, O extends SingleOutputStreamOperato
 		return this;
 	}
 
-	/**
-	 * This is a beta feature, use with care </br><br/>
-	 * Sets the mutability of the operator. If the operator is set to mutable,
-	 * the tuples received in the user defined functions, will be reused after
-	 * the function call. Setting an operator to mutable reduces garbage
-	 * collection overhead and thus increases scalability. Please note that if a
-	 * {@link DataStream#batchReduce} or {@link DataStream#windowReduce} is used
-	 * as mutable, the user can only iterate through the iterator once in every
-	 * invoke.
-	 * 
-	 * @param isMutable
-	 *            The mutability of the operator.
-	 * @return The operator with mutability set.
-	 */
-	public SingleOutputStreamOperator<OUT, O> setMutability(boolean isMutable) {
-		jobGraphBuilder.setMutability(id, isMutable);
-		return this;
-	}
 
 	/**
 	 * Sets the maximum time frequency (ms) for the flushing of the output

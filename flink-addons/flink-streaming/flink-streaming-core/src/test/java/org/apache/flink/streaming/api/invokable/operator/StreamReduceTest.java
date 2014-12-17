@@ -23,7 +23,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.streaming.util.MockInvokable;
+import org.apache.flink.streaming.util.MockContext;
 import org.junit.Test;
 
 public class StreamReduceTest {
@@ -45,7 +45,7 @@ public class StreamReduceTest {
 				new MyReducer());
 
 		List<Integer> expected = Arrays.asList(1,2,4,7,10);
-		List<Integer> actual = MockInvokable.createAndExecute(invokable1,
+		List<Integer> actual = MockContext.createAndExecute(invokable1,
 				Arrays.asList(1, 1, 2, 3, 3));
 
 		assertEquals(expected, actual);

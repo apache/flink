@@ -28,7 +28,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.function.co.CoWindowFunction;
 import org.apache.flink.streaming.api.invokable.operator.co.CoWindowInvokable;
 import org.apache.flink.streaming.api.invokable.util.TimeStamp;
-import org.apache.flink.streaming.util.MockCoInvokable;
+import org.apache.flink.streaming.util.MockCoContext;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
 
@@ -148,7 +148,7 @@ public class CoWindowTest {
 		expected1.add(0);
 		expected1.add(1);
 
-		List<Integer> actual1 = MockCoInvokable.createAndExecute(invokable1, input11, input12);
+		List<Integer> actual1 = MockCoContext.createAndExecute(invokable1, input11, input12);
 		assertEquals(expected1, actual1);
 
 		CoWindowInvokable<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>, Integer> invokable2 = new CoWindowInvokable<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>, Integer>(
@@ -183,7 +183,7 @@ public class CoWindowTest {
 		expected2.add(8);
 		expected2.add(7);
 
-		List<Integer> actual2 = MockCoInvokable.createAndExecute(invokable2, input21, input22);
+		List<Integer> actual2 = MockCoContext.createAndExecute(invokable2, input21, input22);
 		assertEquals(expected2, actual2);
 	}
 }

@@ -57,14 +57,11 @@ public class StreamConfig {
 	private static final String TYPE_SERIALIZER_IN_2 = "typeSerializer_in_2";
 	private static final String TYPE_SERIALIZER_OUT_1 = "typeSerializer_out_1";
 	private static final String TYPE_SERIALIZER_OUT_2 = "typeSerializer_out_2";
-	private static final String MUTABILITY = "isMutable";
 	private static final String ITERATON_WAIT = "iterationWait";
 
 	// DEFAULT VALUES
 
-	private static final boolean DEFAULT_IS_MUTABLE = false;
-
-	private static final long DEFAULT_TIMEOUT = 0;
+	private static final long DEFAULT_TIMEOUT = 100;
 
 	// CONFIG METHODS
 
@@ -136,14 +133,6 @@ public class StreamConfig {
 
 	private void setTypeSerializer(String key, StreamRecordSerializer<?> typeWrapper) {
 		config.setBytes(key, SerializationUtils.serialize(typeWrapper));
-	}
-
-	public void setMutability(boolean isMutable) {
-		config.setBoolean(MUTABILITY, isMutable);
-	}
-
-	public boolean getMutability() {
-		return config.getBoolean(MUTABILITY, DEFAULT_IS_MUTABLE);
 	}
 
 	public void setBufferTimeout(long timeout) {

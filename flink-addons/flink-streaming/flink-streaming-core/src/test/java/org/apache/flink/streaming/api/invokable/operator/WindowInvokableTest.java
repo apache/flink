@@ -31,7 +31,7 @@ import org.apache.flink.streaming.api.windowing.policy.EvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TimeEvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TimeTriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
-import org.apache.flink.streaming.util.MockInvokable;
+import org.apache.flink.streaming.util.MockContext;
 import org.junit.Test;
 
 public class WindowInvokableTest {
@@ -98,7 +98,7 @@ public class WindowInvokableTest {
 				myReduceFunction, triggers, evictions);
 
 		ArrayList<Integer> result = new ArrayList<Integer>();
-		for (Integer t : MockInvokable.createAndExecute(invokable, inputs)) {
+		for (Integer t : MockContext.createAndExecute(invokable, inputs)) {
 			result.add(t);
 		}
 
@@ -148,7 +148,7 @@ public class WindowInvokableTest {
 		expected.add(24);
 		expected.add(19);
 		List<Integer> result = new ArrayList<Integer>();
-		for (Integer t : MockInvokable.createAndExecute(invokable, inputs)) {
+		for (Integer t : MockContext.createAndExecute(invokable, inputs)) {
 			result.add(t);
 		}
 		assertEquals(expected, result);
@@ -199,7 +199,7 @@ public class WindowInvokableTest {
 		expected2.add(-4);
 
 		result = new ArrayList<Integer>();
-		for (Integer t : MockInvokable.createAndExecute(invokable2, inputs2)) {
+		for (Integer t : MockContext.createAndExecute(invokable2, inputs2)) {
 			result.add(t);
 		}
 
@@ -253,7 +253,7 @@ public class WindowInvokableTest {
 				myReduceFunction, triggers, evictions);
 
 		ArrayList<Integer> result = new ArrayList<Integer>();
-		for (Integer t : MockInvokable.createAndExecute(invokable, inputs)) {
+		for (Integer t : MockContext.createAndExecute(invokable, inputs)) {
 			result.add(t);
 		}
 

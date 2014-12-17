@@ -22,7 +22,7 @@ import static org.junit.Assert.assertEquals;
 import java.util.Arrays;
 import java.util.List;
 
-import org.apache.flink.streaming.util.MockInvokable;
+import org.apache.flink.streaming.util.MockContext;
 import org.junit.Test;
 
 public class CounterInvokableTest {
@@ -32,7 +32,7 @@ public class CounterInvokableTest {
 		CounterInvokable<String> invokable = new CounterInvokable<String>();
 
 		List<Long> expected = Arrays.asList(1L, 2L, 3L);
-		List<Long> actual = MockInvokable.createAndExecute(invokable, Arrays.asList("one", "two", "three"));
+		List<Long> actual = MockContext.createAndExecute(invokable, Arrays.asList("one", "two", "three"));
 		
 		assertEquals(expected, actual);
 	}

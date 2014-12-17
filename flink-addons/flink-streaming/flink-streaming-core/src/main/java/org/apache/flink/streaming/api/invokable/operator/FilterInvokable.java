@@ -25,37 +25,25 @@ public class FilterInvokable<IN> extends StreamInvokable<IN, IN> {
 	private static final long serialVersionUID = 1L;
 
 	FilterFunction<IN> filterFunction;
+	private boolean collect;
 
 	public FilterInvokable(FilterFunction<IN> filterFunction) {
 		super(filterFunction);
 		this.filterFunction = filterFunction;
 	}
 
-	private boolean canCollect;
-	
 	@Override
-	protected void immutableInvoke() throws Exception {
-		while ((reuse = recordIterator.next(reuse)) != null) {
+	public void invoke() throws Exception {
+		while (readNext() != null) {
 			callUserFunctionAndLogException();
-			if (canCollect) {
-				collector.collect(reuse.getObject());
-			}
-			resetReuse();
-		}
-	}
-
-	@Override
-	protected void mutableInvoke() throws Exception {
-		while ((reuse = recordIterator.next(reuse)) != null) {
-			callUserFunctionAndLogException();
-			if (canCollect) {
-				collector.collect(reuse.getObject());
+			if (collect) {
+				collector.collect(nextRecord.getObject());
 			}
 		}
 	}
 
 	@Override
 	protected void callUserFunction() throws Exception {
-		canCollect = filterFunction.filter(reuse.getObject());
+		collect = filterFunction.filter(nextRecord.getObject());
 	}
 }

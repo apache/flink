@@ -64,7 +64,6 @@ public class JobGraphBuilder {
 	private Map<String, List<Integer>> outEdgeType;
 	private Map<String, List<List<String>>> outEdgeNames;
 	private Map<String, List<Boolean>> outEdgeSelectAll;
-	private Map<String, Boolean> mutability;
 	private Map<String, List<String>> inEdgeList;
 	private Map<String, List<StreamPartitioner<?>>> connectionTypes;
 	private Map<String, String> operatorNames;
@@ -97,7 +96,6 @@ public class JobGraphBuilder {
 		outEdgeType = new HashMap<String, List<Integer>>();
 		outEdgeNames = new HashMap<String, List<List<String>>>();
 		outEdgeSelectAll = new HashMap<String, List<Boolean>>();
-		mutability = new HashMap<String, Boolean>();
 		inEdgeList = new HashMap<String, List<String>>();
 		connectionTypes = new HashMap<String, List<StreamPartitioner<?>>>();
 		operatorNames = new HashMap<String, String>();
@@ -302,7 +300,6 @@ public class JobGraphBuilder {
 
 		vertexClasses.put(vertexName, vertexClass);
 		setParallelism(vertexName, parallelism);
-		mutability.put(vertexName, false);
 		invokableObjects.put(vertexName, invokableObject);
 		operatorNames.put(vertexName, operatorName);
 		serializedFunctions.put(vertexName, serializedFunction);
@@ -355,7 +352,6 @@ public class JobGraphBuilder {
 
 		StreamConfig config = new StreamConfig(vertex.getConfiguration());
 
-		config.setMutability(mutability.get(vertexName));
 		config.setBufferTimeout(bufferTimeout.get(vertexName));
 
 		config.setTypeSerializerIn1(typeSerializersIn1.get(vertexName));
@@ -445,10 +441,6 @@ public class JobGraphBuilder {
 	 */
 	public void setInputFormat(String vertexName, InputFormat<String, ?> inputFormat) {
 		inputFormatList.put(vertexName, inputFormat);
-	}
-
-	public void setMutability(String vertexName, boolean isMutable) {
-		mutability.put(vertexName, isMutable);
 	}
 
 	public void setBufferTimeout(String vertexName, long bufferTimeout) {

@@ -23,7 +23,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.streaming.util.MockInvokable;
+import org.apache.flink.streaming.util.MockContext;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
 
@@ -47,7 +47,7 @@ public class FlatMapTest {
 		FlatMapInvokable<Integer, Integer> invokable = new FlatMapInvokable<Integer, Integer>(new MyFlatMap());
 		
 		List<Integer> expected = Arrays.asList(2, 4, 4, 16, 6, 36, 8, 64);
-		List<Integer> actual = MockInvokable.createAndExecute(invokable, Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8));
+		List<Integer> actual = MockContext.createAndExecute(invokable, Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8));
 		
 		assertEquals(expected, actual);
 	}

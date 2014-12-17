@@ -38,9 +38,9 @@ public class GroupedReduceInvokable<IN> extends StreamReduceInvokable<IN> {
 
 	@Override
 	protected void reduce() throws Exception {
-		Object key = reuse.getKey(keySelector);
+		Object key = nextRecord.getKey(keySelector);
 		currentValue = values.get(key);
-		nextValue = reuse.getObject();
+		nextValue = nextRecord.getObject();
 		if (currentValue != null) {
 			callUserFunctionAndLogException();
 			values.put(key, reduced);

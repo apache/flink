@@ -28,7 +28,7 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.datastream.StreamProjection;
-import org.apache.flink.streaming.util.MockInvokable;
+import org.apache.flink.streaming.util.MockContext;
 import org.junit.Test;
 
 public class ProjectTest implements Serializable {
@@ -62,6 +62,6 @@ public class ProjectTest implements Serializable {
 		expected.add(new Tuple3<Integer, Integer, String>(2, 2, "c"));
 		expected.add(new Tuple3<Integer, Integer, String>(7, 7, "a"));
 
-		assertEquals(expected, MockInvokable.createAndExecute(invokable, input));
+		assertEquals(expected, MockContext.createAndExecute(invokable, input));
 	}
 }
