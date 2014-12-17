@@ -21,30 +21,17 @@ import org.apache.flink.streaming.api.invokable.StreamInvokable;
 
 public class CounterInvokable<IN> extends StreamInvokable<IN, Long> {
 	private static final long serialVersionUID = 1L;
-	
+
 	Long count = 0L;
-	
+
 	public CounterInvokable() {
 		super(null);
 	}
-	
-	@Override
-	protected void immutableInvoke() throws Exception {
-		while ((reuse = recordIterator.next(reuse)) != null) {
-			callUserFunctionAndLogException();
-			resetReuse();
-		}
-	}
 
 	@Override
-	protected void mutableInvoke() throws Exception {
-		while ((reuse = recordIterator.next(reuse)) != null) {
-			callUserFunctionAndLogException();
+	public void invoke() throws Exception {
+		while (readNext() != null) {
+			collector.collect(++count);
 		}
-	}
-
-	@Override
-	protected void callUserFunction() throws Exception {
-		collector.collect(++count);
 	}
 }

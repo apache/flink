@@ -26,7 +26,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.streaming.api.function.co.CoReduceFunction;
 import org.apache.flink.streaming.api.invokable.operator.co.CoGroupedReduceInvokable;
-import org.apache.flink.streaming.util.MockCoInvokable;
+import org.apache.flink.streaming.util.MockCoContext;
 import org.apache.flink.streaming.util.keys.TupleKeySelector;
 import org.junit.Test;
 
@@ -77,7 +77,7 @@ public class CoGroupedReduceTest {
 		List<String> expected = Arrays.asList("word1", "1", "word2", "2", "word1word3", "3", "5",
 				"7");
 
-		List<String> actualList = MockCoInvokable.createAndExecute(invokable,
+		List<String> actualList = MockCoContext.createAndExecute(invokable,
 				Arrays.asList(word1, word2, word3), Arrays.asList(int1, int2, int3, int4, int5));
 
 		assertEquals(expected, actualList);
@@ -87,7 +87,7 @@ public class CoGroupedReduceTest {
 
 		expected = Arrays.asList("word1", "1", "word2", "2", "word2word3", "3", "5", "7");
 
-		actualList = MockCoInvokable.createAndExecute(invokable,
+		actualList = MockCoContext.createAndExecute(invokable,
 				Arrays.asList(word1, word2, word3), Arrays.asList(int1, int2, int3, int4, int5));
 
 		assertEquals(expected, actualList);

@@ -24,7 +24,7 @@ import java.util.List;
 
 import org.apache.flink.streaming.api.function.co.CoReduceFunction;
 import org.apache.flink.streaming.api.invokable.operator.co.CoReduceInvokable;
-import org.apache.flink.streaming.util.MockCoInvokable;
+import org.apache.flink.streaming.util.MockCoContext;
 import org.junit.Test;
 
 public class CoStreamReduceTest {
@@ -62,7 +62,7 @@ public class CoStreamReduceTest {
 				new MyCoReduceFunction());
 
 		List<Integer> expected1 = Arrays.asList(1, 9, 2, 99, 6, 998, 24);
-		List<Integer> result = MockCoInvokable.createAndExecute(coReduce,
+		List<Integer> result = MockCoContext.createAndExecute(coReduce,
 				Arrays.asList(1, 2, 3, 4), Arrays.asList("9", "9", "8"));
 
 		assertEquals(expected1, result);

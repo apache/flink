@@ -23,7 +23,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.streaming.util.MockInvokable;
+import org.apache.flink.streaming.util.MockContext;
 import org.junit.Test;
 
 public class MapTest {
@@ -42,7 +42,7 @@ public class MapTest {
 		MapInvokable<Integer, String> invokable = new MapInvokable<Integer, String>(new Map());
 		
 		List<String> expectedList = Arrays.asList("+2", "+3", "+4");
-		List<String> actualList = MockInvokable.createAndExecute(invokable, Arrays.asList(1, 2, 3));
+		List<String> actualList = MockContext.createAndExecute(invokable, Arrays.asList(1, 2, 3));
 		
 		assertEquals(expectedList, actualList);
 	}

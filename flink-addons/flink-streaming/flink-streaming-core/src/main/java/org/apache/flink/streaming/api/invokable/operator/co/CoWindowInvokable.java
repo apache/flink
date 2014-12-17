@@ -59,11 +59,6 @@ public class CoWindowInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2, OUT>
 	}
 
 	@Override
-	protected void mutableInvoke() throws Exception {
-		throw new RuntimeException("Reducing mutable sliding batch is not supported.");
-	}
-
-	@Override
 	protected void handleStream1() throws Exception {
 		window.addToBuffer1(reuse1.getObject());
 	}

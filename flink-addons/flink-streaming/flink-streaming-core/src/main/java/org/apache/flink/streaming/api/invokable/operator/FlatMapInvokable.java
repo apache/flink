@@ -31,23 +31,15 @@ public class FlatMapInvokable<IN, OUT> extends StreamInvokable<IN, OUT> {
 	}
 
 	@Override
-	protected void immutableInvoke() throws Exception {
-		while ((reuse = recordIterator.next(reuse)) != null) {
-			callUserFunctionAndLogException();
-			resetReuse();
-		}
-	}
-
-	@Override
-	protected void mutableInvoke() throws Exception {
-		while ((reuse = recordIterator.next(reuse)) != null) {
+	public void invoke() throws Exception {
+		while (readNext() != null) {
 			callUserFunctionAndLogException();
 		}
 	}
 
 	@Override
 	protected void callUserFunction() throws Exception {
-		flatMapper.flatMap(reuse.getObject(), collector);
+		flatMapper.flatMap(nextRecord.getObject(), collector);
 	}
 
 }

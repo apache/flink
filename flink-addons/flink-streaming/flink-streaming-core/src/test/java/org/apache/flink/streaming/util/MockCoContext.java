@@ -26,13 +26,16 @@ import java.util.List;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.streaming.api.StreamConfig;
 import org.apache.flink.streaming.api.invokable.operator.co.CoInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
+import org.apache.flink.streaming.api.streamvertex.StreamTaskContext;
 import org.apache.flink.streaming.io.CoReaderIterator;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.MutableObjectIterator;
 
-public class MockCoInvokable<IN1, IN2, OUT> {
+public class MockCoContext<IN1, IN2, OUT> implements StreamTaskContext<OUT> {
 	// private Collection<IN1> input1;
 	// private Collection<IN2> input2;
 	private Iterator<IN1> inputIterator1;
@@ -44,7 +47,7 @@ public class MockCoInvokable<IN1, IN2, OUT> {
 	private CoReaderIterator<StreamRecord<IN1>, StreamRecord<IN2>> mockIterator;
 	private StreamRecordSerializer<IN2> inDeserializer2;
 
-	public MockCoInvokable(Collection<IN1> input1, Collection<IN2> input2) {
+	public MockCoContext(Collection<IN1> input1, Collection<IN2> input2) {
 
 		if (input1.isEmpty() || input2.isEmpty()) {
 			throw new RuntimeException("Inputs must not be empty");
@@ -67,12 +70,11 @@ public class MockCoInvokable<IN1, IN2, OUT> {
 	private int currentInput = 1;
 	private StreamRecord<IN1> reuse1;
 	private StreamRecord<IN2> reuse2;
-	
+
 	private class MockCoReaderIterator extends
 			CoReaderIterator<StreamRecord<IN1>, StreamRecord<IN2>> {
 
-		public MockCoReaderIterator(
-				TypeSerializer<StreamRecord<IN1>> serializer1,
+		public MockCoReaderIterator(TypeSerializer<StreamRecord<IN1>> serializer1,
 				TypeSerializer<StreamRecord<IN2>> serializer2) {
 			super(null, serializer1, serializer2);
 			reuse1 = inDeserializer1.createInstance();
@@ -83,11 +85,11 @@ public class MockCoInvokable<IN1, IN2, OUT> {
 		public int next(StreamRecord<IN1> target1, StreamRecord<IN2> target2) throws IOException {
 			this.delegate1.setInstance(target1);
 			this.delegate2.setInstance(target2);
-			
+
 			int inputNumber = nextRecord();
 			target1.setObject(reuse1.getObject());
 			target2.setObject(reuse2.getObject());
-			
+
 			return inputNumber;
 		}
 	}
@@ -151,9 +153,8 @@ public class MockCoInvokable<IN1, IN2, OUT> {
 
 	public static <IN1, IN2, OUT> List<OUT> createAndExecute(CoInvokable<IN1, IN2, OUT> invokable,
 			List<IN1> input1, List<IN2> input2) {
-		MockCoInvokable<IN1, IN2, OUT> mock = new MockCoInvokable<IN1, IN2, OUT>(input1, input2);
-		invokable.initialize(mock.getCollector(), mock.getIterator(), mock.getInDeserializer1(),
-				mock.getInDeserializer2(), false);
+		MockCoContext<IN1, IN2, OUT> mockContext = new MockCoContext<IN1, IN2, OUT>(input1, input2);
+		invokable.setup(mockContext);
 
 		try {
 			invokable.open(null);
@@ -163,7 +164,54 @@ public class MockCoInvokable<IN1, IN2, OUT> {
 			throw new RuntimeException("Cannot invoke invokable.", e);
 		}
 
-		return mock.getOutputs();
+		return mockContext.getOutputs();
+	}
+
+	@Override
+	public StreamConfig getConfig() {
+		return null;
+	}
+
+	@Override
+	public ClassLoader getUserCodeClassLoader() {
+		return null;
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public <X> MutableObjectIterator<X> getInput(int index) {
+		switch (index) {
+		case 0:
+			return (MutableObjectIterator<X>) inputIterator1;
+		case 1:
+			return (MutableObjectIterator<X>) inputIterator2;
+		default:
+			throw new IllegalArgumentException("CoStreamVertex has only 2 inputs");
+		}
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public <X> StreamRecordSerializer<X> getInputSerializer(int index) {
+		switch (index) {
+		case 0:
+			return (StreamRecordSerializer<X>) inDeserializer1;
+		case 1:
+			return (StreamRecordSerializer<X>) inDeserializer2;
+		default:
+			throw new IllegalArgumentException("CoStreamVertex has only 2 inputs");
+		}
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public <X, Y> CoReaderIterator<X, Y> getCoReader() {
+		return (CoReaderIterator<X, Y>) mockIterator;
+	}
+
+	@Override
+	public Collector<OUT> getOutputCollector() {
+		return collector;
 	}
 
 }

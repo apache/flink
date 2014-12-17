@@ -31,22 +31,14 @@ public class MapInvokable<IN, OUT> extends StreamInvokable<IN, OUT> {
 	}
 
 	@Override
-	protected void immutableInvoke() throws Exception {
-		while ((reuse = recordIterator.next(reuse)) != null) {
-			callUserFunctionAndLogException();
-			resetReuse();
-		}
-	}
-
-	@Override
-	protected void mutableInvoke() throws Exception {
-		while ((reuse = recordIterator.next(reuse)) != null) {
+	public void invoke() throws Exception {
+		while (readNext() != null) {
 			callUserFunctionAndLogException();
 		}
 	}
 
 	@Override
 	protected void callUserFunction() throws Exception {
-		collector.collect(mapper.map(reuse.getObject()));
+		collector.collect(mapper.map(nextRecord.getObject()));
 	}
 }

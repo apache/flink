@@ -23,9 +23,13 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.streaming.api.StreamConfig;
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
+import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
+import org.apache.flink.streaming.io.CoReaderIterator;
 import org.apache.flink.streaming.state.OperatorState;
+import org.apache.flink.util.Collector;
+import org.apache.flink.util.MutableObjectIterator;
 
-public class StreamVertex<IN, OUT> extends AbstractInvokable {
+public class StreamVertex<IN, OUT> extends AbstractInvokable implements StreamTaskContext<OUT> {
 
 	private static int numTasks;
 
@@ -33,12 +37,11 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable {
 	protected int instanceID;
 	protected String name;
 	private static int numVertices = 0;
-	protected boolean isMutable;
 	protected Object function;
 	protected String functionName;
 
 	private InputHandler<IN> inputHandler;
-	private OutputHandler<OUT> outputHandler;
+	protected OutputHandler<OUT> outputHandler;
 	private StreamInvokable<IN, OUT> userInvokable;
 
 	private StreamingRuntimeContext context;
@@ -68,7 +71,6 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable {
 		this.userClassLoader = getUserCodeClassLoader();
 		this.configuration = new StreamConfig(getTaskConfiguration());
 		this.name = configuration.getVertexName();
-		this.isMutable = configuration.getMutability();
 		this.functionName = configuration.getFunctionName();
 		this.function = configuration.getFunction(userClassLoader);
 		this.states = configuration.getOperatorStates(userClassLoader);
@@ -89,8 +91,7 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable {
 
 	protected void setInvokable() {
 		userInvokable = configuration.getUserInvokable(userClassLoader);
-		userInvokable.initialize(outputHandler.getCollector(), inputHandler.getInputIter(),
-				inputHandler.getInputSerializer(), isMutable);
+		userInvokable.setup(this);
 	}
 
 	public String getName() {
@@ -110,5 +111,40 @@ public class StreamVertex<IN, OUT> extends AbstractInvokable {
 	@Override
 	public void invoke() throws Exception {
 		outputHandler.invokeUserFunction("TASK", userInvokable);
+	}
+
+	@Override
+	public StreamConfig getConfig() {
+		return configuration;
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public <X> MutableObjectIterator<X> getInput(int index) {
+		if (index == 0) {
+			return (MutableObjectIterator<X>) inputHandler.getInputIter();
+		} else {
+			throw new IllegalArgumentException("There is only 1 input");
+		}
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public <X> StreamRecordSerializer<X> getInputSerializer(int index) {
+		if (index == 0) {
+			return (StreamRecordSerializer<X>) inputHandler.getInputSerializer();
+		} else {
+			throw new IllegalArgumentException("There is only 1 input");
+		}
+	}
+
+	@Override
+	public Collector<OUT> getOutputCollector() {
+		return outputHandler.getCollector();
+	}
+
+	@Override
+	public <X, Y> CoReaderIterator<X, Y> getCoReader() {
+		throw new IllegalArgumentException("CoReader not available");
 	}
 }

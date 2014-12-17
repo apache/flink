@@ -25,7 +25,7 @@ import java.util.List;
 
 import org.apache.flink.streaming.api.function.co.CoReduceFunction;
 import org.apache.flink.streaming.api.invokable.operator.co.CoBatchReduceInvokable;
-import org.apache.flink.streaming.util.MockCoInvokable;
+import org.apache.flink.streaming.util.MockCoContext;
 import org.junit.Test;
 
 public class CoBatchReduceTest {
@@ -84,7 +84,7 @@ public class CoBatchReduceTest {
 		expected.add("def");
 		expected.add("ghi");
 
-		List<String> result = MockCoInvokable.createAndExecute(invokable, inputs, inputs2);
+		List<String> result = MockCoContext.createAndExecute(invokable, inputs, inputs2);
 
 		Collections.sort(result);
 		Collections.sort(expected);
@@ -125,7 +125,7 @@ public class CoBatchReduceTest {
 		expected.add("efg");
 		expected.add("ghi");
 
-		List<String> result = MockCoInvokable.createAndExecute(invokable, inputs, inputs2);
+		List<String> result = MockCoContext.createAndExecute(invokable, inputs, inputs2);
 
 		Collections.sort(result);
 		Collections.sort(expected);

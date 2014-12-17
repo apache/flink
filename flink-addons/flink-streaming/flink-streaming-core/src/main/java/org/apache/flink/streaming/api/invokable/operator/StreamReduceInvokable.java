@@ -34,22 +34,14 @@ public class StreamReduceInvokable<IN> extends StreamInvokable<IN, IN> {
 	}
 
 	@Override
-	protected void immutableInvoke() throws Exception {
-		while ((reuse = recordIterator.next(reuse)) != null) {
-			reduce();
-			resetReuse();
-		}
-	}
-
-	@Override
-	protected void mutableInvoke() throws Exception {
-		while ((reuse = recordIterator.next(reuse)) != null) {
+	public void invoke() throws Exception {
+		while (readNext() != null) {
 			reduce();
 		}
 	}
 
 	protected void reduce() throws Exception {
-		nextValue = reuse.getObject();
+		nextValue = nextRecord.getObject();
 		callUserFunctionAndLogException();
 
 	}

@@ -366,7 +366,7 @@ public class DataStream<OUT> {
 	 * the data stream that will be fed back and used as the input for the
 	 * iteration head. A common usage pattern for streaming iterations is to use
 	 * output splitting to send a part of the closing data stream to the head.
-	 * Refer to {@link SingleOutputStreamOperator#split(OutputSelector)} for
+	 * Refer to {@link SingleOutputStreamOperator#split(outputSelector)} for
 	 * more information.
 	 * <p>
 	 * The iteration edge will be partitioned the same way as the first input of
@@ -940,7 +940,6 @@ public class DataStream<OUT> {
 			WriteFormatAsText<OUT> format, long millis, OUT endTuple) {
 		DataStreamSink<OUT> returnStream = addSink(inputStream, new WriteSinkFunctionByMillis<OUT>(
 				path, format, millis, endTuple), inputStream.typeInfo);
-		jobGraphBuilder.setMutability(returnStream.getId(), false);
 		return returnStream;
 	}
 
@@ -968,7 +967,6 @@ public class DataStream<OUT> {
 		DataStreamSink<OUT> returnStream = addSink(inputStream,
 				new WriteSinkFunctionByBatches<OUT>(path, format, batchSize, endTuple),
 				inputStream.typeInfo);
-		jobGraphBuilder.setMutability(returnStream.getId(), false);
 		return returnStream;
 	}
 
@@ -1063,9 +1061,6 @@ public class DataStream<OUT> {
 	 * @return The closed DataStream
 	 */
 	public DataStreamSink<OUT> writeAsCsv(String path, int batchSize, OUT endTuple) {
-		if (this instanceof SingleOutputStreamOperator) {
-			((SingleOutputStreamOperator<?, ?>) this).setMutability(false);
-		}
 		return writeAsCsv(this, path, new WriteFormatAsCsv<OUT>(), batchSize, endTuple);
 	}
 
@@ -1091,7 +1086,6 @@ public class DataStream<OUT> {
 			WriteFormatAsCsv<OUT> format, long millis, OUT endTuple) {
 		DataStreamSink<OUT> returnStream = addSink(inputStream, new WriteSinkFunctionByMillis<OUT>(
 				path, format, millis, endTuple), inputStream.typeInfo);
-		jobGraphBuilder.setMutability(returnStream.getId(), false);
 		return returnStream;
 	}
 
@@ -1119,7 +1113,6 @@ public class DataStream<OUT> {
 		DataStreamSink<OUT> returnStream = addSink(inputStream,
 				new WriteSinkFunctionByBatches<OUT>(path, format, batchSize, endTuple),
 				inputStream.typeInfo);
-		jobGraphBuilder.setMutability(returnStream.getId(), false);
 		return returnStream;
 	}
 

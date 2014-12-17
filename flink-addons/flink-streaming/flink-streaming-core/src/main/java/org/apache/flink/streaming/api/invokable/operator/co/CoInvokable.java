@@ -22,8 +22,8 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.api.invokable.StreamInvokable;
 import org.apache.flink.streaming.api.streamrecord.StreamRecord;
 import org.apache.flink.streaming.api.streamrecord.StreamRecordSerializer;
+import org.apache.flink.streaming.api.streamvertex.StreamTaskContext;
 import org.apache.flink.streaming.io.CoReaderIterator;
-import org.apache.flink.util.Collector;
 import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,19 +45,18 @@ public abstract class CoInvokable<IN1, IN2, OUT> extends StreamInvokable<IN1, OU
 	protected TypeSerializer<IN1> serializer1;
 	protected TypeSerializer<IN2> serializer2;
 
-	public void initialize(Collector<OUT> collector,
-			CoReaderIterator<StreamRecord<IN1>, StreamRecord<IN2>> recordIterator,
-			StreamRecordSerializer<IN1> serializer1, StreamRecordSerializer<IN2> serializer2,
-			boolean isMutable) {
-		this.collector = collector;
+	@Override
+	public void setup(StreamTaskContext<OUT> taskContext) {
+		this.collector = taskContext.getOutputCollector();
 
-		this.recordIterator = recordIterator;
-		this.reuse1 = serializer1.createInstance();
-		this.reuse2 = serializer2.createInstance();
+		this.recordIterator = taskContext.getCoReader();
 
-		this.srSerializer1 = serializer1;
-		this.srSerializer2 = serializer2;
-		this.isMutable = isMutable;
+		this.srSerializer1 = taskContext.getInputSerializer(0);
+		this.srSerializer2 = taskContext.getInputSerializer(1);
+
+		this.reuse1 = srSerializer1.createInstance();
+		this.reuse2 = srSerializer2.createInstance();
+
 		this.serializer1 = srSerializer1.getObjectSerializer();
 		this.serializer2 = srSerializer2.getObjectSerializer();
 	}
@@ -76,7 +75,7 @@ public abstract class CoInvokable<IN1, IN2, OUT> extends StreamInvokable<IN1, OU
 	}
 
 	@Override
-	protected void immutableInvoke() throws Exception {
+	public void invoke() throws Exception {
 		while (true) {
 			int next = recordIterator.next(reuse1, reuse2);
 			if (next == 0) {
@@ -89,22 +88,6 @@ public abstract class CoInvokable<IN1, IN2, OUT> extends StreamInvokable<IN1, OU
 				initialize2();
 				handleStream2();
 				resetReuse2();
-			}
-		}
-	}
-
-	@Override
-	protected void mutableInvoke() throws Exception {
-		while (true) {
-			int next = recordIterator.next(reuse1, reuse2);
-			if (next == 0) {
-				break;
-			} else if (next == 1) {
-				initialize1();
-				handleStream1();
-			} else {
-				initialize2();
-				handleStream2();
 			}
 		}
 	}
@@ -145,10 +128,6 @@ public abstract class CoInvokable<IN1, IN2, OUT> extends StreamInvokable<IN1, OU
 						StringUtils.stringifyException(e));
 			}
 		}
-	}
-
-	@Override
-	protected void callUserFunction() throws Exception {
 	}
 
 }

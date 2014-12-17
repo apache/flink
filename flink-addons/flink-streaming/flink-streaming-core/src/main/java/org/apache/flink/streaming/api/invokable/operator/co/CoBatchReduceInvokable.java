@@ -63,7 +63,7 @@ public class CoBatchReduceInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2,
 	}
 
 	@Override
-	public void immutableInvoke() throws Exception {
+	public void invoke() throws Exception {
 		while (true) {
 			int next = recordIterator.next(reuse1, reuse2);
 			if (next == 0) {
@@ -98,13 +98,6 @@ public class CoBatchReduceInvokable<IN1, IN2, OUT> extends CoInvokable<IN1, IN2,
 
 	protected StreamBatch<IN2> getBatch2(StreamRecord<IN2> next) {
 		return batch2;
-	}
-
-	@Override
-	// TODO: implement mutableInvoke for reduce
-	protected void mutableInvoke() throws Exception {
-		System.out.println("Immutable setting is used");
-		immutableInvoke();
 	}
 
 	protected void reduce1(StreamBatch<IN1> batch) {

@@ -39,7 +39,7 @@ import org.apache.flink.streaming.api.windowing.policy.TimeEvictionPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TimeTriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TriggerPolicy;
 import org.apache.flink.streaming.api.windowing.policy.TumblingEvictionPolicy;
-import org.apache.flink.streaming.util.MockInvokable;
+import org.apache.flink.streaming.util.MockContext;
 import org.apache.flink.streaming.util.keys.TupleKeySelector;
 import org.junit.Test;
 
@@ -206,7 +206,7 @@ public class GroupedWindowInvokableTest {
 		GroupedWindowInvokable<Integer, Integer> invokable = new GroupedWindowInvokable<Integer, Integer>(
 				reduceFunction, keySelector, triggers, evictions, centralTriggers, null);
 
-		List<Integer> result = MockInvokable.createAndExecute(invokable, inputs);
+		List<Integer> result = MockContext.createAndExecute(invokable, inputs);
 
 		List<Integer> actual = new LinkedList<Integer>();
 		for (Integer current : result) {
@@ -225,7 +225,7 @@ public class GroupedWindowInvokableTest {
 		invokable = new GroupedWindowInvokable<Integer, Integer>(
 				reduceFunction, keySelector, triggers, null, centralTriggers,centralEvictions);
 		
-		result = MockInvokable.createAndExecute(invokable, inputs);
+		result = MockContext.createAndExecute(invokable, inputs);
 		actual = new LinkedList<Integer>();
 		for (Integer current : result) {
 			actual.add(current);
@@ -282,7 +282,7 @@ public class GroupedWindowInvokableTest {
 				}, new TupleKeySelector<Tuple2<Integer, String>>(1), triggers, evictions,
 				centralTriggers, null);
 
-		List<Tuple2<Integer, String>> result = MockInvokable.createAndExecute(invokable2, inputs2);
+		List<Tuple2<Integer, String>> result = MockContext.createAndExecute(invokable2, inputs2);
 
 		List<Tuple2<Integer, String>> actual2 = new LinkedList<Tuple2<Integer, String>>();
 		for (Tuple2<Integer, String> current : result) {
@@ -391,7 +391,7 @@ public class GroupedWindowInvokableTest {
 				distributedTriggers, evictions, triggers, null);
 
 		ArrayList<Tuple2<Integer, String>> result = new ArrayList<Tuple2<Integer, String>>();
-		for (Tuple2<Integer, String> t : MockInvokable.createAndExecute(invokable, inputs)) {
+		for (Tuple2<Integer, String> t : MockContext.createAndExecute(invokable, inputs)) {
 			result.add(t);
 		}
 
@@ -411,7 +411,7 @@ public class GroupedWindowInvokableTest {
 				distributedTriggers, evictions, triggers, centralEvictions);
 
 		result = new ArrayList<Tuple2<Integer, String>>();
-		for (Tuple2<Integer, String> t : MockInvokable.createAndExecute(invokable, inputs)) {
+		for (Tuple2<Integer, String> t : MockContext.createAndExecute(invokable, inputs)) {
 			result.add(t);
 		}
 
@@ -480,7 +480,7 @@ public class GroupedWindowInvokableTest {
 				}, distributedTriggers, evictions, triggers, null);
 
 		ArrayList<Integer> result = new ArrayList<Integer>();
-		for (Integer t : MockInvokable.createAndExecute(invokable, inputs)) {
+		for (Integer t : MockContext.createAndExecute(invokable, inputs)) {
 			result.add(t);
 		}
 
@@ -556,7 +556,7 @@ public class GroupedWindowInvokableTest {
 				}, distributedTriggers, evictions, triggers, null);
 
 		ArrayList<Integer> result = new ArrayList<Integer>();
-		for (Integer t : MockInvokable.createAndExecute(invokable, inputs)) {
+		for (Integer t : MockContext.createAndExecute(invokable, inputs)) {
 			result.add(t);
 		}
 

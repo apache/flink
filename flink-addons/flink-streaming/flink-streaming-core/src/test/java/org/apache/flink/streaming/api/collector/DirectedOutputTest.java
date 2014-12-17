@@ -113,7 +113,7 @@ public class DirectedOutputTest {
 		source.select(EVEN, ODD).addSink(new ListSink(EVEN_AND_ODD));
 		source.selectAll().addSink(new ListSink(ALL));
 
-		env.executeTest(128);
+		env.executeTest(32);
 		assertEquals(Arrays.asList(2L, 4L, 6L, 8L, 10L), outputs.get(EVEN));
 		assertEquals(Arrays.asList(1L, 3L, 5L, 7L, 9L, 10L, 11L), outputs.get(ODD_AND_TEN));
 		assertEquals(Arrays.asList(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L, 11L),
