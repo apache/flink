@@ -123,6 +123,10 @@ public class WindowedDataStream<OUT> {
 		this.userEvicters = windowedDataStream.userEvicters;
 		this.allCentral = windowedDataStream.allCentral;
 	}
+	
+	public <F> F clean(F f){
+		return dataStream.clean(f);
+	}
 
 	/**
 	 * Defines the slide size (trigger frequency) for the windowed data stream.
@@ -226,7 +230,7 @@ public class WindowedDataStream<OUT> {
 	 * @return The transformed DataStream
 	 */
 	public SingleOutputStreamOperator<OUT, ?> reduce(ReduceFunction<OUT> reduceFunction) {
-		return dataStream.addFunction("NextGenWindowReduce", reduceFunction, getType(), getType(),
+		return dataStream.addFunction("NextGenWindowReduce", clean(reduceFunction), getType(), getType(),
 				getReduceInvokable(reduceFunction));
 	}
 
@@ -250,7 +254,7 @@ public class WindowedDataStream<OUT> {
 		TypeInformation<R> outType = TypeExtractor
 				.getGroupReduceReturnTypes(reduceFunction, inType);
 
-		return dataStream.addFunction("NextGenWindowReduce", reduceFunction, inType, outType,
+		return dataStream.addFunction("NextGenWindowReduce", clean(reduceFunction), inType, outType,
 				getReduceGroupInvokable(reduceFunction));
 	}
 
@@ -453,7 +457,7 @@ public class WindowedDataStream<OUT> {
 		StreamInvokable<OUT, OUT> invokable = getReduceInvokable(aggregator);
 
 		SingleOutputStreamOperator<OUT, ?> returnStream = dataStream.addFunction("windowReduce",
-				aggregator, getType(), getType(), invokable);
+				clean(aggregator), getType(), getType(), invokable);
 
 		return returnStream;
 	}
@@ -550,12 +554,12 @@ public class WindowedDataStream<OUT> {
 	private <R> StreamInvokable<OUT, R> getReduceGroupInvokable(GroupReduceFunction<OUT, R> reducer) {
 		StreamInvokable<OUT, R> invokable;
 		if (isGrouped) {
-			invokable = new GroupedWindowInvokable<OUT, R>(reducer, keySelector,
+			invokable = new GroupedWindowInvokable<OUT, R>(clean(reducer), keySelector,
 					getDistributedTriggers(), getDistributedEvicters(), getCentralTriggers(),
 					getCentralEvicters());
 
 		} else {
-			invokable = new WindowGroupReduceInvokable<OUT, R>(reducer, getTriggers(),
+			invokable = new WindowGroupReduceInvokable<OUT, R>(clean(reducer), getTriggers(),
 					getEvicters());
 		}
 		return invokable;
@@ -564,12 +568,12 @@ public class WindowedDataStream<OUT> {
 	private StreamInvokable<OUT, OUT> getReduceInvokable(ReduceFunction<OUT> reducer) {
 		StreamInvokable<OUT, OUT> invokable;
 		if (isGrouped) {
-			invokable = new GroupedWindowInvokable<OUT, OUT>(reducer, keySelector,
+			invokable = new GroupedWindowInvokable<OUT, OUT>(clean(reducer), keySelector,
 					getDistributedTriggers(), getDistributedEvicters(), getCentralTriggers(),
 					getCentralEvicters());
 
 		} else {
-			invokable = new WindowReduceInvokable<OUT>(reducer, getTriggers(), getEvicters());
+			invokable = new WindowReduceInvokable<OUT>(clean(reducer), getTriggers(), getEvicters());
 		}
 		return invokable;
 	}

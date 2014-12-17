@@ -96,11 +96,11 @@ public class CoWindowDataStream<IN1, IN2> extends CoBatchedDataStream<IN1, IN2> 
 			CoReduceFunction<IN1, IN2, OUT> coReducer) {
 		CoWindowReduceInvokable<IN1, IN2, OUT> invokable;
 		if (isGrouped) {
-			invokable = new CoGroupedWindowReduceInvokable<IN1, IN2, OUT>(coReducer, batchSize1,
+			invokable = new CoGroupedWindowReduceInvokable<IN1, IN2, OUT>(clean(coReducer), batchSize1,
 					batchSize2, slideSize1, slideSize2, keySelector1, keySelector2, timeStamp1,
 					timeStamp2);
 		} else {
-			invokable = new CoWindowReduceInvokable<IN1, IN2, OUT>(coReducer, batchSize1,
+			invokable = new CoWindowReduceInvokable<IN1, IN2, OUT>(clean(coReducer), batchSize1,
 					batchSize2, slideSize1, slideSize2, timeStamp1, timeStamp2);
 		}
 		return invokable;
