@@ -84,6 +84,7 @@ under the License.
 		<akka.version>2.3.7</akka.version>
 		<scala.binary.version>2.10</scala.binary.version>
 		<scala.macros.version>2.0.1</scala.macros.version>
+		<kryoserialization.version>0.3.2</kryoserialization.version>
 	</properties>
 
 	<dependencies>
@@ -284,7 +285,7 @@ under the License.
 			<dependency>
 				<groupId>com.github.romix.akka</groupId>
 				<artifactId>akka-kryo-serialization_2.10</artifactId>
-				<version>0.3.2</version>
+				<version>${kryoserialization.version}</version>
 			</dependency>
 
 			<dependency>
@@ -376,6 +377,10 @@ under the License.
 					<value>2.0.0-alpha</value>
 				</property>
 			</activation>
+			<properties>
+				<akka.version>2.2.1</akka.version>
+				<kryoserialization.version>0.3.1</kryoserialization.version>
+			</properties>
 			<dependencyManagement>
 				<dependencies>
 					<dependency>
@@ -386,10 +391,6 @@ under the License.
 							<exclusion>
 								<groupId>org.jboss.netty</groupId>
 								<artifactId>netty</artifactId>
-							</exclusion>
-							<exclusion>
-								<groupId>com.google.protobuf</groupId>
-								<artifactId>protobuf-java</artifactId>
 							</exclusion>
 						</exclusions>
 					</dependency>

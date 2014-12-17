@@ -121,7 +121,6 @@ object AkkaUtils {
          |
          |  actor{
          |    default-dispatcher{
-         |      executor = "default-executor"
          |
          |      throughput = ${akkaThroughput}
          |
@@ -159,7 +158,6 @@ object AkkaUtils {
          |
          |  actor{
          |    default-dispatcher{
-         |      executor = "default-executor"
          |
          |      throughput = ${akkaThroughput}
          |

@@ -41,20 +41,20 @@ ActorLogging {
     }
 
     case RequestArchivedJobs => {
-      sender() ! ArchivedJobs(graphs.values)
+      sender ! ArchivedJobs(graphs.values)
     }
 
     case RequestJob(jobID) => {
       graphs.get(jobID) match {
-        case Some(graph) => sender() ! JobFound(jobID, graph)
-        case None => sender() ! JobNotFound(jobID)
+        case Some(graph) => sender ! JobFound(jobID, graph)
+        case None => sender ! JobNotFound(jobID)
       }
     }
 
     case RequestJobStatus(jobID) => {
       graphs.get(jobID) match {
-        case Some(eg) => sender() ! CurrentJobStatus(jobID, eg.getState)
-        case None => sender() ! JobNotFound(jobID)
+        case Some(eg) => sender ! CurrentJobStatus(jobID, eg.getState)
+        case None => sender ! JobNotFound(jobID)
       }
     }
   }

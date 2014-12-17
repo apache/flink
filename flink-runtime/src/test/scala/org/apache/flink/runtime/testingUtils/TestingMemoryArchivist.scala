@@ -32,8 +32,8 @@ trait TestingMemoryArchivist extends ActorLogMessages {
   def receiveTestingMessages: Receive = {
     case RequestExecutionGraph(jobID) =>
       graphs.get(jobID) match {
-        case Some(executionGraph) => sender() ! ExecutionGraphFound(jobID, executionGraph)
-        case None => sender() ! ExecutionGraphNotFound(jobID)
+        case Some(executionGraph) => sender ! ExecutionGraphFound(jobID, executionGraph)
+        case None => sender ! ExecutionGraphNotFound(jobID)
       }
 
   }

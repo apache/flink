@@ -47,20 +47,20 @@ trait TestingJobManager extends ActorLogMessages with WrapAsScala {
   def receiveTestingMessages: Receive = {
     case RequestExecutionGraph(jobID) =>
       currentJobs.get(jobID) match {
-        case Some((executionGraph, jobInfo)) => sender() ! ExecutionGraphFound(jobID,
+        case Some((executionGraph, jobInfo)) => sender ! ExecutionGraphFound(jobID,
           executionGraph)
-        case None => archive.tell(RequestExecutionGraph(jobID), sender())
+        case None => archive.tell(RequestExecutionGraph(jobID), sender)
       }
     case WaitForAllVerticesToBeRunning(jobID) =>
       if(checkIfAllVerticesRunning(jobID)){
-        sender() ! AllVerticesRunning(jobID)
+        sender ! AllVerticesRunning(jobID)
       }else{
         currentJobs.get(jobID) match {
           case Some((eg, _)) => eg.registerExecutionListener(self)
           case None =>
         }
         val waiting = waitForAllVerticesToBeRunning.getOrElse(jobID, Set[ActorRef]())
-        waitForAllVerticesToBeRunning += jobID -> (waiting + sender())
+        waitForAllVerticesToBeRunning += jobID -> (waiting + sender)
       }
     case ExecutionStateChanged(jobID, _, _, _, _, _, _, _, _) =>
       val cleanup = waitForAllVerticesToBeRunning.get(jobID) match {
@@ -84,12 +84,8 @@ trait TestingJobManager extends ActorLogMessages with WrapAsScala {
       }
 
       import context.dispatcher
-//      val f = Future.sequence(responses)
-//
-//      val t = Await.result(f, timeout)
-//
-//      sender() ! true
-      Future.fold(responses)(true)(_ & _) pipeTo sender()
+
+      Future.fold(responses)(true)(_ & _) pipeTo sender
     }
 
   }

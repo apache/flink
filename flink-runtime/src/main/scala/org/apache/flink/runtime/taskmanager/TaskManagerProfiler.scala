@@ -67,14 +67,14 @@ ActorLogMessages with ActorLogging {
     }
 
     case RegisterProfilingListener => {
-      listeners += sender()
+      listeners += sender
       if (monitoringScheduler.isEmpty) {
         startMonitoring
       }
     }
 
     case UnregisterProfilingListener => {
-      listeners -= sender()
+      listeners -= sender
       if (listeners.isEmpty) {
         stopMonitoring
       }

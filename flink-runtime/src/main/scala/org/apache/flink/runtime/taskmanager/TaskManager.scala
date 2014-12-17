@@ -181,7 +181,7 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
     case AcknowledgeRegistration(id, blobPort) => {
       if (!registered) {
         registered = true
-        currentJobManager = sender()
+        currentJobManager = sender
         instanceID = id
 
         context.watch(currentJobManager)
@@ -216,9 +216,9 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
           Future {
             task.cancelExecution()
           }
-          sender() ! new TaskOperationResult(executionID, true)
+          sender ! new TaskOperationResult(executionID, true)
         case None =>
-          sender() ! new TaskOperationResult(executionID, false, "No task with that execution ID " +
+          sender ! new TaskOperationResult(executionID, false, "No task with that execution ID " +
             "was " +
             "found.")
       }
@@ -295,7 +295,7 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
           throw new RuntimeException("Cannot start task. Task was canceled or failed.")
         }
 
-        sender() ! TaskOperationResult(executionID, true)
+        sender ! TaskOperationResult(executionID, true)
       } catch {
         case t: Throwable =>
           log.error(t, s"Could not instantiate task with execution ID ${executionID}.")
@@ -316,7 +316,7 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
             }
           }
 
-          sender() ! new TaskOperationResult(executionID, false,
+          sender ! new TaskOperationResult(executionID, false,
             ExceptionUtils.stringifyException(t))
       }
     }
@@ -343,8 +343,8 @@ class TaskManager(val connectionInfo: InstanceConnectionInfo, val jobManagerAkka
 
     case NotifyWhenRegisteredAtJobManager => {
       registered match {
-        case true => sender() ! RegisteredAtJobManager
-        case false => waitForRegistration += sender()
+        case true => sender ! RegisteredAtJobManager
+        case false => waitForRegistration += sender
       }
     }
 

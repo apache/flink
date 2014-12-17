@@ -60,7 +60,6 @@ object TestingUtils {
     """.stripMargin
   }
 
-
   // scalastyle:off line.size.limit
   val getTestingSerializationBindings =
   """

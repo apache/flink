@@ -92,6 +92,7 @@ public class TaskManagerTest {
 		new JavaTestKit(system){{
 			try {
 				ActorRef jobManager = system.actorOf(Props.create(SimpleJobManager.class));
+
 				final ActorRef tm = createTaskManager(jobManager);
 
 				JobID jid = new JobID();
@@ -459,6 +460,7 @@ public class TaskManagerTest {
 	// --------------------------------------------------------------------------------------------
 
 	public static class SimpleJobManager extends UntypedActor{
+
 		@Override
 		public void onReceive(Object message) throws Exception {
 			if(message instanceof RegistrationMessages.RegisterTaskManager){
@@ -535,7 +537,7 @@ public class TaskManagerTest {
 		Configuration cfg = new Configuration();
 		cfg.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 10);
 		GlobalConfiguration.includeConfiguration(cfg);
-		String akkaURL = jm.path().toSerializationFormat();
+		String akkaURL = jm.path().toString();
 		cfg.setString(ConfigConstants.JOB_MANAGER_AKKA_URL, akkaURL);
 
 		ActorRef taskManager = TestingUtils.startTestingTaskManagerWithConfiguration("localhost", cfg, system);

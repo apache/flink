@@ -91,7 +91,7 @@ trait YarnJobManager extends ActorLogMessages {
       context.system.shutdown()
 
     case RegisterMessageListener =>
-      messageListener = Some(sender())
+      messageListener = Some(sender)
 
     case StartYarnSession(conf) => {
       log.info("Start yarn session.")

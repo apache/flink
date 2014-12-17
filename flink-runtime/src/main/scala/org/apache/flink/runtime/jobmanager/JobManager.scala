@@ -103,7 +103,7 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
 
   override def receiveWithLogMessages: Receive = {
     case RegisterTaskManager(connectionInfo, hardwareInformation, numberOfSlots) => {
-      val taskManager = sender()
+      val taskManager = sender
       val instanceID = instanceManager.registerTaskManager(taskManager, connectionInfo,
         hardwareInformation, numberOfSlots)
 
@@ -114,17 +114,17 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
     }
 
     case RequestNumberRegisteredTaskManager => {
-      sender() ! instanceManager.getNumberOfRegisteredTaskManagers
+      sender ! instanceManager.getNumberOfRegisteredTaskManagers
     }
 
     case RequestTotalNumberOfSlots => {
-      sender() ! instanceManager.getTotalNumberOfSlots
+      sender ! instanceManager.getTotalNumberOfSlots
     }
 
     case SubmitJob(jobGraph, listenToEvents, detach) => {
       try {
         if (jobGraph == null) {
-          sender() ! akka.actor.Status.Failure(new IllegalArgumentException("JobGraph must not be" +
+          sender ! akka.actor.Status.Failure(new IllegalArgumentException("JobGraph must not be" +
             " null."))
         } else {
 
@@ -138,7 +138,7 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
           val (executionGraph, jobInfo) = currentJobs.getOrElseUpdate(jobGraph.getJobID(),
             (new ExecutionGraph(jobGraph.getJobID, jobGraph.getName,
               jobGraph.getJobConfiguration, jobGraph.getUserJarBlobKeys, userCodeLoader),
-              JobInfo(sender(), System.currentTimeMillis())))
+              JobInfo(sender, System.currentTimeMillis())))
 
           val jobNumberRetries = if(jobGraph.getNumberOfExecutionRetries >= 0){
             jobGraph.getNumberOfExecutionRetries
@@ -190,8 +190,8 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
 
           if(listenToEvents){
             // the sender will be notified about state changes
-            executionGraph.registerExecutionListener(sender())
-            executionGraph.registerJobStatusListener(sender())
+            executionGraph.registerExecutionListener(sender)
+            executionGraph.registerJobStatusListener(sender)
           }
 
           jobInfo.detach = detach
@@ -200,7 +200,7 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
 
           executionGraph.scheduleForExecution(scheduler)
 
-          sender() ! SubmissionSuccess(jobGraph.getJobID)
+          sender ! SubmissionSuccess(jobGraph.getJobID)
         }
       } catch {
         case t: Throwable =>
@@ -226,7 +226,7 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
 
           }
 
-          sender() ! SubmissionFailure(jobGraph.getJobID, t)
+          sender ! SubmissionFailure(jobGraph.getJobID, t)
       }
     }
 
@@ -238,27 +238,27 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
           Future {
             executionGraph.cancel()
           }
-          sender() ! CancellationSuccess(jobID)
+          sender ! CancellationSuccess(jobID)
         case None =>
           log.info(s"No job found with ID ${jobID}.")
-          sender() ! CancellationFailure(jobID, new IllegalArgumentException(s"No job found with " +
+          sender ! CancellationFailure(jobID, new IllegalArgumentException(s"No job found with " +
             s"ID ${jobID}."))
       }
     }
 
     case UpdateTaskExecutionState(taskExecutionState) => {
       if(taskExecutionState == null){
-        sender() ! false
+        sender ! false
       }else {
         currentJobs.get(taskExecutionState.getJobID) match {
           case Some((executionGraph, _)) =>
-            val originalSender = sender()
+            val originalSender = sender
             Future {
               originalSender ! executionGraph.updateState(taskExecutionState)
             }
           case None => log.error(s"Cannot find execution graph for ID ${taskExecutionState
             .getJobID} to change state to ${taskExecutionState.getExecutionState}.")
-            sender() ! false
+            sender ! false
         }
       }
     }
@@ -300,7 +300,7 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
       if(log.isDebugEnabled) {
         log.debug(s"Send next input split ${nextInputSplit}.")
       }
-      sender() ! NextInputSplit(nextInputSplit)
+      sender ! NextInputSplit(nextInputSplit)
     }
 
     case JobStatusChanged(jobID, newJobStatus, timeStamp, optionalMessage) => {
@@ -342,7 +342,7 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
       currentJobs.get(jobID) match {
         case Some(_) =>
           val listeners = finalJobStatusListener.getOrElse(jobID, Set())
-          finalJobStatusListener += jobID -> (listeners + sender())
+          finalJobStatusListener += jobID -> (listeners + sender)
         case None =>
           archive ! RequestJobStatus(jobID)
       }
@@ -351,7 +351,7 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
     case LookupConnectionInformation(connectionInformation, jobID, sourceChannelID) => {
       currentJobs.get(jobID) match {
         case Some((executionGraph, _)) =>
-          val originalSender = sender()
+          val originalSender = sender
           Future {
             originalSender ! ConnectionInformation(
               executionGraph.lookupConnectionInfoAndDeployReceivers
@@ -359,7 +359,7 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
           }
         case None =>
           log.error(s"Cannot find execution graph for job ID ${jobID}.")
-          sender() ! ConnectionInformation(ConnectionInfoLookupResponse.createReceiverNotFound())
+          sender ! ConnectionInformation(ConnectionInfoLookupResponse.createReceiverNotFound())
       }
     }
 
@@ -371,14 +371,14 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
 
     case RequestAccumulatorResults(jobID) => {
       import scala.collection.JavaConverters._
-      sender() ! AccumulatorResultsFound(jobID, accumulatorManager.getJobAccumulatorResults
+      sender ! AccumulatorResultsFound(jobID, accumulatorManager.getJobAccumulatorResults
         (jobID).asScala.toMap)
     }
 
     case RequestJobStatus(jobID) => {
       currentJobs.get(jobID) match {
-        case Some((executionGraph,_)) => sender() ! CurrentJobStatus(jobID, executionGraph.getState)
-        case None => (archive ? RequestJobStatus(jobID))(timeout) pipeTo sender()
+        case Some((executionGraph,_)) => sender ! CurrentJobStatus(jobID, executionGraph.getState)
+        case None => (archive ? RequestJobStatus(jobID))(timeout) pipeTo sender
       }
     }
 
@@ -387,23 +387,23 @@ Actor with ActorLogMessages with ActorLogging with WrapAsScala {
         case (_, (eg, jobInfo)) => eg
       }
 
-      sender() ! RunningJobs(executionGraphs)
+      sender ! RunningJobs(executionGraphs)
     }
 
     case RequestJob(jobID) => {
       currentJobs.get(jobID) match {
-        case Some((eg, _)) => sender() ! JobFound(jobID, eg)
-        case None => (archive ? RequestJob(jobID))(timeout) pipeTo sender()
+        case Some((eg, _)) => sender ! JobFound(jobID, eg)
+        case None => (archive ? RequestJob(jobID))(timeout) pipeTo sender
       }
     }
 
     case RequestBlobManagerPort => {
-      sender() ! libraryCacheManager.getBlobServerPort
+      sender ! libraryCacheManager.getBlobServerPort
     }
 
     case RequestRegisteredTaskManagers => {
       import scala.collection.JavaConverters._
-      sender() ! RegisteredTaskManagers(instanceManager.getAllRegisteredInstances.asScala)
+      sender ! RegisteredTaskManagers(instanceManager.getAllRegisteredInstances.asScala)
     }
 
     case Heartbeat(instanceID) => {

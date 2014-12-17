@@ -35,7 +35,6 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-//TODO: Update test case
 public class CliFrontendListCancelTest {
 
 	private static ActorSystem actorSystem;

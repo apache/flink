@@ -40,13 +40,13 @@ trait TestingTaskManager extends ActorLogMessages {
 
   def receiveTestMessages: Receive = {
     case RequestRunningTasks =>
-      sender() ! ResponseRunningTasks(runningTasks.toMap)
+      sender ! ResponseRunningTasks(runningTasks.toMap)
     case NotifyWhenTaskRemoved(executionID) =>
       runningTasks.get(executionID) match {
         case Some(_) =>
           val set = waitForRemoval.getOrElse(executionID, Set())
-          waitForRemoval += (executionID -> (set + sender()))
-        case None => sender() ! true
+          waitForRemoval += (executionID -> (set + sender))
+        case None => sender ! true
       }
     case UnregisterTask(executionID) =>
       super.receiveWithLogMessages(UnregisterTask(executionID))
@@ -55,19 +55,19 @@ trait TestingTaskManager extends ActorLogMessages {
         case None =>
       }
     case RequestBroadcastVariablesWithReferences => {
-      sender() ! ResponseBroadcastVariablesWithReferences(
+      sender ! ResponseBroadcastVariablesWithReferences(
         bcVarManager.getNumberOfVariablesWithReferences)
     }
     case NotifyWhenJobRemoved(jobID) => {
       if(runningTasks.values.exists(_.getJobID == jobID)){
         val set = waitForJobRemoval.getOrElse(jobID, Set())
-        waitForJobRemoval += (jobID -> (set + sender()))
+        waitForJobRemoval += (jobID -> (set + sender))
         import context.dispatcher
         context.system.scheduler.scheduleOnce(200 milliseconds, this.self, CheckIfJobRemoved(jobID))
       }else{
         waitForJobRemoval.get(jobID) match {
-          case Some(listeners) => (listeners + sender()) foreach (_ ! true)
-          case None => sender() ! true
+          case Some(listeners) => (listeners + sender) foreach (_ ! true)
+          case None => sender ! true
         }
       }
     }
