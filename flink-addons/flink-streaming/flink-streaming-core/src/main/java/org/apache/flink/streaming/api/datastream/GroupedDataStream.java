@@ -60,9 +60,10 @@ public class GroupedDataStream<OUT> extends DataStream<OUT> {
 	 *            element of the input values with the same key.
 	 * @return The transformed DataStream.
 	 */
+	@Override
 	public SingleOutputStreamOperator<OUT, ?> reduce(ReduceFunction<OUT> reducer) {
-		return addFunction("groupReduce", reducer, getType(), getType(),
-				new GroupedReduceInvokable<OUT>(reducer, keySelector));
+		return addFunction("groupReduce", clean(reducer), getType(), getType(),
+				new GroupedReduceInvokable<OUT>(clean(reducer), keySelector));
 	}
 
 	/**
@@ -178,10 +179,10 @@ public class GroupedDataStream<OUT> extends DataStream<OUT> {
 	@Override
 	protected SingleOutputStreamOperator<OUT, ?> aggregate(AggregationFunction<OUT> aggregate) {
 
-		GroupedReduceInvokable<OUT> invokable = new GroupedReduceInvokable<OUT>(aggregate,
+		GroupedReduceInvokable<OUT> invokable = new GroupedReduceInvokable<OUT>(clean(aggregate),
 				keySelector);
 
-		SingleOutputStreamOperator<OUT, ?> returnStream = addFunction("groupReduce", aggregate,
+		SingleOutputStreamOperator<OUT, ?> returnStream = addFunction("groupReduce", clean(aggregate),
 				typeInfo, typeInfo, invokable);
 
 		return returnStream;

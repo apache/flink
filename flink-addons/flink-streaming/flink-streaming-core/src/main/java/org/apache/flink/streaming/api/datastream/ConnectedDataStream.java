@@ -26,6 +26,7 @@ import org.apache.flink.api.common.functions.CrossFunction;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -94,6 +95,18 @@ public class ConnectedDataStream<IN1, IN2> {
 		this.isGrouped = coDataStream.isGrouped;
 		this.keySelector1 = coDataStream.keySelector1;
 		this.keySelector2 = coDataStream.keySelector2;
+	}
+
+	public <F> F clean(F f) {
+		if (getExecutionEnvironment().getConfig().isClosureCleanerEnabled()) {
+			ClosureCleaner.clean(f, true);
+		}
+		ClosureCleaner.ensureSerializable(f);
+		return f;
+	}
+
+	public StreamExecutionEnvironment getExecutionEnvironment() {
+		return environment;
 	}
 
 	/**
@@ -404,8 +417,8 @@ public class ConnectedDataStream<IN1, IN2> {
 		TypeInformation<OUT> outTypeInfo = TypeExtractor.createTypeInfo(CoMapFunction.class,
 				coMapper.getClass(), 2, null, null);
 
-		return addCoFunction("coMap", coMapper, outTypeInfo, new CoMapInvokable<IN1, IN2, OUT>(
-				coMapper));
+		return addCoFunction("coMap", clean(coMapper), outTypeInfo,
+				new CoMapInvokable<IN1, IN2, OUT>(clean(coMapper)));
 	}
 
 	/**
@@ -428,8 +441,8 @@ public class ConnectedDataStream<IN1, IN2> {
 		TypeInformation<OUT> outTypeInfo = TypeExtractor.createTypeInfo(CoFlatMapFunction.class,
 				coFlatMapper.getClass(), 2, null, null);
 
-		return addCoFunction("coFlatMap", coFlatMapper, outTypeInfo,
-				new CoFlatMapInvokable<IN1, IN2, OUT>(coFlatMapper));
+		return addCoFunction("coFlatMap", clean(coFlatMapper), outTypeInfo,
+				new CoFlatMapInvokable<IN1, IN2, OUT>(clean(coFlatMapper)));
 	}
 
 	/**
@@ -453,7 +466,8 @@ public class ConnectedDataStream<IN1, IN2> {
 		TypeInformation<OUT> outTypeInfo = TypeExtractor.createTypeInfo(CoReduceFunction.class,
 				coReducer.getClass(), 2, null, null);
 
-		return addCoFunction("coReduce", coReducer, outTypeInfo, getReduceInvokable(coReducer));
+		return addCoFunction("coReduce", clean(coReducer), outTypeInfo,
+				getReduceInvokable(clean(coReducer)));
 	}
 
 	/**
@@ -517,8 +531,8 @@ public class ConnectedDataStream<IN1, IN2> {
 		TypeInformation<OUT> outTypeInfo = TypeExtractor.createTypeInfo(CoWindowFunction.class,
 				coWindowFunction.getClass(), 2, null, null);
 
-		return addCoFunction("coWindowReduce", coWindowFunction, outTypeInfo,
-				new CoWindowInvokable<IN1, IN2, OUT>(coWindowFunction, windowSize, slideInterval,
+		return addCoFunction("coWindowReduce", clean(coWindowFunction), outTypeInfo,
+				new CoWindowInvokable<IN1, IN2, OUT>(clean(coWindowFunction), windowSize, slideInterval,
 						timestamp1, timestamp2));
 	}
 
@@ -526,10 +540,10 @@ public class ConnectedDataStream<IN1, IN2> {
 			CoReduceFunction<IN1, IN2, OUT> coReducer) {
 		CoReduceInvokable<IN1, IN2, OUT> invokable;
 		if (isGrouped) {
-			invokable = new CoGroupedReduceInvokable<IN1, IN2, OUT>(coReducer, keySelector1,
+			invokable = new CoGroupedReduceInvokable<IN1, IN2, OUT>(clean(coReducer), keySelector1,
 					keySelector2);
 		} else {
-			invokable = new CoReduceInvokable<IN1, IN2, OUT>(coReducer);
+			invokable = new CoReduceInvokable<IN1, IN2, OUT>(clean(coReducer));
 		}
 		return invokable;
 	}
@@ -542,7 +556,7 @@ public class ConnectedDataStream<IN1, IN2> {
 				crossFunction.getClass(), 2, null, null);
 
 		CrossWindowFunction<IN1, IN2, OUT> crossWindowFunction = new CrossWindowFunction<IN1, IN2, OUT>(
-				crossFunction);
+				clean(crossFunction));
 
 		return addGeneralWindowCombine(crossWindowFunction, outTypeInfo, windowSize, slideInterval,
 				timestamp1, timestamp2);
@@ -593,8 +607,8 @@ public class ConnectedDataStream<IN1, IN2> {
 			throw new IllegalArgumentException("Slide interval must be positive");
 		}
 
-		return addCoFunction("coWindowReduce", coWindowFunction, outTypeInfo,
-				new CoWindowInvokable<IN1, IN2, OUT>(coWindowFunction, windowSize, slideInterval,
+		return addCoFunction("coWindowReduce", clean(coWindowFunction), outTypeInfo,
+				new CoWindowInvokable<IN1, IN2, OUT>(clean(coWindowFunction), windowSize, slideInterval,
 						timestamp1, timestamp2));
 	}
 
