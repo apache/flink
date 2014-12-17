@@ -283,12 +283,6 @@ under the License.
 			</dependency>
 
 			<dependency>
-				<groupId>com.github.romix.akka</groupId>
-				<artifactId>akka-kryo-serialization_2.10</artifactId>
-				<version>${kryoserialization.version}</version>
-			</dependency>
-
-			<dependency>
 				<groupId>org.scalatest</groupId>
 				<artifactId>scalatest_2.10</artifactId>
 				<version>2.2.2</version>

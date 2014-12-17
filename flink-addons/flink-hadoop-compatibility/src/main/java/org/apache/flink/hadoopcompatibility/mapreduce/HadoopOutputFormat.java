@@ -138,19 +138,18 @@ public class HadoopOutputFormat<K extends Writable,V extends Writable> implement
 		}
 
 		File dir = new File(this.configuration.get("mapred.output.dir"));
-		if(dir.exists()){
-			if(dir.isDirectory()){
-				File[] files = dir.listFiles();
-				System.out.println(configuration.get("mapred.output.dir") + " contains the " +
-						"following files.");
-				for(File file: files){
-					System.out.println(file.toPath());
-				}
-			}else{
-				System.out.println(configuration.get("mapred.output.dir") + " is not a directory.");
+
+		if(dir.isDirectory()){
+			File[] files = dir.listFiles();
+			System.out.println(configuration.get("mapred.output.dir") + " contains the " +
+					"following files.");
+			for(File file: files){
+				System.out.println(file.toURI());
 			}
+		}else if(dir.exists()){
+			System.out.println(configuration.get("mapred.output.dir") + " is not a directory.");
 		}else{
-			System.out.println(configuration.get("mapred.output.dir") + " does not exist yet.");
+			System.out.println(configuration.get("mapred.output.dir") + " does not yet exists.");
 		}
 	}
 	
@@ -184,23 +183,20 @@ public class HadoopOutputFormat<K extends Writable,V extends Writable> implement
 		Path outputPath = new Path(this.configuration.get("mapred.output.dir"));
 
 		File dir = new File(this.configuration.get("mapred.output.dir"));
-		if(dir.exists()){
-			if(dir.isDirectory()){
-				File[] files = dir.listFiles();
-				System.out.println("Close: " +configuration.get("mapred.output.dir") + " contains" +
-								" the " +
-						"following files.");
-				for(File file: files){
-					System.out.println(file.toPath());
-				}
-			}else{
-				System.out.println("Close: " +configuration.get("mapred.output.dir") + " is not a" +
-						" directory.");
+
+		if(dir.isDirectory()){
+			File[] files = dir.listFiles();
+			System.out.println(configuration.get("mapred.output.dir") + " contains the " +
+					"following files.");
+			for(File file: files){
+				System.out.println(file.toURI());
 			}
+		}else if(dir.exists()){
+			System.out.println(configuration.get("mapred.output.dir") + " is not a directory.");
 		}else{
-			System.out.println("Close: " +configuration.get("mapred.output.dir") + " does not " +
-					"exist yet)).");
+			System.out.println(configuration.get("mapred.output.dir") + " does not yet exists.");
 		}
+
 		
 		// rename tmp-file to final name
 		FileSystem fs = FileSystem.get(outputPath.toUri(), this.configuration);
@@ -221,6 +217,7 @@ public class HadoopOutputFormat<K extends Writable,V extends Writable> implement
 	@Override
 	public void finalizeGlobal(int parallelism) throws IOException {
 
+		System.out.println("Finalize HadoopOutputFormat.");
 		JobContext jobContext;
 		TaskAttemptContext taskContext;
 		try {
